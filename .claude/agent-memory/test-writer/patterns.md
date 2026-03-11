@@ -233,6 +233,47 @@ vi.mock('@/lib/queries/quiz', () => ({
 | `apps/web/app/app/dashboard/_components/recent-sessions.tsx` | `recent-sessions.test.tsx` | `formatTimeAgo` all branches, score display |
 | `apps/web/app/app/progress/_components/subject-breakdown.tsx` | `subject-breakdown.test.tsx` | Expand/collapse toggle, topic details |
 
+## Files tested in commit 1f3bd0b
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_components/quiz-session-loader.tsx` | `quiz-session-loader.test.tsx` | Client component; sessionStorage read, redirect, loading/error/success states |
+| `apps/web/app/app/review/session/_components/review-session-loader.tsx` | `review-session-loader.test.tsx` | Same pattern; review-specific storage key + redirect |
+
+### Module-level cache in session loaders (Strict Mode survival)
+Both loaders use a module-level `cachedSession` variable to survive React Strict Mode double-mount.
+This is NOT exported, so it cannot be reset between tests. **Strategy:**
+- Put the "redirect when no session" test FIRST — module cache is null on fresh load
+- Later tests that set sessionStorage data will re-populate the cache, but that's OK since
+  sessionStorage takes priority (`raw ? JSON.parse(raw) : cachedSession`)
+- Document the ordering dependency with a clear comment in the test file
+
+### Mocking child session components
+```tsx
+vi.mock('./quiz-session', () => ({
+  QuizSession: ({ sessionId }: { sessionId: string }) => (
+    <div data-testid="quiz-session">{sessionId}</div>
+  ),
+}))
+```
+Pass through key props so tests can assert on them (e.g., `screen.getByText(sessionId)`).
+
+### useRouter with replace (not push)
+Navigation-away patterns use `router.replace`, not `router.push`. Mock accordingly:
+```ts
+const mockRouterReplace = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: mockRouterReplace }),
+}))
+```
+
+### Testing "never resolves" loading state
+```ts
+mockLoadSessionQuestions.mockReturnValue(new Promise(() => {}))
+// then assert synchronously — no need for waitFor
+expect(screen.getByText('Loading questions...')).toBeInTheDocument()
+```
+
 ## Files skipped (no testable logic)
 - `apps/web/app/layout.tsx` — pure layout, font config
 - `apps/web/app/page.tsx` — pure composition

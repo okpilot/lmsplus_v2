@@ -79,7 +79,16 @@
 - Image URLs use `localhost:54321` (not `127.0.0.1`) to match browser origin
 - React Strict Mode fix: session loaders cache data to survive double-mount
 
-**Next up: Phase 5B** — Test Hardening (fix existing tests, integration tests, E2E tests)
+**Phase 5B-1 done (2026-03-11):** Fixed existing test failures (middleware env var test).
+**Phase 5B-2 done (2026-03-11):** 9 new unit test files for Phase 5 components. 212 tests passing across 28 files.
+**Phase 5B-3 done (2026-03-11):** 35 integration tests against local Supabase:
+- 4 RPC test suites: `get_quiz_questions`, `start_quiz_session`, `submit_quiz_answer`, `complete_quiz_session`
+- RLS tenant isolation tests (cross-org, cross-student, role-based)
+- RLS immutable table tests (quiz_session_answers, student_responses, audit_events)
+- Found + fixed real RLS bug: permissive ALL policies overrode no_update/no_delete (migration 005)
+- Test infra: `packages/db/src/__integration__/setup.ts` (helpers for user/org/question seeding + cleanup)
+
+**Next up: Phase 5B-4** — E2E tests (Playwright)
 
 ---
 

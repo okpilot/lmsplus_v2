@@ -19,7 +19,7 @@
 
 ### UI Theme (confirmed 2026-03-11)
 - **shadcn/ui** — initialized with Tailwind v4 in `apps/web/`
-- **Theme** — tweakcn theme `cmlhfpjhw000004l4f4ax3m7z` applied via registry URL, tokens in `apps/web/app/globals.css`
+- **Theme** — tweakcn theme `cmjhgwebp000404jl22fv5sh6` applied via registry URL, tokens in `apps/web/app/globals.css` (updated 2026-03-11, was `cmlhfpjhw000004l4f4ax3m7z`)
 
 ### Tooling (all confirmed 2026-03-11)
 - **Linting/formatting:** Biome — replaces ESLint + Prettier. 10-25x faster, single binary, one config file, 450+ rules, TypeScript-aware. Next.js 16+ no longer runs linter on build — Biome runs via Turborepo tasks.
@@ -340,6 +340,18 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 19: Fix immutable table RLS — scope policies to SELECT+INSERT (2026-03-11)
+
+**Context:** Integration tests (Phase 5B-3) discovered that `quiz_session_answers` and `student_responses` could be updated and deleted despite having explicit `no_update`/`no_delete` policies. Root cause: the `students_own_answers` and `students_own_data` policies had no `FOR` clause, making them apply to ALL operations (SELECT, INSERT, UPDATE, DELETE). PostgreSQL OR's permissive policies, so the ALL-scope policy overrode the `FOR UPDATE USING (false)` / `FOR DELETE USING (false)` policies.
+
+**Fixed in:** Migration `20260311000005_fix_immutable_rls.sql`
+- Dropped the ALL-scope policies
+- Replaced with explicit `FOR SELECT` + `FOR INSERT` policies
+- `no_update` and `no_delete` policies now work as intended
+- Verified by 6 integration tests in `rls-immutable-tables.integration.test.ts`
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -351,4 +363,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Decision 18: local Supabase for dev*
+*Last updated: 2026-03-11 — Decision 19: fix immutable table RLS*
