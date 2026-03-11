@@ -6,7 +6,7 @@
 
 ---
 
-## Status: PHASE 5B-4 COMPLETE — MVP 2 fully tested (unit + integration + E2E)
+## Status: PHASE 5B-5 COMPLETE — CI pipeline added
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
 
@@ -97,6 +97,15 @@
 - Playwright config: auth state caching, headless + headed modes, HTML reporter
 - Scripts: `pnpm e2e`, `pnpm e2e:ui`, `pnpm e2e:headed`
 - All core user flows covered: login → quiz/review → progress → back to dashboard
+
+**Phase 5B-5 done (2026-03-11):** CI pipeline (GitHub Actions):
+- `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
+- `e2e.yml` — runs on push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
+- Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
+- `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 5 questions for E2E
+- Playwright config updated: uses `pnpm start` (production build) in CI, `pnpm dev` locally
+- Playwright report + test results uploaded as artifacts (14-day / 7-day retention)
+- Concurrency groups prevent duplicate runs on the same branch
 
 ---
 
@@ -370,14 +379,9 @@ Weekly
 ✅ **5B-2 done:** Unit test coverage for Phase 5 components (dashboard, quiz, review, progress)
 ✅ **5B-3 done:** 35 integration tests for all 4 RPC functions + RLS policies (tenant isolation, immutability)
 ✅ **5B-4 done:** 10 Playwright E2E tests across 4 spec files (login, protected routes, quiz flow, progress)
+✅ **5B-5 done:** GitHub Actions CI — `ci.yml` (PR: lint + types + tests + audit) + `e2e.yml` (master: integration + E2E with local Supabase)
 
-Test summary: 224 unit tests (30 files) + 35 integration tests + 10 E2E tests. All passing.
-
-**Next up: Phase 5B-5** — CI pipeline
-
-### 5B-5. CI pipeline (next phase)
-- GitHub Actions: lint + type-check + unit tests + integration tests on PR
-- Playwright tests on merge to main (or nightly)
+Test summary: 247 unit tests (32 files) + 35 integration tests + 10 E2E tests. All passing.
 
 ## Post-Phase 5 Suggestions
 
@@ -389,4 +393,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-11 — Phase 5B complete: unit + integration + E2E tests all passing*
+*Last updated: 2026-03-11 — Phase 5B-5 complete: CI pipeline (GitHub Actions) added*

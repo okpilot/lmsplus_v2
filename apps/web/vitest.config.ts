@@ -14,6 +14,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      // e2e helpers import @supabase/supabase-js directly; resolve via packages/db symlink
+      '@supabase/supabase-js': path.resolve(
+        __dirname,
+        '../../packages/db/node_modules/@supabase/supabase-js',
+      ),
     },
   },
 })

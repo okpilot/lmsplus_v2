@@ -274,6 +274,87 @@ mockLoadSessionQuestions.mockReturnValue(new Promise(() => {}))
 expect(screen.getByText('Loading questions...')).toBeInTheDocument()
 ```
 
+## Files tested in commit 481ea3a (dark mode)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/_components/theme-provider.tsx` | `theme-provider.test.tsx` | Thin wrapper; assert on props forwarded to NextThemesProvider |
+| `apps/web/app/app/_components/theme-toggle.tsx` | `theme-toggle.test.tsx` | Client component; icon switching, click handler, no-call on mount |
+
+### Mocking next-themes (ThemeProvider and useTheme)
+```ts
+// For ThemeProvider wrapper tests — capture props via mock.calls[0][0]
+const { mockNextThemesProvider } = vi.hoisted(() => ({
+  mockNextThemesProvider: vi.fn(),
+}))
+vi.mock('next-themes', () => ({
+  ThemeProvider: mockNextThemesProvider,
+}))
+// Assert props directly from the first call instead of toHaveBeenCalledWith + expect.anything()
+// (React 19 passes props as a single argument, no second ref arg)
+const [receivedProps] = mockNextThemesProvider.mock.calls[0]
+expect(receivedProps).toMatchObject({ attribute: 'class' })
+
+// For useTheme hook tests — control theme value
+const { mockSetTheme, mockUseTheme } = vi.hoisted(() => ({
+  mockSetTheme: vi.fn(),
+  mockUseTheme: vi.fn(),
+}))
+vi.mock('next-themes', () => ({ useTheme: mockUseTheme }))
+mockUseTheme.mockReturnValue({ theme: 'light', setTheme: mockSetTheme })
+```
+
+### userEvent with delay:null (avoids fake-timer conflicts)
+When tests don't need fake timers, always set up userEvent with `delay: null` to prevent
+potential timer-related timeouts in vitest:
+```ts
+const user = userEvent.setup({ delay: null })
+render(<Component />)
+await user.click(screen.getByRole('button', { name: /label/i }))
+```
+
+### Mount guard (useState + useEffect) — not testable via fake timers in jsdom
+Components that show a placeholder div until `mounted` becomes true (SSR hydration guard)
+cannot have their pre-mount state reliably tested in jsdom because `@testing-library/react`
+wraps `render()` in `act()` which flushes all effects synchronously.
+Skip the pre-mount branch and only test the post-mount behaviour.
+
+## Files tested in commit fb1f92a (Playwright E2E setup)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/e2e/helpers/mailpit.ts` | `mailpit.test.ts` | Pure `extractMagicLink` + mocked fetch for retry loop and timeout |
+| `apps/web/e2e/helpers/supabase.ts` | `supabase.test.ts` | `ensureTestUser` all branches; `getAdminClient` config check |
+
+### Vitest alias for @supabase/supabase-js in apps/web
+The e2e helpers import `@supabase/supabase-js` directly, but it's not a direct dep of apps/web.
+Fix: add a resolve alias in `apps/web/vitest.config.ts` pointing to packages/db symlink:
+```ts
+'@supabase/supabase-js': path.resolve(__dirname, '../../packages/db/node_modules/@supabase/supabase-js')
+```
+This is in the config now. Do NOT remove it.
+
+### Avoid unhandledRejection warning in timeout tests with fake timers
+When testing that a long-running async function throws after a timeout, attach the
+`.rejects` assertion BEFORE advancing the timers:
+```ts
+const promise = someFn()
+// Attach rejection handler first — avoids Node's unhandledRejection warning
+const expectation = expect(promise).rejects.toThrow('expected message')
+await vi.advanceTimersByTimeAsync(10_500)
+await expectation
+```
+If `.rejects` is attached AFTER `advanceTimersByTimeAsync`, the promise may reject before
+the handler is attached, firing `unhandledRejection` and causing Vitest to report an error
+even though the test assertion ultimately passes.
+
+### Response body can only be read once — use mockImplementation, not mockResolvedValue
+When a mocked `fetch` will be called multiple times (e.g., retry loops), always use
+`mockImplementation(() => new Response(...))` to create a fresh Response per call.
+`mockResolvedValue(new Response(...))` shares ONE Response instance whose body stream
+gets consumed on the first `.json()` call, causing "Body has already been read" on
+subsequent calls.
+
 ## Files skipped (no testable logic)
 - `apps/web/app/layout.tsx` — pure layout, font config
 - `apps/web/app/page.tsx` — pure composition
