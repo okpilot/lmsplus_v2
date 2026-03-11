@@ -3,6 +3,7 @@
 # BLOCKING — exits non-zero if CRITICAL or HIGH findings are found.
 
 set -euo pipefail
+unset CLAUDECODE
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 AGENT_PROMPT="$REPO_ROOT/.claude/agents/security-auditor.md"

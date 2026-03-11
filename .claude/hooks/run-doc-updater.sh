@@ -3,6 +3,7 @@
 # Non-blocking — makes updates but does not fail the commit.
 
 set -euo pipefail
+unset CLAUDECODE
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 AGENT_PROMPT="$REPO_ROOT/.claude/agents/doc-updater.md"
