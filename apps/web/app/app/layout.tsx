@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { redirect } from 'next/navigation'
 import { SidebarNav } from './_components/sidebar-nav'
 import { SignOutButton } from './_components/sign-out-button'
+import { ThemeToggle } from './_components/theme-toggle'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -26,6 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="text-sm font-semibold">LMS Plus</span>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{displayName}</span>
+            <ThemeToggle />
             <SignOutButton />
           </div>
         </div>

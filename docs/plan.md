@@ -65,6 +65,7 @@
 - UI components (shadcn): Badge, Card, Progress
 - Tests written for auth flow, middleware, server actions
 - Session state machine: answering → feedback → complete
+- Dark mode: next-themes provider, system default, toggle in header
 
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
