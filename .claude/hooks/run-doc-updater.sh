@@ -3,17 +3,13 @@
 # Non-blocking — makes updates but does not fail the commit.
 
 set -euo pipefail
-unset CLAUDECODE
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-AGENT_PROMPT="$REPO_ROOT/.claude/agents/doc-updater.md"
-
 DIFF=$(git diff HEAD~1..HEAD 2>/dev/null || echo "")
 COMMIT_HASH=$(git rev-parse --short HEAD)
 COMMIT_MSG=$(git log -1 --pretty=%s)
 
 if [ -z "$DIFF" ]; then
-  echo "[doc-updater] No diff to check. Skipping."
   exit 0
 fi
 
@@ -26,22 +22,15 @@ fi
 
 echo "[doc-updater] Checking if docs need updating after $COMMIT_HASH..."
 
-PROMPT="$(cat "$AGENT_PROMPT")
+TMPFILE=$(mktemp)
+cat "$REPO_ROOT/.claude/agents/doc-updater.md" > "$TMPFILE"
+printf "\n---\n\n## Commit: %s — %s\n\n## Changed files:\n%s\n\n## Diff:\n\`\`\`diff\n%s\n\`\`\`\n\nCheck if any project docs need updating based on this commit. If so, make the updates. If not, say 'No doc updates needed.'" "$COMMIT_HASH" "$COMMIT_MSG" "$CODE_FILES" "$DIFF" >> "$TMPFILE"
 
----
+env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p "$(cat "$TMPFILE")" \
+  --model claude-haiku-4-5-20251001 \
+  --allowedTools "Read Edit" \
+  --max-budget-usd 0.05 \
+  --no-session-persistence 2>&1 || true
 
-## Commit: ${COMMIT_HASH} — ${COMMIT_MSG}
-
-## Changed files:
-${CODE_FILES}
-
-## Diff:
-\`\`\`diff
-${DIFF}
-\`\`\`
-
-Check if any project docs need updating based on this commit. If so, make the updates. If not, say 'No doc updates needed.'"
-
-echo "$PROMPT" | claude --print --model claude-haiku-4-5-20251001 --allowedTools "Read Edit" --max-budget-usd 0.05 2>&1 || true
-
+rm -f "$TMPFILE"
 echo "[doc-updater] Done."

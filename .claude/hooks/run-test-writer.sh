@@ -3,11 +3,8 @@
 # Non-blocking — writes tests but does not fail the commit.
 
 set -euo pipefail
-unset CLAUDECODE
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-AGENT_PROMPT="$REPO_ROOT/.claude/agents/test-writer.md"
-
 COMMIT_HASH=$(git rev-parse --short HEAD)
 
 # Find new/modified .ts/.tsx files that are NOT tests and NOT config
@@ -28,21 +25,15 @@ fi
 
 echo "[test-writer] Checking for missing tests after $COMMIT_HASH..."
 
-PROMPT="$(cat "$AGENT_PROMPT")
+TMPFILE=$(mktemp)
+cat "$REPO_ROOT/.claude/agents/test-writer.md" > "$TMPFILE"
+printf "\n---\n\n## New/modified source files in commit %s:\n\n%s\n\nFor each file above:\n1. Read the source file\n2. Check if a co-located .test.ts/.test.tsx file exists\n3. If no test exists and the file exports testable functions/components, write tests\n4. If tests exist, check if they cover the new changes — add tests if needed\n5. Skip files that are pure types, config, or have no testable exports" "$COMMIT_HASH" "$NEW_FILES" >> "$TMPFILE"
 
----
+env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p "$(cat "$TMPFILE")" \
+  --model claude-sonnet-4-6 \
+  --allowedTools "Read Write Edit Glob Grep" \
+  --max-budget-usd 0.10 \
+  --no-session-persistence 2>&1 || true
 
-## New/modified source files in commit ${COMMIT_HASH}:
-
-${NEW_FILES}
-
-For each file above:
-1. Read the source file
-2. Check if a co-located .test.ts/.test.tsx file exists
-3. If no test exists and the file exports testable functions/components, write tests
-4. If tests exist, check if they cover the new changes — add tests if needed
-5. Skip files that are pure types, config, or have no testable exports"
-
-echo "$PROMPT" | claude --print --model claude-sonnet-4-6 --allowedTools "Read Write Edit Glob Grep" --max-budget-usd 0.10 2>&1 || true
-
+rm -f "$TMPFILE"
 echo "[test-writer] Done."
