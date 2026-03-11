@@ -1,6 +1,8 @@
 name: E2E & Integration Tests
 
 on:
+  pull_request:
+    branches: [master]
   push:
     branches: [master]
   schedule:
