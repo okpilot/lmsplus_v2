@@ -570,23 +570,30 @@ $$;
 
 ```sql
 CREATE OR REPLACE FUNCTION start_quiz_session(
-  p_mode        text,
-  p_subject_id  uuid,
-  p_topic_id    uuid,
+  p_mode         text,
+  p_subject_id   uuid,
+  p_topic_id     uuid,
   p_question_ids uuid[]    -- pre-selected by application, locked here
 )
 RETURNS uuid               -- session id
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_session_id uuid;
+  v_uid uuid := auth.uid();
 BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'not authenticated';
+  END IF;
+
   INSERT INTO quiz_sessions
     (organization_id, student_id, mode, subject_id, topic_id,
      config, total_questions)
   VALUES (
-    (SELECT organization_id FROM users WHERE id = auth.uid()),
-    auth.uid(),
+    (SELECT organization_id FROM users WHERE id = v_uid),
+    v_uid,
     p_mode,
     p_subject_id,
     p_topic_id,
@@ -599,9 +606,9 @@ BEGIN
   INSERT INTO audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id)
   VALUES (
-    (SELECT organization_id FROM users WHERE id = auth.uid()),
-    auth.uid(),
-    (SELECT role FROM users WHERE id = auth.uid()),
+    (SELECT organization_id FROM users WHERE id = v_uid),
+    v_uid,
+    (SELECT role FROM users WHERE id = v_uid),
     'quiz_session.started',
     'quiz_session',
     v_session_id

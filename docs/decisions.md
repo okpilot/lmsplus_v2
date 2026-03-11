@@ -334,7 +334,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 **Decided:**
 - All development against local Supabase (`supabase start`, requires Docker)
 - `.env.local` → local keys (`http://localhost:54321`), `.env.remote` → backup of remote/production keys
-- Mailpit (Inbucket) at `http://localhost:54324` catches all auth emails locally
+- Mailpit at `http://localhost:54324` catches all auth emails locally
 - Local Studio at `http://localhost:54323` for DB inspection
 - `scripts/dev-login.ts` — generates magic link via admin API (bypasses email entirely)
 - CSP `connect-src` and `img-src` updated to allow `http://localhost:*` for local dev

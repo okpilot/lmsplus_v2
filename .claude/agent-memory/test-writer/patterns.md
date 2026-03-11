@@ -404,7 +404,33 @@ changes are needed — just assert on the `set-cookie` header of the returned re
 
 ---
 
-## Files tested in latest commit (FSRS module extraction)
+## Files tested in commit f272e2b (CodeRabbit fix plan batches 1-6)
+
+All source changes in this commit were already covered by tests shipped in the same commit.
+No new test files needed. Suite: 34 files, 281 tests (apps/web) + 2 files, 22 tests (packages/db) — all green.
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/fsrs/update-card.ts` | `lib/fsrs/update-card.test.ts` | 9 tests; try/catch upsert failure logged via console.error (new in this commit) |
+| `apps/web/e2e/helpers/mailpit.ts` | `e2e/helpers/mailpit.test.ts` | Deadline-based polling already covered by existing timeout + retry tests |
+
+### Testing try/catch logging in async functions
+When a source adds `try { await sideEffect() } catch (err) { console.error(...) }`, verify with:
+```ts
+it('logs an error when the upsert call fails', async () => {
+  const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  mockUpsert.mockRejectedValue(new Error('connection timeout'))
+  // ... set up rest of call ...
+  await updateFsrsCard(supabase as never, 'user-1', 'question-1', true)
+  expect(consoleSpy).toHaveBeenCalledWith('FSRS card upsert failed:', expect.any(Error))
+  consoleSpy.mockRestore()
+})
+```
+The function must NOT re-throw — assert it resolves normally even after the rejection.
+
+---
+
+## Files tested in previous commit (FSRS module extraction)
 
 | Source file | Test file | Notes |
 |---|---|---|
@@ -474,6 +500,54 @@ The `console.error` in stderr is EXPECTED — it confirms the catch branch ran.
 | `apps/web/e2e/helpers/supabase.ts` | `supabase.test.ts` | Added test for new `listError` throw branch in `ensureTestUser` |
 | `apps/web/e2e/helpers/mailpit.ts` | `mailpit.test.ts` | Added test for `getMessage` non-OK status path (404 from detail endpoint) |
 
+## E2E Test Structure Pattern (NEW from commit f272e2b)
+
+When writing Playwright specs, use numbered sections with clear comments to guide reader through user flow:
+
+```ts
+// apps/web/e2e/review-flow.spec.ts — PATTERN
+test('review flow: start review → answer questions → view results → dashboard', async ({ page }) => {
+  // 1. Navigate to review page
+  await page.goto('/app/review')
+
+  // 2. Start session
+  await page.click('button:has-text("Start Review")')
+
+  // 3. Answer questions
+  for (let i = 0; i < 2; i++) {
+    // locate + interact
+  }
+
+  // 4. View results
+  await expect(page.getByRole('heading', { name: /results/i })).toBeVisible()
+})
+```
+
+Benefits: reader immediately sees user journey; easy to add variations (e.g., "answer 5 questions instead of 2").
+
+## Mock Lifecycle Pattern (STANDARDIZED from commit f272e2b)
+
+**Rule**: Use `vi.resetAllMocks()` instead of `vi.clearAllMocks()`.
+
+- `clearAllMocks()` — clears call history only; implementations stay mocked
+- `resetAllMocks()` — clears history AND resets implementations to default `vi.fn()`
+
+Better isolation: each test starts with fully clean mocks.
+
+```ts
+// ❌ OLD PATTERN
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+
+// ✅ NEW PATTERN
+beforeEach(() => {
+  vi.resetAllMocks()
+})
+```
+
+Applied in: quiz/actions.test.ts, review/actions.test.ts, queries/dashboard.test.ts (commit dd0fbea onwards).
+
 ### Extending MockClientOptions to carry an `error` field on listUsers
 When a Supabase admin method mock needs to return both `data` and `error`, add both
 fields to the options type. The default (no error) simply omits the field — `undefined`
@@ -503,6 +577,48 @@ vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
   return new Response(null, { status: 404 })
 })
 await expect(getLatestEmail('test@example.com')).rejects.toThrow('getMessage: 404')
+```
+
+---
+
+## Files tested in commit 8d7d9e2 (E2E Mailpit rewrite + try/catch server actions)
+
+All source changes were covered by tests shipped in the same commit, with three gaps
+identified and filled by the test-writer agent post-review:
+
+| Gap | Fix |
+|---|---|
+| `startQuizSession` catch branch: no test for non-Zod unexpected error + `console.error` prefix | Added test: `mockGetRandomQuestionIds.mockRejectedValue(...)` to trigger catch |
+| `startReviewSession` catch branch: no test at all for unexpected error path | Added test: `mockGetDueCards.mockRejectedValue(...)` to trigger catch |
+| `clearAllMessages` non-OK response path: `throw new Error('clearAllMessages: ...')` untested | Added test: `fetch` returns `{ status: 503 }` |
+
+### Testing the outer try/catch in Server Actions (wrap-all pattern)
+When a Server Action wraps its entire body in `try { ... } catch (err) { console.error(...); return { success: false } }`,
+the ZodError validation tests already exercise the catch path (Zod throws are caught).
+But add a dedicated test for unexpected errors from async dependencies:
+
+```ts
+it('returns failure and logs when an unexpected error is thrown', async () => {
+  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+  mockSomeDependency.mockRejectedValue(new Error('unexpected DB failure'))
+  const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const result = await startSomeSession(validInput)
+  expect(result.success).toBe(false)
+  if (!result.success) expect(result.error).toBe('unexpected DB failure')
+  expect(consoleSpy).toHaveBeenCalledWith('[startSomeSession] Uncaught error:', expect.any(Error))
+  consoleSpy.mockRestore()
+})
+```
+
+Note: The existing Zod validation tests will print `stderr` output (the `console.error` from the catch
+block) when they run — this is expected behaviour, not a test failure.
+
+### Testing `clearAllMessages` non-OK response
+```ts
+it('throws when the DELETE request returns a non-OK status', async () => {
+  vi.spyOn(global, 'fetch').mockImplementation(async () => new Response(null, { status: 503 }))
+  await expect(clearAllMessages('test@example.com')).rejects.toThrow('clearAllMessages: 503')
+})
 ```
 
 ---

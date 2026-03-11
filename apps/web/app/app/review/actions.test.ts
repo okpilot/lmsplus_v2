@@ -121,6 +121,20 @@ describe('startReviewSession', () => {
     expect(rpcName).toBe('start_quiz_session')
     expect(args.p_mode).toBe('smart_review')
   })
+
+  it('returns failure and logs when an unexpected error is thrown', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetDueCards.mockRejectedValue(new Error('unexpected review DB failure'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await startReviewSession()
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('unexpected review DB failure')
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[startReviewSession] Uncaught error:',
+      expect.any(Error),
+    )
+    consoleSpy.mockRestore()
+  })
 })
 
 // ---- submitReviewAnswer -------------------------------------------------

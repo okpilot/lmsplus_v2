@@ -90,6 +90,11 @@ describe('clearAllMessages', () => {
       expect.objectContaining({ method: 'DELETE' }),
     )
   })
+
+  it('throws when the DELETE request returns a non-OK status', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async () => new Response(null, { status: 503 }))
+    await expect(clearAllMessages('test@example.com')).rejects.toThrow('clearAllMessages: 503')
+  })
 })
 
 // ---------------------------------------------------------------------------
