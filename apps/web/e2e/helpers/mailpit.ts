@@ -26,6 +26,7 @@ type MailpitSearchResult = {
 async function searchMessages(email: string): Promise<MailpitMessage[]> {
   const res = await fetch(
     `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}&limit=10`,
+    { signal: AbortSignal.timeout(5000) },
   )
   if (!res.ok) throw new Error(`searchMessages: ${res.status}`)
   const data = (await res.json()) as MailpitSearchResult
@@ -34,7 +35,9 @@ async function searchMessages(email: string): Promise<MailpitMessage[]> {
 
 /** Get a specific message by ID. */
 async function getMessage(id: string): Promise<MailpitMessageDetail> {
-  const res = await fetch(`${MAILPIT_URL}/api/v1/message/${id}`)
+  const res = await fetch(`${MAILPIT_URL}/api/v1/message/${id}`, {
+    signal: AbortSignal.timeout(5000),
+  })
   if (!res.ok) throw new Error(`getMessage: ${res.status}`)
   return res.json() as Promise<MailpitMessageDetail>
 }
@@ -79,6 +82,9 @@ export function extractMagicLink(html: string): string {
 
 /** Delete all messages (clear all mailboxes). */
 export async function clearAllMessages() {
-  const res = await fetch(`${MAILPIT_URL}/api/v1/messages`, { method: 'DELETE' })
+  const res = await fetch(`${MAILPIT_URL}/api/v1/messages`, {
+    method: 'DELETE',
+    signal: AbortSignal.timeout(5000),
+  })
   if (!res.ok) throw new Error(`clearAllMessages: ${res.status}`)
 }

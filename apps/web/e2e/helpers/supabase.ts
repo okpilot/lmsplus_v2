@@ -29,7 +29,8 @@ export async function ensureTestUser() {
   const orgId = org.id
 
   // Check if auth user exists
-  const { data: existingUsers } = await admin.auth.admin.listUsers()
+  const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
+  if (listError) throw new Error(`ensureTestUser listUsers: ${listError.message}`)
   const existingAuth = existingUsers?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
 
   let userId: string

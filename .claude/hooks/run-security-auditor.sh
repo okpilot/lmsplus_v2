@@ -21,7 +21,6 @@ echo "[security-auditor] Auditing changes before push ($DIFF_LINES lines)..."
 # For large diffs, filter to security-sensitive files only
 if [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
   echo "[security-auditor] Diff too large ($DIFF_LINES lines). Filtering to security-sensitive files..."
-  SECURITY_PATTERNS="*.env*|*migration*|*admin*|*auth*|*middleware*|*proxy*|*action*|*route.ts|*server.ts|*schema*|*security*|*config*|*.sql"
   DIFF=$(git diff "$REMOTE_REF"...HEAD -- \
     '*.env*' '**/migrations/**' '**/admin.*' '**/auth/**' \
     '**/middleware.*' '**/proxy.*' '**/actions.*' '**/route.ts' \
@@ -85,8 +84,8 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
       ISSUES=$((ISSUES + 1))
     fi
 
-    # Check for adminClient in app/ files
-    if echo "$DIFF_FULL" | grep -qE '^\+\+\+ b/apps/web/app/.*\.tsx?' && echo "$DIFF_FULL" | grep -q 'adminClient'; then
+    # Check for adminClient in app/ files — scope grep to lines following app/ file headers
+    if echo "$DIFF_FULL" | grep -A5 '^\+\+\+ b/apps/web/app/.*\.tsx\?' | grep -q 'adminClient'; then
       echo "[HIGH] adminClient used in app/ code!"
       ISSUES=$((ISSUES + 1))
     fi
@@ -99,7 +98,29 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
     exit 0
   fi
   echo "[security-auditor] Agent failed (exit $EXIT_CODE). Running fallback checks..."
-  echo "[security-auditor] Fallback: no obvious issues. Push approved."
+  # Run the same fallback grep checks as the timeout branch
+  ISSUES=0
+  if echo "$DIFF_FULL" | grep -q '^\+\+\+ b/.*\.env'; then
+    echo "[CRITICAL] .env file being committed!"
+    ISSUES=$((ISSUES + 1))
+  fi
+  if echo "$DIFF_FULL" | grep -qE '^\+.*(eyJ|sk_live_|service_role|-----BEGIN)'; then
+    echo "[CRITICAL] Potential secret/credential in diff!"
+    ISSUES=$((ISSUES + 1))
+  fi
+  if echo "$DIFF_FULL" | grep -qE "^\+.*select\('\*'\).*questions|^\+.*SELECT \* FROM questions"; then
+    echo "[CRITICAL] Direct SELECT * on questions table (answer exposure risk)!"
+    ISSUES=$((ISSUES + 1))
+  fi
+  if echo "$DIFF_FULL" | grep -A5 '^\+\+\+ b/apps/web/app/.*\.tsx\?' | grep -q 'adminClient'; then
+    echo "[HIGH] adminClient used in app/ code!"
+    ISSUES=$((ISSUES + 1))
+  fi
+  if [ "$ISSUES" -gt 0 ]; then
+    echo "[security-auditor] Found $ISSUES issue(s) in fallback scan. Push blocked."
+    exit 1
+  fi
+  echo "[security-auditor] Fallback scan passed. Push approved."
   exit 0
 }
 

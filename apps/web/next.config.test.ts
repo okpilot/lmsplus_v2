@@ -77,7 +77,9 @@ describe('next.config — security headers', () => {
   })
 
   describe('CSP in development', () => {
-    it('includes unsafe-eval in script-src', async () => {
+    // unsafe-eval is required in dev for Next.js Fast Refresh / React DevTools.
+    // Production CSP omits it — see the "CSP in production" suite above.
+    it('includes unsafe-eval in script-src (required for Fast Refresh)', async () => {
       const csp = await getCspForEnv('development')
       expect(csp).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'")
     })

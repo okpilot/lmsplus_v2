@@ -71,9 +71,10 @@ describe('clearAllMessages', () => {
   it('clears all stored messages', async () => {
     const mockFetch = vi.spyOn(global, 'fetch').mockImplementation(async () => new Response())
     await clearAllMessages()
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:54324/api/v1/messages', {
-      method: 'DELETE',
-    })
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:54324/api/v1/messages',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
   })
 })
 
