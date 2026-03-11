@@ -50,6 +50,7 @@ export async function getDueCards(opts?: GetDueCardsOpts): Promise<DueCard[]> {
   return cards
 }
 
+/** 4 params: each maps to a distinct role (client, data, filter, cap) */
 async function filterBySubjects(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   cards: DueCard[],

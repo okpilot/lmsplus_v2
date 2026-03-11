@@ -7,54 +7,54 @@
 
 ## Sprint 1 — Quick Wins (biggest UX impact, small effort)
 
-### 1.1 Markdown rendering for questions & explanations
+### 1.1 Markdown rendering for questions & explanations — ✅ DONE (2026-03-12)
 - **Problem:** Text displays as continuous unformatted blob — no tables, line breaks, bullet lists
-- **Solution:** Add a markdown renderer (e.g. `react-markdown` + `remark-gfm`) to QuestionCard, FeedbackPanel
+- **Solution:** MarkdownText component (`react-markdown` + `remark-gfm`) used in QuestionCard, FeedbackPanel
 - **Size:** S
 
-### 1.2 Image click-to-expand (lightbox)
+### 1.2 Image click-to-expand (lightbox) — ✅ DONE (2026-03-12)
 - **Problem:** Question/explanation images are small and not zoomable
-- **Solution:** Dialog/modal on image click, full-size view
+- **Solution:** ZoomableImage component using `@base-ui/react/dialog` for full-size view on click
 - **Size:** S
 
-### 1.3 Question ID/number display
+### 1.3 Question ID/number display — ✅ DONE (2026-03-12)
 - **Problem:** No way to reference a specific question
-- **Solution:** Show `question_number` in quiz/review UI (already in DB)
+- **Solution:** Migration 008 adds `question_number` to `get_quiz_questions()` RPC; displayed in quiz/review session UI
 - **Size:** XS
 
-### 1.4 Elapsed timer in quiz/review
+### 1.4 Elapsed timer in quiz/review — ✅ DONE (2026-03-12)
 - **Problem:** No time tracking during sessions
-- **Solution:** Running timer component, visible during quiz/review, time recorded in session
+- **Solution:** ElapsedTimer component visible during quiz and review sessions
 - **Size:** S
 
-### 1.5 Loading skeletons
+### 1.5 Loading skeletons — ✅ DONE (2026-03-12)
 - **Problem:** No loading states — blank screens while data loads
-- **Solution:** shadcn Skeleton component on dashboard, quiz config, progress page
+- **Solution:** Skeleton UI component + `loading.tsx` files for dashboard/quiz/review/progress + skeleton states in session loaders
 - **Size:** S
 
-### 1.6 Rename "Quick Quiz" → "Quiz"
+### 1.6 Rename "Quick Quiz" → "Quiz" — ✅ DONE (2026-03-14)
 - **Problem:** "Quick Quiz" implies a lightweight mode; it's the main quiz feature
 - **Solution:** Rename in nav, routes (`/app/quiz` stays), page titles, all references
 - **Size:** XS
 
-### 1.7 Smart Review: exclude new questions
+### 1.7 Smart Review: exclude new questions — ✅ DONE (2026-03-14)
 - **Problem:** Review mode includes unseen questions — defeats the purpose of "review"
 - **Solution:** Only load questions the student has previously answered (has `fsrs_cards` entry or `student_responses` history)
 - **Size:** XS
 
-### 1.8 Smart Review: subject selector
+### 1.8 Smart Review: subject selector — ✅ DONE (2026-03-12)
 - **Problem:** Can't choose which subjects to review
-- **Solution:** Add subject multi-select to review config (reuse quiz config pattern)
+- **Solution:** ReviewConfigForm with subject checkboxes; `getDueCards` accepts `{ limit?, subjectIds? }` options object
 - **Size:** S
 
-### 1.9 Smart Review: how-it-works explanation
+### 1.9 Smart Review: how-it-works explanation — ✅ DONE (2026-03-14)
 - **Problem:** Students don't understand FSRS or how to use Smart Review effectively
-- **Solution:** Info card/tooltip explaining spaced repetition and recommended usage
+- **Solution:** Info card/tooltip explaining spaced repetition and recommended usage (collapsible explainer with FSRS explanation + recommended usage)
 - **Size:** XS
 
-### 1.10 Mobile responsiveness pass
+### 1.10 Mobile responsiveness pass — ✅ DONE (2026-03-12)
 - **Problem:** App may not be fully usable on mobile devices
-- **Solution:** Audit all pages/components with Tailwind breakpoints, fix layout issues
+- **Solution:** MobileNav component (hamburger menu + slide-out drawer via `@base-ui/react/dialog`), auto-closes on route change; sidebar hidden below `md` breakpoint
 - **Size:** M
 
 ---
@@ -276,3 +276,4 @@
 ---
 
 *Created: 2026-03-11 — from user feedback after MVP 2 review*
+*Updated: 2026-03-12 — Sprint 1 (Quick Wins) all items marked complete*

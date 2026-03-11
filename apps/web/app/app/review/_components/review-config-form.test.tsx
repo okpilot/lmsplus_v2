@@ -95,4 +95,49 @@ describe('ReviewConfigForm', () => {
     expect(screen.getByText('No cards due')).toBeInTheDocument()
     expect(mockPush).not.toHaveBeenCalled()
   })
+
+  it('sends subjectIds as undefined after selecting then deselecting all subjects', async () => {
+    const user = userEvent.setup()
+    mockStartReviewSession.mockResolvedValue({
+      success: true,
+      sessionId: 'sess-3',
+      questionIds: ['q3'],
+    })
+
+    render(<ReviewConfigForm subjects={SUBJECTS} dueCount={5} />)
+    // Select then deselect ALW
+    await user.click(screen.getByLabelText(/ALW/))
+    await user.click(screen.getByLabelText(/ALW/))
+    await user.click(screen.getByRole('button', { name: 'Start Smart Review' }))
+
+    expect(mockStartReviewSession).toHaveBeenCalledWith({ subjectIds: undefined })
+  })
+
+  it('stores session data in sessionStorage on success', async () => {
+    const user = userEvent.setup()
+    mockStartReviewSession.mockResolvedValue({
+      success: true,
+      sessionId: 'sess-4',
+      questionIds: ['q10', 'q11'],
+    })
+
+    render(<ReviewConfigForm subjects={SUBJECTS} dueCount={5} />)
+    await user.click(screen.getByRole('button', { name: 'Start Smart Review' }))
+
+    expect(sessionStorage.setItem).toHaveBeenCalledWith(
+      'review-session',
+      JSON.stringify({ sessionId: 'sess-4', questionIds: ['q10', 'q11'] }),
+    )
+  })
+
+  it('shows loading text while the action is in progress', async () => {
+    const user = userEvent.setup()
+    // Never resolve — keeps component in loading state
+    mockStartReviewSession.mockReturnValue(new Promise(() => {}))
+
+    render(<ReviewConfigForm subjects={SUBJECTS} dueCount={5} />)
+    await user.click(screen.getByRole('button', { name: 'Start Smart Review' }))
+
+    expect(screen.getByRole('button', { name: 'Starting...' })).toBeDisabled()
+  })
 })

@@ -98,6 +98,13 @@ describe('startReviewSession', () => {
     expect(mockGetDueCards).toHaveBeenCalledWith({ limit: 20, subjectIds })
   })
 
+  it('returns failure when subjectIds contain invalid UUIDs', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await startReviewSession({ subjectIds: ['not-a-uuid'] })
+    expect(result.success).toBe(false)
+    consoleSpy.mockRestore()
+  })
+
   it('returns failure and logs when an unexpected error is thrown', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetDueCards.mockRejectedValue(new Error('unexpected review DB failure'))

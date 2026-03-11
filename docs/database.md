@@ -442,7 +442,8 @@ RETURNS TABLE (
   lo_reference          text,
   difficulty            text,
   explanation_text      text,     -- returned ONLY after answer submitted
-  explanation_image_url text
+  explanation_image_url text,
+  question_number       text      -- external ID from source QDB (e.g. '688864')
 )
 LANGUAGE plpgsql
 AS $$
@@ -462,7 +463,8 @@ BEGIN
     q.lo_reference,
     q.difficulty,
     NULL::text AS explanation_text,        -- not returned here
-    NULL::text AS explanation_image_url    -- returned by get_question_explanation after submit
+    NULL::text AS explanation_image_url,   -- returned by get_question_explanation after submit
+    q.question_number
   FROM questions q
   JOIN easa_subjects  s  ON s.id = q.subject_id
   JOIN easa_topics    t  ON t.id = q.topic_id
@@ -471,7 +473,7 @@ BEGIN
   WHERE q.id = ANY(p_question_ids)
     AND q.deleted_at IS NULL
     AND q.status = 'active'
-  GROUP BY q.id, s.code, t.name, st.name;
+  GROUP BY q.id, q.question_text, q.question_image_url, s.code, t.name, st.name, q.lo_reference, q.difficulty, q.question_number;
 END;
 $$;
 ```

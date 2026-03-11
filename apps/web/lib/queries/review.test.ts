@@ -92,6 +92,27 @@ describe('getDueCards', () => {
     await expect(getDueCards({ limit: 5 })).resolves.toEqual([])
   })
 
+  it('throws when the fsrs_cards query returns an error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFromSequence({ data: null, error: { message: 'permission denied' } })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(getDueCards()).rejects.toThrow('Failed to load due cards')
+    consoleSpy.mockRestore()
+  })
+
+  it('returns empty array when subject filter matches no cards', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFromSequence(
+      {
+        data: [{ question_id: 'q1', due: '2026-03-10T00:00:00Z', state: 'review' }],
+      },
+      { data: [] }, // no questions match the subject
+    )
+
+    const result = await getDueCards({ subjectIds: ['subj-99'] })
+    expect(result).toEqual([])
+  })
+
   it('filters cards by subject when subjectIds are provided', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockFromSequence(
