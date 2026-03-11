@@ -36,6 +36,7 @@ The highest-value targets are:
 - **Production domain:** `https://lmsplus.app`
 - **Allowed redirect URLs:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
 - Auth redirect config lives in Supabase remote settings (Management API), NOT in `config.toml` (local dev only)
+- **PKCE flow:** Supabase sends `?code=` to `site_url` (root `/`). `proxy.ts` forwards only the `code` param to `/auth/callback` for exchange.
 
 ### Session Configuration (set in Supabase dashboard)
 ```

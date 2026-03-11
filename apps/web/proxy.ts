@@ -15,10 +15,11 @@ export async function proxy(request: NextRequest): Promise<Response> {
 
   const { pathname, searchParams } = request.nextUrl
 
-  // Forward auth code from magic link to callback route
-  if (pathname === '/' && searchParams.has('code')) {
+  // Forward auth code from magic link to callback route (PKCE flow)
+  const code = searchParams.get('code')
+  if (pathname === '/' && code) {
     const callbackUrl = new URL('/auth/callback', request.url)
-    callbackUrl.search = searchParams.toString()
+    callbackUrl.searchParams.set('code', code)
     return NextResponse.redirect(callbackUrl)
   }
 
