@@ -190,6 +190,7 @@ describe('completeReviewSession', () => {
   const validInput = { sessionId: '00000000-0000-0000-0000-000000000001' }
 
   it('returns score summary on happy path', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({
       data: [{ total_questions: 15, correct_count: 12, score_percentage: 80 }],
       error: null,
@@ -202,7 +203,16 @@ describe('completeReviewSession', () => {
     expect(result.scorePercentage).toBe(80)
   })
 
+  it('returns failure when not authenticated', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const result = await completeReviewSession(validInput)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Not authenticated')
+  })
+
   it('returns failure when RPC fails', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'Could not complete' } })
     const result = await completeReviewSession(validInput)
     expect(result.success).toBe(false)

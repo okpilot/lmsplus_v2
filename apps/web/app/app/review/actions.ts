@@ -122,6 +122,10 @@ export type CompleteReviewResult =
 export async function completeReviewSession(raw: unknown): Promise<CompleteReviewResult> {
   const input = CompleteQuizSessionSchema.parse(raw)
   const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
 
   const { data, error } = await rpc<CompleteRpcResult>(supabase, 'complete_quiz_session', {
     p_session_id: input.sessionId,

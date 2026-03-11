@@ -86,7 +86,7 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
     fi
 
     # Check for adminClient in app/ files
-    if echo "$DIFF_FULL" | grep -qE '^\+\+\+ b/apps/web/app/.*\.tsx?' | head -1 && echo "$DIFF_FULL" | grep -q 'adminClient'; then
+    if echo "$DIFF_FULL" | grep -qE '^\+\+\+ b/apps/web/app/.*\.tsx?' && echo "$DIFF_FULL" | grep -q 'adminClient'; then
       echo "[HIGH] adminClient used in app/ code!"
       ISSUES=$((ISSUES + 1))
     fi

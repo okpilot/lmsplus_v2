@@ -20,8 +20,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       `img-src 'self' data: blob: https://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
       "font-src 'self'",
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
-      "frame-src 'none'",
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
+      "frame-ancestors 'none'",
     ].join('; '),
   },
 ]

@@ -17,12 +17,20 @@ export async function proxy(request: NextRequest): Promise<Response> {
 
   // Protect /app/* routes — redirect to login if not authenticated
   if (pathname.startsWith('/app') && !user) {
-    return NextResponse.redirect(new URL('/', request.url))
+    const redirect = NextResponse.redirect(new URL('/', request.url))
+    for (const cookie of response.cookies.getAll()) {
+      redirect.cookies.set(cookie.name, cookie.value)
+    }
+    return redirect
   }
 
   // Redirect authenticated users away from login page to dashboard
   if (pathname === '/' && user) {
-    return NextResponse.redirect(new URL('/app/dashboard', request.url))
+    const redirect = NextResponse.redirect(new URL('/app/dashboard', request.url))
+    for (const cookie of response.cookies.getAll()) {
+      redirect.cookies.set(cookie.name, cookie.value)
+    }
+    return redirect
   }
 
   return response

@@ -138,7 +138,7 @@ CREATE POLICY "students_read_answers" ON quiz_session_answers
 
 -- Restrictive policies to block writes
 CREATE POLICY "no_insert_answers" ON quiz_session_answers
-  FOR INSERT USING (false);
+  FOR INSERT WITH CHECK (false);
 
 CREATE POLICY "no_update_answers" ON quiz_session_answers
   FOR UPDATE USING (false);
@@ -161,7 +161,7 @@ CREATE POLICY "students_own_answers" ON quiz_session_answers
 
 **Critical rule:** On immutable tables, block all direct writes:
 - `FOR SELECT` — allow reads only
-- `FOR INSERT USING (false)` — block all inserts
+- `FOR INSERT WITH CHECK (false)` — block all inserts
 - `FOR UPDATE USING (false)` — block all updates
 - `FOR DELETE USING (false)` — block all deletes
 
@@ -310,8 +310,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       `img-src 'self' data: blob: https://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
       "font-src 'self'",
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
-      "frame-src 'none'",
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
+      "frame-ancestors 'none'",
     ].join('; '),
   },
 ]

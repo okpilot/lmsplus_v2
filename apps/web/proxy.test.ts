@@ -5,7 +5,12 @@ import { proxy } from './proxy'
 const mockGetUser = vi.fn()
 
 // A plain object that stands in for the session-refreshed supabase NextResponse
-const MOCK_SESSION_RESPONSE = { status: 200, headers: new Headers(), _isMockSessionResponse: true }
+const MOCK_SESSION_RESPONSE = {
+  status: 200,
+  headers: new Headers(),
+  cookies: { getAll: () => [{ name: 'sb-token', value: 'refreshed' }] },
+  _isMockSessionResponse: true,
+}
 
 vi.mock('@repo/db/middleware', () => ({
   createMiddlewareSupabaseClient: () => ({

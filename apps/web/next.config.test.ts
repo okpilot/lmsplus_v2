@@ -72,7 +72,7 @@ describe('next.config — security headers', () => {
       expect(csp).toContain("default-src 'self'")
       expect(csp).toContain("style-src 'self' 'unsafe-inline'")
       expect(csp).toContain("font-src 'self'")
-      expect(csp).toContain("frame-src 'none'")
+      expect(csp).toContain("frame-ancestors 'none'")
     })
   })
 
@@ -92,6 +92,7 @@ describe('next.config — security headers', () => {
       const csp = await getCspForEnv('development')
       expect(csp).toContain('http://localhost:*')
       expect(csp).toContain('http://127.0.0.1:*')
+      expect(csp).toContain('ws://localhost:*')
     })
 
     it('keeps static directives unchanged', async () => {
@@ -99,7 +100,7 @@ describe('next.config — security headers', () => {
       expect(csp).toContain("default-src 'self'")
       expect(csp).toContain("style-src 'self' 'unsafe-inline'")
       expect(csp).toContain("font-src 'self'")
-      expect(csp).toContain("frame-src 'none'")
+      expect(csp).toContain("frame-ancestors 'none'")
     })
   })
 
