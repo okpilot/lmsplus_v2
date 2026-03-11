@@ -145,4 +145,53 @@ describe('QuizSession', () => {
     const { container } = render(<QuizSession sessionId="sess-1" questions={[]} />)
     expect(container.innerHTML).toBe('')
   })
+
+  it('shows an error and stays on the question when submitQuizAnswer throws', async () => {
+    const user = userEvent.setup({ delay: null })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSubmitQuizAnswer.mockRejectedValue(new Error('Network request failed'))
+
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    await user.click(screen.getByText('A force'))
+    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong. Please try again.')
+    })
+    // Should still be on the first question, not in feedback state
+    expect(screen.getByText('What is lift?')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Next Question/ })).not.toBeInTheDocument()
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to submit answer:', expect.any(Error))
+    consoleSpy.mockRestore()
+  })
+
+  it('shows an error and stays on feedback when completeQuiz throws', async () => {
+    const user = userEvent.setup({ delay: null })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSubmitQuizAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'a',
+      explanationText: 'Lift is an upward force.',
+      explanationImageUrl: null,
+    })
+    mockCompleteQuiz.mockRejectedValue(new Error('Network timeout'))
+
+    const singleQ = [QUESTIONS[0]!]
+    render(<QuizSession sessionId="sess-1" questions={singleQ} />)
+
+    await user.click(screen.getByText('A force'))
+    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
+    await waitFor(() => expect(screen.getByText('Lift is an upward force.')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /Next Question/ }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong. Please try again.')
+    })
+    // Should not have navigated to the summary
+    expect(screen.queryByText('100%')).not.toBeInTheDocument()
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to complete quiz:', expect.any(Error))
+    consoleSpy.mockRestore()
+  })
 })

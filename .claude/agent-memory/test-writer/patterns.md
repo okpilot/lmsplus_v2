@@ -623,6 +623,40 @@ it('throws when the DELETE request returns a non-OK status', async () => {
 
 ---
 
+## Files tested in commit eeea5ea (try/catch in quiz-session + nullable types)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_components/quiz-session.tsx` | `quiz-session.test.tsx` | Added 2 tests for new catch branches: submitQuizAnswer throw + completeQuiz throw |
+| `apps/web/app/app/quiz/types.ts` | — | Pure type file (string → string\|null); no logic to test |
+| `apps/web/app/app/review/types.ts` | — | Pure type file (string → string\|null); no logic to test |
+
+### Testing catch branches in client components (try/catch around Server Actions)
+When a component wraps a Server Action call in `try/catch` that sets an error state,
+test by mocking the action to reject and asserting on the `role="alert"` element:
+```ts
+it('shows an error and stays on the question when the action throws', async () => {
+  const user = userEvent.setup({ delay: null })
+  const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  mockSubmitQuizAnswer.mockRejectedValue(new Error('Network request failed'))
+
+  render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+  await user.click(screen.getByText('Option text'))
+  await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
+
+  await waitFor(() => {
+    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong. Please try again.')
+  })
+  // Assert component did NOT advance state
+  expect(screen.queryByRole('button', { name: /Next Question/ })).not.toBeInTheDocument()
+  expect(consoleSpy).toHaveBeenCalledWith('Failed to submit answer:', expect.any(Error))
+  consoleSpy.mockRestore()
+})
+```
+Key assertions: (1) error alert visible, (2) UI stayed in pre-action state (no transition), (3) console.error called with correct prefix.
+
+---
+
 ## Files skipped (no testable logic)
 - `apps/web/app/layout.tsx` — pure layout, font config
 - `apps/web/app/page.tsx` — pure composition
