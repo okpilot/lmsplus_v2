@@ -20,7 +20,11 @@ export async function proxy(request: NextRequest): Promise<Response> {
   if (pathname === '/' && code) {
     const callbackUrl = new URL('/auth/callback', request.url)
     callbackUrl.searchParams.set('code', code)
-    return NextResponse.redirect(callbackUrl)
+    const redirect = NextResponse.redirect(callbackUrl)
+    for (const cookie of response.cookies.getAll()) {
+      redirect.cookies.set(cookie)
+    }
+    return redirect
   }
 
   // Protect /app/* routes — redirect to login if not authenticated
