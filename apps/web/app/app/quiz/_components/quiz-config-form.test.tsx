@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QuizConfigForm } from './quiz-config-form'
 
 const mockPush = vi.fn()
@@ -14,8 +14,8 @@ vi.mock('../actions', () => ({
 }))
 
 const SUBJECTS = [
-  { id: 'sub-1', code: '050', name: 'Meteorology', questionCount: 30 },
-  { id: 'sub-2', code: '010', name: 'Air Law', questionCount: 15 },
+  { id: 'sub-1', code: '050', name: 'Meteorology', short: 'MET', questionCount: 30 },
+  { id: 'sub-2', code: '010', name: 'Air Law', short: 'ALW', questionCount: 15 },
 ]
 
 describe('QuizConfigForm', () => {
@@ -57,7 +57,9 @@ describe('QuizConfigForm', () => {
 
   it('caps available count at 50', async () => {
     const user = userEvent.setup()
-    const bigSubject = [{ id: 'sub-3', code: '070', name: 'Flight Planning', questionCount: 100 }]
+    const bigSubject = [
+      { id: 'sub-3', code: '070', name: 'Flight Planning', short: 'FPL', questionCount: 100 },
+    ]
     render(<QuizConfigForm subjects={bigSubject} />)
     await user.selectOptions(screen.getByLabelText('Subject'), 'sub-3')
     expect(screen.getByText(/up to 50 available/i)).toBeInTheDocument()

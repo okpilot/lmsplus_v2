@@ -128,7 +128,8 @@ describe('startReviewSession', () => {
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
 
     await startReviewSession()
-    const [, rpcName, args] = mockRpc.mock.calls[0]
+    // Test setup guarantees the RPC was called
+    const [, rpcName, args] = mockRpc.mock.calls[0]!
     expect(rpcName).toBe('start_quiz_session')
     expect(args.p_mode).toBe('smart_review')
   })

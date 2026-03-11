@@ -101,7 +101,8 @@ describe('getSubjectsWithCounts', () => {
 
     const result = await getSubjectsWithCounts()
     expect(result).toHaveLength(1)
-    expect(result[0].id).toBe('s1')
+    // Test setup guarantees at least one subject in result
+    expect(result[0]!.id).toBe('s1')
   })
 
   it('returns empty array when subjects data is null', async () => {

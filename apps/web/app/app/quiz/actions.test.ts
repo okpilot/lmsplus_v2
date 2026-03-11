@@ -193,7 +193,7 @@ describe('submitQuizAnswer', () => {
     })
     await submitQuizAnswer(validInput)
     expect(mockUpsert).toHaveBeenCalledOnce()
-    const [, table] = mockUpsert.mock.calls[0]
+    const [, table] = mockUpsert.mock.calls[0]!
     expect(table).toBe('fsrs_cards')
   })
 })

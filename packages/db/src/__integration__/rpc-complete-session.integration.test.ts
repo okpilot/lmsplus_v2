@@ -147,7 +147,7 @@ describe('RPC: complete_quiz_session', () => {
       .eq('event_type', 'quiz_session.completed')
 
     expect(events).toHaveLength(1)
-    expect(events?.[0].metadata).toMatchObject({
+    expect(events![0]!.metadata).toMatchObject({
       total: 3,
       correct: 3,
       score: 100,

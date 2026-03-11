@@ -180,7 +180,7 @@ describe('RPC: submit_quiz_answer', () => {
   })
 
   it('rejects submission to completed session', async () => {
-    const sessionId = await startSession([questionIds[0]])
+    const sessionId = await startSession([questionIds[0]!])
 
     // Submit one answer then complete
     await studentClient.rpc('submit_quiz_answer', {

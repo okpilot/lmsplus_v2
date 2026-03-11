@@ -73,7 +73,7 @@ describe('StartReviewButton', () => {
   })
 
   it('shows loading text while starting', async () => {
-    let resolvePromise: (v: unknown) => void
+    let resolvePromise: ((v: unknown) => void) | undefined
     mockStartReviewSession.mockReturnValue(
       new Promise((r) => {
         resolvePromise = r

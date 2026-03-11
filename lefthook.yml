@@ -1,10 +1,23 @@
+# ============================================================================
+# Lefthook — Automated QA Pipeline
+# ============================================================================
+# Layer 1: pre-commit   — BLOCKING, fast — catches broken code before git history
+# Layer 2: commit-msg   — BLOCKING       — enforces conventional commits
+# Layer 3: post-commit  — NON-BLOCKING   — async agent feedback (review, docs, tests)
+# Layer 4: pre-push     — BLOCKING       — security gate (final defense)
+# ============================================================================
+
 pre-commit:
-  parallel: false
+  parallel: true
   commands:
     biome-check:
       glob: "*.{js,ts,jsx,tsx,json}"
       run: npx biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
+    type-check:
+      run: pnpm check-types
+    test:
+      run: pnpm test
 
 commit-msg:
   commands:
@@ -24,11 +37,7 @@ post-commit:
 pre-push:
   parallel: true
   commands:
-    type-check:
-      run: pnpm check-types
-    test:
-      run: pnpm test
-    audit:
-      run: pnpm audit --audit-level=high
     security-auditor:
       run: bash .claude/hooks/run-security-auditor.sh
+    audit:
+      run: pnpm audit --audit-level=high

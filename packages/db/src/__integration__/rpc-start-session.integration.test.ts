@@ -120,8 +120,9 @@ describe('RPC: start_quiz_session', () => {
       .eq('resource_id', sessionId)
 
     expect(events).toHaveLength(1)
-    expect(events?.[0].event_type).toBe('quiz_session.started')
-    expect(events?.[0].resource_type).toBe('quiz_session')
+    // Previous expect guarantees events[0] exists
+    expect(events![0]!.event_type).toBe('quiz_session.started')
+    expect(events![0]!.resource_type).toBe('quiz_session')
   })
 
   it('allows null subject/topic for smart_review', async () => {

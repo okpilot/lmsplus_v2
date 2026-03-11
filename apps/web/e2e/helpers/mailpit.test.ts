@@ -177,7 +177,8 @@ describe('getLatestEmail', () => {
     })
 
     await getLatestEmail('student+tag@test.com')
-    const searchUrl = mockFetch.mock.calls[0][0].toString()
+    // Test setup guarantees at least one fetch call
+    const searchUrl = mockFetch.mock.calls[0]![0].toString()
     expect(searchUrl).toContain(encodeURIComponent('to:student+tag@test.com'))
   })
 

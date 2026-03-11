@@ -171,7 +171,7 @@ describe('RLS: immutable tables', () => {
       .select('id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
-    expect(after).toHaveLength(before?.length)
+    expect(after).toHaveLength(before?.length ?? 0)
   })
 
   it('cannot UPDATE audit_events (data unchanged)', async () => {
@@ -182,7 +182,8 @@ describe('RLS: immutable tables', () => {
       .limit(1)
 
     expect(events?.length).toBeGreaterThan(0)
-    const original = events?.[0]
+    // Previous expect guarantees events is non-empty
+    const original = events![0]!
 
     // Student attempts to update (students can't even read audit_events,
     // so RLS blocks the update silently)
@@ -204,10 +205,12 @@ describe('RLS: immutable tables', () => {
       .limit(1)
 
     expect(events?.length).toBeGreaterThan(0)
+    // Previous expect guarantees events is non-empty
+    const eventId = events![0]!.id
 
-    await studentClient.from('audit_events').delete().eq('id', events?.[0].id)
+    await studentClient.from('audit_events').delete().eq('id', eventId)
 
-    const { data: after } = await admin.from('audit_events').select('id').eq('id', events?.[0].id)
+    const { data: after } = await admin.from('audit_events').select('id').eq('id', eventId)
     expect(after).toHaveLength(1)
   })
 })

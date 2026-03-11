@@ -67,7 +67,8 @@ describe('getDueCards', () => {
       due: '2026-03-10T00:00:00Z',
       state: 'review',
     })
-    expect(result[1].questionId).toBe('q2')
+    // Test setup guarantees two due cards in result
+    expect(result[1]!.questionId).toBe('q2')
   })
 
   it('returns empty array when no due cards exist', async () => {

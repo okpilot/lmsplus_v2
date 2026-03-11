@@ -48,8 +48,9 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions(['q1', 'q2'])
     expect(result.success).toBe(true)
     if (!result.success) return
-    expect(result.questions[0].id).toBe('q1')
-    expect(result.questions[1].id).toBe('q2')
+    // Test setup guarantees two questions in result
+    expect(result.questions[0]!.id).toBe('q1')
+    expect(result.questions[1]!.id).toBe('q2')
   })
 
   it('returns all question fields mapped correctly', async () => {
@@ -71,12 +72,13 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions(['q1'])
     expect(result.success).toBe(true)
     if (!result.success) return
-    expect(result.questions[0]).toMatchObject({
+    // Test setup guarantees one question in result
+    expect(result.questions[0]!).toMatchObject({
       id: 'q1',
       question_text: 'Explain VFR minima',
       question_image_url: 'https://cdn.example.com/img.png',
     })
-    expect(result.questions[0].options).toHaveLength(2)
+    expect(result.questions[0]!.options).toHaveLength(2)
   })
 
   it('returns failure when RPC returns an error', async () => {

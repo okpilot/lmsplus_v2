@@ -104,7 +104,8 @@ describe('getDashboardData', () => {
 
     const result = await getDashboardData()
     expect(result.subjects).toHaveLength(1)
-    const subject = result.subjects[0]
+    // Test setup guarantees one subject in result
+    const subject = result.subjects[0]!
     expect(subject.code).toBe('AGK')
     expect(subject.totalQuestions).toBe(2)
   })
@@ -161,8 +162,9 @@ describe('getDashboardData', () => {
 
     const result = await getDashboardData()
     expect(result.recentSessions).toHaveLength(1)
-    expect(result.recentSessions[0].subjectName).toBe('Aircraft General')
-    expect(result.recentSessions[0].correctCount).toBe(8)
-    expect(result.recentSessions[0].scorePercentage).toBe(80)
+    // Test setup guarantees one session in result
+    expect(result.recentSessions[0]!.subjectName).toBe('Aircraft General')
+    expect(result.recentSessions[0]!.correctCount).toBe(8)
+    expect(result.recentSessions[0]!.scorePercentage).toBe(80)
   })
 })

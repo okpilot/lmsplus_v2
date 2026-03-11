@@ -2,8 +2,11 @@ import { createMiddlewareSupabaseClient } from '@repo/db/middleware'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
-export async function proxy(request: NextRequest) {
-  const { supabase, response } = createMiddlewareSupabaseClient(request)
+export async function proxy(request: NextRequest): Promise<Response> {
+  // Cast needed: @playwright/test causes a duplicate next.js install with incompatible internal types
+  const { supabase, response } = createMiddlewareSupabaseClient(
+    request as unknown as Parameters<typeof createMiddlewareSupabaseClient>[0],
+  )
 
   // Refresh session — must run on every request to keep tokens valid
   const {

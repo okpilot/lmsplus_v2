@@ -89,9 +89,10 @@ describe('getProgressData', () => {
 
     const result = await getProgressData()
     expect(result).toHaveLength(1)
-    expect(result[0].totalQuestions).toBe(4)
-    expect(result[0].answeredCorrectly).toBe(2)
-    expect(result[0].masteryPercentage).toBe(50)
+    // Test setup guarantees one subject in result
+    expect(result[0]!.totalQuestions).toBe(4)
+    expect(result[0]!.answeredCorrectly).toBe(2)
+    expect(result[0]!.masteryPercentage).toBe(50)
   })
 
   it('includes topic breakdown within each subject', async () => {
@@ -121,11 +122,12 @@ describe('getProgressData', () => {
     })
 
     const result = await getProgressData()
-    expect(result[0].topics).toHaveLength(2)
-    const t1 = result[0].topics.find((t) => t.id === 't1')
-    const t2 = result[0].topics.find((t) => t.id === 't2')
-    expect(t1?.masteryPercentage).toBe(100) // q1 correct, 1 of 1
-    expect(t2?.masteryPercentage).toBe(0) // q2 not correct, 0 of 1
+    // Test setup guarantees one subject with two topics in result
+    expect(result[0]!.topics).toHaveLength(2)
+    const t1 = result[0]!.topics.find((t) => t.id === 't1')!
+    const t2 = result[0]!.topics.find((t) => t.id === 't2')!
+    expect(t1.masteryPercentage).toBe(100) // q1 correct, 1 of 1
+    expect(t2.masteryPercentage).toBe(0) // q2 not correct, 0 of 1
   })
 
   it('filters out subjects with no questions', async () => {
@@ -168,7 +170,8 @@ describe('getProgressData', () => {
     })
 
     const result = await getProgressData()
-    expect(result[0].masteryPercentage).toBe(0)
-    expect(result[0].answeredCorrectly).toBe(0)
+    // Test setup guarantees at least one subject in result
+    expect(result[0]!.masteryPercentage).toBe(0)
+    expect(result[0]!.answeredCorrectly).toBe(0)
   })
 })
