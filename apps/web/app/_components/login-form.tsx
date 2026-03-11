@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@repo/db/client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { z } from 'zod'
 
 const EmailSchema = z.string().email('Please enter a valid email address')
@@ -10,6 +10,10 @@ export function LoginForm() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+
+  // SSR renders button disabled; enables after hydration so Playwright auto-waits
+  useEffect(() => setHydrated(true), [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -60,7 +64,7 @@ export function LoginForm() {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={!hydrated || loading}
         className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? 'Sending link...' : 'Send magic link'}

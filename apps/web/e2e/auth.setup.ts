@@ -14,8 +14,8 @@ setup('create authenticated session', async ({ page }) => {
   await page.getByLabel('Email address').fill(TEST_EMAIL)
   await page.getByRole('button', { name: 'Send magic link' }).click()
 
-  // 3. Wait for verify page
-  await page.waitForURL('/auth/verify', { timeout: 10_000 })
+  // 3. Wait for verify page (allow extra time in CI for Supabase OTP call)
+  await page.waitForURL('/auth/verify', { timeout: 15_000 })
 
   // 4. Fetch magic link from Inbucket
   const email = await getLatestEmail(TEST_EMAIL)
