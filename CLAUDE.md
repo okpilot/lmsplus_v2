@@ -42,18 +42,19 @@ pnpm check-types  # tsc --noEmit all packages
 4. `/project:insights` weekly
 
 ## Post-commit review (MANDATORY)
-After every `git commit`, run these 3 subagents in parallel using the Agent tool:
+After every `git commit`, run these 4 subagents in parallel using the Agent tool:
 1. **code-reviewer** (haiku) — review diff against `.claude/rules/code-style.md`, report findings
-2. **doc-updater** (haiku) — check if docs need updates, report what changed
-3. **test-writer** (sonnet) — check for missing tests, write them, run them
+2. **semantic-reviewer** (sonnet) — deep logic/security/consistency review (like CodeRabbit), report findings
+3. **doc-updater** (haiku) — check if docs need updates, report what changed
+4. **test-writer** (sonnet) — check for missing tests, write them, run them
 
 Read ALL agent results. Fix any issues found. Commit fixes. Repeat until clean.
 
 Then run:
-4. **learner** (sonnet) — reads all 3 agents' findings, identifies patterns, updates rules/memory
+5. **learner** (sonnet) — reads all agents' findings, identifies patterns, updates rules/memory
 
 If rules changed (code-style.md, security.md, biome.json), also run:
-5. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
+6. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
 
 Never push without all agents reporting clean.
 
