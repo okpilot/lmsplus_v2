@@ -9,14 +9,18 @@
     "./schema": "./src/schema.ts",
     "./import-schema": "./src/import-schema.ts",
     "./types": "./src/types.ts",
-    "./middleware": "./src/middleware.ts"
+    "./middleware": "./src/middleware.ts",
+    "./fsrs": "./src/fsrs.ts"
   },
   "scripts": {
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.47.0",
+    "ts-fsrs": "^5.2.3",
     "zod": "^3.24.0"
   },
   "peerDependencies": {
@@ -25,6 +29,7 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "next": "^16.1.6",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.18"
   }
 }

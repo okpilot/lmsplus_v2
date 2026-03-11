@@ -12,7 +12,7 @@ vi.mock('@supabase/ssr', () => ({
 }))
 
 function makeRequest(cookieHeader = '') {
-  const init: RequestInit = {}
+  const init: Record<string, unknown> = {}
   if (cookieHeader) {
     init.headers = { cookie: cookieHeader }
   }
@@ -73,7 +73,7 @@ describe('createMiddlewareSupabaseClient', () => {
     createMiddlewareSupabaseClient(request)
 
     // Capture the cookies config passed to createServerClient
-    const cookiesConfig = mockCreateServerClient.mock.calls[0][2].cookies
+    const cookiesConfig = mockCreateServerClient.mock.calls[0]?.[2].cookies
     const cookies = cookiesConfig.getAll() as Array<{ name: string; value: string }>
 
     // NextRequest parses cookie header into individual name/value pairs
@@ -88,7 +88,7 @@ describe('createMiddlewareSupabaseClient', () => {
     const request = makeRequest()
     createMiddlewareSupabaseClient(request)
 
-    const cookiesConfig = mockCreateServerClient.mock.calls[0][2].cookies
+    const cookiesConfig = mockCreateServerClient.mock.calls[0]?.[2].cookies
 
     // setAll should not throw and should propagate cookies to the response
     expect(() =>

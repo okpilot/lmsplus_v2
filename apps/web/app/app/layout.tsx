@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { redirect } from 'next/navigation'
+import { SidebarNav } from './_components/sidebar-nav'
 import { SignOutButton } from './_components/sign-out-button'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -8,7 +9,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Middleware should catch this, but double-check server-side
   if (!user) redirect('/')
 
   const { data: profile } = await supabase
@@ -22,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <span className="text-sm font-semibold">LMS Plus</span>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{displayName}</span>
@@ -30,7 +30,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-5xl px-4 py-8">{children}</div>
+      <div className="mx-auto flex max-w-6xl gap-8 px-4 py-8">
+        <aside className="hidden w-48 shrink-0 md:block">
+          <SidebarNav />
+        </aside>
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
     </div>
   )
 }
