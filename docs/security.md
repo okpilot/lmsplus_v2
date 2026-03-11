@@ -97,10 +97,10 @@ CREATE POLICY "tenant_isolation" ON table_name
 ### Role-Scoped Policies (where needed)
 
 ```sql
--- Students: own data only
-CREATE POLICY "students_own_data" ON student_responses
-  USING (student_id = auth.uid())
-  WITH CHECK (student_id = auth.uid());
+-- Students: own data only (mutable tables — allows all operations with condition)
+CREATE POLICY "users_own_profile" ON users
+  USING (id = auth.uid())
+  WITH CHECK (id = auth.uid());
 
 -- Instructors: read all student data within their org (no write)
 CREATE POLICY "instructors_read_students" ON student_responses
@@ -110,13 +110,55 @@ CREATE POLICY "instructors_read_students" ON student_responses
     AND (SELECT role FROM users WHERE id = auth.uid()) IN ('instructor', 'admin')
   );
 
--- Immutable responses: no UPDATE or DELETE ever
+-- Immutable responses: scoped to SELECT + INSERT only, then blocked for UPDATE/DELETE
+CREATE POLICY "students_read_responses" ON student_responses
+  FOR SELECT
+  USING (student_id = auth.uid());
+
+CREATE POLICY "students_insert_responses" ON student_responses
+  FOR INSERT
+  WITH CHECK (student_id = auth.uid());
+
 CREATE POLICY "responses_no_update" ON student_responses
   FOR UPDATE USING (false);
 
 CREATE POLICY "responses_no_delete" ON student_responses
   FOR DELETE USING (false);
 ```
+
+### Immutable Tables: Policy Scope Pattern
+
+Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE entirely. Use explicit `FOR` clause scoping:
+
+```sql
+-- ✅ CORRECT — permissive policies scoped to SELECT + INSERT only
+CREATE POLICY "students_read_answers" ON quiz_session_answers
+  FOR SELECT
+  USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+
+CREATE POLICY "students_insert_answers" ON quiz_session_answers
+  FOR INSERT
+  WITH CHECK (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+
+-- Restrictive policies (always work)
+CREATE POLICY "no_update_answers" ON quiz_session_answers
+  FOR UPDATE USING (false);
+
+CREATE POLICY "no_delete_answers" ON quiz_session_answers
+  FOR DELETE USING (false);
+
+-- ❌ WRONG — permissive policy without FOR clause applies to ALL operations (SELECT, INSERT, UPDATE, DELETE)
+-- This overrides the restrictive no_update/no_delete because PostgreSQL OR's permissive policies
+CREATE POLICY "students_own_answers" ON quiz_session_answers
+  USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+  -- ^ This applies to ALL operations, making UPDATE/DELETE possible!
+```
+
+**Critical rule:** On immutable tables, always split permissive policies by operation:
+- `FOR SELECT` — allow reads
+- `FOR INSERT` — allow inserts only
+- `FOR UPDATE USING (false)` — block all updates
+- `FOR DELETE USING (false)` — block all deletes
 
 ### RLS Verification Checklist
 Before any migration is merged, run:
@@ -128,11 +170,13 @@ WHERE schemaname = 'public'
 ORDER BY tablename;
 -- Every row must show: rowsecurity = true, forcerowsecurity = true
 
--- Verify policies exist
+-- Verify policies exist and have FOR clauses
 SELECT tablename, policyname, cmd, qual, with_check
 FROM pg_policies
 WHERE schemaname = 'public'
 ORDER BY tablename, policyname;
+-- For immutable tables: every policy must have a specific cmd (SELECT, INSERT, UPDATE, DELETE)
+-- Never a policy with cmd = NULL (that's ALL operations!)
 ```
 
 ---
