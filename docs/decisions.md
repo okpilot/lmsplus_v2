@@ -17,6 +17,10 @@
 - **Multi-tenant:** organization_id on every table, RLS policies
 - **AI-to-slides:** Claude API → Structured JSON → Template Renderer (future, not MVP 2)
 
+### UI Theme (confirmed 2026-03-11)
+- **shadcn/ui** — initialized with Tailwind v4 in `apps/web/`
+- **Theme** — tweakcn theme `cmlhfpjhw000004l4f4ax3m7z` applied via registry URL, tokens in `apps/web/app/globals.css`
+
 ### Tooling (all confirmed 2026-03-11)
 - **Linting/formatting:** Biome — replaces ESLint + Prettier. 10-25x faster, single binary, one config file, 450+ rules, TypeScript-aware. Next.js 16+ no longer runs linter on build — Biome runs via Turborepo tasks.
 - **Unit/integration tests:** Vitest — replaces Jest. 10x faster, official Next.js guide, official Turborepo guide. Per-package tasks for Turborepo caching.

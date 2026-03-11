@@ -6,14 +6,15 @@
 
 ---
 
-## Status: PRE-BUILD — waiting for Supabase project
+## Status: PHASE 1 COMPLETE — waiting for Supabase credentials
 
-**Blocked by:** User must create a Supabase project at supabase.com and provide:
+**Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 2 commits on `master`.
+
+**Blocked by Phase 2:** User must create a Supabase project at supabase.com and provide:
 - Project URL (`https://xxxx.supabase.co`)
 - Anon key
 - Service role key
-
-Everything else is ready to build.
+- Personal access token (Account → Access Tokens, for Supabase MCP)
 
 ---
 
@@ -278,4 +279,4 @@ Weekly
 
 ---
 
-*Last updated: 2026-03-11*
+*Last updated: 2026-03-11 — Phase 1 complete*
