@@ -383,6 +383,18 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 22: Production domain + Supabase auth redirects (2026-03-11)
+
+**Context:** App deployed to `lmsplus.app`. Supabase remote auth config still pointed at `localhost:3000` — magic link emails would redirect to localhost in production.
+
+**Decided:**
+- **Site URL:** `https://lmsplus.app` (set via Supabase Management API)
+- **Allowed redirects:** `https://lmsplus.app/auth/callback` + `http://localhost:3000/auth/callback`
+- `config.toml` is local dev only — production auth config managed via Management API, not CLI
+- Login form uses `window.location.origin` for `emailRedirectTo`, so it works on any domain automatically
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -394,4 +406,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Decision 21: deferred tech debt → GitHub Issues with tech-debt label*
+*Last updated: 2026-03-11 — Decision 22: production domain + Supabase auth redirects*

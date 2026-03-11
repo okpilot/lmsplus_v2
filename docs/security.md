@@ -33,6 +33,9 @@ The highest-value targets are:
 - Supabase Auth handles token generation and expiry
 - No passwords stored — phishing-resistant by default
 - Magic link tokens expire after **1 hour** (configure in Supabase dashboard)
+- **Production domain:** `https://lmsplus.app`
+- **Allowed redirect URLs:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
+- Auth redirect config lives in Supabase remote settings (Management API), NOT in `config.toml` (local dev only)
 
 ### Session Configuration (set in Supabase dashboard)
 ```

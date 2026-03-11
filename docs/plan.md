@@ -248,7 +248,10 @@ See `docs/database.md` for full SQL.
 ### 2C. Auth setup
 - Supabase magic link configured
 - Email template customized
-- Redirect URLs configured for localhost + Vercel
+- Redirect URLs configured:
+  - **Site URL:** `https://lmsplus.app` (production)
+  - **Allowed redirects:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
+  - Configured via Supabase Management API (not config.toml — that's local dev only)
 
 ### 2D. Security baseline
 - Security headers in `apps/web/next.config.ts` (CSP, HSTS, X-Frame-Options)
