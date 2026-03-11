@@ -10,7 +10,10 @@
     "lint": "biome check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "import-questions": "tsx scripts/import-questions.ts"
+    "import-questions": "tsx scripts/import-questions.ts",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -29,6 +32,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
