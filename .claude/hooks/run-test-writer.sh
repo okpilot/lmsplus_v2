@@ -31,8 +31,15 @@ printf "\n---\n\n## New/modified source files in commit %s:\n\n%s\n\nFor each fi
 
 cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
   --model claude-sonnet-4-6 \
-  --allowedTools "Read Write Edit Glob Grep" \
+  --allowedTools "Read Write Edit Glob Grep Bash" \
   --no-session-persistence 2>&1 || true
 
 rm -f "$TMPFILE"
+
+# Verify all tests pass after writing new ones
+echo "[test-writer] Running tests to verify..."
+cd "$REPO_ROOT" && pnpm test 2>&1 || {
+  echo "⚠ [test-writer] Tests failed after writing — manual fix needed"
+}
+
 echo "[test-writer] Done."

@@ -40,6 +40,10 @@ describe('functionName', () => {
 3. Check if a test file already exists — extend it, don't replace
 4. Check `docs/database.md` if testing DB-related code
 
+## After writing tests
+**Always run the tests you wrote** using the Bash tool: `cd <package-dir> && npx vitest run <test-file>`.
+If any test fails, fix it immediately. Never leave broken tests — the whole point is a green suite.
+
 ## Memory
 Write patterns and recurring test structures to `.claude/agent-memory/test-writer/patterns.md`.
 Read that file at the start of every invocation to build on previous work.
