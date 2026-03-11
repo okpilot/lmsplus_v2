@@ -3,24 +3,25 @@ import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockRpc, mockUpsert, mockGetRandomQuestionIds } = vi.hoisted(() => ({
+const { mockGetUser, mockRpc, mockUpdateFsrsCard, mockGetRandomQuestionIds } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
-  mockFrom: vi.fn(),
   mockRpc: vi.fn(),
-  mockUpsert: vi.fn(),
+  mockUpdateFsrsCard: vi.fn(),
   mockGetRandomQuestionIds: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     auth: { getUser: mockGetUser },
-    from: mockFrom,
   }),
 }))
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
-  upsert: mockUpsert,
+}))
+
+vi.mock('@/lib/fsrs/update-card', () => ({
+  updateFsrsCard: mockUpdateFsrsCard,
 }))
 
 vi.mock('@/lib/queries/quiz', () => ({
@@ -33,23 +34,9 @@ import { completeQuiz, startQuizSession, submitQuizAnswer } from './actions'
 
 // ---- Helpers --------------------------------------------------------------
 
-function buildChain(returnValue: unknown) {
-  const awaitable = {
-    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
-    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
-      Promise.resolve(returnValue).then(resolve, reject),
-  }
-  return new Proxy(awaitable as Record<string, unknown>, {
-    get(target, prop) {
-      if (prop === 'then') return target.then
-      return (..._args: unknown[]) => buildChain(returnValue)
-    },
-  })
-}
-
 beforeEach(() => {
   vi.clearAllMocks()
-  mockUpsert.mockResolvedValue(undefined)
+  mockUpdateFsrsCard.mockResolvedValue(undefined)
 })
 
 // ---- startQuizSession ----------------------------------------------------
@@ -156,7 +143,6 @@ describe('submitQuizAnswer', () => {
 
   it('returns answer result with correctness and explanation on happy path', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockFrom.mockImplementation(() => buildChain({ data: null }))
     mockRpc.mockResolvedValue({
       data: [
         {
@@ -177,10 +163,8 @@ describe('submitQuizAnswer', () => {
     expect(result.explanationImageUrl).toBeNull()
   })
 
-  it('updates the FSRS card after a correct answer', async () => {
+  it('calls updateFsrsCard after a correct answer', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    // FSRS card lookup — maybeSingle needs chaining
-    mockFrom.mockImplementation(() => buildChain({ data: null }))
     mockRpc.mockResolvedValue({
       data: [
         {
@@ -193,9 +177,27 @@ describe('submitQuizAnswer', () => {
       error: null,
     })
     await submitQuizAnswer(validInput)
-    expect(mockUpsert).toHaveBeenCalledOnce()
-    const [, table] = mockUpsert.mock.calls[0]!
-    expect(table).toBe('fsrs_cards')
+    expect(mockUpdateFsrsCard).toHaveBeenCalledOnce()
+  })
+
+  it('still returns success when FSRS update throws (non-fatal)', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockUpdateFsrsCard.mockRejectedValue(new Error('DB connection lost'))
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          is_correct: true,
+          correct_option_id: 'a',
+          explanation_text: null,
+          explanation_image_url: null,
+        },
+      ],
+      error: null,
+    })
+    const result = await submitQuizAnswer(validInput)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.isCorrect).toBe(true)
   })
 
   it('throws ZodError when input is malformed', async () => {

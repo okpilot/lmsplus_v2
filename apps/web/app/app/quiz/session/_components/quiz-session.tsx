@@ -29,6 +29,7 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [correctCount, setCorrectCount] = useState(0)
   const [scorePercentage, setScorePercentage] = useState(0)
+  const [error, setError] = useState<string | null>(null)
   const answerStartTime = useRef(Date.now())
 
   useEffect(() => {
@@ -54,8 +55,14 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
       responseTimeMs,
     })
 
+    if (!result.success) {
+      setError(result.error)
+      setSubmitting(false)
+      return
+    }
+    setError(null)
     setFeedback(result)
-    if (result.success && result.isCorrect) {
+    if (result.isCorrect) {
       setCorrectCount((c) => c + 1)
     }
     setState('feedback')
@@ -63,12 +70,15 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
   }
 
   async function handleNext() {
+    setError(null)
     if (currentIndex + 1 >= questions.length) {
       const result = await completeQuiz({ sessionId })
-      if (result.success) {
-        setCorrectCount(result.correctCount)
-        setScorePercentage(result.scorePercentage)
+      if (!result.success) {
+        setError(result.error)
+        return
       }
+      setCorrectCount(result.correctCount)
+      setScorePercentage(result.scorePercentage)
       setState('complete')
     } else {
       setCurrentIndex((i) => i + 1)
@@ -107,6 +117,12 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
         questionNumber={currentIndex + 1}
         totalQuestions={questions.length}
       />
+
+      {error && (
+        <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
 
       <AnswerOptions
         options={question.options}

@@ -1,52 +1,26 @@
 'use server'
 
+import { updateFsrsCard } from '@/lib/fsrs/update-card'
 import { getRandomQuestionIds } from '@/lib/queries/quiz'
-import { rpc, upsert } from '@/lib/supabase-rpc'
-import {
-  createEmptyCard,
-  dbRowToCard,
-  ratingFromAnswer,
-  scheduleCard,
-  stateToString,
-} from '@repo/db/fsrs'
+import { rpc } from '@/lib/supabase-rpc'
 import { CompleteQuizSessionSchema, SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import type {
+  CompleteQuizResult,
+  CompleteRpcResult,
+  StartQuizResult,
+  SubmitQuizAnswerResult,
+  SubmitRpcResult,
+} from './types'
+
+export type { CompleteQuizResult, StartQuizResult, SubmitQuizAnswerResult }
 
 const StartQuizInput = z.object({
   subjectId: z.string().uuid(),
   topicId: z.string().uuid().nullable(),
   count: z.number().int().min(1).max(50).default(10),
 })
-
-type SubmitRpcResult = {
-  is_correct: boolean
-  correct_option_id: string
-  explanation_text: string
-  explanation_image_url: string
-}[]
-
-type CompleteRpcResult = {
-  total_questions: number
-  correct_count: number
-  score_percentage: number
-}[]
-
-type FsrsCardRow = {
-  due: string
-  stability: number
-  difficulty: number
-  elapsed_days: number
-  scheduled_days: number
-  reps: number
-  lapses: number
-  state: string
-  last_review: string | null
-}
-
-export type StartQuizResult =
-  | { success: true; sessionId: string; questionIds: string[] }
-  | { success: false; error: string }
 
 export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
   const input = StartQuizInput.parse(raw)
@@ -79,16 +53,6 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
 
   return { success: true, sessionId, questionIds }
 }
-
-export type SubmitQuizAnswerResult =
-  | {
-      success: true
-      isCorrect: boolean
-      correctOptionId: string
-      explanationText: string | null
-      explanationImageUrl: string | null
-    }
-  | { success: false; error: string }
 
 export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerResult> {
   const input = SubmitAnswerSchema.parse(raw)
@@ -126,10 +90,6 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
   }
 }
 
-export type CompleteQuizResult =
-  | { success: true; totalQuestions: number; correctCount: number; scorePercentage: number }
-  | { success: false; error: string }
-
 export async function completeQuiz(raw: unknown): Promise<CompleteQuizResult> {
   const input = CompleteQuizSessionSchema.parse(raw)
   const supabase = await createServerSupabaseClient()
@@ -153,52 +113,4 @@ export async function completeQuiz(raw: unknown): Promise<CompleteQuizResult> {
     correctCount: result.correct_count,
     scorePercentage: result.score_percentage,
   }
-}
-
-type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
-
-async function updateFsrsCard(
-  supabase: SupabaseClient,
-  userId: string,
-  questionId: string,
-  isCorrect: boolean,
-) {
-  const { data: existing, error: cardError } = await supabase
-    .from('fsrs_cards')
-    .select(
-      'due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, last_review',
-    )
-    .eq('student_id' as string & keyof never, userId)
-    .eq('question_id' as string & keyof never, questionId)
-    .returns<FsrsCardRow[]>()
-    .maybeSingle()
-
-  if (cardError) {
-    console.error('FSRS card lookup failed:', cardError.message)
-    return
-  }
-
-  const card = existing ? dbRowToCard(existing) : createEmptyCard()
-  const grade = ratingFromAnswer(isCorrect)
-  const scheduled = scheduleCard(card, grade)
-  const next = scheduled.card
-
-  await upsert(
-    supabase,
-    'fsrs_cards',
-    {
-      student_id: userId,
-      question_id: questionId,
-      due: next.due.toISOString(),
-      stability: next.stability,
-      difficulty: next.difficulty,
-      elapsed_days: next.elapsed_days,
-      scheduled_days: next.scheduled_days,
-      reps: next.reps,
-      lapses: next.lapses,
-      state: stateToString(next.state),
-      last_review: new Date().toISOString(),
-    },
-    { onConflict: 'student_id,question_id' },
-  )
 }
