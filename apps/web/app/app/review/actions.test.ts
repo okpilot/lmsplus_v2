@@ -86,6 +86,18 @@ describe('startReviewSession', () => {
     expect(args.p_mode).toBe('smart_review')
   })
 
+  it('passes subjectIds to getDueCards when provided', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetDueCards.mockResolvedValue([
+      { questionId: 'q1', due: '2026-03-11T00:00:00Z', state: 'review' },
+    ])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+
+    const subjectIds = ['00000000-0000-0000-0000-000000000010']
+    await startReviewSession({ subjectIds })
+    expect(mockGetDueCards).toHaveBeenCalledWith({ limit: 20, subjectIds })
+  })
+
   it('returns failure and logs when an unexpected error is thrown', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetDueCards.mockRejectedValue(new Error('unexpected review DB failure'))

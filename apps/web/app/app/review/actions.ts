@@ -5,6 +5,7 @@ import { getDueCards } from '@/lib/queries/review'
 import { rpc } from '@/lib/supabase-rpc'
 import { CompleteQuizSessionSchema, SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
+import { z } from 'zod'
 import type {
   CompleteReviewResult,
   CompleteRpcResult,
@@ -13,20 +14,21 @@ import type {
   SubmitRpcResult,
 } from './types'
 
-export async function startReviewSession(): Promise<StartReviewResult> {
+const StartReviewSchema = z.object({ subjectIds: z.array(z.string().uuid()).optional() })
+
+export async function startReviewSession(raw?: unknown): Promise<StartReviewResult> {
   try {
+    const input = StartReviewSchema.parse(raw ?? {})
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
 
-    const dueCards = await getDueCards(20)
+    const dueCards = await getDueCards({ limit: 20, subjectIds: input.subjectIds })
     const questionIds = dueCards.map((c) => c.questionId)
-
-    if (questionIds.length === 0) {
+    if (questionIds.length === 0)
       return { success: false, error: 'No questions available for review' }
-    }
 
     const { data: sessionId, error } = await rpc<string>(supabase, 'start_quiz_session', {
       p_mode: 'smart_review',
@@ -39,7 +41,6 @@ export async function startReviewSession(): Promise<StartReviewResult> {
       console.error('[startReviewSession] RPC error:', error?.message)
       return { success: false, error: 'Failed to start session' }
     }
-
     return { success: true, sessionId, questionIds }
   } catch (err) {
     console.error('[startReviewSession] Uncaught error:', err)
@@ -68,7 +69,6 @@ export async function submitReviewAnswer(raw: unknown): Promise<SubmitAnswerResu
   }
 
   const result = data[0]
-  // FSRS scheduling is best-effort — don't fail the answer if it errors
   try {
     await updateFsrsCard(supabase, user.id, input.questionId, result.is_correct)
   } catch (e) {

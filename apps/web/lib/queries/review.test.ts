@@ -89,7 +89,24 @@ describe('getDueCards', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockFromSequence({ data: [] })
     // Simply verify the function accepts a custom limit without error
-    await expect(getDueCards(5)).resolves.toEqual([])
+    await expect(getDueCards({ limit: 5 })).resolves.toEqual([])
+  })
+
+  it('filters cards by subject when subjectIds are provided', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFromSequence(
+      {
+        data: [
+          { question_id: 'q1', due: '2026-03-10T00:00:00Z', state: 'review' },
+          { question_id: 'q2', due: '2026-03-09T00:00:00Z', state: 'learning' },
+        ],
+      },
+      { data: [{ id: 'q1' }] },
+    )
+
+    const result = await getDueCards({ subjectIds: ['subj-1'] })
+    expect(result).toHaveLength(1)
+    expect(result[0]!.questionId).toBe('q1')
   })
 })
 
