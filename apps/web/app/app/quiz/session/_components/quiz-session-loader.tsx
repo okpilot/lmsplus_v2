@@ -1,6 +1,7 @@
 'use client'
 
 import { loadSessionQuestions } from '@/app/app/review/session/_components/load-questions'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { QuizSession } from './quiz-session'
@@ -65,7 +66,21 @@ export function QuizSessionLoader() {
   }
 
   if (!session || !questions) {
-    return <p className="text-sm text-muted-foreground">Loading questions...</p>
+    return (
+      <div className="mx-auto max-w-2xl space-y-6">
+        <Skeleton className="h-1.5 w-full rounded-full" />
+        <div className="space-y-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-20 w-full rounded-md" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+        </div>
+      </div>
+    )
   }
 
   return <QuizSession sessionId={session.sessionId} questions={questions} />
