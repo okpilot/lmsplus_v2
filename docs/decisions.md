@@ -236,8 +236,8 @@ One app, one window, one login. Builder + Player + LMS backbone + question bank 
 
 ### Blocking (cannot build without these)
 - [x] **Supabase project** — created, ref: `uepvblipahxizozxvwjn`, schema deployed, RLS verified
-- [ ] **Question import JSON format** — exact shape? Claude will design a proposal when building import tool
-- [ ] **Image handling** — Supabase Storage. Buckets: `question-images` + `explanation-images`? Or one `assets` bucket with folders? Decide when building import tool.
+- [x] **Question import JSON format** — resolved in Decision 14: matches QDB folder structure, `question_number` for dedup
+- [x] **Image handling** — resolved in Decision 14: Supabase Storage `question-images` bucket (public)
 - [ ] **EASA subject/topic seed data** — do we have the full taxonomy tree or just sample data?
 
 ### Non-blocking
