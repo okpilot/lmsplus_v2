@@ -6,6 +6,7 @@ type QuestionCardProps = {
   questionImageUrl: string | null
   questionNumber: number
   totalQuestions: number
+  dbQuestionNumber?: string | null
 }
 
 export function QuestionCard({
@@ -13,12 +14,18 @@ export function QuestionCard({
   questionImageUrl,
   questionNumber,
   totalQuestions,
+  dbQuestionNumber,
 }: QuestionCardProps) {
   return (
     <div className="space-y-4">
-      <p className="text-xs font-medium text-muted-foreground">
-        Question {questionNumber} of {totalQuestions}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-muted-foreground">
+          Question {questionNumber} of {totalQuestions}
+        </p>
+        {dbQuestionNumber && (
+          <span className="font-mono text-xs text-muted-foreground/70">{dbQuestionNumber}</span>
+        )}
+      </div>
       {questionImageUrl && (
         <ZoomableImage src={questionImageUrl} alt="Question illustration" className="max-h-64" />
       )}

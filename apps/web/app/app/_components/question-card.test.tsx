@@ -51,4 +51,29 @@ describe('QuestionCard', () => {
     )
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
+
+  it('displays DB question number when provided', () => {
+    render(
+      <QuestionCard
+        questionText="What is lift?"
+        questionImageUrl={null}
+        questionNumber={1}
+        totalQuestions={5}
+        dbQuestionNumber="050-01-01-001"
+      />,
+    )
+    expect(screen.getByText('050-01-01-001')).toBeInTheDocument()
+  })
+
+  it('does not display DB question number when null', () => {
+    render(
+      <QuestionCard
+        questionText="What is lift?"
+        questionImageUrl={null}
+        questionNumber={1}
+        totalQuestions={5}
+      />,
+    )
+    expect(screen.queryByText(/\d{3}-\d{2}-\d{2}-\d{3}/)).not.toBeInTheDocument()
+  })
 })

@@ -9,6 +9,7 @@ type Question = {
   id: string
   question_text: string
   question_image_url: string | null
+  question_number: string | null
   options: { id: string; text: string }[]
 }
 

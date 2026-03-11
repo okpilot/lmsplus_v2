@@ -12,6 +12,7 @@ type Question = {
   id: string
   question_text: string
   question_image_url: string | null
+  question_number: string | null
   options: { id: string; text: string }[]
 }
 
@@ -117,6 +118,7 @@ export function ReviewSession({ sessionId, questions }: ReviewSessionProps) {
         questionImageUrl={question.question_image_url}
         questionNumber={currentIndex + 1}
         totalQuestions={questions.length}
+        dbQuestionNumber={question.question_number}
       />
 
       {error && (
