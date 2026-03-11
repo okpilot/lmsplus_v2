@@ -324,6 +324,22 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 18: Local Supabase for development (2026-03-11)
+
+**Context:** Remote Supabase rate-limited magic link emails during dev. Developing against remote DB is risky (data corruption, rate limits, latency).
+
+**Decided:**
+- All development against local Supabase (`supabase start`, requires Docker)
+- `.env.local` → local keys (`http://localhost:54321`), `.env.remote` → backup of remote/production keys
+- Mailpit (Inbucket) at `http://localhost:54324` catches all auth emails locally
+- Local Studio at `http://localhost:54323` for DB inspection
+- `scripts/dev-login.ts` — generates magic link via admin API (bypasses email entirely)
+- CSP `connect-src` and `img-src` updated to allow `http://localhost:*` for local dev
+- Migration 003 (`question_number`) added to `supabase/migrations/` so it auto-applies on `supabase start`
+- Remote DB only used for staging/production deployments
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -335,4 +351,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Phase 4 complete, test automation fixed*
+*Last updated: 2026-03-11 — Decision 18: local Supabase for dev*

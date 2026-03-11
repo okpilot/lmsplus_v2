@@ -1,1 +1,243 @@
 # Test Writer — Patterns Log
+
+## Stack setup (Phase 4, 2026-03-11)
+
+### Installed packages (apps/web devDependencies)
+- `vitest` ^4
+- `@vitejs/plugin-react` ^5
+- `@testing-library/react` ^16
+- `@testing-library/user-event` ^14
+- `@testing-library/jest-dom` ^6
+- `jsdom` ^28
+
+### Installed packages (packages/db devDependencies)
+- `vitest` ^4
+
+### Config files created
+- `apps/web/vitest.config.ts` — jsdom environment, globals: true, setupFiles: ['./vitest.setup.ts']
+- `apps/web/vitest.setup.ts` — imports `@testing-library/jest-dom`
+- `packages/db/vitest.config.ts` — node environment, globals: true
+
+### scripts added
+- `apps/web/package.json`: `"test": "vitest run"`, `"test:watch": "vitest"`
+- `packages/db/package.json`: `"test": "vitest run"`, `"test:watch": "vitest"`
+
+---
+
+## Patterns established
+
+### Mocking Supabase client (browser / 'use client' components)
+```ts
+const mockSignInWithOtp = vi.fn()
+vi.mock('@repo/db/client', () => ({
+  createClient: () => ({
+    auth: { signInWithOtp: mockSignInWithOtp },
+  }),
+}))
+```
+
+### Mocking Supabase server client (Server Components / route handlers)
+```ts
+const mockExchangeCodeForSession = vi.fn()
+const mockGetUser = vi.fn()
+const mockFrom = vi.fn()
+
+vi.mock('@repo/db/server', () => ({
+  createServerSupabaseClient: async () => ({
+    auth: {
+      exchangeCodeForSession: mockExchangeCodeForSession,
+      getUser: mockGetUser,
+      signOut: vi.fn(),
+    },
+    from: mockFrom,
+  }),
+}))
+```
+
+### Mocking next/navigation (useRouter)
+```ts
+const mockRouterPush = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush }),
+}))
+```
+
+### Mocking next/link in tests
+```tsx
+vi.mock('next/link', () => ({
+  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
+    <a href={href}>{children}</a>
+  ),
+}))
+```
+
+### vi.hoisted() for mocks referenced inside vi.mock factory
+When a mock variable needs to be referenced inside the `vi.mock()` factory AND also used
+in tests, use `vi.hoisted()` — never declare it as a plain `const` above `vi.mock()`:
+```ts
+const { mockFn } = vi.hoisted(() => ({ mockFn: vi.fn() }))
+vi.mock('some-module', () => ({ fn: mockFn }))
+```
+
+### window.location.href in jsdom
+jsdom's `window.location` is not directly writable. Use `Object.defineProperty` once at
+module scope to install a custom setter that captures values:
+```ts
+const assignedHrefs: string[] = []
+Object.defineProperty(window, 'location', {
+  configurable: true,
+  value: {
+    origin: 'http://localhost:3000',
+    get href() { return assignedHrefs[assignedHrefs.length - 1] ?? '' },
+    set href(val: string) { assignedHrefs.push(val) },
+  },
+})
+// In beforeEach: assignedHrefs.length = 0
+```
+
+### Testing async server components (Next.js)
+Server components are async functions returning JSX. Await them and pass the result to render():
+```tsx
+async function renderPage(params?: unknown) {
+  const jsx = await MyServerPage({ searchParams: Promise.resolve(params ?? {}) })
+  render(jsx)
+}
+```
+
+### Mocking @repo/db/middleware (proxy / middleware tests)
+```ts
+const MOCK_SESSION_RESPONSE = { status: 200, headers: new Headers() }
+vi.mock('@repo/db/middleware', () => ({
+  createMiddlewareSupabaseClient: () => ({
+    supabase: { auth: { getUser: mockGetUser } },
+    response: MOCK_SESSION_RESPONSE,
+  }),
+}))
+```
+Use a plain object (not `NextResponse.next()`) as the mock response to avoid Next.js
+server internals not being available in test environments.
+
+### Route handler redirect assertions
+`NextResponse.redirect()` defaults to status 307:
+```ts
+expect(response.status).toBe(307)
+const location = new URL(response.headers.get('location') ?? '')
+expect(location.pathname).toBe('/expected/path')
+expect(location.searchParams.get('error')).toBe('expected_code')
+```
+
+### Supabase .from() chain mock
+```ts
+mockFrom.mockReturnValue({
+  select: () => ({
+    eq: () => ({
+      single: async () => ({ data: { id: 'row-id' } }),
+    }),
+  }),
+})
+```
+
+---
+
+### process.env deletion in tests
+Use `delete process.env.SOME_KEY` (not `= undefined`) to simulate missing env vars.
+`process.env` only stores strings — assigning `undefined` coerces to the string `"undefined"`.
+
+### Proxy-based Supabase chain mock
+For query functions that chain `.select().eq().order().limit().returns()` etc., use a Proxy
+that forwards any method call back to itself and resolves to a given return value:
+```ts
+function buildChain(returnValue: unknown) {
+  const awaitable = {
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+      Promise.resolve(returnValue).then(resolve, reject),
+  }
+  return new Proxy(awaitable as Record<string, unknown>, {
+    get(target, prop) {
+      if (prop === 'then') return target.then
+      return (..._args: unknown[]) => buildChain(returnValue)
+    },
+  })
+}
+```
+Then sequence multiple from() calls per table name using a counter or table-name switch:
+```ts
+mockFrom.mockImplementation((table: string) => {
+  if (table === 'easa_subjects') return buildChain({ data: [...] })
+  if (table === 'questions') return buildChain({ data: [...] })
+  return buildChain({ data: null })
+})
+```
+
+### Testing formatTimeAgo (text split across DOM nodes)
+When a time string appears inside a paragraph alongside other text nodes, use a function
+matcher instead of `getByText(string)`:
+```ts
+screen.getByText((_, element) => {
+  return element?.tagName === 'P' && (element.textContent ?? '').includes(dateString)
+})
+```
+
+### Mocking @/lib/supabase-rpc (rpc + upsert)
+```ts
+const { mockRpc, mockUpsert } = vi.hoisted(() => ({
+  mockRpc: vi.fn(),
+  mockUpsert: vi.fn(),
+}))
+vi.mock('@/lib/supabase-rpc', () => ({
+  rpc: mockRpc,
+  upsert: mockUpsert,
+}))
+```
+
+### Mocking @/lib/queries/* functions
+```ts
+const { mockGetRandomQuestionIds } = vi.hoisted(() => ({
+  mockGetRandomQuestionIds: vi.fn(),
+}))
+vi.mock('@/lib/queries/quiz', () => ({
+  getRandomQuestionIds: mockGetRandomQuestionIds,
+}))
+```
+
+---
+
+## Files tested in Phase 4
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/_components/login-form.tsx` | `login-form.test.tsx` | Client component, Zod validation + OTP |
+| `apps/web/app/app/_components/sign-out-button.tsx` | `sign-out-button.test.tsx` | Client component, signOut + router |
+| `apps/web/app/auth/callback/route.ts` | `route.test.ts` | Route handler, 4 branches |
+| `apps/web/app/auth/verify/page.tsx` | `page.test.tsx` | Async server component, 3 error codes |
+| `apps/web/proxy.ts` | `proxy.test.ts` | Middleware, 5 redirect/passthrough cases |
+| `packages/db/src/middleware.ts` | `middleware.test.ts` | Supabase client factory, env var guards |
+
+## Files tested in Phase 5
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `packages/db/src/fsrs.ts` | `fsrs.test.ts` | Pure logic; `ratingFromAnswer`, `stateToString`, `dbRowToCard`, `scheduleCard` |
+| `apps/web/lib/supabase-rpc.ts` | `supabase-rpc.test.ts` | `rpc()` and `upsert()` wrappers with fake client |
+| `apps/web/lib/queries/quiz.ts` | `queries/quiz.test.ts` | `getSubjectsWithCounts`, `getTopicsForSubject`, `getRandomQuestionIds` |
+| `apps/web/lib/queries/review.ts` | `queries/review.test.ts` | `getDueCards`, `getNewQuestionIds` |
+| `apps/web/lib/queries/dashboard.ts` | `queries/dashboard.test.ts` | `getDashboardData`, auth guard, aggregation |
+| `apps/web/lib/queries/progress.ts` | `queries/progress.test.ts` | `getProgressData`, topic breakdown, mastery calc |
+| `apps/web/app/app/quiz/actions.ts` | `quiz/actions.test.ts` | `startQuizSession`, `submitQuizAnswer`, `completeQuiz` |
+| `apps/web/app/app/review/actions.ts` | `review/actions.test.ts` | `startReviewSession`, `submitReviewAnswer`, `completeReviewSession` |
+| `apps/web/app/app/review/session/_components/load-questions.ts` | `load-questions.test.ts` | `loadSessionQuestions`, ordering, error paths |
+| `apps/web/app/app/_components/answer-options.tsx` | `answer-options.test.tsx` | Client component; selection, submit, correct/wrong styling |
+| `apps/web/app/app/_components/feedback-panel.tsx` | `feedback-panel.test.tsx` | Conditional text, image, onNext callback |
+| `apps/web/app/app/_components/session-summary.tsx` | `session-summary.test.tsx` | Score display, mode label, links |
+| `apps/web/app/app/dashboard/_components/due-reviews-banner.tsx` | `due-reviews-banner.test.tsx` | Zero state, singular/plural, link |
+| `apps/web/app/app/dashboard/_components/recent-sessions.tsx` | `recent-sessions.test.tsx` | `formatTimeAgo` all branches, score display |
+| `apps/web/app/app/progress/_components/subject-breakdown.tsx` | `subject-breakdown.test.tsx` | Expand/collapse toggle, topic details |
+
+## Files skipped (no testable logic)
+- `apps/web/app/layout.tsx` — pure layout, font config
+- `apps/web/app/page.tsx` — pure composition
+- `apps/web/app/app/layout.tsx` — Server Component with redirect; skipped as it requires
+  mocking `next/navigation`'s `redirect` (throws internally) — defer to E2E
+- `apps/web/app/app/dashboard/page.tsx` — thin page, just renders user.email
+- `apps/web/app/app/_components/question-card.tsx` — pure presenter, no logic (just renders text + optional image)
+- `apps/web/app/app/dashboard/_components/subject-grid.tsx` — pure presenter, MODE_LABELS only

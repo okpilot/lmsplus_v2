@@ -6,12 +6,12 @@
 
 ---
 
-## Status: PHASE 4 COMPLETE — ready for Phase 5
+## Status: PHASE 5 COMPLETE — MVP 2 ready for testing
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
 
 **Phase 2 done (2026-03-11):** Supabase setup complete:
-- `.env.local` with all credentials (publishable key, secret key, access token)
+- `apps/web/.env.local` with all credentials (publishable key, secret key, access token)
 - Supabase MCP scoped to project `uepvblipahxizozxvwjn`
 - Full schema: 14 tables with RLS + FORCE RLS on all tables
 - RLS policies: tenant isolation, immutability guards, role-scoped access
@@ -52,7 +52,34 @@
 - Supabase middleware client helper in `packages/db/src/middleware.ts`
 - Root layout metadata updated (was "Create Next App")
 
-**Next up: Phase 5** — Question Bank Trainer (dashboard, practice modes, FSRS, progress)
+**Phase 5 done (2026-03-11):** Question Bank Trainer (MVP 2):
+- Dashboard (`/app/dashboard`) — subject progress grid, due reviews banner, recent sessions
+- Smart Review (`/app/review`) — FSRS-powered spaced repetition, start session, review due cards + new questions
+- Quick Quiz (`/app/quiz`) — subject selector, question count, randomized quiz mode
+- Progress (`/app/progress`) — detailed breakdown by subject/topic with mastery percentages
+- Shared components: QuestionCard, AnswerOptions, FeedbackPanel, SessionSummary
+- Sidebar navigation for all modes
+- Server Actions: startQuizSession, submitQuizAnswer, completeQuiz, startReviewSession, submitReviewAnswer, completeReviewSession
+- Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData, getDueCards, getNewQuestionIds
+- FSRS integration via `packages/db/src/fsrs.ts` — wraps ts-fsrs library, updateFsrsCard on answer
+- UI components (shadcn): Badge, Card, Progress
+- Tests written for auth flow, middleware, server actions
+- Session state machine: answering → feedback → complete
+
+**Local dev setup (2026-03-11):**
+- Local Supabase via `supabase start` (Docker) — all dev against local, never remote
+- `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys
+- Mailpit (Inbucket) at `http://localhost:54324` — catches all magic link emails locally
+- Studio at `http://localhost:54323`
+- `scripts/dev-login.ts` — generates magic link via admin API (no email needed)
+- 73 questions seeded locally (050-01-01 through 050-01-05)
+- Migration 003 (question_number) + 004 (users RLS fix) in `supabase/migrations/`
+- Fixed RLS infinite recursion on `users` table (self-referencing `tenant_isolation` policy)
+- CSP updated: `connect-src` and `img-src` allow `http://localhost:*` for local dev
+- Image URLs use `localhost:54321` (not `127.0.0.1`) to match browser origin
+- React Strict Mode fix: session loaders cache data to survive double-mount
+
+**Next up: Phase 5B** — Test Hardening (fix existing tests, integration tests, E2E tests)
 
 ---
 
@@ -83,7 +110,7 @@ lmsplusv2/
 Before building, configure the three essential MCPs so Claude has full tool access throughout the build:
 
 1. **Supabase MCP** — get personal access token from supabase.com → Account → Access Tokens
-   Add to `.env.local`: `SUPABASE_ACCESS_TOKEN=sbp_xxxx`
+   Add to `apps/web/.env.local`: `SUPABASE_ACCESS_TOKEN=sbp_xxxx`
    Once project created, add `--project-ref <ref>` to `.claude/settings.json` Supabase args.
 
 2. **Context7** — no setup needed, works immediately after `settings.json` is in place
@@ -320,15 +347,46 @@ Weekly
 
 ---
 
+## Phase 5B — Test Hardening (after Phase 5 feature work)
+
+Current state: 6 unit test files (auth flow only), no integration or E2E tests.
+
+### 5B-1. Fix existing tests
+- Run `pnpm test`, fix any failures in the 6 agent-written test files
+- Remove `seed-test-user.ts` if unused, or wire it into test setup
+
+### 5B-2. Unit test coverage for Phase 5 code
+- FSRS scheduling logic (`packages/db/src/fsrs.ts`)
+- Quiz session state machine (start → answer → complete)
+- Zod schemas — edge cases, malformed input
+- Server Actions — auth checks, validation, error paths
+
+### 5B-3. Integration tests (Supabase)
+- Test RPC functions against a local Supabase instance (`supabase start`)
+- RLS policy tests: verify student can't read other students' data, can't see correct answers
+- `get_quiz_questions` strips `correct` field
+- `submit_quiz_answer` rejects duplicate answers (idempotency)
+- Audit log append-only enforcement
+
+### 5B-4. E2E tests (Playwright)
+- Add Playwright + Playwright MCP
+- Login flow: magic link → OTP → dashboard
+- Quiz flow: start session → answer questions → view results
+- Progress page: verify mastery percentages update after quiz
+- Protected routes: unauthenticated user redirected to login
+
+### 5B-5. CI pipeline
+- GitHub Actions: lint + type-check + unit tests + integration tests on PR
+- Playwright tests on merge to main (or nightly)
+
 ## Post-Phase 5 Suggestions
 
 From setup audit (2026-03-11):
 - **CI/CD:** GitHub Actions mirroring Lefthook checks (once repo goes to GitHub)
 - **Error tracking:** Sentry integration after Phase 5 goes live
 - **Monitoring:** Vercel Web Analytics dashboard
-- **Playwright MCP:** Add when building E2E tests (Phase 5)
 - **Vercel MCP:** Add after first deploy
 
 ---
 
-*Last updated: 2026-03-11 — Phase 2 complete, schema deployed to Supabase*
+*Last updated: 2026-03-11 — Local Supabase setup complete, Phase 5B next*

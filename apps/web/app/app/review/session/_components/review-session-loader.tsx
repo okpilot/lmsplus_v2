@@ -17,6 +17,9 @@ type SessionData = {
   questionIds: string[]
 }
 
+// Cache parsed session to survive React Strict Mode double-mount
+let cachedSession: SessionData | null = null
+
 export function ReviewSessionLoader() {
   const router = useRouter()
   const [session, setSession] = useState<SessionData | null>(null)
@@ -27,26 +30,24 @@ export function ReviewSessionLoader() {
   // it's reading a client-side navigation token set by StartReviewButton
   useEffect(() => {
     const raw = sessionStorage.getItem('review-session')
-    if (!raw) {
+    const data = raw ? (JSON.parse(raw) as SessionData) : cachedSession
+
+    if (!data) {
       router.replace('/app/review')
       return
     }
 
-    try {
-      const data = JSON.parse(raw) as SessionData
-      setSession(data)
-      sessionStorage.removeItem('review-session')
+    cachedSession = data
+    sessionStorage.removeItem('review-session')
+    setSession(data)
 
-      loadSessionQuestions(data.questionIds).then((result) => {
-        if (result.success) {
-          setQuestions(result.questions)
-        } else {
-          setError(result.error)
-        }
-      })
-    } catch {
-      router.replace('/app/review')
-    }
+    loadSessionQuestions(data.questionIds).then((result) => {
+      if (result.success) {
+        setQuestions(result.questions)
+      } else {
+        setError(result.error)
+      }
+    })
   }, [router])
 
   if (error) {

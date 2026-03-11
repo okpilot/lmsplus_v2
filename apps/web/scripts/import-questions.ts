@@ -16,10 +16,14 @@ import { ImportFileSchema } from '@repo/db/import-schema'
 import type { ImportQuestion } from '@repo/db/import-schema'
 import { createClient } from '@supabase/supabase-js'
 
-// Load .env.local from repo root
+// Load .env.local from apps/web or repo root
 function loadEnv() {
-  const envPath = resolve(__dirname, '../../../.env.local')
-  if (!existsSync(envPath)) return
+  const candidates = [
+    resolve(__dirname, '../.env.local'), // apps/web/.env.local
+    resolve(__dirname, '../../../.env.local'), // repo root
+  ]
+  const envPath = candidates.find((p) => existsSync(p))
+  if (!envPath) return
   const lines = readFileSync(envPath, 'utf-8').split('\n')
   for (const line of lines) {
     const trimmed = line.trim()

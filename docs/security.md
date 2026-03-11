@@ -257,7 +257,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.supabase.co",
       "font-src 'self'",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co http://localhost:*",
       "frame-src 'none'",
     ].join('; '),
   },
@@ -303,7 +303,7 @@ export async function submitAnswer(raw: unknown) {
 
 | Environment | Secret location |
 |-------------|----------------|
-| Local dev   | `.env.local` (gitignored — see `.gitignore`) |
+| Local dev   | `apps/web/.env.local` (gitignored — see `.gitignore`) |
 | Production  | Vercel Environment Variables (encrypted at rest) |
 | CI/CD       | GitHub Actions secrets (never in workflow YAML) |
 

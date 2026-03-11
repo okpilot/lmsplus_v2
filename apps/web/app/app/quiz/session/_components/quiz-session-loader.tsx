@@ -17,6 +17,9 @@ type SessionData = {
   questionIds: string[]
 }
 
+// Cache parsed session to survive React Strict Mode double-mount
+let cachedSession: SessionData | null = null
+
 export function QuizSessionLoader() {
   const router = useRouter()
   const [session, setSession] = useState<SessionData | null>(null)
@@ -25,26 +28,25 @@ export function QuizSessionLoader() {
 
   useEffect(() => {
     const raw = sessionStorage.getItem('quiz-session')
-    if (!raw) {
+    const data = raw ? (JSON.parse(raw) as SessionData) : cachedSession
+
+    if (!data) {
       router.replace('/app/quiz')
       return
     }
 
-    try {
-      const data = JSON.parse(raw) as SessionData
-      setSession(data)
-      sessionStorage.removeItem('quiz-session')
+    // Cache before removing so double-mount still works
+    cachedSession = data
+    sessionStorage.removeItem('quiz-session')
+    setSession(data)
 
-      loadSessionQuestions(data.questionIds).then((result) => {
-        if (result.success) {
-          setQuestions(result.questions)
-        } else {
-          setError(result.error)
-        }
-      })
-    } catch {
-      router.replace('/app/quiz')
-    }
+    loadSessionQuestions(data.questionIds).then((result) => {
+      if (result.success) {
+        setQuestions(result.questions)
+      } else {
+        setError(result.error)
+      }
+    })
   }, [router])
 
   if (error) {

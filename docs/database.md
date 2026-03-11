@@ -647,7 +647,7 @@ CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
 
 ## 6. Migration Rules
 
-1. **Every migration is forward-only.** No rollback scripts. If you need to undo, write a new migration.
+1. **Every migration is forward-only and immutable.** Never edit or delete a migration that has been applied. If you need to undo or change something, write a new migration.
 2. **Never rename a column in production** — add the new column, migrate data, drop the old column in three separate migrations.
 3. **Never change a column type** without a migration that handles existing data.
 4. **Every migration file is named** `NNN_short_description.sql` — e.g., `001_initial_schema.sql`.
