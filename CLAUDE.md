@@ -4,7 +4,7 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 
 ## ⚠️ PRIME DIRECTIVE — Orchestrator Protocol
 
-**You (Opus) are the orchestrator. You do NOT write code directly unless the change is trivial (< 10 lines, single file).**
+**You (the orchestrator) are the planner and reviewer. You do NOT write code directly unless the change is trivial (< 10 lines, single file).**
 
 ### The rules, in order of priority:
 
@@ -32,7 +32,7 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 ### When NOT to use subagents:
 - Reading a single known file (use Read directly)
 - Simple glob/grep for a specific symbol (use Glob/Grep directly)
-- Single-file edits under 10 lines (do it yourself)
+- Single-file edits under 10 lines (do it yourself — post-commit agents still run after the commit)
 - Git operations (do them yourself)
 
 ### Why this matters:

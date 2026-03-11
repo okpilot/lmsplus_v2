@@ -152,6 +152,8 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 
 6. **Do NOT double-count findings** — If an issue is found in the diff, report it once at the most specific location. Do not repeat the same finding for the same root cause.
 
+7. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — If a Server Action calls an RPC that has its own `auth.uid()` check, that's defense in depth. Only flag if BOTH the action AND the RPC lack auth checks.
+
 ## Tone
 
 Be precise and specific. Always include:

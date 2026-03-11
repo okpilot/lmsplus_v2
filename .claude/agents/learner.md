@@ -104,4 +104,4 @@ Be analytical and concise. Focus on actionable improvements, not commentary. Eve
 
 4. **Do NOT recommend adding rules that duplicate Biome/Lefthook enforcement** — If something is already caught by biome lint, biome format, or Lefthook pre-commit hooks, do not propose a manual code-style rule for it. Avoid double-gating.
 
-5. **Do NOT update agent definitions directly** — Propose changes in your output. The main session decides whether to apply them. You do not have authority to modify `.claude/agents/*.md` files.
+5. **Do NOT edit `.claude/agents/*.md` files directly** — Propose changes in your output. The main session decides whether to apply them. Memory files under `.claude/agent-memory/` are yours to update normally.

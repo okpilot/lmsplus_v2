@@ -30,6 +30,8 @@ Keep documentation accurate and current. You update docs when:
 
 7. **Do NOT create new doc files** unless explicitly asked by the user.
 
+8. **Do NOT miss CLAUDE.md NEVER DO drift** — When `.claude/rules/code-style.md` or `security.md` changes, audit the `## NEVER DO` block in `CLAUDE.md` for stale or contradictory entries.
+
 ## Key files to keep current
 - `docs/plan.md` — phase status, what's built, what's next
 - `docs/decisions.md` — confirmed decisions and open questions
