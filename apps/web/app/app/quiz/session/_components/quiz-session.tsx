@@ -49,12 +49,20 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
     setSelectedOption(selectedId)
     const responseTimeMs = Date.now() - answerStartTime.current
 
-    const result = await submitQuizAnswer({
-      sessionId,
-      questionId: q.id,
-      selectedOptionId: selectedId,
-      responseTimeMs,
-    })
+    let result: SubmitQuizAnswerResult
+    try {
+      result = await submitQuizAnswer({
+        sessionId,
+        questionId: q.id,
+        selectedOptionId: selectedId,
+        responseTimeMs,
+      })
+    } catch (err) {
+      console.error('Failed to submit answer:', err)
+      setError('Something went wrong. Please try again.')
+      setSubmitting(false)
+      return
+    }
 
     if (!result.success) {
       setError(result.error)
@@ -73,7 +81,14 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
   async function handleNext() {
     setError(null)
     if (currentIndex + 1 >= questions.length) {
-      const result = await completeQuiz({ sessionId })
+      let result: Awaited<ReturnType<typeof completeQuiz>>
+      try {
+        result = await completeQuiz({ sessionId })
+      } catch (err) {
+        console.error('Failed to complete quiz:', err)
+        setError('Something went wrong. Please try again.')
+        return
+      }
       if (!result.success) {
         setError(result.error)
         return

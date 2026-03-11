@@ -1,8 +1,8 @@
 export type SubmitRpcResult = {
   is_correct: boolean
   correct_option_id: string
-  explanation_text: string
-  explanation_image_url: string
+  explanation_text: string | null
+  explanation_image_url: string | null
 }[]
 
 export type CompleteRpcResult = {
