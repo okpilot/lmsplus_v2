@@ -312,6 +312,18 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 17: Test-writer agent must verify its own tests (2026-03-11)
+
+**Context:** Test-writer agent wrote 31 tests post-commit but 2 were broken. Nobody caught them because: (a) agent had no `Bash` tool so couldn't run tests, (b) Stop hook swallowed test output with `--silent`, (c) no verification step after writing.
+
+**Decided:**
+- Test-writer `--allowedTools` now includes `Bash` — agent can run `vitest` to verify
+- `run-test-writer.sh` runs `pnpm test` after agent finishes as a safety net
+- `test-writer.md` prompt updated: "Always run tests you wrote. Never leave broken tests."
+- `on-stop.sh` removed `--silent` flag — test failures are now visible in Claude output
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -323,4 +335,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Phase 4 complete*
+*Last updated: 2026-03-11 — Phase 4 complete, test automation fixed*
