@@ -128,37 +128,44 @@ CREATE POLICY "responses_no_delete" ON student_responses
 
 ### Immutable Tables: Policy Scope Pattern
 
-Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE entirely. Use explicit `FOR` clause scoping:
+Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE, DELETE, and direct INSERT. These tables are written only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which bypass RLS.
 
 ```sql
--- ✅ CORRECT — permissive policies scoped to SELECT + INSERT only
+-- ✅ CORRECT — SELECT only; INSERT blocked
 CREATE POLICY "students_read_answers" ON quiz_session_answers
   FOR SELECT
   USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
 
-CREATE POLICY "students_insert_answers" ON quiz_session_answers
-  FOR INSERT
-  WITH CHECK (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+-- Restrictive policies to block writes
+CREATE POLICY "no_insert_answers" ON quiz_session_answers
+  FOR INSERT USING (false);
 
--- Restrictive policies (always work)
 CREATE POLICY "no_update_answers" ON quiz_session_answers
   FOR UPDATE USING (false);
 
 CREATE POLICY "no_delete_answers" ON quiz_session_answers
   FOR DELETE USING (false);
 
+-- ❌ WRONG — This allows INSERT, which lets students forge is_correct values
+CREATE POLICY "students_insert_answers" ON quiz_session_answers
+  FOR INSERT
+  WITH CHECK (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+  -- ^ Removed in migration 006: students must not insert directly
+
 -- ❌ WRONG — permissive policy without FOR clause applies to ALL operations (SELECT, INSERT, UPDATE, DELETE)
 -- This overrides the restrictive no_update/no_delete because PostgreSQL OR's permissive policies
 CREATE POLICY "students_own_answers" ON quiz_session_answers
   USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
-  -- ^ This applies to ALL operations, making UPDATE/DELETE possible!
+  -- ^ This applies to ALL operations, making INSERT/UPDATE/DELETE possible!
 ```
 
-**Critical rule:** On immutable tables, always split permissive policies by operation:
-- `FOR SELECT` — allow reads
-- `FOR INSERT` — allow inserts only
+**Critical rule:** On immutable tables, block all direct writes:
+- `FOR SELECT` — allow reads only
+- `FOR INSERT USING (false)` — block all inserts
 - `FOR UPDATE USING (false)` — block all updates
 - `FOR DELETE USING (false)` — block all deletes
+
+Write operations go only through SECURITY DEFINER RPCs that enforce business logic.
 
 ### RLS Verification Checklist
 Before any migration is merged, run:
@@ -297,11 +304,13 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline'",  // Next.js requires unsafe-eval in dev
+      // Development: allows unsafe-eval for Next.js HMR and localhost access
+      // Production: blocks unsafe-eval, tightens img-src and connect-src to Supabase only
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://*.supabase.co",
+      `img-src 'self' data: blob: https://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
       "font-src 'self'",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co http://localhost:*",
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
       "frame-src 'none'",
     ].join('; '),
   },

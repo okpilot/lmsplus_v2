@@ -29,10 +29,12 @@ that doesn't accidentally break those guarantees.
 Certain records must never change after creation. These represent facts that happened.
 Enforce at the database level (RLS policies), not just application convention.
 
-**Immutable tables (no UPDATE, no DELETE, ever):**
+**Immutable tables (no UPDATE, no DELETE, no direct INSERT — RLS blocks all writes):**
 - `student_responses` — every answer a student ever gave
 - `quiz_session_answers` — same, tied to a specific session
 - `audit_events` — compliance log
+
+Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which run as the database owner and bypass RLS, allowing controlled inserts with business logic enforced in the function. Direct client inserts are blocked.
 
 **Soft-deletable tables (UPDATE deleted_at, never hard DELETE):**
 - Everything else — see §3.

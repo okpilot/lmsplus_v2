@@ -355,6 +355,34 @@ When a mocked `fetch` will be called multiple times (e.g., retry loops), always 
 gets consumed on the first `.json()` call, causing "Body has already been read" on
 subsequent calls.
 
+## Files tested in CSP tightening commit
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/next.config.ts` | `next.config.test.ts` | CSP dev/prod split; `vi.stubEnv` + `vi.resetModules` + dynamic import |
+
+### Testing module-level constants that depend on NODE_ENV
+When a module evaluates `process.env.NODE_ENV` at the top level (not inside a function),
+`vi.stubEnv` alone is not enough — the value is already captured. Use this pattern to
+test both branches:
+
+```ts
+async function loadConfig(nodeEnv: string) {
+  vi.stubEnv('NODE_ENV', nodeEnv)
+  vi.resetModules()
+  const mod = await import('./next.config')
+  return mod.default
+}
+```
+
+Call `vi.resetModules()` in `beforeEach` and `vi.unstubAllEnvs()` + `vi.resetModules()`
+in `afterEach` so each test gets a fresh module load.
+
+Dynamic `import()` after `resetModules()` forces Node to re-evaluate the module, picking
+up the newly stubbed env value.
+
+---
+
 ## Files skipped (no testable logic)
 - `apps/web/app/layout.tsx` — pure layout, font config
 - `apps/web/app/page.tsx` — pure composition
