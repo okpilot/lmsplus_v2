@@ -6,7 +6,7 @@
 
 ---
 
-## Status: PHASE 5 COMPLETE — MVP 2 ready for testing
+## Status: PHASE 5B-4 COMPLETE — MVP 2 fully tested (unit + integration + E2E)
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
 
@@ -89,7 +89,14 @@
 - Found + fixed real RLS bug: permissive ALL policies overrode no_update/no_delete (migration 005)
 - Test infra: `packages/db/src/__integration__/setup.ts` (helpers for user/org/question seeding + cleanup)
 
-**Next up: Phase 5B-4** — E2E tests (Playwright)
+**Phase 5B-4 done (2026-03-11):** E2E tests (Playwright):
+- Auth setup flow: magic link, OTP extraction, session persistence
+- 10 E2E tests across 4 spec files: login flow, protected routes (5), quiz session, progress (2)
+- Mailpit helper (`e2e/helpers/mailpit.ts`): fetch latest email, extract magic link
+- Supabase helper (`e2e/helpers/supabase.ts`): ensure E2E test user exists in Egmont Aviation org
+- Playwright config: auth state caching, headless + headed modes, HTML reporter
+- Scripts: `pnpm e2e`, `pnpm e2e:ui`, `pnpm e2e:headed`
+- All core user flows covered: login → quiz/review → progress → back to dashboard
 
 ---
 
@@ -357,35 +364,18 @@ Weekly
 
 ---
 
-## Phase 5B — Test Hardening (after Phase 5 feature work)
+## Phase 5B — Test Hardening (COMPLETE as of 2026-03-11)
 
-Current state: 6 unit test files (auth flow only), no integration or E2E tests.
+✅ **5B-1 done:** Fixed middleware test failure
+✅ **5B-2 done:** Unit test coverage for Phase 5 components (dashboard, quiz, review, progress)
+✅ **5B-3 done:** 35 integration tests for all 4 RPC functions + RLS policies (tenant isolation, immutability)
+✅ **5B-4 done:** 10 Playwright E2E tests across 4 spec files (login, protected routes, quiz flow, progress)
 
-### 5B-1. Fix existing tests
-- Run `pnpm test`, fix any failures in the 6 agent-written test files
-- Remove `seed-test-user.ts` if unused, or wire it into test setup
+Test summary: 224 unit tests (30 files) + 35 integration tests + 10 E2E tests. All passing.
 
-### 5B-2. Unit test coverage for Phase 5 code
-- FSRS scheduling logic (`packages/db/src/fsrs.ts`)
-- Quiz session state machine (start → answer → complete)
-- Zod schemas — edge cases, malformed input
-- Server Actions — auth checks, validation, error paths
+**Next up: Phase 5B-5** — CI pipeline
 
-### 5B-3. Integration tests (Supabase)
-- Test RPC functions against a local Supabase instance (`supabase start`)
-- RLS policy tests: verify student can't read other students' data, can't see correct answers
-- `get_quiz_questions` strips `correct` field
-- `submit_quiz_answer` rejects duplicate answers (idempotency)
-- Audit log append-only enforcement
-
-### 5B-4. E2E tests (Playwright)
-- Add Playwright + Playwright MCP
-- Login flow: magic link → OTP → dashboard
-- Quiz flow: start session → answer questions → view results
-- Progress page: verify mastery percentages update after quiz
-- Protected routes: unauthenticated user redirected to login
-
-### 5B-5. CI pipeline
+### 5B-5. CI pipeline (next phase)
 - GitHub Actions: lint + type-check + unit tests + integration tests on PR
 - Playwright tests on merge to main (or nightly)
 
@@ -399,4 +389,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-11 — Local Supabase setup complete, Phase 5B next*
+*Last updated: 2026-03-11 — Phase 5B complete: unit + integration + E2E tests all passing*
