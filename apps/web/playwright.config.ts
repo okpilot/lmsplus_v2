@@ -24,6 +24,7 @@ export default defineConfig({
     { name: 'setup', testMatch: 'auth.setup.ts' },
     {
       name: 'e2e',
+      testMatch: '**/*.spec.ts',
       dependencies: ['setup'],
     },
   ],
