@@ -22,7 +22,6 @@ import { getRandomQuestionIds, getSubjectsWithCounts, getTopicsForSubject } from
 
 /** Builds a fluent chain stub: from().select().eq()...returns() */
 function buildChain(returnValue: unknown) {
-  const _end = vi.fn().mockResolvedValue(returnValue)
   const chain: Record<string, unknown> = {}
   const proxy = new Proxy(chain, {
     get(_, prop) {

@@ -383,6 +383,27 @@ up the newly stubbed env value.
 
 ---
 
+## Files tested in commits 044542f + d183a8c (CSP + security fixes)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/proxy.ts` | `proxy.test.ts` | Added 2 tests: cookie forwarding on both redirect branches |
+
+### Asserting cookies on a NextResponse redirect
+`NextResponse.redirect()` returns a real `Response`. Cookies set via
+`redirect.cookies.set()` appear as a `set-cookie` header string:
+```ts
+const response = await proxy(makeRequest('/app/dashboard'))
+expect(response.status).toBe(307)
+const setCookie = response.headers.get('set-cookie') ?? ''
+expect(setCookie).toContain('sb-token=refreshed')
+```
+The mock session response must already expose `cookies.getAll()` returning the
+expected cookie array (already present in `MOCK_SESSION_RESPONSE`). No extra mock
+changes are needed — just assert on the `set-cookie` header of the returned redirect.
+
+---
+
 ## Files skipped (no testable logic)
 - `apps/web/app/layout.tsx` — pure layout, font config
 - `apps/web/app/page.tsx` — pure composition

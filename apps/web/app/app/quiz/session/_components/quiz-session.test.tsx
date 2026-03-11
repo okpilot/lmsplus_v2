@@ -51,8 +51,8 @@ describe('QuizSession', () => {
   })
 
   it('renders a progress bar', () => {
-    const { container } = render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    const progressBar = container.querySelector('.bg-primary.rounded-full')
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    const progressBar = screen.getByTestId('progress-bar')
     expect(progressBar).toBeInTheDocument()
   })
 

@@ -28,7 +28,7 @@ describe('ThemeProvider', () => {
     expect(screen.getByText('child content')).toBeInTheDocument()
   })
 
-  it('passes attribute="class" to NextThemesProvider', () => {
+  it('uses CSS class-based theming', () => {
     render(
       <ThemeProvider>
         <span />
@@ -38,7 +38,7 @@ describe('ThemeProvider', () => {
     expect(receivedProps).toMatchObject({ attribute: 'class' })
   })
 
-  it('passes defaultTheme="system" to NextThemesProvider', () => {
+  it('defaults to the system color scheme', () => {
     render(
       <ThemeProvider>
         <span />
@@ -48,7 +48,7 @@ describe('ThemeProvider', () => {
     expect(receivedProps).toMatchObject({ defaultTheme: 'system' })
   })
 
-  it('passes enableSystem=true to NextThemesProvider', () => {
+  it('supports automatic system theme detection', () => {
     render(
       <ThemeProvider>
         <span />
@@ -58,7 +58,7 @@ describe('ThemeProvider', () => {
     expect(receivedProps).toMatchObject({ enableSystem: true })
   })
 
-  it('passes disableTransitionOnChange=true to NextThemesProvider', () => {
+  it('prevents transition flicker on theme change', () => {
     render(
       <ThemeProvider>
         <span />

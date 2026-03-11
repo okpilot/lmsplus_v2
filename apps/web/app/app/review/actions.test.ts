@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -182,6 +183,10 @@ describe('submitReviewAnswer', () => {
     const result = await submitReviewAnswer(validInput)
     expect(result.success).toBe(false)
   })
+
+  it('throws ZodError when input is malformed', async () => {
+    await expect(submitReviewAnswer({})).rejects.toThrow(ZodError)
+  })
 })
 
 // ---- completeReviewSession -----------------------------------------------
@@ -221,6 +226,6 @@ describe('completeReviewSession', () => {
   })
 
   it('throws ZodError when sessionId is missing', async () => {
-    await expect(completeReviewSession({})).rejects.toThrow()
+    await expect(completeReviewSession({})).rejects.toThrow(ZodError)
   })
 })

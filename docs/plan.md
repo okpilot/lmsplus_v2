@@ -6,7 +6,7 @@
 
 ---
 
-## Status: PHASE 5B-5 COMPLETE — CI pipeline added
+## Status: PHASE 5B-6 COMPLETE — CodeRabbit findings addressed
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
 
@@ -32,20 +32,19 @@
 - Migration `002_add_question_number.sql` — added `question_number` column
 - `@repo/db` package exports map added
 - Test batch: 5 questions from 050-01-01 imported + idempotency verified
-- All 4 Claude agents wired to Lefthook git hooks:
-  - `code-reviewer` (haiku) → post-commit, reviews diff for code style violations
-  - `doc-updater` (haiku) → post-commit, updates docs when code changes
-  - `test-writer` (sonnet) → post-commit, writes missing tests for new source files
-  - `security-auditor` (sonnet) → pre-push, **blocking** on CRITICAL/HIGH findings
+- 4 Claude subagents run via Agent tool after each commit (not Lefthook):
+  - `code-reviewer` (haiku) — reviews diff for code style violations
+  - `doc-updater` (haiku) — checks if docs need updates
+  - `test-writer` (sonnet) — writes missing tests for new source files
+  - `security-auditor` (sonnet) → pre-push via Lefthook, **blocking** on CRITICAL/HIGH findings
 - Agent memory dirs: `.claude/agent-memory/{code-reviewer,security-auditor,doc-updater,test-writer}/`
-- Nested Claude sessions: `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` + stdin piping
 
 **Phase 4 done (2026-03-11):** Student auth (magic link):
 - Login page at `/` with email input + Zod validation
 - Magic link via `supabase.auth.signInWithOtp()` → redirects to `/auth/verify`
 - Auth callback at `/auth/callback` — exchanges code for session, checks `users` table exists (pre-created by admin)
 - Unregistered users signed out + redirected to error page
-- Proxy (`proxy.ts`, Next.js 16 convention) protects all `/app/*` routes, refreshes session tokens
+- Proxy (`proxy.ts`, Next.js 16 convention) protects all `/app/*` routes, refreshes session tokens, propagates auth cookies on redirects
 - Authenticated users auto-redirected from `/` to `/app/dashboard`
 - App layout with user display name + sign-out button
 - Dashboard placeholder at `/app/dashboard`
@@ -420,4 +419,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-11 — Phase 5B-5 complete: QA pipeline restructured, learner + coderabbit-sync agents, .coderabbit.yaml*
+*Last updated: 2026-03-11 — Phase 5B-6 complete: CodeRabbit findings addressed, security hardened, all tests passing*

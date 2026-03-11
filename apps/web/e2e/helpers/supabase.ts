@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+if (!SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for E2E tests')
 
 export const TEST_EMAIL = 'e2e-test@lmsplus.local'
 export const TEST_PASSWORD = 'e2e-test-password-2026!'
@@ -17,12 +18,13 @@ export async function ensureTestUser() {
   const admin = getAdminClient()
 
   // Use the existing org that has seeded questions
-  const { data: org } = await admin
+  const { data: org, error: orgError } = await admin
     .from('organizations')
     .select('id')
     .eq('slug', 'egmont-aviation')
     .single()
 
+  if (orgError) throw new Error(`ensureTestUser org lookup: ${orgError.message}`)
   if (!org) throw new Error('Egmont Aviation org not found — run question import first')
   const orgId = org.id
 
@@ -44,11 +46,16 @@ export async function ensureTestUser() {
   }
 
   // Ensure public.users row exists in the correct org
-  const { data: userRow } = await admin
+  const { data: userRow, error: userRowError } = await admin
     .from('users')
     .select('id, organization_id')
     .eq('id', userId)
     .single()
+
+  // PGRST116 = "no rows found" which is expected for new users
+  if (userRowError && userRowError.code !== 'PGRST116') {
+    throw new Error(`ensureTestUser user lookup: ${userRowError.message}`)
+  }
 
   if (!userRow) {
     const { error: userError } = await admin.from('users').insert({

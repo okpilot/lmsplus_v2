@@ -1,4 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+// Set the required env var before the module under test is evaluated
+vi.hoisted(() => {
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+})
+
 import { TEST_EMAIL, TEST_PASSWORD, ensureTestUser, getAdminClient } from './supabase'
 
 // ---------------------------------------------------------------------------
@@ -20,20 +26,23 @@ function buildChain(returnValue: unknown) {
 }
 
 type MockClientOptions = {
-  org?: { data: { id: string } | null }
+  org?: { data: { id: string } | null; error: { message: string; code?: string } | null }
   listUsers?: { data: { users: Array<{ id: string; email: string }> } | null }
   createUser?: { data: { user: { id: string } } | null; error: { message: string } | null }
-  userRow?: { data: { id: string; organization_id: string } | null }
+  userRow?: {
+    data: { id: string; organization_id: string } | null
+    error?: { message: string; code?: string } | null
+  }
   insertError?: { message: string } | null
   updateError?: { message: string } | null
 }
 
 function buildMockClient(opts: MockClientOptions) {
   const {
-    org = { data: { id: 'org-123' } },
+    org = { data: { id: 'org-123' }, error: null },
     listUsers = { data: { users: [] } },
     createUser = { data: { user: { id: 'new-user-id' } }, error: null },
-    userRow = { data: null },
+    userRow = { data: null, error: { message: 'no rows found', code: 'PGRST116' } },
     insertError = null,
     updateError = null,
   } = opts
@@ -116,15 +125,24 @@ describe('getAdminClient', () => {
 
 describe('ensureTestUser', () => {
   it('throws when the Egmont Aviation org is not found', async () => {
-    mockCreateClient.mockReturnValue(buildMockClient({ org: { data: null } }))
+    mockCreateClient.mockReturnValue(buildMockClient({ org: { data: null, error: null } }))
     await expect(ensureTestUser()).rejects.toThrow('Egmont Aviation org not found')
+  })
+
+  it('throws when the org lookup query fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildMockClient({
+        org: { data: null, error: { message: 'connection refused' } },
+      }),
+    )
+    await expect(ensureTestUser()).rejects.toThrow('ensureTestUser org lookup: connection refused')
   })
 
   it('returns orgId and userId when user already exists in the correct org', async () => {
     mockCreateClient.mockReturnValue(
       buildMockClient({
         listUsers: { data: { users: [{ id: 'existing-user', email: TEST_EMAIL }] } },
-        userRow: { data: { id: 'existing-user', organization_id: 'org-123' } },
+        userRow: { data: { id: 'existing-user', organization_id: 'org-123' }, error: null },
       }),
     )
 

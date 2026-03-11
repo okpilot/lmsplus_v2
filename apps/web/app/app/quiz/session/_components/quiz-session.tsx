@@ -95,6 +95,7 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="h-1.5 w-full rounded-full bg-muted">
         <div
+          data-testid="progress-bar"
           className="h-1.5 rounded-full bg-primary transition-all"
           style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
         />

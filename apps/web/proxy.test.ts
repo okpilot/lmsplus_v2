@@ -73,4 +73,26 @@ describe('proxy', () => {
 
     expect(response).toBe(MOCK_SESSION_RESPONSE)
   })
+
+  it('copies session cookies onto the redirect to / when unauthenticated on /app/*', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+
+    const response = await proxy(makeRequest('/app/dashboard'))
+
+    expect(response.status).toBe(307)
+    // The refreshed session cookie must travel with the redirect so the
+    // browser stores the new token even when being bounced to login.
+    const setCookie = response.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('sb-token=refreshed')
+  })
+
+  it('copies session cookies onto the redirect to /app/dashboard when authenticated on /', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    const response = await proxy(makeRequest('/'))
+
+    expect(response.status).toBe(307)
+    const setCookie = response.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('sb-token=refreshed')
+  })
 })

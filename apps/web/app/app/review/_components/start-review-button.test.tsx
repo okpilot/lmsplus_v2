@@ -62,7 +62,7 @@ describe('StartReviewButton', () => {
     )
   })
 
-  it('does not navigate on failure', async () => {
+  it('does not navigate on failure and resets button text', async () => {
     const user = userEvent.setup()
     mockStartReviewSession.mockResolvedValue({ success: false, error: 'No cards due' })
 
@@ -70,6 +70,7 @@ describe('StartReviewButton', () => {
     await user.click(screen.getByRole('button'))
 
     expect(mockPush).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Start Smart Review' })).toBeInTheDocument()
   })
 
   it('shows loading text while starting', async () => {
@@ -84,7 +85,9 @@ describe('StartReviewButton', () => {
     render(<StartReviewButton disabled={false} />)
     await user.click(screen.getByRole('button'))
 
+    const button = screen.getByRole('button')
     expect(screen.getByText('Starting...')).toBeInTheDocument()
+    expect(button).toBeDisabled()
     // resolvePromise is assigned synchronously before this line runs
     resolvePromise?.({ success: false, error: 'fail' })
   })

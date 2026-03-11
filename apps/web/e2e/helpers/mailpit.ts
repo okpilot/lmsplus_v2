@@ -79,5 +79,6 @@ export function extractMagicLink(html: string): string {
 
 /** Delete all messages (clear all mailboxes). */
 export async function clearAllMessages() {
-  await fetch(`${MAILPIT_URL}/api/v1/messages`, { method: 'DELETE' })
+  const res = await fetch(`${MAILPIT_URL}/api/v1/messages`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`clearAllMessages: ${res.status}`)
 }

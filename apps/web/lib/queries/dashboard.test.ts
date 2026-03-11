@@ -56,10 +56,7 @@ describe('getDashboardData', () => {
   it('returns zeroed dashboard data when there are no subjects', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    // We need to match per-table. Use a call counter per table name.
-    const callsByTable: Record<string, number> = {}
     mockFrom.mockImplementation((table: string) => {
-      callsByTable[table] = (callsByTable[table] ?? 0) + 1
       if (table === 'fsrs_cards') return buildChain({ count: 0 })
       if (table === 'easa_subjects') return buildChain({ data: [] })
       if (table === 'student_responses') return buildChain({ count: 0, data: [] })

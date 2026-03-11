@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -109,13 +110,13 @@ describe('startQuizSession', () => {
   })
 
   it('throws ZodError when input is invalid (missing required fields)', async () => {
-    await expect(startQuizSession({})).rejects.toThrow()
+    await expect(startQuizSession({})).rejects.toThrow(ZodError)
   })
 
   it('throws ZodError when subjectId is not a UUID', async () => {
     await expect(
       startQuizSession({ subjectId: 'not-a-uuid', topicId: null, count: 5 }),
-    ).rejects.toThrow()
+    ).rejects.toThrow(ZodError)
   })
 })
 
@@ -196,6 +197,10 @@ describe('submitQuizAnswer', () => {
     const [, table] = mockUpsert.mock.calls[0]!
     expect(table).toBe('fsrs_cards')
   })
+
+  it('throws ZodError when input is malformed', async () => {
+    await expect(submitQuizAnswer({})).rejects.toThrow(ZodError)
+  })
 })
 
 // ---- completeQuiz --------------------------------------------------------
@@ -231,6 +236,6 @@ describe('completeQuiz', () => {
   })
 
   it('throws ZodError when sessionId is missing', async () => {
-    await expect(completeQuiz({})).rejects.toThrow()
+    await expect(completeQuiz({})).rejects.toThrow(ZodError)
   })
 })

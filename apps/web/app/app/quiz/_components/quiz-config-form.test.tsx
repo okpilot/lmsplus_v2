@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QuizConfigForm } from './quiz-config-form'
 
 const mockPush = vi.fn()
@@ -22,6 +22,10 @@ describe('QuizConfigForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubGlobal('sessionStorage', { setItem: vi.fn(), getItem: vi.fn(), removeItem: vi.fn() })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('renders subject select and question count input', () => {

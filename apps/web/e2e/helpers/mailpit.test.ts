@@ -68,7 +68,7 @@ describe('clearAllMessages', () => {
     vi.restoreAllMocks()
   })
 
-  it('sends a DELETE request to the Mailpit messages endpoint', async () => {
+  it('clears all stored messages', async () => {
     const mockFetch = vi.spyOn(global, 'fetch').mockImplementation(async () => new Response())
     await clearAllMessages()
     expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:54324/api/v1/messages', {

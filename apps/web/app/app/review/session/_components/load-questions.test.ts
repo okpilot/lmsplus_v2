@@ -106,7 +106,7 @@ describe('loadSessionQuestions', () => {
     expect(result.success).toBe(false)
   })
 
-  it('passes the question IDs to the RPC function', async () => {
+  it('requests quiz questions for the provided IDs', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'not called' } })
     const ids = ['q1', 'q2', 'q3']
     await loadSessionQuestions(ids)
