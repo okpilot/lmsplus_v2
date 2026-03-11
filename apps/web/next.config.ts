@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next'
 
 const isDev = process.env.NODE_ENV !== 'production'
+// Allow localhost connections in production builds that target local Supabase (E2E CI)
+const isLocalSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('http://localhost')
+const allowLocal = isDev || isLocalSupabase
 
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
@@ -18,9 +21,9 @@ const securityHeaders = [
       "default-src 'self'",
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
       "style-src 'self' 'unsafe-inline'",
-      `img-src 'self' data: blob: https://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
+      `img-src 'self' data: blob: https://*.supabase.co${allowLocal ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
       "font-src 'self'",
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${allowLocal ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
       "frame-ancestors 'none'",
     ].join('; '),
   },
