@@ -1,0 +1,7 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "include": ["src/__integration__"],
+  "compilerOptions": {
+    "noEmit": true
+  }
+}

@@ -29,10 +29,12 @@ that doesn't accidentally break those guarantees.
 Certain records must never change after creation. These represent facts that happened.
 Enforce at the database level (RLS policies), not just application convention.
 
-**Immutable tables (no UPDATE, no DELETE, ever):**
+**Immutable tables (no UPDATE, no DELETE, no direct INSERT — RLS blocks all writes):**
 - `student_responses` — every answer a student ever gave
 - `quiz_session_answers` — same, tied to a specific session
 - `audit_events` — compliance log
+
+Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which run as the database owner and bypass RLS, allowing controlled inserts with business logic enforced in the function. Direct client inserts are blocked.
 
 **Soft-deletable tables (UPDATE deleted_at, never hard DELETE):**
 - Everything else — see §3.
@@ -158,6 +160,7 @@ CREATE TABLE questions (
   subject_id      UUID NOT NULL REFERENCES easa_subjects(id),
   topic_id        UUID NOT NULL REFERENCES easa_topics(id),
   subtopic_id     UUID REFERENCES easa_subtopics(id) NULL,
+  question_number TEXT NULL,                    -- external ID from source QDB (e.g. '688864')
   lo_reference    TEXT NULL,                   -- 'MET 3.2.1'
   question_text   TEXT NOT NULL,
   question_image_url TEXT NULL,
@@ -567,23 +570,30 @@ $$;
 
 ```sql
 CREATE OR REPLACE FUNCTION start_quiz_session(
-  p_mode        text,
-  p_subject_id  uuid,
-  p_topic_id    uuid,
+  p_mode         text,
+  p_subject_id   uuid,
+  p_topic_id     uuid,
   p_question_ids uuid[]    -- pre-selected by application, locked here
 )
 RETURNS uuid               -- session id
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_session_id uuid;
+  v_uid uuid := auth.uid();
 BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'not authenticated';
+  END IF;
+
   INSERT INTO quiz_sessions
     (organization_id, student_id, mode, subject_id, topic_id,
      config, total_questions)
   VALUES (
-    (SELECT organization_id FROM users WHERE id = auth.uid()),
-    auth.uid(),
+    (SELECT organization_id FROM users WHERE id = v_uid),
+    v_uid,
     p_mode,
     p_subject_id,
     p_topic_id,
@@ -596,9 +606,9 @@ BEGIN
   INSERT INTO audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id)
   VALUES (
-    (SELECT organization_id FROM users WHERE id = auth.uid()),
-    auth.uid(),
-    (SELECT role FROM users WHERE id = auth.uid()),
+    (SELECT organization_id FROM users WHERE id = v_uid),
+    v_uid,
+    (SELECT role FROM users WHERE id = v_uid),
     'quiz_session.started',
     'quiz_session',
     v_session_id
@@ -633,6 +643,10 @@ CREATE INDEX idx_questions_subject   ON questions(subject_id) WHERE deleted_at I
 CREATE INDEX idx_questions_topic     ON questions(topic_id)   WHERE deleted_at IS NULL;
 CREATE INDEX idx_questions_bank      ON questions(bank_id)    WHERE deleted_at IS NULL;
 
+-- Question dedup (unique question_number per bank)
+CREATE UNIQUE INDEX idx_questions_bank_number ON questions(bank_id, question_number)
+  WHERE deleted_at IS NULL AND question_number IS NOT NULL;
+
 -- Audit log queries (compliance exports)
 CREATE INDEX idx_audit_events_org    ON audit_events(organization_id, created_at DESC);
 CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
@@ -642,7 +656,7 @@ CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
 
 ## 6. Migration Rules
 
-1. **Every migration is forward-only.** No rollback scripts. If you need to undo, write a new migration.
+1. **Every migration is forward-only and immutable.** Never edit or delete a migration that has been applied. If you need to undo or change something, write a new migration.
 2. **Never rename a column in production** — add the new column, migrate data, drop the old column in three separate migrations.
 3. **Never change a column type** without a migration that handles existing data.
 4. **Every migration file is named** `NNN_short_description.sql` — e.g., `001_initial_schema.sql`.

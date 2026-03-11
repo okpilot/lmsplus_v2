@@ -16,10 +16,10 @@ if command -v pnpm &>/dev/null && [ -f biome.json ]; then
   fi
 fi
 
-# 2. Run tests (silent unless failures — avoid noise)
+# 2. Run tests — show output on failure so issues are visible
 if command -v pnpm &>/dev/null && [ -f package.json ]; then
-  pnpm test --passWithNoTests --silent 2>/dev/null || {
-    echo "⚠ Tests failed after last response — check output"
+  pnpm test 2>&1 || {
+    echo "⚠ Tests failed after last response — check output above"
   }
 fi
 

@@ -1,22 +1,43 @@
+# ============================================================================
+# Lefthook — Automated QA Pipeline (mechanical gates only)
+# ============================================================================
+#
+# Layer 1: pre-commit  — BLOCKING — catches broken code before git history
+# Layer 2: commit-msg  — BLOCKING — enforces conventional commits
+# Layer 3: pre-push    — BLOCKING — security gate (final defense)
+#
+# NOTE: Code review, doc updates, and test writing are NOT here.
+# They run as Claude Code subagents (Agent tool) after commits so findings
+# flow back into the conversation and get fixed immediately.
+# See CLAUDE.md workflow section.
+# ============================================================================
+
 pre-commit:
-  parallel: false
+  parallel: true
   commands:
     biome-check:
       glob: "*.{js,ts,jsx,tsx,json}"
       run: npx biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
+    type-check:
+      run: pnpm check-types
+    test:
+      run: pnpm test
 
 commit-msg:
   commands:
     commitlint:
       run: npx commitlint --edit {1}
 
+post-commit:
+  commands:
+    agent-reminder:
+      run: bash .claude/hooks/post-commit-reminder.sh
+
 pre-push:
   parallel: true
   commands:
-    type-check:
-      run: pnpm check-types
-    test:
-      run: pnpm test
+    security-auditor:
+      run: bash .claude/hooks/run-security-auditor.sh
     audit:
       run: pnpm audit --audit-level=high

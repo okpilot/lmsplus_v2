@@ -116,6 +116,8 @@ export async function submitAnswer(input: unknown) {
 }
 ```
 
+**At the boundary:** Server Action orchestrators (30–35 lines) are acceptable when each line is a single responsibility (validation, auth, RPC call, side effect). If adding a new step requires scrolling, extract it.
+
 ### Max 3 Parameters
 If a function needs more than 3 parameters, use an options object.
 
@@ -132,6 +134,8 @@ function scheduleReview(opts: {
   sessionId: string
 }) {}
 ```
+
+**Exception: Infrastructure/utility functions** — Some utility functions are idiomatic exceptions (e.g., `updateFsrsCard(supabase, userId, questionId, isCorrect)` is 4 params but each maps to a distinct semantic role in the domain). Document the exception with a JSDoc comment if > 3 params.
 
 ### Early Returns Over Nesting
 Fail fast. Avoid deeply nested if/else chains.
@@ -300,6 +304,18 @@ export default async function DashboardPage() {
 ### No `useEffect` for Data Fetching
 `useEffect` for data fetching is a Next.js anti-pattern. Use Server Components or React Query if client-side freshness is needed.
 
+### Approved `useEffect` Pattern: Hydration Guard
+`useEffect` is valid and required for guarding client-only interactions against SSR hydration mismatches. This is not a data-fetching anti-pattern — the code-reviewer should not flag it.
+
+```tsx
+// ✅ CORRECT — prevents hydration mismatch on client-only state
+const [hydrated, setHydrated] = useState(false)
+useEffect(() => { setHydrated(true) }, [])
+if (!hydrated) return <Skeleton />
+```
+
+Use this pattern when a component's initial render differs between server and client (e.g., reading `localStorage`, `window`, or client-only browser APIs).
+
 ---
 
 ## 7. Testing Rules
@@ -322,6 +338,11 @@ it('calls updateFsrsState', () => { ... })
 it('schedules a shorter review interval when the answer is wrong', () => { ... })
 ```
 
+### jsdom Limitation: Pre-Hydration State Is Not Testable
+`@testing-library/react` wraps `render()` in `act()`, which flushes all effects synchronously. This means a hydration guard's pre-hydration state (e.g., disabled button, skeleton) is never observable in jsdom — `useEffect` runs before your assertions can run.
+
+**Do not write tests for the pre-hydration branch.** Only test the post-hydration (normal) state. This is a jsdom constraint, not a missing test.
+
 ---
 
 ## 8. What the Code Reviewer Checks Automatically
@@ -337,9 +358,21 @@ The `code-reviewer` agent flags these after every commit:
 - `any` types
 - Non-null assertions without a comment
 - Barrel `index.ts` files
-- `useEffect` used for data fetching
+- `useEffect` used for data fetching (hydration guards are exempt — see Section 6)
 - Missing tests for new utility functions
 
 ---
 
-*Last updated: 2026-03-11*
+## 9. Critical Lifecycle Rule: File Renames & Documentation
+
+**When renaming core files** (e.g., `middleware.ts` → `proxy.ts`), **always grep all docs for stale references before committing**. Pattern to check:
+- `docs/*.md` for code examples
+- `.claude/rules/*.md` for file paths
+- MEMORY.md for references
+- Agent memory files (`.claude/agent-memory/`) for notes
+
+This prevents documentation from drifting and confusing future readers.
+
+---
+
+*Last updated: 2026-03-14*

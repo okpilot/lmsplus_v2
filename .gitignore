@@ -16,6 +16,9 @@ out/
 .env.development
 .env.production
 
+# Question bank source data (imported via script, not committed)
+QDB/
+
 # Supabase
 supabase/.branches/
 supabase/.temp/

@@ -41,12 +41,12 @@ Refresh token reuse:  Disabled (rotation enabled)
 Refresh token expiry: 7 days (sliding)
 ```
 
-### Middleware Rule
-Every route under `/app/*` must be protected by `apps/web/middleware.ts`.
+### Proxy Rule (Next.js 16)
+Every route under `/app/*` must be protected by `apps/web/proxy.ts`.
 Unauthenticated requests redirect to `/`. No exceptions.
 
 ```ts
-// apps/web/middleware.ts — pattern required
+// apps/web/proxy.ts — pattern required (Next.js 16 convention)
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -97,10 +97,10 @@ CREATE POLICY "tenant_isolation" ON table_name
 ### Role-Scoped Policies (where needed)
 
 ```sql
--- Students: own data only
-CREATE POLICY "students_own_data" ON student_responses
-  USING (student_id = auth.uid())
-  WITH CHECK (student_id = auth.uid());
+-- Students: own data only (mutable tables — allows all operations with condition)
+CREATE POLICY "users_own_profile" ON users
+  USING (id = auth.uid())
+  WITH CHECK (id = auth.uid());
 
 -- Instructors: read all student data within their org (no write)
 CREATE POLICY "instructors_read_students" ON student_responses
@@ -110,13 +110,64 @@ CREATE POLICY "instructors_read_students" ON student_responses
     AND (SELECT role FROM users WHERE id = auth.uid()) IN ('instructor', 'admin')
   );
 
--- Immutable responses: no UPDATE or DELETE ever
+-- Immutable responses: scoped to SELECT + INSERT only, then blocked for UPDATE/DELETE
+CREATE POLICY "students_read_responses" ON student_responses
+  FOR SELECT
+  USING (student_id = auth.uid());
+
+CREATE POLICY "students_insert_responses" ON student_responses
+  FOR INSERT
+  WITH CHECK (student_id = auth.uid());
+
 CREATE POLICY "responses_no_update" ON student_responses
   FOR UPDATE USING (false);
 
 CREATE POLICY "responses_no_delete" ON student_responses
   FOR DELETE USING (false);
 ```
+
+### Immutable Tables: Policy Scope Pattern
+
+Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE. Write access varies by table:
+- `student_responses` — INSERT allowed via RLS (`student_id = auth.uid()`)
+- `quiz_session_answers` and `audit_events` — INSERT only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which bypass RLS. Direct INSERT blocked by restrictive RLS policies.
+
+```sql
+-- ✅ CORRECT — SELECT only; INSERT blocked
+CREATE POLICY "students_read_answers" ON quiz_session_answers
+  FOR SELECT
+  USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+
+-- Restrictive policies to block writes
+CREATE POLICY "no_insert_answers" ON quiz_session_answers
+  FOR INSERT WITH CHECK (false);
+
+CREATE POLICY "no_update_answers" ON quiz_session_answers
+  FOR UPDATE USING (false);
+
+CREATE POLICY "no_delete_answers" ON quiz_session_answers
+  FOR DELETE USING (false);
+
+-- ❌ WRONG — This allows INSERT, which lets students forge is_correct values
+CREATE POLICY "students_insert_answers" ON quiz_session_answers
+  FOR INSERT
+  WITH CHECK (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+  -- ^ Removed in migration 006: students must not insert directly
+
+-- ❌ WRONG — permissive policy without FOR clause applies to ALL operations (SELECT, INSERT, UPDATE, DELETE)
+-- This overrides the restrictive no_update/no_delete because PostgreSQL OR's permissive policies
+CREATE POLICY "students_own_answers" ON quiz_session_answers
+  USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()));
+  -- ^ This applies to ALL operations, making INSERT/UPDATE/DELETE possible!
+```
+
+**Critical rule:** On immutable tables, block all direct writes:
+- `FOR SELECT` — allow reads only
+- `FOR INSERT WITH CHECK (false)` — block all inserts
+- `FOR UPDATE USING (false)` — block all updates
+- `FOR DELETE USING (false)` — block all deletes
+
+Write operations go only through SECURITY DEFINER RPCs that enforce business logic.
 
 ### RLS Verification Checklist
 Before any migration is merged, run:
@@ -128,11 +179,13 @@ WHERE schemaname = 'public'
 ORDER BY tablename;
 -- Every row must show: rowsecurity = true, forcerowsecurity = true
 
--- Verify policies exist
+-- Verify policies exist and have FOR clauses
 SELECT tablename, policyname, cmd, qual, with_check
 FROM pg_policies
 WHERE schemaname = 'public'
 ORDER BY tablename, policyname;
+-- For immutable tables: every policy must have a specific cmd (SELECT, INSERT, UPDATE, DELETE)
+-- Never a policy with cmd = NULL (that's ALL operations!)
 ```
 
 ---
@@ -239,6 +292,11 @@ export const adminClient = createClient(
 Configure in `apps/web/next.config.ts`:
 
 ```ts
+const isDev = process.env.NODE_ENV !== 'production'
+// Allow localhost connections in production builds that target local Supabase (E2E CI)
+const isLocalSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('http://localhost')
+const allowLocal = isDev || isLocalSupabase
+
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control',    value: 'on' },
   { key: 'X-Frame-Options',           value: 'SAMEORIGIN' },
@@ -253,12 +311,15 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline'",  // Next.js requires unsafe-eval in dev
+      // Development: allows unsafe-eval for Next.js HMR
+      // Local Supabase: allows localhost connections (dev + E2E CI with local target)
+      // Production (remote): blocks unsafe-eval and localhost, allows Supabase only
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://*.supabase.co",
+      `img-src 'self' data: blob: https://*.supabase.co${allowLocal ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
       "font-src 'self'",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-      "frame-src 'none'",
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${allowLocal ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
+      "frame-ancestors 'none'",
     ].join('; '),
   },
 ]
@@ -303,7 +364,7 @@ export async function submitAnswer(raw: unknown) {
 
 | Environment | Secret location |
 |-------------|----------------|
-| Local dev   | `.env.local` (gitignored — see `.gitignore`) |
+| Local dev   | `apps/web/.env.local` (gitignored — see `.gitignore`) |
 | Production  | Vercel Environment Variables (encrypted at rest) |
 | CI/CD       | GitHub Actions secrets (never in workflow YAML) |
 
@@ -331,7 +392,7 @@ Configure in Supabase dashboard (Auth → Rate Limits):
 | Magic link send | 3 per hour per email |
 | Token verification | 10 per hour per IP |
 
-Middleware-level limiting (add to `apps/web/middleware.ts`):
+Proxy-level limiting (add to `apps/web/proxy.ts`):
 ```ts
 // Use Vercel's built-in rate limiting or upstash/ratelimit for:
 // - /api/* routes: 60 req/min per IP

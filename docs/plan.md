@@ -6,12 +6,12 @@
 
 ---
 
-## Status: PHASE 2 COMPLETE — ready for Phase 3
+## Status: PHASE 5B-6 COMPLETE — CodeRabbit findings addressed
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
 
 **Phase 2 done (2026-03-11):** Supabase setup complete:
-- `.env.local` with all credentials (publishable key, secret key, access token)
+- `apps/web/.env.local` with all credentials (publishable key, secret key, access token)
 - Supabase MCP scoped to project `uepvblipahxizozxvwjn`
 - Full schema: 14 tables with RLS + FORCE RLS on all tables
 - RLS policies: tenant isolation, immutability guards, role-scoped access
@@ -22,7 +22,113 @@
 - Zod validation schemas for all mutations
 - Security headers in `next.config.ts` (CSP, HSTS, X-Frame-Options, etc.)
 
-**Next up: Phase 3** — Question import tool (JSON → DB)
+**Phase 3 done (2026-03-11):** Question import tool:
+- `packages/db/src/import-schema.ts` — Zod validation for import JSON
+- `apps/web/scripts/import-questions.ts` — full import pipeline
+- Bootstraps org (Egmont Aviation), admin user, question bank (EASA PPL(A) QDB)
+- Parses folder paths → derives topic/subtopic codes & names → upserts reference data
+- Uploads images to Supabase Storage (`question-images` bucket)
+- Dedup by `question_number` per bank (unique index)
+- Migration `002_add_question_number.sql` — added `question_number` column
+- `@repo/db` package exports map added
+- Test batch: 5 questions from 050-01-01 imported + idempotency verified
+- 4 Claude subagents run via Agent tool after each commit (not Lefthook):
+  - `code-reviewer` (haiku) — reviews diff for code style violations
+  - `doc-updater` (haiku) — checks if docs need updates
+  - `test-writer` (sonnet) — writes missing tests for new source files
+  - `security-auditor` (sonnet) → pre-push via Lefthook, **blocking** on CRITICAL/HIGH findings
+- Agent memory dirs: `.claude/agent-memory/{code-reviewer,security-auditor,doc-updater,test-writer}/`
+
+**Phase 4 done (2026-03-11):** Student auth (magic link):
+- Login page at `/` with email input + Zod validation
+- Magic link via `supabase.auth.signInWithOtp()` → redirects to `/auth/verify`
+- Auth callback at `/auth/callback` — exchanges code for session, checks `users` table exists (pre-created by admin)
+- Unregistered users signed out + redirected to error page
+- Proxy (`proxy.ts`, Next.js 16 convention) protects all `/app/*` routes, refreshes session tokens, propagates auth cookies on redirects
+- Authenticated users auto-redirected from `/` to `/app/dashboard`
+- App layout with user display name + sign-out button
+- Dashboard placeholder at `/app/dashboard`
+- Supabase middleware client helper in `packages/db/src/middleware.ts`
+- Root layout metadata updated (was "Create Next App")
+
+**Phase 5 done (2026-03-11):** Question Bank Trainer (MVP 2):
+- Dashboard (`/app/dashboard`) — subject progress grid, due reviews banner, recent sessions
+- Smart Review (`/app/review`) — FSRS-powered spaced repetition, start session, review due cards + new questions
+- Quick Quiz (`/app/quiz`) — subject selector, question count, randomized quiz mode
+- Progress (`/app/progress`) — detailed breakdown by subject/topic with mastery percentages
+- Shared components: QuestionCard, AnswerOptions, FeedbackPanel, SessionSummary
+- Sidebar navigation for all modes
+- Server Actions: startQuizSession, submitQuizAnswer, completeQuiz, startReviewSession, submitReviewAnswer, completeReviewSession
+- Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData, getDueCards, getNewQuestionIds
+- FSRS integration via `packages/db/src/fsrs.ts` — wraps ts-fsrs library, updateFsrsCard on answer
+- UI components (shadcn): Badge, Card, Progress
+- Tests written for auth flow, middleware, server actions
+- Session state machine: answering → feedback → complete
+- Dark mode: next-themes provider, system default, toggle in header
+
+**Local dev setup (2026-03-11):**
+- Local Supabase via `supabase start` (Docker) — all dev against local, never remote
+- `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys
+- Mailpit at `http://localhost:54324` — catches all magic link emails locally
+- Studio at `http://localhost:54323`
+- `scripts/dev-login.ts` — generates magic link via admin API (no email needed)
+- 73 questions seeded locally (050-01-01 through 050-01-05)
+- Migrations in `supabase/migrations/`:
+  - 003: add `question_number` column
+  - 004: fix users RLS (infinite recursion from self-referencing policy)
+  - 005: fix immutable table RLS (restrict to SELECT+INSERT only)
+  - 006: drop INSERT policies on immutable answer tables (RPC-only writes)
+  - 007: add SECURITY DEFINER to start_quiz_session (required for quiz initialization)
+- CSP updated: `connect-src` and `img-src` allow `http://localhost:*` for local dev
+- Image URLs use `localhost:54321` (not `127.0.0.1`) to match browser origin
+- React Strict Mode fix: session loaders cache data to survive double-mount
+
+**Phase 5B-1 done (2026-03-11):** Fixed existing test failures (middleware env var test).
+**Phase 5B-2 done (2026-03-11):** 9 new unit test files for Phase 5 components. 212 tests passing across 28 files.
+**Phase 5B-3 done (2026-03-11):** 35 integration tests against local Supabase:
+- 4 RPC test suites: `get_quiz_questions`, `start_quiz_session`, `submit_quiz_answer`, `complete_quiz_session`
+- RLS tenant isolation tests (cross-org, cross-student, role-based)
+- RLS immutable table tests (quiz_session_answers, student_responses, audit_events)
+- Found + fixed real RLS bug: permissive ALL policies overrode no_update/no_delete (migration 005)
+- Test infra: `packages/db/src/__integration__/setup.ts` (helpers for user/org/question seeding + cleanup)
+
+**Phase 5B-4 done (2026-03-11):** E2E tests (Playwright):
+- Auth setup flow: magic link, OTP extraction, session persistence
+- 10 E2E tests across 4 spec files: login flow, protected routes (5), quiz session, progress (2)
+- Mailpit helper (`e2e/helpers/mailpit.ts`): fetch latest email, extract magic link
+- Supabase helper (`e2e/helpers/supabase.ts`): ensure E2E test user exists in Egmont Aviation org
+- Playwright config: auth state caching, headless + headed modes, HTML reporter
+- Scripts: `pnpm e2e`, `pnpm e2e:ui`, `pnpm e2e:headed`
+- All core user flows covered: login → quiz/review → progress → back to dashboard
+
+**Phase 5B-5 done (2026-03-11):** CI/QA pipelines (Lefthook + subagents + GitHub Actions):
+- **Lefthook local QA** (3-layer mechanical gates, all blocking):
+  - **Layer 1: pre-commit** (parallel): biome-check + type-check + test — catches broken code before git history
+  - **Layer 2: commit-msg**: commitlint — enforces Conventional Commits
+  - **Layer 3: pre-push**: security-auditor + dep audit — final defense before remote
+- **Claude Code subagents** (run via Agent tool after each commit — findings flow back to conversation):
+  - code-reviewer (haiku) — reviews diff for code style violations
+  - doc-updater (haiku) — checks if docs need updates
+  - test-writer (sonnet) — writes missing tests, runs them
+  - learner (haiku) — analyzes findings, detects patterns, updates rules/memory
+  - coderabbit-sync (haiku) — keeps .coderabbit.yaml aligned when rules change
+- **CodeRabbit** (GitHub PR review):
+  - `.coderabbit.yaml` — assertive profile, path-specific rules mirroring code-style.md + security.md
+  - Pre-merge checks: no-secrets, no-answer-exposure, soft-delete-only
+- **GitHub Actions CI** (cloud):
+  - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
+  - `e2e.yml` — runs on pull requests + push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
+  - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
+  - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 20 questions for E2E (expanded from 5 to support review flow after quiz)
+  - Playwright config updated: uses `pnpm start` (production build) in CI, `pnpm dev` locally
+  - Playwright report + test results uploaded as artifacts (14-day / 7-day retention)
+  - Concurrency groups prevent duplicate runs on the same branch
+
+**Phase 5B-6 done (2026-03-11):** CodeRabbit review findings addressed:
+- **CSP tightened:** `script-src` drops `unsafe-eval` in production (kept in dev for HMR); `allowLocal` flag enables localhost in dev + production builds targeting local Supabase (E2E CI)
+- **RLS hardened:** Migration 006 drops INSERT policies on immutable answer tables (`quiz_session_answers`, `student_responses`) — writes only via SECURITY DEFINER RPCs
+- **Docs updated:** security.md and database.md reflect immutable table policy pattern (RPC-only writes, no direct client inserts)
+- Migration 005 (`quiz_session_answers` → `quiz_sessions` FK) moved; `020260311000006` is the immutable INSERT restriction
 
 ---
 
@@ -53,7 +159,7 @@ lmsplusv2/
 Before building, configure the three essential MCPs so Claude has full tool access throughout the build:
 
 1. **Supabase MCP** — get personal access token from supabase.com → Account → Access Tokens
-   Add to `.env.local`: `SUPABASE_ACCESS_TOKEN=sbp_xxxx`
+   Add to `.claude/settings.local.json` (gitignored): `SUPABASE_ACCESS_TOKEN=sbp_xxxx` (MCP token only — not a runtime secret)
    Once project created, add `--project-ref <ref>` to `.claude/settings.json` Supabase args.
 
 2. **Context7** — no setup needed, works immediately after `settings.json` is in place
@@ -193,8 +299,8 @@ Import ~3,000 questions from JSON into Supabase.
 - `/auth/callback` — magic link callback handler
 - `/auth/verify` — "check your email" page
 
-### Middleware
-`apps/web/middleware.ts` — protect all `/app/*` routes, redirect to login if not authenticated.
+### Proxy (Next.js 16)
+`apps/web/proxy.ts` — protect all `/app/*` routes, redirect to login if not authenticated.
 
 ### Session
 Supabase session via `@supabase/ssr` package (server-side session management for Next.js App Router).
@@ -229,7 +335,7 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 
 ---
 
-## Automation Pipeline (runs without prompting)
+## Automation Pipeline
 
 ```
 Claude finishes responding
@@ -238,14 +344,24 @@ Claude finishes responding
     → [Stop hook] PowerShell toast notification
 
 git commit
-    → [Lefthook pre-commit] biome check --write staged files
+    → [Lefthook pre-commit] biome check --write + type-check + unit tests (BLOCKING)
     → [Lefthook commit-msg] commitlint validates message format
-    → [code-reviewer agent] reads git diff, flags issues, updates memory
+    → [Claude subagents — run by me via Agent tool, results come back to conversation]
+        1. code-reviewer (haiku) — diff against code-style.md
+        2. doc-updater (haiku) — check docs freshness
+        3. test-writer (sonnet) — find/write missing tests
+        4. learner (haiku) — detect patterns, update rules/memory
+        5. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+    → Fix any findings → commit again → repeat until clean
 
-git push
-    → [Lefthook pre-push] tsc --noEmit (type check all packages)
-    → [Lefthook pre-push] vitest run --passWithNoTests
-    → [security-auditor agent] scans diff for vulnerabilities + secrets
+git push (only with user approval)
+    → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH
+    → [Lefthook pre-push] pnpm audit — dependency vulnerabilities
+
+GitHub PR
+    → [CodeRabbit] reviews PR against .coderabbit.yaml rules
+    → [GitHub Actions ci.yml] lint + types + unit tests
+    → [GitHub Actions e2e.yml] integration + E2E tests (PRs + master)
 
 Context approaching limit
     → [PreCompact hook] saves HANDOVER-YYYY-MM-DD.md before compression
@@ -287,15 +403,36 @@ Weekly
 
 ---
 
+## Phase 5B — Test Hardening (COMPLETE as of 2026-03-11)
+
+✅ **5B-1 done:** Fixed middleware test failure
+✅ **5B-2 done:** Unit test coverage for Phase 5 components (dashboard, quiz, review, progress)
+✅ **5B-3 done:** 35 integration tests for all 4 RPC functions + RLS policies (tenant isolation, immutability)
+✅ **5B-4 done:** 10 Playwright E2E tests across 4 spec files (login, protected routes, quiz flow, progress)
+✅ **5B-5 done:** GitHub Actions CI — `ci.yml` (PR: lint + types + tests + audit) + `e2e.yml` (PRs + master + nightly: integration + E2E with local Supabase)
+
+Test summary: 247 unit tests (32 files) + 35 integration tests + 10 E2E tests. All passing.
+
+## Phase 6 — Feature Backlog (post-MVP feedback)
+
+Full backlog with sizing and sprint grouping: **`docs/backlog.md`**
+
+| Sprint | Focus | Key items |
+|--------|-------|-----------|
+| 1 | Quick Wins | Markdown rendering, image lightbox, question ID, timer, skeletons, mobile, smart review fixes |
+| 2 | Quiz Overhaul | Fullscreen env, question tabs (Q/Explanation/Comments/Stats), deferred DB writes, save/resume, report card, incorrect tracking, Moodle-style question grid |
+| 3 | Dashboard & Analytics | Activity graph, pie chart, calendar heatmap, reports page, progress/dashboard differentiation |
+| 4 | Social, Search, Study | Search page, study mode (correct answers shown), per-question comments, FAQ |
+| 5 | Admin & Infrastructure | Admin frontend (students, questions), learning objectives/study cards, AWS backup |
+
 ## Post-Phase 5 Suggestions
 
 From setup audit (2026-03-11):
 - **CI/CD:** GitHub Actions mirroring Lefthook checks (once repo goes to GitHub)
 - **Error tracking:** Sentry integration after Phase 5 goes live
 - **Monitoring:** Vercel Web Analytics dashboard
-- **Playwright MCP:** Add when building E2E tests (Phase 5)
 - **Vercel MCP:** Add after first deploy
 
 ---
 
-*Last updated: 2026-03-11 — Phase 2 complete, schema deployed to Supabase*
+*Last updated: 2026-03-11 — Phase 5B-6 complete, Phase 6 backlog documented from user feedback*

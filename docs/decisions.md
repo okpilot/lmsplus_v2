@@ -19,7 +19,8 @@
 
 ### UI Theme (confirmed 2026-03-11)
 - **shadcn/ui** — initialized with Tailwind v4 in `apps/web/`
-- **Theme** — tweakcn theme `cmlhfpjhw000004l4f4ax3m7z` applied via registry URL, tokens in `apps/web/app/globals.css`
+- **Theme** — tweakcn theme `cmjhgwebp000404jl22fv5sh6` applied via registry URL, tokens in `apps/web/app/globals.css` (updated 2026-03-11, was `cmlhfpjhw000004l4f4ax3m7z`)
+- **Dark mode** — `next-themes` with `attribute="class"`, defaults to system preference, toggle in app header
 
 ### Tooling (all confirmed 2026-03-11)
 - **Linting/formatting:** Biome — replaces ESLint + Prettier. 10-25x faster, single binary, one config file, 450+ rules, TypeScript-aware. Next.js 16+ no longer runs linter on build — Biome runs via Turborepo tasks.
@@ -29,12 +30,14 @@
 - **Git hooks:** Lefthook — replaces Husky + lint-staged. One YAML file, parallel execution, native monorepo support. Biome docs officially recommend Lefthook.
 - **Commit format:** Conventional Commits enforced via commitlint in Lefthook commit-msg hook.
 
-### Git Hook Pipeline (Lefthook)
+### Git Hook Pipeline (Lefthook) — updated by Decision 20
 ```
-pre-commit  → biome check --write (staged files only, <1s)
+pre-commit  → biome check --write + tsc --noEmit + vitest run
 commit-msg  → commitlint (conventional commits)
-pre-push    → tsc --noEmit + vitest run --passWithNoTests
+pre-push    → security-auditor agent + pnpm audit
+post-commit → reminder to run subagents (non-blocking)
 ```
+Post-commit review agents (code-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20.
 
 ### Claude Code Automation (confirmed 2026-03-11)
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
@@ -235,8 +238,8 @@ One app, one window, one login. Builder + Player + LMS backbone + question bank 
 
 ### Blocking (cannot build without these)
 - [x] **Supabase project** — created, ref: `uepvblipahxizozxvwjn`, schema deployed, RLS verified
-- [ ] **Question import JSON format** — exact shape? Claude will design a proposal when building import tool
-- [ ] **Image handling** — Supabase Storage. Buckets: `question-images` + `explanation-images`? Or one `assets` bucket with folders? Decide when building import tool.
+- [x] **Question import JSON format** — resolved in Decision 14: matches QDB folder structure, `question_number` for dedup
+- [x] **Image handling** — resolved in Decision 14: Supabase Storage `question-images` bucket (public)
 - [ ] **EASA subject/topic seed data** — do we have the full taxonomy tree or just sample data?
 
 ### Non-blocking
@@ -262,10 +265,121 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ### Minor items to address (non-blocking)
 - [ ] Update `apps/web/app/layout.tsx` metadata (still says "Create Next App") — do in Phase 4
-- [ ] Add security headers to `apps/web/next.config.ts` — do in Phase 2
+- [x] Add security headers to `apps/web/next.config.ts` — done in Phase 2
 - [ ] Consider `git diff --check` in Lefthook pre-commit for whitespace issues
 - [ ] Add GitHub Actions CI/CD once repo goes to GitHub (mirror Lefthook checks)
 - [ ] Add Sentry error tracking after Phase 5 goes live
+
+---
+
+## Decision 14: Question import format (2026-03-11)
+
+**Context:** Need to import ~3,000 EASA PPL questions from JSON into Supabase.
+
+**Decided:**
+- JSON format matches existing QDB folder structure (one file per subtopic)
+- `question_number` field added to `questions` table for external ID tracking and dedup
+- Unique index `(bank_id, question_number)` — same question can't appear twice per bank
+- Topic/subtopic metadata derived from folder path when JSON fields are null
+- Images uploaded to Supabase Storage `question-images` bucket (public)
+- Difficulty defaults to `"medium"` when null in source data
+- EASA PPL(A) has 9 subjects (not 14 ATPL): ALW, AGK, FPP, HPL, MET, NAV, OPS, POF, COM
+- Bootstrap script creates org, admin user, and question bank inline (no separate seed)
+
+---
+
+## Decision 15: Wire all 4 Claude agents to Lefthook (2026-03-11)
+
+**Context:** Agent .md files existed but were never hooked to anything.
+
+**Decided:**
+- All 4 agents wired via Lefthook shell scripts in `.claude/hooks/run-*.sh`
+- Post-commit (parallel, non-blocking): code-reviewer (haiku), doc-updater (haiku), test-writer (sonnet)
+- Pre-push (blocking): security-auditor (sonnet) — exits non-zero on CRITICAL/HIGH
+- Nested session fix: `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` + pipe prompt via stdin
+- Agent memory persists in `.claude/agent-memory/*/`
+
+---
+
+## Decision 16: Student auth — pre-created users only (2026-03-11)
+
+**Context:** Multi-tenant platform where ATOs manage their own students. Need to decide how users get created.
+
+**Decided:**
+- Admins must pre-create user records in the `users` table before students can sign in
+- Auth callback checks if `users` row exists for the authenticated `auth.uid()`
+- If no `users` row → sign out + redirect to "not registered" error page
+- No self-registration flow — students must contact their flight school admin
+- Magic link flow: login page → Supabase OTP → email → callback → dashboard
+- Next.js 16 uses `proxy.ts` (not `middleware.ts`) — renamed accordingly
+
+---
+
+## Decision 17: Test-writer agent must verify its own tests (2026-03-11)
+
+**Context:** Test-writer agent wrote 31 tests post-commit but 2 were broken. Nobody caught them because: (a) agent had no `Bash` tool so couldn't run tests, (b) Stop hook swallowed test output with `--silent`, (c) no verification step after writing.
+
+**Decided:**
+- Test-writer `--allowedTools` now includes `Bash` — agent can run `vitest` to verify
+- `run-test-writer.sh` runs `pnpm test` after agent finishes as a safety net
+- `test-writer.md` prompt updated: "Always run tests you wrote. Never leave broken tests."
+- `on-stop.sh` removed `--silent` flag — test failures are now visible in Claude output
+
+---
+
+## Decision 18: Local Supabase for development (2026-03-11)
+
+**Context:** Remote Supabase rate-limited magic link emails during dev. Developing against remote DB is risky (data corruption, rate limits, latency).
+
+**Decided:**
+- All development against local Supabase (`supabase start`, requires Docker)
+- `.env.local` → local keys (`http://localhost:54321`), `.env.remote` → backup of remote/production keys
+- Mailpit at `http://localhost:54324` catches all auth emails locally
+- Local Studio at `http://localhost:54323` for DB inspection
+- `scripts/dev-login.ts` — generates magic link via admin API (bypasses email entirely)
+- CSP `connect-src` and `img-src` updated to allow `http://localhost:*` for local dev
+- Migration 003 (`question_number`) added to `supabase/migrations/` so it auto-applies on `supabase start`
+- Remote DB only used for staging/production deployments
+
+---
+
+## Decision 19: Fix immutable table RLS — scope policies to SELECT+INSERT (2026-03-11)
+
+**Context:** Integration tests (Phase 5B-3) discovered that `quiz_session_answers` and `student_responses` could be updated and deleted despite having explicit `no_update`/`no_delete` policies. Root cause: the `students_own_answers` and `students_own_data` policies had no `FOR` clause, making them apply to ALL operations (SELECT, INSERT, UPDATE, DELETE). PostgreSQL OR's permissive policies, so the ALL-scope policy overrode the `FOR UPDATE USING (false)` / `FOR DELETE USING (false)` policies.
+
+**Fixed in:** Migration `20260311000005_fix_immutable_rls.sql`
+- Dropped the ALL-scope policies
+- Replaced with explicit `FOR SELECT` + `FOR INSERT` policies
+- `no_update` and `no_delete` policies now work as intended
+- Verified by 6 integration tests in `rls-immutable-tables.integration.test.ts`
+
+## Decision 20: Post-commit agents — external hooks → in-session subagents (2026-03-11)
+
+**Context:** Code-reviewer, doc-updater, and test-writer agents were wired to Lefthook post-commit hooks as external nested Claude sessions. Their output went to `.claude/agent-memory/` files that never got read. The feedback loop was broken — agents ran but findings were invisible.
+
+**Decided:**
+- Remove post-commit hooks from Lefthook (mechanical blocking gates only)
+- Code-reviewer, doc-updater, and test-writer now run as Claude Code subagents (Agent tool) after each commit
+- Agent output flows back into the conversation — findings are immediately visible and actionable
+- Lefthook reduced to 3 layers: pre-commit (biome + types + tests), commit-msg (commitlint), pre-push (security-auditor + dep audit)
+- Never push without explicit user approval
+
+**Principle:** If the main Claude session can't see the output, it doesn't exist.
+
+---
+
+## Decision 21: Deferred tech debt → GitHub Issues with `tech-debt` label (2026-03-11)
+
+**Context:** CodeRabbit and post-commit agents surface low-priority findings (test renames, DRY violations, doc polish) that aren't worth fixing in the current PR but shouldn't be forgotten.
+
+**Decided:**
+- All deferred tech debt is tracked as GitHub Issues with the `tech-debt` label
+- Issues created immediately when the decision to defer is made (not "someday")
+- Each issue gets a conventional commit prefix in the title (`refactor:`, `test:`, `fix:`, `chore:`, `docs:`)
+- Sprint planning pulls from `tech-debt` label alongside `docs/backlog.md`
+- No Slack, no spreadsheets, no TODO comments in code — GitHub Issues is the single source of truth for deferred work
+
+**Why GitHub Issues:** Lives next to the code, Claude can reference issue numbers in commits (`fixes #5`), filterable by label, visible in PRs.
 
 ---
 
@@ -280,4 +394,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Phase 2 complete*
+*Last updated: 2026-03-11 — Decision 21: deferred tech debt → GitHub Issues with tech-debt label*

@@ -1,0 +1,180 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+tone_instructions: >
+  Be precise and direct. Lead with the issue, not the explanation.
+  Include file path + line number. Suggest the exact fix.
+  Acknowledge good patterns briefly. No fluff.
+
+reviews:
+  profile: "assertive"
+  high_level_summary: true
+  poem: false
+  sequence_diagrams: false
+  collapse_walkthrough: true
+  request_changes_workflow: true
+
+  path_filters:
+    - "!**/.turbo/**"
+    - "!**/node_modules/**"
+    - "!**/.next/**"
+    - "!**/coverage/**"
+    - "!**/pnpm-lock.yaml"
+
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_title_keywords: ["WIP", "draft", "DO NOT MERGE"]
+
+  # ── Path-specific rules (mirrors .claude/rules/code-style.md) ──────────
+
+  path_instructions:
+    # Page files — composition only, no logic
+    - path: "apps/web/app/**/page.tsx"
+      instructions: |
+        Next.js App Router page. STRICT rules:
+        - Max 80 lines. If exceeded, page has logic that belongs in _components/.
+        - Pure composition: imports + one async function + JSX return. Nothing else.
+        - No useState, useEffect, or event handlers.
+        - Data fetching via imported async functions, not inline queries.
+        - No direct Supabase client usage.
+
+    # Components — single responsibility
+    - path: "apps/web/app/**/_components/*.tsx"
+      instructions: |
+        React component. Enforce:
+        - Max 150 lines. Split if exceeded.
+        - Single responsibility — if description needs "and", split it.
+        - No direct Supabase queries (data comes via props or Server Components).
+        - No useEffect for data fetching (Next.js anti-pattern).
+        - Default to Server Components. Only add 'use client' at lowest interactive boundary.
+        - Functions max 30 lines, max 3 params (use options object otherwise).
+        - Max 3 nesting levels — use early returns.
+
+    # Server Actions — validated mutations
+    - path: "apps/web/app/**/actions.ts"
+      instructions: |
+        Server Action file. Enforce:
+        - 'use server' directive at top of file.
+        - Max 100 lines. Split by feature area if exceeded.
+        - ALL inputs validated with Zod schema (.parse()) before use.
+        - Auth check first: call requireAuth() and verify user before any mutation.
+        - No service role key (adminClient) — that lives in packages/db/src/admin.ts only.
+        - Explicit return types on all exported functions.
+        - No `any` type — use `unknown` with narrowing.
+
+    # Hooks — small and focused
+    - path: "apps/web/app/**/_hooks/use-*.ts"
+      instructions: |
+        Custom React hook. Enforce:
+        - Max 80 lines. Extract logic to util if exceeded.
+        - No useEffect for data fetching.
+        - No direct Supabase calls.
+
+    # Database package — security critical
+    - path: "packages/db/src/**/*.ts"
+      instructions: |
+        Database utility (SECURITY CRITICAL). Enforce:
+        - Max 200 lines.
+        - SECURITY DEFINER RPCs must have manual auth.uid() check + SET search_path = public.
+        - No hard DELETE anywhere — always UPDATE SET deleted_at = now().
+        - Service role key (adminClient): ONLY in packages/db/src/admin.ts. Flag if used elsewhere.
+        - Never return raw question options with correct answers to student-facing code.
+        - Use get_quiz_questions() RPC which strips correct answers.
+
+    # SQL migrations — RLS mandatory
+    - path: "packages/db/migrations/**/*.sql"
+      instructions: |
+        Database migration (SECURITY AUDIT). Enforce:
+        - Every CREATE TABLE must have ALTER TABLE ... ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY.
+        - RLS policies need BOTH USING (read) AND WITH CHECK (write) clauses.
+        - Mutable tables must have deleted_at TIMESTAMPTZ NULL column.
+        - Immutable tables (student_responses, quiz_session_answers, audit_events): no UPDATE or DELETE policies.
+        - audit_events is append-only. No UPDATE/DELETE policies. Ever.
+        - SECURITY DEFINER functions: auth.uid() check + SET search_path = public.
+        - Max 300 lines per migration file.
+
+    - path: "supabase/migrations/**/*.sql"
+      instructions: |
+        Same rules as packages/db/migrations. See above.
+
+    # Tests — behavioral naming
+    - path: "**/*.test.{ts,tsx}"
+      instructions: |
+        Test file. Enforce:
+        - Test names describe behavior, not implementation.
+          Good: 'schedules a shorter review interval when the answer is wrong'
+          Bad: 'calls updateFsrsState'
+        - Co-located with source file (same folder).
+        - One test file per source file.
+        - Mock external deps (Supabase, fetch), don't call real services.
+
+    # Environment files — block immediately
+    - path: "**/.env*"
+      instructions: |
+        CRITICAL: .env files must NEVER be committed. Block this PR immediately.
+        Check for leaked secrets: API keys, service role keys, database URLs.
+
+    # Config files
+    - path: "apps/web/next.config.ts"
+      instructions: |
+        Check that security headers are preserved:
+        - Content-Security-Policy, X-Frame-Options, X-Content-Type-Options
+        - Strict-Transport-Security, Referrer-Policy, Permissions-Policy
+        Flag if any security header is removed or weakened.
+
+  # ── Pre-merge checks ───────────────────────────────────────────────────
+
+  pre_merge_checks:
+    title:
+      mode: "warning"
+      requirements: |
+        Must follow Conventional Commits: feat:, fix:, docs:, test:, refactor:, ci:, chore:
+
+    custom_checks:
+      - mode: "error"
+        name: "no-secrets"
+        instructions: |
+          Scan for leaked secrets in the diff:
+          - Patterns: eyJ (JWT), sk_live_, service_role, sbp_, -----BEGIN, SUPABASE_SERVICE_ROLE
+          - .env files committed
+          - NEXT_PUBLIC_ env vars containing secret keys
+          - Hardcoded Supabase URLs or API keys in source files
+          Block if any found.
+
+      - mode: "error"
+        name: "no-answer-exposure"
+        instructions: |
+          Check for correct answer exposure:
+          - Direct SELECT * FROM questions or .select('*') on questions table
+          - Returning raw options JSONB with correct:true to student-facing code
+          - Any path that bypasses get_quiz_questions() RPC for student queries
+          Block if found — this is an exam integrity violation.
+
+      - mode: "warning"
+        name: "soft-delete-only"
+        instructions: |
+          Flag any hard DELETE in application code or migrations on mutable tables:
+          organizations, users, question_banks, questions, courses, lessons.
+          Must use UPDATE SET deleted_at = now() instead.
+
+  # ── Tools ──────────────────────────────────────────────────────────────
+
+  tools:
+    biome:
+      enabled: true
+    eslint:
+      enabled: false
+    prettier:
+      enabled: false
+
+# ── Knowledge base ─────────────────────────────────────────────────────
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: "auto"
+  issues:
+    scope: "auto"
+  pull_requests:
+    scope: "auto"
