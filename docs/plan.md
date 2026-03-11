@@ -98,14 +98,23 @@
 - Scripts: `pnpm e2e`, `pnpm e2e:ui`, `pnpm e2e:headed`
 - All core user flows covered: login → quiz/review → progress → back to dashboard
 
-**Phase 5B-5 done (2026-03-11):** CI pipeline (GitHub Actions):
-- `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
-- `e2e.yml` — runs on push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
-- Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
-- `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 5 questions for E2E
-- Playwright config updated: uses `pnpm start` (production build) in CI, `pnpm dev` locally
-- Playwright report + test results uploaded as artifacts (14-day / 7-day retention)
-- Concurrency groups prevent duplicate runs on the same branch
+**Phase 5B-5 done (2026-03-11):** CI/QA pipelines (Lefthook + subagents + GitHub Actions):
+- **Lefthook local QA** (3-layer mechanical gates, all blocking):
+  - **Layer 1: pre-commit** (parallel): biome-check + type-check + test — catches broken code before git history
+  - **Layer 2: commit-msg**: commitlint — enforces Conventional Commits
+  - **Layer 3: pre-push**: security-auditor + dep audit — final defense before remote
+- **Claude Code subagents** (run via Agent tool after each commit — findings flow back to conversation):
+  - code-reviewer (haiku) — reviews diff for code style violations
+  - doc-updater (haiku) — checks if docs need updates
+  - test-writer (sonnet) — writes missing tests, runs them
+- **GitHub Actions CI** (cloud):
+  - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
+  - `e2e.yml` — runs on push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
+  - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
+  - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 5 questions for E2E
+  - Playwright config updated: uses `pnpm start` (production build) in CI, `pnpm dev` locally
+  - Playwright report + test results uploaded as artifacts (14-day / 7-day retention)
+  - Concurrency groups prevent duplicate runs on the same branch
 
 ---
 

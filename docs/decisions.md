@@ -351,6 +351,19 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - `no_update` and `no_delete` policies now work as intended
 - Verified by 6 integration tests in `rls-immutable-tables.integration.test.ts`
 
+## Decision 20: Post-commit agents — external hooks → in-session subagents (2026-03-11)
+
+**Context:** Code-reviewer, doc-updater, and test-writer agents were wired to Lefthook post-commit hooks as external nested Claude sessions. Their output went to `.claude/agent-memory/` files that never got read. The feedback loop was broken — agents ran but findings were invisible.
+
+**Decided:**
+- Remove post-commit hooks from Lefthook (mechanical blocking gates only)
+- Code-reviewer, doc-updater, and test-writer now run as Claude Code subagents (Agent tool) after each commit
+- Agent output flows back into the conversation — findings are immediately visible and actionable
+- Lefthook reduced to 3 layers: pre-commit (biome + types + tests), commit-msg (commitlint), pre-push (security-auditor + dep audit)
+- Never push without explicit user approval
+
+**Principle:** If the main Claude session can't see the output, it doesn't exist.
+
 ---
 
 ## IDEAS / NOTES
@@ -364,4 +377,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Decision 19: fix immutable table RLS*
+*Last updated: 2026-03-11 — Decision 20: post-commit agents moved to in-session subagents*

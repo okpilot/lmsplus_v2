@@ -48,6 +48,13 @@ After every `git commit`, run these 3 subagents in parallel using the Agent tool
 3. **test-writer** (sonnet) — check for missing tests, write them, run them
 
 Read ALL agent results. Fix any issues found. Commit fixes. Repeat until clean.
+
+Then run:
+4. **learner** (haiku) — reads all 3 agents' findings, identifies patterns, updates rules/memory
+
+If rules changed (code-style.md, security.md, biome.json), also run:
+5. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
+
 Never push without all agents reporting clean.
 
 ## QA pipeline
