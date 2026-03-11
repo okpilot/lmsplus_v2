@@ -8,14 +8,15 @@
     "./admin": "./src/admin.ts",
     "./schema": "./src/schema.ts",
     "./import-schema": "./src/import-schema.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./middleware": "./src/middleware.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.47.0",
     "@supabase/ssr": "^0.5.0",
+    "@supabase/supabase-js": "^2.47.0",
     "zod": "^3.24.0"
   },
   "peerDependencies": {
@@ -23,7 +24,7 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "next": "^15.0.0",
+    "next": "^16.1.6",
     "typescript": "^5.7.0"
   }
 }

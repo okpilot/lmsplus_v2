@@ -298,6 +298,20 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 16: Student auth — pre-created users only (2026-03-11)
+
+**Context:** Multi-tenant platform where ATOs manage their own students. Need to decide how users get created.
+
+**Decided:**
+- Admins must pre-create user records in the `users` table before students can sign in
+- Auth callback checks if `users` row exists for the authenticated `auth.uid()`
+- If no `users` row → sign out + redirect to "not registered" error page
+- No self-registration flow — students must contact their flight school admin
+- Magic link flow: login page → Supabase OTP → email → callback → dashboard
+- Next.js 16 uses `proxy.ts` (not `middleware.ts`) — renamed accordingly
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -309,4 +323,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Phase 3 complete*
+*Last updated: 2026-03-11 — Phase 4 complete*

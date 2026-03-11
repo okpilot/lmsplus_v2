@@ -6,7 +6,7 @@
 
 ---
 
-## Status: PHASE 3 COMPLETE — ready for Phase 4
+## Status: PHASE 4 COMPLETE — ready for Phase 5
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
 
@@ -40,7 +40,19 @@
 - Agent memory dirs: `.claude/agent-memory/{code-reviewer,security-auditor,doc-updater,test-writer}/`
 - Nested Claude sessions: `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` + stdin piping
 
-**Next up: Phase 4** — Student auth (magic link flow)
+**Phase 4 done (2026-03-11):** Student auth (magic link):
+- Login page at `/` with email input + Zod validation
+- Magic link via `supabase.auth.signInWithOtp()` → redirects to `/auth/verify`
+- Auth callback at `/auth/callback` — exchanges code for session, checks `users` table exists (pre-created by admin)
+- Unregistered users signed out + redirected to error page
+- Proxy (`proxy.ts`, Next.js 16 convention) protects all `/app/*` routes, refreshes session tokens
+- Authenticated users auto-redirected from `/` to `/app/dashboard`
+- App layout with user display name + sign-out button
+- Dashboard placeholder at `/app/dashboard`
+- Supabase middleware client helper in `packages/db/src/middleware.ts`
+- Root layout metadata updated (was "Create Next App")
+
+**Next up: Phase 5** — Question Bank Trainer (dashboard, practice modes, FSRS, progress)
 
 ---
 
