@@ -1,3 +1,6 @@
+import { MarkdownText } from './markdown-text'
+import { ZoomableImage } from './zoomable-image'
+
 type QuestionCardProps = {
   questionText: string
   questionImageUrl: string | null
@@ -17,13 +20,9 @@ export function QuestionCard({
         Question {questionNumber} of {totalQuestions}
       </p>
       {questionImageUrl && (
-        <img
-          src={questionImageUrl}
-          alt="Question illustration"
-          className="max-h-64 rounded-md border border-border object-contain"
-        />
+        <ZoomableImage src={questionImageUrl} alt="Question illustration" className="max-h-64" />
       )}
-      <p className="text-base font-medium leading-relaxed">{questionText}</p>
+      <MarkdownText className="text-base font-medium leading-relaxed">{questionText}</MarkdownText>
     </div>
   )
 }

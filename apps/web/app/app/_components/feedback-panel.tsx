@@ -1,3 +1,6 @@
+import { MarkdownText } from './markdown-text'
+import { ZoomableImage } from './zoomable-image'
+
 type FeedbackPanelProps = {
   isCorrect: boolean
   explanationText: string | null
@@ -19,13 +22,15 @@ export function FeedbackPanel({
     >
       <p className="text-sm font-semibold">{isCorrect ? 'Correct!' : 'Incorrect'}</p>
 
-      {explanationText && <p className="text-sm text-muted-foreground">{explanationText}</p>}
+      {explanationText && (
+        <MarkdownText className="text-sm text-muted-foreground">{explanationText}</MarkdownText>
+      )}
 
       {explanationImageUrl && (
-        <img
+        <ZoomableImage
           src={explanationImageUrl}
           alt="Explanation illustration"
-          className="max-h-48 rounded-md border border-border object-contain"
+          className="max-h-48"
         />
       )}
 
