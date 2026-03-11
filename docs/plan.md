@@ -107,6 +107,11 @@
   - code-reviewer (haiku) — reviews diff for code style violations
   - doc-updater (haiku) — checks if docs need updates
   - test-writer (sonnet) — writes missing tests, runs them
+  - learner (haiku) — analyzes findings, detects patterns, updates rules/memory
+  - coderabbit-sync (haiku) — keeps .coderabbit.yaml aligned when rules change
+- **CodeRabbit** (GitHub PR review):
+  - `.coderabbit.yaml` — assertive profile, path-specific rules mirroring code-style.md + security.md
+  - Pre-merge checks: no-secrets, no-answer-exposure, soft-delete-only
 - **GitHub Actions CI** (cloud):
   - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
   - `e2e.yml` — runs on push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
@@ -321,7 +326,7 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 
 ---
 
-## Automation Pipeline (runs without prompting)
+## Automation Pipeline
 
 ```
 Claude finishes responding
@@ -330,17 +335,24 @@ Claude finishes responding
     → [Stop hook] PowerShell toast notification
 
 git commit
-    → [Lefthook pre-commit] biome check --write staged files
+    → [Lefthook pre-commit] biome check --write + type-check + unit tests (BLOCKING)
     → [Lefthook commit-msg] commitlint validates message format
-    → [Lefthook post-commit] code-reviewer agent (haiku) — reviews diff, non-blocking
-    → [Lefthook post-commit] doc-updater agent (haiku) — updates docs, non-blocking
-    → [Lefthook post-commit] test-writer agent (sonnet) — writes missing tests, non-blocking
+    → [Claude subagents — run by me via Agent tool, results come back to conversation]
+        1. code-reviewer (haiku) — diff against code-style.md
+        2. doc-updater (haiku) — check docs freshness
+        3. test-writer (sonnet) — find/write missing tests
+        4. learner (haiku) — detect patterns, update rules/memory
+        5. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+    → Fix any findings → commit again → repeat until clean
 
-git push
-    → [Lefthook pre-push] tsc --noEmit (type check all packages)
-    → [Lefthook pre-push] vitest run --passWithNoTests
-    → [Lefthook pre-push] pnpm audit
+git push (only with user approval)
     → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH
+    → [Lefthook pre-push] pnpm audit — dependency vulnerabilities
+
+GitHub PR
+    → [CodeRabbit] reviews PR against .coderabbit.yaml rules
+    → [GitHub Actions ci.yml] lint + types + unit tests
+    → [GitHub Actions e2e.yml] integration + E2E tests (master only)
 
 Context approaching limit
     → [PreCompact hook] saves HANDOVER-YYYY-MM-DD.md before compression
@@ -402,4 +414,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-11 — Phase 5B-5 complete: CI pipeline (GitHub Actions) added*
+*Last updated: 2026-03-11 — Phase 5B-5 complete: QA pipeline restructured, learner + coderabbit-sync agents, .coderabbit.yaml*
