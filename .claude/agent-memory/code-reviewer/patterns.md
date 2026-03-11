@@ -597,3 +597,21 @@ Applied in: `apps/web/e2e/review-flow.spec.ts` (commit f272e2b)
 - Rationale: E2E CI runs production builds against local Supabase. Previous logic only allowed localhost in dev; now allows it when Supabase URL is localhost (regardless of NODE_ENV).
 - Pattern: Configuration files may extract variables for readability; this is justified when condition appears 2+ times
 - No violations found
+
+## Session 2026-03-14 (Latest Post-Commit Review)
+
+### Commit: e146be3 (fix: preserve cookies on PKCE redirect in proxy)
+- Status: CLEAN
+- Files changed: 1 file, 5 insertions, 1 deletion
+- Changes:
+  - `apps/web/proxy.ts` — added cookie preservation to PKCE redirect flow (lines 23-27)
+  - Mirrors existing pattern already in place for auth-protect redirect (lines 32-36) and auth-redirect (lines 41-45)
+  - Change: extracted `NextResponse.redirect()` result to variable, then copied cookies before returning
+- File analysis:
+  - proxy.ts total: 53 lines (middleware/orchestrator file, no size violation)
+  - Single `proxy()` function, 48 lines, 4 distinct redirect branches (each single responsibility)
+  - Max nesting: 2 levels (if + for loop)
+  - No `any` types, proper NextRequest/NextResponse typing
+  - No unvalidated casts or non-null assertions
+- Pattern: Cookie preservation consistency across all redirect paths prevents silent auth loss
+- No violations found

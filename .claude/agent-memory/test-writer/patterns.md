@@ -460,6 +460,20 @@ The function must NOT re-throw — assert it resolves normally even after the re
 
 ---
 
+## Files tested in PKCE cookie-preservation commit (proxy.ts)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/proxy.ts` | `proxy.test.ts` | Added 2 tests: PKCE redirect destination + cookie forwarding on PKCE branch |
+
+### PKCE branch test notes
+The PKCE redirect (`/?code=<token>` → `/auth/callback?code=<token>`) runs BEFORE the auth guard,
+so `getUser` result is irrelevant — mock it to return `null` to keep the test minimal.
+Assert both the redirect destination (`pathname` + `searchParams.get('code')`) and the
+`set-cookie` header to verify cookie forwarding.
+
+---
+
 ## Files tested in previous commit (FSRS module extraction)
 
 | Source file | Test file | Notes |

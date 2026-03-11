@@ -13,24 +13,32 @@ export async function proxy(request: NextRequest): Promise<Response> {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
 
-  // Protect /app/* routes — redirect to login if not authenticated
-  if (pathname.startsWith('/app') && !user) {
-    const redirect = NextResponse.redirect(new URL('/', request.url))
+  function redirectWithCookies(url: URL) {
+    const redirect = NextResponse.redirect(url)
     for (const cookie of response.cookies.getAll()) {
       redirect.cookies.set(cookie)
     }
     return redirect
   }
 
+  // Forward auth code from magic link to callback route (PKCE flow)
+  const code = searchParams.get('code')
+  if (pathname === '/' && code) {
+    const callbackUrl = new URL('/auth/callback', request.url)
+    callbackUrl.searchParams.set('code', code)
+    return redirectWithCookies(callbackUrl)
+  }
+
+  // Protect /app/* routes — redirect to login if not authenticated
+  if (pathname.startsWith('/app') && !user) {
+    return redirectWithCookies(new URL('/', request.url))
+  }
+
   // Redirect authenticated users away from login page to dashboard
   if (pathname === '/' && user) {
-    const redirect = NextResponse.redirect(new URL('/app/dashboard', request.url))
-    for (const cookie of response.cookies.getAll()) {
-      redirect.cookies.set(cookie)
-    }
-    return redirect
+    return redirectWithCookies(new URL('/app/dashboard', request.url))
   }
 
   return response
