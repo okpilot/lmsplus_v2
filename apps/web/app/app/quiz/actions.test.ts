@@ -78,7 +78,7 @@ describe('startQuizSession', () => {
     })
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('DB error')
+    expect(result.error).toBe('Failed to start session')
   })
 
   it('returns success with sessionId and questionIds on happy path', async () => {
@@ -118,7 +118,7 @@ describe('startQuizSession', () => {
       count: 5,
     })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('unexpected DB failure')
+    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
     expect(consoleSpy).toHaveBeenCalledWith('[startQuizSession] Uncaught error:', expect.any(Error))
     consoleSpy.mockRestore()
   })
@@ -148,7 +148,7 @@ describe('submitQuizAnswer', () => {
     const result = await submitQuizAnswer(validInput)
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Answer not valid')
+    expect(result.error).toBe('Failed to submit answer')
   })
 
   it('treats empty answer data as a failure', async () => {
@@ -241,7 +241,7 @@ describe('completeQuiz', () => {
     const result = await completeQuiz(validInput)
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Session not found')
+    expect(result.error).toBe('Failed to complete session')
   })
 
   it('treats empty completion data as a failure', async () => {

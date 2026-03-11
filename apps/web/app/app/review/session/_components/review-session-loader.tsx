@@ -30,7 +30,17 @@ export function ReviewSessionLoader() {
   // it's reading a client-side navigation token set by StartReviewButton
   useEffect(() => {
     const raw = sessionStorage.getItem('review-session')
-    const data = raw ? (JSON.parse(raw) as SessionData) : cachedSession
+    let data: SessionData | null = null
+    if (raw) {
+      try {
+        data = JSON.parse(raw) as SessionData
+      } catch {
+        console.error('[ReviewSessionLoader] Malformed session data in sessionStorage')
+        sessionStorage.removeItem('review-session')
+      }
+    } else {
+      data = cachedSession
+    }
 
     if (!data) {
       router.replace('/app/review')

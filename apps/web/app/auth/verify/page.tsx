@@ -9,6 +9,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_code: 'The magic link has expired or already been used. Please request a new one.',
   not_registered:
     'Your account has not been set up yet. Please contact your flight school administrator.',
+  profile_lookup_failed:
+    'We could not verify your account right now. Please try again in a moment.',
 }
 
 export default async function VerifyPage({ searchParams }: Props) {

@@ -5,7 +5,7 @@ import { getRandomQuestionIds } from '@/lib/queries/quiz'
 import { rpc } from '@/lib/supabase-rpc'
 import { CompleteQuizSessionSchema, SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
-import { z } from 'zod'
+import { ZodError, z } from 'zod'
 import type {
   CompleteQuizResult,
   CompleteRpcResult,
@@ -47,13 +47,17 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
     })
 
     if (error || !sessionId) {
-      return { success: false, error: error?.message ?? 'Failed to start session' }
+      console.error('[startQuizSession] RPC error:', error?.message)
+      return { success: false, error: 'Failed to start session' }
     }
 
     return { success: true, sessionId, questionIds }
   } catch (err) {
+    if (err instanceof ZodError) {
+      return { success: false, error: err.errors[0]?.message ?? 'Invalid input' }
+    }
     console.error('[startQuizSession] Uncaught error:', err)
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+    return { success: false, error: 'Something went wrong. Please try again.' }
   }
 }
 
@@ -73,7 +77,8 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
   })
 
   if (error || !data?.[0]) {
-    return { success: false, error: error?.message ?? 'Failed to submit answer' }
+    console.error('[submitQuizAnswer] RPC error:', error?.message)
+    return { success: false, error: 'Failed to submit answer' }
   }
 
   const result = data[0]
@@ -106,7 +111,8 @@ export async function completeQuiz(raw: unknown): Promise<CompleteQuizResult> {
   })
 
   if (error || !data?.[0]) {
-    return { success: false, error: error?.message ?? 'Failed to complete session' }
+    console.error('[completeQuiz] RPC error:', error?.message)
+    return { success: false, error: 'Failed to complete session' }
   }
 
   const result = data[0]

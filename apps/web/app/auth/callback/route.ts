@@ -28,7 +28,19 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (user) {
-    const { data: profile } = await supabase.from('users').select('id').eq('id', user.id).single()
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError && profileError.code !== 'PGRST116') {
+      // Transient DB error — don't sign out, let them retry
+      console.error('[auth/callback] Profile lookup failed:', profileError.message)
+      redirectTo.pathname = '/auth/verify'
+      redirectTo.searchParams.set('error', 'profile_lookup_failed')
+      return NextResponse.redirect(redirectTo)
+    }
 
     if (!profile) {
       await supabase.auth.signOut()

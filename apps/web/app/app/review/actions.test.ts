@@ -104,7 +104,7 @@ describe('startReviewSession', () => {
     const result = await startReviewSession()
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('RPC error')
+    expect(result.error).toBe('Failed to start session')
   })
 
   it('starts session with mode smart_review', async () => {
@@ -128,7 +128,7 @@ describe('startReviewSession', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await startReviewSession()
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('unexpected review DB failure')
+    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
     expect(consoleSpy).toHaveBeenCalledWith(
       '[startReviewSession] Uncaught error:',
       expect.any(Error),
@@ -183,7 +183,7 @@ describe('submitReviewAnswer', () => {
     const result = await submitReviewAnswer(validInput)
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('submit failed')
+    expect(result.error).toBe('Failed to submit answer')
   })
 
   it('still returns success when FSRS update throws (non-fatal)', async () => {
@@ -244,7 +244,7 @@ describe('completeReviewSession', () => {
     const result = await completeReviewSession(validInput)
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Could not complete')
+    expect(result.error).toBe('Failed to complete session')
   })
 
   it('rejects a completion request without a session ID', async () => {

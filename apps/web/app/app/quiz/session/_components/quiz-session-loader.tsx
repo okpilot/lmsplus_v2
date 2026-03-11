@@ -28,7 +28,17 @@ export function QuizSessionLoader() {
 
   useEffect(() => {
     const raw = sessionStorage.getItem('quiz-session')
-    const data = raw ? (JSON.parse(raw) as SessionData) : cachedSession
+    let data: SessionData | null = null
+    if (raw) {
+      try {
+        data = JSON.parse(raw) as SessionData
+      } catch {
+        console.error('[QuizSessionLoader] Malformed session data in sessionStorage')
+        sessionStorage.removeItem('quiz-session')
+      }
+    } else {
+      data = cachedSession
+    }
 
     if (!data) {
       router.replace('/app/quiz')

@@ -41,13 +41,14 @@ export async function startReviewSession(): Promise<StartReviewResult> {
     })
 
     if (error || !sessionId) {
-      return { success: false, error: error?.message ?? 'Failed to start session' }
+      console.error('[startReviewSession] RPC error:', error?.message)
+      return { success: false, error: 'Failed to start session' }
     }
 
     return { success: true, sessionId, questionIds }
   } catch (err) {
     console.error('[startReviewSession] Uncaught error:', err)
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+    return { success: false, error: 'Something went wrong. Please try again.' }
   }
 }
 
@@ -67,7 +68,8 @@ export async function submitReviewAnswer(raw: unknown): Promise<SubmitAnswerResu
   })
 
   if (error || !data?.[0]) {
-    return { success: false, error: error?.message ?? 'Failed to submit answer' }
+    console.error('[submitReviewAnswer] RPC error:', error?.message)
+    return { success: false, error: 'Failed to submit answer' }
   }
 
   const result = data[0]
@@ -100,7 +102,8 @@ export async function completeReviewSession(raw: unknown): Promise<CompleteRevie
   })
 
   if (error || !data?.[0]) {
-    return { success: false, error: error?.message ?? 'Failed to complete session' }
+    console.error('[completeReviewSession] RPC error:', error?.message)
+    return { success: false, error: 'Failed to complete session' }
   }
 
   const result = data[0]
