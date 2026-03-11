@@ -17,6 +17,6 @@ pre-push:
     type-check:
       run: pnpm check-types
     test:
-      run: pnpm test --passWithNoTests
+      run: pnpm test
     audit:
       run: pnpm audit --audit-level=high
