@@ -208,7 +208,16 @@ describe('submitQuizAnswer', () => {
 describe('completeQuiz', () => {
   const validInput = { sessionId: '00000000-0000-0000-0000-000000000001' }
 
+  it('returns failure when user is not authenticated', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const result = await completeQuiz(validInput)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Not authenticated')
+  })
+
   it('returns failure when RPC complete_quiz_session returns an error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'Session not found' } })
     const result = await completeQuiz(validInput)
     expect(result.success).toBe(false)
@@ -217,12 +226,14 @@ describe('completeQuiz', () => {
   })
 
   it('returns failure when RPC returns empty data', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: [], error: null })
     const result = await completeQuiz(validInput)
     expect(result.success).toBe(false)
   })
 
   it('returns score summary on happy path', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({
       data: [{ total_questions: 10, correct_count: 7, score_percentage: 70 }],
       error: null,

@@ -110,7 +110,12 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
   }
 
   const result = data[0]
-  await updateFsrsCard(supabase, user.id, input.questionId, result.is_correct)
+  // FSRS scheduling is best-effort — don't fail the answer if it errors
+  try {
+    await updateFsrsCard(supabase, user.id, input.questionId, result.is_correct)
+  } catch (e) {
+    console.error('FSRS card update failed (non-fatal):', e)
+  }
 
   return {
     success: true,
@@ -128,6 +133,10 @@ export type CompleteQuizResult =
 export async function completeQuiz(raw: unknown): Promise<CompleteQuizResult> {
   const input = CompleteQuizSessionSchema.parse(raw)
   const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
 
   const { data, error } = await rpc<CompleteRpcResult>(supabase, 'complete_quiz_session', {
     p_session_id: input.sessionId,
@@ -154,7 +163,7 @@ async function updateFsrsCard(
   questionId: string,
   isCorrect: boolean,
 ) {
-  const { data: existing } = await supabase
+  const { data: existing, error: cardError } = await supabase
     .from('fsrs_cards')
     .select(
       'due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, last_review',
@@ -163,6 +172,11 @@ async function updateFsrsCard(
     .eq('question_id' as string & keyof never, questionId)
     .returns<FsrsCardRow[]>()
     .maybeSingle()
+
+  if (cardError) {
+    console.error('FSRS card lookup failed:', cardError.message)
+    return
+  }
 
   const card = existing ? dbRowToCard(existing) : createEmptyCard()
   const grade = ratingFromAnswer(isCorrect)
