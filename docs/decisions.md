@@ -368,6 +368,21 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 21: Deferred tech debt → GitHub Issues with `tech-debt` label (2026-03-11)
+
+**Context:** CodeRabbit and post-commit agents surface low-priority findings (test renames, DRY violations, doc polish) that aren't worth fixing in the current PR but shouldn't be forgotten.
+
+**Decided:**
+- All deferred tech debt is tracked as GitHub Issues with the `tech-debt` label
+- Issues created immediately when the decision to defer is made (not "someday")
+- Each issue gets a conventional commit prefix in the title (`refactor:`, `test:`, `fix:`, `chore:`, `docs:`)
+- Sprint planning pulls from `tech-debt` label alongside `docs/backlog.md`
+- No Slack, no spreadsheets, no TODO comments in code — GitHub Issues is the single source of truth for deferred work
+
+**Why GitHub Issues:** Lives next to the code, Claude can reference issue numbers in commits (`fixes #5`), filterable by label, visible in PRs.
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -379,4 +394,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Decision 20: post-commit agents moved to in-session subagents*
+*Last updated: 2026-03-11 — Decision 21: deferred tech debt → GitHub Issues with tech-debt label*
