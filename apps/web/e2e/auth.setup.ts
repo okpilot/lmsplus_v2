@@ -7,7 +7,7 @@ const AUTH_FILE = 'e2e/.auth/user.json'
 setup('create authenticated session', async ({ page }) => {
   // 1. Ensure the test user exists
   await ensureTestUser()
-  await clearAllMessages()
+  await clearAllMessages(TEST_EMAIL)
 
   // 2. Go through the real login flow to get proper PKCE cookies
   await page.goto('/')
@@ -17,7 +17,7 @@ setup('create authenticated session', async ({ page }) => {
   // 3. Wait for verify page
   await page.waitForURL('/auth/verify', { timeout: 10_000 })
 
-  // 4. Fetch magic link from Mailpit
+  // 4. Fetch magic link from Inbucket
   const email = await getLatestEmail(TEST_EMAIL)
   const magicLink = extractMagicLink(email.HTML)
 

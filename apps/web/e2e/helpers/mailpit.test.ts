@@ -2,20 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearAllMessages, extractMagicLink, getLatestEmail } from './mailpit'
 
 const MOCK_MESSAGE = {
-  ID: 'msg-1',
-  Created: '2026-03-11T10:00:00Z',
-  From: { Name: 'Supabase', Address: 'no-reply@supabase.io' },
-  To: [{ Name: '', Address: 'test@example.com' }],
-  Subject: 'Your magic link',
-  Snippet: 'Click to sign in',
+  mailbox: 'test',
+  id: 'msg-1',
+  from: 'no-reply@supabase.io',
+  to: ['test@example.com'],
+  subject: 'Your magic link',
+  date: '2026-03-11T10:00:00Z',
+  size: 1234,
 }
 
 const MOCK_DETAIL = {
-  ID: 'msg-1',
-  From: { Name: 'Supabase', Address: 'no-reply@supabase.io' },
-  Subject: 'Your magic link',
-  Text: 'Sign in link',
-  HTML: '<a href="http://localhost:54321/auth/v1/verify?token=abc&amp;type=magiclink">Sign in</a>',
+  mailbox: 'test',
+  id: 'msg-1',
+  from: 'no-reply@supabase.io',
+  subject: 'Your magic link',
+  date: '2026-03-11T10:00:00Z',
+  body: {
+    text: 'Sign in link',
+    html: '<a href="http://localhost:54321/auth/v1/verify?token=abc&amp;type=magiclink">Sign in</a>',
+  },
 }
 
 // ---------------------------------------------------------------------------
@@ -68,13 +73,19 @@ describe('clearAllMessages', () => {
     vi.restoreAllMocks()
   })
 
-  it('clears all Mailpit messages', async () => {
+  it('purges the Inbucket mailbox for the given email', async () => {
     const mockFetch = vi.spyOn(global, 'fetch').mockImplementation(async () => new Response())
-    await clearAllMessages()
+    await clearAllMessages('test@example.com')
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:54324/api/v1/messages',
+      'http://127.0.0.1:54324/api/v1/mailbox/test',
       expect.objectContaining({ method: 'DELETE' }),
     )
+  })
+
+  it('does nothing when no email is provided', async () => {
+    const mockFetch = vi.spyOn(global, 'fetch').mockImplementation(async () => new Response())
+    await clearAllMessages()
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })
 
@@ -92,13 +103,13 @@ describe('getLatestEmail', () => {
     vi.restoreAllMocks()
   })
 
-  function mockFetchResponses(searchResponse: unknown, detail = MOCK_DETAIL) {
+  function mockFetchResponses(listResponse: unknown[], detail = MOCK_DETAIL) {
     vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
       const u = url.toString()
-      if (u.includes('/search')) {
-        return new Response(JSON.stringify(searchResponse))
+      if (u.match(/\/api\/v1\/mailbox\/[^/]+$/)) {
+        return new Response(JSON.stringify(listResponse))
       }
-      if (u.includes('/message/')) {
+      if (u.match(/\/api\/v1\/mailbox\/[^/]+\/.+/)) {
         return new Response(JSON.stringify(detail))
       }
       return new Response('{}')
@@ -106,21 +117,22 @@ describe('getLatestEmail', () => {
   }
 
   it('returns the message detail when a message is found on the first poll', async () => {
-    mockFetchResponses({ total: 1, messages: [MOCK_MESSAGE] })
+    mockFetchResponses([MOCK_MESSAGE])
     const result = await getLatestEmail('test@example.com')
-    expect(result).toEqual(MOCK_DETAIL)
+    expect(result.HTML).toBe(MOCK_DETAIL.body.html)
+    expect(result.Subject).toBe(MOCK_DETAIL.subject)
   })
 
   it('retries and returns the message when it appears on the second poll', async () => {
-    let searchCallCount = 0
+    let listCallCount = 0
     vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
       const u = url.toString()
-      if (u.includes('/search')) {
-        searchCallCount++
-        const messages = searchCallCount === 1 ? [] : [MOCK_MESSAGE]
-        return new Response(JSON.stringify({ total: messages.length, messages }))
+      if (u.match(/\/api\/v1\/mailbox\/[^/]+$/)) {
+        listCallCount++
+        const messages = listCallCount === 1 ? [] : [MOCK_MESSAGE]
+        return new Response(JSON.stringify(messages))
       }
-      if (u.includes('/message/')) {
+      if (u.match(/\/api\/v1\/mailbox\/[^/]+\/.+/)) {
         return new Response(JSON.stringify(MOCK_DETAIL))
       }
       return new Response('{}')
@@ -129,17 +141,14 @@ describe('getLatestEmail', () => {
     const promise = getLatestEmail('test@example.com')
     await vi.advanceTimersByTimeAsync(500)
     const result = await promise
-    expect(result).toEqual(MOCK_DETAIL)
-    expect(searchCallCount).toBe(2)
+    expect(result.HTML).toBe(MOCK_DETAIL.body.html)
+    expect(listCallCount).toBe(2)
   })
 
   it('throws after 10 seconds when no messages are ever received', async () => {
-    vi.spyOn(global, 'fetch').mockImplementation(
-      async () => new Response(JSON.stringify({ total: 0, messages: [] })),
-    )
+    vi.spyOn(global, 'fetch').mockImplementation(async () => new Response(JSON.stringify([])))
 
     const promise = getLatestEmail('test@example.com')
-    // Attach rejection handler BEFORE advancing timers to avoid unhandledRejection warning
     const expectation = expect(promise).rejects.toThrow(
       'No email received for test@example.com within 10000ms',
     )
@@ -148,54 +157,37 @@ describe('getLatestEmail', () => {
   })
 
   it('returns the most recently created message when multiple exist', async () => {
-    const olderMessage = { ...MOCK_MESSAGE, ID: 'msg-old', Created: '2026-03-11T09:00:00Z' }
-    const newerMessage = { ...MOCK_MESSAGE, ID: 'msg-new', Created: '2026-03-11T11:00:00Z' }
-    const newerDetail = { ...MOCK_DETAIL, ID: 'msg-new' }
+    const olderMessage = { ...MOCK_MESSAGE, id: 'msg-old', date: '2026-03-11T09:00:00Z' }
+    const newerMessage = { ...MOCK_MESSAGE, id: 'msg-new', date: '2026-03-11T11:00:00Z' }
+    const newerDetail = { ...MOCK_DETAIL, id: 'msg-new' }
 
     vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
       const u = url.toString()
-      if (u.includes('/search')) {
-        // Return in reverse chronological order (older first) to verify sorting
-        return new Response(JSON.stringify({ total: 2, messages: [olderMessage, newerMessage] }))
+      if (u.match(/\/api\/v1\/mailbox\/[^/]+$/)) {
+        return new Response(JSON.stringify([olderMessage, newerMessage]))
       }
-      if (u.includes('/message/msg-new')) {
+      if (u.includes('/msg-new')) {
         return new Response(JSON.stringify(newerDetail))
       }
       return new Response(JSON.stringify(MOCK_DETAIL))
     })
 
     const result = await getLatestEmail('test@example.com')
-    expect(result.ID).toBe('msg-new')
+    expect(result.Subject).toBe(newerDetail.subject)
   })
 
-  it('finds emails for addresses with reserved characters', async () => {
-    const mockFetch = vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
-      const u = url.toString()
-      if (u.includes('/search')) {
-        return new Response(JSON.stringify({ total: 1, messages: [MOCK_MESSAGE] }))
-      }
-      return new Response(JSON.stringify(MOCK_DETAIL))
-    })
-
-    await getLatestEmail('student+tag@test.com')
-    // Test setup guarantees at least one fetch call
-    const searchUrl = mockFetch.mock.calls[0]![0].toString()
-    expect(searchUrl).toContain(encodeURIComponent('to:student+tag@test.com'))
-  })
-
-  it('surfaces Mailpit search polling failures', async () => {
+  it('surfaces Inbucket list polling failures', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 500 }))
     const promise = getLatestEmail('test@example.com')
-    await expect(promise).rejects.toThrow('searchMessages: 500')
+    await expect(promise).rejects.toThrow('listMessages: 500')
   })
 
-  it('surfaces Mailpit message detail failures', async () => {
+  it('surfaces Inbucket message detail failures', async () => {
     vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
       const u = url.toString()
-      if (u.includes('/search')) {
-        return new Response(JSON.stringify({ total: 1, messages: [MOCK_MESSAGE] }))
+      if (u.match(/\/api\/v1\/mailbox\/[^/]+$/)) {
+        return new Response(JSON.stringify([MOCK_MESSAGE]))
       }
-      // getMessage endpoint returns an error status
       return new Response(null, { status: 404 })
     })
     const promise = getLatestEmail('test@example.com')

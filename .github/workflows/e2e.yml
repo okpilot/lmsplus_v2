@@ -86,7 +86,8 @@ jobs:
       - name: Export Supabase env vars
         run: |
           eval "$(supabase status -o env)"
-          echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}" >> $GITHUB_ENV
+          # Use localhost (not 127.0.0.1) — Chromium treats them as different origins
+          echo "NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321" >> $GITHUB_ENV
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}" >> $GITHUB_ENV
           echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> $GITHUB_ENV
 
@@ -103,6 +104,18 @@ jobs:
 
       - name: Build app
         run: pnpm build
+
+      - name: Verify Supabase is healthy
+        run: |
+          echo "Checking Supabase API..."
+          curl -sf http://localhost:54321/auth/v1/health || {
+            echo "Supabase auth unhealthy — restarting..."
+            supabase stop && supabase start
+            sleep 5
+            curl -sf http://localhost:54321/auth/v1/health
+          }
+          echo "Supabase services:"
+          docker ps --format 'table {{.Names}}\t{{.Status}}' | grep supabase || true
 
       - name: Run Playwright tests
         run: pnpm --filter @repo/web e2e

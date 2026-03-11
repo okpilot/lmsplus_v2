@@ -7,7 +7,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 
 test('magic link login flow: email → verify → callback → dashboard', async ({ page }) => {
   await ensureTestUser()
-  await clearAllMessages()
+  await clearAllMessages(TEST_EMAIL)
 
   // 1. Go to login page and enter email
   await page.goto('/')
@@ -20,7 +20,7 @@ test('magic link login flow: email → verify → callback → dashboard', async
   await page.waitForURL('/auth/verify', { timeout: 10_000 })
   await expect(page.getByText('Check your email')).toBeVisible()
 
-  // 3. Fetch magic link from Mailpit
+  // 3. Fetch magic link from Inbucket
   const email = await getLatestEmail(TEST_EMAIL)
   const magicLink = extractMagicLink(email.HTML)
 
