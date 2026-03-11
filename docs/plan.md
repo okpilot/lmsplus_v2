@@ -409,6 +409,18 @@ Weekly
 
 Test summary: 247 unit tests (32 files) + 35 integration tests + 10 E2E tests. All passing.
 
+## Phase 6 — Feature Backlog (post-MVP feedback)
+
+Full backlog with sizing and sprint grouping: **`docs/backlog.md`**
+
+| Sprint | Focus | Key items |
+|--------|-------|-----------|
+| 1 | Quick Wins | Markdown rendering, image lightbox, question ID, timer, skeletons, mobile, smart review fixes |
+| 2 | Quiz Overhaul | Fullscreen env, question tabs (Q/Explanation/Comments/Stats), deferred DB writes, save/resume, report card, incorrect tracking, Moodle-style question grid |
+| 3 | Dashboard & Analytics | Activity graph, pie chart, calendar heatmap, reports page, progress/dashboard differentiation |
+| 4 | Social, Search, Study | Search page, study mode (correct answers shown), per-question comments, FAQ |
+| 5 | Admin & Infrastructure | Admin frontend (students, questions), learning objectives/study cards, AWS backup |
+
 ## Post-Phase 5 Suggestions
 
 From setup audit (2026-03-11):
@@ -419,4 +431,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-11 — Phase 5B-6 complete: CodeRabbit findings addressed, security hardened, all tests passing*
+*Last updated: 2026-03-11 — Phase 5B-6 complete, Phase 6 backlog documented from user feedback*
