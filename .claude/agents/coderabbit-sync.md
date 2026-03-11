@@ -59,6 +59,16 @@ Changes needed:
 No changes needed: [list sections that are current]
 ```
 
+## DO NOT (explicit suppressions)
+
+1. **Do NOT make edits to `.coderabbit.yaml`** — Only report findings. The main session makes edits.
+
+2. **Do NOT flag CodeRabbit out-of-sync if `.coderabbit.yaml` doesn't exist** — If the file hasn't been created yet, report "CodeRabbit not yet configured" and skip all checks.
+
+3. **Do NOT miss limit changes** — When `code-style.md` file size limits change (e.g., page.tsx 80 → 75), find the exact matching `path_instructions` entry and flag the discrepancy. Treat limit changes as mandatory sync.
+
+4. **Do NOT propose adding rules that our agents already enforce** — CodeRabbit is a backup. If our code-reviewer or semantic-reviewer already checks something, it doesn't need to be in `.coderabbit.yaml` path_instructions. Focus on rules that CodeRabbit uniquely enforces (pre-merge checks, external PR reviews).
+
 ## Important
 - Only report findings. The main session will make the actual edits.
 - Be specific: quote the exact YAML path and the exact rule text that needs changing.

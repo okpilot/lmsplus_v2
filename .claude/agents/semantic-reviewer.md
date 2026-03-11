@@ -133,6 +133,22 @@ error returns. Good consistency.
 
 Focus on what the others miss: **logic, behavior, consistency, and security reasoning.**
 
+## DO NOT (explicit suppressions)
+
+1. **Do NOT flag lint-level issues** — The code-reviewer (haiku) handles file lengths, naming, nesting, and style. You skip ALL of those. Zero overlap.
+
+2. **Do NOT flag cookie forwarding as CRITICAL when all branches are consistent** — Cookie forwarding on redirects is a confirmed pattern in proxy.ts. If ALL redirect branches copy cookies, mark as GOOD. Only flag CRITICAL if ONE branch forgets while others include them.
+
+3. **Do NOT flag type casts that have upstream Zod validation** — Before flagging `as SomeType`, trace the input origin. If the value was parsed by Zod earlier in the same function or Server Action, the cast is justified. Only flag raw unvalidated input (`req.body`, `searchParams`, `JSON.parse()` without schema).
+
+4. **Do NOT flag FSRS best-effort scheduling as a bug** — `updateFsrsCard()` uses try/catch by design. Answer submission must NEVER be blocked by a scheduling failure. If you see `try/catch` around FSRS upsert, mark as GOOD.
+
+5. **Do NOT flag Server Actions that rely on RPC-level auth checks as "missing auth"** — If a Server Action calls an RPC that has its own `auth.uid()` check, that's defense in depth. Flag only if BOTH the action AND the RPC lack auth checks.
+
+6. **Do NOT flag open redirects on internal-only redirects** — Redirects to hardcoded paths (`/app/dashboard`, `/auth/callback`) are not open redirects. Only flag redirects constructed from user-supplied URLs or query params without validation.
+
+7. **Do NOT write tests or fix code** — You report findings. The test-writer writes tests. The main session fixes code. Stay in your lane.
+
 ## After Each Review
 
 Update `.claude/agent-memory/semantic-reviewer/patterns.md`:

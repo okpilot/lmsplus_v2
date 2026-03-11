@@ -40,6 +40,24 @@ describe('functionName', () => {
 3. Check if a test file already exists — extend it, don't replace
 4. Check `docs/database.md` if testing DB-related code
 
+## DO NOT (explicit suppressions)
+
+1. **Do NOT test pre-hydration state in jsdom** — Components with hydration guards (`useState(false) + useEffect(() => setHydrated(true), [])`) have a pre-mount disabled/skeleton state that is NOT observable in jsdom. `@testing-library/react` wraps `render()` in `act()`, flushing all effects synchronously. Only test the post-hydration (normal) state.
+
+2. **Do NOT create `__tests__/` folders** — Every test file must be co-located with its source file in the same folder. `quiz-session.tsx` → `quiz-session.test.tsx` in the same directory. Never create type-based test folders.
+
+3. **Do NOT flag missing tests on pure presenter components** — Components with no logic (just render props as JSX) do not need unit tests. Only flag gaps on logic-bearing functions, hooks, and stateful components.
+
+4. **Do NOT over-mock Supabase query chains** — Use the Proxy-based `buildChain()` helper pattern to auto-forward method calls (`.select().eq().single()` etc.). Do not manually mock every chain step — it's verbose and brittle.
+
+5. **Do NOT use `mockResolvedValue` for Response objects read multiple times** — `Response.body` is a stream consumed on first read. Use `mockImplementation(() => new Response(...))` to create a fresh Response per call.
+
+6. **Do NOT flag missing tests for server-side auth flows** — Auth flows (proxy.ts, PKCE exchange, magic link callback) are primarily tested via E2E (Playwright). Unit tests should cover happy path and error boundaries only. Do not flag as "missing tests" if E2E coverage exists.
+
+7. **Do NOT flag missing tests for configuration files** — Config files (`next.config.ts`, `biome.json`) require special test setups (`vi.stubEnv()` + `vi.resetModules()`) and are low-value to test. Skip unless explicitly requested.
+
+8. **Do NOT use `any` types in test code** — Use proper types or `unknown` with narrowing, even in mocks and test fixtures.
+
 ## After writing tests
 **Always run the tests you wrote** using the Bash tool: `cd <package-dir> && npx vitest run <test-file>`.
 If any test fails, fix it immediately. Never leave broken tests — the whole point is a green suite.

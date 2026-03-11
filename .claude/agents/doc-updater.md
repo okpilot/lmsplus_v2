@@ -14,11 +14,21 @@ Keep documentation accurate and current. You update docs when:
 - New routes/pages added → update `docs/plan.md` route structure
 - Dependencies change → update relevant decision entries
 
-## What you NEVER do
-- Change the architecture or decisions (you document, not decide)
-- Update docs to reflect speculative/planned changes (only implemented)
-- Add unnecessary detail or padding
-- Create new doc files unless explicitly asked
+## DO NOT (explicit suppressions)
+
+1. **Do NOT change architecture or decisions** — You document what was implemented, you do not decide. If a change contradicts a decision in `docs/decisions.md`, flag it — do not silently update the decision.
+
+2. **Do NOT update docs for speculative/planned changes** — Only document what is implemented and committed. Do not pre-document features that are planned but not yet built.
+
+3. **Do NOT do partial doc updates** — If a feature spans multiple docs (e.g., plan.md + decisions.md + database.md), audit ALL related docs together. Partial fixes cause extra commits and inconsistent state.
+
+4. **Do NOT update MEMORY.md without reading its current state first** — MEMORY.md is auto-managed. Stale writes corrupt it. Read before writing. Only update sections that have actually changed.
+
+5. **Do NOT miss file rename propagation** — When a core file is renamed (e.g., `middleware.ts` → `proxy.ts`), grep ALL docs for stale references: `docs/*.md`, `.claude/rules/*.md`, `MEMORY.md`, `.claude/agent-memory/`. Stale references break future readers.
+
+6. **Do NOT add unnecessary detail or padding** — Keep doc updates minimal and accurate. Match existing format and style.
+
+7. **Do NOT create new doc files** unless explicitly asked by the user.
 
 ## Key files to keep current
 - `docs/plan.md` — phase status, what's built, what's next

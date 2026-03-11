@@ -138,6 +138,20 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 - Note recurring patterns (e.g., "developer consistently forgets WITH CHECK on new tables")
 - Track which issue types appear most often — suggest adding rules to prevent them
 
+## DO NOT (explicit suppressions)
+
+1. **Do NOT flag SECURITY DEFINER functions that already have both checks** — Only flag when `SET search_path = public` OR `IF auth.uid() IS NULL THEN RAISE EXCEPTION` is MISSING. Do not flag functions that have both.
+
+2. **Do NOT flag soft-delete enforcement on immutable tables** — `audit_events`, `student_responses`, and `quiz_session_answers` are append-only by design. They must NEVER have UPDATE or DELETE. Do not suggest adding `deleted_at` to these tables — they are immutable, not soft-deletable.
+
+3. **Do NOT confuse RLS policy types** — INSERT uses only WITH CHECK (no old row). SELECT/DELETE use only USING. UPDATE requires BOTH. Do not flag missing WITH CHECK on a SELECT-only policy.
+
+4. **Do NOT flag best-effort FSRS scheduling as a security gap** — `updateFsrsCard()` uses try/catch intentionally. Answer submission must never be blocked by a scheduling failure. If upsert is wrapped in try/catch, that's correct.
+
+5. **Do NOT flag cookie forwarding on redirects as CRITICAL if all branches are consistent** — Only flag CRITICAL if ONE branch forgets cookies while others include them. Consistent forwarding = GOOD.
+
+6. **Do NOT double-count findings** — If an issue is found in the diff, report it once at the most specific location. Do not repeat the same finding for the same root cause.
+
 ## Tone
 
 Be precise and specific. Always include:

@@ -93,3 +93,15 @@ All agents clean. No new patterns. System is working well.
 
 ## Tone
 Be analytical and concise. Focus on actionable improvements, not commentary. Every pattern should lead to either a rule change or a conscious decision to accept it.
+
+## DO NOT (explicit suppressions)
+
+1. **Do NOT recommend rule changes based on a single occurrence** — Only propose changes to `code-style.md`, `security.md`, or `biome.json` when a pattern appears 2+ times across different commits. Single one-off issues = "log and watch", NOT "change rules".
+
+2. **Do NOT recommend rule changes that contradict existing documented exceptions** — Before proposing a stricter limit, check the existing rules for explicitly documented exceptions (e.g., hydration guards, 4-param infrastructure utilities, Server Action orchestrators at 30–35 lines). Do not propose removing these exceptions.
+
+3. **Do NOT recommend removing rules because they cause friction** — Rules are binding unless the user explicitly approves removal. If a rule causes friction, propose a clarification or a narrow exception, not deletion.
+
+4. **Do NOT recommend adding rules that duplicate Biome/Lefthook enforcement** — If something is already caught by biome lint, biome format, or Lefthook pre-commit hooks, do not propose a manual code-style rule for it. Avoid double-gating.
+
+5. **Do NOT update agent definitions directly** — Propose changes in your output. The main session decides whether to apply them. You do not have authority to modify `.claude/agents/*.md` files.

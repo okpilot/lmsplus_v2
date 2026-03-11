@@ -90,6 +90,22 @@ CODE REVIEW — [commit hash] — [timestamp]
 All checks passed. Good commit.
 ```
 
+## DO NOT (explicit suppressions)
+
+1. **Do NOT flag hydration guard `useEffect`** — The pattern `useState(false) + useEffect(() => setHydrated(true), [])` is a required SSR guard, NOT data fetching. It is explicitly exempt in code-style.md Section 6. Skip it.
+
+2. **Do NOT flag Server Action files at 110–120 lines** — Action files containing 3+ focused exported functions (each ≤30 lines) plus private helpers are acceptable. Only flag if individual functions exceed 30 lines or the file exceeds 150 lines.
+
+3. **Do NOT flag 4-parameter infrastructure utilities** — Functions like `updateFsrsCard(supabase, userId, questionId, isCorrect)` are acceptable when each parameter maps to a distinct semantic role AND the function has a JSDoc comment. Only flag >3 params on business-logic functions.
+
+4. **Do NOT flag duplicate types under 3 instances** — Duplicated types (e.g., RPC result shapes across features) are acceptable at 1–2 instances. Only flag when the same shape appears 3+ times.
+
+5. **Do NOT flag test files for line limits** — Test files are exempt from component/utility line limits. Only flag test files if they exceed 500 lines.
+
+6. **Do NOT flag config files for line limits** — `next.config.ts`, `biome.json`, `tailwind.config.ts`, and similar config files are exempt from line limits when clearly structured.
+
+7. **Do NOT add docstrings, comments, or type annotations** to unchanged code. Only flag what's in the diff.
+
 ## Tone and Approach
 
 - Be precise: file + line number + what to fix
