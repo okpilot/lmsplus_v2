@@ -158,6 +158,7 @@ CREATE TABLE questions (
   subject_id      UUID NOT NULL REFERENCES easa_subjects(id),
   topic_id        UUID NOT NULL REFERENCES easa_topics(id),
   subtopic_id     UUID REFERENCES easa_subtopics(id) NULL,
+  question_number TEXT NULL,                    -- external ID from source QDB (e.g. '688864')
   lo_reference    TEXT NULL,                   -- 'MET 3.2.1'
   question_text   TEXT NOT NULL,
   question_image_url TEXT NULL,

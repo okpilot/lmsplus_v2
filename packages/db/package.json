@@ -2,6 +2,14 @@
   "name": "@repo/db",
   "version": "0.0.1",
   "private": true,
+  "exports": {
+    "./client": "./src/client.ts",
+    "./server": "./src/server.ts",
+    "./admin": "./src/admin.ts",
+    "./schema": "./src/schema.ts",
+    "./import-schema": "./src/import-schema.ts",
+    "./types": "./src/types.ts"
+  },
   "scripts": {
     "check-types": "tsc --noEmit"
   },

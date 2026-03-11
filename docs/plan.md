@@ -6,7 +6,7 @@
 
 ---
 
-## Status: PHASE 2 COMPLETE — ready for Phase 3
+## Status: PHASE 3 COMPLETE — ready for Phase 4
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
 
@@ -22,7 +22,18 @@
 - Zod validation schemas for all mutations
 - Security headers in `next.config.ts` (CSP, HSTS, X-Frame-Options, etc.)
 
-**Next up: Phase 3** — Question import tool (JSON → DB)
+**Phase 3 done (2026-03-11):** Question import tool:
+- `packages/db/src/import-schema.ts` — Zod validation for import JSON
+- `apps/web/scripts/import-questions.ts` — full import pipeline
+- Bootstraps org (Egmont Aviation), admin user, question bank (EASA PPL(A) QDB)
+- Parses folder paths → derives topic/subtopic codes & names → upserts reference data
+- Uploads images to Supabase Storage (`question-images` bucket)
+- Dedup by `question_number` per bank (unique index)
+- Migration `002_add_question_number.sql` — added `question_number` column
+- `@repo/db` package exports map added
+- Test batch: 5 questions from 050-01-01 imported + idempotency verified
+
+**Next up: Phase 4** — Student auth (magic link flow)
 
 ---
 

@@ -493,6 +493,7 @@ export type Database = {
           options: Json
           organization_id: string
           question_image_url: string | null
+          question_number: string | null
           question_text: string
           status: string
           subject_id: string
@@ -515,6 +516,7 @@ export type Database = {
           options: Json
           organization_id: string
           question_image_url?: string | null
+          question_number?: string | null
           question_text: string
           status?: string
           subject_id: string
@@ -537,6 +539,7 @@ export type Database = {
           options?: Json
           organization_id?: string
           question_image_url?: string | null
+          question_number?: string | null
           question_text?: string
           status?: string
           subject_id?: string

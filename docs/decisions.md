@@ -262,7 +262,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ### Minor items to address (non-blocking)
 - [ ] Update `apps/web/app/layout.tsx` metadata (still says "Create Next App") — do in Phase 4
-- [ ] Add security headers to `apps/web/next.config.ts` — do in Phase 2
+- [x] Add security headers to `apps/web/next.config.ts` — done in Phase 2
 - [ ] Consider `git diff --check` in Lefthook pre-commit for whitespace issues
 - [ ] Add GitHub Actions CI/CD once repo goes to GitHub (mirror Lefthook checks)
 - [ ] Add Sentry error tracking after Phase 5 goes live
