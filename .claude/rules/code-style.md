@@ -116,6 +116,8 @@ export async function submitAnswer(input: unknown) {
 }
 ```
 
+**At the boundary:** Server Action orchestrators (30–35 lines) are acceptable when each line is a single responsibility (validation, auth, RPC call, side effect). If adding a new step requires scrolling, extract it.
+
 ### Max 3 Parameters
 If a function needs more than 3 parameters, use an options object.
 
@@ -132,6 +134,8 @@ function scheduleReview(opts: {
   sessionId: string
 }) {}
 ```
+
+**Exception: Infrastructure/utility functions** — Some utility functions are idiomatic exceptions (e.g., `updateFsrsCard(supabase, userId, questionId, isCorrect)` is 4 params but each maps to a distinct semantic role in the domain). Document the exception with a JSDoc comment if > 3 params.
 
 ### Early Returns Over Nesting
 Fail fast. Avoid deeply nested if/else chains.
@@ -342,4 +346,16 @@ The `code-reviewer` agent flags these after every commit:
 
 ---
 
-*Last updated: 2026-03-11*
+## 9. Critical Lifecycle Rule: File Renames & Documentation
+
+**When renaming core files** (e.g., `middleware.ts` → `proxy.ts`), **always grep all docs for stale references before committing**. Pattern to check:
+- `docs/*.md` for code examples
+- `.claude/rules/*.md` for file paths
+- MEMORY.md for references
+- Agent memory files (`.claude/agent-memory/`) for notes
+
+This prevents documentation from drifting and confusing future readers.
+
+---
+
+*Last updated: 2026-03-13*

@@ -209,3 +209,35 @@ return response
 - Error handling separation of concerns: FSRS errors are "best-effort", answer submission succeeds even if scheduling fails
 - Client-side error UI properly added (alert div with role="alert" and Tailwind destructive colors)
 - Test refactoring: buildChain() removed after FSRS extraction eliminates need for complex Supabase mock chaining
+
+## Session 2026-03-13 (Learner Review)
+
+### Subagent Findings Summary
+- **Code Reviewer** (commits 1-6): 0 blocking, 2 warnings on commits 1-2 only:
+  1. updateFsrsCard 4 params — marked as acceptable exception (domain-specific utility)
+  2. Duplicated RPC types (SubmitRpcResult, CompleteRpcResult) across feature modules — not yet justified by reuse count
+  3. Action files 110-116 lines — slightly exceed 100-line nominal limit but acceptable with 3 focused exported functions + private helpers
+  4. submitQuizAnswer/submitReviewAnswer ~34 lines — at 30-line boundary but acceptable for orchestrators with single responsibility per line
+
+- **Doc Updater**: Updated docs/security.md for middleware.ts → proxy.ts rename (caught stale references in prior commits)
+- **Test Writer**: 300 tests total (278 web + 22 db), all passing, no coverage gaps
+
+### Rule Updates Applied
+
+1. **code-style.md section 3.3** — Added exception note for infrastructure utilities:
+   - Functions like `updateFsrsCard(supabase, userId, questionId, isCorrect)` are 4 params but each maps distinct semantic roles
+   - Document exception with JSDoc if >3 params justified by domain
+
+2. **code-style.md section 3.1** — Added boundary clarification:
+   - Server Action orchestrators at 30–35 lines acceptable when each line = single responsibility
+   - If adding step requires scrolling, extract it
+
+3. **code-style.md section 9 (NEW)** — Critical file rename lifecycle rule:
+   - When renaming core files (middleware.ts → proxy.ts), grep all docs for stale references before committing
+   - Check: docs/*.md, .claude/rules/*.md, MEMORY.md, agent-memory files
+   - Prevents documentation drift
+
+### Patterns Confirmed (No rule change needed)
+- Duplicated types (SubmitRpcResult, CompleteRpcResult) are at 1x duplication — extraction justified only at 3+ instances ("Extract at 3 Repetitions" rule from section 2). Keep as-is.
+- Test coverage growth (300 tests) shows test-writer agent reliably catches untested branches (error paths, edge cases, timeouts)
+- All commits 3-6 clean — refactoring discipline holding steady
