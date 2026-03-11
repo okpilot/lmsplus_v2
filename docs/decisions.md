@@ -66,11 +66,7 @@ Configured in `.claude/settings.json` under `mcpServers`.
 - GitHub MCP — known agent-level security vulnerability (malicious issues can leak private repo data). Use GitHub Issues in browser.
 - Slack MCP — not needed at current team size. Revisit at first hire or when going live with students.
 
-**Setup required:** Supabase MCP needs a personal access token (NOT the project API key).
-Get it at: supabase.com → Account → Access Tokens → Generate new token.
-Store as `SUPABASE_ACCESS_TOKEN` in `.env.local` (gitignored).
-
-**Project scoping:** Once Supabase project is created, add `--project-ref <ref>` to the Supabase MCP args to scope it to this project only.
+**Setup complete:** Supabase MCP configured with personal access token and `--project-ref uepvblipahxizozxvwjn`.
 
 ### Notifications & Project Tracking (confirmed 2026-03-11)
 - **Tech debt / features:** GitHub Issues (lives next to the code, Claude can reference issue numbers in commits)
@@ -238,7 +234,7 @@ One app, one window, one login. Builder + Player + LMS backbone + question bank 
 ## OPEN QUESTIONS
 
 ### Blocking (cannot build without these)
-- [ ] **Supabase project** — user must create at supabase.com, capture: Project URL, anon key, service role key
+- [x] **Supabase project** — created, ref: `uepvblipahxizozxvwjn`, schema deployed, RLS verified
 - [ ] **Question import JSON format** — exact shape? Claude will design a proposal when building import tool
 - [ ] **Image handling** — Supabase Storage. Buckets: `question-images` + `explanation-images`? Or one `assets` bucket with folders? Decide when building import tool.
 - [ ] **EASA subject/topic seed data** — do we have the full taxonomy tree or just sample data?
@@ -260,6 +256,19 @@ One app, one window, one login. Builder + Player + LMS backbone + question bank 
 
 ---
 
+## SETUP AUDIT (2026-03-11)
+
+Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/setup-audit.md`.
+
+### Minor items to address (non-blocking)
+- [ ] Update `apps/web/app/layout.tsx` metadata (still says "Create Next App") — do in Phase 4
+- [ ] Add security headers to `apps/web/next.config.ts` — do in Phase 2
+- [ ] Consider `git diff --check` in Lefthook pre-commit for whitespace issues
+- [ ] Add GitHub Actions CI/CD once repo goes to GitHub (mirror Lefthook checks)
+- [ ] Add Sentry error tracking after Phase 5 goes live
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -271,4 +280,4 @@ One app, one window, one login. Builder + Player + LMS backbone + question bank 
 
 ---
 
-*Last updated: 2026-03-11*
+*Last updated: 2026-03-11 — Phase 2 complete*

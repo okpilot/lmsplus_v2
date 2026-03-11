@@ -6,15 +6,23 @@
 
 ---
 
-## Status: PHASE 1 COMPLETE — waiting for Supabase credentials
+## Status: PHASE 2 COMPLETE — ready for Phase 3
 
-**Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 2 commits on `master`.
+**Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
 
-**Blocked by Phase 2:** User must create a Supabase project at supabase.com and provide:
-- Project URL (`https://xxxx.supabase.co`)
-- Anon key
-- Service role key
-- Personal access token (Account → Access Tokens, for Supabase MCP)
+**Phase 2 done (2026-03-11):** Supabase setup complete:
+- `.env.local` with all credentials (publishable key, secret key, access token)
+- Supabase MCP scoped to project `uepvblipahxizozxvwjn`
+- Full schema: 14 tables with RLS + FORCE RLS on all tables
+- RLS policies: tenant isolation, immutability guards, role-scoped access
+- 4 RPC functions: `get_quiz_questions`, `submit_quiz_answer`, `start_quiz_session`, `complete_quiz_session`
+- All indexes from `docs/database.md`
+- Typed Supabase clients: browser (`client.ts`), server (`server.ts`), admin (`admin.ts`)
+- Generated TypeScript types from live schema
+- Zod validation schemas for all mutations
+- Security headers in `next.config.ts` (CSP, HSTS, X-Frame-Options, etc.)
+
+**Next up: Phase 3** — Question import tool (JSON → DB)
 
 ---
 
@@ -279,4 +287,15 @@ Weekly
 
 ---
 
-*Last updated: 2026-03-11 — Phase 1 complete*
+## Post-Phase 5 Suggestions
+
+From setup audit (2026-03-11):
+- **CI/CD:** GitHub Actions mirroring Lefthook checks (once repo goes to GitHub)
+- **Error tracking:** Sentry integration after Phase 5 goes live
+- **Monitoring:** Vercel Web Analytics dashboard
+- **Playwright MCP:** Add when building E2E tests (Phase 5)
+- **Vercel MCP:** Add after first deploy
+
+---
+
+*Last updated: 2026-03-11 — Phase 2 complete, schema deployed to Supabase*
