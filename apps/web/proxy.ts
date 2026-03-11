@@ -13,7 +13,14 @@ export async function proxy(request: NextRequest): Promise<Response> {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
+
+  // Forward auth code from magic link to callback route
+  if (pathname === '/' && searchParams.has('code')) {
+    const callbackUrl = new URL('/auth/callback', request.url)
+    callbackUrl.search = searchParams.toString()
+    return NextResponse.redirect(callbackUrl)
+  }
 
   // Protect /app/* routes — redirect to login if not authenticated
   if (pathname.startsWith('/app') && !user) {
