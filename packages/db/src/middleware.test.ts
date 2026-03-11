@@ -40,13 +40,13 @@ describe('createMiddlewareSupabaseClient', () => {
   })
 
   it('throws when NEXT_PUBLIC_SUPABASE_URL is missing', () => {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = undefined
+    process.env.NEXT_PUBLIC_SUPABASE_URL = ''
 
     expect(() => createMiddlewareSupabaseClient(makeRequest())).toThrow('Missing Supabase env vars')
   })
 
   it('throws when NEXT_PUBLIC_SUPABASE_ANON_KEY is missing', () => {
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = undefined
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ''
 
     expect(() => createMiddlewareSupabaseClient(makeRequest())).toThrow('Missing Supabase env vars')
   })
