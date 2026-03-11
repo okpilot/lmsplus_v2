@@ -295,8 +295,8 @@ Import ~3,000 questions from JSON into Supabase.
 - `/auth/callback` — magic link callback handler
 - `/auth/verify` — "check your email" page
 
-### Middleware
-`apps/web/middleware.ts` — protect all `/app/*` routes, redirect to login if not authenticated.
+### Proxy (Next.js 16)
+`apps/web/proxy.ts` — protect all `/app/*` routes, redirect to login if not authenticated.
 
 ### Session
 Supabase session via `@supabase/ssr` package (server-side session management for Next.js App Router).
