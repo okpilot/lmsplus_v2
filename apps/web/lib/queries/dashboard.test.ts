@@ -44,16 +44,16 @@ function buildChain(returnValue: unknown) {
  */
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
 })
 
 describe('getDashboardData', () => {
-  it('throws when user is not authenticated', async () => {
+  it('rejects unauthenticated requests', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     await expect(getDashboardData()).rejects.toThrow('Not authenticated')
   })
 
-  it('returns zeroed dashboard data when there are no subjects', async () => {
+  it('returns zeroed counters when the org has no subjects', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
@@ -73,7 +73,7 @@ describe('getDashboardData', () => {
     expect(result.recentSessions).toEqual([])
   })
 
-  it('aggregates subject progress correctly', async () => {
+  it('computes question counts and mastery per subject', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
@@ -141,7 +141,7 @@ describe('getDashboardData', () => {
     expect(met!.totalQuestions).toBe(1)
   })
 
-  it('filters out subjects with no questions', async () => {
+  it('excludes subjects that have zero questions', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
@@ -162,7 +162,7 @@ describe('getDashboardData', () => {
     expect(result.totalQuestions).toBe(0)
   })
 
-  it('returns recent sessions with subject names', async () => {
+  it('enriches recent sessions with the subject display name', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     const sessions = [

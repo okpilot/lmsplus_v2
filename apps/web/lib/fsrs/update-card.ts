@@ -52,22 +52,26 @@ export async function updateFsrsCard(
   const scheduled = scheduleCard(card, grade)
   const next = scheduled.card
 
-  await upsert(
-    supabase,
-    'fsrs_cards',
-    {
-      student_id: userId,
-      question_id: questionId,
-      due: next.due.toISOString(),
-      stability: next.stability,
-      difficulty: next.difficulty,
-      elapsed_days: next.elapsed_days,
-      scheduled_days: next.scheduled_days,
-      reps: next.reps,
-      lapses: next.lapses,
-      state: stateToString(next.state),
-      last_review: new Date().toISOString(),
-    },
-    { onConflict: 'student_id,question_id' },
-  )
+  try {
+    await upsert(
+      supabase,
+      'fsrs_cards',
+      {
+        student_id: userId,
+        question_id: questionId,
+        due: next.due.toISOString(),
+        stability: next.stability,
+        difficulty: next.difficulty,
+        elapsed_days: next.elapsed_days,
+        scheduled_days: next.scheduled_days,
+        reps: next.reps,
+        lapses: next.lapses,
+        state: stateToString(next.state),
+        last_review: new Date().toISOString(),
+      },
+      { onConflict: 'student_id,question_id' },
+    )
+  } catch (err) {
+    console.error('FSRS card upsert failed:', err)
+  }
 }

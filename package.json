@@ -8,6 +8,7 @@
     "format": "biome format --write .",
     "check": "biome check --write .",
     "test": "turbo run test",
+    "coverage": "turbo run coverage",
     "check-types": "turbo run check-types",
     "e2e": "turbo run e2e"
   },

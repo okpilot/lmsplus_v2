@@ -13,7 +13,7 @@ if [ -z "$DIFF_FULL" ]; then
   exit 0
 fi
 
-DIFF_LINES=$(echo "$DIFF_FULL" | wc -l)
+DIFF_LINES=$(printf '%s' "$DIFF_FULL" | wc -l)
 MAX_DIFF_LINES=3000
 
 echo "[security-auditor] Auditing changes before push ($DIFF_LINES lines)..."
@@ -28,10 +28,10 @@ if [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
     '**/*.sql' '**/fsrs.*' '**/.env*' 2>/dev/null || echo "")
 
   # If filtered diff is still too large, truncate
-  FILTERED_LINES=$(echo "$DIFF" | wc -l)
+  FILTERED_LINES=$(printf '%s' "$DIFF" | wc -l)
   if [ "$FILTERED_LINES" -gt "$MAX_DIFF_LINES" ]; then
     echo "[security-auditor] Filtered diff still large ($FILTERED_LINES lines). Truncating to $MAX_DIFF_LINES lines."
-    DIFF=$(echo "$DIFF" | head -n "$MAX_DIFF_LINES")
+    DIFF=$(printf '%s' "$DIFF" | head -n "$MAX_DIFF_LINES")
     DIFF="$DIFF
 ... (truncated — $FILTERED_LINES total lines, showing first $MAX_DIFF_LINES)"
   fi
@@ -67,25 +67,25 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
     ISSUES=0
 
     # Check for .env files in diff
-    if echo "$DIFF_FULL" | grep -q '^\+\+\+ b/.*\.env'; then
+    if printf '%s' "$DIFF_FULL" | grep -q '^\+\+\+ b/.*\.env'; then
       echo "[CRITICAL] .env file being committed!"
       ISSUES=$((ISSUES + 1))
     fi
 
     # Check for hardcoded secrets
-    if echo "$DIFF_FULL" | grep -qE '^\+.*(eyJ|sk_live_|service_role|-----BEGIN)'; then
+    if printf '%s' "$DIFF_FULL" | grep -qE '^\+.*(eyJ|sk_live_|service_role|-----BEGIN)'; then
       echo "[CRITICAL] Potential secret/credential in diff!"
       ISSUES=$((ISSUES + 1))
     fi
 
     # Check for SELECT * on questions
-    if echo "$DIFF_FULL" | grep -qE "^\+.*select\('\*'\).*questions|^\+.*SELECT \* FROM questions"; then
+    if printf '%s' "$DIFF_FULL" | grep -qE "^\+.*select\('\*'\).*questions|^\+.*SELECT \* FROM questions"; then
       echo "[CRITICAL] Direct SELECT * on questions table (answer exposure risk)!"
       ISSUES=$((ISSUES + 1))
     fi
 
     # Check for adminClient in app/ files — scope grep to lines following app/ file headers
-    if echo "$DIFF_FULL" | grep -A5 '^\+\+\+ b/apps/web/app/.*\.tsx\?' | grep -q 'adminClient'; then
+    if printf '%s' "$DIFF_FULL" | grep -A5 '^\+\+\+ b/apps/web/app/.*\.tsx\?' | grep -q 'adminClient'; then
       echo "[HIGH] adminClient used in app/ code!"
       ISSUES=$((ISSUES + 1))
     fi
@@ -100,19 +100,19 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
   echo "[security-auditor] Agent failed (exit $EXIT_CODE). Running fallback checks..."
   # Run the same fallback grep checks as the timeout branch
   ISSUES=0
-  if echo "$DIFF_FULL" | grep -q '^\+\+\+ b/.*\.env'; then
+  if printf '%s' "$DIFF_FULL" | grep -q '^\+\+\+ b/.*\.env'; then
     echo "[CRITICAL] .env file being committed!"
     ISSUES=$((ISSUES + 1))
   fi
-  if echo "$DIFF_FULL" | grep -qE '^\+.*(eyJ|sk_live_|service_role|-----BEGIN)'; then
+  if printf '%s' "$DIFF_FULL" | grep -qE '^\+.*(eyJ|sk_live_|service_role|-----BEGIN)'; then
     echo "[CRITICAL] Potential secret/credential in diff!"
     ISSUES=$((ISSUES + 1))
   fi
-  if echo "$DIFF_FULL" | grep -qE "^\+.*select\('\*'\).*questions|^\+.*SELECT \* FROM questions"; then
+  if printf '%s' "$DIFF_FULL" | grep -qE "^\+.*select\('\*'\).*questions|^\+.*SELECT \* FROM questions"; then
     echo "[CRITICAL] Direct SELECT * on questions table (answer exposure risk)!"
     ISSUES=$((ISSUES + 1))
   fi
-  if echo "$DIFF_FULL" | grep -A5 '^\+\+\+ b/apps/web/app/.*\.tsx\?' | grep -q 'adminClient'; then
+  if printf '%s' "$DIFF_FULL" | grep -A5 '^\+\+\+ b/apps/web/app/.*\.tsx\?' | grep -q 'adminClient'; then
     echo "[HIGH] adminClient used in app/ code!"
     ISSUES=$((ISSUES + 1))
   fi

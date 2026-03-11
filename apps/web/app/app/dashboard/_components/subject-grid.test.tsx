@@ -24,31 +24,31 @@ const SUBJECTS = [
 ]
 
 describe('SubjectGrid', () => {
-  it('displays each provided subject name', () => {
+  it('renders a card for each subject with its name', () => {
     render(<SubjectGrid subjects={SUBJECTS} />)
     expect(screen.getByText('Meteorology')).toBeInTheDocument()
     expect(screen.getByText('Air Law')).toBeInTheDocument()
   })
 
-  it('shows subject code', () => {
+  it('displays the EASA subject code for each card', () => {
     render(<SubjectGrid subjects={SUBJECTS} />)
     expect(screen.getByText('050')).toBeInTheDocument()
     expect(screen.getByText('010')).toBeInTheDocument()
   })
 
-  it('shows mastery percentage', () => {
+  it('shows the current mastery percentage per subject', () => {
     render(<SubjectGrid subjects={SUBJECTS} />)
     expect(screen.getByText('75%')).toBeInTheDocument()
     expect(screen.getByText('50%')).toBeInTheDocument()
   })
 
-  it('shows questions mastered count', () => {
+  it('shows how many questions have been mastered out of total', () => {
     render(<SubjectGrid subjects={SUBJECTS} />)
     expect(screen.getByText('15 / 20 questions mastered')).toBeInTheDocument()
     expect(screen.getByText('5 / 10 questions mastered')).toBeInTheDocument()
   })
 
-  it('shows empty message when no subjects', () => {
+  it('shows an empty state message when there are no subjects', () => {
     render(<SubjectGrid subjects={[]} />)
     expect(screen.getByText(/no subjects available/i)).toBeInTheDocument()
   })

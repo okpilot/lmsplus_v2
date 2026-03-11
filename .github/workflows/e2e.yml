@@ -53,6 +53,9 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}" >> $GITHUB_ENV
           echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> $GITHUB_ENV
 
+      - name: Type-check integration tests
+        run: pnpm --filter @repo/db check-types:integration
+
       - name: Run integration tests
         run: pnpm --filter @repo/db test:integration
 

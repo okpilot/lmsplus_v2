@@ -155,7 +155,7 @@ lmsplusv2/
 Before building, configure the three essential MCPs so Claude has full tool access throughout the build:
 
 1. **Supabase MCP** — get personal access token from supabase.com → Account → Access Tokens
-   Add to `.claude/settings.local.json` (gitignored) or `apps/web/.env.local` (gitignored): `SUPABASE_ACCESS_TOKEN=sbp_xxxx`
+   Add to `.claude/settings.local.json` (gitignored): `SUPABASE_ACCESS_TOKEN=sbp_xxxx` (MCP token only — not a runtime secret)
    Once project created, add `--project-ref <ref>` to `.claude/settings.json` Supabase args.
 
 2. **Context7** — no setup needed, works immediately after `settings.json` is in place

@@ -10,6 +10,12 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.test.{ts,tsx}'],
     exclude: ['node_modules', '.next'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      reportsDirectory: './coverage',
+      thresholds: { lines: 60, branches: 50, functions: 60 },
+    },
   },
   resolve: {
     alias: {

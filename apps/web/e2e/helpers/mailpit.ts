@@ -61,9 +61,9 @@ export async function getLatestEmail(
 ): Promise<{ HTML: string; Text: string; Subject: string }> {
   const maxWait = 10_000
   const interval = 500
-  let elapsed = 0
+  const deadline = Date.now() + maxWait
 
-  while (elapsed < maxWait) {
+  while (Date.now() < deadline) {
     const messages = await listMessages(email)
     if (messages.length > 0) {
       // Sort by date descending to get latest
@@ -75,7 +75,6 @@ export async function getLatestEmail(
       return { HTML: detail.body.html, Text: detail.body.text, Subject: detail.subject }
     }
     await new Promise((r) => setTimeout(r, interval))
-    elapsed += interval
   }
 
   throw new Error(`No email received for ${email} within ${maxWait}ms`)

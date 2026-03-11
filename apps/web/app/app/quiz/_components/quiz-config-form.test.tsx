@@ -20,7 +20,7 @@ const SUBJECTS = [
 
 describe('QuizConfigForm', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     vi.stubGlobal('sessionStorage', { setItem: vi.fn(), getItem: vi.fn(), removeItem: vi.fn() })
   })
 
