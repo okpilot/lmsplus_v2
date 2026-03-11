@@ -4,6 +4,7 @@ import { AnswerOptions } from '@/app/app/_components/answer-options'
 import { FeedbackPanel } from '@/app/app/_components/feedback-panel'
 import { QuestionCard } from '@/app/app/_components/question-card'
 import { SessionSummary } from '@/app/app/_components/session-summary'
+import { SessionTimer } from '@/app/app/_components/session-timer'
 import { useEffect, useRef, useState } from 'react'
 import { completeReviewSession, submitReviewAnswer } from '../../actions'
 import type { SubmitAnswerResult } from '../../types'
@@ -34,11 +35,8 @@ export function ReviewSession({ sessionId, questions }: ReviewSessionProps) {
   const [error, setError] = useState<string | null>(null)
   const answerStartTime = useRef(Date.now())
 
-  // Reset timer when moving to next question
   useEffect(() => {
-    if (state === 'answering') {
-      answerStartTime.current = Date.now()
-    }
+    if (state === 'answering') answerStartTime.current = Date.now()
   }, [state])
 
   const question = questions[currentIndex]
@@ -106,11 +104,14 @@ export function ReviewSession({ sessionId, questions }: ReviewSessionProps) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div className="h-1.5 w-full rounded-full bg-muted">
-        <div
-          className="h-1.5 rounded-full bg-primary transition-all"
-          style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
-        />
+      <div className="flex items-center gap-3">
+        <div className="h-1.5 flex-1 rounded-full bg-muted">
+          <div
+            className="h-1.5 rounded-full bg-primary transition-all"
+            style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+          />
+        </div>
+        <SessionTimer />
       </div>
 
       <QuestionCard
