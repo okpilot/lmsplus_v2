@@ -119,6 +119,18 @@ describe('proxy', () => {
     expect(location.searchParams.get('code')).toBe('pkce-abc123')
   })
 
+  it('forwards only the code param in PKCE redirect, stripping other query params', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+
+    const response = await proxy(makeRequest('/?code=pkce-abc123&next=%2Fadmin'))
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/auth/callback')
+    expect(location.searchParams.get('code')).toBe('pkce-abc123')
+    expect(location.search).toBe('?code=pkce-abc123')
+  })
+
   it('copies session cookies onto the PKCE redirect to /auth/callback', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
 
