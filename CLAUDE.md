@@ -50,7 +50,7 @@ After every `git commit`, run these 3 subagents in parallel using the Agent tool
 Read ALL agent results. Fix any issues found. Commit fixes. Repeat until clean.
 
 Then run:
-4. **learner** (haiku) — reads all 3 agents' findings, identifies patterns, updates rules/memory
+4. **learner** (sonnet) — reads all 3 agents' findings, identifies patterns, updates rules/memory
 
 If rules changed (code-style.md, security.md, biome.json), also run:
 5. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
