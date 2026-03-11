@@ -11,6 +11,16 @@ commit-msg:
     commitlint:
       run: npx commitlint --edit {1}
 
+post-commit:
+  parallel: true
+  commands:
+    code-reviewer:
+      run: bash .claude/hooks/run-code-reviewer.sh
+    doc-updater:
+      run: bash .claude/hooks/run-doc-updater.sh
+    test-writer:
+      run: bash .claude/hooks/run-test-writer.sh
+
 pre-push:
   parallel: true
   commands:
@@ -20,3 +30,5 @@ pre-push:
       run: pnpm test
     audit:
       run: pnpm audit --audit-level=high
+    security-auditor:
+      run: bash .claude/hooks/run-security-auditor.sh
