@@ -634,6 +634,10 @@ CREATE INDEX idx_questions_subject   ON questions(subject_id) WHERE deleted_at I
 CREATE INDEX idx_questions_topic     ON questions(topic_id)   WHERE deleted_at IS NULL;
 CREATE INDEX idx_questions_bank      ON questions(bank_id)    WHERE deleted_at IS NULL;
 
+-- Question dedup (unique question_number per bank)
+CREATE UNIQUE INDEX idx_questions_bank_number ON questions(bank_id, question_number)
+  WHERE deleted_at IS NULL AND question_number IS NOT NULL;
+
 -- Audit log queries (compliance exports)
 CREATE INDEX idx_audit_events_org    ON audit_events(organization_id, created_at DESC);
 CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);

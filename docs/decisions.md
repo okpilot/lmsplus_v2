@@ -269,6 +269,22 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 14: Question import format (2026-03-11)
+
+**Context:** Need to import ~3,000 EASA PPL questions from JSON into Supabase.
+
+**Decided:**
+- JSON format matches existing QDB folder structure (one file per subtopic)
+- `question_number` field added to `questions` table for external ID tracking and dedup
+- Unique index `(bank_id, question_number)` — same question can't appear twice per bank
+- Topic/subtopic metadata derived from folder path when JSON fields are null
+- Images uploaded to Supabase Storage `question-images` bucket (public)
+- Difficulty defaults to `"medium"` when null in source data
+- EASA PPL(A) has 9 subjects (not 14 ATPL): ALW, AGK, FPP, HPL, MET, NAV, OPS, POF, COM
+- Bootstrap script creates org, admin user, and question bank inline (no separate seed)
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -280,4 +296,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Phase 2 complete*
+*Last updated: 2026-03-11 — Phase 3 complete*
