@@ -26,7 +26,7 @@ TMPFILE=$(mktemp)
 cat "$REPO_ROOT/.claude/agents/doc-updater.md" > "$TMPFILE"
 printf "\n---\n\n## Commit: %s — %s\n\n## Changed files:\n%s\n\n## Diff:\n\`\`\`diff\n%s\n\`\`\`\n\nCheck if any project docs need updating based on this commit. If so, make the updates. If not, say 'No doc updates needed.'" "$COMMIT_HASH" "$COMMIT_MSG" "$CODE_FILES" "$DIFF" >> "$TMPFILE"
 
-env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p "$(cat "$TMPFILE")" \
+cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
   --model claude-haiku-4-5-20251001 \
   --allowedTools "Read Edit" \
   --max-budget-usd 0.05 \

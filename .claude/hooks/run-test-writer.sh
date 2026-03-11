@@ -29,7 +29,7 @@ TMPFILE=$(mktemp)
 cat "$REPO_ROOT/.claude/agents/test-writer.md" > "$TMPFILE"
 printf "\n---\n\n## New/modified source files in commit %s:\n\n%s\n\nFor each file above:\n1. Read the source file\n2. Check if a co-located .test.ts/.test.tsx file exists\n3. If no test exists and the file exports testable functions/components, write tests\n4. If tests exist, check if they cover the new changes — add tests if needed\n5. Skip files that are pure types, config, or have no testable exports" "$COMMIT_HASH" "$NEW_FILES" >> "$TMPFILE"
 
-env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p "$(cat "$TMPFILE")" \
+cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
   --model claude-sonnet-4-6 \
   --allowedTools "Read Write Edit Glob Grep" \
   --max-budget-usd 0.10 \

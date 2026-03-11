@@ -19,7 +19,7 @@ TMPFILE=$(mktemp)
 cat "$REPO_ROOT/.claude/agents/security-auditor.md" > "$TMPFILE"
 printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this diff now. Output your findings in the format specified above.\nIMPORTANT: If you find any CRITICAL or HIGH issues, your last line MUST be exactly: BLOCKED\nIf no CRITICAL or HIGH issues, your last line MUST be exactly: APPROVED" "$DIFF" >> "$TMPFILE"
 
-OUTPUT=$(env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p "$(cat "$TMPFILE")" \
+OUTPUT=$(cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
   --model claude-sonnet-4-6 \
   --allowedTools "Read" \
   --max-budget-usd 0.10 \
