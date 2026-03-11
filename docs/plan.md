@@ -32,6 +32,13 @@
 - Migration `002_add_question_number.sql` — added `question_number` column
 - `@repo/db` package exports map added
 - Test batch: 5 questions from 050-01-01 imported + idempotency verified
+- All 4 Claude agents wired to Lefthook git hooks:
+  - `code-reviewer` (haiku) → post-commit, reviews diff for code style violations
+  - `doc-updater` (haiku) → post-commit, updates docs when code changes
+  - `test-writer` (sonnet) → post-commit, writes missing tests for new source files
+  - `security-auditor` (sonnet) → pre-push, **blocking** on CRITICAL/HIGH findings
+- Agent memory dirs: `.claude/agent-memory/{code-reviewer,security-auditor,doc-updater,test-writer}/`
+- Nested Claude sessions: `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` + stdin piping
 
 **Next up: Phase 4** — Student auth (magic link flow)
 
@@ -251,12 +258,15 @@ Claude finishes responding
 git commit
     → [Lefthook pre-commit] biome check --write staged files
     → [Lefthook commit-msg] commitlint validates message format
-    → [code-reviewer agent] reads git diff, flags issues, updates memory
+    → [Lefthook post-commit] code-reviewer agent (haiku) — reviews diff, non-blocking
+    → [Lefthook post-commit] doc-updater agent (haiku) — updates docs, non-blocking
+    → [Lefthook post-commit] test-writer agent (sonnet) — writes missing tests, non-blocking
 
 git push
     → [Lefthook pre-push] tsc --noEmit (type check all packages)
     → [Lefthook pre-push] vitest run --passWithNoTests
-    → [security-auditor agent] scans diff for vulnerabilities + secrets
+    → [Lefthook pre-push] pnpm audit
+    → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH
 
 Context approaching limit
     → [PreCompact hook] saves HANDOVER-YYYY-MM-DD.md before compression

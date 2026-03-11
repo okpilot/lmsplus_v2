@@ -285,6 +285,20 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 15: Wire all 4 Claude agents to Lefthook (2026-03-11)
+
+**Context:** Agent .md files existed but were never hooked to anything.
+
+**Decided:**
+- All 4 agents wired via Lefthook shell scripts in `.claude/hooks/run-*.sh`
+- Post-commit (parallel, non-blocking): code-reviewer (haiku), doc-updater (haiku), test-writer (sonnet)
+- Pre-push (blocking): security-auditor (sonnet) — exits non-zero on CRITICAL/HIGH
+- Nested session fix: `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` + pipe prompt via stdin
+- Agent memory persists in `.claude/agent-memory/*/`
+- Budget caps per invocation: haiku $0.05, sonnet $0.10
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
