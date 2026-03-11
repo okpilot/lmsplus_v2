@@ -1,10 +1,15 @@
 # ============================================================================
-# Lefthook — Automated QA Pipeline
+# Lefthook — Automated QA Pipeline (mechanical gates only)
 # ============================================================================
-# Layer 1: pre-commit   — BLOCKING, fast — catches broken code before git history
-# Layer 2: commit-msg   — BLOCKING       — enforces conventional commits
-# Layer 3: post-commit  — NON-BLOCKING   — async agent feedback (review, docs, tests)
-# Layer 4: pre-push     — BLOCKING       — security gate (final defense)
+#
+# Layer 1: pre-commit  — BLOCKING — catches broken code before git history
+# Layer 2: commit-msg  — BLOCKING — enforces conventional commits
+# Layer 3: pre-push    — BLOCKING — security gate (final defense)
+#
+# NOTE: Code review, doc updates, and test writing are NOT here.
+# They run as Claude Code subagents (Agent tool) after commits so findings
+# flow back into the conversation and get fixed immediately.
+# See CLAUDE.md workflow section.
 # ============================================================================
 
 pre-commit:
@@ -23,16 +28,6 @@ commit-msg:
   commands:
     commitlint:
       run: npx commitlint --edit {1}
-
-post-commit:
-  parallel: true
-  commands:
-    code-reviewer:
-      run: bash .claude/hooks/run-code-reviewer.sh
-    doc-updater:
-      run: bash .claude/hooks/run-doc-updater.sh
-    test-writer:
-      run: bash .claude/hooks/run-test-writer.sh
 
 pre-push:
   parallel: true

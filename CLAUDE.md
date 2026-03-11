@@ -40,3 +40,23 @@ pnpm check-types  # tsc --noEmit all packages
 2. Plan Mode for any multi-file change (Shift+Tab twice)
 3. `/project:review` after feature complete
 4. `/project:insights` weekly
+
+## Post-commit review (MANDATORY)
+After every `git commit`, run these 3 subagents in parallel using the Agent tool:
+1. **code-reviewer** (haiku) — review diff against `.claude/rules/code-style.md`, report findings
+2. **doc-updater** (haiku) — check if docs need updates, report what changed
+3. **test-writer** (sonnet) — check for missing tests, write them, run them
+
+Read ALL agent results. Fix any issues found. Commit fixes. Repeat until clean.
+Never push without all agents reporting clean.
+
+## QA pipeline
+Lefthook enforces mechanical gates (blocking):
+- **pre-commit:** biome lint/format + type-check + unit tests
+- **commit-msg:** conventional commit format
+- **pre-push:** security-auditor agent + dependency audit
+
+Everything else (code review, docs, tests) runs through ME as subagents so findings are visible and actionable. External hooks that I can't see are useless.
+
+## Push protocol
+Never push without explicit user approval. Always ask first.
