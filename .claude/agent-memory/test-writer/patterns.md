@@ -657,6 +657,39 @@ Key assertions: (1) error alert visible, (2) UI stayed in pre-action state (no t
 
 ---
 
+## Files tested in commit 3d47867 (hydration guard on LoginForm)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/_components/login-form.tsx` | `login-form.test.tsx` | Extended with 1 test; 9 → 10 tests total |
+
+### Hydration guard: what is and is not testable
+
+The `hydrated` state pattern (`useState(false)` + `useEffect(() => setHydrated(true), [])`)
+disables a button during SSR and enables it after client hydration.
+
+**Not testable in jsdom:** the pre-hydration disabled state. `@testing-library/react` wraps
+`render()` in `act()`, which flushes all effects synchronously. `hydrated` is already `true`
+before any test assertion can run.
+
+**Testable:** that the button IS enabled after render (i.e., the effect fired and the guard
+resolved). Add one explicit test for this:
+
+```ts
+it('enables the submit button after hydration completes', () => {
+  // @testing-library/react wraps render() in act(), flushing all effects synchronously.
+  // The button must be enabled by the time render() returns.
+  render(<LoginForm />)
+  expect(screen.getByRole('button', { name: /send magic link/i })).not.toBeDisabled()
+})
+```
+
+This documents the intent of the guard and ensures no future regression breaks the
+post-hydration state. The pre-hydration SSR path is validated only by Playwright E2E
+(the Playwright `auto-wait` relies on the button being disabled, then enabled).
+
+---
+
 ## Files skipped (no testable logic)
 - `apps/web/app/layout.tsx` — pure layout, font config
 - `apps/web/app/page.tsx` — pure composition

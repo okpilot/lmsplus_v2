@@ -40,6 +40,14 @@ describe('LoginForm', () => {
     expect(screen.getByRole('button', { name: /send magic link/i })).toBeInTheDocument()
   })
 
+  it('enables the submit button after hydration completes', () => {
+    // The component uses a useEffect to set hydrated=true after mount.
+    // @testing-library/react wraps render() in act(), which flushes all effects
+    // synchronously, so the button must be enabled by the time render() returns.
+    render(<LoginForm />)
+    expect(screen.getByRole('button', { name: /send magic link/i })).not.toBeDisabled()
+  })
+
   it('shows a validation error when submitting with an invalid email', async () => {
     const user = userEvent.setup()
     render(<LoginForm />)
