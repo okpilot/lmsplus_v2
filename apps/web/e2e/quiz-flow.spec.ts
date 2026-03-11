@@ -6,7 +6,7 @@ test.use({ storageState: 'e2e/.auth/user.json' })
 test('quiz flow: configure → answer questions → view results → dashboard', async ({ page }) => {
   // 1. Navigate to quiz config
   await page.goto('/app/quiz')
-  await expect(page.getByRole('heading', { name: 'Quick Quiz' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
 
   // 2. Select the first subject from dropdown
   const subjectSelect = page.locator('#subject')
@@ -55,7 +55,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   }
 
   // 7. Should show session summary
-  await expect(page.getByText('Quick Quiz Complete')).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText('Quiz Complete')).toBeVisible({ timeout: 10_000 })
   await expect(page.getByText('%')).toBeVisible() // score percentage
   await expect(page.getByRole('link', { name: 'Back to Dashboard' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Start Another' })).toBeVisible()

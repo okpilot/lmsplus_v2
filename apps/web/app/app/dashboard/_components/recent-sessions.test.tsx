@@ -48,12 +48,12 @@ describe('RecentSessions', () => {
         sessions={[makeSession({ mode: 'quick_quiz', subjectName: 'Meteorology' })]}
       />,
     )
-    expect(screen.getByText(/Quick Quiz — Meteorology/)).toBeInTheDocument()
+    expect(screen.getByText(/Quiz — Meteorology/)).toBeInTheDocument()
   })
 
   it('shows mode label without subject name when subjectName is null', () => {
     render(<RecentSessions sessions={[makeSession({ subjectName: null })]} />)
-    expect(screen.getByText('Quick Quiz')).toBeInTheDocument()
+    expect(screen.getByText('Quiz')).toBeInTheDocument()
   })
 
   it('shows "Smart Review" label for smart_review mode', () => {

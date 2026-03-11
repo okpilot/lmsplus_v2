@@ -13,7 +13,7 @@ export function SessionSummary({
   scorePercentage,
   mode,
 }: SessionSummaryProps) {
-  const label = mode === 'smart_review' ? 'Smart Review' : 'Quick Quiz'
+  const label = mode === 'smart_review' ? 'Smart Review' : 'Quiz'
 
   return (
     <div className="mx-auto max-w-md space-y-6 text-center">

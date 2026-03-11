@@ -35,7 +35,7 @@ describe('SessionSummary', () => {
     expect(screen.getByText('10')).toBeInTheDocument() // total
   })
 
-  it('shows "Quick Quiz Complete" label for quick_quiz mode', () => {
+  it('shows "Quiz Complete" label for quick_quiz mode', () => {
     render(
       <SessionSummary
         totalQuestions={10}
@@ -44,7 +44,7 @@ describe('SessionSummary', () => {
         mode="quick_quiz"
       />,
     )
-    expect(screen.getByText('Quick Quiz Complete')).toBeInTheDocument()
+    expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
   })
 
   it('shows "Smart Review Complete" label for smart_review mode', () => {

@@ -1,7 +1,7 @@
 'use server'
 
 import { updateFsrsCard } from '@/lib/fsrs/update-card'
-import { getDueCards, getNewQuestionIds } from '@/lib/queries/review'
+import { getDueCards } from '@/lib/queries/review'
 import { rpc } from '@/lib/supabase-rpc'
 import { CompleteQuizSessionSchema, SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
@@ -22,12 +22,7 @@ export async function startReviewSession(): Promise<StartReviewResult> {
     if (!user) return { success: false, error: 'Not authenticated' }
 
     const dueCards = await getDueCards(20)
-    let questionIds = dueCards.map((c) => c.questionId)
-
-    if (questionIds.length < 10) {
-      const newIds = await getNewQuestionIds(20 - questionIds.length)
-      questionIds = [...questionIds, ...newIds]
-    }
+    const questionIds = dueCards.map((c) => c.questionId)
 
     if (questionIds.length === 0) {
       return { success: false, error: 'No questions available for review' }

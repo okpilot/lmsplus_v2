@@ -6,7 +6,7 @@ type RecentSessionsProps = {
 
 const MODE_LABELS: Record<string, string> = {
   smart_review: 'Smart Review',
-  quick_quiz: 'Quick Quiz',
+  quick_quiz: 'Quiz',
   mock_exam: 'Mock Exam',
 }
 

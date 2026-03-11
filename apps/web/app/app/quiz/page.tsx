@@ -9,7 +9,7 @@ export default async function QuizPage() {
   return (
     <main className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Quick Quiz</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Quiz</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Test your knowledge with a randomized quiz on any subject.
         </p>
