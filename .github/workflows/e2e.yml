@@ -96,11 +96,11 @@ jobs:
 
       - name: Write .env.local for Next.js
         run: |
-          cat > apps/web/.env.local << EOF
-          NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-          SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-          EOF
+          printf '%s\n' \
+            "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" \
+            "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+            "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" \
+            > apps/web/.env.local
 
       - name: Seed test data
         run: pnpm --filter @repo/web exec tsx scripts/seed-e2e.ts
