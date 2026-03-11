@@ -32,7 +32,6 @@ printf "\n---\n\n## New/modified source files in commit %s:\n\n%s\n\nFor each fi
 cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
   --model claude-sonnet-4-6 \
   --allowedTools "Read Write Edit Glob Grep" \
-  --max-budget-usd 0.10 \
   --no-session-persistence 2>&1 || true
 
 rm -f "$TMPFILE"

@@ -22,7 +22,6 @@ printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this d
 OUTPUT=$(cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
   --model claude-sonnet-4-6 \
   --allowedTools "Read" \
-  --max-budget-usd 0.10 \
   --no-session-persistence 2>&1) || true
 
 rm -f "$TMPFILE"

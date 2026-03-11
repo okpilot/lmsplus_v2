@@ -22,7 +22,6 @@ printf "\n---\n\n## Commit diff (%s):\n\n\`\`\`diff\n%s\n\`\`\`\n\nReview this d
 cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
   --model claude-haiku-4-5-20251001 \
   --allowedTools "Read Edit" \
-  --max-budget-usd 0.05 \
   --no-session-persistence 2>&1 || true
 
 rm -f "$TMPFILE"
