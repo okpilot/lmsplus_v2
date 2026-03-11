@@ -34,7 +34,7 @@ describe('ThemeProvider', () => {
         <span />
       </ThemeProvider>,
     )
-    const [receivedProps] = mockNextThemesProvider.mock.calls[0]
+    const receivedProps = mockNextThemesProvider.mock.calls[0]?.[0] as Record<string, unknown>
     expect(receivedProps).toMatchObject({ attribute: 'class' })
   })
 
@@ -44,7 +44,7 @@ describe('ThemeProvider', () => {
         <span />
       </ThemeProvider>,
     )
-    const [receivedProps] = mockNextThemesProvider.mock.calls[0]
+    const receivedProps = mockNextThemesProvider.mock.calls[0]?.[0] as Record<string, unknown>
     expect(receivedProps).toMatchObject({ defaultTheme: 'system' })
   })
 
@@ -54,7 +54,7 @@ describe('ThemeProvider', () => {
         <span />
       </ThemeProvider>,
     )
-    const [receivedProps] = mockNextThemesProvider.mock.calls[0]
+    const receivedProps = mockNextThemesProvider.mock.calls[0]?.[0] as Record<string, unknown>
     expect(receivedProps).toMatchObject({ enableSystem: true })
   })
 
@@ -64,7 +64,7 @@ describe('ThemeProvider', () => {
         <span />
       </ThemeProvider>,
     )
-    const [receivedProps] = mockNextThemesProvider.mock.calls[0]
+    const receivedProps = mockNextThemesProvider.mock.calls[0]?.[0] as Record<string, unknown>
     expect(receivedProps).toMatchObject({ disableTransitionOnChange: true })
   })
 })

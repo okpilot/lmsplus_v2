@@ -7,7 +7,16 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": ["node_modules", ".next", "dist", "coverage", "*.lock", "pnpm-lock.yaml", ".turbo"]
+    "ignore": [
+      "node_modules",
+      ".next",
+      "dist",
+      "coverage",
+      "*.lock",
+      "pnpm-lock.yaml",
+      ".turbo",
+      "next-env.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

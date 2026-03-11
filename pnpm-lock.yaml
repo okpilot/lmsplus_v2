@@ -82,6 +82,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
+      '@supabase/supabase-js':
+        specifier: ^2.47.0
+        version: 2.99.1
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.2.1
