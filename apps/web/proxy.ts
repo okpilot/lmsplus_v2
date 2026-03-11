@@ -19,7 +19,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
   if (pathname.startsWith('/app') && !user) {
     const redirect = NextResponse.redirect(new URL('/', request.url))
     for (const cookie of response.cookies.getAll()) {
-      redirect.cookies.set(cookie.name, cookie.value)
+      redirect.cookies.set(cookie)
     }
     return redirect
   }
@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
   if (pathname === '/' && user) {
     const redirect = NextResponse.redirect(new URL('/app/dashboard', request.url))
     for (const cookie of response.cookies.getAll()) {
-      redirect.cookies.set(cookie.name, cookie.value)
+      redirect.cookies.set(cookie)
     }
     return redirect
   }

@@ -8,7 +8,18 @@ const mockGetUser = vi.fn()
 const MOCK_SESSION_RESPONSE = {
   status: 200,
   headers: new Headers(),
-  cookies: { getAll: () => [{ name: 'sb-token', value: 'refreshed' }] },
+  cookies: {
+    getAll: () => [
+      {
+        name: 'sb-token',
+        value: 'refreshed',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax' as const,
+        path: '/',
+      },
+    ],
+  },
   _isMockSessionResponse: true,
 }
 
