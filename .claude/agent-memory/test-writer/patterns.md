@@ -361,6 +361,36 @@ subsequent calls.
 |---|---|---|
 | `apps/web/next.config.ts` | `next.config.test.ts` | CSP dev/prod split; `vi.stubEnv` + `vi.resetModules` + dynamic import |
 
+## Files extended in allowLocal commit
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/next.config.ts` | `next.config.test.ts` | Added 6 tests for `allowLocal` (isLocalSupabase); total 18 tests |
+
+### Passing extra env vars to the loadConfig helper
+When a module-level constant depends on multiple env vars (e.g., both `NODE_ENV` and
+`NEXT_PUBLIC_SUPABASE_URL`), extend the `loadConfig` helper with an `extraEnv` map:
+
+```ts
+async function loadConfig(nodeEnv: string, extraEnv: Record<string, string> = {}) {
+  vi.stubEnv('NODE_ENV', nodeEnv)
+  for (const [key, value] of Object.entries(extraEnv)) {
+    vi.stubEnv(key, value)
+  }
+  vi.resetModules()
+  const mod = await import('./next.config')
+  return mod.default
+}
+```
+
+Then call `getCspForEnv('production', { NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321' })`.
+
+### Testing "env var not set" (vs env var set to empty string)
+Use `delete process.env.KEY` rather than `vi.stubEnv('KEY', '')` to simulate a truly absent
+env var. `vi.stubEnv` always stores a string, so `startsWith` on `undefined` would throw —
+the source uses optional chaining (`process.env.KEY?.startsWith(...)`) which returns `undefined`
+(falsy) when the var is missing. Deleting the key lets that optional chain evaluate correctly.
+
 ### Testing module-level constants that depend on NODE_ENV
 When a module evaluates `process.env.NODE_ENV` at the top level (not inside a function),
 `vi.stubEnv` alone is not enough — the value is already captured. Use this pattern to

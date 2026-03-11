@@ -8,9 +8,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Helper: load next.config.ts fresh after NODE_ENV has been set.
-async function loadConfig(nodeEnv: string) {
+// Helper: load next.config.ts fresh after NODE_ENV and optional env vars have been set.
+async function loadConfig(nodeEnv: string, extraEnv: Record<string, string> = {}) {
   vi.stubEnv('NODE_ENV', nodeEnv)
+  for (const [key, value] of Object.entries(extraEnv)) {
+    vi.stubEnv(key, value)
+  }
   vi.resetModules()
   // Dynamic import picks up the freshly-reset module registry.
   const mod = await import('./next.config')
@@ -23,14 +26,17 @@ function extractCsp(headers: { key: string; value: string }[]): string {
   return entry.value
 }
 
-async function getHeaderGroups(nodeEnv: string) {
-  const config = await loadConfig(nodeEnv)
+async function getHeaderGroups(nodeEnv: string, extraEnv: Record<string, string> = {}) {
+  const config = await loadConfig(nodeEnv, extraEnv)
   if (!config.headers) throw new Error('headers() not defined on config')
   return config.headers()
 }
 
-async function getCspForEnv(nodeEnv: string): Promise<string> {
-  const headerGroups = await getHeaderGroups(nodeEnv)
+async function getCspForEnv(
+  nodeEnv: string,
+  extraEnv: Record<string, string> = {},
+): Promise<string> {
+  const headerGroups = await getHeaderGroups(nodeEnv, extraEnv)
   const group = headerGroups.find((g: { source: string }) => g.source === '/(.*)')
   if (!group) throw new Error('Header group not found')
   return extractCsp(group.headers)
@@ -103,6 +109,59 @@ describe('next.config — security headers', () => {
       expect(csp).toContain("style-src 'self' 'unsafe-inline'")
       expect(csp).toContain("font-src 'self'")
       expect(csp).toContain("frame-ancestors 'none'")
+    })
+  })
+
+  describe('CSP in production with local Supabase URL (E2E CI)', () => {
+    // When NEXT_PUBLIC_SUPABASE_URL starts with http://localhost, production builds
+    // targeting a local Supabase instance (e.g., E2E CI) must allow localhost in CSP.
+    // This is controlled by the `allowLocal` flag: isDev || isLocalSupabase.
+
+    it('includes localhost and 127.0.0.1 in img-src when Supabase URL is localhost', async () => {
+      const csp = await getCspForEnv('production', {
+        NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+      })
+      expect(csp).toContain('http://localhost:*')
+      expect(csp).toContain('http://127.0.0.1:*')
+    })
+
+    it('includes localhost and 127.0.0.1 in connect-src when Supabase URL is localhost', async () => {
+      const csp = await getCspForEnv('production', {
+        NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+      })
+      expect(csp).toContain('http://localhost:*')
+      expect(csp).toContain('http://127.0.0.1:*')
+      expect(csp).toContain('ws://localhost:*')
+    })
+
+    it('omits localhost from img-src when Supabase URL is a remote https URL', async () => {
+      const csp = await getCspForEnv('production', {
+        NEXT_PUBLIC_SUPABASE_URL: 'https://uepvblipahxizozxvwjn.supabase.co',
+      })
+      expect(csp).not.toContain('http://localhost:*')
+      expect(csp).not.toContain('http://127.0.0.1:*')
+    })
+
+    it('omits localhost from connect-src when Supabase URL is a remote https URL', async () => {
+      const csp = await getCspForEnv('production', {
+        NEXT_PUBLIC_SUPABASE_URL: 'https://uepvblipahxizozxvwjn.supabase.co',
+      })
+      expect(csp).not.toContain('http://localhost:*')
+      expect(csp).not.toContain('ws://localhost:*')
+    })
+
+    it('omits localhost from img-src when NEXT_PUBLIC_SUPABASE_URL is not set', async () => {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = undefined as unknown as string
+      const csp = await getCspForEnv('production')
+      expect(csp).not.toContain('http://localhost:*')
+      expect(csp).not.toContain('http://127.0.0.1:*')
+    })
+
+    it('omits localhost from connect-src when NEXT_PUBLIC_SUPABASE_URL is not set', async () => {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = undefined as unknown as string
+      const csp = await getCspForEnv('production')
+      expect(csp).not.toContain('http://localhost:*')
+      expect(csp).not.toContain('ws://localhost:*')
     })
   })
 

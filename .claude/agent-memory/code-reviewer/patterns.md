@@ -583,3 +583,17 @@ Applied in: `apps/web/e2e/review-flow.spec.ts` (commit f272e2b)
 - When external API changes, always update type definitions AND tests simultaneously (API contract = source of truth)
 - RPC security: SECURITY DEFINER + explicit auth.uid() check is mandatory for all data-modifying functions
 - E2E seed data growth is tracked (5 → 20 questions); watch if seed script exceeds 500 lines (currently 410) as sign of needing data management refactoring
+
+## Session 2026-03-11 Part 8 (CSP Localhost Support)
+
+### Commit: 98b1c4e (fix: allow localhost in CSP for production builds targeting local Supabase)
+- Status: CLEAN
+- Files changed: 1 file, 5 insertions, 2 deletions
+- Changes:
+  - `apps/web/next.config.ts` — improved CSP localhost detection logic
+  - New variable: `isLocalSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('http://localhost')`
+  - Compound variable: `allowLocal = isDev || isLocalSupabase`
+  - Updated CSP rules for `img-src` and `connect-src` to use `allowLocal` instead of hardcoded `isDev`
+- Rationale: E2E CI runs production builds against local Supabase. Previous logic only allowed localhost in dev; now allows it when Supabase URL is localhost (regardless of NODE_ENV).
+- Pattern: Configuration files may extract variables for readability; this is justified when condition appears 2+ times
+- No violations found

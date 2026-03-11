@@ -292,6 +292,11 @@ export const adminClient = createClient(
 Configure in `apps/web/next.config.ts`:
 
 ```ts
+const isDev = process.env.NODE_ENV !== 'production'
+// Allow localhost connections in production builds that target local Supabase (E2E CI)
+const isLocalSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('http://localhost')
+const allowLocal = isDev || isLocalSupabase
+
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control',    value: 'on' },
   { key: 'X-Frame-Options',           value: 'SAMEORIGIN' },
@@ -306,13 +311,14 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      // Development: allows unsafe-eval for Next.js HMR and localhost access
-      // Production: blocks unsafe-eval, tightens img-src and connect-src to Supabase only
+      // Development: allows unsafe-eval for Next.js HMR
+      // Local Supabase: allows localhost connections (dev + E2E CI with local target)
+      // Production (remote): blocks unsafe-eval and localhost, allows Supabase only
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
       "style-src 'self' 'unsafe-inline'",
-      `img-src 'self' data: blob: https://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
+      `img-src 'self' data: blob: https://*.supabase.co${allowLocal ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
       "font-src 'self'",
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isDev ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${allowLocal ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
       "frame-ancestors 'none'",
     ].join('; '),
   },

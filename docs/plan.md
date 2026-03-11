@@ -125,7 +125,7 @@
   - Concurrency groups prevent duplicate runs on the same branch
 
 **Phase 5B-6 done (2026-03-11):** CodeRabbit review findings addressed:
-- **CSP tightened:** `script-src` drops `unsafe-eval` in production (kept in dev for HMR); `img-src` and `connect-src` drop localhost in production
+- **CSP tightened:** `script-src` drops `unsafe-eval` in production (kept in dev for HMR); `allowLocal` flag enables localhost in dev + production builds targeting local Supabase (E2E CI)
 - **RLS hardened:** Migration 006 drops INSERT policies on immutable answer tables (`quiz_session_answers`, `student_responses`) — writes only via SECURITY DEFINER RPCs
 - **Docs updated:** security.md and database.md reflect immutable table policy pattern (RPC-only writes, no direct client inserts)
 - Migration 005 (`quiz_session_answers` → `quiz_sessions` FK) moved; `020260311000006` is the immutable INSERT restriction
