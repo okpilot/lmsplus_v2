@@ -1,58 +1,54 @@
 /**
  * Email helper for Supabase local development.
- * Supabase local uses Inbucket for email capture.
- * The Inbucket REST API is at http://localhost:54324/api/v1/
+ * Supabase local uses Mailpit for email capture.
+ * The Mailpit REST API is at http://localhost:54324/api/v1/
  *
- * Inbucket API docs: https://github.com/inbucket/inbucket/wiki/REST-API
+ * Mailpit API docs: https://mailpit.axllent.org/docs/api-v1/
  */
 
-const INBUCKET_URL = process.env.INBUCKET_URL ?? 'http://127.0.0.1:54324'
+const MAILPIT_URL = process.env.INBUCKET_URL ?? 'http://127.0.0.1:54324'
 
-type InbucketMessage = {
-  mailbox: string
-  id: string
-  from: string
-  to: string[]
-  subject: string
-  date: string
-  size: number
+type MailpitMessage = {
+  ID: string
+  From: { Name: string; Address: string }
+  To: { Name: string; Address: string }[]
+  Subject: string
+  Created: string
+  Size: number
 }
 
-type InbucketMessageDetail = {
-  mailbox: string
-  id: string
-  from: string
-  subject: string
-  date: string
-  body: {
-    text: string
-    html: string
-  }
+type MailpitSearchResponse = {
+  total: number
+  messages: MailpitMessage[]
 }
 
-/** Derive the Inbucket mailbox name from an email address (local part). */
-function mailboxName(email: string): string {
-  return email.split('@')[0] ?? email
+type MailpitMessageDetail = {
+  ID: string
+  From: { Name: string; Address: string }
+  Subject: string
+  Date: string
+  Text: string
+  HTML: string
 }
 
-/** List messages in a mailbox. */
-async function listMessages(email: string): Promise<InbucketMessage[]> {
-  const mailbox = mailboxName(email)
-  const res = await fetch(`${INBUCKET_URL}/api/v1/mailbox/${mailbox}`, {
-    signal: AbortSignal.timeout(5000),
-  })
+/** List messages sent to a specific email address using Mailpit search. */
+async function listMessages(email: string): Promise<MailpitMessage[]> {
+  const res = await fetch(
+    `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
+    { signal: AbortSignal.timeout(5000) },
+  )
   if (!res.ok) throw new Error(`listMessages: ${res.status}`)
-  return res.json() as Promise<InbucketMessage[]>
+  const data = (await res.json()) as MailpitSearchResponse
+  return data.messages ?? []
 }
 
-/** Get a specific message by mailbox and ID. */
-async function getMessage(email: string, id: string): Promise<InbucketMessageDetail> {
-  const mailbox = mailboxName(email)
-  const res = await fetch(`${INBUCKET_URL}/api/v1/mailbox/${mailbox}/${id}`, {
+/** Get a specific message by ID. */
+async function getMessage(id: string): Promise<MailpitMessageDetail> {
+  const res = await fetch(`${MAILPIT_URL}/api/v1/message/${id}`, {
     signal: AbortSignal.timeout(5000),
   })
   if (!res.ok) throw new Error(`getMessage: ${res.status}`)
-  return res.json() as Promise<InbucketMessageDetail>
+  return res.json() as Promise<MailpitMessageDetail>
 }
 
 /** Get the latest email for a given address. Retries up to 10 seconds. */
@@ -67,12 +63,11 @@ export async function getLatestEmail(
     const messages = await listMessages(email)
     if (messages.length > 0) {
       // Sort by date descending to get latest
-      messages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      messages.sort((a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime())
       const latest = messages[0]
       if (!latest) throw new Error('Unexpected: empty messages after length check')
-      const detail = await getMessage(email, latest.id)
-      // Return in the shape the auth setup expects
-      return { HTML: detail.body.html, Text: detail.body.text, Subject: detail.subject }
+      const detail = await getMessage(latest.ID)
+      return { HTML: detail.HTML, Text: detail.Text, Subject: detail.Subject }
     }
     await new Promise((r) => setTimeout(r, interval))
   }
@@ -96,12 +91,12 @@ export function extractMagicLink(html: string): string {
   throw new Error('Could not extract magic link from email body')
 }
 
-/** Delete all messages in the mailbox for the given email. */
-export async function clearAllMessages(email?: string) {
-  if (!email) return
-  const mailbox = mailboxName(email)
-  const res = await fetch(`${INBUCKET_URL}/api/v1/mailbox/${mailbox}`, {
+/** Delete all messages in Mailpit. */
+export async function clearAllMessages(_email?: string) {
+  const res = await fetch(`${MAILPIT_URL}/api/v1/messages`, {
     method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: ['*'] }),
     signal: AbortSignal.timeout(5000),
   })
   if (!res.ok) throw new Error(`clearAllMessages: ${res.status}`)

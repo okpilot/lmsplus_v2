@@ -76,6 +76,171 @@ const SEED_QUESTIONS = [
     ],
     explanation_text: 'ISA standard temperature at sea level is 15 degrees C.',
   },
+  {
+    question_number: 'CI-006',
+    question_text: 'The ISA sea-level pressure is:',
+    options: [
+      { id: 'a', text: '1013.25 hPa', correct: true },
+      { id: 'b', text: '1000 hPa', correct: false },
+      { id: 'c', text: '1020 hPa', correct: false },
+      { id: 'd', text: '990 hPa', correct: false },
+    ],
+    explanation_text: 'ISA standard pressure at sea level is 1013.25 hPa.',
+  },
+  {
+    question_number: 'CI-007',
+    question_text: 'The ISA lapse rate in the troposphere is approximately:',
+    options: [
+      { id: 'a', text: '1 degree C per 1000 ft', correct: false },
+      { id: 'b', text: '2 degrees C per 1000 ft', correct: true },
+      { id: 'c', text: '3 degrees C per 1000 ft', correct: false },
+      { id: 'd', text: '4 degrees C per 1000 ft', correct: false },
+    ],
+    explanation_text: 'The ISA lapse rate is approximately 1.98 degrees C per 1000 ft.',
+  },
+  {
+    question_number: 'CI-008',
+    question_text: 'Cumulonimbus clouds are associated with:',
+    options: [
+      { id: 'a', text: 'Fair weather', correct: false },
+      { id: 'b', text: 'Thunderstorms', correct: true },
+      { id: 'c', text: 'Fog', correct: false },
+      { id: 'd', text: 'Drizzle', correct: false },
+    ],
+    explanation_text: 'Cumulonimbus (Cb) clouds produce thunderstorms.',
+  },
+  {
+    question_number: 'CI-009',
+    question_text: 'Wind direction is given as the direction:',
+    options: [
+      { id: 'a', text: 'The wind is blowing towards', correct: false },
+      { id: 'b', text: 'The wind is blowing from', correct: true },
+      { id: 'c', text: 'Of the isobars', correct: false },
+      { id: 'd', text: 'Of aircraft heading', correct: false },
+    ],
+    explanation_text: 'Wind direction is always given as the direction from which it blows.',
+  },
+  {
+    question_number: 'CI-010',
+    question_text: 'The Coriolis effect causes wind to deflect to the:',
+    options: [
+      { id: 'a', text: 'Left in the Northern Hemisphere', correct: false },
+      { id: 'b', text: 'Right in the Northern Hemisphere', correct: true },
+      { id: 'c', text: 'Left in both hemispheres', correct: false },
+      { id: 'd', text: 'Right in both hemispheres', correct: false },
+    ],
+    explanation_text: 'Coriolis deflects wind right in the NH, left in the SH.',
+  },
+  {
+    question_number: 'CI-011',
+    question_text: 'An inversion is a layer where temperature:',
+    options: [
+      { id: 'a', text: 'Decreases rapidly', correct: false },
+      { id: 'b', text: 'Remains constant', correct: false },
+      { id: 'c', text: 'Increases with altitude', correct: true },
+      { id: 'd', text: 'Oscillates', correct: false },
+    ],
+    explanation_text: 'An inversion is a layer where temperature increases with altitude.',
+  },
+  {
+    question_number: 'CI-012',
+    question_text: 'Relative humidity reaches 100% at the:',
+    options: [
+      { id: 'a', text: 'Freezing level', correct: false },
+      { id: 'b', text: 'Dew point', correct: true },
+      { id: 'c', text: 'Tropopause', correct: false },
+      { id: 'd', text: 'Sea level', correct: false },
+    ],
+    explanation_text: 'When air cools to its dew point, relative humidity is 100%.',
+  },
+  {
+    question_number: 'CI-013',
+    question_text: 'A METAR is a:',
+    options: [
+      { id: 'a', text: 'Forecast report', correct: false },
+      { id: 'b', text: 'Routine weather observation', correct: true },
+      { id: 'c', text: 'Pilot report', correct: false },
+      { id: 'd', text: 'Significant weather chart', correct: false },
+    ],
+    explanation_text: 'METAR is a routine aerodrome weather observation report.',
+  },
+  {
+    question_number: 'CI-014',
+    question_text: 'A TAF covers a period of:',
+    options: [
+      { id: 'a', text: '3 hours', correct: false },
+      { id: 'b', text: '6 hours', correct: false },
+      { id: 'c', text: '9 to 30 hours', correct: true },
+      { id: 'd', text: '48 hours', correct: false },
+    ],
+    explanation_text: 'TAF validity ranges from 9 to 30 hours depending on type.',
+  },
+  {
+    question_number: 'CI-015',
+    question_text: 'Fog forms when the temperature-dew point spread is:',
+    options: [
+      { id: 'a', text: 'Greater than 10 degrees C', correct: false },
+      { id: 'b', text: 'Less than 3 degrees C', correct: true },
+      { id: 'c', text: 'Exactly 0 degrees C', correct: false },
+      { id: 'd', text: 'Greater than 5 degrees C', correct: false },
+    ],
+    explanation_text: 'Fog is likely when temperature-dew point spread is less than 3 degrees C.',
+  },
+  {
+    question_number: 'CI-016',
+    question_text: 'A cold front typically brings:',
+    options: [
+      { id: 'a', text: 'Gradual clearing', correct: false },
+      { id: 'b', text: 'Heavy rain and gusty winds', correct: true },
+      { id: 'c', text: 'Extended drizzle', correct: false },
+      { id: 'd', text: 'Calm conditions', correct: false },
+    ],
+    explanation_text: 'Cold fronts are associated with heavy rain, gusty winds, and Cb clouds.',
+  },
+  {
+    question_number: 'CI-017',
+    question_text: 'Pressure altitude is the altitude indicated when QNH is set to:',
+    options: [
+      { id: 'a', text: '1013.25 hPa', correct: true },
+      { id: 'b', text: 'QFE', correct: false },
+      { id: 'c', text: 'Local QNH', correct: false },
+      { id: 'd', text: '29.92 inHg', correct: false },
+    ],
+    explanation_text: 'Pressure altitude is read when altimeter is set to standard (1013.25 hPa).',
+  },
+  {
+    question_number: 'CI-018',
+    question_text: 'Density altitude increases with:',
+    options: [
+      { id: 'a', text: 'Lower temperature', correct: false },
+      { id: 'b', text: 'Higher pressure', correct: false },
+      { id: 'c', text: 'Higher temperature', correct: true },
+      { id: 'd', text: 'Lower humidity', correct: false },
+    ],
+    explanation_text: 'Higher temperature decreases air density, increasing density altitude.',
+  },
+  {
+    question_number: 'CI-019',
+    question_text: 'The jet stream is found near the:',
+    options: [
+      { id: 'a', text: 'Surface', correct: false },
+      { id: 'b', text: 'Tropopause', correct: true },
+      { id: 'c', text: 'Mesosphere', correct: false },
+      { id: 'd', text: 'Stratopause', correct: false },
+    ],
+    explanation_text: 'Jet streams are found near the tropopause, typically between FL250-FL450.',
+  },
+  {
+    question_number: 'CI-020',
+    question_text: 'Wind shear is most dangerous during:',
+    options: [
+      { id: 'a', text: 'Cruise', correct: false },
+      { id: 'b', text: 'Takeoff and landing', correct: true },
+      { id: 'c', text: 'Taxiing', correct: false },
+      { id: 'd', text: 'Parking', correct: false },
+    ],
+    explanation_text: 'Wind shear is most hazardous at low altitude during takeoff and landing.',
+  },
 ]
 
 async function seed() {

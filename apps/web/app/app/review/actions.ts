@@ -13,39 +13,42 @@ import type {
   SubmitRpcResult,
 } from './types'
 
-export type { CompleteReviewResult, StartReviewResult, SubmitAnswerResult }
-
 export async function startReviewSession(): Promise<StartReviewResult> {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  try {
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Not authenticated' }
 
-  const dueCards = await getDueCards(20)
-  let questionIds = dueCards.map((c) => c.questionId)
+    const dueCards = await getDueCards(20)
+    let questionIds = dueCards.map((c) => c.questionId)
 
-  if (questionIds.length < 10) {
-    const newIds = await getNewQuestionIds(20 - questionIds.length)
-    questionIds = [...questionIds, ...newIds]
+    if (questionIds.length < 10) {
+      const newIds = await getNewQuestionIds(20 - questionIds.length)
+      questionIds = [...questionIds, ...newIds]
+    }
+
+    if (questionIds.length === 0) {
+      return { success: false, error: 'No questions available for review' }
+    }
+
+    const { data: sessionId, error } = await rpc<string>(supabase, 'start_quiz_session', {
+      p_mode: 'smart_review',
+      p_subject_id: null,
+      p_topic_id: null,
+      p_question_ids: questionIds,
+    })
+
+    if (error || !sessionId) {
+      return { success: false, error: error?.message ?? 'Failed to start session' }
+    }
+
+    return { success: true, sessionId, questionIds }
+  } catch (err) {
+    console.error('[startReviewSession] Uncaught error:', err)
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
-
-  if (questionIds.length === 0) {
-    return { success: false, error: 'No questions available for review' }
-  }
-
-  const { data: sessionId, error } = await rpc<string>(supabase, 'start_quiz_session', {
-    p_mode: 'smart_review',
-    p_subject_id: null,
-    p_topic_id: null,
-    p_question_ids: questionIds,
-  })
-
-  if (error || !sessionId) {
-    return { success: false, error: error?.message ?? 'Failed to start session' }
-  }
-
-  return { success: true, sessionId, questionIds }
 }
 
 export async function submitReviewAnswer(raw: unknown): Promise<SubmitAnswerResult> {

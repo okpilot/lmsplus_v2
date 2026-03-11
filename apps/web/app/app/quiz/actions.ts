@@ -14,8 +14,6 @@ import type {
   SubmitRpcResult,
 } from './types'
 
-export type { CompleteQuizResult, StartQuizResult, SubmitQuizAnswerResult }
-
 const StartQuizInput = z.object({
   subjectId: z.string().uuid(),
   topicId: z.string().uuid().nullable(),
@@ -23,35 +21,40 @@ const StartQuizInput = z.object({
 })
 
 export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
-  const input = StartQuizInput.parse(raw)
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  try {
+    const input = StartQuizInput.parse(raw)
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Not authenticated' }
 
-  const questionIds = await getRandomQuestionIds({
-    subjectId: input.subjectId,
-    topicId: input.topicId,
-    count: input.count,
-  })
+    const questionIds = await getRandomQuestionIds({
+      subjectId: input.subjectId,
+      topicId: input.topicId,
+      count: input.count,
+    })
 
-  if (questionIds.length === 0) {
-    return { success: false, error: 'No questions available for this selection' }
+    if (questionIds.length === 0) {
+      return { success: false, error: 'No questions available for this selection' }
+    }
+
+    const { data: sessionId, error } = await rpc<string>(supabase, 'start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: input.subjectId,
+      p_topic_id: input.topicId,
+      p_question_ids: questionIds,
+    })
+
+    if (error || !sessionId) {
+      return { success: false, error: error?.message ?? 'Failed to start session' }
+    }
+
+    return { success: true, sessionId, questionIds }
+  } catch (err) {
+    console.error('[startQuizSession] Uncaught error:', err)
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
   }
-
-  const { data: sessionId, error } = await rpc<string>(supabase, 'start_quiz_session', {
-    p_mode: 'quick_quiz',
-    p_subject_id: input.subjectId,
-    p_topic_id: input.topicId,
-    p_question_ids: questionIds,
-  })
-
-  if (error || !sessionId) {
-    return { success: false, error: error?.message ?? 'Failed to start session' }
-  }
-
-  return { success: true, sessionId, questionIds }
 }
 
 export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerResult> {

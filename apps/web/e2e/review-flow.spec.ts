@@ -11,7 +11,7 @@ test('review flow: start review → answer questions → view results → dashbo
   await expect(page.getByRole('heading', { name: 'Smart Review' })).toBeVisible()
 
   // 2. Start review session
-  await page.getByRole('button', { name: /Start Review/i }).click()
+  await page.getByRole('button', { name: /Start.*Review/i }).click()
 
   // 3. Wait for review session to load
   await page.waitForURL('**/app/review/session', { timeout: 10_000 })

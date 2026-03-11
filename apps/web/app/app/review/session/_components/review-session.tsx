@@ -5,7 +5,8 @@ import { FeedbackPanel } from '@/app/app/_components/feedback-panel'
 import { QuestionCard } from '@/app/app/_components/question-card'
 import { SessionSummary } from '@/app/app/_components/session-summary'
 import { useEffect, useRef, useState } from 'react'
-import { type SubmitAnswerResult, completeReviewSession, submitReviewAnswer } from '../../actions'
+import { completeReviewSession, submitReviewAnswer } from '../../actions'
+import type { SubmitAnswerResult } from '../../types'
 
 type Question = {
   id: string

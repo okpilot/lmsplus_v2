@@ -96,14 +96,16 @@ describe('startQuizSession', () => {
     expect(result.questionIds).toEqual(['q1', 'q2', 'q3'])
   })
 
-  it('rejects an invalid quiz configuration', async () => {
-    await expect(startQuizSession({})).rejects.toThrow(ZodError)
+  it('returns failure for an invalid quiz configuration', async () => {
+    const result = await startQuizSession({})
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toContain('Required')
   })
 
-  it('rejects a non-UUID subject ID', async () => {
-    await expect(
-      startQuizSession({ subjectId: 'not-a-uuid', topicId: null, count: 5 }),
-    ).rejects.toThrow(ZodError)
+  it('returns failure for a non-UUID subject ID', async () => {
+    const result = await startQuizSession({ subjectId: 'not-a-uuid', topicId: null, count: 5 })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toContain('Invalid uuid')
   })
 })
 
