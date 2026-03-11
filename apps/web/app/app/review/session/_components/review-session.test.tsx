@@ -104,7 +104,7 @@ describe('ReviewSession', () => {
     })
 
     // QUESTIONS[0] is guaranteed to exist in this test's fixture data
-    const singleQ = [QUESTIONS[0] as (typeof QUESTIONS)[0]]
+    const singleQ = [QUESTIONS[0]!]
     render(<ReviewSession sessionId="sess-1" questions={singleQ} />)
 
     await user.click(screen.getByText('Wind shear'))
@@ -119,6 +119,50 @@ describe('ReviewSession', () => {
       expect(screen.getByText('100%')).toBeInTheDocument()
     })
     expect(mockCompleteReviewSession).toHaveBeenCalledWith({ sessionId: 'sess-1' })
+  })
+
+  it('shows an error when answer submission fails', async () => {
+    const user = userEvent.setup()
+    mockSubmitReviewAnswer.mockResolvedValue({
+      success: false,
+      error: 'Network error',
+    })
+
+    render(<ReviewSession sessionId="sess-1" questions={QUESTIONS} />)
+    await user.click(screen.getByText('Wind shear'))
+    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
+  })
+
+  it('shows an error when session completion fails', async () => {
+    const user = userEvent.setup()
+    mockSubmitReviewAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'a',
+      explanationText: 'Wind shear is the correct cause.',
+      explanationImageUrl: null,
+    })
+    mockCompleteReviewSession.mockResolvedValue({
+      success: false,
+      error: 'Session expired',
+    })
+
+    const singleQ = [QUESTIONS[0]!]
+    render(<ReviewSession sessionId="sess-1" questions={singleQ} />)
+    await user.click(screen.getByText('Wind shear'))
+    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
+    await waitFor(() =>
+      expect(screen.getByText('Wind shear is the correct cause.')).toBeInTheDocument(),
+    )
+    await user.click(screen.getByRole('button', { name: /Next Question/ }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
   })
 
   it('returns null when questions array is empty', () => {

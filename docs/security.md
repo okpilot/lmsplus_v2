@@ -128,7 +128,9 @@ CREATE POLICY "responses_no_delete" ON student_responses
 
 ### Immutable Tables: Policy Scope Pattern
 
-Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE, DELETE, and direct INSERT. These tables are written only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which bypass RLS.
+Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) must block UPDATE and DELETE. Write access varies by table:
+- `student_responses` — INSERT allowed via RLS (`student_id = auth.uid()`)
+- `quiz_session_answers` and `audit_events` — INSERT only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which bypass RLS. Direct INSERT blocked by restrictive RLS policies.
 
 ```sql
 -- ✅ CORRECT — SELECT only; INSERT blocked

@@ -24,7 +24,7 @@ const SUBJECTS = [
 ]
 
 describe('SubjectGrid', () => {
-  it('renders a card for each subject', () => {
+  it('displays each provided subject name', () => {
     render(<SubjectGrid subjects={SUBJECTS} />)
     expect(screen.getByText('Meteorology')).toBeInTheDocument()
     expect(screen.getByText('Air Law')).toBeInTheDocument()

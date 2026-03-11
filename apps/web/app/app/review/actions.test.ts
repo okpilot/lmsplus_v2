@@ -38,7 +38,7 @@ import { completeReviewSession, startReviewSession, submitReviewAnswer } from '.
 // ---- Helpers --------------------------------------------------------------
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   mockUpdateFsrsCard.mockResolvedValue(undefined)
 })
 
@@ -93,7 +93,7 @@ describe('startReviewSession', () => {
     expect(mockGetNewQuestionIds).not.toHaveBeenCalled()
   })
 
-  it('returns failure when RPC start_quiz_session fails', async () => {
+  it('surfaces a session-start failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetDueCards.mockResolvedValue([
       { questionId: 'q1', due: '2026-03-11T00:00:00Z', state: 'review' },
@@ -162,12 +162,14 @@ describe('submitReviewAnswer', () => {
     expect(result.correctOptionId).toBe('a')
   })
 
-  it('returns failure when RPC fails', async () => {
+  it('surfaces an answer submission failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'submit failed' } })
 
     const result = await submitReviewAnswer(validInput)
     expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('submit failed')
   })
 
   it('still returns success when FSRS update throws (non-fatal)', async () => {
@@ -190,7 +192,7 @@ describe('submitReviewAnswer', () => {
     expect(result.isCorrect).toBe(true)
   })
 
-  it('throws ZodError when input is malformed', async () => {
+  it('rejects a malformed answer submission', async () => {
     await expect(submitReviewAnswer({})).rejects.toThrow(ZodError)
   })
 })
@@ -222,7 +224,7 @@ describe('completeReviewSession', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
-  it('returns failure when RPC fails', async () => {
+  it('surfaces a review completion failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'Could not complete' } })
     const result = await completeReviewSession(validInput)
@@ -231,7 +233,7 @@ describe('completeReviewSession', () => {
     expect(result.error).toBe('Could not complete')
   })
 
-  it('throws ZodError when sessionId is missing', async () => {
+  it('rejects a completion request without a session ID', async () => {
     await expect(completeReviewSession({})).rejects.toThrow(ZodError)
   })
 })

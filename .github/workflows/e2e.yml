@@ -30,7 +30,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.78.1
 
       - uses: pnpm/action-setup@v4
         with:
@@ -64,7 +64,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.78.1
 
       - uses: pnpm/action-setup@v4
         with:

@@ -107,9 +107,11 @@
 **Rule**: When redirecting with auth refresh, always copy session cookies to the redirect response.
 **Example**: In `proxy.ts`, after `supabase.auth.refreshSession()`, manually add refreshed session cookie to redirect response:
 ```ts
-const response = NextResponse.redirect(new URL(path, request.url))
-response.headers.set('set-cookie', newSessionCookie)
-return response
+const redirect = NextResponse.redirect(new URL(path, request.url))
+for (const cookie of response.cookies.getAll()) {
+  redirect.cookies.set(cookie)
+}
+return redirect
 ```
 **Impact**: Failure to copy cookies causes silent auth loss on redirects.
 
@@ -118,7 +120,7 @@ return response
 **Rule**:
 - `frame-src`: controls which URLs can be embedded *in* your page (e.g., iframes)
 - `frame-ancestors`: controls which URLs can embed *your* page (anti-clickjacking)
-**Impact**: Using wrong directive allows XSS/clickjacking. For local dev, allow `ws://localhost:*` in CSP.
+**Impact**: Using wrong directive weakens clickjacking protection (not XSS). For local dev, allow `ws://localhost:*` in CSP.
 
 #### 3. PostgreSQL RLS: WITH CHECK vs USING
 **Pattern**: RLS policies require both directives for complete coverage.

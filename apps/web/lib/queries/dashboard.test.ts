@@ -62,7 +62,7 @@ describe('getDashboardData', () => {
       if (table === 'student_responses') return buildChain({ count: 0, data: [] })
       if (table === 'questions') return buildChain({ data: [] })
       if (table === 'quiz_sessions') return buildChain({ data: [] })
-      return buildChain({ data: null })
+      throw new Error(`Unexpected table: ${table}`)
     })
 
     const result = await getDashboardData()
@@ -96,7 +96,7 @@ describe('getDashboardData', () => {
         })
       }
       if (table === 'quiz_sessions') return buildChain({ data: [] })
-      return buildChain({ data: null })
+      throw new Error(`Unexpected table: ${table}`)
     })
 
     const result = await getDashboardData()
@@ -107,7 +107,41 @@ describe('getDashboardData', () => {
     expect(subject.totalQuestions).toBe(2)
   })
 
-  it('computes masteryPercentage as 0 when a subject has no questions', async () => {
+  it('attributes questions to the correct subject across multiple subjects', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'fsrs_cards') return buildChain({ count: 0 })
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [
+            { id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 },
+            { id: 's2', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 2 },
+          ],
+        })
+      if (table === 'student_responses')
+        return buildChain({ count: 5, data: [{ question_id: 'q1' }] })
+      if (table === 'questions')
+        return buildChain({
+          data: [
+            { id: 'q1', subject_id: 's1' },
+            { id: 'q2', subject_id: 's1' },
+            { id: 'q3', subject_id: 's2' },
+          ],
+        })
+      if (table === 'quiz_sessions') return buildChain({ data: [] })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.subjects).toHaveLength(2)
+    const agk = result.subjects.find((s) => s.code === 'AGK')
+    const met = result.subjects.find((s) => s.code === 'MET')
+    expect(agk!.totalQuestions).toBe(2)
+    expect(met!.totalQuestions).toBe(1)
+  })
+
+  it('filters out subjects with no questions', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
@@ -119,7 +153,7 @@ describe('getDashboardData', () => {
       if (table === 'student_responses') return buildChain({ count: 0, data: [] })
       if (table === 'questions') return buildChain({ data: [] }) // no questions for this subject
       if (table === 'quiz_sessions') return buildChain({ data: [] })
-      return buildChain({ data: null })
+      throw new Error(`Unexpected table: ${table}`)
     })
 
     const result = await getDashboardData()
@@ -128,7 +162,7 @@ describe('getDashboardData', () => {
     expect(result.totalQuestions).toBe(0)
   })
 
-  it('maps recent sessions including subject name lookup', async () => {
+  it('returns recent sessions with subject names', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     const sessions = [
@@ -154,7 +188,7 @@ describe('getDashboardData', () => {
       if (table === 'student_responses') return buildChain({ count: 0, data: [] })
       if (table === 'questions') return buildChain({ data: [{ id: 'q1', subject_id: 's1' }] })
       if (table === 'quiz_sessions') return buildChain({ data: sessions })
-      return buildChain({ data: null })
+      throw new Error(`Unexpected table: ${table}`)
     })
 
     const result = await getDashboardData()

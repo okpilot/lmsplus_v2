@@ -35,7 +35,7 @@ import { completeQuiz, startQuizSession, submitQuizAnswer } from './actions'
 // ---- Helpers --------------------------------------------------------------
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   mockUpdateFsrsCard.mockResolvedValue(undefined)
 })
 
@@ -67,7 +67,7 @@ describe('startQuizSession', () => {
     expect(result.error).toBe('No questions available for this selection')
   })
 
-  it('returns failure when RPC start_quiz_session returns an error', async () => {
+  it('surfaces a session-start failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetRandomQuestionIds.mockResolvedValue(['q1', 'q2'])
     mockRpc.mockResolvedValue({ data: null, error: { message: 'DB error' } })
@@ -96,11 +96,11 @@ describe('startQuizSession', () => {
     expect(result.questionIds).toEqual(['q1', 'q2', 'q3'])
   })
 
-  it('throws ZodError when input is invalid (missing required fields)', async () => {
+  it('rejects an invalid quiz configuration', async () => {
     await expect(startQuizSession({})).rejects.toThrow(ZodError)
   })
 
-  it('throws ZodError when subjectId is not a UUID', async () => {
+  it('rejects a non-UUID subject ID', async () => {
     await expect(
       startQuizSession({ subjectId: 'not-a-uuid', topicId: null, count: 5 }),
     ).rejects.toThrow(ZodError)
@@ -125,7 +125,7 @@ describe('submitQuizAnswer', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
-  it('returns failure when RPC submit_quiz_answer returns an error', async () => {
+  it('surfaces an answer submission failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'Answer not valid' } })
     const result = await submitQuizAnswer(validInput)
@@ -134,14 +134,14 @@ describe('submitQuizAnswer', () => {
     expect(result.error).toBe('Answer not valid')
   })
 
-  it('returns failure when RPC returns empty data array', async () => {
+  it('treats empty answer data as a failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: [], error: null })
     const result = await submitQuizAnswer(validInput)
     expect(result.success).toBe(false)
   })
 
-  it('returns answer result with correctness and explanation on happy path', async () => {
+  it('returns correctness and explanation after a valid answer', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({
       data: [
@@ -200,7 +200,7 @@ describe('submitQuizAnswer', () => {
     expect(result.isCorrect).toBe(true)
   })
 
-  it('throws ZodError when input is malformed', async () => {
+  it('rejects a malformed answer submission', async () => {
     await expect(submitQuizAnswer({})).rejects.toThrow(ZodError)
   })
 })
@@ -218,7 +218,7 @@ describe('completeQuiz', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
-  it('returns failure when RPC complete_quiz_session returns an error', async () => {
+  it('surfaces a quiz completion failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'Session not found' } })
     const result = await completeQuiz(validInput)
@@ -227,14 +227,14 @@ describe('completeQuiz', () => {
     expect(result.error).toBe('Session not found')
   })
 
-  it('returns failure when RPC returns empty data', async () => {
+  it('treats empty completion data as a failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: [], error: null })
     const result = await completeQuiz(validInput)
     expect(result.success).toBe(false)
   })
 
-  it('returns score summary on happy path', async () => {
+  it('returns the score summary after completing a quiz', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({
       data: [{ total_questions: 10, correct_count: 7, score_percentage: 70 }],
@@ -248,7 +248,7 @@ describe('completeQuiz', () => {
     expect(result.scorePercentage).toBe(70)
   })
 
-  it('throws ZodError when sessionId is missing', async () => {
+  it('rejects a completion request without a session ID', async () => {
     await expect(completeQuiz({})).rejects.toThrow(ZodError)
   })
 })

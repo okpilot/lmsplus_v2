@@ -113,7 +113,7 @@
   - Pre-merge checks: no-secrets, no-answer-exposure, soft-delete-only
 - **GitHub Actions CI** (cloud):
   - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
-  - `e2e.yml` — runs on push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
+  - `e2e.yml` — runs on pull requests + push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
   - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
   - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 5 questions for E2E
   - Playwright config updated: uses `pnpm start` (production build) in CI, `pnpm dev` locally
@@ -155,7 +155,7 @@ lmsplusv2/
 Before building, configure the three essential MCPs so Claude has full tool access throughout the build:
 
 1. **Supabase MCP** — get personal access token from supabase.com → Account → Access Tokens
-   Add to `apps/web/.env.local`: `SUPABASE_ACCESS_TOKEN=sbp_xxxx`
+   Add to `.claude/settings.local.json` (gitignored) or `apps/web/.env.local` (gitignored): `SUPABASE_ACCESS_TOKEN=sbp_xxxx`
    Once project created, add `--project-ref <ref>` to `.claude/settings.json` Supabase args.
 
 2. **Context7** — no setup needed, works immediately after `settings.json` is in place
@@ -357,7 +357,7 @@ git push (only with user approval)
 GitHub PR
     → [CodeRabbit] reviews PR against .coderabbit.yaml rules
     → [GitHub Actions ci.yml] lint + types + unit tests
-    → [GitHub Actions e2e.yml] integration + E2E tests (master only)
+    → [GitHub Actions e2e.yml] integration + E2E tests (PRs + master)
 
 Context approaching limit
     → [PreCompact hook] saves HANDOVER-YYYY-MM-DD.md before compression
@@ -405,7 +405,7 @@ Weekly
 ✅ **5B-2 done:** Unit test coverage for Phase 5 components (dashboard, quiz, review, progress)
 ✅ **5B-3 done:** 35 integration tests for all 4 RPC functions + RLS policies (tenant isolation, immutability)
 ✅ **5B-4 done:** 10 Playwright E2E tests across 4 spec files (login, protected routes, quiz flow, progress)
-✅ **5B-5 done:** GitHub Actions CI — `ci.yml` (PR: lint + types + tests + audit) + `e2e.yml` (master: integration + E2E with local Supabase)
+✅ **5B-5 done:** GitHub Actions CI — `ci.yml` (PR: lint + types + tests + audit) + `e2e.yml` (PRs + master + nightly: integration + E2E with local Supabase)
 
 Test summary: 247 unit tests (32 files) + 35 integration tests + 10 E2E tests. All passing.
 

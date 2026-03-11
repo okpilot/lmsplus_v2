@@ -126,7 +126,7 @@ describe('QuizSession', () => {
 
     // Use single question to quickly reach completion
     // QUESTIONS[0] is guaranteed to exist in this test's fixture data
-    const singleQ = [QUESTIONS[0] as (typeof QUESTIONS)[0]]
+    const singleQ = [QUESTIONS[0]!]
     render(<QuizSession sessionId="sess-1" questions={singleQ} />)
 
     await user.click(screen.getByText('A force'))

@@ -28,43 +28,18 @@ describe('ThemeProvider', () => {
     expect(screen.getByText('child content')).toBeInTheDocument()
   })
 
-  it('uses CSS class-based theming', () => {
+  it('configures class-based system theming with transitions disabled', () => {
     render(
       <ThemeProvider>
         <span />
       </ThemeProvider>,
     )
     const receivedProps = mockNextThemesProvider.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(receivedProps).toMatchObject({ attribute: 'class' })
-  })
-
-  it('defaults to the system color scheme', () => {
-    render(
-      <ThemeProvider>
-        <span />
-      </ThemeProvider>,
-    )
-    const receivedProps = mockNextThemesProvider.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(receivedProps).toMatchObject({ defaultTheme: 'system' })
-  })
-
-  it('supports automatic system theme detection', () => {
-    render(
-      <ThemeProvider>
-        <span />
-      </ThemeProvider>,
-    )
-    const receivedProps = mockNextThemesProvider.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(receivedProps).toMatchObject({ enableSystem: true })
-  })
-
-  it('prevents transition flicker on theme change', () => {
-    render(
-      <ThemeProvider>
-        <span />
-      </ThemeProvider>,
-    )
-    const receivedProps = mockNextThemesProvider.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(receivedProps).toMatchObject({ disableTransitionOnChange: true })
+    expect(receivedProps).toMatchObject({
+      attribute: 'class',
+      defaultTheme: 'system',
+      enableSystem: true,
+      disableTransitionOnChange: true,
+    })
   })
 })

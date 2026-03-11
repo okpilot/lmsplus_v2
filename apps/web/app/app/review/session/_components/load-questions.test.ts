@@ -78,7 +78,10 @@ describe('loadSessionQuestions', () => {
       question_text: 'Explain VFR minima',
       question_image_url: 'https://cdn.example.com/img.png',
     })
-    expect(result.questions[0]!.options).toHaveLength(2)
+    expect(result.questions[0]!.options).toEqual([
+      { id: 'a', text: 'Option A' },
+      { id: 'b', text: 'Option B' },
+    ])
   })
 
   it('returns failure when RPC returns an error', async () => {

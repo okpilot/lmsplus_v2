@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QuizConfigForm } from './quiz-config-form'
@@ -99,6 +99,49 @@ describe('QuizConfigForm', () => {
 
     expect(screen.getByText('Not enough questions')).toBeInTheDocument()
     expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('sends a non-default question count when changed', async () => {
+    const user = userEvent.setup()
+    mockStartQuizSession.mockResolvedValue({
+      success: true,
+      sessionId: 'sess-1',
+      questionIds: Array.from({ length: 12 }, (_, i) => `q${i}`),
+    })
+
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
+    const countInput = screen.getByLabelText('Number of questions')
+    await user.clear(countInput)
+    await user.type(countInput, '12')
+    await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
+
+    expect(mockStartQuizSession).toHaveBeenCalledWith({
+      subjectId: 'sub-1',
+      topicId: null,
+      count: 12,
+    })
+  })
+
+  it('shows loading state while starting a quiz', async () => {
+    const user = userEvent.setup()
+    let resolveStart: (v: unknown) => void
+    mockStartQuizSession.mockReturnValue(
+      new Promise((resolve) => {
+        resolveStart = resolve
+      }),
+    )
+
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
+    await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
+
+    expect(screen.getByRole('button', { name: /starting/i })).toBeDisabled()
+
+    resolveStart!({ success: true, sessionId: 'sess-1', questionIds: ['q1'] })
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalled()
+    })
   })
 
   it('stores session data in sessionStorage on success', async () => {

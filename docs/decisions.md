@@ -30,12 +30,14 @@
 - **Git hooks:** Lefthook — replaces Husky + lint-staged. One YAML file, parallel execution, native monorepo support. Biome docs officially recommend Lefthook.
 - **Commit format:** Conventional Commits enforced via commitlint in Lefthook commit-msg hook.
 
-### Git Hook Pipeline (Lefthook)
+### Git Hook Pipeline (Lefthook) — updated by Decision 20
 ```
-pre-commit  → biome check --write (staged files only, <1s)
+pre-commit  → biome check --write + tsc --noEmit + vitest run
 commit-msg  → commitlint (conventional commits)
-pre-push    → tsc --noEmit + vitest run --passWithNoTests
+pre-push    → security-auditor agent + pnpm audit
+post-commit → reminder to run subagents (non-blocking)
 ```
+Post-commit review agents (code-reviewer, doc-updater, test-writer) run as in-session Claude Code subagents, not Lefthook hooks. See Decision 20.
 
 ### Claude Code Automation (confirmed 2026-03-11)
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
