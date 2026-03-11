@@ -404,6 +404,109 @@ changes are needed — just assert on the `set-cookie` header of the returned re
 
 ---
 
+## Files tested in latest commit (FSRS module extraction)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/fsrs/update-card.ts` | `lib/fsrs/update-card.test.ts` | Shared FSRS upsert logic; 8 tests covering happy path, existing vs new card, error paths |
+
+### Testing async functions that take a Supabase client argument
+When the function under test accepts a Supabase client parameter, build a fake
+client with `vi.fn()` chains rather than mocking the module:
+```ts
+function buildSupabaseChain(maybeSingleReturn: unknown) {
+  const chain = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    returns: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue(maybeSingleReturn),
+  }
+  return {
+    from: vi.fn().mockReturnValue(chain),
+    _chain: chain, // expose for assertions
+  }
+}
+```
+Cast the fake as `never` to satisfy the `SupabaseClient` type: `updateFsrsCard(supabase as never, ...)`.
+Assert on `supabase.from` and `supabase._chain.eq` calls to verify correct table + filter values.
+
+### Mocking @repo/db/fsrs helpers
+```ts
+vi.mock('@repo/db/fsrs', () => ({
+  createEmptyCard: (...args: unknown[]) => mockCreateEmptyCard(...args),
+  dbRowToCard: (...args: unknown[]) => mockDbRowToCard(...args),
+  ratingFromAnswer: (...args: unknown[]) => mockRatingFromAnswer(...args),
+  scheduleCard: (...args: unknown[]) => mockScheduleCard(...args),
+  stateToString: (...args: unknown[]) => mockStateToString(...args),
+}))
+```
+Use plain `vi.fn()` (not `vi.hoisted`) for these since they are not referenced inside a `vi.mock()` factory.
+
+### Asserting upsert arguments by position
+```ts
+const [, table, values, opts] = mockUpsert.mock.calls[0]!
+expect(table).toBe('fsrs_cards')
+expect(values.student_id).toBe('user-42')
+expect(opts).toEqual({ onConflict: 'student_id,question_id' })
+```
+`upsert(supabase, table, values, opts)` — first arg is the client, index 0; table is index 1.
+
+### Early-return / skip-upsert test for DB errors
+```ts
+it('returns early without calling upsert when maybeSingle returns an error', async () => {
+  const supabase = buildSupabaseChain({
+    data: null,
+    error: { message: 'permission denied for table fsrs_cards' },
+  })
+  await updateFsrsCard(supabase as never, 'user-1', 'question-1', true)
+  expect(mockUpsert).not.toHaveBeenCalled()
+  expect(mockScheduleCard).not.toHaveBeenCalled()
+})
+```
+The `console.error` in stderr is EXPECTED — it confirms the catch branch ran.
+
+---
+
+## Files tested in commits dd94991..44a0baf (cookie fix + E2E hardening)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/e2e/helpers/supabase.ts` | `supabase.test.ts` | Added test for new `listError` throw branch in `ensureTestUser` |
+| `apps/web/e2e/helpers/mailpit.ts` | `mailpit.test.ts` | Added test for `getMessage` non-OK status path (404 from detail endpoint) |
+
+### Extending MockClientOptions to carry an `error` field on listUsers
+When a Supabase admin method mock needs to return both `data` and `error`, add both
+fields to the options type. The default (no error) simply omits the field — `undefined`
+is falsy so existing tests are unaffected:
+```ts
+listUsers?: {
+  data: { users: Array<...> } | null
+  error?: { message: string } | null
+}
+```
+Then the mock builder passes the whole object as the resolved value:
+```ts
+listUsers: vi.fn().mockResolvedValue(listUsers),
+```
+The source code destructures `{ data: existingUsers, error: listError }` from that value —
+both fields are present and the guard `if (listError) throw ...` works correctly.
+
+### Testing a downstream fetch failure (getMessage 404)
+When the search endpoint succeeds but the message detail endpoint fails, use
+`mockImplementation` to route by URL, returning a non-OK Response only for the
+`/message/` path:
+```ts
+vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
+  if (url.toString().includes('/search')) {
+    return new Response(JSON.stringify({ total: 1, messages: [MOCK_MESSAGE] }))
+  }
+  return new Response(null, { status: 404 })
+})
+await expect(getLatestEmail('test@example.com')).rejects.toThrow('getMessage: 404')
+```
+
+---
+
 ## Files skipped (no testable logic)
 - `apps/web/app/layout.tsx` — pure layout, font config
 - `apps/web/app/page.tsx` — pure composition

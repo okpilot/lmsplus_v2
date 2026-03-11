@@ -27,7 +27,10 @@ function buildChain(returnValue: unknown) {
 
 type MockClientOptions = {
   org?: { data: { id: string } | null; error: { message: string; code?: string } | null }
-  listUsers?: { data: { users: Array<{ id: string; email: string }> } | null }
+  listUsers?: {
+    data: { users: Array<{ id: string; email: string }> } | null
+    error?: { message: string } | null
+  }
   createUser?: { data: { user: { id: string } } | null; error: { message: string } | null }
   userRow?: {
     data: { id: string; organization_id: string } | null
@@ -127,6 +130,15 @@ describe('ensureTestUser', () => {
   it('throws when the Egmont Aviation org is not found', async () => {
     mockCreateClient.mockReturnValue(buildMockClient({ org: { data: null, error: null } }))
     await expect(ensureTestUser()).rejects.toThrow('Egmont Aviation org not found')
+  })
+
+  it('throws when listUsers returns an error', async () => {
+    mockCreateClient.mockReturnValue(
+      buildMockClient({
+        listUsers: { data: null, error: { message: 'permission denied' } },
+      }),
+    )
+    await expect(ensureTestUser()).rejects.toThrow('ensureTestUser listUsers: permission denied')
   })
 
   it('throws when the org lookup query fails', async () => {

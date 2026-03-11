@@ -188,4 +188,17 @@ describe('getLatestEmail', () => {
     const promise = getLatestEmail('test@example.com')
     await expect(promise).rejects.toThrow('searchMessages: 500')
   })
+
+  it('throws when the Mailpit message detail endpoint returns a non-OK status', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
+      const u = url.toString()
+      if (u.includes('/search')) {
+        return new Response(JSON.stringify({ total: 1, messages: [MOCK_MESSAGE] }))
+      }
+      // getMessage endpoint returns an error status
+      return new Response(null, { status: 404 })
+    })
+    const promise = getLatestEmail('test@example.com')
+    await expect(promise).rejects.toThrow('getMessage: 404')
+  })
 })

@@ -41,12 +41,12 @@ Refresh token reuse:  Disabled (rotation enabled)
 Refresh token expiry: 7 days (sliding)
 ```
 
-### Middleware Rule
-Every route under `/app/*` must be protected by `apps/web/middleware.ts`.
+### Proxy Rule (Next.js 16)
+Every route under `/app/*` must be protected by `apps/web/proxy.ts`.
 Unauthenticated requests redirect to `/`. No exceptions.
 
 ```ts
-// apps/web/middleware.ts — pattern required
+// apps/web/proxy.ts — pattern required (Next.js 16 convention)
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -384,7 +384,7 @@ Configure in Supabase dashboard (Auth → Rate Limits):
 | Magic link send | 3 per hour per email |
 | Token verification | 10 per hour per IP |
 
-Middleware-level limiting (add to `apps/web/middleware.ts`):
+Proxy-level limiting (add to `apps/web/proxy.ts`):
 ```ts
 // Use Vercel's built-in rate limiting or upstash/ratelimit for:
 // - /api/* routes: 60 req/min per IP
