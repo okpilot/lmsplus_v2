@@ -6,12 +6,6 @@ import type { DraftAnswer } from '../../types'
 import { saveQuizDraft, submitQuizSession } from './quiz-submit'
 
 type StoredAnswer = { selectedOptionId: string; responseTimeMs: number }
-type SuccessResult = {
-  success: true
-  totalQuestions: number
-  correctCount: number
-  scorePercentage: number
-}
 type UseQuizStateOpts = {
   sessionId: string
   questions: SessionQuestion[]
@@ -27,18 +21,16 @@ export function useQuizState({
 }: UseQuizStateOpts) {
   const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(initialIndex ?? 0)
-  const [answers, setAnswers] = useState<Map<string, StoredAnswer>>(() => {
-    if (!initialAnswers) return new Map()
-    return new Map(Object.entries(initialAnswers))
-  })
+  const [answers, setAnswers] = useState<Map<string, StoredAnswer>>(() =>
+    initialAnswers ? new Map(Object.entries(initialAnswers)) : new Map(),
+  )
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set())
   const answerStartTime = useRef(Date.now())
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<SuccessResult | null>(null)
 
-  useNavigationGuard(answers.size > 0 && !result)
+  useNavigationGuard(answers.size > 0)
 
   const question = questions[currentIndex]
   const questionId = question?.id ?? ''
@@ -72,7 +64,7 @@ export function useQuizState({
     const r = await submitQuizSession(sessionId, answers)
     if (r.success) {
       setShowFinishDialog(false)
-      setResult(r)
+      router.push(`/app/quiz/report?session=${sessionId}`)
     } else {
       setError(r.error)
       setSubmitting(false)
@@ -102,7 +94,6 @@ export function useQuizState({
     isFlagged: flaggedQuestions.has(questionId),
     submitting,
     error,
-    result,
     showFinishDialog,
     handleSelectAnswer,
     navigateTo,

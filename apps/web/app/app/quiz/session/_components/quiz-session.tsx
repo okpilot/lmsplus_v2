@@ -3,10 +3,14 @@
 import { AnswerOptions } from '@/app/app/_components/answer-options'
 import { QuestionCard } from '@/app/app/_components/question-card'
 import type { SessionQuestion } from '@/app/app/_components/session-runner'
-import { SessionSummary } from '@/app/app/_components/session-summary'
 import { SessionTimer } from '@/app/app/_components/session-timer'
+import { useEffect, useState } from 'react'
+import { CommentsTab } from '../../_components/comments-tab'
+import { ExplanationTab } from '../../_components/explanation-tab'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
+import { QuestionTabs } from '../../_components/question-tabs'
+import { StatisticsTab } from '../../_components/statistics-tab'
 import type { DraftAnswer } from '../../types'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { QuizNavBar } from './quiz-nav-bar'
@@ -20,19 +24,17 @@ type QuizSessionProps = {
 
 export function QuizSession(props: QuizSessionProps) {
   const s = useQuizState(props)
+  const [activeTab, setActiveTab] = useState<
+    'question' | 'explanation' | 'comments' | 'statistics'
+  >('question')
+
+  // Reset tab to 'question' when navigating between questions — not data fetching
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger on index change
+  useEffect(() => {
+    setActiveTab('question')
+  }, [s.currentIndex])
 
   if (!s.question) return null
-
-  if (s.result) {
-    return (
-      <SessionSummary
-        totalQuestions={s.result.totalQuestions}
-        correctCount={s.result.correctCount}
-        scorePercentage={s.result.scorePercentage}
-        mode="quick_quiz"
-      />
-    )
-  }
 
   return (
     <div className="flex flex-col gap-4 md:flex-row">
@@ -78,6 +80,23 @@ export function QuizSession(props: QuizSessionProps) {
           disabled={s.submitting}
           selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
         />
+        <QuestionTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          hasAnswered={!!s.existingAnswer}
+        />
+        {activeTab === 'explanation' && s.existingAnswer && (
+          <ExplanationTab
+            isCorrect={false}
+            explanationText={null}
+            explanationImageUrl={null}
+            correctOptionId=""
+          />
+        )}
+        {activeTab === 'comments' && <CommentsTab />}
+        {activeTab === 'statistics' && (
+          <StatisticsTab questionId={s.questionId} hasAnswered={!!s.existingAnswer} />
+        )}
         <div className="flex items-center gap-2">
           <button
             type="button"

@@ -142,22 +142,20 @@ vi.mock('./quiz-nav-bar', () => ({
   ),
 }))
 
-vi.mock('@/app/app/_components/session-summary', () => ({
-  SessionSummary: ({
-    totalQuestions,
-    correctCount,
-    scorePercentage,
-  }: {
-    totalQuestions: number
-    correctCount: number
-    scorePercentage: number
-  }) => (
-    <div data-testid="session-summary">
-      <span data-testid="summary-total">{totalQuestions}</span>
-      <span data-testid="summary-correct">{correctCount}</span>
-      <span data-testid="summary-score">{scorePercentage}</span>
-    </div>
-  ),
+vi.mock('../../_components/question-tabs', () => ({
+  QuestionTabs: () => <div data-testid="question-tabs" />,
+}))
+
+vi.mock('../../_components/explanation-tab', () => ({
+  ExplanationTab: () => <div data-testid="explanation-tab" />,
+}))
+
+vi.mock('../../_components/comments-tab', () => ({
+  CommentsTab: () => <div data-testid="comments-tab" />,
+}))
+
+vi.mock('../../_components/statistics-tab', () => ({
+  StatisticsTab: () => <div data-testid="statistics-tab" />,
 }))
 
 import { QuizSession } from './quiz-session'
@@ -275,7 +273,7 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('dialog-answered')).toHaveTextContent('2')
   })
 
-  it('calls batchSubmitQuiz on submit and shows summary', async () => {
+  it('calls batchSubmitQuiz on submit and redirects to report page', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({
       success: true,
       totalQuestions: 3,
@@ -306,8 +304,7 @@ describe('QuizSession', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByTestId('session-summary')).toBeInTheDocument()
-      expect(screen.getByTestId('summary-correct')).toHaveTextContent('2')
+      expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/report?session=sess-1')
     })
   })
 
