@@ -99,6 +99,8 @@ describe('startReviewSession', () => {
   })
 
   it('returns failure when subjectIds contain invalid UUIDs', async () => {
+    // Auth now runs before Zod parse; mock a valid user so the Zod guard is reached
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await startReviewSession({ subjectIds: ['not-a-uuid'] })
     expect(result.success).toBe(false)

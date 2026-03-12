@@ -113,6 +113,25 @@ describe('getDueCards', () => {
     expect(result).toEqual([])
   })
 
+  it('throws when the subject filter query returns an error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFromSequence(
+      {
+        data: [{ question_id: 'q1', due: '2026-03-10T00:00:00Z', state: 'review' }],
+      },
+      { data: null, error: { message: 'permission denied for table questions' } },
+    )
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(getDueCards({ subjectIds: ['subj-1'] })).rejects.toThrow(
+      'Failed to load due cards',
+    )
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[getDueCards] Subject filter query failed:',
+      'permission denied for table questions',
+    )
+    consoleSpy.mockRestore()
+  })
+
   it('filters cards by subject when subjectIds are provided', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockFromSequence(
