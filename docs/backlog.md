@@ -32,12 +32,12 @@
 - **Solution:** Skeleton UI component + `loading.tsx` files for dashboard/quiz/review/progress + skeleton states in session loaders
 - **Size:** S
 
-### 1.6 Rename "Quick Quiz" → "Quiz" — ✅ DONE (2026-03-14)
+### 1.6 Rename "Quick Quiz" → "Quiz" — ✅ DONE (2026-03-12)
 - **Problem:** "Quick Quiz" implies a lightweight mode; it's the main quiz feature
 - **Solution:** Rename in nav, routes (`/app/quiz` stays), page titles, all references
 - **Size:** XS
 
-### 1.7 Smart Review: exclude new questions — ✅ DONE (2026-03-14)
+### 1.7 Smart Review: exclude new questions — ✅ DONE (2026-03-12)
 - **Problem:** Review mode includes unseen questions — defeats the purpose of "review"
 - **Solution:** Only load questions the student has previously answered (has `fsrs_cards` entry or `student_responses` history)
 - **Size:** XS
@@ -47,7 +47,7 @@
 - **Solution:** ReviewConfigForm with subject checkboxes; `getDueCards` accepts `{ limit?, subjectIds? }` options object
 - **Size:** S
 
-### 1.9 Smart Review: how-it-works explanation — ✅ DONE (2026-03-14)
+### 1.9 Smart Review: how-it-works explanation — ✅ DONE (2026-03-12)
 - **Problem:** Students don't understand FSRS or how to use Smart Review effectively
 - **Solution:** Info card/tooltip explaining spaced repetition and recommended usage (collapsible explainer with FSRS explanation + recommended usage)
 - **Size:** XS
