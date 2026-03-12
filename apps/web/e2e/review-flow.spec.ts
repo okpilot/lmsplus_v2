@@ -1,7 +1,48 @@
 import { expect, test } from '@playwright/test'
+import { TEST_EMAIL, getAdminClient } from './helpers/supabase'
 
 // Use saved auth state from setup
 test.use({ storageState: 'e2e/.auth/user.json' })
+
+// Seed FSRS cards with past due dates so the review button is enabled
+test.beforeAll(async () => {
+  const admin = getAdminClient()
+
+  // Find test user
+  const { data: users } = await admin.auth.admin.listUsers()
+  const testUser = users?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
+  if (!testUser) throw new Error('Test user not found — auth.setup.ts must run first')
+
+  // Get some question IDs to create due cards for
+  const { data: questions, error: qErr } = await admin
+    .from('questions')
+    .select('id')
+    .eq('status', 'active')
+    .limit(5)
+  if (qErr) throw new Error(`Failed to fetch questions: ${qErr.message}`)
+  if (!questions?.length) throw new Error('No active questions found for review seeding')
+
+  // Upsert FSRS cards with due date in the past
+  const pastDue = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const cards = questions.map((q: { id: string }) => ({
+    student_id: testUser.id,
+    question_id: q.id,
+    due: pastDue,
+    stability: 1,
+    difficulty: 5,
+    elapsed_days: 1,
+    scheduled_days: 1,
+    reps: 1,
+    lapses: 0,
+    state: 'review',
+    last_review: pastDue,
+  }))
+
+  const { error: upsertErr } = await admin
+    .from('fsrs_cards')
+    .upsert(cards, { onConflict: 'student_id,question_id' })
+  if (upsertErr) throw new Error(`Failed to seed FSRS cards: ${upsertErr.message}`)
+})
 
 test('review flow: start review → answer questions → view results → dashboard', async ({
   page,
