@@ -14,21 +14,24 @@ export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const prevQuestionId = useRef(questionId)
+  const generation = useRef(0)
 
   if (prevQuestionId.current !== questionId) {
     prevQuestionId.current = questionId
+    generation.current += 1
     setStats(null)
     setError(null)
   }
 
   function loadStats() {
+    const gen = generation.current
     setError(null)
     startTransition(async () => {
       try {
         const data = await fetchQuestionStats(questionId)
-        setStats(data)
+        if (gen === generation.current) setStats(data)
       } catch {
-        setError('Failed to load statistics.')
+        if (gen === generation.current) setError('Failed to load statistics.')
       }
     })
   }

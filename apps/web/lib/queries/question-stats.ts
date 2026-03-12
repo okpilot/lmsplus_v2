@@ -46,29 +46,25 @@ export async function getQuestionStats(questionId: string): Promise<QuestionStat
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
+type ResponseRow = { is_correct: boolean }
+
 async function getResponseCounts(
   supabase: SupabaseClient,
   userId: string,
   questionId: string,
 ): Promise<{ total: number; correct: number }> {
-  const { count: total, error: totalError } = await supabase
+  const { data, error } = await supabase
     .from('student_responses')
-    .select('*', { count: 'exact', head: true })
+    .select('is_correct')
     .eq('student_id' as string & keyof never, userId)
     .eq('question_id' as string & keyof never, questionId)
+    .returns<ResponseRow[]>()
 
-  if (totalError) throw new Error(`Failed to count responses: ${totalError.message}`)
+  if (error) throw new Error(`Failed to fetch responses: ${error.message}`)
 
-  const { count: correct, error: correctError } = await supabase
-    .from('student_responses')
-    .select('*', { count: 'exact', head: true })
-    .eq('student_id' as string & keyof never, userId)
-    .eq('question_id' as string & keyof never, questionId)
-    .eq('is_correct' as string & keyof never, true)
-
-  if (correctError) throw new Error(`Failed to count correct responses: ${correctError.message}`)
-
-  return { total: total ?? 0, correct: correct ?? 0 }
+  const total = data?.length ?? 0
+  const correct = data?.filter((r) => r.is_correct).length ?? 0
+  return { total, correct }
 }
 
 async function getFsrsCard(
