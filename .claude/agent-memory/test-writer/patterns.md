@@ -792,3 +792,34 @@ second `from()` call never happens.
 | `apps/web/app/app/review/_components/review-config-form.tsx` | `review-config-form.test.tsx` | 3 tests: toggle deselect, sessionStorage verification, loading state |
 | `apps/web/lib/queries/review.ts` | `queries/review.test.ts` | 2 tests: query error path, subject filter matching no cards |
 | `apps/web/app/app/review/actions.ts` | `review/actions.test.ts` | 1 test: Zod validation rejects invalid UUIDs in subjectIds |
+
+---
+
+## Files extended in commit 7599b50 (auth-before-parse regression tests in quiz/actions)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/actions.ts` | `quiz/actions.test.ts` | 3 regression tests (one per action): auth guard runs before Zod parse — unauthenticated call with `{}` returns `'Not authenticated'`, not a ZodError |
+
+### Auth-before-parse regression test pattern (quiz/actions)
+The source moved `StartQuizInput.parse(raw)` to after `getUser()` in `startQuizSession`.
+`submitQuizAnswer` and `completeQuiz` already had auth before parse, but their Zod validation
+tests were missing the `getUser` mock (fixed in the same commit).
+
+The regression tests use invalid input (`{}`) together with a null user to assert the auth
+guard fires first:
+```ts
+it('rejects unauthenticated calls before reaching Zod validation', async () => {
+  mockGetUser.mockResolvedValue({ data: { user: null } })
+  const result = await startQuizSession({})  // {} would fail Zod if parse ran first
+  expect(result.success).toBe(false)
+  if (!result.success) expect(result.error).toBe('Not authenticated')
+})
+```
+
+Note: `submitQuizAnswer` and `completeQuiz` have no outer `try/catch`, so ZodError bubbles up.
+Their Zod tests correctly use `.rejects.toThrow(ZodError)` rather than checking `result.success`.
+`startQuizSession` wraps everything in `try/catch(ZodError)`, so its Zod tests assert `result.success === false`.
+
+### Suite state after this commit
+40 test files, 338 tests — all passing.
