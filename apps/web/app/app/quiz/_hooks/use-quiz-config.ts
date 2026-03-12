@@ -75,9 +75,15 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
         filter,
       })
       if (result.success) {
+        const selectedSubject = subjects.find((s) => s.id === subjectId)
         sessionStorage.setItem(
           'quiz-session',
-          JSON.stringify({ sessionId: result.sessionId, questionIds: result.questionIds }),
+          JSON.stringify({
+            sessionId: result.sessionId,
+            questionIds: result.questionIds,
+            subjectName: selectedSubject?.name,
+            subjectCode: selectedSubject?.short,
+          }),
         )
         router.push('/app/quiz/session')
         return

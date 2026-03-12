@@ -16,7 +16,8 @@ vi.mock('@repo/db/server', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { deleteDraft, loadDraft, saveDraft } from './draft'
+import { deleteDraft, saveDraft } from './draft'
+import { loadDraft } from './load-draft'
 
 // ---- Fixtures -------------------------------------------------------------
 
@@ -216,6 +217,9 @@ describe('loadDraft', () => {
       questionIds: [Q1_ID, Q2_ID],
       answers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 2000 } },
       currentIndex: 1,
+      subjectName: undefined,
+      subjectCode: undefined,
+      createdAt: '2026-03-12T00:00:00Z',
     })
   })
 

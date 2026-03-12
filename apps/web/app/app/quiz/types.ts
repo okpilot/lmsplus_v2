@@ -68,6 +68,9 @@ export type DraftData = {
   questionIds: string[]
   answers: Record<string, DraftAnswer>
   currentIndex: number
+  subjectName?: string
+  subjectCode?: string
+  createdAt?: string
 }
 
 export type DraftResult = { success: true } | { success: false; error: string }

@@ -21,6 +21,8 @@ type SessionData = {
   questionIds: string[]
   draftAnswers?: Record<string, DraftAnswer>
   draftCurrentIndex?: number
+  subjectName?: string
+  subjectCode?: string
 }
 
 // Cache parsed session to survive React Strict Mode double-mount
@@ -98,6 +100,8 @@ export function QuizSessionLoader() {
       questions={questions}
       initialAnswers={session.draftAnswers}
       initialIndex={clampedIndex}
+      subjectName={session.subjectName}
+      subjectCode={session.subjectCode}
     />
   )
 }

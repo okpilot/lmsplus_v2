@@ -26,6 +26,8 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
         questionIds: draft.questionIds,
         draftAnswers: draft.answers,
         draftCurrentIndex: draft.currentIndex,
+        subjectName: draft.subjectName,
+        subjectCode: draft.subjectCode,
       }),
     )
     router.push('/app/quiz/session')

@@ -3,11 +3,9 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { Database } from '@repo/db/types'
 import { ZodError, z } from 'zod'
-import type { DraftResult, LoadDraftResult } from '../types'
+import type { DraftResult } from '../types'
 
-type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
 type QuizDraftInsert = Database['public']['Tables']['quiz_drafts']['Insert']
-
 const DraftAnswerSchema = z.object({
   selectedOptionId: z.string().min(1),
   responseTimeMs: z.number().int().nonnegative(),
@@ -18,6 +16,8 @@ const SaveDraftInput = z.object({
   questionIds: z.array(z.string().uuid()).min(1),
   answers: z.record(z.string(), DraftAnswerSchema),
   currentIndex: z.number().int().nonnegative(),
+  subjectName: z.string().optional(),
+  subjectCode: z.string().optional(),
 })
 
 export async function saveDraft(raw: unknown): Promise<DraftResult> {
@@ -38,12 +38,15 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     const row: QuizDraftInsert = {
       student_id: user.id,
       organization_id: orgId,
-      session_config: { sessionId: input.sessionId },
+      session_config: {
+        sessionId: input.sessionId,
+        subjectName: input.subjectName,
+        subjectCode: input.subjectCode,
+      },
       question_ids: input.questionIds,
       answers: input.answers,
       current_index: input.currentIndex,
     }
-
     // Supabase client generics don't resolve quiz_drafts Insert — use typed variable + cast
     const { error } = await supabase
       .from('quiz_drafts' as 'users')
@@ -53,56 +56,12 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
       console.error('[saveDraft] Upsert error:', error.message)
       return { success: false, error: 'Failed to save draft' }
     }
-
     return { success: true }
   } catch (err) {
-    if (err instanceof ZodError) {
+    if (err instanceof ZodError)
       return { success: false, error: err.errors[0]?.message ?? 'Invalid input' }
-    }
     console.error('[saveDraft] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }
-  }
-}
-
-export async function loadDraft(): Promise<LoadDraftResult> {
-  try {
-    const supabase = await createServerSupabaseClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return { draft: null }
-
-    const { data, error } = await supabase
-      .from('quiz_drafts' as 'users')
-      .select('*')
-      .eq('student_id', user.id)
-      .maybeSingle()
-
-    if (error) {
-      console.error('[loadDraft] Query error:', error.message)
-      return { draft: null }
-    }
-
-    if (!data) return { draft: null }
-
-    // Cast from generic row to quiz_drafts row shape
-    const row = data as unknown as QuizDraftRow
-    const config = row.session_config as { sessionId: string }
-    return {
-      draft: {
-        id: row.id,
-        sessionId: config.sessionId,
-        questionIds: row.question_ids,
-        answers: row.answers as Record<
-          string,
-          { selectedOptionId: string; responseTimeMs: number }
-        >,
-        currentIndex: row.current_index,
-      },
-    }
-  } catch (err) {
-    console.error('[loadDraft] Uncaught error:', err)
-    return { draft: null }
   }
 }
 
@@ -113,7 +72,6 @@ export async function deleteDraft(): Promise<{ success: boolean }> {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return { success: false }
-
     // quiz_drafts uses real DELETE (not soft delete) — approved exception for temp storage
     const { error } = await supabase
       .from('quiz_drafts' as 'users')

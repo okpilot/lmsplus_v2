@@ -3,45 +3,42 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { DraftAnswer } from '../../types'
-import { clampIndex } from '../_utils/clamp-index'
 import { saveQuizDraft, submitQuizSession } from './quiz-submit'
 import { useFlaggedQuestions } from './use-flagged-questions'
+import { useQuizNavigation } from './use-quiz-navigation'
 
 export function useQuizState(opts: {
   sessionId: string
   questions: SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
   initialIndex?: number
+  subjectName?: string
+  subjectCode?: string
 }) {
-  const { sessionId, questions, initialAnswers, initialIndex } = opts
+  const { sessionId, questions, initialAnswers } = opts
   const router = useRouter()
-  const [currentIndex, setCurrentIndex] = useState(clampIndex(initialIndex, questions.length))
+  const nav = useQuizNavigation({
+    totalQuestions: questions.length,
+    initialIndex: opts.initialIndex,
+  })
   const [answers, setAnswers] = useState<Map<string, DraftAnswer>>(() =>
     initialAnswers ? new Map(Object.entries(initialAnswers)) : new Map(),
   )
   const { flaggedQuestions, toggleFlag: toggleFlagById } = useFlaggedQuestions()
-  const answerStartTime = useRef(Date.now())
   const submitted = useRef(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
   useNavigationGuard(answers.size > 0 && !submitted.current)
-  const question = questions[currentIndex]
+
+  const question = questions[nav.currentIndex]
   const questionId = question?.id ?? ''
 
   function handleSelectAnswer(optionId: string) {
-    const elapsed = Date.now() - answerStartTime.current
+    const elapsed = Date.now() - nav.answerStartTime.current
     setAnswers((prev) =>
       new Map(prev).set(questionId, { selectedOptionId: optionId, responseTimeMs: elapsed }),
     )
-  }
-
-  function navigateTo(index: number) {
-    if (index >= 0 && index < questions.length) {
-      setCurrentIndex(index)
-      answerStartTime.current = Date.now()
-    }
   }
   async function handleSubmit() {
     setSubmitting(true)
@@ -60,7 +57,15 @@ export function useQuizState(opts: {
     setSubmitting(true)
     setError(null)
     const questionIds = questions.map((q) => q.id)
-    const r = await saveQuizDraft({ sessionId, questionIds, answers, currentIndex, router })
+    const r = await saveQuizDraft({
+      sessionId,
+      questionIds,
+      answers,
+      currentIndex: nav.currentIndex,
+      router,
+      subjectName: opts.subjectName,
+      subjectCode: opts.subjectCode,
+    })
     if (!r.success) {
       setError(r.error)
       setSubmitting(false)
@@ -68,7 +73,7 @@ export function useQuizState(opts: {
   }
 
   return {
-    currentIndex,
+    currentIndex: nav.currentIndex,
     question,
     questionId,
     answeredCount: answers.size,
@@ -81,11 +86,11 @@ export function useQuizState(opts: {
     error,
     showFinishDialog,
     handleSelectAnswer,
-    navigateTo,
+    navigateTo: nav.navigateTo,
     handleSubmit,
     handleSave,
     setShowFinishDialog,
-    navigate: (d: number) => navigateTo(currentIndex + d),
+    navigate: nav.navigate,
     toggleFlag: () => toggleFlagById(questionId),
   }
 }

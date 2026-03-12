@@ -25,6 +25,8 @@ export async function saveQuizDraft(opts: {
   answers: Map<string, DraftAnswer>
   currentIndex: number
   router: AppRouterInstance
+  subjectName?: string
+  subjectCode?: string
 }) {
   const answerObj = Object.fromEntries(opts.answers)
   const result = await saveDraft({
@@ -32,6 +34,8 @@ export async function saveQuizDraft(opts: {
     questionIds: opts.questionIds,
     answers: answerObj,
     currentIndex: opts.currentIndex,
+    subjectName: opts.subjectName,
+    subjectCode: opts.subjectCode,
   })
   if (result.success) {
     opts.router.push('/app/quiz')

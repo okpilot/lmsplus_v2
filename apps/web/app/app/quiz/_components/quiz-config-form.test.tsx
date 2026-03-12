@@ -193,7 +193,12 @@ describe('QuizConfigForm', () => {
 
     expect(sessionStorage.setItem).toHaveBeenCalledWith(
       'quiz-session',
-      JSON.stringify({ sessionId: 'sess-1', questionIds: ['q1'] }),
+      JSON.stringify({
+        sessionId: 'sess-1',
+        questionIds: ['q1'],
+        subjectName: 'Meteorology',
+        subjectCode: 'MET',
+      }),
     )
   })
 
