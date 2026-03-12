@@ -11,6 +11,7 @@ export function ReviewExplainer() {
         type="button"
         onClick={() => setExpanded((e) => !e)}
         className="flex w-full items-center justify-between text-sm font-medium"
+        aria-expanded={expanded}
       >
         <span>How Smart Review works</span>
         <span className="text-muted-foreground">{expanded ? '−' : '+'}</span>

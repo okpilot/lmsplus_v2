@@ -24,7 +24,7 @@
 
 ### 1.4 Elapsed timer in quiz/review — ✅ DONE (2026-03-12)
 - **Problem:** No time tracking during sessions
-- **Solution:** ElapsedTimer component visible during quiz and review sessions
+- **Solution:** SessionTimer component visible during quiz and review sessions
 - **Size:** S
 
 ### 1.5 Loading skeletons — ✅ DONE (2026-03-12)

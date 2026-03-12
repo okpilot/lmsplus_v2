@@ -13,7 +13,7 @@ describe('SessionTimer', () => {
 
   it('renders 0:00 initially', () => {
     render(<SessionTimer />)
-    expect(screen.getByText('0:00')).toBeInTheDocument()
+    expect(screen.getByText('00:00')).toBeInTheDocument()
   })
 
   it('increments after 1 second', () => {
@@ -21,7 +21,7 @@ describe('SessionTimer', () => {
     act(() => {
       vi.advanceTimersByTime(1000)
     })
-    expect(screen.getByText('0:01')).toBeInTheDocument()
+    expect(screen.getByText('00:01')).toBeInTheDocument()
   })
 
   it('shows minutes after 60 seconds', () => {
@@ -29,7 +29,7 @@ describe('SessionTimer', () => {
     act(() => {
       vi.advanceTimersByTime(65000)
     })
-    expect(screen.getByText('1:05')).toBeInTheDocument()
+    expect(screen.getByText('01:05')).toBeInTheDocument()
   })
 
   it('applies custom className', () => {

@@ -3,24 +3,21 @@
 import { useEffect, useRef, useState } from 'react'
 
 export function SessionTimer({ className }: { className?: string }) {
-  const [seconds, setSeconds] = useState(0)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startedAtRef = useRef(Date.now())
+  const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      setSeconds((s) => s + 1)
-    }, 1000)
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
   }, [])
 
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
+  const elapsed = Math.floor((now - startedAtRef.current) / 1000)
+  const mins = Math.floor(elapsed / 60)
+  const secs = elapsed % 60
 
   return (
     <span className={`tabular-nums text-xs text-muted-foreground ${className ?? ''}`}>
-      {mins}:{secs.toString().padStart(2, '0')}
+      {mins.toString().padStart(2, '0')}:{secs.toString().padStart(2, '0')}
     </span>
   )
 }

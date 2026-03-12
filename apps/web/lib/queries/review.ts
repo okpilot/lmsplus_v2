@@ -60,12 +60,17 @@ async function filterBySubjects(
   const questionIds = cards.map((c) => c.questionId)
   if (questionIds.length === 0) return []
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('questions')
     .select('id')
     .in('id' as string & keyof never, questionIds)
     .in('subject_id' as string & keyof never, subjectIds)
     .returns<QuestionIdRow[]>()
+
+  if (error) {
+    console.error('[getDueCards] Subject filter query failed:', error.message)
+    throw new Error('Failed to load due cards')
+  }
 
   const validIds = new Set((data ?? []).map((q) => q.id))
   return cards.filter((c) => validIds.has(c.questionId)).slice(0, limit)

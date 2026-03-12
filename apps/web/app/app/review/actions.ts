@@ -18,12 +18,12 @@ const StartReviewSchema = z.object({ subjectIds: z.array(z.string().uuid()).opti
 
 export async function startReviewSession(raw?: unknown): Promise<StartReviewResult> {
   try {
-    const input = StartReviewSchema.parse(raw ?? {})
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
+    const input = StartReviewSchema.parse(raw ?? {})
 
     const dueCards = await getDueCards({ limit: 20, subjectIds: input.subjectIds })
     const questionIds = dueCards.map((c) => c.questionId)

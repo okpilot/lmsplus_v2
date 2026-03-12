@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-11
+> Last updated: 2026-03-12
 
 ---
 
@@ -79,6 +79,7 @@
   - 005: fix immutable table RLS (restrict to SELECT+INSERT only)
   - 006: drop INSERT policies on immutable answer tables (RPC-only writes)
   - 007: add SECURITY DEFINER to start_quiz_session (required for quiz initialization)
+  - 008: add question_number to get_quiz_questions() RPC return set
 - CSP updated: `connect-src` and `img-src` allow `http://localhost:*` for local dev
 - Image URLs use `localhost:54321` (not `127.0.0.1`) to match browser origin
 - React Strict Mode fix: session loaders cache data to survive double-mount
