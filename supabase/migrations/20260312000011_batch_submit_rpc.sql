@@ -22,6 +22,7 @@ DECLARE
   v_selected_option text;
   v_response_time   int;
   v_results         jsonb := '[]'::jsonb;
+  v_question_ids    uuid[] := '{}';
   v_total           int;
   v_correct_count   int;
   v_score           numeric(5,2);
@@ -43,12 +44,18 @@ BEGIN
     RAISE EXCEPTION 'session not found or already completed';
   END IF;
 
+  -- Guard against empty answers
+  IF jsonb_array_length(p_answers) = 0 THEN
+    RAISE EXCEPTION 'answers must not be empty';
+  END IF;
+
   -- Process each answer
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP
     v_question_id     := (v_answer->>'question_id')::uuid;
     v_selected_option := v_answer->>'selected_option';
     v_response_time   := (v_answer->>'response_time_ms')::int;
+    v_question_ids    := v_question_ids || v_question_id;
 
     -- Get correct answer and explanation
     SELECT
@@ -92,13 +99,14 @@ BEGIN
     );
   END LOOP;
 
-  -- Calculate score
+  -- Calculate score (scoped to batch question IDs only)
   SELECT
     count(*)::int,
     count(*) FILTER (WHERE qsa.is_correct)::int
   INTO v_total, v_correct_count
   FROM quiz_session_answers qsa
-  WHERE qsa.session_id = p_session_id;
+  WHERE qsa.session_id = p_session_id
+    AND qsa.question_id = ANY(v_question_ids);
 
   v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
 

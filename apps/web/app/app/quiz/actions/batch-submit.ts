@@ -69,7 +69,7 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 type AnswerInput = { questionId: string; selectedOptionId: string; responseTimeMs: number }
-type AnswerResult = { isCorrect: boolean }
+type AnswerResult = { questionId: string; isCorrect: boolean }
 
 async function updateFsrsCards(
   supabase: SupabaseClient,
@@ -77,12 +77,12 @@ async function updateFsrsCards(
   answers: AnswerInput[],
   results: AnswerResult[],
 ) {
-  for (let i = 0; i < answers.length; i++) {
-    const answer = answers[i]
-    const answerResult = results[i]
-    if (!answer || !answerResult) continue
+  const resultsByQuestion = new Map(results.map((r) => [r.questionId, r.isCorrect]))
+  for (const answer of answers) {
+    const isCorrect = resultsByQuestion.get(answer.questionId)
+    if (isCorrect === undefined) continue
     try {
-      await updateFsrsCard(supabase, userId, answer.questionId, answerResult.isCorrect)
+      await updateFsrsCard(supabase, userId, answer.questionId, isCorrect)
     } catch (e) {
       console.error('FSRS card update failed (non-fatal):', e)
     }
