@@ -442,7 +442,8 @@ RETURNS TABLE (
   lo_reference          text,
   difficulty            text,
   explanation_text      text,     -- returned ONLY after answer submitted
-  explanation_image_url text
+  explanation_image_url text,
+  question_number       text      -- external ID from source QDB (e.g. '688864')
 )
 LANGUAGE plpgsql
 AS $$
@@ -462,7 +463,8 @@ BEGIN
     q.lo_reference,
     q.difficulty,
     NULL::text AS explanation_text,        -- not returned here
-    NULL::text AS explanation_image_url    -- returned by get_question_explanation after submit
+    NULL::text AS explanation_image_url,   -- returned by get_question_explanation after submit
+    q.question_number
   FROM questions q
   JOIN easa_subjects  s  ON s.id = q.subject_id
   JOIN easa_topics    t  ON t.id = q.topic_id
@@ -471,7 +473,7 @@ BEGIN
   WHERE q.id = ANY(p_question_ids)
     AND q.deleted_at IS NULL
     AND q.status = 'active'
-  GROUP BY q.id, s.code, t.name, st.name;
+  GROUP BY q.id, q.question_text, q.question_image_url, s.code, t.name, st.name, q.lo_reference, q.difficulty, q.question_number;
 END;
 $$;
 ```
@@ -661,7 +663,8 @@ CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
 3. **Never change a column type** without a migration that handles existing data.
 4. **Every migration file is named** `NNN_short_description.sql` — e.g., `001_initial_schema.sql`.
 5. **RLS must be enabled in the same migration as the table creation** — never in a separate file.
-6. **Test every migration** against a local Supabase instance before pushing.
+6. **RPC signature changes require DROP FUNCTION first.** Postgres `CREATE OR REPLACE FUNCTION` cannot change a function's return type or parameter list. If modifying an RPC signature, precede the `CREATE OR REPLACE` with `DROP FUNCTION IF EXISTS function_name(param_types);`
+7. **Test every migration** against a local Supabase instance before pushing.
 
 ---
 
@@ -677,4 +680,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-11 | Companion: docs/security.md*
+*Last updated: 2026-03-12 | Companion: docs/security.md*

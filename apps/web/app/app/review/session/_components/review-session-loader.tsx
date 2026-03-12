@@ -1,5 +1,6 @@
 'use client'
 
+import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { loadSessionQuestions } from './load-questions'
@@ -9,6 +10,7 @@ type Question = {
   id: string
   question_text: string
   question_image_url: string | null
+  question_number: string | null
   options: { id: string; text: string }[]
 }
 
@@ -65,7 +67,21 @@ export function ReviewSessionLoader() {
   }
 
   if (!session || !questions) {
-    return <p className="text-sm text-muted-foreground">Loading questions...</p>
+    return (
+      <div className="mx-auto max-w-2xl space-y-6">
+        <Skeleton className="h-1.5 w-full rounded-full" />
+        <div className="space-y-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-20 w-full rounded-md" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+        </div>
+      </div>
+    )
   }
 
   return <ReviewSession sessionId={session.sessionId} questions={questions} />

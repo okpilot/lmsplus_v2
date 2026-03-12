@@ -1,10 +1,11 @@
 'use server'
 
 import { updateFsrsCard } from '@/lib/fsrs/update-card'
-import { getDueCards, getNewQuestionIds } from '@/lib/queries/review'
+import { getDueCards } from '@/lib/queries/review'
 import { rpc } from '@/lib/supabase-rpc'
 import { CompleteQuizSessionSchema, SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
+import { z } from 'zod'
 import type {
   CompleteReviewResult,
   CompleteRpcResult,
@@ -13,25 +14,21 @@ import type {
   SubmitRpcResult,
 } from './types'
 
-export async function startReviewSession(): Promise<StartReviewResult> {
+const StartReviewSchema = z.object({ subjectIds: z.array(z.string().uuid()).optional() })
+
+export async function startReviewSession(raw?: unknown): Promise<StartReviewResult> {
   try {
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
+    const input = StartReviewSchema.parse(raw ?? {})
 
-    const dueCards = await getDueCards(20)
-    let questionIds = dueCards.map((c) => c.questionId)
-
-    if (questionIds.length < 10) {
-      const newIds = await getNewQuestionIds(20 - questionIds.length)
-      questionIds = [...questionIds, ...newIds]
-    }
-
-    if (questionIds.length === 0) {
+    const dueCards = await getDueCards({ limit: 20, subjectIds: input.subjectIds })
+    const questionIds = dueCards.map((c) => c.questionId)
+    if (questionIds.length === 0)
       return { success: false, error: 'No questions available for review' }
-    }
 
     const { data: sessionId, error } = await rpc<string>(supabase, 'start_quiz_session', {
       p_mode: 'smart_review',
@@ -44,7 +41,6 @@ export async function startReviewSession(): Promise<StartReviewResult> {
       console.error('[startReviewSession] RPC error:', error?.message)
       return { success: false, error: 'Failed to start session' }
     }
-
     return { success: true, sessionId, questionIds }
   } catch (err) {
     console.error('[startReviewSession] Uncaught error:', err)
@@ -53,12 +49,12 @@ export async function startReviewSession(): Promise<StartReviewResult> {
 }
 
 export async function submitReviewAnswer(raw: unknown): Promise<SubmitAnswerResult> {
-  const input = SubmitAnswerSchema.parse(raw)
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
+  const input = SubmitAnswerSchema.parse(raw)
 
   const { data, error } = await rpc<SubmitRpcResult>(supabase, 'submit_quiz_answer', {
     p_session_id: input.sessionId,
@@ -73,7 +69,6 @@ export async function submitReviewAnswer(raw: unknown): Promise<SubmitAnswerResu
   }
 
   const result = data[0]
-  // FSRS scheduling is best-effort — don't fail the answer if it errors
   try {
     await updateFsrsCard(supabase, user.id, input.questionId, result.is_correct)
   } catch (e) {
@@ -90,12 +85,12 @@ export async function submitReviewAnswer(raw: unknown): Promise<SubmitAnswerResu
 }
 
 export async function completeReviewSession(raw: unknown): Promise<CompleteReviewResult> {
-  const input = CompleteQuizSessionSchema.parse(raw)
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
+  const input = CompleteQuizSessionSchema.parse(raw)
 
   const { data, error } = await rpc<CompleteRpcResult>(supabase, 'complete_quiz_session', {
     p_session_id: input.sessionId,

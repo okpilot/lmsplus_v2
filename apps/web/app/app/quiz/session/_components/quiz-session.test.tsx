@@ -16,6 +16,7 @@ const QUESTIONS = [
     id: 'q1',
     question_text: 'What is lift?',
     question_image_url: null,
+    question_number: null,
     options: [
       { id: 'a', text: 'A force' },
       { id: 'b', text: 'A weight' },
@@ -26,6 +27,7 @@ const QUESTIONS = [
     id: 'q2',
     question_text: 'What is drag?',
     question_image_url: null,
+    question_number: null,
     options: [
       { id: 'd', text: 'Air resistance' },
       { id: 'e', text: 'Thrust' },

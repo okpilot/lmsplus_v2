@@ -9,7 +9,14 @@ export type DueCard = {
 type FsrsRow = { question_id: string; due: string; state: string }
 type QuestionIdRow = { id: string }
 
-export async function getDueCards(limit = 20): Promise<DueCard[]> {
+type GetDueCardsOpts = {
+  limit?: number
+  subjectIds?: string[]
+}
+
+export async function getDueCards(opts?: GetDueCardsOpts): Promise<DueCard[]> {
+  const limit = opts?.limit ?? 20
+  const subjectIds = opts?.subjectIds
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
@@ -22,7 +29,7 @@ export async function getDueCards(limit = 20): Promise<DueCard[]> {
     .eq('student_id' as string & keyof never, user.id)
     .lte('due' as string & keyof never, new Date().toISOString())
     .order('due' as string & keyof never, { ascending: true })
-    .limit(limit)
+    .limit(subjectIds?.length ? 500 : limit)
     .returns<FsrsRow[]>()
 
   if (error) {
@@ -30,11 +37,43 @@ export async function getDueCards(limit = 20): Promise<DueCard[]> {
     throw new Error('Failed to load due cards')
   }
 
-  return (data ?? []).map((row) => ({
+  let cards = (data ?? []).map((row) => ({
     questionId: row.question_id,
     due: row.due,
     state: row.state,
   }))
+
+  if (subjectIds?.length) {
+    cards = await filterBySubjects(supabase, cards, subjectIds, limit)
+  }
+
+  return cards
+}
+
+/** 4 params: each maps to a distinct role (client, data, filter, cap) */
+async function filterBySubjects(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  cards: DueCard[],
+  subjectIds: string[],
+  limit: number,
+): Promise<DueCard[]> {
+  const questionIds = cards.map((c) => c.questionId)
+  if (questionIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('questions')
+    .select('id')
+    .in('id' as string & keyof never, questionIds)
+    .in('subject_id' as string & keyof never, subjectIds)
+    .returns<QuestionIdRow[]>()
+
+  if (error) {
+    console.error('[getDueCards] Subject filter query failed:', error.message)
+    throw new Error('Failed to load due cards')
+  }
+
+  const validIds = new Set((data ?? []).map((q) => q.id))
+  return cards.filter((c) => validIds.has(c.questionId)).slice(0, limit)
 }
 
 export async function getNewQuestionIds(limit = 20): Promise<string[]> {

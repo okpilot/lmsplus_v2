@@ -54,13 +54,14 @@ describe('ReviewSessionLoader', () => {
     })
   })
 
-  it('shows loading state while questions are being fetched', () => {
+  it('shows loading skeletons while questions are being fetched', () => {
     sessionStorage.setItem('review-session', JSON.stringify(SESSION_DATA))
     mockLoadSessionQuestions.mockReturnValue(new Promise(() => {}))
 
-    render(<ReviewSessionLoader />)
+    const { container } = render(<ReviewSessionLoader />)
 
-    expect(screen.getByText('Loading questions...')).toBeInTheDocument()
+    const skeletons = container.querySelectorAll('.animate-pulse')
+    expect(skeletons.length).toBeGreaterThan(0)
   })
 
   it('shows an error message when loadSessionQuestions fails', async () => {

@@ -55,14 +55,16 @@ describe('QuizSessionLoader', () => {
     })
   })
 
-  it('shows loading state while questions are being fetched', () => {
+  it('shows loading skeletons while questions are being fetched', () => {
     sessionStorage.setItem('quiz-session', JSON.stringify(SESSION_DATA))
     // Return a promise that never resolves so we can observe the loading state
     mockLoadSessionQuestions.mockReturnValue(new Promise(() => {}))
 
-    render(<QuizSessionLoader />)
+    const { container } = render(<QuizSessionLoader />)
 
-    expect(screen.getByText('Loading questions...')).toBeInTheDocument()
+    // Skeleton elements have the animate-pulse class
+    const skeletons = container.querySelectorAll('.animate-pulse')
+    expect(skeletons.length).toBeGreaterThan(0)
   })
 
   it('shows an error message when loadSessionQuestions fails', async () => {

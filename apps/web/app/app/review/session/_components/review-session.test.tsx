@@ -16,6 +16,7 @@ const QUESTIONS = [
     id: 'q1',
     question_text: 'What causes turbulence?',
     question_image_url: null,
+    question_number: null,
     options: [
       { id: 'a', text: 'Wind shear' },
       { id: 'b', text: 'Gravity' },
@@ -25,6 +26,7 @@ const QUESTIONS = [
     id: 'q2',
     question_text: 'What is METAR?',
     question_image_url: null,
+    question_number: null,
     options: [
       { id: 'c', text: 'Weather report' },
       { id: 'd', text: 'Flight plan' },

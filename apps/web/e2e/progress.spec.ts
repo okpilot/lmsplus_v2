@@ -38,7 +38,7 @@ test('progress page updates after completing a quiz', async ({ page }) => {
     await page.getByRole('button', { name: /Next Question/ }).click()
   }
 
-  await expect(page.getByText('Quick Quiz Complete')).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText('Quiz Complete')).toBeVisible({ timeout: 10_000 })
 
   // 3. Check progress again — the answered count should have changed
   await page.goto('/app/progress')

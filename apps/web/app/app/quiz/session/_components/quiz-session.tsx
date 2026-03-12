@@ -4,6 +4,7 @@ import { AnswerOptions } from '@/app/app/_components/answer-options'
 import { FeedbackPanel } from '@/app/app/_components/feedback-panel'
 import { QuestionCard } from '@/app/app/_components/question-card'
 import { SessionSummary } from '@/app/app/_components/session-summary'
+import { SessionTimer } from '@/app/app/_components/session-timer'
 import { useEffect, useRef, useState } from 'react'
 import { completeQuiz, submitQuizAnswer } from '../../actions'
 import type { SubmitQuizAnswerResult } from '../../types'
@@ -12,14 +13,13 @@ type Question = {
   id: string
   question_text: string
   question_image_url: string | null
+  question_number: string | null
   options: { id: string; text: string }[]
 }
-
 type QuizSessionProps = {
   sessionId: string
   questions: Question[]
 }
-
 type SessionState = 'answering' | 'feedback' | 'complete'
 
 export function QuizSession({ sessionId, questions }: QuizSessionProps) {
@@ -34,9 +34,7 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
   const answerStartTime = useRef(Date.now())
 
   useEffect(() => {
-    if (state === 'answering') {
-      answerStartTime.current = Date.now()
-    }
+    if (state === 'answering') answerStartTime.current = Date.now()
   }, [state])
 
   const question = questions[currentIndex]
@@ -48,7 +46,6 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
     setSubmitting(true)
     setSelectedOption(selectedId)
     const responseTimeMs = Date.now() - answerStartTime.current
-
     let result: SubmitQuizAnswerResult
     try {
       result = await submitQuizAnswer({
@@ -63,7 +60,6 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
       setSubmitting(false)
       return
     }
-
     if (!result.success) {
       setError(result.error)
       setSubmitting(false)
@@ -71,9 +67,7 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
     }
     setError(null)
     setFeedback(result)
-    if (result.isCorrect) {
-      setCorrectCount((c) => c + 1)
-    }
+    if (result.isCorrect) setCorrectCount((c) => c + 1)
     setState('feedback')
     setSubmitting(false)
   }
@@ -119,27 +113,28 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div className="h-1.5 w-full rounded-full bg-muted">
-        <div
-          data-testid="progress-bar"
-          className="h-1.5 rounded-full bg-primary transition-all"
-          style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
-        />
+      <div className="flex items-center gap-3">
+        <div className="h-1.5 flex-1 rounded-full bg-muted">
+          <div
+            data-testid="progress-bar"
+            className="h-1.5 rounded-full bg-primary transition-all"
+            style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+          />
+        </div>
+        <SessionTimer />
       </div>
-
       <QuestionCard
         questionText={question.question_text}
         questionImageUrl={question.question_image_url}
         questionNumber={currentIndex + 1}
         totalQuestions={questions.length}
+        dbQuestionNumber={question.question_number}
       />
-
       {error && (
         <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
-
       <AnswerOptions
         options={question.options}
         onSubmit={handleSubmit}
@@ -147,7 +142,6 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
         correctOptionId={feedbackData?.correctOptionId}
         selectedOptionId={feedbackData ? selectedOption : null}
       />
-
       {state === 'feedback' && feedbackData && (
         <FeedbackPanel
           isCorrect={feedbackData.isCorrect}

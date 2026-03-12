@@ -89,7 +89,64 @@ describe('getDueCards', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockFromSequence({ data: [] })
     // Simply verify the function accepts a custom limit without error
-    await expect(getDueCards(5)).resolves.toEqual([])
+    await expect(getDueCards({ limit: 5 })).resolves.toEqual([])
+  })
+
+  it('throws when the fsrs_cards query returns an error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFromSequence({ data: null, error: { message: 'permission denied' } })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(getDueCards()).rejects.toThrow('Failed to load due cards')
+    consoleSpy.mockRestore()
+  })
+
+  it('returns empty array when subject filter matches no cards', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFromSequence(
+      {
+        data: [{ question_id: 'q1', due: '2026-03-10T00:00:00Z', state: 'review' }],
+      },
+      { data: [] }, // no questions match the subject
+    )
+
+    const result = await getDueCards({ subjectIds: ['subj-99'] })
+    expect(result).toEqual([])
+  })
+
+  it('throws when the subject filter query returns an error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFromSequence(
+      {
+        data: [{ question_id: 'q1', due: '2026-03-10T00:00:00Z', state: 'review' }],
+      },
+      { data: null, error: { message: 'permission denied for table questions' } },
+    )
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(getDueCards({ subjectIds: ['subj-1'] })).rejects.toThrow(
+      'Failed to load due cards',
+    )
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[getDueCards] Subject filter query failed:',
+      'permission denied for table questions',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('filters cards by subject when subjectIds are provided', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFromSequence(
+      {
+        data: [
+          { question_id: 'q1', due: '2026-03-10T00:00:00Z', state: 'review' },
+          { question_id: 'q2', due: '2026-03-09T00:00:00Z', state: 'learning' },
+        ],
+      },
+      { data: [{ id: 'q1' }] },
+    )
+
+    const result = await getDueCards({ subjectIds: ['subj-1'] })
+    expect(result).toHaveLength(1)
+    expect(result[0]!.questionId).toBe('q1')
   })
 })
 

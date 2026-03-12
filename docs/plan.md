@@ -2,11 +2,11 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-11
+> Last updated: 2026-03-12
 
 ---
 
-## Status: PHASE 5B-6 COMPLETE — CodeRabbit findings addressed
+## Status: SPRINT 1 COMPLETE — Quick Wins shipped
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
 
@@ -53,15 +53,15 @@
 
 **Phase 5 done (2026-03-11):** Question Bank Trainer (MVP 2):
 - Dashboard (`/app/dashboard`) — subject progress grid, due reviews banner, recent sessions
-- Smart Review (`/app/review`) — FSRS-powered spaced repetition, start session, review due cards + new questions
-- Quick Quiz (`/app/quiz`) — subject selector, question count, randomized quiz mode
+- Smart Review (`/app/review`) — FSRS-powered spaced repetition, start session, review due cards only; explainer component; subject filter (optional)
+- Quiz (`/app/quiz`) — subject selector, question count, randomized quiz mode
 - Progress (`/app/progress`) — detailed breakdown by subject/topic with mastery percentages
 - Shared components: QuestionCard, AnswerOptions, FeedbackPanel, SessionSummary
 - Sidebar navigation for all modes
 - Server Actions: startQuizSession, submitQuizAnswer, completeQuiz, startReviewSession, submitReviewAnswer, completeReviewSession
-- Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData, getDueCards, getNewQuestionIds
+- Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData, getDueCards
 - FSRS integration via `packages/db/src/fsrs.ts` — wraps ts-fsrs library, updateFsrsCard on answer
-- UI components (shadcn): Badge, Card, Progress
+- UI components (shadcn): Badge, Card, Progress, Skeleton
 - Tests written for auth flow, middleware, server actions
 - Session state machine: answering → feedback → complete
 - Dark mode: next-themes provider, system default, toggle in header
@@ -79,6 +79,7 @@
   - 005: fix immutable table RLS (restrict to SELECT+INSERT only)
   - 006: drop INSERT policies on immutable answer tables (RPC-only writes)
   - 007: add SECURITY DEFINER to start_quiz_session (required for quiz initialization)
+  - 008: add question_number to get_quiz_questions() RPC return set
 - CSP updated: `connect-src` and `img-src` allow `http://localhost:*` for local dev
 - Image URLs use `localhost:54321` (not `127.0.0.1`) to match browser origin
 - React Strict Mode fix: session loaders cache data to survive double-mount
@@ -129,6 +130,20 @@
 - **RLS hardened:** Migration 006 drops INSERT policies on immutable answer tables (`quiz_session_answers`, `student_responses`) — writes only via SECURITY DEFINER RPCs
 - **Docs updated:** security.md and database.md reflect immutable table policy pattern (RPC-only writes, no direct client inserts)
 - Migration 005 (`quiz_session_answers` → `quiz_sessions` FK) moved; `020260311000006` is the immutable INSERT restriction
+
+**Phase 6-Sprint1 complete (2026-03-12):** Quick Wins — all 10 backlog items (1.1–1.10) done in 8 commits on `feat/sprint-1-quick-wins`:
+- ✅ Renamed "Quick Quiz" → "Quiz" throughout UI (sidebar, page heading, session summary, recent sessions list)
+- ✅ Simplified Smart Review: removed new question supplementation logic (now review-only — only due cards)
+- ✅ Added ReviewExplainer component — collapsible "How Smart Review works" panel explaining spaced repetition + recommended 10–15 min daily usage
+- ✅ Migration 008: added `question_number` to `get_quiz_questions()` RPC return set
+- ✅ MarkdownText component (`react-markdown` + `remark-gfm`) for questions and explanations
+- ✅ ZoomableImage component (click-to-expand lightbox via `@base-ui/react/dialog`)
+- ✅ Question number displayed in quiz and review session UI
+- ✅ Elapsed timer component visible during quiz and review sessions
+- ✅ Loading skeletons: Skeleton UI component, `loading.tsx` files for dashboard/quiz/review/progress, skeleton states in session loaders
+- ✅ Subject selector on Smart Review: `ReviewConfigForm` with subject checkboxes; `getDueCards` accepts `{ limit?, subjectIds? }` options object
+- ✅ Mobile navigation drawer: hamburger menu below `md` breakpoint, slide-out drawer with nav links via `@base-ui/react/dialog`, auto-closes on route change
+- Tests updated for renamed labels; new test files for ReviewExplainer, MarkdownText, ZoomableImage, MobileNav
 
 ---
 
@@ -316,9 +331,9 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 ```
 /app/
 ├── dashboard/              ← progress overview, due reviews, recent sessions
-├── review/                 ← Smart Review (FSRS)
+├── review/                 ← Smart Review (FSRS-powered spaced repetition)
 │   └── session/            ← active review session
-├── quiz/                   ← Quick Quiz config (subject, count, difficulty)
+├── quiz/                   ← Quiz config (subject, count, randomized mode)
 │   └── session/            ← active quiz session
 └── progress/               ← detailed progress per subject/topic/subtopic
 ```
@@ -438,4 +453,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-11 — Phase 5B-6 complete, Phase 6 backlog documented from user feedback*
+*Last updated: 2026-03-12 — Sprint 1 (Quick Wins) complete, all 10 backlog items shipped*
