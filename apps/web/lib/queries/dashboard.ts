@@ -32,7 +32,9 @@ export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
   const [dueCards, subjects, responses, recentSessions] = await Promise.all([

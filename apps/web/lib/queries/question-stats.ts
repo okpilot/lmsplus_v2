@@ -23,7 +23,9 @@ export async function getQuestionStats(questionId: string): Promise<QuestionStat
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
   const [responseCounts, fsrsCard, lastResponse] = await Promise.all([

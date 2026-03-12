@@ -29,7 +29,9 @@ export async function getAllSessions(): Promise<SessionReport[]> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
   const { data: sessions, error: sessionsError } = await supabase
