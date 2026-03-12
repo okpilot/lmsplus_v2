@@ -93,6 +93,27 @@ vi.mock('@/app/app/_components/session-timer', () => ({
   SessionTimer: () => <span data-testid="session-timer">00:00</span>,
 }))
 
+vi.mock('../../_components/question-grid', () => ({
+  QuestionGrid: ({
+    onNavigate,
+    currentIndex,
+  }: {
+    totalQuestions: number
+    currentIndex: number
+    answeredIds: Set<string>
+    flaggedIds: Set<string>
+    questionIds: string[]
+    onNavigate: (index: number) => void
+  }) => (
+    <div data-testid="question-grid">
+      <button type="button" data-testid="grid-nav-2" onClick={() => onNavigate(2)}>
+        Go to 3
+      </button>
+      <span data-testid="grid-current">{currentIndex}</span>
+    </div>
+  ),
+}))
+
 vi.mock('./quiz-nav-bar', () => ({
   QuizNavBar: ({
     currentIndex,
@@ -320,5 +341,32 @@ describe('QuizSession', () => {
 
     // Answer should still be selected
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
+  })
+
+  it('renders the question grid', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    expect(screen.getByTestId('question-grid')).toBeInTheDocument()
+  })
+
+  it('navigates to a question via the grid', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    fireEvent.click(screen.getByTestId('grid-nav-2'))
+    expect(screen.getByTestId('question-text')).toHaveTextContent('What is weight?')
+    expect(screen.getByTestId('question-number')).toHaveTextContent('3')
+  })
+
+  it('toggles flag state on the current question', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    const flagBtn = screen.getByTestId('flag-button')
+    expect(flagBtn).toHaveTextContent('Flag')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(flagBtn)
+    expect(flagBtn).toHaveTextContent('Unflag')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(flagBtn)
+    expect(flagBtn).toHaveTextContent('Flag')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
   })
 })
