@@ -1,0 +1,38 @@
+import { renderHook } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useNavigationGuard } from './use-navigation-guard'
+
+describe('useNavigationGuard', () => {
+  const originalAdd = window.addEventListener
+  const originalRemove = window.removeEventListener
+  let addMock: ReturnType<typeof vi.fn>
+  let removeMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    addMock = vi.fn()
+    removeMock = vi.fn()
+    window.addEventListener = addMock as unknown as typeof window.addEventListener
+    window.removeEventListener = removeMock as unknown as typeof window.removeEventListener
+  })
+
+  afterEach(() => {
+    window.addEventListener = originalAdd
+    window.removeEventListener = originalRemove
+  })
+
+  it('attaches beforeunload handler when shouldBlock is true', () => {
+    renderHook(() => useNavigationGuard(true))
+    expect(addMock).toHaveBeenCalledWith('beforeunload', expect.any(Function))
+  })
+
+  it('does not attach handler when shouldBlock is false', () => {
+    renderHook(() => useNavigationGuard(false))
+    expect(addMock).not.toHaveBeenCalled()
+  })
+
+  it('removes handler on unmount', () => {
+    const { unmount } = renderHook(() => useNavigationGuard(true))
+    unmount()
+    expect(removeMock).toHaveBeenCalledWith('beforeunload', expect.any(Function))
+  })
+})

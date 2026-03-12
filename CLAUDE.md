@@ -49,6 +49,8 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 - `docs/database.md` — full schema + RPC patterns (binding)
 - `docs/security.md` — security rules (binding)
 - `.claude/rules/code-style.md` — file size limits, component rules (binding)
+- `.claude/rules/agent-workflow.md` — pipeline order, orchestrator DO/NEVER (binding)
+- `.claude/rules/agent-*.md` — per-agent handling rules with DO/NEVER (binding)
 
 ## Stack
 - Next.js App Router (`apps/web/`) + Tailwind v4 + shadcn/ui

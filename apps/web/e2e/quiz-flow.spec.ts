@@ -29,38 +29,39 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
   await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })
 
-  // 6. Answer all 3 questions
+  // 6. Answer all 3 questions (deferred writes — no per-answer feedback)
   for (let i = 0; i < 3; i++) {
-    // Wait for question text to appear
     await expect(page.getByText(`Question ${i + 1}`)).toBeVisible()
 
-    // Click the first answer option (buttons with rounded-full letter badges)
+    // Click the first answer option
     const answerButtons = page.locator('button:has(span.rounded-full)')
-    const firstAnswer = answerButtons.first()
-    await firstAnswer.waitFor({ state: 'visible' })
-    await firstAnswer.click()
+    await answerButtons.first().waitFor({ state: 'visible' })
+    await answerButtons.first().click()
 
-    // Click Submit Answer
+    // Click Submit Answer (locks selection locally, no server call)
     await page.getByRole('button', { name: 'Submit Answer' }).click()
 
-    // Wait for feedback panel
-    await expect(page.getByText(/Correct!|Incorrect/).first()).toBeVisible({ timeout: 5_000 })
-
-    // Click Next Question (or wait for summary on last question)
+    // Navigate to next question (or finish on the last one)
     if (i < 2) {
-      await page.getByRole('button', { name: /Next Question/ }).click()
-    } else {
-      await page.getByRole('button', { name: /Next Question/ }).click()
+      await page.getByRole('button', { name: 'Next' }).click()
     }
   }
 
-  // 7. Should show session summary
-  await expect(page.getByText('Quiz Complete')).toBeVisible({ timeout: 10_000 })
-  await expect(page.getByText('%')).toBeVisible() // score percentage
-  await expect(page.getByRole('link', { name: 'Back to Dashboard' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Start Another' })).toBeVisible()
+  // 7. Wait for all answers to flush, then open finish dialog and submit
+  await expect(page.locator('[data-testid="progress-bar"]')).toHaveAttribute('style', /100%/)
+  await page.getByRole('button', { name: 'Finish Test' }).click()
+  await expect(page.getByRole('dialog', { name: 'Finish quiz' })).toBeVisible()
+  await page.getByRole('button', { name: 'Submit Quiz' }).click()
 
-  // 8. Navigate back to dashboard
+  // 8. Should redirect to quiz report page
+  await page.waitForURL('**/app/quiz/report**', { timeout: 10_000 })
+  await expect(page.getByRole('heading', { name: 'Quiz Report' })).toBeVisible()
+  await expect(page.getByText('Your Score')).toBeVisible()
+  await expect(page.locator('.text-5xl').getByText(/\d+%/)).toBeVisible() // score percentage
+  await expect(page.getByRole('link', { name: 'Back to Dashboard' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Start Another Quiz' })).toBeVisible()
+
+  // 9. Navigate back to dashboard
   await page.getByRole('link', { name: 'Back to Dashboard' }).click()
   await page.waitForURL('**/app/dashboard')
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()

@@ -20,6 +20,8 @@ type FsrsCardRow = {
   lapses: number
   state: string
   last_review: string | null
+  last_was_correct: boolean | null
+  consecutive_correct_count: number | null
 }
 
 /**
@@ -35,7 +37,7 @@ export async function updateFsrsCard(
   const { data: existing, error: cardError } = await supabase
     .from('fsrs_cards')
     .select(
-      'due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, last_review',
+      'due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, last_review, last_was_correct, consecutive_correct_count',
     )
     .eq('student_id' as string & keyof never, userId)
     .eq('question_id' as string & keyof never, questionId)
@@ -68,6 +70,8 @@ export async function updateFsrsCard(
         lapses: next.lapses,
         state: stateToString(next.state),
         last_review: new Date().toISOString(),
+        last_was_correct: isCorrect,
+        consecutive_correct_count: isCorrect ? (existing?.consecutive_correct_count ?? 0) + 1 : 0,
       },
       { onConflict: 'student_id,question_id' },
     )

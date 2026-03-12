@@ -1,155 +1,151 @@
 'use client'
 
 import { AnswerOptions } from '@/app/app/_components/answer-options'
-import { FeedbackPanel } from '@/app/app/_components/feedback-panel'
 import { QuestionCard } from '@/app/app/_components/question-card'
-import { SessionSummary } from '@/app/app/_components/session-summary'
+import type { SessionQuestion } from '@/app/app/_components/session-runner'
 import { SessionTimer } from '@/app/app/_components/session-timer'
-import { useEffect, useRef, useState } from 'react'
-import { completeQuiz, submitQuizAnswer } from '../../actions'
-import type { SubmitQuizAnswerResult } from '../../types'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { CommentsTab } from '../../_components/comments-tab'
+import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
+import { QuestionGrid } from '../../_components/question-grid'
+import { QuestionTabs } from '../../_components/question-tabs'
+import { StatisticsTab } from '../../_components/statistics-tab'
+import type { DraftAnswer } from '../../types'
+import { useQuizState } from '../_hooks/use-quiz-state'
+import { QuizNavBar } from './quiz-nav-bar'
 
-type Question = {
-  id: string
-  question_text: string
-  question_image_url: string | null
-  question_number: string | null
-  options: { id: string; text: string }[]
-}
 type QuizSessionProps = {
   sessionId: string
-  questions: Question[]
+  questions: SessionQuestion[]
+  initialAnswers?: Record<string, DraftAnswer>
+  initialIndex?: number
+  subjectName?: string
+  subjectCode?: string
 }
-type SessionState = 'answering' | 'feedback' | 'complete'
 
-export function QuizSession({ sessionId, questions }: QuizSessionProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [state, setState] = useState<SessionState>('answering')
-  const [feedback, setFeedback] = useState<SubmitQuizAnswerResult | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [selectedOption, setSelectedOption] = useState<string | null>(null)
-  const [correctCount, setCorrectCount] = useState(0)
-  const [scorePercentage, setScorePercentage] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-  const answerStartTime = useRef(Date.now())
+export function QuizSession(props: QuizSessionProps) {
+  const s = useQuizState(props)
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState<
+    'question' | 'explanation' | 'comments' | 'statistics'
+  >('question')
 
+  // Reset tab to 'question' when navigating between questions — not data fetching
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger on index change
   useEffect(() => {
-    if (state === 'answering') answerStartTime.current = Date.now()
-  }, [state])
+    setActiveTab('question')
+  }, [s.currentIndex])
 
-  const question = questions[currentIndex]
-  if (!question) return null
-
-  async function handleSubmit(selectedId: string) {
-    const q = questions[currentIndex]
-    if (!q) return
-    setSubmitting(true)
-    setSelectedOption(selectedId)
-    const responseTimeMs = Date.now() - answerStartTime.current
-    let result: SubmitQuizAnswerResult
-    try {
-      result = await submitQuizAnswer({
-        sessionId,
-        questionId: q.id,
-        selectedOptionId: selectedId,
-        responseTimeMs,
-      })
-    } catch (err) {
-      console.error('Failed to submit answer:', err)
-      setError('Something went wrong. Please try again.')
-      setSubmitting(false)
-      return
-    }
-    if (!result.success) {
-      setError(result.error)
-      setSubmitting(false)
-      return
-    }
-    setError(null)
-    setFeedback(result)
-    if (result.isCorrect) setCorrectCount((c) => c + 1)
-    setState('feedback')
-    setSubmitting(false)
-  }
-
-  async function handleNext() {
-    setError(null)
-    if (currentIndex + 1 >= questions.length) {
-      let result: Awaited<ReturnType<typeof completeQuiz>>
-      try {
-        result = await completeQuiz({ sessionId })
-      } catch (err) {
-        console.error('Failed to complete quiz:', err)
-        setError('Something went wrong. Please try again.')
-        return
+  function handleExit() {
+    if (s.answeredCount > 0) {
+      if (window.confirm('You have unsaved answers. Leave quiz?')) {
+        router.push('/app/quiz')
       }
-      if (!result.success) {
-        setError(result.error)
-        return
-      }
-      setCorrectCount(result.correctCount)
-      setScorePercentage(result.scorePercentage)
-      setState('complete')
     } else {
-      setCurrentIndex((i) => i + 1)
-      setFeedback(null)
-      setSelectedOption(null)
-      setState('answering')
+      router.push('/app/quiz')
     }
   }
 
-  if (state === 'complete') {
-    return (
-      <SessionSummary
-        totalQuestions={questions.length}
-        correctCount={correctCount}
-        scorePercentage={scorePercentage}
-        mode="quick_quiz"
-      />
-    )
-  }
-
-  const feedbackData = feedback?.success ? feedback : null
+  if (!s.question) return null
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="h-1.5 flex-1 rounded-full bg-muted">
-          <div
-            data-testid="progress-bar"
-            className="h-1.5 rounded-full bg-primary transition-all"
-            style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
-          />
-        </div>
-        <SessionTimer />
-      </div>
-      <QuestionCard
-        questionText={question.question_text}
-        questionImageUrl={question.question_image_url}
-        questionNumber={currentIndex + 1}
-        totalQuestions={questions.length}
-        dbQuestionNumber={question.question_number}
-      />
-      {error && (
-        <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-      <AnswerOptions
-        options={question.options}
-        onSubmit={handleSubmit}
-        disabled={submitting || state === 'feedback'}
-        correctOptionId={feedbackData?.correctOptionId}
-        selectedOptionId={feedbackData ? selectedOption : null}
-      />
-      {state === 'feedback' && feedbackData && (
-        <FeedbackPanel
-          isCorrect={feedbackData.isCorrect}
-          explanationText={feedbackData.explanationText}
-          explanationImageUrl={feedbackData.explanationImageUrl}
-          onNext={handleNext}
+    <div className="flex flex-col gap-4 md:flex-row">
+      <div className="shrink-0 md:w-48">
+        <QuestionGrid
+          totalQuestions={props.questions.length}
+          currentIndex={s.currentIndex}
+          answeredIds={s.answeredIds}
+          flaggedIds={s.flaggedQuestions}
+          questionIds={s.questionIds}
+          onNavigate={s.navigateTo}
         />
-      )}
+      </div>
+      <div className="mx-auto w-full max-w-2xl space-y-6">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            data-testid="exit-button"
+            onClick={handleExit}
+            className="rounded-lg border border-input p-2 text-muted-foreground transition-colors hover:bg-muted"
+            aria-label="Exit quiz"
+          >
+            ✕
+          </button>
+          <div className="h-1.5 flex-1 rounded-full bg-muted">
+            <div
+              data-testid="progress-bar"
+              className="h-1.5 rounded-full bg-primary transition-all"
+              style={{ width: `${(s.answeredCount / props.questions.length) * 100}%` }}
+            />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {s.answeredCount}/{props.questions.length}
+          </span>
+          <SessionTimer />
+        </div>
+        <QuestionCard
+          questionText={s.question.question_text}
+          questionImageUrl={s.question.question_image_url}
+          questionNumber={s.currentIndex + 1}
+          totalQuestions={props.questions.length}
+          dbQuestionNumber={s.question.question_number}
+        />
+        {s.error && (
+          <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {s.error}
+          </div>
+        )}
+        <AnswerOptions
+          options={s.question.options}
+          onSubmit={s.handleSelectAnswer}
+          disabled={s.submitting}
+          selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
+        />
+        <QuestionTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          hasAnswered={!!s.existingAnswer}
+          hiddenTabs={['explanation']}
+        />
+        {activeTab === 'comments' && <CommentsTab />}
+        {activeTab === 'statistics' && (
+          <StatisticsTab questionId={s.questionId} hasAnswered={!!s.existingAnswer} />
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            data-testid="flag-button"
+            onClick={s.toggleFlag}
+            className={
+              s.isFlagged
+                ? 'rounded-lg border border-yellow-400 bg-yellow-100 px-3 py-2 text-sm font-medium text-yellow-700 transition-colors dark:border-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+                : 'rounded-lg border border-input px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted'
+            }
+            aria-pressed={s.isFlagged}
+          >
+            {s.isFlagged ? 'Unflag' : 'Flag'}
+          </button>
+          <div className="flex-1">
+            <QuizNavBar
+              currentIndex={s.currentIndex}
+              totalQuestions={props.questions.length}
+              onPrev={() => s.navigate(-1)}
+              onNext={() => s.navigate(1)}
+              onFinish={() => s.setShowFinishDialog(true)}
+            />
+          </div>
+        </div>
+        <FinishQuizDialog
+          open={s.showFinishDialog}
+          answeredCount={s.answeredCount}
+          totalQuestions={props.questions.length}
+          submitting={s.submitting}
+          onSubmit={s.handleSubmit}
+          onCancel={() => s.setShowFinishDialog(false)}
+          onSave={s.handleSave}
+        />
+      </div>
     </div>
   )
 }

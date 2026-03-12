@@ -26,6 +26,39 @@
 
 ## Patterns established
 
+### Testing async module initialisation with next/headers (packages/db, 2026-03-12)
+When `server.ts` (or similar) calls `await cookies()` from `next/headers`, mock both
+`@supabase/ssr` and `next/headers` via `vi.hoisted`, then use top-level `await import()`
+to load the module under test after mocks are registered:
+
+```ts
+const { mockCreateServerClient, mockCookiesGetAll, mockCookiesSet } = vi.hoisted(() => ({
+  mockCreateServerClient: vi.fn(),
+  mockCookiesGetAll: vi.fn(),
+  mockCookiesSet: vi.fn(),
+}))
+
+vi.mock('@supabase/ssr', () => ({ createServerClient: mockCreateServerClient }))
+vi.mock('next/headers', () => ({
+  cookies: vi.fn().mockResolvedValue({
+    getAll: mockCookiesGetAll,
+    set: mockCookiesSet,
+  }),
+}))
+
+const { createServerSupabaseClient } = await import('./server')
+```
+
+### Verifying silent error suppression in try/catch
+To assert a catch block silently suppresses errors (no rethrow), make the mock throw,
+then call the adapter and assert `.not.toThrow()`:
+
+```ts
+mockCookiesSet.mockImplementation(() => { throw new Error('read-only') })
+const cookiesConfig = mockCreateServerClient.mock.calls[0]?.[2].cookies
+expect(() => cookiesConfig.setAll([...])).not.toThrow()
+```
+
 ### Mocking Supabase client (browser / 'use client' components)
 ```ts
 const mockSignInWithOtp = vi.fn()
@@ -61,6 +94,28 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
 }))
 ```
+
+### Mocking Server Actions in hook tests (2026-03-12)
+Server Actions ('use server' files) must be mocked at the module path — the same
+import path used in the hook under test. Use vi.hoisted + spread args pattern:
+```ts
+const { mockStartQuizSession } = vi.hoisted(() => ({ mockStartQuizSession: vi.fn() }))
+vi.mock('../actions/start', () => ({
+  startQuizSession: (...args: unknown[]) => mockStartQuizSession(...args),
+}))
+```
+This avoids TypeScript overload resolution issues while keeping the mock callable.
+
+### Mocking sessionStorage in jsdom
+jsdom provides a real sessionStorage but `vi.stubGlobal` can replace it for inspection:
+```ts
+const storage: Record<string, string> = {}
+vi.stubGlobal('sessionStorage', {
+  setItem: (key: string, value: string) => { storage[key] = value },
+  getItem: (key: string) => storage[key] ?? null,
+})
+```
+Use this when the test needs to assert that specific keys/values were stored.
 
 ### Mocking next/link in tests
 ```tsx
@@ -823,3 +878,324 @@ Their Zod tests correctly use `.rejects.toThrow(ZodError)` rather than checking 
 
 ### Suite state after this commit
 40 test files, 338 tests — all passing.
+
+---
+
+## Files tested in commit 97ab4ac (SessionRunner + AppShell + shared load-session-questions)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/_components/session-runner.tsx` | `session-runner.test.tsx` | New in this commit; 11 tests — happy path, next question, summary, all error branches |
+| `apps/web/lib/queries/load-session-questions.ts` | `load-session-questions.test.ts` | Moved from review folder; 6 tests — ordering, field mapping, RPC error, empty data |
+| `apps/web/app/app/_components/app-shell.tsx` | `app-shell.test.tsx` | New in this commit; 6 tests — normal layout, fullscreen mode, display name, brand name |
+| `apps/web/app/app/quiz/session/_components/quiz-session.tsx` | `quiz-session.test.tsx` | Now a thin wrapper — 1 wiring test; full logic tested via SessionRunner |
+| `apps/web/app/app/review/session/_components/review-session.tsx` | `review-session.test.tsx` | Now a thin wrapper — 1 wiring test; full logic tested via SessionRunner |
+
+### AppShell: usePathname-based fullscreen branch
+`AppShell` uses `usePathname()` to detect session routes and switch between full-layout
+and bare fullscreen mode. Test pattern:
+```tsx
+const { mockUsePathname } = vi.hoisted(() => ({
+  mockUsePathname: vi.fn<() => string>(),
+}))
+vi.mock('next/navigation', () => ({ usePathname: mockUsePathname }))
+
+// Mock all child components that have their own dependencies
+vi.mock('./mobile-nav', () => ({ MobileNav: () => <div data-testid="mobile-nav" /> }))
+vi.mock('./sidebar-nav', () => ({ SidebarNav: () => <nav data-testid="sidebar-nav" /> }))
+vi.mock('./sign-out-button', () => ({ SignOutButton: () => <button type="button">Sign out</button> }))
+vi.mock('./theme-toggle', () => ({ ThemeToggle: () => <button type="button">Toggle theme</button> }))
+
+// Normal layout: header (role="banner") + sidebar present
+mockUsePathname.mockReturnValue('/app/dashboard')
+expect(screen.getByRole('banner')).toBeInTheDocument()
+
+// Fullscreen: no header, no sidebar, children still render
+mockUsePathname.mockReturnValue('/app/quiz/session')
+expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+```
+
+### Suite state after this commit
+41 test files, 344 tests — all passing.
+
+---
+
+## Files tested in commit 54e9351 (sprint-2 quiz overhaul: batch-submit + finish-dialog + nav-bar)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/batch-submit.ts` | `actions/batch-submit.test.ts` | Server Action; auth guard, Zod validation (generic catch), happy path, RPC errors, non-fatal FSRS, unexpected error logging |
+| `apps/web/app/app/quiz/_components/finish-quiz-dialog.tsx` | `_components/finish-quiz-dialog.test.tsx` | Client component; open/closed, answered counts, singular/plural unanswered text, callbacks (submit/cancel/save), backdrop click, Escape key, submitting state |
+| `apps/web/app/app/quiz/session/_components/quiz-nav-bar.tsx` | `session/_components/quiz-nav-bar.test.tsx` | Client component; Prev disabled at index 0, Next disabled at last index, callbacks, Finish Test never disabled |
+
+### batchSubmitQuiz: generic catch catches ZodError too
+Unlike `startQuizSession` (which has `if (err instanceof ZodError)` before the generic re-throw),
+`batchSubmitQuiz` catches ALL errors with a single generic handler. This means Zod validation
+errors produce "Something went wrong. Please try again." rather than the Zod message.
+Tests that check Zod branches must assert the generic error message, not the Zod message:
+```ts
+// ✅ CORRECT for batchSubmitQuiz
+expect(result.error).toBe('Something went wrong. Please try again.')
+// ❌ WRONG
+expect(result.error).toContain('Invalid uuid')
+```
+
+### FinishQuizDialog: dialog element and overlay interaction
+The component uses `<dialog>` (HTML element) inside a wrapping overlay div. The `<dialog>` element
+gets `role="dialog"` automatically. Use `screen.getByRole('dialog', { name: /finish quiz/i })` to
+find it. To assert backdrop click calls `onCancel`, access `.parentElement` from the dialog:
+```ts
+const overlay = screen.getByRole('dialog', { name: /finish quiz/i }).parentElement
+if (overlay) fireEvent.click(overlay)
+```
+The dialog's `onClick` calls `e.stopPropagation()`, so clicking inside the dialog does NOT bubble
+to the overlay — test this as a non-call assertion.
+
+### Suite state after commit 54e9351
+44 test files, 383 tests (39 new) — all passing.
+
+---
+
+## Files tested in commits e8d70fc + dce30b1 (quiz report page + use-quiz-state hook)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/queries/quiz-report.ts` | `lib/queries/quiz-report.test.ts` | Already existed — 7 tests; happy path, null session, empty/null answers, missing questions fallback |
+| `apps/web/app/app/quiz/report/_components/report-card.tsx` | `report/_components/report-card.test.tsx` | Already existed — 8 tests; score color branches, duration, links |
+| `apps/web/app/app/quiz/report/_components/report-question-row.tsx` | `report/_components/report-question-row.test.tsx` | New — 17 tests (see below) |
+| `apps/web/app/app/quiz/report/page.tsx` | — | Server Component; no logic, no unit test needed |
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` | — | All branches exercised indirectly via quiz-session.test.tsx |
+
+### ReportQuestionRow: what to test
+The component has two pure helper functions (`truncate` and `formatResponseTime`) and four
+conditional rendering branches. All are unit-testable via @testing-library/react:
+
+- **Label**: `questionNumber` shown when present; `Q{index+1}` fallback when null
+- **Correct answer path**: no "Correct answer:" row; answer text shown in green
+- **Incorrect answer path**: "Correct answer:" row shown; correct option text displayed
+- **correctOption not found**: guard prevents "Correct answer:" row even on incorrect answer
+- **No answer fallback**: `selectedOptionId` that matches no option → "No answer"
+- **Explanation**: shown when `explanationText` is non-null; hidden when null
+- **`formatResponseTime`**: 3000ms → "3.0s"; 500ms → "0.5s"; 12500ms → "12.5s"
+- **`truncate`**: text ≤ 80 chars shown in full; > 80 chars truncated with "..."; exactly 80 not truncated
+
+### Suite state after commits e8d70fc + dce30b1
+45 test files, 400 tests — all passing.
+
+---
+
+## Files tested in commits 3c7b966 + dce30b1 + e8d70fc (sprint-2 quiz overhaul cont.)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/_components/question-tabs.tsx` | `question-tabs.test.tsx` | Already existed and extended — 7 tests; tab rendering, aria-selected, disabled state, hiddenTabs filter, click callback, disabled click no-op |
+| `apps/web/app/app/quiz/actions/batch-submit.ts` | `actions/batch-submit.test.ts` | Already existed — 11 tests; auth guard, Zod branches, happy path score + results, single RPC call, FSRS, RPC error, unexpected error |
+| `apps/web/app/app/quiz/session/_hooks/use-flagged-questions.ts` | `use-flagged-questions.test.ts` | Already existed — 4 tests; initial empty set, toggle add, toggle remove, multiple questions |
+| `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts` | `quiz-submit.test.ts` | New — 11 tests (see below) |
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` | — | All branches exercised indirectly via quiz-session.test.tsx (13 tests including flag toggle, navigation, submit, error paths) |
+
+### quiz-submit.ts: what to test
+Two exported functions with distinct responsibilities:
+
+**`submitQuizSession`:**
+- Converts `Map<string, StoredAnswer>` to an array and calls `batchSubmitQuiz`
+- Returns success result unchanged on happy path
+- Calls `deleteDraft()` fire-and-forget on success (assert called, don't await)
+- Returns failure error forwarded from batchSubmitQuiz on API error
+- Does NOT call deleteDraft when API reports failure
+- Returns generic error message when batchSubmitQuiz throws
+
+**`saveQuizDraft`:**
+- Converts Map to plain object before calling `saveDraft`
+- Calls `router.push('/app/quiz')` on success
+- Returns `{ success: true }` on success
+- Returns `{ success: false, error }` without redirect on saveDraft failure
+- The plain-object conversion is a key assertion: `expect(answers).not.toBeInstanceOf(Map)`
+
+### Suite state after these commits
+59 test files, 490 tests — all passing.
+
+---
+
+## Files extended/created in commit 9d9e898 (CodeRabbit fix plan — bugs, validation, safety)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/draft.ts` | `draft.test.ts` | 3 tests: `currentIndex >= questionIds.length` → out-of-range error; boundary at `length - 1` succeeds |
+| `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts` | `quiz-submit.test.ts` | 1 test: `deleteDraft` rejection logs to `console.error` with correct prefix |
+| `apps/web/app/app/quiz/_components/quiz-config-form.tsx` | `quiz-config-form.test.tsx` | 2 tests: `startQuizSession` throw → generic error + loading reset; count clamped to maxQuestions |
+| `apps/web/app/app/quiz/_components/resume-draft-banner.tsx` | `resume-draft-banner.test.tsx` | 1 test: banner stays visible when `deleteDraft` returns `{ success: false }` |
+| `apps/web/app/app/quiz/session/_components/quiz-session-loader.tsx` | `quiz-session-loader.test.tsx` | 2 tests: `draftCurrentIndex` > questions.length - 1 clamped; absent `draftCurrentIndex` passes undefined |
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` | `use-quiz-state.test.ts` | **NEW FILE** — 16 tests across 5 groups: initial index clamping (5), navigation (4), answer selection (3), handleSubmit (2), handleSave (2) |
+
+### Asserting fire-and-forget `.catch()` error logging
+When a function calls `somePromise.catch((e) => console.error(prefix, e))` (not awaited),
+the rejection is processed in a microtask. After awaiting the outer function, flush with
+`await Promise.resolve()` before asserting on the consoleSpy:
+
+```ts
+it('logs via console.error when draft cleanup fails', async () => {
+  mockDeleteDraft.mockRejectedValue(cleanupError)
+  const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+  const result = await submitQuizSession(SESSION_ID, answers)
+  expect(result.success).toBe(true)  // submit still succeeds
+
+  await Promise.resolve()  // flush the microtask queue
+
+  expect(consoleSpy).toHaveBeenCalledWith('[submitQuizSession] Draft cleanup failed:', cleanupError)
+  consoleSpy.mockRestore()
+})
+```
+
+### Testing boundary-value validation (index out of range)
+For `currentIndex >= questionIds.length` guards, test three cases:
+1. `currentIndex === length` (exactly equal — the boundary)
+2. `currentIndex > length` (clearly beyond)
+3. `currentIndex === length - 1` (last valid — must succeed)
+
+```ts
+it('returns failure when currentIndex equals questionIds.length', async () => {
+  const result = await saveDraft({ ...input, currentIndex: 2 })  // length is 2
+  expect(result).toEqual({ success: false, error: 'Current index out of range' })
+})
+
+it('accepts currentIndex at the last valid position (length - 1)', async () => {
+  const result = await saveDraft({ ...input, currentIndex: 1 })  // length is 2
+  expect(result).toEqual({ success: true })
+})
+```
+
+### Testing "prop forwarding to child via data-attribute" in session loaders
+To assert that a clamped numeric value is passed as a prop to a mocked child component,
+add a `data-*` attribute to the mock and check it with `getAttribute`:
+
+```tsx
+vi.mock('./quiz-session', () => ({
+  QuizSession: ({ sessionId, initialIndex }: { sessionId: string; initialIndex?: number }) => (
+    <div data-testid="quiz-session" data-initial-index={initialIndex}>{sessionId}</div>
+  ),
+}))
+
+// In test:
+expect(el.getAttribute('data-initial-index')).toBe('1')  // clamps 99 → 1 for 2 questions
+expect(el.getAttribute('data-initial-index')).toBeNull()  // undefined is not rendered as attribute
+```
+
+### Testing React hooks with renderHook
+For hooks with multiple external dependencies (router, other hooks), mock all deps with `vi.hoisted`:
+
+```ts
+const { mockRouterPush, mockSubmitSession } = vi.hoisted(() => ({
+  mockRouterPush: vi.fn(),
+  mockSubmitSession: vi.fn(),
+}))
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
+vi.mock('./quiz-submit', () => ({ submitQuizSession: mockSubmitSession }))
+
+// Also mock hooks used internally:
+vi.mock('./use-flagged-questions', () => ({
+  useFlaggedQuestions: () => ({ flaggedQuestions: new Set<string>(), toggleFlag: vi.fn() }),
+}))
+vi.mock('../../_hooks/use-navigation-guard', () => ({ useNavigationGuard: vi.fn() }))
+```
+
+Use `act()` for state-changing calls:
+```ts
+act(() => result.current.navigateTo(1))
+await act(async () => result.current.handleSubmit())
+```
+
+### Cross-file jsdom environment flakiness
+When running many test files together (e.g., `npx vitest run "app/app/quiz"`), a test may fail
+due to React/jsdom state leaking between files in the same worker. The same test passes when
+run alone. This is a **pre-existing Vitest jsdom isolation issue**, not caused by new tests.
+Confirmation: stash new changes, run the same combined command — if still clean, the test was
+already failing intermittently. Do NOT chase this flakiness unless it fails in isolation.
+
+### Suite state after commit 9d9e898
+60 test files, 506 tests — all passing (each file individually; combined run has pre-existing cross-file jsdom flakiness unrelated to new tests).
+
+### Testing hooks extracted from larger hooks (2026-03-12)
+When a hook like `useQuizNavigation` is extracted from a larger hook (`useQuizState`), test
+the extracted hook independently. The parent hook's tests (testing delegation through the public
+API) remain valid; add a dedicated test file for the new hook covering its own contracts
+(initial state, navigation, ref resets). Do NOT re-test index clamping if a shared utility
+(`clampIndex`) already has its own tests — focus on the hook's added behavior (navigateTo guard,
+answerStartTime reset on valid navigation).
+
+### Testing fake timers with useRef (2026-03-12)
+When verifying that a `useRef` value (like `answerStartTime`) updates after navigation:
+```ts
+vi.useFakeTimers()
+vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+const { result } = renderHook(() => useQuizNavigation({ totalQuestions: 3 }))
+const timeBefore = result.current.answerStartTime.current
+vi.advanceTimersByTime(2000)
+act(() => result.current.navigateTo(1))
+expect(result.current.answerStartTime.current).toBeGreaterThan(timeBefore)
+vi.useRealTimers()
+```
+Always call `vi.useRealTimers()` at the end to avoid leaking fake timer state.
+
+### Extending tests for optional field pass-through (2026-03-12)
+When a new optional field is threaded through a call chain (e.g., `subjectName`/`subjectCode`
+from `useQuizConfig` → `sessionStorage` → `useQuizState` → `saveQuizDraft` → `saveDraft`),
+add one targeted test at each layer:
+- storage layer: parse JSON from the stub and assert the field value
+- pass-through function: use `expect.objectContaining({ subjectName: ..., subjectCode: ... })`
+- caller hook: same `expect.objectContaining` pattern on the mocked callee
+This avoids duplicating full-chain integration tests while ensuring each link passes the data.
+
+### Suite state after commit 0176634
+61 test files, ~522 tests — all passing individually.
+New file: `use-quiz-navigation.test.ts` (16 tests).
+Extended: `quiz-submit.test.ts` (+2), `use-quiz-config.test.ts` (+1), `use-quiz-state.test.ts` (+1), `draft.test.ts` (+2).
+
+---
+
+## Files extended in latest commit (try/catch + clamped label)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/_components/resume-draft-banner.tsx` | `resume-draft-banner.test.tsx` | +4 tests: thrown exception → error message shown + banner stays; finally block re-enables Discard button on both failure paths |
+| `apps/web/app/app/quiz/_components/quiz-config-form.tsx` | `quiz-config-form.test.tsx` | +1 test: label text shows clamped value when slider value exceeds maxQuestions |
+
+### Changes with no new tests needed
+- `quiz-submit.ts`: internal import path change only — no behaviour changed; existing 14 tests remain valid.
+- `report-card.tsx`: `'use client'` removed (now a Server Component); pure presenter with no logic — existing 8 tests remain valid.
+- `batch_submit_rpc.sql`: DB migration — no unit test target; covered by integration tests.
+
+### try/catch in async event handlers — two distinct failure paths to test
+When a component's async event handler adds `try/catch/finally` around a Server Action, always
+test BOTH failure modes independently:
+
+1. **`{ success: false }` return** — action resolves but signals failure:
+   ```ts
+   mockDeleteDraft.mockResolvedValue({ success: false })
+   ```
+   Assert: error message shown, banner still visible, Discard button re-enabled.
+
+2. **thrown exception** — action rejects (network error, uncaught exception):
+   ```ts
+   mockDeleteDraft.mockRejectedValue(new Error('network error'))
+   ```
+   Assert: same error message shown, banner still visible, Discard button re-enabled.
+
+The `finally` block (loading reset) must be tested for each failure path, not just the success path.
+
+### Clamped display value: assert the DOM text, not the action call argument
+When a component shows `Math.min(count, maxQuestions)` in a label, the existing test that
+asserts `startQuizSession` was called with a clamped count does NOT cover the label text.
+Add a dedicated test using `fireEvent.change(slider, { target: { value: '50' } })` to
+force the internal count state beyond the max, then assert the label text:
+```ts
+fireEvent.change(slider, { target: { value: '50' } })
+expect(screen.getByText(/Number of questions: 30/)).toBeInTheDocument()
+```
+The slider's `max` attribute prevents interactive input above the bound, but `fireEvent.change`
+bypasses that constraint — exactly what the Math.min guard is designed to handle.
+
+### Suite state after this commit
+65 test files, 580 tests — all passing.

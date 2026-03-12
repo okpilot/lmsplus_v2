@@ -1,9 +1,11 @@
 'use client'
 
-import { loadSessionQuestions } from '@/app/app/review/session/_components/load-questions'
 import { Skeleton } from '@/components/ui/skeleton'
+import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import type { DraftAnswer } from '../../types'
+import { clampIndex } from '../_utils/clamp-index'
 import { QuizSession } from './quiz-session'
 
 type Question = {
@@ -17,6 +19,10 @@ type Question = {
 type SessionData = {
   sessionId: string
   questionIds: string[]
+  draftAnswers?: Record<string, DraftAnswer>
+  draftCurrentIndex?: number
+  subjectName?: string
+  subjectCode?: string
 }
 
 // Cache parsed session to survive React Strict Mode double-mount
@@ -83,5 +89,19 @@ export function QuizSessionLoader() {
     )
   }
 
-  return <QuizSession sessionId={session.sessionId} questions={questions} />
+  const clampedIndex =
+    session.draftCurrentIndex != null
+      ? clampIndex(session.draftCurrentIndex, questions.length)
+      : undefined
+
+  return (
+    <QuizSession
+      sessionId={session.sessionId}
+      questions={questions}
+      initialAnswers={session.draftAnswers}
+      initialIndex={clampedIndex}
+      subjectName={session.subjectName}
+      subjectCode={session.subjectCode}
+    />
+  )
 }

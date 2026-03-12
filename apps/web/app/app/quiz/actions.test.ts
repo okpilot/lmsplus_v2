@@ -30,7 +30,9 @@ vi.mock('@/lib/queries/quiz', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { completeQuiz, startQuizSession, submitQuizAnswer } from './actions'
+import { completeQuiz } from './actions/complete'
+import { startQuizSession } from './actions/start'
+import { submitQuizAnswer } from './actions/submit'
 
 // ---- Helpers --------------------------------------------------------------
 
@@ -289,8 +291,10 @@ describe('completeQuiz', () => {
     if (!result.success) expect(result.error).toBe('Not authenticated')
   })
 
-  it('rejects a completion request without a session ID', async () => {
+  it('returns error for a completion request without a session ID', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    await expect(completeQuiz({})).rejects.toThrow(ZodError)
+    const result = await completeQuiz({})
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 })

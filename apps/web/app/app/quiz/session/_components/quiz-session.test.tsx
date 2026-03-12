@@ -1,199 +1,388 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { QuizSession } from './quiz-session'
 
-const mockSubmitQuizAnswer = vi.fn()
-const mockCompleteQuiz = vi.fn()
-
-vi.mock('../../actions', () => ({
-  submitQuizAnswer: (...args: unknown[]) => mockSubmitQuizAnswer(...args),
-  completeQuiz: (...args: unknown[]) => mockCompleteQuiz(...args),
+const mockRouterPush = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush }),
 }))
+
+const mockBatchSubmitQuiz = vi.fn()
+vi.mock('../../actions/batch-submit', () => ({
+  batchSubmitQuiz: (...args: unknown[]) => mockBatchSubmitQuiz(...args),
+}))
+
+const mockDeleteDraft = vi.fn()
+const mockSaveDraft = vi.fn()
+vi.mock('../../actions/draft', () => ({
+  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
+  saveDraft: (...args: unknown[]) => mockSaveDraft(...args),
+}))
+
+vi.mock('../../_components/finish-quiz-dialog', () => ({
+  FinishQuizDialog: ({
+    open,
+    answeredCount,
+    totalQuestions,
+    submitting,
+    onSubmit,
+    onCancel,
+  }: {
+    open: boolean
+    answeredCount: number
+    totalQuestions: number
+    submitting: boolean
+    onSubmit: () => void
+    onCancel: () => void
+  }) =>
+    open ? (
+      <div data-testid="finish-dialog">
+        <span data-testid="dialog-answered">{answeredCount}</span>
+        <span data-testid="dialog-total">{totalQuestions}</span>
+        <button type="button" onClick={onSubmit} disabled={submitting}>
+          Submit Quiz
+        </button>
+        <button type="button" onClick={onCancel}>
+          Return to Quiz
+        </button>
+      </div>
+    ) : null,
+}))
+
+vi.mock('@/app/app/_components/question-card', () => ({
+  QuestionCard: ({
+    questionText,
+    questionNumber,
+  }: { questionText: string; questionNumber: number }) => (
+    <div data-testid="question-card">
+      <span data-testid="question-text">{questionText}</span>
+      <span data-testid="question-number">{questionNumber}</span>
+    </div>
+  ),
+}))
+
+vi.mock('@/app/app/_components/answer-options', () => ({
+  AnswerOptions: ({
+    options,
+    onSubmit,
+    disabled,
+    selectedOptionId,
+  }: {
+    options: { id: string; text: string }[]
+    onSubmit: (id: string) => void
+    disabled: boolean
+    selectedOptionId?: string | null
+  }) => (
+    <div data-testid="answer-options">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          data-testid={`option-${o.id}`}
+          data-selected={selectedOptionId === o.id ? 'true' : 'false'}
+          onClick={() => onSubmit(o.id)}
+          disabled={disabled}
+        >
+          {o.text}
+        </button>
+      ))}
+    </div>
+  ),
+}))
+
+vi.mock('@/app/app/_components/session-timer', () => ({
+  SessionTimer: () => <span data-testid="session-timer">00:00</span>,
+}))
+
+vi.mock('../../_components/question-grid', () => ({
+  QuestionGrid: ({
+    onNavigate,
+    currentIndex,
+  }: {
+    totalQuestions: number
+    currentIndex: number
+    answeredIds: Set<string>
+    flaggedIds: Set<string>
+    questionIds: string[]
+    onNavigate: (index: number) => void
+  }) => (
+    <div data-testid="question-grid">
+      <button type="button" data-testid="grid-nav-2" onClick={() => onNavigate(2)}>
+        Go to 3
+      </button>
+      <span data-testid="grid-current">{currentIndex}</span>
+    </div>
+  ),
+}))
+
+vi.mock('./quiz-nav-bar', () => ({
+  QuizNavBar: ({
+    currentIndex,
+    totalQuestions,
+    onPrev,
+    onNext,
+    onFinish,
+  }: {
+    currentIndex: number
+    totalQuestions: number
+    onPrev: () => void
+    onNext: () => void
+    onFinish: () => void
+  }) => (
+    <div data-testid="quiz-nav-bar">
+      <button type="button" onClick={onPrev} disabled={currentIndex === 0}>
+        Previous
+      </button>
+      <button type="button" onClick={onFinish}>
+        Finish Test
+      </button>
+      <button type="button" onClick={onNext} disabled={currentIndex === totalQuestions - 1}>
+        Next
+      </button>
+    </div>
+  ),
+}))
+
+vi.mock('../../_components/question-tabs', () => ({
+  QuestionTabs: () => <div data-testid="question-tabs" />,
+}))
+
+vi.mock('../../_components/explanation-tab', () => ({
+  ExplanationTab: () => <div data-testid="explanation-tab" />,
+}))
+
+vi.mock('../../_components/comments-tab', () => ({
+  CommentsTab: () => <div data-testid="comments-tab" />,
+}))
+
+vi.mock('../../_components/statistics-tab', () => ({
+  StatisticsTab: () => <div data-testid="statistics-tab" />,
+}))
+
+import { QuizSession } from './quiz-session'
 
 const QUESTIONS = [
   {
     id: 'q1',
     question_text: 'What is lift?',
     question_image_url: null,
-    question_number: null,
+    question_number: '050-01-01-001',
     options: [
       { id: 'a', text: 'A force' },
-      { id: 'b', text: 'A weight' },
-      { id: 'c', text: 'A drag' },
+      { id: 'b', text: 'A moment' },
     ],
   },
   {
     id: 'q2',
     question_text: 'What is drag?',
     question_image_url: null,
+    question_number: '050-01-01-002',
+    options: [
+      { id: 'c', text: 'Resistance' },
+      { id: 'd', text: 'Thrust' },
+    ],
+  },
+  {
+    id: 'q3',
+    question_text: 'What is weight?',
+    question_image_url: null,
     question_number: null,
     options: [
-      { id: 'd', text: 'Air resistance' },
-      { id: 'e', text: 'Thrust' },
+      { id: 'e', text: 'Gravity force' },
+      { id: 'f', text: 'Mass' },
     ],
   },
 ]
 
 describe('QuizSession', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
+    mockDeleteDraft.mockResolvedValue({ success: true })
+    mockSaveDraft.mockResolvedValue({ success: true })
   })
 
-  it('renders the first question', () => {
+  it('renders first question on mount', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    expect(screen.getByText('What is lift?')).toBeInTheDocument()
-    expect(screen.getByText('Question 1 of 2')).toBeInTheDocument()
+    expect(screen.getByTestId('question-card')).toBeInTheDocument()
+    expect(screen.getByTestId('question-text')).toHaveTextContent('What is lift?')
+    expect(screen.getByTestId('question-number')).toHaveTextContent('1')
   })
 
-  it('renders answer options for the current question', () => {
+  it('stores answer in state without calling batchSubmitQuiz', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    expect(screen.getByText('A force')).toBeInTheDocument()
-    expect(screen.getByText('A weight')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('option-a'))
+    expect(mockBatchSubmitQuiz).not.toHaveBeenCalled()
+    // The selected option should be marked
+    expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
   })
 
-  it('renders a progress bar', () => {
+  it('navigates to next question and back', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    const progressBar = screen.getByTestId('progress-bar')
-    expect(progressBar).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByTestId('question-text')).toHaveTextContent('What is drag?')
+    expect(screen.getByTestId('question-number')).toHaveTextContent('2')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }))
+    expect(screen.getByTestId('question-text')).toHaveTextContent('What is lift?')
+    expect(screen.getByTestId('question-number')).toHaveTextContent('1')
   })
 
-  it('submits an answer and shows feedback', async () => {
-    const user = userEvent.setup()
-    mockSubmitQuizAnswer.mockResolvedValue({
-      success: true,
-      isCorrect: true,
-      correctOptionId: 'a',
-      explanationText: 'Lift is an upward force.',
-      explanationImageUrl: null,
-    })
-
+  it('disables Previous on first question and Next on last', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    await user.click(screen.getByText('A force'))
-    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
 
-    await waitFor(() => {
-      expect(screen.getByText('Lift is an upward force.')).toBeInTheDocument()
-    })
-    expect(mockSubmitQuizAnswer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: 'sess-1',
-        questionId: 'q1',
-        selectedOptionId: 'a',
-      }),
-    )
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
+
+    // Navigate to last question
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeEnabled()
   })
 
-  it('advances to the next question after feedback', async () => {
-    const user = userEvent.setup()
-    mockSubmitQuizAnswer.mockResolvedValue({
-      success: true,
-      isCorrect: true,
-      correctOptionId: 'a',
-      explanationText: 'Lift is generated by airfoil shape.',
-      explanationImageUrl: null,
-    })
+  it('shows finish dialog when clicking Finish Test', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
 
+    expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
+    expect(screen.getByTestId('finish-dialog')).toBeInTheDocument()
+    expect(screen.getByTestId('dialog-total')).toHaveTextContent('3')
+  })
+
+  it('closes finish dialog on cancel', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
+    expect(screen.getByTestId('finish-dialog')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Return to Quiz' }))
+    expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
+  })
+
+  it('tracks answered count in dialog', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
 
     // Answer first question
-    await user.click(screen.getByText('A force'))
-    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
-    await waitFor(() =>
-      expect(screen.getByText('Lift is generated by airfoil shape.')).toBeInTheDocument(),
-    )
+    fireEvent.click(screen.getByTestId('option-a'))
 
-    // Click Next Question
-    await user.click(screen.getByRole('button', { name: /Next Question/ }))
+    // Go to second question and answer
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByTestId('option-c'))
 
-    // Second question shown
-    expect(screen.getByText('What is drag?')).toBeInTheDocument()
-    expect(screen.getByText('Question 2 of 2')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
+    expect(screen.getByTestId('dialog-answered')).toHaveTextContent('2')
   })
 
-  it('shows session summary after the last question', async () => {
-    const user = userEvent.setup()
-    mockSubmitQuizAnswer.mockResolvedValue({
+  it('calls batchSubmitQuiz on submit and redirects to report page', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue({
       success: true,
-      isCorrect: true,
-      correctOptionId: 'a',
-      explanationText: 'OK',
-      explanationImageUrl: null,
-    })
-    mockCompleteQuiz.mockResolvedValue({
-      success: true,
+      totalQuestions: 3,
       correctCount: 2,
-      scorePercentage: 100,
+      scorePercentage: 66.7,
+      results: [],
     })
-
-    // Use single question to quickly reach completion
-    // QUESTIONS[0] is guaranteed to exist in this test's fixture data
-    const singleQ = [QUESTIONS[0]!]
-    render(<QuizSession sessionId="sess-1" questions={singleQ} />)
-
-    await user.click(screen.getByText('A force'))
-    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
-    await waitFor(() => expect(screen.getByText('OK')).toBeInTheDocument())
-
-    await user.click(screen.getByRole('button', { name: /Next Question/ }))
-
-    await waitFor(() => {
-      expect(screen.getByText('100%')).toBeInTheDocument()
-    })
-    expect(mockCompleteQuiz).toHaveBeenCalledWith({ sessionId: 'sess-1' })
-  })
-
-  it('returns null when questions array is empty', () => {
-    const { container } = render(<QuizSession sessionId="sess-1" questions={[]} />)
-    expect(container.innerHTML).toBe('')
-  })
-
-  it('shows an error and stays on the question when submitQuizAnswer throws', async () => {
-    const user = userEvent.setup({ delay: null })
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockSubmitQuizAnswer.mockRejectedValue(new Error('Network request failed'))
 
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    await user.click(screen.getByText('A force'))
-    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
+
+    // Answer a question
+    fireEvent.click(screen.getByTestId('option-a'))
+
+    // Open dialog and submit
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Quiz' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong. Please try again.')
+      expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
+        sessionId: 'sess-1',
+        answers: [
+          expect.objectContaining({
+            questionId: 'q1',
+            selectedOptionId: 'a',
+          }),
+        ],
+      })
     })
-    // Should still be on the first question, not in feedback state
-    expect(screen.getByText('What is lift?')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Next Question/ })).not.toBeInTheDocument()
-    expect(consoleSpy).toHaveBeenCalledWith('Failed to submit answer:', expect.any(Error))
-    consoleSpy.mockRestore()
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/report?session=sess-1')
+    })
   })
 
-  it('shows an error and stays on feedback when completeQuiz throws', async () => {
-    const user = userEvent.setup({ delay: null })
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockSubmitQuizAnswer.mockResolvedValue({
-      success: true,
-      isCorrect: true,
-      correctOptionId: 'a',
-      explanationText: 'Lift is an upward force.',
-      explanationImageUrl: null,
+  it('shows error when batchSubmitQuiz fails', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue({
+      success: false,
+      error: 'Server error occurred',
     })
-    mockCompleteQuiz.mockRejectedValue(new Error('Network timeout'))
 
-    const singleQ = [QUESTIONS[0]!]
-    render(<QuizSession sessionId="sess-1" questions={singleQ} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
 
-    await user.click(screen.getByText('A force'))
-    await user.click(screen.getByRole('button', { name: 'Submit Answer' }))
-    await waitFor(() => expect(screen.getByText('Lift is an upward force.')).toBeInTheDocument())
-
-    await user.click(screen.getByRole('button', { name: /Next Question/ }))
+    fireEvent.click(screen.getByTestId('option-a'))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Quiz' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong. Please try again.')
+      expect(screen.getByRole('alert')).toHaveTextContent('Server error occurred')
     })
-    // Should not have navigated to the summary
-    expect(screen.queryByText('100%')).not.toBeInTheDocument()
-    expect(consoleSpy).toHaveBeenCalledWith('Failed to complete quiz:', expect.any(Error))
-    consoleSpy.mockRestore()
+  })
+
+  it('preserves selected answer when navigating back to a question', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+
+    // Answer first question
+    fireEvent.click(screen.getByTestId('option-a'))
+    expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
+
+    // Navigate away and back
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }))
+
+    // Answer should still be selected
+    expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
+  })
+
+  it('renders the question grid', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    expect(screen.getByTestId('question-grid')).toBeInTheDocument()
+  })
+
+  it('navigates to a question via the grid', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    fireEvent.click(screen.getByTestId('grid-nav-2'))
+    expect(screen.getByTestId('question-text')).toHaveTextContent('What is weight?')
+    expect(screen.getByTestId('question-number')).toHaveTextContent('3')
+  })
+
+  it('toggles flag state on the current question', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    const flagBtn = screen.getByTestId('flag-button')
+    expect(flagBtn).toHaveTextContent('Flag')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(flagBtn)
+    expect(flagBtn).toHaveTextContent('Unflag')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(flagBtn)
+    expect(flagBtn).toHaveTextContent('Flag')
+    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('renders exit button', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    expect(screen.getByTestId('exit-button')).toBeInTheDocument()
+  })
+
+  it('confirms before exiting when answers exist', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+
+    // Answer the first question so answeredCount > 0
+    fireEvent.click(screen.getByTestId('option-a'))
+
+    fireEvent.click(screen.getByTestId('exit-button'))
+    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved answers. Leave quiz?')
+    expect(mockRouterPush).not.toHaveBeenCalled()
+
+    confirmSpy.mockRestore()
   })
 })

@@ -24,6 +24,11 @@ type LoadResult = { success: true; questions: Question[] } | { success: false; e
 export async function loadSessionQuestions(questionIds: string[]): Promise<LoadResult> {
   const supabase = await createServerSupabaseClient()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
   const { data, error } = await rpc<QuizQuestionRow[]>(supabase, 'get_quiz_questions', {
     p_question_ids: questionIds,
   })

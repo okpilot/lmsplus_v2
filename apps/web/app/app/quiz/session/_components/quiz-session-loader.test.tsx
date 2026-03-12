@@ -13,14 +13,21 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockRouterReplace }),
 }))
 
-// loadSessionQuestions is imported from the review session folder (shared helper)
-vi.mock('@/app/app/review/session/_components/load-questions', () => ({
+vi.mock('@/lib/queries/load-session-questions', () => ({
   loadSessionQuestions: mockLoadSessionQuestions,
 }))
 
 vi.mock('./quiz-session', () => ({
-  QuizSession: ({ sessionId }: { sessionId: string }) => (
-    <div data-testid="quiz-session">{sessionId}</div>
+  QuizSession: ({
+    sessionId,
+    initialIndex,
+  }: {
+    sessionId: string
+    initialIndex?: number
+  }) => (
+    <div data-testid="quiz-session" data-initial-index={initialIndex}>
+      {sessionId}
+    </div>
   ),
 }))
 
@@ -111,5 +118,39 @@ describe('QuizSessionLoader', () => {
     await waitFor(() => {
       expect(mockLoadSessionQuestions).toHaveBeenCalledWith(['q1', 'q2'])
     })
+  })
+
+  it('clamps draftCurrentIndex to the last question when it exceeds the question count', async () => {
+    const sessionWithOobIndex = {
+      ...SESSION_DATA,
+      draftCurrentIndex: 99, // way beyond QUESTIONS.length - 1 = 1
+    }
+    sessionStorage.setItem('quiz-session', JSON.stringify(sessionWithOobIndex))
+    mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
+
+    render(<QuizSessionLoader />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
+    })
+
+    const el = screen.getByTestId('quiz-session')
+    // QUESTIONS has 2 items → clamped to index 1
+    expect(el.getAttribute('data-initial-index')).toBe('1')
+  })
+
+  it('passes undefined initialIndex when draftCurrentIndex is absent', async () => {
+    sessionStorage.setItem('quiz-session', JSON.stringify(SESSION_DATA))
+    mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
+
+    render(<QuizSessionLoader />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
+    })
+
+    const el = screen.getByTestId('quiz-session')
+    // No draft index → attribute should be absent (undefined → not rendered)
+    expect(el.getAttribute('data-initial-index')).toBeNull()
   })
 })
