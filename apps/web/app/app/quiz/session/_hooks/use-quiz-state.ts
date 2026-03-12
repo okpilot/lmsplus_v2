@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { DraftAnswer } from '../../types'
 import { saveQuizDraft, submitQuizSession } from './quiz-submit'
+import { useFlaggedQuestions } from './use-flagged-questions'
 
 type StoredAnswer = { selectedOptionId: string; responseTimeMs: number }
 type UseQuizStateOpts = {
@@ -24,7 +25,7 @@ export function useQuizState({
   const [answers, setAnswers] = useState<Map<string, StoredAnswer>>(() =>
     initialAnswers ? new Map(Object.entries(initialAnswers)) : new Map(),
   )
-  const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set())
+  const { flaggedQuestions, toggleFlag: toggleFlagById } = useFlaggedQuestions()
   const answerStartTime = useRef(Date.now())
   const submitted = useRef(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
@@ -48,15 +49,6 @@ export function useQuizState({
       setCurrentIndex(index)
       answerStartTime.current = Date.now()
     }
-  }
-
-  function toggleFlag() {
-    setFlaggedQuestions((prev) => {
-      const next = new Set(prev)
-      if (next.has(questionId)) next.delete(questionId)
-      else next.add(questionId)
-      return next
-    })
   }
 
   async function handleSubmit() {
@@ -100,7 +92,7 @@ export function useQuizState({
     handleSelectAnswer,
     navigateTo,
     navigate: (d: number) => navigateTo(currentIndex + d),
-    toggleFlag,
+    toggleFlag: () => toggleFlagById(questionId),
     handleSubmit,
     handleSave,
     setShowFinishDialog,
