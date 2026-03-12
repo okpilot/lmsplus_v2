@@ -1,9 +1,9 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { loadSessionQuestions } from './load-questions'
 import { ReviewSession } from './review-session'
 
 type Question = {

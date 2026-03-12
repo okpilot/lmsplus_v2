@@ -13,8 +13,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockRouterReplace }),
 }))
 
-// loadSessionQuestions is imported from the review session folder (shared helper)
-vi.mock('@/app/app/review/session/_components/load-questions', () => ({
+vi.mock('@/lib/queries/load-session-questions', () => ({
   loadSessionQuestions: mockLoadSessionQuestions,
 }))
 

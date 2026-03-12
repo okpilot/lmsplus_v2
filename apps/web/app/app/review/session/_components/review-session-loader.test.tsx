@@ -13,7 +13,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockRouterReplace }),
 }))
 
-vi.mock('./load-questions', () => ({
+vi.mock('@/lib/queries/load-session-questions', () => ({
   loadSessionQuestions: mockLoadSessionQuestions,
 }))
 

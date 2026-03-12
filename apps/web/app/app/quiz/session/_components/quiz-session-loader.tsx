@@ -1,7 +1,7 @@
 'use client'
 
-import { loadSessionQuestions } from '@/app/app/review/session/_components/load-questions'
 import { Skeleton } from '@/components/ui/skeleton'
+import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { QuizSession } from './quiz-session'

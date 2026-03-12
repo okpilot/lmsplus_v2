@@ -16,7 +16,7 @@ vi.mock('@repo/db/server', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { loadSessionQuestions } from './load-questions'
+import { loadSessionQuestions } from './load-session-questions'
 
 // ---- Tests ----------------------------------------------------------------
 
