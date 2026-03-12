@@ -56,13 +56,14 @@ export async function getAllSessions(): Promise<SessionReport[]> {
       : { data: [] as SubjectNameRow[], error: null }
 
   if (subjectsError) throw new Error(`Failed to fetch subjects: ${subjectsError.message}`)
+  if (!subjects) throw new Error('Failed to fetch subjects: unexpected null response')
 
-  const subjectMap = new Map((subjects ?? []).map((s) => [s.id, s.name]))
+  const subjectMap = new Map(subjects.map((s) => [s.id, s.name]))
 
   return sessions.map((s) => {
     const start = new Date(s.started_at).getTime()
     const end = new Date(s.ended_at).getTime()
-    const durationMinutes = Math.round((end - start) / 60000)
+    const durationMinutes = Math.max(0, Math.round((end - start) / 60000))
 
     return {
       id: s.id,
