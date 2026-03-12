@@ -7,9 +7,16 @@ Triage CodeRabbit review comments on the current PR and decide what to fix, skip
    gh pr list --head $(git branch --show-current) --state open --json number,url --jq '.[0]'
    ```
 
-2. Fetch all CodeRabbit review comments:
+2. Fetch all CodeRabbit signals (run these three `gh api` calls in parallel):
    ```bash
-   gh api repos/{owner}/{repo}/pulls/NUMBER/comments --paginate --jq '.[] | select(.user.login == "coderabbitai[bot]") | {id, path, body}'
+   # Inline review comments (file-level)
+   gh api repos/{owner}/{repo}/pulls/NUMBER/comments --paginate --jq '.[] | select(.user.login == "coderabbitai[bot]") | {type:"inline", id, path, body}'
+
+   # PR-level comments (summary, walkthrough, general remarks)
+   gh api repos/{owner}/{repo}/issues/NUMBER/comments --paginate --jq '.[] | select(.user.login == "coderabbitai[bot]") | {type:"pr", id, body}'
+
+   # Review metadata (approve/request-changes state + review body)
+   gh api repos/{owner}/{repo}/pulls/NUMBER/reviews --paginate --jq '.[] | select(.user.login == "coderabbitai[bot]") | {type:"review", id, state, submitted_at, body}'
    ```
 
 3. For each comment, extract:
