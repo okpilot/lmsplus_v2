@@ -116,11 +116,15 @@ export async function deleteDraft(): Promise<{ success: boolean }> {
     if (!user) return { success: false }
 
     // quiz_drafts uses real DELETE (not soft delete) — approved exception for temp storage
-    await supabase
+    const { error } = await supabase
       .from('quiz_drafts' as never)
       .delete()
       .eq('student_id' as never, user.id as never)
 
+    if (error) {
+      console.error('[deleteDraft] Delete error:', error.message)
+      return { success: false }
+    }
     return { success: true }
   } catch (err) {
     console.error('[deleteDraft] Uncaught error:', err)

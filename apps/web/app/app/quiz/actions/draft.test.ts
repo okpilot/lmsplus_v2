@@ -253,6 +253,22 @@ describe('deleteDraft', () => {
     expect(result).toEqual({ success: true })
   })
 
+  it('returns failure when the database delete fails', async () => {
+    setupAuthenticatedUser()
+    const chain = mockChain()
+    // Override final eq() to return an error response instead of the chain
+    ;(chain.eq as ReturnType<typeof vi.fn>).mockReturnValue({
+      error: { message: 'RLS policy violation' },
+    })
+    mockFrom.mockReturnValue(chain)
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await deleteDraft()
+    expect(result).toEqual({ success: false })
+    expect(consoleSpy).toHaveBeenCalledWith('[deleteDraft] Delete error:', 'RLS policy violation')
+    consoleSpy.mockRestore()
+  })
+
   it('returns failure when an unexpected error occurs', async () => {
     setupAuthenticatedUser()
     mockFrom.mockImplementation(() => {
