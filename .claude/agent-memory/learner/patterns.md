@@ -18,7 +18,7 @@
 | Top-level await in node16 package test file | 1 | 2026-03-12 | Watch — packages/db/src/server.test.ts; fixed with dynamic import helper |
 | Bare `catch {}` without error-type narrowing | 1 | 2026-03-12 | Watch — packages/db/src/server.ts; suggestion from semantic-reviewer |
 | `finally` clearing loading state during navigation | 1 | 2026-03-12 | Fixed in a269284 — only clear loading in catch/error branch |
-| Supabase mutation result not destructured (error silently dropped) | 2 | 2026-03-12 | RULE ADDED to code-style.md Section 5 (9f5a6cc) — watching for recurrence |
+| Supabase mutation result not destructured (error silently dropped) | 3 | 2026-03-12 | RULE EXISTS (code-style.md Section 5) — 5 new call sites found in Sprint 3 analytics cycle (db5d8ea); compliance gap, rule is clear |
 | Unstable useEffect dependency (inline function prop) | 1 | 2026-03-12 | Watch — onTabChange in question-tabs.tsx; suggestion only, first occurrence |
 | `vi.stubGlobal` without `vi.unstubAllGlobals` teardown in test | 1 | 2026-03-12 | Watch — use-quiz-navigation.test.ts; suggestion only, first occurrence |
 | E2E test clicks UI without waiting for React state flush (race condition) | 1 | 2026-03-12 | Watch — quiz-flow.spec.ts + progress.spec.ts; fixed with progress-bar DOM gate |
@@ -27,6 +27,11 @@
 | Concurrent session mutation without row-level lock (FOR UPDATE) | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in fe12342 with FOR UPDATE on session row |
 | Partial-submission not rejected at RPC level | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in fe12342 with answer count mismatch guard |
 | Import from Next.js internal module path instead of public API | 1 | 2026-03-12 | Watch — quiz-submit.ts AppRouterInstance; fixed in b312922 with ReturnType<typeof useRouter> |
+| useEffect data fetching in client component (not hydration guard) | 2 | 2026-03-12 | RULE EXISTS (code-style.md Section 6) — statistics-tab.tsx used useEffect to call Server Action; fixed with button + useTransition in db5d8ea |
+| LANGUAGE sql instead of plpgsql for SECURITY DEFINER RPC | 1 | 2026-03-12 | Watch — Sprint 3 analytics RPCs (845923b); fixed migration 014 (86c8da4); single root introduction; plpgsql required for RAISE EXCEPTION; if second introduction occurs, add to security.md |
+| ?? [] fallback applied after an explicit error guard (silent data loss path) | 1 | 2026-03-12 | Watch — subjects ?? [] in statistics-tab.tsx after null/error guard (845923b); fixed in 86c8da4; data is already known bad at that point, fallback hides the gap |
+| Server Action shipped without Zod input validation | 1 | 2026-03-12 | Watch — fetch-stats.ts Server Action (845923b); fixed in 86c8da4; rule exists (security.md rule 4); compliance gap, not rule gap |
+| RPC missing identity guard (auth.uid() = p_student_id check) | 1 | 2026-03-12 | Watch — Sprint 3 analytics RPCs (845923b); fixed migration 015 (7b824c2); security.md rule 7 covers null check only — does NOT require identity comparison; gap in rule text; clarify rule 7 on second occurrence |
 
 ## Lessons Learned
 
@@ -226,3 +231,83 @@
 - Supabase mutation destructuring rule (added 9f5a6cc) held — no new violations in either commit. First positive signal after rule addition.
 - 2454c28 was fully clean on code-reviewer and doc-updater. Fix cycle closed correctly with no secondary issues.
 - test-writer's 16-test suite for `use-quiz-navigation.ts` covered all meaningful branches (boundary clamping, visited tracking, answer status, direction guards). High-signal test output.
+
+---
+
+### 2026-03-12 — Sprint 3 analytics cycle (commit db5d8ea)
+
+**Code reviewer round 1:** 1 BLOCKING.
+- `statistics-tab.tsx` used `useEffect` to call a Server Action for data fetching — a direct violation of the "no useEffect for data fetching" rule (code-style.md Section 6). Fixed with button-triggered fetch + `useTransition`. This is the **second occurrence** of this pattern (rule already exists; compliance gap confirmed).
+
+**Code reviewer round 2:** clean — 0 issues.
+
+**Semantic reviewer round 1:** 3 ISSUEs.
+1. **Missing Zod validation on a Server Action** — input used without `.parse()`. Rule exists (security.md rule 4). First occurrence of non-compliance with this specific rule. Fixed in same cycle.
+2. **Supabase mutation errors silently dropped at 5 call sites** — same root cause pattern as prior occurrences (Supabase returns errors in `result.error`, never throws). This is the **third recurrence** of this pattern. The rule exists in code-style.md Section 5. Compliance is the remaining gap — rule clarity is not the issue. Fixed in same cycle.
+3. **LANGUAGE sql RPCs should be plpgsql with RAISE EXCEPTION** — Sprint 3 analytics RPCs used `LANGUAGE sql` (which cannot raise exceptions) for SECURITY DEFINER functions that need to call `auth.uid()` and raise on null/identity mismatch. First occurrence — logged and watched. A plpgsql body is required any time an RPC uses `RAISE EXCEPTION` or `IF/THEN` control flow.
+
+**Semantic reviewer round 2:** 2 ISSUEs.
+1. **Missing identity guard in RPCs** — RPCs checked `auth.uid() IS NULL` but did not verify `auth.uid() = p_student_id`. A student could call the RPC with another student's ID and it would succeed the null check. First occurrence of this specific sub-pattern. Logged as new watch item. security.md rule 7 covers the null check but does not explicitly require the identity comparison. If this recurs, clarify rule 7 to require both guards.
+2. **`subjects ?? []` applied after error guard** — after an explicit `if (error) return { subjects: null }` guard, a downstream consumer applied `subjects ?? []` which turned a known error condition into an empty array. This creates a silent data loss path — the caller proceeds with no subjects rather than surfacing the error. First occurrence — logged and watched. The anti-pattern: never apply `?? []` to a value that was null because of an error (only apply it to values that are null because "no data" is a valid empty state).
+
+**Doc updater:** `docs/database.md` updated with Sprint 3 RPCs + schema additions. `docs/plan.md` updated with sprint progress. Decision 24 added to `docs/decisions.md`. Clean — no partial-doc-fix pattern.
+
+**Test writer:** 39 new tests written across Sprint 3 analytics components and server actions. All passing before report.
+
+**Actions taken:**
+- Frequency table: "Supabase mutation result not destructured" count updated to 3. Rule already exists — no change to rule.
+- Frequency table: "useEffect data fetching" count updated to 2 (second recurrence). Rule already exists — no change to rule.
+- Frequency table: 4 new watch items added (all first occurrences): LANGUAGE sql vs plpgsql, `?? []` after error guard, Server Action without Zod validation, RPC missing identity guard.
+- No new rule changes proposed — the two recurring patterns (Supabase error swallowing, useEffect data fetching) already have rules. Recurring violations indicate a compliance gap, not a rule gap.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer round 2 was clean — the useEffect/Zod fixes were correct and complete.
+- 39 tests written is the largest single-cycle test output to date, covering analytics branch paths comprehensively.
+- Doc-updater applied all 3 doc updates (database.md, plan.md, decisions.md) in the same cycle — no partial-doc-fix pattern recurrence.
+
+---
+
+### 2026-03-12 — Sprint 3 analytics full cycle review (commits 845923b → 86c8da4 → 1684618 → 7b824c2 → 385017a)
+
+**Context:** Post-commit review across 5 commits on feat/sprint-3-analytics. Two rounds of agent findings. All issues fixed before the cycle closed.
+
+**Code reviewer — Round 1:** 1 BLOCKING.
+- `statistics-tab.tsx` used `useEffect` to call a Server Action — "no useEffect for data fetching" violation (code-style.md Section 6). Fixed with `useTransition` + explicit button trigger. This is the **second occurrence** of this pattern (first was in an earlier Sprint 2 commit). Rule already exists; compliance gap confirmed. Count in frequency table: 2.
+
+**Code reviewer — Round 2:** clean.
+
+**Semantic reviewer — Round 1:** 3 ISSUEs.
+1. **Missing Zod validation in `fetch-stats.ts` Server Action** — input used without `.parse()`. Rule exists (security.md rule 4). Fixed in 86c8da4. Count in frequency table: 1. Watch.
+2. **Supabase mutation errors silently dropped — 5 call sites** — `question-stats.ts` and `reports.ts`. Same root cause as prior occurrences (Supabase returns errors in `result.error`, never throws). Rule exists (code-style.md Section 5). Fixed in 86c8da4. Frequency table count: 3. Rule compliance is the gap, not rule clarity.
+3. **`LANGUAGE sql` RPCs instead of `plpgsql`** — Sprint 3 analytics RPCs used `LANGUAGE sql` (cannot raise exceptions) for SECURITY DEFINER functions that need `auth.uid()` checks and `RAISE EXCEPTION`. Fixed via migration 014 in 86c8da4. Count: 1. Watch. A SECURITY DEFINER RPC that uses `IF/THEN` or `RAISE EXCEPTION` requires `LANGUAGE plpgsql`.
+
+**Semantic reviewer — Round 2:** 2 ISSUEs.
+1. **Missing identity guard in RPCs** — RPCs verified `auth.uid() IS NOT NULL` but did not compare `auth.uid() = p_student_id`. A student could pass another student's ID and pass the null check. Fixed via migration 015 in 7b824c2. Count: 1. Watch. `security.md` rule 7 covers null check only; it does not explicitly require the identity comparison. This is a gap in rule text — not a new rule, just an incomplete one. Clarify on second occurrence.
+2. **`subjects ?? []` applied after explicit error guard** — `subjects ?? []` was applied downstream after an `if (error) return { subjects: null }` guard, turning a known error state into an empty array and hiding the failure from the caller. Fixed in 86c8da4. Count: 1. Watch. Anti-pattern: never use `?? []` on a value that is null because of an error (reserve `?? []` for values that are null because "no data yet" is a valid empty state).
+
+**Doc updater:** `database.md` updated with Sprint 3 RPCs and migration notes. `plan.md` updated with sprint progress. `decisions.md` updated with Decision 24. All applied in 1684618. No partial-doc-fix pattern.
+
+**Test writer:** 39 new tests written across Sprint 3 analytics components and Server Actions (385017a). All passing. No new hook/utility files shipped without tests in this cycle.
+
+**Actions taken:**
+- Frequency table updated: clarified "LANGUAGE sql vs plpgsql" entry with commit references (count still 1, watch).
+- Frequency table updated: clarified "RPC missing identity guard" entry with note that security.md rule 7 text gap exists (count 1, watch — clarify rule on second occurrence).
+- Frequency table updated: "Server Action without Zod" entry clarified with commit reference (count 1, watch).
+- Frequency table updated: "?? [] after error guard" entry clarified with commit reference (count 1, watch).
+- No rule changes proposed — all patterns in this cycle are single occurrences. The two recurring patterns (Supabase error swallowing, useEffect data fetching) already have rules; the remaining gap is compliance at authoring time.
+
+**Rule gaps identified (not yet actionable — awaiting second occurrence):**
+- `security.md` rule 7 says "raise if null" but is silent on the identity comparison (`auth.uid() = p_student_id`). If any SECURITY DEFINER RPC takes a student ID parameter and this guard is missing again, clarify rule 7 to require: (a) null check, (b) identity comparison when a student ID parameter is accepted.
+- `security.md` has no mention of `LANGUAGE plpgsql` vs `LANGUAGE sql` for SECURITY DEFINER RPCs. If a second RPC ships with `LANGUAGE sql` and an `IF/THEN` block, add a note: "SECURITY DEFINER RPCs that use control flow or RAISE EXCEPTION must be written in `plpgsql`, not `sql`."
+
+**False positives:** none detected.
+
+**Positive signals:**
+- `startTransition` misuse (`.then()` chain) was caught and fixed to `async/await` in the same cycle — correct pattern enforced.
+- Both migration fixes (014 and 015) were applied without introducing new issues — fix commits were clean on code reviewer.
+- Doc-updater completed all 3 doc targets in a single commit, no partial-doc-fix recurrence.
+- 39 tests is the highest single-cycle output to date; analytics branches are well-covered going forward.
+
+---

@@ -84,4 +84,19 @@ describe('StatisticsTab', () => {
     render(<StatisticsTab questionId="q-1" hasAnswered={false} />)
     expect(screen.queryByRole('button', { name: 'Load Statistics' })).not.toBeInTheDocument()
   })
+
+  it('resets stats and shows load button when questionId changes', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+    await waitFor(() => {
+      expect(screen.getByText('Times seen')).toBeInTheDocument()
+    })
+
+    rerender(<StatisticsTab questionId="q-2" hasAnswered={true} />)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Load Statistics' })).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Times seen')).not.toBeInTheDocument()
+  })
 })

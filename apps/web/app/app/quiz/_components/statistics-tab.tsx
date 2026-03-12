@@ -1,7 +1,7 @@
 'use client'
 
 import type { QuestionStats } from '@/lib/queries/question-stats'
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { fetchQuestionStats } from '../actions/fetch-stats'
 
 type StatisticsTabProps = {
@@ -13,6 +13,14 @@ export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
   const [stats, setStats] = useState<QuestionStats | null>(null)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const prevQuestionId = useRef(questionId)
+
+  // Reset cached stats when navigating to a different question
+  if (prevQuestionId.current !== questionId) {
+    prevQuestionId.current = questionId
+    setStats(null)
+    setError(null)
+  }
 
   if (!hasAnswered) {
     return (
