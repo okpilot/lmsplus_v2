@@ -99,4 +99,20 @@ describe('StatisticsTab', () => {
     })
     expect(screen.queryByText('Times seen')).not.toBeInTheDocument()
   })
+
+  it('clears error state and shows load button when questionId changes after a failed fetch', async () => {
+    mockFetchQuestionStats.mockRejectedValue(new Error('network failure'))
+    const user = userEvent.setup()
+    const { rerender } = render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load statistics.')).toBeInTheDocument()
+    })
+
+    rerender(<StatisticsTab questionId="q-2" hasAnswered={true} />)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Load Statistics' })).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Failed to load statistics.')).not.toBeInTheDocument()
+  })
 })

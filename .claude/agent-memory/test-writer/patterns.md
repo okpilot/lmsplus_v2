@@ -1306,5 +1306,25 @@ For components using `useTransition` + a manual trigger button:
 - Use `vi.hoisted` + named mock variable so `beforeEach(() => vi.resetAllMocks())` works properly
   (static `vi.fn().mockResolvedValue(...)` in `vi.mock()` factory is not reset between tests)
 
-### Suite state after commit 86c8da4
-73 test files, 643 tests — all passing (24 new tests across 4 existing files).
+### Ref-based render-phase state reset: edge case coverage (commit 946fb46)
+When a component uses the ref-based pattern to reset state during render on prop change:
+```tsx
+if (prevRef.current !== newProp) {
+  prevRef.current = newProp
+  setStateA(null)
+  setStateB(null)
+}
+```
+Test all cases where the reset must clear distinct prior states:
+1. Reset from loaded stats (the obvious path — tested first in the commit)
+2. Reset from error state — `error` was also reset in the same block; test it explicitly
+   (render with failing mock, verify error message, rerender with new id, verify error gone + load button shown)
+3. In-flight (`isPending`) fetch racing a prop change — `useTransition`'s `isPending` cannot
+   be reset from the render body. If the user navigates while a fetch is in flight, the stale
+   fetch resolves and `setStats(data)` fires for the old question on the new question's render.
+   This is a known limitation of the ref pattern + useTransition. Do NOT write a test that
+   expects the stale fetch to be cancelled — it cannot be. Flag this as a production limitation
+   in a comment instead.
+
+### Suite state after commit 946fb46
+Previous: 73 test files, 643 tests. After this cycle: 73 test files, 644 tests (1 new test added to statistics-tab.test.tsx for error-state reset on questionId change).

@@ -15,19 +15,10 @@ export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
   const [error, setError] = useState<string | null>(null)
   const prevQuestionId = useRef(questionId)
 
-  // Reset cached stats when navigating to a different question
   if (prevQuestionId.current !== questionId) {
     prevQuestionId.current = questionId
     setStats(null)
     setError(null)
-  }
-
-  if (!hasAnswered) {
-    return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
-        Answer the question to see your statistics.
-      </div>
-    )
   }
 
   function loadStats() {
@@ -42,43 +33,58 @@ export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
     })
   }
 
-  if (!stats && !isPending && !error) {
-    return (
-      <div className="py-6 text-center">
-        <button
-          type="button"
-          onClick={loadStats}
-          className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
-        >
-          Load Statistics
-        </button>
-      </div>
-    )
-  }
-
-  if (isPending) {
-    return (
-      <div className="space-y-3 py-4">
-        <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-        <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-        <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-2 py-8 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-        <button type="button" onClick={loadStats} className="text-sm text-primary hover:underline">
-          Retry
-        </button>
-      </div>
-    )
-  }
-
+  if (!hasAnswered) return <NotAnsweredMessage />
+  if (!stats && !isPending && !error) return <LoadButton onClick={loadStats} />
+  if (isPending) return <LoadingSkeleton />
+  if (error) return <ErrorMessage message={error} onRetry={loadStats} />
   if (!stats) return null
+  return <StatsDisplay stats={stats} />
+}
 
+function NotAnsweredMessage() {
+  return (
+    <div className="py-8 text-center text-sm text-muted-foreground">
+      Answer the question to see your statistics.
+    </div>
+  )
+}
+
+function LoadButton({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="py-6 text-center">
+      <button
+        type="button"
+        onClick={onClick}
+        className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+      >
+        Load Statistics
+      </button>
+    </div>
+  )
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-3 py-4">
+      <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+    </div>
+  )
+}
+
+function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="space-y-2 py-8 text-center">
+      <p className="text-sm text-destructive">{message}</p>
+      <button type="button" onClick={onRetry} className="text-sm text-primary hover:underline">
+        Retry
+      </button>
+    </div>
+  )
+}
+
+function StatsDisplay({ stats }: { stats: QuestionStats }) {
   const accuracy =
     stats.timesSeen > 0 ? Math.round((stats.correctCount / stats.timesSeen) * 100) : 0
 

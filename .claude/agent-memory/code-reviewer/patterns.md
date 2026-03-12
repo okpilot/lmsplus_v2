@@ -893,3 +893,36 @@ Applied in: `apps/web/e2e/review-flow.spec.ts` (commit f272e2b)
 - Pattern: Hooks managing complex state (multiple handlers, refs, transitions) tend to exceed 80-line limit even when well-structured
 - Observation: Splitting by handler (e.g., `useQuizSubmission` separate from `useQuizNavigation`) would fragment cohesion
 - Recommendation: Accept 80–110 lines for cohesive state management hooks containing 3+ interdependent handlers. Flag >120 lines as split target.
+
+## Session 2026-03-12 Part 4 (Statistics Tab State Reset)
+
+### Commit: 946fb46 (fix: reset statistics tab state on question navigation)
+- Status: **BLOCKING**
+- Files changed: 4 files, 222 insertions, 3 deletions
+- Summary: Added state reset logic to StatisticsTab component, fixed semantic bug where component retained cached stats when question ID changed. Two agent memory files updated with Sprint 3 analytics cycle findings.
+
+**[BLOCKING] `apps/web/app/app/quiz/_components/statistics-tab.tsx` — 129 lines total, but main function exceeds 30-line limit**
+- File: 129 lines (within 150-line component limit) ✓
+- Main function `StatisticsTab` (lines 12–118): **107 lines** (limit: 30 lines per function) ✗
+- Contains 6 distinct concerns (render-time logic, conditional branches, event handler):
+  1. State initialization + reset logic (lines 13–23)
+  2. Not-answered conditional branch (lines 25–31)
+  3. Event handler `loadStats` (lines 33–43)
+  4. Loading state branch (lines 45–66)
+  5. Error state branch (lines 69–78)
+  6. Success state branch (lines 80–118)
+- Sub-helper `StatRow` (6 lines) — OK
+- Recommendation: Extract conditional branches into helper components or render functions to bring `StatisticsTab` below 30-line limit
+  - Example: create `StatisticsContent`, `StatisticsLoading`, `StatisticsError`, `StatisticsDisplay` helpers
+  - Or: extract a `renderContent(state)` helper function that returns JSX based on state flags
+  - Pattern: StatisticsTab should orchestrate state, call a render helper, return a single JSX tree
+
+**Other Findings:**
+- No useEffect present; state reset uses render-time `if` guard (acceptable, does not trigger data fetching)
+- Proper use of `useTransition` for Server Action calls
+- Single responsibility respected at component level (displays question statistics)
+- No business logic in component body
+- Naming conventions correct (kebab-case file, PascalCase export)
+- Test added (15 lines) — behavior-first naming, good coverage
+
+**Verdict:** Component violates 30-line function limit. Must refactor before merge. Fix commit required.
