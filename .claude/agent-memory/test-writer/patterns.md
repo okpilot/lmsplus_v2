@@ -742,3 +742,53 @@ post-hydration state. The pre-hydration SSR path is validated only by Playwright
 - `apps/web/app/app/dashboard/page.tsx` — thin page, just renders user.email
 - `apps/web/app/app/_components/question-card.tsx` — pure presenter, no logic (just renders text + optional image)
 - `apps/web/app/app/dashboard/_components/subject-grid.tsx` — pure presenter, MODE_LABELS only
+
+## Files extended in commit d77f70d (wall-clock timer + aria-expanded + auth order + error surfacing)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/review/_components/review-explainer.tsx` | `review-explainer.test.tsx` | 2 tests: `aria-expanded` is false when collapsed, true when expanded |
+| `apps/web/lib/queries/review.ts` | `queries/review.test.ts` | 1 test: subject filter query error throws 'Failed to load due cards' |
+| `apps/web/app/app/review/actions.ts` | `review/actions.test.ts` | Fixed existing Zod UUID test — added getUser mock so auth guard is passed before Zod runs |
+
+### Auth-before-parse ordering: always mock auth in Zod validation tests
+When a Server Action checks auth BEFORE calling `Zod.parse()`, Zod validation tests must
+mock `getUser` to return a valid user first. Without it, the action crashes before Zod runs:
+```ts
+// After auth-before-parse reorder: mock getUser so Zod is actually reached
+it('returns failure when subjectIds contain invalid UUIDs', async () => {
+  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+  const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const result = await startReviewSession({ subjectIds: ['not-a-uuid'] })
+  expect(result.success).toBe(false)
+  consoleSpy.mockRestore()
+})
+```
+Without the getUser mock, `vi.resetAllMocks()` leaves it returning `undefined`, the
+destructure `const { data: { user } }` crashes with TypeError, the outer catch returns
+`{ success: false }` — the assertion passes but the wrong code path is exercised.
+
+### Testing a second-chain error in filterBySubjects (two sequential from() calls)
+Use `mockFromSequence` with two responses: first call succeeds (returns due cards),
+second call returns an error (subject filter fails):
+```ts
+mockFromSequence(
+  { data: [{ question_id: 'q1', due: '2026-03-10T00:00:00Z', state: 'review' }] },
+  { data: null, error: { message: 'permission denied for table questions' } },
+)
+const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+await expect(getDueCards({ subjectIds: ['subj-1'] })).rejects.toThrow('Failed to load due cards')
+expect(consoleSpy).toHaveBeenCalledWith('[getDueCards] Subject filter query failed:', 'permission denied for table questions')
+```
+The `subjectIds` option must be provided to trigger `filterBySubjects`; without it the
+second `from()` call never happens.
+
+---
+
+## Files extended in commit c6a80b5 (subject selector for Smart Review)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/review/_components/review-config-form.tsx` | `review-config-form.test.tsx` | 3 tests: toggle deselect, sessionStorage verification, loading state |
+| `apps/web/lib/queries/review.ts` | `queries/review.test.ts` | 2 tests: query error path, subject filter matching no cards |
+| `apps/web/app/app/review/actions.ts` | `review/actions.test.ts` | 1 test: Zod validation rejects invalid UUIDs in subjectIds |

@@ -218,6 +218,7 @@ describe('submitQuizAnswer', () => {
   })
 
   it('rejects a malformed answer submission', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     await expect(submitQuizAnswer({})).rejects.toThrow(ZodError)
   })
 })
@@ -266,6 +267,7 @@ describe('completeQuiz', () => {
   })
 
   it('rejects a completion request without a session ID', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     await expect(completeQuiz({})).rejects.toThrow(ZodError)
   })
 })

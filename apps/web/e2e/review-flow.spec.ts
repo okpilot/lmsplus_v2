@@ -9,7 +9,8 @@ test.beforeAll(async () => {
   const admin = getAdminClient()
 
   // Find test user
-  const { data: users } = await admin.auth.admin.listUsers()
+  const { data: users, error: usersErr } = await admin.auth.admin.listUsers()
+  if (usersErr) throw new Error(`Failed to list users: ${usersErr.message}`)
   const testUser = users?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
   if (!testUser) throw new Error('Test user not found — auth.setup.ts must run first')
 

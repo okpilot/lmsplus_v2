@@ -49,12 +49,12 @@ export async function startReviewSession(raw?: unknown): Promise<StartReviewResu
 }
 
 export async function submitReviewAnswer(raw: unknown): Promise<SubmitAnswerResult> {
-  const input = SubmitAnswerSchema.parse(raw)
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
+  const input = SubmitAnswerSchema.parse(raw)
 
   const { data, error } = await rpc<SubmitRpcResult>(supabase, 'submit_quiz_answer', {
     p_session_id: input.sessionId,
@@ -85,12 +85,12 @@ export async function submitReviewAnswer(raw: unknown): Promise<SubmitAnswerResu
 }
 
 export async function completeReviewSession(raw: unknown): Promise<CompleteReviewResult> {
-  const input = CompleteQuizSessionSchema.parse(raw)
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
+  const input = CompleteQuizSessionSchema.parse(raw)
 
   const { data, error } = await rpc<CompleteRpcResult>(supabase, 'complete_quiz_session', {
     p_session_id: input.sessionId,
