@@ -420,6 +420,19 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 24: Analytics RPCs — explicit auth guards via plpgsql (2026-03-12)
+
+**Context:** Sprint 3 analytics RPCs (`get_daily_activity`, `get_subject_scores`) were initially implemented as `LANGUAGE sql` SECURITY DEFINER functions, relying on the `p_student_id` parameter boundary and WHERE clause checks to enforce single-tenant isolation. This is fragile — easy to miss a check or add a query that bypasses the parameter.
+
+**Decided:**
+- Convert both analytics RPCs from `LANGUAGE sql` to `LANGUAGE plpgsql` (migration `20260312000014_analytics_rpcs_plpgsql.sql`)
+- Add explicit `IF auth.uid() IS NULL THEN RAISE EXCEPTION 'not authenticated'` guard at the start of each function
+- Keep the redundant `WHERE auth.uid() = p_student_id` check in the query itself for defense-in-depth
+- Both checks are required: explicit guard is auditable security, WHERE clause is fallback isolation
+- Principle: never trust parameter boundaries alone. Explicit auth checks are cheaper to verify and review.
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -431,4 +444,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-12 — Core RPCs updated: batch_submit_quiz now primary, submit_quiz_answer/complete_quiz_session deprecated*
+*Last updated: 2026-03-12 — Sprint 3 analytics RPCs: plpgsql with explicit auth guards (Decision 24)*

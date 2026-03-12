@@ -798,8 +798,8 @@ CREATE OR REPLACE FUNCTION get_daily_activity(
   p_days       INT DEFAULT 30
 )
 RETURNS TABLE (day DATE, total BIGINT, correct BIGINT, incorrect BIGINT)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
--- auth.uid() = p_student_id guard in WHERE clause
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+-- Explicit auth.uid() NULL check with RAISE EXCEPTION + WHERE clause guard
 ```
 
 #### `get_subject_scores` — analytics: average scores by subject
@@ -812,8 +812,8 @@ CREATE OR REPLACE FUNCTION get_subject_scores(
   p_limit      INT DEFAULT 5
 )
 RETURNS TABLE (subject_id UUID, subject_name TEXT, subject_short TEXT, avg_score NUMERIC, session_count BIGINT)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
--- auth.uid() = p_student_id guard in WHERE clause
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+-- Explicit auth.uid() NULL check with RAISE EXCEPTION + WHERE clause guard
 ```
 
 ---
