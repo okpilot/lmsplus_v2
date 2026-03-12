@@ -268,6 +268,23 @@ const body = SubmitAnswerSchema.parse(await req.json())
 ### Prefer `type` Over `interface`
 Use `interface` only for objects that will be extended/implemented. Use `type` for everything else.
 
+### Destructure Supabase Mutation Results
+All Supabase mutation calls (`.insert()`, `.update()`, `.delete()`, `.upsert()`) must destructure `{ error }` from the return value. The Supabase client never throws on query errors — errors live in `result.error`. Awaiting without destructuring silently drops DB errors.
+
+```ts
+// ❌ WRONG — error silently dropped
+await supabase.from('quiz_drafts').delete().eq('student_id', userId)
+return { success: true }
+
+// ✅ CORRECT — error checked
+const { error } = await supabase.from('quiz_drafts').delete().eq('student_id', userId)
+if (error) {
+  console.error('[deleteDraft] Delete error:', error.message)
+  return { success: false }
+}
+return { success: true }
+```
+
 ### Export Types Next to Their Functions
 ```ts
 // actions.ts
@@ -328,6 +345,9 @@ question-card.test.tsx     ← same folder
 
 ### One Test File Per Source File
 Do not put all tests in a single `__tests__` folder.
+
+### New Hooks and Utilities Must Ship With Tests
+Any new file in a `_hooks/` or `_utils/` directory, or any new utility in `lib/`, must include a co-located `.test.ts` file in the same commit. Do not rely on the test-writer agent to backfill — write the test alongside the code.
 
 ### Test Naming: Describe Behaviour, Not Implementation
 ```ts
