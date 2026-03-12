@@ -43,11 +43,8 @@ describe('getQuestionStats', () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'student_responses') {
         return buildChain({
-          data: [
-            { is_correct: true, created_at: '2026-03-11T00:00:00Z' },
-            { is_correct: true, created_at: '2026-03-10T00:00:00Z' },
-            { is_correct: false, created_at: '2026-03-09T00:00:00Z' },
-          ],
+          count: 5,
+          data: [{ created_at: '2026-03-11T00:00:00Z' }],
           error: null,
         })
       }
@@ -61,15 +58,14 @@ describe('getQuestionStats', () => {
     })
 
     const result = await getQuestionStats('q-1')
-    expect(result.timesSeen).toBe(3)
-    expect(result.correctCount).toBe(2)
-    expect(result.incorrectCount).toBe(1)
+    expect(result.timesSeen).toBe(5)
+    expect(result.correctCount).toBe(5)
     expect(result.lastAnswered).toBe('2026-03-11T00:00:00Z')
     expect(result.fsrsState).toBe('Review')
   })
 
   it('returns null FSRS fields when no FSRS card exists for the question', async () => {
-    mockFrom.mockImplementation(() => buildChain({ data: null, error: null }))
+    mockFrom.mockImplementation(() => buildChain({ count: 3, data: null, error: null }))
 
     const result = await getQuestionStats('q-1')
     expect(result.fsrsState).toBeNull()
@@ -78,19 +74,36 @@ describe('getQuestionStats', () => {
     expect(result.fsrsInterval).toBeNull()
   })
 
-  it('throws when the response query returns an error', async () => {
-    let callCount = 0
+  it('throws when the total response count query returns an error', async () => {
+    let studentResponsesCall = 0
     mockFrom.mockImplementation((table: string) => {
       if (table === 'student_responses') {
-        callCount++
-        if (callCount === 1) {
-          return buildChain({ data: null, error: { message: 'DB failure' } })
+        studentResponsesCall++
+        if (studentResponsesCall === 1) {
+          return buildChain({ count: null, error: { message: 'DB failure' } })
         }
       }
-      return buildChain({ data: null, error: null })
+      return buildChain({ count: 5, data: null, error: null })
     })
 
-    await expect(getQuestionStats('q-1')).rejects.toThrow('Failed to fetch responses: DB failure')
+    await expect(getQuestionStats('q-1')).rejects.toThrow('Failed to count responses: DB failure')
+  })
+
+  it('throws when the correct response count query returns an error', async () => {
+    let studentResponsesCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'student_responses') {
+        studentResponsesCall++
+        if (studentResponsesCall === 2) {
+          return buildChain({ count: null, error: { message: 'correct count failure' } })
+        }
+      }
+      return buildChain({ count: 2, data: null, error: null })
+    })
+
+    await expect(getQuestionStats('q-1')).rejects.toThrow(
+      'Failed to count correct responses: correct count failure',
+    )
   })
 
   it('throws when the FSRS card query returns an error', async () => {
@@ -98,21 +111,23 @@ describe('getQuestionStats', () => {
       if (table === 'fsrs_cards') {
         return buildChain({ data: null, error: { message: 'fsrs failure' } })
       }
-      return buildChain({ data: null, error: null })
+      return buildChain({ count: 2, data: null, error: null })
     })
 
     await expect(getQuestionStats('q-1')).rejects.toThrow('Failed to fetch FSRS card: fsrs failure')
   })
 
   it('throws when the last response query returns an error', async () => {
-    const studentResponsesCalls: number[] = []
+    let studentResponsesCall = 0
     mockFrom.mockImplementation((table: string) => {
       if (table === 'student_responses') {
-        const callIndex = studentResponsesCalls.push(1)
-        if (callIndex === 2) {
+        studentResponsesCall++
+        // Calls 1-2 are the parallel COUNTs inside getResponseCounts,
+        // call 3 is getLastResponse (concurrent via outer Promise.all)
+        if (studentResponsesCall === 3) {
           return buildChain({ data: null, error: { message: 'last response failure' } })
         }
-        return buildChain({ data: [], error: null })
+        return buildChain({ count: 1, data: null, error: null })
       }
       return buildChain({ data: null, error: null })
     })
@@ -123,7 +138,7 @@ describe('getQuestionStats', () => {
   })
 
   it('returns zero counts when no responses exist', async () => {
-    mockFrom.mockImplementation(() => buildChain({ data: null, error: null }))
+    mockFrom.mockImplementation(() => buildChain({ count: 0, data: null, error: null }))
 
     const result = await getQuestionStats('q-1')
     expect(result.timesSeen).toBe(0)
