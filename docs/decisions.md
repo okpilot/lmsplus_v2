@@ -5,6 +5,17 @@
 
 ---
 
+## INCIDENTS & LESSONS LEARNED
+
+### RLS infinite recursion on remote users table (2026-03-12)
+- **What happened:** Login on production (`www.lmsplus.app`) failed with "profile lookup failed". Root cause: the `tenant_isolation` RLS policy on `public.users` used a self-referencing subquery (`SELECT organization_id FROM users WHERE id = auth.uid()`), causing infinite recursion on every query to the table.
+- **Why migration 004 didn't fix it:** Migration 004 was recorded as applied in Supabase's migration tracker but the SQL never actually executed on remote. The `tenant_isolation` policy remained in place.
+- **Fix:** Migration `20260312000012_fix_users_rls_remote.sql` — drops `tenant_isolation`, recreates `users_select` (`id = auth.uid() AND deleted_at IS NULL`). Applied via `supabase db push` alongside 007–011.
+- **Lesson:** When a migration is "applied" on remote but broken behaviour persists, check actual policies in Supabase Studio (`Authentication → Policies`) rather than trusting the migration tracker. Create a new idempotent migration to re-apply the fix — keeps git history clean and migration tracker accurate.
+- **RLS rule reinforced:** Never write a policy on a table that SELECTs from the same table — always use `auth.uid()` directly.
+
+---
+
 ## CONFIRMED DECISIONS
 
 ### Stack
@@ -94,7 +105,7 @@ Full reference: `docs/database.md`. Key decisions:
 
 - **Soft delete everywhere** — `deleted_at TIMESTAMPTZ NULL` on all mutable tables. No hard `DELETE` ever. CAA compliance requires full history. RLS policies include `AND deleted_at IS NULL` so deleted rows are invisible by default.
 - **Immutable tables** — `student_responses`, `quiz_session_answers`, `audit_events`: no UPDATE, no DELETE, no soft delete. These are facts.
-- **ACID via RPCs** — any operation touching 2+ tables goes in a single Postgres function. No multi-step application-level calls. Core RPCs: `get_quiz_questions`, `submit_quiz_answer`, `start_quiz_session`, `complete_quiz_session`.
+- **ACID via RPCs** — any operation touching 2+ tables goes in a single Postgres function. No multi-step application-level calls. Core RPCs: `get_quiz_questions`, `batch_submit_quiz` (all answers + session completion in one atomic transaction), `start_quiz_session`. Deprecated: `submit_quiz_answer`, `complete_quiz_session` (superseded by `batch_submit_quiz`).
 - **Idempotency** — all INSERTs on mutable data use `ON CONFLICT DO NOTHING` or upsert. Safe to retry on network failure.
 - **SECURITY DEFINER RPCs** — must always include manual `auth.uid()` check + `SET search_path = public`. Never skip these.
 - **Constraints** — FK, NOT NULL, CHECK on every table. DB enforces consistency, not just app code.
@@ -395,6 +406,20 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 23: Atomic batch quiz submission (2026-03-12)
+
+**Context:** Sprint 2 deferred writes feature accumulates quiz answers in client state, then submits all at once on finish. Original design used per-answer `submit_quiz_answer()` loop + separate `complete_quiz_session()` call — vulnerable to partial failures (e.g., 3 of 5 answers submitted, then network error).
+
+**Decided:**
+- New `batch_submit_quiz(p_session_id, p_answers)` RPC processes all answers, calculates score, completes session in a single Postgres transaction
+- If any answer fails, entire batch rolls back — no orphaned answers or incomplete sessions
+- Replaces `submit_quiz_answer()` (per-answer) and `complete_quiz_session()` (separate call) for new code
+- Old RPCs deprecated but kept for backwards compatibility
+- All FSRS updates (ts-fsrs calculation) happen client-side post-batch, with best-effort error handling (non-fatal)
+- Audit event type: `quiz_session.batch_submitted` (distinct from per-answer audit)
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -406,4 +431,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-11 — Decision 22: production domain + Supabase auth redirects*
+*Last updated: 2026-03-12 — Core RPCs updated: batch_submit_quiz now primary, submit_quiz_answer/complete_quiz_session deprecated*
