@@ -170,6 +170,17 @@
 - ✅ Exit button for fullscreen quiz session (2.1)
 - ✅ Saved drafts tab: tab UI + draft card with subject metadata, resume/delete (2.10)
 
+### Sprint 3 — Dashboard & Analytics (COMPLETE — 2026-03-12)
+- ✅ Migration 013: `get_daily_activity` + `get_subject_scores` analytics RPCs (SECURITY DEFINER + auth.uid() guard)
+- ✅ recharts integration: activity bar chart (30-day stacked correct/incorrect), subject scores donut chart
+- ✅ CSS grid study-streak heatmap (5-tier green intensity)
+- ✅ Quick actions (Start Quiz / Start Review) on dashboard
+- ✅ Dashboard reshaped: charts + heatmap + subject grid + reports link (replaced RecentSessions)
+- ✅ `/app/reports` page: sortable session history (date/score/subject), click → quiz report
+- ✅ Statistics tab: per-question stats (times seen, accuracy, FSRS state/stability/difficulty/interval)
+- ✅ Navigation updated: Reports added to sidebar + mobile nav
+- ✅ Query layer: `analytics.ts`, `reports.ts`, `question-stats.ts` with tests (11 new tests)
+
 ---
 
 ## Phase 1 — Foundation (do this first, one session)

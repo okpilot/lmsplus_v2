@@ -416,6 +416,8 @@ verb_noun pattern:
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
+  get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
+  get_subject_scores         ← read, analytics: avg scores by subject
 ```
 
 ### Security Model
@@ -784,6 +786,34 @@ BEGIN
   RETURN v_session_id;
 END;
 $$;
+```
+
+#### `get_daily_activity` — analytics: daily answer counts
+
+Returns daily answer totals for the last N days, zero-filled via `generate_series`.
+
+```sql
+CREATE OR REPLACE FUNCTION get_daily_activity(
+  p_student_id UUID,
+  p_days       INT DEFAULT 30
+)
+RETURNS TABLE (day DATE, total BIGINT, correct BIGINT, incorrect BIGINT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+-- auth.uid() = p_student_id guard in WHERE clause
+```
+
+#### `get_subject_scores` — analytics: average scores by subject
+
+Returns average quiz scores for the N most recently tested subjects.
+
+```sql
+CREATE OR REPLACE FUNCTION get_subject_scores(
+  p_student_id UUID,
+  p_limit      INT DEFAULT 5
+)
+RETURNS TABLE (subject_id UUID, subject_name TEXT, subject_short TEXT, avg_score NUMERIC, session_count BIGINT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+-- auth.uid() = p_student_id guard in WHERE clause
 ```
 
 ---

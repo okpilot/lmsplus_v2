@@ -32,7 +32,7 @@ export async function getAllSessions(): Promise<SessionReport[]> {
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const { data: sessions } = await supabase
+  const { data: sessions, error: sessionsError } = await supabase
     .from('quiz_sessions')
     .select(
       'id, mode, total_questions, correct_count, score_percentage, started_at, ended_at, subject_id',
@@ -42,17 +42,20 @@ export async function getAllSessions(): Promise<SessionReport[]> {
     .order('started_at' as string & keyof never, { ascending: false })
     .returns<SessionRow[]>()
 
+  if (sessionsError) throw new Error(`Failed to fetch sessions: ${sessionsError.message}`)
   if (!sessions?.length) return []
 
   const subjectIds = [...new Set(sessions.map((s) => s.subject_id).filter(Boolean))] as string[]
-  const { data: subjects } =
+  const { data: subjects, error: subjectsError } =
     subjectIds.length > 0
       ? await supabase
           .from('easa_subjects')
           .select('id, name')
           .in('id' as string & keyof never, subjectIds)
           .returns<SubjectNameRow[]>()
-      : { data: [] as SubjectNameRow[] }
+      : { data: [] as SubjectNameRow[], error: null }
+
+  if (subjectsError) throw new Error(`Failed to fetch subjects: ${subjectsError.message}`)
 
   const subjectMap = new Map((subjects ?? []).map((s) => [s.id, s.name]))
 

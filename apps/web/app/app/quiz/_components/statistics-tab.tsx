@@ -1,7 +1,7 @@
 'use client'
 
 import type { QuestionStats } from '@/lib/queries/question-stats'
-import { startTransition, useEffect, useState } from 'react'
+import { useState, useTransition } from 'react'
 import { fetchQuestionStats } from '../actions/fetch-stats'
 
 type StatisticsTabProps = {
@@ -11,25 +11,8 @@ type StatisticsTabProps = {
 
 export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
   const [stats, setStats] = useState<QuestionStats | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!hasAnswered) return
-    setLoading(true)
-    setError(null)
-    startTransition(() => {
-      fetchQuestionStats(questionId)
-        .then((data) => {
-          setStats(data)
-          setLoading(false)
-        })
-        .catch(() => {
-          setError('Failed to load statistics.')
-          setLoading(false)
-        })
-    })
-  }, [questionId, hasAnswered])
 
   if (!hasAnswered) {
     return (
@@ -39,7 +22,33 @@ export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
     )
   }
 
-  if (loading || !stats) {
+  function loadStats() {
+    setError(null)
+    startTransition(async () => {
+      try {
+        const data = await fetchQuestionStats(questionId)
+        setStats(data)
+      } catch {
+        setError('Failed to load statistics.')
+      }
+    })
+  }
+
+  if (!stats && !isPending && !error) {
+    return (
+      <div className="py-6 text-center">
+        <button
+          type="button"
+          onClick={loadStats}
+          className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+        >
+          Load Statistics
+        </button>
+      </div>
+    )
+  }
+
+  if (isPending) {
     return (
       <div className="space-y-3 py-4">
         <div className="h-4 w-32 animate-pulse rounded bg-muted" />
@@ -50,8 +59,17 @@ export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
   }
 
   if (error) {
-    return <div className="py-8 text-center text-sm text-destructive">{error}</div>
+    return (
+      <div className="space-y-2 py-8 text-center">
+        <p className="text-sm text-destructive">{error}</p>
+        <button type="button" onClick={loadStats} className="text-sm text-primary hover:underline">
+          Retry
+        </button>
+      </div>
+    )
   }
+
+  if (!stats) return null
 
   const accuracy =
     stats.timesSeen > 0 ? Math.round((stats.correctCount / stats.timesSeen) * 100) : 0

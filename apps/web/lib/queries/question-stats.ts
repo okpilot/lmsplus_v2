@@ -51,18 +51,22 @@ async function getResponseCounts(
   userId: string,
   questionId: string,
 ): Promise<{ total: number; correct: number }> {
-  const { count: total } = await supabase
+  const { count: total, error: totalError } = await supabase
     .from('student_responses')
     .select('*', { count: 'exact', head: true })
     .eq('student_id' as string & keyof never, userId)
     .eq('question_id' as string & keyof never, questionId)
 
-  const { count: correct } = await supabase
+  if (totalError) throw new Error(`Failed to count responses: ${totalError.message}`)
+
+  const { count: correct, error: correctError } = await supabase
     .from('student_responses')
     .select('*', { count: 'exact', head: true })
     .eq('student_id' as string & keyof never, userId)
     .eq('question_id' as string & keyof never, questionId)
     .eq('is_correct' as string & keyof never, true)
+
+  if (correctError) throw new Error(`Failed to count correct responses: ${correctError.message}`)
 
   return { total: total ?? 0, correct: correct ?? 0 }
 }
@@ -72,13 +76,15 @@ async function getFsrsCard(
   userId: string,
   questionId: string,
 ): Promise<FsrsRow | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('fsrs_cards')
     .select('state, stability, difficulty, scheduled_days, last_review')
     .eq('student_id' as string & keyof never, userId)
     .eq('question_id' as string & keyof never, questionId)
     .returns<FsrsRow[]>()
     .maybeSingle()
+
+  if (error) throw new Error(`Failed to fetch FSRS card: ${error.message}`)
 
   return data
 }
@@ -88,7 +94,7 @@ async function getLastResponse(
   userId: string,
   questionId: string,
 ): Promise<string | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('student_responses')
     .select('created_at')
     .eq('student_id' as string & keyof never, userId)
@@ -96,6 +102,8 @@ async function getLastResponse(
     .order('created_at' as string & keyof never, { ascending: false })
     .limit(1)
     .returns<{ created_at: string }[]>()
+
+  if (error) throw new Error(`Failed to fetch last response: ${error.message}`)
 
   return data?.[0]?.created_at ?? null
 }

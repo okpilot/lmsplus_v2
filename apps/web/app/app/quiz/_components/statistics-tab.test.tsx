@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../actions/fetch-stats', () => ({
@@ -22,8 +23,15 @@ describe('StatisticsTab', () => {
     expect(screen.getByText('Answer the question to see your statistics.')).toBeInTheDocument()
   })
 
-  it('shows stats after loading when hasAnswered is true', async () => {
+  it('shows load button when hasAnswered is true', () => {
     render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    expect(screen.getByRole('button', { name: 'Load Statistics' })).toBeInTheDocument()
+  })
+
+  it('shows stats after clicking load button', async () => {
+    const user = userEvent.setup()
+    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
     await waitFor(() => {
       expect(screen.getByText('Times seen')).toBeInTheDocument()
     })
