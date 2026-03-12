@@ -47,15 +47,16 @@ test('quiz flow: configure → answer questions → view results → dashboard',
     }
   }
 
-  // 7. Open finish dialog and submit
+  // 7. Wait for all answers to flush, then open finish dialog and submit
+  await expect(page.locator('[data-testid="progress-bar"]')).toHaveAttribute('style', /100%/)
   await page.getByRole('button', { name: 'Finish Test' }).click()
-  await expect(page.getByText('Finish Quiz')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Finish quiz' })).toBeVisible()
   await page.getByRole('button', { name: 'Submit Quiz' }).click()
 
   // 8. Should redirect to quiz report page
   await page.waitForURL('**/app/quiz/report**', { timeout: 10_000 })
   await expect(page.getByRole('heading', { name: 'Quiz Report' })).toBeVisible()
-  await expect(page.getByText('%')).toBeVisible() // score percentage
+  await expect(page.getByText(/\d+%/)).toBeVisible() // score percentage
   await expect(page.getByRole('link', { name: 'Back to Dashboard' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Start Another Quiz' })).toBeVisible()
 

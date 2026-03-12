@@ -41,9 +41,10 @@ test('progress page updates after completing a quiz', async ({ page }) => {
     }
   }
 
-  // Finish and submit quiz
+  // Wait for all answers to flush, then finish and submit quiz
+  await expect(page.locator('[data-testid="progress-bar"]')).toHaveAttribute('style', /100%/)
   await page.getByRole('button', { name: 'Finish Test' }).click()
-  await expect(page.getByText('Finish Quiz')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Finish quiz' })).toBeVisible()
   await page.getByRole('button', { name: 'Submit Quiz' }).click()
   await page.waitForURL('**/app/quiz/report**', { timeout: 10_000 })
   await expect(page.getByRole('heading', { name: 'Quiz Report' })).toBeVisible()

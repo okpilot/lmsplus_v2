@@ -359,7 +359,8 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 ├── review/                 ← Smart Review (FSRS-powered spaced repetition)
 │   └── session/            ← active review session
 ├── quiz/                   ← Quiz config (subject, count, randomized mode)
-│   └── session/            ← active quiz session
+│   ├── session/            ← active quiz session
+│   └── report/             ← quiz results page (score %, breakdown, links)
 └── progress/               ← detailed progress per subject/topic/subtopic
 ```
 
