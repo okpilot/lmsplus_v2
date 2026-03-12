@@ -21,8 +21,13 @@ export async function createServerSupabaseClient() {
           options: Record<string, unknown>
         }>,
       ) {
-        for (const { name, value, options } of cookiesToSet) {
-          cookieStore.set(name, value, options)
+        try {
+          for (const { name, value, options } of cookiesToSet) {
+            cookieStore.set(name, value, options)
+          }
+        } catch {
+          // Called from a Server Component — cookies are read-only here.
+          // Token refresh is handled by the proxy on the next request.
         }
       },
     },
