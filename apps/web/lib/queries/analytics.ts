@@ -33,7 +33,9 @@ export async function getDailyActivity(days = 30): Promise<DailyActivity[]> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
   const safeDays = boundParam(days, 1, 365)
@@ -56,7 +58,9 @@ export async function getSubjectScores(limit = 5): Promise<SubjectScore[]> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
   const safeLimit = boundParam(limit, 1, 100)
