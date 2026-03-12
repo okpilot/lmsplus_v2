@@ -663,7 +663,8 @@ CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
 3. **Never change a column type** without a migration that handles existing data.
 4. **Every migration file is named** `NNN_short_description.sql` — e.g., `001_initial_schema.sql`.
 5. **RLS must be enabled in the same migration as the table creation** — never in a separate file.
-6. **Test every migration** against a local Supabase instance before pushing.
+6. **RPC signature changes require DROP FUNCTION first.** Postgres `CREATE OR REPLACE FUNCTION` cannot change a function's return type or parameter list. If modifying an RPC signature, precede the `CREATE OR REPLACE` with `DROP FUNCTION IF EXISTS function_name(param_types);`
+7. **Test every migration** against a local Supabase instance before pushing.
 
 ---
 
@@ -679,4 +680,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-11 | Companion: docs/security.md*
+*Last updated: 2026-03-12 | Companion: docs/security.md*
