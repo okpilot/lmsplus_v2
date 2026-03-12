@@ -1199,3 +1199,112 @@ bypasses that constraint — exactly what the Math.min guard is designed to hand
 
 ### Suite state after this commit
 65 test files, 580 tests — all passing.
+
+---
+
+## Files tested in commit 845923b (Sprint 3 analytics)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/queries/analytics.ts` | `lib/queries/analytics.test.ts` | Already present — shipped with the commit |
+| `apps/web/lib/queries/reports.ts` | `lib/queries/reports.test.ts` | Already present — shipped with the commit |
+| `apps/web/lib/queries/question-stats.ts` | `lib/queries/question-stats.test.ts` | Already present — shipped with the commit |
+| `apps/web/app/app/quiz/_components/statistics-tab.tsx` | `_components/statistics-tab.test.tsx` | Already present — shipped with the commit |
+| `apps/web/app/app/reports/_components/reports-list.tsx` | `reports-list.test.tsx` | **NEW** — 17 tests: empty state, mode labels, sort state machine, link hrefs, arrow indicator |
+| `apps/web/app/app/dashboard/_components/activity-heatmap.tsx` | `activity-heatmap.test.tsx` | **NEW** — 12 tests: `getIntensity` all 6 branches + boundary values, locale date format, null return on empty data |
+| `apps/web/app/app/dashboard/_components/activity-chart.tsx` | `activity-chart.test.tsx` | **NEW** — 3 tests: empty state, chart renders, heading visible |
+| `apps/web/app/app/dashboard/_components/subject-scores-chart.tsx` | `subject-scores-chart.test.tsx` | **NEW** — 5 tests: empty state, chart renders, heading, legend entries, >5 subjects colour cycling |
+| `apps/web/app/app/quiz/actions/fetch-stats.ts` | `actions/fetch-stats.test.ts` | **NEW** — 2 tests: delegates to getQuestionStats, propagates errors |
+| `apps/web/app/app/dashboard/_components/quick-actions.tsx` | — | Pure presenter (two hardcoded links, no logic) — no unit test needed |
+
+### Mocking Recharts in jsdom
+Recharts renders SVG using browser layout APIs not available in jsdom. Stub the entire module:
+```tsx
+vi.mock('recharts', () => ({
+  BarChart: ({ children }: { children: React.ReactNode }) => <div data-testid="bar-chart">{children}</div>,
+  Bar: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  CartesianGrid: () => null,
+  Tooltip: () => null,
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}))
+```
+For `PieChart` + `Pie` + `Cell`, use the same approach. The `data-testid` on the container
+lets tests assert the chart rendered without depending on SVG details.
+
+### ActivityHeatmap: `getIntensity` intensity boundaries
+The function uses `<=` comparisons, so boundary values belong to the LOWER intensity band:
+- `total === 0` → `bg-muted`
+- `total === 5` → `bg-green-200` (not muted)
+- `total === 15` → `bg-green-300`
+- `total === 30` → `bg-green-400`
+- `total === 50` → `bg-green-500`
+- `total >= 51` → `bg-green-600`
+Test the exact boundary value for each threshold to catch off-by-one regressions.
+
+### ReportsList: sortKey default and toggleSort behaviour
+- Default sort: `date` descending (newest first).
+- Clicking the active key flips `sortDir` (asc ↔ desc).
+- Clicking an inactive key sets `sortDir` to `'desc'` for `date`, `'asc'` for `score`/`subject`.
+- The active sort key button shows `↑` (asc) or `↓` (desc); inactive keys show no arrow.
+Test by clicking sort buttons and asserting the `href` order of rendered `<a>` elements.
+
+### Suite state after commit 845923b
+70 test files, 619 tests — all passing (5 new files, 39 new tests).
+
+---
+
+## Promise.all call-ordering with per-table Supabase mocks (2026-03-12)
+
+When a function uses `Promise.all([helperA(), helperB(), helperC()])` and each helper queries
+a Supabase table, the order in which `from()` is called is determined by the Node.js microtask
+queue, not the array index. The rule for sequential helpers within `Promise.all`:
+
+- All first awaits across all helpers fire before any second await.
+- So for `Promise.all([getResponseCounts(), getFsrsCard(), getLastResponse()])`:
+  - Call 1: `student_responses` (getResponseCounts total — first await)
+  - Call 2: `fsrs_cards` (getFsrsCard — first and only await, fires concurrently)
+  - Call 3: `student_responses` (getLastResponse — first and only await, fires concurrently)
+  - Call 4: `student_responses` (getResponseCounts correct — second await, fires after call 1 resolves)
+
+To target a specific sub-query within a table, use a per-table call counter, NOT a global counter:
+
+```ts
+const studentResponsesCalls: number[] = []
+mockFrom.mockImplementation((table: string) => {
+  if (table === 'student_responses') {
+    const callIndex = studentResponsesCalls.push(1)
+    if (callIndex === 3) {  // 3rd student_responses call = correct-count query
+      return buildChain({ count: null, error: { message: 'db error' } })
+    }
+    return buildChain({ count: 2, data: null, error: null })
+  }
+  return buildChain({ data: null, error: null })
+})
+```
+
+**Key call indices for question-stats.ts helpers:**
+- student_responses call 1 = total count (getResponseCounts first await)
+- student_responses call 2 = last response (getLastResponse fires concurrently)
+- student_responses call 3 = correct count (getResponseCounts second await, after call 1 resolves)
+
+### Zod validation tests for Server Actions
+When a Server Action wraps input in a Zod schema before delegating, add these tests:
+1. Passes valid UUID → delegates to inner function (happy path already covered)
+2. Rejects non-UUID string → `rejects.toThrow()` (ZodError)
+3. Rejects empty string → `rejects.toThrow()` (ZodError)
+4. Does not call inner function when validation fails → `expect(mockFn).not.toHaveBeenCalled()`
+
+### useTransition component patterns
+For components using `useTransition` + a manual trigger button:
+- Test that `hasAnswered=false` shows the "answer first" message (no button)
+- Test that `hasAnswered=true` shows the load trigger button
+- Test success: click load → `waitFor` stats to appear
+- Test error: mock rejects → `waitFor` error message + retry button
+- Test retry: mock rejects once then resolves → click retry → stats appear
+- Use `vi.hoisted` + named mock variable so `beforeEach(() => vi.resetAllMocks())` works properly
+  (static `vi.fn().mockResolvedValue(...)` in `vi.mock()` factory is not reset between tests)
+
+### Suite state after commit 86c8da4
+73 test files, 643 tests — all passing (24 new tests across 4 existing files).

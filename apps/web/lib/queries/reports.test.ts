@@ -72,4 +72,63 @@ describe('getAllSessions', () => {
     expect(result[0]!.durationMinutes).toBe(15)
     expect(result[0]!.scorePercentage).toBe(80)
   })
+
+  it('throws when the quiz_sessions query returns an error', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions')
+        return buildChain({ data: null, error: { message: 'sessions DB error' } })
+      return buildChain({ data: [] })
+    })
+
+    await expect(getAllSessions()).rejects.toThrow('Failed to fetch sessions: sessions DB error')
+  })
+
+  it('throws when the easa_subjects query returns an error', async () => {
+    const sessions = [
+      {
+        id: 'sess-1',
+        mode: 'quick_quiz',
+        total_questions: 5,
+        correct_count: 4,
+        score_percentage: 80,
+        started_at: '2026-03-12T10:00:00Z',
+        ended_at: '2026-03-12T10:10:00Z',
+        subject_id: 's-1',
+      },
+    ]
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
+      if (table === 'easa_subjects')
+        return buildChain({ data: null, error: { message: 'subjects DB error' } })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await expect(getAllSessions()).rejects.toThrow('Failed to fetch subjects: subjects DB error')
+  })
+
+  it('sets subjectName to null when session has no subject_id', async () => {
+    const sessions = [
+      {
+        id: 'sess-2',
+        mode: 'smart_review',
+        total_questions: 3,
+        correct_count: 2,
+        score_percentage: 67,
+        started_at: '2026-03-12T09:00:00Z',
+        ended_at: '2026-03-12T09:05:00Z',
+        subject_id: null,
+      },
+    ]
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
+      // easa_subjects should not be queried when no subject IDs present
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getAllSessions()
+    expect(result).toHaveLength(1)
+    expect(result[0]!.subjectName).toBeNull()
+  })
 })

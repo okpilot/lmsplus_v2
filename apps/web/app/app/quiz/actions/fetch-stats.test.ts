@@ -41,4 +41,17 @@ describe('fetchQuestionStats', () => {
       'Not authenticated',
     )
   })
+
+  it('throws a ZodError when questionId is not a valid UUID', async () => {
+    await expect(fetchQuestionStats('not-a-uuid')).rejects.toThrow()
+  })
+
+  it('throws a ZodError when questionId is an empty string', async () => {
+    await expect(fetchQuestionStats('')).rejects.toThrow()
+  })
+
+  it('does not call getQuestionStats when UUID validation fails', async () => {
+    await fetchQuestionStats('not-a-uuid').catch(() => undefined)
+    expect(mockGetQuestionStats).not.toHaveBeenCalled()
+  })
 })
