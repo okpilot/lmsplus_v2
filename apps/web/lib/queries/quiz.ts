@@ -15,10 +15,19 @@ export type TopicOption = {
   questionCount: number
 }
 
+export type SubtopicOption = {
+  id: string
+  code: string
+  name: string
+  questionCount: number
+}
+
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type TopicRow = { id: string; code: string; name: string; sort_order: number }
+type SubtopicRow = { id: string; code: string; name: string; sort_order: number }
 type QuestionRefRow = { subject_id: string }
 type QuestionTopicRow = { topic_id: string }
+type QuestionSubtopicRow = { subtopic_id: string }
 type QuestionIdRow = { id: string }
 
 export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
@@ -88,9 +97,44 @@ export async function getTopicsForSubject(subjectId: string): Promise<TopicOptio
     .filter((t) => t.questionCount > 0)
 }
 
+export async function getSubtopicsForTopic(topicId: string): Promise<SubtopicOption[]> {
+  const supabase = await createServerSupabaseClient()
+
+  const { data: subtopics } = await supabase
+    .from('easa_subtopics')
+    .select('id, code, name, sort_order')
+    .eq('topic_id' as string & keyof never, topicId)
+    .order('sort_order')
+    .returns<SubtopicRow[]>()
+
+  if (!subtopics?.length) return []
+
+  const { data: counts } = await supabase
+    .from('questions')
+    .select('subtopic_id')
+    .eq('status' as string & keyof never, 'active')
+    .eq('topic_id' as string & keyof never, topicId)
+    .returns<QuestionSubtopicRow[]>()
+
+  const countMap = new Map<string, number>()
+  for (const q of counts ?? []) {
+    countMap.set(q.subtopic_id, (countMap.get(q.subtopic_id) ?? 0) + 1)
+  }
+
+  return subtopics
+    .map((st) => ({
+      id: st.id,
+      code: st.code,
+      name: st.name,
+      questionCount: countMap.get(st.id) ?? 0,
+    }))
+    .filter((st) => st.questionCount > 0)
+}
+
 export async function getRandomQuestionIds(opts: {
   subjectId: string
   topicId?: string | null
+  subtopicId?: string | null
   count: number
 }): Promise<string[]> {
   const supabase = await createServerSupabaseClient()
@@ -103,6 +147,10 @@ export async function getRandomQuestionIds(opts: {
 
   if (opts.topicId) {
     query = query.eq('topic_id' as string & keyof never, opts.topicId)
+  }
+
+  if (opts.subtopicId) {
+    query = query.eq('subtopic_id' as string & keyof never, opts.subtopicId)
   }
 
   const { data } = await query.returns<QuestionIdRow[]>()

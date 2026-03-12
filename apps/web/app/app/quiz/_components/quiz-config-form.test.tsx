@@ -13,25 +13,38 @@ vi.mock('../actions', () => ({
   startQuizSession: (...args: unknown[]) => mockStartQuizSession(...args),
 }))
 
+const mockFetchTopics = vi.fn()
+const mockFetchSubtopics = vi.fn()
+vi.mock('../actions/lookup', () => ({
+  fetchTopicsForSubject: (...args: unknown[]) => mockFetchTopics(...args),
+  fetchSubtopicsForTopic: (...args: unknown[]) => mockFetchSubtopics(...args),
+}))
+
 const SUBJECTS = [
   { id: 'sub-1', code: '050', name: 'Meteorology', short: 'MET', questionCount: 30 },
   { id: 'sub-2', code: '010', name: 'Air Law', short: 'ALW', questionCount: 15 },
+]
+
+const TOPICS = [
+  { id: 'top-1', code: '050-01', name: 'The Atmosphere', questionCount: 12 },
+  { id: 'top-2', code: '050-02', name: 'Wind', questionCount: 18 },
 ]
 
 describe('QuizConfigForm', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.stubGlobal('sessionStorage', { setItem: vi.fn(), getItem: vi.fn(), removeItem: vi.fn() })
+    mockFetchTopics.mockResolvedValue([])
+    mockFetchSubtopics.mockResolvedValue([])
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('renders subject select and question count input', () => {
+  it('renders subject select', () => {
     render(<QuizConfigForm subjects={SUBJECTS} />)
     expect(screen.getByLabelText('Subject')).toBeInTheDocument()
-    expect(screen.getByLabelText('Number of questions')).toBeInTheDocument()
   })
 
   it('renders all subject options', () => {
@@ -52,11 +65,12 @@ describe('QuizConfigForm', () => {
     expect(screen.getByRole('button', { name: 'Start Quiz' })).not.toBeDisabled()
   })
 
-  it('shows available question count after subject selection', async () => {
+  it('shows question count slider after subject selection', async () => {
     const user = userEvent.setup()
     render(<QuizConfigForm subjects={SUBJECTS} />)
     await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
     expect(screen.getByText(/up to 30 available/i)).toBeInTheDocument()
+    expect(screen.getByRole('slider')).toBeInTheDocument()
   })
 
   it('caps available count at 50', async () => {
@@ -67,6 +81,20 @@ describe('QuizConfigForm', () => {
     render(<QuizConfigForm subjects={bigSubject} />)
     await user.selectOptions(screen.getByLabelText('Subject'), 'sub-3')
     expect(screen.getByText(/up to 50 available/i)).toBeInTheDocument()
+  })
+
+  it('fetches topics when a subject is selected', async () => {
+    const user = userEvent.setup()
+    mockFetchTopics.mockResolvedValue(TOPICS)
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
+
+    await waitFor(() => {
+      expect(mockFetchTopics).toHaveBeenCalledWith('sub-1')
+    })
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Topic/)).toBeInTheDocument()
+    })
   })
 
   it('navigates to session page on successful start', async () => {
@@ -81,12 +109,41 @@ describe('QuizConfigForm', () => {
     await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
     await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
 
-    expect(mockStartQuizSession).toHaveBeenCalledWith({
-      subjectId: 'sub-1',
-      topicId: null,
-      count: 10,
-    })
+    expect(mockStartQuizSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subjectId: 'sub-1',
+        topicId: null,
+        subtopicId: null,
+      }),
+    )
     expect(mockPush).toHaveBeenCalledWith('/app/quiz/session')
+  })
+
+  it('passes topicId when a topic is selected', async () => {
+    const user = userEvent.setup()
+    mockFetchTopics.mockResolvedValue(TOPICS)
+    mockStartQuizSession.mockResolvedValue({
+      success: true,
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+    })
+
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Topic/)).toBeInTheDocument()
+    })
+    await user.selectOptions(screen.getByLabelText(/Topic/), 'top-1')
+    await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
+
+    expect(mockStartQuizSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subjectId: 'sub-1',
+        topicId: 'top-1',
+        subtopicId: null,
+      }),
+    )
   })
 
   it('shows error message on failure', async () => {
@@ -99,28 +156,6 @@ describe('QuizConfigForm', () => {
 
     expect(screen.getByText('Not enough questions')).toBeInTheDocument()
     expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it('sends a non-default question count when changed', async () => {
-    const user = userEvent.setup()
-    mockStartQuizSession.mockResolvedValue({
-      success: true,
-      sessionId: 'sess-1',
-      questionIds: Array.from({ length: 12 }, (_, i) => `q${i}`),
-    })
-
-    render(<QuizConfigForm subjects={SUBJECTS} />)
-    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
-    const countInput = screen.getByLabelText('Number of questions')
-    await user.clear(countInput)
-    await user.type(countInput, '12')
-    await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
-
-    expect(mockStartQuizSession).toHaveBeenCalledWith({
-      subjectId: 'sub-1',
-      topicId: null,
-      count: 12,
-    })
   })
 
   it('shows loading state while starting a quiz', async () => {
@@ -160,5 +195,23 @@ describe('QuizConfigForm', () => {
       'quiz-session',
       JSON.stringify({ sessionId: 'sess-1', questionIds: ['q1'] }),
     )
+  })
+
+  it('resets topic and subtopic when subject changes', async () => {
+    const user = userEvent.setup()
+    mockFetchTopics.mockResolvedValue(TOPICS)
+
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Topic/)).toBeInTheDocument()
+    })
+
+    // Change subject — topics should disappear
+    mockFetchTopics.mockResolvedValue([])
+    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-2')
+    await waitFor(() => {
+      expect(screen.queryByLabelText(/Topic/)).not.toBeInTheDocument()
+    })
   })
 })

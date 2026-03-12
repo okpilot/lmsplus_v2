@@ -17,6 +17,7 @@ import type {
 const StartQuizInput = z.object({
   subjectId: z.string().uuid(),
   topicId: z.string().uuid().nullable(),
+  subtopicId: z.string().uuid().nullable().optional(),
   count: z.number().int().min(1).max(50).default(10),
 })
 
@@ -32,6 +33,7 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
     const questionIds = await getRandomQuestionIds({
       subjectId: input.subjectId,
       topicId: input.topicId,
+      subtopicId: input.subtopicId ?? null,
       count: input.count,
     })
 
