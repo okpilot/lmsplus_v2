@@ -1,12 +1,21 @@
+import { getDailyActivity, getSubjectScores } from '@/lib/queries/analytics'
 import { getDashboardData } from '@/lib/queries/dashboard'
+import Link from 'next/link'
+import { ActivityChart } from './_components/activity-chart'
+import { ActivityHeatmap } from './_components/activity-heatmap'
 import { DueReviewsBanner } from './_components/due-reviews-banner'
-import { RecentSessions } from './_components/recent-sessions'
+import { QuickActions } from './_components/quick-actions'
 import { SubjectGrid } from './_components/subject-grid'
+import { SubjectScoresChart } from './_components/subject-scores-chart'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  const data = await getDashboardData()
+  const [data, dailyActivity, subjectScores] = await Promise.all([
+    getDashboardData(),
+    getDailyActivity(),
+    getSubjectScores(),
+  ])
 
   return (
     <main className="space-y-8">
@@ -18,16 +27,26 @@ export default async function DashboardPage() {
       </div>
 
       <DueReviewsBanner dueCount={data.dueCount} />
+      <QuickActions />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ActivityChart data={dailyActivity} />
+        <ActivityHeatmap data={dailyActivity} />
+      </div>
+
+      <SubjectScoresChart data={subjectScores} />
 
       <section>
         <h2 className="mb-3 text-lg font-medium">Subject Progress</h2>
         <SubjectGrid subjects={data.subjects} />
       </section>
 
-      <section>
-        <h2 className="mb-3 text-lg font-medium">Recent Sessions</h2>
-        <RecentSessions sessions={data.recentSessions} />
-      </section>
+      <Link
+        href="/app/reports"
+        className="inline-block text-sm font-medium text-primary hover:underline"
+      >
+        View all reports →
+      </Link>
     </main>
   )
 }
