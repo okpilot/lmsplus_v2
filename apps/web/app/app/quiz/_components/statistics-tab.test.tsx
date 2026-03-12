@@ -115,4 +115,35 @@ describe('StatisticsTab', () => {
     })
     expect(screen.queryByText('Failed to load statistics.')).not.toBeInTheDocument()
   })
+
+  it('discards stale fetch result when questionId changes before the fetch resolves', async () => {
+    // Controls when the q-1 fetch resolves so we can change questionId first.
+    let resolveQ1: (value: typeof defaultStats) => void = () => {}
+    const staleFetchPromise = new Promise<typeof defaultStats>((resolve) => {
+      resolveQ1 = resolve
+    })
+    mockFetchQuestionStats.mockReturnValueOnce(staleFetchPromise)
+
+    const user = userEvent.setup()
+    const { rerender } = render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+
+    // Start loading stats for q-1. Component enters isPending state.
+    await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+
+    // Change to q-2 before q-1 resolves — this bumps the generation counter.
+    rerender(<StatisticsTab questionId="q-2" hasAnswered={true} />)
+
+    // Resolve the stale q-1 fetch. The generation guard discards the result.
+    // Resolving ends the useTransition pending state, so the component re-renders.
+    resolveQ1(defaultStats)
+
+    // Wait for the pending transition to clear. The component should show the
+    // Load Statistics button for q-2 (stats was discarded, not set).
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Load Statistics' })).toBeInTheDocument()
+    })
+
+    // Stats from the stale q-1 fetch must never have been rendered.
+    expect(screen.queryByText('Times seen')).not.toBeInTheDocument()
+  })
 })

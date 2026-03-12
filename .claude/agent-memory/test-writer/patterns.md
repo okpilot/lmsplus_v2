@@ -1319,12 +1319,60 @@ Test all cases where the reset must clear distinct prior states:
 1. Reset from loaded stats (the obvious path — tested first in the commit)
 2. Reset from error state — `error` was also reset in the same block; test it explicitly
    (render with failing mock, verify error message, rerender with new id, verify error gone + load button shown)
-3. In-flight (`isPending`) fetch racing a prop change — `useTransition`'s `isPending` cannot
-   be reset from the render body. If the user navigates while a fetch is in flight, the stale
-   fetch resolves and `setStats(data)` fires for the old question on the new question's render.
-   This is a known limitation of the ref pattern + useTransition. Do NOT write a test that
-   expects the stale fetch to be cancelled — it cannot be. Flag this as a production limitation
-   in a comment instead.
 
 ### Suite state after commit 946fb46
 Previous: 73 test files, 643 tests. After this cycle: 73 test files, 644 tests (1 new test added to statistics-tab.test.tsx for error-state reset on questionId change).
+
+---
+
+## Files tested in commit c4879a1 (generation counter + single-query refactor)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/_components/statistics-tab.tsx` | `_components/statistics-tab.test.tsx` | +1 test: discards stale fetch result when questionId changes before fetch resolves |
+| `apps/web/lib/queries/question-stats.ts` | `lib/queries/question-stats.test.ts` | Tests updated in the commit: single-query mock; +1 new test for zero counts |
+
+### Generation counter race condition: now testable (replaces prior "known limitation")
+Commit 946fb46 noted that the in-flight + prop-change race was NOT testable because
+`useTransition`'s `isPending` cannot be reset from the render body — stale setStats would
+fire. Commit c4879a1 fixed this with a `generation` ref that guards the setState call.
+
+**The test approach:** use a manually-controlled promise for the stale fetch. Click load
+(enters pending), rerender with new questionId (bumps generation), then resolve the stale
+promise (ends transition), then assert stats never appear:
+
+```ts
+let resolveQ1: (value: Stats) => void = () => {}
+const staleFetchPromise = new Promise<Stats>((resolve) => { resolveQ1 = resolve })
+mockFetchQuestionStats.mockReturnValueOnce(staleFetchPromise)
+
+const { rerender } = render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+
+// Bump generation before stale fetch resolves
+rerender(<StatisticsTab questionId="q-2" hasAnswered={true} />)
+
+// Resolve the stale fetch — ends isPending, but guard discards the result
+resolveQ1(defaultStats)
+
+// Component shows load button for q-2, not stats from q-1
+await waitFor(() => {
+  expect(screen.getByRole('button', { name: 'Load Statistics' })).toBeInTheDocument()
+})
+expect(screen.queryByText('Times seen')).not.toBeInTheDocument()
+```
+
+**Key timing insight:** `waitFor` for the load button must come AFTER `resolveQ1()`, not before.
+While the q-1 fetch is still pending, `isPending` is `true` and both the Load Statistics button
+and stats are hidden (component renders the loading skeleton). Only after the stale fetch resolves
+does `isPending` drop to `false`, at which point the guard discards the stale result and the
+component shows the Load Statistics button for q-2.
+
+**Single-query refactor (question-stats.ts):** the old two-sequential-COUNT pattern was replaced
+by a single `.select('is_correct')` query with client-side `.filter()`. Mocks changed from
+`{ count: N }` shape to `{ data: Array<{ is_correct: boolean }> }` shape. The per-table call
+counter pattern (studentResponsesCalls[]) became simpler — only two concurrent `from()` calls
+now (student_responses + fsrs_cards) instead of four.
+
+### Suite state after commit c4879a1
+73 test files, 646 tests — all passing.

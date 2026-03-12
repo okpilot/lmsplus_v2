@@ -926,3 +926,53 @@ Applied in: `apps/web/e2e/review-flow.spec.ts` (commit f272e2b)
 - Test added (15 lines) — behavior-first naming, good coverage
 
 **Verdict:** Component violates 30-line function limit. Must refactor before merge. Fix commit required.
+
+## Session 2026-03-12 Part 5 (Generation Counter & Query Refactor)
+
+### Commit: c4879a1 (fix: add generation counter for stale fetch guard and collapse response counts)
+- Status: **CLEAN** — 0 violations, 0 warnings
+- Files changed: 3 files, 78 insertions, 59 deletions
+- Summary: Race condition fix + query efficiency improvement. All files within limits.
+
+**File Analysis:**
+- `apps/web/app/app/quiz/_components/statistics-tab.tsx` — 137 lines (limit: 150) ✓
+  - React component, single responsibility (display question statistics)
+  - Added race condition guard via `generation` counter pattern
+  - Prevents stale state updates when question ID changes mid-fetch
+  - Proper async flow: capture current generation before starting transition, check generation before setState
+  - No useEffect; state reset via render-time guard (acceptable, not data-fetching)
+  - Sub-components extracted to keep main logic clear
+  - Naming: PascalCase export, kebab-case file ✓
+
+- `apps/web/lib/queries/question-stats.ts` — 105 lines (limit: 200) ✓
+  - Utility query function, refactored from two separate count queries to one data fetch
+  - `getResponseCounts()` now: single `.select('is_correct')` query, client-side filtering for correct count
+  - Reduces DB round trips while preserving error clarity per query type
+  - All helpers (getResponseCounts, getFsrsCard, getLastResponse) under 20 lines each ✓
+  - No parameters exceed 3 per function ✓
+  - Type safety: ResponseRow type defined, proper generics on Supabase calls ✓
+
+- `apps/web/lib/queries/question-stats.test.ts` — 133 lines (exempt: test file) ✓
+  - Simplified mocks following refactored query approach
+  - Removed complex multi-call tracking in favor of single-fetch pattern
+  - Test naming: behavior-focused ("returns stats when data available") ✓
+  - Coverage maintained: happy path, error cases, null FSRS, zero count edge case
+  - Mock pattern consistent: `vi.hoisted()` + `buildChain` proxy ✓
+
+**Key Pattern: Race Condition Guard**
+- Pattern: Capture generation counter before async operation, check before setState
+- Use case: Component re-renders with new questionId while fetch for old questionId is in-flight
+- Without guard: old fetch result overwrites state, user sees stale data
+- Implementation: simple, idiomatic React, zero performance cost
+- Verdict: solid pattern worth preserving in codebase ✓
+
+**Quality Observations:**
+- No `any` types ✓
+- No unvalidated type casts ✓
+- No useEffect for data fetching ✓
+- No business logic in component body ✓
+- Naming conventions correct ✓
+- Test file co-located ✓
+- No new violations introduced ✓
+
+**Verdict:** Clean commit. All checks passed. Ready for merge.
