@@ -39,6 +39,14 @@ describe('getAllSessions', () => {
     await expect(getAllSessions()).rejects.toThrow('Not authenticated')
   })
 
+  it('throws when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'session expired' },
+    })
+    await expect(getAllSessions()).rejects.toThrow('Auth error: session expired')
+  })
+
   it('returns empty array when no sessions', async () => {
     mockFrom.mockImplementation(() => buildChain({ data: [] }))
     const result = await getAllSessions()

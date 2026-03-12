@@ -40,6 +40,18 @@ describe('loadSessionQuestions', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
+  it('returns failure when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: 'token expired' },
+    })
+    const result = await loadSessionQuestions(['q1'])
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Not authenticated')
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
   it('returns questions mapped from RPC data in the requested order', async () => {
     mockRpc.mockResolvedValue({
       data: [

@@ -53,7 +53,10 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError) return null
+  if (authError) {
+    console.error('[getQuizReport] Auth error:', authError.message)
+    return null
+  }
   if (!user) return null
 
   const { data: session } = await supabase

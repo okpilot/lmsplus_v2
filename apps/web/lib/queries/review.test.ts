@@ -51,6 +51,14 @@ describe('getDueCards', () => {
     await expect(getDueCards()).rejects.toThrow('Not authenticated')
   })
 
+  it('throws when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'token expired' },
+    })
+    await expect(getDueCards()).rejects.toThrow('Auth error: token expired')
+  })
+
   it('returns mapped DueCard objects for authenticated user', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockFromSequence({
@@ -156,6 +164,14 @@ describe('getNewQuestionIds', () => {
   it('throws when user is not authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     await expect(getNewQuestionIds()).rejects.toThrow('Not authenticated')
+  })
+
+  it('throws when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'token expired' },
+    })
+    await expect(getNewQuestionIds()).rejects.toThrow('Auth error: token expired')
   })
 
   it('returns question IDs not already seen by the student', async () => {

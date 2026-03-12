@@ -107,6 +107,16 @@ describe('getQuizReport', () => {
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
+  it('returns null when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: 'token expired' },
+    })
+    const result = await getQuizReport('sess-1')
+    expect(result).toBeNull()
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
   it('returns full report data when session, answers, and questions exist', async () => {
     mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
 

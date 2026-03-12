@@ -39,6 +39,14 @@ describe('getQuestionStats', () => {
     await expect(getQuestionStats('q-1')).rejects.toThrow('Not authenticated')
   })
 
+  it('throws when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'invalid JWT' },
+    })
+    await expect(getQuestionStats('q-1')).rejects.toThrow('Auth error: invalid JWT')
+  })
+
   it('returns stats with counts when data is available', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'student_responses') {
