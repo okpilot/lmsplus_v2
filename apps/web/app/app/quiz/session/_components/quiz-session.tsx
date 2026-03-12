@@ -7,6 +7,7 @@ import { SessionSummary } from '@/app/app/_components/session-summary'
 import { SessionTimer } from '@/app/app/_components/session-timer'
 import { useRef, useState } from 'react'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
+import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
 import type { BatchSubmitResult } from '../../types'
 import { QuizNavBar } from './quiz-nav-bar'
@@ -23,6 +24,8 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<SuccessResult | null>(null)
+
+  useNavigationGuard(answers.size > 0 && !result)
 
   const question = questions[currentIndex]
   if (!question) return null
