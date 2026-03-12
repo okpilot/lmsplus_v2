@@ -26,11 +26,12 @@ export function useQuizState({
   )
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set())
   const answerStartTime = useRef(Date.now())
+  const submitted = useRef(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useNavigationGuard(answers.size > 0)
+  useNavigationGuard(answers.size > 0 && !submitted.current)
 
   const question = questions[currentIndex]
   const questionId = question?.id ?? ''
@@ -63,6 +64,7 @@ export function useQuizState({
     setError(null)
     const r = await submitQuizSession(sessionId, answers)
     if (r.success) {
+      submitted.current = true
       setShowFinishDialog(false)
       router.push(`/app/quiz/report?session=${sessionId}`)
     } else {

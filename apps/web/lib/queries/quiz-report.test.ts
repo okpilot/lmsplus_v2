@@ -6,9 +6,14 @@ const { mockFrom } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
 }))
 
+const mockGetUser = vi.fn().mockResolvedValue({
+  data: { user: { id: 'user-1' } },
+})
+
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     from: mockFrom,
+    auth: { getUser: mockGetUser },
   }),
 }))
 
@@ -95,6 +100,13 @@ beforeEach(() => {
 })
 
 describe('getQuizReport', () => {
+  it('returns null when user is not authenticated', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: null } })
+    const result = await getQuizReport('sess-1')
+    expect(result).toBeNull()
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
   it('returns full report data when session, answers, and questions exist', async () => {
     mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
 

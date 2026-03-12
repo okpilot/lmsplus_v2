@@ -49,6 +49,11 @@ type QuestionRow = {
 export async function getQuizReport(sessionId: string): Promise<QuizReportData | null> {
   const supabase = await createServerSupabaseClient()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
   const { data: session } = await supabase
     .from('quiz_sessions')
     .select('id, started_at, ended_at, total_questions, correct_count, score_percentage')

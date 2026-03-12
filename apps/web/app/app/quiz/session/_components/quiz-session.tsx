@@ -6,7 +6,6 @@ import type { SessionQuestion } from '@/app/app/_components/session-runner'
 import { SessionTimer } from '@/app/app/_components/session-timer'
 import { useEffect, useState } from 'react'
 import { CommentsTab } from '../../_components/comments-tab'
-import { ExplanationTab } from '../../_components/explanation-tab'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
@@ -85,13 +84,10 @@ export function QuizSession(props: QuizSessionProps) {
           onTabChange={setActiveTab}
           hasAnswered={!!s.existingAnswer}
         />
-        {activeTab === 'explanation' && s.existingAnswer && (
-          <ExplanationTab
-            isCorrect={false}
-            explanationText={null}
-            explanationImageUrl={null}
-            correctOptionId=""
-          />
+        {activeTab === 'explanation' && (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            Explanations are available on the report card after you submit the quiz.
+          </div>
         )}
         {activeTab === 'comments' && <CommentsTab />}
         {activeTab === 'statistics' && (
