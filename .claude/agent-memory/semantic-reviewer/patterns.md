@@ -268,18 +268,17 @@ if `error` is non-null.
 `setLoading(false)` is only called in the error branch and catch block. Loading stays
 true during navigation, preventing the double-submit window.
 
-### sessionStorage subject metadata — unvalidated cast on read (first seen commit 0176634)
+### sessionStorage subject metadata — unvalidated cast on read (RESOLVED in commit 2454c28)
 **First seen:** commit 0176634 (2026-03-12)
+**Status: RESOLVED in commit 2454c28** — `SaveDraftInput` now has `z.string().max(100)` on
+`subjectName` and `z.string().max(10)` on `subjectCode`. Any oversized value from sessionStorage
+is rejected at the Server Action boundary with a clear Zod error before reaching the DB.
 **File:** `apps/web/app/app/quiz/session/_components/quiz-session-loader.tsx`
 **Pattern:** `JSON.parse(raw) as SessionData` casts the full sessionStorage blob to `SessionData`
 including the new `subjectName` and `subjectCode` fields. No Zod or runtime validation is applied
 to the parsed object, so a malformed or attacker-modified sessionStorage entry (possible in same-origin
 extension attack) can pass strings of any length or shape as `subjectName`/`subjectCode`. These values
-are forwarded to `QuizSession` props and then into `saveDraft` (a Server Action with Zod validation),
-so the risk is bounded. The Server Action's Zod schema for `subjectName`/`subjectCode` uses
-`z.string().optional()` — any non-empty string passes. No length cap is applied.
-**Severity:** SUGGESTION — Server Action Zod validates the type; the UI renders the value via React
-(XSS is escaped); no security boundary is crossed. Risk is cosmetic (very long subject labels).
+are forwarded to `QuizSession` props and then into `saveDraft` (a Server Action with Zod validation).
 **Watch for:** `JSON.parse(...) as T` on sessionStorage without runtime validation. If any field from
 sessionStorage is ever used in a sensitive context (SQL interpolation, redirect URL) without a
 server-side Zod guard, escalate to ISSUE.
@@ -304,6 +303,17 @@ behavior, as the hook re-executes on every render. However, if `navigate` is eve
 stale and `currentIndex + d` would compute from the initial value. Currently no memoization
 is applied and the hook is used directly, so the closure is fresh on every render. Safe as-is.
 **Watch for:** any consumer that memoizes or stores `nav.navigate` in a `useRef` or `useCallback`.
+
+### test vs. production field name mismatch — safe in commit 2454c28, watch for future
+**First seen:** commit 2454c28 (2026-03-12)
+**File:** `apps/web/app/app/quiz/_hooks/use-quiz-config.test.ts` (new test, line 213)
+**Pattern:** The test asserts `stored.subjectCode === 'ALW'`. The production hook writes
+`subjectCode: selectedSubject?.short` (line 85 of `use-quiz-config.ts`). The test fixture
+defines `short: 'ALW'` on SUBJECTS. This is consistent and correct — no mismatch.
+However, the `SubjectOption` type has both `code` and `short` fields. If a future refactor
+renames `short` → `code` in the hook, this test would catch it. The distinction between `code`
+and `short` is a latent naming confusion in the domain type.
+**Severity:** GOOD — currently correct and well-tested. Watch for `code` vs `short` drift.
 
 ## CodeRabbit Findings to Learn From
 - Cookie forwarding consistency across redirect branches (PR #23)

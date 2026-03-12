@@ -10,16 +10,17 @@
 | External agent output invisible | 1 | 2026-03-11 | Fixed — Decision 20: agents now run as in-session subagents |
 | Duplicate Next.js installs (Playwright) | 1 | 2026-03-11 | Fixed — excluded e2e/ from tsconfig, cast in proxy.ts |
 | Pre-push hooks too slow for large diffs | 1 | 2026-03-11 | Fixed — diff cap + timeout + grep fallback |
-| Hook file exceeding 80-line limit | 2 | 2026-03-12 | RULE PROPOSED — see lesson 2026-03-12 (sprint 2 overhaul round 2) |
+| Hook file exceeding 80-line limit | 3 | 2026-03-12 | RULE EXISTS — 70-line watch added to code-reviewer memory (9f5a6cc); recurring |
 | SQL score aggregation over full table (not current batch) | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in f53eccf |
 | Array positional pairing instead of Map lookup (FSRS) | 1 | 2026-03-12 | Watch — batch-submit.ts updateFsrsCards; fixed in f53eccf |
 | Empty-array guard missing at SQL level | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in f53eccf |
-| New hook/utility file shipped without a test file | 2 | 2026-03-12 | RULE PROPOSED — see lesson 2026-03-12 (sprint 2 overhaul round 2) |
+| New hook/utility file shipped without a test file | 3 | 2026-03-12 | RULE ADDED (9f5a6cc) — still recurring; rule exists but not followed at write time |
 | Top-level await in node16 package test file | 1 | 2026-03-12 | Watch — packages/db/src/server.test.ts; fixed with dynamic import helper |
 | Bare `catch {}` without error-type narrowing | 1 | 2026-03-12 | Watch — packages/db/src/server.ts; suggestion from semantic-reviewer |
 | `finally` clearing loading state during navigation | 1 | 2026-03-12 | Fixed in a269284 — only clear loading in catch/error branch |
-| Supabase mutation result not destructured (error silently dropped) | 2 | 2026-03-12 | RULE PROPOSED — see lesson 2026-03-12 (sprint 2 overhaul round 2) |
+| Supabase mutation result not destructured (error silently dropped) | 2 | 2026-03-12 | RULE ADDED to code-style.md Section 5 (9f5a6cc) — watching for recurrence |
 | Unstable useEffect dependency (inline function prop) | 1 | 2026-03-12 | Watch — onTabChange in question-tabs.tsx; suggestion only, first occurrence |
+| `vi.stubGlobal` without `vi.unstubAllGlobals` teardown in test | 1 | 2026-03-12 | Watch — use-quiz-navigation.test.ts; suggestion only, first occurrence |
 
 ## Lessons Learned
 
@@ -117,3 +118,40 @@
 - Auth-before-parse pattern holds across all 3 commits — no new violations.
 - FSRS best-effort try/catch pattern is consistent across all mutation paths.
 - Doc updates were complete in the same cycle (no partial-doc-fix recurrence).
+
+---
+
+### 2026-03-12 — Sprint 2 quiz overhaul round 3 (commits 0176634, 2454c28)
+
+**Code reviewer (0176634):** 1 BLOCKING + 1 WARNING.
+- BLOCKING: `use-quiz-navigation.test.ts` missing. `use-quiz-navigation.ts` was a new hook file shipped without a co-located test. This is the **third occurrence** of this pattern. The rule was added to `code-style.md` Section 7 in 9f5a6cc but was not followed at write time. Rule is confirmed necessary; the issue is compliance at authoring time, not rule clarity. Test-writer wrote 16 tests (2454c28 fixed the gap).
+- WARNING: `use-quiz-config.ts` at 88/80 lines — hook file over limit. This is the third occurrence of the hook-exceeds-80-lines pattern. The 70-line watch was added to code-reviewer memory in 9f5a6cc but the violation still occurred, suggesting the 70-line early warning is not being acted on proactively.
+
+**Code reviewer (2454c28):** clean — 0 issues. Fix commit closed the BLOCKING finding correctly.
+
+**Semantic reviewer (0176634):** 0 ISSUEs. 2 SUGGESTIONs (first occurrences, no action):
+- Zod `.max()` constraint missing on subject/topic string fields in quiz config schema. First occurrence — log and watch. If it recurs on a different schema, warrants a note in code-style.md about string field validation completeness.
+- `navigate` closure in `use-quiz-navigation.ts` could capture a stale ref without a comment explaining why it's safe. First occurrence — log and watch.
+
+**Semantic reviewer (2454c28):** 1 SUGGESTION.
+- `vi.stubGlobal('window', ...)` in `use-quiz-navigation.test.ts` is not torn down via `vi.unstubAllGlobals()` in `afterEach`, which can leak state to subsequent tests. First occurrence — logged in frequency table as a new watch item. If it recurs, warrants a note in test-writer memory about global stub teardown.
+
+**Doc updater (0176634):** 2 updates needed — `plan.md` (sprint progress) and `database.md` (subject metadata in quiz_drafts). Both applied in 2454c28. Clean in second cycle.
+
+**Doc updater (2454c28):** clean — docs current.
+
+**Test writer (0176634):** Wrote `use-quiz-navigation.test.ts` (16 tests) and extended 4 existing test files. All tests passing before report.
+
+**Test writer (2454c28):** no gaps — system caught up.
+
+**Actions taken:**
+- Frequency table updated: "new hook without test" count 2 → 3, "hook exceeds 80 lines" count 2 → 3, "Supabase mutation not destructured" status updated to RULE ADDED.
+- New watch item added: `vi.stubGlobal` without teardown (first occurrence).
+- No new rule changes proposed — all active patterns already have rules. Rule compliance is the remaining gap, not rule coverage.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Supabase mutation destructuring rule (added 9f5a6cc) held — no new violations in either commit. First positive signal after rule addition.
+- 2454c28 was fully clean on code-reviewer and doc-updater. Fix cycle closed correctly with no secondary issues.
+- test-writer's 16-test suite for `use-quiz-navigation.ts` covered all meaningful branches (boundary clamping, visited tracking, answer status, direction guards). High-signal test output.
