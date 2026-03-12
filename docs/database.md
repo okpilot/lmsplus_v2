@@ -396,7 +396,7 @@ verb_noun pattern:
   submit_quiz_answer         ← write, atomic: single answer + fsrs + audit (DEPRECATED — use batch_submit_quiz)
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
-  complete_quiz_session      ← write, atomic: session end + score + audit
+  complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
 ```
