@@ -4,6 +4,7 @@ import { AnswerOptions } from '@/app/app/_components/answer-options'
 import { QuestionCard } from '@/app/app/_components/question-card'
 import type { SessionQuestion } from '@/app/app/_components/session-runner'
 import { SessionTimer } from '@/app/app/_components/session-timer'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { CommentsTab } from '../../_components/comments-tab'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
@@ -19,10 +20,13 @@ type QuizSessionProps = {
   questions: SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
   initialIndex?: number
+  subjectName?: string
+  subjectCode?: string
 }
 
 export function QuizSession(props: QuizSessionProps) {
   const s = useQuizState(props)
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<
     'question' | 'explanation' | 'comments' | 'statistics'
   >('question')
@@ -32,6 +36,16 @@ export function QuizSession(props: QuizSessionProps) {
   useEffect(() => {
     setActiveTab('question')
   }, [s.currentIndex])
+
+  function handleExit() {
+    if (s.answeredCount > 0) {
+      if (window.confirm('You have unsaved answers. Leave quiz?')) {
+        router.push('/app/quiz')
+      }
+    } else {
+      router.push('/app/quiz')
+    }
+  }
 
   if (!s.question) return null
 
@@ -49,6 +63,15 @@ export function QuizSession(props: QuizSessionProps) {
       </div>
       <div className="mx-auto w-full max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            data-testid="exit-button"
+            onClick={handleExit}
+            className="rounded-lg border border-input p-2 text-muted-foreground transition-colors hover:bg-muted"
+            aria-label="Exit quiz"
+          >
+            ✕
+          </button>
           <div className="h-1.5 flex-1 rounded-full bg-muted">
             <div
               data-testid="progress-bar"

@@ -366,4 +366,23 @@ describe('QuizSession', () => {
     expect(flagBtn).toHaveTextContent('Flag')
     expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
   })
+
+  it('renders exit button', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    expect(screen.getByTestId('exit-button')).toBeInTheDocument()
+  })
+
+  it('confirms before exiting when answers exist', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+
+    // Answer the first question so answeredCount > 0
+    fireEvent.click(screen.getByTestId('option-a'))
+
+    fireEvent.click(screen.getByTestId('exit-button'))
+    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved answers. Leave quiz?')
+    expect(mockRouterPush).not.toHaveBeenCalled()
+
+    confirmSpy.mockRestore()
+  })
 })
