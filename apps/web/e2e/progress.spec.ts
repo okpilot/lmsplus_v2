@@ -29,16 +29,24 @@ test('progress page updates after completing a quiz', async ({ page }) => {
   await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
   await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })
 
+  // Answer both questions (deferred writes — no per-answer feedback)
   for (let i = 0; i < 2; i++) {
     const answerButtons = page.locator('button:has(span.rounded-full)')
     await answerButtons.first().waitFor({ state: 'visible' })
     await answerButtons.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).click()
-    await expect(page.getByText(/Correct!|Incorrect/).first()).toBeVisible({ timeout: 5_000 })
-    await page.getByRole('button', { name: /Next Question/ }).click()
+
+    if (i < 1) {
+      await page.getByRole('button', { name: 'Next' }).click()
+    }
   }
 
-  await expect(page.getByText('Quiz Complete')).toBeVisible({ timeout: 10_000 })
+  // Finish and submit quiz
+  await page.getByRole('button', { name: 'Finish Test' }).click()
+  await expect(page.getByText('Finish Quiz')).toBeVisible()
+  await page.getByRole('button', { name: 'Submit Quiz' }).click()
+  await page.waitForURL('**/app/quiz/report**', { timeout: 10_000 })
+  await expect(page.getByRole('heading', { name: 'Quiz Report' })).toBeVisible()
 
   // 3. Check progress again — the answered count should have changed
   await page.goto('/app/progress')
