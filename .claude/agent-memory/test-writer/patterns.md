@@ -1152,3 +1152,50 @@ This avoids duplicating full-chain integration tests while ensuring each link pa
 61 test files, ~522 tests — all passing individually.
 New file: `use-quiz-navigation.test.ts` (16 tests).
 Extended: `quiz-submit.test.ts` (+2), `use-quiz-config.test.ts` (+1), `use-quiz-state.test.ts` (+1), `draft.test.ts` (+2).
+
+---
+
+## Files extended in latest commit (try/catch + clamped label)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/_components/resume-draft-banner.tsx` | `resume-draft-banner.test.tsx` | +4 tests: thrown exception → error message shown + banner stays; finally block re-enables Discard button on both failure paths |
+| `apps/web/app/app/quiz/_components/quiz-config-form.tsx` | `quiz-config-form.test.tsx` | +1 test: label text shows clamped value when slider value exceeds maxQuestions |
+
+### Changes with no new tests needed
+- `quiz-submit.ts`: internal import path change only — no behaviour changed; existing 14 tests remain valid.
+- `report-card.tsx`: `'use client'` removed (now a Server Component); pure presenter with no logic — existing 8 tests remain valid.
+- `batch_submit_rpc.sql`: DB migration — no unit test target; covered by integration tests.
+
+### try/catch in async event handlers — two distinct failure paths to test
+When a component's async event handler adds `try/catch/finally` around a Server Action, always
+test BOTH failure modes independently:
+
+1. **`{ success: false }` return** — action resolves but signals failure:
+   ```ts
+   mockDeleteDraft.mockResolvedValue({ success: false })
+   ```
+   Assert: error message shown, banner still visible, Discard button re-enabled.
+
+2. **thrown exception** — action rejects (network error, uncaught exception):
+   ```ts
+   mockDeleteDraft.mockRejectedValue(new Error('network error'))
+   ```
+   Assert: same error message shown, banner still visible, Discard button re-enabled.
+
+The `finally` block (loading reset) must be tested for each failure path, not just the success path.
+
+### Clamped display value: assert the DOM text, not the action call argument
+When a component shows `Math.min(count, maxQuestions)` in a label, the existing test that
+asserts `startQuizSession` was called with a clamped count does NOT cover the label text.
+Add a dedicated test using `fireEvent.change(slider, { target: { value: '50' } })` to
+force the internal count state beyond the max, then assert the label text:
+```ts
+fireEvent.change(slider, { target: { value: '50' } })
+expect(screen.getByText(/Number of questions: 30/)).toBeInTheDocument()
+```
+The slider's `max` attribute prevents interactive input above the bound, but `fireEvent.change`
+bypasses that constraint — exactly what the Math.min guard is designed to handle.
+
+### Suite state after this commit
+65 test files, 580 tests — all passing.

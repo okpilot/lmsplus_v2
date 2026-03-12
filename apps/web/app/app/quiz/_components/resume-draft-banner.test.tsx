@@ -99,4 +99,43 @@ describe('ResumeDraftBanner', () => {
     // Banner must still be visible because the delete failed
     expect(screen.getByText('Resume unfinished quiz?')).toBeInTheDocument()
   })
+
+  it('shows error message and keeps banner visible when deleteDraft throws', async () => {
+    mockDeleteDraft.mockRejectedValue(new Error('network error'))
+
+    render(<ResumeDraftBanner draft={DRAFT} />)
+    fireEvent.click(screen.getByText('Discard'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to discard. Please try again.')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Resume unfinished quiz?')).toBeInTheDocument()
+  })
+
+  it('re-enables Discard button after deleteDraft throws (finally block resets loading)', async () => {
+    mockDeleteDraft.mockRejectedValue(new Error('network error'))
+
+    render(<ResumeDraftBanner draft={DRAFT} />)
+    fireEvent.click(screen.getByText('Discard'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Discard')).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('button', { name: 'Discard' })).not.toBeDisabled()
+  })
+
+  it('re-enables Discard button after deleteDraft returns failure (finally block resets loading)', async () => {
+    mockDeleteDraft.mockResolvedValue({ success: false })
+
+    render(<ResumeDraftBanner draft={DRAFT} />)
+    fireEvent.click(screen.getByText('Discard'))
+
+    await waitFor(() => {
+      expect(mockDeleteDraft).toHaveBeenCalledTimes(1)
+    })
+
+    expect(screen.getByRole('button', { name: 'Discard' })).not.toBeDisabled()
+  })
 })

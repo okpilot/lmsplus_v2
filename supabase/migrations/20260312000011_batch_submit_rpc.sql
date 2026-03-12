@@ -45,9 +45,13 @@ BEGIN
     RAISE EXCEPTION 'session not found or already completed';
   END IF;
 
-  -- Guard against empty answers
+  -- Guard against empty or partial answers
   IF jsonb_array_length(p_answers) = 0 THEN
     RAISE EXCEPTION 'answers must not be empty';
+  END IF;
+
+  IF jsonb_array_length(p_answers) != v_total THEN
+    RAISE EXCEPTION 'answer count mismatch: expected %, got %', v_total, jsonb_array_length(p_answers);
   END IF;
 
   -- Process each answer

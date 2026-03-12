@@ -245,6 +245,20 @@ describe('QuizConfigForm', () => {
     expect(calledWith.count).toBeLessThanOrEqual(30)
   })
 
+  it('label shows clamped count when count exceeds maxQuestions', async () => {
+    const user = userEvent.setup()
+    // sub-1 has questionCount: 30 → maxQuestions clamps to 30
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
+
+    const slider = screen.getByRole('slider')
+    // Force the slider value beyond the max to exercise the Math.min clamp in the label
+    fireEvent.change(slider, { target: { value: '50' } })
+
+    // Label must show clamped value (30), not the raw value (50)
+    expect(screen.getByText(/Number of questions: 30/)).toBeInTheDocument()
+  })
+
   it('resets topic and subtopic when subject changes', async () => {
     const user = userEvent.setup()
     mockFetchTopics.mockResolvedValue(TOPICS)

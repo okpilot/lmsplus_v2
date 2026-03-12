@@ -347,6 +347,43 @@ state-modifying button click without an intermediate assertion that the state up
 Also watch for future test scenarios testing partial submission — the 100% flush gate would
 deadlock; use a count-based style assertion (`/66%/`) or explicit partial-count wait instead.
 
+### batch_submit_quiz — score denominator/numerator mismatch on partial batch (commit b312922)
+**First seen:** commit b312922 (2026-03-12)
+**File:** `supabase/migrations/20260312000011_batch_submit_rpc.sql` lines 103-109
+**Pattern:** `v_total` is now read from `quiz_sessions.total_questions` (session scope), but
+`v_correct_count` is counted from all rows in `quiz_session_answers` for the session. If the
+batch submitted is smaller than `total_questions` (no server-side guard enforces equality), the
+denominator is the full session count while the numerator reflects only submitted answers.
+Skipped questions inflate the denominator without contributing to the numerator, under-scoring.
+**Fix:** Guard `jsonb_array_length(p_answers) != v_total` and raise exception if mismatch.
+This enforces the deferred-write contract that the batch is always complete.
+**Watch for:** any future path where `batch_submit_quiz` is called with a partial answer list.
+**Status:** ISSUE — filed in review of commit b312922.
+
+### type declaration between import statements (commit b312922)
+**First seen:** commit b312922 (2026-03-12)
+**File:** `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts` lines 1-4
+**Pattern:** A `type` alias is declared between two `import` blocks. Cosmetically unusual;
+Biome may not flag it. Correct placement is after all imports.
+**Watch for:** type declarations interspersed in import sections after future import refactors.
+
+### count state not clamped on maxQuestions decrease (commit b312922)
+**First seen:** commit b312922 (2026-03-12)
+**File:** `apps/web/app/app/quiz/_hooks/use-quiz-config.ts` / `quiz-config-form.tsx`
+**Pattern:** Label and range input clamp via `Math.min(count, maxQuestions || 1)` at render time,
+but `count` state is not reset when `maxQuestions` drops. If the user switches to a smaller subject,
+the displayed value clamps correctly, but the state holds the old value. If `maxQuestions` rises
+again before clicking Start, the count jumps back to the stale value unexpectedly.
+Protected at server boundary by `Math.min(count, maxQuestions || 1)` in `handleStart`.
+**Watch for:** any new subject-change path that needs to reset dependent state.
+
+### finally-block clearing loading state — correct for non-navigation actions (commit b312922)
+**Status: PATTERN CONFIRMED** — `resume-draft-banner.tsx` `handleDiscard` correctly uses `finally`
+to clear `setDiscarding(false)` because discard does not trigger navigation. This is the safe case.
+Contrast with the documented anti-pattern where `setLoading(false)` in `finally` re-enables a
+button during an in-flight `router.push`. The key distinction: navigation handlers must not clear
+loading in `finally`; non-navigation handlers should use `finally` for correct cleanup.
+
 ## CodeRabbit Findings to Learn From
 - Cookie forwarding consistency across redirect branches (PR #23)
 - Query param forwarding to auth endpoints (PR #23)
@@ -355,3 +392,4 @@ deadlock; use a count-based style assertion (`/66%/`) or explicit partial-count 
 - `finally` clearing loading state during navigation (commit 9d9e898)
 - E2E race between client state update and immediate next action (commit 9b624ff)
 - Progress-bar DOM attribute as flush gate for React setState (commit 7f7eed8)
+- Score denominator/numerator mismatch when sourcing total from session vs. counting from batch (commit b312922)

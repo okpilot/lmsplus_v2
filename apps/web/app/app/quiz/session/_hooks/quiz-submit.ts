@@ -1,9 +1,9 @@
 import type { useRouter } from 'next/navigation'
-
-type AppRouterInstance = ReturnType<typeof useRouter>
 import { batchSubmitQuiz } from '../../actions/batch-submit'
 import { deleteDraft, saveDraft } from '../../actions/draft'
 import type { DraftAnswer } from '../../types'
+
+type AppRouterInstance = ReturnType<typeof useRouter>
 
 export async function submitQuizSession(sessionId: string, answers: Map<string, DraftAnswer>) {
   const answerArray = Array.from(answers.entries()).map(([qId, a]) => ({
