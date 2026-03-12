@@ -32,8 +32,11 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
 
   async function handleDiscard() {
     setDiscarding(true)
-    await deleteDraft()
-    setVisible(false)
+    const result = await deleteDraft()
+    if (result.success) {
+      setVisible(false)
+    }
+    setDiscarding(false)
   }
 
   return (

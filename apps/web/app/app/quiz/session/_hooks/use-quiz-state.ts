@@ -21,7 +21,9 @@ export function useQuizState({
   initialIndex,
 }: UseQuizStateOpts) {
   const router = useRouter()
-  const [currentIndex, setCurrentIndex] = useState(initialIndex ?? 0)
+  const [currentIndex, setCurrentIndex] = useState(
+    Math.min(Math.max(initialIndex ?? 0, 0), Math.max(questions.length - 1, 0)),
+  )
   const [answers, setAnswers] = useState<Map<string, StoredAnswer>>(() =>
     initialAnswers ? new Map(Object.entries(initialAnswers)) : new Map(),
   )

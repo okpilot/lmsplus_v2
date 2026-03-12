@@ -45,6 +45,7 @@ export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
     .from('questions')
     .select('subject_id')
     .eq('status' as string & keyof never, 'active')
+    .is('deleted_at' as string & keyof never, null)
     .returns<QuestionRefRow[]>()
 
   const countMap = new Map<string, number>()
@@ -80,6 +81,7 @@ export async function getTopicsForSubject(subjectId: string): Promise<TopicOptio
     .select('topic_id')
     .eq('status' as string & keyof never, 'active')
     .eq('subject_id' as string & keyof never, subjectId)
+    .is('deleted_at' as string & keyof never, null)
     .returns<QuestionTopicRow[]>()
 
   const countMap = new Map<string, number>()
@@ -114,6 +116,7 @@ export async function getSubtopicsForTopic(topicId: string): Promise<SubtopicOpt
     .select('subtopic_id')
     .eq('status' as string & keyof never, 'active')
     .eq('topic_id' as string & keyof never, topicId)
+    .is('deleted_at' as string & keyof never, null)
     .returns<QuestionSubtopicRow[]>()
 
   const countMap = new Map<string, number>()
@@ -150,6 +153,7 @@ export async function getRandomQuestionIds(opts: {
     .select('id')
     .eq('status' as string & keyof never, 'active')
     .eq('subject_id' as string & keyof never, opts.subjectId)
+    .is('deleted_at' as string & keyof never, null)
 
   if (opts.topicId) {
     query = query.eq('topic_id' as string & keyof never, opts.topicId)

@@ -37,6 +37,9 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     if (!user) return { success: false, error: 'Not authenticated' }
 
     const input = SaveDraftInput.parse(raw)
+    if (input.currentIndex >= input.questionIds.length) {
+      return { success: false, error: 'Current index out of range' }
+    }
     const orgId = await getOrganizationId(supabase, user.id)
     if (!orgId) return { success: false, error: 'User organization not found' }
 

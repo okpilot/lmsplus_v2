@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+
 export type QuestionTab = 'question' | 'explanation' | 'comments' | 'statistics'
 
 type QuestionTabsProps = {
@@ -25,9 +27,12 @@ export function QuestionTabs({
   const visibleTabs = hiddenTabs ? TABS.filter((t) => !hiddenTabs.includes(t.value)) : TABS
 
   // Reset to first visible tab if active tab was hidden
-  if (hiddenTabs?.includes(activeTab) && visibleTabs[0]) {
-    onTabChange(visibleTabs[0].value)
-  }
+  useEffect(() => {
+    if (hiddenTabs?.includes(activeTab)) {
+      const firstVisible = TABS.find((t) => !hiddenTabs.includes(t.value))
+      if (firstVisible) onTabChange(firstVisible.value)
+    }
+  }, [hiddenTabs, activeTab, onTabChange])
 
   return (
     <div className="flex border-b border-border">

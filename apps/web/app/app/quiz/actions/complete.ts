@@ -11,7 +11,12 @@ export async function completeQuiz(raw: unknown): Promise<CompleteQuizResult> {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
-  const input = CompleteQuizSessionSchema.parse(raw)
+  let input: { sessionId: string }
+  try {
+    input = CompleteQuizSessionSchema.parse(raw)
+  } catch {
+    return { success: false, error: 'Invalid input' }
+  }
 
   const { data, error } = await rpc<CompleteRpcResult>(supabase, 'complete_quiz_session', {
     p_session_id: input.sessionId,

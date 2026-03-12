@@ -65,22 +65,28 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
     setLoading(true)
     setError(null)
 
-    const result = await startQuizSession({
-      subjectId,
-      topicId: topicId || null,
-      subtopicId: subtopicId || null,
-      count,
-      filter,
-    })
+    try {
+      const result = await startQuizSession({
+        subjectId,
+        topicId: topicId || null,
+        subtopicId: subtopicId || null,
+        count: Math.min(count, maxQuestions || 1),
+        filter,
+      })
 
-    if (result.success) {
-      sessionStorage.setItem(
-        'quiz-session',
-        JSON.stringify({ sessionId: result.sessionId, questionIds: result.questionIds }),
-      )
-      router.push('/app/quiz/session')
-    } else {
+      if (result.success) {
+        sessionStorage.setItem(
+          'quiz-session',
+          JSON.stringify({ sessionId: result.sessionId, questionIds: result.questionIds }),
+        )
+        router.push('/app/quiz/session')
+        return
+      }
+
       setError(result.error)
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
       setLoading(false)
     }
   }

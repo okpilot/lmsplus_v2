@@ -86,12 +86,17 @@ export function QuizSessionLoader() {
     )
   }
 
+  const clampedIndex =
+    session.draftCurrentIndex != null
+      ? Math.min(session.draftCurrentIndex, questions.length - 1)
+      : undefined
+
   return (
     <QuizSession
       sessionId={session.sessionId}
       questions={questions}
       initialAnswers={session.draftAnswers}
-      initialIndex={session.draftCurrentIndex}
+      initialIndex={clampedIndex}
     />
   )
 }

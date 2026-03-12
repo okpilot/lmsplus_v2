@@ -13,7 +13,7 @@ export async function submitQuizSession(sessionId: string, answers: Map<string, 
   try {
     const result = await batchSubmitQuiz({ sessionId, answers: answerArray })
     if (!result.success) return { success: false as const, error: result.error }
-    deleteDraft().catch(() => {})
+    deleteDraft().catch((e) => console.error('[submitQuizSession] Draft cleanup failed:', e))
     return result
   } catch {
     return { success: false as const, error: 'Something went wrong. Please try again.' }
