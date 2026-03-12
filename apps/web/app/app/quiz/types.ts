@@ -28,3 +28,21 @@ export type SubmitQuizAnswerResult =
 export type CompleteQuizResult =
   | { success: true; totalQuestions: number; correctCount: number; scorePercentage: number }
   | { success: false; error: string }
+
+export type BatchAnswerResult = {
+  questionId: string
+  isCorrect: boolean
+  correctOptionId: string
+  explanationText: string | null
+  explanationImageUrl: string | null
+}
+
+export type BatchSubmitResult =
+  | {
+      success: true
+      totalQuestions: number
+      correctCount: number
+      scorePercentage: number
+      results: BatchAnswerResult[]
+    }
+  | { success: false; error: string }

@@ -9,7 +9,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 const mockStartQuizSession = vi.fn()
-vi.mock('../actions', () => ({
+vi.mock('../actions/start', () => ({
   startQuizSession: (...args: unknown[]) => mockStartQuizSession(...args),
 }))
 

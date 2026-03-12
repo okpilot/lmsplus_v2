@@ -30,7 +30,9 @@ vi.mock('@/lib/queries/quiz', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { completeQuiz, startQuizSession, submitQuizAnswer } from './actions'
+import { completeQuiz } from './actions/complete'
+import { startQuizSession } from './actions/start'
+import { submitQuizAnswer } from './actions/submit'
 
 // ---- Helpers --------------------------------------------------------------
 

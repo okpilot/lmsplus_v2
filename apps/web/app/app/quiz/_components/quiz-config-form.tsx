@@ -3,8 +3,8 @@
 import type { SubjectOption, SubtopicOption, TopicOption } from '@/lib/queries/quiz'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { startQuizSession } from '../actions'
 import { fetchSubtopicsForTopic, fetchTopicsForSubject } from '../actions/lookup'
+import { startQuizSession } from '../actions/start'
 
 type QuizConfigFormProps = {
   subjects: SubjectOption[]
