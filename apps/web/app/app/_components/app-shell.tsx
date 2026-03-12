@@ -14,7 +14,7 @@ type AppShellProps = {
 
 export function AppShell({ displayName, children }: AppShellProps) {
   const pathname = usePathname()
-  const isFullscreen = pathname.includes('/session')
+  const isFullscreen = pathname.split('/').includes('session')
 
   if (isFullscreen) {
     return <div className="min-h-screen bg-background">{children}</div>

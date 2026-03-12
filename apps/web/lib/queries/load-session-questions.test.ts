@@ -10,8 +10,14 @@ vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
 }))
 
+const mockGetUser = vi.fn().mockResolvedValue({
+  data: { user: { id: 'user-1' } },
+})
+
 vi.mock('@repo/db/server', () => ({
-  createServerSupabaseClient: async () => ({}),
+  createServerSupabaseClient: async () => ({
+    auth: { getUser: mockGetUser },
+  }),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -25,6 +31,15 @@ beforeEach(() => {
 })
 
 describe('loadSessionQuestions', () => {
+  it('returns failure when user is not authenticated', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: null } })
+    const result = await loadSessionQuestions(['q1'])
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Not authenticated')
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
   it('returns questions mapped from RPC data in the requested order', async () => {
     mockRpc.mockResolvedValue({
       data: [

@@ -46,8 +46,8 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
       scorePercentage: completion.score_percentage,
       results,
     }
-  } catch {
-    console.error('[batchSubmitQuiz] Uncaught error')
+  } catch (err) {
+    console.error('[batchSubmitQuiz] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }
   }
 }

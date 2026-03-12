@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useSessionState } from '../_hooks/use-session-state'
 import { AnswerOptions } from './answer-options'
 import { FeedbackPanel } from './feedback-panel'
 import { QuestionCard } from './question-card'
@@ -29,7 +29,7 @@ export type CompleteResult =
   | { success: true; totalQuestions: number; correctCount: number; scorePercentage: number }
   | { success: false; error: string }
 
-type SubmitInput = {
+export type SubmitInput = {
   sessionId: string
   questionId: string
   selectedOptionId: string
@@ -44,8 +44,6 @@ type SessionRunnerProps = {
   onComplete: (input: { sessionId: string }) => Promise<CompleteResult>
 }
 
-type SessionState = 'answering' | 'feedback' | 'complete'
-
 export function SessionRunner({
   sessionId,
   questions,
@@ -53,80 +51,21 @@ export function SessionRunner({
   onSubmitAnswer,
   onComplete,
 }: SessionRunnerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [state, setState] = useState<SessionState>('answering')
-  const [feedback, setFeedback] = useState<AnswerResult | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [selectedOption, setSelectedOption] = useState<string | null>(null)
-  const [correctCount, setCorrectCount] = useState(0)
-  const [scorePercentage, setScorePercentage] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-  const answerStartTime = useRef(Date.now())
-
-  useEffect(() => {
-    if (state === 'answering') answerStartTime.current = Date.now()
-  }, [state])
+  const {
+    state,
+    currentIndex,
+    feedback,
+    submitting,
+    selectedOption,
+    correctCount,
+    scorePercentage,
+    error,
+    handleSubmit,
+    handleNext,
+  } = useSessionState({ sessionId, questions, onSubmitAnswer, onComplete })
 
   const question = questions[currentIndex]
   if (!question) return null
-
-  async function handleSubmit(selectedId: string) {
-    const q = questions[currentIndex]
-    if (!q) return
-    setSubmitting(true)
-    setSelectedOption(selectedId)
-    const responseTimeMs = Date.now() - answerStartTime.current
-    let result: AnswerResult
-    try {
-      result = await onSubmitAnswer({
-        sessionId,
-        questionId: q.id,
-        selectedOptionId: selectedId,
-        responseTimeMs,
-      })
-    } catch (err) {
-      console.error('Failed to submit answer:', err)
-      setError('Something went wrong. Please try again.')
-      setSubmitting(false)
-      return
-    }
-    if (!result.success) {
-      setError(result.error)
-      setSubmitting(false)
-      return
-    }
-    setError(null)
-    setFeedback(result)
-    if (result.isCorrect) setCorrectCount((c) => c + 1)
-    setState('feedback')
-    setSubmitting(false)
-  }
-
-  async function handleNext() {
-    setError(null)
-    if (currentIndex + 1 >= questions.length) {
-      let result: CompleteResult
-      try {
-        result = await onComplete({ sessionId })
-      } catch (err) {
-        console.error('Failed to complete session:', err)
-        setError('Something went wrong. Please try again.')
-        return
-      }
-      if (!result.success) {
-        setError(result.error)
-        return
-      }
-      setCorrectCount(result.correctCount)
-      setScorePercentage(result.scorePercentage)
-      setState('complete')
-    } else {
-      setCurrentIndex((i) => i + 1)
-      setFeedback(null)
-      setSelectedOption(null)
-      setState('answering')
-    }
-  }
 
   if (state === 'complete') {
     return (
