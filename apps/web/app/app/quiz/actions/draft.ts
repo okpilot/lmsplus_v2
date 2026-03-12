@@ -1,8 +1,12 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import type { Database } from '@repo/db/types'
 import { ZodError, z } from 'zod'
 import type { DraftResult, LoadDraftResult } from '../types'
+
+type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
+type QuizDraftInsert = Database['public']['Tables']['quiz_drafts']['Insert']
 
 const DraftAnswerSchema = z.object({
   selectedOptionId: z.string().min(1),
@@ -15,18 +19,6 @@ const SaveDraftInput = z.object({
   answers: z.record(z.string(), DraftAnswerSchema),
   currentIndex: z.number().int().nonnegative(),
 })
-
-type QuizDraftRow = {
-  id: string
-  student_id: string
-  organization_id: string
-  session_config: { sessionId: string }
-  question_ids: string[]
-  answers: Record<string, { selectedOptionId: string; responseTimeMs: number }>
-  current_index: number
-  created_at: string
-  updated_at: string
-}
 
 export async function saveDraft(raw: unknown): Promise<DraftResult> {
   try {
@@ -43,17 +35,19 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     const orgId = await getOrganizationId(supabase, user.id)
     if (!orgId) return { success: false, error: 'User organization not found' }
 
-    const { error } = await supabase.from('quiz_drafts' as never).upsert(
-      {
-        student_id: user.id,
-        organization_id: orgId,
-        session_config: { sessionId: input.sessionId },
-        question_ids: input.questionIds,
-        answers: input.answers,
-        current_index: input.currentIndex,
-      } as never,
-      { onConflict: 'student_id' },
-    )
+    const row: QuizDraftInsert = {
+      student_id: user.id,
+      organization_id: orgId,
+      session_config: { sessionId: input.sessionId },
+      question_ids: input.questionIds,
+      answers: input.answers,
+      current_index: input.currentIndex,
+    }
+
+    // Supabase client generics don't resolve quiz_drafts Insert — use typed variable + cast
+    const { error } = await supabase
+      .from('quiz_drafts' as 'users')
+      .upsert(row as never, { onConflict: 'student_id' })
 
     if (error) {
       console.error('[saveDraft] Upsert error:', error.message)
@@ -79,9 +73,9 @@ export async function loadDraft(): Promise<LoadDraftResult> {
     if (!user) return { draft: null }
 
     const { data, error } = await supabase
-      .from('quiz_drafts' as never)
+      .from('quiz_drafts' as 'users')
       .select('*')
-      .eq('student_id' as never, user.id as never)
+      .eq('student_id', user.id)
       .maybeSingle()
 
     if (error) {
@@ -91,13 +85,18 @@ export async function loadDraft(): Promise<LoadDraftResult> {
 
     if (!data) return { draft: null }
 
+    // Cast from generic row to quiz_drafts row shape
     const row = data as unknown as QuizDraftRow
+    const config = row.session_config as { sessionId: string }
     return {
       draft: {
         id: row.id,
-        sessionId: (row.session_config as { sessionId: string }).sessionId,
+        sessionId: config.sessionId,
         questionIds: row.question_ids,
-        answers: row.answers,
+        answers: row.answers as Record<
+          string,
+          { selectedOptionId: string; responseTimeMs: number }
+        >,
         currentIndex: row.current_index,
       },
     }
@@ -117,9 +116,9 @@ export async function deleteDraft(): Promise<{ success: boolean }> {
 
     // quiz_drafts uses real DELETE (not soft delete) — approved exception for temp storage
     const { error } = await supabase
-      .from('quiz_drafts' as never)
+      .from('quiz_drafts' as 'users')
       .delete()
-      .eq('student_id' as never, user.id as never)
+      .eq('student_id', user.id)
 
     if (error) {
       console.error('[deleteDraft] Delete error:', error.message)

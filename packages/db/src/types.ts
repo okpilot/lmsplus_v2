@@ -1,11 +1,6 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: '14.1'
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -238,12 +233,14 @@ export type Database = {
       }
       fsrs_cards: {
         Row: {
+          consecutive_correct_count: number
           difficulty: number
           due: string
           elapsed_days: number
           id: string
           lapses: number
           last_review: string | null
+          last_was_correct: boolean | null
           question_id: string
           reps: number
           scheduled_days: number
@@ -253,12 +250,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          consecutive_correct_count?: number
           difficulty?: number
           due?: string
           elapsed_days?: number
           id?: string
           lapses?: number
           last_review?: string | null
+          last_was_correct?: boolean | null
           question_id: string
           reps?: number
           scheduled_days?: number
@@ -268,12 +267,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          consecutive_correct_count?: number
           difficulty?: number
           due?: string
           elapsed_days?: number
           id?: string
           lapses?: number
           last_review?: string | null
+          last_was_correct?: boolean | null
           question_id?: string
           reps?: number
           scheduled_days?: number
@@ -600,6 +601,57 @@ export type Database = {
           },
         ]
       }
+      quiz_drafts: {
+        Row: {
+          answers: Json
+          created_at: string
+          current_index: number
+          id: string
+          organization_id: string
+          question_ids: string[]
+          session_config: Json
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          current_index?: number
+          id?: string
+          organization_id: string
+          question_ids?: string[]
+          session_config?: Json
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          current_index?: number
+          id?: string
+          organization_id?: string
+          question_ids?: string[]
+          session_config?: Json
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'quiz_drafts_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'quiz_drafts_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: true
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       quiz_session_answers: {
         Row: {
           answered_at: string
@@ -843,6 +895,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      batch_submit_quiz: {
+        Args: { p_answers: Json; p_session_id: string }
+        Returns: Json
+      }
       complete_quiz_session: {
         Args: { p_session_id: string }
         Returns: {
@@ -861,6 +917,7 @@ export type Database = {
           lo_reference: string
           options: Json
           question_image_url: string
+          question_number: string
           question_text: string
           subject_code: string
           subtopic_name: string
