@@ -38,6 +38,14 @@ describe('getDailyActivity', () => {
     expect(result).toEqual([{ day: '2026-03-01', total: 10, correct: 7, incorrect: 3 }])
   })
 
+  it('throws when auth returns an error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'Session expired' },
+    })
+    await expect(getDailyActivity()).rejects.toThrow('Auth error: Session expired')
+  })
+
   it('throws when not authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     await expect(getDailyActivity()).rejects.toThrow('Not authenticated')
@@ -132,6 +140,14 @@ describe('getSubjectScores', () => {
       p_student_id: 'user-1',
       p_limit: 3,
     })
+  })
+
+  it('throws when auth returns an error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'JWT expired' },
+    })
+    await expect(getSubjectScores()).rejects.toThrow('Auth error: JWT expired')
   })
 
   it('throws when not authenticated', async () => {
