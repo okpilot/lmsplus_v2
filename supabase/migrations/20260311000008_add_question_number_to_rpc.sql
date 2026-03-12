@@ -1,6 +1,9 @@
 -- Add question_number to get_quiz_questions return set
 -- The questions table already has question_number (migration 003).
 -- This exposes it through the RPC so sessions can display it.
+-- Must DROP first because CREATE OR REPLACE cannot change return type.
+
+DROP FUNCTION IF EXISTS get_quiz_questions(uuid[]);
 
 CREATE OR REPLACE FUNCTION get_quiz_questions(p_question_ids uuid[])
 RETURNS TABLE (
