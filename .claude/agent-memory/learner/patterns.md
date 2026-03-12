@@ -24,6 +24,9 @@
 | E2E test clicks UI without waiting for React state flush (race condition) | 1 | 2026-03-12 | Watch — quiz-flow.spec.ts + progress.spec.ts; fixed with progress-bar DOM gate |
 | Broad E2E selector without accessible name / overly loose text match | 1 | 2026-03-12 | Watch — quiz-flow.spec.ts; fixed by scoping getByText and getByRole with name |
 | Missing route entry in docs/plan.md route tree after new page added | 1 | 2026-03-12 | Watch — /app/quiz/report missing; fixed by doc-updater in same cycle |
+| Concurrent session mutation without row-level lock (FOR UPDATE) | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in fe12342 with FOR UPDATE on session row |
+| Partial-submission not rejected at RPC level | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in fe12342 with answer count mismatch guard |
+| Import from Next.js internal module path instead of public API | 1 | 2026-03-12 | Watch — quiz-submit.ts AppRouterInstance; fixed in b312922 with ReturnType<typeof useRouter> |
 
 ## Lessons Learned
 
@@ -152,6 +155,40 @@
 - Code reviewer was clean on both commits — E2E test files correctly benefit from relaxed line limits.
 - The progress-bar flush gate fix (7f7eed8) is a clean, minimal change — single `await expect` assertion before the click. Good pattern for future E2E work against deferred-write flows.
 - Doc-updater caught the missing route entry immediately and the fix was applied in the same cycle, consistent with the no-partial-doc-fix discipline.
+
+---
+
+### 2026-03-12 — CodeRabbit PR #33 fixes + partial-submission guard (commits b312922, fe12342)
+
+**Code reviewer:** clean — 0 blocking, 0 warnings. All production changes in these commits were single-line targeted fixes or SQL-level additions.
+
+**Semantic reviewer:** 1 ISSUE + 2 suggestions. ISSUE fixed in fe12342 before cycle closed.
+
+1. **ISSUE — Partial-submission guard missing in `batch_submit_quiz` RPC (b312922 → fixed fe12342):** The RPC accepted any non-empty answer array, including partial submissions where `jsonb_array_length(p_answers) < total_questions`. Fixed by fetching `qs.total_questions` into `v_total` in the session-lock query and adding `IF jsonb_array_length(p_answers) != v_total THEN RAISE EXCEPTION`. Additionally, a `FOR UPDATE` row lock was added to the session SELECT to prevent concurrent submissions. Two distinct sub-patterns here: (a) partial answer sets not rejected — first occurrence, logged as new watch item. (b) concurrent session mutation without row lock — first occurrence, logged as new watch item.
+
+    Secondary note: the prior cycle's score-scoping fix (f53eccf scoped count to `WHERE question_id = ANY(v_question_ids)`) was itself revised in fe12342. Now that `v_total` comes from `quiz_sessions.total_questions` (authoritative) and the partial-submission guard guarantees all questions are answered, scoping the count to the inserted batch IDs was redundant. The count query was simplified back to full session scope. This is not a new anti-pattern — it's a correct second-order consequence of the partial-submission guard.
+
+2. **SUGGESTION — Type alias `AppRouterInstance` imported from internal Next.js path (b312922):** `quiz-submit.ts` imported `AppRouterInstance` from `next/dist/shared/lib/app-router-context.shared-runtime` — an internal module path not part of Next.js's public API. Fixed by deriving the type as `ReturnType<typeof useRouter>` from `next/navigation`. First occurrence — logged and watched. If it recurs, warrants a note in code-style.md about importing from `next/dist/` internal paths.
+
+3. **SUGGESTION — Count state not reset on subject switch (b312922):** Component-level count display could show stale counts when the user switches between subjects without a full remount. This was noted as protected at server (data is re-fetched server-side on navigation), so the concern applies only to client-side tab switching without navigation. First occurrence — logged and watched.
+
+**Doc updater:** `docs/database.md` updated with RPC changes (FOR UPDATE note, partial-submission guard, revised score-calculation rationale). Applied in same cycle — no partial-doc-fix pattern.
+
+**Test writer:** 5 tests added — `resume-draft-banner.test.tsx` covering the catch/finally restructure (error branch, setDiscarding reset in finally, setVisible only on success, error cleared on retry) and the clamped-label display. All passing. No new hook/utility files shipped without tests in this cycle.
+
+**Actions taken:**
+- Frequency table: added "Concurrent session mutation without row-level lock" as new watch item (count 1).
+- Frequency table: added "Partial-submission not rejected at RPC level" as new watch item (count 1).
+- Frequency table: added "Import from Next.js internal module path" as new watch item (count 1).
+- No rule changes proposed — all three are first occurrences.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- "New hook without test" pattern did NOT recur in this cycle — no new hook/utility files shipped without tests. First cycle since 9f5a6cc where the rule was followed at write time.
+- "Supabase mutation error silently dropped" rule (added 9f5a6cc) held for a second consecutive cycle — no new violations.
+- The `finally { setDiscarding(false) }` usage in `resume-draft-banner.tsx` is the correct pattern for this case: the success branch only hides the component (`setVisible(false)`), it does not navigate away. This is distinct from the prior "finally clears loading during navigation" anti-pattern. The distinction matters: `finally` is safe when success does not navigate; unsafe when success calls `router.push()` + `return`.
+- Code reviewer clean pass confirms the 70-line hook watch threshold is effective — no hooks drifted over 80 lines in this cycle.
 
 ---
 
