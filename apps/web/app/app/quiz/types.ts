@@ -47,6 +47,19 @@ export type BatchSubmitResult =
     }
   | { success: false; error: string }
 
+export type BatchRpcResult = {
+  results: {
+    question_id: string
+    is_correct: boolean
+    correct_option_id: string
+    explanation_text: string | null
+    explanation_image_url: string | null
+  }[]
+  total_questions: number
+  correct_count: number
+  score_percentage: number
+}
+
 export type DraftAnswer = { selectedOptionId: string; responseTimeMs: number }
 
 export type DraftData = {
