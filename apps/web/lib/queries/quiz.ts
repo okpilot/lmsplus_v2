@@ -131,11 +131,17 @@ export async function getSubtopicsForTopic(topicId: string): Promise<SubtopicOpt
     .filter((st) => st.questionCount > 0)
 }
 
+type QuestionFilterRef = { question_id: string }
+
+export type QuestionFilter = 'all' | 'unseen' | 'incorrect'
+
 export async function getRandomQuestionIds(opts: {
   subjectId: string
   topicId?: string | null
   subtopicId?: string | null
   count: number
+  filter?: QuestionFilter
+  userId?: string
 }): Promise<string[]> {
   const supabase = await createServerSupabaseClient()
 
@@ -157,11 +163,51 @@ export async function getRandomQuestionIds(opts: {
 
   if (!data?.length) return []
 
+  let filtered = data
+  const filter = opts.filter ?? 'all'
+
+  if (filter === 'unseen' && opts.userId) {
+    filtered = await filterUnseen(supabase, opts.userId, data)
+  } else if (filter === 'incorrect' && opts.userId) {
+    filtered = await filterIncorrect(supabase, opts.userId, data)
+  }
+
   // Shuffle and take requested count
-  const shuffled = data
+  const shuffled = filtered
     .map((q) => ({ id: q.id, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
     .map((q) => q.id)
 
   return shuffled.slice(0, opts.count)
+}
+
+async function filterUnseen(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  questions: QuestionIdRow[],
+): Promise<QuestionIdRow[]> {
+  const { data: answered } = await supabase
+    .from('student_responses')
+    .select('question_id')
+    .eq('student_id' as string & keyof never, userId)
+    .returns<QuestionFilterRef[]>()
+
+  const answeredIds = new Set((answered ?? []).map((r) => r.question_id))
+  return questions.filter((q) => !answeredIds.has(q.id))
+}
+
+async function filterIncorrect(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  questions: QuestionIdRow[],
+): Promise<QuestionIdRow[]> {
+  const { data: incorrectCards } = await supabase
+    .from('fsrs_cards')
+    .select('question_id')
+    .eq('student_id' as string & keyof never, userId)
+    .eq('last_was_correct' as string & keyof never, false)
+    .returns<QuestionFilterRef[]>()
+
+  const incorrectIds = new Set((incorrectCards ?? []).map((r) => r.question_id))
+  return questions.filter((q) => incorrectIds.has(q.id))
 }

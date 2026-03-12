@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { fetchSubtopicsForTopic, fetchTopicsForSubject } from '../actions/lookup'
 import { startQuizSession } from '../actions/start'
+import { type QuestionFilter, QuestionFilters } from './question-filters'
 
 type QuizConfigFormProps = {
   subjects: SubjectOption[]
@@ -17,6 +18,7 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
   const [subtopicId, setSubtopicId] = useState('')
   const [topics, setTopics] = useState<TopicOption[]>([])
   const [subtopics, setSubtopics] = useState<SubtopicOption[]>([])
+  const [filter, setFilter] = useState<QuestionFilter>('all')
   const [count, setCount] = useState(10)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +37,7 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
     setSubjectId(newSubjectId)
     setTopicId('')
     setSubtopicId('')
+    setFilter('all')
     setTopics([])
     setSubtopics([])
     if (newSubjectId) {
@@ -67,6 +70,7 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
       topicId: topicId || null,
       subtopicId: subtopicId || null,
       count,
+      filter,
     })
 
     if (result.success) {
@@ -122,6 +126,8 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
           }))}
         />
       )}
+
+      {subjectId && <QuestionFilters value={filter} onChange={setFilter} />}
 
       {subjectId && (
         <div>
