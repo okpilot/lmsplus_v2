@@ -83,12 +83,8 @@ export function QuizSession(props: QuizSessionProps) {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           hasAnswered={!!s.existingAnswer}
+          hiddenTabs={['explanation']}
         />
-        {activeTab === 'explanation' && (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            Explanations are available on the report card after you submit the quiz.
-          </div>
-        )}
         {activeTab === 'comments' && <CommentsTab />}
         {activeTab === 'statistics' && (
           <StatisticsTab questionId={s.questionId} hasAnswered={!!s.existingAnswer} />

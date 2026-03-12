@@ -6,6 +6,7 @@ type QuestionTabsProps = {
   activeTab: QuestionTab
   onTabChange: (tab: QuestionTab) => void
   hasAnswered: boolean
+  hiddenTabs?: QuestionTab[]
 }
 
 const TABS: { value: QuestionTab; label: string }[] = [
@@ -15,10 +16,17 @@ const TABS: { value: QuestionTab; label: string }[] = [
   { value: 'statistics', label: 'Statistics' },
 ]
 
-export function QuestionTabs({ activeTab, onTabChange, hasAnswered }: QuestionTabsProps) {
+export function QuestionTabs({
+  activeTab,
+  onTabChange,
+  hasAnswered,
+  hiddenTabs,
+}: QuestionTabsProps) {
+  const visibleTabs = hiddenTabs ? TABS.filter((t) => !hiddenTabs.includes(t.value)) : TABS
+
   return (
     <div className="flex border-b border-border">
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isDisabled = tab.value === 'explanation' && !hasAnswered
         const isActive = activeTab === tab.value
 

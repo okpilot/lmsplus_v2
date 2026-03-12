@@ -37,6 +37,21 @@ describe('QuestionTabs', () => {
     expect(onTabChange).toHaveBeenCalledWith('explanation')
   })
 
+  it('does not render hidden tabs', () => {
+    render(
+      <QuestionTabs
+        activeTab="question"
+        onTabChange={vi.fn()}
+        hasAnswered={false}
+        hiddenTabs={['explanation']}
+      />,
+    )
+    expect(screen.queryByRole('tab', { name: 'Explanation' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Question' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Comments' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Statistics' })).toBeInTheDocument()
+  })
+
   it('does not call onTabChange when clicking a disabled tab', async () => {
     const user = userEvent.setup()
     const onTabChange = vi.fn()
