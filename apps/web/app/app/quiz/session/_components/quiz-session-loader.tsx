@@ -5,6 +5,7 @@ import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { DraftAnswer } from '../../types'
+import { clampIndex } from '../_utils/clamp-index'
 import { QuizSession } from './quiz-session'
 
 type Question = {
@@ -88,7 +89,7 @@ export function QuizSessionLoader() {
 
   const clampedIndex =
     session.draftCurrentIndex != null
-      ? Math.min(session.draftCurrentIndex, questions.length - 1)
+      ? clampIndex(session.draftCurrentIndex, questions.length)
       : undefined
 
   return (

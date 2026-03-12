@@ -144,6 +144,45 @@ describe('saveDraft', () => {
     })
     expect(result.success).toBe(false)
   })
+
+  it('returns failure when currentIndex equals questionIds.length (out of range)', async () => {
+    setupAuthenticatedUser()
+    const chain = mockChain()
+    mockFrom.mockReturnValue(chain)
+
+    // questionIds has 2 items (indices 0-1), currentIndex 2 is out of range
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      currentIndex: 2,
+    })
+    expect(result).toEqual({ success: false, error: 'Current index out of range' })
+  })
+
+  it('returns failure when currentIndex exceeds questionIds.length', async () => {
+    setupAuthenticatedUser()
+    const chain = mockChain()
+    mockFrom.mockReturnValue(chain)
+
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      currentIndex: 99,
+    })
+    expect(result).toEqual({ success: false, error: 'Current index out of range' })
+  })
+
+  it('accepts currentIndex at the last valid position (length - 1)', async () => {
+    setupAuthenticatedUser()
+    const chain = mockChain()
+    ;(chain.upsert as ReturnType<typeof vi.fn>).mockReturnValue({ error: null })
+    mockFrom.mockReturnValue(chain)
+
+    // VALID_DRAFT_INPUT has questionIds: [Q1_ID, Q2_ID], so max valid index is 1
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      currentIndex: 1,
+    })
+    expect(result).toEqual({ success: true })
+  })
 })
 
 // ---- loadDraft -------------------------------------------------------------

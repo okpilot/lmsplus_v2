@@ -3,28 +3,20 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { DraftAnswer } from '../../types'
+import { clampIndex } from '../_utils/clamp-index'
 import { saveQuizDraft, submitQuizSession } from './quiz-submit'
 import { useFlaggedQuestions } from './use-flagged-questions'
 
-type StoredAnswer = { selectedOptionId: string; responseTimeMs: number }
-type UseQuizStateOpts = {
+export function useQuizState(opts: {
   sessionId: string
   questions: SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
   initialIndex?: number
-}
-
-export function useQuizState({
-  sessionId,
-  questions,
-  initialAnswers,
-  initialIndex,
-}: UseQuizStateOpts) {
+}) {
+  const { sessionId, questions, initialAnswers, initialIndex } = opts
   const router = useRouter()
-  const [currentIndex, setCurrentIndex] = useState(
-    Math.min(Math.max(initialIndex ?? 0, 0), Math.max(questions.length - 1, 0)),
-  )
-  const [answers, setAnswers] = useState<Map<string, StoredAnswer>>(() =>
+  const [currentIndex, setCurrentIndex] = useState(clampIndex(initialIndex, questions.length))
+  const [answers, setAnswers] = useState<Map<string, DraftAnswer>>(() =>
     initialAnswers ? new Map(Object.entries(initialAnswers)) : new Map(),
   )
   const { flaggedQuestions, toggleFlag: toggleFlagById } = useFlaggedQuestions()
@@ -35,7 +27,6 @@ export function useQuizState({
   const [error, setError] = useState<string | null>(null)
 
   useNavigationGuard(answers.size > 0 && !submitted.current)
-
   const question = questions[currentIndex]
   const questionId = question?.id ?? ''
 
@@ -52,7 +43,6 @@ export function useQuizState({
       answerStartTime.current = Date.now()
     }
   }
-
   async function handleSubmit() {
     setSubmitting(true)
     setError(null)
@@ -66,7 +56,6 @@ export function useQuizState({
       setSubmitting(false)
     }
   }
-
   async function handleSave() {
     setSubmitting(true)
     setError(null)
@@ -93,10 +82,10 @@ export function useQuizState({
     showFinishDialog,
     handleSelectAnswer,
     navigateTo,
-    navigate: (d: number) => navigateTo(currentIndex + d),
-    toggleFlag: () => toggleFlagById(questionId),
     handleSubmit,
     handleSave,
     setShowFinishDialog,
+    navigate: (d: number) => navigateTo(currentIndex + d),
+    toggleFlag: () => toggleFlagById(questionId),
   }
 }

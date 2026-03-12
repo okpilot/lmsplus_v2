@@ -1,10 +1,9 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
 import { deleteDraft, saveDraft } from '../../actions/draft'
+import type { DraftAnswer } from '../../types'
 
-type StoredAnswer = { selectedOptionId: string; responseTimeMs: number }
-
-export async function submitQuizSession(sessionId: string, answers: Map<string, StoredAnswer>) {
+export async function submitQuizSession(sessionId: string, answers: Map<string, DraftAnswer>) {
   const answerArray = Array.from(answers.entries()).map(([qId, a]) => ({
     questionId: qId,
     selectedOptionId: a.selectedOptionId,
@@ -23,7 +22,7 @@ export async function submitQuizSession(sessionId: string, answers: Map<string, 
 export async function saveQuizDraft(opts: {
   sessionId: string
   questionIds: string[]
-  answers: Map<string, StoredAnswer>
+  answers: Map<string, DraftAnswer>
   currentIndex: number
   router: AppRouterInstance
 }) {

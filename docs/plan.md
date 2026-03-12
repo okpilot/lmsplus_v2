@@ -58,13 +58,23 @@
 - Progress (`/app/progress`) — detailed breakdown by subject/topic with mastery percentages
 - Shared components: QuestionCard, AnswerOptions, FeedbackPanel, SessionSummary
 - Sidebar navigation for all modes
-- Server Actions: startQuizSession, submitQuizAnswer, completeQuiz, startReviewSession, submitReviewAnswer, completeReviewSession
+- Server Actions split into feature files: quiz/actions/{start, submit, complete, batch-submit}.ts + review/actions.ts
+- Quiz session: deferred writes architecture — answers accumulate in React state, batch submitted on finish
 - Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData, getDueCards
 - FSRS integration via `packages/db/src/fsrs.ts` — wraps ts-fsrs library, updateFsrsCard on answer
 - UI components (shadcn): Badge, Card, Progress, Skeleton
 - Tests written for auth flow, middleware, server actions
-- Session state machine: answering → feedback → complete
+- Session state machine: answering → show-finish-dialog → submit-batch → complete
 - Dark mode: next-themes provider, system default, toggle in header
+
+**Phase 5B-7 done (2026-03-12):** Deferred Quiz Writes:
+- Refactored quiz/actions.ts into feature-based files: start.ts, submit.ts, complete.ts, batch-submit.ts
+- Quiz state machine updated: answers stored in React state (Map<questionId, {selectedOptionId, responseTimeMs}>)
+- New `batchSubmitQuiz` Server Action: validates batch of answers, calls `submit_quiz_answer` RPC × N, calls `complete_quiz_session` RPC, updates FSRS cards
+- FinishQuizDialog: modal with unanswered count warning, options: Return to Quiz, Save for Later (stub), Submit Quiz
+- QuizNavBar: question navigator with previous/next buttons, current index display
+- Session Zod types: SubmitRpcResult, CompleteRpcResult, StartQuizResult, SubmitQuizAnswerResult, CompleteQuizResult, BatchAnswerResult, BatchSubmitResult
+- QuizSession component updated to use deferred state + finish dialog instead of immediate feedback per answer
 
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
@@ -144,6 +154,20 @@
 - ✅ Subject selector on Smart Review: `ReviewConfigForm` with subject checkboxes; `getDueCards` accepts `{ limit?, subjectIds? }` options object
 - ✅ Mobile navigation drawer: hamburger menu below `md` breakpoint, slide-out drawer with nav links via `@base-ui/react/dialog`, auto-closes on route change
 - Tests updated for renamed labels; new test files for ReviewExplainer, MarkdownText, ZoomableImage, MobileNav
+
+**Phase 6-Sprint2 in progress (2026-03-12):** Quiz Overhaul — items 2.1–2.9, 2.11 on `feat/sprint-2-quiz-overhaul`:
+- ✅ Migration 009: new `quiz_drafts` table for saving/resuming interrupted quizzes
+- ✅ Subject → topic → subtopic drill-down selectors (2.3)
+- ✅ Question filters: unseen, incorrectly answered, all (2.4)
+- ✅ Question count slider (2.5)
+- ✅ Deferred quiz writes: answers accumulate in React state, batch submitted on finish (2.6)
+- ✅ Save/resume quiz drafts: 3-action finish dialog (Submit/Cancel/Save), auto-save to localStorage + DB, resume on next quiz open (2.7)
+- ✅ Navigation-away warning: `beforeunload` event + Next.js route change guard with 3-option dialog (2.11)
+- ✅ Incorrectly-answered tracking: `consecutive_correct_count` and `last_was_correct` on `fsrs_cards` (2.9)
+- ✅ Question tabs: Question/Explanation/Comments/Statistics tabs inside quiz (2.2)
+- ✅ Quiz report card: score %, question-by-question breakdown, sortable results list (2.8)
+- ✅ Migration 011: new `batch_submit_quiz` RPC — atomic all-or-nothing session completion (replaces per-answer loop)
+- Pending: Fullscreen quiz layout + sidebar question grid (2.1)
 
 ---
 
@@ -453,4 +477,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-12 — Sprint 1 (Quick Wins) complete, all 10 backlog items shipped*
+*Last updated: 2026-03-12 — Sprint 1 complete (10/10 items), Sprint 2 in progress (10/11 items done, fullscreen layout pending)*

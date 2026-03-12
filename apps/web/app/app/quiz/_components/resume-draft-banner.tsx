@@ -11,6 +11,7 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
   const router = useRouter()
   const [visible, setVisible] = useState(true)
   const [discarding, setDiscarding] = useState(false)
+  const [discardError, setDiscardError] = useState<string | null>(null)
 
   if (!visible) return null
 
@@ -32,9 +33,12 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
 
   async function handleDiscard() {
     setDiscarding(true)
+    setDiscardError(null)
     const result = await deleteDraft()
     if (result.success) {
       setVisible(false)
+    } else {
+      setDiscardError('Failed to discard. Please try again.')
     }
     setDiscarding(false)
   }
@@ -45,6 +49,7 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
       <p className="mt-1 text-xs text-muted-foreground">
         {answeredCount} of {totalCount} questions answered
       </p>
+      {discardError && <p className="mt-2 text-xs text-destructive">{discardError}</p>}
       <div className="mt-3 flex gap-2">
         <button
           type="button"

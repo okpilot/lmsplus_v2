@@ -85,4 +85,18 @@ describe('ResumeDraftBanner', () => {
 
     expect(screen.getByText('Discarding...')).toBeInTheDocument()
   })
+
+  it('keeps the banner visible when deleteDraft returns failure', async () => {
+    mockDeleteDraft.mockResolvedValue({ success: false })
+
+    render(<ResumeDraftBanner draft={DRAFT} />)
+    fireEvent.click(screen.getByText('Discard'))
+
+    await waitFor(() => {
+      expect(mockDeleteDraft).toHaveBeenCalledTimes(1)
+    })
+
+    // Banner must still be visible because the delete failed
+    expect(screen.getByText('Resume unfinished quiz?')).toBeInTheDocument()
+  })
 })

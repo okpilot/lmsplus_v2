@@ -1,95 +1,33 @@
 'use client'
 
-import type { SubjectOption, SubtopicOption, TopicOption } from '@/lib/queries/quiz'
-import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
-import { fetchSubtopicsForTopic, fetchTopicsForSubject } from '../actions/lookup'
-import { startQuizSession } from '../actions/start'
-import { type QuestionFilter, QuestionFilters } from './question-filters'
+import type { SubjectOption } from '@/lib/queries/quiz'
+import { useQuizConfig } from '../_hooks/use-quiz-config'
+import { QuestionFilters } from './question-filters'
 
 type QuizConfigFormProps = {
   subjects: SubjectOption[]
 }
 
 export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
-  const router = useRouter()
-  const [subjectId, setSubjectId] = useState('')
-  const [topicId, setTopicId] = useState('')
-  const [subtopicId, setSubtopicId] = useState('')
-  const [topics, setTopics] = useState<TopicOption[]>([])
-  const [subtopics, setSubtopics] = useState<SubtopicOption[]>([])
-  const [filter, setFilter] = useState<QuestionFilter>('all')
-  const [count, setCount] = useState(10)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
-
-  const availableCount = getAvailableCount()
-  const maxQuestions = Math.min(availableCount, 50)
-
-  function getAvailableCount(): number {
-    if (subtopicId) return subtopics.find((st) => st.id === subtopicId)?.questionCount ?? 0
-    if (topicId) return topics.find((t) => t.id === topicId)?.questionCount ?? 0
-    return subjects.find((s) => s.id === subjectId)?.questionCount ?? 0
-  }
-
-  function handleSubjectChange(newSubjectId: string) {
-    setSubjectId(newSubjectId)
-    setTopicId('')
-    setSubtopicId('')
-    setFilter('all')
-    setTopics([])
-    setSubtopics([])
-    if (newSubjectId) {
-      startTransition(async () => {
-        const result = await fetchTopicsForSubject(newSubjectId)
-        setTopics(result)
-      })
-    }
-  }
-
-  function handleTopicChange(newTopicId: string) {
-    setTopicId(newTopicId)
-    setSubtopicId('')
-    setSubtopics([])
-    if (newTopicId) {
-      startTransition(async () => {
-        const result = await fetchSubtopicsForTopic(newTopicId)
-        setSubtopics(result)
-      })
-    }
-  }
-
-  async function handleStart() {
-    if (!subjectId) return
-    setLoading(true)
-    setError(null)
-
-    try {
-      const result = await startQuizSession({
-        subjectId,
-        topicId: topicId || null,
-        subtopicId: subtopicId || null,
-        count: Math.min(count, maxQuestions || 1),
-        filter,
-      })
-
-      if (result.success) {
-        sessionStorage.setItem(
-          'quiz-session',
-          JSON.stringify({ sessionId: result.sessionId, questionIds: result.questionIds }),
-        )
-        router.push('/app/quiz/session')
-        return
-      }
-
-      setError(result.error)
-    } catch {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const {
+    subjectId,
+    topicId,
+    subtopicId,
+    setSubtopicId,
+    topics,
+    subtopics,
+    filter,
+    setFilter,
+    count,
+    setCount,
+    loading,
+    error,
+    isPending,
+    maxQuestions,
+    handleSubjectChange,
+    handleTopicChange,
+    handleStart,
+  } = useQuizConfig({ subjects })
 
   return (
     <div className="space-y-4">

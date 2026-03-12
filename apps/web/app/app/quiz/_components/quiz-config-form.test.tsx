@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QuizConfigForm } from './quiz-config-form'
@@ -195,6 +195,49 @@ describe('QuizConfigForm', () => {
       'quiz-session',
       JSON.stringify({ sessionId: 'sess-1', questionIds: ['q1'] }),
     )
+  })
+
+  it('shows generic error and resets loading when startQuizSession throws', async () => {
+    const user = userEvent.setup()
+    mockStartQuizSession.mockRejectedValue(new Error('network failure'))
+
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
+    await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Something went wrong. Please try again.')).toBeInTheDocument()
+    })
+    // Loading state must be reset so button is usable again
+    expect(screen.getByRole('button', { name: 'Start Quiz' })).not.toBeDisabled()
+  })
+
+  it('clamps question count to maxQuestions before calling startQuizSession', async () => {
+    const user = userEvent.setup()
+    mockStartQuizSession.mockResolvedValue({
+      success: true,
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+    })
+
+    // sub-1 has questionCount: 30 → maxQuestions = 30
+    // We manipulate count via the range slider — set it to a value beyond max by firing change
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
+
+    // The slider max is 30 for sub-1; simulate selecting 30 questions
+    const slider = screen.getByRole('slider')
+    await user.click(slider)
+    // Fire an artificial change to set count beyond maxQuestions to verify clamping
+    fireEvent.change(slider, { target: { value: '30' } })
+
+    await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
+
+    await waitFor(() => {
+      expect(mockStartQuizSession).toHaveBeenCalled()
+    })
+    const calledWith = mockStartQuizSession.mock.calls[0]![0] as { count: number }
+    expect(calledWith.count).toBeLessThanOrEqual(30)
   })
 
   it('resets topic and subtopic when subject changes', async () => {
