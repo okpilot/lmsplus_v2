@@ -1,5 +1,3 @@
-'use client'
-
 import type { DailyActivity } from '@/lib/queries/analytics'
 
 type ActivityHeatmapProps = {
@@ -25,10 +23,10 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
       <h3 className="mb-3 text-sm font-medium">Study Streak</h3>
       <div className="flex flex-wrap gap-1">
         {data.map((d) => {
-          const date = new Date(d.day)
-          const label = date.toLocaleDateString('en-GB', {
+          const label = new Date(`${d.day}T00:00:00Z`).toLocaleDateString('en-GB', {
             day: 'numeric',
             month: 'short',
+            timeZone: 'UTC',
           })
           return (
             <div
@@ -46,6 +44,7 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
         <div className="h-3 w-3 rounded-sm bg-green-300 dark:bg-green-700" />
         <div className="h-3 w-3 rounded-sm bg-green-400 dark:bg-green-600" />
         <div className="h-3 w-3 rounded-sm bg-green-500 dark:bg-green-500" />
+        <div className="h-3 w-3 rounded-sm bg-green-600 dark:bg-green-400" />
         <span>More</span>
       </div>
     </div>

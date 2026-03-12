@@ -28,7 +28,11 @@ export function ActivityChart({ data }: ActivityChartProps) {
 
   const formatted = data.map((d) => ({
     ...d,
-    label: new Date(d.day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+    label: new Date(`${d.day}T00:00:00Z`).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    }),
   }))
 
   return (

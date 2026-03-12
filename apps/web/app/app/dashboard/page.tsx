@@ -11,11 +11,16 @@ import { SubjectScoresChart } from './_components/subject-scores-chart'
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  const [data, dailyActivity, subjectScores] = await Promise.all([
+  const [dataResult, dailyActivityResult, subjectScoresResult] = await Promise.allSettled([
     getDashboardData(),
     getDailyActivity(),
     getSubjectScores(),
   ])
+
+  if (dataResult.status !== 'fulfilled') throw dataResult.reason
+  const data = dataResult.value
+  const dailyActivity = dailyActivityResult.status === 'fulfilled' ? dailyActivityResult.value : []
+  const subjectScores = subjectScoresResult.status === 'fulfilled' ? subjectScoresResult.value : []
 
   return (
     <main className="space-y-8">

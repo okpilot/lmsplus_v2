@@ -1,6 +1,10 @@
 import { rpc } from '@/lib/supabase-rpc'
 import { createServerSupabaseClient } from '@repo/db/server'
 
+function boundParam(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.trunc(value)))
+}
+
 export type DailyActivity = {
   day: string
   total: number
@@ -32,9 +36,10 @@ export async function getDailyActivity(days = 30): Promise<DailyActivity[]> {
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
+  const safeDays = boundParam(days, 1, 365)
   const { data, error } = await rpc<DailyActivityRow[]>(supabase, 'get_daily_activity', {
     p_student_id: user.id,
-    p_days: days,
+    p_days: safeDays,
   })
 
   if (error) throw new Error(`Failed to fetch daily activity: ${error.message}`)
@@ -54,9 +59,10 @@ export async function getSubjectScores(limit = 5): Promise<SubjectScore[]> {
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
+  const safeLimit = boundParam(limit, 1, 20)
   const { data, error } = await rpc<SubjectScoreRow[]>(supabase, 'get_subject_scores', {
     p_student_id: user.id,
-    p_limit: limit,
+    p_limit: safeLimit,
   })
 
   if (error) throw new Error(`Failed to fetch subject scores: ${error.message}`)

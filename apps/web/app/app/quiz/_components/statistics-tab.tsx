@@ -87,6 +87,17 @@ function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => vo
   )
 }
 
+const FSRS_STATE_LABELS: Record<string, string> = {
+  new: 'New',
+  learning: 'Learning',
+  review: 'Review',
+  relearning: 'Relearning',
+}
+
+function formatFsrsState(state: string): string {
+  return FSRS_STATE_LABELS[state] ?? state.charAt(0).toUpperCase() + state.slice(1)
+}
+
 function StatsDisplay({ stats }: { stats: QuestionStats }) {
   const accuracy =
     stats.timesSeen > 0 ? Math.round((stats.correctCount / stats.timesSeen) * 100) : 0
@@ -111,7 +122,7 @@ function StatsDisplay({ stats }: { stats: QuestionStats }) {
           <div className="border-t border-border pt-2 text-xs font-medium text-muted-foreground">
             FSRS Data
           </div>
-          <StatRow label="State" value={stats.fsrsState} />
+          <StatRow label="State" value={formatFsrsState(stats.fsrsState)} />
           {stats.fsrsStability != null && (
             <StatRow label="Stability" value={stats.fsrsStability.toFixed(1)} />
           )}

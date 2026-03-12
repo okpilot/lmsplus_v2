@@ -8,6 +8,13 @@ type SubjectScoresChartProps = {
   data: SubjectScore[]
 }
 
+type ChartEntry = {
+  name: string
+  value: number
+  fullName: string
+  sessions: number
+}
+
 const COLORS = [
   'hsl(var(--chart-1))',
   'hsl(var(--chart-2))',
@@ -16,26 +23,31 @@ const COLORS = [
   'hsl(var(--chart-5))',
 ]
 
-export function SubjectScoresChart({ data }: SubjectScoresChartProps) {
-  const [hydrated, setHydrated] = useState(false)
-  useEffect(() => {
-    setHydrated(true)
-  }, [])
+const TOOLTIP_STYLE = {
+  backgroundColor: 'hsl(var(--popover))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '6px',
+  fontSize: '12px',
+}
 
-  if (!hydrated) {
-    return <div className="h-64 animate-pulse rounded-lg bg-muted" />
-  }
+function ScoresLegend({ chartData }: { chartData: ChartEntry[] }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {chartData.map((item, index) => (
+        <div key={item.name} className="flex items-center gap-2 text-xs">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+          />
+          <span className="text-muted-foreground">{item.fullName}</span>
+          <span className="font-medium tabular-nums">{item.value}%</span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
-  if (data.length === 0) {
-    return (
-      <div className="flex h-64 items-center justify-center rounded-lg border border-border">
-        <p className="text-sm text-muted-foreground">
-          Complete some quizzes to see subject scores.
-        </p>
-      </div>
-    )
-  }
-
+function ScoresChartContent({ data }: { data: SubjectScore[] }) {
   const chartData = data.map((d) => ({
     name: d.subjectShort,
     value: d.avgScore,
@@ -64,28 +76,35 @@ export function SubjectScoresChart({ data }: SubjectScoresChartProps) {
             </Pie>
             <Tooltip
               formatter={(value) => [`${value}%`, 'Avg Score']}
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-                fontSize: '12px',
-              }}
+              contentStyle={TOOLTIP_STYLE}
             />
           </PieChart>
         </ResponsiveContainer>
-        <div className="flex flex-col gap-1.5">
-          {chartData.map((item, index) => (
-            <div key={item.name} className="flex items-center gap-2 text-xs">
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: COLORS[index % COLORS.length] }}
-              />
-              <span className="text-muted-foreground">{item.fullName}</span>
-              <span className="font-medium tabular-nums">{item.value}%</span>
-            </div>
-          ))}
-        </div>
+        <ScoresLegend chartData={chartData} />
       </div>
     </div>
   )
+}
+
+export function SubjectScoresChart({ data }: SubjectScoresChartProps) {
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => {
+    setHydrated(true)
+  }, [])
+
+  if (!hydrated) {
+    return <div className="h-64 animate-pulse rounded-lg bg-muted" />
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="flex h-64 items-center justify-center rounded-lg border border-border">
+        <p className="text-sm text-muted-foreground">
+          Complete some quizzes to see subject scores.
+        </p>
+      </div>
+    )
+  }
+
+  return <ScoresChartContent data={data} />
 }
