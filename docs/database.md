@@ -313,6 +313,23 @@ CREATE TABLE audit_events (
 );
 ```
 
+### quiz_drafts
+```sql
+-- Temporary storage for interrupted quiz sessions. One draft per student (UNIQUE on student_id).
+-- APPROVED EXCEPTION: uses real DELETE (not soft delete) — drafts are disposable temp storage.
+CREATE TABLE quiz_drafts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id      UUID NOT NULL REFERENCES users(id) UNIQUE,
+  organization_id UUID NOT NULL REFERENCES organizations(id),
+  session_config  JSONB NOT NULL DEFAULT '{}',  -- { sessionId, subjectName?, subjectCode? }
+  question_ids    UUID[] NOT NULL,
+  answers         JSONB NOT NULL DEFAULT '{}',   -- Record<questionId, { selectedOptionId, responseTimeMs }>
+  current_index   INT NOT NULL DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
 ---
 
 ## 3. Soft Delete

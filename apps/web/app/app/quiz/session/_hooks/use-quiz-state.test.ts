@@ -230,4 +230,25 @@ describe('useQuizState — handleSave', () => {
 
     expect(result.current.error).toBe('Failed to save draft')
   })
+
+  it('forwards subjectName and subjectCode to saveQuizDraft when provided', async () => {
+    mockSaveQuizDraft.mockResolvedValue({ success: true as const })
+
+    const { result } = renderHook(() =>
+      useQuizState({
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        subjectName: 'Air Law',
+        subjectCode: 'ALW',
+      }),
+    )
+    await act(async () => result.current.handleSave())
+
+    expect(mockSaveQuizDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subjectName: 'Air Law',
+        subjectCode: 'ALW',
+      }),
+    )
+  })
 })

@@ -231,4 +231,41 @@ describe('saveQuizDraft', () => {
     expect(called.answers).not.toBeInstanceOf(Map)
     expect(called.answers[Q1_ID]).toEqual({ selectedOptionId: 'opt-b', responseTimeMs: 800 })
   })
+
+  it('forwards subjectName and subjectCode to saveDraft when provided', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+
+    await saveQuizDraft({
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+      subjectName: 'Air Law',
+      subjectCode: 'ALW',
+    })
+
+    expect(mockSaveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subjectName: 'Air Law',
+        subjectCode: 'ALW',
+      }),
+    )
+  })
+
+  it('omits subjectName and subjectCode from saveDraft when not provided', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+
+    await saveQuizDraft({
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    const [called] = mockSaveDraft.mock.calls[0]!
+    expect(called.subjectName).toBeUndefined()
+    expect(called.subjectCode).toBeUndefined()
+  })
 })

@@ -185,6 +185,34 @@ describe('useQuizConfig — handleStart', () => {
     expect(storage['quiz-session']).toContain(SESSION_ID)
   })
 
+  it('stores subjectName and subjectCode in sessionStorage on success', async () => {
+    mockStartQuizSession.mockResolvedValue({
+      success: true,
+      sessionId: SESSION_ID,
+      questionIds: ['q1'],
+    })
+
+    const storage: Record<string, string> = {}
+    vi.stubGlobal('sessionStorage', {
+      setItem: (key: string, value: string) => {
+        storage[key] = value
+      },
+      getItem: (key: string) => storage[key] ?? null,
+    })
+
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+    await act(async () => {
+      await result.current.handleStart()
+    })
+
+    const stored = JSON.parse(storage['quiz-session'] ?? '{}') as Record<string, unknown>
+    expect(stored.subjectName).toBe('Air Law')
+    expect(stored.subjectCode).toBe('ALW')
+  })
+
   it('does nothing when no subject is selected', async () => {
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
     await act(async () => {

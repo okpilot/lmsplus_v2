@@ -184,6 +184,20 @@ describe('saveDraft', () => {
     })
     expect(result).toEqual({ success: true })
   })
+
+  it('succeeds when optional subjectName and subjectCode are provided', async () => {
+    setupAuthenticatedUser()
+    const chain = mockChain()
+    ;(chain.upsert as ReturnType<typeof vi.fn>).mockReturnValue({ error: null })
+    mockFrom.mockReturnValue(chain)
+
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      subjectName: 'Air Law',
+      subjectCode: 'ALW',
+    })
+    expect(result).toEqual({ success: true })
+  })
 })
 
 // ---- loadDraft -------------------------------------------------------------
@@ -221,6 +235,24 @@ describe('loadDraft', () => {
       subjectCode: undefined,
       createdAt: '2026-03-12T00:00:00Z',
     })
+  })
+
+  it('returns subjectName and subjectCode when present in session_config', async () => {
+    setupAuthenticatedUser()
+    const chain = mockChain()
+    const rowWithSubject = {
+      ...DRAFT_ROW,
+      session_config: { sessionId: SESSION_ID, subjectName: 'Air Law', subjectCode: 'ALW' },
+    }
+    ;(chain.maybeSingle as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: rowWithSubject,
+      error: null,
+    })
+    mockFrom.mockReturnValue(chain)
+
+    const result = await loadDraft()
+    expect(result.draft?.subjectName).toBe('Air Law')
+    expect(result.draft?.subjectCode).toBe('ALW')
   })
 
   it('returns null draft when query errors', async () => {

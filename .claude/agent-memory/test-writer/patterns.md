@@ -1116,3 +1116,39 @@ already failing intermittently. Do NOT chase this flakiness unless it fails in i
 
 ### Suite state after commit 9d9e898
 60 test files, 506 tests — all passing (each file individually; combined run has pre-existing cross-file jsdom flakiness unrelated to new tests).
+
+### Testing hooks extracted from larger hooks (2026-03-12)
+When a hook like `useQuizNavigation` is extracted from a larger hook (`useQuizState`), test
+the extracted hook independently. The parent hook's tests (testing delegation through the public
+API) remain valid; add a dedicated test file for the new hook covering its own contracts
+(initial state, navigation, ref resets). Do NOT re-test index clamping if a shared utility
+(`clampIndex`) already has its own tests — focus on the hook's added behavior (navigateTo guard,
+answerStartTime reset on valid navigation).
+
+### Testing fake timers with useRef (2026-03-12)
+When verifying that a `useRef` value (like `answerStartTime`) updates after navigation:
+```ts
+vi.useFakeTimers()
+vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+const { result } = renderHook(() => useQuizNavigation({ totalQuestions: 3 }))
+const timeBefore = result.current.answerStartTime.current
+vi.advanceTimersByTime(2000)
+act(() => result.current.navigateTo(1))
+expect(result.current.answerStartTime.current).toBeGreaterThan(timeBefore)
+vi.useRealTimers()
+```
+Always call `vi.useRealTimers()` at the end to avoid leaking fake timer state.
+
+### Extending tests for optional field pass-through (2026-03-12)
+When a new optional field is threaded through a call chain (e.g., `subjectName`/`subjectCode`
+from `useQuizConfig` → `sessionStorage` → `useQuizState` → `saveQuizDraft` → `saveDraft`),
+add one targeted test at each layer:
+- storage layer: parse JSON from the stub and assert the field value
+- pass-through function: use `expect.objectContaining({ subjectName: ..., subjectCode: ... })`
+- caller hook: same `expect.objectContaining` pattern on the mocked callee
+This avoids duplicating full-chain integration tests while ensuring each link passes the data.
+
+### Suite state after commit 0176634
+61 test files, ~522 tests — all passing individually.
+New file: `use-quiz-navigation.test.ts` (16 tests).
+Extended: `quiz-submit.test.ts` (+2), `use-quiz-config.test.ts` (+1), `use-quiz-state.test.ts` (+1), `draft.test.ts` (+2).

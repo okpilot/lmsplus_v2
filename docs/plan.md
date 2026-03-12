@@ -155,7 +155,7 @@
 - ✅ Mobile navigation drawer: hamburger menu below `md` breakpoint, slide-out drawer with nav links via `@base-ui/react/dialog`, auto-closes on route change
 - Tests updated for renamed labels; new test files for ReviewExplainer, MarkdownText, ZoomableImage, MobileNav
 
-**Phase 6-Sprint2 in progress (2026-03-12):** Quiz Overhaul — items 2.1–2.9, 2.11 on `feat/sprint-2-quiz-overhaul`:
+**Phase 6-Sprint2 complete (2026-03-12):** Quiz Overhaul — all items (2.1–2.11) on `feat/sprint-2-quiz-overhaul`:
 - ✅ Migration 009: new `quiz_drafts` table for saving/resuming interrupted quizzes
 - ✅ Subject → topic → subtopic drill-down selectors (2.3)
 - ✅ Question filters: unseen, incorrectly answered, all (2.4)
@@ -167,7 +167,8 @@
 - ✅ Question tabs: Question/Explanation/Comments/Statistics tabs inside quiz (2.2)
 - ✅ Quiz report card: score %, question-by-question breakdown, sortable results list (2.8)
 - ✅ Migration 011: new `batch_submit_quiz` RPC — atomic all-or-nothing session completion (replaces per-answer loop)
-- Pending: Fullscreen quiz layout + sidebar question grid (2.1)
+- ✅ Exit button for fullscreen quiz session (2.1)
+- ✅ Saved drafts tab: tab UI + draft card with subject metadata, resume/delete (2.10)
 
 ---
 

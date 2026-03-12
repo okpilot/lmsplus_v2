@@ -268,6 +268,43 @@ if `error` is non-null.
 `setLoading(false)` is only called in the error branch and catch block. Loading stays
 true during navigation, preventing the double-submit window.
 
+### sessionStorage subject metadata — unvalidated cast on read (first seen commit 0176634)
+**First seen:** commit 0176634 (2026-03-12)
+**File:** `apps/web/app/app/quiz/session/_components/quiz-session-loader.tsx`
+**Pattern:** `JSON.parse(raw) as SessionData` casts the full sessionStorage blob to `SessionData`
+including the new `subjectName` and `subjectCode` fields. No Zod or runtime validation is applied
+to the parsed object, so a malformed or attacker-modified sessionStorage entry (possible in same-origin
+extension attack) can pass strings of any length or shape as `subjectName`/`subjectCode`. These values
+are forwarded to `QuizSession` props and then into `saveDraft` (a Server Action with Zod validation),
+so the risk is bounded. The Server Action's Zod schema for `subjectName`/`subjectCode` uses
+`z.string().optional()` — any non-empty string passes. No length cap is applied.
+**Severity:** SUGGESTION — Server Action Zod validates the type; the UI renders the value via React
+(XSS is escaped); no security boundary is crossed. Risk is cosmetic (very long subject labels).
+**Watch for:** `JSON.parse(...) as T` on sessionStorage without runtime validation. If any field from
+sessionStorage is ever used in a sensitive context (SQL interpolation, redirect URL) without a
+server-side Zod guard, escalate to ISSUE.
+
+### SavedDraftCard renders in a Server Component page with a client-only early return (first seen commit 0176634)
+**First seen:** commit 0176634 (2026-03-12)
+**File:** `apps/web/app/app/quiz/_components/saved-draft-card.tsx`
+**Pattern:** `SavedDraftCard` is `'use client'` and contains an early `if (!draft) return ...`
+before the `DraftCard` inner component. This is fine — the `draft` prop is passed from the
+Server Component `QuizPage` and React serializes it across the RSC boundary correctly.
+`null` is a valid serializable prop. The pattern is correct.
+**Positive signal:** drafts tab uses data-testid on interactive elements (resume-draft, delete-draft)
+throughout, making tests reliable.
+
+### useQuizNavigation extract — navigate closure captures stale currentIndex at init (first seen commit 0176634)
+**First seen:** commit 0176634 (2026-03-12)
+**File:** `apps/web/app/app/quiz/session/_hooks/use-quiz-navigation.ts` line 24
+**Pattern:** `navigate: (d: number) => navigateTo(currentIndex + d)` is returned from the hook.
+`currentIndex` here is captured from the most recent render's closure — this is correct React
+behavior, as the hook re-executes on every render. However, if `navigate` is ever memoized
+(e.g., wrapped in `useCallback` by a consumer or passed as a stable ref), the closure would
+stale and `currentIndex + d` would compute from the initial value. Currently no memoization
+is applied and the hook is used directly, so the closure is fresh on every render. Safe as-is.
+**Watch for:** any consumer that memoizes or stores `nav.navigate` in a `useRef` or `useCallback`.
+
 ## CodeRabbit Findings to Learn From
 - Cookie forwarding consistency across redirect branches (PR #23)
 - Query param forwarding to auth endpoints (PR #23)

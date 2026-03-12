@@ -16,8 +16,8 @@ const SaveDraftInput = z.object({
   questionIds: z.array(z.string().uuid()).min(1),
   answers: z.record(z.string(), DraftAnswerSchema),
   currentIndex: z.number().int().nonnegative(),
-  subjectName: z.string().optional(),
-  subjectCode: z.string().optional(),
+  subjectName: z.string().max(100).optional(),
+  subjectCode: z.string().max(10).optional(),
 })
 
 export async function saveDraft(raw: unknown): Promise<DraftResult> {
