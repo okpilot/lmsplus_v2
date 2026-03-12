@@ -46,3 +46,17 @@ export type BatchSubmitResult =
       results: BatchAnswerResult[]
     }
   | { success: false; error: string }
+
+export type DraftAnswer = { selectedOptionId: string; responseTimeMs: number }
+
+export type DraftData = {
+  id: string
+  sessionId: string
+  questionIds: string[]
+  answers: Record<string, DraftAnswer>
+  currentIndex: number
+}
+
+export type DraftResult = { success: true } | { success: false; error: string }
+
+export type LoadDraftResult = { draft: DraftData | null }

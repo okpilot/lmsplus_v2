@@ -1,9 +1,21 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const mockRouterPush = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush }),
+}))
+
 const mockBatchSubmitQuiz = vi.fn()
 vi.mock('../../actions/batch-submit', () => ({
   batchSubmitQuiz: (...args: unknown[]) => mockBatchSubmitQuiz(...args),
+}))
+
+const mockDeleteDraft = vi.fn()
+const mockSaveDraft = vi.fn()
+vi.mock('../../actions/draft', () => ({
+  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
+  saveDraft: (...args: unknown[]) => mockSaveDraft(...args),
 }))
 
 vi.mock('../../_components/finish-quiz-dialog', () => ({
@@ -165,6 +177,8 @@ const QUESTIONS = [
 describe('QuizSession', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockDeleteDraft.mockResolvedValue({ success: true })
+    mockSaveDraft.mockResolvedValue({ success: true })
   })
 
   it('renders first question on mount', () => {

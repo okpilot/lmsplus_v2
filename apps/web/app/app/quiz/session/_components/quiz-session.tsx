@@ -5,20 +5,36 @@ import { QuestionCard } from '@/app/app/_components/question-card'
 import type { SessionQuestion } from '@/app/app/_components/session-runner'
 import { SessionSummary } from '@/app/app/_components/session-summary'
 import { SessionTimer } from '@/app/app/_components/session-timer'
+import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
-import type { BatchSubmitResult } from '../../types'
+import { deleteDraft, saveDraft } from '../../actions/draft'
+import type { BatchSubmitResult, DraftAnswer } from '../../types'
 import { QuizNavBar } from './quiz-nav-bar'
 
 type StoredAnswer = { selectedOptionId: string; responseTimeMs: number }
 type SuccessResult = BatchSubmitResult & { success: true }
-type QuizSessionProps = { sessionId: string; questions: SessionQuestion[] }
+type QuizSessionProps = {
+  sessionId: string
+  questions: SessionQuestion[]
+  initialAnswers?: Record<string, DraftAnswer>
+  initialIndex?: number
+}
 
-export function QuizSession({ sessionId, questions }: QuizSessionProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [answers, setAnswers] = useState<Map<string, StoredAnswer>>(new Map())
+export function QuizSession({
+  sessionId,
+  questions,
+  initialAnswers,
+  initialIndex,
+}: QuizSessionProps) {
+  const router = useRouter()
+  const [currentIndex, setCurrentIndex] = useState(initialIndex ?? 0)
+  const [answers, setAnswers] = useState<Map<string, StoredAnswer>>(() => {
+    if (!initialAnswers) return new Map()
+    return new Map(Object.entries(initialAnswers))
+  })
   const answerStartTime = useRef(Date.now())
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -80,15 +96,30 @@ export function QuizSession({ sessionId, questions }: QuizSessionProps) {
       }
       setShowFinishDialog(false)
       setResult(submitResult)
+      // Clean up any saved draft after successful submit
+      deleteDraft().catch(() => {})
     } catch {
       setError('Something went wrong. Please try again.')
       setSubmitting(false)
     }
   }
 
-  function handleSave() {
-    // Placeholder for save-for-later (Commit 7)
-    alert('Save for later is not yet implemented.')
+  async function handleSave() {
+    setSubmitting(true)
+    setError(null)
+    const answerObj = Object.fromEntries(answers)
+    const result = await saveDraft({
+      sessionId,
+      questionIds: questions.map((q) => q.id),
+      answers: answerObj,
+      currentIndex,
+    })
+    if (result.success) {
+      router.push('/app/quiz')
+    } else {
+      setError(result.error)
+      setSubmitting(false)
+    }
   }
 
   return (
