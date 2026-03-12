@@ -24,6 +24,11 @@ export function QuestionTabs({
 }: QuestionTabsProps) {
   const visibleTabs = hiddenTabs ? TABS.filter((t) => !hiddenTabs.includes(t.value)) : TABS
 
+  // Reset to first visible tab if active tab was hidden
+  if (hiddenTabs?.includes(activeTab) && visibleTabs[0]) {
+    onTabChange(visibleTabs[0].value)
+  }
+
   return (
     <div className="flex border-b border-border">
       {visibleTabs.map((tab) => {

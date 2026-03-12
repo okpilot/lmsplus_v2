@@ -52,6 +52,19 @@ describe('QuestionTabs', () => {
     expect(screen.getByRole('tab', { name: 'Statistics' })).toBeInTheDocument()
   })
 
+  it('resets to first visible tab when active tab is hidden', () => {
+    const onTabChange = vi.fn()
+    render(
+      <QuestionTabs
+        activeTab="explanation"
+        onTabChange={onTabChange}
+        hasAnswered={true}
+        hiddenTabs={['explanation']}
+      />,
+    )
+    expect(onTabChange).toHaveBeenCalledWith('question')
+  })
+
   it('does not call onTabChange when clicking a disabled tab', async () => {
     const user = userEvent.setup()
     const onTabChange = vi.fn()
