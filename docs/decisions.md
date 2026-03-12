@@ -431,6 +431,13 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Both checks are required: explicit guard is auditable security, WHERE clause is fallback isolation
 - Principle: never trust parameter boundaries alone. Explicit auth checks are cheaper to verify and review.
 
+**Enhancement (2026-03-12, post-CodeRabbit PR #57):**
+- Migration `20260312000016_analytics_rpcs_param_clamp.sql` adds parameter validation:
+  - `get_daily_activity` p_days clamped to [1, 365] — raises exception if out of range (prevents negative days, year+ span queries)
+  - `get_subject_scores` p_limit clamped to [1, 100] — raises exception if out of range (prevents unbounded result sets, matches app-side limit)
+  - Both RPCs now use `IS DISTINCT FROM` for null-safe auth check (replaces `!=`, handles NULL correctly)
+- Validates at the SQL layer to prevent bypassing app-side guards, ensures consistent behavior across clients
+
 ---
 
 ## IDEAS / NOTES
@@ -444,4 +451,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-12 — Sprint 3 analytics RPCs: plpgsql with explicit auth guards (Decision 24)*
+*Last updated: 2026-03-12 — Decision 24 enhanced with parameter clamping + IS DISTINCT FROM (post-CodeRabbit PR #57)*

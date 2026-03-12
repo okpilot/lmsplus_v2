@@ -59,7 +59,7 @@ export async function getSubjectScores(limit = 5): Promise<SubjectScore[]> {
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const safeLimit = boundParam(limit, 1, 20)
+  const safeLimit = boundParam(limit, 1, 100)
   const { data, error } = await rpc<SubjectScoreRow[]>(supabase, 'get_subject_scores', {
     p_student_id: user.id,
     p_limit: safeLimit,

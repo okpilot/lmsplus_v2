@@ -792,6 +792,9 @@ $$;
 
 Returns daily answer totals for the last N days, zero-filled via `generate_series`.
 
+**Parameters:**
+- `p_days` — clamped to [1, 365] via RAISE EXCEPTION if out of range
+
 ```sql
 CREATE OR REPLACE FUNCTION get_daily_activity(
   p_student_id UUID,
@@ -799,12 +802,16 @@ CREATE OR REPLACE FUNCTION get_daily_activity(
 )
 RETURNS TABLE (day DATE, total BIGINT, correct BIGINT, incorrect BIGINT)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
--- Explicit auth.uid() NULL check with RAISE EXCEPTION + WHERE clause guard
+-- Auth: auth.uid() NULL check + IS DISTINCT FROM guard + WHERE clause
+-- Validation: p_days must be 1–365, raises exception if outside range
 ```
 
 #### `get_subject_scores` — analytics: average scores by subject
 
 Returns average quiz scores for the N most recently tested subjects.
+
+**Parameters:**
+- `p_limit` — clamped to [1, 100] via RAISE EXCEPTION if out of range
 
 ```sql
 CREATE OR REPLACE FUNCTION get_subject_scores(
@@ -813,7 +820,8 @@ CREATE OR REPLACE FUNCTION get_subject_scores(
 )
 RETURNS TABLE (subject_id UUID, subject_name TEXT, subject_short TEXT, avg_score NUMERIC, session_count BIGINT)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
--- Explicit auth.uid() NULL check with RAISE EXCEPTION + WHERE clause guard
+-- Auth: auth.uid() NULL check + IS DISTINCT FROM guard + WHERE clause
+-- Validation: p_limit must be 1–100, raises exception if outside range
 ```
 
 ---

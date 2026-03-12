@@ -116,6 +116,36 @@ describe('StatisticsTab', () => {
     expect(screen.queryByText('Failed to load statistics.')).not.toBeInTheDocument()
   })
 
+  it('formats a known lowercase fsrs state through the label map', async () => {
+    mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'review' })
+    const user = userEvent.setup()
+    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+    await waitFor(() => {
+      expect(screen.getByText('Review')).toBeInTheDocument()
+    })
+  })
+
+  it('formats "learning" fsrs state as "Learning"', async () => {
+    mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'learning' })
+    const user = userEvent.setup()
+    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+    await waitFor(() => {
+      expect(screen.getByText('Learning')).toBeInTheDocument()
+    })
+  })
+
+  it('capitalises unknown fsrs state via fallback', async () => {
+    mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'suspended' })
+    const user = userEvent.setup()
+    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+    await waitFor(() => {
+      expect(screen.getByText('Suspended')).toBeInTheDocument()
+    })
+  })
+
   it('discards stale fetch result when questionId changes before the fetch resolves', async () => {
     // Controls when the q-1 fetch resolves so we can change questionId first.
     let resolveQ1: (value: typeof defaultStats) => void = () => {}

@@ -21,6 +21,7 @@ describe('getDailyActivity', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockRpc.mockResolvedValue({ data: [], error: null })
   })
 
   it('returns mapped daily activity from RPC', async () => {
@@ -46,12 +47,37 @@ describe('getDailyActivity', () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'RPC failed' } })
     await expect(getDailyActivity()).rejects.toThrow('Failed to fetch daily activity')
   })
+
+  it('clamps days above 365 to 365', async () => {
+    await getDailyActivity(500)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+      p_student_id: 'user-1',
+      p_days: 365,
+    })
+  })
+
+  it('clamps days below 1 to 1', async () => {
+    await getDailyActivity(0)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+      p_student_id: 'user-1',
+      p_days: 1,
+    })
+  })
+
+  it('truncates fractional days to the integer part', async () => {
+    await getDailyActivity(14.9)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+      p_student_id: 'user-1',
+      p_days: 14,
+    })
+  })
 })
 
 describe('getSubjectScores', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockRpc.mockResolvedValue({ data: [], error: null })
   })
 
   it('returns mapped subject scores from RPC', async () => {
@@ -82,5 +108,39 @@ describe('getSubjectScores', () => {
         sessionCount: 3,
       },
     ])
+  })
+
+  it('clamps limit above 100 to 100', async () => {
+    await getSubjectScores(200)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+      p_student_id: 'user-1',
+      p_limit: 100,
+    })
+  })
+
+  it('clamps limit below 1 to 1', async () => {
+    await getSubjectScores(0)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+      p_student_id: 'user-1',
+      p_limit: 1,
+    })
+  })
+
+  it('truncates fractional limit to the integer part', async () => {
+    await getSubjectScores(3.7)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+      p_student_id: 'user-1',
+      p_limit: 3,
+    })
+  })
+
+  it('throws when not authenticated', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    await expect(getSubjectScores()).rejects.toThrow('Not authenticated')
+  })
+
+  it('throws on RPC error', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'DB error' } })
+    await expect(getSubjectScores()).rejects.toThrow('Failed to fetch subject scores')
   })
 })
