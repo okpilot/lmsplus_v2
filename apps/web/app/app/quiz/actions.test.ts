@@ -96,13 +96,22 @@ describe('startQuizSession', () => {
     expect(result.questionIds).toEqual(['q1', 'q2', 'q3'])
   })
 
+  it('rejects unauthenticated calls before reaching Zod validation', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const result = await startQuizSession({})
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Not authenticated')
+  })
+
   it('returns failure for an invalid quiz configuration', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await startQuizSession({})
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toContain('Required')
   })
 
   it('returns failure for a non-UUID subject ID', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await startQuizSession({ subjectId: 'not-a-uuid', topicId: null, count: 5 })
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toContain('Invalid uuid')
@@ -217,6 +226,13 @@ describe('submitQuizAnswer', () => {
     expect(result.isCorrect).toBe(true)
   })
 
+  it('rejects unauthenticated calls before reaching Zod validation', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const result = await submitQuizAnswer({})
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Not authenticated')
+  })
+
   it('rejects a malformed answer submission', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     await expect(submitQuizAnswer({})).rejects.toThrow(ZodError)
@@ -264,6 +280,13 @@ describe('completeQuiz', () => {
     expect(result.totalQuestions).toBe(10)
     expect(result.correctCount).toBe(7)
     expect(result.scorePercentage).toBe(70)
+  })
+
+  it('rejects unauthenticated calls before reaching Zod validation', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const result = await completeQuiz({})
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Not authenticated')
   })
 
   it('rejects a completion request without a session ID', async () => {

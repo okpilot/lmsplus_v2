@@ -22,12 +22,12 @@ const StartQuizInput = z.object({
 
 export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
   try {
-    const input = StartQuizInput.parse(raw)
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return { success: false, error: 'Not authenticated' }
+    const input = StartQuizInput.parse(raw)
 
     const questionIds = await getRandomQuestionIds({
       subjectId: input.subjectId,

@@ -58,7 +58,7 @@
 ### 1.9 Smart Review: how-it-works explanation — ✅ DONE (2026-03-12)
 
 - **Problem:** Students don't understand FSRS or how to use Smart Review effectively
-- **Solution:** Info card/tooltip explaining spaced repetition and recommended usage (collapsible explainer with FSRS explanation + recommended usage)
+- **Solution:** Collapsible explainer card describing FSRS/spaced repetition and recommended Smart Review usage
 - **Size:** XS
 
 ### 1.10 Mobile responsiveness pass — ✅ DONE (2026-03-12)
