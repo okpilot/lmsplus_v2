@@ -1,5 +1,3 @@
-'use client'
-
 import type { QuizReportData } from '@/lib/queries/quiz-report'
 import Link from 'next/link'
 import { ReportQuestionRow } from './report-question-row'

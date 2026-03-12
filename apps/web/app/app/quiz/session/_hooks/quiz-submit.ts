@@ -1,4 +1,6 @@
-import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+import type { useRouter } from 'next/navigation'
+
+type AppRouterInstance = ReturnType<typeof useRouter>
 import { batchSubmitQuiz } from '../../actions/batch-submit'
 import { deleteDraft, saveDraft } from '../../actions/draft'
 import type { DraftAnswer } from '../../types'

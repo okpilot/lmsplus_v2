@@ -21,6 +21,9 @@
 | Supabase mutation result not destructured (error silently dropped) | 2 | 2026-03-12 | RULE ADDED to code-style.md Section 5 (9f5a6cc) — watching for recurrence |
 | Unstable useEffect dependency (inline function prop) | 1 | 2026-03-12 | Watch — onTabChange in question-tabs.tsx; suggestion only, first occurrence |
 | `vi.stubGlobal` without `vi.unstubAllGlobals` teardown in test | 1 | 2026-03-12 | Watch — use-quiz-navigation.test.ts; suggestion only, first occurrence |
+| E2E test clicks UI without waiting for React state flush (race condition) | 1 | 2026-03-12 | Watch — quiz-flow.spec.ts + progress.spec.ts; fixed with progress-bar DOM gate |
+| Broad E2E selector without accessible name / overly loose text match | 1 | 2026-03-12 | Watch — quiz-flow.spec.ts; fixed by scoping getByText and getByRole with name |
+| Missing route entry in docs/plan.md route tree after new page added | 1 | 2026-03-12 | Watch — /app/quiz/report missing; fixed by doc-updater in same cycle |
 
 ## Lessons Learned
 
@@ -118,6 +121,37 @@
 - Auth-before-parse pattern holds across all 3 commits — no new violations.
 - FSRS best-effort try/catch pattern is consistent across all mutation paths.
 - Doc updates were complete in the same cycle (no partial-doc-fix recurrence).
+
+---
+
+### 2026-03-12 — E2E test updates for deferred-write quiz flow (commits 9b624ff, 7f7eed8)
+
+**Code reviewer:** clean on both commits — 0 blocking, 0 warnings. (Changes were test files only; relaxed line limits apply.)
+
+**Semantic reviewer:** 1 ISSUE + 2 SUGGESTIONS. All fixed before cycle closed.
+
+1. **ISSUE — Race condition between React setState flush and E2E click (9b624ff → fixed 7f7eed8):** After the last answer was submitted, the test immediately called `page.getByRole('button', { name: 'Finish Test' }).click()`. The progress bar reflects accumulated React state, and if `setState` hadn't flushed yet the button click could fire before the UI was ready, producing a flaky test. Fix: wait for `[data-testid="progress-bar"]` to have `style` matching `/100%/` before clicking Finish Test. This is the **first occurrence** of the pattern "E2E test interacts with React state-driven UI without waiting for the DOM to reflect the state change." Log and watch.
+
+2. **SUGGESTION — Overly broad `getByText(/\d+%/)` selector:** The original `getByText('%')` was a substring match that could hit any element containing `%`. Changed to `getByText(/\d+%/)` to scope to a score-like string. First occurrence.
+
+3. **SUGGESTION — Unscoped dialog selector:** `page.getByRole('dialog')` without a name could match any open dialog on the page. Changed to `page.getByRole('dialog', { name: 'Finish quiz' })`. First occurrence.
+
+**Doc updater:** found missing `/app/quiz/report` route in `docs/plan.md` route tree. Fixed in the same cycle.
+
+**Test writer:** no gaps — 605 tests passing, no new source files introduced.
+
+**Actions taken:**
+- Frequency table: "E2E race condition on React state flush" added as new watch item (count 1). First occurrence — no rule change.
+- Frequency table: "broad E2E selector without accessible name" added as new watch item (count 1). First occurrence — no rule change.
+- Frequency table: "missing route in docs/plan.md route tree" added as new watch item (count 1). First occurrence — no rule change.
+- No rule changes proposed — all patterns are single occurrences.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer was clean on both commits — E2E test files correctly benefit from relaxed line limits.
+- The progress-bar flush gate fix (7f7eed8) is a clean, minimal change — single `await expect` assertion before the click. Good pattern for future E2E work against deferred-write flows.
+- Doc-updater caught the missing route entry immediately and the fix was applied in the same cycle, consistent with the no-partial-doc-fix discipline.
 
 ---
 

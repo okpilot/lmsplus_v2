@@ -32,13 +32,14 @@ BEGIN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
-  -- Verify session belongs to this student and is still active
-  SELECT qs.organization_id
-  INTO v_org_id
+  -- Verify session belongs to this student and is still active (FOR UPDATE prevents race)
+  SELECT qs.organization_id, qs.total_questions
+  INTO v_org_id, v_total
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
-    AND qs.ended_at IS NULL;
+    AND qs.ended_at IS NULL
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found or already completed';
@@ -99,14 +100,11 @@ BEGIN
     );
   END LOOP;
 
-  -- Calculate score (scoped to batch question IDs only)
-  SELECT
-    count(*)::int,
-    count(*) FILTER (WHERE qsa.is_correct)::int
-  INTO v_total, v_correct_count
+  -- Calculate correct count from all session answers (v_total already set from quiz_sessions)
+  SELECT count(*) FILTER (WHERE qsa.is_correct)::int
+  INTO v_correct_count
   FROM quiz_session_answers qsa
-  WHERE qsa.session_id = p_session_id
-    AND qsa.question_id = ANY(v_question_ids);
+  WHERE qsa.session_id = p_session_id;
 
   v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
 

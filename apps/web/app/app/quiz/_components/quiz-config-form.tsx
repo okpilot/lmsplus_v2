@@ -76,7 +76,7 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
       {subjectId && (
         <div>
           <label htmlFor="count" className="mb-1.5 block text-sm font-medium">
-            Number of questions: {count}
+            Number of questions: {Math.min(count, maxQuestions || 1)}
           </label>
           <input
             id="count"

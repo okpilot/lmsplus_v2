@@ -36,13 +36,18 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
   async function handleDiscard() {
     setDiscarding(true)
     setDiscardError(null)
-    const result = await deleteDraft()
-    if (result.success) {
-      setVisible(false)
-    } else {
+    try {
+      const result = await deleteDraft()
+      if (result.success) {
+        setVisible(false)
+      } else {
+        setDiscardError('Failed to discard. Please try again.')
+      }
+    } catch {
       setDiscardError('Failed to discard. Please try again.')
+    } finally {
+      setDiscarding(false)
     }
-    setDiscarding(false)
   }
 
   return (

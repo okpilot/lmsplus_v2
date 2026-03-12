@@ -315,9 +315,43 @@ renames `short` → `code` in the hook, this test would catch it. The distinctio
 and `short` is a latent naming confusion in the domain type.
 **Severity:** GOOD — currently correct and well-tested. Watch for `code` vs `short` drift.
 
+### E2E race: last-answer state vs. immediate "Finish Test" click (first seen commit 9b624ff)
+**First seen:** commit 9b624ff (2026-03-12)
+**Files:** `apps/web/e2e/progress.spec.ts` lines 33-47
+**Pattern:** The `for` loop calls `page.getByRole('button', { name: 'Submit Answer' }).click()`
+on the final question, then immediately calls `page.getByRole('button', { name: 'Finish Test' }).click()`
+without waiting for React state to propagate. "Submit Answer" fires `handleSelectAnswer` which
+calls `setAnswers(prev => new Map(prev).set(...))`. React batches setState and flushes
+asynchronously. If "Finish Test" is clicked before the flush, `answers.size` is one short and
+`handleSubmit` submits an incomplete batch — the last question is scored as unanswered.
+**Fix pattern:** Assert progress bar reaches 100% before clicking "Finish Test":
+`await expect(page.locator('[data-testid="progress-bar"]')).toHaveAttribute('style', /100%/)`
+**Severity:** ISSUE — real test reliability gap and mirrors a real-world fast-click race.
+**Watch for:** any E2E test that clicks "Finish Test" or "Submit Quiz" immediately after
+a state-modifying button click with no intermediate assertion.
+
+### E2E race: last-answer state vs. immediate "Finish Test" click — RESOLVED in commit 7f7eed8
+**First seen:** commit 9b624ff (2026-03-12)
+**Status: RESOLVED in commit 7f7eed8** — Both `quiz-flow.spec.ts` and `progress.spec.ts` now
+wait for `[data-testid="progress-bar"]` to reach `style` matching `/100%/` before clicking
+"Finish Test". Because the progress bar width is derived from `answers.size / totalQuestions * 100`,
+Playwright's DOM assertion serializes correctly against the React setState flush. The last
+question's answer is guaranteed to be in the Map before `handleSubmit` reads it.
+**Additional fixes in same commit:**
+- Dialog selector changed from fragile `getByText('Finish Quiz')` (matched h2 text) to
+  `getByRole('dialog', { name: 'Finish quiz' })` (targets the `<dialog aria-label="Finish quiz">` element).
+- Score regex changed from literal `'%'` (false-positive substring match) to `/\d+%/`
+  (precise match for the `{rounded}%` render output).
+**Watch for:** E2E tests that click "Finish Test" or "Submit Quiz" immediately after a
+state-modifying button click without an intermediate assertion that the state update landed.
+Also watch for future test scenarios testing partial submission — the 100% flush gate would
+deadlock; use a count-based style assertion (`/66%/`) or explicit partial-count wait instead.
+
 ## CodeRabbit Findings to Learn From
 - Cookie forwarding consistency across redirect branches (PR #23)
 - Query param forwarding to auth endpoints (PR #23)
 - auth-before-parse ordering in Server Actions (PR #26, round 4)
 - Partial-write failure disclosure in batch Server Actions (commit 54e9351)
 - `finally` clearing loading state during navigation (commit 9d9e898)
+- E2E race between client state update and immediate next action (commit 9b624ff)
+- Progress-bar DOM attribute as flush gate for React setState (commit 7f7eed8)
