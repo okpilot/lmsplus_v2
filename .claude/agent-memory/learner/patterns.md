@@ -38,7 +38,7 @@
 | Raw Supabase error message leaked to student UI | 1 | 2026-03-12 | Watch — load-session-questions.ts (78cb130); error.message from Supabase returned directly to student-facing caller; first occurrence; internal error strings must not be exposed to UI — return a generic message or error code |
 | Unconditional setState in render body (spurious re-renders) | 1 | 2026-03-13 | Watch — statistics-tab.tsx (53efbdd); `setIsLoading(false)` called unconditionally in a render-path reset block, causing a state update on every render when isLoading was already false; fixed with `if (isLoading) setIsLoading(false)` guard in b555b50; first occurrence |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE — statistics-tab.tsx (53efbdd, f0f8d0e); semantic-reviewer flagged this suggestion twice across two consecutive commits: isPending from useTransition and manual isLoading state tracked in parallel can both be false simultaneously during a question-switch mid-fetch, briefly showing the idle "Load Statistics" button while a fetch is still in-flight; generation counter mitigates stale data but does not close the UI-state race; suggestion-level only (not fixed); second occurrence reached — propose rule clarification in code-style.md when next commit arrives in this component's area; NOT flagged in 8863926 (pure JSX presenter refactor, no state logic touched) — no further action this cycle |
-| Silent boundParam fallback without logging | 1 | 2026-03-13 | Watch — analytics.ts (53efbdd); non-finite input (NaN, ±Infinity) to `boundParam` silently clamped to minimum without a console.warn or error log; suggestion-level; first occurrence; if it recurs on a different utility, add a logging rule for parameter clamping fallbacks |
+| Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE — first: analytics.ts (53efbdd); `boundParam` silently clamped NaN/±Infinity without console.warn; suggestion-level; second: reports.ts (33c1fa8); `answeredCount` fell back to 0 for completed sessions with no answer rows with no console.warn — fixed in d06c25b; both share same root cause: a fallback that produces a valid-looking result with no server-side signal; the fix pattern is always a console.warn before the fallback value is returned; applies to any numeric computation that falls back to 0 or a minimum when the source data is empty/malformed |
 | test-writer produces TS2532 (unchecked array index) errors | 2 | 2026-03-13 | RULE CANDIDATE — test-writer pattern memory should be updated with a note to always use optional chaining (`arr?.[i]`) when accessing array elements in generated test code; first seen in an earlier cycle (test fixture access), second occurrence confirmed in 99c67d2 where a `formatActivityData` test accessed an array index without `?.` and triggered TS2532; the error was caught and fixed before commit, so no broken test reached git; fix is optional chaining or a non-null assertion with a preceding length check; NOT triggered in 8863926 (test-only edits were a beforeEach reset and a rename — no new index access generated) — gate held |
 | Shared hoisted mock capture without beforeEach reset | 1 | 2026-03-13 | Watch — activity-chart.test.tsx (8863926); capturedBarChartData shared across tests without reset allowed cross-test contamination; fixed with beforeEach reset; first occurrence |
 | Direct SELECT from `questions` bypassing RPC (correct-answer exposure) | 2 | 2026-03-13 | RULE EXISTS (security.md rule 1, CLAUDE.md) — 2nd occurrence: checkAnswer in feat/post-sprint-3-polish directly queried questions table exposing `correct` flag; fixed in f6ba7a0 with check_quiz_answer RPC; rule is clear, compliance gap at authoring time |
@@ -50,13 +50,16 @@
 | Biome auto-format expanding compact code past file-size limit | 1 | 2026-03-13 | Watch — draft.ts written at ~97 lines, Biome format expanded to 114 lines on pre-commit (6d274fa); the 100-line Server Action limit check must be done against post-format line count, not authoring-time count; first occurrence |
 | Async fetch in useEffect without stale-result cancellation flag | 1 | 2026-03-13 | Watch — useEffect in draft.ts initiated fetch without cancelled flag; if the component unmounted or deps changed before the fetch resolved, setState was called on stale/unmounted context; fixed with cancelled flag pattern in fe4ffff; distinct from "useEffect data fetching in client component" (that is about banned server-action fetching — this is a permitted client fetch missing a cleanup guard); first occurrence |
 | UPDATE returning zero rows treated as success (silent no-op) | 1 | 2026-03-13 | Watch — draft update in 6d274fa returned no error but updated 0 rows when draft ID did not match student ownership; caller received success response for a no-op write; fix: check rowCount / affected rows after UPDATE before returning success; distinct from "Supabase mutation result not destructured" (that is about missing error destructuring — this is about a successful query that silently did nothing); first occurrence |
-| Error path in existing function untested (count-error branch) | 1 | 2026-03-13 | Watch — count-error path in draft.ts had no test coverage; test-writer flagged it; first occurrence as a named pattern (distinct from "new file without test" which is about missing test files entirely — this is an existing tested file with an uncovered branch); |
+| Error path in existing function untested (count-error branch) | 2 | 2026-03-13 | RULE CANDIDATE — count-error path in draft.ts had no test coverage (first occurrence, 2026-03-13 cycle 1); users query error path in draft.ts also untested (second occurrence, d06c25b cycle); both caught post-commit by test-writer; distinct from "new file without test" — this is an existing tested file with an uncovered error branch; pattern: when a new error-return path is added to an existing function (e.g., adding a second query with its own error check), the test file is not updated to cover the new branch |
 | Async cleanup path untestable in jsdom (cancelled flag branch) | 1 | 2026-03-13 | Watch — test-writer noted that the cancelled flag cleanup path (setState skipped after unmount) is not testable in jsdom because act() flushes effects synchronously before assertions can observe the cancelled state; analogous to the pre-hydration jsdom limitation; first occurrence; do not write tests for this branch — document the constraint in code-style.md jsdom section if it recurs |
 | Stale closure introduced by hook split (scalar captured in closure vs ref) | 1 | 2026-03-13 | Watch — when use-quiz-state was split in 34a9352 to fix the 80-line violation, currentIndex was captured as a scalar in a closure in handleSave instead of being accessed via useRef; fixed in df5d354; the hook split itself introduced the bug; pattern: any value read inside a callback that is defined outside a React.useCallback/useMemo with that value in its deps array is at risk of being stale; when splitting a hook, audit all callbacks in the extracted portion for captured scalar state; first occurrence |
 | SQL string comparison instead of ::uuid cast in duplicate check | 1 | 2026-03-13 | Watch — batch_submit_quiz duplicate-answer check compared option IDs as text rather than casting to ::uuid, which can cause case-sensitivity and format-variation failures; fixed in 34a9352; first occurrence |
-| Type cast bypassing runtime validation (`as unknown as T` hiding missing guard) | 2 | 2026-03-13 | RULE CANDIDATE — first: batch_submit_quiz malformed config cast (306f44a) — semantic reviewer found .includes() called on a value cast `as unknown as string[]` without Array.isArray() guard; second: same pattern recurred in check-answer.ts + fetch-explanation.ts (a0d9973) before guards were added; TypeScript cast does not substitute for a runtime check when data comes from DB/RPC; when `as unknown as T` appears on data from Supabase, a runtime validation of the cast assumption is required |
+| Type cast bypassing runtime validation (`as unknown as T` hiding missing guard) | 2 | 2026-03-13 | RULE ADDED (22c3d5e) — first: batch_submit_quiz malformed config cast (306f44a); second: check-answer.ts + fetch-explanation.ts (a0d9973); rule added to code-style.md Section 5 + .coderabbit.yaml synced; 274821b applied the rule correctly via isCheckAnswerRpcResult type guard |
 | New hook file extracted without shipping tests in the same commit | 4 | 2026-03-13 | RULE EXISTS (code-style.md Section 7) — use-answer-handler.ts was created in 306f44a without a test file; 12 tests were written in a0d9973 (follow-up commit); pattern: hook extractions always trigger a test gap that requires a post-commit fill; fourth recurrence confirms the compliance gap is structural |
 | Imperative ref clear in catch block leaving re-entry window | 1 | 2026-03-13 | Watch — use-answer-handler.ts (306f44a): lockedRef.current.delete() in catch block cleared the lock before React state (answers) had settled, creating a brief window where a second call could enter; fixed in a0d9973 with useEffect drain keyed on answers; then partially reverted in 5b2864f (synchronous clear restored for immediate retryability, useEffect kept as safety drain); first occurrence of this specific async-lock re-entry window pattern |
+| Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE — first: SQL score aggregation over full table (not current batch) in batch_submit_quiz (f53eccf), where position-in-array was used as a proxy for "answered"; second: answeredCount derived as currentIndex + 1 in use-session-state.ts (675104e) — correct only because index is incremented at the same moment an answer is submitted, not because it semantically tracks "answers given"; fixed in 4798fdb with dedicated useState counter incremented in handleSubmit; both share root cause: a value that co-varies with the desired metric under normal conditions but diverges on edge cases (non-linear navigation, partial completion, session restore); propose note in code-style.md or agent memory: when a metric (count, score, progress) needs to be tracked, use a dedicated state variable incremented at the domain event, not a proxy derived from a structural position |
+| Unbounded numeric regex permitting int overflow (SQL input validation) | 1 | 2026-03-13 | Watch — batch_submit_quiz RPC (274821b): `^\d+$` matched response_time_ms without an upper bound, permitting integer overflow when cast to INT; fixed in 34c9b36 with `^\d{1,10}$` (10 digits caps at 9,999,999,999, safely below INT_MAX); first occurrence; applies to any SQL regex that validates before casting to a bounded numeric type — the regex digit count must be bounded to match the target type's range |
+| Case-sensitive UUID/text dedup in SQL (lower() missing) | 1 | 2026-03-13 | Watch — batch_submit_quiz duplicate-answer check (274821b): dedup compared `e->>'question_id'` text values without lowercasing; fixed in 34c9b36 with `lower(e->>'question_id')`; note: UUID format from standard generators is lowercase, so this is a defense-in-depth fix rather than a known live bug; first occurrence; distinct from "SQL string comparison instead of ::uuid cast" (that is about cast vs. text — this is about case normalisation before text comparison) |
 
 ## Lessons Learned
 
@@ -676,5 +679,181 @@ if (Array.isArray(questionIds) && questionIds.includes(questionId)) { ... }
 - The Array.isArray guard tests (5b2864f — 6 tests) were written to specifically target the guard paths identified by the semantic reviewer. The test cycle closed tightly: ISSUE found in 306f44a, guards added in a0d9973, guard paths tested in 5b2864f.
 - The dual-mechanism lock-clearing solution (sync clear + reactive drain) is a good pattern for async locks where both speed (user retryability) and correctness (state consistency) matter.
 - Code reviewer clean on all 3 commits confirms the use-answer-handler split and SQL hardening respected all file-size and style limits.
+
+---
+
+### 2026-03-13 — CodeRabbit PR #74 fixes + answeredCount counter (commits 675104e, 4798fdb)
+
+**Context:** Two-commit cycle on feat/post-sprint-3-polish. 675104e addressed 8 CodeRabbit PR #74 findings (session-runner, session-summary, draft.ts, reports.ts, lookup.ts, load-draft.ts, seed-eval.ts). 4798fdb fixed a semantic-reviewer ISSUE from the first commit and added 14 new tests.
+
+**Code reviewer (675104e):** clean — 0 blocking, 0 warnings.
+
+**Code reviewer (4798fdb):** clean — 0 blocking, 0 warnings. (Changes were hook state addition + 2 new test files only.)
+
+**Semantic reviewer (675104e):** 1 ISSUE + 1 SUGGESTION.
+
+1. **ISSUE — `answeredCount` derived from `currentIndex + 1` (fixed 4798fdb):** In `use-session-state.ts`, the hook returned `answeredCount: currentIndex + 1`. This was introduced in 675104e as the CodeRabbit fix to stop computing the count in `session-runner.tsx`. However, using the navigation index as a proxy for "answers given" is semantically wrong: `currentIndex` represents which question is currently displayed, not how many answers have been submitted. Under normal linear flow these co-vary, but they diverge on non-linear navigation (e.g., jumping back), session restore with a mid-session index, or any future feature that changes index without answering. Fixed in 4798fdb with a dedicated `answeredCount` `useState` initialised to `0` and incremented via functional updater inside `handleSubmit`. Root cause: same family as the prior "SQL score aggregation over full table" issue — a value that co-varies with the target metric under happy-path conditions but is not semantically equivalent. **This is the second occurrence of the "derived value correct by coincidence" meta-pattern.** Count in frequency table: 2. Status: RULE CANDIDATE.
+
+2. **SUGGESTION — `answers` cast in `load-draft.ts` unguarded:** The `rowToDraftData` function added a `isSessionConfig` runtime guard for the `session_config` field (correctly fixing a prior CodeRabbit finding), but left a second cast in the same function — `row.answers as Record<string, { selectedOptionId: string; responseTimeMs: number }>` — without a corresponding guard. Suggestion-level — not fixed in this cycle. **First occurrence of this specific sub-pattern: partial runtime guard coverage within a single function (one field guarded, sibling field unguarded).** Logged and watched.
+
+**Semantic reviewer (4798fdb):** clean — 0 issues, 0 suggestions.
+
+**Doc updater (675104e + 4798fdb):** no changes needed — both commits changed only component logic, hook state, and test files. No schema, RPC, or routing surface changed.
+
+**Test writer (675104e):** `isSessionConfig` guard shipped in 675104e without a test file for `load-draft.ts`. DB error logging in `lookup.ts` also added without new tests. Both gaps filled in 4798fdb.
+
+**Test writer (4798fdb):** 14 new tests across 2 new files.
+- `load-draft.test.ts` (10 tests): `isSessionConfig` guard paths (null, non-object, missing sessionId, sessionId as non-string, valid minimal, valid with optional fields), malformed config fallback (returns empty sessionId, logs error), happy path (correct field mapping).
+- `lookup.test.ts` (4 tests): DB error logging paths for the new `console.error` call sites added in 675104e.
+
+All 14 tests passing before report.
+
+**Pattern analysis — "derived value correct by coincidence" (count 2, RULE CANDIDATE):**
+
+Both occurrences share the same structure: a metric that needs to be tracked is computed by reading a structural or positional value that co-varies under normal flow but is not semantically equivalent to the metric. Both are correct on the happy path and pass all tests. Both diverge on edge cases (non-linear navigation, partial operations, session restore).
+
+Occurrences:
+1. `batch_submit_quiz` SQL: score derived from full-table count rather than the current batch (f53eccf)
+2. `answeredCount: currentIndex + 1` (675104e) — co-varies normally, breaks on non-linear navigation or session restore
+
+**Recommended change (awaiting orchestrator approval):**
+
+Add a note to the learner's patterns memory capturing the principle for future authoring guidance: when a metric needs to be tracked (count, score, progress), introduce a dedicated state variable incremented at the domain event. Do not derive the metric from a structural position (index, array length, loop counter) that co-varies under normal conditions but is not semantically equivalent. The derivation is "correct by coincidence" and will fail when an edge case changes the structural variable independently.
+
+This note should also be flagged for the test-writer patterns memory: when reviewing a new hook or function, check whether an output value is derived from a positional or structural proxy rather than a dedicated accumulator. If so, flag it as a potential "correct by coincidence" derivation.
+
+No rule change proposed for `code-style.md` at this time — two occurrences of a semantic anti-pattern is sufficient to log and recommend, but this does not map to a mechanically checkable rule. Agent memory is the right home.
+
+**Actions taken:**
+- Frequency table: "Derived value correct by coincidence (index used as count proxy)" added at count 2, status RULE CANDIDATE.
+- Frequency table: "Partial runtime guard coverage within function (sibling cast unguarded)" added as new watch item at count 1.
+- No rule changes applied to `code-style.md` or `security.md` this cycle.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- 675104e was clean on code-reviewer — all 8 CodeRabbit fixes respected file-size and style limits.
+- The fix in 4798fdb is minimal and correct: 3 lines changed, no secondary effects, semantic reviewer confirmed clean.
+- The `isSessionConfig` guard is a direct application of the "type cast + runtime guard" rule added in 22c3d5e. The remaining `answers` cast is a partial-compliance gap, not a rule gap.
+- 14 new tests in 4798fdb tightly target the paths introduced in 675104e. Code added in one commit, tests backfilled in the next with no gaps escaping to git.
+
+---
+
+### 2026-03-13 — CodeRabbit PR #74 address-8-findings cycle (commits 33c1fa8, d06c25b)
+
+**Context:** Two-commit cycle on feat/post-sprint-3-polish. 33c1fa8 addressed 4 CodeRabbit PR #74 findings (latest review round). d06c25b is the fix commit that resolved the semantic-reviewer ISSUE and the test-writer gap from the 33c1fa8 post-commit review.
+
+**Code reviewer (33c1fa8):** clean — 0 blocking, 0 warnings.
+
+**Semantic reviewer (33c1fa8):** 1 ISSUE.
+
+1. **ISSUE — Silent `answeredCount` fallback in `reports.ts` (fixed d06c25b):** For completed sessions where no `quiz_session_answers` rows exist, `reports.ts` returned `answeredCount: 0` silently with no logging. A completed session with zero answer rows is anomalous — the fallback hides a data integrity gap from server logs, making it invisible during incident diagnosis. Fixed in d06c25b with `console.warn('[getReportData] answeredCount fallback triggered: completed session has no answer rows', { sessionId })`. Root cause: same family as the `boundParam` silent fallback (53efbdd) — a numeric fallback that produces a valid-looking result with no server-side observability signal. **This is the second occurrence of the "silent numeric fallback without logging" pattern.** Count in frequency table: 2. Status: RULE CANDIDATE.
+
+**Doc updater (33c1fa8):** clean — no updates needed. Both commits changed only query logic and test files; no schema, RPC, or routing surface changed.
+
+**Test writer (33c1fa8):** 1 gap — `draft.ts` users query error path had no test. When `getUser()` returns an error for the users query inside `draft.ts`, there was no test branch covering that path. Test added in d06c25b (20 lines, 28/28 pass). Root cause: a new error-return path was added to an existing function without updating the test file to cover the new branch. **This is the second occurrence of "error path in existing function untested."** Count in frequency table: 2. Status: RULE CANDIDATE.
+
+**Code reviewer (d06c25b):** clean — 0 blocking, 0 warnings. (2 files changed: reports.ts +6 lines, draft.test.ts +20 lines. Both within limits.)
+
+**Semantic reviewer (d06c25b):** clean — 0 issues, 0 suggestions.
+
+**Doc updater (d06c25b):** clean — no updates needed.
+
+**Test writer (d06c25b):** no gaps.
+
+**Meta-pattern observed: CodeRabbit vs per-commit diff scope:**
+The context for this cycle noted that CodeRabbit reviews the full PR diff while our per-commit agents review only the commit diff. CodeRabbit has caught cross-file consistency issues (test assertions not matching production code from earlier commits, doc matrix inconsistencies spanning multiple files) that our per-commit agents missed because the relevant context spanned commits. This is a structural gap in coverage, not a failure of individual agents. Logged as a system-level insight — no action to rules warranted, but worth noting for agent design: if a future improvement to the per-commit review pipeline is considered, cross-commit diff coverage would close this gap.
+
+**Pattern analysis — "silent numeric fallback without logging" (count 2, RULE CANDIDATE):**
+
+Both occurrences:
+1. `boundParam` in `analytics.ts` (53efbdd): NaN/±Infinity input silently clamped to minimum, no console.warn. Suggestion-level, not fixed.
+2. `answeredCount` in `reports.ts` (33c1fa8): completed session with no answer rows returned 0 silently, no console.warn. ISSUE-level, fixed in d06c25b.
+
+Both share the structure: a numeric computation whose source data is empty, malformed, or anomalous falls back to a minimum/zero value, and the caller receives a structurally valid result with no server-side signal. The fix pattern is consistent: add a `console.warn` with context (function name, relevant IDs) before returning the fallback.
+
+This is a RULE CANDIDATE. However, it is suggestion-level for the `boundParam` case (parameter clamping functions commonly clamp silently) and ISSUE-level for query functions that return business metrics (where an anomalous result should always be logged). The distinction matters:
+- **Utility math helpers** (clamp, bound): console.warn is good practice, not required.
+- **Query/data functions that return business metrics** (count, score, answeredCount): a fallback to 0 where non-zero is expected is always anomalous and must log.
+
+No rule change to `code-style.md` proposed yet — the distinction between utility clamping and metric fallback is semantic, not mechanical. Log in agent memory. If a third occurrence in a data/query function surfaces, add a note to `code-style.md` Section 5 or the semantic-reviewer's checklist: "data functions returning numeric metrics must not silently fall back to 0 — add a console.warn with the relevant ID when the fallback fires."
+
+**Pattern analysis — "error path in existing function untested" (count 2, RULE CANDIDATE):**
+
+Both occurrences in `draft.ts`:
+1. Count-error path (Cycle 1, 2026-03-13): `getCount()` error branch had no test.
+2. Users-query error path (d06c25b): `getUser()` error return inside the same file had no test.
+
+Both share the structure: a new error-return path is added to an existing file that already has a test file, but the test file is not updated in the same commit to cover the new branch. The test-writer catches the gap post-commit.
+
+The root cause differs from "new hook file shipped without tests" (where an entire new file has no test). Here, the test file exists but is incomplete after new error paths are added. The correct fix is: whenever a new `if (error) return ...` path is added to a file that has a co-located test, add the corresponding test branch in the same commit.
+
+This is the correct place for a test-writer patterns memory note (not a code-style.md rule — the existing "new file must have tests" rule does not cover existing files gaining new branches). Proposed addition to test-writer patterns memory: when reviewing a diff, check every new `if (error)` branch and every new early-return path in files that have an existing test file — those branches need test coverage in the same commit.
+
+**Actions taken:**
+- Frequency table: "Silent numeric fallback without observability logging" updated to count 2, status RULE CANDIDATE.
+- Frequency table: "Error path in existing function untested" updated to count 2, status RULE CANDIDATE.
+- Frequency table: new entry added for "CodeRabbit vs per-commit diff scope" as a system-level observation (not a code pattern — no frequency tracking needed, logged in lessons only).
+- No rule changes applied to `code-style.md` or `security.md` this cycle — both new RULE CANDIDATE patterns are at the 2-occurrence threshold but the actionable guidance belongs in agent memory (test-writer patterns) rather than mechanically checkable code rules.
+
+**Recommended changes (awaiting orchestrator approval before applying):**
+
+1. **`.claude/agent-memory/test-writer/patterns.md`** — add a note: when reviewing a commit diff, check every new `if (error) return` or early-return path added to a file that already has a co-located test file. Each new error-return branch that has no corresponding test case in the same commit is a coverage gap. Write the test branch in the same commit as the production change, not as a post-commit backfill.
+
+2. **`.claude/agent-memory/test-writer/patterns.md`** (secondary) — add a note: when a new query is added to an existing function (e.g., a second `supabase.auth.getUser()` call or a second `.from()` query), check whether the test file covers the error path for the new query. Adding a second query to a function that already has tests for the first query's error path does not automatically cover the second query's error path.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Both agents (code-reviewer and semantic-reviewer) were clean on the fix commit (d06c25b) — the fix was minimal and correct.
+- The `console.warn` fix pattern is consistent with prior fixes (auth error logging in query files, 78cb130). The project now has a clear convention: anomalous data states in server functions are logged with context before falling back.
+- The test coverage for the users-query error path (draft.test.ts, 20 lines) is direct and well-targeted — it exercises exactly the branch that was missing.
+- Cycle closed in 2 commits with all agents clean on the second commit.
+
+---
+
+### 2026-03-13 — Pre-cast validation + type guard tests (commits 274821b, 34c9b36)
+
+**Context:** Two commits on feat/post-sprint-3-polish. 274821b added `isCheckAnswerRpcResult` type guard and pre-cast text validation in `batch_submit_quiz`. 34c9b36 fixed two semantic-reviewer findings from the prior round (bounded regex, case-insensitive dedup) and added 6 type guard tests via test-writer.
+
+**Code reviewer:** clean — 0 blocking, 0 warnings on both commits.
+
+**Semantic reviewer (274821b):** 1 ISSUE + 2 SUGGESTIONS. ISSUE fixed in 34c9b36. Suggestions addressed in 34c9b36.
+
+1. **ISSUE — Unbounded `^\d+$` regex on response_time_ms permits int overflow:** The pre-cast text validation added in 274821b used `^\d+$` to gate the cast from text to INT in the `batch_submit_quiz` RPC. `^\d+$` imposes no upper digit count, so a payload with a 20-digit numeric string passes the regex check and then overflows PostgreSQL INT on cast. Fixed in 34c9b36 with `^\d{1,10}$` (10 digits = 9,999,999,999, safely within INT range). Root cause: the regex was written to validate "is numeric" but not "is in the target type's range." **First occurrence.** Logged as new watch item. The principle: any SQL regex that validates a value before casting to a bounded numeric type must also bound the digit count to match the target type's maximum.
+
+2. **SUGGESTION — Duplicate-answer dedup compared text without `lower()`:** The text-based dedup check (introduced in 274821b to avoid a cast error on malformed UUIDs) compared raw text, which is case-sensitive. A client sending mixed-case UUID hex digits could bypass the dedup. Fixed in 34c9b36 with `lower(e->>'question_id')`. Defense-in-depth: standard UUID generators produce lowercase, but the guard should not assume that. **First occurrence.** Logged as new watch item. Distinct from the previously tracked "SQL string comparison instead of ::uuid cast" pattern (that is about using text vs. typed comparison — this is about normalising case before text comparison).
+
+3. **SUGGESTION — Type guard tests missing for `isCheckAnswerRpcResult`:** The type guard was added in 274821b without a corresponding test. Fixed by test-writer in 34c9b36 (6 tests covering: non-null primitive, missing `is_correct`, `is_correct` as string, `correct_option_id` as null, `explanation_text` as number, `explanation_image_url` as number). All 6 tests passing. This is another recurrence of the "new function shipped without tests" compliance gap — the type guard was a new exported-equivalent function and should have shipped with tests in the same commit.
+
+**Doc updater:** no changes needed — both commits modified existing modules with no schema, RPC signature, or route surface change. The database.md batch_submit_quiz documentation already reflected the pre-cast validation additions from the prior migration (027).
+
+**Test writer (34c9b36):** 6 tests written for `isCheckAnswerRpcResult` type guard. All passing. These covered every branch of the guard function — both the happy path (all fields correct types) and 5 rejection cases (one per field or structural check). High-signal coverage.
+
+**Pattern analysis — type cast bypassing runtime validation (closed):**
+
+The "type cast bypassing runtime validation" pattern (count 2, RULE CANDIDATE as of the 306f44a/a0d9973 cycle) has now been resolved at the rule level: `code-style.md` Section 5 was updated with the runtime guard requirement, and `.coderabbit.yaml` was synced (commit 22c3d5e). Commit 274821b demonstrates the rule being applied correctly: `isCheckAnswerRpcResult` replaces the bare `!data` check with a full structural type guard. Status in frequency table updated from RULE CANDIDATE to RULE ADDED.
+
+**Pattern analysis — unbounded regex + pre-cast validation (new, count 1):**
+
+The unbounded regex issue is a sub-pattern of the broader "validate before cast" family. The prior "pre-cast validation" work (274821b) was correct in principle but missed the digit-count bound. The three sub-patterns now tracked separately:
+- "SQL string comparison instead of ::uuid cast in duplicate check" (count 1, watch) — cast vs. text comparison
+- "Unbounded numeric regex permitting int overflow" (count 1, watch) — regex validates type but not range
+- "Case-sensitive UUID/text dedup (lower() missing)" (count 1, watch) — text comparison without normalisation
+
+None of these have reached count 2. All logged and watched.
+
+**Actions taken:**
+- Frequency table: "Type cast bypassing runtime validation" status updated from RULE CANDIDATE to RULE ADDED.
+- Frequency table: 2 new watch items added (both first occurrences): "Unbounded numeric regex permitting int overflow" and "Case-sensitive UUID/text dedup in SQL (lower() missing)".
+- No new rule changes proposed — the 2 new patterns are first occurrences. The rule already added (code-style.md Section 5 runtime guard) covered the root issue.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- The semantic-reviewer correctly identified the regex overflow gap — a subtle correctness issue that lint and type-check cannot catch. The agent caught it post-commit, one cycle after the regex was written. The gate is working at the right layer.
+- The test-writer produced 6 well-targeted tests covering every rejection branch of `isCheckAnswerRpcResult`. These are high-signal: they lock in the exact field-type expectations of the guard, so any future change to the RPC schema that relaxes a type constraint will break a test immediately.
+- Code reviewer was clean on both commits — the additions stayed within all file-size limits.
+- The "type cast + runtime guard" rule cycle is now complete: pattern identified (306f44a) → counted (a0d9973) → rule added (941d58c) → rule applied (274821b) → overflow fix (34c9b36) → tests written (34c9b36). This is the intended lifecycle.
 
 ---

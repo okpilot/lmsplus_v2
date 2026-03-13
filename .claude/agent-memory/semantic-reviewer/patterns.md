@@ -348,6 +348,7 @@ flags on options). The data boundary between server and client is clean.
 - `apps/web/app/app/_components/app-shell.tsx` — fullscreen detection via pathname string matching; could false-positive on future routes
 - `packages/db/src/admin.ts` — service role key usage
 - `supabase/migrations/20260312000011_batch_submit_rpc.sql` — score query counts all session answers; watch if submission paths diverge
+- `apps/web/app/app/_hooks/use-session-state.ts` — answeredCount now a dedicated counter (4798fdb); prior off-by-one resolved; new risk: no submittingRef guard — concurrent handleSubmit calls can double-increment before React re-render disables the button (ISSUE filed 4798fdb)
 
 ### server.ts — broad catch swallows all setAll errors, not just read-only
 **First seen:** commit 2b10602 (2026-03-12)
@@ -1158,3 +1159,229 @@ Three guard paths (null `question_ids`, string `question_ids`, null `config`) te
 ### useEffect iterates all locked entries on every answers change — acceptable at current scale (SUGGESTION)
 
 On every successful answer (which adds to the `answers` map), the effect iterates all currently-locked question IDs and checks whether they are still in `answers`. For a successful answer, `questionId` is present in both `lockedRef.current` and `answers`, so no deletion occurs — the loop is a no-op. This is correct but wastes a linear scan on every successful answer. At quiz sizes of 20 questions this is negligible. Noted for awareness if session sizes grow significantly.
+
+---
+
+## Session 2026-03-13 — commit 274821b (fix: runtime type guard + pre-cast validation for CodeRabbit PR #74)
+
+### response_time_ms regex does not bound digit count — integer overflow bypasses controlled error path (ISSUE)
+
+**File:** `packages/db/migrations/027_batch_submit_precast_validation.sql`:96
+**Pattern:** The validation guard is:
+```sql
+IF v_rt_text IS NULL OR v_rt_text !~ '^\d+$' OR v_rt_text::int < 0 THEN
+  RAISE EXCEPTION 'answer for question % has invalid response_time_ms', v_qid_text;
+END IF;
+```
+`'^\d+$'` accepts any number of digits. A value like `'99999999999'` (11 digits) passes the regex check but throws a raw Postgres numeric overflow exception when `v_rt_text::int` executes, bypassing the controlled RAISE EXCEPTION message. The intent of the pre-cast validation pattern is precisely to replace raw Postgres cast errors with informative RAISE messages — the UUID regex works because UUIDs are fixed-length, but the unbounded digit regex does not provide the same guarantee for integers.
+**Fix:** Bound the digit count: `'^\d{1,10}$'` admits all values up to 9 999 999 999 ms (~115 days) while staying within `int` range.
+**Status:** ISSUE.
+**Watch for:** any `regex_check THEN cast` pattern for integer fields — the regex must bound the digit count to prevent overflow on the cast line.
+
+### Text-level dedup and per-answer UUID regex now consistently close the case-sensitivity gap (RESOLVED from patterns)
+
+**Pattern update (commit 741ae30 ISSUE → commit 274821b):** The prior ISSUE noted that text-level dedup could miss case-variant UUID duplicates. This commit's per-answer UUID regex `'^[0-9a-f]{8}-...$'` (lowercase-only) means any uppercase UUID fails the per-answer regex before the loop can produce a silent duplicate write. The two mechanisms together cover the case-sensitivity attack surface. The prior ISSUE is resolved for the current codebase.
+The cleaner single-mechanism fix (`DISTINCT lower(e->>'question_id')` in the dedup check) remains a SUGGESTION but is non-blocking.
+**Status:** Prior ISSUE closed.
+
+### isCheckAnswerRpcResult runtime guard has no test coverage for the malformed-shape code path (SUGGESTION)
+
+**File:** `apps/web/app/app/quiz/actions/check-answer.ts`:62
+**Pattern:** The new guard `!isCheckAnswerRpcResult(data)` replaces `!data`. The code path where `data` is non-null but structurally invalid (`error === null`, `data.is_correct` is missing or wrong type) returns `{ success: false, error: 'Question not found' }`. No existing test exercises this path — the test suite covers correct/incorrect answers, RPC errors, and explanation fields, but not a malformed-shape response.
+**Fix:** Add a test case: `mockRpc.mockResolvedValue({ data: { is_correct: 'yes' }, error: null })`, assert `result.success === false`.
+**Status:** SUGGESTION.
+
+### batch_submit_quiz three-step ordered validation is correct and complete (POSITIVE)
+
+Step 1 (fetch session with FOR UPDATE), Step 2 (guard `jsonb_typeof` before extraction), Step 3 (extract question_ids) is the exact fix pattern documented in security.md and decisions.md. The guard fires before the `ARRAY(SELECT jsonb_array_elements_text(...))::uuid[]` extraction that could throw on NULL or non-array config. Ordering is load-bearing and correctly preserved.
+
+### UPDATE quiz_sessions without student_id WHERE clause is safe given FOR UPDATE lock (POSITIVE)
+
+`UPDATE quiz_sessions SET ... WHERE id = p_session_id` does not repeat `AND student_id = v_student_id`. Safe because the session row was locked in Step 1 (FOR UPDATE) after verifying ownership. The lock is held for the duration of the transaction, preventing another session from using the same `p_session_id`. Single-column WHERE is intentional and correct.
+
+### Per-answer text-extract-then-validate-then-cast is correct and complete (POSITIVE, with one gap above)
+
+All three value extractions (`v_qid_text`, `v_selected_option`, `v_rt_text`) follow extract-as-text, validate-format, then cast. UUID cast occurs only after the lowercase-only regex passes. `selected_option` non-empty check prevents silent "no match, graded incorrect" path. Only the unbounded digit regex on `v_rt_text` is a gap (see ISSUE above).
+
+### docs/database.md quiz_sessions deleted_at correction is accurate (POSITIVE)
+
+Schema comment now correctly documents `deleted_at TIMESTAMPTZ NULL` added in migration 023. The batch_submit_quiz RPC (migrations 025 and 027) already filters `AND qs.deleted_at IS NULL` in Step 1, consistent with the updated schema documentation.
+
+---
+
+## Session 2026-03-13 (commit 675104e) — fix: address 8 CodeRabbit PR #74 findings
+
+### answeredCount derivation: currentIndex + 1 is off-by-one at the complete state (ISSUE)
+**File:** `apps/web/app/app/_hooks/use-session-state.ts` line 101
+**Pattern:** `answeredCount: currentIndex + 1` is computed from the current navigation index.
+When the session transitions to `complete`, `handleNext` has just called `onComplete()` without
+incrementing `currentIndex`. At that point `currentIndex` still points to the LAST question
+(index N-1 for a 10-question quiz), so `answeredCount = N-1+1 = N = questions.length`. For a
+full quiz this is correct. However, `handleNext` is the ONLY path to `complete` — there is no
+skip/abort path, and the hook does not expose a partial-complete state — so in the current flow
+the value is always `questions.length` at the summary screen.
+The semantically correct derivation would be to track answers submitted as state, not derive from
+the navigation index. Using the index makes the value stale if `handleNext` is ever called after
+a failed submission (an error branch early-returns, `currentIndex` does not advance, so if a
+retry succeeds it would still report the same index).
+The previous code hardcoded `questions.length`, which was identically wrong for the same reason
+but was flagged by CodeRabbit. The new value is equivalent in the current flow but wrong in concept.
+**Watch for:** any path where `onComplete` succeeds while `currentIndex` is not at the last position
+(e.g., admin-triggered session termination, future "finish early" flow that doesn't traverse every question).
+
+### reports.ts answeredCount fallback changed from total_questions to 0 (GOOD)
+**File:** `apps/web/lib/queries/reports.ts` line 97
+**Change:** `answeredCountMap.get(s.id) ?? s.total_questions` → `answeredCountMap.get(s.id) ?? 0`
+**Analysis:** The previous fallback was misleading: a session with no answer rows in
+`quiz_session_answers` (e.g., an empty or corrupted session) was reported as having answered
+all questions, which would show "0 skipped" and inflate the score display. Falling back to 0
+is semantically correct — if there are no answer rows, we don't know how many were answered.
+The test name was correctly updated from "falls back to total_questions" to "falls back to 0".
+**Positive signal:** test and production code updated atomically in this commit.
+
+### load-draft.ts runtime guard is correct and well-structured (GOOD)
+**File:** `apps/web/app/app/quiz/actions/load-draft.ts`
+**Change:** `isSessionConfig` type predicate added before the cast from `row.session_config`.
+**Analysis:** The guard checks `typeof v === 'object' && v !== null && typeof sessionId === 'string'`,
+which exactly matches the `SessionConfig` type definition. The fallback on malformed config returns
+a `DraftData` with `sessionId: ''` — the caller can detect this as an invalid draft and reject it.
+This is the correct runtime-guard-before-cast pattern documented in `code-style.md` Section 5.
+
+### row.answers cast in load-draft.ts fallback path is still unguarded (SUGGESTION)
+**File:** `apps/web/app/app/quiz/actions/load-draft.ts` line 26 and line 38
+**Pattern:** Both code paths (fallback and normal) cast `row.answers` to
+`Record<string, { selectedOptionId: string; responseTimeMs: number }>` with a plain `as` cast.
+`row.answers` is typed as `Json | null` from the DB schema. This is not guarded the way
+`session_config` is now guarded. If a draft was saved with a malformed `answers` blob, the cast
+succeeds at compile time and the malformed shape reaches callers silently.
+**Context:** This is a weaker target than `session_config` (answers are written by Zod-validated
+`SaveDraftInput`, so schema drift is unlikely), and the fallback path already handled the main
+CodeRabbit finding. Not blocking, but the gap is consistent with the pre-fix `session_config` pattern.
+
+### draft.ts removal of draftId guard is correct (GOOD)
+**File:** `apps/web/app/app/quiz/actions/draft.ts` line 64 (guard removed)
+**Change:** `if (!input.draftId) return { success: false, error: 'Missing draft ID' }` removed;
+`.eq('id', input.draftId as string)` added.
+**Analysis:** `updateExistingDraft` is only called when `input.draftId` is truthy (line 45:
+`if (input.draftId) return updateExistingDraft(...)`). The guard was redundant — removing it
+is correct. The `as string` cast is safe given the call-site invariant.
+**Watch for:** any future refactor that adds a second call site to `updateExistingDraft` that does
+not have the same `if (input.draftId)` guard upstream.
+
+### lookup.ts DB error logging is consistent across all three query paths (GOOD)
+**File:** `apps/web/app/app/quiz/actions/lookup.ts`
+**Change:** All three Supabase queries (`questions`, `student_responses`, `fsrs_cards`) now
+destructure `error` and log on failure.
+**Behavioral note on `unseen` and `incorrect` paths:** These two paths log the error but do NOT
+return early — they continue with `answered ?? []` / `incorrectCards ?? []` and return a count.
+This means a DB error silently produces a count of 0 (for `unseen`: all questions appear unseen;
+for `incorrect`: all questions appear correct). This is the pre-existing behavior — the logging
+addition is an improvement, but callers should be aware the returned count is unreliable when
+a secondary query fails. The primary `questions` query does return early on error. The asymmetry
+is minor and consistent with best-effort filter counts.
+
+### seed-eval.ts .maybeSingle() is correct for lookup-or-insert pattern (GOOD)
+**File:** `apps/web/scripts/seed-eval.ts`
+**Change:** `.single()` → `.maybeSingle()` on both topic and subtopic lookup queries.
+**Analysis:** These queries look up an existing row that MAY OR MAY NOT exist. `.single()` throws
+on zero rows; `.maybeSingle()` returns null. The calling code already handles both cases
+(`if (alwTopicRow) { use it } else { insert it }`). The `.single()` call was always wrong here —
+it would throw on the first run when the row doesn't exist yet. The fix is correct.
+**Note:** The upstream `.upsert().select('id').single()` on `easa_subjects` is correct because
+the upsert guarantees exactly one row is returned.
+
+---
+
+## Session 2026-03-13 — commit 4798fdb (fix: dedicated answeredCount counter + test coverage)
+
+### Mutable counter without ref guard introduces re-entry window the derivation did not have (ISSUE)
+
+**File:** `apps/web/app/app/_hooks/use-session-state.ts` line 68
+**Pattern:** Replacing `answeredCount: currentIndex + 1` (derived, naturally idempotent) with a
+dedicated `useState(0)` counter incremented in `handleSubmit` is the correct semantic change.
+However, the new counter relies on React state for re-entry protection: `setSubmitting(true)` fires
+at line 44, but the re-render that disables the submit button is asynchronous. A second invocation
+of `handleSubmit` can enter before the re-render fires, and if both calls succeed, `answeredCount`
+is incremented twice for the same question while `currentIndex` advances only once.
+The prior derivation was immune to this race because `currentIndex` is a single integer
+governed by `handleNext`, not by `handleSubmit`. The new counter is now the writeable state
+that must be protected.
+**Fix:** Add a `submittingRef = useRef(false)` synchronous guard at the top of `handleSubmit`,
+mirroring the `lockedRef` pattern in `use-answer-handler.ts`. The React `submitting` state
+remains for UI purposes. The ref provides synchronous re-entry prevention.
+**Status:** ISSUE — same class as the lockedRef problem solved in use-answer-handler.
+
+### Watch entry updated — answeredCount derivation risk resolved, re-entry risk added
+
+**High-scrutiny entry update for `use-session-state.ts`:** The prior watch entry noted
+`currentIndex + 1` as an off-by-one risk. That derivation is now replaced. The new risk
+is the ref-guard gap described above. The watch entry has been updated accordingly.
+
+### Dedicated counter is correct for all normal-path and initial-state cases (GOOD)
+
+The prior derivation returned 1 before any question was submitted (currentIndex 0 → 0+1=1).
+The new counter starts at 0, which is semantically correct and fixes the `SessionSummary`
+`skippedCount = totalQuestions - answeredCount` display for the initial render.
+All normal-path cases (no failures, no concurrent calls) produce the correct count.
+The fix is a clear semantic improvement over the derived value.
+
+### No behavioral test for answeredCount increment (SUGGESTION — missing test)
+
+The commit ships no test asserting the counter increments correctly on success and does not
+increment on failure. The existing `session-runner.test.tsx` does not assert on `answeredCount`
+at all. Two cases worth adding: (1) count is 1 after first successful submit; (2) count stays 0
+after a failed submit and becomes 1 after a successful retry — not 2.
+
+---
+
+## Session 2026-03-13 — commit 33c1fa8 (fix: address 4 CodeRabbit PR #74 findings)
+
+### reports.ts answeredCount fallback to total_questions is semantically correct for legacy but masks partial-submission data loss (ISSUE)
+
+**File:** `apps/web/lib/queries/reports.ts` line 97
+**Pattern:** The fallback `?? s.total_questions` correctly handles sessions that pre-date the
+`quiz_session_answers` table (which has always existed) and the `batch_submit_quiz` RPC. These
+sessions were completed via the old per-answer `submit_quiz_answer` RPC which does write answer
+rows. The only real case of zero answer rows for a completed session is pre-migration legacy data.
+However, the fallback also fires for any future scenario where answer rows are missing for a
+completed session — e.g., a race condition, partial DB failure, or data issue. In those cases
+the UI will silently show `answeredCount = totalQuestions` (100% answered) when the actual
+number is unknown. This is a silent data degradation rather than a visible error.
+**Severity at time of review:** SUGGESTION — the fallback is correct for the stated legacy case
+and the test validates that path. The risk is that the fallback masks genuine data integrity gaps
+in future scenarios. Logging when the fallback fires (zero answer rows for a completed session)
+would make those cases visible without changing behavior.
+
+### draft.ts userError handling order is correct — PGRST116 overlap is benign (GOOD)
+
+**File:** `apps/web/app/app/quiz/actions/draft.ts` lines 52-56
+**Pattern:** The new `userError` check fires before the `!u?.organization_id` null check. When
+Supabase `.single()` finds no row, it returns `error.code === 'PGRST116'` AND `data === null`.
+The new error branch fires first with "Failed to look up user". The existing null check on line 56
+would also have caught this case (data is null → `!u?.organization_id` is true). The ordering is
+correct: hard DB errors (network, permissions) are separated from the business logic case
+(user has no organization). Both return `{ success: false }` so there is no behavioral regression.
+The distinction matters for observability: PGRST116 (user not in DB) is now logged as an error
+rather than silently returning "User organization not found". That is correct triage behavior.
+
+### Migration 027 — removal of v_rt_text::int < 0 is safe (GOOD)
+
+**File:** `packages/db/migrations/027_batch_submit_precast_validation.sql` line 96
+**Pattern:** The regex `^\d{1,9}$` already ensures the string contains only digits (no sign
+character). A digit-only string cannot represent a negative number, making `::int < 0` unreachable
+dead code. The removal does not change runtime behavior and eliminates a misleading dead-code branch.
+The regex bound of 9 digits (max 999,999,999) also prevents int4 overflow (max 2,147,483,647).
+
+### database.md soft-delete matrix quiz_sessions correction is accurate (GOOD)
+
+**File:** `docs/database.md` line 391
+**Pattern:** The prior "No" entry for quiz_sessions was incorrect — `deleted_at` was added in
+migration 023, and `discard.ts` performs a soft-delete update. The correction to "Yes" now
+accurately reflects the schema and matches the discard flow. The matrix entry includes the
+correct reason and mechanism reference.
+
+### High-scrutiny file list updated
+
+`apps/web/lib/queries/reports.ts` — added to watch list. The answeredCount fallback to
+`total_questions` is a silent degradation pattern. Any future changes to this file that add
+new fallbacks or change how `answeredCountMap` is built should be reviewed for silent data masking.

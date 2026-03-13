@@ -245,6 +245,36 @@ vi.mock('@/lib/supabase-rpc', () => ({
 }))
 ```
 
+### Testing 'use server' actions with .select().eq().order() chain (2026-03-13)
+For actions that end the chain with `.order()` (not `.returns()`), mock with a plain object
+where `order` is an async mock (not `.mockReturnThis()`):
+```ts
+function buildSelectChain(result: { data: unknown; error: unknown }) {
+  return {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockResolvedValue(result),
+  }
+}
+mockFrom.mockReturnValue(buildSelectChain({ data: [...rows], error: null }))
+```
+This pattern is used in `load-draft.test.ts` for `loadDrafts()`.
+
+### Testing type-guard fallback paths (2026-03-13)
+When production code has a runtime type guard that falls back to a safe value on failure,
+test all rejection branches (null, wrong type, missing required field) plus the happy path:
+```ts
+// null → rejected by isSessionConfig
+buildDraftRow({ session_config: null })
+// non-object → rejected
+buildDraftRow({ session_config: 'malformed-string' })
+// object missing required field → rejected
+buildDraftRow({ session_config: { subjectName: 'Nav' } })
+// valid → passes through
+buildDraftRow({ session_config: { sessionId: 'sess-abc', subjectName: 'Nav' } })
+```
+Always spy on `console.error` in the guard-failure tests and restore it after.
+
 ### Mocking @/lib/queries/* functions
 ```ts
 const { mockGetRandomQuestionIds } = vi.hoisted(() => ({
@@ -519,6 +549,34 @@ Key assertions to cover per handler:
 2. Guard clause: early return with `setError`, downstream action NOT called
 3. Failure path: `setError` set, `setSubmitting(false)` reset
 4. Ordering: `setSubmitting(true)` and `setError(null)` fire BEFORE the action call
+
+## Files extended in commit 274821b (isCheckAnswerRpcResult type guard)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/check-answer.ts` | `check-answer.test.ts` | Extended: 7 new tests covering `isCheckAnswerRpcResult` guard — non-null primitive, missing field, wrong-type fields for all 4 shape properties. Total: 22 tests. |
+
+### Testing runtime type guards in server actions (2026-03-13)
+When a server action upgrades from a falsy check (`!data`) to a structural type guard
+(`!isTypeGuard(data)`), add tests for every shape variant the guard rejects that the old
+falsy check would have silently passed through:
+
+1. Non-null primitive (e.g., `data: 'unexpected-string'`) — guard rejects at `typeof !== 'object'`
+2. Missing required field (e.g., omit `is_correct`) — guard rejects on the field check
+3. Wrong type on a boolean field (e.g., `is_correct: 'true'` instead of `boolean`) — guard rejects
+4. Null where a string is required (e.g., `correct_option_id: null`) — guard rejects
+5. Wrong type on a nullable string field (e.g., `explanation_text: 42`) — guard rejects
+
+All these cases should return `{ success: false, error: '<contextual message>' }`.
+Spy on `console.error` and restore it to keep test output clean, since the action logs
+the rejection:
+
+```ts
+const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+const result = await checkAnswer({ ... })
+consoleSpy.mockRestore()
+expect(result.success).toBe(false)
+```
 
 ### Stale test description after source logic changes
 When a source change alters a fallback value (e.g., `?? s.correct_count` → `?? s.total_questions`),
@@ -1068,6 +1126,49 @@ Their Zod tests correctly use `.rejects.toThrow(ZodError)` rather than checking 
 
 ### Suite state after this commit
 40 test files, 338 tests — all passing.
+
+---
+
+## Files extended in commit 33c1fa8 (users query error destructuring)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/draft.ts` | `draft.test.ts` | 1 test: users query returns `{ error }` → returns `{ success: false, error: 'Failed to look up user' }` and logs prefix `[saveDraft] Users query error:` |
+
+### Distinguishing the two failure branches on a `.single()` call
+When production code destructures `{ data, error }` from `.single()` and handles them
+separately, there are two distinct test cases:
+1. `{ data: null, error: null }` — query succeeded but returned no row → test the "not found" message
+2. `{ data: null, error: { message: '...' } }` — query itself failed (RLS, network, etc.) → test the "query error" message
+
+Before commit 33c1fa8, only case 1 was covered. Case 2 (the `userError` branch) was added
+to the source and must have its own test:
+
+```ts
+it('returns failure when the users query errors', async () => {
+  setupAuthenticatedUser()
+  const chain = mockChainWithCount(0)
+  ;(chain.single as ReturnType<typeof vi.fn>).mockReturnValue({
+    data: null,
+    error: { message: 'row-level security policy violation' },
+  })
+  mockFrom.mockReturnValue(chain)
+  const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+  const result = await saveDraft(VALID_DRAFT_INPUT)
+
+  expect(result).toEqual({ success: false, error: 'Failed to look up user' })
+  expect(consoleSpy).toHaveBeenCalledWith(
+    '[saveDraft] Users query error:',
+    'row-level security policy violation',
+  )
+  consoleSpy.mockRestore()
+})
+```
+
+The existing `mockChainWithCount(0)` helper already wires the `.eq()` → `{ count, error }` path
+for the draft-count query, but its `.single` mock can be overridden independently for the
+users-org query. Reusing the helper avoids duplicating the count-chain setup.
 
 ---
 
@@ -1979,3 +2080,56 @@ const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
 ```
 
 Then assert `updateEq1.toHaveBeenCalledWith('id', DRAFT_ID)` and `updateEq2.toHaveBeenCalledWith('student_id', USER_ID)`.
+
+---
+
+## Covering new error paths in existing files (count 2, now a rule — 2026-03-13)
+
+When a commit adds a new query, a new `if (error) return` branch, or a new early-return path
+to a file that already has a co-located test file, the test file must be updated in the same
+commit to cover the new branch. This is distinct from "new file without tests" (where an
+entire file has no test) — here, the test file exists but is incomplete after the change.
+
+### The gap to look for
+When reviewing a diff, check every file that is modified (not just created). For each modified
+file that has a co-located `.test.ts` / `.test.tsx`:
+
+1. Does the diff add a new `if (error) return` path?
+2. Does the diff add a new query (e.g., a second `.from()` call or `.auth.getUser()` call)?
+3. Does the diff add a new conditional branch that returns early before reaching existing assertions?
+
+If yes to any of these, write a test for the new branch in the same commit.
+
+### Why this keeps being missed
+The pattern is: a function already has a test file that covers the main flow and the first
+error path. A second query is added to the function. The test file is not updated because
+the existing tests still pass. But the new query's error path is now unreachable by any test.
+
+Example from `draft.ts` (d06c25b): the function already tested the count-query error path.
+A `getUser()` call was added above it. The existing count-error test still passed. But the
+new auth-error path from `getUser()` had no test — caught post-commit by test-writer.
+
+### Pattern: two occurrences in draft.ts (2026-03-13)
+1. Count-error path: `getCount()` returned an error — no test for that branch.
+2. Users-query error path: `getUser()` returned an error — no test for that branch.
+
+Both were caught post-commit by the test-writer gap detection. Both required a follow-up
+commit to add tests. The correct behaviour is to add the test branch in the same commit
+as the production change.
+
+### Test pattern for a new query error path
+```ts
+it('returns early when [the new query] fails', async () => {
+  // set up the new query mock to return an error
+  mockFrom.mockImplementationOnce(() => ({
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({ data: null, error: { message: 'DB error' } }),
+    }),
+  }))
+  const result = await theFunction(VALID_INPUT)
+  // assert the function returned the expected error shape
+  expect(result).toEqual({ success: false })
+  // assert that downstream queries were NOT called (early return)
+  expect(mockFrom).toHaveBeenCalledTimes(1)
+})
+```

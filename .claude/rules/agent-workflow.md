@@ -1,11 +1,83 @@
 # Agent Workflow — Pipeline & Orchestrator Rules
 
-> How the orchestrator (Claude) runs and coordinates post-commit agents.
+> How the orchestrator (Claude) plans, validates, and coordinates work.
 > Per-agent handling rules are in separate `agent-*.md` files in this directory.
 
 ---
 
-## Pipeline Order
+## Plan Validation Pipeline (runs BEFORE any code is written)
+
+For any multi-file change, the orchestrator must validate the plan before executing it. This is where most defects are cheapest to catch.
+
+```
+User request
+    │
+    ▼
+Explore (subagents map relevant code)
+    │
+    ▼
+Draft plan (files to change, approach, risks)
+    │
+    ├─► Impact analysis    ─ who calls/imports each file being changed?
+    ├─► Contract check     ─ do existing tests assert behavior we're changing?
+    ├─► Pattern scan       ─ does our approach match existing codebase patterns?
+    ├─► Doc/schema check   ─ will docs become inaccurate after this change?
+    └─► Security surface   ─ does this touch auth, RLS, answers, or input validation?
+    │
+    ▼
+Validated plan (includes: affected files, test updates, doc updates, risks)
+    │
+    ▼
+User approves → Execute
+```
+
+### What each validation step does:
+
+| Step | What to check | How | Blocker if... |
+|------|--------------|-----|---------------|
+| **Impact analysis** | Callers, importers, dependents of every file being changed | Explore agents: grep for imports/function usage | A caller relies on behavior you're about to change |
+| **Contract check** | Test assertions that match the code being changed | Read `.test.ts` files for every changed source file | A test asserts a value you're changing (e.g., fallback `?? 0`) |
+| **Pattern scan** | How similar code is written elsewhere in the repo | Explore agents: find 2-3 similar files | Your approach diverges from established patterns |
+| **Doc/schema check** | docs/database.md, docs/decisions.md, docs/plan.md | Read relevant doc sections | A doc table/matrix will become inaccurate |
+| **Security surface** | Auth checks, RLS policies, answer exposure, input validation | Read docs/security.md + check against plan | Change touches security boundary without matching rules |
+
+### Plan output format:
+```
+PLAN — [task description]
+
+Files to change:
+  - path/to/file.ts (lines ~X-Y) — what and why
+
+Files affected (callers/tests/docs that need updates):
+  - path/to/file.test.ts — update assertion from X to Y
+  - docs/database.md — update soft-delete matrix row for table Z
+
+Risks:
+  - [specific edge case or known concern]
+
+Validation:
+  ✓ Impact: [N callers checked, no breaking changes / list conflicts]
+  ✓ Contracts: [N test files checked, M need updates]
+  ✓ Patterns: [matches existing pattern in file X / diverges because Y]
+  ✓ Docs: [no drift / update needed in Z]
+  ✓ Security: [not applicable / checked against rule N]
+```
+
+### DO
+- Run validation for EVERY multi-file change. No shortcuts.
+- Include test updates in the plan, not as an afterthought.
+- Use Explore agents for impact analysis — don't guess who calls a function.
+- Block execution if a validation step reveals a conflict. Revise the plan first.
+
+### NEVER
+- Skip validation because the change "seems simple." Simple changes with wrong assumptions cause the biggest review cycles.
+- Implement first and fix tests/docs later — plan them together.
+- Guess at existing behavior — read the code and tests to verify.
+- Proceed to execution with unresolved validation conflicts.
+
+---
+
+## Post-Implementation Pipeline Order
 
 ```
 git commit
@@ -75,4 +147,4 @@ This is what CodeRabbit sees — our agents must see it too.
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-coderabbit-sync.md`*
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-03-13*
