@@ -1550,3 +1550,64 @@ Key points:
 activity-chart.test.tsx: 6 tests (3 existing + 3 new for formatActivityData/ChartBody behavior).
 statistics-tab.test.tsx: 14 tests — no new tests needed (useQuestionStats is not exported;
 all its behavior paths were already covered through StatisticsTab integration tests).
+
+## Files extended in commit ec84acc (ended_at guard)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/queries/quiz-report.ts` | `quiz-report.test.ts` | Added 4 cases (guard short-circuits DB calls, no correct option, null questions response, responseTimeMs passthrough); total 14 tests |
+
+### Verifying early-return guard does not issue downstream DB calls
+When a function has a guard clause that returns before hitting subsequent DB queries,
+assert on the `mockFrom` call count to confirm no further queries ran:
+
+```ts
+it('does not query answers or questions when session is active', async () => {
+  const activeSession = { ...sessionRow, ended_at: null }
+  mockFromSequence({ data: activeSession })
+  await getQuizReport('sess-1')
+  // Only the session query should have fired — no downstream DB calls
+  expect(mockFrom).toHaveBeenCalledTimes(1)
+})
+```
+
+This is distinct from asserting the return value — it verifies the guard did not fall
+through. Use `vi.clearAllMocks()` (not just `resetAllMocks`) in `beforeEach` to reset
+the call count between tests.
+
+### Testing option-map fallback paths in buildReportQuestions
+When `buildReportQuestions` uses `options.find(o => o.correct)`, two fallback branches
+need coverage:
+1. No option has `correct: true` → `correctOptionId` falls back to `''`
+2. Questions DB returns `null` → `questions ?? []` produces empty map → all fields fall back
+
+Test (1) by supplying options where all have `correct: false`.
+Test (2) by returning `{ data: null }` from the questions DB call (not `{ data: [] }`
+which the "empty array" test already covers — these are distinct code paths in the
+`questions ?? []` expression).
+
+### Array index safety in generated test assertions (TS2532 — count 2, now a rule)
+When accessing elements of a result array in test assertions, always guard against
+`undefined` to prevent TS2532 ("Object is possibly 'undefined'") errors that block
+the pre-commit type-check gate.
+
+**Preferred patterns (pick one per test):**
+
+```ts
+// Option A: assert length first, then use non-null assertion with justification
+expect(report.questions).toHaveLength(2)
+// Length asserted above — index access is safe
+const q1 = report.questions[0]!
+
+// Option B: optional chaining (no assertion needed, but weaker signal)
+expect(report.questions?.[0]?.questionText).toBe('What is lift?')
+```
+
+**Never do:**
+```ts
+// ❌ WRONG — TS2532 if noUncheckedIndexedAccess is enabled
+expect(report.questions[0].questionText).toBe('What is lift?')
+```
+
+This pattern has caused pre-commit failures twice (different commits). The type-check
+gate catches it, but generating correct code the first time avoids the fix cycle.
