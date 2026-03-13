@@ -1,22 +1,11 @@
-import type { SessionQuestion } from '@/app/app/_components/session-runner'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import { checkAnswer } from '../../actions/check-answer'
-import type { AnswerFeedback, DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer, QuizStateOpts } from '../../types'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
 import { useQuizSubmit } from './use-quiz-submit'
-
-export type QuizStateOpts = {
-  sessionId: string
-  questions: SessionQuestion[]
-  initialAnswers?: Record<string, DraftAnswer>
-  initialIndex?: number
-  draftId?: string
-  subjectName?: string
-  subjectCode?: string
-}
 
 export function useQuizState(opts: QuizStateOpts) {
   const { sessionId, questions, initialAnswers } = opts
@@ -32,12 +21,14 @@ export function useQuizState(opts: QuizStateOpts) {
   const { pinnedQuestions, togglePin: togglePinById } = usePinnedQuestions()
   const answersRef = useRef(answers)
   answersRef.current = answers
+  const currentIndexRef = useRef(nav.currentIndex)
+  currentIndexRef.current = nav.currentIndex
 
   const { submitted, ...submit } = useQuizSubmit({
     sessionId,
     questions,
     answersRef,
-    currentIndex: nav.currentIndex,
+    currentIndexRef,
     router,
     draftId: opts.draftId,
     subjectName: opts.subjectName,
@@ -48,9 +39,6 @@ export function useQuizState(opts: QuizStateOpts) {
   const question = questions[nav.currentIndex]
   const questionId = question?.id ?? ''
   const lockedQuestionsRef = useRef<Set<string>>(new Set())
-
-  // Lock acquired synchronously; setAnswers fires before await so the
-  // lock mirrors answers state even if checkAnswer fails.
   async function handleSelectAnswer(optionId: string) {
     if (lockedQuestionsRef.current.has(questionId) || answers.has(questionId)) return
     lockedQuestionsRef.current.add(questionId)

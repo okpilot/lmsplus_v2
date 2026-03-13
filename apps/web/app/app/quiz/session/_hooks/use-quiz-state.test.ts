@@ -375,3 +375,78 @@ describe('useQuizState — handleSave', () => {
     )
   })
 })
+
+// ---- Discard session ------------------------------------------------------
+
+describe('useQuizState — handleDiscard', () => {
+  it('delegates to handleDiscardSession with the correct sessionId', async () => {
+    const { result } = renderHook(() =>
+      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+    await act(async () => result.current.handleDiscard())
+
+    expect(mockHandleDiscardSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: SESSION_ID }),
+    )
+  })
+
+  it('forwards draftId to handleDiscardSession when provided', async () => {
+    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
+    const { result } = renderHook(() =>
+      useQuizState({
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        draftId: DRAFT_ID,
+      }),
+    )
+    await act(async () => result.current.handleDiscard())
+
+    expect(mockHandleDiscardSession).toHaveBeenCalledWith(
+      expect.objectContaining({ draftId: DRAFT_ID }),
+    )
+  })
+
+  it('sets error state when discard fails', async () => {
+    mockHandleDiscardSession.mockImplementation(
+      (opts: { setError: (e: string | null) => void; setSubmitting: (v: boolean) => void }) => {
+        opts.setError('Discard failed')
+        opts.setSubmitting(false)
+      },
+    )
+
+    const { result } = renderHook(() =>
+      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+    await act(async () => result.current.handleDiscard())
+
+    expect(result.current.error).toBe('Discard failed')
+  })
+})
+
+// ---- Finish dialog ---------------------------------------------------------
+
+describe('useQuizState — showFinishDialog', () => {
+  it('starts closed (false)', () => {
+    const { result } = renderHook(() =>
+      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+    expect(result.current.showFinishDialog).toBe(false)
+  })
+
+  it('opens the finish dialog when setShowFinishDialog is called with true', () => {
+    const { result } = renderHook(() =>
+      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+    act(() => result.current.setShowFinishDialog(true))
+    expect(result.current.showFinishDialog).toBe(true)
+  })
+
+  it('closes the finish dialog when setShowFinishDialog is called with false', () => {
+    const { result } = renderHook(() =>
+      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+    act(() => result.current.setShowFinishDialog(true))
+    act(() => result.current.setShowFinishDialog(false))
+    expect(result.current.showFinishDialog).toBe(false)
+  })
+})

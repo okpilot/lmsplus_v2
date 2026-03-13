@@ -8,7 +8,7 @@ export function useQuizSubmit(opts: {
   sessionId: string
   questions: SessionQuestion[]
   answersRef: React.RefObject<Map<string, DraftAnswer>>
-  currentIndex: number
+  currentIndexRef: React.RefObject<number>
   router: AppRouterInstance
   draftId?: string
   subjectName?: string
@@ -38,7 +38,7 @@ export function useQuizSubmit(opts: {
       sessionId: opts.sessionId,
       questions: opts.questions,
       answers: opts.answersRef.current,
-      currentIndex: opts.currentIndex,
+      currentIndex: opts.currentIndexRef.current,
       draftId: opts.draftId,
       subjectName: opts.subjectName,
       subjectCode: opts.subjectCode,

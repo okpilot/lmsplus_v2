@@ -470,6 +470,25 @@ env var. `vi.stubEnv` always stores a string, so `startsWith` on `undefined` wou
 the source uses optional chaining (`process.env.KEY?.startsWith(...)`) which returns `undefined`
 (falsy) when the var is missing. Deleting the key lets that optional chain evaluate correctly.
 
+### Thin delegating hook — extend parent hook's test file, not a new file (2026-03-13)
+When a new hook is a pure delegate (every function body is a single `return handleXxx(...)` call
+into a shared helper) and the parent hook already has a test file with matching mocks, extend
+the parent's test file rather than creating a new co-located test file. Reasons:
+1. All mocks are already wired — no duplication of `vi.hoisted` + `vi.mock` scaffolding.
+2. The hook is only useful via its parent; testing in isolation would require re-wiring the same
+   deps with no additional coverage signal.
+3. Keeps the mock surface in one place — changes to the quiz-submit helpers only require
+   updating one mock.
+
+Decision applied: `use-quiz-submit.ts` coverage extended in `use-quiz-state.test.ts` (not a
+new `use-quiz-submit.test.ts`).
+
+## Files extended in eb67cc8 (post-sprint-3-polish hook split)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-submit.ts` | `use-quiz-state.test.ts` | Thin delegate; coverage extended in parent hook's test file. Added handleDiscard (3 tests) + showFinishDialog (3 tests). Total: 26 tests. |
+
 ### Testing UI orchestrator handlers (setSubmitting / setError pattern)
 Handlers that coordinate state callbacks (`setSubmitting`, `setError`, `onSuccess`) and a
 router should be tested with inline `vi.fn()` mocks — do NOT render a component. Pass them

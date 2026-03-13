@@ -97,3 +97,13 @@ export type DraftResult = { success: true } | { success: false; error: string }
 export type LoadDraftResult = { draft: DraftData | null }
 
 export type LoadDraftsResult = { drafts: DraftData[] }
+
+export type QuizStateOpts = {
+  sessionId: string
+  questions: import('@/app/app/_components/session-runner').SessionQuestion[]
+  initialAnswers?: Record<string, DraftAnswer>
+  initialIndex?: number
+  draftId?: string
+  subjectName?: string
+  subjectCode?: string
+}

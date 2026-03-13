@@ -161,7 +161,25 @@ any future RPC that checks for uniqueness using `->>'field'` before a `::uuid` c
 the answer is already in state and the lock correctly prevents re-entry matching the
 `answers.has(questionId)` semantics. Moving setAnswers after the await would break this
 invariant — the lock would fire but no answer would be recorded, leaving a stuck question.
+**Status (commit 34a9352):** Lock position preserved after hook split. `lockedQuestionsRef`
+still declared before `handleSelectAnswer` in `use-quiz-state.ts`. Ordering invariant intact.
 **Watch for:** any refactor to `handleSelectAnswer` that moves `setAnswers` after the await.
+
+### hook-split scalar vs ref — stale closure when child hook receives a scalar prop (commit 34a9352)
+**First seen:** commit 34a9352 (2026-03-13)
+**File:** `apps/web/app/app/quiz/session/_hooks/use-quiz-submit.ts` — `handleSave`
+**Pattern:** When a hook is split and the child receives a changing value (e.g., `currentIndex`)
+as a plain number in opts, functions inside the child close over the opts object from the render
+where the child hook was last called. This is safe only if the parent re-renders on every change
+(which it does here via React state). The gap: if renders are batched or skipped, the child
+function reads a stale value. Compare with `answersRef` — the parent hook uses a ref to ensure
+freshness across async boundaries.
+**Rule:** When splitting hooks, any value that (1) changes after mount and (2) is read inside an
+async function or a function that fires after a state update must be forwarded as a ref, not a
+scalar. Scalars are acceptable only for values used synchronously at render time.
+**Fix applied:** Not yet applied as of 34a9352 — ISSUE filed, fix pending.
+**Watch for:** any future hook split where a changing scalar (index, count, timestamp) is
+forwarded as a plain number to a child hook that uses it inside a handler function.
 
 ### quiz-report.ts — direct SELECT on questions table with options JSONB including correct field
 **First seen:** commits dce30b1 / e8d70fc (2026-03-12)
