@@ -1612,6 +1612,32 @@ expect(report.questions[0].questionText).toBe('What is lift?')
 This pattern has caused pre-commit failures twice (different commits). The type-check
 gate catches it, but generating correct code the first time avoids the fix cycle.
 
+### Test fixture type annotations (shape mismatch — count 2, now a rule)
+When constructing fixture objects for tests, always annotate them with the exported
+TypeScript type from the source module. This forces a compile-time shape check and
+prevents mismatches between fixture fields and the actual type contract.
+
+**Correct pattern:**
+```ts
+import type { SubjectOption } from './use-quiz-config'
+
+// ✅ Type annotation catches missing/wrong fields at compile time
+const SUBJECTS: SubjectOption[] = [
+  { id: 'abc', code: '010', name: 'Air Law', short: 'ALW', questionCount: 50 },
+]
+```
+
+**Never do:**
+```ts
+// ❌ WRONG — plain object may drift from SubjectOption shape
+const SUBJECTS = [{ id: 'abc', name: 'Air Law', short: 'ALW', count: 50 }]
+```
+
+This pattern has caused pre-commit type-check failures twice (2026-03-11: missing `short`
+field; 2026-03-13: wrong `SubjectOption` shape with `count` instead of `questionCount`
+and missing `code`). Both caught by tsc, but generating correctly-typed fixtures avoids
+the fix cycle entirely.
+
 ---
 
 ## Files tested in feat/post-sprint-3-polish (2026-03-13)
