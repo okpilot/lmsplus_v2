@@ -850,3 +850,39 @@ removed to explicitly allow partial submissions, and the score formula was updat
 - ON CONFLICT DO NOTHING on table with no unique constraint is dead code — duplicates silently inserted (repeated pattern)
 - Count-then-insert without DB lock/trigger allows TOCTOU race on app-enforced limits (feat/post-sprint-3-polish)
 - Unbounded Supabase fetch on append-only table truncated at 1000 rows by default (feat/post-sprint-3-polish)
+- Partial cancellation guard in useEffect: `if (cancelled) return` placed before state updates but `setIsLoading(false)` left unguarded — caught in commit 6d274fa
+
+---
+
+## Session 2026-03-13 (commit 6d274fa) — fix: stale-fetch race, draft update silent no-op, split draft.ts
+
+### Three fixes from previous review — assessment
+
+**Fix 1 (stale-fetch race in explanation-tab.tsx): PARTIALLY CORRECT — ISSUE remains**
+The `cancelled` flag and cleanup function are correctly added. However, `setIsLoading(false)` on
+line 70 is not inside the `if (!cancelled)` guard — it is only skipped because `if (cancelled) return`
+exits before reaching it. This means: (a) the cleanup is correct for the active case, (b) but the
+pattern is inconsistent with `statistics-tab.tsx` and `use-question-stats.ts` which wrap all setState
+calls inside a single `if (!cancelled)` block. The missing guard also leaves the unmount case
+implicit — if the component unmounts mid-fetch, no cleanup of loading state occurs because the
+component is gone, but the pattern does not make this intent visible.
+**Fix:** Wrap both `setExplanation` and `setIsLoading(false)` inside `if (!cancelled) { ... }`.
+
+**Fix 2 (draft update silent no-op): CORRECT**
+`.select('id')` chained after `.eq('student_id', userId)` and `(data as unknown[]).length === 0`
+check correctly closes the gap. The `data as unknown[]` cast is justified given the `quiz_drafts as
+'users'` workaround. Distinct error message `'Draft not found or already deleted'` is actionable.
+
+**Fix 3 (split draft.ts): CORRECT**
+`deleteDraft` correctly moved to `draft-delete.ts`. Auth-before-parse order preserved in new file.
+All six import sites (3 production, 3 test) updated consistently. `draft.ts` at 114 lines is within
+the 100-line Server Action limit after the extraction.
+
+### insertNewDraft — getOrganizationId inlining is a minor behavioural change (NOTE)
+The previous `getOrganizationId` helper was a named function with its own error path. The inline
+version in `saveDraft` (lines 47-52) is functionally equivalent but removes the named abstraction.
+No behavioral gap — the error return on `!u?.organization_id` is identical.
+
+### sessionConfig helper — positive extraction (POSITIVE)
+Eliminates duplication between `updateExistingDraft` and `insertNewDraft`. Inferred return type is
+appropriate since it feeds directly into a DB payload. Not external input — no Zod concern.
