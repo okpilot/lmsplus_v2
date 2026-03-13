@@ -1,6 +1,7 @@
 import type { useRouter } from 'next/navigation'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
-import { deleteDraft, saveDraft } from '../../actions/draft'
+import { saveDraft } from '../../actions/draft'
+import { deleteDraft } from '../../actions/draft-delete'
 import type { DraftAnswer } from '../../types'
 
 type AppRouterInstance = ReturnType<typeof useRouter>

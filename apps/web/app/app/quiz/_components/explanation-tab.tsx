@@ -55,10 +55,12 @@ function PreAnswerExplanation({ questionId }: { questionId: string }) {
   const [, startTransition] = useTransition()
 
   useEffect(() => {
+    let cancelled = false
     setIsLoading(true)
     setExplanation(null)
     startTransition(async () => {
       const result = await fetchExplanation({ questionId })
+      if (cancelled) return
       if (result.success) {
         setExplanation({
           text: result.explanationText,
@@ -67,6 +69,9 @@ function PreAnswerExplanation({ questionId }: { questionId: string }) {
       }
       setIsLoading(false)
     })
+    return () => {
+      cancelled = true
+    }
   }, [questionId])
 
   if (isLoading) return <ExplanationSkeleton />

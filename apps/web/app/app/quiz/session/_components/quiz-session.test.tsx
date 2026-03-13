@@ -14,8 +14,10 @@ vi.mock('../../actions/batch-submit', () => ({
 const mockDeleteDraft = vi.fn()
 const mockSaveDraft = vi.fn()
 vi.mock('../../actions/draft', () => ({
-  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
   saveDraft: (...args: unknown[]) => mockSaveDraft(...args),
+}))
+vi.mock('../../actions/draft-delete', () => ({
+  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
 }))
 
 const mockCheckAnswer = vi.fn()

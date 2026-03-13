@@ -13,7 +13,7 @@ const { mockDeleteDraft } = vi.hoisted(() => ({
   mockDeleteDraft: vi.fn(),
 }))
 
-vi.mock('../actions/draft', () => ({
+vi.mock('../actions/draft-delete', () => ({
   deleteDraft: mockDeleteDraft,
 }))
 

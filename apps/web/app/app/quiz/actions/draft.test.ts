@@ -16,7 +16,8 @@ vi.mock('@repo/db/server', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { deleteDraft, saveDraft } from './draft'
+import { saveDraft } from './draft'
+import { deleteDraft } from './draft-delete'
 import { loadDrafts } from './load-draft'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -343,17 +344,14 @@ describe('saveDraft — update path', () => {
   it('updates an existing draft when draftId is provided', async () => {
     setupAuthenticatedUser()
 
-    // Call 1: users org lookup, Call 2: update
-    let callIndex = 0
-    const updateEq2 = vi.fn().mockReturnValue({ error: null })
+    // Chain: update → eq(id) → eq(student_id) → select(id) → { data, error }
+    const selectFn = vi.fn().mockReturnValue({ data: [{ id: DRAFT_ID }], error: null })
+    const updateEq2 = vi.fn().mockReturnValue({ select: selectFn })
     const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
     const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
 
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) return mockChain()
-      return { update: updateFn }
-    })
+    // Update path skips org lookup — only one from() call for quiz_drafts
+    mockFrom.mockReturnValue({ update: updateFn })
 
     const result = await saveDraft({
       ...VALID_DRAFT_INPUT,
@@ -372,16 +370,12 @@ describe('saveDraft — update path', () => {
   it('scopes update to the authenticated user via student_id filter', async () => {
     setupAuthenticatedUser()
 
-    let callIndex = 0
-    const updateEq2 = vi.fn().mockReturnValue({ error: null })
+    const selectFn = vi.fn().mockReturnValue({ data: [{ id: DRAFT_ID }], error: null })
+    const updateEq2 = vi.fn().mockReturnValue({ select: selectFn })
     const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
     const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
 
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) return mockChain()
-      return { update: updateFn }
-    })
+    mockFrom.mockReturnValue({ update: updateFn })
 
     await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
 
@@ -392,17 +386,13 @@ describe('saveDraft — update path', () => {
   it('returns failure when the update query errors', async () => {
     setupAuthenticatedUser()
 
-    let callIndex = 0
-    const updateEq2 = vi.fn().mockReturnValue({ error: { message: 'RLS violation' } })
+    const selectFn = vi.fn().mockReturnValue({ data: null, error: { message: 'RLS violation' } })
+    const updateEq2 = vi.fn().mockReturnValue({ select: selectFn })
     const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
     const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) return mockChain()
-      return { update: updateFn }
-    })
+    mockFrom.mockReturnValue({ update: updateFn })
 
     const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
 
@@ -411,30 +401,34 @@ describe('saveDraft — update path', () => {
     consoleSpy.mockRestore()
   })
 
+  it('returns failure when update affects zero rows (draft already deleted)', async () => {
+    setupAuthenticatedUser()
+
+    const selectFn = vi.fn().mockReturnValue({ data: [], error: null })
+    const updateEq2 = vi.fn().mockReturnValue({ select: selectFn })
+    const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
+    const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
+
+    mockFrom.mockReturnValue({ update: updateFn })
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
+
+    expect(result).toEqual({ success: false, error: 'Draft not found or already deleted' })
+  })
+
   it('does not enforce the 20-draft limit when updating an existing draft', async () => {
     setupAuthenticatedUser()
 
-    let callIndex = 0
-    const updateEq2 = vi.fn().mockReturnValue({ error: null })
+    const selectFn = vi.fn().mockReturnValue({ data: [{ id: DRAFT_ID }], error: null })
+    const updateEq2 = vi.fn().mockReturnValue({ select: selectFn })
     const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
     const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
-    // A count query mock — it should never be reached when draftId is present
-    const countMock = vi.fn()
 
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) return mockChain()
-      // If count is called, fail so we know it was reached
-      if (callIndex === 2 && countMock.mock.calls.length > 0) {
-        return { select: countMock }
-      }
-      return { update: updateFn }
-    })
+    mockFrom.mockReturnValue({ update: updateFn })
 
     const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
 
     expect(result).toEqual({ success: true })
-    expect(countMock).not.toHaveBeenCalled()
   })
 })
 

@@ -8,6 +8,58 @@
   - Commit f0f8d0e extracted `useQuestionStats()` hook + `ChartBody` component, bringing `statistics-tab.tsx` to exactly 150 lines (limit), split `activity-chart.tsx` into two helper functions
   - Pattern: Extracting hooks for stateful logic + extracting sub-components for presentation is working well; file sizes stabilizing after refactors
 
+## Session 2026-03-13 (commit 7c2d7c5) — post-sprint-3-polish refactor
+
+### Commit: 7c2d7c5 (refactor: split long functions, add tests for eval round 2 fixes)
+- Status: **BLOCKING** — 2 violations, 1 warning
+- Files changed: 10 files, 541 insertions, 67 deletions
+- Summary: Function extraction and test expansion, but introduced two regressions on style limits
+
+**[BLOCKING] `apps/web/app/app/quiz/actions/draft.ts` — 166 lines (limit: 100)**
+- Server Action file has grown beyond size limit through refactor. Contains 2 exported actions (`saveDraft`, `deleteDraft`) + 3 private helpers + schemas/types.
+- Refactor split `saveDraft` into `updateExistingDraft()` and `insertNewDraft()` helpers (good extraction, all helpers ≤33 lines), but file-level consolidation created size problem.
+- Exports are well-focused: each ≤30 lines ✓. Problem is feature sprawl — file now contains "draft save" + "draft delete" + "org lookup".
+- Fix: Split into `draft-save.ts` (saveDraft + updateExistingDraft + insertNewDraft + getOrganizationId) and `draft-delete.ts` (deleteDraft), or extract `getOrganizationId()` to `lib/quiz/` utility.
+- Watch: This is the second time `draft.ts` has exceeded limits (previous: 102 lines in commit 9d9e898). File needs architectural review, not just cosmetic refactoring.
+
+**[BLOCKING] `apps/web/app/app/quiz/_components/explanation-tab.tsx` — useEffect with stale-fetch race condition**
+- New `PreAnswerExplanation` component at lines 49–86. Uses `useEffect` (line 57) to call async `fetchExplanation()`.
+- No cleanup guard: when `questionId` changes (dependency array), the previous fetch can still be in-flight. Both requests race to `setState`, and the later-resolving (stale) response overwrites the new one.
+- Pattern: Identical race condition flagged by semantic-reviewer in same commit (session notes). Fix pattern exists in `statistics-tab.tsx` and `use-question-stats.ts` (cancelled flag in cleanup).
+- Root cause: useEffect with async call and no cleanup cancellation. This is a Next.js data-fetching anti-pattern (see code-style.md § 6).
+- Fix: Add `let cancelled = false` state guard:
+  ```tsx
+  useEffect(() => {
+    let cancelled = false
+    startTransition(async () => {
+      const result = await fetchExplanation({ questionId })
+      if (!cancelled) setExplanation({ ... })
+      if (!cancelled) setIsLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [questionId])
+  ```
+
+**[WARNING] `apps/web/app/app/quiz/actions/draft.ts` — 4-parameter helper without JSDoc**
+- `insertNewDraft()` at line 88 accepts 4 params: `supabase, input, userId, orgId`. Has inline comment explaining semantic roles but not a JSDoc block.
+- Code-style.md § 3 exception: "Document the exception with a JSDoc comment if > 3 params."
+- Current status: inline comment is present and clear; formal JSDoc preferred for consistency.
+- Fix: Convert to JSDoc block (optional — current comment is acceptable).
+
+**Positive observations:**
+- Refactor improved internal organization: split long `saveDraft` into two clear, focused helpers. Good extraction.
+- Test coverage expanded: new test files for `fetch-explanation.ts` (10 tests), extended `draft.test.ts` (4 new tests for update path), extended other test files.
+- Test quality: behavior-first naming, proper Supabase mock chains, good coverage of error paths and boundary conditions.
+- Helper extraction pattern: `updateExistingDraft()` and `insertNewDraft()` are well-structured, each with a single job.
+
+**Compliance at file level:**
+- No `any` types ✓
+- No unvalidated casts ✓
+- No barrel files ✓
+- No function exceeds 35 lines (reasonable for Server Action boundary) ✓
+- Parameter counts: 3 params standard, 4-param exception documented ✓
+- Naming: kebab-case files, PascalCase exports ✓
+
 ## Session 2026-03-12 (cont.) — CodeRabbit Review Round 5
 
 ### Commit: 9d9e898 (fix: address CodeRabbit review findings — bugs, validation, and safety)

@@ -8,7 +8,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 const mockDeleteDraft = vi.fn()
-vi.mock('../actions/draft', () => ({
+vi.mock('../actions/draft-delete', () => ({
   deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
 }))
 

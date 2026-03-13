@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { deleteDraft } from '../actions/draft'
+import { deleteDraft } from '../actions/draft-delete'
 import type { DraftData } from '../types'
 
 type SavedDraftCardProps = { drafts: DraftData[] }

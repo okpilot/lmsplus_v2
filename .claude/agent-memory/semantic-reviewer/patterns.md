@@ -236,6 +236,33 @@ draft has been deleted out-of-band (another tab, admin action) and they subseque
 **Fix:** Chain `.select('id')` after the update and verify `data` is non-empty, or use upsert.
 **Watch for:** any Supabase `.update()` + `.eq()` pattern that does not verify affected row count.
 
+---
+
+## Session 2026-03-13 (commit 7c2d7c5) — refactor: split long functions, add tests for eval round 2 fixes
+
+### Three open ISSUEs from 81c1428 persist — refactor did not fix them (ISSUE, still open)
+**Confirmed still open:** commit 7c2d7c5 (2026-03-13)
+- `fetchExplanation` session-state gate: still no sessionId parameter or ownership check
+- `PreAnswerExplanation` stale-fetch race: `useEffect` still lacks cancellation flag
+- `updateExistingDraft` zero-row silent success: `.select('id')` row-count check still absent
+All three were flagged in 81c1428 and carried forward here unmodified in the production code.
+
+### Refactor of saveDraft into helpers is structurally correct (POSITIVE)
+The extraction of `updateExistingDraft` and `insertNewDraft` from `saveDraft` correctly passes
+already-validated input and already-verified userId to the helpers. Auth and Zod ordering is
+preserved in the orchestrator. JSDoc on the 4-param function documents the code-style exception.
+
+### fetchExplanation tests cover happy/error paths but not the authorization boundary (NOTE)
+The new test file (`fetch-explanation.test.ts`) does not include a test asserting that a student
+cannot fetch an explanation for a question outside their active session. Until the session-gate fix
+is applied, this test gap is secondary — but once the fix lands, a test for the authorization
+rejection must accompany it.
+
+### Server Action Zod-throw vs structured-error inconsistency (NOTE)
+`fetchExplanation` throws `ZodError` on invalid input; `saveDraft` returns `{ success: false }`.
+`PreAnswerExplanation` does not catch errors from `fetchExplanation`, making an unhandled rejection
+possible on invalid input. Low-probability given session-derived questionIds, but should be aligned.
+
 ### `answersRef` pattern for async callbacks in React hooks (POSITIVE)
 **File:** `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts`
 `answersRef.current = answers` in the render body (not useEffect) keeps the ref in sync with
