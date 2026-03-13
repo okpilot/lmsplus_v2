@@ -40,8 +40,11 @@ export function useQuizState(opts: {
   const questionId = question?.id ?? ''
   const shared = { router, setSubmitting, setError }
 
+  const lockedQuestionsRef = useRef<Set<string>>(new Set())
+
   async function handleSelectAnswer(optionId: string) {
-    if (answers.has(questionId)) return
+    if (lockedQuestionsRef.current.has(questionId) || answers.has(questionId)) return
+    lockedQuestionsRef.current.add(questionId)
     const elapsed = Date.now() - nav.answerStartTime.current
     setAnswers((prev) =>
       new Map(prev).set(questionId, { selectedOptionId: optionId, responseTimeMs: elapsed }),
