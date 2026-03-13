@@ -171,7 +171,7 @@ describe('getAllSessions', () => {
     )
   })
 
-  it('falls back to 0 for answeredCount when session has no answer rows', async () => {
+  it('falls back to total_questions for answeredCount when session has no answer rows', async () => {
     const sessions = [
       {
         id: 'sess-3',
@@ -193,7 +193,7 @@ describe('getAllSessions', () => {
 
     const result = await getAllSessions()
     expect(result).toHaveLength(1)
-    // No answer rows → falls back to 0 (unknown)
-    expect(result[0]!.answeredCount).toBe(0)
+    // No answer rows → falls back to total_questions for legacy completed sessions
+    expect(result[0]!.answeredCount).toBe(10)
   })
 })

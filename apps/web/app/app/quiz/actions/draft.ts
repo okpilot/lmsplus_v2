@@ -44,11 +44,15 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     }
     if (input.draftId) return updateExistingDraft(supabase, input, user.id)
 
-    const { data: u } = await supabase
+    const { data: u, error: userError } = await supabase
       .from('users')
       .select('organization_id')
       .eq('id', user.id)
       .single<{ organization_id: string }>()
+    if (userError) {
+      console.error('[saveDraft] Users query error:', userError.message)
+      return { success: false, error: 'Failed to look up user' }
+    }
     if (!u?.organization_id) return { success: false, error: 'User organization not found' }
     return insertNewDraft(supabase, input, user.id, u.organization_id)
   } catch (err) {

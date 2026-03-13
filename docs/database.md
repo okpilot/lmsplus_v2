@@ -388,7 +388,7 @@ ORDER BY deleted_at DESC;
 | `questions` | Yes | Retired questions still referenced in historical responses |
 | `courses` | Yes | Archived courses still referenced in historical sessions |
 | `lessons` | Yes | Retired lessons still referenced in historical sessions |
-| `quiz_sessions` | No | Immutable record of what happened |
+| `quiz_sessions` | Yes | Sessions can be discarded (soft-deleted via `deleted_at`) |
 | `quiz_session_answers` | No | Immutable |
 | `student_responses` | No | Immutable |
 | `fsrs_cards` | No | Updated in place; deletion would break FSRS state |
