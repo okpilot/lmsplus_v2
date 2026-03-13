@@ -61,6 +61,7 @@ function buildQueryChain(terminalData: unknown[], terminalError: unknown = null)
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     is: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     returns: vi.fn().mockReturnValue(terminal),
   }
   return chain
@@ -254,6 +255,7 @@ describe('getFilteredCount — filter: unseen', () => {
       return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
         returns: vi.fn().mockReturnValue({ data: null, error: null }),
       }
     })
@@ -314,6 +316,7 @@ describe('getFilteredCount — filter: incorrect', () => {
       return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
         returns: vi.fn().mockReturnValue({ data: null, error: null }),
       }
     })

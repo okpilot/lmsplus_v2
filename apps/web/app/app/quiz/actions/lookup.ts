@@ -47,11 +47,14 @@ export async function getFilteredCount(input: unknown): Promise<{ count: number 
 
   if (filter === 'all') return { count: data.length }
 
+  const questionIds = data.map((q) => q.id)
+
   if (filter === 'unseen') {
     const { data: answered } = await supabase
       .from('student_responses')
       .select('question_id')
       .eq('student_id' as string & keyof never, user.id)
+      .in('question_id' as string & keyof never, questionIds)
       .returns<QuestionFilterRef[]>()
     const answeredIds = new Set((answered ?? []).map((r) => r.question_id))
     return { count: data.filter((q) => !answeredIds.has(q.id)).length }
@@ -63,6 +66,7 @@ export async function getFilteredCount(input: unknown): Promise<{ count: number 
     .select('question_id')
     .eq('student_id' as string & keyof never, user.id)
     .eq('last_was_correct' as string & keyof never, false)
+    .in('question_id' as string & keyof never, questionIds)
     .returns<QuestionFilterRef[]>()
   const incorrectIds = new Set((incorrectCards ?? []).map((r) => r.question_id))
   return { count: data.filter((q) => incorrectIds.has(q.id)).length }
