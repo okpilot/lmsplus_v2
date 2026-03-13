@@ -4,7 +4,7 @@
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
-| Missing `short` prop in test fixtures | 1 | 2026-03-11 | Fixed — types added `short` field, tests didn't update |
+| Test fixture shape mismatch (wrong or missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE — first: missing `short` prop (2026-03-11); second: wrong SubjectOption shape in 6722e97; both caught pre-commit by type-check; test-writer patterns memory should note: always derive fixture shapes from the exported TypeScript type, not by hand |
 | `possibly undefined` in test assertions | 1 | 2026-03-11 | Fixed — biome now allows `!` in test files |
 | Missing vitest imports (beforeEach) | 1 | 2026-03-11 | Fixed — 3 test files missing import |
 | External agent output invisible | 1 | 2026-03-11 | Fixed — Decision 20: agents now run as in-session subagents |
@@ -27,7 +27,7 @@
 | Concurrent session mutation without row-level lock (FOR UPDATE) | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in fe12342 with FOR UPDATE on session row |
 | Partial-submission not rejected at RPC level | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in fe12342 with answer count mismatch guard |
 | Import from Next.js internal module path instead of public API | 1 | 2026-03-12 | Watch — quiz-submit.ts AppRouterInstance; fixed in b312922 with ReturnType<typeof useRouter> |
-| useEffect data fetching in client component (not hydration guard) | 2 | 2026-03-12 | RULE EXISTS (code-style.md Section 6) — statistics-tab.tsx used useEffect to call Server Action; fixed with button + useTransition in db5d8ea |
+| useEffect data fetching in client component (not hydration guard) | 3 | 2026-03-13 | RULE EXISTS (code-style.md Section 6) — 3rd occurrence: statistics-tab.tsx extracted to hook in 6722e97; rule exists, compliance gap |
 | LANGUAGE sql instead of plpgsql for SECURITY DEFINER RPC | 1 | 2026-03-12 | Watch — Sprint 3 analytics RPCs (845923b); fixed migration 014 (86c8da4); single root introduction; plpgsql required for RAISE EXCEPTION; if second introduction occurs, add to security.md |
 | ?? [] fallback applied after an explicit error guard (silent data loss path) | 1 | 2026-03-12 | Watch — subjects ?? [] in statistics-tab.tsx after null/error guard (845923b); fixed in 86c8da4; data is already known bad at that point, fallback hides the gap |
 | Server Action shipped without Zod input validation | 1 | 2026-03-12 | Watch — fetch-stats.ts Server Action (845923b); fixed in 86c8da4; rule exists (security.md rule 4); compliance gap, not rule gap |
@@ -40,6 +40,12 @@
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE — statistics-tab.tsx (53efbdd, f0f8d0e); semantic-reviewer flagged this suggestion twice across two consecutive commits: isPending from useTransition and manual isLoading state tracked in parallel can both be false simultaneously during a question-switch mid-fetch, briefly showing the idle "Load Statistics" button while a fetch is still in-flight; generation counter mitigates stale data but does not close the UI-state race; suggestion-level only (not fixed); second occurrence reached — propose rule clarification in code-style.md when next commit arrives in this component's area; NOT flagged in 8863926 (pure JSX presenter refactor, no state logic touched) — no further action this cycle |
 | Silent boundParam fallback without logging | 1 | 2026-03-13 | Watch — analytics.ts (53efbdd); non-finite input (NaN, ±Infinity) to `boundParam` silently clamped to minimum without a console.warn or error log; suggestion-level; first occurrence; if it recurs on a different utility, add a logging rule for parameter clamping fallbacks |
 | test-writer produces TS2532 (unchecked array index) errors | 2 | 2026-03-13 | RULE CANDIDATE — test-writer pattern memory should be updated with a note to always use optional chaining (`arr?.[i]`) when accessing array elements in generated test code; first seen in an earlier cycle (test fixture access), second occurrence confirmed in 99c67d2 where a `formatActivityData` test accessed an array index without `?.` and triggered TS2532; the error was caught and fixed before commit, so no broken test reached git; fix is optional chaining or a non-null assertion with a preceding length check; NOT triggered in 8863926 (test-only edits were a beforeEach reset and a rename — no new index access generated) — gate held |
+| Shared hoisted mock capture without beforeEach reset | 1 | 2026-03-13 | Watch — activity-chart.test.tsx (8863926); capturedBarChartData shared across tests without reset allowed cross-test contamination; fixed with beforeEach reset; first occurrence |
+| Direct SELECT from `questions` bypassing RPC (correct-answer exposure) | 2 | 2026-03-13 | RULE EXISTS (security.md rule 1, CLAUDE.md) — 2nd occurrence: checkAnswer in feat/post-sprint-3-polish directly queried questions table exposing `correct` flag; fixed in f6ba7a0 with check_quiz_answer RPC; rule is clear, compliance gap at authoring time |
+| ON CONFLICT clause with no supporting UNIQUE constraint (dead code) | 1 | 2026-03-13 | Watch — student_responses (a09c6be); ON CONFLICT on (session_id, question_id) silently ignored because UNIQUE constraint was never created; fixed by adding UNIQUE constraint in migration; first occurrence |
+| TOCTOU race on count-gated INSERT (read-then-write without lock) | 1 | 2026-03-13 | Watch — draft count check before inserting quiz_draft (feat/post-sprint-3-polish); concurrent requests could both pass the count check; fixed with DB trigger enforcing limit at DB level; first occurrence |
+| Query missing student_id scope (returns wrong student's data) | 1 | 2026-03-13 | Watch — getFilteredCount fetched student_responses without WHERE student_id = auth.uid() (feat/post-sprint-3-polish); fixed by scoping query; first occurrence; distinct from RPC identity-guard pattern (that is SECURITY DEFINER param mismatch — this is a plain query missing a filter clause) |
+| UI event handler missing re-entry guard (double-fire on fast interaction) | 1 | 2026-03-13 | Watch — handleSelectAnswer had no guard preventing a second async call while first was in-flight (feat/post-sprint-3-polish); fixed with isSubmitting ref check; first occurrence |
 
 ## Lessons Learned
 
@@ -463,5 +469,53 @@ The test-writer generated code containing a TS2532 error — array index access 
 - **The beforeEach reset fix** is a sign the test-writer's mock patterns are mature enough that test-quality issues are now being caught by CodeRabbit rather than going undetected in CI. Cross-test coupling via shared capture variables is subtle and easy to miss.
 
 **False positives:** none detected.
+
+---
+
+### 2026-03-13 — feat/post-sprint-3-polish cycle (commits 6722e97, f6ba7a0, a09c6be, bba9800)
+
+**Context:** Post-sprint-3 polish branch. Four agents reviewed 4 commits. Two CRITICALs from semantic-reviewer, both fixed before cycle closed.
+
+**Code reviewer (6722e97):** 2 findings, both fixed in the same commit.
+- `statistics-tab.tsx` exceeded 150-line component limit — fixed by extracting `useQuestionStats` hook. This is a **recurring pattern** (component file size overflows have appeared in quiz-config-form.tsx, use-quiz-state.ts, and now statistics-tab.tsx — 3 occurrences total across different file types). The root cause is the same each time: a component accumulates state logic that belongs in a hook.
+- `useEffect` for data fetching in statistics-tab.tsx — **third occurrence** of this pattern. Rule exists. Compliance gap at authoring time, not a rule gap.
+
+**Semantic reviewer — 2 CRITICALs + 3 ISSUEs, all fixed:**
+
+1. **CRITICAL — `checkAnswer` directly SELECTed from `questions` table (f6ba7a0):** This is the **second occurrence** of correct-answer exposure via direct table query (first was the original lack of `get_quiz_questions()` RPC use). The fix replaced the direct query with a `check_quiz_answer` RPC. Rule exists in security.md rule 1 and CLAUDE.md. Compliance gap: the function was new code, authored without checking whether a question lookup needs to go through an RPC. This pattern suggests that any new function touching the `questions` table should be treated as a security gate, not just a data access pattern.
+
+2. **CRITICAL — `student_responses` had no UNIQUE constraint; ON CONFLICT was dead code (a09c6be):** `ON CONFLICT ON (session_id, question_id)` was specified in an INSERT statement but the corresponding UNIQUE constraint was never created in the migration. The conflict clause silently had no effect, meaning duplicate rows could be inserted. Fixed by adding UNIQUE constraint via migration. First occurrence of this specific failure mode: a UNIQUE constraint referenced in application code but absent from the schema. Logged as new watch item.
+
+3. **ISSUE — Draft count TOCTOU race:** Count was read, then checked, then INSERT issued — but no lock prevented two concurrent requests from both reading count < limit and both inserting. Fixed with a DB trigger that enforces the limit at write time. First occurrence. DB-level enforcement is the correct fix for count-gated writes — application-layer checks are always racy.
+
+4. **ISSUE — `getFilteredCount` fetched unscoped `student_responses`:** The query returned counts across all students because it was missing a `WHERE student_id = auth.uid()` filter. First occurrence of this specific sub-pattern (query returning another student's data via missing scope clause). Distinct from the RPC identity-guard pattern (which is about SECURITY DEFINER functions accepting a student ID param). Logged separately.
+
+5. **ISSUE — `handleSelectAnswer` had no re-entry guard:** The async handler could fire twice on rapid user interaction (double-tap), initiating two concurrent state transitions. Fixed with an `isSubmitting` ref checked at entry. First occurrence.
+
+**Doc updater:** plan.md, decisions.md, database.md all updated in same cycle (bba9800 / 8be4dfd). No partial-doc-fix pattern. Clean.
+
+**Test writer (bba9800):** 4 new test files, 56 tests total written. One test file initially had wrong fixture types (SubjectOption shape mismatch between what was constructed in the fixture and the actual exported TypeScript type). This is the **second occurrence** of a test fixture shape mismatch (first: missing `short` prop on 2026-03-11). Both caught by pre-commit type-check before reaching git. Frequency table updated: count 1 → 2, status RULE CANDIDATE.
+
+**Actions taken:**
+- Frequency table: "useEffect data fetching" count 2 → 3. Status: RULE EXISTS, compliance gap. No change.
+- Frequency table: "Direct SELECT from questions bypassing RPC" count updated to 2. Status: RULE EXISTS, compliance gap — security.md rule 1, CLAUDE.md. No change to rules.
+- Frequency table: "Test fixture shape mismatch" count updated from 1 (was "Missing short prop") to 2. Status: RULE CANDIDATE.
+- Frequency table: 5 new watch items added (all first occurrences): ON CONFLICT without UNIQUE constraint, TOCTOU draft count race, query missing student_id scope, UI handler missing re-entry guard.
+
+**Recommended changes (awaiting orchestrator approval before applying):**
+
+1. **test-writer patterns memory** — add a note: always construct test fixtures by importing and satisfying the exported TypeScript type directly (e.g., `const fixture: SubjectOption = { ... }`), not by constructing a plain object and hoping the shape matches. The type annotation forces a compile-time check. This is distinct from the TS2532 array-index rule already pending — this is about fixture object construction, not array access. Two occurrences of fixture shape mismatch across different sessions warrant this addition.
+
+**Rule gaps identified (not yet actionable — awaiting second occurrence):**
+- Any new function that queries the `questions` table should require a code review checkpoint that it uses `get_quiz_questions()` or a designated RPC rather than a direct SELECT. The correct gate for this is the security-auditor agent (already checks for `SELECT *` violations) plus a note in `docs/security.md` or `security.md` that even non-`SELECT *` queries against `questions` exposing `correct`/`correct_explanation` fields are violations. If this recurs a third time, extend security.md rule 1 explicitly.
+- The TOCTOU pattern (read count → check → insert) is a known race when implemented in application code. If it recurs on a different resource, add a rule note: "count-gated inserts must enforce the limit via a DB trigger or a row-level lock, not an application-layer count check."
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Both CRITICALs were caught by the semantic-reviewer post-commit (not discovered in production). The security gate is working at the right layer.
+- The UNIQUE constraint finding is notable: the bug was fully invisible to lint, type-check, and unit tests. Only semantic review of the migration against the INSERT statement revealed the gap. This validates keeping the semantic reviewer focused on data correctness, not just code style.
+- The test-writer's 56-test output covered all five fixed areas. Having test coverage land in the same session as the fixes is the correct pattern.
+- Doc-updater updated all three documents in the same cycle — no partial-doc-fix recurrence.
 
 ---
