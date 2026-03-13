@@ -368,6 +368,30 @@ render(<Component />)
 await user.click(screen.getByRole('button', { name: /label/i }))
 ```
 
+## Files tested in commit 157f421 (post-sprint-3-polish)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/discard.ts` | `discard.test.ts` | New server action; auth, Zod validation, session soft-delete, draft cleanup (non-fatal), uncaught error |
+| `apps/web/lib/queries/reports.ts` | `reports.test.ts` | Extended: added `answersResult.error` throws, `answeredCount` fallback to `correct_count` |
+| `apps/web/lib/queries/quiz.ts` | `quiz.test.ts` | Extended: `filterIncorrect` empty-pool early return — verifies fsrs_cards is NOT queried |
+
+### Testing non-fatal error paths in server actions
+When a sub-operation error is explicitly non-fatal (logged but not returned), verify two things:
+1. The action still returns `{ success: true }` despite the error
+2. The DB mock for the failing table returns `{ error: { message: '...' } }`
+
+This is different from testing a fatal error path where you assert `{ success: false }`.
+
+### Asserting a DB table was NOT called
+Use `mockFrom.mock.calls.map(c => c[0])` to extract called table names and assert with
+`expect(tablesCalled).not.toContain('table_name')`:
+```ts
+const tablesCalled = mockFrom.mock.calls.map((c: unknown[]) => c[0])
+expect(tablesCalled).not.toContain('quiz_drafts')
+```
+This is the right way to assert a guarded early-return prevents an unnecessary DB query.
+
 ### Mount guard (useState + useEffect) — not testable via fake timers in jsdom
 Components that show a placeholder div until `mounted` becomes true (SSR hydration guard)
 cannot have their pre-mount state reliably tested in jsdom because `@testing-library/react`

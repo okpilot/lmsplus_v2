@@ -886,3 +886,50 @@ No behavioral gap — the error return on `!u?.organization_id` is identical.
 ### sessionConfig helper — positive extraction (POSITIVE)
 Eliminates duplication between `updateExistingDraft` and `insertNewDraft`. Inferred return type is
 appropriate since it feeds directly into a DB payload. Not external input — no Zod concern.
+
+---
+
+## Session: commit 157f421 (2026-03-13) — eval feedback UX fixes
+
+### answeredCount fallback uses wrong sentinel value (NEW ISSUE)
+**File:** `apps/web/lib/queries/reports.ts:96`
+**Pattern:** `answeredCountMap.get(s.id) ?? s.correct_count` — falls back to `correct_count` when
+no rows exist in `quiz_session_answers` for a session (e.g., legacy sessions). `correct_count` is
+not a valid proxy for `answeredCount`. The correct fallback is `s.total_questions`.
+**Status:** ISSUE. Fix: `?? s.total_questions`.
+**Watch for:** any new field that is derived from a secondary query and needs a fallback — always
+reason about what the fallback value semantically means, not just what is numerically similar.
+
+### hard DELETE on quiz_drafts in discard.ts (NEW ISSUE — soft-delete rule violation)
+**File:** `apps/web/app/app/quiz/actions/discard.ts:43-47`
+**Pattern:** New `discardQuiz` Server Action uses `.delete()` on `quiz_drafts` table, violating the
+project-wide soft-delete rule. The rule is in `docs/security.md` §14 and `CLAUDE.md`.
+**Status:** ISSUE. Fix: replace `.delete()` with `.update({ deleted_at: ... })`.
+**Recurrence note:** This is the first hard DELETE on `quiz_drafts` — watch for same mistake if
+more discard/cleanup paths are added.
+
+### auth error swallowing in new Server Actions (SUGGESTION — watch pattern)
+**File:** `apps/web/app/app/quiz/actions/discard.ts:15-19`
+**Pattern:** `const { data: { user } } = await supabase.auth.getUser()` discards the `error` field.
+The established pattern in this codebase is to destructure `error: authError` and return early with
+a distinct error message if set. `discard.ts` conflates a transient auth error with "not authenticated".
+**Status:** SUGGESTION. Not a security gap (user IS null on auth error), but gives misleading UX.
+**Watch for:** any new Server Action that destructures only `data: { user }` without `error: authError`.
+
+### upsert() now throws on DB error (POSITIVE — fixed silent failure)
+**File:** `apps/web/lib/supabase-rpc.ts`
+**Pattern:** Return type tightened to `Promise<{ data: unknown; error: ... | null }>` and `throw` added
+on error. All existing callers use try/catch (FSRS best-effort), so they continue to work correctly.
+This closes a silent-failure gap where RLS denials or write failures on `fsrs_cards` were swallowed.
+
+### AnswerOptions key={s.question.id} prevents stale option selection (POSITIVE)
+**File:** `apps/web/app/app/quiz/session/_components/quiz-session.tsx:81`
+Adding `key={s.question.id}` to `AnswerOptions` forces React to fully unmount and remount the
+component when the question changes. This prevents stale selectedOptionId from one question appearing
+visually selected on the next question during rapid navigation.
+
+### FOR UPDATE lock on quiz_sessions in batch_submit_quiz (POSITIVE — concurrency guard)
+**File:** `supabase/migrations/20260313000022_batch_submit_update_last_was_correct.sql`
+The session verification SELECT now uses `FOR UPDATE`, preventing two concurrent batch submits from
+both passing the `ended_at IS NULL` check and double-completing the same session. Correct pattern
+for session completion atomicity.

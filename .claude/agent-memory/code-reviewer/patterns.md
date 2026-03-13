@@ -3,10 +3,42 @@
 ## Standing Watch Items
 
 - **Hooks at 70+ lines**: Flag as WARNING-level watch item. Authors should know they are 10 lines from the hard limit before they get there, not after. Hooks that reach 70 lines should include a note about what to extract if they grow further.
+- **`use-quiz-state.ts` approaching limit (138/80 lines)**: Added 12 lines in commit 157f421. Currently 58 lines over limit. **WATCH**: This hook is now a blocker and should be split into smaller hooks (one per handler: useQuizSubmit, useQuizAnswerHandling, useQuizSave, useQuizDiscard). Pattern suggests each handler (submit, save, discard, answer selection) should be its own hook — they're loosely coupled state machines for different quiz actions.
 - **Component extraction working well**: Multiple successful refactorings in this sprint:
   - Commit 53efbdd extracted `FsrsSection` sub-component from `StatsDisplay`, bringing `statistics-tab.tsx` down to 158 lines
   - Commit f0f8d0e extracted `useQuestionStats()` hook + `ChartBody` component, bringing `statistics-tab.tsx` to exactly 150 lines (limit), split `activity-chart.tsx` into two helper functions
   - Pattern: Extracting hooks for stateful logic + extracting sub-components for presentation is working well; file sizes stabilizing after refactors
+
+## Session 2026-03-13 (commit 157f421) — eval feedback fixes (BLOCKING)
+
+### Commit: 157f421 (fix: eval feedback — 6 quiz UX fixes from manual testing)
+- Status: **BLOCKING** — 1 violation (hook line count)
+- Files changed: 30 files, 824 insertions, 120 deletions
+- Summary: Renamed `flagged` → `pinned` terminology, added discard quiz feature, updated session summary and finish dialog, added batch submit fixes, migration for FSRS update
+- Issue: `use-quiz-state.ts` now 138 lines (limit: 80 for hooks) — **BLOCKING**
+
+**Violations found:**
+1. **[BLOCKING]** apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts — 138 lines (limit: 80)
+   - Hook contains 4 async handlers (handleSelectAnswer, handleSubmit, handleSave, handleDiscard), each well-scoped but collectively too large
+   - Added `handleDiscard()` (9 lines) + related state/return updates in this commit (+12 lines total)
+   - Fix: Extract each handler into its own custom hook. Suggested split:
+     - `useQuizAnswering()` — handleSelectAnswer + answer/feedback state
+     - `useQuizSubmit()` — handleSubmit + submission state
+     - `useQuizSave()` — handleSave + draft state
+     - `useQuizDiscard()` — handleDiscard + discard state
+     - Keep main `useQuizState()` as orchestrator (~40 lines) that composes sub-hooks
+   - This refactor aligns with earlier successful split pattern (draft.ts split into draft.ts + draft-delete.ts in commit 6d274fa)
+
+**All other checks PASS:**
+- ✓ No new `any` types
+- ✓ No unvalidated type casts (discard.ts uses `as 'users'` and `as never` — infrastructure workarounds for Supabase TS client limitations, acceptable)
+- ✓ All new functions ≤30 lines (handleSelectAnswer 24, handleSubmit 18, handleSave 20, handleDiscard 9)
+- ✓ All files under 150-line component limit except hooks
+- ✓ Naming conventions correct (kebab-case files, PascalCase components)
+- ✓ No barrel files created
+- ✓ Zod validation present in discard.ts (Server Action)
+- ✓ Supabase mutations properly destructured with error checking
+- ✓ New tests added for `use-pinned-questions` hook
 
 ## Session 2026-03-13 (commit 6d274fa) — post-sprint-3-polish fixes (CLEAN)
 

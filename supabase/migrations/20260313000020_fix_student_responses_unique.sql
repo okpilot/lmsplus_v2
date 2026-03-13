@@ -3,15 +3,7 @@
 -- ON CONFLICT (session_id, question_id) DO NOTHING in batch_submit_quiz is not dead code.
 -- Without this constraint, concurrent retries silently insert duplicate rows.
 
--- Step 1: Deduplicate existing rows — keep only the first row per (session_id, question_id).
-DELETE FROM student_responses
-WHERE id NOT IN (
-  SELECT DISTINCT ON (session_id, question_id) id
-  FROM student_responses
-  ORDER BY session_id, question_id, created_at ASC
-);
-
--- Step 2: Add the unique constraint.
+-- Add the unique constraint (no dedup needed — table is immutable, duplicates cannot exist).
 ALTER TABLE student_responses
   ADD CONSTRAINT student_responses_session_question_unique
   UNIQUE (session_id, question_id);
