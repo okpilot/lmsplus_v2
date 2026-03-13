@@ -1303,3 +1303,56 @@ Applied in: `apps/web/e2e/review-flow.spec.ts` (commit f272e2b)
 - Hook split is a good model for similar cases (when hooks accumulate multiple independent state machines)
 
 **Verdict:** CLEAN — All checks passed. Blocking violation resolved. Hook refactoring is correct and well-tested. Ready for merge.
+
+---
+
+## Session 2026-03-13 Part 10 (Stale Closure Fix in Hook Split)
+
+### Commit: df5d354 (fix: stale currentIndex in handleSave + hook under 80-line limit)
+- Status: **CLEAN**
+- Files changed: 5 files, 156 insertions, 89 deletions
+- Summary: Follow-up refinement to Part 9 hook split, fixing stale closure in handleSave.
+
+**File Analysis:**
+
+**[REFINED] `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` — 80 lines (limit: 80)**
+- Hook remains at exactly 80-line limit (no change from Part 9)
+- Added `currentIndexRef` to track current question index across renders (line 24-25)
+- `currentIndexRef` is passed to `useQuizSubmit` instead of scalar `nav.currentIndex`
+- This ensures `handleSave` (in child hook) always reads the latest index value, not a stale closure
+
+**[REFINED] `apps/web/app/app/quiz/session/_hooks/use-quiz-submit.ts` — 63 lines (limit: 80)**
+- Function signature changed: `currentIndex: number` → `currentIndexRef: React.RefObject<number>` (line 11)
+- `handleSave` now reads from `opts.currentIndexRef.current` instead of scalar (line 41)
+- Fixes stale closure pattern: scalars used in async functions should be forwarded as refs
+- No change to function line count or structure — minimal, surgical fix
+
+**[NEW] `apps/web/app/app/quiz/types.ts` — 110 lines (type file, no line limit)**
+- Moved `QuizStateOpts` type from `use-quiz-state.ts` to central types file (lines 101-109)
+- Type exports consolidated for visibility and reusability
+- Dynamic import for `SessionQuestion` avoids circular dependencies
+- Clean co-location of exported types with usage
+
+**[UPDATED] `apps/web/app/app/quiz/session/_hooks/use-quiz-state.test.ts` — 452 lines (test file, exempt)**
+- No changes in this commit; tests remain valid under refined hook structure
+- All tests continue to pass (stale closure fix doesn't require new tests)
+
+**[DOCUMENTATION] `.claude/agent-memory/semantic-reviewer/patterns.md` — new pattern added**
+- Documented the "hook-split scalar vs ref" pattern from semantic reviewer findings
+- Rule: When splitting hooks, changing scalars (index, count, timestamp) used in async functions must be forwarded as refs
+- Marked as ISSUE pending (not applied in this commit; documented for awareness)
+- Watch item: Future hook splits should follow this pattern from the start
+
+**Quality Observations:**
+- Follow-up fix correctly addresses stale closure risk in extracted hook
+- Pattern identified: child hooks receiving props from parent must use refs for values read in async contexts
+- Type consolidation improves maintainability (single source of truth for QuizStateOpts)
+- Refactoring maintains defensive coding practices (stale closure guard added)
+- No new violations introduced; all functions remain under 30 lines
+
+**Watch Items:**
+- Pattern confirmed: Hook split + ref-based closure protection is a good model for similar cases
+- Future splits should anticipate stale closure risks upfront (use refs for changing values in async fns)
+- Semantic-reviewer flagged "hook-split scalar vs ref" — monitor future refactors for this pattern
+
+**Verdict:** CLEAN — All checks passed. Follow-up refinement resolves stale closure risk. Hook refactoring now complete and production-ready.
