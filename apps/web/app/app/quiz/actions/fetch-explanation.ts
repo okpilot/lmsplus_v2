@@ -32,8 +32,9 @@ export async function fetchExplanation(raw: unknown): Promise<FetchExplanationRe
     .is('deleted_at' as string & keyof never, null)
     .single()
   if (sessionError || !session) return { success: false }
-  const config = (session as unknown as { config: { question_ids: string[] } }).config
-  if (!config?.question_ids?.includes(questionId)) return { success: false }
+  const config = (session as unknown as { config: { question_ids: unknown } }).config
+  const qIds = config?.question_ids
+  if (!Array.isArray(qIds) || !qIds.includes(questionId)) return { success: false }
 
   // Only fetch explanation fields — no correct answer exposure
   const { data, error } = await supabase

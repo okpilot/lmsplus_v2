@@ -224,6 +224,11 @@
 - ✅ Update `ExplanationTab` to load explanations pre-answer — students can preview explanations in study mode before attempting questions
 - ✅ Draft update support: `saveDraft` now accepts optional `draftId` to update existing draft instead of creating new one (fix: resuming draft then re-saving creates duplicate)
 - ✅ Navigation guard fix: added `e.returnValue = ''` to beforeunload handler for cross-browser support
+- ✅ Session ownership checks: `checkAnswer` and `fetchExplanation` verify session belongs to authenticated user and question is in session config (security hardening)
+- ✅ Error recovery: `handleSelectAnswer` reverts locked state and clears answer on `checkAnswer` failure, allowing user retry (closes #8)
+- ✅ Migration 026: batch_submit_quiz field validation — validates jsonb_typeof before extracting question_ids (fixes eval-before-guard #33); validates selected_option/response_time_ms per answer (closes #38)
+- ✅ Hook split: `use-quiz-state` → `use-answer-handler` extraction to stay under 80-line limit
+- ✅ UUID validation fix: `lookup.ts` `getFilteredCount` validates empty string UUID correctly (closes #10)
 
 ---
 
@@ -532,4 +537,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-13 — Sprint 1 complete (10/10 items), Sprint 2 complete (11/11 items), Sprint 3 complete (with post-sprint CodeRabbit fixes + polish)*
+*Last updated: 2026-03-13 — Sprint 1 complete (10/10 items), Sprint 2 complete (11/11 items), Sprint 3 complete (with post-sprint CodeRabbit fixes + polish + session/migration hardening)*

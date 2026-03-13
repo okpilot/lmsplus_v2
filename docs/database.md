@@ -602,6 +602,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Full FSRS scheduling (due, stability, difficulty) continues to be handled by the application layer after the RPC returns
 - Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
 - Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
+- Hardens field validation (migration 026): validates `jsonb_typeof(v_config->'question_ids')` = 'array' BEFORE extraction (fixes eval-before-guard issue); validates `selected_option` and `response_time_ms` per answer AFTER extraction
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -930,4 +931,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-12 | Companion: docs/security.md*
+*Last updated: 2026-03-13 | Companion: docs/security.md*

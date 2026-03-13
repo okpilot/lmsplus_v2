@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { checkAnswer } from '../../actions/check-answer'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 
@@ -37,7 +37,6 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       )
       setError(null)
     } catch {
-      lockedRef.current.delete(questionId)
       setAnswers((p) => {
         const m = new Map(p)
         m.delete(questionId)
@@ -46,6 +45,13 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       setError('Failed to check answer. Please try again.')
     }
   }
+
+  // Clear ref lock reactively after state update propagates — not data fetching
+  useEffect(() => {
+    for (const locked of lockedRef.current) {
+      if (!answers.has(locked)) lockedRef.current.delete(locked)
+    }
+  }, [answers])
 
   return { feedback, error, handleSelectAnswer }
 }

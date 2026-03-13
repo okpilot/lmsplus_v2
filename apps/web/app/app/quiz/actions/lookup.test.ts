@@ -143,6 +143,31 @@ describe('getFilteredCount — auth and validation', () => {
       getFilteredCount({ subjectId: SUBJECT_ID, topicId: 'bad-id', filter: 'all' }),
     ).rejects.toThrow()
   })
+
+  it('treats an empty string topicId as absent (OptionalUuid preprocessor)', async () => {
+    setupAuthenticatedUser()
+    const chain = buildQueryChain([{ id: Q1_ID }])
+    mockFrom.mockReturnValue(chain)
+
+    // Empty string '' must be coerced to undefined, not fail UUID validation.
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, topicId: '', filter: 'all' })
+
+    expect(result).toEqual({ count: 1 })
+  })
+
+  it('treats an empty string subtopicId as absent (OptionalUuid preprocessor)', async () => {
+    setupAuthenticatedUser()
+    const chain = buildQueryChain([{ id: Q1_ID }])
+    mockFrom.mockReturnValue(chain)
+
+    const result = await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      subtopicId: '',
+      filter: 'all',
+    })
+
+    expect(result).toEqual({ count: 1 })
+  })
 })
 
 // ---- getFilteredCount — filter: all --------------------------------------
