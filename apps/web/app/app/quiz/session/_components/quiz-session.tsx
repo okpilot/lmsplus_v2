@@ -4,9 +4,9 @@ import { AnswerOptions } from '@/app/app/_components/answer-options'
 import { QuestionCard } from '@/app/app/_components/question-card'
 import type { SessionQuestion } from '@/app/app/_components/session-runner'
 import { SessionTimer } from '@/app/app/_components/session-timer'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { CommentsTab } from '../../_components/comments-tab'
+import { ExplanationTab } from '../../_components/explanation-tab'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
@@ -26,7 +26,6 @@ type QuizSessionProps = {
 
 export function QuizSession(props: QuizSessionProps) {
   const s = useQuizState(props)
-  const router = useRouter()
   const [activeTab, setActiveTab] = useState<
     'question' | 'explanation' | 'comments' | 'statistics'
   >('question')
@@ -36,16 +35,6 @@ export function QuizSession(props: QuizSessionProps) {
   useEffect(() => {
     setActiveTab('question')
   }, [s.currentIndex])
-
-  function handleExit() {
-    if (s.answeredCount > 0) {
-      if (window.confirm('You have unsaved answers. Leave quiz?')) {
-        router.push('/app/quiz')
-      }
-    } else {
-      router.push('/app/quiz')
-    }
-  }
 
   if (!s.question) return null
 
@@ -63,15 +52,6 @@ export function QuizSession(props: QuizSessionProps) {
       </div>
       <div className="mx-auto w-full max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            data-testid="exit-button"
-            onClick={handleExit}
-            className="rounded-lg border border-input p-2 text-muted-foreground transition-colors hover:bg-muted"
-            aria-label="Exit quiz"
-          >
-            ✕
-          </button>
           <div className="h-1.5 flex-1 rounded-full bg-muted">
             <div
               data-testid="progress-bar"
@@ -101,13 +81,20 @@ export function QuizSession(props: QuizSessionProps) {
           onSubmit={s.handleSelectAnswer}
           disabled={s.submitting}
           selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
+          correctOptionId={s.currentFeedback?.correctOptionId ?? null}
         />
-        <QuestionTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          hasAnswered={!!s.existingAnswer}
-          hiddenTabs={['explanation']}
-        />
+        <QuestionTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        {activeTab === 'explanation' &&
+          (s.currentFeedback ? (
+            <ExplanationTab
+              hasAnswered={true}
+              isCorrect={s.currentFeedback.isCorrect}
+              explanationText={s.currentFeedback.explanationText}
+              explanationImageUrl={s.currentFeedback.explanationImageUrl}
+            />
+          ) : (
+            <ExplanationTab hasAnswered={false} />
+          ))}
         {activeTab === 'comments' && <CommentsTab />}
         {activeTab === 'statistics' && (
           <StatisticsTab questionId={s.questionId} hasAnswered={!!s.existingAnswer} />

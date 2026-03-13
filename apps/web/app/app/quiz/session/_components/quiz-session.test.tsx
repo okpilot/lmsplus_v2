@@ -18,6 +18,11 @@ vi.mock('../../actions/draft', () => ({
   saveDraft: (...args: unknown[]) => mockSaveDraft(...args),
 }))
 
+const mockCheckAnswer = vi.fn()
+vi.mock('../../actions/check-answer', () => ({
+  checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
+}))
+
 vi.mock('../../_components/finish-quiz-dialog', () => ({
   FinishQuizDialog: ({
     open,
@@ -198,6 +203,13 @@ describe('QuizSession', () => {
     vi.resetAllMocks()
     mockDeleteDraft.mockResolvedValue({ success: true })
     mockSaveDraft.mockResolvedValue({ success: true })
+    mockCheckAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'a',
+      explanationText: null,
+      explanationImageUrl: null,
+    })
   })
 
   it('renders first question on mount', () => {
@@ -365,24 +377,5 @@ describe('QuizSession', () => {
     fireEvent.click(flagBtn)
     expect(flagBtn).toHaveTextContent('Flag')
     expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
-  })
-
-  it('renders exit button', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    expect(screen.getByTestId('exit-button')).toBeInTheDocument()
-  })
-
-  it('confirms before exiting when answers exist', () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-
-    // Answer the first question so answeredCount > 0
-    fireEvent.click(screen.getByTestId('option-a'))
-
-    fireEvent.click(screen.getByTestId('exit-button'))
-    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved answers. Leave quiz?')
-    expect(mockRouterPush).not.toHaveBeenCalled()
-
-    confirmSpy.mockRestore()
   })
 })
