@@ -40,8 +40,6 @@ Deep logic and security review at CodeRabbit depth. Catches what lint can't: log
 - Query correctness: wrong JOINs, unscoped aggregates, missing WHERE clauses
 - Next.js patterns: Server Component data flow, Server Action boundaries
 - Type safety: unchecked casts, missing narrowing
-- Test–implementation consistency: test assertions matching production behavior
-- Silent fallbacks in query/data functions (business metrics must be observable)
 
 ---
 

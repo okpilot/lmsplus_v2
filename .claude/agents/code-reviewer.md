@@ -55,8 +55,6 @@ You receive:
 12. **Naming violations** — component file not kebab-case, component export not PascalCase
 13. **API route for mutations** — new `route.ts` POST/PUT/DELETE handler where a Server Action should be used instead
 14. **Prop drilling** — same prop passed through 3+ component levels
-15. **Supabase `.single()` without error destructuring** — `.single()` returns `{ data, error }` but only `data` is destructured. The `error` must be checked per code-style.md §5. This applies to ALL Supabase mutation/query results, not just `.single()`.
-16. **New error path without test coverage** — when a new `if (error) return` or `throw` branch is added to an existing function that has tests, flag if the test file doesn't cover the new branch
 
 ## Output Format
 

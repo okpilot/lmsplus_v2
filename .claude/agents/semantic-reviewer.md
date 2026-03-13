@@ -71,16 +71,6 @@ You receive:
 - `any` types hiding potential runtime errors
 - Generic Supabase responses cast without checking `.error`
 
-### 8. Test–Implementation Consistency
-- When the diff includes both a `.ts` and its `.test.ts`, verify test assertions match the actual production behavior (e.g., if code falls back to `X`, the test must assert `X`, not something else)
-- When the diff changes a fallback value, default, or error message in production code, check if a co-located test asserts the old value
-- When a production function gains a new return path or fallback, verify the test file covers it — flag if not
-
-### 9. Silent Fallbacks in Query/Data Functions
-- When a query function uses `?? <fallback>` on business metrics (counts, scores, percentages), verify the fallback is observable (logged/warned), not silent
-- Silent fallbacks in utility/math functions (clamping, rounding) are acceptable
-- Silent fallbacks in query functions that produce user-facing data are an ISSUE — they mask data anomalies
-
 ### Path-Specific Rules (from .coderabbit.yaml)
 
 Apply these rules based on file paths in the diff:

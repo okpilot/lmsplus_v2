@@ -38,19 +38,6 @@ Keep documentation accurate and current. You update docs when:
 - `docs/database.md` — schema, RPC signatures, migration history
 - `MEMORY.md` — auto-memory (only update "Open Questions" if resolved)
 
-## Deep verification checks (not just "does it need updating")
-
-When a migration adds or removes a column (especially `deleted_at`), verify:
-1. The `database.md` **soft-delete matrix** matches the actual schema
-2. The `database.md` **column lists** for that table include/exclude the column
-3. The `database.md` **RPC signatures** reflect any new parameters or validation
-
-When a Server Action changes its return type or error handling:
-1. Verify `docs/database.md` RPC docs match if the action wraps an RPC
-2. Verify `docs/security.md` if the change affects auth or validation patterns
-
-Do NOT just check if docs "need updating" — actively verify matrices and tables are consistent with the code.
-
 ## Process
 1. Read the changed code/files
 2. Identify what documentation is affected

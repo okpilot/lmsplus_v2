@@ -39,6 +39,7 @@ describe('functionName', () => {
 2. Identify all exported functions/components
 3. Check if a test file already exists — extend it, don't replace
 4. Check `docs/database.md` if testing DB-related code
+5. **Before asserting any fallback, default, or error value:** read the production code to confirm the actual value. Do not infer from context or assume — verify the literal value in the source. This is the #1 cause of wrong test assertions.
 
 ## DO NOT (explicit suppressions)
 
