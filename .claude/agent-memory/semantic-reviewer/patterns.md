@@ -197,6 +197,52 @@ before the data is returned as `QuizReportData`. The `QuizReportQuestion` type d
 is the ID of the correct option, not a boolean flag on every option. This is the right pattern
 for post-session reports.
 
+---
+
+## Session 2026-03-13 (commit 81c1428) — quiz UX polish
+
+### fetchExplanation — direct SELECT on questions in active-session context (ISSUE, open)
+**First seen:** commit 81c1428 (2026-03-13)
+**File:** `apps/web/app/app/quiz/actions/fetch-explanation.ts`
+**Pattern:** New Server Action queries `questions` table directly (not via `get_quiz_questions()` RPC)
+to fetch `explanation_text` and `explanation_image_url`. While `options[].correct` is not in the
+SELECT list, the query has no session-state validation — no check that a session exists, that it
+belongs to the authenticated student, or that the student is enrolled in a session containing this
+`questionId`. Any authenticated student in the org can call this with an arbitrary UUID and receive
+the explanation before answering. This violates the active-session rule in `docs/security.md §4`.
+**Fix:** Add `sessionId` parameter; verify the question belongs to an active session for this student
+before returning the explanation — or remove `PreAnswerExplanation` and restore the "answer to see"
+gating.
+**Watch for:** any new Server Action that SELECTs from `questions` without RPC or session-state check.
+
+### stale-fetch race condition in useEffect async pattern (ISSUE, open)
+**First seen:** commit 81c1428 (2026-03-13)
+**File:** `apps/web/app/app/quiz/_components/explanation-tab.tsx` — `PreAnswerExplanation`
+**Pattern:** `useEffect` fires an async `fetchExplanation` call. When `questionId` changes before
+the previous fetch resolves, both in-flight requests race to set state. The later-resolving (stale)
+fetch overwrites the current question's explanation. The fix pattern already exists in
+`statistics-tab.tsx` and `use-question-stats.ts` (a `cancelled` flag or request-ID guard in the
+cleanup function).
+**Watch for:** any new `useEffect` with an async Server Action call that does NOT return a cleanup
+function cancelling the in-flight request on re-render/unmount.
+
+### saveDraft update path — silent no-op on stale draftId (ISSUE, open)
+**First seen:** commit 81c1428 (2026-03-13)
+**File:** `apps/web/app/app/quiz/actions/draft.ts` lines 46-66
+**Pattern:** Supabase `.update()` with a WHERE clause that matches no rows returns `error: null` and
+silently affects zero rows. The function returns `{ success: true }` even if nothing was written,
+so the caller displays a success toast for a failed save. This is a data loss path when a user's
+draft has been deleted out-of-band (another tab, admin action) and they subsequently save.
+**Fix:** Chain `.select('id')` after the update and verify `data` is non-empty, or use upsert.
+**Watch for:** any Supabase `.update()` + `.eq()` pattern that does not verify affected row count.
+
+### `answersRef` pattern for async callbacks in React hooks (POSITIVE)
+**File:** `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts`
+`answersRef.current = answers` in the render body (not useEffect) keeps the ref in sync with
+the latest state without creating stale closures in `handleSubmit` / `handleSave`. This is the
+correct pattern for reading current state inside async callbacks where adding the state to
+dependency arrays would cause unintended re-subscriptions.
+
 ### ReportCard is 'use client' but receives only safe data
 `ReportCard` is a client component that receives `QuizReportData` (already stripped of `correct`
 flags on options). The data boundary between server and client is clean.

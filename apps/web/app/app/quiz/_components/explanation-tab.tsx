@@ -37,6 +37,15 @@ function AnsweredExplanation(props: {
   )
 }
 
+function ExplanationSkeleton() {
+  return (
+    <div className="space-y-3 py-4">
+      <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+    </div>
+  )
+}
+
 function PreAnswerExplanation({ questionId }: { questionId: string }) {
   const [explanation, setExplanation] = useState<{
     text: string | null
@@ -45,7 +54,6 @@ function PreAnswerExplanation({ questionId }: { questionId: string }) {
   const [isLoading, setIsLoading] = useState(false)
   const [, startTransition] = useTransition()
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fetch when questionId changes
   useEffect(() => {
     setIsLoading(true)
     setExplanation(null)
@@ -61,15 +69,7 @@ function PreAnswerExplanation({ questionId }: { questionId: string }) {
     })
   }, [questionId])
 
-  if (isLoading) {
-    return (
-      <div className="space-y-3 py-4">
-        <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-        <div className="h-4 w-64 animate-pulse rounded bg-muted" />
-      </div>
-    )
-  }
-
+  if (isLoading) return <ExplanationSkeleton />
   if (!explanation) {
     return (
       <div className="py-4">

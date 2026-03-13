@@ -337,6 +337,107 @@ describe('loadDrafts', () => {
   })
 })
 
+// ---- saveDraft — update path (draftId provided) ----------------------------
+
+describe('saveDraft — update path', () => {
+  it('updates an existing draft when draftId is provided', async () => {
+    setupAuthenticatedUser()
+
+    // Call 1: users org lookup, Call 2: update
+    let callIndex = 0
+    const updateEq2 = vi.fn().mockReturnValue({ error: null })
+    const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
+    const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
+
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      return { update: updateFn }
+    })
+
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      draftId: DRAFT_ID,
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(updateFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        question_ids: VALID_DRAFT_INPUT.questionIds,
+        current_index: VALID_DRAFT_INPUT.currentIndex,
+      }),
+    )
+  })
+
+  it('scopes update to the authenticated user via student_id filter', async () => {
+    setupAuthenticatedUser()
+
+    let callIndex = 0
+    const updateEq2 = vi.fn().mockReturnValue({ error: null })
+    const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
+    const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
+
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      return { update: updateFn }
+    })
+
+    await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
+
+    expect(updateEq1).toHaveBeenCalledWith('id', DRAFT_ID)
+    expect(updateEq2).toHaveBeenCalledWith('student_id', USER_ID)
+  })
+
+  it('returns failure when the update query errors', async () => {
+    setupAuthenticatedUser()
+
+    let callIndex = 0
+    const updateEq2 = vi.fn().mockReturnValue({ error: { message: 'RLS violation' } })
+    const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
+    const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      return { update: updateFn }
+    })
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
+
+    expect(result).toEqual({ success: false, error: 'Failed to update draft' })
+    expect(consoleSpy).toHaveBeenCalledWith('[saveDraft] Update error:', 'RLS violation')
+    consoleSpy.mockRestore()
+  })
+
+  it('does not enforce the 20-draft limit when updating an existing draft', async () => {
+    setupAuthenticatedUser()
+
+    let callIndex = 0
+    const updateEq2 = vi.fn().mockReturnValue({ error: null })
+    const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
+    const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
+    // A count query mock — it should never be reached when draftId is present
+    const countMock = vi.fn()
+
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      // If count is called, fail so we know it was reached
+      if (callIndex === 2 && countMock.mock.calls.length > 0) {
+        return { select: countMock }
+      }
+      return { update: updateFn }
+    })
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
+
+    expect(result).toEqual({ success: true })
+    expect(countMock).not.toHaveBeenCalled()
+  })
+})
+
 // ---- deleteDraft -----------------------------------------------------------
 
 describe('deleteDraft', () => {

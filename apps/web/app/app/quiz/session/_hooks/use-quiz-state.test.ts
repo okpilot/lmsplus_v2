@@ -180,6 +180,20 @@ describe('useQuizState — answer selection', () => {
 
 // ---- Submit ---------------------------------------------------------------
 
+describe('useQuizState — handleSubmit empty-answers guard', () => {
+  it('sets error and does not call submitQuizSession when no answers have been recorded', async () => {
+    const { result } = renderHook(() =>
+      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+    // No answers added — answers map is empty
+    await act(async () => result.current.handleSubmit())
+
+    expect(mockSubmitQuizSession).not.toHaveBeenCalled()
+    expect(result.current.error).toBe('No answers to submit.')
+    expect(mockRouterPush).not.toHaveBeenCalled()
+  })
+})
+
 describe('useQuizState — handleSubmit', () => {
   it('navigates to the report page after a successful submission', async () => {
     const SUBMIT_SUCCESS = {
@@ -252,6 +266,22 @@ describe('useQuizState — handleSave', () => {
     await act(async () => result.current.handleSave())
 
     expect(result.current.error).toBe('Failed to save draft')
+  })
+
+  it('forwards draftId to saveQuizDraft when provided', async () => {
+    mockSaveQuizDraft.mockResolvedValue({ success: true as const })
+
+    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
+    const { result } = renderHook(() =>
+      useQuizState({
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        draftId: DRAFT_ID,
+      }),
+    )
+    await act(async () => result.current.handleSave())
+
+    expect(mockSaveQuizDraft).toHaveBeenCalledWith(expect.objectContaining({ draftId: DRAFT_ID }))
   })
 
   it('forwards subjectName and subjectCode to saveQuizDraft when provided', async () => {

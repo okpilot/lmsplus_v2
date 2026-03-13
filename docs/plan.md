@@ -200,7 +200,7 @@
 - ✅ Quick actions (Start Quiz / Start Review) on dashboard
 - ✅ Dashboard reshaped: charts + heatmap + subject grid + reports link (replaced RecentSessions)
 - ✅ `/app/reports` page: sortable session history (date/score/subject), click → quiz report
-- ✅ Statistics tab: per-question stats (times seen, accuracy, FSRS state/stability/difficulty/interval)
+- ✅ Statistics tab: per-question stats (times seen, accuracy)
 - ✅ Navigation updated: Reports added to sidebar + mobile nav
 - ✅ Query layer: `analytics.ts`, `reports.ts`, `question-stats.ts` with tests (11 new tests)
 
@@ -210,8 +210,14 @@
 - ✅ Remove unnecessary 'use client' from activity-heatmap (Server Component only)
 - ✅ Split subject-scores-chart into 3 sub-components (chart container + legend + tooltip) to meet 30-line limit
 - ✅ Dashboard page switched to Promise.allSettled (analytics failures now degrade gracefully)
-- ✅ Add FSRS enum mapping in statistics-tab (display labels: "New", "Learning", "Review", etc.)
 - ✅ Add `/coderabbit` skill command for triaging CodeRabbit review comments
+
+**Post-sprint polish (2026-03-13, `feat/post-sprint-3-polish`):**
+- ✅ Remove FSRS metadata from statistics tab (state, stability, difficulty, interval) — simplify student view to: times seen, accuracy %, last answered date
+- ✅ New `fetchExplanation` Server Action — fetches question explanation (text + image) before answering, shows loading state
+- ✅ Update `ExplanationTab` to load explanations pre-answer — students can preview explanations in study mode before attempting questions
+- ✅ Draft update support: `saveDraft` now accepts optional `draftId` to update existing draft instead of creating new one (fix: resuming draft then re-saving creates duplicate)
+- ✅ Navigation guard fix: added `e.returnValue = ''` to beforeunload handler for cross-browser support
 
 ---
 
@@ -520,4 +526,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-12 — Sprint 1 complete (10/10 items), Sprint 2 complete (11/11 items), Sprint 3 complete (with post-sprint CodeRabbit fixes)*
+*Last updated: 2026-03-13 — Sprint 1 complete (10/10 items), Sprint 2 complete (11/11 items), Sprint 3 complete (with post-sprint CodeRabbit fixes + polish)*

@@ -1710,3 +1710,82 @@ Restore with `writable: true` so subsequent `beforeEach` calls can overwrite it 
 
 ### Suite state after this session
 4 new test files, 56 new tests. Overall suite: ~77 test files, ~702 tests.
+
+---
+
+## Files tested in commit 81c1428 (post-sprint-3-polish)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/fetch-explanation.ts` | `fetch-explanation.test.ts` | New file; 10 tests — auth guard, Zod throws, happy path, null fields, DB error, select fields asserted, deleted_at filter |
+| `apps/web/app/app/quiz/actions/draft.ts` | `draft.test.ts` | Extended; 4 tests for new update path: happy path, student_id scoping, DB error, no count-limit check when updating |
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` | `use-quiz-state.test.ts` | Extended; 2 tests: empty-answers guard sets error, draftId forwarded to saveQuizDraft |
+| `apps/web/app/app/quiz/_hooks/use-navigation-guard.ts` | `use-navigation-guard.test.ts` | Extended; 1 test: handler sets e.returnValue = '' and calls preventDefault |
+| `apps/web/app/app/quiz/_components/saved-draft-card.tsx` | `saved-draft-card.test.tsx` | Extended; 1 test: delete aborted when window.confirm returns false |
+
+### Suite state after this commit
+5 files extended/created, 8 new tests. Overall suite: 70 test files, 681 tests — all passing.
+
+### Zod parse vs safeParse: no catch means ZodError propagates
+When a Server Action uses `Input.parse(raw)` (not `safeParse`) AND has no surrounding
+`try/catch`, invalid input throws an uncaught `ZodError`. Tests for the invalid-input path
+must use `.rejects.toThrow()`, not `expect(result).toEqual({ success: false })`:
+
+```ts
+// WRONG — parse() throws; there is no return value to assert on
+const result = await fetchExplanation({ questionId: 'not-a-uuid' })
+expect(result).toEqual({ success: false })
+
+// CORRECT
+await expect(fetchExplanation({ questionId: 'not-a-uuid' })).rejects.toThrow()
+```
+
+Contrast with `saveDraft` which wraps everything in `try { ... } catch (err instanceof ZodError)` —
+that action safely returns `{ success: false }` on bad input. Always check whether the source
+catches ZodError before writing the validation test.
+
+### Testing window.confirm guard in React event handlers
+When `handleDelete` was extended with `if (!window.confirm(...)) return`, test the cancellation
+path by restoring `window.confirm` to return `false` and asserting the downstream mock was never called:
+
+```ts
+it('does not call deleteDraft when the user cancels the confirmation dialog', async () => {
+  vi.spyOn(window, 'confirm').mockReturnValue(false)
+  render(<SavedDraftCard drafts={[DRAFT]} />)
+  fireEvent.click(screen.getByTestId('delete-draft'))
+  await new Promise((r) => setTimeout(r, 0))  // flush microtasks
+  expect(mockDeleteDraft).not.toHaveBeenCalled()
+})
+```
+
+The `setTimeout(r, 0)` is needed because `handleDelete` is async — the early return is
+synchronous but the event handler is awaited in the event loop.
+
+### Capturing and invoking a window event handler in tests
+To verify the body of a handler registered via `addEventListener`, capture it from the mock
+and invoke it directly:
+
+```ts
+let capturedHandler: ((e: BeforeUnloadEvent) => void) | undefined
+addMock.mockImplementation((_type: string, handler: (e: BeforeUnloadEvent) => void) => {
+  capturedHandler = handler
+})
+renderHook(() => useNavigationGuard(true))
+const fakeEvent = { preventDefault: vi.fn(), returnValue: '' } as unknown as BeforeUnloadEvent
+capturedHandler?.(fakeEvent)
+expect(fakeEvent.preventDefault).toHaveBeenCalled()
+expect(fakeEvent.returnValue).toBe('')
+```
+
+### Testing the draftId update path in saveDraft (branch with update instead of insert)
+The update path uses `.update({...}).eq('id', draftId).eq('student_id', userId)`. To assert
+both `eq` calls in sequence, build a dedicated mock per call with a closure:
+
+```ts
+const updateEq2 = vi.fn().mockReturnValue({ error: null })
+const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
+const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
+// from('quiz_drafts') returns { update: updateFn }
+```
+
+Then assert `updateEq1.toHaveBeenCalledWith('id', DRAFT_ID)` and `updateEq2.toHaveBeenCalledWith('student_id', USER_ID)`.

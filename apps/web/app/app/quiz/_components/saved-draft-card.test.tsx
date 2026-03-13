@@ -98,6 +98,16 @@ describe('SavedDraftCard', () => {
     spy.mockRestore()
   })
 
+  it('does not call deleteDraft when the user cancels the confirmation dialog', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<SavedDraftCard drafts={[DRAFT]} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+
+    // Allow any async effects to flush
+    await new Promise((r) => setTimeout(r, 0))
+    expect(mockDeleteDraft).not.toHaveBeenCalled()
+  })
+
   it('calls deleteDraft with draftId and refreshes on delete', async () => {
     render(<SavedDraftCard drafts={[DRAFT]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
