@@ -136,9 +136,10 @@ pnpm check-types  # tsc --noEmit all packages
 
 ## Workflow
 1. Start each session: read `docs/plan.md`
-2. Plan Mode for any multi-file change (Shift+Tab twice)
-3. `/project:review` after feature complete
-4. `/project:insights` weekly
+2. For any multi-file change: draft a plan, then validate it (see **Plan Validation** above)
+3. Get user approval on the validated plan before executing
+4. `/project:review` after feature complete
+5. `/project:insights` weekly
 
 ## Post-commit review (MANDATORY)
 After every `git commit`, run these 4 subagents in parallel using the Agent tool:
