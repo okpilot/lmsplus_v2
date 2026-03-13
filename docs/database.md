@@ -596,6 +596,12 @@ $$;
 
 Submits all quiz answers in a single transaction. Replaces the per-answer `submit_quiz_answer` loop + separate `complete_quiz_session` call. Calculates scores and completes the session atomically — if any answer fails, the entire batch rolls back.
 
+**Key behavior:**
+- Allows partial submissions (students may skip questions; score = `correct / answered`, not `correct / total`)
+- Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction (migration 022), eliminating the window where the incorrect-filter counter could read stale data
+- Full FSRS scheduling (due, stability, difficulty) continues to be handled by the application layer after the RPC returns
+- Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
+
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
 ```sql
@@ -621,6 +627,7 @@ DECLARE
   v_response_time   int;
   v_results         jsonb := '[]'::jsonb;
   v_total           int;
+  v_answered        int;
   v_correct_count   int;
   v_score           numeric(5,2);
 BEGIN
@@ -686,6 +693,18 @@ BEGIN
        v_selected_option, v_is_correct, v_response_time)
     ON CONFLICT DO NOTHING;
 
+    -- Update last_was_correct atomically within this transaction.
+    -- Full FSRS scheduling (due, stability, difficulty, etc.) is handled by the
+    -- application layer after the RPC returns. Updating last_was_correct here
+    -- ensures the incorrect-filter counter is always accurate immediately after
+    -- session completion, with no window where stale data could be read.
+    INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
+    VALUES (v_student_id, v_question_id, v_is_correct, now())
+    ON CONFLICT (student_id, question_id)
+    DO UPDATE SET
+      last_was_correct = EXCLUDED.last_was_correct,
+      updated_at = now();
+
     -- Accumulate result
     v_results := v_results || jsonb_build_object(
       'question_id', v_question_id,
@@ -696,13 +715,16 @@ BEGIN
     );
   END LOOP;
 
-  -- Calculate correct count from all session answers (v_total already set from quiz_sessions)
-  SELECT count(*) FILTER (WHERE qsa.is_correct)::int
-  INTO v_correct_count
+  -- Count answered and correct from this session (idempotent ON CONFLICT means re-runs are safe)
+  SELECT
+    count(*)::int,
+    count(*) FILTER (WHERE qsa.is_correct)::int
+  INTO v_answered, v_correct_count
   FROM quiz_session_answers qsa
   WHERE qsa.session_id = p_session_id;
 
-  v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
+  -- Score over answered questions only (unanswered questions are excluded from the denominator)
+  v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
 
   -- Complete session
   UPDATE quiz_sessions
@@ -722,12 +744,18 @@ BEGIN
     'quiz_session.batch_submitted',
     'quiz_session',
     p_session_id,
-    jsonb_build_object('total', v_total, 'correct', v_correct_count, 'score', v_score)
+    jsonb_build_object(
+      'total_questions', v_total,
+      'answered', v_answered,
+      'correct', v_correct_count,
+      'score', v_score
+    )
   );
 
   RETURN jsonb_build_object(
     'results', v_results,
     'total_questions', v_total,
+    'answered_count', v_answered,
     'correct_count', v_correct_count,
     'score_percentage', v_score
   );

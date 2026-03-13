@@ -15,7 +15,9 @@ export async function discardQuiz(
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser()
+    if (authError) return { success: false, error: 'Auth error. Please refresh.' }
     if (!user) return { success: false, error: 'Not authenticated' }
 
     let input: { sessionId: string; draftId?: string }
@@ -38,13 +40,14 @@ export async function discardQuiz(
       return { success: false, error: 'Failed to discard quiz' }
     }
 
-    // Clean up the associated draft if one exists
+    // Soft-delete the associated draft if one exists
     if (input.draftId) {
       const { error: draftError } = await supabase
         .from('quiz_drafts' as 'users')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() } as never)
         .eq('id', input.draftId)
         .eq('student_id', user.id)
+        .is('deleted_at', null)
 
       if (draftError) {
         console.error('[discardQuiz] Draft cleanup error:', draftError.message)

@@ -143,4 +143,57 @@ describe('getAllSessions', () => {
     expect(result).toHaveLength(1)
     expect(result[0]!.subjectName).toBeNull()
   })
+
+  it('throws when the quiz_session_answers query returns an error', async () => {
+    const sessions = [
+      {
+        id: 'sess-1',
+        mode: 'quick_quiz',
+        total_questions: 5,
+        correct_count: 4,
+        score_percentage: 80,
+        started_at: '2026-03-12T10:00:00Z',
+        ended_at: '2026-03-12T10:10:00Z',
+        subject_id: null,
+      },
+    ]
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
+      if (table === 'easa_subjects') return buildChain({ data: [], error: null })
+      if (table === 'quiz_session_answers')
+        return buildChain({ data: null, error: { message: 'answers DB error' } })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await expect(getAllSessions()).rejects.toThrow(
+      'Failed to fetch answer counts: answers DB error',
+    )
+  })
+
+  it('falls back to correct_count for answeredCount when session has no answer rows', async () => {
+    const sessions = [
+      {
+        id: 'sess-3',
+        mode: 'quick_quiz',
+        total_questions: 10,
+        correct_count: 7,
+        score_percentage: 70,
+        started_at: '2026-03-12T11:00:00Z',
+        ended_at: '2026-03-12T11:20:00Z',
+        subject_id: null,
+      },
+    ]
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
+      if (table === 'quiz_session_answers') return buildChain({ data: [], error: null })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getAllSessions()
+    expect(result).toHaveLength(1)
+    // No answer rows → falls back to total_questions (10)
+    expect(result[0]!.answeredCount).toBe(10)
+  })
 })

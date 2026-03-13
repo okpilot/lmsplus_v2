@@ -222,4 +222,21 @@ describe('getRandomQuestionIds', () => {
     // Without userId, filter is bypassed — all questions returned
     expect(result).toHaveLength(2)
   })
+
+  it('returns empty array without querying fsrs_cards when question pool is empty and filter is incorrect', async () => {
+    // Only one from() call should happen (questions pool returns empty).
+    // The early-return guard in filterIncorrect must prevent a second fsrs_cards query.
+    mockFromSequence({ data: [] })
+
+    const result = await getRandomQuestionIds({
+      subjectId: 's1',
+      count: 10,
+      filter: 'incorrect',
+      userId: 'u1',
+    })
+
+    expect(result).toEqual([])
+    // Only one DB call was made (the questions pool) — fsrs_cards was never queried
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
 })

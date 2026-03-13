@@ -91,14 +91,19 @@
 - Statistics tab: per-question stats (times seen, accuracy, FSRS state), auto-loads on tab click
 
 **Phase 5B-7 done (2026-03-12, refined 2026-03-13):** Deferred Quiz Writes & Immediate Feedback:
-- Refactored quiz/actions.ts into feature-based files: start.ts, submit.ts, complete.ts, batch-submit.ts
+- Refactored quiz/actions.ts into feature-based files: start.ts, submit.ts, complete.ts, batch-submit.ts, discard.ts (new)
 - Quiz state machine updated: answers stored in React state (Map<questionId, {selectedOptionId, responseTimeMs}>)
 - Migration 017: `batch_submit_quiz` RPC — allows partial answers; score calculated as `correct / answered` (not `correct / total`)
-- FinishQuizDialog: modal with unanswered count warning, options: Return to Quiz, Save for Later, Submit Quiz
+- Migration 022: `batch_submit_quiz` updated to atomically set `fsrs_cards.last_was_correct` within the transaction (closes race condition window)
+- Discard session: students can discard active quiz (soft-delete session), with optional draft cleanup
+- FinishQuizDialog: modal with unanswered count warning, options: Return to Quiz, Save for Later, Submit Quiz, Discard Quiz
 - QuizNavBar: question navigator with previous/next buttons, current index display
+- Pinned questions: renamed from "flagged" to "pinned" for clarity (use-pinned-questions.ts hook)
 - Immediate answer feedback: after selection, answer is locked and explanation shown inline (not deferred to end)
+- SessionSummary: now displays `answeredCount` alongside `totalQuestions` for clarity on partial submissions
 - Session Zod types: SubmitRpcResult, CompleteRpcResult, StartQuizResult, SubmitQuizAnswerResult, CompleteQuizResult, BatchAnswerResult, BatchSubmitResult
 - QuizSession component displays explanation immediately after answer selection
+- Report queries: fetch answered count per session from `quiz_session_answers` for accurate scoring on partial submissions
 
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote

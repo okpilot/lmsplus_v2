@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import { checkAnswer } from '../../actions/check-answer'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
-import { discardQuizSession, saveQuizDraft, submitQuizSession } from './quiz-submit'
+import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
 
@@ -38,78 +38,54 @@ export function useQuizState(opts: {
 
   const question = questions[nav.currentIndex]
   const questionId = question?.id ?? ''
+  const shared = { router, setSubmitting, setError }
 
   async function handleSelectAnswer(optionId: string) {
-    // Re-entry guard: ignore if this question already has a recorded answer
     if (answers.has(questionId)) return
-
-    // Lock immediately — record the answer before awaiting the server
     const elapsed = Date.now() - nav.answerStartTime.current
     setAnswers((prev) =>
       new Map(prev).set(questionId, { selectedOptionId: optionId, responseTimeMs: elapsed }),
     )
-
-    // Fetch correctness feedback without blocking the UI
     const result = await checkAnswer({ questionId, selectedOptionId: optionId })
     if (result.success) {
+      const { isCorrect, correctOptionId, explanationText, explanationImageUrl } = result
       setFeedback((prev) =>
         new Map(prev).set(questionId, {
-          isCorrect: result.isCorrect,
-          correctOptionId: result.correctOptionId,
-          explanationText: result.explanationText,
-          explanationImageUrl: result.explanationImageUrl,
+          isCorrect,
+          correctOptionId,
+          explanationText,
+          explanationImageUrl,
         }),
       )
     }
   }
 
-  async function handleSubmit() {
-    const currentAnswers = answersRef.current
-    if (currentAnswers.size === 0) {
-      setError('No answers to submit.')
-      return
-    }
-    setSubmitting(true)
-    setError(null)
-    const r = await submitQuizSession(sessionId, currentAnswers, opts.draftId)
-    if (r.success) {
-      submitted.current = true
-      setShowFinishDialog(false)
-      router.push(`/app/quiz/report?session=${sessionId}`)
-    } else {
-      setError(r.error)
-      setSubmitting(false)
-    }
-  }
-  async function handleSave() {
-    setSubmitting(true)
-    setError(null)
-    const questionIds = questions.map((q) => q.id)
-    const r = await saveQuizDraft({
+  function handleSubmit() {
+    return handleSubmitSession({
       sessionId,
-      questionIds,
+      answers: answersRef.current,
+      draftId: opts.draftId,
+      onSuccess: () => {
+        submitted.current = true
+        setShowFinishDialog(false)
+      },
+      ...shared,
+    })
+  }
+  function handleSave() {
+    return handleSaveSession({
+      sessionId,
+      questions,
       answers: answersRef.current,
       currentIndex: nav.currentIndex,
-      router,
       draftId: opts.draftId,
       subjectName: opts.subjectName,
       subjectCode: opts.subjectCode,
+      ...shared,
     })
-    if (!r.success) {
-      setError(r.error)
-      setSubmitting(false)
-    }
   }
-
-  async function handleDiscard() {
-    setSubmitting(true)
-    setError(null)
-    const r = await discardQuizSession(sessionId, router, opts.draftId)
-    if (!r.success) {
-      setError(r.error)
-      setSubmitting(false)
-    }
-    // On success, router.push navigates away — no further state update needed
+  function handleDiscard() {
+    return handleDiscardSession({ sessionId, draftId: opts.draftId, ...shared })
   }
 
   return {
