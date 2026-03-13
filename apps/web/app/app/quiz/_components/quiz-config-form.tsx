@@ -24,6 +24,7 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
     error,
     isPending,
     maxQuestions,
+    filteredCount,
     handleSubjectChange,
     handleTopicChange,
     handleStart,
@@ -87,7 +88,11 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
             onChange={(e) => setCount(Number(e.target.value))}
             className="w-full accent-primary"
           />
-          <p className="mt-1 text-xs text-muted-foreground">Up to {maxQuestions} available</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {filter !== 'all' && filteredCount === null
+              ? 'Counting…'
+              : `Up to ${maxQuestions} available`}
+          </p>
         </div>
       )}
 
