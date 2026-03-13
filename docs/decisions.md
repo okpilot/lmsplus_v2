@@ -440,6 +440,22 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 25: Post-session exception for question feedback (2026-03-13)
+
+**Context:** `getQuizReport()` reads `questions.options` (including `correct: boolean`) server-side to build post-session feedback. The `get_quiz_questions()` RPC strips correct answers but is designed for active sessions, not completed-session reports. Semantic reviewer identified that the report page lacked an `ended_at` guard, allowing mid-session access to correct answers.
+
+**Decided:**
+- Post-session report queries MAY read `questions.correct` server-side, provided all three conditions are met:
+  1. Session is verified completed (`ended_at IS NOT NULL`)
+  2. `correct` boolean is stripped before returning to client (options mapped to `{ id, text }` only)
+  3. Query runs in a Server Component (no raw DB rows reach the client)
+- Guard implemented: `if (!session.ended_at) return null` in `quiz-report.ts`
+- `.coderabbit.yaml` `no-answer-exposure` rule updated to require both conditions
+- `docs/security.md` Section 4 updated with the post-session exception
+- Rationale: showing correct answers after answering is the core learning loop, not a data leak
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
