@@ -116,6 +116,18 @@ describe('StatisticsTab', () => {
     expect(screen.queryByText('Failed to load statistics.')).not.toBeInTheDocument()
   })
 
+  it('hides the FSRS section when fsrsState is null', async () => {
+    mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: null })
+    const user = userEvent.setup()
+    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+    await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+    await waitFor(() => {
+      expect(screen.getByText('Times seen')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('FSRS Data')).not.toBeInTheDocument()
+    expect(screen.queryByText('State')).not.toBeInTheDocument()
+  })
+
   it('formats a known lowercase fsrs state through the label map', async () => {
     mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'review' })
     const user = userEvent.setup()
@@ -144,6 +156,41 @@ describe('StatisticsTab', () => {
     await waitFor(() => {
       expect(screen.getByText('Suspended')).toBeInTheDocument()
     })
+  })
+
+  it('shows load button immediately when questionId changes during an in-flight fetch', async () => {
+    // The question changes while isLoading is true. The reset block sets isLoading
+    // to false synchronously on the next render, so the load button appears without
+    // waiting for the stale fetch's finally block to run.
+    let resolveQ1: (value: typeof defaultStats) => void = () => {}
+    const staleFetchPromise = new Promise<typeof defaultStats>((resolve) => {
+      resolveQ1 = resolve
+    })
+    mockFetchQuestionStats.mockReturnValueOnce(staleFetchPromise)
+
+    const user = userEvent.setup()
+    const { rerender } = render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+
+    await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+
+    // Loading skeleton should be visible while in-flight.
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Load Statistics' })).not.toBeInTheDocument()
+    })
+
+    // Change question before the fetch resolves — the reset clears isLoading immediately.
+    rerender(<StatisticsTab questionId="q-2" hasAnswered={true} />)
+
+    // The load button must appear before we ever resolve the stale promise.
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Load Statistics' })).toBeInTheDocument()
+    })
+
+    // Resolve the stale fetch — the generation guard discards the result.
+    resolveQ1(defaultStats)
+
+    // Stats from the stale q-1 fetch must never appear.
+    expect(screen.queryByText('Times seen')).not.toBeInTheDocument()
   })
 
   it('discards stale fetch result when questionId changes before the fetch resolves', async () => {

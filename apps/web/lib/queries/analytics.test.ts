@@ -79,6 +79,30 @@ describe('getDailyActivity', () => {
       p_days: 14,
     })
   })
+
+  it('treats NaN days as the minimum (1)', async () => {
+    await getDailyActivity(Number.NaN)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+      p_student_id: 'user-1',
+      p_days: 1,
+    })
+  })
+
+  it('treats positive Infinity days as the minimum (1) because non-finite values fall back to min', async () => {
+    await getDailyActivity(Number.POSITIVE_INFINITY)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+      p_student_id: 'user-1',
+      p_days: 1,
+    })
+  })
+
+  it('treats negative Infinity days as the minimum (1)', async () => {
+    await getDailyActivity(Number.NEGATIVE_INFINITY)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
+      p_student_id: 'user-1',
+      p_days: 1,
+    })
+  })
 })
 
 describe('getSubjectScores', () => {
@@ -139,6 +163,22 @@ describe('getSubjectScores', () => {
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
       p_student_id: 'user-1',
       p_limit: 3,
+    })
+  })
+
+  it('treats NaN limit as the minimum (1)', async () => {
+    await getSubjectScores(Number.NaN)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+      p_student_id: 'user-1',
+      p_limit: 1,
+    })
+  })
+
+  it('treats Infinity limit as the minimum (1) because non-finite values fall back to min', async () => {
+    await getSubjectScores(Number.POSITIVE_INFINITY)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+      p_student_id: 'user-1',
+      p_limit: 1,
     })
   })
 

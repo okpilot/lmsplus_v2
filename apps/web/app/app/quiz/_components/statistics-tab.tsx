@@ -22,7 +22,7 @@ export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
     generation.current += 1
     setStats(null)
     setError(null)
-    setIsLoading(false)
+    if (isLoading) setIsLoading(false)
   }
 
   function loadStats() {
