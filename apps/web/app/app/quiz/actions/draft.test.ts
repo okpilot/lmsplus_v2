@@ -122,6 +122,26 @@ describe('saveDraft', () => {
     expect(result).toEqual({ success: false, error: 'User organization not found' })
   })
 
+  it('returns failure when the users query errors', async () => {
+    setupAuthenticatedUser()
+    const chain = mockChainWithCount(0)
+    ;(chain.single as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: null,
+      error: { message: 'row-level security policy violation' },
+    })
+    mockFrom.mockReturnValue(chain)
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await saveDraft(VALID_DRAFT_INPUT)
+
+    expect(result).toEqual({ success: false, error: 'Failed to look up user' })
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[saveDraft] Users query error:',
+      'row-level security policy violation',
+    )
+    consoleSpy.mockRestore()
+  })
+
   it('returns failure when draft limit of 20 is reached', async () => {
     setupAuthenticatedUser()
     // First call: count query returns 20; second call: users table for orgId

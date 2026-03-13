@@ -88,13 +88,17 @@ export async function getAllSessions(): Promise<SessionReport[]> {
     const start = new Date(s.started_at).getTime()
     const end = new Date(s.ended_at).getTime()
     const durationMinutes = Math.max(0, Math.round((end - start) / 60000))
+    const answered = answeredCountMap.get(s.id)
+    if (answered === undefined) {
+      console.warn('[getAllSessions] No answer rows for completed session:', s.id)
+    }
 
     return {
       id: s.id,
       mode: s.mode,
       subjectName: s.subject_id ? (subjectMap.get(s.subject_id) ?? null) : null,
       totalQuestions: s.total_questions,
-      answeredCount: answeredCountMap.get(s.id) ?? s.total_questions,
+      answeredCount: answered ?? s.total_questions,
       correctCount: s.correct_count,
       scorePercentage: s.score_percentage,
       startedAt: s.started_at,
