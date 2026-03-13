@@ -177,7 +177,11 @@ freshness across async boundaries.
 **Rule:** When splitting hooks, any value that (1) changes after mount and (2) is read inside an
 async function or a function that fires after a state update must be forwarded as a ref, not a
 scalar. Scalars are acceptable only for values used synchronously at render time.
-**Fix applied:** Not yet applied as of 34a9352 — ISSUE filed, fix pending.
+**Fix applied (commit df5d354):** `currentIndexRef` ref introduced in `use-quiz-state.ts` (lines 24-25).
+Parent keeps `currentIndexRef.current = nav.currentIndex` in sync on every render. Child hook
+receives the ref and reads `.current` inside `handleSave` — same freshness guarantee as `answersRef`.
+Fix is structurally correct: both mutable values that are consumed inside async handlers now
+travel as refs, not scalars. ISSUE resolved.
 **Watch for:** any future hook split where a changing scalar (index, count, timestamp) is
 forwarded as a plain number to a child hook that uses it inside a handler function.
 
@@ -992,3 +996,36 @@ visually selected on the next question during rapid navigation.
 The session verification SELECT now uses `FOR UPDATE`, preventing two concurrent batch submits from
 both passing the `ended_at IS NULL` check and double-completing the same session. Correct pattern
 for session completion atomicity.
+
+---
+
+## Session 2026-03-13 Part 10 — commit df5d354
+
+### Commit: df5d354 (fix: stale currentIndex in handleSave + hook under 80-line limit)
+- Status: **CLEAN**
+- Files changed: 5 source files + 3 agent memory files
+- Summary: Ref fix resolves previously-filed ISSUE. Type move is clean. 6 new tests pass.
+
+**Ref fix — `currentIndexRef` (ISSUE resolved):**
+The stale-closure bug filed against commit 34a9352 is correctly fixed. `use-quiz-state.ts` now
+declares `currentIndexRef` at lines 24-25 and keeps `.current` synced on every render, mirroring
+the existing `answersRef` pattern on lines 22-23. `use-quiz-submit.ts` receives the ref and reads
+`.current` at the call site inside `handleSave` (line 41). Both mutable values consumed inside
+async handlers now travel as refs. Structurally correct and consistent with the established pattern.
+
+**Type move — `QuizStateOpts` to `types.ts` (CLEAN):**
+Type removed from `use-quiz-state.ts` and added to `types.ts` (lines 101-109). The type now lives
+alongside all other quiz domain types. The inline `import()` form for `SessionQuestion` is syntactically
+valid TypeScript and type-checks clean. No callers import `QuizStateOpts` directly (only `useQuizState`
+consumes it), so no breakage. The one external consumer, `quiz-session.tsx`, defines its own
+`QuizSessionProps` that is structurally identical — this is intentional separation of the component's
+public API from the hook's internal options type.
+
+**No issues found in this commit.**
+
+**Positive patterns:**
+- Ref pattern applied consistently: both `answersRef` and `currentIndexRef` are kept in sync on
+  every render, ensuring all async handlers always read the latest values.
+- Comment on lock ordering was removed from source (it was in patterns.md already) — clean.
+- 6 new tests cover `handleDiscard` delegation, `draftId` forwarding, error state propagation,
+  and `showFinishDialog` toggle — good behavioral coverage of the new hook's surface.
