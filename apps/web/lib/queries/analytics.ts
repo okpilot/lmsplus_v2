@@ -2,7 +2,8 @@ import { rpc } from '@/lib/supabase-rpc'
 import { createServerSupabaseClient } from '@repo/db/server'
 
 function boundParam(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, Math.trunc(value)))
+  const n = Number.isFinite(value) ? value : min
+  return Math.max(min, Math.min(max, Math.trunc(n)))
 }
 
 export type DailyActivity = {
