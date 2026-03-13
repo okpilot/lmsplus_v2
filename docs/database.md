@@ -601,7 +601,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction (migration 022), eliminating the window where the incorrect-filter counter could read stale data
 - Full FSRS scheduling (due, stability, difficulty) continues to be handled by the application layer after the RPC returns
 - Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
-- Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, rejects duplicates, verifies question membership in session
+- Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -662,7 +662,7 @@ BEGIN
 
   -- Reject duplicate question_id entries in payload
   IF (
-    SELECT count(*) <> count(DISTINCT (e->>'question_id'))
+    SELECT count(*) <> count(DISTINCT (e->>'question_id')::uuid)
     FROM jsonb_array_elements(p_answers) AS e
   ) THEN
     RAISE EXCEPTION 'duplicate question_id in answers payload';
