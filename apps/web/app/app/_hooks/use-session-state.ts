@@ -28,6 +28,7 @@ export function useSessionState({
   const [feedback, setFeedback] = useState<AnswerResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [answeredCount, setAnsweredCount] = useState(0)
   const [correctCount, setCorrectCount] = useState(0)
   const [scorePercentage, setScorePercentage] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +65,7 @@ export function useSessionState({
     }
     setError(null)
     setFeedback(result)
+    setAnsweredCount((c) => c + 1)
     if (result.isCorrect) setCorrectCount((c) => c + 1)
     setState('feedback')
     setSubmitting(false)
@@ -98,7 +100,7 @@ export function useSessionState({
   return {
     state,
     currentIndex,
-    answeredCount: currentIndex + 1,
+    answeredCount,
     feedback,
     submitting,
     selectedOption,

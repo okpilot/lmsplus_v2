@@ -384,4 +384,82 @@ describe('getFilteredCount — filter: incorrect', () => {
 
     expect(result).toEqual({ count: 1 })
   })
+
+  it('returns 0 when the fsrs_cards query returns an error', async () => {
+    setupAuthenticatedUser()
+
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) {
+        return buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }])
+      }
+      return buildQueryChain([], { message: 'fsrs_cards DB error' })
+    })
+
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filter: 'incorrect' })
+
+    // error causes incorrectCards to be null/undefined → treated as empty set
+    expect(result).toEqual({ count: 0 })
+  })
+})
+
+// ---- getFilteredCount — questions query error ----------------------------
+
+describe('getFilteredCount — questions query error', () => {
+  it('returns count 0 when the questions query itself returns an error', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mockFrom.mockImplementation(() => buildQueryChain([], { message: 'questions DB error' }))
+
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filter: 'all' })
+
+    expect(result).toEqual({ count: 0 })
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[getFilteredCount] Questions query error:',
+      'questions DB error',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('returns count 0 for unseen filter when questions query errors', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mockFrom.mockImplementation(() => buildQueryChain([], { message: 'questions DB error' }))
+
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filter: 'unseen' })
+
+    expect(result).toEqual({ count: 0 })
+    consoleSpy.mockRestore()
+  })
+})
+
+// ---- getFilteredCount — secondary query errors ---------------------------
+
+describe('getFilteredCount — secondary query errors', () => {
+  it('falls back to all questions as unseen when student_responses query errors', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) {
+        return buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }])
+      }
+      return buildQueryChain([], { message: 'student_responses DB error' })
+    })
+
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filter: 'unseen' })
+
+    // answered set is empty because error data is treated as null → all questions are unseen
+    expect(result).toEqual({ count: 2 })
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[getFilteredCount] student_responses query error:',
+      'student_responses DB error',
+    )
+    consoleSpy.mockRestore()
+  })
 })
