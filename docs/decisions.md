@@ -467,4 +467,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-12 — Decision 24 enhanced with parameter clamping + IS DISTINCT FROM (post-CodeRabbit PR #57)*
+*Last updated: 2026-03-13 — Decision 25: post-session exception for question feedback (ended_at guard + stripping logic)*
