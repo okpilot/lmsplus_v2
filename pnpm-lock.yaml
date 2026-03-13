@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  undici: '>=7.24.0'
+  undici: '>=7.24.0 <8'
 
 importers:
 
