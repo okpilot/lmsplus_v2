@@ -14,6 +14,7 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
   const filterGeneration = useRef(0)
 
   const { subjectId, topicId, subtopicId, topics, subtopics } = cascade
+
   const staticCount = subtopicId
     ? (subtopics.find((st) => st.id === subtopicId)?.questionCount ?? 0)
     : topicId
@@ -54,6 +55,14 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
 
   return {
     ...cascade,
+    handleSubjectChange: (id: string) => {
+      setFilteredCount(null)
+      cascade.handleSubjectChange(id)
+    },
+    handleTopicChange: (id: string) => {
+      setFilteredCount(null)
+      cascade.handleTopicChange(id)
+    },
     filter,
     setFilter: handleFilterChange,
     count,

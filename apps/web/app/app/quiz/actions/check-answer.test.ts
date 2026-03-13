@@ -477,6 +477,7 @@ describe('checkAnswer', () => {
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_quiz_answer', {
       p_question_id: QUESTION_ID,
       p_selected_option_id: CORRECT_OPTION_ID,
+      p_session_id: SESSION_ID,
     })
   })
 })

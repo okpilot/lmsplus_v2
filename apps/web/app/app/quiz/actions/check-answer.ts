@@ -57,6 +57,7 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
   const { data, error } = await rpc<CheckAnswerRpcResult>(supabase, 'check_quiz_answer', {
     p_question_id: questionId,
     p_selected_option_id: selectedOptionId,
+    p_session_id: sessionId,
   })
 
   if (error || !isCheckAnswerRpcResult(data)) {
