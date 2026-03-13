@@ -60,14 +60,15 @@ function PreAnswerExplanation({ questionId }: { questionId: string }) {
     setExplanation(null)
     startTransition(async () => {
       const result = await fetchExplanation({ questionId })
-      if (cancelled) return
-      if (result.success) {
-        setExplanation({
-          text: result.explanationText,
-          imageUrl: result.explanationImageUrl,
-        })
+      if (!cancelled) {
+        if (result.success) {
+          setExplanation({
+            text: result.explanationText,
+            imageUrl: result.explanationImageUrl,
+          })
+        }
+        setIsLoading(false)
       }
-      setIsLoading(false)
     })
     return () => {
       cancelled = true
