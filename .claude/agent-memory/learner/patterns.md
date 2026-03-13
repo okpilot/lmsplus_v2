@@ -37,9 +37,9 @@
 | Auth error from getUser() swallowed without logging | 1 | 2026-03-12 | Watch — quiz-report.ts (78cb130); auth failure path returned early with no console.error; first occurrence; silent auth failure is harder to diagnose than silent mutation failure |
 | Raw Supabase error message leaked to student UI | 1 | 2026-03-12 | Watch — load-session-questions.ts (78cb130); error.message from Supabase returned directly to student-facing caller; first occurrence; internal error strings must not be exposed to UI — return a generic message or error code |
 | Unconditional setState in render body (spurious re-renders) | 1 | 2026-03-13 | Watch — statistics-tab.tsx (53efbdd); `setIsLoading(false)` called unconditionally in a render-path reset block, causing a state update on every render when isLoading was already false; fixed with `if (isLoading) setIsLoading(false)` guard in b555b50; first occurrence |
-| useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE — statistics-tab.tsx (53efbdd, f0f8d0e); semantic-reviewer flagged this suggestion twice across two consecutive commits: isPending from useTransition and manual isLoading state tracked in parallel can both be false simultaneously during a question-switch mid-fetch, briefly showing the idle "Load Statistics" button while a fetch is still in-flight; generation counter mitigates stale data but does not close the UI-state race; suggestion-level only (not fixed); second occurrence reached — propose rule clarification in code-style.md when next commit arrives in this component's area |
+| useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE — statistics-tab.tsx (53efbdd, f0f8d0e); semantic-reviewer flagged this suggestion twice across two consecutive commits: isPending from useTransition and manual isLoading state tracked in parallel can both be false simultaneously during a question-switch mid-fetch, briefly showing the idle "Load Statistics" button while a fetch is still in-flight; generation counter mitigates stale data but does not close the UI-state race; suggestion-level only (not fixed); second occurrence reached — propose rule clarification in code-style.md when next commit arrives in this component's area; NOT flagged in 8863926 (pure JSX presenter refactor, no state logic touched) — no further action this cycle |
 | Silent boundParam fallback without logging | 1 | 2026-03-13 | Watch — analytics.ts (53efbdd); non-finite input (NaN, ±Infinity) to `boundParam` silently clamped to minimum without a console.warn or error log; suggestion-level; first occurrence; if it recurs on a different utility, add a logging rule for parameter clamping fallbacks |
-| test-writer produces TS2532 (unchecked array index) errors | 2 | 2026-03-13 | RULE CANDIDATE — test-writer pattern memory should be updated with a note to always use optional chaining (`arr?.[i]`) when accessing array elements in generated test code; first seen in an earlier cycle (test fixture access), second occurrence confirmed in 99c67d2 where a `formatActivityData` test accessed an array index without `?.` and triggered TS2532; the error was caught and fixed before commit, so no broken test reached git; fix is optional chaining or a non-null assertion with a preceding length check |
+| test-writer produces TS2532 (unchecked array index) errors | 2 | 2026-03-13 | RULE CANDIDATE — test-writer pattern memory should be updated with a note to always use optional chaining (`arr?.[i]`) when accessing array elements in generated test code; first seen in an earlier cycle (test fixture access), second occurrence confirmed in 99c67d2 where a `formatActivityData` test accessed an array index without `?.` and triggered TS2532; the error was caught and fixed before commit, so no broken test reached git; fix is optional chaining or a non-null assertion with a preceding length check; NOT triggered in 8863926 (test-only edits were a beforeEach reset and a rename — no new index access generated) — gate held |
 
 ## Lessons Learned
 
@@ -425,5 +425,43 @@ The test-writer generated code containing a TS2532 error — array index access 
 - Code reviewer was clean on all 4 commits — the fixes were mechanically correct (no style drift introduced while applying the cross-cutting change).
 - Test coverage for auth error branches across 7 query files is now complete. The test-writer identified all 7 gaps in one pass, confirming its file-family awareness is working correctly.
 - The 3 ISSUES (partial fix, silent log, raw error) were all caught and fixed within the same session — no deferred debt.
+
+---
+
+### 2026-03-13 — CodeRabbit triage cycle 6: ActivityBars extract + test reset (commit 8863926)
+
+**Context:** This is the 6th consecutive CodeRabbit triage cycle on the same PR (feat/sprint-3-analytics). The commit addressed 3 findings from CodeRabbit review 5: extract `ActivityBars` presenter from `ChartBody` to bring the inner function under the 30-line cap, add `beforeEach` reset for a captured mock variable to prevent cross-test state coupling, and rename a test to match the sibling naming pattern.
+
+**Code reviewer:** 0 blocking, 0 warnings. Noted `ActivityBars` at 38 lines — reviewer correctly classified this as acceptable (pure JSX array map with no logic). This is consistent with the existing documented exception for presenter components.
+
+**Semantic reviewer:** 0 critical, 0 issues. 3 GOOD patterns noted: (1) `beforeEach` reset correctly wired to the hoisted capture variable — mock isolation improved; (2) `ActivityBars` extraction preserves the mock wiring for `BarChart` — no phantom test blindspot introduced by the split; (3) test rename to `renders X state` pattern is consistent with sibling tests.
+
+**Doc updater:** no changes needed — refactor was internal to an analytics chart component, no schema, RPC, or route surface changed.
+
+**Test writer:** no new tests needed. This was a pure presenter refactor and test-quality fix — existing tests already covered the logic. The test-writer's judgment was correct.
+
+**Patterns checked this cycle:**
+
+1. **useTransition + manual isLoading hybrid (count 2, RULE CANDIDATE):** Not flagged — the 8863926 commit touched only `activity-chart.tsx` (JSX presenter) and `activity-chart.test.tsx` / `statistics-tab.test.tsx`. No state logic was modified. The pattern has not spread to a new file and has not been flagged a third time. Rule candidate status remains — no rule change applied yet. Will trigger on the next commit that modifies state logic in `statistics-tab.tsx` or a sibling component using the same pattern.
+
+2. **test-writer TS2532 unchecked index (count 2, RULE CANDIDATE):** Not triggered — the test edits were a `beforeEach` block addition and a `describe` rename, neither of which involved new array index access. Gate held.
+
+3. **Function split to stay under 30-line cap:** `ChartBody` was split into `ChartBody` + `ActivityBars` specifically to satisfy the 30-line function rule. This is the rule working as intended. No violation — positive signal.
+
+4. **Cross-test state coupling via shared capture variable (beforeEach fix):** The `capturedBarChartData` variable was shared across tests without reset, allowing a passing test to contaminate the next. Fixed by adding a `beforeEach(() => { capturedBarChartData = null })` (or equivalent reset). First occurrence of this specific pattern (hoisted mock capture not reset between tests). Logged as a new watch item.
+
+**Actions taken:**
+- Frequency table: added "Shared hoisted mock capture without beforeEach reset" as new watch item (count 1). First occurrence — no rule change. If it recurs, warrants a note in test-writer patterns memory.
+- Updated "useTransition + manual isLoading hybrid" status note — not flagged this cycle, rule candidate status unchanged.
+- Updated "test-writer TS2532" status note — not triggered this cycle, gate held.
+- No rule changes proposed — no pattern crossed the 2+ threshold for the first time in this cycle.
+
+**Positive signals:**
+- **Sixth consecutive CodeRabbit cycle with no new BLOCKING or ISSUE findings.** The defect rate on this PR is trending toward zero as the triage cycles progress.
+- **All 4 agents reported clean** — code-reviewer, semantic-reviewer, doc-updater, and test-writer all returned clean in a single pass. This has not happened before in a mid-session cycle on this branch; prior cycles always had at least one warning or suggestion requiring a follow-up commit.
+- **The 30-line function rule caught a real structural issue** (`ChartBody` was doing layout + data mapping). The extraction of `ActivityBars` is a genuine improvement, not a mechanical compliance exercise.
+- **The beforeEach reset fix** is a sign the test-writer's mock patterns are mature enough that test-quality issues are now being caught by CodeRabbit rather than going undetected in CI. Cross-test coupling via shared capture variables is subtle and easy to miss.
+
+**False positives:** none detected.
 
 ---

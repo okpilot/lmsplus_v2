@@ -636,6 +636,36 @@ Hydration guard remains at the outermost layer; recharts DOM reads are protected
 All three functions are under 30 lines. This is the reference pattern for splitting
 client components that mix hydration concerns with data rendering.
 
+### Module-level capture variable for test assertions — requires beforeEach reset (commit 8863926)
+**First seen:** commit 8863926 (2026-03-13)
+**File:** `apps/web/app/app/dashboard/_components/activity-chart.test.tsx`
+**Pattern:** When a test uses a module-level variable to capture props passed to a mocked child
+(here `capturedBarChartData` captures the `data` prop given to the mocked `BarChart`), the
+variable must be reset in `beforeEach`. Without the reset, a test that never reaches the mocked
+component (e.g., the empty-state test path that returns before rendering `BarChart`) leaves the
+variable populated with data from the previous test. Subsequent tests that read the variable
+would assert on stale data, producing false passes.
+**Fix applied:** `beforeEach(() => { capturedBarChartData = [] })` added in commit 8863926.
+**Positive pattern:** The reset is placed at the top of the describe block so it guards all
+current and future tests uniformly.
+**Watch for:** any test file that uses a module-level variable to capture call arguments or
+rendered props from a mocked component. The variable must be reset in `beforeEach`, not just
+initialized at module load time.
+
+### ActivityBars extract — four-layer component split is still clean (commit 8863926)
+**File:** `apps/web/app/app/dashboard/_components/activity-chart.tsx`
+**Pattern:** Refactor now has four layers:
+1. `formatActivityData` — pure data transform (no JSX)
+2. `ActivityBars` — pure JSX renderer (no formatting, no state)
+3. `ChartBody` — composes 1 + 2 with layout wrapper
+4. `ActivityChart` — hydration guard + empty state + calls ChartBody
+All four are under 30 lines. The test mock correctly captures data at the `BarChart` level,
+which receives pre-formatted data from `ActivityBars`. The test assertions remain valid after
+the refactor because the mock's capture point (`BarChart` props) is unchanged.
+**Positive signal:** Extracting `ActivityBars` removed the last over-30-line function in this
+file while keeping the test mock wiring intact. This is the correct approach — component
+splits that don't require changing test infrastructure confirm the abstraction boundary is right.
+
 ## CodeRabbit Findings to Learn From
 - Cookie forwarding consistency across redirect branches (PR #23)
 - Query param forwarding to auth endpoints (PR #23)
