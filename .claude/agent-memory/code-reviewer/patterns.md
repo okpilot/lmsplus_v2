@@ -9,6 +9,59 @@
   - Commit 53efbdd extracted `FsrsSection` sub-component from `StatsDisplay`, bringing `statistics-tab.tsx` down to 158 lines
   - Commit f0f8d0e extracted `useQuestionStats()` hook + `ChartBody` component, bringing `statistics-tab.tsx` to exactly 150 lines (limit), split `activity-chart.tsx` into two helper functions
   - Pattern: Extracting hooks for stateful logic + extracting sub-components for presentation is working well; file sizes stabilizing after refactors
+- **Session ownership guard pattern established**: Commit 7ae13b6 demonstrates defense-in-depth security pattern for answer checking. Session ownership verified in both Server Action boundary AND RPC layer. Pattern: dual-layer auth guards on sensitive operations.
+
+## Session 2026-03-13 (commit 7ae13b6) — Session ownership guard for answer checking (CLEAN)
+
+### Commit: 7ae13b6 (fix: add session ownership guard to check_quiz_answer RPC)
+- Status: **CLEAN** — No violations
+- Files changed: 4 files, 113 insertions, 4 deletions
+- Summary: Add p_session_id parameter to check_quiz_answer RPC and verify session ownership before returning correct answers. Prevents direct REST API calls from obtaining answers without an active session.
+
+**✅ All checks PASS:**
+- ✓ File sizes:
+  - use-quiz-config.ts: 76 lines (hook limit: 80) ✓
+  - check-answer.ts: 75 lines (Server Action limit: 100) ✓
+  - migration 029: 69 lines (migration limit: 300) ✓
+  - check-answer.test.ts: 483 lines (test file, exempt) ✓
+- ✓ Function lengths:
+  - checkAnswer(): 43 lines (Server Action orchestrator: validation → auth → session verify → RPC → result parsing) ✓
+  - handleSubjectChange() wrapper: 3 lines ✓
+  - handleTopicChange() wrapper: 3 lines ✓
+  - isCheckAnswerRpcResult(): 9 lines (type guard function) ✓
+- ✓ Type safety:
+  - No `any` types
+  - Zod validation: CheckAnswerSchema.parse(raw) validates input
+  - Type narrowing: session.config validated with Array.isArray() guard before use
+  - RPC result: isCheckAnswerRpcResult() guard validates shape
+- ✓ Server Action security pattern:
+  - Zod input validation at boundary
+  - Auth check (user extraction + null guard)
+  - Session ownership verification (cross-check quiz_sessions table)
+  - RPC call with destructured error handling
+  - Type-safe result parsing
+- ✓ Hook pattern:
+  - use-quiz-config.ts wraps cascade handlers to reset filtered count on cascade change
+  - Thin wrapper functions (3 lines each) with clear delegation
+- ✓ Migration quality:
+  - SECURITY DEFINER with auth.uid() check + SET search_path = public ✓
+  - Session ownership guard: validates p_session_id belongs to student, is active, contains question ✓
+  - RPC signature change handled correctly: DROPs old function first ✓
+  - Never returns full options array, only correct_option_id ✓
+  - Clear, scoped error messages ✓
+- ✓ Test update:
+  - check-answer.test.ts assertion updated to expect p_session_id parameter ✓
+
+**Security pattern observation:**
+- Implements defense-in-depth: session ownership verified both at Server Action boundary (lines 42-55) AND in RPC layer (migration lines 32-41)
+- Prevents direct REST API calls from bypassing session context
+- Pattern matches established query safety approach (correctness checks in both application layer and database layer)
+- Approach aligns with `fetchExplanation` fix from earlier commit (similar dual-layer verification)
+
+**Positive pattern:**
+- Focused, minimal changes: only necessary parameters added, no scope creep
+- Tests updated to match new signature
+- Hook wrapper pattern for resetting dependent state is clean and minimal
 
 ## Session 2026-03-13 (commit 157f421) — eval feedback fixes (BLOCKING)
 

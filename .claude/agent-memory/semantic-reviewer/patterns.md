@@ -147,6 +147,109 @@ regression.
 covers the same cases as the old one, especially when a required prop becomes optional.
 **Status:** POSITIVE — correctly handled.
 
+---
+
+## Commit 7ae13b6 (2026-03-13) — filteredCount reset + check_quiz_answer session guard
+
+### JSONB containment operator inconsistency vs jsonb_typeof guard pattern
+**File:** `packages/db/migrations/029_check_answer_session_guard.sql:38`
+**Pattern:** Migration 029 uses the `?` JSONB containment operator to test whether `config->'question_ids'`
+contains `p_question_id::text`. Migrations 026, 027, and 028 all use `jsonb_typeof(v_config->'question_ids') <> 'array'`
+guard before accessing the field. The `?` operator is correct for well-formed configs but silently returns
+FALSE (not an exception) when the JSONB value is not an array. This swallows config corruption into a generic
+"not in active session" error, making production diagnosis harder.
+**Severity:** ISSUE (behavioral inconsistency, not a security hole — the call is rejected either way).
+**Fix:** Add `jsonb_typeof` guard consistent with 026–028 before the session ownership EXISTS check.
+**Watch for:** New RPC migrations that touch `config->'question_ids'` without the `jsonb_typeof` guard —
+this is an established pattern that must be applied consistently.
+
+### setSubtopicId bypass of filteredCount reset
+**File:** `apps/web/app/app/quiz/_hooks/use-quiz-config.ts`
+**Pattern:** `handleSubjectChange` and `handleTopicChange` are wrapped to call `setFilteredCount(null)` before
+delegating. But `setSubtopicId` is passed through raw via `...cascade` spread and called directly from
+`quiz-config-form.tsx`. Subtopic change does not reset `filteredCount`, so stale filter-scoped counts
+persist until the next filter interaction.
+**Severity:** SUGGESTION (stale count corrects itself on next filter interaction; not a data integrity issue).
+**Fix:** Wrap `setSubtopicId` in the same pattern, or expose a `handleSubtopicChange` wrapper.
+
+### Double ownership verification — intentional, load-bearing, documented
+**Files:** `check-answer.ts` (Server Action) + `029_check_answer_session_guard.sql` (RPC)
+Both layers now verify session ownership. The double-read of `quiz_sessions` per answer check is
+intentional per `docs/security.md` section 11a. Not a bug — a latency cost to document for perf review.
+
+## PR-Level Review — feat/post-sprint-3-polish (2026-03-13)
+
+### filteredCount not reset on subject/topic change
+**Found in:** PR-level sweep (not caught per-commit)
+**Files:** `apps/web/app/app/quiz/_hooks/use-quiz-config.ts`, `apps/web/app/app/quiz/_hooks/use-quiz-cascade.ts`
+**Pattern:** `filteredCount` is a derived-state cache that tracks how many questions match the current
+filter (unseen/incorrect) for the selected subject/topic/subtopic. It is set by `handleFilterChange`
+and reset to `null` only when `handleFilterChange` is called. But when the user changes subject via
+`handleSubjectChange` or topic via `handleTopicChange`, `filteredCount` is NOT reset. The stale count
+from the prior subject/topic continues to drive `availableCount = filteredCount ?? staticCount` and
+therefore `maxQuestions`, until the user re-clicks a filter — which they may never do.
+**Severity:** ISSUE — wrong question count drives the `count` slider max, causing "Start Quiz" to
+potentially request more questions than actually exist for the new filter+scope combination, which
+will cause the `start_quiz_session` RPC to fail or return fewer questions than expected.
+**Fix:** Call `setFilteredCount(null)` inside both `handleSubjectChange` and `handleTopicChange` in
+`use-quiz-config.ts` (since cascade hook owns the change handlers but not `filteredCount`).
+The cascade hook callbacks need to be wrapped in `use-quiz-config.ts` to inject the reset.
+**Watch for:** derived cache state that is set by one event but not invalidated by sibling events
+that change its inputs. Always trace every input to a derived value and ensure every mutation of
+those inputs triggers a cache reset.
+
+### check_quiz_answer RPC — session ownership NOT verified in the RPC itself
+**Found in:** PR-level sweep
+**Files:** `supabase/migrations/20260313000019_check_answer_rpc.sql`, `apps/web/app/app/quiz/actions/check-answer.ts`
+**Pattern:** The `check_quiz_answer` RPC verifies auth (`auth.uid()`) and question existence, but
+does NOT verify that the student owns a session containing that question. The session + question
+ownership check is done in the Server Action (`check-answer.ts` lines 43-55). If a student calls
+the RPC directly (bypassing the Server Action), they can check the correct answer for any
+non-deleted question without owning a session for it. The RPC returns the `correct_option_id`.
+**Context:** The Server Action does the ownership check, providing defense-in-depth. But RPCs
+classified as answer-revealing should be self-defending, per `docs/security.md` rule 7.
+**Severity:** ISSUE — the RPC exposes correctness data without session ownership enforcement.
+An authenticated student can call `check_quiz_answer` directly via REST API for any question.
+**Fix:** Add session ownership check inside the RPC, or accept a `p_session_id` parameter and
+validate `EXISTS (SELECT 1 FROM quiz_sessions WHERE ... AND student_id = v_student_id)`.
+**Watch for:** SECURITY DEFINER RPCs that return answer-derived data (correctness, correct option IDs)
+without validating the caller has an active session containing the question.
+
+### Behavioral inconsistency — disabled prop on AnswerOptions during per-answer check
+**Found in:** PR-level sweep
+**Files:** `apps/web/app/app/quiz/session/_components/quiz-session.tsx`,
+`apps/web/app/app/quiz/session/_hooks/use-answer-handler.ts`,
+`apps/web/app/app/quiz/session/_hooks/use-quiz-submit.ts`
+**Pattern:** `AnswerOptions` receives `disabled={s.submitting}` where `s.submitting` is the
+batch-submit/save/discard `submitting` state from `useQuizSubmit`. It is NOT set to `true` while
+a per-question `checkAnswer` RPC is in flight. The `lockedRef` inside `useAnswerHandler` prevents
+double-submission at the logic level, but the UI does not visually reflect that an answer check is
+in progress. A student can see and click options while waiting for `checkAnswer` — the click is
+silently discarded by the guard. No data integrity issue. UX regression relative to before the
+immediate-feedback refactor, where `submitting` controlled both scenarios.
+**Severity:** SUGGESTION — silent discard with no visual feedback is unexpected UX. Not a bug but
+a behavioral regression.
+**Watch for:** hooks that split a single submitting signal into two (answer-level vs session-level)
+without unifying them at the component boundary.
+
+### POSITIVE — check_quiz_answer RPC returns only derived result, no options array
+The new `check_quiz_answer` RPC fetches `(opt->>'id' WHERE opt->>'correct')` and returns only
+`correct_option_id` — it never returns the raw options array with the `correct` flag. This is
+correct answer-stripping behavior per the security rule. `fetch-explanation.ts` also correctly
+uses `SELECT explanation_text, explanation_image_url` with no `options` column.
+
+### POSITIVE — batch_submit_quiz evolution (migrations 024-028) is correct
+All seven iterations of `batch_submit_quiz` across `supabase/migrations/` and `packages/db/migrations/`
+consistently include: auth.uid() check, deleted_at IS NULL guard, session ownership (student_id),
+SECURITY DEFINER + SET search_path = public. No version drops any of these guards. The incremental
+hardening (field validation, pre-cast validation, UUID case fix) is additive, not regressive.
+
+### POSITIVE — draftId flows correctly end-to-end
+`draftId` is correctly threaded through: `ResumeDraftBanner` / `DraftCard` → `sessionStorage` →
+`QuizSessionLoader` → `QuizSession` → `useQuizState` (via `QuizStateOpts`) → `useQuizSubmit` →
+`handleSubmitSession` / `handleSaveSession` / `handleDiscardSession` → `deleteDraft` /
+`saveDraft` / `discardQuiz`. No leg of the chain drops it.
+
 ### lookup.ts — unused import of createServerSupabaseClient in the two thin wrapper functions
 **First seen:** commit 028fc09 (2026-03-13)
 **File:** `apps/web/app/app/quiz/actions/lookup.ts`

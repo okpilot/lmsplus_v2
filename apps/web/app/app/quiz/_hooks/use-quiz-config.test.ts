@@ -159,6 +159,49 @@ describe('useQuizConfig — cascade resets', () => {
     })
     expect(result.current.subtopicId).toBe('')
   })
+
+  it('resets filteredCount to null when subject changes', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+
+    // Establish a non-null filteredCount via a filter change
+    mockGetFilteredCount.mockResolvedValue({ count: 7 })
+    await act(async () => {
+      result.current.setFilter('unseen')
+    })
+    expect(result.current.filteredCount).toBe(7)
+
+    // Changing the subject must clear filteredCount immediately
+    await act(async () => {
+      result.current.handleSubjectChange('')
+    })
+    expect(result.current.filteredCount).toBeNull()
+  })
+
+  it('resets filteredCount to null when topic changes', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+    await act(async () => {
+      result.current.handleTopicChange(TOPIC_ID)
+    })
+
+    // Establish a non-null filteredCount
+    mockGetFilteredCount.mockResolvedValue({ count: 11 })
+    await act(async () => {
+      result.current.setFilter('incorrect')
+    })
+    expect(result.current.filteredCount).toBe(11)
+
+    // Changing the topic must clear filteredCount immediately
+    await act(async () => {
+      result.current.handleTopicChange('')
+    })
+    expect(result.current.filteredCount).toBeNull()
+  })
 })
 
 // ---- handleStart — happy path --------------------------------------------

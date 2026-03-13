@@ -63,6 +63,10 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
       setFilteredCount(null)
       cascade.handleTopicChange(id)
     },
+    setSubtopicId: (id: string) => {
+      setFilteredCount(null)
+      cascade.setSubtopicId(id)
+    },
     filter,
     setFilter: handleFilterChange,
     count,

@@ -18,26 +18,40 @@ SET search_path = public
 AS $$
 DECLARE
   v_student_id        uuid := auth.uid();
+  v_config            jsonb;
   v_correct_option_id text;
   v_explanation_text  text;
   v_explanation_image text;
   v_is_correct        boolean;
+  v_session_question_ids uuid[];
 BEGIN
   -- Auth guard
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
-  -- Session ownership: verify the student owns an active session containing this question
-  IF NOT EXISTS (
-    SELECT 1 FROM quiz_sessions qs
-    WHERE qs.id = p_session_id
-      AND qs.student_id = v_student_id
-      AND qs.ended_at IS NULL
-      AND qs.deleted_at IS NULL
-      AND qs.config->'question_ids' ? p_question_id::text
-  ) THEN
-    RAISE EXCEPTION 'question not in an active session owned by this student';
+  -- Session ownership: verify the student owns an active session
+  SELECT qs.config
+  INTO v_config
+  FROM quiz_sessions qs
+  WHERE qs.id = p_session_id
+    AND qs.student_id = v_student_id
+    AND qs.ended_at IS NULL
+    AND qs.deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'session not found or not owned by this student';
+  END IF;
+
+  -- Guard against malformed config (matches pattern in batch_submit_quiz)
+  IF v_config IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+    RAISE EXCEPTION 'session config is malformed — question_ids not set';
+  END IF;
+
+  -- Verify question belongs to this session
+  v_session_question_ids := ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[];
+  IF NOT (p_question_id = ANY(v_session_question_ids)) THEN
+    RAISE EXCEPTION 'question % does not belong to session %', p_question_id, p_session_id;
   END IF;
 
   -- Fetch correct option and explanation (never returns the full options array)
