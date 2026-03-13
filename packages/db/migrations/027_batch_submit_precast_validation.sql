@@ -93,7 +93,7 @@ BEGIN
     IF v_selected_option IS NULL OR v_selected_option = '' THEN
       RAISE EXCEPTION 'answer for question % has empty selected_option', v_qid_text;
     END IF;
-    IF v_rt_text IS NULL OR v_rt_text !~ '^\d{1,10}$' OR v_rt_text::int < 0 THEN
+    IF v_rt_text IS NULL OR v_rt_text !~ '^\d{1,9}$' OR v_rt_text::int < 0 THEN
       RAISE EXCEPTION 'answer for question % has invalid response_time_ms', v_qid_text;
     END IF;
 
