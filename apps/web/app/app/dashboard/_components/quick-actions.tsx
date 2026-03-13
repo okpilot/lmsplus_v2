@@ -9,12 +9,6 @@ export function QuickActions() {
       >
         Start Quiz
       </Link>
-      <Link
-        href="/app/review"
-        className="inline-flex items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
-      >
-        Start Review
-      </Link>
     </div>
   )
 }

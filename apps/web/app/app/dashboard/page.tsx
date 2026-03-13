@@ -3,7 +3,6 @@ import { getDashboardData } from '@/lib/queries/dashboard'
 import Link from 'next/link'
 import { ActivityChart } from './_components/activity-chart'
 import { ActivityHeatmap } from './_components/activity-heatmap'
-import { DueReviewsBanner } from './_components/due-reviews-banner'
 import { QuickActions } from './_components/quick-actions'
 import { SubjectGrid } from './_components/subject-grid'
 import { SubjectScoresChart } from './_components/subject-scores-chart'
@@ -31,7 +30,6 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <DueReviewsBanner dueCount={data.dueCount} />
       <QuickActions />
 
       <div className="grid gap-6 lg:grid-cols-2">

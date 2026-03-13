@@ -10,18 +10,17 @@ vi.mock('next/navigation', () => ({
 import { usePathname } from 'next/navigation'
 
 describe('SidebarNav', () => {
-  it('renders all four navigation links', () => {
+  it('renders all navigation links', () => {
     render(<SidebarNav />)
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Smart Review')).toBeInTheDocument()
     expect(screen.getByText('Quiz')).toBeInTheDocument()
     expect(screen.getByText('Progress')).toBeInTheDocument()
+    expect(screen.queryByText('Smart Review')).not.toBeInTheDocument()
   })
 
   it('links point to correct routes', () => {
     render(<SidebarNav />)
     expect(screen.getByText('Dashboard').closest('a')).toHaveAttribute('href', '/app/dashboard')
-    expect(screen.getByText('Smart Review').closest('a')).toHaveAttribute('href', '/app/review')
     expect(screen.getByText('Quiz').closest('a')).toHaveAttribute('href', '/app/quiz')
     expect(screen.getByText('Progress').closest('a')).toHaveAttribute('href', '/app/progress')
   })

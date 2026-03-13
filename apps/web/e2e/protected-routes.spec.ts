@@ -15,11 +15,6 @@ test.describe('protected routes redirect to login', () => {
     await expect(page).toHaveURL('/')
   })
 
-  test('review page redirects to login', async ({ page }) => {
-    await page.goto('/app/review')
-    await expect(page).toHaveURL('/')
-  })
-
   test('progress page redirects to login', async ({ page }) => {
     await page.goto('/app/progress')
     await expect(page).toHaveURL('/')

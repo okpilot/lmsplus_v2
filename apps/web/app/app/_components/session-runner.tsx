@@ -39,7 +39,7 @@ export type SubmitInput = {
 type SessionRunnerProps = {
   sessionId: string
   questions: SessionQuestion[]
-  mode: 'quick_quiz' | 'smart_review'
+  mode: 'quick_quiz'
   onSubmitAnswer: (input: SubmitInput) => Promise<AnswerResult>
   onComplete: (input: { sessionId: string }) => Promise<CompleteResult>
 }

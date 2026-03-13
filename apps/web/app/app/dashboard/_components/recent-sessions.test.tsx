@@ -19,7 +19,7 @@ function makeSession(overrides: Partial<RecentSession> = {}): RecentSession {
 describe('RecentSessions', () => {
   it('shows empty state message when sessions array is empty', () => {
     render(<RecentSessions sessions={[]} />)
-    expect(screen.getByText(/no sessions yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no sessions yet\. start a quiz/i)).toBeInTheDocument()
   })
 
   it('renders a row for each session', () => {
@@ -54,11 +54,6 @@ describe('RecentSessions', () => {
   it('shows mode label without subject name when subjectName is null', () => {
     render(<RecentSessions sessions={[makeSession({ subjectName: null })]} />)
     expect(screen.getByText('Quiz')).toBeInTheDocument()
-  })
-
-  it('shows "Smart Review" label for smart_review mode', () => {
-    render(<RecentSessions sessions={[makeSession({ mode: 'smart_review', subjectName: null })]} />)
-    expect(screen.getByText('Smart Review')).toBeInTheDocument()
   })
 
   it('shows raw mode string for unknown modes', () => {

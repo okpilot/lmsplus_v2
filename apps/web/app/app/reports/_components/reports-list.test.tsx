@@ -50,11 +50,6 @@ describe('ReportsList', () => {
     expect(screen.getByText('Quiz')).toBeInTheDocument()
   })
 
-  it('maps smart_review mode to "Smart Review" label', () => {
-    render(<ReportsList sessions={[makeSession({ mode: 'smart_review', subjectName: null })]} />)
-    expect(screen.getByText('Smart Review')).toBeInTheDocument()
-  })
-
   it('maps mock_exam mode to "Mock Exam" label', () => {
     render(<ReportsList sessions={[makeSession({ mode: 'mock_exam', subjectName: null })]} />)
     expect(screen.getByText('Mock Exam')).toBeInTheDocument()

@@ -4,16 +4,15 @@ type SessionSummaryProps = {
   totalQuestions: number
   correctCount: number
   scorePercentage: number
-  mode: 'smart_review' | 'quick_quiz'
+  mode: 'quick_quiz'
 }
 
 export function SessionSummary({
   totalQuestions,
   correctCount,
   scorePercentage,
-  mode,
 }: SessionSummaryProps) {
-  const label = mode === 'smart_review' ? 'Smart Review' : 'Quiz'
+  const label = 'Quiz'
 
   return (
     <div className="mx-auto max-w-md space-y-6 text-center">
@@ -54,7 +53,7 @@ export function SessionSummary({
           Back to Dashboard
         </Link>
         <Link
-          href={mode === 'smart_review' ? '/app/review' : '/app/quiz'}
+          href="/app/quiz"
           className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           Start Another
