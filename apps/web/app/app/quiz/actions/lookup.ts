@@ -5,12 +5,14 @@ import type { SubtopicOption, TopicOption } from '@/lib/queries/quiz'
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 
-export async function fetchTopicsForSubject(subjectId: string): Promise<TopicOption[]> {
-  return getTopicsForSubject(subjectId)
+const IdSchema = z.string().uuid()
+
+export async function fetchTopicsForSubject(raw: unknown): Promise<TopicOption[]> {
+  return getTopicsForSubject(IdSchema.parse(raw))
 }
 
-export async function fetchSubtopicsForTopic(topicId: string): Promise<SubtopicOption[]> {
-  return getSubtopicsForTopic(topicId)
+export async function fetchSubtopicsForTopic(raw: unknown): Promise<SubtopicOption[]> {
+  return getSubtopicsForTopic(IdSchema.parse(raw))
 }
 
 const FilteredCountSchema = z.object({
