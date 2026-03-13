@@ -260,6 +260,42 @@ mockFrom.mockReturnValue(buildSelectChain({ data: [...rows], error: null }))
 ```
 This pattern is used in `load-draft.test.ts` for `loadDrafts()`.
 
+### Testing generation-ref stale-async guards in hooks (2026-03-13)
+When a hook uses `useRef` + generation counter to discard stale async results, test it with
+a manually-controlled deferred promise:
+
+```ts
+// 1. Create a deferred promise for the "slow" (stale) call
+let resolveSlowFetch!: (v: ResultType) => void
+const slowPromise = new Promise<ResultType>((res) => { resolveSlowFetch = res })
+
+// 2. Wire mocks: first call is slow, second is fast
+mockFetchFn
+  .mockImplementationOnce(() => slowPromise)
+  .mockResolvedValueOnce(FAST_RESULT)
+
+const { result } = renderHook(() => useHook())
+
+// 3. Fire the slow (first) call — do NOT await act
+act(() => { result.current.handleChange(SLOW_VALUE) })
+
+// 4. Fire the fast (second) call — await it so it fully settles
+await act(async () => { result.current.handleChange(FAST_VALUE) })
+
+// 5. Assert state reflects the fast result
+expect(result.current.state).toEqual(FAST_RESULT)
+
+// 6. Resolve the slow call — stale, must not change state
+await act(async () => { resolveSlowFetch(STALE_RESULT) })
+
+// 7. State must still reflect the fast result
+expect(result.current.state).toEqual(FAST_RESULT)
+```
+
+Key: the non-awaited `act(() => {...})` starts the transition but does not flush the async
+mock. The awaited second `act` resolves and bumps the generation ref. When the slow promise
+finally resolves, `gen !== generation.current` so the state setter is skipped.
+
 ### Testing type-guard fallback paths (2026-03-13)
 When production code has a runtime type guard that falls back to a safe value on failure,
 test all rejection branches (null, wrong type, missing required field) plus the happy path:

@@ -147,6 +147,44 @@ describe('discardQuiz', () => {
     expect(tablesCalled).not.toContain('quiz_drafts')
   })
 
+  it('uses hard DELETE (not soft-delete) for draft cleanup', async () => {
+    // Track which method is called on the quiz_drafts chain
+    const draftChainMethods: string[] = []
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildChain({ error: null })
+      if (table === 'quiz_drafts') {
+        // Build a spy chain that records method names before forwarding
+        const spyChain = (returnValue: unknown): unknown => {
+          const awaitable = {
+            // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+            then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+              Promise.resolve(returnValue).then(resolve, reject),
+          }
+          return new Proxy(awaitable as Record<string, unknown>, {
+            get(target, prop) {
+              if (prop === 'then') return target.then
+              return (..._args: unknown[]) => {
+                if (typeof prop === 'string') draftChainMethods.push(prop)
+                return spyChain(returnValue)
+              }
+            },
+          })
+        }
+        return spyChain({ error: null })
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await discardQuiz({
+      sessionId: '00000000-0000-0000-0000-000000000001',
+      draftId: '00000000-0000-0000-0000-000000000002',
+    })
+
+    expect(draftChainMethods).toContain('delete')
+    expect(draftChainMethods).not.toContain('update')
+  })
+
   // ---- unexpected errors ---------------------------------------------------
 
   it('returns a generic error when an unexpected exception is thrown', async () => {

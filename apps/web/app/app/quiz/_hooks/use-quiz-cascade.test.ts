@@ -160,3 +160,83 @@ describe('useQuizCascade — full cascade flow', () => {
     expect(result.current.subtopics).toEqual(SUBTOPICS)
   })
 })
+
+// ---- stale async guard (generation ref) ----------------------------------
+
+describe('useQuizCascade — stale async guard', () => {
+  it('ignores topics from a superseded subject change when a newer change resolves first', async () => {
+    const SUBJECT_A = '00000000-0000-0000-0000-000000000010'
+    const SUBJECT_B = '00000000-0000-0000-0000-000000000011'
+    const TOPICS_A = [{ id: 'ta1', name: 'Topic A', code: 'TA' }]
+    const TOPICS_B = [{ id: 'tb1', name: 'Topic B', code: 'TB' }]
+
+    // First call returns a deferred promise we control
+    let resolveSlowFetch!: (value: typeof TOPICS_A) => void
+    const slowPromise = new Promise<typeof TOPICS_A>((resolve) => {
+      resolveSlowFetch = resolve
+    })
+
+    mockFetchTopicsForSubject
+      .mockImplementationOnce(() => slowPromise) // subject A — slow
+      .mockResolvedValueOnce(TOPICS_B) // subject B — fast
+
+    const { result } = renderHook(() => useQuizCascade())
+
+    // Fire subject A (slow) — don't await; transition starts but mock hasn't resolved
+    act(() => {
+      result.current.handleSubjectChange(SUBJECT_A)
+    })
+
+    // Fire subject B (fast) and wait for it to fully settle
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_B)
+    })
+
+    // topics are now B's result
+    expect(result.current.topics).toEqual(TOPICS_B)
+
+    // Now resolve the slow fetch for A — its gen will be stale, so state must not change
+    await act(async () => {
+      resolveSlowFetch(TOPICS_A)
+    })
+
+    // State must still reflect B — stale A result discarded
+    expect(result.current.topics).toEqual(TOPICS_B)
+    expect(result.current.subjectId).toBe(SUBJECT_B)
+  })
+
+  it('ignores subtopics from a superseded topic change when a newer change resolves first', async () => {
+    const TOPIC_A = '00000000-0000-0000-0000-000000000020'
+    const TOPIC_B = '00000000-0000-0000-0000-000000000021'
+    const SUBTOPICS_A = [{ id: 'sa1', name: 'Sub A', code: 'SA' }]
+    const SUBTOPICS_B = [{ id: 'sb1', name: 'Sub B', code: 'SB' }]
+
+    let resolveSlowFetch!: (value: typeof SUBTOPICS_A) => void
+    const slowPromise = new Promise<typeof SUBTOPICS_A>((resolve) => {
+      resolveSlowFetch = resolve
+    })
+
+    mockFetchSubtopicsForTopic
+      .mockImplementationOnce(() => slowPromise) // topic A — slow
+      .mockResolvedValueOnce(SUBTOPICS_B) // topic B — fast
+
+    const { result } = renderHook(() => useQuizCascade())
+
+    act(() => {
+      result.current.handleTopicChange(TOPIC_A)
+    })
+
+    await act(async () => {
+      result.current.handleTopicChange(TOPIC_B)
+    })
+
+    expect(result.current.subtopics).toEqual(SUBTOPICS_B)
+
+    await act(async () => {
+      resolveSlowFetch(SUBTOPICS_A)
+    })
+
+    expect(result.current.subtopics).toEqual(SUBTOPICS_B)
+    expect(result.current.topicId).toBe(TOPIC_B)
+  })
+})
