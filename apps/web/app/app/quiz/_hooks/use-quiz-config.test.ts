@@ -180,7 +180,7 @@ describe('useQuizConfig — cascade resets', () => {
     expect(result.current.filteredCount).toBeNull()
   })
 
-  it('resets filteredCount to null when topic changes', async () => {
+  it('re-fetches filteredCount when topic changes with active filter', async () => {
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
@@ -196,11 +196,12 @@ describe('useQuizConfig — cascade resets', () => {
     })
     expect(result.current.filteredCount).toBe(11)
 
-    // Changing the topic must clear filteredCount immediately
+    // Changing the topic re-fetches filteredCount for new scope
+    mockGetFilteredCount.mockResolvedValue({ count: 9 })
     await act(async () => {
       result.current.handleTopicChange('')
     })
-    expect(result.current.filteredCount).toBeNull()
+    expect(result.current.filteredCount).toBe(9)
   })
 })
 
@@ -329,6 +330,94 @@ describe('useQuizConfig — handleStart', () => {
 
     const callArg = mockStartQuizSession.mock.calls[0]?.[0] as { count: number }
     expect(callArg.count).toBe(8)
+  })
+})
+
+// ---- scope change re-fetch -----------------------------------------------
+
+describe('useQuizConfig — re-fetches filteredCount on scope change', () => {
+  it('re-fetches filteredCount when subject changes while filter is unseen', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+
+    // Set filter to 'unseen' to establish non-all filter
+    mockGetFilteredCount.mockResolvedValue({ count: 7 })
+    await act(async () => {
+      result.current.setFilter('unseen')
+    })
+    expect(result.current.filteredCount).toBe(7)
+
+    // Change subject — should re-fetch filteredCount with new subject
+    const NEW_SUBJECT_ID = '00000000-0000-0000-0000-000000000010'
+    const newSubjects = [
+      ...SUBJECTS,
+      { id: NEW_SUBJECT_ID, name: 'Nav', code: 'NAV', short: 'NAV', questionCount: 50 },
+    ]
+    const { result: result2 } = renderHook(() => useQuizConfig({ subjects: newSubjects }))
+    await act(async () => {
+      result2.current.handleSubjectChange(SUBJECT_ID)
+    })
+    mockGetFilteredCount.mockResolvedValue({ count: 12 })
+    await act(async () => {
+      result2.current.setFilter('unseen')
+    })
+
+    mockGetFilteredCount.mockResolvedValue({ count: 25 })
+    await act(async () => {
+      result2.current.handleSubjectChange(NEW_SUBJECT_ID)
+    })
+
+    expect(mockGetFilteredCount).toHaveBeenLastCalledWith(
+      expect.objectContaining({ subjectId: NEW_SUBJECT_ID, filter: 'unseen' }),
+    )
+    expect(result2.current.filteredCount).toBe(25)
+  })
+
+  it('re-fetches filteredCount when topic changes while filter is incorrect', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+    await act(async () => {
+      result.current.handleTopicChange(TOPIC_ID)
+    })
+
+    // Set filter to 'incorrect'
+    mockGetFilteredCount.mockResolvedValue({ count: 5 })
+    await act(async () => {
+      result.current.setFilter('incorrect')
+    })
+    expect(result.current.filteredCount).toBe(5)
+
+    // Change topic — should re-fetch
+    mockGetFilteredCount.mockResolvedValue({ count: 3 })
+    await act(async () => {
+      result.current.handleTopicChange('')
+    })
+
+    // With empty topic, it refetches using just the subject
+    expect(mockGetFilteredCount).toHaveBeenLastCalledWith(
+      expect.objectContaining({ subjectId: SUBJECT_ID, filter: 'incorrect' }),
+    )
+    expect(result.current.filteredCount).toBe(3)
+  })
+
+  it('does not re-fetch when subject changes while filter is all', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+
+    // filter is 'all' by default — no fetch should happen
+    mockGetFilteredCount.mockClear()
+    await act(async () => {
+      result.current.handleSubjectChange('')
+    })
+
+    expect(mockGetFilteredCount).not.toHaveBeenCalled()
+    expect(result.current.filteredCount).toBeNull()
   })
 })
 

@@ -34,40 +34,41 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     filter,
   })
 
-  function handleFilterChange(newFilter: QuestionFilter) {
-    setFilter(newFilter)
-    if (!subjectId) return
+  function refetchFilteredCount(f: QuestionFilter, sId: string, tId?: string, stId?: string) {
     setFilteredCount(null)
+    if (!sId || f === 'all') return
     filterGeneration.current++
     const gen = filterGeneration.current
     startFilterTransition(async () => {
       const result = await getFilteredCount({
-        subjectId,
-        topicId: topicId || undefined,
-        subtopicId: subtopicId || undefined,
-        filter: newFilter,
+        subjectId: sId,
+        topicId: tId,
+        subtopicId: stId,
+        filter: f,
       })
-      if (gen === filterGeneration.current) {
-        setFilteredCount(result.count)
-      }
+      if (gen === filterGeneration.current) setFilteredCount(result.count)
     })
   }
+
   return {
     ...cascade,
     handleSubjectChange: (id: string) => {
-      setFilteredCount(null)
       cascade.handleSubjectChange(id)
+      refetchFilteredCount(filter, id)
     },
     handleTopicChange: (id: string) => {
-      setFilteredCount(null)
       cascade.handleTopicChange(id)
+      refetchFilteredCount(filter, subjectId, id || undefined, undefined)
     },
     setSubtopicId: (id: string) => {
-      setFilteredCount(null)
       cascade.setSubtopicId(id)
+      refetchFilteredCount(filter, subjectId, topicId || undefined, id || undefined)
     },
     filter,
-    setFilter: handleFilterChange,
+    setFilter: (newFilter: QuestionFilter) => {
+      setFilter(newFilter)
+      refetchFilteredCount(newFilter, subjectId, topicId || undefined, subtopicId || undefined)
+    },
     count,
     setCount,
     loading,
