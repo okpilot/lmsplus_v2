@@ -231,6 +231,154 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not found')
   })
 
+  it('returns failure when RPC data is a non-null primitive (type guard rejects it)', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({ data: 'unexpected-string', error: null })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    consoleSpy.mockRestore()
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Question not found')
+  })
+
+  it('returns failure when RPC data is missing is_correct field (type guard rejects it)', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({
+      data: {
+        correct_option_id: CORRECT_OPTION_ID,
+        explanation_text: null,
+        explanation_image_url: null,
+        // is_correct intentionally omitted
+      },
+      error: null,
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    consoleSpy.mockRestore()
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Question not found')
+  })
+
+  it('returns failure when RPC data has is_correct as a string instead of boolean (type guard rejects it)', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({
+      data: {
+        is_correct: 'true',
+        correct_option_id: CORRECT_OPTION_ID,
+        explanation_text: null,
+        explanation_image_url: null,
+      },
+      error: null,
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    consoleSpy.mockRestore()
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Question not found')
+  })
+
+  it('returns failure when RPC data has correct_option_id as null instead of string (type guard rejects it)', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({
+      data: {
+        is_correct: true,
+        correct_option_id: null,
+        explanation_text: null,
+        explanation_image_url: null,
+      },
+      error: null,
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    consoleSpy.mockRestore()
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Question not found')
+  })
+
+  it('returns failure when RPC data has explanation_text as a number instead of string or null (type guard rejects it)', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({
+      data: {
+        is_correct: true,
+        correct_option_id: CORRECT_OPTION_ID,
+        explanation_text: 42,
+        explanation_image_url: null,
+      },
+      error: null,
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    consoleSpy.mockRestore()
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Question not found')
+  })
+
+  it('returns failure when RPC data has explanation_image_url as a number instead of string or null (type guard rejects it)', async () => {
+    setupAuthenticatedUser()
+    setupValidSession()
+    mockRpc.mockResolvedValue({
+      data: {
+        is_correct: false,
+        correct_option_id: CORRECT_OPTION_ID,
+        explanation_text: null,
+        explanation_image_url: 0,
+      },
+      error: null,
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    consoleSpy.mockRestore()
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Question not found')
+  })
+
   it('returns isCorrect true when selectedOptionId matches the correct option', async () => {
     setupAuthenticatedUser()
     setupValidSession()
