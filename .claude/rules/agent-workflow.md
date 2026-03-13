@@ -30,6 +30,22 @@ git commit
                               └─────────────┘
 ```
 
+## Pre-Push PR Sweep (MANDATORY for multi-commit PRs)
+
+Before pushing a branch with 2+ commits, run a **PR-level semantic review** against the full diff:
+
+```bash
+git diff master...HEAD
+```
+
+This catches cross-file consistency issues that per-commit reviews miss:
+- Test assertions not matching production code changed in a different commit
+- Doc matrices inconsistent with schema changes from earlier commits
+- Fallback values or error handling patterns introduced across separate commits
+
+Run semantic-reviewer (sonnet) with the full PR diff as input, not just `HEAD~1..HEAD`.
+This is what CodeRabbit sees — our agents must see it too.
+
 ## Orchestrator Role
 
 - **You plan and review. Agents execute.**
