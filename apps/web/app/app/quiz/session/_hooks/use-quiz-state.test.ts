@@ -21,10 +21,10 @@ vi.mock('./quiz-submit', () => ({
   saveQuizDraft: (...args: unknown[]) => mockSaveQuizDraft(...args),
 }))
 
-vi.mock('./use-flagged-questions', () => ({
-  useFlaggedQuestions: () => ({
-    flaggedQuestions: new Set<string>(),
-    toggleFlag: vi.fn(),
+vi.mock('./use-pinned-questions', () => ({
+  usePinnedQuestions: () => ({
+    pinnedQuestions: new Set<string>(),
+    togglePin: vi.fn(),
   }),
 }))
 

@@ -71,6 +71,7 @@ describe('getAllSessions', () => {
       if (table === 'quiz_sessions') return buildChain({ data: sessions })
       if (table === 'easa_subjects')
         return buildChain({ data: [{ id: 's-1', name: 'Navigation' }] })
+      if (table === 'quiz_session_answers') return buildChain({ data: [{ session_id: 'sess-1' }] })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -79,6 +80,7 @@ describe('getAllSessions', () => {
     expect(result[0]!.subjectName).toBe('Navigation')
     expect(result[0]!.durationMinutes).toBe(15)
     expect(result[0]!.scorePercentage).toBe(80)
+    expect(result[0]!.answeredCount).toBe(1)
   })
 
   it('throws when the quiz_sessions query returns an error', async () => {
@@ -109,6 +111,7 @@ describe('getAllSessions', () => {
       if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
       if (table === 'easa_subjects')
         return buildChain({ data: null, error: { message: 'subjects DB error' } })
+      if (table === 'quiz_session_answers') return buildChain({ data: [], error: null })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -131,6 +134,7 @@ describe('getAllSessions', () => {
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
+      if (table === 'quiz_session_answers') return buildChain({ data: [], error: null })
       // easa_subjects should not be queried when no subject IDs present
       throw new Error(`Unexpected table: ${table}`)
     })

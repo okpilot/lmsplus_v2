@@ -1,5 +1,6 @@
 import type { useRouter } from 'next/navigation'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
+import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
 import { deleteDraft } from '../../actions/draft-delete'
 import type { DraftAnswer } from '../../types'
@@ -25,6 +26,21 @@ export async function submitQuizSession(
       )
     }
     return result
+  } catch {
+    return { success: false as const, error: 'Something went wrong. Please try again.' }
+  }
+}
+
+export async function discardQuizSession(
+  sessionId: string,
+  router: AppRouterInstance,
+  draftId?: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const result = await discardQuiz({ sessionId, draftId })
+    if (!result.success) return result
+    router.push('/app/quiz')
+    return { success: true }
   } catch {
     return { success: false as const, error: 'Something went wrong. Please try again.' }
   }

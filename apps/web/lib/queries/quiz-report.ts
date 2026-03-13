@@ -15,6 +15,7 @@ export type QuizReportQuestion = {
 export type QuizReportData = {
   sessionId: string
   totalQuestions: number
+  answeredCount: number
   correctCount: number
   scorePercentage: number
   startedAt: string
@@ -96,6 +97,7 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
   return {
     sessionId: session.id,
     totalQuestions: session.total_questions,
+    answeredCount: answers.length,
     correctCount: session.correct_count,
     scorePercentage: session.score_percentage,
     startedAt: session.started_at,

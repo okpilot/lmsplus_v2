@@ -6,6 +6,7 @@ import { ReportCard } from './report-card'
 const mockReport: QuizReportData = {
   sessionId: 'sess-1',
   totalQuestions: 3,
+  answeredCount: 3,
   correctCount: 2,
   scorePercentage: 66.67,
   startedAt: '2026-03-12T10:00:00Z',

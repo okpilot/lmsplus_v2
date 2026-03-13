@@ -177,4 +177,49 @@ describe('getRandomQuestionIds', () => {
     const result = await getRandomQuestionIds({ subjectId: 's1', count: 5 })
     expect(result).toEqual([])
   })
+
+  it('returns only questions with last_was_correct=false when filter is incorrect', async () => {
+    // First call: questions pool
+    // Second call: fsrs_cards with last_was_correct=false scoped to those question IDs
+    mockFromSequence(
+      { data: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }] },
+      { data: [{ question_id: 'q2' }] }, // only q2 was answered incorrectly
+    )
+
+    const result = await getRandomQuestionIds({
+      subjectId: 's1',
+      count: 10,
+      filter: 'incorrect',
+      userId: 'u1',
+    })
+    expect(result).toEqual(['q2'])
+  })
+
+  it('returns empty array when no incorrect questions exist for the filter', async () => {
+    mockFromSequence(
+      { data: [{ id: 'q1' }, { id: 'q2' }] },
+      { data: [] }, // no incorrect cards
+    )
+
+    const result = await getRandomQuestionIds({
+      subjectId: 's1',
+      count: 10,
+      filter: 'incorrect',
+      userId: 'u1',
+    })
+    expect(result).toEqual([])
+  })
+
+  it('skips incorrect filter and returns all questions when userId is not provided', async () => {
+    mockFromSequence({ data: [{ id: 'q1' }, { id: 'q2' }] })
+
+    const result = await getRandomQuestionIds({
+      subjectId: 's1',
+      count: 10,
+      filter: 'incorrect',
+      // no userId
+    })
+    // Without userId, filter is bypassed — all questions returned
+    expect(result).toHaveLength(2)
+  })
 })

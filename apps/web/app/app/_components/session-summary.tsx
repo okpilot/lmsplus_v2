@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 type SessionSummaryProps = {
   totalQuestions: number
+  answeredCount: number
   correctCount: number
   scorePercentage: number
   mode: 'quick_quiz'
@@ -9,10 +10,13 @@ type SessionSummaryProps = {
 
 export function SessionSummary({
   totalQuestions,
+  answeredCount,
   correctCount,
   scorePercentage,
 }: SessionSummaryProps) {
   const label = 'Quiz'
+  const skippedCount = totalQuestions - answeredCount
+  const incorrectCount = answeredCount - correctCount
 
   return (
     <div className="mx-auto max-w-md space-y-6 text-center">
@@ -27,14 +31,20 @@ export function SessionSummary({
           <p className="text-muted-foreground">Correct</p>
         </div>
         <div>
-          <p className="text-2xl font-semibold tabular-nums text-destructive">
-            {totalQuestions - correctCount}
-          </p>
+          <p className="text-2xl font-semibold tabular-nums text-destructive">{incorrectCount}</p>
           <p className="text-muted-foreground">Incorrect</p>
         </div>
+        {skippedCount > 0 && (
+          <div>
+            <p className="text-2xl font-semibold tabular-nums text-muted-foreground">
+              {skippedCount}
+            </p>
+            <p className="text-muted-foreground">Skipped</p>
+          </div>
+        )}
         <div>
-          <p className="text-2xl font-semibold tabular-nums">{totalQuestions}</p>
-          <p className="text-muted-foreground">Total</p>
+          <p className="text-2xl font-semibold tabular-nums">{answeredCount}</p>
+          <p className="text-muted-foreground">Answered</p>
         </div>
       </div>
 

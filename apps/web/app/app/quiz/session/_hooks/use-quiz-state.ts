@@ -4,8 +4,8 @@ import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import { checkAnswer } from '../../actions/check-answer'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
-import { saveQuizDraft, submitQuizSession } from './quiz-submit'
-import { useFlaggedQuestions } from './use-flagged-questions'
+import { discardQuizSession, saveQuizDraft, submitQuizSession } from './quiz-submit'
+import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
 
 export function useQuizState(opts: {
@@ -27,7 +27,7 @@ export function useQuizState(opts: {
     initialAnswers ? new Map(Object.entries(initialAnswers)) : new Map(),
   )
   const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
-  const { flaggedQuestions, toggleFlag: toggleFlagById } = useFlaggedQuestions()
+  const { pinnedQuestions, togglePin: togglePinById } = usePinnedQuestions()
   const submitted = useRef(false)
   const answersRef = useRef(answers)
   answersRef.current = answers
@@ -101,6 +101,17 @@ export function useQuizState(opts: {
     }
   }
 
+  async function handleDiscard() {
+    setSubmitting(true)
+    setError(null)
+    const r = await discardQuizSession(sessionId, router, opts.draftId)
+    if (!r.success) {
+      setError(r.error)
+      setSubmitting(false)
+    }
+    // On success, router.push navigates away — no further state update needed
+  }
+
   return {
     currentIndex: nav.currentIndex,
     question,
@@ -110,8 +121,8 @@ export function useQuizState(opts: {
     currentFeedback: feedback.get(questionId) ?? null,
     questionIds: questions.map((q) => q.id),
     answeredIds: new Set(answers.keys()),
-    flaggedQuestions,
-    isFlagged: flaggedQuestions.has(questionId),
+    pinnedQuestions,
+    isPinned: pinnedQuestions.has(questionId),
     submitting,
     error,
     showFinishDialog,
@@ -119,8 +130,9 @@ export function useQuizState(opts: {
     navigateTo: nav.navigateTo,
     handleSubmit,
     handleSave,
+    handleDiscard,
     setShowFinishDialog,
     navigate: nav.navigate,
-    toggleFlag: () => toggleFlagById(questionId),
+    togglePin: () => togglePinById(questionId),
   }
 }

@@ -22,10 +22,12 @@ export async function rpc<TResult>(
 type UpsertFn = (
   values: Record<string, unknown>,
   opts?: { onConflict?: string },
-) => Promise<unknown>
+) => Promise<{ data: unknown; error: { message: string } | null }>
 
 /**
  * Typed wrapper for Supabase upsert on tables with `never` row types.
+ * Throws if the upsert returns a DB error, so callers can rely on try/catch
+ * rather than silently dropping failed writes.
  */
 export async function upsert(
   supabase: SupabaseClient,
@@ -36,5 +38,6 @@ export async function upsert(
   const client = supabase as unknown as {
     from: (t: string) => { upsert: UpsertFn }
   }
-  await client.from(table).upsert(values, opts)
+  const { error } = await client.from(table).upsert(values, opts)
+  if (error) throw new Error(`[upsert:${table}] ${error.message}`)
 }

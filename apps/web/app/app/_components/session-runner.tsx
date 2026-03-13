@@ -71,6 +71,7 @@ export function SessionRunner({
     return (
       <SessionSummary
         totalQuestions={questions.length}
+        answeredCount={questions.length}
         correctCount={correctCount}
         scorePercentage={scorePercentage}
         mode={mode}

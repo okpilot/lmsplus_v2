@@ -46,7 +46,7 @@ export function QuizSession(props: QuizSessionProps) {
           totalQuestions={props.questions.length}
           currentIndex={s.currentIndex}
           answeredIds={s.answeredIds}
-          flaggedIds={s.flaggedQuestions}
+          pinnedIds={s.pinnedQuestions}
           questionIds={s.questionIds}
           onNavigate={s.navigateTo}
         />
@@ -78,6 +78,7 @@ export function QuizSession(props: QuizSessionProps) {
           </div>
         )}
         <AnswerOptions
+          key={s.question.id}
           options={s.question.options}
           onSubmit={s.handleSelectAnswer}
           disabled={s.submitting}
@@ -103,16 +104,16 @@ export function QuizSession(props: QuizSessionProps) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            data-testid="flag-button"
-            onClick={s.toggleFlag}
+            data-testid="pin-button"
+            onClick={s.togglePin}
             className={
-              s.isFlagged
+              s.isPinned
                 ? 'rounded-lg border border-yellow-400 bg-yellow-100 px-3 py-2 text-sm font-medium text-yellow-700 transition-colors dark:border-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
                 : 'rounded-lg border border-input px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted'
             }
-            aria-pressed={s.isFlagged}
+            aria-pressed={s.isPinned}
           >
-            {s.isFlagged ? 'Unflag' : 'Flag'}
+            {s.isPinned ? 'Unpin' : 'Pin'}
           </button>
           <div className="flex-1">
             <QuizNavBar
@@ -132,6 +133,7 @@ export function QuizSession(props: QuizSessionProps) {
           onSubmit={s.handleSubmit}
           onCancel={() => s.setShowFinishDialog(false)}
           onSave={s.handleSave}
+          onDiscard={s.handleDiscard}
         />
       </div>
     </div>

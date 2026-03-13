@@ -108,7 +108,7 @@ vi.mock('../../_components/question-grid', () => ({
     totalQuestions: number
     currentIndex: number
     answeredIds: Set<string>
-    flaggedIds: Set<string>
+    pinnedIds: Set<string>
     questionIds: string[]
     onNavigate: (index: number) => void
   }) => (
@@ -366,18 +366,18 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('question-number')).toHaveTextContent('3')
   })
 
-  it('toggles flag state on the current question', () => {
+  it('toggles pin state on the current question', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    const flagBtn = screen.getByTestId('flag-button')
-    expect(flagBtn).toHaveTextContent('Flag')
-    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
+    const pinBtn = screen.getByTestId('pin-button')
+    expect(pinBtn).toHaveTextContent('Pin')
+    expect(pinBtn).toHaveAttribute('aria-pressed', 'false')
 
-    fireEvent.click(flagBtn)
-    expect(flagBtn).toHaveTextContent('Unflag')
-    expect(flagBtn).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(pinBtn)
+    expect(pinBtn).toHaveTextContent('Unpin')
+    expect(pinBtn).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.click(flagBtn)
-    expect(flagBtn).toHaveTextContent('Flag')
-    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(pinBtn)
+    expect(pinBtn).toHaveTextContent('Pin')
+    expect(pinBtn).toHaveAttribute('aria-pressed', 'false')
   })
 })

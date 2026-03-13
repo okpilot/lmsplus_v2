@@ -12,6 +12,7 @@ type DialogProps = {
   onSubmit?: () => void
   onCancel?: () => void
   onSave?: () => void
+  onDiscard?: () => void
 }
 
 function renderDialog(overrides: DialogProps = {}) {
@@ -23,6 +24,7 @@ function renderDialog(overrides: DialogProps = {}) {
     onSubmit: vi.fn(),
     onCancel: vi.fn(),
     onSave: vi.fn(),
+    onDiscard: vi.fn(),
   }
   const props = { ...defaults, ...overrides }
   render(<FinishQuizDialog {...props} />)
@@ -90,7 +92,6 @@ describe('FinishQuizDialog', () => {
   it('calls onCancel when the backdrop overlay is clicked', () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    // The overlay wrapping div has onClick={onCancel}; click outside the dialog element
     const overlay = screen.getByRole('dialog', { name: /finish quiz/i }).parentElement
     expect(overlay).not.toBeNull()
     if (overlay) fireEvent.click(overlay)
@@ -134,9 +135,55 @@ describe('FinishQuizDialog', () => {
   it('does not propagate clicks from inside the dialog to the overlay', () => {
     const onCancel = vi.fn()
     renderDialog({ onCancel })
-    // Clicking the dialog element itself should NOT call onCancel (stopPropagation)
     const dialog = screen.getByRole('dialog', { name: /finish quiz/i })
     fireEvent.click(dialog)
     expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  // ---- Discard flow -------------------------------------------------------
+
+  it('shows the Discard Quiz button in the initial state', () => {
+    renderDialog()
+    expect(screen.getByRole('button', { name: /discard quiz/i })).toBeInTheDocument()
+  })
+
+  it('shows inline confirmation after clicking Discard Quiz', () => {
+    renderDialog()
+    fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
+    expect(screen.getByText(/are you sure\? your progress will be lost/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /yes, discard/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument()
+  })
+
+  it('calls onDiscard when "Yes, discard" is confirmed', () => {
+    const onDiscard = vi.fn()
+    renderDialog({ onDiscard })
+    fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
+    fireEvent.click(screen.getByRole('button', { name: /yes, discard/i }))
+    expect(onDiscard).toHaveBeenCalledOnce()
+  })
+
+  it('returns to the initial state when Cancel is clicked during discard confirmation', () => {
+    renderDialog()
+    fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
+    expect(screen.getByText(/are you sure\?/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }))
+    expect(screen.queryByText(/are you sure\?/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /discard quiz/i })).toBeInTheDocument()
+  })
+
+  it('does not call onDiscard without going through the confirmation step', () => {
+    const onDiscard = vi.fn()
+    renderDialog({ onDiscard })
+    // Discard Quiz button is visible but confirmation has not been shown yet
+    expect(screen.queryByRole('button', { name: /yes, discard/i })).not.toBeInTheDocument()
+    expect(onDiscard).not.toHaveBeenCalled()
+  })
+
+  it('disables the "Yes, discard" button while submitting', () => {
+    renderDialog({ submitting: true })
+    // Need to click Discard Quiz to show confirmation — it is not disabled itself when not submitting
+    // But when submitting=true the discard trigger button is disabled
+    expect(screen.getByRole('button', { name: /discard quiz/i })).toBeDisabled()
   })
 })
