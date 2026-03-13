@@ -147,6 +147,51 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not in session')
   })
 
+  it('returns failure when question_ids in config is null (Array.isArray guard)', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(buildSessionChain({ data: { config: { question_ids: null } } }))
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Question not in session')
+  })
+
+  it('returns failure when question_ids in config is a plain string (Array.isArray guard)', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(buildSessionChain({ data: { config: { question_ids: QUESTION_ID } } }))
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Question not in session')
+  })
+
+  it('returns failure when config itself is null (Array.isArray guard)', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(buildSessionChain({ data: { config: null } }))
+
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Question not in session')
+  })
+
   it('returns failure when the RPC returns an error', async () => {
     setupAuthenticatedUser()
     setupValidSession()

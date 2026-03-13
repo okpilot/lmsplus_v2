@@ -37,6 +37,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       )
       setError(null)
     } catch {
+      lockedRef.current.delete(questionId)
       setAnswers((p) => {
         const m = new Map(p)
         m.delete(questionId)

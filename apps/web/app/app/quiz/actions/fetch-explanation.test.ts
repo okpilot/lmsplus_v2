@@ -119,6 +119,44 @@ describe('fetchExplanation', () => {
     expect(result).toEqual({ success: false })
   })
 
+  it('returns failure when question_ids in config is null (Array.isArray guard)', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions')
+        return buildSessionChain({ data: { config: { question_ids: null } } })
+      return buildQuestionChain()
+    })
+
+    const result = await fetchExplanation({ questionId: QUESTION_ID, sessionId: SESSION_ID })
+
+    expect(result).toEqual({ success: false })
+  })
+
+  it('returns failure when question_ids in config is a plain string (Array.isArray guard)', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions')
+        return buildSessionChain({ data: { config: { question_ids: QUESTION_ID } } })
+      return buildQuestionChain()
+    })
+
+    const result = await fetchExplanation({ questionId: QUESTION_ID, sessionId: SESSION_ID })
+
+    expect(result).toEqual({ success: false })
+  })
+
+  it('returns failure when config itself is null (Array.isArray guard)', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildSessionChain({ data: { config: null } })
+      return buildQuestionChain()
+    })
+
+    const result = await fetchExplanation({ questionId: QUESTION_ID, sessionId: SESSION_ID })
+
+    expect(result).toEqual({ success: false })
+  })
+
   it('returns explanation fields on happy path', async () => {
     setupAuthenticatedUser()
     setupValidSessionAndQuestionChain({
