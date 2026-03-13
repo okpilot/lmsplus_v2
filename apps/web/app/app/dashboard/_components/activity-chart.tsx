@@ -8,25 +8,8 @@ type ActivityChartProps = {
   data: DailyActivity[]
 }
 
-export function ActivityChart({ data }: ActivityChartProps) {
-  const [hydrated, setHydrated] = useState(false)
-  useEffect(() => {
-    setHydrated(true)
-  }, [])
-
-  if (!hydrated) {
-    return <div className="h-64 animate-pulse rounded-lg bg-muted" />
-  }
-
-  if (data.length === 0) {
-    return (
-      <div className="flex h-64 items-center justify-center rounded-lg border border-border">
-        <p className="text-sm text-muted-foreground">No activity data yet.</p>
-      </div>
-    )
-  }
-
-  const formatted = data.map((d) => ({
+function formatActivityData(data: DailyActivity[]) {
+  return data.map((d) => ({
     ...d,
     label: new Date(`${d.day}T00:00:00Z`).toLocaleDateString('en-GB', {
       day: 'numeric',
@@ -34,7 +17,10 @@ export function ActivityChart({ data }: ActivityChartProps) {
       timeZone: 'UTC',
     }),
   }))
+}
 
+function ChartBody({ data }: { data: DailyActivity[] }) {
+  const formatted = formatActivityData(data)
   return (
     <div className="rounded-lg border border-border p-4">
       <h3 className="mb-3 text-sm font-medium">Daily Activity (Last 30 Days)</h3>
@@ -74,4 +60,21 @@ export function ActivityChart({ data }: ActivityChartProps) {
       </ResponsiveContainer>
     </div>
   )
+}
+
+export function ActivityChart({ data }: ActivityChartProps) {
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => {
+    setHydrated(true)
+  }, [])
+
+  if (!hydrated) return <div className="h-64 animate-pulse rounded-lg bg-muted" />
+  if (data.length === 0) {
+    return (
+      <div className="flex h-64 items-center justify-center rounded-lg border border-border">
+        <p className="text-sm text-muted-foreground">No activity data yet.</p>
+      </div>
+    )
+  }
+  return <ChartBody data={data} />
 }

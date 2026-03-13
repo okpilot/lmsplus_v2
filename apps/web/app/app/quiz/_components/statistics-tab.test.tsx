@@ -128,7 +128,7 @@ describe('StatisticsTab', () => {
     expect(screen.queryByText('State')).not.toBeInTheDocument()
   })
 
-  it('formats a known lowercase fsrs state through the label map', async () => {
+  it('renders review state with readable capitalization', async () => {
     mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'review' })
     const user = userEvent.setup()
     render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
@@ -148,7 +148,7 @@ describe('StatisticsTab', () => {
     })
   })
 
-  it('capitalises unknown fsrs state via fallback', async () => {
+  it('renders unknown fsrs state with readable capitalization', async () => {
     mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'suspended' })
     const user = userEvent.setup()
     render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
@@ -190,7 +190,7 @@ describe('StatisticsTab', () => {
     resolveQ1(defaultStats)
 
     // Stats from the stale q-1 fetch must never appear.
-    expect(screen.queryByText('Times seen')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Times seen')).not.toBeInTheDocument())
   })
 
   it('discards stale fetch result when questionId changes before the fetch resolves', async () => {

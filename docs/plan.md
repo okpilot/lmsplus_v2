@@ -9,6 +9,7 @@
 ## Known Issues — Fix Before Next Sprint
 
 ### `easa_subjects` / `easa_topics` / `easa_subtopics` tables are empty everywhere
+
 **Discovered:** 2026-03-12 during remote→local data sync investigation.
 
 **Problem:** The `easa_subjects`, `easa_topics`, and `easa_subtopics` tables exist in the schema (migration `001_initial_schema.sql`) but are **never populated** — not on remote, not on local. The import script (`import-questions.ts`) likely writes subject/topic/subtopic data somewhere else, or the reference data was never seeded.
@@ -190,6 +191,7 @@
 - ✅ Saved drafts tab: tab UI + draft card with subject metadata, resume/delete (2.10)
 
 ### Sprint 3 — Dashboard & Analytics (COMPLETE — 2026-03-12)
+
 - ✅ Migration 013: `get_daily_activity` + `get_subject_scores` analytics RPCs (SECURITY DEFINER + auth.uid() guard)
 - ✅ recharts integration: activity bar chart (30-day stacked correct/incorrect), subject scores donut chart
 - ✅ CSS grid study-streak heatmap (5-tier green intensity)
