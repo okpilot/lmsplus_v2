@@ -41,6 +41,7 @@ export type BatchSubmitResult =
   | {
       success: true
       totalQuestions: number
+      answeredCount: number
       correctCount: number
       scorePercentage: number
       results: BatchAnswerResult[]
@@ -56,6 +57,7 @@ export type BatchRpcResult = {
     explanation_image_url: string | null
   }[]
   total_questions: number
+  answered_count: number
   correct_count: number
   score_percentage: number
 }

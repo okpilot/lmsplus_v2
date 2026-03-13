@@ -42,6 +42,7 @@ const TWO_ANSWERS = makeAnswers([
 const BATCH_SUCCESS = {
   success: true as const,
   totalQuestions: 2,
+  answeredCount: 2,
   correctCount: 1,
   scorePercentage: 50,
   results: [],
