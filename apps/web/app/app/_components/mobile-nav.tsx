@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/app/review', label: 'Smart Review' },
   { href: '/app/quiz', label: 'Quiz' },
   { href: '/app/progress', label: 'Progress' },
+  { href: '/app/reports', label: 'Reports' },
 ]
 
 export function MobileNav() {

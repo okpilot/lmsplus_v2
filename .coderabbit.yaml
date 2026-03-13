@@ -148,8 +148,14 @@ reviews:
           Check for correct answer exposure:
           - Direct SELECT * FROM questions or .select('*') on questions table
           - Returning raw options JSONB with correct:true to student-facing code
-          - Any path that bypasses get_quiz_questions() RPC for student queries
-          Block if found — this is an exam integrity violation.
+          - Any path that bypasses get_quiz_questions() RPC for active quiz sessions
+          EXCEPTION: Post-session report queries (e.g. getQuizReport) that SELECT
+          questions server-side and strip the correct field before returning to the
+          client are acceptable. The student has already answered — showing the correct
+          answer is intentional feedback. Verify BOTH: (1) the stripping logic removes
+          `correct` from options before returning to the client, AND (2) the query
+          confirms the session is completed (ended_at IS NOT NULL) before fetching
+          question data. Block if either condition is missing.
 
       - mode: "warning"
         name: "soft-delete-only"
@@ -167,6 +173,12 @@ reviews:
       enabled: false
     prettier:
       enabled: false
+
+  # ── Code quality overrides ─────────────────────────────────────────────
+
+  code_quality:
+    docstrings:
+      enabled: false  # We use typed signatures + descriptive names instead of docstrings
 
 # ── Knowledge base ─────────────────────────────────────────────────────
 

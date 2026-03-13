@@ -6,6 +6,26 @@
 
 ---
 
+## Known Issues — Fix Before Next Sprint
+
+### `easa_subjects` / `easa_topics` / `easa_subtopics` tables are empty everywhere
+
+**Discovered:** 2026-03-12 during remote→local data sync investigation.
+
+**Problem:** The `easa_subjects`, `easa_topics`, and `easa_subtopics` tables exist in the schema (migration `001_initial_schema.sql`) but are **never populated** — not on remote, not on local. The import script (`import-questions.ts`) likely writes subject/topic/subtopic data somewhere else, or the reference data was never seeded.
+
+**Impact:** Any query joining `questions` → `easa_subtopics` → `easa_topics` → `easa_subjects` will return zero rows. The dashboard analytics, review config drill-down, and progress pages may silently show empty results for subject-level breakdowns.
+
+**Investigation needed:**
+1. Check how `import-questions.ts` handles subject/topic/subtopic data — does it populate `easa_*` tables or derive from folder paths only?
+2. Check if `questions.subtopic_id` FK points to `easa_subtopics` — if so, questions can't be imported without seeding the reference tables first
+3. Check all queries that join on `easa_*` tables — are they returning empty results in production?
+4. Decide: seed the `easa_*` tables from QDB folder structure during import, or create a standalone seed migration
+
+**Priority:** HIGH — fix first thing next session before any new feature work.
+
+---
+
 ## Status: SPRINT 1 COMPLETE — Quick Wins shipped
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
@@ -169,6 +189,27 @@
 - ✅ Migration 011: new `batch_submit_quiz` RPC — atomic all-or-nothing session completion (replaces per-answer loop)
 - ✅ Exit button for fullscreen quiz session (2.1)
 - ✅ Saved drafts tab: tab UI + draft card with subject metadata, resume/delete (2.10)
+
+### Sprint 3 — Dashboard & Analytics (COMPLETE — 2026-03-12)
+
+- ✅ Migration 013: `get_daily_activity` + `get_subject_scores` analytics RPCs (SECURITY DEFINER + auth.uid() guard)
+- ✅ recharts integration: activity bar chart (30-day stacked correct/incorrect), subject scores donut chart
+- ✅ CSS grid study-streak heatmap (5-tier green intensity)
+- ✅ Quick actions (Start Quiz / Start Review) on dashboard
+- ✅ Dashboard reshaped: charts + heatmap + subject grid + reports link (replaced RecentSessions)
+- ✅ `/app/reports` page: sortable session history (date/score/subject), click → quiz report
+- ✅ Statistics tab: per-question stats (times seen, accuracy, FSRS state/stability/difficulty/interval)
+- ✅ Navigation updated: Reports added to sidebar + mobile nav
+- ✅ Query layer: `analytics.ts`, `reports.ts`, `question-stats.ts` with tests (11 new tests)
+
+**Post-sprint fixes (CodeRabbit PR #57 — 2026-03-12):**
+- ✅ Migration 000016: add parameter clamping to analytics RPCs (`get_daily_activity` p_days [1,365], `get_subject_scores` p_limit [1,100]) + use IS DISTINCT FROM for null-safe auth check
+- ✅ UTC date parsing fix in activity-chart and activity-heatmap (off-by-one for west-of-UTC users)
+- ✅ Remove unnecessary 'use client' from activity-heatmap (Server Component only)
+- ✅ Split subject-scores-chart into 3 sub-components (chart container + legend + tooltip) to meet 30-line limit
+- ✅ Dashboard page switched to Promise.allSettled (analytics failures now degrade gracefully)
+- ✅ Add FSRS enum mapping in statistics-tab (display labels: "New", "Learning", "Review", etc.)
+- ✅ Add `/coderabbit` skill command for triaging CodeRabbit review comments
 
 ---
 
@@ -479,4 +520,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-12 — Sprint 1 complete (10/10 items), Sprint 2 in progress (10/11 items done, fullscreen layout pending)*
+*Last updated: 2026-03-12 — Sprint 1 complete (10/10 items), Sprint 2 complete (11/11 items), Sprint 3 complete (with post-sprint CodeRabbit fixes)*

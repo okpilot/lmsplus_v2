@@ -107,6 +107,16 @@ describe('getQuizReport', () => {
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
+  it('returns null when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: 'token expired' },
+    })
+    const result = await getQuizReport('sess-1')
+    expect(result).toBeNull()
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
   it('returns full report data when session, answers, and questions exist', async () => {
     mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
 
@@ -148,6 +158,59 @@ describe('getQuizReport', () => {
     expect(q2.isCorrect).toBe(false)
     expect(q2.selectedOptionId).toBe('opt-c')
     expect(q2.correctOptionId).toBe('opt-d')
+  })
+
+  it('returns null when session is still active to prevent mid-session answer exposure', async () => {
+    const activeSession = { ...sessionRow, ended_at: null }
+    mockFromSequence({ data: activeSession })
+    const report = await getQuizReport('sess-1')
+    expect(report).toBeNull()
+  })
+
+  it('does not query answers or questions when session is active', async () => {
+    const activeSession = { ...sessionRow, ended_at: null }
+    mockFromSequence({ data: activeSession })
+    await getQuizReport('sess-1')
+    // Only the session query should have fired — no downstream DB calls
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to empty correctOptionId when no option is marked correct', async () => {
+    const noCorrectQuestions = [
+      {
+        id: 'q1',
+        question_text: 'What is lift?',
+        question_number: '050-01-001',
+        options: [
+          { id: 'opt-a', text: 'Upward force', correct: false },
+          { id: 'opt-b', text: 'Downward force', correct: false },
+        ],
+        explanation_text: null,
+      },
+    ]
+    mockFromSequence({ data: sessionRow }, { data: [answersData[0]] }, { data: noCorrectQuestions })
+    const report = await getQuizReport('sess-1')
+    expect(report).not.toBeNull()
+    expect(report!.questions[0]!.correctOptionId).toBe('')
+  })
+
+  it('handles null questions response from DB with fallback values', async () => {
+    mockFromSequence({ data: sessionRow }, { data: [answersData[0]] }, { data: null })
+    const report = await getQuizReport('sess-1')
+    expect(report).not.toBeNull()
+    const q = report!.questions[0]!
+    expect(q.questionText).toBe('')
+    expect(q.questionNumber).toBeNull()
+    expect(q.correctOptionId).toBe('')
+    expect(q.options).toEqual([])
+    expect(q.explanationText).toBeNull()
+  })
+
+  it('passes response time through to the report', async () => {
+    mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
+    const report = await getQuizReport('sess-1')
+    expect(report!.questions[0]!.responseTimeMs).toBe(3000)
+    expect(report!.questions[1]!.responseTimeMs).toBe(5000)
   })
 
   it('returns null when session does not exist', async () => {

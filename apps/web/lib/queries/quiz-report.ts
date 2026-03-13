@@ -51,7 +51,12 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) {
+    console.error('[getQuizReport] Auth error:', authError.message)
+    return null
+  }
   if (!user) return null
 
   const { data: session } = await supabase
@@ -62,6 +67,8 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
     .maybeSingle()
 
   if (!session) return null
+  // Only serve reports for completed sessions — prevents mid-session answer exposure
+  if (!session.ended_at) return null
 
   const { data: answers } = await supabase
     .from('quiz_session_answers')

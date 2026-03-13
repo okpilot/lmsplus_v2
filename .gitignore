@@ -19,6 +19,10 @@ out/
 # Question bank source data (imported via script, not committed)
 QDB/
 
+# Local design assets — not committed
+design inspiration/
+design-mockups/
+
 # Supabase
 supabase/.branches/
 supabase/.temp/

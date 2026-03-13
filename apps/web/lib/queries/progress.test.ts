@@ -44,6 +44,14 @@ describe('getProgressData', () => {
     await expect(getProgressData()).rejects.toThrow('Not authenticated')
   })
 
+  it('throws when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'session not found' },
+    })
+    await expect(getProgressData()).rejects.toThrow('Auth error: session not found')
+  })
+
   it('returns empty array when there are no subjects', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 

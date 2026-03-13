@@ -420,6 +420,42 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 24: Analytics RPCs — explicit auth guards via plpgsql (2026-03-12)
+
+**Context:** Sprint 3 analytics RPCs (`get_daily_activity`, `get_subject_scores`) were initially implemented as `LANGUAGE sql` SECURITY DEFINER functions, relying on the `p_student_id` parameter boundary and WHERE clause checks to enforce single-tenant isolation. This is fragile — easy to miss a check or add a query that bypasses the parameter.
+
+**Decided:**
+- Convert both analytics RPCs from `LANGUAGE sql` to `LANGUAGE plpgsql` (migration `20260312000014_analytics_rpcs_plpgsql.sql`)
+- Add explicit `IF auth.uid() IS NULL THEN RAISE EXCEPTION 'not authenticated'` guard at the start of each function
+- Keep the redundant `WHERE auth.uid() = p_student_id` check in the query itself for defense-in-depth
+- Both checks are required: explicit guard is auditable security, WHERE clause is fallback isolation
+- Principle: never trust parameter boundaries alone. Explicit auth checks are cheaper to verify and review.
+
+**Enhancement (2026-03-12, post-CodeRabbit PR #57):**
+- Migration `20260312000016_analytics_rpcs_param_clamp.sql` adds parameter validation:
+  - `get_daily_activity` p_days clamped to [1, 365] — raises exception if out of range (prevents negative days, year+ span queries)
+  - `get_subject_scores` p_limit clamped to [1, 100] — raises exception if out of range (prevents unbounded result sets, matches app-side limit)
+  - Both RPCs now use `IS DISTINCT FROM` for null-safe auth check (replaces `!=`, handles NULL correctly)
+- Validates at the SQL layer to prevent bypassing app-side guards, ensures consistent behavior across clients
+
+---
+
+## Decision 25: Post-session exception for question feedback (2026-03-13)
+
+**Context:** `getQuizReport()` reads `questions.options` (including `correct: boolean`) server-side to build post-session feedback. The `get_quiz_questions()` RPC strips correct answers but is designed for active sessions, not completed-session reports. Semantic reviewer identified that the report page lacked an `ended_at` guard, allowing mid-session access to correct answers.
+
+**Decided:**
+- Post-session report queries MAY read `questions.correct` server-side, provided all three conditions are met:
+  1. Session is verified completed (`ended_at IS NOT NULL`)
+  2. `correct` boolean is stripped before returning to client (options mapped to `{ id, text }` only)
+  3. Query runs in a Server Component (no raw DB rows reach the client)
+- Guard implemented: `if (!session.ended_at) return null` in `quiz-report.ts`
+- `.coderabbit.yaml` `no-answer-exposure` rule updated to require both conditions
+- `docs/security.md` Section 4 updated with the post-session exception
+- Rationale: showing correct answers after answering is the core learning loop, not a data leak
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -431,4 +467,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-12 — Core RPCs updated: batch_submit_quiz now primary, submit_quiz_answer/complete_quiz_session deprecated*
+*Last updated: 2026-03-13 — Decision 25: post-session exception for question feedback (ended_at guard + stripping logic)*

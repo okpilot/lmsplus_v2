@@ -18,7 +18,7 @@
 | Top-level await in node16 package test file | 1 | 2026-03-12 | Watch — packages/db/src/server.test.ts; fixed with dynamic import helper |
 | Bare `catch {}` without error-type narrowing | 1 | 2026-03-12 | Watch — packages/db/src/server.ts; suggestion from semantic-reviewer |
 | `finally` clearing loading state during navigation | 1 | 2026-03-12 | Fixed in a269284 — only clear loading in catch/error branch |
-| Supabase mutation result not destructured (error silently dropped) | 2 | 2026-03-12 | RULE ADDED to code-style.md Section 5 (9f5a6cc) — watching for recurrence |
+| Supabase mutation result not destructured (error silently dropped) | 3 | 2026-03-12 | RULE EXISTS (code-style.md Section 5) — 5 new call sites found in Sprint 3 analytics cycle (db5d8ea); compliance gap, rule is clear |
 | Unstable useEffect dependency (inline function prop) | 1 | 2026-03-12 | Watch — onTabChange in question-tabs.tsx; suggestion only, first occurrence |
 | `vi.stubGlobal` without `vi.unstubAllGlobals` teardown in test | 1 | 2026-03-12 | Watch — use-quiz-navigation.test.ts; suggestion only, first occurrence |
 | E2E test clicks UI without waiting for React state flush (race condition) | 1 | 2026-03-12 | Watch — quiz-flow.spec.ts + progress.spec.ts; fixed with progress-bar DOM gate |
@@ -27,6 +27,19 @@
 | Concurrent session mutation without row-level lock (FOR UPDATE) | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in fe12342 with FOR UPDATE on session row |
 | Partial-submission not rejected at RPC level | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in fe12342 with answer count mismatch guard |
 | Import from Next.js internal module path instead of public API | 1 | 2026-03-12 | Watch — quiz-submit.ts AppRouterInstance; fixed in b312922 with ReturnType<typeof useRouter> |
+| useEffect data fetching in client component (not hydration guard) | 2 | 2026-03-12 | RULE EXISTS (code-style.md Section 6) — statistics-tab.tsx used useEffect to call Server Action; fixed with button + useTransition in db5d8ea |
+| LANGUAGE sql instead of plpgsql for SECURITY DEFINER RPC | 1 | 2026-03-12 | Watch — Sprint 3 analytics RPCs (845923b); fixed migration 014 (86c8da4); single root introduction; plpgsql required for RAISE EXCEPTION; if second introduction occurs, add to security.md |
+| ?? [] fallback applied after an explicit error guard (silent data loss path) | 1 | 2026-03-12 | Watch — subjects ?? [] in statistics-tab.tsx after null/error guard (845923b); fixed in 86c8da4; data is already known bad at that point, fallback hides the gap |
+| Server Action shipped without Zod input validation | 1 | 2026-03-12 | Watch — fetch-stats.ts Server Action (845923b); fixed in 86c8da4; rule exists (security.md rule 4); compliance gap, not rule gap |
+| RPC missing identity guard (auth.uid() = p_student_id check) | 1 | 2026-03-12 | Watch — Sprint 3 analytics RPCs (845923b); fixed migration 015 (7b824c2); security.md rule 7 covers null check only — does NOT require identity comparison; gap in rule text; clarify rule 7 on second occurrence |
+| Partial fix applied to sibling file group (cross-cutting concern) | 1 | 2026-03-12 | Watch — auth error destructuring applied to 2 of 8 query files (2190dd5); remaining 6 fixed in follow-up commits (3a0d1e6, 78cb130); cost: 3 extra commits; when a fix is a cross-cutting pattern across a file family, all siblings must be fixed in the same commit |
+| Auth error from getUser() not destructured in query file | 1 | 2026-03-12 | Watch — 7 of 8 query files under apps/web/lib/queries/ missing authError destructuring (2190dd5 → 3a0d1e6 → 78cb130); distinct from mutation error pattern (that is about .insert/.update/.delete); first occurrence as a named pattern |
+| Auth error from getUser() swallowed without logging | 1 | 2026-03-12 | Watch — quiz-report.ts (78cb130); auth failure path returned early with no console.error; first occurrence; silent auth failure is harder to diagnose than silent mutation failure |
+| Raw Supabase error message leaked to student UI | 1 | 2026-03-12 | Watch — load-session-questions.ts (78cb130); error.message from Supabase returned directly to student-facing caller; first occurrence; internal error strings must not be exposed to UI — return a generic message or error code |
+| Unconditional setState in render body (spurious re-renders) | 1 | 2026-03-13 | Watch — statistics-tab.tsx (53efbdd); `setIsLoading(false)` called unconditionally in a render-path reset block, causing a state update on every render when isLoading was already false; fixed with `if (isLoading) setIsLoading(false)` guard in b555b50; first occurrence |
+| useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE — statistics-tab.tsx (53efbdd, f0f8d0e); semantic-reviewer flagged this suggestion twice across two consecutive commits: isPending from useTransition and manual isLoading state tracked in parallel can both be false simultaneously during a question-switch mid-fetch, briefly showing the idle "Load Statistics" button while a fetch is still in-flight; generation counter mitigates stale data but does not close the UI-state race; suggestion-level only (not fixed); second occurrence reached — propose rule clarification in code-style.md when next commit arrives in this component's area; NOT flagged in 8863926 (pure JSX presenter refactor, no state logic touched) — no further action this cycle |
+| Silent boundParam fallback without logging | 1 | 2026-03-13 | Watch — analytics.ts (53efbdd); non-finite input (NaN, ±Infinity) to `boundParam` silently clamped to minimum without a console.warn or error log; suggestion-level; first occurrence; if it recurs on a different utility, add a logging rule for parameter clamping fallbacks |
+| test-writer produces TS2532 (unchecked array index) errors | 2 | 2026-03-13 | RULE CANDIDATE — test-writer pattern memory should be updated with a note to always use optional chaining (`arr?.[i]`) when accessing array elements in generated test code; first seen in an earlier cycle (test fixture access), second occurrence confirmed in 99c67d2 where a `formatActivityData` test accessed an array index without `?.` and triggered TS2532; the error was caught and fixed before commit, so no broken test reached git; fix is optional chaining or a non-null assertion with a preceding length check; NOT triggered in 8863926 (test-only edits were a beforeEach reset and a rename — no new index access generated) — gate held |
 
 ## Lessons Learned
 
@@ -226,3 +239,229 @@
 - Supabase mutation destructuring rule (added 9f5a6cc) held — no new violations in either commit. First positive signal after rule addition.
 - 2454c28 was fully clean on code-reviewer and doc-updater. Fix cycle closed correctly with no secondary issues.
 - test-writer's 16-test suite for `use-quiz-navigation.ts` covered all meaningful branches (boundary clamping, visited tracking, answer status, direction guards). High-signal test output.
+
+---
+
+### 2026-03-12 — Sprint 3 analytics cycle (commit db5d8ea)
+
+**Code reviewer round 1:** 1 BLOCKING.
+- `statistics-tab.tsx` used `useEffect` to call a Server Action for data fetching — a direct violation of the "no useEffect for data fetching" rule (code-style.md Section 6). Fixed with button-triggered fetch + `useTransition`. This is the **second occurrence** of this pattern (rule already exists; compliance gap confirmed).
+
+**Code reviewer round 2:** clean — 0 issues.
+
+**Semantic reviewer round 1:** 3 ISSUEs.
+1. **Missing Zod validation on a Server Action** — input used without `.parse()`. Rule exists (security.md rule 4). First occurrence of non-compliance with this specific rule. Fixed in same cycle.
+2. **Supabase mutation errors silently dropped at 5 call sites** — same root cause pattern as prior occurrences (Supabase returns errors in `result.error`, never throws). This is the **third recurrence** of this pattern. The rule exists in code-style.md Section 5. Compliance is the remaining gap — rule clarity is not the issue. Fixed in same cycle.
+3. **LANGUAGE sql RPCs should be plpgsql with RAISE EXCEPTION** — Sprint 3 analytics RPCs used `LANGUAGE sql` (which cannot raise exceptions) for SECURITY DEFINER functions that need to call `auth.uid()` and raise on null/identity mismatch. First occurrence — logged and watched. A plpgsql body is required any time an RPC uses `RAISE EXCEPTION` or `IF/THEN` control flow.
+
+**Semantic reviewer round 2:** 2 ISSUEs.
+1. **Missing identity guard in RPCs** — RPCs checked `auth.uid() IS NULL` but did not verify `auth.uid() = p_student_id`. A student could call the RPC with another student's ID and it would succeed the null check. First occurrence of this specific sub-pattern. Logged as new watch item. security.md rule 7 covers the null check but does not explicitly require the identity comparison. If this recurs, clarify rule 7 to require both guards.
+2. **`subjects ?? []` applied after error guard** — after an explicit `if (error) return { subjects: null }` guard, a downstream consumer applied `subjects ?? []` which turned a known error condition into an empty array. This creates a silent data loss path — the caller proceeds with no subjects rather than surfacing the error. First occurrence — logged and watched. The anti-pattern: never apply `?? []` to a value that was null because of an error (only apply it to values that are null because "no data" is a valid empty state).
+
+**Doc updater:** `docs/database.md` updated with Sprint 3 RPCs + schema additions. `docs/plan.md` updated with sprint progress. Decision 24 added to `docs/decisions.md`. Clean — no partial-doc-fix pattern.
+
+**Test writer:** 39 new tests written across Sprint 3 analytics components and server actions. All passing before report.
+
+**Actions taken:**
+- Frequency table: "Supabase mutation result not destructured" count updated to 3. Rule already exists — no change to rule.
+- Frequency table: "useEffect data fetching" count updated to 2 (second recurrence). Rule already exists — no change to rule.
+- Frequency table: 4 new watch items added (all first occurrences): LANGUAGE sql vs plpgsql, `?? []` after error guard, Server Action without Zod validation, RPC missing identity guard.
+- No new rule changes proposed — the two recurring patterns (Supabase error swallowing, useEffect data fetching) already have rules. Recurring violations indicate a compliance gap, not a rule gap.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer round 2 was clean — the useEffect/Zod fixes were correct and complete.
+- 39 tests written is the largest single-cycle test output to date, covering analytics branch paths comprehensively.
+- Doc-updater applied all 3 doc updates (database.md, plan.md, decisions.md) in the same cycle — no partial-doc-fix pattern recurrence.
+
+---
+
+### 2026-03-12 — Sprint 3 analytics full cycle review (commits 845923b → 86c8da4 → 1684618 → 7b824c2 → 385017a)
+
+**Context:** Post-commit review across 5 commits on feat/sprint-3-analytics. Two rounds of agent findings. All issues fixed before the cycle closed.
+
+**Code reviewer — Round 1:** 1 BLOCKING.
+- `statistics-tab.tsx` used `useEffect` to call a Server Action — "no useEffect for data fetching" violation (code-style.md Section 6). Fixed with `useTransition` + explicit button trigger. This is the **second occurrence** of this pattern (first was in an earlier Sprint 2 commit). Rule already exists; compliance gap confirmed. Count in frequency table: 2.
+
+**Code reviewer — Round 2:** clean.
+
+**Semantic reviewer — Round 1:** 3 ISSUEs.
+1. **Missing Zod validation in `fetch-stats.ts` Server Action** — input used without `.parse()`. Rule exists (security.md rule 4). Fixed in 86c8da4. Count in frequency table: 1. Watch.
+2. **Supabase mutation errors silently dropped — 5 call sites** — `question-stats.ts` and `reports.ts`. Same root cause as prior occurrences (Supabase returns errors in `result.error`, never throws). Rule exists (code-style.md Section 5). Fixed in 86c8da4. Frequency table count: 3. Rule compliance is the gap, not rule clarity.
+3. **`LANGUAGE sql` RPCs instead of `plpgsql`** — Sprint 3 analytics RPCs used `LANGUAGE sql` (cannot raise exceptions) for SECURITY DEFINER functions that need `auth.uid()` checks and `RAISE EXCEPTION`. Fixed via migration 014 in 86c8da4. Count: 1. Watch. A SECURITY DEFINER RPC that uses `IF/THEN` or `RAISE EXCEPTION` requires `LANGUAGE plpgsql`.
+
+**Semantic reviewer — Round 2:** 2 ISSUEs.
+1. **Missing identity guard in RPCs** — RPCs verified `auth.uid() IS NOT NULL` but did not compare `auth.uid() = p_student_id`. A student could pass another student's ID and pass the null check. Fixed via migration 015 in 7b824c2. Count: 1. Watch. `security.md` rule 7 covers null check only; it does not explicitly require the identity comparison. This is a gap in rule text — not a new rule, just an incomplete one. Clarify on second occurrence.
+2. **`subjects ?? []` applied after explicit error guard** — `subjects ?? []` was applied downstream after an `if (error) return { subjects: null }` guard, turning a known error state into an empty array and hiding the failure from the caller. Fixed in 86c8da4. Count: 1. Watch. Anti-pattern: never use `?? []` on a value that is null because of an error (reserve `?? []` for values that are null because "no data yet" is a valid empty state).
+
+**Doc updater:** `database.md` updated with Sprint 3 RPCs and migration notes. `plan.md` updated with sprint progress. `decisions.md` updated with Decision 24. All applied in 1684618. No partial-doc-fix pattern.
+
+**Test writer:** 39 new tests written across Sprint 3 analytics components and Server Actions (385017a). All passing. No new hook/utility files shipped without tests in this cycle.
+
+**Actions taken:**
+- Frequency table updated: clarified "LANGUAGE sql vs plpgsql" entry with commit references (count still 1, watch).
+- Frequency table updated: clarified "RPC missing identity guard" entry with note that security.md rule 7 text gap exists (count 1, watch — clarify rule on second occurrence).
+- Frequency table updated: "Server Action without Zod" entry clarified with commit reference (count 1, watch).
+- Frequency table updated: "?? [] after error guard" entry clarified with commit reference (count 1, watch).
+- No rule changes proposed — all patterns in this cycle are single occurrences. The two recurring patterns (Supabase error swallowing, useEffect data fetching) already have rules; the remaining gap is compliance at authoring time.
+
+**Rule gaps identified (not yet actionable — awaiting second occurrence):**
+- `security.md` rule 7 says "raise if null" but is silent on the identity comparison (`auth.uid() = p_student_id`). If any SECURITY DEFINER RPC takes a student ID parameter and this guard is missing again, clarify rule 7 to require: (a) null check, (b) identity comparison when a student ID parameter is accepted.
+- `security.md` has no mention of `LANGUAGE plpgsql` vs `LANGUAGE sql` for SECURITY DEFINER RPCs. If a second RPC ships with `LANGUAGE sql` and an `IF/THEN` block, add a note: "SECURITY DEFINER RPCs that use control flow or RAISE EXCEPTION must be written in `plpgsql`, not `sql`."
+
+**False positives:** none detected.
+
+**Positive signals:**
+- `startTransition` misuse (`.then()` chain) was caught and fixed to `async/await` in the same cycle — correct pattern enforced.
+- Both migration fixes (014 and 015) were applied without introducing new issues — fix commits were clean on code reviewer.
+- Doc-updater completed all 3 doc targets in a single commit, no partial-doc-fix recurrence.
+- 39 tests is the highest single-cycle output to date; analytics branches are well-covered going forward.
+
+---
+
+### 2026-03-13 — statistics-tab render guard + analytics boundParam tests (commits 53efbdd, b555b50)
+
+**Code reviewer:** clean — 0 blocking, 0 warnings. Watch item noted: `statistics-tab.tsx` at 158 lines. The file was split in a prior cycle but the extraction of `FsrsSection` (53efbdd) brought in new lines. 158 > 150 limit. This is a watch item — no violation reported by code-reviewer (likely test file relaxation or component sub-split occurred), but the production component should be monitored.
+
+**Semantic reviewer (53efbdd):** 1 ISSUE + 2 SUGGESTIONS.
+
+1. **ISSUE — Unconditional `setIsLoading(false)` in render-path reset block:** In `statistics-tab.tsx`, the reset block that runs when `questionId` changes called `setIsLoading(false)` unconditionally. When `isLoading` was already `false`, this triggered a redundant state update, causing a spurious re-render on every `questionId` change. Fixed in b555b50 with a `if (isLoading) setIsLoading(false)` guard. Root cause: the reset block ran in the render body (not in a `useEffect`), so any unconditional `setState` there fires even when the value has not changed. **First occurrence of this specific pattern.** Logged as new watch item.
+
+2. **SUGGESTION — useTransition + manual loading state hybrid fragility:** `statistics-tab.tsx` uses both `isPending` from `useTransition` (for the Server Action call) and a manual `isLoading` boolean state. These two signals can both be `false` simultaneously during a question-switch mid-fetch, briefly showing the "Load Statistics" button while a fetch is still in-flight. The generation counter prevents stale data from appearing, but the UI briefly reverts to the idle state. No fix applied — suggestion-level. **First occurrence.** Logged and watched.
+
+3. **SUGGESTION — Silent `boundParam` fallback for non-finite inputs:** The `boundParam` helper in `analytics.ts` clamps non-finite values (NaN, ±Infinity) to the minimum without a `console.warn`. A caller passing `NaN` gets a valid-looking result with no server-side signal that something unexpected occurred. No fix applied — suggestion-level. **First occurrence.** Logged and watched.
+
+**Semantic reviewer (b555b50):** 4 GOOD patterns noted. No issues or suggestions.
+
+**Doc updater:** no changes needed — fixes were internal to existing components, no schema or API surface change.
+
+**Test writer:** 7 new tests added across 2 files (b555b50).
+- `analytics.test.ts`: 5 tests for `boundParam` non-finite inputs (NaN, +Infinity, -Infinity for both `getDailyActivity` and `getSubjectScores`). These directly exercised the silent-fallback suggestion.
+- `statistics-tab.test.tsx`: 2 new tests covering (a) FSRS section hidden when `fsrsState` is null, (b) load button reappears immediately when `questionId` changes during an in-flight fetch (verifies the `if (isLoading)` guard is correct and the generation counter discards stale results). Well-targeted.
+
+**Actions taken:**
+- Frequency table: 3 new watch items added (all first occurrences): "Unconditional setState in render body", "useTransition + manual loading state hybrid fragility", "Silent boundParam fallback without logging".
+- No rule changes proposed — all 3 patterns are first occurrences. Rule changes require 2+ occurrences across different commits.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- b555b50 was the fix commit for the ISSUE and it was clean on both semantic reviewer (4 GOOD patterns) and code-reviewer. Fix cycle closed in a single follow-up commit.
+- The test for the mid-fetch `questionId` change (statistics-tab test 2) is a high-signal regression test — it locks in the `if (isLoading)` guard behavior and the generation counter discard. Any future regression will be caught immediately.
+- The `boundParam` non-finite tests (5 total) are the kind of edge-case coverage that previously would have been missed until production. Test-writer identified and covered them proactively from the suggestion, even though no fix was applied to production code.
+
+---
+
+### 2026-03-13 — CodeRabbit follow-up + formatActivityData tests (commits f0f8d0e, 99c67d2)
+
+**Code reviewer:** clean — 0 blocking, 0 warnings. All changes in f0f8d0e were targeted refactors (function splits, test renames); 99c67d2 was a test-only commit. Both correctly within line limits.
+
+**Semantic reviewer:** 0 critical, 0 issues. 2 suggestions.
+
+1. **SUGGESTION — useTransition + manual isLoading hybrid (f0f8d0e):** The semantic-reviewer flagged the same UI-state race in `statistics-tab.tsx` that was first flagged in 53efbdd. Both `isPending` (from `useTransition`) and `isLoading` (manual state) can briefly be `false` simultaneously during a question-switch mid-fetch, causing the "Load Statistics" button to flicker into view. Suggestion-level — no fix applied. **This is the second occurrence across different commits.** Count in frequency table: 2. Rule candidate status reached. A note in code-style.md (or agent memory) should capture the guidance: prefer a single authoritative loading signal; if using `useTransition`, derive all loading UI from `isPending` alone rather than maintaining a parallel manual flag.
+
+2. **SUGGESTION — `waitFor` on `.not.toBeInTheDocument` delays failure diagnosis (f0f8d0e):** Using `waitFor(() => expect(el).not.toBeInTheDocument())` will poll until the assertion passes — but if the element is never removed, the test hangs until `waitFor`'s timeout (default 1000ms) expires rather than failing immediately. The semantic-reviewer noted the assertion form `expect(el).not.toBeInTheDocument()` outside `waitFor` gives faster failure feedback when the element is expected to be absent from the start. First occurrence — logged and watched.
+
+**Doc updater:** no updates needed. Both commits changed only test/component internals with no schema, API, or routing surface changes.
+
+**Test writer (99c67d2):** 3 new tests added to `activity-chart.test.tsx` (or equivalent) for `formatActivityData`:
+- UTC date label formatting (prevents prior regression where local-timezone offset caused label drift)
+- Data passthrough (no transformation of non-date fields)
+- Multi-day data (ensures array ordering is preserved)
+
+The test-writer generated code containing a TS2532 error — array index access without optional chaining (e.g., `result[0].label` instead of `result[0]?.label`). The error was caught and fixed (with `?.`) before the tests were committed. This is the **second occurrence** of test-writer-generated TS2532 errors across different commits. Count in frequency table: 2. Rule candidate status reached for test-writer memory.
+
+**Actions taken:**
+- Frequency table: "useTransition + manual loading state hybrid fragility" count updated 1 → 2. Status: RULE CANDIDATE. No rule change applied yet — suggestion-level finding; propose addition to code-style.md (Section 6 or new sub-section) if it surfaces again or if this component is refactored.
+- Frequency table: "test-writer produces TS2532 (unchecked array index)" added as new entry at count 2. Status: RULE CANDIDATE. A note should be added to the test-writer's patterns memory instructing it to use optional chaining (`arr?.[i]`) or a length-gated assertion when accessing array indices in generated test code.
+- Frequency table: "waitFor on .not.toBeInTheDocument delays failure diagnosis" added as new watch item (count 1). First occurrence — no rule change.
+
+**Recommended changes (awaiting orchestrator approval before applying):**
+
+1. **test-writer patterns memory** — add a note under the "Common TS compile errors" or equivalent section: when accessing array elements in test assertions, always use optional chaining (`result[0]?.label`) or assert the array length first (`expect(result).toHaveLength(3); result[0].label`). This prevents TS2532 on every generated test that indexes into a result array. The TS2532 pattern has now appeared twice in the test-writer's output — it is a systematic gap in the generation pattern, not a one-off.
+
+2. **code-style.md (Section 6 — Next.js patterns) or new sub-section** — when `useTransition` is used to wrap a Server Action call, derive all loading UI from `isPending` alone. Do not introduce a parallel `isLoading` state unless `useTransition` is insufficient (e.g., multi-step async outside a transition). If both exist, ensure there is no window where both can be `false` while a fetch is in-flight. (Note: this is a SUGGESTION-level pattern only — do not propose this change until a third occurrence or until the existing hybrid is actually causing a user-visible bug.)
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer clean on both commits — function splits (f0f8d0e) stayed within line limits.
+- TS2532 error was caught by the pre-commit hook (type-check) before reaching git. The gate is working correctly. The goal of the test-writer memory update is to prevent the error from being generated in the first place, not to add a new gate.
+- The 3 `formatActivityData` tests target the specific UTC regression that was previously a CodeRabbit finding. Proactive regression coverage for a known edge case.
+
+---
+
+### 2026-03-12 — Auth error destructuring cycle (commits 2190dd5, 67b24a6, 3a0d1e6, 78cb130)
+
+**Context:** Four commits to apply and test a single cross-cutting fix — auth error destructuring from `getUser()` — across 7 sibling query files under `apps/web/lib/queries/`. The fix and its tests were correct, but the work was spread across 4 commits instead of 1 because the initial commit only covered 2 of the 8 files.
+
+**Code reviewer:** clean on all 4 commits. The changes were targeted additions (destructure authError, add console.error, add early return, add test branches) with no style violations.
+
+**Doc updater:** clean on all 4 commits. No schema, RPC, or route surface changed.
+
+**Test writer:** found all 7 query files lacked an `authError` branch test. Tests were added across the 4 commits in this cycle alongside each source fix. All passing. No new source files were introduced without tests.
+
+**Semantic reviewer findings:**
+
+1. **ISSUE — Partial application of cross-cutting fix (2190dd5):** The auth error destructuring fix was applied to `analytics.ts` and `review.ts` but the remaining 6 sibling files (`dashboard.ts`, `progress.ts`, `question-stats.ts`, `reports.ts`, `quiz-report.ts`, `load-session-questions.ts`) were missed. Required 2 additional fix commits to close. This is the first occurrence of the meta-pattern: when a fix is a cross-cutting concern across a file family (a shared interface, a shared call site pattern), all siblings must be identified and fixed in the same commit. Cost: 3 extra commits and a second round of post-commit review. First occurrence — logged and watched.
+
+2. **ISSUE — Auth error swallowed without logging in quiz-report.ts (78cb130):** `quiz-report.ts` destructured `authError` but returned early without calling `console.error`. Silent auth failures are harder to diagnose than explicit ones — a missing log leaves no trace in the server output when auth fails. Fixed in 78cb130. First occurrence of this specific sub-pattern (auth error silently discarded, not just not-destructured). Logged separately from the "mutation error silently dropped" pattern because the root cause differs: this is an explicit check that was made incomplete.
+
+3. **ISSUE — Raw Supabase error message leaked to student UI (78cb130):** `load-session-questions.ts` returned `authError.message` directly to the caller (which ultimately surfaces to the student UI). Internal Supabase error strings are not safe to expose to end users — they may leak implementation details. Fixed in 78cb130 with a generic `'Authentication required'` message. First occurrence — logged and watched.
+
+**Actions taken:**
+- Frequency table: added 4 new watch items (all first occurrences): "Partial fix applied to sibling file group", "Auth error from getUser() not destructured", "Auth error from getUser() swallowed without logging", "Raw Supabase error message leaked to student UI".
+- No rule changes proposed — all 4 patterns are first occurrences.
+
+**Why no rule changes:**
+- The partial-sibling-fix pattern (1 occurrence) needs a second occurrence before warranting a rule addition. If it recurs — same root cause, different file family — the correct fix is a rule in `code-style.md` or a note in agent-workflow: "when a fix addresses a shared call-site pattern, grep for all sibling files with the same pattern before committing."
+- The auth error destructuring pattern (1 occurrence) is a sibling of the mutation-error-not-destructured rule already in `code-style.md` Section 5. If it recurs in a different query file or a different auth call site, the correct fix is to extend the existing rule to cover `getUser()` auth paths explicitly.
+- The raw-error-to-UI pattern (1 occurrence) is a standard defense-in-depth concern. If it recurs, it warrants a note in `security.md` or `code-style.md`: "never return internal Supabase or DB error strings directly to client callers — return a generic message."
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer was clean on all 4 commits — the fixes were mechanically correct (no style drift introduced while applying the cross-cutting change).
+- Test coverage for auth error branches across 7 query files is now complete. The test-writer identified all 7 gaps in one pass, confirming its file-family awareness is working correctly.
+- The 3 ISSUES (partial fix, silent log, raw error) were all caught and fixed within the same session — no deferred debt.
+
+---
+
+### 2026-03-13 — CodeRabbit triage cycle 6: ActivityBars extract + test reset (commit 8863926)
+
+**Context:** This is the 6th consecutive CodeRabbit triage cycle on the same PR (feat/sprint-3-analytics). The commit addressed 3 findings from CodeRabbit review 5: extract `ActivityBars` presenter from `ChartBody` to bring the inner function under the 30-line cap, add `beforeEach` reset for a captured mock variable to prevent cross-test state coupling, and rename a test to match the sibling naming pattern.
+
+**Code reviewer:** 0 blocking, 0 warnings. Noted `ActivityBars` at 38 lines — reviewer correctly classified this as acceptable (pure JSX array map with no logic). This is consistent with the existing documented exception for presenter components.
+
+**Semantic reviewer:** 0 critical, 0 issues. 3 GOOD patterns noted: (1) `beforeEach` reset correctly wired to the hoisted capture variable — mock isolation improved; (2) `ActivityBars` extraction preserves the mock wiring for `BarChart` — no phantom test blindspot introduced by the split; (3) test rename to `renders X state` pattern is consistent with sibling tests.
+
+**Doc updater:** no changes needed — refactor was internal to an analytics chart component, no schema, RPC, or route surface changed.
+
+**Test writer:** no new tests needed. This was a pure presenter refactor and test-quality fix — existing tests already covered the logic. The test-writer's judgment was correct.
+
+**Patterns checked this cycle:**
+
+1. **useTransition + manual isLoading hybrid (count 2, RULE CANDIDATE):** Not flagged — the 8863926 commit touched only `activity-chart.tsx` (JSX presenter) and `activity-chart.test.tsx` / `statistics-tab.test.tsx`. No state logic was modified. The pattern has not spread to a new file and has not been flagged a third time. Rule candidate status remains — no rule change applied yet. Will trigger on the next commit that modifies state logic in `statistics-tab.tsx` or a sibling component using the same pattern.
+
+2. **test-writer TS2532 unchecked index (count 2, RULE CANDIDATE):** Not triggered — the test edits were a `beforeEach` block addition and a `describe` rename, neither of which involved new array index access. Gate held.
+
+3. **Function split to stay under 30-line cap:** `ChartBody` was split into `ChartBody` + `ActivityBars` specifically to satisfy the 30-line function rule. This is the rule working as intended. No violation — positive signal.
+
+4. **Cross-test state coupling via shared capture variable (beforeEach fix):** The `capturedBarChartData` variable was shared across tests without reset, allowing a passing test to contaminate the next. Fixed by adding a `beforeEach(() => { capturedBarChartData = null })` (or equivalent reset). First occurrence of this specific pattern (hoisted mock capture not reset between tests). Logged as a new watch item.
+
+**Actions taken:**
+- Frequency table: added "Shared hoisted mock capture without beforeEach reset" as new watch item (count 1). First occurrence — no rule change. If it recurs, warrants a note in test-writer patterns memory.
+- Updated "useTransition + manual isLoading hybrid" status note — not flagged this cycle, rule candidate status unchanged.
+- Updated "test-writer TS2532" status note — not triggered this cycle, gate held.
+- No rule changes proposed — no pattern crossed the 2+ threshold for the first time in this cycle.
+
+**Positive signals:**
+- **Sixth consecutive CodeRabbit cycle with no new BLOCKING or ISSUE findings.** The defect rate on this PR is trending toward zero as the triage cycles progress.
+- **All 4 agents reported clean** — code-reviewer, semantic-reviewer, doc-updater, and test-writer all returned clean in a single pass. This has not happened before in a mid-session cycle on this branch; prior cycles always had at least one warning or suggestion requiring a follow-up commit.
+- **The 30-line function rule caught a real structural issue** (`ChartBody` was doing layout + data mapping). The extraction of `ActivityBars` is a genuine improvement, not a mechanical compliance exercise.
+- **The beforeEach reset fix** is a sign the test-writer's mock patterns are mature enough that test-quality issues are now being caught by CodeRabbit rather than going undetected in CI. Cross-test coupling via shared capture variables is subtle and easy to miss.
+
+**False positives:** none detected.
+
+---

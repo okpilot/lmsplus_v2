@@ -26,7 +26,12 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) {
+    console.error('[loadSessionQuestions] Auth error:', authError.message)
+    return { success: false, error: 'Not authenticated' }
+  }
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const { data, error } = await rpc<QuizQuestionRow[]>(supabase, 'get_quiz_questions', {

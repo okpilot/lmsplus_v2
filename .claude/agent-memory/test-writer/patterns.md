@@ -1199,3 +1199,415 @@ bypasses that constraint — exactly what the Math.min guard is designed to hand
 
 ### Suite state after this commit
 65 test files, 580 tests — all passing.
+
+---
+
+## Files tested in commit 845923b (Sprint 3 analytics)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/queries/analytics.ts` | `lib/queries/analytics.test.ts` | Already present — shipped with the commit |
+| `apps/web/lib/queries/reports.ts` | `lib/queries/reports.test.ts` | Already present — shipped with the commit |
+| `apps/web/lib/queries/question-stats.ts` | `lib/queries/question-stats.test.ts` | Already present — shipped with the commit |
+| `apps/web/app/app/quiz/_components/statistics-tab.tsx` | `_components/statistics-tab.test.tsx` | Already present — shipped with the commit |
+| `apps/web/app/app/reports/_components/reports-list.tsx` | `reports-list.test.tsx` | **NEW** — 17 tests: empty state, mode labels, sort state machine, link hrefs, arrow indicator |
+| `apps/web/app/app/dashboard/_components/activity-heatmap.tsx` | `activity-heatmap.test.tsx` | **NEW** — 12 tests: `getIntensity` all 6 branches + boundary values, locale date format, null return on empty data |
+| `apps/web/app/app/dashboard/_components/activity-chart.tsx` | `activity-chart.test.tsx` | **NEW** — 3 tests: empty state, chart renders, heading visible |
+| `apps/web/app/app/dashboard/_components/subject-scores-chart.tsx` | `subject-scores-chart.test.tsx` | **NEW** — 5 tests: empty state, chart renders, heading, legend entries, >5 subjects colour cycling |
+| `apps/web/app/app/quiz/actions/fetch-stats.ts` | `actions/fetch-stats.test.ts` | **NEW** — 2 tests: delegates to getQuestionStats, propagates errors |
+| `apps/web/app/app/dashboard/_components/quick-actions.tsx` | — | Pure presenter (two hardcoded links, no logic) — no unit test needed |
+
+### Mocking Recharts in jsdom
+Recharts renders SVG using browser layout APIs not available in jsdom. Stub the entire module:
+```tsx
+vi.mock('recharts', () => ({
+  BarChart: ({ children }: { children: React.ReactNode }) => <div data-testid="bar-chart">{children}</div>,
+  Bar: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  CartesianGrid: () => null,
+  Tooltip: () => null,
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}))
+```
+For `PieChart` + `Pie` + `Cell`, use the same approach. The `data-testid` on the container
+lets tests assert the chart rendered without depending on SVG details.
+
+### ActivityHeatmap: `getIntensity` intensity boundaries
+The function uses `<=` comparisons, so boundary values belong to the LOWER intensity band:
+- `total === 0` → `bg-muted`
+- `total === 5` → `bg-green-200` (not muted)
+- `total === 15` → `bg-green-300`
+- `total === 30` → `bg-green-400`
+- `total === 50` → `bg-green-500`
+- `total >= 51` → `bg-green-600`
+Test the exact boundary value for each threshold to catch off-by-one regressions.
+
+### ReportsList: sortKey default and toggleSort behaviour
+- Default sort: `date` descending (newest first).
+- Clicking the active key flips `sortDir` (asc ↔ desc).
+- Clicking an inactive key sets `sortDir` to `'desc'` for `date`, `'asc'` for `score`/`subject`.
+- The active sort key button shows `↑` (asc) or `↓` (desc); inactive keys show no arrow.
+Test by clicking sort buttons and asserting the `href` order of rendered `<a>` elements.
+
+### Suite state after commit 845923b
+70 test files, 619 tests — all passing (5 new files, 39 new tests).
+
+---
+
+## Promise.all call-ordering with per-table Supabase mocks (2026-03-12)
+
+When a function uses `Promise.all([helperA(), helperB(), helperC()])` and each helper queries
+a Supabase table, the order in which `from()` is called is determined by the Node.js microtask
+queue, not the array index. The rule for sequential helpers within `Promise.all`:
+
+- All first awaits across all helpers fire before any second await.
+- So for `Promise.all([getResponseCounts(), getFsrsCard(), getLastResponse()])`:
+  - Call 1: `student_responses` (getResponseCounts total — first await)
+  - Call 2: `fsrs_cards` (getFsrsCard — first and only await, fires concurrently)
+  - Call 3: `student_responses` (getLastResponse — first and only await, fires concurrently)
+  - Call 4: `student_responses` (getResponseCounts correct — second await, fires after call 1 resolves)
+
+To target a specific sub-query within a table, use a per-table call counter, NOT a global counter:
+
+```ts
+const studentResponsesCalls: number[] = []
+mockFrom.mockImplementation((table: string) => {
+  if (table === 'student_responses') {
+    const callIndex = studentResponsesCalls.push(1)
+    if (callIndex === 3) {  // 3rd student_responses call = correct-count query
+      return buildChain({ count: null, error: { message: 'db error' } })
+    }
+    return buildChain({ count: 2, data: null, error: null })
+  }
+  return buildChain({ data: null, error: null })
+})
+```
+
+**Key call indices for question-stats.ts helpers:**
+- student_responses call 1 = total count (getResponseCounts first await)
+- student_responses call 2 = last response (getLastResponse fires concurrently)
+- student_responses call 3 = correct count (getResponseCounts second await, after call 1 resolves)
+
+### Zod validation tests for Server Actions
+When a Server Action wraps input in a Zod schema before delegating, add these tests:
+1. Passes valid UUID → delegates to inner function (happy path already covered)
+2. Rejects non-UUID string → `rejects.toThrow()` (ZodError)
+3. Rejects empty string → `rejects.toThrow()` (ZodError)
+4. Does not call inner function when validation fails → `expect(mockFn).not.toHaveBeenCalled()`
+
+### useTransition component patterns
+For components using `useTransition` + a manual trigger button:
+- Test that `hasAnswered=false` shows the "answer first" message (no button)
+- Test that `hasAnswered=true` shows the load trigger button
+- Test success: click load → `waitFor` stats to appear
+- Test error: mock rejects → `waitFor` error message + retry button
+- Test retry: mock rejects once then resolves → click retry → stats appear
+- Use `vi.hoisted` + named mock variable so `beforeEach(() => vi.resetAllMocks())` works properly
+  (static `vi.fn().mockResolvedValue(...)` in `vi.mock()` factory is not reset between tests)
+
+### Ref-based render-phase state reset: edge case coverage (commit 946fb46)
+When a component uses the ref-based pattern to reset state during render on prop change:
+```tsx
+if (prevRef.current !== newProp) {
+  prevRef.current = newProp
+  setStateA(null)
+  setStateB(null)
+}
+```
+Test all cases where the reset must clear distinct prior states:
+1. Reset from loaded stats (the obvious path — tested first in the commit)
+2. Reset from error state — `error` was also reset in the same block; test it explicitly
+   (render with failing mock, verify error message, rerender with new id, verify error gone + load button shown)
+
+### Suite state after commit 946fb46
+Previous: 73 test files, 643 tests. After this cycle: 73 test files, 644 tests (1 new test added to statistics-tab.test.tsx for error-state reset on questionId change).
+
+---
+
+## Files tested in commit c4879a1 (generation counter + single-query refactor)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/_components/statistics-tab.tsx` | `_components/statistics-tab.test.tsx` | +1 test: discards stale fetch result when questionId changes before fetch resolves |
+| `apps/web/lib/queries/question-stats.ts` | `lib/queries/question-stats.test.ts` | Tests updated in the commit: single-query mock; +1 new test for zero counts |
+
+### Generation counter race condition: now testable (replaces prior "known limitation")
+Commit 946fb46 noted that the in-flight + prop-change race was NOT testable because
+`useTransition`'s `isPending` cannot be reset from the render body — stale setStats would
+fire. Commit c4879a1 fixed this with a `generation` ref that guards the setState call.
+
+**The test approach:** use a manually-controlled promise for the stale fetch. Click load
+(enters pending), rerender with new questionId (bumps generation), then resolve the stale
+promise (ends transition), then assert stats never appear:
+
+```ts
+let resolveQ1: (value: Stats) => void = () => {}
+const staleFetchPromise = new Promise<Stats>((resolve) => { resolveQ1 = resolve })
+mockFetchQuestionStats.mockReturnValueOnce(staleFetchPromise)
+
+const { rerender } = render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+
+// Bump generation before stale fetch resolves
+rerender(<StatisticsTab questionId="q-2" hasAnswered={true} />)
+
+// Resolve the stale fetch — ends isPending, but guard discards the result
+resolveQ1(defaultStats)
+
+// Component shows load button for q-2, not stats from q-1
+await waitFor(() => {
+  expect(screen.getByRole('button', { name: 'Load Statistics' })).toBeInTheDocument()
+})
+expect(screen.queryByText('Times seen')).not.toBeInTheDocument()
+```
+
+**Key timing insight:** `waitFor` for the load button must come AFTER `resolveQ1()`, not before.
+While the q-1 fetch is still pending, `isPending` is `true` and both the Load Statistics button
+and stats are hidden (component renders the loading skeleton). Only after the stale fetch resolves
+does `isPending` drop to `false`, at which point the guard discards the stale result and the
+component shows the Load Statistics button for q-2.
+
+**Single-query refactor (question-stats.ts):** the old two-sequential-COUNT pattern was replaced
+by a single `.select('is_correct')` query with client-side `.filter()`. Mocks changed from
+`{ count: N }` shape to `{ data: Array<{ is_correct: boolean }> }` shape. The per-table call
+counter pattern (studentResponsesCalls[]) became simpler — only two concurrent `from()` calls
+now (student_responses + fsrs_cards) instead of four.
+
+### Suite state after commit c4879a1
+73 test files, 646 tests — all passing.
+
+---
+
+## Files extended in commit 3a0d1e6 (authError destructuring in query files)
+
+The fix adds `error: authError` destructuring from `getUser()` and an early branch before
+the existing `!user` guard across 7 query files. Each branch has a distinct return type:
+
+| File | authError behaviour |
+|---|---|
+| `dashboard.ts` | throws `Error('Auth error: ...')` |
+| `progress.ts` | throws `Error('Auth error: ...')` |
+| `review.ts` (getDueCards) | throws `Error('Auth error: ...')` |
+| `review.ts` (getNewQuestionIds) | throws `Error('Auth error: ...')` |
+| `question-stats.ts` | throws `Error('Auth error: ...')` |
+| `reports.ts` | throws `Error('Auth error: ...')` |
+| `quiz-report.ts` | returns `null` |
+| `load-session-questions.ts` | returns `{ success: false, error: 'Auth error: ...' }` |
+
+### authError branch test pattern (query files)
+```ts
+it('throws when getUser returns an auth error', async () => {
+  mockGetUser.mockResolvedValue({
+    data: { user: null },
+    error: { message: 'token expired' },
+  })
+  await expect(someQuery()).rejects.toThrow('Auth error: token expired')
+})
+```
+For functions that return null on auth failure:
+```ts
+it('returns null when getUser returns an auth error', async () => {
+  mockGetUser.mockResolvedValueOnce({
+    data: { user: null },
+    error: { message: 'token expired' },
+  })
+  const result = await getQuizReport('sess-1')
+  expect(result).toBeNull()
+  expect(mockFrom).not.toHaveBeenCalled()  // no DB calls after early return
+})
+```
+For functions that return a structured error object:
+```ts
+it('returns failure when getUser returns an auth error', async () => {
+  mockGetUser.mockResolvedValueOnce({
+    data: { user: null },
+    error: { message: 'token expired' },
+  })
+  const result = await loadSessionQuestions(['q1'])
+  expect(result.success).toBe(false)
+  if (result.success) return
+  expect(result.error).toBe('Auth error: token expired')
+  expect(mockRpc).not.toHaveBeenCalled()
+})
+```
+
+### Suite state after commit 3a0d1e6
+73 test files, 63 tests in the 7 affected query test files (7 new authError tests added) — all passing.
+
+---
+
+## Files extended in commit 53efbdd (isLoading refactor + NaN/Infinity guard)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/_components/statistics-tab.tsx` | `_components/statistics-tab.test.tsx` | +2 tests: isLoading reset on question change during in-flight fetch; FsrsSection hidden when fsrsState is null |
+| `apps/web/lib/queries/analytics.ts` | `lib/queries/analytics.test.ts` | +5 tests: NaN/Infinity inputs for both getDailyActivity and getSubjectScores |
+
+### What changed
+1. `isPending` (useTransition) replaced by explicit `isLoading` state for loading skeleton display.
+   - `setIsLoading(false)` is now called in the render-phase reset block (when questionId changes),
+     so the load button appears immediately without waiting for the stale fetch's `finally` block.
+   - `setIsLoading(true)` on load start; `setIsLoading(false)` in the `finally` block.
+
+2. `boundParam()` in analytics.ts gained a `Number.isFinite` guard before clamping:
+   - Non-finite values (NaN, +Infinity, -Infinity) all fall back to `min` (not `max`).
+   - This is because `Number.isFinite(nonFinite) === false`, so `n = min`.
+   - Then `Math.max(min, Math.min(max, Math.trunc(min))) = min`.
+
+### NaN/Infinity boundParam behaviour table
+| Input | isFinite | n | Result (days 1-365) |
+|---|---|---|---|
+| NaN | false | 1 (min) | 1 |
+| +Infinity | false | 1 (min) | 1 |
+| -Infinity | false | 1 (min) | 1 |
+| 500 | true | 500 | 365 (clamped) |
+| 0 | true | 0 | 1 (clamped) |
+
+All non-finite inputs produce `min`, not `max`. Test +Infinity expecting `1`, not `365`.
+
+### isLoading reset on question change: test pattern
+The key assertion: the Load Statistics button appears BEFORE the stale promise is resolved.
+This distinguishes the new `setIsLoading(false)` in the reset block from the old behavior
+(which waited for `isPending` to drop after the transition ended):
+
+```ts
+// Start in-flight fetch for q-1
+await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+// Verify loading state (button gone)
+await waitFor(() => {
+  expect(screen.queryByRole('button', { name: 'Load Statistics' })).not.toBeInTheDocument()
+})
+// Change question — reset block fires setIsLoading(false) synchronously during render
+rerender(<StatisticsTab questionId="q-2" hasAnswered={true} />)
+// Load button appears BEFORE resolving the stale promise
+await waitFor(() => {
+  expect(screen.getByRole('button', { name: 'Load Statistics' })).toBeInTheDocument()
+})
+// Only then resolve the stale fetch — generation guard discards it
+resolveQ1(defaultStats)
+expect(screen.queryByText('Times seen')).not.toBeInTheDocument()
+```
+
+Note: the `act()` warning ("A suspended resource finished loading inside a test...") from
+resolving the stale promise after assertions is expected and harmless. The test passes correctly.
+
+### FsrsSection null branch: pattern
+```ts
+it('hides the FSRS section when fsrsState is null', async () => {
+  mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: null })
+  const user = userEvent.setup()
+  render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+  await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+  await waitFor(() => { expect(screen.getByText('Times seen')).toBeInTheDocument() })
+  expect(screen.queryByText('FSRS Data')).not.toBeInTheDocument()
+  expect(screen.queryByText('State')).not.toBeInTheDocument()
+})
+```
+Tests the explicit `if (!stats.fsrsState) return null` branch in the extracted `FsrsSection` component.
+
+### Suite state after commit 53efbdd
+73 test files, 33 tests passing in the 2 affected test files (5 new in analytics, 2 new in statistics-tab).
+
+---
+
+## Capturing recharts data props for data-transformation tests (2026-03-13)
+
+When testing a component that passes transformed data to recharts `BarChart`, the default
+mock (`<div data-testid="bar-chart">`) discards the `data` prop. To assert on the formatted
+output (e.g., UTC-safe date labels), capture it in a module-level variable inside the mock:
+
+```tsx
+let capturedBarChartData: unknown[] = []
+
+vi.mock('recharts', () => ({
+  BarChart: ({ children, data }: { children: React.ReactNode; data?: unknown[] }) => {
+    capturedBarChartData = data ?? []
+    return <div data-testid="bar-chart">{children}</div>
+  },
+  // ...other stubs
+}))
+```
+
+Then after `render(...)`, cast and assert:
+
+```tsx
+it('formats day strings as UTC dates', () => {
+  render(<ActivityChart data={[makeDay('2026-01-01', 3, 1)]} />)
+  const formatted = capturedBarChartData as Array<{ label: string }>
+  expect(formatted[0].label).toBe('1 Jan')
+})
+```
+
+Key points:
+- Declare the capture variable at module scope (outside describe), reset is implicit on each test
+  because `render()` always triggers a re-render that overwrites it.
+- Use `unknown[]` for the variable type; cast to a concrete shape at the assertion site — no `any`.
+- This pattern covers `formatActivityData` and similar pure data-transform helpers that are
+  module-private (not exported) but whose output flows into a mocked child prop.
+
+### Suite state after commit f0f8d0e
+activity-chart.test.tsx: 6 tests (3 existing + 3 new for formatActivityData/ChartBody behavior).
+statistics-tab.test.tsx: 14 tests — no new tests needed (useQuestionStats is not exported;
+all its behavior paths were already covered through StatisticsTab integration tests).
+
+## Files extended in commit ec84acc (ended_at guard)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/queries/quiz-report.ts` | `quiz-report.test.ts` | Added 4 cases (guard short-circuits DB calls, no correct option, null questions response, responseTimeMs passthrough); total 14 tests |
+
+### Verifying early-return guard does not issue downstream DB calls
+When a function has a guard clause that returns before hitting subsequent DB queries,
+assert on the `mockFrom` call count to confirm no further queries ran:
+
+```ts
+it('does not query answers or questions when session is active', async () => {
+  const activeSession = { ...sessionRow, ended_at: null }
+  mockFromSequence({ data: activeSession })
+  await getQuizReport('sess-1')
+  // Only the session query should have fired — no downstream DB calls
+  expect(mockFrom).toHaveBeenCalledTimes(1)
+})
+```
+
+This is distinct from asserting the return value — it verifies the guard did not fall
+through. Use `vi.clearAllMocks()` (not just `resetAllMocks`) in `beforeEach` to reset
+the call count between tests.
+
+### Testing option-map fallback paths in buildReportQuestions
+When `buildReportQuestions` uses `options.find(o => o.correct)`, two fallback branches
+need coverage:
+1. No option has `correct: true` → `correctOptionId` falls back to `''`
+2. Questions DB returns `null` → `questions ?? []` produces empty map → all fields fall back
+
+Test (1) by supplying options where all have `correct: false`.
+Test (2) by returning `{ data: null }` from the questions DB call (not `{ data: [] }`
+which the "empty array" test already covers — these are distinct code paths in the
+`questions ?? []` expression).
+
+### Array index safety in generated test assertions (TS2532 — count 2, now a rule)
+When accessing elements of a result array in test assertions, always guard against
+`undefined` to prevent TS2532 ("Object is possibly 'undefined'") errors that block
+the pre-commit type-check gate.
+
+**Preferred patterns (pick one per test):**
+
+```ts
+// Option A: assert length first, then use non-null assertion with justification
+expect(report.questions).toHaveLength(2)
+// Length asserted above — index access is safe
+const q1 = report.questions[0]!
+
+// Option B: optional chaining (no assertion needed, but weaker signal)
+expect(report.questions?.[0]?.questionText).toBe('What is lift?')
+```
+
+**Never do:**
+```ts
+// ❌ WRONG — TS2532 if noUncheckedIndexedAccess is enabled
+expect(report.questions[0].questionText).toBe('What is lift?')
+```
+
+This pattern has caused pre-commit failures twice (different commits). The type-check
+gate catches it, but generating correct code the first time avoids the fix cycle.

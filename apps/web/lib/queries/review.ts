@@ -20,7 +20,9 @@ export async function getDueCards(opts?: GetDueCardsOpts): Promise<DueCard[]> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await supabase
@@ -80,7 +82,9 @@ export async function getNewQuestionIds(limit = 20): Promise<string[]> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
   const { data: existingCards, error: cardsError } = await supabase
