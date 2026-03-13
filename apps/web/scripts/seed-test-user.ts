@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 
-// Load .env.local from repo root
+// Load .env.local from apps/web/ (sibling of this scripts/ folder)
 function loadEnv() {
   const envPath = resolve(__dirname, '../.env.local')
   const lines = readFileSync(envPath, 'utf-8').split('\n')
