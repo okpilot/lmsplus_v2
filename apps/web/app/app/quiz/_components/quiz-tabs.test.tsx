@@ -72,4 +72,32 @@ describe('QuizTabs', () => {
     )
     expect(screen.getByTestId('draft-count-badge')).toHaveTextContent('20')
   })
+
+  it('does not show a badge on the New Quiz tab even when draftCount > 0', () => {
+    render(
+      <QuizTabs
+        draftCount={5}
+        newQuizContent={<div data-testid="new-quiz">New</div>}
+        savedDraftContent={<div>Saved</div>}
+      />,
+    )
+    // New Quiz tab is active by default — only one badge should exist (on Saved tab)
+    // and it must not be a sibling of the New Quiz tab button
+    const newTab = screen.getByTestId('tab-new')
+    expect(newTab.querySelector('[data-testid="draft-count-badge"]')).toBeNull()
+  })
+
+  it('switches back to new quiz content when new tab is clicked after switching away', () => {
+    render(
+      <QuizTabs
+        draftCount={0}
+        newQuizContent={<div data-testid="new-quiz">New</div>}
+        savedDraftContent={<div data-testid="saved-draft">Saved</div>}
+      />,
+    )
+    fireEvent.click(screen.getByTestId('tab-saved'))
+    fireEvent.click(screen.getByTestId('tab-new'))
+    expect(screen.getByTestId('new-quiz')).toBeInTheDocument()
+    expect(screen.queryByTestId('saved-draft')).not.toBeInTheDocument()
+  })
 })
