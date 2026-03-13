@@ -419,6 +419,58 @@ describe('useQuizConfig — re-fetches filteredCount on scope change', () => {
     expect(mockGetFilteredCount).not.toHaveBeenCalled()
     expect(result.current.filteredCount).toBeNull()
   })
+
+  it('re-fetches filteredCount when subtopic changes while filter is unseen', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+    await act(async () => {
+      result.current.handleTopicChange(TOPIC_ID)
+    })
+
+    // Set filter to 'unseen' — establishes non-all filter
+    mockGetFilteredCount.mockResolvedValue({ count: 6 })
+    await act(async () => {
+      result.current.setFilter('unseen')
+    })
+    expect(result.current.filteredCount).toBe(6)
+
+    // Change subtopic — should re-fetch with subtopic scope
+    mockGetFilteredCount.mockResolvedValue({ count: 2 })
+    await act(async () => {
+      result.current.setSubtopicId(SUBTOPIC_ID)
+    })
+
+    expect(mockGetFilteredCount).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        subjectId: SUBJECT_ID,
+        topicId: TOPIC_ID,
+        subtopicId: SUBTOPIC_ID,
+        filter: 'unseen',
+      }),
+    )
+    expect(result.current.filteredCount).toBe(2)
+  })
+
+  it('does not re-fetch when subtopic changes while filter is all', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+    await act(async () => {
+      result.current.handleTopicChange(TOPIC_ID)
+    })
+
+    // filter is 'all' by default — no fetch should happen
+    mockGetFilteredCount.mockClear()
+    await act(async () => {
+      result.current.setSubtopicId(SUBTOPIC_ID)
+    })
+
+    expect(mockGetFilteredCount).not.toHaveBeenCalled()
+    expect(result.current.filteredCount).toBeNull()
+  })
 })
 
 // ---- handleFilterChange --------------------------------------------------

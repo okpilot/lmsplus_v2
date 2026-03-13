@@ -605,6 +605,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
 - Hardens field validation (migration 026): validates `jsonb_typeof(v_config->'question_ids')` = 'array' BEFORE extraction (fixes eval-before-guard issue); validates `selected_option` and `response_time_ms` per answer AFTER extraction
 - Uses case-insensitive UUID regex (migration 028): validates question_id with `!~*` instead of `!~` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth hardening
+- Hardens null guard (migration 030): adds explicit `IS NULL` check on `v_config->'question_ids'` BEFORE calling `jsonb_typeof` (prevents SQL NULL vs missing key ambiguity); raises if no correct option found for a question (data integrity check)
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -659,7 +660,7 @@ BEGIN
   END IF;
 
   -- Step 2: Guard against malformed config BEFORE extracting question_ids
-  IF v_config IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+  IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
     RAISE EXCEPTION 'session config is malformed — question_ids not set';
   END IF;
 
@@ -869,7 +870,7 @@ BEGIN
   END IF;
 
   -- Guard against malformed config (matches pattern in batch_submit_quiz)
-  IF v_config IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+  IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
     RAISE EXCEPTION 'session config is malformed — question_ids not set';
   END IF;
 
@@ -1056,4 +1057,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-13 (migration 029: check_quiz_answer session guard) | Companion: docs/security.md*
+*Last updated: 2026-03-13 (migration 030: batch_submit null guards) | Companion: docs/security.md*

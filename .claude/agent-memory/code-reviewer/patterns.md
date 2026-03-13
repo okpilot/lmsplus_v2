@@ -11,6 +11,65 @@
   - Pattern: Extracting hooks for stateful logic + extracting sub-components for presentation is working well; file sizes stabilizing after refactors
 - **Session ownership guard pattern established**: Commit 7ae13b6 demonstrates defense-in-depth security pattern for answer checking. Session ownership verified in both Server Action boundary AND RPC layer. Pattern: dual-layer auth guards on sensitive operations.
 
+## Session 2026-03-13 (commit e41807f) — Null guards + scope re-fetch (CLEAN)
+
+### Commit: e41807f (fix: re-fetch filteredCount on scope change, pin undici, add batch_submit null guards)
+- Status: **CLEAN** — No violations
+- Files changed: 5 files, 370 insertions, 14 deletions
+- Summary: Extract `refetchFilteredCount()` helper in use-quiz-config hook to re-fetch filtered count on cascade scope changes (subject/topic/subtopic). Add comprehensive null guards to `batch_submit_quiz()` RPC (explicit `IS NULL` check before `jsonb_typeof`). Pin undici dependency to <8 (security override).
+
+**✅ All checks PASS:**
+- ✓ File sizes:
+  - use-quiz-config.ts: 80 lines (hook limit: 80) ✓ **AT LIMIT** (watch item: any future change requires refactoring)
+  - use-quiz-config.test.ts: 539 lines (test file, exempt) ✓
+  - migration 030 (packages): 202 lines (limit: 300) ✓
+  - migration 030 (supabase): 202 lines (limit: 300) ✓
+- ✓ Function lengths:
+  - refetchFilteredCount(): 14 lines ✓
+  - handleSubjectChange/handleTopicChange/setSubtopicId wrappers: 2-3 lines each ✓
+- ✓ Type safety:
+  - No `any` types
+  - No unvalidated casts
+  - No non-null assertions without comments
+- ✓ SQL migration quality:
+  - SECURITY DEFINER with auth.uid() check + SET search_path = public ✓
+  - Explicit null guard at line 55: `IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array'` guards before extraction ✓
+  - Corrupt data guard: line 113 `IF v_correct_option IS NULL THEN RAISE` prevents storing answers without correct option ✓
+  - Duplicate question_id validation: lines 66-70 rejects payload with duplicate question IDs ✓
+  - UUID format validation: lines 84 validates UUID before casting, line 88 validates response_time format ✓
+  - Idempotent inserts: ON CONFLICT DO NOTHING on both quiz_session_answers and student_responses ✓
+  - Atomic FSRS update: lines 134-139 update fsrs_cards last_was_correct within transaction ✓
+- ✓ Test coverage:
+  - 3 new test suites added for scope change re-fetch behavior ✓
+  - Behavior-first test names (e.g., "re-fetches filteredCount when topic changes with active filter") ✓
+  - Tests verify mocks called with correct parameters ✓
+
+**Design pattern observation:**
+- `refetchFilteredCount()` is a 4-parameter helper function (f, sId, tId, stId). Each parameter maps to a distinct semantic role:
+  - f: QuestionFilter (filter type)
+  - sId: subject ID (scope identifier)
+  - tId: topic ID (optional scope identifier)
+  - stId: subtopic ID (optional scope identifier)
+- This follows the documented infrastructure utility exception (code-style.md § 3). Parameter names are abbreviated (f, sId, tId, stId) which is typical for internal helpers. Acceptable because the function is private and the abbreviations align with the state variables from the hook scope.
+- However, **style note:** Consider using full parameter names (filter, subjectId, topicId, subtopicId) in future similar functions for consistency with the rest of the codebase (all other state uses full names).
+
+**Watch item status:**
+- use-quiz-config.ts is NOW AT THE 80-LINE HOOK LIMIT. This hook was previously at 76 lines (commit 7ae13b6), now exactly 80 lines after adding the refetchFilteredCount helper (14 lines added, removed older logic, net +4 lines to reach limit).
+- Future changes to this hook will require refactoring. Candidates for extraction if the file grows:
+  - useQuizCascade() integration could be wrapped in a smaller custom hook
+  - useQuizStart() integration could be extracted
+  - Keep core config logic (filter, count, availableCount calculations) in main hook
+
+**Positive pattern:**
+- Clean refactor: extracted filtering logic from scattered cascade handlers into a single, cohesive `refetchFilteredCount()` function
+- Test suite validates all three scope change scenarios (subject, topic, subtopic changes with active filter)
+- SQL migration's multi-layer validation (null guards, corrupt data guards, format validation, duplicate rejection) demonstrates defense-in-depth security approach established earlier
+
+**Migration quality observation:**
+- Lines 84-91: Text-first validation before casting (extract as text → validate format → cast to uuid) is the correct pattern to defend against malformed JSON payloads. Matches earlier migrations (e.g., migration 025).
+
+---
+
 ## Session 2026-03-13 (commit 7ae13b6) — Session ownership guard for answer checking (CLEAN)
 
 ### Commit: 7ae13b6 (fix: add session ownership guard to check_quiz_answer RPC)

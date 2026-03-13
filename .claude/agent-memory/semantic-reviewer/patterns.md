@@ -1579,3 +1579,38 @@ The change from `!~` to `!~*` makes the UUID format check case-insensitive. RFC 
 
 **File:** `packages/db/migrations/028_batch_submit_uuid_case_fix.sql` line 92
 Migration 028 uses `^\d{1,9}$` (max 999,999,999 ms), consistent with migration 027. The learner memory entry from a prior session recorded the overflow fix as `^\d{1,10}$`, but the semantic-reviewer patterns file from that same session confirms the deployed value was `^\d{1,9}$`. The `\d{1,9}` bound caps at 999,999,999, which is safely below INT4_MAX (2,147,483,647). No regression.
+
+---
+
+## Commit e41807f (2026-03-13) — filteredCount re-fetch on scope change + batch_submit null guards
+
+### filteredCount re-fetch on scope change — RESOLVED (carryover ISSUE from PR-level sweep)
+**Issue tracked since:** PR-level sweep (patterns.md section "filteredCount not reset on subject/topic change")
+**Fix:** `use-quiz-config.ts` extracts `refetchFilteredCount` helper that sets `filteredCount(null)`
+unconditionally, then re-fetches if `sId` is non-empty and filter is non-'all'. All four entry
+points (subject, topic, subtopic, filter) share the same helper. Empty-string `sId` (deselect)
+triggers the early return after the null-set, correctly clearing filteredCount without a spurious fetch.
+**Status:** RESOLVED. Tests added for re-fetch on non-'all' filter + no-fetch on 'all' filter.
+
+### refetchFilteredCount generation counter — shared counter is correct (non-issue)
+**Noted in review of commit e41807f (2026-03-13)**
+The single `filterGeneration` counter is shared across all four entry points. This is correct:
+all four paths update the *same* state slot (`filteredCount`), so "latest call wins" semantics
+are exactly what is wanted. This is distinct from the `use-quiz-cascade.ts` bug where independent
+slots (topics vs subtopics) share a counter and cause cross-cancellation.
+**Watch for:** distinguish "one counter for one slot" (correct) vs "one counter for independent
+slots" (cross-cancellation risk, the known bug in use-quiz-cascade.ts).
+
+### batch_submit_quiz migration 030 — IS NULL guard before jsonb_typeof (RESOLVED carryover)
+Migration 029 had the `jsonb_typeof` guard but lacked an explicit IS NULL check on the
+`question_ids` key. Migration 030 adds the full three-part guard matching migrations 026-028.
+
+### batch_submit_quiz — score counts all session answers (STILL OPEN — pre-existing)
+Migration 030 preserves the pre-existing carryover: score query counts ALL rows in
+`quiz_session_answers` for the session, not just the current batch. Safe in current UI flow
+(no prior answers exist). Remains an open future-hardening item from commit 6120e3f review.
+
+### undici override — defensive range pattern
+Changing `">=7.24.0"` to `">=7.24.0 <8"` is the correct pattern for security overrides:
+minimum version for the fix, maximum version to stay within a tested major. Apply this to
+all future `pnpm.overrides` security entries.

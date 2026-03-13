@@ -2169,3 +2169,16 @@ it('returns early when [the new query] fails', async () => {
   expect(mockFrom).toHaveBeenCalledTimes(1)
 })
 ```
+
+## Files extended in commit e41807f (use-quiz-config refetchFilteredCount)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/_hooks/use-quiz-config.ts` | `use-quiz-config.test.ts` | Added 3 new scope-change re-fetch tests in commit; test-writer added 2 more for setSubtopicId path. Total: 26 tests. |
+
+### Checking all scope-change handlers when reviewing hook diffs (2026-03-13)
+When a hook refactor touches multiple scope-change handlers (`handleSubjectChange`,
+`handleTopicChange`, `setSubtopicId`) with the same shared logic, check that ALL handlers
+have corresponding tests. It is easy to write tests for subject/topic changes and forget
+the subtopic change handler. Verify by reading the hook's return object and listing every
+exported handler that calls the changed helper function.
