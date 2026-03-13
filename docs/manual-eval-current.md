@@ -1,69 +1,62 @@
-# Manual Eval — Current Build
+# Manual Eval — Current Build (Round 2)
 
 **Branch:** `feat/post-sprint-3-polish`
 **Date:** 2026-03-13
-**Login link:** (use output from `npx tsx scripts/dev-login.ts`)
+**Commits:** `157f421` (6 fixes) + `5c344c0` (agent findings)
+**Login:** `cd apps/web && npx tsx scripts/dev-login.ts` → paste link in browser
 **Dev tools:** Mailpit http://localhost:54324 | Studio http://localhost:54323
 
 ---
 
-## Setup (already done)
+## What changed since last eval
 
-```bash
-npx supabase db reset
-cd apps/web
-source .env.local
-npx tsx scripts/seed-e2e.ts
-npx tsx scripts/seed-test-user.ts
-npx tsx scripts/seed-eval.ts
-cd ../.. && pnpm dev
-cd apps/web && npx tsx scripts/dev-login.ts
-```
-
-**Seeded data:**
-- 2 subjects: Meteorology (20 Qs), Air Law (15 Qs)
-- 5 completed quiz sessions (various scores/dates/subjects)
-- 1 student user: pilot.oleksandr@proton.me
+| # | Fix | What to verify |
+|---|-----|---------------|
+| 1 | Answer selection no longer carries over to next question | Navigate between questions — each starts fresh, no stale highlight |
+| 2 | Incorrect filter counter now matches slider | Answer incorrectly, submit, answer correctly, submit → "Incorrect" filter shows 0/0 |
+| 3 | "Flag" renamed to "Pin" | Button says "Pin"/"Unpin", yellow highlight in question grid |
+| 4 | "Discard Quiz" option in finish dialog | Click Finish → see Discard link → confirmation step → discards session |
+| 5 | Reports show correct/answered (not correct/total) | Submit partial quiz → report shows "3/3 correct" not "3/5 correct" |
+| 6 | Soft-delete on draft discard | Discard with a saved draft → draft is soft-deleted (check Studio if curious) |
 
 ---
 
-## Quick Test Flow (15 min)
+## Quick Test Flow (10 min)
 
-1. Paste magic link in browser → lands on Dashboard
-2. **Dashboard** — subject grid loads, activity chart, heatmap, due reviews banner
-3. **Sidebar** — 4 items only: Dashboard, Quiz, Progress, Reports (no Smart Review)
-4. **Quiz config** — pick Meteorology, try All/Unseen/Incorrect filters, check counter updates
-5. **Start quiz (5 questions):**
-   - Answer Q1 correctly → green highlight, answer locked
-   - Answer Q2 incorrectly → red on yours, green on correct
-   - Check Explanation tab → shows feedback
-   - Check Statistics tab → auto-loads (no button)
-   - Check Comments tab → accessible
-   - No Exit button, only "Finish Quiz"
-6. **Partial submit** — skip Q4+Q5, click Finish → Submit → should succeed, score = correct/answered
-7. **Reports** — new session appears, sort by Date/Score/Subject
-8. **Save a draft** — start new quiz, answer 2, Finish → Save for Later
-9. **Start another quiz** — answer 1, Save for Later → now 2 drafts
-10. **Saved tab** — two draft cards with progress bars, badge count "2"
-11. **Resume draft** — click Resume, verify answers restored
-12. **Re-save draft** — answer 1 more, Save for Later → should UPDATE same draft (not create new)
-13. **Delete draft** — delete one, other remains, confirm dialog shown
-14. **Full submit** — start quiz, answer all, Submit → success
-15. **/app/review** → should 404
+1. Paste magic link → Dashboard
+2. **Quiz config** → pick Meteorology, All filter, 5 questions → Start
+3. **Answer Q1** → verify green highlight, answer locked, no selection on Q2
+4. **Pin Q2** → button says "Pin", Q2 shows yellow in grid
+5. **Answer Q3 incorrectly** → red on yours, green on correct
+6. **Check Explanation tab** → shows feedback
+7. **Check Statistics tab** → auto-loads
+8. **Skip Q4 + Q5** → click Finish Quiz
+9. **Finish dialog** → verify "2 questions are unanswered and will be skipped" (not "marked incorrect")
+10. **Click "Discard Quiz"** → confirmation appears → click "Yes, discard" → back to quiz config
+11. **Start new quiz (5 questions)** → answer 3, skip 2 → Finish → Submit
+12. **Report card** → shows "3/3 correct" (not 3/5), score 100%
+13. **Reports page** → new session appears, sort by Date/Score/Subject works
+14. **Quiz config** → check Incorrect filter counter matches slider (both should be 0 or same number)
+15. **Save a draft** → start quiz, answer 1, Finish → Save for Later → verify in Saved tab
 
 ---
 
 ## Detailed Checks
 
-### A. Smart Review Removal
+### A. New Fixes (priority — these are the changes)
 
 | # | Check | Pass? |
 |---|-------|-------|
-| A1 | Sidebar: Dashboard, Quiz, Progress, Reports only (no Review) | |
-| A2 | Mobile bottom nav: 4 items, no Review | |
-| A3 | `/app/review` returns 404 | |
-| A4 | Reports page: mode labels show Quiz / Mock Exam only | |
-| A5 | Dashboard: only "Start Quiz" quick action, no "Start Review" | |
+| A1 | Answer selection resets when navigating to next question (no stale highlight) | |
+| A2 | Pin button shows "Pin"/"Unpin" (not Flag/Unflag) | |
+| A3 | Pinned questions show yellow in question grid | |
+| A4 | Finish dialog has "Discard Quiz" link at the bottom | |
+| A5 | Discard shows confirmation: "Are you sure? Your progress will be lost." | |
+| A6 | Confirming discard returns to quiz config, no session saved | |
+| A7 | Report card shows correct/answered (e.g., "3/3 correct" for partial) | |
+| A8 | Reports list shows correct/answered per session | |
+| A9 | Incorrect filter counter matches slider after answering correctly | |
+| A10 | Skipped questions described as "skipped" in finish dialog (not "marked incorrect") | |
 
 ### B. Quiz Answer Feedback
 
@@ -73,16 +66,15 @@ cd apps/web && npx tsx scripts/dev-login.ts
 | B2 | Correct answer → green highlight | |
 | B3 | Wrong answer → red on yours, green on correct | |
 | B4 | Cannot change answer after selection | |
-| B5 | Explanation tab shows verdict + explanation text after answering | |
-| B6 | Explanation tab shows explanation even BEFORE answering (study mode — this is correct) | |
-| B7 | Explanation images render above explanation text (if question has one) | |
+| B5 | Explanation tab shows feedback after answering | |
+| B6 | Explanation tab shows explanation even BEFORE answering (study mode) | |
 
 ### C. Tabs
 
 | # | Check | Pass? |
 |---|-------|-------|
 | C1 | All 4 tabs visible: Question, Explanation, Comments, Statistics | |
-| C2 | No tab is greyed out or disabled — all clickable always | |
+| C2 | No tab is greyed out or disabled | |
 | C3 | Tab resets to Question when navigating to next question | |
 
 ### D. Statistics Tab
@@ -90,104 +82,55 @@ cd apps/web && npx tsx scripts/dev-login.ts
 | # | Check | Pass? |
 |---|-------|-------|
 | D1 | Auto-loads — no "Load Statistics" button | |
-| D2 | Shows stats immediately (times seen, correct %, etc.) even before answering current question | |
-| D3 | No raw FSRS internal state shown to students | |
+| D2 | Shows stats even before answering current question | |
 
-### E. Quiz Controls
-
-| # | Check | Pass? |
-|---|-------|-------|
-| E1 | No X / Exit button — only "Finish Quiz" in top bar | |
-| E2 | "Finish Quiz" opens dialog with submit/return/save options | |
-
-### F. Partial Quiz Submission
-
-| # | Check | Known issue? |
-|---|-------|-------------|
-| F1 | Submit with unanswered questions succeeds | Was failing — verify fix |
-| F2 | Score = correct / answered (not correct / total) | |
-| F3 | Dialog warns about skipped questions (NOT "marked incorrect" — just "skipped") | Was wrong wording |
-| F4 | Unanswered questions: NO data stored (no response rows created) | |
-| F5 | Full submit (all answered) still works | |
-
-### G. Filter Counters
+### E. Partial Quiz Submission
 
 | # | Check | Pass? |
 |---|-------|-------|
-| G1 | "All" filter shows total question count | |
-| G2 | "Unseen" filter updates counter | |
-| G3 | "Incorrect" filter updates counter | |
-| G4 | Slider max matches filtered count | |
-| G5 | Counter updates on subject change | |
+| E1 | Submit with unanswered questions succeeds | |
+| E2 | Score = correct / answered (not correct / total) | |
+| E3 | Full submit (all answered) still works | |
 
-### H. Quiz Drafts
-
-| # | Check | Known issue? |
-|---|-------|-------------|
-| H1 | Save first draft works | |
-| H2 | Save second draft works (2 drafts now) | |
-| H3 | Saved tab shows both drafts as separate cards | |
-| H4 | Draft card: subject name, code, date, progress bar | |
-| H5 | Resume draft restores answers/position | |
-| H6 | Re-saving a resumed draft UPDATES it (not creates new) | Was creating duplicate |
-| H7 | Delete draft shows confirmation popup first | Was missing |
-| H8 | Delete removes only that draft | |
-| H9 | Saved tab badge shows draft count | |
-| H10 | Max 20 drafts enforced | |
-
-### I. Navigation Guard
-
-| # | Check | Known issue? |
-|---|-------|-------------|
-| I1 | Browser "Leave site?" dialog on tab close during active quiz | Was not working |
-| I2 | Browser warning on back button during active quiz | Was not working |
-| I3 | No warning after quiz submitted | |
-
-### J. Reports
+### F. Filter Counters
 
 | # | Check | Pass? |
 |---|-------|-------|
-| J1 | Sort by Date (asc/desc) | |
-| J2 | Sort by Score (asc/desc) | |
-| J3 | Sort by Subject (alphabetical) | |
-| J4 | 5 seeded sessions visible with correct scores | |
+| F1 | "All" filter shows total question count | |
+| F2 | "Unseen" filter updates counter | |
+| F3 | "Incorrect" filter counter matches slider | |
+| F4 | Counter updates on subject change | |
 
-### K. Dashboard Analytics
-
-| # | Check | Pass? |
-|---|-------|-------|
-| K1 | Activity chart renders (bar chart of recent activity) | |
-| K2 | Activity heatmap renders | |
-| K3 | Subject scores chart shows both subjects | |
-| K4 | Due reviews banner shows count | |
-| K5 | Dashboard loads without errors if analytics RPCs return empty | |
-
-### L. General
+### G. Quiz Drafts
 
 | # | Check | Pass? |
 |---|-------|-------|
-| L1 | No console errors on any page | |
-| L2 | Progress page loads and shows data | |
-| L3 | Mobile responsive — no overflow/broken layouts | |
+| G1 | Save draft works | |
+| G2 | Multiple drafts shown as separate cards in Saved tab | |
+| G3 | Resume draft restores answers/position | |
+| G4 | Re-saving resumed draft UPDATES it (not creates new) | |
+| G5 | Delete draft shows confirmation popup | |
 
----
+### H. Reports
 
-## Known Issues from Previous Eval
+| # | Check | Pass? |
+|---|-------|-------|
+| H1 | Sort by Date (asc/desc) | |
+| H2 | Sort by Score (asc/desc) | |
+| H3 | Sort by Subject (alphabetical) | |
 
-These were flagged in the last eval session — check if they're fixed:
+### I. Navigation & Layout
 
-1. **Partial submit failing** (F1) — "Something went wrong, please try again"
-2. **Wrong wording in finish dialog** (F3) — said "marked incorrect" instead of "skipped"
-3. **Navigation guard not working** (I1, I2) — no browser warning on close/back
-4. **Draft re-save creates duplicate** (H6) — should update existing draft
-5. **Delete draft has no confirmation** (H7) — should show popup warning
-6. **Statistics not updating in-session** (C note) — intentional, but needs student-facing message explaining stats reflect previous quizzes only
+| # | Check | Pass? |
+|---|-------|-------|
+| I1 | Sidebar: Dashboard, Quiz, Progress, Reports (no Review) | |
+| I2 | `/app/review` returns 404 | |
+| I3 | Browser "Leave site?" on tab close during active quiz | |
+| I4 | No console errors on any page | |
 
 ---
 
 ## After Testing
-
-Fill in Pass? columns, note any new issues below:
 
 ### New Issues Found
 | # | Page | Description | Severity |

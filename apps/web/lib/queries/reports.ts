@@ -44,6 +44,7 @@ export async function getAllSessions(): Promise<SessionReport[]> {
     )
     .eq('student_id' as string & keyof never, user.id)
     .not('ended_at' as string & keyof never, 'is', null)
+    .is('deleted_at' as string & keyof never, null)
     .order('started_at' as string & keyof never, { ascending: false })
     .returns<SessionRow[]>()
 

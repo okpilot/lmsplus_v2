@@ -64,6 +64,7 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
     .from('quiz_sessions')
     .select('id, started_at, ended_at, total_questions, correct_count, score_percentage')
     .eq('id' as string & keyof never, sessionId)
+    .is('deleted_at' as string & keyof never, null)
     .returns<SessionRow[]>()
     .maybeSingle()
 

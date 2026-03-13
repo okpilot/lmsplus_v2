@@ -36,9 +36,20 @@ export async function discardQuiz(
       .is('ended_at', null)
 
     if (sessionError) {
-      console.error('[discardQuiz] Session soft-delete error:', sessionError.message)
+      console.error(
+        '[discardQuiz] Session soft-delete error:',
+        sessionError.message,
+        sessionError.code,
+        sessionError.details,
+      )
       return { success: false, error: 'Failed to discard quiz' }
     }
+    console.log(
+      '[discardQuiz] Success — session',
+      input.sessionId,
+      'soft-deleted for user',
+      user.id,
+    )
 
     // Soft-delete the associated draft if one exists
     if (input.draftId) {
