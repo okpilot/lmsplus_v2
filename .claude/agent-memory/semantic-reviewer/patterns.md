@@ -1029,3 +1029,132 @@ public API from the hook's internal options type.
 - Comment on lock ordering was removed from source (it was in patterns.md already) — clean.
 - 6 new tests cover `handleDiscard` delegation, `draftId` forwarding, error state propagation,
   and `showFinishDialog` toggle — good behavioral coverage of the new hook's surface.
+
+---
+
+## Session 2026-03-13 — commit 306f44a (fix: session ownership checks + answer error recovery + SQL field validation)
+
+### Three-part commit: session ownership gates, error recovery in useAnswerHandler, SQL hardening
+
+#### ISSUE: JSONB config cast unsafe — potential TypeError on malformed session config (check-answer.ts, fetch-explanation.ts)
+
+**Files:** `apps/web/app/app/quiz/actions/check-answer.ts`:40–42, `apps/web/app/app/quiz/actions/fetch-explanation.ts`:35–36
+**Pattern:** Both actions cast the session row to `{ config: { question_ids: string[] } }` via `as unknown as`, then call `.includes(questionId)` with optional chaining (`config?.question_ids?.includes(...)`). If `question_ids` is present in the DB but is a JSON number, object, or malformed value (not an array), `Array.prototype.includes` is called on a non-array, producing a runtime TypeError — not a structured error return.
+The SQL migration (026) guards `jsonb_typeof(v_config->'question_ids') <> 'array'` before any array expansion. The TypeScript layer has no equivalent guard, making the two layers inconsistent in defensive posture.
+**Fix:** Replace `.includes()` call with:
+```ts
+const qIds = config?.question_ids
+if (!Array.isArray(qIds) || !qIds.includes(questionId)) {
+  return { success: false, error: 'Question not in session' }
+}
+```
+**Status:** ISSUE (same fix needed in both files).
+**Watch for:** any TypeScript code that calls `Array.prototype` methods on a value obtained via `as unknown as SomeType` from a JSONB column — always add `Array.isArray()` guard before calling array methods.
+
+#### ISSUE: Error recovery in useAnswerHandler clears lock before setAnswers state settles — narrow re-entry window
+
+**File:** `apps/web/app/app/quiz/session/_hooks/use-answer-handler.ts`:39–47
+**Pattern:** The catch block calls `lockedRef.current.delete(questionId)` before `setAnswers` state update propagates. Until the next React render lands, `answers.has(questionId)` still reads the pre-removal Map (the prop was captured from the previous render). A fast second tap on the same question falls through the `lockedRef.current.has(questionId)` check (lock is gone) AND through the `answers.has(questionId)` check (stale prop still has the question). The duplicate protection has a brief window where neither guard is active.
+The documented invariant (patterns.md: "useRef lock — ordering invariant") specifies the lock is the in-flight guard. This commit removes the lock during the error path before the state update settles, temporarily breaking the invariant.
+**Fix options:**
+1. Keep `lockedRef.current` populated after the catch, and only delete from it inside a `useEffect` that fires after `answers` no longer includes `questionId`.
+2. Simpler: at the top of `handleSelectAnswer`, guard on `lockedRef.current.has(questionId)` alone (not `answers.has(questionId)`), and only delete from the lock after the `setAnswers` updater confirms the deletion.
+**Status:** ISSUE. Narrow window in practice given React's fast render cycle, but the correctness invariant is violated.
+**Watch for:** any error recovery path that clears a `useRef` lock before its corresponding `useState` update has propagated to the same render cycle.
+
+#### SUGGESTION: answerError persists after submit action clears submitError — stale error visible post-success
+
+**File:** `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts`:71
+**Pattern:** `error: answerError ?? submitError`. `answerError` is only cleared on a successful `checkAnswer` call. If a student gets an answer-check error and then clicks Submit successfully, `submitError` is null-cleared by `handleSubmitSession` at the start, but `answerError` from the previous failure remains non-null. The component renders the stale answer error even after a successful submission. The `??` operator ensures `submitError` is never seen when `answerError` is present.
+**Fix:** Expose a `clearError` function from `useAnswerHandler` and call it at the start of `handleSubmit`, `handleSave`, and `handleDiscard`.
+**Status:** SUGGESTION.
+
+#### SUGGESTION: batch_submit_quiz config element cast to uuid[] — opaque error on malformed element (migration 026)
+
+**File:** `packages/db/migrations/026_batch_submit_field_validation.sql`:64
+**Pattern:** `v_session_question_ids := ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[]`. The `jsonb_typeof` guard on line 59 confirms the value is a JSON array, but not that the elements are valid UUID strings. A non-UUID element produces `invalid_text_representation` (Postgres internal exception) rather than the structured `RAISE EXCEPTION` the function uses everywhere else. The failure surface is limited to manually-inserted session rows with malformed config, not normal application flow.
+**Fix:** Wrap the cast in a BEGIN/EXCEPTION block or validate element format in a loop before casting.
+**Status:** SUGGESTION — low-priority, application flow always writes valid UUIDs.
+
+#### POSITIVE: Session ownership validation consistent between check-answer.ts and fetch-explanation.ts
+
+Both actions apply identical four-constraint ownership checks: `id = sessionId`, `student_id = user.id`, `ended_at IS NULL`, `deleted_at IS NULL`. The question membership check is also identical. No branch divergence on the ownership path. The two functions previously tracked as open ISSUEs for lacking session gates (commits 81c1428, 7c2d7c5) are now resolved.
+
+#### POSITIVE: Error recovery in useAnswerHandler correctly unwinds both lock and optimistic answer state
+
+The catch block removes the question from `lockedRef` AND removes the optimistic answer from the `answers` Map via functional updater. The student is returned to a clean re-answerable state. This is an improvement over the pre-refactor behavior where `checkAnswer` failure left the question locked with no feedback.
+
+#### POSITIVE: OptionalUuid preprocess in lookup.ts — correct normalization pattern
+
+`z.preprocess((v) => (v === '' ? undefined : v), z.string().uuid().optional())` correctly handles the common case where a `<select>` resets to `''` on no-selection. The fix is scoped to the two optional fields only (`topicId`, `subtopicId`), leaving `subjectId` as required. Closes the previous open ISSUE for empty-string UUID validation.
+
+#### POSITIVE: batch_submit_quiz duplicate check now casts to ::uuid inside DISTINCT (migration 026)
+
+`count(DISTINCT (e->>'question_id')::uuid)` correctly normalises UUID case before deduplication. This was the text-vs-uuid dedup bug tracked in patterns.md under commit 741ae30. Now resolved.
+
+#### POSITIVE: split-SELECT pattern in migration 026 correctly fixes config guard ordering
+
+Two-step approach (fetch config row, then guard `jsonb_typeof`, then expand) correctly prevents the evaluation-order bug where `jsonb_array_elements_text` could throw before the guard ran. Fix is structurally sound and the comment accurately explains the motivation.
+
+#### Status update: fetchExplanation session-state gate — RESOLVED in 306f44a
+
+The open ISSUE tracking absence of session ownership validation in `fetchExplanation` (filed commit 81c1428, confirmed open through commits 7c2d7c5 and the post-sprint-3 branch) is now resolved. `sessionId` is a required parameter, and the ownership + question-membership check is performed before the DB query. Mark as resolved.
+
+Same resolution applies to `checkAnswer` session-state gate (filed as a CRITICAL in the post-sprint-3 branch review — the `check_quiz_answer` RPC had its own auth check, but the Server Action lacked session-scoped validation).
+
+---
+
+## Session 2026-03-13 — commit a0d9973 (fix: add array guard on config cast + reactive lock clearing)
+
+### Array guard fix in check-answer.ts and fetch-explanation.ts — RESOLVED (GOOD)
+
+Both files now cast `question_ids` to `unknown` before extraction, then apply `Array.isArray(qIds)` before `.includes()`. The guard is in the same position in both files — correct consistency. The containing cast was also tightened from `{ question_ids: string[] }` to `{ question_ids: unknown }`, which is more honest about what JSONB actually delivers at runtime. The ISSUE filed in commit 306f44a is fully resolved.
+
+**Watch for:** the pattern is now established — any future TypeScript code calling array methods on a JSONB-derived value must have `Array.isArray()` guard before the call.
+
+### Reactive lock clearing in useAnswerHandler — ISSUE remains (new form)
+
+**File:** `apps/web/app/app/quiz/session/_hooks/use-answer-handler.ts`:50–54
+**Pattern:** The previous fix (commit 306f44a) deleted `lockedRef.current.delete(questionId)` from the catch block, which was filed as correct but introduced a new window where the lock persisted until the next render. This commit replaces the synchronous delete with a `useEffect` that iterates `lockedRef.current` and removes entries absent from `answers`, keyed on the `answers` prop.
+
+The `useEffect` runs after React flushes the state updates from the catch block (the `setAnswers` deletion and the `setError` call). This is correct in the steady-state: by the time the effect fires, `answers` no longer contains `questionId`, so the lock is cleared.
+
+However, a retryability gap exists in real browsers: between the catch block returning and the effect firing (i.e., between the `setAnswers` call being queued and React completing its next flush + commit + effect phase), `lockedRef.current` still holds `questionId`. If the user taps the same option again within that window — which is shorter than a human reaction time but not zero — `lockedRef.current.has(questionId)` fires and silently drops the retry.
+
+The jsdom test suite does not catch this because `act()` flushes effects synchronously. The test `'releases the ref lock after a failed call so the question can be answered again'` passes because the effect fires between the two `act()` calls, not because it fires before a concurrent re-tap could land.
+
+**Correct fix:** Restore the synchronous `lockedRef.current.delete(questionId)` in the catch block AND keep the `useEffect` as a safety drain for any edge-case ref leaks. The two mechanisms are complementary, not alternatives.
+
+**Status:** RESOLVED in commit 5b2864f. Synchronous `lockedRef.current.delete(questionId)` restored as first statement in the catch block, before `setAnswers` is enqueued. The `useEffect` is retained as a safety drain. Two-layer approach is correct and intentional. The retryability gap is closed.
+
+**Occurrence count:** 2 (306f44a / a0d9973). Both forms of the race have now been identified and resolved. Pattern is stable.
+
+---
+
+## Session 2026-03-13 — commit 5b2864f (fix: restore synchronous lock clear + add Array.isArray test coverage)
+
+### Reactive lock clearing ISSUE — FULLY RESOLVED
+
+**File:** `apps/web/app/app/quiz/session/_hooks/use-answer-handler.ts`:39-40
+**Resolution:** `lockedRef.current.delete(questionId)` restored as the first statement in the catch block (synchronous, before `setAnswers` enqueue). The `useEffect` safety drain kept. The two mechanisms are complementary: synchronous delete opens the retry gate immediately in the same microtask; the effect cleans up any ref leaks that don't go through the catch path.
+**Ordering verified:** ref mutation (line 40) → `setAnswers` enqueue (line 41) → `setError` enqueue (line 46). Retry gate opens before any re-render. When a re-render does fire, `answers.has(questionId)` returns false (state rolled back), so neither guard on line 21 blocks the retry.
+**Success path verified:** On success, `lockedRef` retains the entry permanently because `answers.has(questionId)` is true — the `useEffect` correctly leaves it intact. The `answers.has()` check on line 21 is the primary re-answer guard for the success path; `lockedRef` serves as the in-flight guard only.
+**Status:** CLOSED. No further tracking needed.
+
+#### POSITIVE: 6 Array.isArray guard tests close the coverage gap
+
+Three guard paths (null `question_ids`, string `question_ids`, null `config`) tested in both `check-answer.test.ts` and `fetch-explanation.test.ts`. Tests follow the established discriminated union narrowing pattern (`if (result.success) return` before accessing `.error`). Mock setups mirror existing test scaffolding exactly. No new patterns introduced.
+
+**Rule reinforced:** Tests for `Array.isArray` guards should cover: null, wrong type (string/number), and null containing object — these are the three failure modes for JSONB-derived arrays.
+
+### jsdom act() flushes effects synchronously — masks render-gap bugs in lock tests
+
+**Pattern confirmed:** Tests for lock-release-after-failure work in jsdom because `act()` flushes `useEffect` before the next line of test code runs. Any hook property that depends on an effect having fired will appear correct in jsdom even if the effect fires too late for a real-browser interaction.
+
+**Rule:** When testing hooks where the lock-release window matters (lock is cleared by effect, not synchronously in the handler), the test is exercising the steady-state (after flush), not the concurrent-tap scenario (before flush). If a real-browser race condition is the concern, the test must use a deferred promise + multiple concurrent calls, not sequential `act()` blocks.
+
+**Watch for:** any `useRef` lock or guard that is cleared in `useEffect` rather than in the handler — the jsdom tests for it will all pass even if the real-browser race window is non-zero.
+
+### useEffect iterates all locked entries on every answers change — acceptable at current scale (SUGGESTION)
+
+On every successful answer (which adds to the `answers` map), the effect iterates all currently-locked question IDs and checks whether they are still in `answers`. For a successful answer, `questionId` is present in both `lockedRef.current` and `answers`, so no deletion occurs — the loop is a no-op. This is correct but wastes a linear scan on every successful answer. At quiz sizes of 20 questions this is negligible. Noted for awareness if session sizes grow significantly.

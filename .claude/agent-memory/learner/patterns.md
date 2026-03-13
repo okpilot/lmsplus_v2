@@ -10,7 +10,7 @@
 | External agent output invisible | 1 | 2026-03-11 | Fixed — Decision 20: agents now run as in-session subagents |
 | Duplicate Next.js installs (Playwright) | 1 | 2026-03-11 | Fixed — excluded e2e/ from tsconfig, cast in proxy.ts |
 | Pre-push hooks too slow for large diffs | 1 | 2026-03-11 | Fixed — diff cap + timeout + grep fallback |
-| Hook file exceeding 80-line limit | 3 | 2026-03-12 | RULE EXISTS — 70-line watch added to code-reviewer memory (9f5a6cc); recurring |
+| Hook file exceeding 80-line limit | 4 | 2026-03-13 | RULE EXISTS — 70-line watch added to code-reviewer memory (9f5a6cc); still recurring despite watch threshold; use-quiz-state.ts hit 117 lines in 741ae30 (4th occurrence); fix required hook split in 34a9352 |
 | SQL score aggregation over full table (not current batch) | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in f53eccf |
 | Array positional pairing instead of Map lookup (FSRS) | 1 | 2026-03-12 | Watch — batch-submit.ts updateFsrsCards; fixed in f53eccf |
 | Empty-array guard missing at SQL level | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in f53eccf |
@@ -52,6 +52,11 @@
 | UPDATE returning zero rows treated as success (silent no-op) | 1 | 2026-03-13 | Watch — draft update in 6d274fa returned no error but updated 0 rows when draft ID did not match student ownership; caller received success response for a no-op write; fix: check rowCount / affected rows after UPDATE before returning success; distinct from "Supabase mutation result not destructured" (that is about missing error destructuring — this is about a successful query that silently did nothing); first occurrence |
 | Error path in existing function untested (count-error branch) | 1 | 2026-03-13 | Watch — count-error path in draft.ts had no test coverage; test-writer flagged it; first occurrence as a named pattern (distinct from "new file without test" which is about missing test files entirely — this is an existing tested file with an uncovered branch); |
 | Async cleanup path untestable in jsdom (cancelled flag branch) | 1 | 2026-03-13 | Watch — test-writer noted that the cancelled flag cleanup path (setState skipped after unmount) is not testable in jsdom because act() flushes effects synchronously before assertions can observe the cancelled state; analogous to the pre-hydration jsdom limitation; first occurrence; do not write tests for this branch — document the constraint in code-style.md jsdom section if it recurs |
+| Stale closure introduced by hook split (scalar captured in closure vs ref) | 1 | 2026-03-13 | Watch — when use-quiz-state was split in 34a9352 to fix the 80-line violation, currentIndex was captured as a scalar in a closure in handleSave instead of being accessed via useRef; fixed in df5d354; the hook split itself introduced the bug; pattern: any value read inside a callback that is defined outside a React.useCallback/useMemo with that value in its deps array is at risk of being stale; when splitting a hook, audit all callbacks in the extracted portion for captured scalar state; first occurrence |
+| SQL string comparison instead of ::uuid cast in duplicate check | 1 | 2026-03-13 | Watch — batch_submit_quiz duplicate-answer check compared option IDs as text rather than casting to ::uuid, which can cause case-sensitivity and format-variation failures; fixed in 34a9352; first occurrence |
+| Type cast bypassing runtime validation (`as unknown as T` hiding missing guard) | 2 | 2026-03-13 | RULE CANDIDATE — first: batch_submit_quiz malformed config cast (306f44a) — semantic reviewer found .includes() called on a value cast `as unknown as string[]` without Array.isArray() guard; second: same pattern recurred in check-answer.ts + fetch-explanation.ts (a0d9973) before guards were added; TypeScript cast does not substitute for a runtime check when data comes from DB/RPC; when `as unknown as T` appears on data from Supabase, a runtime validation of the cast assumption is required |
+| New hook file extracted without shipping tests in the same commit | 4 | 2026-03-13 | RULE EXISTS (code-style.md Section 7) — use-answer-handler.ts was created in 306f44a without a test file; 12 tests were written in a0d9973 (follow-up commit); pattern: hook extractions always trigger a test gap that requires a post-commit fill; fourth recurrence confirms the compliance gap is structural |
+| Imperative ref clear in catch block leaving re-entry window | 1 | 2026-03-13 | Watch — use-answer-handler.ts (306f44a): lockedRef.current.delete() in catch block cleared the lock before React state (answers) had settled, creating a brief window where a second call could enter; fixed in a0d9973 with useEffect drain keyed on answers; then partially reverted in 5b2864f (synchronous clear restored for immediate retryability, useEffect kept as safety drain); first occurrence of this specific async-lock re-entry window pattern |
 
 ## Lessons Learned
 
@@ -560,5 +565,116 @@ The test-writer generated code containing a TS2532 error — array index access 
 - All four commits were scoped correctly — no cross-feature drift, no partial fixes left open.
 - The cancellation flag pattern (let cancelled = false + cleanup return) is a standard React/JS idiom for async effect cleanup. Good template for future useEffect-with-fetch patterns in the codebase.
 - Splitting `draft.ts` was the correct call even though the primary file (114 lines) still sits over the 100-line limit — the alternative (one 166-line file) was worse. The Biome expansion watch item will prompt a more conservative split threshold next time.
+
+---
+
+### 2026-03-13 — use-quiz-state hook split + batch_submit_quiz SQL hardening (commits 741ae30 → 34a9352 → df5d354)
+
+**Context:** Three-commit fix cycle on feat/post-sprint-3-polish. Commits 741ae30 (validation hardening), 34a9352 (hook split + SQL type cast fix), df5d354 (stale closure fix after split). Three rounds of post-commit review — all agents reported clean on round 3.
+
+**Code reviewer (741ae30):** 1 BLOCKING.
+- `use-quiz-state.ts` at 117 lines (hook limit: 80). This is the **fourth occurrence** of the hook-exceeds-80-lines pattern. Fixed in 34a9352 by splitting the hook. Frequency table count updated: 3 → 4. The 70-line watch threshold added in an earlier cycle was not acted on proactively — the file grew 37 lines past the 80-line limit before being caught post-commit. Rule and watch threshold both exist; compliance gap at authoring time persists.
+
+**Code reviewer (34a9352):** clean — hook split brought use-quiz-state.ts under limit.
+
+**Code reviewer (df5d354):** clean — stale closure fix was a targeted single-function change.
+
+**Semantic reviewer (741ae30):** 1 ISSUE + 2 suggestions.
+
+1. **ISSUE — Duplicate-answer check used text comparison instead of ::uuid cast:** In `batch_submit_quiz`, the duplicate-answer detection compared option/question IDs as plain text strings rather than casting to `::uuid`. UUID comparisons as text can fail on case variation or format differences (e.g., uppercase vs lowercase hex). Fixed in 34a9352 by adding `::uuid` casts to the comparison. **First occurrence.** Logged as new watch item.
+
+2. **SUGGESTION — Malformed session config guard:** A guard condition in the session config check was improperly structured (likely a missing parenthesis or operator precedence issue). Fixed in 34a9352. First occurrence — suggestion level, no rule action.
+
+3. **SUGGESTION — Lock ordering comment:** Semantic reviewer recommended adding a comment explaining the order in which row locks are acquired to prevent potential deadlocks if lock order is ever changed. No fix applied (suggestion only). First occurrence — logged for awareness.
+
+**Semantic reviewer (34a9352):** 1 ISSUE.
+
+1. **ISSUE — Stale `currentIndex` in `handleSave` after hook split:** When `use-quiz-state.ts` was split, `handleSave` captured `currentIndex` as a scalar in a closure rather than reading it via a ref. Because React state updates are async, the `currentIndex` value captured at the time `handleSave` was defined could be stale by the time the callback executed. Fixed in df5d354 by accessing `currentIndex` via a `useRef` or via a functional updater pattern. Root cause: the act of splitting the hook introduced a stale closure that did not exist in the monolithic version (where the value and its consumer were in the same closure scope). **First occurrence of the meta-pattern: hook split introducing a stale closure on a formerly-adjacent value.** Logged as new watch item.
+
+**Semantic reviewer (df5d354):** clean — 0 issues, 0 suggestions.
+
+**Doc updater:** database.md updated (batch_submit_quiz duplicate check change noted), plan.md updated (sprint progress), MEMORY.md updated. One minor database.md fix applied in a follow-up commit. No partial-doc-fix pattern.
+
+**Test writer (741ae30):** Added double-click race test for handleSelectAnswer guard (first occurrence of this test pattern). Passing.
+
+**Test writer (34a9352 + df5d354):** Added 6 tests covering handleDiscard and showFinishDialog behavior. All passing.
+
+**Actions taken:**
+- Frequency table: "Hook file exceeding 80-line limit" count updated 3 → 4. Status unchanged (RULE EXISTS, compliance gap).
+- Frequency table: 2 new watch items added (both first occurrences): "Stale closure introduced by hook split (scalar vs ref)" and "SQL string comparison instead of ::uuid cast in duplicate check".
+- No rule changes proposed — both new patterns are first occurrences. The recurring hook-oversizing pattern (count 4) already has a rule and a 70-line watch threshold; the compliance gap is at authoring time, not in rule coverage.
+
+**Rule gaps identified (not yet actionable — awaiting second occurrence):**
+- When a hook is split, the developer must audit all callbacks in the extracted portion for captured scalar state values — any `state` variable read inside a `useCallback`/handler that is not in the dependency array (or is in the dependency array but is a primitive) is a stale closure candidate. If this pattern recurs on a different hook split, add a note to code-style.md Section 2 (hooks) or agent-workflow about the split-induced stale closure risk.
+- UUID comparisons in SQL should use `::uuid` casts, not plain text comparison. If this recurs in a different migration or RPC, add a note to `docs/security.md` or `docs/database.md`: "always cast UUID parameters and stored values to `::uuid` in comparison expressions."
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Round 3 (df5d354) was fully clean — all 4 agents returned clean in a single pass. The fix cycle closed correctly with no secondary issues on the fix commit.
+- The stale closure in handleSave was caught by the semantic reviewer on the fix commit (34a9352), not in production. The agent caught a regression introduced by its own prior recommendation (hook split). This demonstrates the value of re-running semantic review on fix commits that modify production code.
+- The double-click race test (741ae30) and the handleDiscard/showFinishDialog tests (df5d354) add concrete behavioral coverage for interaction-state edge cases that are easy to miss in manual testing.
+
+---
+
+### 2026-03-13 — Session ownership hardening + Array.isArray guards (commits 306f44a, a0d9973, 5b2864f)
+
+**Context:** Three-commit fix cycle on feat/post-sprint-3-polish. Commit 306f44a addressed CodeRabbit findings (session ownership checks, answer error recovery, SQL field validation, hook split to use-answer-handler). Commit a0d9973 addressed two post-commit semantic-reviewer ISSUEs (Array.isArray guards, reactive lock clearing). Commit 5b2864f refined the lock-clearing approach (restore synchronous clear + keep useEffect as safety drain) and added Array.isArray test coverage.
+
+**Code reviewer:** clean on all 3 commits — 0 blocking, 0 warnings. All file-size limits respected after the use-answer-handler extraction.
+
+**Semantic reviewer (306f44a):** 2 ISSUEs.
+
+1. **ISSUE — Missing Array.isArray guard on type-cast config data (→ fixed a0d9973):** In `check-answer.ts` and `fetch-explanation.ts`, the session config's `question_ids` field was cast `as unknown as string[]` and passed directly to `.includes()`. No runtime check verified the cast was valid. If the DB returned a non-array (corrupted config, null, string field), `.includes()` would throw at runtime. Fixed by wrapping the `.includes()` call in an `Array.isArray(questionIds)` guard. Root cause: a TypeScript cast (`as unknown as T`) creates no runtime guarantee — when the source is external data (DB/RPC), the cast assumption must also be validated at runtime. This is the **second occurrence** of a cast bypassing a needed runtime validation (first: batch_submit_quiz malformed config cast in a prior commit). Count in frequency table: 2. Status: RULE CANDIDATE.
+
+2. **ISSUE — Imperative ref clear in catch block creating re-entry window (→ fixed a0d9973, refined 5b2864f):** `use-answer-handler.ts` cleared `lockedRef.current.delete(questionId)` in the catch block to allow retry after an error. However, the React `answers` state update (which also drives the lock) was enqueued asynchronously — there was a brief window between the synchronous ref clear and the state settling where a second call could enter before the first was fully resolved. Fixed in a0d9973 by replacing the imperative catch-block clear with a `useEffect` keyed on `answers` state. In 5b2864f, the synchronous clear was restored for immediate user retryability, with the `useEffect` kept as a safety drain. The final solution uses both: synchronous clear for speed, reactive drain as a correctness backstop. **First occurrence** of this specific async-lock re-entry window pattern. Logged as new watch item.
+
+**Semantic reviewer (a0d9973 and 5b2864f):** clean — 0 issues, 0 suggestions on both fix commits.
+
+**Doc updater:** `docs/database.md` and `docs/plan.md` updated in a0d9973 with migration 026 notes. Clean — no partial-doc-fix pattern.
+
+**Test writer (306f44a):** `use-answer-handler.ts` was a new hook file created in the same commit without a co-located test file. This is the **fourth recurrence** of the "new hook file shipped without tests" pattern (code-style.md Section 7 rule was added on the second occurrence). 12 tests were written in the follow-up commit a0d9973. The compliance gap at authoring time persists — the rule is clear and in place, but hook extractions routinely ship without tests and are caught post-commit by the test-writer.
+
+**Test writer (a0d9973):** 14 tests written total — 12 for `use-answer-handler.ts` (lock guard, error recovery, answer tracking) and 2 for `lookup.ts` empty-string UUID path. All passing.
+
+**Test writer (5b2864f):** 6 tests added — Array.isArray guard paths (null question_ids, string question_ids, null config) in `check-answer` and `fetch-explanation`. All passing. These directly targeted the gap noted in the semantic reviewer's ISSUE on 306f44a.
+
+**Actions taken:**
+- Frequency table: "New hook/utility file shipped without a test file" count updated 3 → 4. Status unchanged (RULE EXISTS, compliance gap at authoring time).
+- Frequency table: 3 new entries added: "Type cast bypassing runtime validation" (count 2, RULE CANDIDATE), "New hook file extracted without shipping tests in the same commit" (count updated in frequency table row), "Imperative ref clear in catch block leaving re-entry window" (count 1, Watch).
+
+**Pattern analysis — type cast without runtime guard (count 2, RULE CANDIDATE):**
+
+Both occurrences share the same structure:
+- External data (DB/RPC result or config jsonb field) is cast using `as unknown as T[]`
+- A method that requires the runtime type (`.includes()`, `jsonb_array_elements()`, iteration) is called immediately on the cast result
+- No `Array.isArray()` / `typeof` / `instanceof` check validates the assumption before use
+
+The TypeScript cast is a compile-time assertion only. When the underlying data is external (Supabase query result, jsonb field, RPC output), the cast does not guarantee the runtime shape. A rule clarification in `code-style.md` Section 5 (TypeScript Rules) is warranted.
+
+**Recommended change (awaiting orchestrator approval):**
+
+Add to `code-style.md` Section 5, after the "No Type Casting Unvalidated External Data" rule:
+
+```
+// ❌ WRONG — cast from external data with no runtime guard
+const questionIds = config.question_ids as unknown as string[]
+if (questionIds.includes(questionId)) { ... }   // throws if config is null/string/object
+
+// ✅ CORRECT — cast paired with runtime guard
+const questionIds = config.question_ids as unknown as string[]
+if (Array.isArray(questionIds) && questionIds.includes(questionId)) { ... }
+```
+
+**Rule gaps identified (not yet actionable — awaiting second occurrence):**
+- The imperative-ref-clear re-entry window (first occurrence) has no corresponding rule. If it recurs on a different handler that uses a ref-based lock, add a note to code-style.md about the two-mechanism pattern: synchronous ref clear for speed + reactive effect drain for correctness backstop.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Semantic reviewer was clean on both fix commits (a0d9973 and 5b2864f) — the fixes were correct and introduced no secondary issues.
+- The Array.isArray guard tests (5b2864f — 6 tests) were written to specifically target the guard paths identified by the semantic reviewer. The test cycle closed tightly: ISSUE found in 306f44a, guards added in a0d9973, guard paths tested in 5b2864f.
+- The dual-mechanism lock-clearing solution (sync clear + reactive drain) is a good pattern for async locks where both speed (user retryability) and correctness (state consistency) matter.
+- Code reviewer clean on all 3 commits confirms the use-answer-handler split and SQL hardening respected all file-size and style limits.
 
 ---

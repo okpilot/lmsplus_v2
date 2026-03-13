@@ -533,6 +533,45 @@ is misleading. Example: "falls back to correct_count" → "falls back to total_q
 | `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts` | `quiz-submit.test.ts` | Extended: added `discardQuiz` mock + 14 tests across `handleSubmitSession`, `handleSaveSession`, `handleDiscardSession` |
 | `apps/web/lib/queries/reports.ts` | `reports.test.ts` | Fixed stale description: "falls back to correct_count" → "falls back to total_questions" |
 
+## Files written/extended in commit 306f44a (session ownership + error recovery)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_hooks/use-answer-handler.ts` | `use-answer-handler.test.ts` | New file. 12 tests: happy path, lock guard, error recovery (revert + lock release), multi-question feedback isolation |
+| `apps/web/app/app/quiz/actions/lookup.ts` | `lookup.test.ts` | Extended: 2 new tests for `OptionalUuid` preprocessor — empty string coerced to absent for both `topicId` and `subtopicId` |
+
+### Testing a hook that manages its own answers Map externally
+When a hook accepts `answers` + `setAnswers` as props (rather than owning the state itself),
+drive the external state manually using a closure variable and a `vi.fn()` setter that
+applies the updater function to it:
+
+```ts
+let answers = new Map<string, DraftAnswer>()
+const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+  answers = updater(answers)
+})
+const { result } = renderHook(() =>
+  useAnswerHandler({ ..., answers, setAnswers: setAnswers as React.Dispatch<...> }),
+)
+// Then inspect answers directly to assert map mutations
+```
+
+This simulates the React setState model without needing a wrapper component.
+
+### Verifying ref lock release after error (retry pattern)
+To assert a ref-based lock is released after failure so the same question can be answered again:
+1. Mock the action to reject once, then resolve on second call
+2. Assert `checkAnswer` was called twice
+3. Assert the answer is stored after the second call
+Do not try to inspect `lockedRef` directly — it's an implementation detail. Test the observable
+behaviour: can the user retry?
+
+### OptionalUuid preprocessor — empty string treated as absent
+The `OptionalUuid = z.preprocess(v => v === '' ? undefined : v, z.string().uuid().optional())`
+pattern means `''` is valid (coerced to absent) while `'bad-id'` is invalid (Zod throws).
+Test both sides: empty string must NOT throw and must produce the same result as omitting
+the field entirely.
+
 ### Testing module-level constants that depend on NODE_ENV
 When a module evaluates `process.env.NODE_ENV` at the top level (not inside a function),
 `vi.stubEnv` alone is not enough — the value is already captured. Use this pattern to
@@ -592,6 +631,30 @@ Key points:
 | Source file | Test file | Notes |
 |---|---|---|
 | `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` | `use-quiz-state.test.ts` | Extended: added concurrent double-click test for `lockedQuestionsRef` race guard |
+
+## Files extended in commit a0d9973 (Array.isArray guard)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/check-answer.ts` | `check-answer.test.ts` | Extended: 3 new tests for `Array.isArray(qIds)` guard — null, plain string, and null config |
+| `apps/web/app/app/quiz/actions/fetch-explanation.ts` | `fetch-explanation.test.ts` | Extended: same 3 guard tests mirrored for fetch-explanation |
+
+### Existing tests did NOT cover the new Array.isArray guard
+The original tests for `question_ids` membership only tested the `.includes()` branch
+(wrong question ID in a valid array). The `Array.isArray()` guard that fires when the field
+is null, a string, or when config itself is null was completely uncovered.
+
+**Rule:** whenever a type-narrowing guard is added to a production file (e.g., replacing
+`config.question_ids.includes()` with `Array.isArray(qIds) || qIds.includes()`), always
+ask: does the test suite exercise the case where the guard's early-return fires?
+Typically the answer is no — the original tests only exercise the "valid input" path
+through the guard.
+
+### use-answer-handler reactive lock clearing (useEffect path) — behavior-tested, not structural
+The `useEffect([answers])` that clears `lockedRef.current` for keys absent from `answers`
+is tested via the retry-after-error test: mock rejects once → user can retry → `checkAnswer`
+called twice. This proves the lock is cleared. Do NOT add a test that inspects
+`lockedRef.current` directly — that is an implementation detail. Behavior proof is sufficient.
 
 ---
 
