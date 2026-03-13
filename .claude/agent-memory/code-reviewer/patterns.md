@@ -1356,3 +1356,79 @@ Applied in: `apps/web/e2e/review-flow.spec.ts` (commit f272e2b)
 - Semantic-reviewer flagged "hook-split scalar vs ref" — monitor future refactors for this pattern
 
 **Verdict:** CLEAN — All checks passed. Follow-up refinement resolves stale closure risk. Hook refactoring now complete and production-ready.
+
+---
+
+## Session 2026-03-13 Part 11 (Error Logging + UUID Case-Sensitivity Fix)
+
+### Commit: d70c660 (fix: add missing error logging, case-insensitive UUID regex, and doc corrections)
+- Status: **CLEAN**
+- Files changed: 6 files, 435 insertions, 14 deletions
+- Summary: Error logging added to `saveDraft` Server Action for all failure paths; UUID validation regex fixed to case-insensitive; documentation updated to reflect 20-draft limit (not 1).
+
+**File Analysis:**
+
+**[UPDATED] `apps/web/app/app/quiz/actions/draft.ts` — 124 lines (limit: 100 for Server Action files)**
+
+Line count exceeds Server Action limit by 24 lines.
+
+**Assessment:** This is NOT a BLOCKING violation. The file contains three exported functions: `saveDraft` (main handler, 30 lines), `updateExistingDraft` (helper, 24 lines), `insertNewDraft` (helper, 24 lines). Each function is under the 30-line limit. The "100-line Server Action file" rule in code-style.md is meant to keep a *single action orchestrator* under 100 lines. This file is a *feature action module* with three focused exported functions plus one private helper (`sessionConfig`, 1 line). Pattern matches the suppression in agent-code-reviewer.md: "Server Action file > 100 lines acceptable when containing 3+ focused exported functions (each ≤30 lines) plus private helpers." No violation. **CLEAN.**
+
+- **Lines 53, 83, 104, 119:** Added `console.error('[saveDraft] ...')` logging on all error paths
+  - Logging follows existing project convention: `[FunctionName] description: error.message`
+  - All Supabase mutation results now have error visibility
+  - No console.error calls added without context or formatting
+- **Line 92:** Added JSDoc comment documenting the 4-parameter `insertNewDraft` as intentional exception
+  - Matches code-style.md exception pattern: "each parameter maps to a distinct semantic role"
+  - `insertNewDraft(supabase, input, userId, orgId)` is an infrastructure utility
+  - **WARNING flagged, but suppressed by documented exception.** No action required.
+
+**[UPDATED] `apps/web/app/app/quiz/actions/draft.test.ts` — 276 lines (test file, exempt from line limits)**
+- **Line 193:** Comment corrected: "First call: users table for orgId; second call: count query returns 20" (was reversed)
+- **Lines 206–227:** Updated existing test `'returns failure when insert errors'` to assert `console.error` call with exact message
+- **Lines 230–245:** New test `'logs error when draft count query fails'` covers the draft count query error path
+  - Isolates the count-query error by mocking three distinct `.from()` calls
+  - Asserts both the error response AND the console.error call
+  - Follows pattern from co-located error logging tests
+
+**[NEW] `packages/db/migrations/028_batch_submit_uuid_case_fix.sql` — 199 lines (limit: 300 for SQL migrations)**
+- Entire `batch_submit_quiz` RPC function replaced with case-insensitive UUID validation
+- **Key change (line 373):** `!~` → `!~*` (case-sensitive → case-insensitive regex)
+- **Rationale:** RFC 4122 permits uppercase hex digits in UUIDs (e.g., `ABCD-1234...`). The prior regex rejected valid uppercase UUIDs. This is a defense-in-depth fix — the regex should not reject valid input.
+- **Migration copied correctly:** Both `packages/db/migrations/028_...` (numbered, source of truth) and `supabase/migrations/20260313000028_...` (timestamped) contain identical functions per project convention.
+- Function line count (199) stays within 300-line migration limit.
+
+**[COPIED] `supabase/migrations/20260313000028_batch_submit_uuid_case_fix.sql` — identical to packages/db/migrations/028**
+- Timestamp-based naming: `20260313000028` (YYYYMMDD000NNN format)
+- Content matches source migration exactly
+- Follows sync protocol between packages/db/migrations and supabase/migrations
+
+**[UPDATED] `docs/database.md` — 958 lines (documentation file, no limit)**
+- **Line 263:** Comment updated: "One draft per student (UNIQUE...)" → "Up to 20 drafts per student"
+- **Line 268:** Schema comment removed `UNIQUE` constraint on `student_id` (already removed in prior schema update)
+- **Line 278:** RPC documentation updated: `!~` → `!~*` to match migration 028
+
+**[UPDATED] `.claude/agent-memory/learner/patterns.md` — 957 lines (memory file, no code-style limits)**
+- **Line 9:** Added "ARIA tab role missing on button-based tab UI" pattern (count 1, status WATCH)
+- **Lines 19–115:** Added comprehensive session notes for commits 46113bf and 9c2a737 (QuizTabs extraction)
+- **Lines 117–183:** Added comprehensive session notes for commits 9257ccb, 320986f, 0c7e7e7 (shift-left plan validation protocol docs)
+- Memory updates are structured, timestamped, and properly formatted per agent-memory conventions
+
+**[UPDATED] `.claude/agent-memory/semantic-reviewer/patterns.md` — 1410 lines (memory file, no code-style limits)**
+- **Lines 125–135:** Added "shared generation counter across independent async slots" pattern (count 1, status ISSUE pending)
+- **Lines 144–155:** Added "TabButton badge guard — consistent but subtly changed" pattern (POSITIVE pattern documented)
+- **Lines 167–183:** Added "Session 2026-03-13" behavioral gap findings from doc-only commit review
+
+**Quality Observations:**
+- Error logging added defensively across all Supabase mutation paths; follows existing naming convention
+- Tests written for both new error logging and existing behavior; console.error calls asserted
+- UUID validation fix improves robustness without breaking changes; defense-in-depth pattern
+- Documentation updated to match schema; learner and semantic-reviewer memory files updated with pattern observations
+- No new style violations; all functions under 30-line limit; Server Action file pattern matches documented exception
+- Memory updates reflect multi-session pattern tracking and lesson recording
+
+**Watch Items:**
+- "Case-sensitive UUID/text dedup in SQL" logged at count 1. If a second case-sensitivity issue appears in a different SQL function, consider adding a Biome rule or code-style.md note about UUID validation.
+- The 4-parameter `insertNewDraft` is documented as an intentional exception. Future infrastructure utilities should follow this pattern (JSDoc comment required).
+
+**Verdict:** CLEAN — All checks passed. Error logging well-tested. UUID validation fix is defensive. Documentation accurate. Memory files updated with observations. One WARNING (4-param function) is an intentional suppressed exception per code-style.md § 3.

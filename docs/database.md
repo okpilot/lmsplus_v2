@@ -603,6 +603,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
 - Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
 - Hardens field validation (migration 026): validates `jsonb_typeof(v_config->'question_ids')` = 'array' BEFORE extraction (fixes eval-before-guard issue); validates `selected_option` and `response_time_ms` per answer AFTER extraction
+- Uses case-insensitive UUID regex (migration 028): validates question_id with `!~*` instead of `!~` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth hardening
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -693,7 +694,7 @@ BEGIN
     IF v_selected_option IS NULL OR v_selected_option = '' THEN
       RAISE EXCEPTION 'answer for question % has empty selected_option', v_qid_text;
     END IF;
-    IF v_rt_text IS NULL OR v_rt_text !~ '^\d{1,9}$' OR v_rt_text::int < 0 THEN
+    IF v_rt_text IS NULL OR v_rt_text !~ '^\d{1,9}$' THEN
       RAISE EXCEPTION 'answer for question % has invalid response_time_ms', v_qid_text;
     END IF;
 

@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-12
+> Last updated: 2026-03-13
 
 ---
 
@@ -229,6 +229,8 @@
 - ✅ Migration 026: batch_submit_quiz field validation — validates jsonb_typeof before extracting question_ids (fixes eval-before-guard #33); validates selected_option/response_time_ms per answer (closes #38)
 - ✅ Hook split: `use-quiz-state` → `use-answer-handler` extraction to stay under 80-line limit
 - ✅ UUID validation fix: `lookup.ts` `getFilteredCount` validates empty string UUID correctly (closes #10)
+- ✅ Migration 028: UUID case-insensitive regex in batch_submit_quiz — changed to `!~*` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth input validation
+- ✅ saveDraft error logging: added console.error logging for draft count query and insert errors for better observability
 
 ---
 

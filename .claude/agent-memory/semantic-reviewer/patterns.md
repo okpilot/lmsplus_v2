@@ -1431,3 +1431,46 @@ new fallbacks or change how `answeredCountMap` is built should be reviewed for s
 
 **Short-form Workflow section in CLAUDE.md not updated:**
 Lines 137-141 of `CLAUDE.md` are a brief 4-step Workflow section ("Start each session: read docs/plan.md", "Plan Mode for any multi-file change", etc.). These 4 steps predate the new 9-step workflow block above them and do not reflect the new Validate and Approve steps. Two workflow descriptions exist in `CLAUDE.md` — the detailed 9-step block (lines 22-32) and the short 4-step block (lines 137-141). They do not contradict each other but the short block is now incomplete. SUGGESTION-level.
+
+---
+
+## Session 2026-03-13 — commit d70c660 (fix: add missing error logging, case-insensitive UUID regex, and doc corrections)
+
+### Changes reviewed
+
+**Files changed:** `apps/web/app/app/quiz/actions/draft.ts`, `apps/web/app/app/quiz/actions/draft.test.ts`, `packages/db/migrations/028_batch_submit_uuid_case_fix.sql`, `supabase/migrations/20260313000028_batch_submit_uuid_case_fix.sql`, `docs/database.md`, two agent memory files.
+
+### docs/database.md response_time_ms guard diverges from migration 028 (SUGGESTION)
+
+**File:** `docs/database.md` line 697
+**Pattern:** The `docs/database.md` snapshot of the `batch_submit_quiz` RPC body shows:
+`IF v_rt_text IS NULL OR v_rt_text !~ '^\d{1,9}$' OR v_rt_text::int < 0 THEN`
+Migration 028 (and migration 027 before it) do NOT include the `OR v_rt_text::int < 0` clause. The semantic-reviewer patterns file (from a prior session) explicitly documents why that clause was removed: the `^\d{1,9}$` regex already excludes any sign character, so `::int < 0` is unreachable dead code. The docs were updated to match the UUID regex change (`!~*`) but the stale `OR v_rt_text::int < 0` clause was not removed from the docs snapshot. The doc no longer reflects the deployed RPC.
+**Not a runtime issue** — the deployed function is correct. The gap is docs-only.
+**Fix:** Remove `OR v_rt_text::int < 0` from the `docs/database.md` snapshot at line 697.
+**Status:** SUGGESTION — docs drift, no behavioral impact.
+
+### draft.ts error logging is consistent across all failure paths (GOOD)
+
+**File:** `apps/web/app/app/quiz/actions/draft.ts`
+All four failure modes in `insertNewDraft` now log before returning: count query error (`[saveDraft] Draft count query error:`), insert error (`[saveDraft] Insert error:`). Both the `saveDraft` outer function and `updateExistingDraft` already had logging. The addition makes error visibility consistent across all branches. The log prefix format `[saveDraft]` is used uniformly throughout the file.
+
+### New test correctly covers the count error path (GOOD)
+
+**File:** `apps/web/app/app/quiz/actions/draft.test.ts`
+The new `logs error when draft count query fails` test correctly simulates the org-lookup call succeeding (callIndex === 1) and the count query returning an error (callIndex === 2). The mock structure mirrors the production code's DB call sequence. The `consoleSpy` is created before the action call and restored after assertion — correct placement. The assertion checks both the return value and the console.error call message.
+
+### Test comment fix is accurate (GOOD)
+
+**File:** `apps/web/app/app/quiz/actions/draft.test.ts` line 147
+The corrected comment (`// First call: users table for orgId; second call: count query returns 20`) now matches the actual call sequence in `saveDraft` (org lookup first, then count query). The original comment had the order reversed.
+
+### Migration 028 UUID regex change is correct and safe (GOOD)
+
+**File:** `packages/db/migrations/028_batch_submit_uuid_case_fix.sql` line 86
+The change from `!~` to `!~*` makes the UUID format check case-insensitive. RFC 4122 permits uppercase hex digits in UUIDs. The prior lowercase-only regex would reject valid uppercase UUIDs from non-standard generators. The `lower()` applied in the dedup check (line 72) already handles case normalisation for deduplication — the regex change aligns the per-answer validation guard with the same defense-in-depth approach. No behavioral regression: valid lowercase UUIDs continue to pass; valid uppercase UUIDs now correctly pass instead of being incorrectly rejected.
+
+### response_time_ms regex bound is consistent with migration 027 (GOOD)
+
+**File:** `packages/db/migrations/028_batch_submit_uuid_case_fix.sql` line 92
+Migration 028 uses `^\d{1,9}$` (max 999,999,999 ms), consistent with migration 027. The learner memory entry from a prior session recorded the overflow fix as `^\d{1,10}$`, but the semantic-reviewer patterns file from that same session confirms the deployed value was `^\d{1,9}$`. The `\d{1,9}` bound caps at 999,999,999, which is safely below INT4_MAX (2,147,483,647). No regression.
