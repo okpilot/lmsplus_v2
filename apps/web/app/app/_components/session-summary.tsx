@@ -5,7 +5,6 @@ type SessionSummaryProps = {
   answeredCount: number
   correctCount: number
   scorePercentage: number
-  mode: 'quick_quiz'
 }
 
 export function SessionSummary({

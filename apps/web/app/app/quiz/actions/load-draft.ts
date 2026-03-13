@@ -7,8 +7,30 @@ import type { DraftData, LoadDraftsResult } from '../types'
 type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
 type SessionConfig = { sessionId: string; subjectName?: string; subjectCode?: string }
 
+function isSessionConfig(v: unknown): v is SessionConfig {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    typeof (v as Record<string, unknown>).sessionId === 'string'
+  )
+}
+
 function rowToDraftData(row: QuizDraftRow): DraftData {
-  const config = row.session_config as SessionConfig
+  const raw = row.session_config
+  if (!isSessionConfig(raw)) {
+    console.error('[rowToDraftData] Malformed session_config on draft', row.id)
+    return {
+      id: row.id,
+      sessionId: '',
+      questionIds: row.question_ids,
+      answers: row.answers as Record<string, { selectedOptionId: string; responseTimeMs: number }>,
+      currentIndex: row.current_index,
+      subjectName: undefined,
+      subjectCode: undefined,
+      createdAt: row.created_at,
+    }
+  }
+  const config = raw
   return {
     id: row.id,
     sessionId: config.sessionId,

@@ -94,7 +94,7 @@ export async function getAllSessions(): Promise<SessionReport[]> {
       mode: s.mode,
       subjectName: s.subject_id ? (subjectMap.get(s.subject_id) ?? null) : null,
       totalQuestions: s.total_questions,
-      answeredCount: answeredCountMap.get(s.id) ?? s.total_questions,
+      answeredCount: answeredCountMap.get(s.id) ?? 0,
       correctCount: s.correct_count,
       scorePercentage: s.score_percentage,
       startedAt: s.started_at,

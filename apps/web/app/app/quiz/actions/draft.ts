@@ -64,7 +64,6 @@ async function updateExistingDraft(
   input: SaveDraftParsed,
   userId: string,
 ): Promise<DraftResult> {
-  if (!input.draftId) return { success: false, error: 'Missing draft ID' }
   const { data, error } = await supabase
     .from('quiz_drafts' as 'users')
     .update({
@@ -73,7 +72,7 @@ async function updateExistingDraft(
       current_index: input.currentIndex,
       session_config: sessionConfig(input),
     } as never)
-    .eq('id', input.draftId)
+    .eq('id', input.draftId as string)
     .eq('student_id', userId)
     .select('id')
   if (error) {

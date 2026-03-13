@@ -98,6 +98,7 @@ export function useSessionState({
   return {
     state,
     currentIndex,
+    answeredCount: currentIndex + 1,
     feedback,
     submitting,
     selectedOption,

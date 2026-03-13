@@ -266,7 +266,7 @@ async function seed() {
     .select('id')
     .eq('subject_id', alwSubject.id)
     .eq('code', '010-01')
-    .single()
+    .maybeSingle()
 
   let alwTopicId: string
   if (alwTopicRow) {
@@ -291,7 +291,7 @@ async function seed() {
     .select('id')
     .eq('topic_id', alwTopicId)
     .eq('code', '010-01-01')
-    .single()
+    .maybeSingle()
 
   let alwSubtopicId: string
   if (alwSubtopicRow) {

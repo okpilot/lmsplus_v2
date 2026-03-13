@@ -16,7 +16,6 @@ describe('SessionSummary', () => {
         answeredCount={10}
         correctCount={7}
         scorePercentage={70.4}
-        mode="quick_quiz"
       />,
     )
     expect(screen.getByText('70%')).toBeInTheDocument()
@@ -29,7 +28,6 @@ describe('SessionSummary', () => {
         answeredCount={10}
         correctCount={7}
         scorePercentage={70}
-        mode="quick_quiz"
       />,
     )
     expect(screen.getByText('7')).toBeInTheDocument() // correctCount
@@ -44,7 +42,6 @@ describe('SessionSummary', () => {
         answeredCount={10}
         correctCount={7}
         scorePercentage={70}
-        mode="quick_quiz"
       />,
     )
     expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
@@ -57,7 +54,6 @@ describe('SessionSummary', () => {
         answeredCount={10}
         correctCount={7}
         scorePercentage={70}
-        mode="quick_quiz"
       />,
     )
     const link = screen.getByRole('link', { name: 'Start Another' })
@@ -71,7 +67,6 @@ describe('SessionSummary', () => {
         answeredCount={10}
         correctCount={7}
         scorePercentage={70}
-        mode="quick_quiz"
       />,
     )
     const link = screen.getByRole('link', { name: 'Back to Dashboard' })
@@ -85,7 +80,6 @@ describe('SessionSummary', () => {
         answeredCount={5}
         correctCount={5}
         scorePercentage={100}
-        mode="quick_quiz"
       />,
     )
     const incorrectEl = screen.getByText('Incorrect').previousElementSibling
@@ -99,7 +93,6 @@ describe('SessionSummary', () => {
         answeredCount={8}
         correctCount={6}
         scorePercentage={75}
-        mode="quick_quiz"
       />,
     )
     expect(screen.getByText('Skipped')).toBeInTheDocument()
@@ -117,7 +110,6 @@ describe('SessionSummary', () => {
         answeredCount={10}
         correctCount={7}
         scorePercentage={70}
-        mode="quick_quiz"
       />,
     )
     expect(screen.queryByText('Skipped')).not.toBeInTheDocument()
@@ -131,7 +123,6 @@ describe('SessionSummary', () => {
         answeredCount={7}
         correctCount={5}
         scorePercentage={71.4}
-        mode="quick_quiz"
       />,
     )
     const incorrectEl = screen.getByText('Incorrect').previousElementSibling
