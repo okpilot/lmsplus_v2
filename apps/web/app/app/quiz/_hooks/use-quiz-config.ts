@@ -52,7 +52,6 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
       }
     })
   }
-
   return {
     ...cascade,
     handleSubjectChange: (id: string) => {
