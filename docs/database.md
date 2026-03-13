@@ -235,8 +235,8 @@ CREATE TABLE quiz_sessions (
   total_questions  INT NOT NULL DEFAULT 0,
   correct_count    INT NOT NULL DEFAULT 0,
   score_percentage NUMERIC(5,2) NULL,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-  -- No deleted_at: sessions are immutable records of what happened
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at       TIMESTAMPTZ NULL     -- added in migration 023 for discarded sessions
   -- No updated_at: only ended_at is set once, on completion
 );
 ```
@@ -619,6 +619,7 @@ AS $$
 DECLARE
   v_student_id      uuid := auth.uid();
   v_org_id          uuid;
+  v_config          jsonb;
   v_answer          jsonb;
   v_correct_option  text;
   v_is_correct      boolean;
@@ -633,16 +634,17 @@ DECLARE
   v_correct_count   int;
   v_score           numeric(5,2);
   v_session_question_ids uuid[];
+  v_qid_text        text;
+  v_rt_text         text;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
-  -- Verify session belongs to this student, is still active, and not discarded
-  SELECT qs.organization_id, qs.total_questions,
-         ARRAY(SELECT jsonb_array_elements_text(qs.config->'question_ids'))::uuid[]
-  INTO v_org_id, v_total, v_session_question_ids
+  -- Step 1: Fetch session row (without extracting question_ids yet)
+  SELECT qs.organization_id, qs.total_questions, qs.config
+  INTO v_org_id, v_total, v_config
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
@@ -654,6 +656,14 @@ BEGIN
     RAISE EXCEPTION 'session not found or already completed';
   END IF;
 
+  -- Step 2: Guard against malformed config BEFORE extracting question_ids
+  IF v_config IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+    RAISE EXCEPTION 'session config is malformed — question_ids not set';
+  END IF;
+
+  -- Step 3: Now safe to extract question_ids
+  v_session_question_ids := ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[];
+
   -- Validate p_answers is a non-null JSON array
   IF p_answers IS NULL
      OR jsonb_typeof(p_answers) <> 'array'
@@ -661,9 +671,9 @@ BEGIN
     RAISE EXCEPTION 'answers must be a non-empty JSON array';
   END IF;
 
-  -- Reject duplicate question_id entries in payload
+  -- Reject duplicate question_id entries in payload (validate as text before casting)
   IF (
-    SELECT count(*) <> count(DISTINCT (e->>'question_id')::uuid)
+    SELECT count(*) <> count(DISTINCT e->>'question_id')
     FROM jsonb_array_elements(p_answers) AS e
   ) THEN
     RAISE EXCEPTION 'duplicate question_id in answers payload';
@@ -672,9 +682,23 @@ BEGIN
   -- Process each provided answer (partial submission is allowed — students may skip questions)
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP
-    v_question_id     := (v_answer->>'question_id')::uuid;
+    -- Extract as text first, validate format, THEN cast
+    v_qid_text        := v_answer->>'question_id';
     v_selected_option := v_answer->>'selected_option';
-    v_response_time   := (v_answer->>'response_time_ms')::int;
+    v_rt_text         := v_answer->>'response_time_ms';
+
+    IF v_qid_text IS NULL OR v_qid_text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+      RAISE EXCEPTION 'invalid question_id format: %', coalesce(v_qid_text, 'NULL');
+    END IF;
+    IF v_selected_option IS NULL OR v_selected_option = '' THEN
+      RAISE EXCEPTION 'answer for question % has empty selected_option', v_qid_text;
+    END IF;
+    IF v_rt_text IS NULL OR v_rt_text !~ '^\d+$' OR v_rt_text::int < 0 THEN
+      RAISE EXCEPTION 'answer for question % has invalid response_time_ms', v_qid_text;
+    END IF;
+
+    v_question_id   := v_qid_text::uuid;
+    v_response_time := v_rt_text::int;
 
     -- Validate question belongs to this session
     IF NOT (v_question_id = ANY(v_session_question_ids)) THEN

@@ -18,6 +18,17 @@ type CheckAnswerRpcResult = {
   explanation_image_url: string | null
 }
 
+function isCheckAnswerRpcResult(value: unknown): value is CheckAnswerRpcResult {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return (
+    typeof v.is_correct === 'boolean' &&
+    typeof v.correct_option_id === 'string' &&
+    (v.explanation_text === null || typeof v.explanation_text === 'string') &&
+    (v.explanation_image_url === null || typeof v.explanation_image_url === 'string')
+  )
+}
+
 export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
   const supabase = await createServerSupabaseClient()
   const {
@@ -48,7 +59,7 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
     p_selected_option_id: selectedOptionId,
   })
 
-  if (error || !data) {
+  if (error || !isCheckAnswerRpcResult(data)) {
     console.error('[checkAnswer] RPC error:', error?.message)
     return { success: false, error: 'Question not found' }
   }
