@@ -22,7 +22,7 @@ describe('ExplanationTab', () => {
       explanationText: 'Pre-answer explanation.',
       explanationImageUrl: null,
     })
-    render(<ExplanationTab hasAnswered={false} questionId="q-1" />)
+    render(<ExplanationTab hasAnswered={false} questionId="q-1" sessionId="s-1" />)
     await waitFor(() => {
       expect(screen.getByText('Pre-answer explanation.')).toBeInTheDocument()
     })
@@ -30,7 +30,7 @@ describe('ExplanationTab', () => {
 
   it('shows fallback when fetch returns no explanation', async () => {
     mockFetchExplanation.mockResolvedValue({ success: false })
-    render(<ExplanationTab hasAnswered={false} questionId="q-1" />)
+    render(<ExplanationTab hasAnswered={false} questionId="q-1" sessionId="s-1" />)
     await waitFor(() => {
       expect(screen.getByText('No explanation available for this question.')).toBeInTheDocument()
     })

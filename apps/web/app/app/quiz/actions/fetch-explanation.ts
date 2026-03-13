@@ -3,7 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 
-const Input = z.object({ questionId: z.string().uuid() })
+const Input = z.object({ questionId: z.string().uuid(), sessionId: z.string().uuid() })
 
 export type FetchExplanationResult =
   | {
@@ -20,7 +20,20 @@ export async function fetchExplanation(raw: unknown): Promise<FetchExplanationRe
   } = await supabase.auth.getUser()
   if (!user) return { success: false }
 
-  const { questionId } = Input.parse(raw)
+  const { questionId, sessionId } = Input.parse(raw)
+
+  // Verify session belongs to this user, is active, and contains the question
+  const { data: session, error: sessionError } = await supabase
+    .from('quiz_sessions')
+    .select('config')
+    .eq('id' as string & keyof never, sessionId)
+    .eq('student_id' as string & keyof never, user.id)
+    .is('ended_at' as string & keyof never, null)
+    .is('deleted_at' as string & keyof never, null)
+    .single()
+  if (sessionError || !session) return { success: false }
+  const config = (session as unknown as { config: { question_ids: string[] } }).config
+  if (!config?.question_ids?.includes(questionId)) return { success: false }
 
   // Only fetch explanation fields — no correct answer exposure
   const { data, error } = await supabase

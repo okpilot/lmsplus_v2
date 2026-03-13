@@ -6,7 +6,7 @@ import { ZoomableImage } from '../../_components/zoomable-image'
 import { fetchExplanation } from '../actions/fetch-explanation'
 
 type ExplanationTabProps =
-  | { hasAnswered: false; questionId: string }
+  | { hasAnswered: false; questionId: string; sessionId: string }
   | {
       hasAnswered: true
       isCorrect: boolean
@@ -18,7 +18,7 @@ export function ExplanationTab(props: ExplanationTabProps) {
   if (props.hasAnswered) {
     return <AnsweredExplanation {...props} />
   }
-  return <PreAnswerExplanation questionId={props.questionId} />
+  return <PreAnswerExplanation questionId={props.questionId} sessionId={props.sessionId} />
 }
 
 function AnsweredExplanation(props: {
@@ -46,7 +46,10 @@ function ExplanationSkeleton() {
   )
 }
 
-function PreAnswerExplanation({ questionId }: { questionId: string }) {
+function PreAnswerExplanation({
+  questionId,
+  sessionId,
+}: { questionId: string; sessionId: string }) {
   const [explanation, setExplanation] = useState<{
     text: string | null
     imageUrl: string | null
@@ -59,7 +62,7 @@ function PreAnswerExplanation({ questionId }: { questionId: string }) {
     setIsLoading(true)
     setExplanation(null)
     startTransition(async () => {
-      const result = await fetchExplanation({ questionId })
+      const result = await fetchExplanation({ questionId, sessionId })
       if (!cancelled) {
         if (result.success) {
           setExplanation({
@@ -73,7 +76,7 @@ function PreAnswerExplanation({ questionId }: { questionId: string }) {
     return () => {
       cancelled = true
     }
-  }, [questionId])
+  }, [questionId, sessionId])
 
   if (isLoading) return <ExplanationSkeleton />
   if (!explanation) {

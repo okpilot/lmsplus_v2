@@ -8,6 +8,7 @@ import type { CheckAnswerResult } from '../types'
 const CheckAnswerSchema = z.object({
   questionId: z.string().uuid(),
   selectedOptionId: z.string().min(1),
+  sessionId: z.string().uuid(),
 })
 
 type CheckAnswerRpcResult = {
@@ -24,7 +25,22 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
   } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
 
-  const { questionId, selectedOptionId } = CheckAnswerSchema.parse(raw)
+  const { questionId, selectedOptionId, sessionId } = CheckAnswerSchema.parse(raw)
+
+  // Verify session belongs to this user, is active, and contains the question
+  const { data: session, error: sessionError } = await supabase
+    .from('quiz_sessions')
+    .select('config')
+    .eq('id' as string & keyof never, sessionId)
+    .eq('student_id' as string & keyof never, user.id)
+    .is('ended_at' as string & keyof never, null)
+    .is('deleted_at' as string & keyof never, null)
+    .single()
+  if (sessionError || !session) return { success: false, error: 'Session not found' }
+  const config = (session as unknown as { config: { question_ids: string[] } }).config
+  if (!config?.question_ids?.includes(questionId)) {
+    return { success: false, error: 'Question not in session' }
+  }
 
   const { data, error } = await rpc<CheckAnswerRpcResult>(supabase, 'check_quiz_answer', {
     p_question_id: questionId,

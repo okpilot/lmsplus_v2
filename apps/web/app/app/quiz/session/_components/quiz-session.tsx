@@ -95,7 +95,11 @@ export function QuizSession(props: QuizSessionProps) {
               explanationImageUrl={s.currentFeedback.explanationImageUrl}
             />
           ) : (
-            <ExplanationTab hasAnswered={false} questionId={s.questionId} />
+            <ExplanationTab
+              hasAnswered={false}
+              questionId={s.questionId}
+              sessionId={props.sessionId}
+            />
           ))}
         {activeTab === 'comments' && <CommentsTab />}
         {activeTab === 'statistics' && (

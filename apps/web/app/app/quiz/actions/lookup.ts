@@ -15,10 +15,12 @@ export async function fetchSubtopicsForTopic(raw: unknown): Promise<SubtopicOpti
   return getSubtopicsForTopic(IdSchema.parse(raw))
 }
 
+const OptionalUuid = z.preprocess((v) => (v === '' ? undefined : v), z.string().uuid().optional())
+
 const FilteredCountSchema = z.object({
   subjectId: z.string().uuid(),
-  topicId: z.string().uuid().optional(),
-  subtopicId: z.string().uuid().optional(),
+  topicId: OptionalUuid,
+  subtopicId: OptionalUuid,
   filter: z.enum(['all', 'unseen', 'incorrect']),
 })
 
