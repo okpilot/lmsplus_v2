@@ -455,6 +455,17 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - `docs/security.md` Section 4 updated with the post-session exception
 - Rationale: showing correct answers after answering is the core learning loop, not a data leak
 
+## Decision 26: Server Action session ownership validation (2026-03-13)
+
+**Context:** CodeRabbit PR #74 identified that `checkAnswer` and `fetchExplanation` accepted any questionId from any authenticated user — no session ownership check. Any student could check answers for questions outside their active session.
+
+**Decided:**
+- All Server Actions operating on quiz sessions must verify four conditions before proceeding: session belongs to user (`student_id`), session is active (`ended_at IS NULL`), session is not discarded (`deleted_at IS NULL`), and question is in the session's config (`question_ids`)
+- Pattern implemented inline in each action (not extracted to shared helper) to keep actions self-contained
+- `Array.isArray()` runtime guard required before `.includes()` on config data — `as unknown as` casts provide no runtime safety
+- Error recovery: if `checkAnswer` fails, the UI reverts the answer and unlocks the question for retry (synchronous ref clear + reactive useEffect drain)
+- `docs/security.md` Section 11a documents the pattern as binding
+
 ---
 
 ## IDEAS / NOTES
@@ -468,4 +479,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-13 — Decision 25: post-session exception for question feedback (ended_at guard + stripping logic)*
+*Last updated: 2026-03-13 — Decision 26: Server Action session ownership validation*
