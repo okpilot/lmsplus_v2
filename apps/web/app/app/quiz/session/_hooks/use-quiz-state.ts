@@ -38,6 +38,9 @@ export function useQuizState(opts: {
   const questionId = question?.id ?? ''
 
   async function handleSelectAnswer(optionId: string) {
+    // Re-entry guard: ignore if this question already has a recorded answer
+    if (answers.has(questionId)) return
+
     // Lock immediately — record the answer before awaiting the server
     const elapsed = Date.now() - nav.answerStartTime.current
     setAnswers((prev) =>

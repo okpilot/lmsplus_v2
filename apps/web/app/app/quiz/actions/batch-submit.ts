@@ -44,7 +44,7 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
       console.error('[batchSubmitQuiz] RPC error:', rpcMessage)
       const userMessage = rpcMessage.includes('session not found or already completed')
         ? 'This session has already been submitted or could not be found.'
-        : `Failed to submit quiz: ${rpcMessage}`
+        : 'Failed to submit quiz. Please try again.'
       return { success: false, error: userMessage }
     }
 
@@ -69,7 +69,7 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[batchSubmitQuiz] Uncaught error:', message)
-    return { success: false, error: `Something went wrong: ${message}` }
+    return { success: false, error: 'Something went wrong. Please try again.' }
   }
 }
 

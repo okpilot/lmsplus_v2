@@ -2,16 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockRpc } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
-  mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     auth: { getUser: mockGetUser },
-    from: mockFrom,
   }),
+}))
+
+vi.mock('@/lib/supabase-rpc', () => ({
+  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -25,27 +28,21 @@ const QUESTION_ID = '00000000-0000-0000-0000-000000000011'
 const CORRECT_OPTION_ID = 'opt-correct'
 const WRONG_OPTION_ID = 'opt-wrong'
 
-const QUESTION_ROW = {
-  options: [
-    { id: CORRECT_OPTION_ID, correct: true },
-    { id: WRONG_OPTION_ID, correct: false },
-  ],
+const RPC_SUCCESS_CORRECT = {
+  is_correct: true,
+  correct_option_id: CORRECT_OPTION_ID,
   explanation_text: 'Because lift equals weight in level flight.',
   explanation_image_url: null,
 }
 
-// ---- Helpers --------------------------------------------------------------
-
-function buildChain(data: unknown, error: unknown = null) {
-  const terminal = { data, error }
-  const chain: Record<string, unknown> = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    is: vi.fn().mockReturnThis(),
-    single: vi.fn().mockReturnValue(terminal),
-  }
-  return chain
+const RPC_SUCCESS_WRONG = {
+  is_correct: false,
+  correct_option_id: CORRECT_OPTION_ID,
+  explanation_text: null,
+  explanation_image_url: null,
 }
+
+// ---- Helpers --------------------------------------------------------------
 
 function setupAuthenticatedUser() {
   mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
@@ -90,9 +87,12 @@ describe('checkAnswer', () => {
     await expect(checkAnswer({})).rejects.toThrow()
   })
 
-  it('returns failure when question is not found in the database', async () => {
+  it('returns failure when the RPC returns an error', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain(null, { message: 'PGRST116' }))
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: 'question not found or has no correct option' },
+    })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const result = await checkAnswer({
@@ -108,7 +108,7 @@ describe('checkAnswer', () => {
 
   it('returns failure when data is null with no error', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain(null, null))
+    mockRpc.mockResolvedValue({ data: null, error: null })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const result = await checkAnswer({
@@ -122,28 +122,9 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not found')
   })
 
-  it('returns failure when question has no correct option', async () => {
-    setupAuthenticatedUser()
-    const noCorrectRow = {
-      options: [
-        { id: 'opt-a', correct: false },
-        { id: 'opt-b', correct: false },
-      ],
-      explanation_text: null,
-      explanation_image_url: null,
-    }
-    mockFrom.mockReturnValue(buildChain(noCorrectRow))
-
-    const result = await checkAnswer({ questionId: QUESTION_ID, selectedOptionId: 'opt-a' })
-
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('No correct option found')
-  })
-
   it('returns isCorrect true when selectedOptionId matches the correct option', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain(QUESTION_ROW))
+    mockRpc.mockResolvedValue({ data: RPC_SUCCESS_CORRECT, error: null })
 
     const result = await checkAnswer({
       questionId: QUESTION_ID,
@@ -158,7 +139,7 @@ describe('checkAnswer', () => {
 
   it('returns isCorrect false when selectedOptionId does not match the correct option', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain(QUESTION_ROW))
+    mockRpc.mockResolvedValue({ data: RPC_SUCCESS_WRONG, error: null })
 
     const result = await checkAnswer({ questionId: QUESTION_ID, selectedOptionId: WRONG_OPTION_ID })
 
@@ -170,12 +151,15 @@ describe('checkAnswer', () => {
 
   it('includes explanation text and image URL in a successful result', async () => {
     setupAuthenticatedUser()
-    const rowWithImage = {
-      ...QUESTION_ROW,
-      explanation_text: 'Bernoulli explains lift.',
-      explanation_image_url: 'https://cdn.example.com/lift-diagram.png',
-    }
-    mockFrom.mockReturnValue(buildChain(rowWithImage))
+    mockRpc.mockResolvedValue({
+      data: {
+        is_correct: true,
+        correct_option_id: CORRECT_OPTION_ID,
+        explanation_text: 'Bernoulli explains lift.',
+        explanation_image_url: 'https://cdn.example.com/lift-diagram.png',
+      },
+      error: null,
+    })
 
     const result = await checkAnswer({
       questionId: QUESTION_ID,
@@ -190,12 +174,15 @@ describe('checkAnswer', () => {
 
   it('returns null explanation fields when question has no explanation', async () => {
     setupAuthenticatedUser()
-    const rowNoExplanation = {
-      ...QUESTION_ROW,
-      explanation_text: null,
-      explanation_image_url: null,
-    }
-    mockFrom.mockReturnValue(buildChain(rowNoExplanation))
+    mockRpc.mockResolvedValue({
+      data: {
+        is_correct: true,
+        correct_option_id: CORRECT_OPTION_ID,
+        explanation_text: null,
+        explanation_image_url: null,
+      },
+      error: null,
+    })
 
     const result = await checkAnswer({
       questionId: QUESTION_ID,
@@ -208,14 +195,15 @@ describe('checkAnswer', () => {
     expect(result.explanationImageUrl).toBeNull()
   })
 
-  it('queries only active (non-deleted) questions via the deleted_at IS NULL filter', async () => {
+  it('calls the check_quiz_answer RPC with correct parameters', async () => {
     setupAuthenticatedUser()
-    const chain = buildChain(QUESTION_ROW)
-    mockFrom.mockReturnValue(chain)
+    mockRpc.mockResolvedValue({ data: RPC_SUCCESS_CORRECT, error: null })
 
     await checkAnswer({ questionId: QUESTION_ID, selectedOptionId: CORRECT_OPTION_ID })
 
-    expect(mockFrom).toHaveBeenCalledWith('questions')
-    expect(chain.is as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(expect.anything(), null)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'check_quiz_answer', {
+      p_question_id: QUESTION_ID,
+      p_selected_option_id: CORRECT_OPTION_ID,
+    })
   })
 })

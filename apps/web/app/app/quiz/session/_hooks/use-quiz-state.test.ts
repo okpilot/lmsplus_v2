@@ -153,14 +153,15 @@ describe('useQuizState — answer selection', () => {
     expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-a')
   })
 
-  it('overwrites an existing answer for the same question', async () => {
+  it('ignores a second answer selection for the same question (re-entry guard)', async () => {
     const { result } = renderHook(() =>
       useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSelectAnswer('opt-a'))
     await act(async () => result.current.handleSelectAnswer('opt-b'))
     expect(result.current.answeredCount).toBe(1)
-    expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-b')
+    // First answer is preserved; second call is a no-op
+    expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-a')
   })
 
   it('hydrates answers from initialAnswers', () => {
