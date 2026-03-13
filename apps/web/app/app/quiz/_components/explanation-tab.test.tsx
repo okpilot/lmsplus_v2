@@ -3,13 +3,18 @@ import { describe, expect, it } from 'vitest'
 import { ExplanationTab } from './explanation-tab'
 
 describe('ExplanationTab', () => {
+  it('shows placeholder when question has not been answered', () => {
+    render(<ExplanationTab hasAnswered={false} />)
+    expect(screen.getByText('Answer this question to see the explanation.')).toBeInTheDocument()
+  })
+
   it('shows correct message when answer is correct', () => {
     render(
       <ExplanationTab
+        hasAnswered={true}
         explanationText="This is the explanation."
         explanationImageUrl={null}
         isCorrect={true}
-        correctOptionId="opt-1"
       />,
     )
     expect(screen.getByText('You answered correctly.')).toBeInTheDocument()
@@ -19,10 +24,10 @@ describe('ExplanationTab', () => {
   it('shows incorrect message when answer is wrong', () => {
     render(
       <ExplanationTab
+        hasAnswered={true}
         explanationText={null}
         explanationImageUrl={null}
         isCorrect={false}
-        correctOptionId="opt-2"
       />,
     )
     expect(screen.getByText('You answered incorrectly.')).toBeInTheDocument()
@@ -32,10 +37,10 @@ describe('ExplanationTab', () => {
   it('renders explanation image when provided', () => {
     render(
       <ExplanationTab
+        hasAnswered={true}
         explanationText="Some text"
         explanationImageUrl="https://example.com/img.png"
         isCorrect={true}
-        correctOptionId="opt-1"
       />,
     )
     expect(screen.getByAltText('Explanation illustration')).toBeInTheDocument()

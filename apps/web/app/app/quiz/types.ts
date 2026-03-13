@@ -62,6 +62,23 @@ export type BatchRpcResult = {
   score_percentage: number
 }
 
+export type CheckAnswerResult =
+  | {
+      success: true
+      isCorrect: boolean
+      correctOptionId: string
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
+  | { success: false; error: string }
+
+export type AnswerFeedback = {
+  isCorrect: boolean
+  correctOptionId: string
+  explanationText: string | null
+  explanationImageUrl: string | null
+}
+
 export type DraftAnswer = { selectedOptionId: string; responseTimeMs: number }
 
 export type DraftData = {

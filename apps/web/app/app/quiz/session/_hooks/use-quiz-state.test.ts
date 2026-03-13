@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockRouterPush, mockSubmitQuizSession, mockSaveQuizDraft } = vi.hoisted(() => ({
-  mockRouterPush: vi.fn(),
-  mockSubmitQuizSession: vi.fn(),
-  mockSaveQuizDraft: vi.fn(),
-}))
+const { mockRouterPush, mockSubmitQuizSession, mockSaveQuizDraft, mockCheckAnswer } = vi.hoisted(
+  () => ({
+    mockRouterPush: vi.fn(),
+    mockSubmitQuizSession: vi.fn(),
+    mockSaveQuizDraft: vi.fn(),
+    mockCheckAnswer: vi.fn(),
+  }),
+)
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
@@ -27,6 +30,10 @@ vi.mock('./use-flagged-questions', () => ({
 
 vi.mock('../../_hooks/use-navigation-guard', () => ({
   useNavigationGuard: vi.fn(),
+}))
+
+vi.mock('../../actions/check-answer', () => ({
+  checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -50,6 +57,13 @@ const THREE_QUESTIONS = [
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockCheckAnswer.mockResolvedValue({
+    success: true,
+    isCorrect: true,
+    correctOptionId: 'opt-a',
+    explanationText: null,
+    explanationImageUrl: null,
+  })
 })
 
 // ---- Index initialisation -------------------------------------------------
@@ -130,21 +144,21 @@ describe('useQuizState — navigation', () => {
 // ---- Answer selection -----------------------------------------------------
 
 describe('useQuizState — answer selection', () => {
-  it('records an answer for the current question', () => {
+  it('records an answer for the current question', async () => {
     const { result } = renderHook(() =>
       useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
-    act(() => result.current.handleSelectAnswer('opt-a'))
+    await act(async () => result.current.handleSelectAnswer('opt-a'))
     expect(result.current.answeredCount).toBe(1)
     expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-a')
   })
 
-  it('overwrites an existing answer for the same question', () => {
+  it('overwrites an existing answer for the same question', async () => {
     const { result } = renderHook(() =>
       useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
-    act(() => result.current.handleSelectAnswer('opt-a'))
-    act(() => result.current.handleSelectAnswer('opt-b'))
+    await act(async () => result.current.handleSelectAnswer('opt-a'))
+    await act(async () => result.current.handleSelectAnswer('opt-b'))
     expect(result.current.answeredCount).toBe(1)
     expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-b')
   })

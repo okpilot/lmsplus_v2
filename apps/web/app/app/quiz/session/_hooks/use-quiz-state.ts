@@ -2,7 +2,8 @@ import type { SessionQuestion } from '@/app/app/_components/session-runner'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
-import type { DraftAnswer } from '../../types'
+import { checkAnswer } from '../../actions/check-answer'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { saveQuizDraft, submitQuizSession } from './quiz-submit'
 import { useFlaggedQuestions } from './use-flagged-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
@@ -24,6 +25,7 @@ export function useQuizState(opts: {
   const [answers, setAnswers] = useState<Map<string, DraftAnswer>>(() =>
     initialAnswers ? new Map(Object.entries(initialAnswers)) : new Map(),
   )
+  const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
   const { flaggedQuestions, toggleFlag: toggleFlagById } = useFlaggedQuestions()
   const submitted = useRef(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
@@ -34,12 +36,27 @@ export function useQuizState(opts: {
   const question = questions[nav.currentIndex]
   const questionId = question?.id ?? ''
 
-  function handleSelectAnswer(optionId: string) {
+  async function handleSelectAnswer(optionId: string) {
+    // Lock immediately — record the answer before awaiting the server
     const elapsed = Date.now() - nav.answerStartTime.current
     setAnswers((prev) =>
       new Map(prev).set(questionId, { selectedOptionId: optionId, responseTimeMs: elapsed }),
     )
+
+    // Fetch correctness feedback without blocking the UI
+    const result = await checkAnswer({ questionId, selectedOptionId: optionId })
+    if (result.success) {
+      setFeedback((prev) =>
+        new Map(prev).set(questionId, {
+          isCorrect: result.isCorrect,
+          correctOptionId: result.correctOptionId,
+          explanationText: result.explanationText,
+          explanationImageUrl: result.explanationImageUrl,
+        }),
+      )
+    }
   }
+
   async function handleSubmit() {
     setSubmitting(true)
     setError(null)
@@ -78,6 +95,7 @@ export function useQuizState(opts: {
     questionId,
     answeredCount: answers.size,
     existingAnswer: answers.get(questionId),
+    currentFeedback: feedback.get(questionId) ?? null,
     questionIds: questions.map((q) => q.id),
     answeredIds: new Set(answers.keys()),
     flaggedQuestions,
