@@ -2,12 +2,12 @@ import { getSubjectsWithCounts } from '@/lib/queries/quiz'
 import { QuizConfigForm } from './_components/quiz-config-form'
 import { QuizTabs } from './_components/quiz-tabs'
 import { SavedDraftCard } from './_components/saved-draft-card'
-import { loadDraft } from './actions/load-draft'
+import { loadDrafts } from './actions/load-draft'
 
 export const dynamic = 'force-dynamic'
 
 export default async function QuizPage() {
-  const [subjects, { draft }] = await Promise.all([getSubjectsWithCounts(), loadDraft()])
+  const [subjects, { drafts }] = await Promise.all([getSubjectsWithCounts(), loadDrafts()])
 
   return (
     <main className="space-y-6">
@@ -20,13 +20,13 @@ export default async function QuizPage() {
 
       <div className="mx-auto max-w-md">
         <QuizTabs
-          hasDraft={!!draft}
+          draftCount={drafts.length}
           newQuizContent={
             <div className="rounded-lg border border-border bg-card p-6">
               <QuizConfigForm subjects={subjects} />
             </div>
           }
-          savedDraftContent={<SavedDraftCard draft={draft} />}
+          savedDraftContent={<SavedDraftCard drafts={drafts} />}
         />
       </div>
     </main>

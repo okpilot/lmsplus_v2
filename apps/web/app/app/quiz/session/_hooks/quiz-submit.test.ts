@@ -89,12 +89,22 @@ describe('submitQuizSession', () => {
     })
   })
 
-  it('calls deleteDraft after a successful submit (fire-and-forget)', async () => {
+  it('calls deleteDraft with draftId after a successful submit when draftId is provided', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
+
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
+
+    expect(mockDeleteDraft).toHaveBeenCalledWith({ draftId: DRAFT_ID })
+    expect(mockDeleteDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call deleteDraft when no draftId is provided', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
 
     await submitQuizSession(SESSION_ID, TWO_ANSWERS)
 
-    expect(mockDeleteDraft).toHaveBeenCalledTimes(1)
+    expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
 
   it('returns failure when batchSubmitQuiz reports an error', async () => {
@@ -111,8 +121,9 @@ describe('submitQuizSession', () => {
 
   it('does not call deleteDraft when batchSubmitQuiz fails', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session not found' })
+    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
 
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS)
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
 
     expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
@@ -143,8 +154,9 @@ describe('submitQuizSession', () => {
     const cleanupError = new Error('draft cleanup network failure')
     mockDeleteDraft.mockRejectedValue(cleanupError)
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
 
-    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS)
+    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
 
     // Submit still succeeds despite cleanup failure
     expect(result.success).toBe(true)

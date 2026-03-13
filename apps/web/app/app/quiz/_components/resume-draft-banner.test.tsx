@@ -65,12 +65,12 @@ describe('ResumeDraftBanner', () => {
     expect(stored.draftCurrentIndex).toBe(1)
   })
 
-  it('hides the banner and calls deleteDraft on Discard click', async () => {
+  it('hides the banner and calls deleteDraft with draftId on Discard click', async () => {
     render(<ResumeDraftBanner draft={DRAFT} />)
     fireEvent.click(screen.getByText('Discard'))
 
     await waitFor(() => {
-      expect(mockDeleteDraft).toHaveBeenCalledTimes(1)
+      expect(mockDeleteDraft).toHaveBeenCalledWith({ draftId: 'draft-1' })
     })
 
     expect(screen.queryByText('Resume unfinished quiz?')).not.toBeInTheDocument()

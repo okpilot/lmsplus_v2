@@ -5,7 +5,11 @@ import type { DraftAnswer } from '../../types'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
 
-export async function submitQuizSession(sessionId: string, answers: Map<string, DraftAnswer>) {
+export async function submitQuizSession(
+  sessionId: string,
+  answers: Map<string, DraftAnswer>,
+  draftId?: string,
+) {
   const answerArray = Array.from(answers.entries()).map(([qId, a]) => ({
     questionId: qId,
     selectedOptionId: a.selectedOptionId,
@@ -14,7 +18,11 @@ export async function submitQuizSession(sessionId: string, answers: Map<string, 
   try {
     const result = await batchSubmitQuiz({ sessionId, answers: answerArray })
     if (!result.success) return { success: false as const, error: result.error }
-    deleteDraft().catch((e) => console.error('[submitQuizSession] Draft cleanup failed:', e))
+    if (draftId) {
+      deleteDraft({ draftId }).catch((e) =>
+        console.error('[submitQuizSession] Draft cleanup failed:', e),
+      )
+    }
     return result
   } catch {
     return { success: false as const, error: 'Something went wrong. Please try again.' }

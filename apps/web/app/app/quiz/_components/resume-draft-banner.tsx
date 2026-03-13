@@ -26,6 +26,7 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
         questionIds: draft.questionIds,
         draftAnswers: draft.answers,
         draftCurrentIndex: draft.currentIndex,
+        draftId: draft.id,
         subjectName: draft.subjectName,
         subjectCode: draft.subjectCode,
       }),
@@ -37,7 +38,7 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
     setDiscarding(true)
     setDiscardError(null)
     try {
-      const result = await deleteDraft()
+      const result = await deleteDraft({ draftId: draft.id })
       if (result.success) {
         setVisible(false)
       } else {

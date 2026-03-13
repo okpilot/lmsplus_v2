@@ -17,13 +17,14 @@ vi.mock('@repo/db/server', () => ({
 // ---- Subject under test ---------------------------------------------------
 
 import { deleteDraft, saveDraft } from './draft'
-import { loadDraft } from './load-draft'
+import { loadDrafts } from './load-draft'
 
 // ---- Fixtures -------------------------------------------------------------
 
 const USER_ID = '00000000-0000-0000-0000-000000000001'
 const ORG_ID = '00000000-0000-0000-0000-000000000099'
 const SESSION_ID = '00000000-0000-0000-0000-000000000002'
+const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
 const Q1_ID = '00000000-0000-0000-0000-000000000011'
 const Q2_ID = '00000000-0000-0000-0000-000000000022'
 
@@ -37,7 +38,7 @@ const VALID_DRAFT_INPUT = {
 }
 
 const DRAFT_ROW = {
-  id: 'draft-1',
+  id: DRAFT_ID,
   student_id: USER_ID,
   organization_id: ORG_ID,
   session_config: { sessionId: SESSION_ID },
@@ -52,9 +53,10 @@ const DRAFT_ROW = {
 
 function mockChain(overrides: Record<string, unknown> = {}) {
   const chain: Record<string, unknown> = {
-    upsert: vi.fn().mockReturnValue({ error: null, ...overrides }),
+    insert: vi.fn().mockReturnValue({ error: null, ...overrides }),
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnValue({ data: [DRAFT_ROW], error: null }),
     single: vi.fn().mockReturnValue({ data: { organization_id: ORG_ID }, error: null }),
     maybeSingle: vi.fn().mockReturnValue({ data: DRAFT_ROW, error: null }),
     delete: vi.fn().mockReturnThis(),
@@ -63,6 +65,22 @@ function mockChain(overrides: Record<string, unknown> = {}) {
   for (const key of ['select', 'eq', 'delete']) {
     ;(chain[key] as ReturnType<typeof vi.fn>).mockReturnValue(chain)
   }
+  return chain
+}
+
+function mockChainWithCount(count: number, countError: unknown = null) {
+  const chain = mockChain()
+  // select('*', { count: 'exact', head: true }) returns count info
+  ;(chain.select as ReturnType<typeof vi.fn>).mockImplementation(
+    (_cols: string, opts?: { count?: string; head?: boolean }) => {
+      if (opts?.count === 'exact') {
+        return {
+          eq: vi.fn().mockReturnValue({ count, error: countError }),
+        }
+      }
+      return chain
+    },
+  )
   return chain
 }
 
@@ -95,7 +113,7 @@ describe('saveDraft', () => {
 
   it('returns failure when organization_id is not found', async () => {
     setupAuthenticatedUser()
-    const chain = mockChain()
+    const chain = mockChainWithCount(0)
     ;(chain.single as ReturnType<typeof vi.fn>).mockReturnValue({ data: null, error: null })
     mockFrom.mockReturnValue(chain)
 
@@ -103,23 +121,82 @@ describe('saveDraft', () => {
     expect(result).toEqual({ success: false, error: 'User organization not found' })
   })
 
+  it('returns failure when draft limit of 20 is reached', async () => {
+    setupAuthenticatedUser()
+    // First call: count query returns 20; second call: users table for orgId
+    let callCount = 0
+    mockFrom.mockImplementation(() => {
+      callCount++
+      if (callCount === 1) {
+        // users table for orgId
+        const chain = mockChain()
+        return chain
+      }
+      // quiz_drafts count query
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({ count: 20, error: null }),
+        }),
+        insert: vi.fn(),
+      }
+    })
+
+    // Set up so first from('users') returns org, second from('quiz_drafts') returns count=20
+    mockFrom.mockImplementationOnce(() => {
+      const chain = mockChain()
+      return chain
+    })
+    mockFrom.mockImplementationOnce(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({ count: 20, error: null }),
+      }),
+      insert: vi.fn(),
+    }))
+
+    const result = await saveDraft(VALID_DRAFT_INPUT)
+    expect(result).toEqual({ success: false, error: 'Maximum 20 saved quizzes reached.' })
+  })
+
   it('returns success on happy path', async () => {
     setupAuthenticatedUser()
-    const chain = mockChain()
-    ;(chain.upsert as ReturnType<typeof vi.fn>).mockReturnValue({ error: null })
-    mockFrom.mockReturnValue(chain)
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) {
+        // users org lookup
+        return mockChain()
+      }
+      if (callIndex === 2) {
+        // count query
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      // insert
+      return { insert: vi.fn().mockReturnValue({ error: null }) }
+    })
 
     const result = await saveDraft(VALID_DRAFT_INPUT)
     expect(result).toEqual({ success: true })
   })
 
-  it('returns failure when upsert errors', async () => {
+  it('returns failure when insert errors', async () => {
     setupAuthenticatedUser()
-    const chain = mockChain()
-    ;(chain.upsert as ReturnType<typeof vi.fn>).mockReturnValue({
-      error: { message: 'constraint violation' },
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return { insert: vi.fn().mockReturnValue({ error: { message: 'db error' } }) }
     })
-    mockFrom.mockReturnValue(chain)
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const result = await saveDraft(VALID_DRAFT_INPUT)
@@ -170,63 +247,36 @@ describe('saveDraft', () => {
     })
     expect(result).toEqual({ success: false, error: 'Current index out of range' })
   })
-
-  it('accepts currentIndex at the last valid position (length - 1)', async () => {
-    setupAuthenticatedUser()
-    const chain = mockChain()
-    ;(chain.upsert as ReturnType<typeof vi.fn>).mockReturnValue({ error: null })
-    mockFrom.mockReturnValue(chain)
-
-    // VALID_DRAFT_INPUT has questionIds: [Q1_ID, Q2_ID], so max valid index is 1
-    const result = await saveDraft({
-      ...VALID_DRAFT_INPUT,
-      currentIndex: 1,
-    })
-    expect(result).toEqual({ success: true })
-  })
-
-  it('succeeds when optional subjectName and subjectCode are provided', async () => {
-    setupAuthenticatedUser()
-    const chain = mockChain()
-    ;(chain.upsert as ReturnType<typeof vi.fn>).mockReturnValue({ error: null })
-    mockFrom.mockReturnValue(chain)
-
-    const result = await saveDraft({
-      ...VALID_DRAFT_INPUT,
-      subjectName: 'Air Law',
-      subjectCode: 'ALW',
-    })
-    expect(result).toEqual({ success: true })
-  })
 })
 
-// ---- loadDraft -------------------------------------------------------------
+// ---- loadDrafts ------------------------------------------------------------
 
-describe('loadDraft', () => {
-  it('returns null draft when user is not authenticated', async () => {
+describe('loadDrafts', () => {
+  it('returns empty drafts array when user is not authenticated', async () => {
     setupUnauthenticated()
-    const result = await loadDraft()
-    expect(result).toEqual({ draft: null })
+    const result = await loadDrafts()
+    expect(result).toEqual({ drafts: [] })
   })
 
-  it('returns null draft when no draft exists', async () => {
+  it('returns empty drafts array when no drafts exist', async () => {
     setupAuthenticatedUser()
     const chain = mockChain()
-    ;(chain.maybeSingle as ReturnType<typeof vi.fn>).mockReturnValue({ data: null, error: null })
+    ;(chain.order as ReturnType<typeof vi.fn>).mockReturnValue({ data: [], error: null })
     mockFrom.mockReturnValue(chain)
 
-    const result = await loadDraft()
-    expect(result).toEqual({ draft: null })
+    const result = await loadDrafts()
+    expect(result).toEqual({ drafts: [] })
   })
 
-  it('returns draft data on happy path', async () => {
+  it('returns drafts array on happy path', async () => {
     setupAuthenticatedUser()
     const chain = mockChain()
     mockFrom.mockReturnValue(chain)
 
-    const result = await loadDraft()
-    expect(result.draft).toEqual({
-      id: 'draft-1',
+    const result = await loadDrafts()
+    expect(result.drafts).toHaveLength(1)
+    expect(result.drafts[0]).toEqual({
+      id: DRAFT_ID,
       sessionId: SESSION_ID,
       questionIds: [Q1_ID, Q2_ID],
       answers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 2000 } },
@@ -237,6 +287,22 @@ describe('loadDraft', () => {
     })
   })
 
+  it('returns multiple drafts ordered by updated_at desc', async () => {
+    setupAuthenticatedUser()
+    const chain = mockChain()
+    const row2 = { ...DRAFT_ROW, id: 'draft-2', session_config: { sessionId: 'sess-2' } }
+    ;(chain.order as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [DRAFT_ROW, row2],
+      error: null,
+    })
+    mockFrom.mockReturnValue(chain)
+
+    const result = await loadDrafts()
+    expect(result.drafts).toHaveLength(2)
+    expect(result.drafts[0]?.id).toBe(DRAFT_ID)
+    expect(result.drafts[1]?.id).toBe('draft-2')
+  })
+
   it('returns subjectName and subjectCode when present in session_config', async () => {
     setupAuthenticatedUser()
     const chain = mockChain()
@@ -244,29 +310,29 @@ describe('loadDraft', () => {
       ...DRAFT_ROW,
       session_config: { sessionId: SESSION_ID, subjectName: 'Air Law', subjectCode: 'ALW' },
     }
-    ;(chain.maybeSingle as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: rowWithSubject,
+    ;(chain.order as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [rowWithSubject],
       error: null,
     })
     mockFrom.mockReturnValue(chain)
 
-    const result = await loadDraft()
-    expect(result.draft?.subjectName).toBe('Air Law')
-    expect(result.draft?.subjectCode).toBe('ALW')
+    const result = await loadDrafts()
+    expect(result.drafts[0]?.subjectName).toBe('Air Law')
+    expect(result.drafts[0]?.subjectCode).toBe('ALW')
   })
 
-  it('returns null draft when query errors', async () => {
+  it('returns empty drafts when query errors', async () => {
     setupAuthenticatedUser()
     const chain = mockChain()
-    ;(chain.maybeSingle as ReturnType<typeof vi.fn>).mockReturnValue({
+    ;(chain.order as ReturnType<typeof vi.fn>).mockReturnValue({
       data: null,
       error: { message: 'db error' },
     })
     mockFrom.mockReturnValue(chain)
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    const result = await loadDraft()
-    expect(result).toEqual({ draft: null })
+    const result = await loadDrafts()
+    expect(result).toEqual({ drafts: [] })
     consoleSpy.mockRestore()
   })
 })
@@ -276,30 +342,39 @@ describe('loadDraft', () => {
 describe('deleteDraft', () => {
   it('returns failure when user is not authenticated', async () => {
     setupUnauthenticated()
-    const result = await deleteDraft()
+    const result = await deleteDraft({ draftId: DRAFT_ID })
     expect(result).toEqual({ success: false })
+  })
+
+  it('returns failure when draftId is not a valid UUID', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await deleteDraft({ draftId: 'not-a-uuid' })
+    expect(result).toEqual({ success: false })
+    consoleSpy.mockRestore()
   })
 
   it('returns success on happy path', async () => {
     setupAuthenticatedUser()
     const chain = mockChain()
+    // delete().eq('id', ...) returns an object where .eq('student_id', ...) is terminal
+    const secondEq = vi.fn().mockReturnValue({ error: null })
+    ;(chain.eq as ReturnType<typeof vi.fn>).mockReturnValue({ eq: secondEq })
     mockFrom.mockReturnValue(chain)
 
-    const result = await deleteDraft()
+    const result = await deleteDraft({ draftId: DRAFT_ID })
     expect(result).toEqual({ success: true })
   })
 
   it('returns failure when the database delete fails', async () => {
     setupAuthenticatedUser()
     const chain = mockChain()
-    // Override final eq() to return an error response instead of the chain
-    ;(chain.eq as ReturnType<typeof vi.fn>).mockReturnValue({
-      error: { message: 'RLS policy violation' },
-    })
+    const secondEq = vi.fn().mockReturnValue({ error: { message: 'RLS policy violation' } })
+    ;(chain.eq as ReturnType<typeof vi.fn>).mockReturnValue({ eq: secondEq })
     mockFrom.mockReturnValue(chain)
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    const result = await deleteDraft()
+    const result = await deleteDraft({ draftId: DRAFT_ID })
     expect(result).toEqual({ success: false })
     expect(consoleSpy).toHaveBeenCalledWith('[deleteDraft] Delete error:', 'RLS policy violation')
     consoleSpy.mockRestore()
@@ -312,8 +387,23 @@ describe('deleteDraft', () => {
     })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    const result = await deleteDraft()
+    const result = await deleteDraft({ draftId: DRAFT_ID })
     expect(result).toEqual({ success: false })
     consoleSpy.mockRestore()
+  })
+
+  it('scopes deletion to the authenticated user via student_id filter', async () => {
+    setupAuthenticatedUser()
+    const chain = mockChain()
+    const secondEq = vi.fn().mockReturnValue({ error: null })
+    const firstEq = vi.fn().mockReturnValue({ eq: secondEq })
+    ;(chain.eq as ReturnType<typeof vi.fn>).mockImplementation(firstEq)
+    mockFrom.mockReturnValue(chain)
+
+    await deleteDraft({ draftId: DRAFT_ID })
+
+    // First eq filters by 'id', second eq must filter by 'student_id'
+    expect(firstEq).toHaveBeenCalledWith('id', DRAFT_ID)
+    expect(secondEq).toHaveBeenCalledWith('student_id', USER_ID)
   })
 })

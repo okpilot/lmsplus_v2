@@ -20,12 +20,13 @@ type QuizSessionProps = {
   questions: SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
   initialIndex?: number
+  draftId?: string
   subjectName?: string
   subjectCode?: string
 }
 
 export function QuizSession(props: QuizSessionProps) {
-  const s = useQuizState(props)
+  const s = useQuizState(props) // draftId forwarded via props spread
   const [activeTab, setActiveTab] = useState<
     'question' | 'explanation' | 'comments' | 'statistics'
   >('question')

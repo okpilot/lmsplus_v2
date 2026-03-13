@@ -13,6 +13,7 @@ export function useQuizState(opts: {
   questions: SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
   initialIndex?: number
+  draftId?: string
   subjectName?: string
   subjectCode?: string
 }) {
@@ -60,7 +61,7 @@ export function useQuizState(opts: {
   async function handleSubmit() {
     setSubmitting(true)
     setError(null)
-    const r = await submitQuizSession(sessionId, answers)
+    const r = await submitQuizSession(sessionId, answers, opts.draftId)
     if (r.success) {
       submitted.current = true
       setShowFinishDialog(false)

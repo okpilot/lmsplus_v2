@@ -3,12 +3,12 @@
 import { useState } from 'react'
 
 type QuizTabsProps = {
-  hasDraft: boolean
+  draftCount: number
   newQuizContent: React.ReactNode
   savedDraftContent: React.ReactNode
 }
 
-export function QuizTabs({ hasDraft, newQuizContent, savedDraftContent }: QuizTabsProps) {
+export function QuizTabs({ draftCount, newQuizContent, savedDraftContent }: QuizTabsProps) {
   const [tab, setTab] = useState<'new' | 'saved'>('new')
 
   return (
@@ -36,10 +36,13 @@ export function QuizTabs({ hasDraft, newQuizContent, savedDraftContent }: QuizTa
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Saved Quiz
-          {hasDraft && (
-            <span className="ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              1
+          Saved Quizzes
+          {draftCount > 0 && (
+            <span
+              data-testid="draft-count-badge"
+              className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
+            >
+              {draftCount}
             </span>
           )}
         </button>

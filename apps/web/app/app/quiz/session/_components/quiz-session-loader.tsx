@@ -21,6 +21,7 @@ type SessionData = {
   questionIds: string[]
   draftAnswers?: Record<string, DraftAnswer>
   draftCurrentIndex?: number
+  draftId?: string
   subjectName?: string
   subjectCode?: string
 }
@@ -100,6 +101,7 @@ export function QuizSessionLoader() {
       questions={questions}
       initialAnswers={session.draftAnswers}
       initialIndex={clampedIndex}
+      draftId={session.draftId}
       subjectName={session.subjectName}
       subjectCode={session.subjectCode}
     />
