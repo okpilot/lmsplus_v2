@@ -60,6 +60,7 @@
 | Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE — first: SQL score aggregation over full table (not current batch) in batch_submit_quiz (f53eccf), where position-in-array was used as a proxy for "answered"; second: answeredCount derived as currentIndex + 1 in use-session-state.ts (675104e) — correct only because index is incremented at the same moment an answer is submitted, not because it semantically tracks "answers given"; fixed in 4798fdb with dedicated useState counter incremented in handleSubmit; both share root cause: a value that co-varies with the desired metric under normal conditions but diverges on edge cases (non-linear navigation, partial completion, session restore); propose note in code-style.md or agent memory: when a metric (count, score, progress) needs to be tracked, use a dedicated state variable incremented at the domain event, not a proxy derived from a structural position |
 | Unbounded numeric regex permitting int overflow (SQL input validation) | 1 | 2026-03-13 | Watch — batch_submit_quiz RPC (274821b): `^\d+$` matched response_time_ms without an upper bound, permitting integer overflow when cast to INT; fixed in 34c9b36 with `^\d{1,10}$` (10 digits caps at 9,999,999,999, safely below INT_MAX); first occurrence; applies to any SQL regex that validates before casting to a bounded numeric type — the regex digit count must be bounded to match the target type's range |
 | Case-sensitive UUID/text dedup in SQL (lower() missing) | 1 | 2026-03-13 | Watch — batch_submit_quiz duplicate-answer check (274821b): dedup compared `e->>'question_id'` text values without lowercasing; fixed in 34c9b36 with `lower(e->>'question_id')`; note: UUID format from standard generators is lowercase, so this is a defense-in-depth fix rather than a known live bug; first occurrence; distinct from "SQL string comparison instead of ::uuid cast" (that is about cast vs. text — this is about case normalisation before text comparison) |
+| ARIA tab role missing on button-based tab UI | 1 | 2026-03-13 | Watch — QuizTabs (46113bf): buttons used as tabs lack role="tab", aria-selected, and enclosing role="tablist"; pre-existing gap, not introduced by the TabButton extraction; flagged by semantic-reviewer as a suggestion; if a second component is flagged for missing semantic ARIA tab attributes, add a note to code-style.md Section 2 (component rules) |
 
 ## Lessons Learned
 
@@ -855,5 +856,103 @@ None of these have reached count 2. All logged and watched.
 - The test-writer produced 6 well-targeted tests covering every rejection branch of `isCheckAnswerRpcResult`. These are high-signal: they lock in the exact field-type expectations of the guard, so any future change to the RPC schema that relaxes a type constraint will break a test immediately.
 - Code reviewer was clean on both commits — the additions stayed within all file-size limits.
 - The "type cast + runtime guard" rule cycle is now complete: pattern identified (306f44a) → counted (a0d9973) → rule added (941d58c) → rule applied (274821b) → overflow fix (34c9b36) → tests written (34c9b36). This is the intended lifecycle.
+
+---
+
+### 2026-03-13 — QuizTabs TabButton extraction + badge isolation tests (commits 46113bf, 9c2a737)
+
+**Context:** Two-commit cycle on feat/post-sprint-3-polish. 46113bf extracted a private `TabButton` helper from `QuizTabs` to bring the component function under the 30-line limit. 9c2a737 added 2 targeted tests covering the badge isolation and round-trip tab switch behaviors exposed by the extraction. All 4 agents reported clean on both commits.
+
+**Code reviewer (46113bf):** clean — 0 blocking, 0 warnings. The `TabButton` helper is a pure JSX presenter (props in, markup out), well within the 30-line function limit. `QuizTabs` itself dropped from 43 lines to ~15 lines. `TabButton` is file-private (not exported), which is correct for a component used only within the parent file.
+
+**Code reviewer (9c2a737):** clean — 0 blocking, 0 warnings. Test-only commit; relaxed line limits apply.
+
+**Semantic reviewer (46113bf):** 0 critical, 0 issues. 1 SUGGESTION.
+
+1. **SUGGESTION — Pre-existing ARIA gap on tab buttons:** `TabButton` renders `<button>` elements without `role="tab"`, `aria-selected`, or an enclosing `role="tablist"`. The component functions as a tab UI but uses plain buttons, which means screen readers cannot announce the tab context. The suggestion was flagged as pre-existing (the original buttons also lacked ARIA tab attributes) — the extraction did not introduce the gap. No fix applied. **First occurrence** of this specific ARIA tab pattern gap being explicitly flagged. Logged and watched.
+
+**Semantic reviewer (9c2a737):** clean — 0 issues, 0 suggestions.
+
+**Doc updater (both commits):** clean — no changes needed. Both commits changed only component internals and co-located tests; no schema, RPC, or routing surface changed.
+
+**Test writer (46113bf):** The test-writer noted 2 behavioral gaps introduced by the `TabButton` extraction that the existing 6 tests did not cover:
+1. Badge isolation — with the badge logic now parameterised via the `badge` prop, it was possible (and worth verifying) that the "New Quiz" tab could never receive a badge even when `draftCount > 0`. The original implementation hardcoded the badge inside the "Saved Quizzes" block; the extracted version passes `badge` only to the saved tab — but this was implicit, not asserted.
+2. Round-trip tab switch — the extraction converted a single conditional render into a pure `tab === 'new' ? newQuizContent : savedDraftContent` ternary. Worth asserting that switching Saved → New correctly restores new content.
+
+Both tests were written in 9c2a737. All existing 6 tests continued to pass unchanged.
+
+**Test writer (9c2a737):** no gaps — all new tests passing, test-writer confirmed clean.
+
+**Pattern checks this cycle:**
+
+1. **Function extraction to meet 30-line limit (general):** The refactor is the pattern working as intended. `QuizTabs` had two nearly identical button blocks — the "Extract at 3 repetitions" rule from code-style.md Section 2 did not technically apply (only 2 instances), but the 30-line function rule did (43 lines > 30). The extraction resolved both issues simultaneously. **Positive signal — rule caught a structural smell before it accumulated further.**
+
+2. **New component-level helper without tests:** `TabButton` was not directly tested in isolation. It is file-private and has no exported surface — the correct testing approach is through the parent `QuizTabs` tests, which is what 9c2a737 did. This is NOT a recurrence of the "new hook/utility file shipped without tests" pattern — that pattern applies to exported utilities and hooks with standalone contracts. File-private presenters tested indirectly through the parent are the expected pattern. **No action.**
+
+3. **ARIA accessibility pattern gap (count 1, WATCH):** The semantic-reviewer flagged missing `role="tab"` / `aria-selected` on buttons used as tabs. This is a pre-existing gap (not introduced by the extraction), and the suggestion is a first occurrence. Logged. If a second component is flagged for missing semantic ARIA tab attributes (role="tablist", role="tab", aria-selected), a note should be added to code-style.md Section 2 (component rules) or a project accessibility checklist.
+
+4. **Test coverage added post-extraction (positive signal):** The test-writer identified 2 behavioral properties that became implicit after the refactor (badge isolation, tab switch round-trip) and covered them explicitly. This is the correct response to a refactor that changes how a behavior is implemented — even when all existing tests pass, the refactor may have made previously explicit behavior implicit, which warrants new explicit assertions.
+
+**Actions taken:**
+- Frequency table: "ARIA tab role missing on button-based tab UI" added at count 1, status WATCH.
+- No rule changes proposed — the ARIA gap is a first occurrence and pre-existing, not introduced by the refactor. All other patterns are either working as intended or already tracked.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- All 4 agents reported clean on both commits. First clean cycle on this branch since the review-gate hook was added (f7ef0f8). Confirms the gate is not generating false friction.
+- The 30-line function rule caught a structural duplication that would otherwise have grown — two near-identical button blocks in a 43-line function is the exact smell the rule is designed to surface.
+- `TabButton`'s `badge` prop API is clean: `badge?: number`, rendered only when `badge != null && badge > 0`. The optional-prop convention avoids the need for callers to pass explicit `0` or `undefined` to suppress the badge — the "New Quiz" tab simply omits the prop.
+- 9c2a737 demonstrates the correct post-refactor test pattern: run existing tests first (all pass), then add tests for any behavior the refactor made implicit. Refactors should always be evaluated for "what was explicit that is now implicit?"
+
+---
+
+### 2026-03-13 — Shift-left plan validation protocol (commit 9257ccb)
+
+**Context:** Single docs-only commit on feat/post-sprint-3-polish. Added a new workflow section to CLAUDE.md documenting the shift-left plan validation protocol (user approval before orchestrator commits to approach). No code changes, no test changes.
+
+**Code reviewer (9257ccb):** clean — 0 blocking, 0 warnings. (Docs-only commit outside code-review scope.)
+
+**Semantic reviewer (9257ccb):** 2 SUGGESTIONS (both fixed post-commit by doc-updater).
+
+1. **SUGGESTION — Stale workflow section in CLAUDE.md:** The existing "Workflow" section (lines 115–125) was not updated to reference the new plan validation protocol. The new section (lines 88–101) documented the protocol, but the high-level workflow ordering did not include a pointer back to it. Fixed in 320986f (commit following 9257ccb) with an updated "Workflow" section clarifying that "Plan Mode" is the first step and links to the new section.
+
+2. **SUGGESTION — Missing cross-reference in push protocol:** The new "Push protocol" section (added in 9257ccb as the last section) documented user approval requirement, but the `agent-workflow.md` file in `.claude/rules/` already documented pre-push expectations. The two should cross-reference each other to prevent drift. Fixed in 0c7e7e7 (docs: cross-reference pre-push PR sweep in CLAUDE.md push protocol) with bidirectional links added between CLAUDE.md and `.claude/rules/agent-workflow.md`.
+
+Root cause: docs-only commits that add new sections without updating cross-references elsewhere in the same file or in related rule files can introduce internal inconsistency. **This is the first occurrence of a "docs-only cross-reference drift" pattern.** Both instances involved CLAUDE.md and a related rule file — the patterns share a structure (newly added section not linked from existing section that covers related territory) and were caught by semantic-reviewer's consistency checks.
+
+**Doc updater (9257ccb):** Noted 2 suggestions from semantic-reviewer but did not auto-fix them (the agent is scoped to checking schema/RPC/routing surface changes, not internal CLAUDE.md cross-reference consistency).
+
+Then (320986f): Doc updater fixed the stale workflow section reference with a 3-line addition to the "Workflow" section of CLAUDE.md, ensuring the new plan validation protocol is mentioned alongside the existing workflow steps.
+
+Then (0c7e7e7): Semantic reviewer's second suggestion prompted a manual doc fix (not by doc-updater) adding cross-references between CLAUDE.md push protocol and `.claude/rules/agent-workflow.md`.
+
+**Test writer (9257ccb):** no gaps — docs-only commit, no test changes needed.
+
+**Pattern analysis — docs-only cross-reference drift (count 1, WATCH):**
+
+The pattern: a new section is added to `CLAUDE.md` (or related doc) that covers a workflow or process change. The new section is self-contained and correct. However, existing sections that overlap or relate to the new content are not updated to cross-reference it, creating the appearance of two separate, potentially conflicting workflows in the same doc. The inconsistency is caught by semantic-reviewer during post-commit review, not before commit.
+
+Both occurrences in this cycle:
+1. New "plan validation protocol" section added without updating the existing "Workflow" section to mention it (120 lines apart, both about workflow orchestration).
+2. New "push protocol" section added without cross-referencing the existing `.claude/rules/agent-workflow.md` rule file that also documents push expectations.
+
+Root cause: `CLAUDE.md` is a narrative doc that grew to cover multiple layers (high-level philosophy → workflow → agent rules → deployment). New sections added to different layers can create redundant or orphaned documentation without automatic linking. The doc updater's current scope is code-surface changes (schema, RPC, routes), not doc structure consistency.
+
+No rule change proposed yet — this is a first occurrence. If a second "docs-only section added without cross-references" instance appears, the pattern is confirmed and a note should be added to `.claude/agent-memory/doc-updater/patterns.md`: when a new section is added to `CLAUDE.md`, scan for existing sections with overlapping keywords (workflow, protocol, agent, rules) and add cross-references if they exist within ±5 lines or cover the same domain.
+
+**Actions taken:**
+- Frequency table: "Docs-only cross-reference drift (new section not linked from existing section)" added at count 1, status WATCH.
+- No rule or memory updates applied — pattern not yet at recurrence threshold.
+- Logged findings for semantic-reviewer's two suggestions in this session.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Both semantic-reviewer suggestions were immediately actionable and low-friction to fix (3 lines + cross-links).
+- The doc-updater correctly noted the suggestions but stayed within its scope (code-surface changes only).
+- The fixes were applied in two follow-on commits (320986f and 0c7e7e7), both clean on all agents.
+- CLAUDE.md cross-reference fixes demonstrate the orchestrator reading and acting on agent suggestions — the workflow is functioning at the intended speed.
+- Docs-only commits are now a regular pattern (3 in the past 5 commits), suggesting the project is in a documentation-stabilization phase post-code-feature-completion.
 
 ---

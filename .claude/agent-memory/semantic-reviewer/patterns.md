@@ -4,6 +4,18 @@
 
 ## Recurring Issues
 
+### shared generation counter across independent async slots
+**First seen:** commit 57af0d6 (2026-03-13)
+**File:** `apps/web/app/app/quiz/_hooks/use-quiz-cascade.ts`
+**Pattern:** A single `generation` ref was shared between `handleSubjectChange` (which fetches topics)
+and `handleTopicChange` (which fetches subtopics). Because both handlers increment the same counter,
+a topic-change event can suppress an in-flight subject/topics fetch, and vice versa. The two async
+operations target independent state slots and should have independent generation counters.
+The reference pattern in `use-question-stats.ts` is 1:1: one counter per async result slot.
+**Fix:** Split into `topicGeneration` and `subtopicGeneration`.
+**Watch for:** Any hook with multiple independent async operations sharing one generation/abort signal.
+**Status:** ISSUE — pending fix.
+
 ### auth-before-parse ordering
 **First seen:** commit 23a9f10 (2026-03-12)
 **Files:** `apps/web/app/app/quiz/actions.ts` — `startQuizSession`; `apps/web/app/app/quiz/actions/batch-submit.ts` — `batchSubmitQuiz` (commit 54e9351)
@@ -121,6 +133,19 @@ an unauthenticated call returns null (session row not visible), which the page c
 redirect — so the defense-in-depth gap is real but not exploitable in the current deployment.
 **Watch for:** inconsistency in the `lib/queries/` pattern: all sibling functions call `getUser()`,
 this one does not. Flag new functions in this family that omit the explicit check.
+
+### TabButton badge guard — consistent but subtly changed from parent original
+**First seen:** commit 46113bf (2026-03-13)
+**File:** `apps/web/app/app/quiz/_components/quiz-tabs.tsx`
+**Pattern:** The original QuizTabs checked `draftCount > 0` directly on the QuizTabsProps
+(`draftCount: number`, always defined). The extracted TabButton uses `badge != null && badge > 0`,
+because `badge` is `number | undefined`. The behavior is identical for the "Saved Quizzes" tab
+(badge is always passed as `draftCount`), and the "New Quiz" tab omits the badge prop entirely
+(undefined, badge never renders). The guard change is correct and necessary — it is not a behavioral
+regression.
+**Watch for:** extraction refactors that silently change guard semantics; check that the new guard
+covers the same cases as the old one, especially when a required prop becomes optional.
+**Status:** POSITIVE — correctly handled.
 
 ### lookup.ts — unused import of createServerSupabaseClient in the two thin wrapper functions
 **First seen:** commit 028fc09 (2026-03-13)
@@ -1385,3 +1410,24 @@ correct reason and mechanism reference.
 `apps/web/lib/queries/reports.ts` — added to watch list. The answeredCount fallback to
 `total_questions` is a silent degradation pattern. Any future changes to this file that add
 new fallbacks or change how `answeredCountMap` is built should be reviewed for silent data masking.
+
+---
+
+## Session 2026-03-13 — commit 9257ccb (chore: add shift-left plan validation protocol to workflow)
+
+### Documentation-only commit — no production code changed
+
+**Files changed:** `CLAUDE.md`, `.claude/rules/agent-workflow.md`, three agent memory files.
+
+**Scope of change:** Added a Plan Validation Pipeline section to `agent-workflow.md` (pre-execution checklist: impact analysis, contract check, pattern scan, doc/schema check, security surface) and expanded `CLAUDE.md`'s workflow from 7 steps to 9 steps to insert Validate (step 3) and Approve (step 4) between Plan and Execute.
+
+**Consistency check (CLAUDE.md vs agent-workflow.md):**
+- The 5 validation checks in `CLAUDE.md` ("Plan Validation" section) match the 5 rows in the `agent-workflow.md` table exactly. No terminology drift.
+- The CLAUDE.md workflow step numbering (step 5 = Execute, step 3 = Validate) is referenced correctly in the Gate sentence: "Do not proceed to step 5 (Execute) until validation is complete."
+- The `agent-workflow.md` section heading "Post-Implementation Pipeline Order" correctly contrasts with the new "Plan Validation Pipeline" heading. No ambiguity about which pipeline is which.
+
+**Behavioral gap found — Pre-Push PR Sweep not cross-referenced:**
+`agent-workflow.md` contains a "Pre-Push PR Sweep (MANDATORY for multi-commit PRs)" section (lines 105-119) that is not mentioned anywhere in `CLAUDE.md`. The CLAUDE.md Workflow section (lines 137-141) lists only 4 steps (read plan.md, Plan Mode, /project:review, /project:insights), and the Post-commit review section does not reference the PR sweep. A developer reading only `CLAUDE.md` would not know the PR sweep exists. This is a documentation consistency gap — not a security or logic bug. SUGGESTION-level.
+
+**Short-form Workflow section in CLAUDE.md not updated:**
+Lines 137-141 of `CLAUDE.md` are a brief 4-step Workflow section ("Start each session: read docs/plan.md", "Plan Mode for any multi-file change", etc.). These 4 steps predate the new 9-step workflow block above them and do not reflect the new Validate and Approve steps. Two workflow descriptions exist in `CLAUDE.md` — the detailed 9-step block (lines 22-32) and the short 4-step block (lines 137-141). They do not contradict each other but the short block is now incomplete. SUGGESTION-level.

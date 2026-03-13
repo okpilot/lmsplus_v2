@@ -100,7 +100,10 @@ async function insertNewDraft(
     .from('quiz_drafts' as 'users')
     .select('*', { count: 'exact', head: true })
     .eq('student_id', userId)
-  if (countError) return { success: false, error: 'Failed to save draft' }
+  if (countError) {
+    console.error('[saveDraft] Draft count query error:', countError.message)
+    return { success: false, error: 'Failed to save draft' }
+  }
   if ((count ?? 0) >= MAX_DRAFTS)
     return { success: false, error: 'Maximum 20 saved quizzes reached.' }
   const row: QuizDraftInsert = {
@@ -112,6 +115,9 @@ async function insertNewDraft(
     current_index: input.currentIndex,
   }
   const { error } = await supabase.from('quiz_drafts' as 'users').insert(row as never)
-  if (error) return { success: false, error: 'Failed to save draft' }
+  if (error) {
+    console.error('[saveDraft] Insert error:', error.message)
+    return { success: false, error: 'Failed to save draft' }
+  }
   return { success: true }
 }

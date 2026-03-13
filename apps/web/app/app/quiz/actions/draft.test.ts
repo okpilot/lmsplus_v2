@@ -144,7 +144,7 @@ describe('saveDraft', () => {
 
   it('returns failure when draft limit of 20 is reached', async () => {
     setupAuthenticatedUser()
-    // First call: count query returns 20; second call: users table for orgId
+    // First call: users table for orgId; second call: count query returns 20
     let callCount = 0
     mockFrom.mockImplementation(() => {
       callCount++
@@ -223,6 +223,29 @@ describe('saveDraft', () => {
     const result = await saveDraft(VALID_DRAFT_INPUT)
 
     expect(result).toEqual({ success: false, error: 'Failed to save draft' })
+    expect(consoleSpy).toHaveBeenCalledWith('[saveDraft] Insert error:', 'db error')
+    consoleSpy.mockRestore()
+  })
+
+  it('logs error when draft count query fails', async () => {
+    setupAuthenticatedUser()
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain() // users org lookup
+      // count query returns error
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({ count: null, error: { message: 'count failed' } }),
+        }),
+      }
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await saveDraft(VALID_DRAFT_INPUT)
+
+    expect(result).toEqual({ success: false, error: 'Failed to save draft' })
+    expect(consoleSpy).toHaveBeenCalledWith('[saveDraft] Draft count query error:', 'count failed')
     consoleSpy.mockRestore()
   })
 

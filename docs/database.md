@@ -315,11 +315,11 @@ CREATE TABLE audit_events (
 
 ### quiz_drafts
 ```sql
--- Temporary storage for interrupted quiz sessions. One draft per student (UNIQUE on student_id).
+-- Temporary storage for interrupted quiz sessions. Up to 20 drafts per student.
 -- APPROVED EXCEPTION: uses real DELETE (not soft delete) — drafts are disposable temp storage.
 CREATE TABLE quiz_drafts (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id      UUID NOT NULL REFERENCES users(id) UNIQUE,
+  student_id      UUID NOT NULL REFERENCES users(id),
   organization_id UUID NOT NULL REFERENCES organizations(id),
   session_config  JSONB NOT NULL DEFAULT '{}',  -- { sessionId, subjectName?, subjectCode? }
   question_ids    UUID[] NOT NULL,
@@ -687,7 +687,7 @@ BEGIN
     v_selected_option := v_answer->>'selected_option';
     v_rt_text         := v_answer->>'response_time_ms';
 
-    IF v_qid_text IS NULL OR v_qid_text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    IF v_qid_text IS NULL OR v_qid_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
       RAISE EXCEPTION 'invalid question_id format: %', coalesce(v_qid_text, 'NULL');
     END IF;
     IF v_selected_option IS NULL OR v_selected_option = '' THEN
