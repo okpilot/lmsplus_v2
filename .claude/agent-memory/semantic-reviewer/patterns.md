@@ -666,6 +666,98 @@ the refactor because the mock's capture point (`BarChart` props) is unchanged.
 file while keeping the test mock wiring intact. This is the correct approach — component
 splits that don't require changing test infrastructure confirm the abstraction boundary is right.
 
+### env path fix in seed-test-user.ts — path made consistent with sibling scripts (commit 27c201f)
+**First seen:** commit 27c201f (2026-03-13)
+**File:** `apps/web/scripts/seed-test-user.ts` line 14
+**Change:** `resolve(__dirname, '../../../.env.local')` → `resolve(__dirname, '../.env.local')`
+**Assessment:** The fix is correct. `__dirname` for this file is `apps/web/scripts/`, so `../`
+resolves to `apps/web/` where `.env.local` actually lives. The old path (`../../../`) would have
+resolved to the repo root, where no `.env.local` exists. The fix aligns `seed-test-user.ts` with
+`dev-login.ts` (which also uses `../`) and with `import-questions.ts` (which tries `../` first).
+**Positive signal:** The comment in the file still says "Load .env.local from repo root" — this
+comment is now stale and incorrect. Not a semantic bug, but a misleading comment.
+**Watch for:** stale or incorrect comments in script files after path changes. Comment drifts
+cause the next developer to either ignore or over-trust it.
+
+### checkAnswer — direct questions SELECT returns correct flags to student-facing code (branch feat/post-sprint-3-polish)
+**First seen:** feat/post-sprint-3-polish (2026-03-13)
+**File:** `apps/web/app/app/quiz/actions/check-answer.ts` lines 27-32
+**Pattern:** New `checkAnswer` Server Action queries `questions.options` directly (which contains
+`correct: boolean` per option) instead of using a SECURITY DEFINER RPC. Also returns `correctOptionId`
+without verifying the question belongs to an active session the student owns, allowing a student to
+probe any question's correct answer via a direct Server Action call.
+**Severity:** CRITICAL. The security rule "correct answers must be stripped via get_quiz_questions() RPC"
+applies to any direct SELECT returning the options JSONB column, not only to SELECT *.
+**Fix:** Move correctness check into a SECURITY DEFINER RPC that accepts question_id + selected_option_id,
+checks the question belongs to an active session owned by auth.uid(), and returns only
+{ is_correct, explanation_text, explanation_image_url }.
+**Watch for:** any new Server Action that queries `questions.options` directly with `.select('options, ...')`.
+
+### student_responses ON CONFLICT DO NOTHING with no unique constraint (pre-existing, repeated in migration 017)
+**First seen:** initial schema (2026-03-11), repeated in commits 6120e3f, b312922, feat/post-sprint-3-polish
+**Files:** `supabase/migrations/20260311000002_rpc_functions.sql` line 133,
+`supabase/migrations/20260312000011_batch_submit_rpc.sql` line 91,
+`supabase/migrations/20260313000017_batch_submit_allow_partial.sql` line 92
+**Pattern:** `student_responses` has no UNIQUE constraint. All three RPC migrations insert with
+`ON CONFLICT DO NOTHING` but there is no unique constraint to trigger a conflict, so the clause
+is dead code. A network retry or double-submit appends duplicate rows to the immutable response log,
+corrupting analytics and FSRS inputs.
+**Severity:** CRITICAL. The fix requires a migration: add `UNIQUE (session_id, question_id)` to
+`student_responses` (with a cleanup step for any pre-existing duplicates), then change all three
+conflict clauses to `ON CONFLICT (session_id, question_id) DO NOTHING`.
+**Watch for:** any new RPC inserting into `student_responses` — verify the conflict clause references
+an actual unique constraint before accepting.
+
+### TOCTOU race on draft count check (feat/post-sprint-3-polish)
+**First seen:** feat/post-sprint-3-polish (2026-03-13)
+**File:** `apps/web/app/app/quiz/actions/draft.ts` lines 46-56
+**Pattern:** App-level count check + separate INSERT with no transaction/lock allows concurrent
+saves to both pass the 20-draft guard and create 21+ drafts. The DB constraint that previously
+enforced uniqueness was dropped in migration 018.
+**Severity:** ISSUE. Fix: Postgres trigger `BEFORE INSERT ON quiz_drafts` to enforce the limit
+atomically, or use `pg_advisory_xact_lock` to serialize per-student inserts.
+**Watch for:** any "count then insert" pattern without a DB-level constraint or transaction lock.
+
+### Unbounded student_responses fetch in getFilteredCount unseen filter (feat/post-sprint-3-polish)
+**First seen:** feat/post-sprint-3-polish (2026-03-13)
+**File:** `apps/web/app/app/quiz/actions/lookup.ts` lines 50-57
+**Pattern:** `student_responses` query has no `.in('question_id', ...)` filter and no `.limit()`.
+Supabase's default row limit is 1000. A student with >1000 responses gets a truncated result,
+causing the unseen count to be wrong (questions answered appear as unseen).
+**Severity:** ISSUE. Fix: add `.in('question_id', data.map(q => q.id))` to scope the query to the
+current subject, eliminating the pagination risk and improving performance.
+**Watch for:** any Supabase query on `student_responses` or `fsrs_cards` that fetches all rows for
+a student without filtering to the relevant question set.
+
+### handleSelectAnswer no re-entry guard (feat/post-sprint-3-polish)
+**First seen:** feat/post-sprint-3-polish (2026-03-13)
+**File:** `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` lines 40-58
+**Pattern:** `handleSelectAnswer` is async. No guard prevents a second call before the in-flight
+`checkAnswer` resolves. A fast user can cause the feedback Map to be overwritten with results for
+a different selection than the one recorded in the answers Map. Feedback and recorded answer become
+inconsistent. The Submit button is hidden once `showResult` is true (once the answers Map has
+the questionId), but `showResult` depends on a render cycle following `setAnswers` — a narrow window.
+**Severity:** ISSUE. Fix: add `if (answers.has(questionId)) return` at the top of `handleSelectAnswer`.
+**Watch for:** any async event handler that fires on user interaction without a guard against
+duplicate calls before the first await resolves.
+
+### RPC error message forwarded verbatim to student UI (feat/post-sprint-3-polish)
+**First seen:** feat/post-sprint-3-polish (2026-03-13)
+**File:** `apps/web/app/app/quiz/actions/batch-submit.ts` lines 45-48
+**Pattern:** `Failed to submit quiz: ${rpcMessage}` forwards raw Postgres exception text to the client.
+SECURITY DEFINER functions can include schema-level detail in exception messages. Low-severity
+information disclosure but inconsistent with all other error paths in the codebase.
+**Severity:** SUGGESTION. Log rpcMessage server-side, return generic user message.
+**Watch for:** any error branch that formats a user-facing string using a raw error.message from
+a Supabase RPC or DB query result.
+
+### batch_submit_allow_partial — score denominator/numerator mismatch RESOLVED (migration 017)
+**First seen:** commit b312922 (2026-03-12) — tracked as ISSUE
+**Status: RESOLVED in migration 20260313000017** — `v_score` now uses `v_answered` (count of
+submitted answers) as denominator rather than `v_total` (all questions in session). Unanswered
+questions are correctly excluded from the score. The guard enforcing full batch submission was
+removed to explicitly allow partial submissions, and the score formula was updated to match.
+
 ## CodeRabbit Findings to Learn From
 - Cookie forwarding consistency across redirect branches (PR #23)
 - Query param forwarding to auth endpoints (PR #23)
@@ -681,3 +773,7 @@ splits that don't require changing test infrastructure confirm the abstraction b
 - Unconditional setState call in render-body guard triggers spurious re-renders (commit 53efbdd)
 - useTransition + manual useState hybrid — theoretical scheduler mismatch in concurrent mode (commit 53efbdd)
 - Hook extraction moves design debt but does not resolve it — review hooks for inherited issues (commit f0f8d0e)
+- Direct questions SELECT in student-facing Server Action bypasses RPC answer-stripping rule (feat/post-sprint-3-polish)
+- ON CONFLICT DO NOTHING on table with no unique constraint is dead code — duplicates silently inserted (repeated pattern)
+- Count-then-insert without DB lock/trigger allows TOCTOU race on app-enforced limits (feat/post-sprint-3-polish)
+- Unbounded Supabase fetch on append-only table truncated at 1000 rows by default (feat/post-sprint-3-polish)

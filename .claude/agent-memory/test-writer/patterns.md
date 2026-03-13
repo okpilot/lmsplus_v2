@@ -1611,3 +1611,76 @@ expect(report.questions[0].questionText).toBe('What is lift?')
 
 This pattern has caused pre-commit failures twice (different commits). The type-check
 gate catches it, but generating correct code the first time avoids the fix cycle.
+
+---
+
+## Files tested in feat/post-sprint-3-polish (2026-03-13)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/check-answer.ts` | `actions/check-answer.test.ts` | **NEW** — 12 tests: auth guard, Zod throws, question not found, no correct option, isCorrect true/false, explanation fields, deleted_at filter |
+| `apps/web/app/app/quiz/actions/lookup.ts` (getFilteredCount) | `actions/lookup.test.ts` | **NEW** — 20 tests: delegates for fetch wrappers, auth/Zod guards, filter:all with topic/subtopic, filter:unseen (answered set logic), filter:incorrect (fsrs_cards intersection) |
+| `apps/web/app/app/quiz/_hooks/use-quiz-cascade.ts` | `_hooks/use-quiz-cascade.test.ts` | **NEW** — 11 tests: initial state, handleSubjectChange (fetch, no-fetch, cascade reset), handleTopicChange (fetch, no-fetch, cascade reset), setSubtopicId direct, full cascade flow |
+| `apps/web/app/app/quiz/_hooks/use-quiz-start.ts` | `_hooks/use-quiz-start.test.ts` | **NEW** — 13 tests: initial state, guard (empty subjectId), happy path (args, topic/subtopic, count cap, min=1, sessionStorage, subjectName/Code, navigation), failure (error state, loading reset, throw, no navigation) |
+
+### checkAnswer: Zod is not wrapped in try/catch
+Unlike `batchSubmitQuiz` (generic catch) and `startQuizSession` (ZodError catch), `checkAnswer`
+calls `CheckAnswerSchema.parse(raw)` **without a surrounding try/catch**. ZodErrors propagate
+directly to the caller. Tests for invalid input must use `.rejects.toThrow()`, NOT
+`expect(result.success).toBe(false)`:
+
+```ts
+// ✅ CORRECT for checkAnswer
+await expect(checkAnswer({ questionId: 'bad', selectedOptionId: 'x' })).rejects.toThrow()
+
+// ❌ WRONG — checkAnswer has no catch, so ZodError is uncaught
+const result = await checkAnswer({ questionId: 'bad', selectedOptionId: 'x' })
+expect(result.success).toBe(false)
+```
+
+Always read the source for try/catch presence before writing Zod validation tests — the error
+handling contract varies per action.
+
+### getFilteredCount: two-phase DB pattern (questions then filter table)
+`getFilteredCount` always queries `questions` first (call 1), then conditionally queries
+`student_responses` (filter:unseen) or `fsrs_cards` (filter:incorrect) as call 2. For `filter:all`,
+there is no second query. Use `mockFrom.mockImplementation(() => { callIndex++; ... })` to
+route the two sequential calls. Key assertions:
+1. **filter:all** — single `from('questions')` call, count = data.length
+2. **filter:unseen** — second call to `student_responses`, subtracts answered set
+3. **filter:incorrect** — second call to `fsrs_cards`, intersects with question set
+4. **null from second table** — treated as empty set (no crash)
+
+### useQuizCascade: cascade reset + mock sequencing
+When testing that "change to new topic resets subtopics", the default mock returns subtopics
+for ANY topic. To verify the reset (subtopics become `[]` transiently before refetch completes),
+use `mockReturnValueOnce([])` before triggering the second change — this makes the refetch
+for the new topic return empty, so the final assertion is clean:
+
+```ts
+mockFetchSubtopicsForTopic.mockResolvedValueOnce([])
+await act(async () => result.current.handleTopicChange('new-topic-id'))
+expect(result.current.subtopics).toEqual([])
+```
+
+Without this, the default mock fills subtopics with the previous data, making the reset
+invisible to the test.
+
+### useQuizStart: sessionStorage mock via Object.defineProperty
+jsdom provides a real `sessionStorage`, but `vi.stubGlobal` is also valid. For this hook,
+`Object.defineProperty(globalThis, 'sessionStorage', ...)` is more reliable because it
+replaces the whole object (preventing real writes from leaking between tests):
+
+```ts
+beforeEach(() => {
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
+    writable: true,
+  })
+})
+```
+
+Restore with `writable: true` so subsequent `beforeEach` calls can overwrite it again.
+
+### Suite state after this session
+4 new test files, 56 new tests. Overall suite: ~77 test files, ~702 tests.
