@@ -493,6 +493,149 @@ stats until they reload.
 **Watch for:** any client component that holds fetched data in local state keyed by a prop that
 can change without triggering a remount (i.e., the component is not re-keyed on prop change).
 
+### getUser authError not checked in sibling query files (commit 2190dd5 → RESOLVED commit 3a0d1e6)
+**First seen:** commit 2190dd5 (2026-03-12)
+**Files fixed:** `apps/web/lib/queries/analytics.ts` — `getDailyActivity`, `getSubjectScores`
+**Pattern:** `supabase.auth.getUser()` returns `{ data: { user }, error }`. Network failures or
+expired refresh tokens set `error` non-null while `user` is null. Before this fix, the code
+checked only `if (!user)` — both a missing-user case and an auth network error collapsed to
+the same generic "Not authenticated" message, and the distinction was lost. The fix correctly
+destructures `error: authError` and throws a specific message when `authError` is non-null,
+then checks `!user` separately for the clean unauthenticated case.
+**Behavioral note:** The order is important — `authError` checked first, `!user` second. An auth
+error implies user is null but the reverse is not true (user can be null without an error on a
+clean unauthenticated request). Correct ordering confirmed in all functions.
+**RESOLVED in commit 3a0d1e6:** All six remaining sibling files now destructure and check
+`authError`. The fix is applied uniformly across the entire `lib/queries/` family.
+**FULLY RESOLVED in commit 78cb130:** `quiz-report.ts` and `load-session-questions.ts` now also
+log auth failures before their early returns. Every `lib/queries/*.ts` file now has both
+`authError` destructuring + a log entry on failure.
+**Watch for:** any new `lib/queries/*.ts` file that calls `supabase.auth.getUser()` — require
+`error: authError` destructure, a server-side log on authError, and a guard before the `!user` check.
+
+### quiz-report.ts authError silent swallow (RESOLVED commit 78cb130)
+**First seen:** commit 3a0d1e6 (2026-03-12)
+**Status: RESOLVED in commit 78cb130** — `console.error('[getQuizReport] Auth error:', authError.message)`
+added before `return null`. Auth failures now produce a server log entry. The null-return contract
+is preserved. Fix matches the pattern used by sibling null-return functions.
+
+### load-session-questions.ts authError message exposed in client UI (RESOLVED commit 78cb130)
+**First seen:** commit 3a0d1e6 (2026-03-12)
+**Status: RESOLVED in commit 78cb130** — authError branch now logs the specific message server-side
+and returns the generic `'Not authenticated'` string. Matches the `!user` branch below it.
+Raw Supabase error strings no longer reach the student UI.
+
+### authError test coverage gap — new branches not tested (RESOLVED commit 78cb130)
+**First seen:** commit 3a0d1e6 (2026-03-12)
+**Status: RESOLVED in commit 78cb130** — All seven query files with authError branches now have
+a paired test case. `quiz-report.test.ts`, `load-session-questions.test.ts`,
+`dashboard.test.ts`, `progress.test.ts`, `review.test.ts` (x2), `question-stats.test.ts`,
+and `reports.test.ts` all test the authError path. The `quiz-report` test uses
+`mockResolvedValueOnce` and asserts `result === null` — a genuine regression guard.
+**Residual watch:** the existing "returns null when user is not authenticated" test in
+`quiz-report.test.ts` uses a persistent `mockResolvedValue` mock (not `Once`). A future test
+inserted before the next mock reset could silently inherit null-user state. Non-blocking.
+**Watch for:** any commit adding `if (authError)` branches without a paired test case.
+
+### setIsLoading(false) called unconditionally in render body — spurious re-render on question switch (commit 53efbdd)
+**First seen:** commit 53efbdd (2026-03-13)
+**File:** `apps/web/app/app/quiz/_components/statistics-tab.tsx` lines 20-26
+**Pattern:** The question-switch guard calls `setIsLoading(false)` during the render body
+unconditionally, even when `isLoading` is already `false`. React schedules a state update on
+every question switch regardless, triggering an extra re-render cycle. When a fetch is in progress
+and the user navigates rapidly, this produces a render storm (one extra render per question switch).
+The generation counter correctly prevents stale state from landing in the UI, so there is no
+user-visible artifact — but the wasted renders are real.
+**Fix:** Guard the call: `if (isLoading) setIsLoading(false)`.
+**Root cause:** Replacing `isPending` (a read during render, no state write) with `setIsLoading(false)`
+(a state write during render) changed a zero-cost derived read into a scheduled update. The
+generation-counter approach is correct but this particular line needs the guard.
+**Watch for:** any `setState(false)` call inside a "derive during render" guard block (the
+`prevProp.current !== currentProp` pattern). Always guard with the current value check.
+
+### useTransition + manual useState loading — hybrid creates theoretical scheduler mismatch (commit 53efbdd)
+**First seen:** commit 53efbdd (2026-03-13)
+**File:** `apps/web/app/app/quiz/_components/statistics-tab.tsx` line 14
+**Pattern:** `startTransition` is retained for wrapping the async fetch, but `isPending` is
+discarded in favor of manual `isLoading` state. In React 19's concurrent scheduler, a
+transition can be interrupted and restarted. If that happens, `setIsLoading(true)` (called
+before `startTransition`) and the transition callback (called inside) may be associated with
+different batches. The `isLoading` state could become `true` with no running transition to
+clear it. In practice the generation-counter would cover a subsequent question switch, but
+within the same question the user could see a stuck skeleton.
+**Recommended pattern:** Either use `isPending` exclusively (derive loading from the
+transition — solve the original stale-pending bug via `key={questionId}` remount), or drop
+`startTransition` entirely and use a plain `async` function with manual state only.
+**Watch for:** any component that mixes `startTransition` with a separate `useState` for the
+same loading concept — the two can desync under concurrent rendering.
+
+### boundParam NaN guard fallback is silent — no server log on invalid input (commit 53efbdd)
+**First seen:** commit 53efbdd (2026-03-13)
+**File:** `apps/web/lib/queries/analytics.ts` — `boundParam`
+**Pattern:** Non-finite input is correctly clamped to `min`, but the non-finite branch has no
+`console.warn`. A caller passing `NaN` (e.g., `parseInt('')`) silently gets a 1-item result
+with no server log. The security behavior is correct; the observability is not.
+**Fix:** Add `console.warn('[boundParam] Non-finite value, clamping to min:', { value, min, max })`
+in the non-finite branch.
+**Watch for:** silent clamping/fallback functions for numeric RPC parameters — always log when
+the fallback fires so the cause is visible in server logs.
+
+### setIsLoading(false) guard — RESOLVED in commit b555b50
+**First seen:** commit 53efbdd (2026-03-13)
+**Status: RESOLVED in commit b555b50** — `if (isLoading) setIsLoading(false)` replaces the
+unconditional call. The guard eliminates the spurious re-render on every question switch when
+`isLoading` is already `false`. The render-body pattern is now correct.
+**Verified:** New test "shows load button immediately when questionId changes during an in-flight fetch"
+directly exercises the guard path — it asserts the load button reappears before the stale fetch
+resolves. Coverage is complete.
+
+### isLoading guard in render body — test coverage confirms fix (commit b555b50)
+**New test added:** `statistics-tab.test.tsx` — "shows load button immediately when questionId
+changes during an in-flight fetch" blocks the q-1 fetch with a deferred promise, then rerenders
+with `questionId="q-2"`. Asserts the load button appears before `resolveQ1()` is called, and
+that stale q-1 data never lands. This is a strong regression test for the render-body guard.
+
+### useTransition + manual isLoading hybrid — still unresolved after hook extraction (commit f0f8d0e)
+**First seen:** commit 53efbdd (2026-03-13)
+**Status:** SUGGESTION — 2nd occurrence. The extraction of `useQuestionStats` in commit f0f8d0e
+did not resolve the `startTransition` + `isLoading` hybrid. The design debt is now isolated
+in the hook body, which makes it easier to fix, but it is not fixed.
+**Occurrence count:** 2 (53efbdd, f0f8d0e). No user-visible bug has been reported.
+**Pattern:** `startTransition` wraps the async fetch but `isPending` is unused; `isLoading`
+state is managed manually. In React 19 concurrent mode, the two can desync if a transition
+is interrupted. Fix: either use `isPending` as the sole loading signal, or drop `startTransition`
+entirely and use a plain async function with manual state only.
+**Watch for:** any refactor of `useQuestionStats` — the hybrid is the remaining design debt.
+
+### waitFor wrapping .not.toBeInTheDocument — correct but masks fast-failure (commit f0f8d0e)
+**First seen:** commit f0f8d0e (2026-03-13)
+**File:** `apps/web/app/app/quiz/_components/statistics-tab.test.tsx` line 193
+**Pattern:** `await waitFor(() => expect(x).not.toBeInTheDocument())` is the right fix for
+a race against a microtask flush, but it delays test failure by the full `waitFor` timeout
+(1000ms default) when the element IS present. Prefer asserting the positive expected state
+first (`expect(loadButton).toBeInTheDocument()`), then asserting absence synchronously after.
+This gives a fast failure signal when the generation guard breaks.
+**Severity:** SUGGESTION — test is correct and catches regressions. Improvement is for
+failure-diagnosis speed only.
+
+### hook extraction without JSDoc on non-obvious render-body pattern (commit f0f8d0e)
+**First seen:** commit f0f8d0e (2026-03-13)
+**File:** `apps/web/app/app/quiz/_components/statistics-tab.tsx` — `useQuestionStats`
+**Pattern:** When extracting logic into a hook, render-body `setState` calls (the
+`prevProp.current !== currentProp` pattern) should be documented. Future reviewers
+encountering `setState` during a hook's render body may flag it as a violation before
+understanding the React-sanctioned derived-state-from-props pattern. A single JSDoc
+comment prevents this false-positive review cycle.
+**Watch for:** hooks containing render-body `setState` that lack an explanatory comment.
+
+### ActivityChart three-layer split — positive pattern (commit f0f8d0e)
+**File:** `apps/web/app/app/dashboard/_components/activity-chart.tsx`
+**Pattern:** Pure data formatter (`formatActivityData`) → pure renderer (`ChartBody`) →
+orchestrator with side effects (`ActivityChart` — hydration guard + empty state).
+Hydration guard remains at the outermost layer; recharts DOM reads are protected.
+All three functions are under 30 lines. This is the reference pattern for splitting
+client components that mix hydration concerns with data rendering.
+
 ## CodeRabbit Findings to Learn From
 - Cookie forwarding consistency across redirect branches (PR #23)
 - Query param forwarding to auth endpoints (PR #23)
@@ -504,3 +647,7 @@ can change without triggering a remount (i.e., the component is not re-keyed on 
 - Score denominator/numerator mismatch when sourcing total from session vs. counting from batch (commit b312922)
 - Thin Server Action pass-throughs skipping Zod validation (commit 845923b)
 - LANGUAGE sql SECURITY DEFINER silent-empty vs. RAISE EXCEPTION pattern (commit 845923b)
+- Partial auth-error handling across query family — fix applied to subset only (commit 2190dd5)
+- Unconditional setState call in render-body guard triggers spurious re-renders (commit 53efbdd)
+- useTransition + manual useState hybrid — theoretical scheduler mismatch in concurrent mode (commit 53efbdd)
+- Hook extraction moves design debt but does not resolve it — review hooks for inherited issues (commit f0f8d0e)

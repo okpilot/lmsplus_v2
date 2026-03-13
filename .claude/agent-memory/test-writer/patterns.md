@@ -1376,3 +1376,177 @@ now (student_responses + fsrs_cards) instead of four.
 
 ### Suite state after commit c4879a1
 73 test files, 646 tests — all passing.
+
+---
+
+## Files extended in commit 3a0d1e6 (authError destructuring in query files)
+
+The fix adds `error: authError` destructuring from `getUser()` and an early branch before
+the existing `!user` guard across 7 query files. Each branch has a distinct return type:
+
+| File | authError behaviour |
+|---|---|
+| `dashboard.ts` | throws `Error('Auth error: ...')` |
+| `progress.ts` | throws `Error('Auth error: ...')` |
+| `review.ts` (getDueCards) | throws `Error('Auth error: ...')` |
+| `review.ts` (getNewQuestionIds) | throws `Error('Auth error: ...')` |
+| `question-stats.ts` | throws `Error('Auth error: ...')` |
+| `reports.ts` | throws `Error('Auth error: ...')` |
+| `quiz-report.ts` | returns `null` |
+| `load-session-questions.ts` | returns `{ success: false, error: 'Auth error: ...' }` |
+
+### authError branch test pattern (query files)
+```ts
+it('throws when getUser returns an auth error', async () => {
+  mockGetUser.mockResolvedValue({
+    data: { user: null },
+    error: { message: 'token expired' },
+  })
+  await expect(someQuery()).rejects.toThrow('Auth error: token expired')
+})
+```
+For functions that return null on auth failure:
+```ts
+it('returns null when getUser returns an auth error', async () => {
+  mockGetUser.mockResolvedValueOnce({
+    data: { user: null },
+    error: { message: 'token expired' },
+  })
+  const result = await getQuizReport('sess-1')
+  expect(result).toBeNull()
+  expect(mockFrom).not.toHaveBeenCalled()  // no DB calls after early return
+})
+```
+For functions that return a structured error object:
+```ts
+it('returns failure when getUser returns an auth error', async () => {
+  mockGetUser.mockResolvedValueOnce({
+    data: { user: null },
+    error: { message: 'token expired' },
+  })
+  const result = await loadSessionQuestions(['q1'])
+  expect(result.success).toBe(false)
+  if (result.success) return
+  expect(result.error).toBe('Auth error: token expired')
+  expect(mockRpc).not.toHaveBeenCalled()
+})
+```
+
+### Suite state after commit 3a0d1e6
+73 test files, 63 tests in the 7 affected query test files (7 new authError tests added) — all passing.
+
+---
+
+## Files extended in commit 53efbdd (isLoading refactor + NaN/Infinity guard)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/_components/statistics-tab.tsx` | `_components/statistics-tab.test.tsx` | +2 tests: isLoading reset on question change during in-flight fetch; FsrsSection hidden when fsrsState is null |
+| `apps/web/lib/queries/analytics.ts` | `lib/queries/analytics.test.ts` | +5 tests: NaN/Infinity inputs for both getDailyActivity and getSubjectScores |
+
+### What changed
+1. `isPending` (useTransition) replaced by explicit `isLoading` state for loading skeleton display.
+   - `setIsLoading(false)` is now called in the render-phase reset block (when questionId changes),
+     so the load button appears immediately without waiting for the stale fetch's `finally` block.
+   - `setIsLoading(true)` on load start; `setIsLoading(false)` in the `finally` block.
+
+2. `boundParam()` in analytics.ts gained a `Number.isFinite` guard before clamping:
+   - Non-finite values (NaN, +Infinity, -Infinity) all fall back to `min` (not `max`).
+   - This is because `Number.isFinite(nonFinite) === false`, so `n = min`.
+   - Then `Math.max(min, Math.min(max, Math.trunc(min))) = min`.
+
+### NaN/Infinity boundParam behaviour table
+| Input | isFinite | n | Result (days 1-365) |
+|---|---|---|---|
+| NaN | false | 1 (min) | 1 |
+| +Infinity | false | 1 (min) | 1 |
+| -Infinity | false | 1 (min) | 1 |
+| 500 | true | 500 | 365 (clamped) |
+| 0 | true | 0 | 1 (clamped) |
+
+All non-finite inputs produce `min`, not `max`. Test +Infinity expecting `1`, not `365`.
+
+### isLoading reset on question change: test pattern
+The key assertion: the Load Statistics button appears BEFORE the stale promise is resolved.
+This distinguishes the new `setIsLoading(false)` in the reset block from the old behavior
+(which waited for `isPending` to drop after the transition ended):
+
+```ts
+// Start in-flight fetch for q-1
+await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+// Verify loading state (button gone)
+await waitFor(() => {
+  expect(screen.queryByRole('button', { name: 'Load Statistics' })).not.toBeInTheDocument()
+})
+// Change question — reset block fires setIsLoading(false) synchronously during render
+rerender(<StatisticsTab questionId="q-2" hasAnswered={true} />)
+// Load button appears BEFORE resolving the stale promise
+await waitFor(() => {
+  expect(screen.getByRole('button', { name: 'Load Statistics' })).toBeInTheDocument()
+})
+// Only then resolve the stale fetch — generation guard discards it
+resolveQ1(defaultStats)
+expect(screen.queryByText('Times seen')).not.toBeInTheDocument()
+```
+
+Note: the `act()` warning ("A suspended resource finished loading inside a test...") from
+resolving the stale promise after assertions is expected and harmless. The test passes correctly.
+
+### FsrsSection null branch: pattern
+```ts
+it('hides the FSRS section when fsrsState is null', async () => {
+  mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: null })
+  const user = userEvent.setup()
+  render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+  await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
+  await waitFor(() => { expect(screen.getByText('Times seen')).toBeInTheDocument() })
+  expect(screen.queryByText('FSRS Data')).not.toBeInTheDocument()
+  expect(screen.queryByText('State')).not.toBeInTheDocument()
+})
+```
+Tests the explicit `if (!stats.fsrsState) return null` branch in the extracted `FsrsSection` component.
+
+### Suite state after commit 53efbdd
+73 test files, 33 tests passing in the 2 affected test files (5 new in analytics, 2 new in statistics-tab).
+
+---
+
+## Capturing recharts data props for data-transformation tests (2026-03-13)
+
+When testing a component that passes transformed data to recharts `BarChart`, the default
+mock (`<div data-testid="bar-chart">`) discards the `data` prop. To assert on the formatted
+output (e.g., UTC-safe date labels), capture it in a module-level variable inside the mock:
+
+```tsx
+let capturedBarChartData: unknown[] = []
+
+vi.mock('recharts', () => ({
+  BarChart: ({ children, data }: { children: React.ReactNode; data?: unknown[] }) => {
+    capturedBarChartData = data ?? []
+    return <div data-testid="bar-chart">{children}</div>
+  },
+  // ...other stubs
+}))
+```
+
+Then after `render(...)`, cast and assert:
+
+```tsx
+it('formats day strings as UTC dates', () => {
+  render(<ActivityChart data={[makeDay('2026-01-01', 3, 1)]} />)
+  const formatted = capturedBarChartData as Array<{ label: string }>
+  expect(formatted[0].label).toBe('1 Jan')
+})
+```
+
+Key points:
+- Declare the capture variable at module scope (outside describe), reset is implicit on each test
+  because `render()` always triggers a re-render that overwrites it.
+- Use `unknown[]` for the variable type; cast to a concrete shape at the assertion site — no `any`.
+- This pattern covers `formatActivityData` and similar pure data-transform helpers that are
+  module-private (not exported) but whose output flows into a mocked child prop.
+
+### Suite state after commit f0f8d0e
+activity-chart.test.tsx: 6 tests (3 existing + 3 new for formatActivityData/ChartBody behavior).
+statistics-tab.test.tsx: 14 tests — no new tests needed (useQuestionStats is not exported;
+all its behavior paths were already covered through StatisticsTab integration tests).
