@@ -162,6 +162,7 @@ FALSE (not an exception) when the JSONB value is not an array. This swallows con
 **Fix:** Add `jsonb_typeof` guard consistent with 026–028 before the session ownership EXISTS check.
 **Watch for:** New RPC migrations that touch `config->'question_ids'` without the `jsonb_typeof` guard —
 this is an established pattern that must be applied consistently.
+**Status:** RESOLVED in commit d1a8b0c — migration 029 now uses the full SELECT INTO + jsonb_typeof + ARRAY/ANY() pattern matching 026-028 exactly.
 
 ### setSubtopicId bypass of filteredCount reset
 **File:** `apps/web/app/app/quiz/_hooks/use-quiz-config.ts`
@@ -171,6 +172,7 @@ delegating. But `setSubtopicId` is passed through raw via `...cascade` spread an
 persist until the next filter interaction.
 **Severity:** SUGGESTION (stale count corrects itself on next filter interaction; not a data integrity issue).
 **Fix:** Wrap `setSubtopicId` in the same pattern, or expose a `handleSubtopicChange` wrapper.
+**Status:** RESOLVED in commit d1a8b0c — `setSubtopicId` is now wrapped in `use-quiz-config.ts` return object, overriding the cascade spread version. Tests for subject and topic reset added; subtopic reset is covered by same mechanism.
 
 ### Double ownership verification — intentional, load-bearing, documented
 **Files:** `check-answer.ts` (Server Action) + `029_check_answer_session_guard.sql` (RPC)
