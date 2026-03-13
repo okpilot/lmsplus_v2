@@ -192,7 +192,11 @@ describe('useQuizState — handleSubmit', () => {
     mockSubmitQuizSession.mockResolvedValue(SUBMIT_SUCCESS)
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 } },
+      }),
     )
     await act(async () => result.current.handleSubmit())
 
@@ -206,7 +210,11 @@ describe('useQuizState — handleSubmit', () => {
     })
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 } },
+      }),
     )
     await act(async () => result.current.handleSubmit())
 

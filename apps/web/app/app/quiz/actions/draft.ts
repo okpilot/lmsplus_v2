@@ -15,6 +15,7 @@ const DraftAnswerSchema = z.object({
 })
 
 const SaveDraftInput = z.object({
+  draftId: z.string().uuid().optional(),
   sessionId: z.string().uuid(),
   questionIds: z.array(z.string().uuid()).min(1),
   answers: z.record(z.string(), DraftAnswerSchema),
@@ -41,6 +42,29 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     }
     const orgId = await getOrganizationId(supabase, user.id)
     if (!orgId) return { success: false, error: 'User organization not found' }
+
+    if (input.draftId) {
+      // Update existing draft
+      const { error } = await supabase
+        .from('quiz_drafts' as 'users')
+        .update({
+          question_ids: input.questionIds,
+          answers: input.answers,
+          current_index: input.currentIndex,
+          session_config: {
+            sessionId: input.sessionId,
+            subjectName: input.subjectName,
+            subjectCode: input.subjectCode,
+          },
+        } as never)
+        .eq('id', input.draftId)
+        .eq('student_id', user.id)
+      if (error) {
+        console.error('[saveDraft] Update error:', error.message)
+        return { success: false, error: 'Failed to update draft' }
+      }
+      return { success: true }
+    }
 
     // Enforce 20-draft limit at app level
     const { count, error: countError } = await supabase

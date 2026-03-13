@@ -21,10 +21,6 @@ describe('fetchQuestionStats', () => {
       correctCount: 3,
       incorrectCount: 2,
       lastAnswered: '2026-03-11T00:00:00Z',
-      fsrsState: 'Review',
-      fsrsStability: 10.5,
-      fsrsDifficulty: 3.2,
-      fsrsInterval: 7,
     }
     mockGetQuestionStats.mockResolvedValue(stats)
 

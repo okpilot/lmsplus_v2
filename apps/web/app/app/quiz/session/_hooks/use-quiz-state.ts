@@ -29,6 +29,8 @@ export function useQuizState(opts: {
   const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
   const { flaggedQuestions, toggleFlag: toggleFlagById } = useFlaggedQuestions()
   const submitted = useRef(false)
+  const answersRef = useRef(answers)
+  answersRef.current = answers
   const [showFinishDialog, setShowFinishDialog] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,9 +64,14 @@ export function useQuizState(opts: {
   }
 
   async function handleSubmit() {
+    const currentAnswers = answersRef.current
+    if (currentAnswers.size === 0) {
+      setError('No answers to submit.')
+      return
+    }
     setSubmitting(true)
     setError(null)
-    const r = await submitQuizSession(sessionId, answers, opts.draftId)
+    const r = await submitQuizSession(sessionId, currentAnswers, opts.draftId)
     if (r.success) {
       submitted.current = true
       setShowFinishDialog(false)
@@ -81,9 +88,10 @@ export function useQuizState(opts: {
     const r = await saveQuizDraft({
       sessionId,
       questionIds,
-      answers,
+      answers: answersRef.current,
       currentIndex: nav.currentIndex,
       router,
+      draftId: opts.draftId,
       subjectName: opts.subjectName,
       subjectCode: opts.subjectCode,
     })

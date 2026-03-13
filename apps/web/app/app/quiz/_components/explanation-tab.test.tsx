@@ -1,11 +1,39 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { mockFetchExplanation } = vi.hoisted(() => ({
+  mockFetchExplanation: vi.fn(),
+}))
+
+vi.mock('../actions/fetch-explanation', () => ({
+  fetchExplanation: mockFetchExplanation,
+}))
+
 import { ExplanationTab } from './explanation-tab'
 
 describe('ExplanationTab', () => {
-  it('shows placeholder when question has not been answered', () => {
-    render(<ExplanationTab hasAnswered={false} />)
-    expect(screen.getByText('Answer this question to see the explanation.')).toBeInTheDocument()
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('fetches and shows explanation before answering', async () => {
+    mockFetchExplanation.mockResolvedValue({
+      success: true,
+      explanationText: 'Pre-answer explanation.',
+      explanationImageUrl: null,
+    })
+    render(<ExplanationTab hasAnswered={false} questionId="q-1" />)
+    await waitFor(() => {
+      expect(screen.getByText('Pre-answer explanation.')).toBeInTheDocument()
+    })
+  })
+
+  it('shows fallback when fetch returns no explanation', async () => {
+    mockFetchExplanation.mockResolvedValue({ success: false })
+    render(<ExplanationTab hasAnswered={false} questionId="q-1" />)
+    await waitFor(() => {
+      expect(screen.getByText('No explanation available for this question.')).toBeInTheDocument()
+    })
   })
 
   it('shows correct message when answer is correct', () => {

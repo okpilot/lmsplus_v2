@@ -48,38 +48,18 @@ describe('getQuestionStats', () => {
   })
 
   it('returns stats with counts when data is available', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'student_responses') {
-        return buildChain({
-          count: 5,
-          data: [{ created_at: '2026-03-11T00:00:00Z' }],
-          error: null,
-        })
-      }
-      if (table === 'fsrs_cards') {
-        return buildChain({
-          data: { state: 'Review', stability: 10.5, difficulty: 3.2, scheduled_days: 7 },
-          error: null,
-        })
-      }
-      return buildChain({ data: null, error: null })
+    mockFrom.mockImplementation(() => {
+      return buildChain({
+        count: 5,
+        data: [{ created_at: '2026-03-11T00:00:00Z' }],
+        error: null,
+      })
     })
 
     const result = await getQuestionStats('q-1')
     expect(result.timesSeen).toBe(5)
     expect(result.correctCount).toBe(5)
     expect(result.lastAnswered).toBe('2026-03-11T00:00:00Z')
-    expect(result.fsrsState).toBe('Review')
-  })
-
-  it('returns null FSRS fields when no FSRS card exists for the question', async () => {
-    mockFrom.mockImplementation(() => buildChain({ count: 3, data: null, error: null }))
-
-    const result = await getQuestionStats('q-1')
-    expect(result.fsrsState).toBeNull()
-    expect(result.fsrsStability).toBeNull()
-    expect(result.fsrsDifficulty).toBeNull()
-    expect(result.fsrsInterval).toBeNull()
   })
 
   it('throws when the total response count query returns an error', async () => {
@@ -114,30 +94,16 @@ describe('getQuestionStats', () => {
     )
   })
 
-  it('throws when the FSRS card query returns an error', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'fsrs_cards') {
-        return buildChain({ data: null, error: { message: 'fsrs failure' } })
-      }
-      return buildChain({ count: 2, data: null, error: null })
-    })
-
-    await expect(getQuestionStats('q-1')).rejects.toThrow('Failed to fetch FSRS card: fsrs failure')
-  })
-
   it('throws when the last response query returns an error', async () => {
     let studentResponsesCall = 0
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'student_responses') {
-        studentResponsesCall++
-        // Calls 1-2 are the parallel COUNTs inside getResponseCounts,
-        // call 3 is getLastResponse (concurrent via outer Promise.all)
-        if (studentResponsesCall === 3) {
-          return buildChain({ data: null, error: { message: 'last response failure' } })
-        }
-        return buildChain({ count: 1, data: null, error: null })
+    mockFrom.mockImplementation(() => {
+      studentResponsesCall++
+      // Calls 1-2 are the parallel COUNTs inside getResponseCounts,
+      // call 3 is getLastResponse (concurrent via outer Promise.all)
+      if (studentResponsesCall === 3) {
+        return buildChain({ data: null, error: { message: 'last response failure' } })
       }
-      return buildChain({ data: null, error: null })
+      return buildChain({ count: 1, data: null, error: null })
     })
 
     await expect(getQuestionStats('q-1')).rejects.toThrow(

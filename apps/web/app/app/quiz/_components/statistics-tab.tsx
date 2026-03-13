@@ -1,7 +1,6 @@
 'use client'
 
 import type { QuestionStats } from '@/lib/queries/question-stats'
-import type { ReactNode } from 'react'
 import { useQuestionStats } from '../_hooks/use-question-stats'
 
 type StatisticsTabProps = {
@@ -45,17 +44,6 @@ function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => vo
   )
 }
 
-const FSRS_STATE_LABELS: Record<string, string> = {
-  new: 'New',
-  learning: 'Learning',
-  review: 'Review',
-  relearning: 'Relearning',
-}
-
-function formatFsrsState(state: string): string {
-  return FSRS_STATE_LABELS[state] ?? state.charAt(0).toUpperCase() + state.slice(1)
-}
-
 function StatsDisplay({ stats }: { stats: QuestionStats }) {
   const accuracy =
     stats.timesSeen > 0 ? Math.round((stats.correctCount / stats.timesSeen) * 100) : 0
@@ -75,29 +63,10 @@ function StatsDisplay({ stats }: { stats: QuestionStats }) {
           })}
         />
       )}
-      <FsrsSection stats={stats} />
+      <p className="pt-2 text-xs text-muted-foreground">
+        Statistics reflect your previous quiz sessions.
+      </p>
     </div>
-  )
-}
-
-function FsrsSection({ stats }: { stats: QuestionStats }): ReactNode {
-  if (!stats.fsrsState) return null
-  return (
-    <>
-      <div className="border-t border-border pt-2 text-xs font-medium text-muted-foreground">
-        FSRS Data
-      </div>
-      <StatRow label="State" value={formatFsrsState(stats.fsrsState)} />
-      {stats.fsrsStability != null && (
-        <StatRow label="Stability" value={stats.fsrsStability.toFixed(1)} />
-      )}
-      {stats.fsrsDifficulty != null && (
-        <StatRow label="Difficulty" value={stats.fsrsDifficulty.toFixed(1)} />
-      )}
-      {stats.fsrsInterval != null && (
-        <StatRow label="Interval" value={`${stats.fsrsInterval} days`} />
-      )}
-    </>
   )
 }
 

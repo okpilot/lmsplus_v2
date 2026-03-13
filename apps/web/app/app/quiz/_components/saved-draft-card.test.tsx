@@ -44,6 +44,7 @@ describe('SavedDraftCard', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockDeleteDraft.mockResolvedValue({ success: true })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
 
   it('shows empty state when drafts array is empty', () => {

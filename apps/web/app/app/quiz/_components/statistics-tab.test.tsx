@@ -15,10 +15,6 @@ const defaultStats = {
   correctCount: 3,
   incorrectCount: 2,
   lastAnswered: '2026-03-11T00:00:00Z',
-  fsrsState: 'Review',
-  fsrsStability: 10.5,
-  fsrsDifficulty: 3.2,
-  fsrsInterval: 7,
 }
 
 import { StatisticsTab } from './statistics-tab'
@@ -126,38 +122,12 @@ describe('StatisticsTab', () => {
     expect(screen.queryByText('Failed to load statistics.')).not.toBeInTheDocument()
   })
 
-  it('hides the FSRS section when fsrsState is null', async () => {
-    mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: null })
+  it('shows the previous quiz sessions note', async () => {
     render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
     await waitFor(() => {
       expect(screen.getByText('Times seen')).toBeInTheDocument()
     })
-    expect(screen.queryByText('FSRS Data')).not.toBeInTheDocument()
-    expect(screen.queryByText('State')).not.toBeInTheDocument()
-  })
-
-  it('renders review state with readable capitalization', async () => {
-    mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'review' })
-    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
-    await waitFor(() => {
-      expect(screen.getByText('Review')).toBeInTheDocument()
-    })
-  })
-
-  it('renders learning state with readable capitalization', async () => {
-    mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'learning' })
-    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
-    await waitFor(() => {
-      expect(screen.getByText('Learning')).toBeInTheDocument()
-    })
-  })
-
-  it('renders unknown fsrs state with readable capitalization', async () => {
-    mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'suspended' })
-    render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
-    await waitFor(() => {
-      expect(screen.getByText('Suspended')).toBeInTheDocument()
-    })
+    expect(screen.getByText('Statistics reflect your previous quiz sessions.')).toBeInTheDocument()
   })
 
   it('discards stale fetch result when questionId changes before the fetch resolves', async () => {

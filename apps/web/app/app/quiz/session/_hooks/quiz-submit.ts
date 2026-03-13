@@ -35,11 +35,13 @@ export async function saveQuizDraft(opts: {
   answers: Map<string, DraftAnswer>
   currentIndex: number
   router: AppRouterInstance
+  draftId?: string
   subjectName?: string
   subjectCode?: string
 }) {
   const answerObj = Object.fromEntries(opts.answers)
   const result = await saveDraft({
+    draftId: opts.draftId,
     sessionId: opts.sessionId,
     questionIds: opts.questionIds,
     answers: answerObj,

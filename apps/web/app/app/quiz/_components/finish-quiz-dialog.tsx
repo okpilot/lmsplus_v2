@@ -47,7 +47,7 @@ export function FinishQuizDialog({
         {unanswered > 0 && (
           <p className="mt-2 text-sm font-medium text-destructive">
             {unanswered} {unanswered === 1 ? 'question is' : 'questions are'} unanswered and will be
-            marked incorrect.
+            skipped.
           </p>
         )}
 
