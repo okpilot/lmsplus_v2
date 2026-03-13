@@ -95,6 +95,7 @@
 - Quiz state machine updated: answers stored in React state (Map<questionId, {selectedOptionId, responseTimeMs}>)
 - Migration 017: `batch_submit_quiz` RPC — allows partial answers; score calculated as `correct / answered` (not `correct / total`)
 - Migration 022: `batch_submit_quiz` updated to atomically set `fsrs_cards.last_was_correct` within the transaction (closes race condition window)
+- Migration 025: `batch_submit_quiz` input validation hardening — validates non-null JSON array, rejects duplicates, checks question membership
 - Discard session: students can discard active quiz (soft-delete session), with optional draft cleanup
 - FinishQuizDialog: modal with unanswered count warning, options: Return to Quiz, Save for Later, Submit Quiz, Discard Quiz
 - QuizNavBar: question navigator with previous/next buttons, current index display

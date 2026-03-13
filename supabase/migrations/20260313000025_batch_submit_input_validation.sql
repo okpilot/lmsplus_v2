@@ -51,6 +51,11 @@ BEGIN
     RAISE EXCEPTION 'session not found or already completed';
   END IF;
 
+  -- Guard against malformed session config
+  IF array_length(v_session_question_ids, 1) IS NULL THEN
+    RAISE EXCEPTION 'session config is malformed — question_ids not set';
+  END IF;
+
   -- Validate p_answers is a non-null JSON array
   IF p_answers IS NULL
      OR jsonb_typeof(p_answers) <> 'array'
@@ -60,7 +65,7 @@ BEGIN
 
   -- Reject duplicate question_id entries in payload
   IF (
-    SELECT count(*) <> count(DISTINCT (e->>'question_id'))
+    SELECT count(*) <> count(DISTINCT (e->>'question_id')::uuid)
     FROM jsonb_array_elements(p_answers) AS e
   ) THEN
     RAISE EXCEPTION 'duplicate question_id in answers payload';

@@ -1186,3 +1186,60 @@ Applied in: `apps/web/e2e/review-flow.spec.ts` (commit f272e2b)
 - No new violations introduced ✓
 
 **Verdict:** Clean commit. All checks passed. Good test coverage expansion. Ready for merge.
+
+## Session 2026-03-13 Part 8 (Input Validation + Race Condition Fix)
+
+### Commit: 741ae33 (fix: harden batch_submit_quiz input validation + answer lock race)
+- Status: **BLOCKING** — 1 violation (hook line count)
+- Files changed: 2 files, 190 insertions, 5 deletions
+- Summary: SQL RPC hardening + React race condition fix. Hook size violation must be resolved.
+
+**File Analysis:**
+
+**[BLOCKING] `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` — 117 lines (limit: 80)**
+- Exceeds by 37 lines
+- Combined responsibilities: session answers + feedback + pinning + submission handlers + dialog state + error state + navigation
+- Recent growth: Added `lockedQuestionsRef` to track answered questions (lines 43, 46-47) to prevent double-submission race condition
+- Root cause: Hook bundles too many independent state machines:
+  1. Answer selection (handleSelectAnswer) — 20 lines
+  2. Session submit (handleSubmit) — 10 lines
+  3. Session save (handleSave) — 10 lines
+  4. Session discard (handleDiscard) — 2 lines
+  5. Dialog/error/submitting state — 5 lines
+  6. Navigation state — via useQuizNavigation hook
+  7. Pinned questions state — via usePinnedQuestions hook
+- Recommendation: Split into:
+  - Keep `useQuizState`: core session/answers/feedback state (should be ~50 lines after split)
+  - Extract `useQuizSubmit`: handles, submitting, error, dialog state, submission orchestration
+  - Move pinning logic to component level or separate hook
+- Fix difficulty: **Medium** — handlers are tightly coupled via `answersRef` and shared state; requires careful extraction to maintain closure semantics
+
+**`supabase/migrations/20260313000025_batch_submit_input_validation.sql` — 176 lines (limit: 300) ✓**
+- SQL migration for batch_submit_quiz RPC hardening
+- Well-structured SECURITY DEFINER function with proper auth.uid() check + SET search_path
+- Three validation layers added:
+  1. Non-null, non-empty JSON array check (line 54-59)
+  2. Duplicate question_id detection (line 61-67)
+  3. Session membership validation (line 76-79)
+- Clear inline comments per step; logic flow is readable
+- Idempotent ON CONFLICT handling for idempotent re-runs
+- FSRS race condition fix: atomic upsert of `last_was_correct` within transaction (line 113-119)
+- Audit logging included (line 150-166)
+- No violations; appropriate complexity for security-critical batch operation
+
+**Test Status:**
+- `use-quiz-state.test.ts` exists and covers the hook ✓
+- No new test required for SQL RPC (integration tested at RPC boundary)
+
+**Quality Observations:**
+- React change adds defensive race condition guard (good practice)
+- SQL validation strengthens security posture (excellent hardening)
+- Both changes address real issues identified in testing
+- Hook violation is pre-existing (not introduced by this commit; previous refactors kept adding to it)
+
+**Watch Item Update:**
+- **CRITICAL: `use-quiz-state.ts` now 117/80 lines** — this is a blocking violation
+- Pattern: Quiz session hooks are accumulating functionality; need proactive split before next feature lands
+- Suggest: Split handlers into separate hook OR move to component level immediately
+
+**Verdict:** BLOCKING — hook exceeds line limit. Must refactor before merging to main.

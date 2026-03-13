@@ -601,6 +601,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction (migration 022), eliminating the window where the incorrect-filter counter could read stale data
 - Full FSRS scheduling (due, stability, difficulty) continues to be handled by the application layer after the RPC returns
 - Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
+- Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, rejects duplicates, verifies question membership in session
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -630,36 +631,54 @@ DECLARE
   v_answered        int;
   v_correct_count   int;
   v_score           numeric(5,2);
+  v_session_question_ids uuid[];
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
-  -- Verify session belongs to this student and is still active (FOR UPDATE prevents race)
-  SELECT qs.organization_id, qs.total_questions
-  INTO v_org_id, v_total
+  -- Verify session belongs to this student, is still active, and not discarded
+  SELECT qs.organization_id, qs.total_questions,
+         ARRAY(SELECT jsonb_array_elements_text(qs.config->'question_ids'))::uuid[]
+  INTO v_org_id, v_total, v_session_question_ids
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
     AND qs.ended_at IS NULL
+    AND qs.deleted_at IS NULL
   FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found or already completed';
   END IF;
 
-  -- Guard against empty answers
-  IF jsonb_array_length(p_answers) = 0 THEN
-    RAISE EXCEPTION 'answers must not be empty';
+  -- Validate p_answers is a non-null JSON array
+  IF p_answers IS NULL
+     OR jsonb_typeof(p_answers) <> 'array'
+     OR jsonb_array_length(p_answers) = 0 THEN
+    RAISE EXCEPTION 'answers must be a non-empty JSON array';
   END IF;
 
-  -- Process each answer
+  -- Reject duplicate question_id entries in payload
+  IF (
+    SELECT count(*) <> count(DISTINCT (e->>'question_id'))
+    FROM jsonb_array_elements(p_answers) AS e
+  ) THEN
+    RAISE EXCEPTION 'duplicate question_id in answers payload';
+  END IF;
+
+  -- Process each provided answer (partial submission is allowed — students may skip questions)
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP
     v_question_id     := (v_answer->>'question_id')::uuid;
     v_selected_option := v_answer->>'selected_option';
     v_response_time   := (v_answer->>'response_time_ms')::int;
+
+    -- Validate question belongs to this session
+    IF NOT (v_question_id = ANY(v_session_question_ids)) THEN
+      RAISE EXCEPTION 'question % does not belong to session %', v_question_id, p_session_id;
+    END IF;
 
     -- Get correct answer and explanation
     SELECT

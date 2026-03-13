@@ -177,6 +177,52 @@ describe('useQuizState — answer selection', () => {
     expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-a')
   })
 
+  it('blocks a concurrent double-click before the first async response settles (ref lock)', async () => {
+    // Simulate a slow checkAnswer so both calls can be in-flight simultaneously.
+    // Without lockedQuestionsRef, both calls would pass the answers.has() check
+    // (state hasn't updated yet) and both would call checkAnswer.
+    // With the ref lock, the second call should be dropped immediately.
+    let resolveFirst: (() => void) | null = null
+    mockCheckAnswer.mockImplementationOnce(
+      () =>
+        new Promise<{
+          success: boolean
+          isCorrect: boolean
+          correctOptionId: string
+          explanationText: null
+          explanationImageUrl: null
+        }>((resolve) => {
+          resolveFirst = () =>
+            resolve({
+              success: true,
+              isCorrect: true,
+              correctOptionId: 'opt-a',
+              explanationText: null,
+              explanationImageUrl: null,
+            })
+        }),
+    )
+
+    const { result } = renderHook(() =>
+      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Fire both calls without awaiting between them — simulating a rapid double-click.
+    // The second call must be blocked by lockedQuestionsRef before state has settled.
+    await act(async () => {
+      const p1 = result.current.handleSelectAnswer('opt-a')
+      const p2 = result.current.handleSelectAnswer('opt-b')
+      resolveFirst?.()
+      await Promise.all([p1, p2])
+    })
+
+    // Only one checkAnswer call despite two handleSelectAnswer invocations.
+    expect(mockCheckAnswer).toHaveBeenCalledTimes(1)
+    // Only opt-a was recorded; opt-b was dropped by the ref lock.
+    expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-a')
+    expect(result.current.answeredCount).toBe(1)
+  })
+
   it('hydrates answers from initialAnswers', () => {
     const { result } = renderHook(() =>
       useQuizState({

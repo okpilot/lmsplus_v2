@@ -54,7 +54,7 @@ because `jsonb_array_elements` preserves array order. If the RPC ever processes 
 different order (e.g., sorted by question_id for lock ordering), FSRS would apply wrong
 isCorrect values to wrong questions — silently.
 **Fix:** Use `Map<questionId, isCorrect>` from results instead of positional index.
-**Watch for:** any future RPC change that reorders the results array.
+**Status: RESOLVED in commit 741ae30** — `updateFsrsCards` now uses `new Map(results.map(r => [r.questionId, r.isCorrect]))` and iterates `answers`, looking up each questionId in the map. Order-independent. Pattern resolved.
 
 ### loadSessionQuestions — 'use server' Server Action missing auth check
 **First seen:** commit 97ab4ac (2026-03-12)
@@ -141,6 +141,27 @@ Server Action boundary is acceptable — Next.js converts uncaught errors in Ser
 generic error response. The tests confirm Zod rejection behavior is tested (lookup.test.ts lines
 90-120). No inconsistency.
 **Status:** GOOD — consistent with sibling functions in the file.
+
+### batch_submit_quiz — duplicate check operates on raw text, not normalised uuid (commit 741ae30)
+**First seen:** commit 741ae30 (2026-03-13)
+**File:** `supabase/migrations/20260313000025_batch_submit_input_validation.sql` lines 56-62
+**Pattern:** The new duplicate check counts `DISTINCT (e->>'question_id')` — raw text — while the
+loop casts `(v_answer->>'question_id')::uuid`. A payload with two entries differing only in
+UUID case (e.g. upper vs lower hex) passes the text-level dedup check but resolves to the same
+uuid in the loop. The second insert no-ops via ON CONFLICT DO NOTHING, silently ignored.
+**Fix:** Cast to ::uuid inside the DISTINCT: `count(DISTINCT (e->>'question_id')::uuid)`.
+**Status:** ISSUE — filed in commit 741ae30 review. Watch for text-vs-uuid dedup pattern in
+any future RPC that checks for uniqueness using `->>'field'` before a `::uuid` cast.
+
+### useRef lock — ordering invariant: setAnswers must precede await (commit 741ae30)
+**First seen:** commit 741ae30 (2026-03-13)
+**File:** `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` — `handleSelectAnswer`
+**Pattern:** Lock is acquired (line 47) and then `setAnswers` fires (line 49-51) before
+`await checkAnswer` (line 52). This ordering is load-bearing: if checkAnswer fails,
+the answer is already in state and the lock correctly prevents re-entry matching the
+`answers.has(questionId)` semantics. Moving setAnswers after the await would break this
+invariant — the lock would fire but no answer would be recorded, leaving a stuck question.
+**Watch for:** any refactor to `handleSelectAnswer` that moves `setAnswers` after the await.
 
 ### quiz-report.ts — direct SELECT on questions table with options JSONB including correct field
 **First seen:** commits dce30b1 / e8d70fc (2026-03-12)

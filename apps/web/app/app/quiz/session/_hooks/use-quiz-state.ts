@@ -4,11 +4,11 @@ import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import { checkAnswer } from '../../actions/check-answer'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
-import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
+import { useQuizSubmit } from './use-quiz-submit'
 
-export function useQuizState(opts: {
+export type QuizStateOpts = {
   sessionId: string
   questions: SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
@@ -16,7 +16,9 @@ export function useQuizState(opts: {
   draftId?: string
   subjectName?: string
   subjectCode?: string
-}) {
+}
+
+export function useQuizState(opts: QuizStateOpts) {
   const { sessionId, questions, initialAnswers } = opts
   const router = useRouter()
   const nav = useQuizNavigation({
@@ -28,20 +30,27 @@ export function useQuizState(opts: {
   )
   const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
   const { pinnedQuestions, togglePin: togglePinById } = usePinnedQuestions()
-  const submitted = useRef(false)
   const answersRef = useRef(answers)
   answersRef.current = answers
-  const [showFinishDialog, setShowFinishDialog] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+
+  const { submitted, ...submit } = useQuizSubmit({
+    sessionId,
+    questions,
+    answersRef,
+    currentIndex: nav.currentIndex,
+    router,
+    draftId: opts.draftId,
+    subjectName: opts.subjectName,
+    subjectCode: opts.subjectCode,
+  })
   useNavigationGuard(answers.size > 0 && !submitted.current)
 
   const question = questions[nav.currentIndex]
   const questionId = question?.id ?? ''
-  const shared = { router, setSubmitting, setError }
-
   const lockedQuestionsRef = useRef<Set<string>>(new Set())
 
+  // Lock acquired synchronously; setAnswers fires before await so the
+  // lock mirrors answers state even if checkAnswer fails.
   async function handleSelectAnswer(optionId: string) {
     if (lockedQuestionsRef.current.has(questionId) || answers.has(questionId)) return
     lockedQuestionsRef.current.add(questionId)
@@ -63,34 +72,6 @@ export function useQuizState(opts: {
     }
   }
 
-  function handleSubmit() {
-    return handleSubmitSession({
-      sessionId,
-      answers: answersRef.current,
-      draftId: opts.draftId,
-      onSuccess: () => {
-        submitted.current = true
-        setShowFinishDialog(false)
-      },
-      ...shared,
-    })
-  }
-  function handleSave() {
-    return handleSaveSession({
-      sessionId,
-      questions,
-      answers: answersRef.current,
-      currentIndex: nav.currentIndex,
-      draftId: opts.draftId,
-      subjectName: opts.subjectName,
-      subjectCode: opts.subjectCode,
-      ...shared,
-    })
-  }
-  function handleDiscard() {
-    return handleDiscardSession({ sessionId, draftId: opts.draftId, ...shared })
-  }
-
   return {
     currentIndex: nav.currentIndex,
     question,
@@ -102,16 +83,10 @@ export function useQuizState(opts: {
     answeredIds: new Set(answers.keys()),
     pinnedQuestions,
     isPinned: pinnedQuestions.has(questionId),
-    submitting,
-    error,
-    showFinishDialog,
     handleSelectAnswer,
     navigateTo: nav.navigateTo,
-    handleSubmit,
-    handleSave,
-    handleDiscard,
-    setShowFinishDialog,
     navigate: nav.navigate,
     togglePin: () => togglePinById(questionId),
+    ...submit,
   }
 }

@@ -534,6 +534,46 @@ in `afterEach` so each test gets a fresh module load.
 Dynamic `import()` after `resetModules()` forces Node to re-evaluate the module, picking
 up the newly stubbed env value.
 
+### Testing concurrent async race conditions (ref lock / double-click guard)
+When a `useRef` lock is added to block concurrent calls before async state settles,
+test it by firing two calls without awaiting between them inside a single `act()`:
+
+```ts
+// Deferred promise — lets us control when the first call resolves
+let resolveFirst: (() => void) | null = null
+mockCheckAnswer.mockImplementationOnce(
+  () =>
+    new Promise<ReturnType>((resolve) => {
+      resolveFirst = () => resolve({ success: true, ... })
+    }),
+)
+
+await act(async () => {
+  const p1 = result.current.handleSelectAnswer('opt-a')
+  const p2 = result.current.handleSelectAnswer('opt-b')  // fired before p1 resolves
+  resolveFirst?.()
+  await Promise.all([p1, p2])
+})
+
+expect(mockCheckAnswer).toHaveBeenCalledTimes(1)  // ref lock dropped p2
+expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-a')
+```
+
+Key points:
+- Use `mockImplementationOnce` with a deferred promise so p2 fires while p1 is still pending
+- Both calls go inside a single `act()` wrapper so React state is flushed together
+- Assert on `toHaveBeenCalledTimes(1)` to prove the downstream call was blocked, not just
+  that state is correct (state correctness alone would pass even without the ref lock once
+  the state-based guard fires on the second call)
+- This pattern distinguishes the ref lock (fires synchronously, before state) from the
+  state-based guard (fires after the first `setState` re-render)
+
+## Files extended in commit eb67cc8 (lockedQuestionsRef)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` | `use-quiz-state.test.ts` | Extended: added concurrent double-click test for `lockedQuestionsRef` race guard |
+
 ---
 
 ## Files tested in commits 044542f + d183a8c (CSP + security fixes)
