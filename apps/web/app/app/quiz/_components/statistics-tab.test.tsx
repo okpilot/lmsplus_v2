@@ -138,7 +138,7 @@ describe('StatisticsTab', () => {
     })
   })
 
-  it('formats "learning" fsrs state as "Learning"', async () => {
+  it('renders learning state with readable capitalization', async () => {
     mockFetchQuestionStats.mockResolvedValue({ ...defaultStats, fsrsState: 'learning' })
     const user = userEvent.setup()
     render(<StatisticsTab questionId="q-1" hasAnswered={true} />)

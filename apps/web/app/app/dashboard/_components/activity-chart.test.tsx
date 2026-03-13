@@ -1,6 +1,6 @@
 import type { DailyActivity } from '@/lib/queries/analytics'
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Capture the data prop passed to BarChart so we can assert on formatted labels.
 let capturedBarChartData: unknown[] = []
@@ -26,6 +26,10 @@ function makeDay(day: string, correct: number, incorrect: number): DailyActivity
 }
 
 describe('ActivityChart', () => {
+  beforeEach(() => {
+    capturedBarChartData = []
+  })
+
   it('shows empty state message when data array is empty', () => {
     render(<ActivityChart data={[]} />)
     expect(screen.getByText('No activity data yet.')).toBeInTheDocument()
