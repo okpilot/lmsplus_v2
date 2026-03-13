@@ -168,3 +168,4 @@ Everything else (code review, docs, tests) runs through ME as subagents so findi
 
 ## Push protocol
 Never push without explicit user approval. Always ask first.
+For branches with 2+ commits, run a full-diff semantic review (`git diff master...HEAD`) before pushing — see `agent-workflow.md § Pre-Push PR Sweep`.
