@@ -1,5 +1,5 @@
 import type { SubjectOption } from '@/lib/queries/quiz'
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import type { QuestionFilter } from '../_components/question-filters'
 import { getFilteredCount } from '../actions/lookup'
 import { useQuizCascade } from './use-quiz-cascade'
@@ -11,6 +11,7 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
   const [count, setCount] = useState(10)
   const [filteredCount, setFilteredCount] = useState<number | null>(null)
   const [, startFilterTransition] = useTransition()
+  const filterGeneration = useRef(0)
 
   const { subjectId, topicId, subtopicId, topics, subtopics } = cascade
   const staticCount = subtopicId
@@ -36,6 +37,8 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     setFilter(newFilter)
     if (!subjectId) return
     setFilteredCount(null)
+    filterGeneration.current++
+    const gen = filterGeneration.current
     startFilterTransition(async () => {
       const result = await getFilteredCount({
         subjectId,
@@ -43,7 +46,9 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
         subtopicId: subtopicId || undefined,
         filter: newFilter,
       })
-      setFilteredCount(result.count)
+      if (gen === filterGeneration.current) {
+        setFilteredCount(result.count)
+      }
     })
   }
 

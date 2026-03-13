@@ -51,14 +51,13 @@ export async function discardQuiz(
       user.id,
     )
 
-    // Soft-delete the associated draft if one exists
+    // Hard-delete the associated draft if one exists (quiz_drafts has no deleted_at column)
     if (input.draftId) {
       const { error: draftError } = await supabase
         .from('quiz_drafts' as 'users')
-        .update({ deleted_at: new Date().toISOString() } as never)
+        .delete()
         .eq('id', input.draftId)
         .eq('student_id', user.id)
-        .is('deleted_at', null)
 
       if (draftError) {
         console.error('[discardQuiz] Draft cleanup error:', draftError.message)

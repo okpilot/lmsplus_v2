@@ -1,5 +1,5 @@
 import type { SubtopicOption, TopicOption } from '@/lib/queries/quiz'
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { fetchSubtopicsForTopic, fetchTopicsForSubject } from '../actions/lookup'
 
 export function useQuizCascade() {
@@ -9,24 +9,35 @@ export function useQuizCascade() {
   const [topics, setTopics] = useState<TopicOption[]>([])
   const [subtopics, setSubtopics] = useState<SubtopicOption[]>([])
   const [isPending, startTransition] = useTransition()
+  const generation = useRef(0)
 
   function handleSubjectChange(newSubjectId: string) {
+    generation.current++
     setSubjectId(newSubjectId)
     setTopicId('')
     setSubtopicId('')
     setTopics([])
     setSubtopics([])
     if (newSubjectId) {
-      startTransition(async () => setTopics(await fetchTopicsForSubject(newSubjectId)))
+      const gen = generation.current
+      startTransition(async () => {
+        const result = await fetchTopicsForSubject(newSubjectId)
+        if (gen === generation.current) setTopics(result)
+      })
     }
   }
 
   function handleTopicChange(newTopicId: string) {
+    generation.current++
     setTopicId(newTopicId)
     setSubtopicId('')
     setSubtopics([])
     if (newTopicId) {
-      startTransition(async () => setSubtopics(await fetchSubtopicsForTopic(newTopicId)))
+      const gen = generation.current
+      startTransition(async () => {
+        const result = await fetchSubtopicsForTopic(newTopicId)
+        if (gen === generation.current) setSubtopics(result)
+      })
     }
   }
 
