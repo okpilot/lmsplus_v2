@@ -171,7 +171,7 @@ describe('getAllSessions', () => {
     )
   })
 
-  it('falls back to correct_count for answeredCount when session has no answer rows', async () => {
+  it('falls back to total_questions for answeredCount when session has no answer rows', async () => {
     const sessions = [
       {
         id: 'sess-3',

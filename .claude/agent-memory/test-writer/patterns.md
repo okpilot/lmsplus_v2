@@ -470,6 +470,50 @@ env var. `vi.stubEnv` always stores a string, so `startsWith` on `undefined` wou
 the source uses optional chaining (`process.env.KEY?.startsWith(...)`) which returns `undefined`
 (falsy) when the var is missing. Deleting the key lets that optional chain evaluate correctly.
 
+### Testing UI orchestrator handlers (setSubmitting / setError pattern)
+Handlers that coordinate state callbacks (`setSubmitting`, `setError`, `onSuccess`) and a
+router should be tested with inline `vi.fn()` mocks — do NOT render a component. Pass them
+in an options object and assert on the mock call history:
+
+```ts
+function makeOpts(overrides?: Partial<Parameters<typeof handleFoo>[0]>) {
+  return {
+    sessionId: SESSION_ID,
+    router: makeRouter() as never,
+    setSubmitting: vi.fn(),
+    setError: vi.fn(),
+    onSuccess: vi.fn(),
+    ...overrides,
+  }
+}
+
+it('sets error and returns early when precondition fails', async () => {
+  const opts = makeOpts({ answers: new Map() })
+  await handleFoo(opts)
+  expect(opts.setError).toHaveBeenCalledWith('expected message')
+  expect(opts.setSubmitting).not.toHaveBeenCalled()
+})
+```
+
+Key assertions to cover per handler:
+1. Happy path: `onSuccess` / `router.push` called, error not set
+2. Guard clause: early return with `setError`, downstream action NOT called
+3. Failure path: `setError` set, `setSubmitting(false)` reset
+4. Ordering: `setSubmitting(true)` and `setError(null)` fire BEFORE the action call
+
+### Stale test description after source logic changes
+When a source change alters a fallback value (e.g., `?? s.correct_count` → `?? s.total_questions`),
+update the corresponding test description to match. A passing test with a wrong description
+is misleading. Example: "falls back to correct_count" → "falls back to total_questions".
+
+## Files extended in commit 028fc09 (Zod validation + handler extraction)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/lookup.ts` | `lookup.test.ts` | Extended: added 4 Zod rejection tests for `fetchTopicsForSubject` and `fetchSubtopicsForTopic` (null + non-UUID) |
+| `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts` | `quiz-submit.test.ts` | Extended: added `discardQuiz` mock + 14 tests across `handleSubmitSession`, `handleSaveSession`, `handleDiscardSession` |
+| `apps/web/lib/queries/reports.ts` | `reports.test.ts` | Fixed stale description: "falls back to correct_count" → "falls back to total_questions" |
+
 ### Testing module-level constants that depend on NODE_ENV
 When a module evaluates `process.env.NODE_ENV` at the top level (not inside a function),
 `vi.stubEnv` alone is not enough — the value is already captured. Use this pattern to

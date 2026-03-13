@@ -86,6 +86,14 @@ describe('fetchTopicsForSubject', () => {
     const result = await fetchTopicsForSubject(SUBJECT_ID)
     expect(result).toEqual([])
   })
+
+  it('throws (Zod) when the id is not a valid UUID', async () => {
+    await expect(fetchTopicsForSubject('not-a-uuid')).rejects.toThrow()
+  })
+
+  it('throws (Zod) when the id is null', async () => {
+    await expect(fetchTopicsForSubject(null)).rejects.toThrow()
+  })
 })
 
 // ---- fetchSubtopicsForTopic -----------------------------------------------
@@ -102,6 +110,14 @@ describe('fetchSubtopicsForTopic', () => {
     mockGetSubtopicsForTopic.mockResolvedValue([])
     const result = await fetchSubtopicsForTopic(TOPIC_ID)
     expect(result).toEqual([])
+  })
+
+  it('throws (Zod) when the id is not a valid UUID', async () => {
+    await expect(fetchSubtopicsForTopic('not-a-uuid')).rejects.toThrow()
+  })
+
+  it('throws (Zod) when the id is null', async () => {
+    await expect(fetchSubtopicsForTopic(null)).rejects.toThrow()
   })
 })
 

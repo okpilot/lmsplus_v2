@@ -122,6 +122,26 @@ redirect — so the defense-in-depth gap is real but not exploitable in the curr
 **Watch for:** inconsistency in the `lib/queries/` pattern: all sibling functions call `getUser()`,
 this one does not. Flag new functions in this family that omit the explicit check.
 
+### lookup.ts — unused import of createServerSupabaseClient in the two thin wrapper functions
+**First seen:** commit 028fc09 (2026-03-13)
+**File:** `apps/web/app/app/quiz/actions/lookup.ts`
+**Pattern:** `createServerSupabaseClient` is imported at line 5. It is used by `getFilteredCount`
+(line 30) but NOT by `fetchTopicsForSubject` or `fetchSubtopicsForTopic`, which delegate to
+`lib/queries/quiz.ts`. The import is correct and needed — it just appears misleadingly early
+relative to the two thin wrappers. Not a bug; noting for context.
+**Status:** SUGGESTION — cosmetic, non-blocking.
+
+### lookup.ts — fetchTopicsForSubject / fetchSubtopicsForTopic Zod parse throws on invalid input
+**First seen:** commit 028fc09 (2026-03-13)
+**File:** `apps/web/app/app/quiz/actions/lookup.ts` lines 10-16
+**Pattern:** Both thin wrappers now use `IdSchema.parse(raw)` which throws a `ZodError` on invalid
+input. They have no try/catch. Compare with `getFilteredCount` (same file) which also throws on
+Zod failure. The pattern is consistent across the file. `ZodError` propagating up to the Next.js
+Server Action boundary is acceptable — Next.js converts uncaught errors in Server Actions to a
+generic error response. The tests confirm Zod rejection behavior is tested (lookup.test.ts lines
+90-120). No inconsistency.
+**Status:** GOOD — consistent with sibling functions in the file.
+
 ### quiz-report.ts — direct SELECT on questions table with options JSONB including correct field
 **First seen:** commits dce30b1 / e8d70fc (2026-03-12)
 **File:** `apps/web/lib/queries/quiz-report.ts`

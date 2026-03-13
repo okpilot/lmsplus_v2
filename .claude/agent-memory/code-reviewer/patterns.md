@@ -4,6 +4,7 @@
 
 - **Hooks at 70+ lines**: Flag as WARNING-level watch item. Authors should know they are 10 lines from the hard limit before they get there, not after. Hooks that reach 70 lines should include a note about what to extract if they grow further.
 - **`use-quiz-state.ts` approaching limit (138/80 lines)**: Added 12 lines in commit 157f421. Currently 58 lines over limit. **WATCH**: This hook is now a blocker and should be split into smaller hooks (one per handler: useQuizSubmit, useQuizAnswerHandling, useQuizSave, useQuizDiscard). Pattern suggests each handler (submit, save, discard, answer selection) should be its own hook — they're loosely coupled state machines for different quiz actions.
+- **Input validation pattern solidifying**: Commit 028fc09 (`lookup.ts`) demonstrates consistent adoption of Zod validation in Server Actions. This is a positive pattern — all lookup functions now validate UUID inputs before use. No more unvalidated type casts at the boundary.
 - **Component extraction working well**: Multiple successful refactorings in this sprint:
   - Commit 53efbdd extracted `FsrsSection` sub-component from `StatsDisplay`, bringing `statistics-tab.tsx` down to 158 lines
   - Commit f0f8d0e extracted `useQuestionStats()` hook + `ChartBody` component, bringing `statistics-tab.tsx` to exactly 150 lines (limit), split `activity-chart.tsx` into two helper functions
@@ -85,6 +86,27 @@
 - Function extraction pattern working well (3 focused helpers, each ≤27 lines)
 - Test coverage improved: added new test for zero-row silent no-op case
 - All related files and tests updated consistently in same commit
+
+## Session 2026-03-13 (commit 028fc09) — Input validation in lookup actions (CLEAN)
+
+### Commit: 028fc09 (fix: add Zod validation to lookup Server Actions)
+- Status: **CLEAN** — No violations
+- Files changed: 1 file, 4 insertions, 4 deletions
+- Summary: Added Zod UUID validation to `fetchTopicsForSubject` and `fetchSubtopicsForTopic` Server Actions
+
+**✅ All checks PASS:**
+- ✓ File size: 76 lines (within 100-line limit for Server Action files)
+- ✓ Functions: 2 functions, both ≤3 lines (pure validation + delegation, correct pattern)
+- ✓ TypeScript: No `any` types; input properly validated with Zod.parse() before use
+- ✓ Parameters: Both functions correctly take `unknown` and validate via Zod (proper boundary validation)
+- ✓ Server Action pattern: Correct input validation at boundary, delegates to utility functions
+- ✓ No type casting without validation (uses Zod.parse() not `as`)
+
+**Pattern observation:**
+- Input validation pattern is now solidified across lookup Server Actions
+- Consistent with code-style.md Section 5: "No Type Casting Unvalidated External Data"
+- Small, focused functions (≤3 lines each) following delegation pattern
+- Server Actions properly validate at the boundary before passing to utility layers
 
 ## Session 2026-03-12 (cont.) — CodeRabbit Review Round 5
 
