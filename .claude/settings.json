@@ -30,6 +30,15 @@
             "command": "node .claude/hooks/guard-bash.js \"$CLAUDE_TOOL_INPUT\""
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/review-gate.js"
+          }
+        ]
       }
     ],
     "Stop": [

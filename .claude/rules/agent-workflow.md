@@ -89,7 +89,9 @@ git commit
                                      │
                               read ALL results
                                      │
-                              fix issues (commit)
+                              validate findings (see below)
+                                     │
+                              fix validated issues (commit)
                                      │
                               ┌──────┴──────┐
                               │   learner   │  (sonnet) — pattern detection
@@ -118,11 +120,22 @@ This catches cross-file consistency issues that per-commit reviews miss:
 Run semantic-reviewer (sonnet) with the full PR diff as input, not just `HEAD~1..HEAD`.
 This is what CodeRabbit sees — our agents must see it too.
 
+## Finding Validation (MANDATORY before fixing)
+
+When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Validate first:
+
+1. **Analyze the claim** — Is the reviewer correct? Think about domain logic, not just code patterns. Reviewers can produce false positives.
+2. **Check implications** — If you apply the suggested fix, what callers/tests/docs break? Read the affected code.
+3. **Decide** — Is this a real issue, a false positive, or a valid concern that needs a different fix than suggested?
+4. **If the fix changes the plan** — Re-validate the changed parts before implementing.
+
+Only then fix. This is a closed loop: `finding → validate → fix → re-validate if plan changed`.
+
 ## Orchestrator Role
 
 - **You plan and review. Agents execute.**
 - Read every agent result before proceeding. No fire-and-forget.
-- If an agent found an issue, address it before moving on.
+- If an agent found an issue, validate it first, then address it before moving on.
 - Group related fixes into a single commit when possible.
 - After fix commits that change production code, re-run semantic-reviewer on the new diff.
 - Repeat until all agents report clean.
@@ -130,6 +143,7 @@ This is what CodeRabbit sees — our agents must see it too.
 ### DO
 - Launch all 4 post-commit agents in parallel immediately after every commit.
 - Read all results before starting any fixes.
+- Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
 - Report ALL severity levels — not just criticals.
 - Re-run agents on fix commits if production code changed.
@@ -138,6 +152,7 @@ This is what CodeRabbit sees — our agents must see it too.
 - Skip post-commit agents. Ever. Not even for "trivial" commits.
 - Start fixing after only one agent reports — wait for all 4.
 - Fire-and-forget agents without reading results.
+- **Jump to fix a reviewer finding without first validating the claim.** Reviewer says ISSUE ≠ automatically correct.
 - Present "0 critical" as if that means clean — report every severity.
 - Push with any unresolved CRITICAL, BLOCKING, or ISSUE finding.
 - Push with failing tests.
@@ -147,4 +162,4 @@ This is what CodeRabbit sees — our agents must see it too.
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-coderabbit-sync.md`*
 
-*Last updated: 2026-03-13*
+*Last updated: 2026-03-13 (review-gate hook added)*
