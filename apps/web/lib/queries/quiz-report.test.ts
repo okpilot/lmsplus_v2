@@ -160,6 +160,13 @@ describe('getQuizReport', () => {
     expect(q2.correctOptionId).toBe('opt-d')
   })
 
+  it('returns null when session is still active to prevent mid-session answer exposure', async () => {
+    const activeSession = { ...sessionRow, ended_at: null }
+    mockFromSequence({ data: activeSession })
+    const report = await getQuizReport('sess-1')
+    expect(report).toBeNull()
+  })
+
   it('returns null when session does not exist', async () => {
     mockFromSequence({ data: null })
     const report = await getQuizReport('nonexistent')

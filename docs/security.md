@@ -260,9 +260,19 @@ END;
 $$;
 ```
 
-**Rule:** Any Server Action or API route that serves questions to students must use `get_quiz_questions()` — never a raw `SELECT * FROM questions`.
+**Rule:** Any Server Action or API route that serves questions **during an active session** must use `get_quiz_questions()` — never a raw `SELECT * FROM questions`.
 
-Correct answers are only fetched server-side when validating a submitted answer, never returned to the client.
+Correct answers are only fetched server-side when validating a submitted answer, never returned to the client during an active session.
+
+### Post-Session Exception
+
+Post-session report queries (e.g., `getQuizReport()`) may SELECT from `questions` directly and read the `correct` field server-side, provided:
+
+1. The query verifies the session is **completed** (`ended_at IS NOT NULL` — student has already answered all questions)
+2. The `correct` boolean is **stripped before returning** — the client receives only `correctOptionId` (a single ID) and options without the `correct` field
+3. The query runs in a **Server Component** (data never hits the client as raw DB rows)
+
+This is intentional feedback — showing which answer was correct after the student has answered is the core learning loop, not a data leak.
 
 ---
 

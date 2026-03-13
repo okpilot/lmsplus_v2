@@ -152,8 +152,10 @@ reviews:
           EXCEPTION: Post-session report queries (e.g. getQuizReport) that SELECT
           questions server-side and strip the correct field before returning to the
           client are acceptable. The student has already answered — showing the correct
-          answer is intentional feedback. Verify the stripping logic exists before flagging.
-          Block only if correct answers reach the client unstripped.
+          answer is intentional feedback. Verify BOTH: (1) the stripping logic removes
+          `correct` from options before returning to the client, AND (2) the query
+          confirms the session is completed (ended_at IS NOT NULL) before fetching
+          question data. Block if either condition is missing.
 
       - mode: "warning"
         name: "soft-delete-only"
