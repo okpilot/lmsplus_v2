@@ -71,30 +71,34 @@
 - Supabase middleware client helper in `packages/db/src/middleware.ts`
 - Root layout metadata updated (was "Create Next App")
 
-**Phase 5 done (2026-03-11):** Question Bank Trainer (MVP 2):
-- Dashboard (`/app/dashboard`) — subject progress grid, due reviews banner, recent sessions
-- Smart Review (`/app/review`) — FSRS-powered spaced repetition, start session, review due cards only; explainer component; subject filter (optional)
+**Phase 5 done (2026-03-11, refined 2026-03-13):** Question Bank Trainer (MVP 2):
+- Dashboard (`/app/dashboard`) — subject progress grid, recent sessions, quick actions (Start Quiz)
 - Quiz (`/app/quiz`) — subject selector, question count, randomized quiz mode
 - Progress (`/app/progress`) — detailed breakdown by subject/topic with mastery percentages
+- Reports (`/app/reports`) — session history with sortable columns, click-through to quiz report
 - Shared components: QuestionCard, AnswerOptions, FeedbackPanel, SessionSummary
 - Sidebar navigation for all modes
-- Server Actions split into feature files: quiz/actions/{start, submit, complete, batch-submit}.ts + review/actions.ts
-- Quiz session: deferred writes architecture — answers accumulate in React state, batch submitted on finish
-- Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData, getDueCards
+- Server Actions split into feature files: quiz/actions/{start, submit, complete, batch-submit}.ts
+- Quiz session: deferred writes architecture — answers accumulate in React state, batch submitted on finish. Partial submissions allowed (students can skip questions).
+- Immediate feedback: answers locked after selection, explanation shown in-session
+- Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData
 - FSRS integration via `packages/db/src/fsrs.ts` — wraps ts-fsrs library, updateFsrsCard on answer
 - UI components (shadcn): Badge, Card, Progress, Skeleton
 - Tests written for auth flow, middleware, server actions
 - Session state machine: answering → show-finish-dialog → submit-batch → complete
 - Dark mode: next-themes provider, system default, toggle in header
+- Quiz drafts: up to 20 saved drafts per student for resuming interrupted sessions
+- Statistics tab: per-question stats (times seen, accuracy, FSRS state), auto-loads on tab click
 
-**Phase 5B-7 done (2026-03-12):** Deferred Quiz Writes:
+**Phase 5B-7 done (2026-03-12, refined 2026-03-13):** Deferred Quiz Writes & Immediate Feedback:
 - Refactored quiz/actions.ts into feature-based files: start.ts, submit.ts, complete.ts, batch-submit.ts
 - Quiz state machine updated: answers stored in React state (Map<questionId, {selectedOptionId, responseTimeMs}>)
-- New `batchSubmitQuiz` Server Action: validates batch of answers, calls `submit_quiz_answer` RPC × N, calls `complete_quiz_session` RPC, updates FSRS cards
-- FinishQuizDialog: modal with unanswered count warning, options: Return to Quiz, Save for Later (stub), Submit Quiz
+- Migration 017: `batch_submit_quiz` RPC — allows partial answers; score calculated as `correct / answered` (not `correct / total`)
+- FinishQuizDialog: modal with unanswered count warning, options: Return to Quiz, Save for Later, Submit Quiz
 - QuizNavBar: question navigator with previous/next buttons, current index display
+- Immediate answer feedback: after selection, answer is locked and explanation shown inline (not deferred to end)
 - Session Zod types: SubmitRpcResult, CompleteRpcResult, StartQuizResult, SubmitQuizAnswerResult, CompleteQuizResult, BatchAnswerResult, BatchSubmitResult
-- QuizSession component updated to use deferred state + finish dialog instead of immediate feedback per answer
+- QuizSession component displays explanation immediately after answer selection
 
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
@@ -161,19 +165,17 @@
 - **Docs updated:** security.md and database.md reflect immutable table policy pattern (RPC-only writes, no direct client inserts)
 - Migration 005 (`quiz_session_answers` → `quiz_sessions` FK) moved; `020260311000006` is the immutable INSERT restriction
 
-**Phase 6-Sprint1 complete (2026-03-12):** Quick Wins — all 10 backlog items (1.1–1.10) done in 8 commits on `feat/sprint-1-quick-wins`:
+**Phase 6-Sprint1 complete (2026-03-12, refined 2026-03-13):** Quick Wins — all 10 backlog items (1.1–1.10) done in 8 commits on `feat/sprint-1-quick-wins`:
 - ✅ Renamed "Quick Quiz" → "Quiz" throughout UI (sidebar, page heading, session summary, recent sessions list)
-- ✅ Simplified Smart Review: removed new question supplementation logic (now review-only — only due cards)
-- ✅ Added ReviewExplainer component — collapsible "How Smart Review works" panel explaining spaced repetition + recommended 10–15 min daily usage
 - ✅ Migration 008: added `question_number` to `get_quiz_questions()` RPC return set
 - ✅ MarkdownText component (`react-markdown` + `remark-gfm`) for questions and explanations
 - ✅ ZoomableImage component (click-to-expand lightbox via `@base-ui/react/dialog`)
-- ✅ Question number displayed in quiz and review session UI
-- ✅ Elapsed timer component visible during quiz and review sessions
-- ✅ Loading skeletons: Skeleton UI component, `loading.tsx` files for dashboard/quiz/review/progress, skeleton states in session loaders
-- ✅ Subject selector on Smart Review: `ReviewConfigForm` with subject checkboxes; `getDueCards` accepts `{ limit?, subjectIds? }` options object
+- ✅ Question number displayed in quiz session UI
+- ✅ Elapsed timer component visible during quiz sessions
+- ✅ Loading skeletons: Skeleton UI component, `loading.tsx` files for dashboard/quiz/progress, skeleton states in session loaders
 - ✅ Mobile navigation drawer: hamburger menu below `md` breakpoint, slide-out drawer with nav links via `@base-ui/react/dialog`, auto-closes on route change
-- Tests updated for renamed labels; new test files for ReviewExplainer, MarkdownText, ZoomableImage, MobileNav
+- ✅ Immediate answer feedback in quiz: answers locked + explanation shown inline after selection
+- Tests updated for renamed labels; new test files for MarkdownText, ZoomableImage, MobileNav
 
 **Phase 6-Sprint2 complete (2026-03-12):** Quiz Overhaul — all items (2.1–2.11) on `feat/sprint-2-quiz-overhaul`:
 - ✅ Migration 009: new `quiz_drafts` table for saving/resuming interrupted quizzes
@@ -396,13 +398,11 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 ### Route structure
 ```
 /app/
-├── dashboard/              ← progress overview, due reviews, recent sessions
-├── review/                 ← Smart Review (FSRS-powered spaced repetition)
-│   └── session/            ← active review session
+├── dashboard/              ← progress overview, recent sessions, quick actions
 ├── quiz/                   ← Quiz config (subject, count, randomized mode)
-│   ├── session/            ← active quiz session
-│   └── report/             ← quiz results page (score %, breakdown, links)
-└── progress/               ← detailed progress per subject/topic/subtopic
+│   └── session/            ← active quiz session (immediate feedback + in-session explanation)
+├── progress/               ← detailed progress per subject/topic/subtopic
+└── reports/                ← session history with sortable columns, links to quiz reports
 ```
 
 ### Components (in `packages/ui/`)
@@ -414,9 +414,9 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 - `SubjectSelector` — EASA subject tree with drill-down
 
 ### FSRS integration
-- `packages/db/src/fsrs.ts` — FSRS review scheduling using ts-fsrs
+- `packages/db/src/fsrs.ts` — FSRS scheduling using ts-fsrs library
 - On answer: update `fsrs_cards` table with new stability/difficulty values
-- Smart Review queue: `SELECT * FROM fsrs_cards WHERE due <= now() ORDER BY due`
+- Statistics tab displays per-question FSRS metadata (state, stability, difficulty, interval)
 
 ---
 
@@ -484,7 +484,7 @@ Weekly
 > Read docs/plan.md and build student auth (Phase 4) — login page, magic link flow, auth callback, session middleware.
 
 **Start Phase 5:**
-> Read docs/plan.md and build the Question Bank Trainer (Phase 5), starting with the dashboard and Smart Review mode.
+> Read docs/plan.md and build the Question Bank Trainer (Phase 5), starting with the dashboard and quiz mode.
 
 ---
 

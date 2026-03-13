@@ -835,7 +835,7 @@ CREATE INDEX idx_lessons_org         ON lessons(organization_id) WHERE deleted_a
 CREATE INDEX idx_quiz_sessions_org   ON quiz_sessions(organization_id);
 CREATE INDEX idx_student_responses_org ON student_responses(organization_id);
 
--- FSRS queue (the hot path — runs every time a student opens Smart Review)
+-- FSRS statistics (queried in statistics tab, sorted by due for review scheduling)
 CREATE INDEX idx_fsrs_cards_due      ON fsrs_cards(student_id, due)
   WHERE state != 'new';
 

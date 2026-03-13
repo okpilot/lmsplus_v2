@@ -203,14 +203,15 @@ lmsplusv2/
 
 ### MVP 2 Features (all P0)
 1. Student auth (magic link)
-2. Student dashboard (progress, per-subject, due reviews)
-3. Smart Review mode (FSRS spaced repetition)
-4. Quick Quiz mode (subject/topic, count/difficulty config)
-5. Question display (text, image, 4 options, submit)
-6. Immediate feedback (correct/incorrect, explanation + graphic, LO ref, history)
-7. Progress tracking (per subject/topic/subtopic)
-8. Session history (questions, scores, time)
+2. Student dashboard (progress, per-subject, recent sessions)
+3. Quiz mode (subject/topic drill-down, count slider, randomized questions, partial submissions allowed)
+4. Question display (text, image, 4 options, submit)
+5. Immediate feedback (correct/incorrect, explanation + graphic, in-session display)
+6. Progress tracking (per subject/topic/subtopic)
+7. Session history (questions, scores, time, sortable reports page)
+8. Question statistics (per-question accuracy, times seen, FSRS metadata)
 9. Multi-tenant data model
+10. Saved quiz drafts (up to 20 per student for resume-interrupted-session workflow)
 
 ### Fast-Follow (NOT MVP 2)
 - Mock Exam mode
