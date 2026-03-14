@@ -468,6 +468,22 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
+## Decision 27: Red-team adversarial security testing (2026-03-14)
+
+**Context:** Static code review and unit tests miss real exploit chains and race conditions. Need active adversarial testing against a running app to prove defenses hold.
+
+**Decided:**
+- Create red-team suite: 9 Playwright attack specs executing exploit chains against local Supabase (same as production)
+- Attack vectors cover: RLS bypass (cross-tenant, question membership), RPC boundary breaches, session forgery (PKCE, replay), race conditions (concurrent discard+complete), audit log tampering, quiz draft injection
+- Separate Playwright project (`e2e/redteam/`) to avoid clutter, testIgnore on normal e2e pipeline
+- Red-team agent (sonnet) triggers post-commit on security-sensitive file changes (migrations, db/src, quiz/actions, auth, proxy.ts, security.md) — maps diff to affected specs, flags coverage gaps
+- Attack surface memory: tracks patterns found, confirmed gaps (marked .fixme), documented gaps (marked .skip), exploitation techniques
+- CI workflow `redteam.yml` auto-runs on branches touching security paths
+- `/redteam` skill command for on-demand execution (useful for validating fixes)
+- Principle: if you can't prove the defense holds under attack, it doesn't
+
+---
+
 ## IDEAS / NOTES
 - ~3,000 existing questions in mixed formats (Excel, Word, PDF) — need import pipeline
 - Students currently use Aviationexam — UX must feel at least as smooth
@@ -479,4 +495,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-13 — Decision 26: Server Action session ownership validation*
+*Last updated: 2026-03-14 — Decision 27: Red-team adversarial security testing suite*

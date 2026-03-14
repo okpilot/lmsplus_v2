@@ -32,7 +32,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
 
     // Resolve real IDs to use as attack inputs — these represent data an
     // attacker might enumerate from leaked IDs or guessing UUIDs.
-    const { data: subjects } = await adminClient.from('subjects').select('id').limit(1)
+    const { data: subjects } = await adminClient.from('easa_subjects').select('id').limit(1)
     knownSubjectId = subjects?.[0]?.id ?? '00000000-0000-0000-0000-000000000000'
 
     const { data: sessions } = await adminClient.from('quiz_sessions').select('id').limit(1)

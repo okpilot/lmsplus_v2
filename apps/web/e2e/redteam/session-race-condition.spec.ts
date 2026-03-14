@@ -28,7 +28,7 @@ test.describe('Red Team: Session Race Condition', () => {
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     const admin = getAdminClient()
-    const { data: subject } = await admin.from('subjects').select('id').limit(1).single()
+    const { data: subject } = await admin.from('easa_subjects').select('id').limit(1).single()
     subjectId = subject!.id
   })
 
@@ -56,10 +56,15 @@ test.describe('Red Team: Session Race Condition', () => {
       response_time_ms: 3000,
     }))
 
-    // Step 3: Complete the session (first terminal state)
-    const { error: completeError } = await attackerClient.rpc('complete_quiz_session', {
+    // Step 3: Submit answers then complete the session (first terminal state)
+    const { error: batchError } = await attackerClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
       p_answers: answers,
+    })
+    expect(batchError).toBeNull()
+
+    const { error: completeError } = await attackerClient.rpc('complete_quiz_session', {
+      p_session_id: sessionId,
     })
     expect(completeError).toBeNull()
 
@@ -67,14 +72,12 @@ test.describe('Red Team: Session Race Condition', () => {
     //         losing side of a race where complete wins.
     //         RLS must block this because the row belongs to the attacker but
     //         completed sessions must not be mutable.
-    const { error: updateError } = await attackerClient
-      .from('quiz_sessions')
-      .update({ status: 'discarded' })
-      .eq('id', sessionId)
+    await attackerClient.from('quiz_sessions').update({ status: 'discarded' }).eq('id', sessionId)
 
-    // The update must be rejected — either via RLS policy or a DB constraint.
-    // If RLS allows the update (no write policy for completed rows), this is a gap.
-    expect(updateError).not.toBeNull()
+    // The update should be rejected (RLS/constraint) or silently affect 0 rows.
+    // Either way, the session status must remain 'completed'.
+    // We rely on the admin re-read below as the authoritative check, since
+    // Supabase returns error: null for zero-row UPDATEs.
 
     // Step 5: Confirm the session remained in its committed terminal state
     const admin = getAdminClient()
@@ -97,20 +100,7 @@ test.describe('Red Team: Session Race Condition', () => {
     expect(startError).toBeNull()
     const sessionId = (startData as { session_id: string }).session_id
 
-    // Step 2: Fetch questions
-    const { data: questions } = await attackerClient.rpc('get_quiz_questions', {
-      p_session_id: sessionId,
-    })
-
-    type Question = { id: string; options: { id: string }[] }
-    const typedQuestions = (questions as Question[]) ?? []
-    const answers = typedQuestions.map((q) => ({
-      question_id: q.id,
-      selected_option: q.options[0]?.id ?? '',
-      response_time_ms: 2000,
-    }))
-
-    // Step 3: Discard the session via RPC (first terminal state)
+    // Step 2: Discard the session via RPC (first terminal state)
     const { error: discardError } = await attackerClient.rpc('discard_quiz_session', {
       p_session_id: sessionId,
     })
@@ -134,7 +124,6 @@ test.describe('Red Team: Session Race Condition', () => {
     // Step 4: Attempt to complete the now-discarded session
     const { error: completeError } = await attackerClient.rpc('complete_quiz_session', {
       p_session_id: sessionId,
-      p_answers: answers,
     })
 
     // Must be rejected — session is in a terminal state

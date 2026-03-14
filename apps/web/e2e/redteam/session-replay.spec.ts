@@ -23,7 +23,7 @@ test.describe('Red Team: Session Replay', () => {
 
     // Resolve a real subject_id to use for session creation
     const admin = getAdminClient()
-    const { data: subject } = await admin.from('subjects').select('id').limit(1).single()
+    const { data: subject } = await admin.from('easa_subjects').select('id').limit(1).single()
     subjectId = subject!.id
   })
 
@@ -56,13 +56,16 @@ test.describe('Red Team: Session Replay', () => {
       response_time_ms: 5000,
     }))
 
-    // Step 4: Complete the session legitimately
+    // Step 4: Submit answers via batch_submit first, then complete
+    const { error: batchError } = await attackerClient.rpc('batch_submit_quiz', {
+      p_session_id: sessionId,
+      p_answers: firstAnswers,
+    })
+    expect(batchError).toBeNull()
+
     const { data: completeData, error: completeError } = await attackerClient.rpc(
       'complete_quiz_session',
-      {
-        p_session_id: sessionId,
-        p_answers: firstAnswers,
-      },
+      { p_session_id: sessionId },
     )
     expect(completeError).toBeNull()
     originalScore = (completeData as { score: number })?.score ?? 0

@@ -1894,3 +1894,84 @@ soft-deletion.
 for sibling RPCs that operate on the same resource in the same flow and verify they are
 consistently updated.
 **Status:** ISSUE — found in PR-level sweep 2026-03-14, pending fix.
+
+---
+
+## Red Team Suite Review — commit f278d5c (2026-03-14)
+
+### complete_quiz_session called with p_answers in test specs (wrong RPC)
+**First seen:** commit f278d5c (2026-03-14)
+**Files:** `apps/web/e2e/redteam/session-replay.spec.ts` (line ~70),
+`apps/web/e2e/redteam/session-race-condition.spec.ts` (lines ~63, ~130)
+**Pattern:** Both specs call `attackerClient.rpc('complete_quiz_session', { p_session_id, p_answers })`.
+The actual `complete_quiz_session` RPC signature (migration 002) takes only `p_session_id`.
+The `p_answers` parameter is the signature of `batch_submit_quiz`, not `complete_quiz_session`.
+Postgres silently ignores unknown named parameters — the call succeeds but `p_answers` is
+never used. The test is not exercising the code path it believes it is: the answers array
+is discarded and completion happens from pre-existing `quiz_session_answers` rows, not from
+the submitted answers.
+**Impact:** Tests pass but may give false confidence. The session-replay spec's step 4 ("complete
+the session") does not test what it documents.
+**Watch for:** Any new red-team spec that calls an RPC with parameters not in the generated
+types — always cross-reference `packages/db/src/types.ts` before writing spec calls.
+**Status:** ISSUE — flagged in f278d5c.
+
+### upsertUser calls listUsers() on every invocation — O(N*users) at scale
+**First seen:** commit f278d5c (2026-03-14)
+**File:** `apps/web/e2e/redteam/helpers/seed.ts` (line 105)
+**Pattern:** `upsertUser()` fetches the full auth user list via `admin.auth.admin.listUsers()`
+every time it needs to check if a user exists. With many users in the DB this scans the full
+list in memory. Called three times in `seedRedTeamUsers()` (attacker, victim) and once in
+`createCrossOrgUser()`. Not a correctness bug — works fine on small DBs — but will slow as the
+auth user table grows.
+**Alternative:** Use `admin.auth.admin.getUserByEmail(email)` to avoid the full scan.
+**Status:** SUGGESTION — flagged in f278d5c. Low priority for test-only code.
+
+### redteam project missing setup dependency in playwright.config.ts
+**First seen:** commit f278d5c (2026-03-14)
+**File:** `apps/web/playwright.config.ts` (line 32-35)
+**Pattern:** The `redteam` project has no `dependencies: ['setup']`, while the regular `e2e`
+project correctly declares `dependencies: ['setup']`. The `setup` project runs `auth.setup.ts`
+which creates the base authenticated state. Red team specs do their own seeding but they may
+run before base seeding completes if the runner decides to parallelize. In practice the
+`redteam` project does its own seeding in `beforeAll`, so the omission is likely intentional —
+but it should be documented in a comment to avoid future confusion.
+**Status:** SUGGESTION — flagged in f278d5c.
+
+### rpc-question-membership spec selects topic_id from subjects table (nonexistent column)
+**First seen:** commit f278d5c (2026-03-14)
+**File:** `apps/web/e2e/redteam/rpc-question-membership.spec.ts` (line 37)
+**Pattern:** The spec queries `.from('subjects').select('id, name, topic_id')`. The `subjects`
+table in the Supabase schema is actually `easa_subjects` (see generated types and migrations).
+`easa_subjects` has columns: `code`, `id`, `name`, `short`, `sort_order` — no `topic_id`.
+The topics-to-subjects relationship goes through `easa_topics.subject_id`, not the reverse.
+Since this entire test is inside `test.fixme()`, the bad column reference is dormant — it will
+cause a Supabase error when the fixme is removed. This must be corrected before unfixme-ing.
+**Watch for:** Any spec querying `.from('subjects')` — verify the actual table name and columns
+against `packages/db/src/types.ts` before writing the SELECT clause.
+**Status:** ISSUE — flagged in f278d5c. Dormant under test.fixme but will break on activation.
+
+### CI workflow uses ANON_KEY from supabase status env without API_URL for SUPABASE_URL
+**First seen:** commit f278d5c (2026-03-14)
+**File:** `.github/workflows/redteam.yml` (line 58)
+**Pattern:** The redteam CI step exports:
+  `NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321` (hardcoded)
+The existing e2e.yml uses:
+  `NEXT_PUBLIC_SUPABASE_URL=${API_URL}` (from `supabase status -o env`)
+The redteam workflow hardcodes port 54321 rather than reading `API_URL` from `supabase status`.
+If Supabase's default port is ever changed (e.g., conflict), the redteam workflow breaks while
+e2e continues working. Minor inconsistency but worth aligning.
+**Status:** SUGGESTION — flagged in f278d5c.
+
+### quiz-draft-injection cleanup uses hard DELETE via admin client
+**First seen:** commit f278d5c (2026-03-14)
+**File:** `apps/web/e2e/redteam/quiz-draft-injection.spec.ts` (line ~135)
+**Pattern:** After the injected-draft test inserts a draft for cleanup purposes, it calls:
+`adminClient.from('quiz_drafts').delete().eq('id', draftId)`
+This is a hard DELETE, which is the same operation the test is checking RLS prevents for
+regular students. In test/seed code the rule is typically relaxed, but the project's
+`docs/security.md` only exempts hard deletes for immutable tables (audit_events, etc.).
+`quiz_drafts` is a mutable table and should use soft-delete (`deleted_at`) consistently.
+**Note:** All other admin cleanup in the codebase uses soft-delete patterns on mutable tables.
+This breaks the project pattern even if functionally harmless in test code.
+**Status:** SUGGESTION — flagged in f278d5c. Consistent application of soft-delete even in tests.

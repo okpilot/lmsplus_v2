@@ -28,7 +28,7 @@ test.describe('Red Team: Rate Limiting', () => {
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     const admin = getAdminClient()
-    const { data: subject } = await admin.from('subjects').select('id').limit(1).single()
+    const { data: subject } = await admin.from('easa_subjects').select('id').limit(1).single()
     subjectId = subject!.id
   })
 

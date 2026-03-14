@@ -33,8 +33,8 @@ test.describe('Red Team: RPC Question Membership Check', () => {
     async () => {
       // Step 1: Find two distinct subjects in the egmont-aviation org
       const { data: subjects, error: subjectsError } = await adminClient
-        .from('subjects')
-        .select('id, name, topic_id')
+        .from('easa_subjects')
+        .select('id, name')
         .limit(2)
 
       expect(subjectsError).toBeNull()
@@ -67,7 +67,7 @@ test.describe('Red Team: RPC Question Membership Check', () => {
       // Step 3: Admin finds a question belonging to subject B (different subject)
       // Questions are linked to topics, topics to subjects.
       const { data: topicsB, error: topicsError } = await adminClient
-        .from('topics')
+        .from('easa_topics')
         .select('id')
         .eq('subject_id', subjectB.id)
         .limit(5)

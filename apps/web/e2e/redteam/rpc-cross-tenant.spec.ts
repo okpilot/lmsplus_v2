@@ -26,7 +26,7 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     adminClient = getAdminClient()
 
     // Resolve a real subject from egmont-aviation for use in attack vectors
-    const { data: subjects, error } = await adminClient.from('subjects').select('id').limit(1)
+    const { data: subjects, error } = await adminClient.from('easa_subjects').select('id').limit(1)
 
     expect(error).toBeNull()
     expect(subjects).not.toBeNull()
@@ -72,7 +72,7 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
       const topicIds = questions.map((q) => q.topic_id)
 
       const { data: egmontTopics } = await adminClient
-        .from('topics')
+        .from('easa_topics')
         .select('id')
         .in('id', topicIds)
 

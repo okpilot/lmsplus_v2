@@ -44,7 +44,7 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     expect(attackerUserId).not.toBe('')
 
     // Admin: resolve real question IDs and a subject the attacker can legitimately access
-    const { data: subjects } = await adminClient.from('subjects').select('id').limit(2)
+    const { data: subjects } = await adminClient.from('easa_subjects').select('id').limit(2)
 
     expect(subjects?.length).toBeGreaterThanOrEqual(1)
     knownSubjectId = subjects![0].id
@@ -53,7 +53,7 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     const secondSubjectId = subjects![1]?.id ?? subjects![0].id
 
     const { data: topics } = await adminClient
-      .from('topics')
+      .from('easa_topics')
       .select('id')
       .eq('subject_id', secondSubjectId)
       .limit(3)
