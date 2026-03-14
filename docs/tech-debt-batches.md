@@ -45,9 +45,10 @@
 
 ---
 
-## PR 3 — Test Coverage Gaps (4 issues)
+## PR 3 — Test Coverage Gaps (4 issues) — DONE
 
 *Add missing test assertions and failure-path coverage.*
+*Completed 2026-03-14. Tightened Zod assertions to use ZodError class across 8 files, added sessionId forwarding assertion, added analytics failure-path tests, split draft-delete tests into co-located file.*
 
 | # | Title |
 |---|-------|
@@ -192,7 +193,7 @@
 |----|-------|--------|------|--------|
 | 1 | Docs & comments | 10 | None | **DONE** |
 | 2 | Test naming | 9 | None | **DONE** |
-| 3 | Test coverage gaps | 4 | None | Planned |
+| 3 | Test coverage gaps | 4 | None | **DONE** |
 | 4 | Security & auth | 6 | Medium | Planned |
 | 5 | Race conditions & async bugs | 5 | Medium | Planned |
 | 6 | Split oversized files | 10 | Low | Planned |
