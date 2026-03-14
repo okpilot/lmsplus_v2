@@ -255,6 +255,85 @@ covers the same cases as the old one, especially when a required prop becomes op
 
 ---
 
+## Commit cb0395c (2026-03-14) — PR 3: tighten assertions, add coverage gaps, split draft tests
+
+### consoleSpy without try/finally — still recurring (3rd occurrence)
+**Files:** `draft-delete.test.ts` (4 occurrences), `batch-submit.test.ts` (2 occurrences)
+**Pattern:** Multiple tests in this commit create `consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})`,
+call the SUT, then call `consoleSpy.mockRestore()` in the flat test body without a try/finally guard.
+This pattern was flagged as a SUGGESTION in commit 15ad393 (2 occurrences). It now appears in fresh
+test files added in this commit. If any assertion between spy creation and restore throws, the spy
+leaks into subsequent tests in the same file, silencing real errors from test output.
+**Count:** 3rd commit with this pattern. Consider adding a project-level rule.
+**Fix:** `try { ... } finally { consoleSpy.mockRestore() }` in every spy usage.
+**Status:** SUGGESTION (non-blocking) — pattern is recurring across 3 commits.
+
+### batchSubmitQuiz — Zod error returns 'Something went wrong', test asserts generic regex
+**File:** `apps/web/app/app/quiz/actions/batch-submit.test.ts` lines 119, 131
+**Pattern:** The new assertions for invalid-input tests use `.toMatch(/Something went wrong/)`.
+This is correct: `batch-submit.ts`'s catch block at line 72 returns `'Something went wrong. Please try again.'`
+for ALL uncaught errors including ZodErrors (unlike `start.ts` and `draft.ts` which have a dedicated
+`instanceof ZodError` branch that returns `err.errors[0]?.message`). The regex assertion is the right
+choice here — `.toBe('Invalid uuid')` would be wrong because Zod errors are not discriminated before
+they hit the generic catch.
+**Status:** GOOD — assertions correctly match the production code's error-surfacing behavior.
+
+### draft.test.ts — saveDraft Zod error assertions pin to internal Zod message text
+**File:** `apps/web/app/app/quiz/actions/draft.test.ts` lines 105-107, 274-276
+**Pattern:** Two assertions changed from `expect(result.success).toBe(false)` to
+`if (!result.success) expect(result.error).toBe('Invalid uuid')`. This pins the test to Zod's exact
+internal error text. `draft.ts` surfaces `err.errors[0]?.message` directly. If Zod ever changes
+the message text for uuid validation (e.g. "Expected UUID format" instead of "Invalid uuid"), this
+test breaks without any production behavior changing. This is a contract-inversion risk: the test
+becomes tighter than the production guarantee.
+**Severity:** SUGGESTION — test is correct today, but the assertion is brittle to a Zod library update.
+A looser assertion like `.toContain('uuid')` or `.toMatch(/uuid/i)` would be more resilient.
+**Status:** SUGGESTION — non-blocking.
+
+### draft-delete.test.ts — mockChain initialises `eq` with `mockReturnThis()` before the test overrides it
+**File:** `apps/web/app/app/quiz/actions/draft-delete.test.ts` lines 36-44
+**Pattern:** `mockChain()` sets `chain.eq = vi.fn().mockReturnValue(chain)` in the for-loop, then the
+happy-path and user-scope tests immediately override `chain.eq` with a different mock via
+`(chain.eq as ReturnType<typeof vi.fn>).mockReturnValue(...)`. The initial `mockReturnThis()` binding
+from the loop is replaced and has no effect. This is functionally correct — the override wins — but
+the loop-based initialisation is misleading: it implies all methods default to `returnThis`, whereas
+the `eq` key is always overridden before it matters. Not a bug, but creates a false sense that the
+chain's default behavior matters.
+**Status:** SUGGESTION — cosmetic, non-blocking.
+
+### analytics.test.ts — 'negative Infinity limit' test is a near-duplicate of existing 'Infinity' test
+**File:** `apps/web/lib/queries/analytics.test.ts` lines 209-215
+**Pattern:** The new test `'treats negative Infinity limit as the minimum (1)'` asserts `p_limit: 1`.
+An identical-behavior test already exists at line 177: `'treats Infinity limit as the minimum (1)'`.
+Both exercise the `!Number.isFinite(value)` branch of `boundParam`. They are not duplicates at the
+level of the input value, but they cover the same code path and produce the same observable output.
+The `NEGATIVE_INFINITY` test adds no new branch coverage — `boundParam` uses a single `!Number.isFinite`
+check that covers both. Keeping it is harmless; it does document the behavior for a specific input.
+**Status:** SUGGESTION — minor test redundancy, non-blocking.
+
+### POSITIVE — loadDrafts and deleteDraft split into separate test files with correct isolation
+`load-draft.test.ts` already existed. `draft-delete.test.ts` is new and correctly re-implements
+the same tests that were removed from `draft.test.ts`. The two new files each maintain their own
+mock setup (`vi.hoisted`, `vi.mock`, `beforeEach(vi.resetAllMocks)`) without sharing state. No
+test pollution risk. Coverage is preserved — all 5 `deleteDraft` test cases are present in the
+new file, matching the removed block from `draft.test.ts`.
+
+### POSITIVE — ZodError pinning improves signal quality on validation tests
+Changing `.rejects.toThrow()` to `.rejects.toThrow(ZodError)` across `check-answer.test.ts`,
+`fetch-explanation.test.ts`, `fetch-stats.test.ts`, `lookup.test.ts`, and `submit.test.ts` is
+strictly correct. Before this commit, `.rejects.toThrow()` would pass on ANY thrown value
+(including auth errors, network errors, TypeError from a misrouted mock). The new assertion
+verifies the error is specifically a Zod validation failure, tightening the contract and
+preventing false-passing tests if the error source changes.
+
+### POSITIVE — explanation-tab.test.tsx: fetch call assertion added post-waitFor
+The new assertion `expect(mockFetchExplanation).toHaveBeenCalledWith({ questionId: 'q-1', sessionId: 's-1' })`
+runs after the `waitFor` that confirms the explanation text rendered. This is the correct sequencing:
+the `waitFor` proves the async call completed, and the spy assertion then confirms what parameters
+were passed. Placing it before `waitFor` would be a race condition.
+
+---
+
 ## Commit 7ae13b6 (2026-03-13) — filteredCount reset + check_quiz_answer session guard
 
 ### JSONB containment operator inconsistency vs jsonb_typeof guard pattern
