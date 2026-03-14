@@ -227,6 +227,24 @@ describe('saveDraft', () => {
     consoleSpy.mockRestore()
   })
 
+  it('returns generic failure when the insert helper throws an unexpected error', async () => {
+    setupAuthenticatedUser()
+    // First from() call succeeds (users org lookup), second throws
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain() // users org lookup — succeeds
+      throw new Error('connection reset')
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await saveDraft(VALID_DRAFT_INPUT)
+
+    expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+    expect(consoleSpy).toHaveBeenCalledWith('[saveDraft] Uncaught error:', expect.any(Error))
+    consoleSpy.mockRestore()
+  })
+
   it('logs error when draft count query fails', async () => {
     setupAuthenticatedUser()
     let callIndex = 0
@@ -472,6 +490,21 @@ describe('saveDraft — update path', () => {
     const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
 
     expect(result).toEqual({ success: true })
+  })
+
+  it('returns generic failure when the update helper throws an unexpected error', async () => {
+    setupAuthenticatedUser()
+
+    mockFrom.mockImplementation(() => {
+      throw new Error('network timeout')
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
+
+    expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+    expect(consoleSpy).toHaveBeenCalledWith('[saveDraft] Uncaught error:', expect.any(Error))
+    consoleSpy.mockRestore()
   })
 })
 
