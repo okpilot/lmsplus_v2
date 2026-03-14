@@ -191,6 +191,25 @@ three layers of protection, but the Server Action has no explicit auth guard of 
 **Status:** ISSUE (defense-in-depth gap). Flag on any new `'use server'` function that touches
 question data without its own auth check.
 
+### red-team specs: "discarded session cannot be re-completed" accepts incomplete security coverage
+**First seen:** commit a396438 (2026-03-14)
+**File:** `apps/web/e2e/redteam/session-race-condition.spec.ts` lines 153-161
+**Pattern:** The second test in this spec accepts two distinct outcomes: (a) RPC rejects and
+`ended_at` is NULL (ideal), OR (b) RPC succeeds and both `ended_at` and `deleted_at` are set
+(labeled "acceptable"). Outcome (b) means a soft-deleted session can be completed by the RPC
+because `complete_quiz_session` does not check `deleted_at IS NULL` before setting `ended_at`.
+The spec comment says "This is acceptable: the session is still marked deleted." — but a
+completed-and-deleted session will record a `quiz_session.batch_submitted` audit event, write
+a row to `audit_events` and `student_responses`, and update `score_percentage`. The session
+shows up in analytics and CAA audit reports. An attacker who discards a session and then
+completes it leaks a spurious scored session into the audit log.
+**Risk:** Low (deleted sessions are filtered from instructor views and analytics), but the spec
+should assert outcome (a) exclusively — the RPC should check `deleted_at IS NULL` the same way
+it checks `ended_at IS NULL`.
+**Watch for:** Any spec that uses an `if (completeError) { ... } else { ... }` branch to accept
+two contradictory outcomes — this always signals a missing enforcement layer.
+**Status:** ISSUE — flagged in a396438.
+
 ### module-level cache (cachedSession) shared between quiz and review loader modules
 **First seen:** commit 97ab4ac (2026-03-12)
 **Files:** `quiz-session-loader.tsx` and `review-session-loader.tsx`
@@ -2010,3 +2029,97 @@ regular students. In test/seed code the rule is typically relaxed, but the proje
 **Note:** All other admin cleanup in the codebase uses soft-delete patterns on mutable tables.
 This breaks the project pattern even if functionally harmless in test code.
 **Status:** SUGGESTION — flagged in f278d5c. Consistent application of soft-delete even in tests.
+
+---
+
+## PR-level review — fix/pr3-test-coverage (2026-03-14) — commit a1335ff
+
+### migration 033 uses weaker null guard than migration 030 established as the hardened pattern
+**Files:** `supabase/migrations/20260314000033_submit_answer_membership_check.sql` line 56
+**Pattern:** Migration 030 (`batch_submit_null_guards.sql`) explicitly hardened the guard to
+`v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(...)`. The comment in
+that migration explains why: "handles SQL NULL vs missing key". Migration 033 reverts to the
+two-condition form (`v_config IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array'`),
+which the codebase deliberately upgraded away from. The `v_config->'question_ids' IS NULL`
+middle check guards the case where `v_config` is a non-null JSONB object but the key is absent
+(operator returns SQL NULL, which makes `jsonb_typeof(NULL)` return NULL, which `<> 'array'`
+evaluates to NULL — falsy in PL/pgSQL IF conditions). This means a session with `config = '{}'`
+(no question_ids key) could slip past the guard before raising.
+**Severity:** ISSUE — the pattern was deliberately hardened; 033 regresses it.
+**Fix:** Add the middle guard: `v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array'`
+
+### rate-limiting spec sets a non-existent `status` column on quiz_sessions
+**Files:** `apps/web/e2e/redteam/rate-limiting.spec.ts` line 119
+**Pattern:** The cleanup block at the end of the observation test runs:
+`admin.from('quiz_sessions').update({ status: 'discarded', deleted_at: ... })`
+`quiz_sessions` has no `status` column — the table DDL (migration 001) defines only
+`id, organization_id, student_id, mode, subject_id, topic_id, config, started_at, ended_at,
+total_questions, correct_count, score_percentage, created_at, deleted_at`.
+The UPDATE will silently be rejected by PostgREST (schema mismatch), meaning the 50 test
+sessions created by the observation test are never cleaned up.
+**Severity:** ISSUE — sessions accumulate in the DB on every test run; the cleanup the spec
+comments about never happens. The `deleted_at` half of the update also silently fails because
+the whole UPDATE is rejected when any column is unknown.
+**Fix:** Remove `status: 'discarded'` from the update; only set `deleted_at`.
+
+### audit-event-forgery spec inserts without required NOT NULL columns — false positive
+**Files:** `apps/web/e2e/redteam/audit-event-forgery.spec.ts` lines 40-44, 54-60
+**Pattern:** The `audit_events` INSERT attack omits required NOT NULL columns: `organization_id`,
+`actor_role`, `resource_type`. The `audit_events` table schema requires all three as NOT NULL.
+The inserts will fail with a DB constraint violation, not an RLS rejection. This means the test
+passes (error !== null) even if the Vector F RLS fix (`WITH CHECK (false)`) were never applied.
+The test cannot distinguish between "RLS blocked it" and "schema constraint rejected it".
+After migration 034, the RLS policy does block these inserts, but the test gives no confidence
+that the constraint *vs* policy ordering is correct, and would pass even if migration 034 were
+rolled back.
+**Severity:** SUGGESTION — the test intent is correct but the attack vector is incomplete.
+**Fix:** Either (a) include all required columns so the only rejection reason is RLS, or
+(b) add a comment explaining that the constraint error is the expected early-exit and that
+the RLS policy provides defense-in-depth regardless.
+
+### PR contains an "observation test" that asserts absence of a security control
+**Files:** `apps/web/e2e/redteam/rate-limiting.spec.ts` lines 85-122
+**Pattern:** The test named "observation: all 50 rapid-fire RPC calls succeed (no rate limiting)"
+asserts `expect(successes).toBe(50)` — it passes only when rate limiting is absent. This means
+the test will fail the moment rate limiting is added without human intervention to remove/update it.
+More importantly, it documents a known gap (Vector K) without a tracking issue or GitHub Issue
+reference. The `test.skip` on the actual assertion and the observation test as a pair are a
+reasonable design, but the documentation of the gap exists only in the spec file comment, not
+in the issue tracker.
+**Severity:** SUGGESTION — the design is acceptable; the gap should be tracked in GitHub Issues
+for visibility. The observation test assertion (expect 50 successes) will also fail if Supabase's
+built-in connection pooler applies back-pressure under load, making the test flaky in CI.
+
+### PR-level cross-file consistency: migration 033 doc note references wrong migration numbering
+**Files:** `docs/database.md` line ~525, `docs/security.md` (updated in ce63876)
+**Pattern:** `docs/database.md` line ~525 notes "Validates p_question_id is in the session's
+config.question_ids (migration 033)". The migration file is named
+`20260314000033_submit_answer_membership_check.sql`. The short number reference is fine but
+`docs/security.md` was also updated in this PR without a corresponding note about Vector A
+being the membership check fix. The security.md update added the red-team testing section but
+did not update the "Correct Answer Stripping" section to mention that session membership is
+now enforced at the RPC level in migration 033.
+**Severity:** SUGGESTION — minor doc gap; security.md Section 4 would benefit from a note that
+`submit_quiz_answer` now validates session membership in addition to stripping answers.
+
+### GOOD: audit_events Vector F fix is correctly scoped
+The `WITH CHECK (false)` policy on `audit_events` INSERT is the correct, minimal approach.
+SECURITY DEFINER RPCs bypass RLS by design, so the fix correctly blocks all direct client
+inserts while leaving RPC-level inserts (start_quiz_session, complete_quiz_session) intact.
+The migration comment explains the bypass mechanism clearly.
+
+### GOOD: migration 033 membership check is consistent with check_quiz_answer (migration 032)
+The comment in migration 033 correctly cites that the pattern matches check_quiz_answer.
+Both RPCs fetch `v_config`, guard against malformed config, extract `question_ids`, and reject
+unknown questions. The error messages are consistent ("question does not belong to this session").
+
+### GOOD: redteam project isolation in playwright.config.ts
+The `testIgnore: '**/redteam/**'` on the e2e project and the separate `redteam` project with
+`testDir: './e2e/redteam'` is the correct pattern. Red-team specs are isolated from the main
+E2E suite and require separate explicit invocation.
+
+### GOOD: seed.ts uses listUsers() + upsert pattern for idempotency
+`seedRedTeamUsers()` checks `auth.admin.listUsers()` before creating users, making the seed
+fully idempotent. Repeated test runs don't accumulate duplicate users. The public.users row
+is also checked independently, guarding against half-created state.
+**Status:** Positive pattern — log and reinforce.

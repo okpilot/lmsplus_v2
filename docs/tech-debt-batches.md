@@ -71,6 +71,8 @@
 | 61 | Refactor: Handle auth.getUser() errors explicitly across codebase |
 | 91 | Add per-element UUID validation for session_config.question_ids in batch_submit_quiz |
 | 90 | Validate selected_option belongs to question in batch_submit_quiz |
+| NEW | fix: add `AND deleted_at IS NULL` guard to `complete_quiz_session` RPC (allows completing a discarded session) |
+| NEW | fix: add `AND deleted_at IS NULL` guard to `submit_quiz_answer` RPC (allows submitting to a discarded session) |
 
 ---
 

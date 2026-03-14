@@ -64,6 +64,10 @@
 | Error message not updated after control flow change eliminates its code path | 1 | 2026-03-14 | Watch — batch_submit_quiz (d057128/ce35a31): original error message 'session not found or already completed' became inaccurate after the idempotent replay path was added (completed sessions no longer reach the error branch); caught by semantic-reviewer post-commit; fixed in ce35a31 with 'session not found or not accessible'; first occurrence; the root cause: when a control flow change eliminates a code path (e.g., converting an error to a replay), any error message that referenced that path by name must be updated in the same commit |
 | FOR UPDATE lock scope wider than write path (read-only replay serialization) | 1 | 2026-03-14 | Watch — batch_submit_quiz (d057128): FOR UPDATE lock on session SELECT is held even during the idempotent read-only replay path, briefly serializing replay reads; flagged by semantic-reviewer; accepted as documented trade-off (prevents TOCTOU race on concurrent new submissions); comment added in ce35a31 explaining the trade-off explicitly; first occurrence; accepted pattern with required documentation — not a violation |
 | consoleSpy created without try/finally cleanup (spy leaks on test failure) | 3 | 2026-03-14 | RULE ADDED TO TEST-WRITER MEMORY — 1st: start.test.ts + check-answer.test.ts (15ad393); 2nd: draft-delete.test.ts (cb0395c, newly created file); 3rd recurrence across different commits warrants update to test-writer patterns memory; always wrap consoleSpy in try { ... } finally { consoleSpy.mockRestore() } |
+| RPC missing `AND deleted_at IS NULL` guard on session fetch | 1 | 2026-03-14 | Watch — complete_quiz_session and submit_quiz_answer both fetch a session row (SELECT ... WHERE id = p_session_id) without filtering soft-deleted sessions; a deleted session can be replayed or answered; first occurrence; test-writer flagged both RPCs in a1335ff post-commit; security.md rule 6 covers "never hard DELETE" but does not explicitly require session-fetch queries to exclude soft-deleted rows; if a second RPC ships without this guard, add explicit requirement to security.md: "session-fetch queries must always include AND deleted_at IS NULL" |
+| Hard DELETE in test/spec cleanup code | 1 | 2026-03-14 | Watch — session-race-condition.spec.ts (a396438/a1335ff) used hard DELETE in a `afterAll` cleanup block instead of soft-delete; test code is exempt from the application-level soft-delete rule (it is seeding/cleanup, not student data), but for security-sensitive red-team specs the pattern of writing hard DELETEs is a habit that can accidentally propagate to production code; first occurrence; acceptable in test cleanup only — document the exception if flagged again |
+| Red-team spec written against wrong schema column or RPC signature | 2 | 2026-03-14 | Watch — first: multiple specs in f278d5c used wrong column names (e.g. wrong foreign key column), wrong RPC parameter names, and wrong table names; second: a396438 + a1335ff required further alignment of RPC signatures and schema assertions; distinct from "test fixture shape mismatch" (that is TypeScript type mismatch — this is SQL/RPC API mismatch in Playwright E2E); both caught pre-merge by CI failures; root cause: red-team specs are written speculatively from memory of the schema rather than reading actual migration files; if a third spec ships with wrong schema references, add a rule to the red-team agent: always read the relevant migration file before writing DB assertions |
+| Test spec encodes a security gap as a passing assertion | 1 | 2026-03-14 | Watch — session-race-condition.spec.ts (a1335ff) had a test that asserted the race condition response was acceptable/expected, effectively baking the security gap into the passing baseline rather than asserting the gap does not exist; semantic-reviewer flagged this as an ISSUE: a test that passes because it accepts wrong behavior is worse than a failing test; first occurrence; the correct form for a security spec is: assert the hardened behavior, fail if the unguarded path succeeds |
 
 ## Lessons Learned
 
@@ -1152,3 +1156,68 @@ The following recommendations from prior cycles are still awaiting orchestrator 
 - The draft test split (draft.test.ts → draft.test.ts + draft-delete.test.ts) is the correct structural response to a growing test file. Each file now tests one action's behavior.
 - PR 3's coverage additions (tighter assertions, failure-path coverage across 11 files) improve the test suite's regression-detection strength without adding noise.
 - The consoleSpy threshold was reached and actioned in the same cycle it was crossed — the pattern detection is working at the intended cadence.
+
+---
+
+### 2026-03-14 — Red-team spec alignment + post-commit review (commits a396438, a1335ff)
+
+**Context:** Two-commit fix cycle on fix/pr3-test-coverage. a396438 corrected RPC signatures, schema column names, and table names in red-team Playwright specs. a1335ff addressed post-commit review findings from the first commit (further spec alignment, session-race-condition test correction). Both commits touched only `apps/web/e2e/redteam/` — no production code changed.
+
+**Code reviewer (a396438, a1335ff):** 1 WARNING.
+- Non-null assertion `org!.id` without an explanatory comment. However, the assertion is inside an `if (org && bank && user)` guard block — the `!` is fully redundant (TypeScript narrowing already guarantees non-null at that point) but not unsafe. **FALSE POSITIVE** — the code-reviewer flagged the pattern, but the context makes the assertion safe by construction. The `!` is unnecessary style noise rather than a real risk. Logged to the false-positive tracker below. If the code-reviewer flags this pattern again in a similarly narrowed context, propose a suppression note in agent-code-reviewer.md.
+
+**Semantic reviewer (a396438, a1335ff):** 2 ISSUEs, 2 SUGGESTIONs.
+
+1. **ISSUE — session-race-condition.spec.ts passes because it accepts the security gap (a1335ff):** A test in the race-condition spec asserted the behavior produced by the unguarded path as "acceptable," effectively encoding the security gap into the passing baseline. A security spec that passes by accepting wrong behavior is worse than a failing spec — it creates a false sense of coverage. **First occurrence of a test encoding a security gap as a passing assertion.** Logged as new watch item. The correct form: assert the hardened post-fix behavior; the spec must fail if the unguarded path succeeds.
+
+2. **ISSUE — `complete_quiz_session` and `submit_quiz_answer` RPCs missing `AND deleted_at IS NULL` guard on session fetch (flagged by both semantic-reviewer and test-writer):** Both RPCs fetch a session row with `WHERE id = p_session_id` but do not filter soft-deleted sessions. A soft-deleted session can be replayed or have answers submitted against it. `security.md` rule 6 requires soft-delete semantics at the application layer ("never hard DELETE") but does not explicitly require that query-level session fetches exclude deleted rows. **First occurrence of this specific sub-pattern.** Logged as new watch item. If a second RPC ships without this guard, add the requirement explicitly to `security.md` or `docs/database.md`.
+
+3. **SUGGESTION — Add seed verification assertion before test actions (a1335ff):** The spec's `beforeAll` seeds test data but does not assert the seed succeeded before running test cases. A silent seed failure would cause all subsequent assertions to fail with misleading errors. Suggestion-level — first occurrence. Logged and watched.
+
+4. **SUGGESTION — Add a type guard narrowing `originalScore` before arithmetic (a1335ff):** A value from a query result is used in arithmetic without an explicit numeric type guard. Suggestion-level — first occurrence. Logged and watched.
+
+**Doc updater:** no updates needed — changes were limited to E2E red-team spec files. No schema, RPC, or route surface changed.
+
+**Test writer:** 2 gaps found.
+- `complete_quiz_session` missing `AND deleted_at IS NULL` guard on session fetch — no spec assertion covering this behavior.
+- `submit_quiz_answer` missing the same guard — same gap.
+Both gaps are in the same family as the semantic-reviewer ISSUE above. First occurrence of this pattern being flagged by test-writer.
+
+**Pattern analysis — non-null assertion inside a narrowing guard (code-reviewer false positive):**
+
+The code-reviewer flagged `org!.id` as a non-null assertion without a comment. However, the assertion is inside an `if (org && bank && user)` block. TypeScript's control-flow narrowing guarantees `org` is non-null at that point — the `!` is redundant style noise, not a real risk. The reviewer correctly applies the rule, but the context makes this a false positive: the existing narrowing guard is the justification comment, just implicit rather than written inline.
+
+**Decision:** Log as a false positive. The rule in code-style.md Section 5 is: "No Non-Null Assertions Without Comment." In this case, the comment is the surrounding guard. If the code-reviewer flags this pattern again in a narrowed context, add a note to `agent-code-reviewer.md` Known Suppressions: "non-null assertion inside an explicit narrowing guard (`if (x && ...)`) is acceptable without a comment — the guard is the justification."
+
+**Pattern analysis — red-team spec written against wrong schema (count 2):**
+
+Two consecutive sets of commits (f278d5c, then a396438/a1335ff) required multiple alignment passes to bring red-team specs in sync with actual migration files and RPC signatures. Both were caught by CI failures before merge, so no broken spec reached the main branch. The root cause is consistent: the red-team agent writes specs speculatively from memory of the schema rather than reading the actual migration file before asserting column names, parameter names, and table names.
+
+This pattern has now appeared across two separate commit rounds. It does not yet cross the "2+ occurrences across different commits" threshold for a rule change to `code-style.md` or `security.md`, but it does warrant a watch entry and a note for the red-team agent's authoring guidance: when writing a new spec or modifying an existing one, always read the relevant migration file(s) before asserting against column names, RPC parameter names, or table names.
+
+**Pattern analysis — hard DELETE in test cleanup:**
+
+The session-race-condition spec used `DELETE FROM` in `afterAll` cleanup. This is acceptable in test code (test cleanup is not student data, and the soft-delete rule is an application-level data-integrity rule). However, the habit of writing hard DELETEs in spec files runs counter to the broader project convention and could accidentally propagate to a production code path. **First occurrence.** Logged as watch item. No action — the test cleanup exception is intentional.
+
+**Actions taken:**
+- Frequency table: "RPC missing `AND deleted_at IS NULL` guard on session fetch" added at count 1, status WATCH.
+- Frequency table: "Hard DELETE in test/spec cleanup code" added at count 1, status WATCH (acceptable in test cleanup; watch for propagation to production paths).
+- Frequency table: "Red-team spec written against wrong schema column or RPC signature" added at count 2 (two commit rounds required to align), status WATCH.
+- Frequency table: "Test spec encodes a security gap as a passing assertion" added at count 1, status WATCH.
+- False positive logged: "non-null assertion inside a narrowing guard flagged as missing comment" — code-reviewer is correct to apply the rule; context makes it safe; propose suppression note in agent-code-reviewer.md on second occurrence.
+- No changes proposed to `code-style.md` or `security.md` — all patterns are first occurrences or at count 1. Rule changes require 2+ occurrences across different commits.
+
+**Pending recommended changes (carried forward — not yet applied):**
+
+1. **`.claude/agent-memory/test-writer/patterns.md`** — consoleSpy try/finally (3rd occurrence — from cb0395c cycle, actionable).
+2. **`.claude/agent-memory/test-writer/patterns.md`** — scan every new `if (error) return` branch in files with existing tests; write the branch test in the same commit (3rd occurrence — from d057128 cycle, actionable).
+3. **`.claude/agent-memory/test-writer/patterns.md`** — always construct test fixtures by annotating with the exported TypeScript type (2nd occurrence — from bba9800 cycle, actionable).
+4. **`.claude/agent-memory/test-writer/patterns.md`** — use optional chaining (`arr?.[i]`) when accessing array indices in generated test assertions (2nd occurrence — from 99c67d2 cycle, actionable).
+
+**False positives detected:**
+- Non-null assertion `org!.id` inside `if (org && bank && user)` guard — code-reviewer flagged missing comment; surrounding guard is the implicit justification. Safe by construction. Do not fix — the `!` is noise but not a violation in a narrowed context.
+
+**Positive signals:**
+- Both commits were limited to red-team spec files only — no production code changed, no doc changes needed.
+- CI caught the schema mismatches before merge. The gate (type-check + CI) is working at the correct layer for spec-level alignment issues.
+- After two rounds of alignment, the four red-team specs (quiz-draft-injection, rpc-question-membership, session-race-condition, session-replay) are now consistent with actual migration files and RPC signatures.
