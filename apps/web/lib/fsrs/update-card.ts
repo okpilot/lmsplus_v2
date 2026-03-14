@@ -39,6 +39,9 @@ export async function updateFsrsCard(
     .select(
       'due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, last_review, last_was_correct, consecutive_correct_count',
     )
+    // Cast required: Supabase-generated types resolve fsrs_cards column names
+    // to `never` due to a known inference issue. `string & keyof never` satisfies
+    // the generic constraint at compile time while remaining a plain string at runtime.
     .eq('student_id' as string & keyof never, userId)
     .eq('question_id' as string & keyof never, questionId)
     .returns<FsrsCardRow[]>()

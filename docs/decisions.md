@@ -436,7 +436,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Migration `20260312000016_analytics_rpcs_param_clamp.sql` adds parameter validation:
   - `get_daily_activity` p_days clamped to [1, 365] — raises exception if out of range (prevents negative days, year+ span queries)
   - `get_subject_scores` p_limit clamped to [1, 100] — raises exception if out of range (prevents unbounded result sets, matches app-side limit)
-  - Both RPCs now use `IS DISTINCT FROM` for null-safe auth check (replaces `!=`, handles NULL correctly)
+  - Both RPCs now use `IS DISTINCT FROM` for null-safe auth check (replaces `!=`). In SQL, `auth.uid() != p_student_id` evaluates to NULL (not TRUE) when either operand is NULL, silently passing the guard. `IS DISTINCT FROM` treats NULL as a concrete value, so the check reliably raises EXCEPTION 'forbidden' even when `auth.uid()` is NULL.
 - Validates at the SQL layer to prevent bypassing app-side guards, ensures consistent behavior across clients
 
 ---
