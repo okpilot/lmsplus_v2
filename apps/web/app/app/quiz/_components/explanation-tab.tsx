@@ -62,15 +62,20 @@ function PreAnswerExplanation({
     setIsLoading(true)
     setExplanation(null)
     startTransition(async () => {
-      const result = await fetchExplanation({ questionId, sessionId })
-      if (!cancelled) {
-        if (result.success) {
-          setExplanation({
-            text: result.explanationText,
-            imageUrl: result.explanationImageUrl,
-          })
+      try {
+        const result = await fetchExplanation({ questionId, sessionId })
+        if (!cancelled) {
+          if (result.success) {
+            setExplanation({
+              text: result.explanationText,
+              imageUrl: result.explanationImageUrl,
+            })
+          }
         }
-        setIsLoading(false)
+      } catch {
+        // Server Action threw — leave explanation null, skeleton clears below
+      } finally {
+        if (!cancelled) setIsLoading(false)
       }
     })
     return () => {

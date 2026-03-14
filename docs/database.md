@@ -933,7 +933,10 @@ BEGIN
     RAISE EXCEPTION 'question % does not belong to session %', p_question_id, p_session_id;
   END IF;
 
-  -- Fetch correct option and explanation (never returns the full options array)
+  -- Fetch correct option and explanation.
+  -- Intentionally no deleted_at filter: session membership was verified against
+  -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
+  -- A question soft-deleted after that point must still be answerable.
   SELECT
     (SELECT opt->>'id'
        FROM jsonb_array_elements(q.options) opt
@@ -943,8 +946,7 @@ BEGIN
     q.explanation_image_url
   INTO v_correct_option_id, v_explanation_text, v_explanation_image
   FROM questions q
-  WHERE q.id = p_question_id
-    AND q.deleted_at IS NULL;
+  WHERE q.id = p_question_id;
 
   IF NOT FOUND OR v_correct_option_id IS NULL THEN
     RAISE EXCEPTION 'question not found or has no correct option';
