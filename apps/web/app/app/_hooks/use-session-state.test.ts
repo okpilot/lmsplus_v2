@@ -1,11 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type {
-  AnswerResult,
-  CompleteResult,
-  SessionQuestion,
-  SubmitInput,
-} from '../_components/session-runner'
+import type { AnswerResult, CompleteResult, SessionQuestion, SubmitInput } from '../_types/session'
 import { useSessionState } from './use-session-state'
 
 // ---- Fixtures ---------------------------------------------------------------

@@ -19,6 +19,15 @@ function formatActivityData(data: DailyActivity[]) {
   }))
 }
 
+const tooltipStyle = {
+  backgroundColor: 'hsl(var(--popover))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '6px',
+  fontSize: '12px',
+}
+
+const axisTick = { fontSize: 10 }
+
 function ActivityBars({ data }: { data: DailyActivity[] }) {
   return (
     <ResponsiveContainer width="100%" height={240}>
@@ -26,19 +35,12 @@ function ActivityBars({ data }: { data: DailyActivity[] }) {
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
         <XAxis
           dataKey="label"
-          tick={{ fontSize: 10 }}
+          tick={axisTick}
           interval="preserveStartEnd"
           className="text-muted-foreground"
         />
-        <YAxis tick={{ fontSize: 10 }} allowDecimals={false} className="text-muted-foreground" />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'hsl(var(--popover))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '6px',
-            fontSize: '12px',
-          }}
-        />
+        <YAxis tick={axisTick} allowDecimals={false} className="text-muted-foreground" />
+        <Tooltip contentStyle={tooltipStyle} />
         <Bar
           dataKey="correct"
           stackId="a"

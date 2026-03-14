@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AnswerResult, CompleteResult, SessionQuestion } from '../_types/session'
 import { SessionRunner } from './session-runner'
-import type { AnswerResult, CompleteResult, SessionQuestion } from './session-runner'
 
 const mockSubmit = vi.fn<(input: unknown) => Promise<AnswerResult>>()
 const mockComplete = vi.fn<(input: unknown) => Promise<CompleteResult>>()
