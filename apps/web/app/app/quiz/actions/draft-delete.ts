@@ -12,8 +12,9 @@ export async function deleteDraft(raw: unknown): Promise<{ success: boolean }> {
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser()
-    if (!user) return { success: false }
+    if (authError || !user) return { success: false }
 
     const { draftId } = DeleteDraftInput.parse(raw)
 

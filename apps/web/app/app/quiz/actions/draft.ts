@@ -26,8 +26,9 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser()
-    if (!user) return { success: false, error: 'Not authenticated' }
+    if (authError || !user) return { success: false, error: 'Not authenticated' }
 
     const input = SaveDraftInput.parse(raw)
     if (input.currentIndex >= input.questionIds.length) {

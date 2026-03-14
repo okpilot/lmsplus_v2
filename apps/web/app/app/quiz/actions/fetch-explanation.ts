@@ -17,8 +17,9 @@ export async function fetchExplanation(raw: unknown): Promise<FetchExplanationRe
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
-  if (!user) return { success: false }
+  if (authError || !user) return { success: false }
 
   const { questionId, sessionId } = Input.parse(raw)
 

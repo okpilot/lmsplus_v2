@@ -19,8 +19,9 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser()
-    if (!user) return { success: false, error: 'Not authenticated' }
+    if (authError || !user) return { success: false, error: 'Not authenticated' }
     const input = StartQuizInput.parse(raw)
 
     const questionIds = await getRandomQuestionIds({

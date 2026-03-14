@@ -6,9 +6,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
 
-  if (!user) redirect('/')
+  if (authError || !user) redirect('/')
 
   const { data: profile } = await supabase
     .from('users')

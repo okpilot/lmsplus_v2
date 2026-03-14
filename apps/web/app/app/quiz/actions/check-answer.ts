@@ -33,8 +33,9 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  if (authError || !user) return { success: false, error: 'Not authenticated' }
 
   const { questionId, selectedOptionId, sessionId } = CheckAnswerSchema.parse(raw)
 

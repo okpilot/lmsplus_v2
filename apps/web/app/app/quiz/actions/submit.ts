@@ -10,8 +10,9 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  if (authError || !user) return { success: false, error: 'Not authenticated' }
   const input = SubmitAnswerSchema.parse(raw)
 
   const { data, error } = await rpc<SubmitRpcResult>(supabase, 'submit_quiz_answer', {

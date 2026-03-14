@@ -33,8 +33,9 @@ export async function getFilteredCount(input: unknown): Promise<{ count: number 
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
-  if (!user) return { count: 0 }
+  if (authError || !user) return { count: 0 }
 
   let query = supabase
     .from('questions')
