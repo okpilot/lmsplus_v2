@@ -110,7 +110,7 @@ Full reference: `docs/database.md`. Key decisions:
 - **SECURITY DEFINER RPCs** — must always include manual `auth.uid()` check + `SET search_path = public`. Never skip these.
 - **Constraints** — FK, NOT NULL, CHECK on every table. DB enforces consistency, not just app code.
 - **Indexes** — FSRS due-queue index is critical hot path. Partial indexes on `deleted_at IS NULL` for active-record queries.
-- **Migrations** — forward-only, numbered `NNN_description.sql`, RLS enabled in same file as CREATE TABLE.
+- **Migrations** — forward-only, named `YYYYMMDDHHMMSS_description.sql` (Supabase CLI format), RLS enabled in same file as CREATE TABLE.
 
 ### Security (confirmed 2026-03-11)
 Full security reference: `docs/security.md` — binding rules, covers:
@@ -209,7 +209,7 @@ lmsplusv2/
 5. Immediate feedback (correct/incorrect, explanation + graphic, in-session display)
 6. Progress tracking (per subject/topic/subtopic)
 7. Session history (questions, scores, time, sortable reports page)
-8. Question statistics (per-question accuracy, times seen, FSRS metadata)
+8. Question statistics (per-question accuracy %, times seen, last answered date)
 9. Multi-tenant data model
 10. Saved quiz drafts (up to 20 per student for resume-interrupted-session workflow)
 
