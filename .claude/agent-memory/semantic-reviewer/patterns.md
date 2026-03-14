@@ -4,6 +4,27 @@
 
 ## Recurring Issues
 
+### doc entry attributes multi-migration feature to a single migration
+**First seen:** commit d040665 (2026-03-14)
+**File:** `docs/decisions.md`
+**Pattern:** When a feature is built across two migrations (e.g., migration 15 adds the null-check
+guard, migration 16 upgrades the inequality operator), the doc entry for the second migration
+described both layers as if that migration introduced them. Readers consulting the doc to understand
+migration boundaries will attribute the null-check to the wrong migration.
+**Watch for:** Any decisions.md or database.md entry that says a migration "uses" or "implements"
+a multi-step behaviour — verify which migration introduced each step.
+**Status:** ISSUE — flagged in d040665, fix needed in decisions.md before push.
+
+### comment uses directional word ("above") that contradicts actual line ordering in code
+**First seen:** commit d040665 (2026-03-14)
+**File:** `apps/web/lib/fsrs/update-card.ts`
+**Pattern:** A comment explaining a type cast used the word "above" to describe a call that is
+actually positioned below the cast in the file. The explanation was otherwise correct; only the
+spatial reference word was wrong.
+**Watch for:** Inline comments describing where something is (above/below, earlier/later) — verify
+the direction against the actual line order before writing or accepting the comment.
+**Status:** SUGGESTION — flagged in d040665, non-blocking.
+
 ### catch-all console.error logging ZodErrors as unexpected errors
 **First seen:** commit 40ce785 (2026-03-14)
 **File:** `apps/web/app/app/quiz/actions/fetch-stats.ts`
@@ -131,6 +152,34 @@ a practice quiz where a student can change their mind before submitting.
 `quiz-session.tsx` line 59: `answerStartTime.current = Date.now()` is correctly reset on
 every `navigate()` call, so `responseTimeMs` measures time on the current question, not
 cumulative session time. The deferred architecture preserves per-question timing.
+
+### doc comments describing partial behavior as full behavior
+**First seen:** commit 03b1393 (2026-03-14)
+**File:** `docs/decisions.md`
+**Pattern:** The `IS DISTINCT FROM` explanation says the check "reliably raises EXCEPTION 'forbidden'
+even when `auth.uid()` is NULL." This is literally true (NULL IS DISTINCT FROM uuid raises forbidden),
+but the actual migration has a prior `IS NULL` guard that raises `'not authenticated'` first.
+The comment describes the behavior of `IS DISTINCT FROM` in isolation rather than the actual two-step
+guard. It is not wrong, but it omits the more important first guard and could mislead a reader
+into thinking `IS DISTINCT FROM` alone handles unauthenticated callers.
+**Watch for:** doc comments that describe a partial mechanism as the complete safety guarantee.
+**Status:** SUGGESTION — the comment is not dangerously wrong, but the fuller explanation would
+note that the NULL check at line 12 handles the unauthenticated case and `IS DISTINCT FROM`
+handles the identity-mismatch case.
+
+### `string & keyof never` cast explanation is inaccurate
+**First seen:** commit 03b1393 (2026-03-14)
+**File:** `apps/web/lib/fsrs/update-card.ts`
+**Pattern:** The comment says "Supabase-generated types resolve fsrs_cards column names to `never`".
+The generated `types.ts` shows `fsrs_cards.Row` has `student_id: string` and `question_id: string`
+— both properly typed, not `never`. The true cause of the cast is that `.returns<FsrsCardRow[]>()`
+changes the query's inferred row type mid-chain, and the `.eq()` method's column parameter is
+narrowed against the *original* generated row type before `.returns<>()` overrides it. When the
+chain's intermediate type is a custom `FsrsCardRow` (not the Database schema type), TypeScript
+cannot resolve the column name against the narrowed type, producing a `never` constraint.
+The current comment explanation ("column names resolve to never") is an imprecise shorthand.
+**Status:** SUGGESTION — the cast is correct and the workaround is sound; the explanation is
+inaccurate at a technical level but unlikely to mislead maintainers in practice.
 
 ## High-Scrutiny Files
 - `apps/web/proxy.ts` — auth flow, cookie handling, redirects
