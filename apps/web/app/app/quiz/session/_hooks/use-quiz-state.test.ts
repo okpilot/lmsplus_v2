@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { type MockInstance, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -47,6 +47,7 @@ vi.mock('../../actions/check-answer', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import { useQuizState } from './use-quiz-state'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -448,5 +449,69 @@ describe('useQuizState — showFinishDialog', () => {
     act(() => result.current.setShowFinishDialog(true))
     act(() => result.current.setShowFinishDialog(false))
     expect(result.current.showFinishDialog).toBe(false)
+  })
+})
+
+// ---- Navigation guard -------------------------------------------------------
+
+describe('useQuizState — navigation guard condition', () => {
+  // Cast to MockInstance so we can inspect calls without TypeScript complaining
+  // about the vi.fn() mock type vs the real function type.
+  let navGuardMock: MockInstance
+
+  beforeEach(() => {
+    navGuardMock = useNavigationGuard as unknown as MockInstance
+  })
+
+  it('does not activate the guard when no answers exist', () => {
+    renderHook(() => useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }))
+    // The last call reflects the final render — guard should be inactive.
+    const lastCall = navGuardMock.mock.calls[navGuardMock.mock.calls.length - 1]
+    expect(lastCall?.[0]).toBe(false)
+  })
+
+  it('activates the guard after a new answer is recorded', async () => {
+    const { result } = renderHook(() =>
+      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+    await act(async () => result.current.handleSelectAnswer('opt-a'))
+
+    const lastCall = navGuardMock.mock.calls[navGuardMock.mock.calls.length - 1]
+    expect(lastCall?.[0]).toBe(true)
+  })
+
+  it('does not activate the guard when mounted with pre-existing answers matching current count', () => {
+    // initialAnswers provides one pre-loaded answer. On mount, answers.size === initialSize === 1,
+    // so the condition (answers.size > initialSize) is false — guard must remain inactive.
+    renderHook(() =>
+      useQuizState({
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialAnswers: {
+          [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 },
+        },
+      }),
+    )
+    const lastCall = navGuardMock.mock.calls[navGuardMock.mock.calls.length - 1]
+    expect(lastCall?.[0]).toBe(false)
+  })
+
+  it('activates the guard when a new answer is added beyond the pre-loaded count', async () => {
+    // Mount with one pre-loaded answer (initialSize = 1). Adding a second answer
+    // makes answers.size (2) > initialSize (1), so the guard activates.
+    const { result } = renderHook(() =>
+      useQuizState({
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialAnswers: {
+          [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 },
+        },
+        initialIndex: 1,
+      }),
+    )
+    await act(async () => result.current.handleSelectAnswer('opt-b'))
+
+    const lastCall = navGuardMock.mock.calls[navGuardMock.mock.calls.length - 1]
+    expect(lastCall?.[0]).toBe(true)
   })
 })

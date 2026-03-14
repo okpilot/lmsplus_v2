@@ -89,21 +89,30 @@ export function useSessionState({
       setState('answering')
       return
     }
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSubmitting(true)
     let result: CompleteResult
     try {
       result = await onComplete({ sessionId })
     } catch (err) {
       console.error('Failed to complete session:', err)
       setError('Something went wrong. Please try again.')
+      setSubmitting(false)
+      submittingRef.current = false
       return
     }
     if (!result.success) {
       setError(result.error)
+      setSubmitting(false)
+      submittingRef.current = false
       return
     }
     setCorrectCount(result.correctCount)
     setScorePercentage(result.scorePercentage)
     setState('complete')
+    setSubmitting(false)
+    submittingRef.current = false
   }
 
   return {

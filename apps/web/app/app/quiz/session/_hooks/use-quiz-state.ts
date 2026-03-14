@@ -51,7 +51,9 @@ export function useQuizState(opts: QuizStateOpts) {
     subjectName: opts.subjectName,
     subjectCode: opts.subjectCode,
   })
-  useNavigationGuard(answers.size > 0 && !submitted.current)
+  // Frozen at mount — loader guarantees initialAnswers is resolved before render
+  const initialSize = useRef(initialAnswers ? Object.keys(initialAnswers).length : 0)
+  useNavigationGuard(answers.size > initialSize.current && !submitted.current)
 
   return {
     currentIndex: nav.currentIndex,
