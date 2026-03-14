@@ -23,7 +23,11 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirect
   }
 
-  // Forward auth code from magic link to callback route (PKCE flow)
+  // Forward auth code from magic link to callback route (PKCE flow).
+  // This branch MUST run before the authenticated-user redirect below:
+  // when a magic link is clicked, user is null (code not yet exchanged),
+  // so we capture the code and forward it to /auth/callback before any
+  // user-presence check would redirect away and discard the code.
   const code = searchParams.get('code')
   if (pathname === '/' && code) {
     const callbackUrl = new URL('/auth/callback', request.url)

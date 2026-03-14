@@ -212,7 +212,7 @@ app/
 | Utility file | `kebab-case.ts` | `format-score.ts` |
 | Type file | `types.ts` | per feature folder |
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_QUIZ_QUESTIONS` |
-| DB migration | `NNN_description.sql` | `001_initial_schema.sql` |
+| DB migration | `YYYYMMDDHHMMSS_description.sql` | `20260311000001_initial_schema.sql` |
 
 ### No Barrel Files (index.ts re-exports)
 Barrel files break tree-shaking, slow TypeScript, and create circular dependency risks.

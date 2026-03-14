@@ -1093,7 +1093,7 @@ CREATE INDEX idx_audit_events_actor  ON audit_events(actor_id, created_at DESC);
 1. **Every migration is forward-only and immutable.** Never edit or delete a migration that has been applied. If you need to undo or change something, write a new migration.
 2. **Never rename a column in production** — add the new column, migrate data, drop the old column in three separate migrations.
 3. **Never change a column type** without a migration that handles existing data.
-4. **Every migration file is named** `NNN_short_description.sql` — e.g., `001_initial_schema.sql`.
+4. **Every migration file is named** `YYYYMMDDHHMMSS_short_description.sql` — e.g., `20260311000001_initial_schema.sql` (Supabase CLI timestamp format).
 5. **RLS must be enabled in the same migration as the table creation** — never in a separate file.
 6. **RPC signature changes require DROP FUNCTION first.** Postgres `CREATE OR REPLACE FUNCTION` cannot change a function's return type or parameter list. If modifying an RPC signature, precede the `CREATE OR REPLACE` with `DROP FUNCTION IF EXISTS function_name(param_types);`
 7. **Test every migration** against a local Supabase instance before pushing.

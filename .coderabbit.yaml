@@ -182,6 +182,8 @@ reviews:
       enabled: false
     prettier:
       enabled: false
+    stylelint:
+      enabled: false
 
   # ── Code quality overrides ─────────────────────────────────────────────
 

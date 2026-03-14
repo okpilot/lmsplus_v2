@@ -133,6 +133,7 @@
 ## After Testing
 
 ### New Issues Found
+
 | # | Page | Description | Severity |
 |---|------|-------------|----------|
 | | | | |
