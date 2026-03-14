@@ -97,12 +97,29 @@ git commit
                               │   learner   │  (sonnet) — pattern detection
                               └──────┬──────┘
                                      │
+                    (if diff touches security files)
+                              ┌──────┴──────┐
+                              │  red-team   │  (sonnet) — map diff to specs, flag gaps
+                              └──────┬──────┘
+                                     │
                          (if rules changed)
                               ┌──────┴──────┐
                               │coderabbit-  │  (haiku) — sync .coderabbit.yaml
                               │   sync      │
                               └─────────────┘
 ```
+
+### Red-Team Agent Trigger (conditional)
+
+After the learner, check if the commit diff includes any of these paths:
+- `supabase/migrations/**`
+- `packages/db/src/**`
+- `apps/web/app/app/quiz/actions/**`
+- `apps/web/app/auth/**`
+- `apps/web/proxy.ts`
+- `docs/security.md`
+
+If yes, run the red-team agent (sonnet). It maps changes to red-team specs and flags coverage gaps. If it reports affected specs, run `pnpm --filter @repo/web e2e:redteam` to verify defenses still hold.
 
 ## Pre-Push PR Sweep (MANDATORY for multi-commit PRs)
 
@@ -160,6 +177,6 @@ Only then fix. This is a closed loop: `finding → validate → fix → re-valid
 
 ---
 
-*Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-coderabbit-sync.md`*
+*Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`*
 
-*Last updated: 2026-03-13 (review-gate hook added)*
+*Last updated: 2026-03-14 (red-team agent added to pipeline)*

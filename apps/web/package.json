@@ -14,7 +14,8 @@
     "import-questions": "tsx scripts/import-questions.ts",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "e2e:headed": "playwright test --headed"
+    "e2e:headed": "playwright test --headed",
+    "e2e:redteam": "playwright test --project=redteam"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

@@ -1,0 +1,93 @@
+name: Red Team Security Tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'supabase/migrations/**'
+      - 'packages/db/src/**'
+      - 'apps/web/app/app/quiz/actions/**'
+      - 'apps/web/app/auth/**'
+      - 'apps/web/proxy.ts'
+      - 'apps/web/e2e/redteam/**'
+      - 'docs/security.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: redteam-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '9.15.0'
+
+jobs:
+  redteam:
+    name: Red Team Specs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.78.1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @repo/web exec playwright install --with-deps chromium
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Export Supabase env vars
+        run: |
+          eval "$(supabase status -o env)"
+          echo "NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}" >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> $GITHUB_ENV
+
+      - name: Write .env.local for Next.js
+        run: |
+          printf '%s\n' \
+            "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" \
+            "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+            "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" \
+            > apps/web/.env.local
+
+      - name: Seed test data
+        run: pnpm --filter @repo/web exec tsx scripts/seed-e2e.ts
+
+      - name: Build app
+        run: pnpm build
+
+      - name: Run red team specs
+        run: pnpm --filter @repo/web e2e:redteam
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: redteam-report
+          path: apps/web/playwright-report/
+          retention-days: 14
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: redteam-results
+          path: apps/web/test-results/
+          retention-days: 7
