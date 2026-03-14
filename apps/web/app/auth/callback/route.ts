@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
+    // Clear any stale session cookie left by exchangeCodeForSession
+    await supabase.auth.signOut()
     redirectTo.pathname = '/auth/verify'
     redirectTo.searchParams.set('error', 'auth_failed')
     return NextResponse.redirect(redirectTo)

@@ -99,6 +99,7 @@ describe('GET /auth/callback', () => {
   it('redirects to /auth/verify with auth_failed error when getUser returns no user after exchange', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: null })
     mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockSignOut.mockResolvedValue({})
 
     const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
     const response = await GET(request)
@@ -107,11 +108,13 @@ describe('GET /auth/callback', () => {
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/auth/verify')
     expect(location.searchParams.get('error')).toBe('auth_failed')
+    expect(mockSignOut).toHaveBeenCalledOnce()
   })
 
   it('redirects to /auth/verify with auth_failed error when getUser returns an error', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: null })
     mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'session expired' } })
+    mockSignOut.mockResolvedValue({})
 
     const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
     const response = await GET(request)
@@ -120,5 +123,6 @@ describe('GET /auth/callback', () => {
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/auth/verify')
     expect(location.searchParams.get('error')).toBe('auth_failed')
+    expect(mockSignOut).toHaveBeenCalledOnce()
   })
 })

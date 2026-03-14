@@ -94,6 +94,10 @@ BEGIN
     RAISE EXCEPTION 'question not found';
   END IF;
 
+  IF v_correct_option IS NULL THEN
+    RAISE EXCEPTION 'question has no correct option';
+  END IF;
+
   -- Validate selected option belongs to this question's options array
   IF NOT EXISTS (
     SELECT 1 FROM jsonb_array_elements(v_options) opt
