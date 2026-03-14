@@ -218,6 +218,11 @@
 - ✅ Dashboard page switched to Promise.allSettled (analytics failures now degrade gracefully)
 - ✅ Add `/coderabbit` skill command for triaging CodeRabbit review comments
 
+**Tech debt PR 1 — Docs & Comments (2026-03-14, `fix/pr1-docs-comments`):**
+- ✅ PR #105 merged — 10 doc/comment issues fixed (see `docs/tech-debt-batches.md` PR 1)
+- ✅ Biome CSS formatting fix (`globals.css` — trailing zeros, line breaks, quote normalization)
+- ✅ Stylelint disabled in `.coderabbit.yaml` (was producing false positives on unquoted font names)
+
 **Post-sprint polish (2026-03-13, `feat/post-sprint-3-polish`):**
 - ✅ Remove FSRS metadata from statistics tab (state, stability, difficulty, interval) — simplify student view to: times seen, accuracy %, last answered date
 - ✅ New `fetchExplanation` Server Action — fetches question explanation (text + image) before answering, shows loading state
@@ -591,4 +596,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-14 — Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks. Design prototype approved in Paper Design (light + dark mode). New shadcn theme installed.*
+*Last updated: 2026-03-14 — Tech debt PR 1 (Docs & Comments) merged. Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks. Design prototype approved in Paper Design (light + dark mode). New shadcn theme installed.*

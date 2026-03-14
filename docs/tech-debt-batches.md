@@ -169,7 +169,7 @@
 
 ---
 
-## Parking Lot — Needs Discussion (5 issues)
+## Parking Lot — Needs Discussion (7 issues)
 
 *Design decisions that need investigation before implementation.*
 
@@ -190,17 +190,17 @@
 | PR | Theme | Issues | Risk | Status |
 |----|-------|--------|------|--------|
 | 1 | Docs & comments | 10 | None | **DONE** |
-| 2 | Test naming | 9 | None |
-| 3 | Test coverage gaps | 4 | None |
-| 4 | Security & auth | 6 | Medium |
-| 5 | Race conditions & async bugs | 5 | Medium |
-| 6 | Split oversized files | 10 | Low |
-| 7 | Type safety & cleanup | 7 | Low |
-| 8 | Accessibility | 4 | Low |
-| 9 | UX, perf & architecture | 10 | Medium |
-| 10 | Infrastructure & scripts | 7 | Low |
-| — | Parking lot (needs discussion) | 7 | — |
-| | **Total** | **79** | |
+| 2 | Test naming | 9 | None | Planned |
+| 3 | Test coverage gaps | 4 | None | Planned |
+| 4 | Security & auth | 6 | Medium | Planned |
+| 5 | Race conditions & async bugs | 5 | Medium | Planned |
+| 6 | Split oversized files | 10 | Low | Planned |
+| 7 | Type safety & cleanup | 7 | Low | Planned |
+| 8 | Accessibility | 4 | Low | Planned |
+| 9 | UX, perf & architecture | 10 | Medium | Planned |
+| 10 | Infrastructure & scripts | 7 | Low | Planned |
+| — | Parking lot (needs discussion) | 7 | — | — |
+| | **Total** | **79** | | |
 
 Suggested order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 10 → 9
 

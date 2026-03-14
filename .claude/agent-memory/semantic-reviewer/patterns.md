@@ -4,6 +4,17 @@
 
 ## Recurring Issues
 
+### Biome CSS formatting (trailing zeros, quote normalisation) is semantically safe
+**First seen:** commit 7216c0e (2026-03-14)
+**File:** `apps/web/app/globals.css`
+**Pattern:** Biome reformats CSS custom properties by stripping trailing zeros from oklch()
+values (`0.1880` → `0.188`, `1.0000` → `1.0`) and normalising string quotes. All these changes
+are numerically identical — CSS parsers treat trailing zeros as insignificant. No color shift,
+no precision loss, no visual change.
+**Watch for:** A future Biome run that changes a non-trailing digit (e.g., rounding `0.6231` to
+`0.623`) would be a real color regression. Only trailing zeros are safe to strip.
+**Status:** GOOD — correctly identified as formatting-only.
+
 ### doc entry attributes multi-migration feature to a single migration
 **First seen:** commit d040665 (2026-03-14)
 **File:** `docs/decisions.md`
