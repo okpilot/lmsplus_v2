@@ -230,6 +230,7 @@
 - ✅ Hook split: `use-quiz-state` → `use-answer-handler` extraction to stay under 80-line limit
 - ✅ UUID validation fix: `lookup.ts` `getFilteredCount` validates empty string UUID correctly (closes #10)
 - ✅ Migration 028: UUID case-insensitive regex in batch_submit_quiz — changed to `!~*` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth input validation
+- ✅ Migration 031: batch_submit_quiz idempotent retry + soft-delete scoring — if session already completed, return existing results instead of raising error; allow scoring questions soft-deleted after quiz started (membership validated at session start, safe to score historical responses for retired questions)
 - ✅ saveDraft error logging: added console.error logging for draft count query and insert errors for better observability
 
 ---

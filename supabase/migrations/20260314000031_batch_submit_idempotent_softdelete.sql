@@ -49,9 +49,13 @@ BEGIN
     AND qs.student_id = v_student_id
     AND qs.deleted_at IS NULL
   FOR UPDATE;
+  -- FOR UPDATE is acquired before the completed-session check intentionally:
+  -- it serializes concurrent retries so the second caller sees v_ended_at IS NOT NULL
+  -- and takes the replay path instead of double-writing. The read-only replay holds
+  -- the lock briefly (two SELECTs) — acceptable trade-off vs. a TOCTOU two-phase check.
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'session not found or already completed';
+    RAISE EXCEPTION 'session not found or not accessible';
   END IF;
 
   -- Idempotent replay: if session already completed, return existing results
@@ -132,9 +136,10 @@ BEGIN
       RAISE EXCEPTION 'question % does not belong to session %', v_question_id, p_session_id;
     END IF;
 
-    -- Get correct answer and explanation (allow soft-deleted questions —
-    -- the question was valid when the session started, scoring historical
-    -- responses for retired questions is safe and necessary)
+    -- Get correct answer and explanation.
+    -- Intentionally no deleted_at filter: session membership was verified against
+    -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
+    -- A question soft-deleted after that point must still score correctly.
     SELECT
       (SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt WHERE (opt->>'correct')::boolean LIMIT 1),
       q.explanation_text,

@@ -361,6 +361,57 @@ fires at most on an edge-case race — but it is technically a regression from t
 `useNavigationGuard(answers.size > 0 && !submitted.current)`. The `submitted` ref is set to
 `true` before `router.push`, so the guard clears before navigation completes. Correct fix.
 
+## Commit d057128 (2026-03-14) — batch_submit_quiz idempotent retry + soft-deleted question scoring
+
+### Misleading error message after endpoint behavior change
+**File:** `supabase/migrations/20260314000031_batch_submit_idempotent_softdelete.sql` line 53–54
+**Pattern:** When a function's control flow changes (here: `ended_at IS NULL` guard moved from
+WHERE clause to a later if-block), the error messages that previously corresponded to the removed
+condition become inaccurate. The error `'session not found or already completed'` is no longer
+accurate — completed sessions are now handled by the idempotent replay block, not this error.
+**Fix:** Update to `'session not found or not accessible'`.
+**Watch for:** any commit that removes a WHERE clause condition without also auditing the error
+message that previously described that condition as a failure case.
+**Status:** ISSUE — pending fix.
+
+### FOR UPDATE lock held unnecessarily in read-only replay path
+**File:** `supabase/migrations/20260314000031_batch_submit_idempotent_softdelete.sql` line 51, 57–84
+**Pattern:** The FOR UPDATE lock on quiz_sessions is acquired before the idempotent replay
+check (v_ended_at IS NOT NULL). When the session is already completed, the replay path only
+reads from quiz_session_answers but holds the lock for the duration of those reads and the
+RETURN. This creates unnecessary contention under concurrent retry: two simultaneous retries
+will serialize on the lock even though both are read-only.
+**Watch for:** RPCs that acquire a write lock at the top and then branch into a read-only
+early-return path. Consider a two-phase check (read without lock, then re-acquire only for
+the write path) or document the trade-off.
+**Status:** ISSUE — pending fix or documented decision.
+
+### Replay path explanations reflect live DB state, not original submission state
+**File:** `supabase/migrations/20260314000031_batch_submit_idempotent_softdelete.sql` line 62–75
+**Pattern:** The normal processing path captures explanation_text and explanation_image_url at
+submit time (in-memory v_results). The idempotent replay path fetches these fields live from
+the questions table at replay time. If a question's explanation was edited after the original
+session completed, the replay returns the new explanation, not the one shown at completion.
+**Status:** SUGGESTION — should be a documented decision. The live read is the only option
+without storing explanation text in quiz_session_answers.
+
+### POSITIVE — idempotent replay correctly checks session ownership before returning results
+The `v_ended_at IS NOT NULL` branch can only be reached after the WHERE clause at line 48-51
+has verified `qs.student_id = v_student_id`. A student cannot trigger replay for another
+student's completed session. Ownership is not bypassed by the early return.
+
+### POSITIVE — soft-delete removal correctly scoped to answer-scoring lookup only
+The `deleted_at IS NULL` filter is preserved on `quiz_sessions` (line 50). Only the `questions`
+lookup (the correctness-scoring sub-query) has the filter removed. This is the minimal correct
+change — a soft-deleted session cannot be replayed, but a question soft-deleted after session
+start can still be scored.
+
+### POSITIVE — FOR UPDATE race condition handling is correct for the normal submit path
+A double-submission race (two concurrent calls for the same active session) will serialize
+on the FOR UPDATE lock. The second caller acquires the lock, finds v_ended_at IS NOT NULL,
+and returns the idempotent replay result. This is exactly the intended behavior: no double
+writes, no errors on retry.
+
 ## Positive Patterns
 
 ### FSRS best-effort scheduling with try/catch

@@ -367,6 +367,23 @@ CREATE POLICY "tenant_isolation" ON questions
 This means deleted records are invisible to all normal queries automatically.
 No `WHERE deleted_at IS NULL` needed in application code — RLS handles it.
 
+### Scoring Soft-Deleted Questions
+
+When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to score a question that was soft-deleted *after* the quiz session started. This is safe because:
+
+1. **Membership was validated at session start** — `quiz_sessions.config.question_ids` was locked when the session began, before the question could be deleted.
+2. **Explanations are preserved** — the question record still exists (soft-deleted, not hard-deleted), so we can still retrieve explanation text and images.
+3. **Historical integrity** — we score the response as it was when the student answered, not based on the question's current (deleted) state.
+
+**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` when fetching questions for explanation. RLS policies do not apply inside SECURITY DEFINER functions, so the RPC can access deleted questions as needed to complete historical scoring.
+
+```sql
+-- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
+SELECT q.explanation_text, q.explanation_image_url
+FROM questions q
+WHERE q.id = v_question_id;  -- No `deleted_at IS NULL` filter
+```
+
 ### Viewing Deleted Records (admin/compliance only)
 
 ```sql
@@ -655,9 +672,13 @@ BEGIN
     AND qs.student_id = v_student_id
     AND qs.deleted_at IS NULL
   FOR UPDATE;
+  -- FOR UPDATE is acquired before the completed-session check intentionally:
+  -- it serializes concurrent retries so the second caller sees v_ended_at IS NOT NULL
+  -- and takes the replay path instead of double-writing. The read-only replay holds
+  -- the lock briefly (two SELECTs) — acceptable trade-off vs. a TOCTOU two-phase check.
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'session not found or already completed';
+    RAISE EXCEPTION 'session not found or not accessible';
   END IF;
 
   -- Idempotent replay: if session already completed, return existing results
@@ -738,9 +759,10 @@ BEGIN
       RAISE EXCEPTION 'question % does not belong to session %', v_question_id, p_session_id;
     END IF;
 
-    -- Get correct answer and explanation (allow soft-deleted questions —
-    -- the question was valid when the session started, scoring historical
-    -- responses for retired questions is safe and necessary)
+    -- Get correct answer and explanation.
+    -- Intentionally no deleted_at filter: session membership was verified against
+    -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
+    -- A question soft-deleted after that point must still score correctly.
     SELECT
       (SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt WHERE (opt->>'correct')::boolean LIMIT 1),
       q.explanation_text,
