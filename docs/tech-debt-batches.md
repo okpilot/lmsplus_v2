@@ -77,17 +77,17 @@
 
 ---
 
-## PR 5 — Bug Fixes: Race Conditions & Async (5 issues) — IN PROGRESS
+## PR 5 — Bug Fixes: Race Conditions & Async (5 issues) — DONE
 
 *Real bugs — stale state, race conditions, in-flight guards.*
-*Started 2026-03-14. Issues #40 and #53 resolved in commit 1b38542.*
+*Completed 2026-03-14. PR #118 merged. #40 and #53 fixed in code; #86, #51, #67 closed as already implemented.*
 
 | # | Title |
 |---|-------|
-| 86 | fix: add cancellation guard to useQuizCascade async cascade |
-| 51 | Defensive: race condition guard for async topic/subtopic lookups |
+| 86 | fix: add cancellation guard to useQuizCascade async cascade | ✅ Already implemented |
+| 51 | Defensive: race condition guard for async topic/subtopic lookups | ✅ Already implemented |
 | 40 | Bug: Add in-flight guard to useSessionState submit/next | ✅ DONE |
-| 67 | fix: isPending in statistics-tab not scoped per question generation |
+| 67 | fix: isPending in statistics-tab not scoped per question generation | ✅ Already implemented |
 | 53 | UX: navigation guard false positive on unchanged resumed drafts | ✅ DONE |
 
 ---
@@ -199,7 +199,7 @@
 | 2 | Test naming | 9 | None | **DONE** |
 | 3 | Test coverage gaps | 4 | None | **DONE** |
 | 4 | Security & auth | 8 | Medium | **DONE** |
-| 5 | Race conditions & async bugs | 5 | Medium | **IN PROGRESS** (2/5) |
+| 5 | Race conditions & async bugs | 5 | Medium | **DONE** |
 | 6 | Split oversized files | 10 | Low | Planned |
 | 7 | Type safety & cleanup | 7 | Low | Planned |
 | 8 | Accessibility | 4 | Low | Planned |
