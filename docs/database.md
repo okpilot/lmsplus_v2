@@ -639,24 +639,54 @@ DECLARE
   v_session_question_ids uuid[];
   v_qid_text        text;
   v_rt_text         text;
+  v_ended_at        timestamptz;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
-  -- Step 1: Fetch session row (without extracting question_ids yet)
-  SELECT qs.organization_id, qs.total_questions, qs.config
-  INTO v_org_id, v_total, v_config
+  -- Step 1: Fetch session row (allow already-completed sessions for idempotent replay)
+  SELECT qs.organization_id, qs.total_questions, qs.config, qs.ended_at,
+         qs.correct_count, qs.score_percentage
+  INTO v_org_id, v_total, v_config, v_ended_at, v_correct_count, v_score
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
-    AND qs.ended_at IS NULL
     AND qs.deleted_at IS NULL
   FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found or already completed';
+  END IF;
+
+  -- Idempotent replay: if session already completed, return existing results
+  IF v_ended_at IS NOT NULL THEN
+    SELECT count(*)::int INTO v_answered
+    FROM quiz_session_answers WHERE session_id = p_session_id;
+
+    SELECT jsonb_agg(jsonb_build_object(
+      'question_id', qsa.question_id,
+      'is_correct', qsa.is_correct,
+      'correct_option_id', (
+        SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt
+        WHERE (opt->>'correct')::boolean LIMIT 1
+      ),
+      'explanation_text', q.explanation_text,
+      'explanation_image_url', q.explanation_image_url
+    ))
+    INTO v_results
+    FROM quiz_session_answers qsa
+    JOIN questions q ON q.id = qsa.question_id
+    WHERE qsa.session_id = p_session_id;
+
+    RETURN jsonb_build_object(
+      'results', COALESCE(v_results, '[]'::jsonb),
+      'total_questions', v_total,
+      'answered_count', v_answered,
+      'correct_count', v_correct_count,
+      'score_percentage', v_score
+    );
   END IF;
 
   -- Step 2: Guard against malformed config BEFORE extracting question_ids
@@ -708,15 +738,16 @@ BEGIN
       RAISE EXCEPTION 'question % does not belong to session %', v_question_id, p_session_id;
     END IF;
 
-    -- Get correct answer and explanation
+    -- Get correct answer and explanation (allow soft-deleted questions —
+    -- the question was valid when the session started, scoring historical
+    -- responses for retired questions is safe and necessary)
     SELECT
       (SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt WHERE (opt->>'correct')::boolean LIMIT 1),
       q.explanation_text,
       q.explanation_image_url
     INTO v_correct_option, v_expl_text, v_expl_image_url
     FROM questions q
-    WHERE q.id = v_question_id
-      AND q.deleted_at IS NULL;
+    WHERE q.id = v_question_id;
 
     IF NOT FOUND THEN
       RAISE EXCEPTION 'question not found: %', v_question_id;
