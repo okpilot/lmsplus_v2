@@ -70,8 +70,17 @@ test.describe('Red Team: RPC Question Membership Check', () => {
             .single()
 
           if (org && bank && user) {
-            await adminClient.from('questions').upsert(
-              {
+            // Check if question already exists (can't use upsert — partial unique index)
+            const { data: existing } = await adminClient
+              .from('questions')
+              .select('id')
+              .eq('bank_id', bank.id)
+              .eq('question_number', 'RT-ALW-001')
+              .is('deleted_at', null)
+              .limit(1)
+
+            if (!existing || existing.length === 0) {
+              await adminClient.from('questions').insert({
                 organization_id: org.id,
                 bank_id: bank.id,
                 question_number: 'RT-ALW-001',
@@ -88,9 +97,8 @@ test.describe('Red Team: RPC Question Membership Check', () => {
                 difficulty: 'medium',
                 status: 'active',
                 created_by: user.id,
-              },
-              { onConflict: 'bank_id,question_number' },
-            )
+              })
+            }
           }
         }
       }
