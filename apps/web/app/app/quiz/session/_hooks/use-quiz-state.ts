@@ -1,5 +1,5 @@
 import { useRouter } from 'next/navigation'
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { DraftAnswer, QuizStateOpts } from '../../types'
 import { useAnswerHandler } from './use-answer-handler'
@@ -51,9 +51,9 @@ export function useQuizState(opts: QuizStateOpts) {
     subjectName: opts.subjectName,
     subjectCode: opts.subjectCode,
   })
-  // biome-ignore lint/correctness/useExhaustiveDependencies: snapshot at mount only
-  const initialSize = useMemo(() => (initialAnswers ? Object.keys(initialAnswers).length : 0), [])
-  useNavigationGuard(answers.size > initialSize && !submitted.current)
+  // Frozen at mount — loader guarantees initialAnswers is resolved before render
+  const initialSize = useRef(initialAnswers ? Object.keys(initialAnswers).length : 0)
+  useNavigationGuard(answers.size > initialSize.current && !submitted.current)
 
   return {
     currentIndex: nav.currentIndex,
