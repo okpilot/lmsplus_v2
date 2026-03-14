@@ -2183,3 +2183,23 @@ When a hook refactor touches multiple scope-change handlers (`handleSubjectChang
 have corresponding tests. It is easy to write tests for subject/topic changes and forget
 the subtopic change handler. Verify by reading the hook's return object and listing every
 exported handler that calls the changed helper function.
+
+### Auth error path coverage: `authError || !user` pattern (2026-03-14)
+When a Server Action is changed from `if (!user)` to `if (authError || !user)`, the existing
+`user: null` test does NOT cover the new `authError` branch. Both need separate test cases:
+- `user: null, no error` — the original unauthenticated test
+- `user: null, error: { message: '...' }` — the new authError test
+
+The two cases produce the same output (`{ success: false, error: 'Not authenticated' }` or
+equivalent) but exercise different code paths and should both be present. When reviewing a
+diff that adds `error: authError` destructuring alongside a `getUser()` call, grep the test
+file for `error:` to confirm both branches are covered.
+
+For `fetchQuestionStats` specifically the error path throws (`throw new Error('Auth error...')`)
+instead of returning a result object — the test must use `rejects.toThrow()`.
+
+For `proxy.ts`, when `authError` is present but user is null, the proxy logs the error and
+falls through to the normal `!user` redirect guard. Tests should assert:
+1. `/app/*` route redirects to `/` even when authError present
+2. `/` route falls through (returns session response) when authError present — NOT redirected to dashboard
+3. `console.error` called with `'[proxy] getUser error:'` prefix

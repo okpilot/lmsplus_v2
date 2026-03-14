@@ -131,6 +131,15 @@ describe('getFilteredCount — auth and validation', () => {
     expect(result).toEqual({ count: 0 })
   })
 
+  it('returns count 0 when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'JWT expired' },
+    })
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filter: 'all' })
+    expect(result).toEqual({ count: 0 })
+  })
+
   it('throws (Zod) when subjectId is not a valid UUID', async () => {
     await expect(getFilteredCount({ subjectId: 'not-a-uuid', filter: 'all' })).rejects.toThrow(
       ZodError,

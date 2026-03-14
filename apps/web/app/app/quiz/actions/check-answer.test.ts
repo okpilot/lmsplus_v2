@@ -93,6 +93,21 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
+  it('returns failure when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'JWT expired' },
+    })
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Not authenticated')
+  })
+
   it('rejects a non-UUID question id', async () => {
     setupAuthenticatedUser()
     await expect(

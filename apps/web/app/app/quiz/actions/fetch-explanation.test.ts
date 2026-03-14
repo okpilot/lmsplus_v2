@@ -82,6 +82,15 @@ describe('fetchExplanation', () => {
     expect(result).toEqual({ success: false })
   })
 
+  it('returns failure when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'session expired' },
+    })
+    const result = await fetchExplanation({ questionId: QUESTION_ID, sessionId: SESSION_ID })
+    expect(result).toEqual({ success: false })
+  })
+
   it('throws a ZodError when questionId is not a valid UUID', async () => {
     setupAuthenticatedUser()
     await expect(

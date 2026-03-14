@@ -1603,3 +1603,89 @@ Line count exceeds Server Action limit by 24 lines.
 - The 4-parameter `insertNewDraft` is documented as an intentional exception. Future infrastructure utilities should follow this pattern (JSDoc comment required).
 
 **Verdict:** CLEAN — All checks passed. Error logging well-tested. UUID validation fix is defensive. Documentation accurate. Memory files updated with observations. One WARNING (4-param function) is an intentional suppressed exception per code-style.md § 3.
+
+## Session 2026-03-14 (Auth Hardening Commit)
+
+### Commit: 83ae098 (fix(security): harden auth checks, sanitize errors, and add RPC guards)
+- Status: CLEAN
+- Files changed: 19 files, 354 insertions, 68 deletions
+- Key improvements:
+
+**1. Auth Error Handling Hardening**
+- Pattern: Check for `authError` alongside `!user` in all `.auth.getUser()` calls
+- Applied across 11 Server Actions (start.ts, submit.ts, complete.ts, check-answer.ts, batch-submit.ts, draft.ts, draft-delete.ts, fetch-explanation.ts, load-draft.ts, lookup.ts, fetch-stats.ts)
+- Also applied to: `apps/web/app/app/layout.tsx`, `apps/web/auth/callback/route.ts`, `apps/web/proxy.ts`
+- Rationale: Supabase SDK can return `error` even when `user` is null; both must be checked to catch session-expired and auth-failed cases
+- Pattern: `if (authError || !user) { ... }` is now uniform across all auth checkpoints
+- Test coverage added: `apps/web/app/app/quiz/actions/fetch-stats.test.ts` — 2 new tests for auth error paths
+- No style violations; all functions within limits
+
+**2. Error Message Sanitization**
+- `apps/web/app/_components/login-form.tsx` — new `FRIENDLY_AUTH_ERRORS` map (lines 9–17)
+  - Maps known Supabase auth error messages to user-friendly fallback text
+  - Examples: 'Email rate limit exceeded' → 'Too many attempts. Please wait a moment and try again.'
+  - Fallback for unknown errors: 'Unable to send sign-in link. Please try again.'
+  - Component now hides raw Supabase error messages from UI (complies with security best practice)
+- Test coverage: `apps/web/app/_components/login-form.test.tsx` — test renamed + new test added
+  - Renamed: "shows the Supabase error message..." → "shows a friendly fallback when... unknown error"
+  - New test: "shows a mapped friendly message for a known Supabase error"
+  - Both tests verify error is displayed AND no href assignment happens on error
+
+**3. Auth Callback Route Simplification**
+- `apps/web/auth/callback/route.ts` — refactored auth failure handling (lines 31–35)
+  - Unified error path: `if (authError || !user)` returns early with `error: 'auth_failed'`
+  - Removed special case: "if (!user) {...}" which previously silently redirected to dashboard
+  - Simplification improves clarity: all auth failures → `/auth/verify?error=auth_failed`
+  - Test coverage updated: 2 new tests verify the 'auth_failed' error code is set
+  - Function length: 60 lines (within 80-line limit for route handlers)
+
+**4. RPC Migration Guards**
+- 3 new migrations added with soft-delete and option validation guards:
+  - `supabase/migrations/20260314000035_complete_session_softdelete_guard.sql` — 75 lines
+  - `supabase/migrations/20260314000036_submit_answer_softdelete_and_option_validation.sql` — 125 lines
+  - `supabase/migrations/20260314000037_batch_submit_option_validation.sql` — 260 lines
+- All within migration line limits (300-line max per code-style.md § 1)
+- Key changes:
+  - **Soft-delete guards:** WHERE clauses now include `AND qs.deleted_at IS NULL` to prevent discarded sessions from receiving new answers or completion
+  - **Option validation:** New check validates `p_selected_option` exists in question's options JSONB array (closes attack vector)
+  - **Submit RPC:** Validation added to verify selected option belongs to question (lines 632–638)
+  - **Batch RPC:** Option validation added inside answer loop (lines 837–843)
+- Comment quality: All changes have clear rationale comments explaining the guard's purpose
+
+**5. Proxy Middleware Logging**
+- `apps/web/proxy.ts` — added auth error logging (lines 12, 17–19)
+  - New comment: "On auth error, treat as unauthenticated — proxy must not crash"
+  - If `authError` is present, log it but continue (do not throw)
+  - Graceful degradation: endpoint protection still works even if session refresh fails
+- Function length: 58 lines (well under limit)
+
+**6. Test Additions**
+- `apps/web/app/_components/login-form.test.tsx` — +15 lines
+  - 1 test name updated (behavior-first convention)
+  - 1 new test added for known error mapping
+- `apps/web/app/app/quiz/actions/fetch-stats.test.ts` — +25 lines
+  - 2 new tests for auth error paths (authError case, missing user case)
+  - Mock setup updated to include auth.getUser mock
+  - All tests behavior-first; no violations
+- `apps/web/app/auth/callback/route.test.ts` — +23 lines
+  - 1 test refactored to verify 'auth_failed' error code on null user
+  - 1 new test added for authError case
+  - Both verify correct error code and redirect path
+
+**Compliance Checks: ALL PASS**
+- File sizes: all route/action files under 100-line limit ✓
+- Function lengths: longest is route.ts at 60 lines (under 80-line limit) ✓
+- Test naming: all new tests use behavior-first convention ✓
+- Auth pattern: uniform `authError || !user` check across all 14 auth checkpoints ✓
+- No `any` types, no barrel files, no unauthorized type casts
+- Migration comments clear; soft-delete and option validation guards well-documented
+
+**Pattern Noted**
+- Auth hardening is a pervasive cross-file pattern fix. Commits that apply the same fix across multiple files (11+ Server Actions + 3 middleware files) are legitimate when each file makes a small, identical change.
+- Error sanitization via lookup maps is a clean pattern for user-facing error messages (no raw external data exposed)
+- RPC guards added via new migrations (not modifying existing ones) — follows immutable-migration best practice
+
+**Watch Items**
+- None — commit is clean and follows all documented patterns
+
+**Verdict:** CLEAN — All checks passed. Auth error handling hardened uniformly. Error messages sanitized. RPC guards added defensively. Test coverage added for new paths. All style rules complied.

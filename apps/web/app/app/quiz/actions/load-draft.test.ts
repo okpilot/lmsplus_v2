@@ -60,6 +60,17 @@ describe('loadDrafts', () => {
     expect(result).toEqual({ drafts: [] })
   })
 
+  it('returns empty drafts when getUser returns an auth error', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'session expired' },
+    })
+
+    const result = await loadDrafts()
+
+    expect(result).toEqual({ drafts: [] })
+  })
+
   it('returns empty drafts when the DB query returns an error', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
     mockFrom.mockReturnValue(
