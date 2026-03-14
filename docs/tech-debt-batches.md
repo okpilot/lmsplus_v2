@@ -26,9 +26,10 @@
 
 ---
 
-## PR 2 — Test Naming (9 issues)
+## PR 2 — Test Naming (9 issues) — DONE
 
 *Rename test titles from implementation-focused to behavior-focused. No logic changes.*
+*Completed 2026-03-14. Split quiz/actions.test.ts (300 lines) into 3 co-located files (start.test.ts, submit.test.ts, complete.test.ts). ~80 test names renamed to describe behavior, not implementation. question-stats mock fixed to use distinct counts.*
 
 | # | Title |
 |---|-------|
@@ -190,7 +191,7 @@
 | PR | Theme | Issues | Risk | Status |
 |----|-------|--------|------|--------|
 | 1 | Docs & comments | 10 | None | **DONE** |
-| 2 | Test naming | 9 | None | Planned |
+| 2 | Test naming | 9 | None | **DONE** |
 | 3 | Test coverage gaps | 4 | None | Planned |
 | 4 | Security & auth | 6 | Medium | Planned |
 | 5 | Race conditions & async bugs | 5 | Medium | Planned |
@@ -208,3 +209,16 @@ Start with zero-risk batches (docs, test renames) to build momentum.
 Security and bugs next because they're real gaps.
 Refactoring and cleanup after — safe but tedious.
 UX/perf last — these are enhancements, not fixes.
+
+---
+
+## Future Work — Integration Test Expansion
+
+The current integration test suite (`packages/db/src/__integration__/`) covers only the 4 core RPCs and basic RLS policies (35 tests). This needs significant expansion:
+
+- **New RPCs**: `batch_submit_quiz` (migrations 011–031) has no integration tests — only unit tests with mocked Supabase clients
+- **Edge cases**: idempotent retry, soft-deleted question scoring, partial submissions, parameter clamping in analytics RPCs
+- **Security paths**: session ownership checks in `checkAnswer`/`fetchExplanation`, cross-student data isolation for quiz drafts
+- **Schema constraints**: FK cascades, unique indexes, CHECK constraints under real Postgres
+
+Priority: after the current tech debt batches are complete. Integration tests require local Supabase running, so they're slower to write and run than unit tests.

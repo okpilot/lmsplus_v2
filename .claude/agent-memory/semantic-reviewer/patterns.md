@@ -57,6 +57,31 @@ first checking `err instanceof ZodError`. The pattern is especially risky when
 validation and async DB calls share a single try block.
 **Status:** ISSUE — flagged in 40ce785, pending fix.
 
+### console.error spy not guarded with try/finally in start.test.ts
+**First seen:** commit 15ad393 (2026-03-14)
+**File:** `apps/web/app/app/quiz/actions/start.test.ts` line 114
+**Pattern:** The test "returns failure and logs when an unexpected error is thrown" creates
+a `consoleSpy` and calls `consoleSpy.mockRestore()` at the end. If any assertion between
+creation and restore throws, the spy leaks into subsequent tests. `quiz-submit.test.ts`
+correctly wraps its equivalent spy in `try/finally`. `check-answer.test.ts` does not use
+try/finally either (8 occurrences), making this a common pattern in this codebase.
+**Risk:** Test-order sensitivity — a failing assertion mid-test leaves console.error silenced
+for every subsequent test in the same file, masking real errors from the test output.
+**Fix pattern:** Wrap spy usage in `try { ... } finally { consoleSpy.mockRestore() }`.
+**Watch for:** Any test that calls `vi.spyOn(console, ...).mockImplementation(...)` without
+a `try/finally` around the assertions.
+**Status:** SUGGESTION — non-blocking, flagged in 15ad393.
+
+### test file split: auth-before-Zod test name changed but behavior preserved
+**First seen:** commit 15ad393 (2026-03-14)
+**Files:** `start.test.ts`, `submit.test.ts`, `complete.test.ts`
+**Pattern:** The old monolithic file named the unauthenticated-with-no-input test
+"rejects unauthenticated calls before reaching Zod validation". The new files rename this
+to "rejects unauthenticated calls before input validation". The assertion is identical;
+only the phrase "reaching Zod" was softened to "input validation". This is a correct
+behaviour-focused rename with no behavioral regression.
+**Status:** GOOD — rename is safe, behavior verified.
+
 ### shared generation counter across independent async slots
 **First seen:** commit 57af0d6 (2026-03-13)
 **File:** `apps/web/app/app/quiz/_hooks/use-quiz-cascade.ts`
