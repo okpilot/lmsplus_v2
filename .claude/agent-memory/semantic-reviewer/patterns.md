@@ -323,6 +323,37 @@ The current comment explanation ("column names resolve to never") is an imprecis
 **Status:** SUGGESTION — the cast is correct and the workaround is sound; the explanation is
 inaccurate at a technical level but unlikely to mislead maintainers in practice.
 
+### useMemo snapshot for "initial value" freezes at first render, not at prop resolution (1st occurrence)
+**First seen:** commit 1b38542 (2026-03-14)
+**File:** `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` line 55
+**Pattern:** `useMemo(() => initialAnswers ? Object.keys(initialAnswers).length : 0, [])`
+is used to snapshot the count of pre-existing answers at mount so the nav-guard
+fires only on *new* answers. The pattern is correct as long as the parent component
+is always fully mounted after the prop is populated. If the component is ever inside
+a Suspense boundary that renders before data is ready, the snapshot is computed at 0
+(pre-data) and the fix degrades to the pre-fix behavior.
+**Watch for:** Any useMemo or useRef that snapshots a prop "at mount" for comparison
+later — verify the parent guarantees the prop is fully resolved before the component
+mounts. Suspense boundaries are the most common way this guarantee breaks.
+**Related:** useRef is a cleaner signal for "frozen on mount" intent and avoids the
+biome-ignore suppression needed for an intentionally empty useMemo dependency array.
+**Status:** ISSUE — flagged in 1b38542. Pending confirmation of load-guarantee in
+the parent Server Component loader.
+
+### in-flight guard covers complete-session call but not advance-question call in handleNext (1st occurrence)
+**First seen:** commit 1b38542 (2026-03-14)
+**File:** `apps/web/app/app/_hooks/use-session-state.ts` lines 85-116
+**Pattern:** The submittingRef guard in handleNext wraps only the onComplete() path.
+The advance-question early return (index < length) runs before the guard. If handleSubmit
+is in-flight when handleNext is called, the advance executes anyway. Currently harmless
+because the UI disables the Next button while submitting is true. But a future UI
+refactor that decouples the Next button from the submitting state will silently introduce
+a race condition.
+**Watch for:** Any in-flight guard that protects only one branch of a multi-branch
+async function. Guards should be placed *before all branches* or each branch must
+reason independently about guard applicability.
+**Status:** SUGGESTION — non-blocking today due to UI coupling. Noted for future UI refactors.
+
 ## High-Scrutiny Files
 - `apps/web/proxy.ts` — auth flow, cookie handling, redirects
 - `apps/web/app/auth/callback/route.ts` — PKCE code exchange, session creation

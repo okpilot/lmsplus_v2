@@ -31,8 +31,8 @@
 | LANGUAGE sql instead of plpgsql for SECURITY DEFINER RPC | 1 | 2026-03-12 | Watch — Sprint 3 analytics RPCs (845923b); fixed migration 014 (86c8da4); single root introduction; plpgsql required for RAISE EXCEPTION; if second introduction occurs, add to security.md |
 | ?? [] fallback applied after an explicit error guard (silent data loss path) | 1 | 2026-03-12 | Watch — subjects ?? [] in statistics-tab.tsx after null/error guard (845923b); fixed in 86c8da4; data is already known bad at that point, fallback hides the gap |
 | Server Action shipped without Zod input validation | 1 | 2026-03-12 | Watch — fetch-stats.ts Server Action (845923b); fixed in 86c8da4; rule exists (security.md rule 4); compliance gap, not rule gap |
-| RPC missing identity guard (auth.uid() = p_student_id check) | 1 | 2026-03-12 | Watch — Sprint 3 analytics RPCs (845923b); fixed migration 015 (7b824c2); security.md rule 7 covers null check only — does NOT require identity comparison; gap in rule text; clarify rule 7 on second occurrence |
-| Partial fix applied to sibling file group (cross-cutting concern) | 1 | 2026-03-12 | Watch — auth error destructuring applied to 2 of 8 query files (2190dd5); remaining 6 fixed in follow-up commits (3a0d1e6, 78cb130); cost: 3 extra commits; when a fix is a cross-cutting pattern across a file family, all siblings must be fixed in the same commit |
+| Inconsistent guard between related RPCs (sibling RPC missing guard introduced in first) | 2 | 2026-03-14 | RULE CANDIDATE — first: auth.uid() identity guard missing from sibling analytics RPC (845923b → 7b824c2); second: NULL correct_option guard in migration 037 but missing from sibling migration 036 (83ae098 → 08abee0); both fixed in follow-up commits; when a guard is added to one RPC in a family, audit all siblings in the same commit |
+| Partial fix applied to sibling file group (cross-cutting concern) | 2 | 2026-03-14 | RULE CANDIDATE — first: auth error destructuring applied to 2 of 8 query files (2190dd5); second: PR4 getUser hardening missed quiz/session/page.tsx and discard.ts (83ae098); both required fix commits; root cause: sweep scoped to directory pattern, not semantic ownership; before committing a cross-cutting security change, grep full repo for all call sites matching the pattern, not just files in the expected directory |
 | Auth error from getUser() not destructured in query file | 1 | 2026-03-12 | Watch — 7 of 8 query files under apps/web/lib/queries/ missing authError destructuring (2190dd5 → 3a0d1e6 → 78cb130); distinct from mutation error pattern (that is about .insert/.update/.delete); first occurrence as a named pattern |
 | Auth error from getUser() swallowed without logging | 1 | 2026-03-12 | Watch — quiz-report.ts (78cb130); auth failure path returned early with no console.error; first occurrence; silent auth failure is harder to diagnose than silent mutation failure |
 | Raw Supabase error message leaked to student UI | 1 | 2026-03-12 | Watch — load-session-questions.ts (78cb130); error.message from Supabase returned directly to student-facing caller; first occurrence; internal error strings must not be exposed to UI — return a generic message or error code |
@@ -55,7 +55,7 @@
 | Stale closure introduced by hook split (scalar captured in closure vs ref) | 1 | 2026-03-13 | Watch — when use-quiz-state was split in 34a9352 to fix the 80-line violation, currentIndex was captured as a scalar in a closure in handleSave instead of being accessed via useRef; fixed in df5d354; the hook split itself introduced the bug; pattern: any value read inside a callback that is defined outside a React.useCallback/useMemo with that value in its deps array is at risk of being stale; when splitting a hook, audit all callbacks in the extracted portion for captured scalar state; first occurrence |
 | SQL string comparison instead of ::uuid cast in duplicate check | 1 | 2026-03-13 | Watch — batch_submit_quiz duplicate-answer check compared option IDs as text rather than casting to ::uuid, which can cause case-sensitivity and format-variation failures; fixed in 34a9352; first occurrence |
 | Type cast bypassing runtime validation (`as unknown as T` hiding missing guard) | 2 | 2026-03-13 | RULE ADDED (22c3d5e) — first: batch_submit_quiz malformed config cast (306f44a); second: check-answer.ts + fetch-explanation.ts (a0d9973); rule added to code-style.md Section 5 + .coderabbit.yaml synced; 274821b applied the rule correctly via isCheckAnswerRpcResult type guard |
-| New hook file extracted without shipping tests in the same commit | 4 | 2026-03-13 | RULE EXISTS (code-style.md Section 7) — use-answer-handler.ts was created in 306f44a without a test file; 12 tests were written in a0d9973 (follow-up commit); pattern: hook extractions always trigger a test gap that requires a post-commit fill; fourth recurrence confirms the compliance gap is structural |
+| New hook file extracted without shipping tests in the same commit | 5 | 2026-03-14 | RULE EXISTS (code-style.md Section 7) — use-answer-handler.ts was created in 306f44a without a test file; use-session-state.ts created in 1b38542 without a test file (tests in 9ea234b); fifth recurrence confirms structural compliance gap — rule is clear, authoring habit is not there |
 | Imperative ref clear in catch block leaving re-entry window | 1 | 2026-03-13 | Watch — use-answer-handler.ts (306f44a): lockedRef.current.delete() in catch block cleared the lock before React state (answers) had settled, creating a brief window where a second call could enter; fixed in a0d9973 with useEffect drain keyed on answers; then partially reverted in 5b2864f (synchronous clear restored for immediate retryability, useEffect kept as safety drain); first occurrence of this specific async-lock re-entry window pattern |
 | Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE — first: SQL score aggregation over full table (not current batch) in batch_submit_quiz (f53eccf), where position-in-array was used as a proxy for "answered"; second: answeredCount derived as currentIndex + 1 in use-session-state.ts (675104e) — correct only because index is incremented at the same moment an answer is submitted, not because it semantically tracks "answers given"; fixed in 4798fdb with dedicated useState counter incremented in handleSubmit; both share root cause: a value that co-varies with the desired metric under normal conditions but diverges on edge cases (non-linear navigation, partial completion, session restore); propose note in code-style.md or agent memory: when a metric (count, score, progress) needs to be tracked, use a dedicated state variable incremented at the domain event, not a proxy derived from a structural position |
 | Unbounded numeric regex permitting int overflow (SQL input validation) | 1 | 2026-03-13 | Watch — batch_submit_quiz RPC (274821b): `^\d+$` matched response_time_ms without an upper bound, permitting integer overflow when cast to INT; fixed in 34c9b36 with `^\d{1,10}$` (10 digits caps at 9,999,999,999, safely below INT_MAX); first occurrence; applies to any SQL regex that validates before casting to a bounded numeric type — the regex digit count must be bounded to match the target type's range |
@@ -68,6 +68,9 @@
 | Hard DELETE in test/spec cleanup code | 1 | 2026-03-14 | Watch — session-race-condition.spec.ts (a396438/a1335ff) used hard DELETE in a `afterAll` cleanup block instead of soft-delete; test code is exempt from the application-level soft-delete rule (it is seeding/cleanup, not student data), but for security-sensitive red-team specs the pattern of writing hard DELETEs is a habit that can accidentally propagate to production code; first occurrence; acceptable in test cleanup only — document the exception if flagged again |
 | Red-team spec written against wrong schema column or RPC signature | 2 | 2026-03-14 | Watch — first: multiple specs in f278d5c used wrong column names (e.g. wrong foreign key column), wrong RPC parameter names, and wrong table names; second: a396438 + a1335ff required further alignment of RPC signatures and schema assertions; distinct from "test fixture shape mismatch" (that is TypeScript type mismatch — this is SQL/RPC API mismatch in Playwright E2E); both caught pre-merge by CI failures; root cause: red-team specs are written speculatively from memory of the schema rather than reading actual migration files; if a third spec ships with wrong schema references, add a rule to the red-team agent: always read the relevant migration file before writing DB assertions |
 | Test spec encodes a security gap as a passing assertion | 1 | 2026-03-14 | Watch — session-race-condition.spec.ts (a1335ff) had a test that asserted the race condition response was acceptable/expected, effectively baking the security gap into the passing baseline rather than asserting the gap does not exist; semantic-reviewer flagged this as an ISSUE: a test that passes because it accepts wrong behavior is worse than a failing test; first occurrence; the correct form for a security spec is: assert the hardened behavior, fail if the unguarded path succeeds |
+| Stale cookie from partial auth flow (session set before guard check, not cleaned up on guard failure) | 1 | 2026-03-14 | Watch — auth callback (83ae098 → 08abee0): exchangeCodeForSession set session cookie before users-table check; if users check failed, signOut() was not called before redirecting to auth_failed; fixed in 08abee0; any multi-step auth flow where session is set before all guards run must call signOut() on all post-session failure paths; first occurrence |
+| useMemo with empty deps used as stability guarantee (should be useRef) | 1 | 2026-03-14 | Watch — use-quiz-state.ts (1b38542 → fixed 9ea234b): initial fix used `useMemo(() => value, [])` to snapshot mount-time value; semantic-reviewer correctly flagged that useMemo is a performance hint whose result is not guaranteed stable in concurrent mode; correct tool is useRef; first occurrence; if a second component uses useMemo with empty deps to capture a mount-time constant, add a note to code-style.md Section 2 or 6 about the distinction |
+| test-writer generates deprecated vi.fn generic syntax (two-arg form) | 1 | 2026-03-14 | Watch — use-session-state.test.ts (9ea234b): test-writer generated vi.fn with deprecated Vitest v4 two-argument generic form; correct form is `vi.fn<(arg: A) => R>()` (single function-type arg); fixed by orchestrator before commit; first occurrence; do not add to test-writer memory until second occurrence |
 
 ## Lessons Learned
 
@@ -1221,3 +1224,136 @@ The session-race-condition spec used `DELETE FROM` in `afterAll` cleanup. This i
 - Both commits were limited to red-team spec files only — no production code changed, no doc changes needed.
 - CI caught the schema mismatches before merge. The gate (type-check + CI) is working at the correct layer for spec-level alignment issues.
 - After two rounds of alignment, the four red-team specs (quiz-draft-injection, rpc-question-membership, session-race-condition, session-replay) are now consistent with actual migration files and RPC signatures.
+
+---
+
+### 2026-03-14 — PR 4 security & auth hardening (commits 83ae098, 08abee0, e2fc840)
+
+**Context:** Three-commit cycle on fix/pr4-security-auth-hardening. 83ae098 was the main hardening commit — getUser() checks added to all 10 Server Actions, auth callback rewritten with signOut on all error paths, error messages sanitised, RPC guards added to migrations 036 and 037. 08abee0 was the semantic-reviewer fix commit — addressed 4 ISSUEs found post-83ae098. e2fc840 was the test-writer commit — added 12 authError path tests across 11 files.
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING — clean on all 3 commits.
+
+**Semantic reviewer (83ae098):** 4 ISSUEs, all fixed in 08abee0.
+
+1. **ISSUE — quiz/session/page.tsx missed in getUser hardening sweep (fixed 08abee0):** The hardening commit added `getUser()` auth checks to all 10 Server Actions but missed `apps/web/app/app/quiz/session/page.tsx`, which also calls into the auth-dependent data path. The fix added the required guard. Root cause: the sweep was applied to files matching a `quiz/actions/` pattern but did not include pages that also perform authenticated data fetching. **This is the second occurrence of the "missed file in bulk sweep" meta-pattern** (first: auth error destructuring applied to 2 of 8 sibling query files in 2190dd5; fixed across 3 extra commits). The pattern: when a cross-cutting security change is applied to a file family, one or more files that belong to the same logical group but are in a different directory or file type are missed. Count in frequency table updated: 1 → 2. Status: RULE CANDIDATE.
+
+2. **ISSUE — Auth callback missing signOut on auth_failed path (fixed 08abee0):** After `exchangeCodeForSession` + `getUser()` failure, the callback returned an error redirect without calling `supabase.auth.signOut()`. A partial session (OAuth code exchanged, but user not in the registered users table) could leave a stale auth cookie for a user that should not be admitted. Fixed by adding `await supabase.auth.signOut()` before the `auth_failed` redirect. Root cause: the original callback was written before the registered-users-only guard was added — the signOut step was never needed when the only failure was a bad code exchange. Adding the users-table check created a new partial-auth failure path that the existing cleanup did not cover. **First occurrence** of this specific "stale cookie from partial auth flow" pattern. Logged as new watch item. Any multi-step auth flow that can fail after session cookies are set must clean up the session before redirecting to an error page.
+
+3. **ISSUE — Migration 036 missing NULL correct_option guard, inconsistent with 037 (fixed 08abee0):** `submit_quiz_answer` RPC in migration 036 did not guard against `correct_option IS NULL` before comparing the student's selected option to the correct one. Migration 037 (`check_quiz_answer`) was authored with the guard. The inconsistency left 036 able to silently accept a NULL correct_option as "correct" depending on PostgreSQL's NULL comparison semantics. Fixed by adding the same guard to migration 036. Root cause: the guard was written into 037 first; when 036 was reviewed, the sibling guard was not cross-checked. **This is the second occurrence of the "inconsistent guard between related RPCs" pattern** (first occurrence: RPC missing identity guard in analytics RPCs, Sprint 3 cycle, 845923b — one RPC had the `auth.uid() = p_student_id` check, sibling did not). Count in frequency table: 1 → 2. Status: RULE CANDIDATE.
+
+4. **ISSUE — discard.ts auth pattern diverged from standard (fixed 08abee0):** `discard.ts` used a different auth call pattern than the other 9 Server Actions in the same directory (all of which were updated to the new standard in 83ae098). The fix aligned `discard.ts` with the standard. Root cause: `discard.ts` was created later in the development timeline and was not included in the 83ae098 sweep. This is the same class of failure as finding 1 — a file that is logically part of the group but was missed in the bulk sweep. Counted under the same "missed file in bulk sweep" entry (count 2).
+
+**Semantic reviewer (08abee0, e2fc840):** clean — 0 issues, 0 suggestions on both fix commits.
+
+**Doc updater:** `docs/database.md`, `docs/tech-debt-batches.md`, and `docs/plan.md` all updated in the same cycle. Clean — no partial-doc-fix pattern.
+
+**Test writer:** 12 new tests for authError paths across 11 files (e2fc840). All passing. No new hook/utility files shipped without tests in this cycle.
+
+**Pattern analysis — "missed file in bulk sweep" (count 2, RULE CANDIDATE):**
+
+Both occurrences share the same structure: a cross-cutting fix is identified and applied to a primary file group (e.g., all files in `quiz/actions/`). One or more files that belong to the same logical responsibility but live in a different location (a page component, a later-added action file, a different directory sibling) are missed. The gap is caught by the semantic-reviewer post-commit, requiring a fix commit.
+
+Occurrences:
+1. Auth error destructuring sweep (2190dd5): 2 of 8 query files patched; 6 missed; required 3 extra fix commits.
+2. PR4 getUser hardening sweep (83ae098): `quiz/session/page.tsx` and `discard.ts` missed; required 1 fix commit.
+
+Both share root cause: the sweep was scoped by directory pattern rather than by semantic ownership (all files that perform authenticated data access). A directory pattern misses files that participate in the same responsibility from adjacent locations.
+
+No rule change proposed for `code-style.md` — this is a process/checklist gap, not a style rule. The correct fix is a note in agent memory about sweep verification: before committing a cross-cutting security or pattern change, grep the full repository for any call sites that match the pattern being fixed, not just files in the expected directory. Two occurrences confirm the note belongs in agent memory.
+
+**Pattern analysis — "inconsistent guard between related RPCs" (count 2, RULE CANDIDATE):**
+
+Both occurrences: a guard is introduced in one RPC but its sibling RPC (which operates on the same data or shares the same security assumption) does not receive the same guard.
+
+Occurrences:
+1. Sprint 3 analytics RPCs (845923b): `auth.uid() = p_student_id` identity guard added to one RPC, sibling RPC missing it; fixed in 7b824c2.
+2. Migrations 036/037 (83ae098 → 08abee0): NULL correct_option guard in 037 (`check_quiz_answer`), missing from 036 (`submit_quiz_answer`); fixed in 08abee0.
+
+Root cause: guards are written into one RPC during authoring, then sibling RPCs are either not reviewed for the same gap or are authored before the guard is established as a convention. The gap is invisible to lint and type-check — only semantic review catches it.
+
+No rule change to `code-style.md` or `security.md` yet — the pattern is at count 2 but both involve different guard types (identity check vs. NULL data guard). The common principle is: when a guard is added to one RPC in a family (RPCs operating on the same table or shared auth assumption), all sibling RPCs in that family must be audited for the same gap in the same commit. This belongs in the semantic-reviewer's checklist or in a note about migration authoring. Will propose a `docs/security.md` addition if a third occurrence surfaces.
+
+**Pattern analysis — "stale cookie after partial auth flow" (count 1, WATCH):**
+
+The auth callback's multi-step flow (exchange code → get user → check registered users table) created a partial-auth failure mode: the session cookie is set by `exchangeCodeForSession` before the users-table check runs. If the users-table check fails, the session must be explicitly torn down via `signOut()` before redirecting to the error page. The original code did not do this.
+
+This is distinct from "auth error from getUser() swallowed without logging" (that pattern is about missing console.error — this is about missing session cleanup before an error redirect). First occurrence — logged and watched. The principle: in any multi-step auth flow where a session can be partially established, the error paths that occur after session establishment must explicitly clean up the session before returning an error to the caller.
+
+**Actions taken:**
+- Frequency table: "Missed file in bulk sweep (cross-cutting change applied to primary group, sibling in adjacent location missed)" count updated 1 → 2. Status: RULE CANDIDATE.
+- Frequency table: "Inconsistent guard between related RPCs (sibling RPC missing guard introduced in first)" count updated 1 → 2. Status: RULE CANDIDATE.
+- Frequency table: "Stale cookie from partial auth flow (session set before guard check, not cleaned up on guard failure)" added at count 1, status WATCH.
+- No changes proposed to `code-style.md` or `security.md` — both RULE CANDIDATEs are semantic/process patterns without a mechanically checkable form. Agent memory is the correct home. One-off patterns logged at count 1.
+
+**Pending recommended changes (carried forward — not yet applied):**
+
+1. **`.claude/agent-memory/test-writer/patterns.md`** — consoleSpy try/finally (3rd occurrence — from cb0395c cycle, actionable).
+2. **`.claude/agent-memory/test-writer/patterns.md`** — scan every new `if (error) return` branch in files with existing tests; write the branch test in the same commit (3rd occurrence — from d057128 cycle, actionable).
+3. **`.claude/agent-memory/test-writer/patterns.md`** — always construct test fixtures by annotating with the exported TypeScript type (2nd occurrence — from bba9800 cycle, actionable).
+4. **`.claude/agent-memory/test-writer/patterns.md`** — use optional chaining (`arr?.[i]`) when accessing array indices in generated test assertions (2nd occurrence — from 99c67d2 cycle, actionable).
+
+**False positives detected:** none.
+
+**Positive signals:**
+- Code reviewer was clean on all 3 commits — the hardening changes (add 3 lines per action file) stayed well within all file-size limits.
+- Both fix commits (08abee0 and e2fc840) were clean on semantic review. The fix cycle closed in 3 commits total with no tertiary issues.
+- 12 authError path tests (e2fc840) give direct regression coverage for the new getUser() early-return branches across all 11 affected files. Any future accidental removal of a getUser() check will immediately fail a test.
+- The pattern detection correctly identified the "missed file in sweep" pattern on its second occurrence and escalated it to RULE CANDIDATE. The system is working at the intended cadence: log → watch → detect recurrence → escalate.
+
+---
+
+### 2026-03-14 — PR 5 race conditions & async bugs (commits 1b38542, 9ea234b, 43ec916)
+
+**Context:** Three-commit cycle on fix/pr5-race-conditions. 1b38542 was the main fix commit — added an in-flight guard (`submittingRef` + `setSubmitting`) to `handleNext` in `use-session-state.ts` to prevent double-fire on rapid interaction, and fixed a navigation guard false positive in `use-quiz-state.ts` by replacing the `answers.size > 0` condition with `answers.size > initialSize.current` (where `initialSize` is a `useRef` snapshot taken at mount). 9ea234b was the semantic-reviewer fix commit — replaced a `useMemo` + `// biome-ignore` approach for the initial-size snapshot with a `useRef` (cleaner, no lint suppression needed), and added `use-session-state.test.ts` (11 tests). 43ec916 added 4 navigation guard condition tests to `use-quiz-state.test.ts` covering the resumed-draft scenario. Branch diff vs master: 404 insertions in 4 files — all test additions plus the small production code changes.
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING — clean on all 3 commits.
+- Noted `use-session-state.ts` at 131 lines (hook limit: 80), but correctly classified as acceptable: the file is an orchestrator hook (not a UI hook) and the 131 lines are composed of focused callback definitions; no rule change warranted.
+
+**Semantic reviewer (1b38542):** 1 ISSUE + 1 SUGGESTION + 3 GOOD.
+
+1. **ISSUE — `useMemo` used for mount-time snapshot instead of `useRef` (fixed 9ea234b):** The initial fix used `useMemo(() => initialAnswers ? Object.keys(initialAnswers).length : 0, [])` with an empty dependency array to capture the initial answer count. The semantic-reviewer correctly flagged that `useMemo` is a performance hint whose result is not guaranteed to be stable — React may discard and recompute memoized values in concurrent mode. `useRef` is the correct tool for a value that must be initialised once and never change. Fixed in 9ea234b with `useRef(initialAnswers ? Object.keys(initialAnswers).length : 0)`. **First occurrence of this specific sub-pattern: useMemo with empty deps used as a stability guarantee rather than as a performance optimisation.** Logged as new watch item.
+
+2. **SUGGESTION — `handleNext` sync branch not guarded by `submittingRef` (1b38542):** The in-flight guard added to `handleNext` applies when the function takes the async path (calling `onComplete`). The sync early-return branches (state reset to 'answering', `setError`) are not reachable during a concurrent second call because the guard fires before any branch. The semantic-reviewer noted this as a harmless gap due to UI state preventing concurrent access. No fix applied — suggestion-level, accepted by design. **First occurrence.** Logged.
+
+3. **3 GOOD patterns** noted by semantic-reviewer: `submittingRef` + `setSubmitting` dual-mechanism (ref for synchronous guard, state for UI feedback); `initialSize` useRef with descriptive comment; nav guard condition expressed as `answers.size > initialSize.current` (semantically precise).
+
+**Semantic reviewer (9ea234b, 43ec916):** clean — 0 issues, 0 suggestions on both commits.
+
+**Doc updater:** `docs/tech-debt-batches.md` updated in the same cycle to note PR 5 progress. No schema, RPC, or route surface changed. Clean.
+
+**Test writer (9ea234b — use-session-state.test.ts, 11 tests):** Covered `handleSubmit` (happy path, error, retry), `handleNext` (forward navigation, reverse navigation, in-flight guard, state transitions), and `handleNext` with pre-existing answers. The test-writer initially generated `vi.fn()` calls using the older two-argument generic syntax (`vi.fn<[ArgTypes], ReturnType>()` — deprecated in Vitest v4). The correct form is `vi.fn<(input: SubmitInput) => Promise<AnswerResult>>()` (single function type argument). The orchestrator corrected the syntax before committing. **First occurrence of test-writer generating deprecated vi.fn generic syntax.** Logged as new watch item. The fix is in test-writer patterns memory (or vitest version note): use `vi.fn<(args) => ReturnType>()` not `vi.fn<[ArgTypes], ReturnType>()`.
+
+**Test writer (43ec916 — 4 nav guard tests):** Covered: (1) guard inactive on fresh mount with no answers; (2) guard activates after first new answer; (3) guard inactive when mounted with pre-loaded answers matching initialSize; (4) guard activates when a new answer is added beyond the pre-loaded count. All 4 are behaviorally precise — they test the exact condition introduced in the fix, not internal state.
+
+**Pattern checks this cycle:**
+
+1. **"Hook file exceeding 80-line limit" (count 4, RULE EXISTS):** `use-session-state.ts` is 131 lines. The code-reviewer correctly noted this as an acceptable orchestrator hook rather than flagging it as a violation. The exception is consistent with the documented "Server Action orchestrators" boundary in code-style.md Section 3. **Not a recurrence — correct application of existing exception.**
+
+2. **"New hook file extracted without shipping tests in the same commit" (count 4+, RULE EXISTS):** `use-session-state.ts` was created in 1b38542 and its tests arrived in 9ea234b (the next commit). This is another recurrence of the same compliance gap. Count updated to 5. Rule exists; compliance gap at authoring time persists.
+
+3. **"useMemo with empty deps as stability guarantee" (count 1, WATCH):** New sub-pattern from this cycle. First occurrence — log and watch.
+
+4. **"Deprecated vi.fn generic syntax" (count 1, WATCH):** New pattern from test-writer output. First occurrence — log and watch. The correct Vitest v4 form is the single function-type argument: `vi.fn<(a: A) => B>()`.
+
+5. **Pending RULE CANDIDATE patterns (carried forward):** All four test-writer memory recommendations from prior cycles remain pending orchestrator approval. No new threshold crossings this cycle for those patterns.
+
+**Actions taken:**
+- Frequency table: "New hook file extracted without shipping tests in the same commit" count updated 4 → 5. Status unchanged (RULE EXISTS, compliance gap).
+- Frequency table: 2 new watch items added (both first occurrences): "useMemo with empty deps used as stability guarantee (should be useRef)" and "test-writer generates deprecated vi.fn generic syntax (two-arg form)".
+- No rule changes proposed — new patterns are both first occurrences.
+
+**Pending recommended changes (carried forward — not yet applied):**
+
+1. **`.claude/agent-memory/test-writer/patterns.md`** — consoleSpy try/finally (3rd occurrence — from cb0395c cycle, actionable).
+2. **`.claude/agent-memory/test-writer/patterns.md`** — scan every new `if (error) return` branch in files with existing tests; write the branch test in the same commit (3rd occurrence — from d057128 cycle, actionable).
+3. **`.claude/agent-memory/test-writer/patterns.md`** — always construct test fixtures by annotating with the exported TypeScript type (2nd occurrence — from bba9800 cycle, actionable).
+4. **`.claude/agent-memory/test-writer/patterns.md`** — use optional chaining (`arr?.[i]`) when accessing array indices in generated test assertions (2nd occurrence — from 99c67d2 cycle, actionable).
+5. **`.claude/agent-memory/test-writer/patterns.md`** — add vi.fn generic syntax note: use `vi.fn<(arg: A) => R>()` (single function-type arg, Vitest v4 form), not the deprecated two-argument `vi.fn<[ArgTypes], ReturnType>()` form (1st occurrence — this cycle, watch — do not add until 2nd occurrence).
+
+**False positives:** none detected.
+
+**Positive signals:**
+- All 3 agents reported clean (or suggestion-only) on the final commit (43ec916). Cycle closed correctly.
+- The semantic-reviewer correctly distinguished `useMemo` from `useRef` for a stability guarantee — a subtle correctness issue that lint and type-check cannot catch. The fix (9ea234b) is minimal and correct: 4 lines changed.
+- The 4 navigation guard tests (43ec916) are high-signal: they directly encode the invariant that "pre-loaded answers at mount must not trigger the navigation guard." Any future change to the guard condition that breaks this invariant will immediately fail a test.
+- The dual-mechanism `submittingRef` + `setSubmitting` pattern (ref for synchronous guard, state for UI feedback) is the same correct approach used in `use-answer-handler.ts`. The pattern is becoming a consistent convention in the codebase for in-flight guards on user interaction handlers.

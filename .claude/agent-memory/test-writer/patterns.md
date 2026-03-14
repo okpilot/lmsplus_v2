@@ -2203,3 +2203,66 @@ falls through to the normal `!user` redirect guard. Tests should assert:
 1. `/app/*` route redirects to `/` even when authError present
 2. `/` route falls through (returns session response) when authError present — NOT redirected to dashboard
 3. `console.error` called with `'[proxy] getUser error:'` prefix
+
+---
+
+## Files tested in latest commit (in-flight guard + nav-guard condition)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/_hooks/use-session-state.ts` | `use-session-state.test.ts` | **NEW** — 11 tests: initial state, submit happy path, submit throw, submit failure, concurrent double-click guard, advance to next question, complete transition, double-handleNext in-flight guard, onComplete throw, onComplete failure, retry after failure |
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` | `use-quiz-state.test.ts` | **EXTENDED** — +4 nav-guard tests: guard inactive on empty answers, guard active after new answer, guard inactive with only pre-loaded answers (initialSize), guard active when new answers exceed initialSize |
+
+### handleNext in-flight guard: test pattern
+When `handleNext` uses `submittingRef.current` to block re-entrant completion calls,
+test with a deferred promise so both calls can be in-flight simultaneously:
+
+```ts
+it('does not call onComplete a second time when handleNext is called twice concurrently', async () => {
+  let resolveComplete!: (value: CompleteResult) => void
+  onComplete.mockImplementationOnce(
+    () => new Promise<CompleteResult>((resolve) => { resolveComplete = resolve }),
+  )
+
+  await act(async () => result.current.handleSubmit('opt-a'))
+
+  await act(async () => {
+    const p1 = result.current.handleNext()
+    const p2 = result.current.handleNext()
+    resolveComplete(COMPLETE_SUCCESS)
+    await Promise.all([p1, p2])
+  })
+
+  expect(onComplete).toHaveBeenCalledTimes(1)
+  expect(result.current.state).toBe('complete')
+  expect(result.current.submitting).toBe(false)
+})
+```
+
+Key: `submitting` must be `false` after the guard sequence completes — the reset is tested
+at each exit path (throw, failure result, success).
+
+### Navigation guard condition: asserting useNavigationGuard call argument
+`useNavigationGuard` is a `vi.fn()`. Import the mocked version after the `vi.mock()` call
+and cast to `MockInstance` to read `.mock.calls`:
+
+```ts
+import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
+import { type MockInstance } from 'vitest'
+// ...
+const navGuardMock = useNavigationGuard as unknown as MockInstance
+const lastCall = navGuardMock.mock.calls[navGuardMock.mock.calls.length - 1]
+expect(lastCall?.[0]).toBe(false)  // or true
+```
+
+The guard condition changed from `answers.size > 0` to `answers.size > initialSize`. Tests:
+1. No answers → guard is `false` (unchanged from old behaviour)
+2. New answer added → guard is `true` (unchanged from old behaviour)
+3. Mounted with pre-loaded answers only → guard is `false` (NEW — was `true` before)
+4. Pre-loaded + one new → guard is `true` (NEW — tests the boundary between old and new)
+
+Test (3) is the regression test for the changed condition: mounting with `initialAnswers`
+should not activate the guard until the user adds a new answer in the current session.
+
+### Suite state after this commit
+2 files (1 new, 1 extended). New: 11 tests. Extended: +4 tests. Running total: ~80 test files, ~762 tests.
