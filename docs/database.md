@@ -522,6 +522,8 @@ $$;
 
 This RPC is superseded by `batch_submit_quiz` for new code. Kept for backwards compatibility.
 
+**Security**: Validates `p_question_id` is in the session's `config.question_ids` (migration 033). Prevents submitting answers for questions outside the session's question set.
+
 ```sql
 CREATE OR REPLACE FUNCTION submit_quiz_answer(
   p_session_id        uuid,

@@ -448,10 +448,9 @@ ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "audit_no_update" ON audit_events FOR UPDATE USING (false);
 CREATE POLICY "audit_no_delete" ON audit_events FOR DELETE USING (false);
-CREATE POLICY "audit_insert_own_org" ON audit_events
-  FOR INSERT WITH CHECK (
-    organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
-  );
+-- Block all direct client INSERTs. Only SECURITY DEFINER RPCs can write audit events.
+CREATE POLICY "audit_no_direct_insert" ON audit_events
+  FOR INSERT WITH CHECK (false);
 CREATE POLICY "audit_read_instructors" ON audit_events
   FOR SELECT USING (
     organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
