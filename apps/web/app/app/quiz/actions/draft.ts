@@ -42,7 +42,7 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     if (input.currentIndex >= input.questionIds.length) {
       return { success: false, error: 'Current index out of range' }
     }
-    if (input.draftId) return updateExistingDraft(supabase, input, user.id)
+    if (input.draftId) return await updateExistingDraft(supabase, input, user.id)
 
     const { data: u, error: userError } = await supabase
       .from('users')
@@ -54,7 +54,7 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
       return { success: false, error: 'Failed to look up user' }
     }
     if (!u?.organization_id) return { success: false, error: 'User organization not found' }
-    return insertNewDraft(supabase, input, user.id, u.organization_id)
+    return await insertNewDraft(supabase, input, user.id, u.organization_id)
   } catch (err) {
     if (err instanceof ZodError)
       return { success: false, error: err.errors[0]?.message ?? 'Invalid input' }

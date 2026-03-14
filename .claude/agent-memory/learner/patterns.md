@@ -50,7 +50,7 @@
 | Biome auto-format expanding compact code past file-size limit | 1 | 2026-03-13 | Watch — draft.ts written at ~97 lines, Biome format expanded to 114 lines on pre-commit (6d274fa); the 100-line Server Action limit check must be done against post-format line count, not authoring-time count; first occurrence |
 | Async fetch in useEffect without stale-result cancellation flag | 1 | 2026-03-13 | Watch — useEffect in draft.ts initiated fetch without cancelled flag; if the component unmounted or deps changed before the fetch resolved, setState was called on stale/unmounted context; fixed with cancelled flag pattern in fe4ffff; distinct from "useEffect data fetching in client component" (that is about banned server-action fetching — this is a permitted client fetch missing a cleanup guard); first occurrence |
 | UPDATE returning zero rows treated as success (silent no-op) | 1 | 2026-03-13 | Watch — draft update in 6d274fa returned no error but updated 0 rows when draft ID did not match student ownership; caller received success response for a no-op write; fix: check rowCount / affected rows after UPDATE before returning success; distinct from "Supabase mutation result not destructured" (that is about missing error destructuring — this is about a successful query that silently did nothing); first occurrence |
-| Error path in existing function untested (count-error branch) | 2 | 2026-03-13 | RULE CANDIDATE — count-error path in draft.ts had no test coverage (first occurrence, 2026-03-13 cycle 1); users query error path in draft.ts also untested (second occurrence, d06c25b cycle); both caught post-commit by test-writer; distinct from "new file without test" — this is an existing tested file with an uncovered error branch; pattern: when a new error-return path is added to an existing function (e.g., adding a second query with its own error check), the test file is not updated to cover the new branch |
+| Error path in existing function untested (count-error branch) | 3 | 2026-03-14 | RULE CANDIDATE (3rd occurrence) — count-error path in draft.ts (1st, 2026-03-13); users query error path in draft.ts (2nd, d06c25b); 'session not accessible' error branch in batch-submit.ts (3rd, d057128 → 45da072); all caught post-commit by test-writer; distinct from "new file without test" — this is an existing tested file with an uncovered error branch; pattern: when a new error-return path is added to an existing function (e.g., adding a second query with its own error check), the test file is not updated to cover the new branch; 3rd recurrence warrants action in test-writer patterns memory |
 | Async cleanup path untestable in jsdom (cancelled flag branch) | 1 | 2026-03-13 | Watch — test-writer noted that the cancelled flag cleanup path (setState skipped after unmount) is not testable in jsdom because act() flushes effects synchronously before assertions can observe the cancelled state; analogous to the pre-hydration jsdom limitation; first occurrence; do not write tests for this branch — document the constraint in code-style.md jsdom section if it recurs |
 | Stale closure introduced by hook split (scalar captured in closure vs ref) | 1 | 2026-03-13 | Watch — when use-quiz-state was split in 34a9352 to fix the 80-line violation, currentIndex was captured as a scalar in a closure in handleSave instead of being accessed via useRef; fixed in df5d354; the hook split itself introduced the bug; pattern: any value read inside a callback that is defined outside a React.useCallback/useMemo with that value in its deps array is at risk of being stale; when splitting a hook, audit all callbacks in the extracted portion for captured scalar state; first occurrence |
 | SQL string comparison instead of ::uuid cast in duplicate check | 1 | 2026-03-13 | Watch — batch_submit_quiz duplicate-answer check compared option IDs as text rather than casting to ::uuid, which can cause case-sensitivity and format-variation failures; fixed in 34a9352; first occurrence |
@@ -61,6 +61,8 @@
 | Unbounded numeric regex permitting int overflow (SQL input validation) | 1 | 2026-03-13 | Watch — batch_submit_quiz RPC (274821b): `^\d+$` matched response_time_ms without an upper bound, permitting integer overflow when cast to INT; fixed in 34c9b36 with `^\d{1,10}$` (10 digits caps at 9,999,999,999, safely below INT_MAX); first occurrence; applies to any SQL regex that validates before casting to a bounded numeric type — the regex digit count must be bounded to match the target type's range |
 | Case-sensitive UUID/text dedup in SQL (lower() missing) | 1 | 2026-03-13 | Watch — batch_submit_quiz duplicate-answer check (274821b): dedup compared `e->>'question_id'` text values without lowercasing; fixed in 34c9b36 with `lower(e->>'question_id')`; note: UUID format from standard generators is lowercase, so this is a defense-in-depth fix rather than a known live bug; first occurrence; distinct from "SQL string comparison instead of ::uuid cast" (that is about cast vs. text — this is about case normalisation before text comparison) |
 | ARIA tab role missing on button-based tab UI | 1 | 2026-03-13 | Watch — QuizTabs (46113bf): buttons used as tabs lack role="tab", aria-selected, and enclosing role="tablist"; pre-existing gap, not introduced by the TabButton extraction; flagged by semantic-reviewer as a suggestion; if a second component is flagged for missing semantic ARIA tab attributes, add a note to code-style.md Section 2 (component rules) |
+| Error message not updated after control flow change eliminates its code path | 1 | 2026-03-14 | Watch — batch_submit_quiz (d057128/ce35a31): original error message 'session not found or already completed' became inaccurate after the idempotent replay path was added (completed sessions no longer reach the error branch); caught by semantic-reviewer post-commit; fixed in ce35a31 with 'session not found or not accessible'; first occurrence; the root cause: when a control flow change eliminates a code path (e.g., converting an error to a replay), any error message that referenced that path by name must be updated in the same commit |
+| FOR UPDATE lock scope wider than write path (read-only replay serialization) | 1 | 2026-03-14 | Watch — batch_submit_quiz (d057128): FOR UPDATE lock on session SELECT is held even during the idempotent read-only replay path, briefly serializing replay reads; flagged by semantic-reviewer; accepted as documented trade-off (prevents TOCTOU race on concurrent new submissions); comment added in ce35a31 explaining the trade-off explicitly; first occurrence; accepted pattern with required documentation — not a violation |
 
 ## Lessons Learned
 
@@ -954,5 +956,57 @@ No rule change proposed yet — this is a first occurrence. If a second "docs-on
 - The fixes were applied in two follow-on commits (320986f and 0c7e7e7), both clean on all agents.
 - CLAUDE.md cross-reference fixes demonstrate the orchestrator reading and acting on agent suggestions — the workflow is functioning at the intended speed.
 - Docs-only commits are now a regular pattern (3 in the past 5 commits), suggesting the project is in a documentation-stabilization phase post-code-feature-completion.
+
+---
+
+### 2026-03-14 — batch_submit_quiz idempotent retry + soft-delete fix (commits d057128, ce35a31, 45da072)
+
+**Context:** Three-commit fix cycle on feat/post-sprint-3-polish. d057128 fixed two CodeRabbit PR #74 findings in `batch_submit_quiz` via migration 031: (1) idempotent retry for already-completed sessions, (2) allow scoring soft-deleted questions mid-quiz. ce35a31 addressed two semantic-reviewer findings from the prior post-commit round. 45da072 added a test for the new error branch.
+
+**Code reviewer:** clean — 0 blocking, 0 warnings on all 3 commits.
+
+**Semantic reviewer (d057128):** 2 ISSUEs.
+
+1. **ISSUE — Error message stale after control flow change (fixed ce35a31):** The original session-not-found error path in `batch_submit_quiz` raised `'session not found or already completed'`. After adding the idempotent replay path, completed sessions are handled before reaching that RAISE EXCEPTION, so the message was now reachable only for sessions that are genuinely missing or deleted — not completed. The client-side string match in `batch-submit.ts` also used the old message. Fixed in ce35a31: message updated to `'session not found or not accessible'`; client match updated to the new string. Root cause: when a control flow change eliminates a code path (completed sessions now take the replay branch), error messages that referenced that path by name become stale. **First occurrence of this specific sub-pattern.** Logged as new watch item.
+
+2. **ISSUE — FOR UPDATE lock held through read-only replay path (accepted trade-off):** The `FOR UPDATE` lock on the session `SELECT` in migration 031 is acquired unconditionally — meaning a pure replay read (already-completed session) also holds the lock briefly while reading existing `quiz_session_answers`. The semantic-reviewer flagged that this serializes concurrent replay reads unnecessarily. After review, accepted as a documented trade-off: removing the unconditional lock would require a two-phase read (lock-free probe, then lock-and-write), adding complexity without meaningful benefit (replay reads are fast, concurrency is low). A comment was added in ce35a31 documenting the trade-off explicitly. **First occurrence of this accepted-trade-off pattern.** Logged as new watch item. Key lesson: accepted trade-offs must be documented inline with a comment explaining the reasoning — the semantic reviewer will not re-flag a commented trade-off.
+
+**Semantic reviewer (ce35a31, 45da072):** clean — 0 issues, 0 suggestions on both fix commits.
+
+**Doc updater (d057128):** `docs/database.md` updated with migration 031 notes in the same commit. `docs/plan.md` updated with migration entry in ce35a31. Clean — no partial-doc-fix pattern.
+
+**Doc updater (ce35a31, 45da072):** clean.
+
+**Test writer (d057128 — gap found):** `batch-submit.ts` already had a test file but the new `'session not found or not accessible'` error branch (added via the updated control flow in migration 031) had no test. This is the **third occurrence** of the "error path in existing function untested" pattern. Test was written and committed in 45da072.
+
+**Test writer (45da072):** 1 new test added to `batch-submit.test.ts` covering the `'session not found or not accessible'` RPC error string mapping to the user-facing message `'This session could not be found.'`. Passing.
+
+**Pattern analysis — "error path in existing function untested" (count 3):**
+
+All three occurrences share the same structure: an existing function with a co-located test file gains a new error-return path in a commit. The test file is not updated in the same commit. The test-writer catches the gap post-commit and writes the test in a follow-up commit.
+
+Occurrences:
+1. Count-error path in `draft.ts` (2026-03-13, cycle 1)
+2. Users-query error path in `draft.ts` (d06c25b, 2026-03-13)
+3. `'session not accessible'` error branch in `batch-submit.ts` (d057128, 2026-03-14) — this cycle
+
+Three occurrences confirms this is a systemic gap. The correct home for the fix is the test-writer patterns memory (not `code-style.md` — this is not a mechanically checkable style rule). Recommendation: when reviewing a commit diff, the test-writer should explicitly scan for new `if (error) return` or early-return branches in files that already have co-located test files. Each new branch needs a test.
+
+**Actions taken:**
+- Frequency table: "Error path in existing function untested" count updated 2 → 3. Status: RULE CANDIDATE (actionable — 3 occurrences).
+- Frequency table: 2 new watch items added (both first occurrences): "Error message not updated after control flow change" and "FOR UPDATE lock scope wider than write path (read-only replay serialization — accepted trade-off)".
+- No changes proposed to `code-style.md` or `security.md`.
+
+**Recommended changes (awaiting orchestrator approval before applying):**
+
+1. **`.claude/agent-memory/test-writer/patterns.md`** — add a note (3rd occurrence warrants action): when reviewing a commit diff, scan every file that already has a co-located test file for new error-return paths (`if (error) return`, `if (!data) return`, new early-return-on-error branches). Each new error branch in an existing tested file must have a corresponding test case. This is distinct from "new file without test" — the test file exists but becomes incomplete after the change.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- All 4 agents were clean on ce35a31 and 45da072 — the fix cycle closed in 3 commits with no secondary issues.
+- The semantic-reviewer correctly flagged the stale error message one commit after the control flow change. String-consistency issues of this kind are invisible to type-check and lint.
+- The FOR UPDATE trade-off comment in ce35a31 is a good template: when a locking decision has a non-obvious scope implication, document the trade-off inline rather than restructuring the code.
+- The test in 45da072 covers both the RPC string match and the user-facing message text — two assertions for one new branch. Well-targeted.
 
 ---

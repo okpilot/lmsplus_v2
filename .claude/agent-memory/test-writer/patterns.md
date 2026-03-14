@@ -2119,7 +2119,7 @@ Then assert `updateEq1.toHaveBeenCalledWith('id', DRAFT_ID)` and `updateEq2.toHa
 
 ---
 
-## Covering new error paths in existing files (count 2, now a rule — 2026-03-13)
+## Covering new error paths in existing files (count 3, enforced rule — 2026-03-13)
 
 When a commit adds a new query, a new `if (error) return` branch, or a new early-return path
 to a file that already has a co-located test file, the test file must be updated in the same
@@ -2145,11 +2145,12 @@ Example from `draft.ts` (d06c25b): the function already tested the count-query e
 A `getUser()` call was added above it. The existing count-error test still passed. But the
 new auth-error path from `getUser()` had no test — caught post-commit by test-writer.
 
-### Pattern: two occurrences in draft.ts (2026-03-13)
-1. Count-error path: `getCount()` returned an error — no test for that branch.
-2. Users-query error path: `getUser()` returned an error — no test for that branch.
+### Pattern: three occurrences (2026-03-13 to 2026-03-14)
+1. `draft.ts` (d06c25b): Count-error path — `getCount()` returned an error, no test for that branch.
+2. `draft.ts` (d06c25b): Users-query error path — `getUser()` returned an error, no test for that branch.
+3. `batch-submit.ts` (ce35a31): Error message string match changed from `'session not found or already completed'` to `'session not found or not accessible'` — the specific error branch had no test. Caught by test-writer, fixed in 45da072.
 
-Both were caught post-commit by the test-writer gap detection. Both required a follow-up
+All three were caught post-commit by the test-writer gap detection. All required a follow-up
 commit to add tests. The correct behaviour is to add the test branch in the same commit
 as the production change.
 
