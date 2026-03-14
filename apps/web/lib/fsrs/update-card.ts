@@ -39,9 +39,9 @@ export async function updateFsrsCard(
     .select(
       'due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, last_review, last_was_correct, consecutive_correct_count',
     )
-    // Cast required: Supabase-generated types resolve fsrs_cards column names
-    // to `never` due to a known inference issue. `string & keyof never` satisfies
-    // the generic constraint at compile time while remaining a plain string at runtime.
+    // Cast required: `.returns<FsrsCardRow[]>()` above changes the query's intermediate
+    // type, so `.eq()` loses column-name inference from the generated schema. Without
+    // the cast, TypeScript rejects any string as the column name parameter.
     .eq('student_id' as string & keyof never, userId)
     .eq('question_id' as string & keyof never, questionId)
     .returns<FsrsCardRow[]>()
