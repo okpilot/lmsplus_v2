@@ -372,7 +372,7 @@ accurate — completed sessions are now handled by the idempotent replay block, 
 **Fix:** Update to `'session not found or not accessible'`.
 **Watch for:** any commit that removes a WHERE clause condition without also auditing the error
 message that previously described that condition as a failure case.
-**Status:** ISSUE — pending fix.
+**Status:** RESOLVED in commit ce35a31 — error message updated to 'session not found or not accessible'; batch-submit.ts string match updated to match.
 
 ### FOR UPDATE lock held unnecessarily in read-only replay path
 **File:** `supabase/migrations/20260314000031_batch_submit_idempotent_softdelete.sql` line 51, 57–84
@@ -384,7 +384,7 @@ will serialize on the lock even though both are read-only.
 **Watch for:** RPCs that acquire a write lock at the top and then branch into a read-only
 early-return path. Consider a two-phase check (read without lock, then re-acquire only for
 the write path) or document the trade-off.
-**Status:** ISSUE — pending fix or documented decision.
+**Status:** RESOLVED in commit ce35a31 — trade-off documented in migration comment and docs/database.md. Intentional design decision: lock serializes concurrent retries, preventing TOCTOU; read-only replay holds lock briefly (two SELECTs). Accepted and documented.
 
 ### Replay path explanations reflect live DB state, not original submission state
 **File:** `supabase/migrations/20260314000031_batch_submit_idempotent_softdelete.sql` line 62–75

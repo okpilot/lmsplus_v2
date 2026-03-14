@@ -195,6 +195,21 @@ describe('batchSubmitQuiz', () => {
     if (!result.success) expect(result.error).toMatch(/Failed to submit quiz/)
   })
 
+  it('returns "session could not be found" when RPC signals session not accessible', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'session not found or not accessible' },
+    })
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await batchSubmitQuiz({ sessionId: SESSION_ID, answers: VALID_ANSWERS })
+    consoleSpy.mockRestore()
+
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('This session could not be found.')
+  })
+
   it('still returns success when FSRS card update throws (non-fatal)', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockSuccessfulRun()
