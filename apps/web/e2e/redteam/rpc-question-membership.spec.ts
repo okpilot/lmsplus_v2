@@ -43,7 +43,7 @@ test.describe('Red Team: RPC Question Membership Check', () => {
           .from('easa_topics')
           .upsert(
             { subject_id: subjectB.id, code: '010-01', name: 'International law', sort_order: 1 },
-            { onConflict: 'code' },
+            { onConflict: 'subject_id,code' },
           )
           .select('id')
           .single()
