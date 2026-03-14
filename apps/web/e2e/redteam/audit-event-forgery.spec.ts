@@ -65,16 +65,6 @@ test.describe('Red Team: Audit Event Forgery', () => {
     expect(error).not.toBeNull()
   })
 
-  // Fixme: documents the secure desired state. Remove once INSERT RLS policy is added.
-  test.fixme(
-    'audit_events INSERT RLS not yet restricted to service-role — students may be able to insert',
-    async () => {
-      // When this fixme is removed, both tests above must pass.
-      // Fix: add a WITH CHECK (false) policy on audit_events for authenticated role,
-      // or restrict INSERT to service-role only (no RLS policy = deny for anon/auth).
-    },
-  )
-
   test('student cannot UPDATE an existing audit event (append-only enforcement)', async () => {
     // Even if a student somehow knows an event ID, they must not be able to modify it.
     const { data: events } = await adminClient.from('audit_events').select('id').limit(1)
