@@ -24,6 +24,7 @@ const unauthClient = createClient(SUPABASE_URL, ANON_KEY, {
 test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
   let adminClient: Awaited<ReturnType<typeof getAdminClient>>
   let knownSubjectId: string
+  let knownTopicId: string
   let knownSessionId: string
   let knownQuestionId: string
 
@@ -34,6 +35,13 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     // attacker might enumerate from leaked IDs or guessing UUIDs.
     const { data: subjects } = await adminClient.from('easa_subjects').select('id').limit(1)
     knownSubjectId = subjects?.[0]?.id ?? '00000000-0000-0000-0000-000000000000'
+
+    const { data: topics } = await adminClient
+      .from('easa_topics')
+      .select('id')
+      .eq('subject_id', knownSubjectId)
+      .limit(1)
+    knownTopicId = topics?.[0]?.id ?? '00000000-0000-0000-0000-000000000003'
 
     const { data: sessions } = await adminClient.from('quiz_sessions').select('id').limit(1)
     knownSessionId = sessions?.[0]?.id ?? '00000000-0000-0000-0000-000000000001'
@@ -48,7 +56,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     const { data, error } = await unauthClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: knownSubjectId,
-      p_topic_id: knownSubjectId,
+      p_topic_id: knownTopicId,
       p_question_ids: [knownQuestionId],
     })
 
@@ -90,8 +98,8 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
 
   // --- Direct table SELECT vectors ---
 
-  test('unauthenticated client sees 0 rows from student_progress', async () => {
-    const { data, error } = await unauthClient.from('student_progress').select('*').limit(10)
+  test('unauthenticated client sees 0 rows from student_responses', async () => {
+    const { data, error } = await unauthClient.from('student_responses').select('*').limit(10)
 
     expect(error).toBeNull() // RLS returns empty, not an error
     expect(data?.length ?? 0).toBe(0)

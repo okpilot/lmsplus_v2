@@ -17,6 +17,7 @@ test.describe('Red Team: Session Replay', () => {
   let subjectId: string
   let originalScore: number
   let questionIds: string[]
+  let topicIds: string[]
 
   test.beforeAll(async () => {
     await seedRedTeamUsers()
@@ -32,7 +33,7 @@ test.describe('Red Team: Session Replay', () => {
       .select('id')
       .eq('subject_id', subjectId)
       .limit(5)
-    const topicIds = (topics ?? []).map((t) => t.id)
+    topicIds = (topics ?? []).map((t) => t.id)
 
     const { data: qs } = await admin
       .from('questions')
@@ -48,7 +49,7 @@ test.describe('Red Team: Session Replay', () => {
     const { data: startData, error: startError } = await attackerClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: subjectId,
-      p_topic_id: questionIds[0] ?? subjectId,
+      p_topic_id: topicIds[0] ?? subjectId,
       p_question_ids: questionIds,
     })
     expect(startError).toBeNull()
@@ -74,19 +75,13 @@ test.describe('Red Team: Session Replay', () => {
       response_time_ms: 5000,
     }))
 
-    // Step 4: Submit answers via batch_submit first, then complete
-    const { error: batchError } = await attackerClient.rpc('batch_submit_quiz', {
+    // Step 4: Submit answers via batch_submit (auto-completes the session)
+    const { data: batchData, error: batchError } = await attackerClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
       p_answers: firstAnswers,
     })
     expect(batchError).toBeNull()
-
-    const { data: completeData, error: completeError } = await attackerClient.rpc(
-      'complete_quiz_session',
-      { p_session_id: sessionId },
-    )
-    expect(completeError).toBeNull()
-    originalScore = (completeData as { score: number })?.score ?? 0
+    originalScore = (batchData as { score_percentage?: number })?.score_percentage ?? 0
 
     // Step 5: Replay batch_submit_quiz with a new set of answers on the completed session
     const replayAnswers = typedQuestions.map((q) => ({

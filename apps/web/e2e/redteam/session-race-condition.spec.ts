@@ -76,17 +76,12 @@ test.describe('Red Team: Session Race Condition', () => {
       response_time_ms: 3000,
     }))
 
-    // Step 3: Submit answers then complete the session (first terminal state)
+    // Step 3: Submit answers via batch_submit (auto-completes the session)
     const { error: batchError } = await attackerClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
       p_answers: answers,
     })
     expect(batchError).toBeNull()
-
-    const { error: completeError } = await attackerClient.rpc('complete_quiz_session', {
-      p_session_id: sessionId,
-    })
-    expect(completeError).toBeNull()
 
     // Step 4: Attempt to UPDATE status to 'discarded' directly — simulates the
     //         losing side of a race where complete wins.

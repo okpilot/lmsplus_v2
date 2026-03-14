@@ -127,9 +127,9 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     }
   })
 
-  test('cross-org user cannot read egmont-aviation student_progress', async () => {
+  test('cross-org user cannot read egmont-aviation student_responses', async () => {
     const { data: progress, error } = await crossOrgClient
-      .from('student_progress')
+      .from('student_responses')
       .select('id, student_id')
       .limit(10)
 
