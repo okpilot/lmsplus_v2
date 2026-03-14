@@ -116,7 +116,7 @@ test.describe('Red Team: Rate Limiting', () => {
     if (sessionIds.length > 0) {
       await admin
         .from('quiz_sessions')
-        .update({ status: 'discarded', deleted_at: new Date().toISOString() })
+        .update({ deleted_at: new Date().toISOString() })
         .in('id', sessionIds)
     }
   })

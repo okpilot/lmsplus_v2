@@ -53,7 +53,7 @@ BEGIN
   END IF;
 
   -- Question membership check: p_question_id must be in session config.question_ids
-  IF v_config IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+  IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
     RAISE EXCEPTION 'session config is malformed — question_ids not set';
   END IF;
 
