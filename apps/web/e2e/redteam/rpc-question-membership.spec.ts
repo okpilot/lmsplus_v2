@@ -6,8 +6,8 @@
  * then submit answers referencing questions from subject B — bypassing the intended
  * quiz scope.
  *
- * Status: CONFIRMED GAP — migration fix not yet applied.
- * When fixed: remove test.fixme from the "rejects foreign question" test.
+ * Status: FIXED — migration 033 (submit_answer_membership_check.sql) added the
+ * membership check to submit_quiz_answer. The RPC now rejects foreign questions.
  */
 
 import { expect, test } from '@playwright/test'
@@ -23,6 +23,78 @@ test.describe('Red Team: RPC Question Membership Check', () => {
     await seedRedTeamUsers()
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
     adminClient = getAdminClient()
+
+    // Ensure at least 2 subjects exist for cross-subject injection testing
+    const { data: existingSubjects } = await adminClient.from('easa_subjects').select('id').limit(2)
+
+    if (!existingSubjects || existingSubjects.length < 2) {
+      // Seed a second subject + topic + question for the membership check test
+      const { data: subjectB } = await adminClient
+        .from('easa_subjects')
+        .upsert(
+          { code: '010', name: 'Air Law', short: 'ALW', sort_order: 10 },
+          { onConflict: 'code' },
+        )
+        .select('id')
+        .single()
+
+      if (subjectB) {
+        const { data: topicB } = await adminClient
+          .from('easa_topics')
+          .upsert(
+            { subject_id: subjectB.id, code: '010-01', name: 'International law', sort_order: 1 },
+            { onConflict: 'code' },
+          )
+          .select('id')
+          .single()
+
+        if (topicB) {
+          const { data: org } = await adminClient
+            .from('organizations')
+            .select('id')
+            .eq('slug', 'egmont-aviation')
+            .single()
+
+          const { data: bank } = await adminClient
+            .from('question_banks')
+            .select('id')
+            .eq('organization_id', org!.id)
+            .limit(1)
+            .single()
+
+          const { data: user } = await adminClient
+            .from('users')
+            .select('id')
+            .eq('role', 'admin')
+            .limit(1)
+            .single()
+
+          if (org && bank && user) {
+            await adminClient.from('questions').upsert(
+              {
+                organization_id: org.id,
+                bank_id: bank.id,
+                question_number: 'RT-ALW-001',
+                subject_id: subjectB.id,
+                topic_id: topicB.id,
+                question_text: 'ICAO is headquartered in:',
+                options: [
+                  { id: 'a', text: 'Geneva', correct: false },
+                  { id: 'b', text: 'Montreal', correct: true },
+                  { id: 'c', text: 'Paris', correct: false },
+                  { id: 'd', text: 'New York', correct: false },
+                ],
+                explanation_text: 'ICAO HQ is in Montreal, Canada.',
+                difficulty: 'medium',
+                status: 'active',
+                created_by: user.id,
+              },
+              { onConflict: 'bank_id,question_number' },
+            )
+          }
+        }
+      }
+    }
   })
 
   test('submit_quiz_answer rejects a question that does not belong to the session subject', async () => {
@@ -103,8 +175,7 @@ test.describe('Red Team: RPC Question Membership Check', () => {
     const foreignOptionId = (foreignQuestion.options as { id: string }[])[0].id
 
     // Step 4: Attacker submits the foreign question into the subject A session
-    // EXPECTED (current behavior — GAP): RPC accepts it without a membership check.
-    // EXPECTED (after fix): RPC should reject with an error or raise.
+    // EXPECTED: RPC rejects with an error (membership check added in migration 033).
     const { data: submitData, error: submitError } = await attackerClient.rpc(
       'submit_quiz_answer',
       {
@@ -115,10 +186,7 @@ test.describe('Red Team: RPC Question Membership Check', () => {
       },
     )
 
-    // --- GAP DEMONSTRATION ---
-    // The assertion below reflects the DESIRED secure behavior.
-    // Currently this test FAILS because the RPC accepts the foreign question.
-    // Once the migration fix lands (question membership check), remove test.fixme.
+    // Migration 033 added the membership check — RPC now rejects foreign questions.
     expect(submitError, 'RPC should reject foreign question not in session subject').not.toBeNull()
     expect(submitData).toBeNull()
   })

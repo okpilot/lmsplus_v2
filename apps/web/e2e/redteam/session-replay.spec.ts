@@ -3,7 +3,7 @@
  *
  * Attack: Replay `batch_submit_quiz` on an already-completed session.
  * Goal: Inflate score by submitting a second (better) set of answers after completion.
- * Defense: RPC checks session status before accepting answers; completed sessions are terminal.
+ * Defense: RPC is idempotent — completed sessions return cached results without re-processing; score cannot be inflated.
  */
 
 import { expect, test } from '@playwright/test'
@@ -95,21 +95,23 @@ test.describe('Red Team: Session Replay', () => {
       p_answers: replayAnswers,
     })
 
-    // Step 6: RPC must reject — session is already completed
-    expect(replayError).not.toBeNull()
+    // Step 6: Defense is idempotency — replay returns cached results, not an error
+    expect(replayError).toBeNull()
 
     // Step 7: Verify score in DB did not change
     const admin = getAdminClient()
     const { data: sessionRow } = await admin
       .from('quiz_sessions')
-      .select('score, status')
+      .select('score_percentage, ended_at')
       .eq('id', sessionId)
       .single()
 
-    expect(sessionRow?.status).toBe('completed')
-    expect(sessionRow?.score).toBe(originalScore)
+    expect(sessionRow?.ended_at).not.toBeNull()
+    expect(sessionRow?.score_percentage).toBe(originalScore)
 
-    // Confirm replay returned no usable data
-    expect(replayData).toBeNull()
+    // Idempotent replay returns cached data with same score
+    expect(replayData).not.toBeNull()
+    const replayScore = (replayData as { score_percentage?: number })?.score_percentage ?? -1
+    expect(replayScore).toBe(originalScore)
   })
 })
