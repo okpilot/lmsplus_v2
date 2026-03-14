@@ -98,14 +98,14 @@ describe('startQuizSession', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await startQuizSession({})
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toContain('Required')
+    if (!result.success) expect(result.error).toBe('Required')
   })
 
   it('returns failure for a non-UUID subject ID', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await startQuizSession({ subjectId: 'not-a-uuid', topicId: null, count: 5 })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toContain('Invalid uuid')
+    if (!result.success) expect(result.error).toBe('Invalid uuid')
   })
 
   it('returns failure and logs when an unexpected error is thrown', async () => {

@@ -195,8 +195,30 @@ describe('getSubjectScores', () => {
     await expect(getSubjectScores()).rejects.toThrow('Not authenticated')
   })
 
-  it('throws on RPC error', async () => {
+  it('throws on RPC error with the underlying message', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'DB error' } })
-    await expect(getSubjectScores()).rejects.toThrow('Failed to fetch subject scores')
+    await expect(getSubjectScores()).rejects.toThrow('Failed to fetch subject scores: DB error')
+  })
+
+  it('returns an empty array when RPC data is null', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    const result = await getSubjectScores()
+    expect(result).toEqual([])
+  })
+
+  it('treats negative Infinity limit as the minimum (1)', async () => {
+    await getSubjectScores(Number.NEGATIVE_INFINITY)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+      p_student_id: 'user-1',
+      p_limit: 1,
+    })
+  })
+
+  it('uses default limit of 5 when called with no arguments', async () => {
+    await getSubjectScores()
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_subject_scores', {
+      p_student_id: 'user-1',
+      p_limit: 5,
+    })
   })
 })

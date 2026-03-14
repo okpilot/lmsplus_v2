@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -85,12 +86,12 @@ describe('fetchExplanation', () => {
     setupAuthenticatedUser()
     await expect(
       fetchExplanation({ questionId: 'not-a-uuid', sessionId: SESSION_ID }),
-    ).rejects.toThrow()
+    ).rejects.toThrow(ZodError)
   })
 
   it('throws a ZodError when questionId is missing', async () => {
     setupAuthenticatedUser()
-    await expect(fetchExplanation({})).rejects.toThrow()
+    await expect(fetchExplanation({})).rejects.toThrow(ZodError)
   })
 
   it('returns failure when session does not belong to user', async () => {

@@ -121,11 +121,14 @@ describe('batchSubmitQuiz', () => {
 
   it('returns failure when responseTimeMs is not a positive integer', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await batchSubmitQuiz({
       sessionId: SESSION_ID,
       answers: [{ questionId: Q1_ID, selectedOptionId: 'a', responseTimeMs: -100 }],
     })
+    consoleSpy.mockRestore()
     expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toMatch(/Something went wrong/)
   })
 
   it('returns success with score data on happy path', async () => {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -133,6 +134,6 @@ describe('submitQuizAnswer', () => {
 
   it('rejects a malformed answer submission', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    await expect(submitQuizAnswer({})).rejects.toThrow()
+    await expect(submitQuizAnswer({})).rejects.toThrow(ZodError)
   })
 })
