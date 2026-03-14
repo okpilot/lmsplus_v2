@@ -22,6 +22,8 @@ import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/s
 test.describe('Red Team: Session Race Condition', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let subjectId: string
+  let questionIds: string[]
+  let topicId: string
 
   test.beforeAll(async () => {
     await seedRedTeamUsers()
@@ -30,21 +32,39 @@ test.describe('Red Team: Session Race Condition', () => {
     const admin = getAdminClient()
     const { data: subject } = await admin.from('easa_subjects').select('id').limit(1).single()
     subjectId = subject!.id
+
+    const { data: topics } = await admin
+      .from('easa_topics')
+      .select('id')
+      .eq('subject_id', subjectId)
+      .limit(5)
+    topicId = (topics ?? [])[0]?.id ?? subjectId
+    const topicIds = (topics ?? []).map((t) => t.id)
+
+    const { data: qs } = await admin
+      .from('questions')
+      .select('id')
+      .in('topic_id', topicIds)
+      .is('deleted_at', null)
+      .limit(3)
+    questionIds = (qs ?? []).map((q) => q.id)
   })
 
   test('completed session cannot be overwritten with discarded status', async () => {
     // Step 1: Start a session
     const { data: startData, error: startError } = await attackerClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
       p_subject_id: subjectId,
-      p_question_count: 3,
+      p_topic_id: topicId,
+      p_question_ids: questionIds,
     })
     expect(startError).toBeNull()
-    const sessionId = (startData as { session_id: string }).session_id
+    const sessionId = startData as string
 
     // Step 2: Fetch questions and build answers
     const { data: questions, error: questionsError } = await attackerClient.rpc(
       'get_quiz_questions',
-      { p_session_id: sessionId },
+      { p_question_ids: questionIds },
     )
     expect(questionsError).toBeNull()
 
@@ -94,11 +114,13 @@ test.describe('Red Team: Session Race Condition', () => {
   test('discarded session cannot be re-completed', async () => {
     // Step 1: Start a fresh session
     const { data: startData, error: startError } = await attackerClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
       p_subject_id: subjectId,
-      p_question_count: 3,
+      p_topic_id: topicId,
+      p_question_ids: questionIds,
     })
     expect(startError).toBeNull()
-    const sessionId = (startData as { session_id: string }).session_id
+    const sessionId = startData as string
 
     // Step 2: Discard the session via RPC (first terminal state)
     const { error: discardError } = await attackerClient.rpc('discard_quiz_session', {

@@ -46,8 +46,10 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
 
   test('unauthenticated client cannot call start_quiz_session', async () => {
     const { data, error } = await unauthClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
       p_subject_id: knownSubjectId,
-      p_question_count: 5,
+      p_topic_id: knownSubjectId,
+      p_question_ids: [knownQuestionId],
     })
 
     // Must fail: either an RPC error or no usable session returned
@@ -74,7 +76,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
 
   test('unauthenticated client cannot call get_quiz_questions', async () => {
     const { data, error } = await unauthClient.rpc('get_quiz_questions', {
-      p_session_id: knownSessionId,
+      p_question_ids: [knownQuestionId],
     })
 
     // Must return an error or empty array — correct answers must never be exposed

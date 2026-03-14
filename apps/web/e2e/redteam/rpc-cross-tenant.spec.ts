@@ -18,6 +18,8 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let adminClient: Awaited<ReturnType<typeof getAdminClient>>
   let egmontSubjectId: string
+  let egmontTopicId: string
+  let egmontQuestionIds: string[]
 
   test.beforeAll(async () => {
     await seedRedTeamUsers()
@@ -33,15 +35,34 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     expect(subjects!.length).toBeGreaterThan(0)
 
     egmontSubjectId = subjects![0].id
+
+    // Fetch egmont question IDs — the cross-org user will attempt to use these
+    const { data: topics } = await adminClient
+      .from('easa_topics')
+      .select('id')
+      .eq('subject_id', egmontSubjectId)
+      .limit(5)
+    egmontTopicId = (topics ?? [])[0]?.id ?? egmontSubjectId
+    const topicIds = (topics ?? []).map((t) => t.id)
+
+    const { data: qs } = await adminClient
+      .from('questions')
+      .select('id')
+      .in('topic_id', topicIds)
+      .is('deleted_at', null)
+      .limit(5)
+    egmontQuestionIds = (qs ?? []).map((q) => q.id)
   })
 
   test('cross-org user cannot start a quiz session for an egmont-aviation subject', async () => {
-    // Attack: use a known egmont-aviation subject_id in start_quiz_session.
+    // Attack: use known egmont-aviation subject_id and question_ids in start_quiz_session.
     // RLS on the questions/subjects tables should cause the RPC to find 0 questions,
     // resulting in an error or an empty session.
     const { data, error } = await crossOrgClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
       p_subject_id: egmontSubjectId,
-      p_question_count: 5,
+      p_topic_id: egmontTopicId,
+      p_question_ids: egmontQuestionIds,
     })
 
     // The RPC should either return an error (could not find enough questions)

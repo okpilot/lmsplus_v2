@@ -121,6 +121,41 @@ instead of returning `{ success: false, error: ... }`.
 The partial-write failure mode is eliminated.
 **Watch for:** batch operations against immutable tables where partial writes cannot be undone.
 
+### red-team specs: RPC parameter mismatch across partial fix commits
+**First seen:** PR #4 (2026-03-14)
+**Files:** `apps/web/e2e/redteam/session-replay.spec.ts`, `session-race-condition.spec.ts`,
+`rate-limiting.spec.ts`, `rpc-cross-tenant.spec.ts`, `rpc-question-membership.spec.ts`,
+`server-action-unauthenticated.spec.ts`
+**Pattern:** A fix commit (7132ea7) corrected table names (`subjects` → `easa_subjects`) and
+`complete_quiz_session` params across specs, but missed two other mismatches that are present
+in the SAME specs:
+  1. `start_quiz_session` called with `{ p_subject_id, p_question_count }` — actual signature
+     is `(p_mode, p_subject_id, p_topic_id, p_question_ids)`. Five specs affected.
+  2. `get_quiz_questions` called with `{ p_session_id }` — actual signature takes
+     `{ p_question_ids: uuid[] }`. Two specs affected.
+**Root cause:** The fix commit targeted the issues reported by the per-commit semantic reviewer
+but the PR-level sweep caught that the same mismatches persisted in unreviewed call sites.
+**Lesson:** When fixing parameter mismatches in test files, grep the full test directory for ALL
+calls to the affected RPC before committing — partial fixes are common when specs share the
+same erroneous pattern across multiple files.
+**Watch for:** Any commit that corrects RPC params in one spec file but touches a family of
+related spec files — always scan all files in the directory for the same pattern.
+**Status:** ISSUE — flagged in PR #4 sweep, must be fixed before push.
+
+### red-team quiz_drafts INSERT uses non-existent columns
+**First seen:** PR #4 (2026-03-14)
+**File:** `apps/web/e2e/redteam/quiz-draft-injection.spec.ts`
+**Pattern:** The spec inserts into `quiz_drafts` with `{ student_id, subject_id, question_ids,
+answered_so_far }`. The actual schema (migration 009) has:
+`{ id, student_id, organization_id, session_config, question_ids, answers, current_index, ... }`.
+`subject_id` and `answered_so_far` do not exist. `organization_id` is NOT NULL and is missing
+from the insert. This means every INSERT in this spec will fail with a schema error, making
+the test meaningless — the rejection is not due to RLS but due to schema mismatch.
+**Watch for:** E2E test helpers that insert directly into tables without reading the schema first.
+Admin-client inserts bypass RLS but not schema constraints. The test gives a false-positive
+appearance of security (RLS rejection) when the real failure is a schema error.
+**Status:** ISSUE — flagged in PR #4 sweep, must be fixed before push.
+
 ### batch_submit_quiz — score counts all session answers, not just the submitted batch
 **First seen:** commit 6120e3f (2026-03-12)
 **File:** `supabase/migrations/20260312000011_batch_submit_rpc.sql` lines 95-101

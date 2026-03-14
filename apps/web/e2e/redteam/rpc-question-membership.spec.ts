@@ -44,23 +44,38 @@ test.describe('Red Team: RPC Question Membership Check', () => {
       const subjectA = subjects![0]
       const subjectB = subjects![1]
 
-      // Step 2: Attacker starts a session for subject A
+      // Step 2: Attacker starts a session for subject A — fetch question IDs first
+      const { data: topicsA } = await adminClient
+        .from('easa_topics')
+        .select('id')
+        .eq('subject_id', subjectA.id)
+        .limit(5)
+      const topicAIds = (topicsA ?? []).map((t) => t.id)
+      const topicAId = topicAIds[0] ?? subjectA.id
+
+      const { data: questionsA } = await adminClient
+        .from('questions')
+        .select('id')
+        .in('topic_id', topicAIds)
+        .is('deleted_at', null)
+        .limit(5)
+      const questionAIds = (questionsA ?? []).map((q) => q.id)
+
       const { data: sessionData, error: sessionError } = await attackerClient.rpc(
         'start_quiz_session',
         {
+          p_mode: 'quick_quiz',
           p_subject_id: subjectA.id,
-          p_question_count: 5,
+          p_topic_id: topicAId,
+          p_question_ids: questionAIds,
         },
       )
 
       expect(sessionError).toBeNull()
       expect(sessionData).not.toBeNull()
 
-      // start_quiz_session may return a session id directly or nested — handle both
-      const sessionId =
-        typeof sessionData === 'string'
-          ? sessionData
-          : ((sessionData as { session_id?: string })?.session_id ?? sessionData)
+      // start_quiz_session returns a plain string (the session ID)
+      const sessionId = sessionData as string
 
       expect(sessionId).toBeTruthy()
 

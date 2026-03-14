@@ -22,6 +22,8 @@ import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/s
 test.describe('Red Team: Rate Limiting', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let subjectId: string
+  let questionIds: string[]
+  let topicId: string
 
   test.beforeAll(async () => {
     await seedRedTeamUsers()
@@ -30,6 +32,22 @@ test.describe('Red Team: Rate Limiting', () => {
     const admin = getAdminClient()
     const { data: subject } = await admin.from('easa_subjects').select('id').limit(1).single()
     subjectId = subject!.id
+
+    const { data: topics } = await admin
+      .from('easa_topics')
+      .select('id')
+      .eq('subject_id', subjectId)
+      .limit(5)
+    topicId = (topics ?? [])[0]?.id ?? subjectId
+    const topicIds = (topics ?? []).map((t) => t.id)
+
+    const { data: qs } = await admin
+      .from('questions')
+      .select('id')
+      .in('topic_id', topicIds)
+      .is('deleted_at', null)
+      .limit(1)
+    questionIds = (qs ?? []).map((q) => q.id)
   })
 
   // ---------------------------------------------------------------------------
@@ -44,8 +62,10 @@ test.describe('Red Team: Rate Limiting', () => {
     const results = await Promise.all(
       Array.from({ length: 50 }, () =>
         attackerClient.rpc('start_quiz_session', {
+          p_mode: 'quick_quiz',
           p_subject_id: subjectId,
-          p_question_count: 1,
+          p_topic_id: topicId,
+          p_question_ids: questionIds,
         }),
       ),
     )
@@ -71,8 +91,10 @@ test.describe('Red Team: Rate Limiting', () => {
     const results = await Promise.all(
       Array.from({ length: 50 }, () =>
         attackerClient.rpc('start_quiz_session', {
+          p_mode: 'quick_quiz',
           p_subject_id: subjectId,
-          p_question_count: 1,
+          p_topic_id: topicId,
+          p_question_ids: questionIds,
         }),
       ),
     )
@@ -89,9 +111,7 @@ test.describe('Red Team: Rate Limiting', () => {
 
     // Clean up: discard the 50 sessions we just created so the DB stays tidy
     const admin = getAdminClient()
-    const sessionIds = results
-      .filter((r) => !r.error && r.data)
-      .map((r) => (r.data as { session_id: string }).session_id)
+    const sessionIds = results.filter((r) => !r.error && r.data).map((r) => r.data as string)
 
     if (sessionIds.length > 0) {
       await admin

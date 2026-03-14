@@ -16,31 +16,49 @@ test.describe('Red Team: Session Replay', () => {
   let sessionId: string
   let subjectId: string
   let originalScore: number
+  let questionIds: string[]
 
   test.beforeAll(async () => {
     await seedRedTeamUsers()
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
-    // Resolve a real subject_id to use for session creation
+    // Resolve a real subject_id and fetch question IDs for session creation
     const admin = getAdminClient()
     const { data: subject } = await admin.from('easa_subjects').select('id').limit(1).single()
     subjectId = subject!.id
+
+    const { data: topics } = await admin
+      .from('easa_topics')
+      .select('id')
+      .eq('subject_id', subjectId)
+      .limit(5)
+    const topicIds = (topics ?? []).map((t) => t.id)
+
+    const { data: qs } = await admin
+      .from('questions')
+      .select('id')
+      .in('topic_id', topicIds)
+      .is('deleted_at', null)
+      .limit(3)
+    questionIds = (qs ?? []).map((q) => q.id)
   })
 
   test('rejects batch_submit_quiz replay on completed session', async () => {
     // Step 1: Start a quiz session
     const { data: startData, error: startError } = await attackerClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
       p_subject_id: subjectId,
-      p_question_count: 3,
+      p_topic_id: questionIds[0] ?? subjectId,
+      p_question_ids: questionIds,
     })
     expect(startError).toBeNull()
     expect(startData).toBeTruthy()
-    sessionId = (startData as { session_id: string }).session_id
+    sessionId = startData as string
 
     // Step 2: Fetch questions for this session
     const { data: questions, error: questionsError } = await attackerClient.rpc(
       'get_quiz_questions',
-      { p_session_id: sessionId },
+      { p_question_ids: questionIds },
     )
     expect(questionsError).toBeNull()
     expect(Array.isArray(questions)).toBe(true)

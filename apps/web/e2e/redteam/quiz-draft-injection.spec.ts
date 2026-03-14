@@ -31,10 +31,11 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
   let adminClient: Awaited<ReturnType<typeof getAdminClient>>
   let attackerUserId: string
   let foreignQuestionIds: string[]
-  let knownSubjectId: string
+  let orgId: string
 
   test.beforeAll(async () => {
-    await seedRedTeamUsers()
+    const seed = await seedRedTeamUsers()
+    orgId = seed.orgId
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
     victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
     adminClient = getAdminClient()
@@ -43,11 +44,10 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     attackerUserId = me?.user?.id ?? ''
     expect(attackerUserId).not.toBe('')
 
-    // Admin: resolve real question IDs and a subject the attacker can legitimately access
+    // Admin: resolve real question IDs from a second subject (foreign scope for injection attempt)
     const { data: subjects } = await adminClient.from('easa_subjects').select('id').limit(2)
 
     expect(subjects?.length).toBeGreaterThanOrEqual(1)
-    knownSubjectId = subjects![0].id
 
     // Pick questions from a second subject (foreign scope for injection attempt)
     const secondSubjectId = subjects![1]?.id ?? subjects![0].id
@@ -85,9 +85,9 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
       .from('quiz_drafts')
       .insert({
         student_id: attackerUserId,
-        subject_id: knownSubjectId,
+        organization_id: orgId,
         question_ids: foreignQuestionIds,
-        answered_so_far: [],
+        answers: {},
       })
       .select('id')
 
@@ -122,9 +122,9 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
 
     const { error } = await attackerClient.from('quiz_drafts').insert({
       student_id: victimUserId, // Forged: attacker pretends to be victim
-      subject_id: knownSubjectId,
+      organization_id: orgId,
       question_ids: foreignQuestionIds,
-      answered_so_far: [],
+      answers: {},
     })
 
     // RLS must reject: student_id in the row must match auth.uid()
@@ -138,9 +138,9 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
 
     await adminClient.from('quiz_drafts').insert({
       student_id: victimUserId,
-      subject_id: knownSubjectId,
+      organization_id: orgId,
       question_ids: [],
-      answered_so_far: [],
+      answers: {},
     })
 
     // Attacker attempts to read all drafts — must only see their own
