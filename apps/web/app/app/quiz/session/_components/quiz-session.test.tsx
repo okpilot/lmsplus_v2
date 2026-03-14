@@ -14,8 +14,15 @@ vi.mock('../../actions/batch-submit', () => ({
 const mockDeleteDraft = vi.fn()
 const mockSaveDraft = vi.fn()
 vi.mock('../../actions/draft', () => ({
-  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
   saveDraft: (...args: unknown[]) => mockSaveDraft(...args),
+}))
+vi.mock('../../actions/draft-delete', () => ({
+  deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
+}))
+
+const mockCheckAnswer = vi.fn()
+vi.mock('../../actions/check-answer', () => ({
+  checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
 }))
 
 vi.mock('../../_components/finish-quiz-dialog', () => ({
@@ -101,7 +108,7 @@ vi.mock('../../_components/question-grid', () => ({
     totalQuestions: number
     currentIndex: number
     answeredIds: Set<string>
-    flaggedIds: Set<string>
+    pinnedIds: Set<string>
     questionIds: string[]
     onNavigate: (index: number) => void
   }) => (
@@ -198,6 +205,13 @@ describe('QuizSession', () => {
     vi.resetAllMocks()
     mockDeleteDraft.mockResolvedValue({ success: true })
     mockSaveDraft.mockResolvedValue({ success: true })
+    mockCheckAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'a',
+      explanationText: null,
+      explanationImageUrl: null,
+    })
   })
 
   it('renders first question on mount', () => {
@@ -352,37 +366,18 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('question-number')).toHaveTextContent('3')
   })
 
-  it('toggles flag state on the current question', () => {
+  it('toggles pin state on the current question', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    const flagBtn = screen.getByTestId('flag-button')
-    expect(flagBtn).toHaveTextContent('Flag')
-    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
+    const pinBtn = screen.getByTestId('pin-button')
+    expect(pinBtn).toHaveTextContent('Pin')
+    expect(pinBtn).toHaveAttribute('aria-pressed', 'false')
 
-    fireEvent.click(flagBtn)
-    expect(flagBtn).toHaveTextContent('Unflag')
-    expect(flagBtn).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(pinBtn)
+    expect(pinBtn).toHaveTextContent('Unpin')
+    expect(pinBtn).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.click(flagBtn)
-    expect(flagBtn).toHaveTextContent('Flag')
-    expect(flagBtn).toHaveAttribute('aria-pressed', 'false')
-  })
-
-  it('renders exit button', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-    expect(screen.getByTestId('exit-button')).toBeInTheDocument()
-  })
-
-  it('confirms before exiting when answers exist', () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
-
-    // Answer the first question so answeredCount > 0
-    fireEvent.click(screen.getByTestId('option-a'))
-
-    fireEvent.click(screen.getByTestId('exit-button'))
-    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved answers. Leave quiz?')
-    expect(mockRouterPush).not.toHaveBeenCalled()
-
-    confirmSpy.mockRestore()
+    fireEvent.click(pinBtn)
+    expect(pinBtn).toHaveTextContent('Pin')
+    expect(pinBtn).toHaveAttribute('aria-pressed', 'false')
   })
 })

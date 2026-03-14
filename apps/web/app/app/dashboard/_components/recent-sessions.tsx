@@ -5,7 +5,6 @@ type RecentSessionsProps = {
 }
 
 const MODE_LABELS: Record<string, string> = {
-  smart_review: 'Smart Review',
   quick_quiz: 'Quiz',
   mock_exam: 'Mock Exam',
 }
@@ -14,7 +13,7 @@ export function RecentSessions({ sessions }: RecentSessionsProps) {
   if (sessions.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No sessions yet. Start a review or quiz to see your history here.
+        No sessions yet. Start a quiz to see your history here.
       </p>
     )
   }

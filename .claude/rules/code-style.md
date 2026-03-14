@@ -265,6 +265,18 @@ const body = await req.json() as SubmitAnswerInput
 const body = SubmitAnswerSchema.parse(await req.json())
 ```
 
+When casting DB/RPC results via `as unknown as T`, pair the cast with a runtime guard before using the data. `as unknown as` silences TypeScript but creates no runtime guarantee.
+
+```ts
+// ❌ WRONG — cast assumes shape, .includes() throws on non-array
+const config = (session as unknown as { ids: string[] }).ids
+if (!config?.includes(questionId)) { ... }
+
+// ✅ CORRECT — runtime guard matches the assumption
+const config = (session as unknown as { ids: unknown }).ids
+if (!Array.isArray(config) || !config.includes(questionId)) { ... }
+```
+
 ### Prefer `type` Over `interface`
 Use `interface` only for objects that will be extended/implemented. Use `type` for everything else.
 

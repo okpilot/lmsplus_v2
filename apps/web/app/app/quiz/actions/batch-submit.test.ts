@@ -55,6 +55,7 @@ const BATCH_RPC_RESULT = {
     },
   ],
   total_questions: 2,
+  answered_count: 2,
   correct_count: 1,
   score_percentage: 50,
 }
@@ -94,7 +95,7 @@ describe('batchSubmitQuiz', () => {
     const result = await batchSubmitQuiz({ sessionId: SESSION_ID, answers: [] })
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
+    if (!result.success) expect(result.error).toMatch(/Something went wrong/)
   })
 
   it('returns failure when sessionId is not a valid UUID', async () => {
@@ -103,7 +104,7 @@ describe('batchSubmitQuiz', () => {
     const result = await batchSubmitQuiz({ sessionId: 'not-a-uuid', answers: VALID_ANSWERS })
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
+    if (!result.success) expect(result.error).toMatch(/Something went wrong/)
   })
 
   it('returns failure when an answer questionId is not a valid UUID', async () => {
@@ -115,7 +116,7 @@ describe('batchSubmitQuiz', () => {
     })
     consoleSpy.mockRestore()
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
+    if (!result.success) expect(result.error).toMatch(/Something went wrong/)
   })
 
   it('returns failure when responseTimeMs is not a positive integer', async () => {
@@ -136,6 +137,7 @@ describe('batchSubmitQuiz', () => {
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.totalQuestions).toBe(2)
+    expect(result.answeredCount).toBe(2)
     expect(result.correctCount).toBe(1)
     expect(result.scorePercentage).toBe(50)
   })
@@ -190,7 +192,22 @@ describe('batchSubmitQuiz', () => {
     consoleSpy.mockRestore()
 
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Failed to submit quiz. Please try again.')
+    if (!result.success) expect(result.error).toMatch(/Failed to submit quiz/)
+  })
+
+  it('returns "session could not be found" when RPC signals session not accessible', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'session not found or not accessible' },
+    })
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await batchSubmitQuiz({ sessionId: SESSION_ID, answers: VALID_ANSWERS })
+    consoleSpy.mockRestore()
+
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('This session could not be found.')
   })
 
   it('still returns success when FSRS card update throws (non-fatal)', async () => {
@@ -213,8 +230,8 @@ describe('batchSubmitQuiz', () => {
     const result = await batchSubmitQuiz({ sessionId: SESSION_ID, answers: VALID_ANSWERS })
 
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
-    expect(consoleSpy).toHaveBeenCalledWith('[batchSubmitQuiz] Uncaught error:', expect.any(Error))
+    if (!result.success) expect(result.error).toMatch(/Something went wrong/)
+    expect(consoleSpy).toHaveBeenCalledWith('[batchSubmitQuiz] Uncaught error:', expect.any(String))
     consoleSpy.mockRestore()
   })
 })

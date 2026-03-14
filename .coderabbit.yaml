@@ -71,6 +71,15 @@ reviews:
         - No useEffect for data fetching.
         - No direct Supabase calls.
 
+    # TypeScript — type safety
+    - path: "**/*.ts"
+      instructions: |
+        TypeScript source. Enforce:
+        - No `any` type — use `unknown` with narrowing.
+        - No type casting of unvalidated external data via `as SubmitAnswerInput`.
+        - When casting DB/RPC results via `as unknown as T`, pair the cast with runtime guards (Array.isArray, typeof checks, etc).
+        - All Zod-validated inputs must use .parse() before use, not `as` casts.
+
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"
       instructions: |

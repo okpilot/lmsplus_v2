@@ -4,9 +4,9 @@ import { AnswerOptions } from '@/app/app/_components/answer-options'
 import { QuestionCard } from '@/app/app/_components/question-card'
 import type { SessionQuestion } from '@/app/app/_components/session-runner'
 import { SessionTimer } from '@/app/app/_components/session-timer'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { CommentsTab } from '../../_components/comments-tab'
+import { ExplanationTab } from '../../_components/explanation-tab'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
@@ -20,13 +20,13 @@ type QuizSessionProps = {
   questions: SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
   initialIndex?: number
+  draftId?: string
   subjectName?: string
   subjectCode?: string
 }
 
 export function QuizSession(props: QuizSessionProps) {
-  const s = useQuizState(props)
-  const router = useRouter()
+  const s = useQuizState(props) // draftId forwarded via props spread
   const [activeTab, setActiveTab] = useState<
     'question' | 'explanation' | 'comments' | 'statistics'
   >('question')
@@ -37,16 +37,6 @@ export function QuizSession(props: QuizSessionProps) {
     setActiveTab('question')
   }, [s.currentIndex])
 
-  function handleExit() {
-    if (s.answeredCount > 0) {
-      if (window.confirm('You have unsaved answers. Leave quiz?')) {
-        router.push('/app/quiz')
-      }
-    } else {
-      router.push('/app/quiz')
-    }
-  }
-
   if (!s.question) return null
 
   return (
@@ -56,22 +46,13 @@ export function QuizSession(props: QuizSessionProps) {
           totalQuestions={props.questions.length}
           currentIndex={s.currentIndex}
           answeredIds={s.answeredIds}
-          flaggedIds={s.flaggedQuestions}
+          pinnedIds={s.pinnedQuestions}
           questionIds={s.questionIds}
           onNavigate={s.navigateTo}
         />
       </div>
       <div className="mx-auto w-full max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            data-testid="exit-button"
-            onClick={handleExit}
-            className="rounded-lg border border-input p-2 text-muted-foreground transition-colors hover:bg-muted"
-            aria-label="Exit quiz"
-          >
-            ✕
-          </button>
           <div className="h-1.5 flex-1 rounded-full bg-muted">
             <div
               data-testid="progress-bar"
@@ -97,17 +78,29 @@ export function QuizSession(props: QuizSessionProps) {
           </div>
         )}
         <AnswerOptions
+          key={s.question.id}
           options={s.question.options}
           onSubmit={s.handleSelectAnswer}
           disabled={s.submitting}
           selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
+          correctOptionId={s.currentFeedback?.correctOptionId ?? null}
         />
-        <QuestionTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          hasAnswered={!!s.existingAnswer}
-          hiddenTabs={['explanation']}
-        />
+        <QuestionTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        {activeTab === 'explanation' &&
+          (s.currentFeedback ? (
+            <ExplanationTab
+              hasAnswered={true}
+              isCorrect={s.currentFeedback.isCorrect}
+              explanationText={s.currentFeedback.explanationText}
+              explanationImageUrl={s.currentFeedback.explanationImageUrl}
+            />
+          ) : (
+            <ExplanationTab
+              hasAnswered={false}
+              questionId={s.questionId}
+              sessionId={props.sessionId}
+            />
+          ))}
         {activeTab === 'comments' && <CommentsTab />}
         {activeTab === 'statistics' && (
           <StatisticsTab questionId={s.questionId} hasAnswered={!!s.existingAnswer} />
@@ -115,16 +108,16 @@ export function QuizSession(props: QuizSessionProps) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            data-testid="flag-button"
-            onClick={s.toggleFlag}
+            data-testid="pin-button"
+            onClick={s.togglePin}
             className={
-              s.isFlagged
+              s.isPinned
                 ? 'rounded-lg border border-yellow-400 bg-yellow-100 px-3 py-2 text-sm font-medium text-yellow-700 transition-colors dark:border-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
                 : 'rounded-lg border border-input px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted'
             }
-            aria-pressed={s.isFlagged}
+            aria-pressed={s.isPinned}
           >
-            {s.isFlagged ? 'Unflag' : 'Flag'}
+            {s.isPinned ? 'Unpin' : 'Pin'}
           </button>
           <div className="flex-1">
             <QuizNavBar
@@ -144,6 +137,7 @@ export function QuizSession(props: QuizSessionProps) {
           onSubmit={s.handleSubmit}
           onCancel={() => s.setShowFinishDialog(false)}
           onSave={s.handleSave}
+          onDiscard={s.handleDiscard}
         />
       </div>
     </div>

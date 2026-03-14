@@ -177,4 +177,66 @@ describe('getRandomQuestionIds', () => {
     const result = await getRandomQuestionIds({ subjectId: 's1', count: 5 })
     expect(result).toEqual([])
   })
+
+  it('returns only questions with last_was_correct=false when filter is incorrect', async () => {
+    // First call: questions pool
+    // Second call: fsrs_cards with last_was_correct=false scoped to those question IDs
+    mockFromSequence(
+      { data: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }] },
+      { data: [{ question_id: 'q2' }] }, // only q2 was answered incorrectly
+    )
+
+    const result = await getRandomQuestionIds({
+      subjectId: 's1',
+      count: 10,
+      filter: 'incorrect',
+      userId: 'u1',
+    })
+    expect(result).toEqual(['q2'])
+  })
+
+  it('returns empty array when no incorrect questions exist for the filter', async () => {
+    mockFromSequence(
+      { data: [{ id: 'q1' }, { id: 'q2' }] },
+      { data: [] }, // no incorrect cards
+    )
+
+    const result = await getRandomQuestionIds({
+      subjectId: 's1',
+      count: 10,
+      filter: 'incorrect',
+      userId: 'u1',
+    })
+    expect(result).toEqual([])
+  })
+
+  it('skips incorrect filter and returns all questions when userId is not provided', async () => {
+    mockFromSequence({ data: [{ id: 'q1' }, { id: 'q2' }] })
+
+    const result = await getRandomQuestionIds({
+      subjectId: 's1',
+      count: 10,
+      filter: 'incorrect',
+      // no userId
+    })
+    // Without userId, filter is bypassed — all questions returned
+    expect(result).toHaveLength(2)
+  })
+
+  it('returns empty array without querying fsrs_cards when question pool is empty and filter is incorrect', async () => {
+    // Only one from() call should happen (questions pool returns empty).
+    // The early-return guard in filterIncorrect must prevent a second fsrs_cards query.
+    mockFromSequence({ data: [] })
+
+    const result = await getRandomQuestionIds({
+      subjectId: 's1',
+      count: 10,
+      filter: 'incorrect',
+      userId: 'u1',
+    })
+
+    expect(result).toEqual([])
+    // Only one DB call was made (the questions pool) — fsrs_cards was never queried
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
 })

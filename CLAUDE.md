@@ -20,14 +20,40 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 
 ### Your workflow for any non-trivial task:
 ```
-1. Explore  → subagents map the relevant code
-2. Plan     → you design the approach, user approves
-3. Execute  → subagents implement (parallel when possible)
-4. Review   → you read results, verify correctness
-5. Commit   → you create the commit
-6. Audit    → post-commit agents review (parallel)
-7. Fix      → address findings, repeat 5-6 until clean
+1. Explore    → subagents map the relevant code
+2. Plan       → you design the approach
+3. Validate   → verify plan against codebase (see Plan Validation below)
+4. Approve    → user approves the validated plan
+5. Execute    → subagents implement (parallel when possible)
+6. Review     → you read results, verify correctness
+7. Commit     → you create the commit
+8. Audit      → post-commit agents review (parallel)
+9. Fix        → address findings, repeat 7-8 until clean
 ```
+
+### Plan Validation (step 3 — MANDATORY before execution)
+
+Before writing any code, validate the plan against the actual codebase. This is where most bugs are cheapest to fix — 100x cheaper than catching them in review.
+
+**For every file you plan to change, verify:**
+
+1. **Impact analysis** — What other files read from or write to this file? Use Explore agents to trace callers, importers, and dependents. List them in the plan.
+
+2. **Contract check** — Do existing tests assert behavior you're about to change? Read the test files. If a test asserts `fallback ?? 0` and you're changing it to `?? total`, the test will break — plan the test update alongside the code change.
+
+3. **Pattern consistency** — Does your planned approach match how similar things are already done in the codebase? If 5 Server Actions all destructure `{ error }`, your new one must too.
+
+4. **Doc/schema alignment** — Will your change make any doc (database.md, decisions.md, plan.md) inaccurate? If changing a migration, check the soft-delete matrix. If adding an RPC, check the RPC signatures table.
+
+5. **Security surface** — Does the change touch auth, RLS, answer data, or input validation? If yes, verify against `docs/security.md` rules before implementing.
+
+**The plan must include:**
+- Files to change (with line ranges when possible)
+- Files affected by the change (callers, tests, docs)
+- Known risks or edge cases
+- Test updates needed alongside code changes
+
+**Gate:** Do not proceed to step 5 (Execute) until validation is complete and the user approves. A validated plan that takes 10 minutes prevents a 24-hour review cycle.
 
 ### When NOT to use subagents:
 - Reading a single known file (use Read directly)
@@ -39,7 +65,7 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 - Your context window is expensive — don't waste it on exploration
 - Parallel subagents are faster than sequential self-work
 - Delegation creates natural review checkpoints
-- Plans prevent wasted effort on wrong approaches
+- **Validated plans prevent 24-hour review cycles** — catching a wrong fallback value at plan time costs 2 minutes; catching it via CodeRabbit costs hours of back-and-forth
 
 ---
 
@@ -110,9 +136,10 @@ pnpm check-types  # tsc --noEmit all packages
 
 ## Workflow
 1. Start each session: read `docs/plan.md`
-2. Plan Mode for any multi-file change (Shift+Tab twice)
-3. `/project:review` after feature complete
-4. `/project:insights` weekly
+2. For any multi-file change: draft a plan, then validate it (see **Plan Validation** above)
+3. Get user approval on the validated plan before executing
+4. `/project:review` after feature complete
+5. `/project:insights` weekly
 
 ## Post-commit review (MANDATORY)
 After every `git commit`, run these 4 subagents in parallel using the Agent tool:
@@ -141,3 +168,4 @@ Everything else (code review, docs, tests) runs through ME as subagents so findi
 
 ## Push protocol
 Never push without explicit user approval. Always ask first.
+For branches with 2+ commits, run a full-diff semantic review (`git diff master...HEAD`) before pushing — see `agent-workflow.md § Pre-Push PR Sweep`.

@@ -485,6 +485,22 @@ CREATE POLICY "exam_sessions_no_restart" ON quiz_sessions
 
 ---
 
+## 11a. Server Action Session Ownership
+
+Any Server Action that operates on a quiz session or its questions must verify **both** ownership and membership before proceeding — RLS alone is not sufficient because Server Actions run with the user's session token but accept arbitrary input.
+
+**Required checks (in order):**
+1. `quiz_sessions.student_id = auth.uid()` — session belongs to the authenticated user
+2. `quiz_sessions.ended_at IS NULL` — session is still active
+3. `quiz_sessions.deleted_at IS NULL` — session is not discarded
+4. `questionId IN session.config.question_ids` — question belongs to this session
+
+**Enforced in:** `checkAnswer`, `fetchExplanation` (commit 306f44a, 2026-03-13). The `batch_submit_quiz` RPC enforces the same four checks at the SQL layer.
+
+**Runtime guard:** When reading `config.question_ids` from the DB, use `Array.isArray()` before `.includes()` — the `as unknown as` TypeScript cast provides no runtime guarantee against malformed JSONB.
+
+---
+
 ## 12. GDPR & Data Privacy
 
 We store student PII: email address, full name, learning history, exam scores.
@@ -540,4 +556,4 @@ These are covered by Supabase infrastructure — no additional work needed:
 
 ---
 
-*Last updated: 2026-03-11 | Owner: Claude (security-auditor agent reviews every push)*
+*Last updated: 2026-03-13 | Owner: Claude (security-auditor agent reviews every push)*

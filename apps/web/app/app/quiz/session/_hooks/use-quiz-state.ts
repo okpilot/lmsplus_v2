@@ -1,20 +1,13 @@
-import type { SessionQuestion } from '@/app/app/_components/session-runner'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
-import type { DraftAnswer } from '../../types'
-import { saveQuizDraft, submitQuizSession } from './quiz-submit'
-import { useFlaggedQuestions } from './use-flagged-questions'
+import type { DraftAnswer, QuizStateOpts } from '../../types'
+import { useAnswerHandler } from './use-answer-handler'
+import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
+import { useQuizSubmit } from './use-quiz-submit'
 
-export function useQuizState(opts: {
-  sessionId: string
-  questions: SessionQuestion[]
-  initialAnswers?: Record<string, DraftAnswer>
-  initialIndex?: number
-  subjectName?: string
-  subjectCode?: string
-}) {
+export function useQuizState(opts: QuizStateOpts) {
   const { sessionId, questions, initialAnswers } = opts
   const router = useRouter()
   const nav = useQuizNavigation({
@@ -24,53 +17,41 @@ export function useQuizState(opts: {
   const [answers, setAnswers] = useState<Map<string, DraftAnswer>>(() =>
     initialAnswers ? new Map(Object.entries(initialAnswers)) : new Map(),
   )
-  const { flaggedQuestions, toggleFlag: toggleFlagById } = useFlaggedQuestions()
-  const submitted = useRef(false)
-  const [showFinishDialog, setShowFinishDialog] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  useNavigationGuard(answers.size > 0 && !submitted.current)
-
+  const { pinnedQuestions, togglePin: togglePinById } = usePinnedQuestions()
+  const answersRef = useRef(answers)
+  answersRef.current = answers
+  const currentIndexRef = useRef(nav.currentIndex)
+  currentIndexRef.current = nav.currentIndex
   const question = questions[nav.currentIndex]
   const questionId = question?.id ?? ''
 
-  function handleSelectAnswer(optionId: string) {
-    const elapsed = Date.now() - nav.answerStartTime.current
-    setAnswers((prev) =>
-      new Map(prev).set(questionId, { selectedOptionId: optionId, responseTimeMs: elapsed }),
-    )
-  }
-  async function handleSubmit() {
-    setSubmitting(true)
-    setError(null)
-    const r = await submitQuizSession(sessionId, answers)
-    if (r.success) {
-      submitted.current = true
-      setShowFinishDialog(false)
-      router.push(`/app/quiz/report?session=${sessionId}`)
-    } else {
-      setError(r.error)
-      setSubmitting(false)
-    }
-  }
-  async function handleSave() {
-    setSubmitting(true)
-    setError(null)
-    const questionIds = questions.map((q) => q.id)
-    const r = await saveQuizDraft({
-      sessionId,
-      questionIds,
-      answers,
-      currentIndex: nav.currentIndex,
-      router,
-      subjectName: opts.subjectName,
-      subjectCode: opts.subjectCode,
-    })
-    if (!r.success) {
-      setError(r.error)
-      setSubmitting(false)
-    }
-  }
+  const {
+    feedback,
+    error: answerError,
+    handleSelectAnswer,
+  } = useAnswerHandler({
+    sessionId,
+    getQuestionId: () => questionId,
+    getAnswerStartTime: () => nav.answerStartTime.current,
+    answers,
+    setAnswers,
+  })
+
+  const {
+    submitted,
+    error: submitError,
+    ...submit
+  } = useQuizSubmit({
+    sessionId,
+    questions,
+    answersRef,
+    currentIndexRef,
+    router,
+    draftId: opts.draftId,
+    subjectName: opts.subjectName,
+    subjectCode: opts.subjectCode,
+  })
+  useNavigationGuard(answers.size > 0 && !submitted.current)
 
   return {
     currentIndex: nav.currentIndex,
@@ -78,19 +59,16 @@ export function useQuizState(opts: {
     questionId,
     answeredCount: answers.size,
     existingAnswer: answers.get(questionId),
+    currentFeedback: feedback.get(questionId) ?? null,
     questionIds: questions.map((q) => q.id),
     answeredIds: new Set(answers.keys()),
-    flaggedQuestions,
-    isFlagged: flaggedQuestions.has(questionId),
-    submitting,
-    error,
-    showFinishDialog,
+    pinnedQuestions,
+    isPinned: pinnedQuestions.has(questionId),
     handleSelectAnswer,
     navigateTo: nav.navigateTo,
-    handleSubmit,
-    handleSave,
-    setShowFinishDialog,
     navigate: nav.navigate,
-    toggleFlag: () => toggleFlagById(questionId),
+    togglePin: () => togglePinById(questionId),
+    error: answerError ?? submitError,
+    ...submit,
   }
 }

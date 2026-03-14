@@ -166,6 +166,7 @@ async function getRecentSessions(
     .select('id, mode, total_questions, correct_count, score_percentage, started_at, subject_id')
     .eq('student_id' as string & keyof never, userId)
     .not('ended_at' as string & keyof never, 'is', null)
+    .is('deleted_at' as string & keyof never, null)
     .order('started_at' as string & keyof never, { ascending: false })
     .limit(5)
     .returns<SessionRow[]>()

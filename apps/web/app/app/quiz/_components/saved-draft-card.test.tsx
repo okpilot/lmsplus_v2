@@ -8,7 +8,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 const mockDeleteDraft = vi.fn()
-vi.mock('../actions/draft', () => ({
+vi.mock('../actions/draft-delete', () => ({
   deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
 }))
 
@@ -29,60 +29,91 @@ const DRAFT: DraftData = {
   createdAt: '2026-03-12T10:00:00Z',
 }
 
+const DRAFT_2: DraftData = {
+  id: 'draft-2',
+  sessionId: 'sess-2',
+  questionIds: ['q6', 'q7'],
+  answers: {},
+  currentIndex: 0,
+  subjectName: 'Air Law',
+  subjectCode: 'ALW',
+  createdAt: '2026-03-13T10:00:00Z',
+}
+
 describe('SavedDraftCard', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockDeleteDraft.mockResolvedValue({ success: true })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
 
-  it('shows empty state when no draft', () => {
-    render(<SavedDraftCard draft={null} />)
-    expect(screen.getByText(/no saved quiz/i)).toBeInTheDocument()
+  it('shows empty state when drafts array is empty', () => {
+    render(<SavedDraftCard drafts={[]} />)
+    expect(screen.getByText(/no saved quizzes/i)).toBeInTheDocument()
   })
 
   it('displays subject name and code', () => {
-    render(<SavedDraftCard draft={DRAFT} />)
+    render(<SavedDraftCard drafts={[DRAFT]} />)
     expect(screen.getByText('Principles of Flight')).toBeInTheDocument()
     expect(screen.getByText('POF')).toBeInTheDocument()
   })
 
   it('displays progress count', () => {
-    render(<SavedDraftCard draft={DRAFT} />)
+    render(<SavedDraftCard drafts={[DRAFT]} />)
     expect(screen.getByText('2 of 5 answered')).toBeInTheDocument()
     expect(screen.getByText('40%')).toBeInTheDocument()
   })
 
   it('displays date', () => {
-    render(<SavedDraftCard draft={DRAFT} />)
+    render(<SavedDraftCard drafts={[DRAFT]} />)
     // Date format depends on locale, just check it renders something
     expect(screen.getByText(/2026/)).toBeInTheDocument()
   })
 
   it('shows "Unknown subject" fallback when subjectName is missing', () => {
     const draft = { ...DRAFT, subjectName: undefined, subjectCode: undefined }
-    render(<SavedDraftCard draft={draft} />)
+    render(<SavedDraftCard drafts={[draft]} />)
     expect(screen.getByText('Unknown subject')).toBeInTheDocument()
   })
 
-  it('stores session data and navigates on resume', () => {
+  it('renders multiple draft cards', () => {
+    render(<SavedDraftCard drafts={[DRAFT, DRAFT_2]} />)
+    expect(screen.getByText('Principles of Flight')).toBeInTheDocument()
+    expect(screen.getByText('Air Law')).toBeInTheDocument()
+    expect(screen.getAllByTestId('resume-draft')).toHaveLength(2)
+    expect(screen.getAllByTestId('delete-draft')).toHaveLength(2)
+  })
+
+  it('stores session data including draftId and navigates on resume', () => {
     const spy = vi.spyOn(Object.getPrototypeOf(sessionStorage), 'setItem')
-    render(<SavedDraftCard draft={DRAFT} />)
+    render(<SavedDraftCard drafts={[DRAFT]} />)
     fireEvent.click(screen.getByTestId('resume-draft'))
 
     expect(spy).toHaveBeenCalledWith(
       'quiz-session',
       expect.stringContaining('"sessionId":"sess-1"'),
     )
+    expect(spy).toHaveBeenCalledWith('quiz-session', expect.stringContaining('"draftId":"draft-1"'))
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
     spy.mockRestore()
   })
 
-  it('calls deleteDraft and refreshes on delete', async () => {
-    render(<SavedDraftCard draft={DRAFT} />)
+  it('does not call deleteDraft when the user cancels the confirmation dialog', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<SavedDraftCard drafts={[DRAFT]} />)
+    fireEvent.click(screen.getByTestId('delete-draft'))
+
+    // Allow any async effects to flush
+    await new Promise((r) => setTimeout(r, 0))
+    expect(mockDeleteDraft).not.toHaveBeenCalled()
+  })
+
+  it('calls deleteDraft with draftId and refreshes on delete', async () => {
+    render(<SavedDraftCard drafts={[DRAFT]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
 
     await waitFor(() => {
-      expect(mockDeleteDraft).toHaveBeenCalled()
+      expect(mockDeleteDraft).toHaveBeenCalledWith({ draftId: 'draft-1' })
     })
     await waitFor(() => {
       expect(mockRouterRefresh).toHaveBeenCalled()
@@ -91,7 +122,7 @@ describe('SavedDraftCard', () => {
 
   it('shows error when delete fails', async () => {
     mockDeleteDraft.mockResolvedValue({ success: false })
-    render(<SavedDraftCard draft={DRAFT} />)
+    render(<SavedDraftCard drafts={[DRAFT]} />)
     fireEvent.click(screen.getByTestId('delete-draft'))
 
     await waitFor(() => {

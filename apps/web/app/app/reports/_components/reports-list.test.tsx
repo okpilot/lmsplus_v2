@@ -10,6 +10,7 @@ function makeSession(overrides: Partial<SessionReport> = {}): SessionReport {
     mode: 'quick_quiz',
     subjectName: 'Navigation',
     totalQuestions: 10,
+    answeredCount: 10,
     correctCount: 8,
     scorePercentage: 80,
     startedAt: '2026-03-10T10:00:00Z',
@@ -48,11 +49,6 @@ describe('ReportsList', () => {
   it('maps quick_quiz mode to "Quiz" label', () => {
     render(<ReportsList sessions={[makeSession({ mode: 'quick_quiz', subjectName: null })]} />)
     expect(screen.getByText('Quiz')).toBeInTheDocument()
-  })
-
-  it('maps smart_review mode to "Smart Review" label', () => {
-    render(<ReportsList sessions={[makeSession({ mode: 'smart_review', subjectName: null })]} />)
-    expect(screen.getByText('Smart Review')).toBeInTheDocument()
   })
 
   it('maps mock_exam mode to "Mock Exam" label', () => {

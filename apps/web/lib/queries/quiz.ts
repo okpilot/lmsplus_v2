@@ -205,11 +205,14 @@ async function filterIncorrect(
   userId: string,
   questions: QuestionIdRow[],
 ): Promise<QuestionIdRow[]> {
+  if (!questions.length) return []
+  const questionIds = questions.map((q) => q.id)
   const { data: incorrectCards } = await supabase
     .from('fsrs_cards')
     .select('question_id')
     .eq('student_id' as string & keyof never, userId)
     .eq('last_was_correct' as string & keyof never, false)
+    .in('question_id' as string & keyof never, questionIds)
     .returns<QuestionFilterRef[]>()
 
   const incorrectIds = new Set((incorrectCards ?? []).map((r) => r.question_id))

@@ -39,7 +39,6 @@ export type SubmitInput = {
 type SessionRunnerProps = {
   sessionId: string
   questions: SessionQuestion[]
-  mode: 'quick_quiz' | 'smart_review'
   onSubmitAnswer: (input: SubmitInput) => Promise<AnswerResult>
   onComplete: (input: { sessionId: string }) => Promise<CompleteResult>
 }
@@ -47,13 +46,13 @@ type SessionRunnerProps = {
 export function SessionRunner({
   sessionId,
   questions,
-  mode,
   onSubmitAnswer,
   onComplete,
 }: SessionRunnerProps) {
   const {
     state,
     currentIndex,
+    answeredCount,
     feedback,
     submitting,
     selectedOption,
@@ -71,9 +70,9 @@ export function SessionRunner({
     return (
       <SessionSummary
         totalQuestions={questions.length}
+        answeredCount={answeredCount}
         correctCount={correctCount}
         scorePercentage={scorePercentage}
-        mode={mode}
       />
     )
   }

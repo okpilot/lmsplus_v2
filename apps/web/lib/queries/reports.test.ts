@@ -71,6 +71,7 @@ describe('getAllSessions', () => {
       if (table === 'quiz_sessions') return buildChain({ data: sessions })
       if (table === 'easa_subjects')
         return buildChain({ data: [{ id: 's-1', name: 'Navigation' }] })
+      if (table === 'quiz_session_answers') return buildChain({ data: [{ session_id: 'sess-1' }] })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -79,6 +80,7 @@ describe('getAllSessions', () => {
     expect(result[0]!.subjectName).toBe('Navigation')
     expect(result[0]!.durationMinutes).toBe(15)
     expect(result[0]!.scorePercentage).toBe(80)
+    expect(result[0]!.answeredCount).toBe(1)
   })
 
   it('throws when the quiz_sessions query returns an error', async () => {
@@ -109,6 +111,7 @@ describe('getAllSessions', () => {
       if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
       if (table === 'easa_subjects')
         return buildChain({ data: null, error: { message: 'subjects DB error' } })
+      if (table === 'quiz_session_answers') return buildChain({ data: [], error: null })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -131,6 +134,7 @@ describe('getAllSessions', () => {
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
+      if (table === 'quiz_session_answers') return buildChain({ data: [], error: null })
       // easa_subjects should not be queried when no subject IDs present
       throw new Error(`Unexpected table: ${table}`)
     })
@@ -138,5 +142,58 @@ describe('getAllSessions', () => {
     const result = await getAllSessions()
     expect(result).toHaveLength(1)
     expect(result[0]!.subjectName).toBeNull()
+  })
+
+  it('throws when the quiz_session_answers query returns an error', async () => {
+    const sessions = [
+      {
+        id: 'sess-1',
+        mode: 'quick_quiz',
+        total_questions: 5,
+        correct_count: 4,
+        score_percentage: 80,
+        started_at: '2026-03-12T10:00:00Z',
+        ended_at: '2026-03-12T10:10:00Z',
+        subject_id: null,
+      },
+    ]
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
+      if (table === 'easa_subjects') return buildChain({ data: [], error: null })
+      if (table === 'quiz_session_answers')
+        return buildChain({ data: null, error: { message: 'answers DB error' } })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await expect(getAllSessions()).rejects.toThrow(
+      'Failed to fetch answer counts: answers DB error',
+    )
+  })
+
+  it('falls back to total_questions for answeredCount when session has no answer rows', async () => {
+    const sessions = [
+      {
+        id: 'sess-3',
+        mode: 'quick_quiz',
+        total_questions: 10,
+        correct_count: 7,
+        score_percentage: 70,
+        started_at: '2026-03-12T11:00:00Z',
+        ended_at: '2026-03-12T11:20:00Z',
+        subject_id: null,
+      },
+    ]
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') return buildChain({ data: sessions, error: null })
+      if (table === 'quiz_session_answers') return buildChain({ data: [], error: null })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getAllSessions()
+    expect(result).toHaveLength(1)
+    // No answer rows → falls back to total_questions for legacy completed sessions
+    expect(result[0]!.answeredCount).toBe(10)
   })
 })

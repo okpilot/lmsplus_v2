@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-12
+> Last updated: 2026-03-13
 
 ---
 
@@ -71,30 +71,40 @@
 - Supabase middleware client helper in `packages/db/src/middleware.ts`
 - Root layout metadata updated (was "Create Next App")
 
-**Phase 5 done (2026-03-11):** Question Bank Trainer (MVP 2):
-- Dashboard (`/app/dashboard`) — subject progress grid, due reviews banner, recent sessions
-- Smart Review (`/app/review`) — FSRS-powered spaced repetition, start session, review due cards only; explainer component; subject filter (optional)
+**Phase 5 done (2026-03-11, refined 2026-03-13):** Question Bank Trainer (MVP 2):
+- Dashboard (`/app/dashboard`) — subject progress grid, recent sessions, quick actions (Start Quiz)
 - Quiz (`/app/quiz`) — subject selector, question count, randomized quiz mode
 - Progress (`/app/progress`) — detailed breakdown by subject/topic with mastery percentages
+- Reports (`/app/reports`) — session history with sortable columns, click-through to quiz report
 - Shared components: QuestionCard, AnswerOptions, FeedbackPanel, SessionSummary
 - Sidebar navigation for all modes
-- Server Actions split into feature files: quiz/actions/{start, submit, complete, batch-submit}.ts + review/actions.ts
-- Quiz session: deferred writes architecture — answers accumulate in React state, batch submitted on finish
-- Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData, getDueCards
+- Server Actions split into feature files: quiz/actions/{start, submit, complete, batch-submit}.ts
+- Quiz session: deferred writes architecture — answers accumulate in React state, batch submitted on finish. Partial submissions allowed (students can skip questions).
+- Immediate feedback: answers locked after selection, explanation shown in-session
+- Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData
 - FSRS integration via `packages/db/src/fsrs.ts` — wraps ts-fsrs library, updateFsrsCard on answer
 - UI components (shadcn): Badge, Card, Progress, Skeleton
 - Tests written for auth flow, middleware, server actions
 - Session state machine: answering → show-finish-dialog → submit-batch → complete
 - Dark mode: next-themes provider, system default, toggle in header
+- Quiz drafts: up to 20 saved drafts per student for resuming interrupted sessions
+- Statistics tab: per-question stats (times seen, accuracy, FSRS state), auto-loads on tab click
 
-**Phase 5B-7 done (2026-03-12):** Deferred Quiz Writes:
-- Refactored quiz/actions.ts into feature-based files: start.ts, submit.ts, complete.ts, batch-submit.ts
+**Phase 5B-7 done (2026-03-12, refined 2026-03-13):** Deferred Quiz Writes & Immediate Feedback:
+- Refactored quiz/actions.ts into feature-based files: start.ts, submit.ts, complete.ts, batch-submit.ts, discard.ts (new)
 - Quiz state machine updated: answers stored in React state (Map<questionId, {selectedOptionId, responseTimeMs}>)
-- New `batchSubmitQuiz` Server Action: validates batch of answers, calls `submit_quiz_answer` RPC × N, calls `complete_quiz_session` RPC, updates FSRS cards
-- FinishQuizDialog: modal with unanswered count warning, options: Return to Quiz, Save for Later (stub), Submit Quiz
+- Migration 017: `batch_submit_quiz` RPC — allows partial answers; score calculated as `correct / answered` (not `correct / total`)
+- Migration 022: `batch_submit_quiz` updated to atomically set `fsrs_cards.last_was_correct` within the transaction (closes race condition window)
+- Migration 025: `batch_submit_quiz` input validation hardening — validates non-null JSON array, rejects duplicates, checks question membership
+- Discard session: students can discard active quiz (soft-delete session), with optional draft cleanup
+- FinishQuizDialog: modal with unanswered count warning, options: Return to Quiz, Save for Later, Submit Quiz, Discard Quiz
 - QuizNavBar: question navigator with previous/next buttons, current index display
+- Pinned questions: renamed from "flagged" to "pinned" for clarity (use-pinned-questions.ts hook)
+- Immediate answer feedback: after selection, answer is locked and explanation shown inline (not deferred to end)
+- SessionSummary: now displays `answeredCount` alongside `totalQuestions` for clarity on partial submissions
 - Session Zod types: SubmitRpcResult, CompleteRpcResult, StartQuizResult, SubmitQuizAnswerResult, CompleteQuizResult, BatchAnswerResult, BatchSubmitResult
-- QuizSession component updated to use deferred state + finish dialog instead of immediate feedback per answer
+- QuizSession component displays explanation immediately after answer selection
+- Report queries: fetch answered count per session from `quiz_session_answers` for accurate scoring on partial submissions
 
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
@@ -161,19 +171,17 @@
 - **Docs updated:** security.md and database.md reflect immutable table policy pattern (RPC-only writes, no direct client inserts)
 - Migration 005 (`quiz_session_answers` → `quiz_sessions` FK) moved; `020260311000006` is the immutable INSERT restriction
 
-**Phase 6-Sprint1 complete (2026-03-12):** Quick Wins — all 10 backlog items (1.1–1.10) done in 8 commits on `feat/sprint-1-quick-wins`:
+**Phase 6-Sprint1 complete (2026-03-12, refined 2026-03-13):** Quick Wins — all 10 backlog items (1.1–1.10) done in 8 commits on `feat/sprint-1-quick-wins`:
 - ✅ Renamed "Quick Quiz" → "Quiz" throughout UI (sidebar, page heading, session summary, recent sessions list)
-- ✅ Simplified Smart Review: removed new question supplementation logic (now review-only — only due cards)
-- ✅ Added ReviewExplainer component — collapsible "How Smart Review works" panel explaining spaced repetition + recommended 10–15 min daily usage
 - ✅ Migration 008: added `question_number` to `get_quiz_questions()` RPC return set
 - ✅ MarkdownText component (`react-markdown` + `remark-gfm`) for questions and explanations
 - ✅ ZoomableImage component (click-to-expand lightbox via `@base-ui/react/dialog`)
-- ✅ Question number displayed in quiz and review session UI
-- ✅ Elapsed timer component visible during quiz and review sessions
-- ✅ Loading skeletons: Skeleton UI component, `loading.tsx` files for dashboard/quiz/review/progress, skeleton states in session loaders
-- ✅ Subject selector on Smart Review: `ReviewConfigForm` with subject checkboxes; `getDueCards` accepts `{ limit?, subjectIds? }` options object
+- ✅ Question number displayed in quiz session UI
+- ✅ Elapsed timer component visible during quiz sessions
+- ✅ Loading skeletons: Skeleton UI component, `loading.tsx` files for dashboard/quiz/progress, skeleton states in session loaders
 - ✅ Mobile navigation drawer: hamburger menu below `md` breakpoint, slide-out drawer with nav links via `@base-ui/react/dialog`, auto-closes on route change
-- Tests updated for renamed labels; new test files for ReviewExplainer, MarkdownText, ZoomableImage, MobileNav
+- ✅ Immediate answer feedback in quiz: answers locked + explanation shown inline after selection
+- Tests updated for renamed labels; new test files for MarkdownText, ZoomableImage, MobileNav
 
 **Phase 6-Sprint2 complete (2026-03-12):** Quiz Overhaul — all items (2.1–2.11) on `feat/sprint-2-quiz-overhaul`:
 - ✅ Migration 009: new `quiz_drafts` table for saving/resuming interrupted quizzes
@@ -198,7 +206,7 @@
 - ✅ Quick actions (Start Quiz / Start Review) on dashboard
 - ✅ Dashboard reshaped: charts + heatmap + subject grid + reports link (replaced RecentSessions)
 - ✅ `/app/reports` page: sortable session history (date/score/subject), click → quiz report
-- ✅ Statistics tab: per-question stats (times seen, accuracy, FSRS state/stability/difficulty/interval)
+- ✅ Statistics tab: per-question stats (times seen, accuracy)
 - ✅ Navigation updated: Reports added to sidebar + mobile nav
 - ✅ Query layer: `analytics.ts`, `reports.ts`, `question-stats.ts` with tests (11 new tests)
 
@@ -208,8 +216,22 @@
 - ✅ Remove unnecessary 'use client' from activity-heatmap (Server Component only)
 - ✅ Split subject-scores-chart into 3 sub-components (chart container + legend + tooltip) to meet 30-line limit
 - ✅ Dashboard page switched to Promise.allSettled (analytics failures now degrade gracefully)
-- ✅ Add FSRS enum mapping in statistics-tab (display labels: "New", "Learning", "Review", etc.)
 - ✅ Add `/coderabbit` skill command for triaging CodeRabbit review comments
+
+**Post-sprint polish (2026-03-13, `feat/post-sprint-3-polish`):**
+- ✅ Remove FSRS metadata from statistics tab (state, stability, difficulty, interval) — simplify student view to: times seen, accuracy %, last answered date
+- ✅ New `fetchExplanation` Server Action — fetches question explanation (text + image) before answering, shows loading state
+- ✅ Update `ExplanationTab` to load explanations pre-answer — students can preview explanations in study mode before attempting questions
+- ✅ Draft update support: `saveDraft` now accepts optional `draftId` to update existing draft instead of creating new one (fix: resuming draft then re-saving creates duplicate)
+- ✅ Navigation guard fix: added `e.returnValue = ''` to beforeunload handler for cross-browser support
+- ✅ Session ownership checks: `checkAnswer` and `fetchExplanation` verify session belongs to authenticated user and question is in session config (security hardening)
+- ✅ Error recovery: `handleSelectAnswer` reverts locked state and clears answer on `checkAnswer` failure, allowing user retry (closes #8)
+- ✅ Migration 026: batch_submit_quiz field validation — validates jsonb_typeof before extracting question_ids (fixes eval-before-guard #33); validates selected_option/response_time_ms per answer (closes #38)
+- ✅ Hook split: `use-quiz-state` → `use-answer-handler` extraction to stay under 80-line limit
+- ✅ UUID validation fix: `lookup.ts` `getFilteredCount` validates empty string UUID correctly (closes #10)
+- ✅ Migration 028: UUID case-insensitive regex in batch_submit_quiz — changed to `!~*` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth input validation
+- ✅ Migration 031: batch_submit_quiz idempotent retry + soft-delete scoring — if session already completed, return existing results instead of raising error; allow scoring questions soft-deleted after quiz started (membership validated at session start, safe to score historical responses for retired questions)
+- ✅ saveDraft error logging: added console.error logging for draft count query and insert errors for better observability
 
 ---
 
@@ -396,13 +418,11 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 ### Route structure
 ```
 /app/
-├── dashboard/              ← progress overview, due reviews, recent sessions
-├── review/                 ← Smart Review (FSRS-powered spaced repetition)
-│   └── session/            ← active review session
+├── dashboard/              ← progress overview, recent sessions, quick actions
 ├── quiz/                   ← Quiz config (subject, count, randomized mode)
-│   ├── session/            ← active quiz session
-│   └── report/             ← quiz results page (score %, breakdown, links)
-└── progress/               ← detailed progress per subject/topic/subtopic
+│   └── session/            ← active quiz session (immediate feedback + in-session explanation)
+├── progress/               ← detailed progress per subject/topic/subtopic
+└── reports/                ← session history with sortable columns, links to quiz reports
 ```
 
 ### Components (in `packages/ui/`)
@@ -414,9 +434,9 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 - `SubjectSelector` — EASA subject tree with drill-down
 
 ### FSRS integration
-- `packages/db/src/fsrs.ts` — FSRS review scheduling using ts-fsrs
+- `packages/db/src/fsrs.ts` — FSRS scheduling using ts-fsrs library
 - On answer: update `fsrs_cards` table with new stability/difficulty values
-- Smart Review queue: `SELECT * FROM fsrs_cards WHERE due <= now() ORDER BY due`
+- Statistics tab displays per-question FSRS metadata (state, stability, difficulty, interval)
 
 ---
 
@@ -484,7 +504,7 @@ Weekly
 > Read docs/plan.md and build student auth (Phase 4) — login page, magic link flow, auth callback, session middleware.
 
 **Start Phase 5:**
-> Read docs/plan.md and build the Question Bank Trainer (Phase 5), starting with the dashboard and Smart Review mode.
+> Read docs/plan.md and build the Question Bank Trainer (Phase 5), starting with the dashboard and quiz mode.
 
 ---
 
@@ -497,6 +517,57 @@ Weekly
 ✅ **5B-5 done:** GitHub Actions CI — `ci.yml` (PR: lint + types + tests + audit) + `e2e.yml` (PRs + master + nightly: integration + E2E with local Supabase)
 
 Test summary: 247 unit tests (32 files) + 35 integration tests + 10 E2E tests. All passing.
+
+### Sprint 4 — Dashboard v4 Redesign (PLANNED — 2026-03-14)
+
+Design prototype approved in Paper Design. New theme installed (`shadcnthemer.com/r/themes/b9f9a2d2`). Key changes: remove charts, add stat cards, redesign heatmap, add actionable subject cards, collapsible sidebar.
+
+**Theme change (already applied to `globals.css`):**
+- Font: system-ui sans-serif stack (was Open Sans)
+- Radius: 0.625rem / 10px (was 1.3rem / 21px)
+- Primary: `oklch(0.6231 0.188 259.8145)` — medium blue-purple
+- Neutral gray text, pure white bg, subtle blue-gray borders
+
+#### Remove (delete files + unimport from page.tsx)
+- [ ] 4.1 Delete `activity-chart.tsx` — daily activity bar chart (replaced by heatmap)
+- [ ] 4.2 Delete `subject-scores-chart.tsx` — pie/donut chart (not needed)
+- [ ] 4.3 Delete `analytics.ts` queries for daily activity + subject scores (if no longer used)
+
+#### Modify existing
+- [ ] 4.4 **Sidebar**: Remove "Progress" link from `sidebar-nav.tsx` + `mobile-nav.tsx`
+- [ ] 4.5 **Sidebar**: Add collapsible state — toggle button, icon-only mode (~48px), persist preference
+- [ ] 4.6 **Page header**: Change subtitle from "X questions answered across N subjects" to "Welcome back, [Name] 👋" — pass `displayName` to dashboard page
+- [ ] 4.7 **Page header**: Move "Start Quiz" button inline top-right of header (not separate section)
+- [ ] 4.8 **Heatmap**: Refactor to single-row 31-day layout for current month (not last-30-days wrapping grid)
+- [ ] 4.9 **Heatmap**: Add day numbers below squares (every 5th day labeled)
+- [ ] 4.10 **Heatmap**: Replace inline Less/More legend with `?` icon + shadcn HoverCard/Tooltip explaining colors
+- [ ] 4.11 **Subject cards**: Add color-coded progress bars — red (<50%), amber (50-89%), green (90%+), grey (no data)
+- [ ] 4.12 **Subject cards**: Add "Last practiced: [relative date]" — needs `lastPracticedAt` field
+- [ ] 4.13 **Subject cards**: Add "Practice" link per card — navigates to `/app/quiz?subject=[code]`
+- [ ] 4.14 **Subject cards**: Show all 9 EASA PPL subjects (010-090)
+
+#### New components
+- [ ] 4.15 **Exam Readiness card**: percentage of subjects at 90%+ mastery, color-coded (red <30%, amber 30-70%, green 70%+), "X / 9 subjects at 90%+", "Est. ready by [date]" projection
+- [ ] 4.16 **Questions Today card**: today's question count / 50 daily goal, color-coded (<25 red, 25-50 amber, 50+ green), mini progress bar, "N more to hit your daily goal"
+- [ ] 4.17 **Study Streak card**: consecutive days with activity, best streak, encouraging copy ("Best: N days — keep going!")
+
+#### Backend / data queries
+- [ ] 4.18 **`lastPracticedAt` per subject**: New query joining `quiz_session_answers` → `quiz_sessions` → group by subject, MAX(created_at)
+- [ ] 4.19 **Today's question count**: Query or filter from daily activity data — count questions answered today
+- [ ] 4.20 **Study streak calculation**: Compute consecutive days with activity from daily activity data; track best streak
+- [ ] 4.21 **Exam readiness projection**: Pace-based estimate — (questions/day rate) × (remaining questions) → estimated completion date
+- [ ] 4.22 **Daily goal config**: Hardcoded 50 for now; later make configurable per student
+
+#### Implementation order
+1. Remove: 4.1, 4.2, 4.3 (delete old charts)
+2. Backend: 4.18, 4.19, 4.20, 4.21 (data queries)
+3. Modify: 4.4, 4.6, 4.7, 4.14 (sidebar + header + subject count)
+4. New: 4.15, 4.16, 4.17 (stat cards)
+5. Modify: 4.8, 4.9, 4.10 (heatmap redesign)
+6. Modify: 4.11, 4.12, 4.13 (subject card enhancements)
+7. Polish: 4.5 (collapsible sidebar — most complex, do last)
+
+---
 
 ## Phase 6 — Feature Backlog (post-MVP feedback)
 
@@ -520,4 +591,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-12 — Sprint 1 complete (10/10 items), Sprint 2 complete (11/11 items), Sprint 3 complete (with post-sprint CodeRabbit fixes)*
+*Last updated: 2026-03-14 — Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks. Design prototype approved in Paper Design (light + dark mode). New shadcn theme installed.*

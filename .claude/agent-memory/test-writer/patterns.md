@@ -245,6 +245,72 @@ vi.mock('@/lib/supabase-rpc', () => ({
 }))
 ```
 
+### Testing 'use server' actions with .select().eq().order() chain (2026-03-13)
+For actions that end the chain with `.order()` (not `.returns()`), mock with a plain object
+where `order` is an async mock (not `.mockReturnThis()`):
+```ts
+function buildSelectChain(result: { data: unknown; error: unknown }) {
+  return {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockResolvedValue(result),
+  }
+}
+mockFrom.mockReturnValue(buildSelectChain({ data: [...rows], error: null }))
+```
+This pattern is used in `load-draft.test.ts` for `loadDrafts()`.
+
+### Testing generation-ref stale-async guards in hooks (2026-03-13)
+When a hook uses `useRef` + generation counter to discard stale async results, test it with
+a manually-controlled deferred promise:
+
+```ts
+// 1. Create a deferred promise for the "slow" (stale) call
+let resolveSlowFetch!: (v: ResultType) => void
+const slowPromise = new Promise<ResultType>((res) => { resolveSlowFetch = res })
+
+// 2. Wire mocks: first call is slow, second is fast
+mockFetchFn
+  .mockImplementationOnce(() => slowPromise)
+  .mockResolvedValueOnce(FAST_RESULT)
+
+const { result } = renderHook(() => useHook())
+
+// 3. Fire the slow (first) call — do NOT await act
+act(() => { result.current.handleChange(SLOW_VALUE) })
+
+// 4. Fire the fast (second) call — await it so it fully settles
+await act(async () => { result.current.handleChange(FAST_VALUE) })
+
+// 5. Assert state reflects the fast result
+expect(result.current.state).toEqual(FAST_RESULT)
+
+// 6. Resolve the slow call — stale, must not change state
+await act(async () => { resolveSlowFetch(STALE_RESULT) })
+
+// 7. State must still reflect the fast result
+expect(result.current.state).toEqual(FAST_RESULT)
+```
+
+Key: the non-awaited `act(() => {...})` starts the transition but does not flush the async
+mock. The awaited second `act` resolves and bumps the generation ref. When the slow promise
+finally resolves, `gen !== generation.current` so the state setter is skipped.
+
+### Testing type-guard fallback paths (2026-03-13)
+When production code has a runtime type guard that falls back to a safe value on failure,
+test all rejection branches (null, wrong type, missing required field) plus the happy path:
+```ts
+// null → rejected by isSessionConfig
+buildDraftRow({ session_config: null })
+// non-object → rejected
+buildDraftRow({ session_config: 'malformed-string' })
+// object missing required field → rejected
+buildDraftRow({ session_config: { subjectName: 'Nav' } })
+// valid → passes through
+buildDraftRow({ session_config: { sessionId: 'sess-abc', subjectName: 'Nav' } })
+```
+Always spy on `console.error` in the guard-failure tests and restore it after.
+
 ### Mocking @/lib/queries/* functions
 ```ts
 const { mockGetRandomQuestionIds } = vi.hoisted(() => ({
@@ -368,6 +434,30 @@ render(<Component />)
 await user.click(screen.getByRole('button', { name: /label/i }))
 ```
 
+## Files tested in commit 157f421 (post-sprint-3-polish)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/discard.ts` | `discard.test.ts` | New server action; auth, Zod validation, session soft-delete, draft cleanup (non-fatal), uncaught error |
+| `apps/web/lib/queries/reports.ts` | `reports.test.ts` | Extended: added `answersResult.error` throws, `answeredCount` fallback to `correct_count` |
+| `apps/web/lib/queries/quiz.ts` | `quiz.test.ts` | Extended: `filterIncorrect` empty-pool early return — verifies fsrs_cards is NOT queried |
+
+### Testing non-fatal error paths in server actions
+When a sub-operation error is explicitly non-fatal (logged but not returned), verify two things:
+1. The action still returns `{ success: true }` despite the error
+2. The DB mock for the failing table returns `{ error: { message: '...' } }`
+
+This is different from testing a fatal error path where you assert `{ success: false }`.
+
+### Asserting a DB table was NOT called
+Use `mockFrom.mock.calls.map(c => c[0])` to extract called table names and assert with
+`expect(tablesCalled).not.toContain('table_name')`:
+```ts
+const tablesCalled = mockFrom.mock.calls.map((c: unknown[]) => c[0])
+expect(tablesCalled).not.toContain('quiz_drafts')
+```
+This is the right way to assert a guarded early-return prevents an unnecessary DB query.
+
 ### Mount guard (useState + useEffect) — not testable via fake timers in jsdom
 Components that show a placeholder div until `mounted` becomes true (SSR hydration guard)
 cannot have their pre-mount state reliably tested in jsdom because `@testing-library/react`
@@ -446,6 +536,136 @@ env var. `vi.stubEnv` always stores a string, so `startsWith` on `undefined` wou
 the source uses optional chaining (`process.env.KEY?.startsWith(...)`) which returns `undefined`
 (falsy) when the var is missing. Deleting the key lets that optional chain evaluate correctly.
 
+### Thin delegating hook — extend parent hook's test file, not a new file (2026-03-13)
+When a new hook is a pure delegate (every function body is a single `return handleXxx(...)` call
+into a shared helper) and the parent hook already has a test file with matching mocks, extend
+the parent's test file rather than creating a new co-located test file. Reasons:
+1. All mocks are already wired — no duplication of `vi.hoisted` + `vi.mock` scaffolding.
+2. The hook is only useful via its parent; testing in isolation would require re-wiring the same
+   deps with no additional coverage signal.
+3. Keeps the mock surface in one place — changes to the quiz-submit helpers only require
+   updating one mock.
+
+Decision applied: `use-quiz-submit.ts` coverage extended in `use-quiz-state.test.ts` (not a
+new `use-quiz-submit.test.ts`).
+
+## Files extended in eb67cc8 (post-sprint-3-polish hook split)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-submit.ts` | `use-quiz-state.test.ts` | Thin delegate; coverage extended in parent hook's test file. Added handleDiscard (3 tests) + showFinishDialog (3 tests). Total: 26 tests. |
+
+### Testing UI orchestrator handlers (setSubmitting / setError pattern)
+Handlers that coordinate state callbacks (`setSubmitting`, `setError`, `onSuccess`) and a
+router should be tested with inline `vi.fn()` mocks — do NOT render a component. Pass them
+in an options object and assert on the mock call history:
+
+```ts
+function makeOpts(overrides?: Partial<Parameters<typeof handleFoo>[0]>) {
+  return {
+    sessionId: SESSION_ID,
+    router: makeRouter() as never,
+    setSubmitting: vi.fn(),
+    setError: vi.fn(),
+    onSuccess: vi.fn(),
+    ...overrides,
+  }
+}
+
+it('sets error and returns early when precondition fails', async () => {
+  const opts = makeOpts({ answers: new Map() })
+  await handleFoo(opts)
+  expect(opts.setError).toHaveBeenCalledWith('expected message')
+  expect(opts.setSubmitting).not.toHaveBeenCalled()
+})
+```
+
+Key assertions to cover per handler:
+1. Happy path: `onSuccess` / `router.push` called, error not set
+2. Guard clause: early return with `setError`, downstream action NOT called
+3. Failure path: `setError` set, `setSubmitting(false)` reset
+4. Ordering: `setSubmitting(true)` and `setError(null)` fire BEFORE the action call
+
+## Files extended in commit 274821b (isCheckAnswerRpcResult type guard)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/check-answer.ts` | `check-answer.test.ts` | Extended: 7 new tests covering `isCheckAnswerRpcResult` guard — non-null primitive, missing field, wrong-type fields for all 4 shape properties. Total: 22 tests. |
+
+### Testing runtime type guards in server actions (2026-03-13)
+When a server action upgrades from a falsy check (`!data`) to a structural type guard
+(`!isTypeGuard(data)`), add tests for every shape variant the guard rejects that the old
+falsy check would have silently passed through:
+
+1. Non-null primitive (e.g., `data: 'unexpected-string'`) — guard rejects at `typeof !== 'object'`
+2. Missing required field (e.g., omit `is_correct`) — guard rejects on the field check
+3. Wrong type on a boolean field (e.g., `is_correct: 'true'` instead of `boolean`) — guard rejects
+4. Null where a string is required (e.g., `correct_option_id: null`) — guard rejects
+5. Wrong type on a nullable string field (e.g., `explanation_text: 42`) — guard rejects
+
+All these cases should return `{ success: false, error: '<contextual message>' }`.
+Spy on `console.error` and restore it to keep test output clean, since the action logs
+the rejection:
+
+```ts
+const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+const result = await checkAnswer({ ... })
+consoleSpy.mockRestore()
+expect(result.success).toBe(false)
+```
+
+### Stale test description after source logic changes
+When a source change alters a fallback value (e.g., `?? s.correct_count` → `?? s.total_questions`),
+update the corresponding test description to match. A passing test with a wrong description
+is misleading. Example: "falls back to correct_count" → "falls back to total_questions".
+
+## Files extended in commit 028fc09 (Zod validation + handler extraction)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/lookup.ts` | `lookup.test.ts` | Extended: added 4 Zod rejection tests for `fetchTopicsForSubject` and `fetchSubtopicsForTopic` (null + non-UUID) |
+| `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts` | `quiz-submit.test.ts` | Extended: added `discardQuiz` mock + 14 tests across `handleSubmitSession`, `handleSaveSession`, `handleDiscardSession` |
+| `apps/web/lib/queries/reports.ts` | `reports.test.ts` | Fixed stale description: "falls back to correct_count" → "falls back to total_questions" |
+
+## Files written/extended in commit 306f44a (session ownership + error recovery)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_hooks/use-answer-handler.ts` | `use-answer-handler.test.ts` | New file. 12 tests: happy path, lock guard, error recovery (revert + lock release), multi-question feedback isolation |
+| `apps/web/app/app/quiz/actions/lookup.ts` | `lookup.test.ts` | Extended: 2 new tests for `OptionalUuid` preprocessor — empty string coerced to absent for both `topicId` and `subtopicId` |
+
+### Testing a hook that manages its own answers Map externally
+When a hook accepts `answers` + `setAnswers` as props (rather than owning the state itself),
+drive the external state manually using a closure variable and a `vi.fn()` setter that
+applies the updater function to it:
+
+```ts
+let answers = new Map<string, DraftAnswer>()
+const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+  answers = updater(answers)
+})
+const { result } = renderHook(() =>
+  useAnswerHandler({ ..., answers, setAnswers: setAnswers as React.Dispatch<...> }),
+)
+// Then inspect answers directly to assert map mutations
+```
+
+This simulates the React setState model without needing a wrapper component.
+
+### Verifying ref lock release after error (retry pattern)
+To assert a ref-based lock is released after failure so the same question can be answered again:
+1. Mock the action to reject once, then resolve on second call
+2. Assert `checkAnswer` was called twice
+3. Assert the answer is stored after the second call
+Do not try to inspect `lockedRef` directly — it's an implementation detail. Test the observable
+behaviour: can the user retry?
+
+### OptionalUuid preprocessor — empty string treated as absent
+The `OptionalUuid = z.preprocess(v => v === '' ? undefined : v, z.string().uuid().optional())`
+pattern means `''` is valid (coerced to absent) while `'bad-id'` is invalid (Zod throws).
+Test both sides: empty string must NOT throw and must produce the same result as omitting
+the field entirely.
+
 ### Testing module-level constants that depend on NODE_ENV
 When a module evaluates `process.env.NODE_ENV` at the top level (not inside a function),
 `vi.stubEnv` alone is not enough — the value is already captured. Use this pattern to
@@ -465,6 +685,70 @@ in `afterEach` so each test gets a fresh module load.
 
 Dynamic `import()` after `resetModules()` forces Node to re-evaluate the module, picking
 up the newly stubbed env value.
+
+### Testing concurrent async race conditions (ref lock / double-click guard)
+When a `useRef` lock is added to block concurrent calls before async state settles,
+test it by firing two calls without awaiting between them inside a single `act()`:
+
+```ts
+// Deferred promise — lets us control when the first call resolves
+let resolveFirst: (() => void) | null = null
+mockCheckAnswer.mockImplementationOnce(
+  () =>
+    new Promise<ReturnType>((resolve) => {
+      resolveFirst = () => resolve({ success: true, ... })
+    }),
+)
+
+await act(async () => {
+  const p1 = result.current.handleSelectAnswer('opt-a')
+  const p2 = result.current.handleSelectAnswer('opt-b')  // fired before p1 resolves
+  resolveFirst?.()
+  await Promise.all([p1, p2])
+})
+
+expect(mockCheckAnswer).toHaveBeenCalledTimes(1)  // ref lock dropped p2
+expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-a')
+```
+
+Key points:
+- Use `mockImplementationOnce` with a deferred promise so p2 fires while p1 is still pending
+- Both calls go inside a single `act()` wrapper so React state is flushed together
+- Assert on `toHaveBeenCalledTimes(1)` to prove the downstream call was blocked, not just
+  that state is correct (state correctness alone would pass even without the ref lock once
+  the state-based guard fires on the second call)
+- This pattern distinguishes the ref lock (fires synchronously, before state) from the
+  state-based guard (fires after the first `setState` re-render)
+
+## Files extended in commit eb67cc8 (lockedQuestionsRef)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` | `use-quiz-state.test.ts` | Extended: added concurrent double-click test for `lockedQuestionsRef` race guard |
+
+## Files extended in commit a0d9973 (Array.isArray guard)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/check-answer.ts` | `check-answer.test.ts` | Extended: 3 new tests for `Array.isArray(qIds)` guard — null, plain string, and null config |
+| `apps/web/app/app/quiz/actions/fetch-explanation.ts` | `fetch-explanation.test.ts` | Extended: same 3 guard tests mirrored for fetch-explanation |
+
+### Existing tests did NOT cover the new Array.isArray guard
+The original tests for `question_ids` membership only tested the `.includes()` branch
+(wrong question ID in a valid array). The `Array.isArray()` guard that fires when the field
+is null, a string, or when config itself is null was completely uncovered.
+
+**Rule:** whenever a type-narrowing guard is added to a production file (e.g., replacing
+`config.question_ids.includes()` with `Array.isArray(qIds) || qIds.includes()`), always
+ask: does the test suite exercise the case where the guard's early-return fires?
+Typically the answer is no — the original tests only exercise the "valid input" path
+through the guard.
+
+### use-answer-handler reactive lock clearing (useEffect path) — behavior-tested, not structural
+The `useEffect([answers])` that clears `lockedRef.current` for keys absent from `answers`
+is tested via the retry-after-error test: mock rejects once → user can retry → `checkAnswer`
+called twice. This proves the lock is cleared. Do NOT add a test that inspects
+`lockedRef.current` directly — that is an implementation detail. Behavior proof is sufficient.
 
 ---
 
@@ -878,6 +1162,49 @@ Their Zod tests correctly use `.rejects.toThrow(ZodError)` rather than checking 
 
 ### Suite state after this commit
 40 test files, 338 tests — all passing.
+
+---
+
+## Files extended in commit 33c1fa8 (users query error destructuring)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/draft.ts` | `draft.test.ts` | 1 test: users query returns `{ error }` → returns `{ success: false, error: 'Failed to look up user' }` and logs prefix `[saveDraft] Users query error:` |
+
+### Distinguishing the two failure branches on a `.single()` call
+When production code destructures `{ data, error }` from `.single()` and handles them
+separately, there are two distinct test cases:
+1. `{ data: null, error: null }` — query succeeded but returned no row → test the "not found" message
+2. `{ data: null, error: { message: '...' } }` — query itself failed (RLS, network, etc.) → test the "query error" message
+
+Before commit 33c1fa8, only case 1 was covered. Case 2 (the `userError` branch) was added
+to the source and must have its own test:
+
+```ts
+it('returns failure when the users query errors', async () => {
+  setupAuthenticatedUser()
+  const chain = mockChainWithCount(0)
+  ;(chain.single as ReturnType<typeof vi.fn>).mockReturnValue({
+    data: null,
+    error: { message: 'row-level security policy violation' },
+  })
+  mockFrom.mockReturnValue(chain)
+  const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+  const result = await saveDraft(VALID_DRAFT_INPUT)
+
+  expect(result).toEqual({ success: false, error: 'Failed to look up user' })
+  expect(consoleSpy).toHaveBeenCalledWith(
+    '[saveDraft] Users query error:',
+    'row-level security policy violation',
+  )
+  consoleSpy.mockRestore()
+})
+```
+
+The existing `mockChainWithCount(0)` helper already wires the `.eq()` → `{ count, error }` path
+for the draft-count query, but its `.single` mock can be overridden independently for the
+users-org query. Reusing the helper avoids duplicating the count-chain setup.
 
 ---
 
@@ -1611,3 +1938,248 @@ expect(report.questions[0].questionText).toBe('What is lift?')
 
 This pattern has caused pre-commit failures twice (different commits). The type-check
 gate catches it, but generating correct code the first time avoids the fix cycle.
+
+### Test fixture type annotations (shape mismatch — count 2, now a rule)
+When constructing fixture objects for tests, always annotate them with the exported
+TypeScript type from the source module. This forces a compile-time shape check and
+prevents mismatches between fixture fields and the actual type contract.
+
+**Correct pattern:**
+```ts
+import type { SubjectOption } from './use-quiz-config'
+
+// ✅ Type annotation catches missing/wrong fields at compile time
+const SUBJECTS: SubjectOption[] = [
+  { id: 'abc', code: '010', name: 'Air Law', short: 'ALW', questionCount: 50 },
+]
+```
+
+**Never do:**
+```ts
+// ❌ WRONG — plain object may drift from SubjectOption shape
+const SUBJECTS = [{ id: 'abc', name: 'Air Law', short: 'ALW', count: 50 }]
+```
+
+This pattern has caused pre-commit type-check failures twice (2026-03-11: missing `short`
+field; 2026-03-13: wrong `SubjectOption` shape with `count` instead of `questionCount`
+and missing `code`). Both caught by tsc, but generating correctly-typed fixtures avoids
+the fix cycle entirely.
+
+---
+
+## Files tested in feat/post-sprint-3-polish (2026-03-13)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/check-answer.ts` | `actions/check-answer.test.ts` | **NEW** — 12 tests: auth guard, Zod throws, question not found, no correct option, isCorrect true/false, explanation fields, deleted_at filter |
+| `apps/web/app/app/quiz/actions/lookup.ts` (getFilteredCount) | `actions/lookup.test.ts` | **NEW** — 20 tests: delegates for fetch wrappers, auth/Zod guards, filter:all with topic/subtopic, filter:unseen (answered set logic), filter:incorrect (fsrs_cards intersection) |
+| `apps/web/app/app/quiz/_hooks/use-quiz-cascade.ts` | `_hooks/use-quiz-cascade.test.ts` | **NEW** — 11 tests: initial state, handleSubjectChange (fetch, no-fetch, cascade reset), handleTopicChange (fetch, no-fetch, cascade reset), setSubtopicId direct, full cascade flow |
+| `apps/web/app/app/quiz/_hooks/use-quiz-start.ts` | `_hooks/use-quiz-start.test.ts` | **NEW** — 13 tests: initial state, guard (empty subjectId), happy path (args, topic/subtopic, count cap, min=1, sessionStorage, subjectName/Code, navigation), failure (error state, loading reset, throw, no navigation) |
+
+### checkAnswer: Zod is not wrapped in try/catch
+Unlike `batchSubmitQuiz` (generic catch) and `startQuizSession` (ZodError catch), `checkAnswer`
+calls `CheckAnswerSchema.parse(raw)` **without a surrounding try/catch**. ZodErrors propagate
+directly to the caller. Tests for invalid input must use `.rejects.toThrow()`, NOT
+`expect(result.success).toBe(false)`:
+
+```ts
+// ✅ CORRECT for checkAnswer
+await expect(checkAnswer({ questionId: 'bad', selectedOptionId: 'x' })).rejects.toThrow()
+
+// ❌ WRONG — checkAnswer has no catch, so ZodError is uncaught
+const result = await checkAnswer({ questionId: 'bad', selectedOptionId: 'x' })
+expect(result.success).toBe(false)
+```
+
+Always read the source for try/catch presence before writing Zod validation tests — the error
+handling contract varies per action.
+
+### getFilteredCount: two-phase DB pattern (questions then filter table)
+`getFilteredCount` always queries `questions` first (call 1), then conditionally queries
+`student_responses` (filter:unseen) or `fsrs_cards` (filter:incorrect) as call 2. For `filter:all`,
+there is no second query. Use `mockFrom.mockImplementation(() => { callIndex++; ... })` to
+route the two sequential calls. Key assertions:
+1. **filter:all** — single `from('questions')` call, count = data.length
+2. **filter:unseen** — second call to `student_responses`, subtracts answered set
+3. **filter:incorrect** — second call to `fsrs_cards`, intersects with question set
+4. **null from second table** — treated as empty set (no crash)
+
+### useQuizCascade: cascade reset + mock sequencing
+When testing that "change to new topic resets subtopics", the default mock returns subtopics
+for ANY topic. To verify the reset (subtopics become `[]` transiently before refetch completes),
+use `mockReturnValueOnce([])` before triggering the second change — this makes the refetch
+for the new topic return empty, so the final assertion is clean:
+
+```ts
+mockFetchSubtopicsForTopic.mockResolvedValueOnce([])
+await act(async () => result.current.handleTopicChange('new-topic-id'))
+expect(result.current.subtopics).toEqual([])
+```
+
+Without this, the default mock fills subtopics with the previous data, making the reset
+invisible to the test.
+
+### useQuizStart: sessionStorage mock via Object.defineProperty
+jsdom provides a real `sessionStorage`, but `vi.stubGlobal` is also valid. For this hook,
+`Object.defineProperty(globalThis, 'sessionStorage', ...)` is more reliable because it
+replaces the whole object (preventing real writes from leaking between tests):
+
+```ts
+beforeEach(() => {
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
+    writable: true,
+  })
+})
+```
+
+Restore with `writable: true` so subsequent `beforeEach` calls can overwrite it again.
+
+### Suite state after this session
+4 new test files, 56 new tests. Overall suite: ~77 test files, ~702 tests.
+
+---
+
+## Files tested in commit 81c1428 (post-sprint-3-polish)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/fetch-explanation.ts` | `fetch-explanation.test.ts` | New file; 10 tests — auth guard, Zod throws, happy path, null fields, DB error, select fields asserted, deleted_at filter |
+| `apps/web/app/app/quiz/actions/draft.ts` | `draft.test.ts` | Extended; 4 tests for new update path: happy path, student_id scoping, DB error, no count-limit check when updating |
+| `apps/web/app/app/quiz/session/_hooks/use-quiz-state.ts` | `use-quiz-state.test.ts` | Extended; 2 tests: empty-answers guard sets error, draftId forwarded to saveQuizDraft |
+| `apps/web/app/app/quiz/_hooks/use-navigation-guard.ts` | `use-navigation-guard.test.ts` | Extended; 1 test: handler sets e.returnValue = '' and calls preventDefault |
+| `apps/web/app/app/quiz/_components/saved-draft-card.tsx` | `saved-draft-card.test.tsx` | Extended; 1 test: delete aborted when window.confirm returns false |
+
+### Suite state after this commit
+5 files extended/created, 8 new tests. Overall suite: 70 test files, 681 tests — all passing.
+
+### Zod parse vs safeParse: no catch means ZodError propagates
+When a Server Action uses `Input.parse(raw)` (not `safeParse`) AND has no surrounding
+`try/catch`, invalid input throws an uncaught `ZodError`. Tests for the invalid-input path
+must use `.rejects.toThrow()`, not `expect(result).toEqual({ success: false })`:
+
+```ts
+// WRONG — parse() throws; there is no return value to assert on
+const result = await fetchExplanation({ questionId: 'not-a-uuid' })
+expect(result).toEqual({ success: false })
+
+// CORRECT
+await expect(fetchExplanation({ questionId: 'not-a-uuid' })).rejects.toThrow()
+```
+
+Contrast with `saveDraft` which wraps everything in `try { ... } catch (err instanceof ZodError)` —
+that action safely returns `{ success: false }` on bad input. Always check whether the source
+catches ZodError before writing the validation test.
+
+### Testing window.confirm guard in React event handlers
+When `handleDelete` was extended with `if (!window.confirm(...)) return`, test the cancellation
+path by restoring `window.confirm` to return `false` and asserting the downstream mock was never called:
+
+```ts
+it('does not call deleteDraft when the user cancels the confirmation dialog', async () => {
+  vi.spyOn(window, 'confirm').mockReturnValue(false)
+  render(<SavedDraftCard drafts={[DRAFT]} />)
+  fireEvent.click(screen.getByTestId('delete-draft'))
+  await new Promise((r) => setTimeout(r, 0))  // flush microtasks
+  expect(mockDeleteDraft).not.toHaveBeenCalled()
+})
+```
+
+The `setTimeout(r, 0)` is needed because `handleDelete` is async — the early return is
+synchronous but the event handler is awaited in the event loop.
+
+### Capturing and invoking a window event handler in tests
+To verify the body of a handler registered via `addEventListener`, capture it from the mock
+and invoke it directly:
+
+```ts
+let capturedHandler: ((e: BeforeUnloadEvent) => void) | undefined
+addMock.mockImplementation((_type: string, handler: (e: BeforeUnloadEvent) => void) => {
+  capturedHandler = handler
+})
+renderHook(() => useNavigationGuard(true))
+const fakeEvent = { preventDefault: vi.fn(), returnValue: '' } as unknown as BeforeUnloadEvent
+capturedHandler?.(fakeEvent)
+expect(fakeEvent.preventDefault).toHaveBeenCalled()
+expect(fakeEvent.returnValue).toBe('')
+```
+
+### Testing the draftId update path in saveDraft (branch with update instead of insert)
+The update path uses `.update({...}).eq('id', draftId).eq('student_id', userId)`. To assert
+both `eq` calls in sequence, build a dedicated mock per call with a closure:
+
+```ts
+const updateEq2 = vi.fn().mockReturnValue({ error: null })
+const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
+const updateFn = vi.fn().mockReturnValue({ eq: updateEq1 })
+// from('quiz_drafts') returns { update: updateFn }
+```
+
+Then assert `updateEq1.toHaveBeenCalledWith('id', DRAFT_ID)` and `updateEq2.toHaveBeenCalledWith('student_id', USER_ID)`.
+
+---
+
+## Covering new error paths in existing files (count 3, enforced rule — 2026-03-13)
+
+When a commit adds a new query, a new `if (error) return` branch, or a new early-return path
+to a file that already has a co-located test file, the test file must be updated in the same
+commit to cover the new branch. This is distinct from "new file without tests" (where an
+entire file has no test) — here, the test file exists but is incomplete after the change.
+
+### The gap to look for
+When reviewing a diff, check every file that is modified (not just created). For each modified
+file that has a co-located `.test.ts` / `.test.tsx`:
+
+1. Does the diff add a new `if (error) return` path?
+2. Does the diff add a new query (e.g., a second `.from()` call or `.auth.getUser()` call)?
+3. Does the diff add a new conditional branch that returns early before reaching existing assertions?
+
+If yes to any of these, write a test for the new branch in the same commit.
+
+### Why this keeps being missed
+The pattern is: a function already has a test file that covers the main flow and the first
+error path. A second query is added to the function. The test file is not updated because
+the existing tests still pass. But the new query's error path is now unreachable by any test.
+
+Example from `draft.ts` (d06c25b): the function already tested the count-query error path.
+A `getUser()` call was added above it. The existing count-error test still passed. But the
+new auth-error path from `getUser()` had no test — caught post-commit by test-writer.
+
+### Pattern: three occurrences (2026-03-13 to 2026-03-14)
+1. `draft.ts` (d06c25b): Count-error path — `getCount()` returned an error, no test for that branch.
+2. `draft.ts` (d06c25b): Users-query error path — `getUser()` returned an error, no test for that branch.
+3. `batch-submit.ts` (ce35a31): Error message string match changed from `'session not found or already completed'` to `'session not found or not accessible'` — the specific error branch had no test. Caught by test-writer, fixed in 45da072.
+
+All three were caught post-commit by the test-writer gap detection. All required a follow-up
+commit to add tests. The correct behaviour is to add the test branch in the same commit
+as the production change.
+
+### Test pattern for a new query error path
+```ts
+it('returns early when [the new query] fails', async () => {
+  // set up the new query mock to return an error
+  mockFrom.mockImplementationOnce(() => ({
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({ data: null, error: { message: 'DB error' } }),
+    }),
+  }))
+  const result = await theFunction(VALID_INPUT)
+  // assert the function returned the expected error shape
+  expect(result).toEqual({ success: false })
+  // assert that downstream queries were NOT called (early return)
+  expect(mockFrom).toHaveBeenCalledTimes(1)
+})
+```
+
+## Files extended in commit e41807f (use-quiz-config refetchFilteredCount)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/_hooks/use-quiz-config.ts` | `use-quiz-config.test.ts` | Added 3 new scope-change re-fetch tests in commit; test-writer added 2 more for setSubtopicId path. Total: 26 tests. |
+
+### Checking all scope-change handlers when reviewing hook diffs (2026-03-13)
+When a hook refactor touches multiple scope-change handlers (`handleSubjectChange`,
+`handleTopicChange`, `setSubtopicId`) with the same shared logic, check that ALL handlers
+have corresponding tests. It is easy to write tests for subject/topic changes and forget
+the subtopic change handler. Verify by reading the hook's return object and listing every
+exported handler that calls the changed helper function.

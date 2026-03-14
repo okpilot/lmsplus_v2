@@ -12,7 +12,6 @@ type SortKey = 'date' | 'score' | 'subject'
 type SortDir = 'asc' | 'desc'
 
 const MODE_LABELS: Record<string, string> = {
-  smart_review: 'Smart Review',
   quick_quiz: 'Quiz',
   mock_exam: 'Mock Exam',
 }
@@ -95,7 +94,12 @@ function SessionReportRow({ session }: { session: SessionReport }) {
           {session.subjectName ? ` \u2014 ${session.subjectName}` : ''}
         </p>
         <p className="text-xs text-muted-foreground">
-          {session.correctCount}/{session.totalQuestions} correct
+          {session.correctCount}/{session.answeredCount} correct
+          {session.answeredCount < session.totalQuestions && (
+            <span className="ml-1 text-muted-foreground/70">
+              ({session.totalQuestions - session.answeredCount} skipped)
+            </span>
+          )}
           {' \u00B7 '}
           {session.durationMinutes}min
           {' \u00B7 '}

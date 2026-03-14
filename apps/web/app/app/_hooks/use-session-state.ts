@@ -28,18 +28,25 @@ export function useSessionState({
   const [feedback, setFeedback] = useState<AnswerResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [answeredCount, setAnsweredCount] = useState(0)
   const [correctCount, setCorrectCount] = useState(0)
   const [scorePercentage, setScorePercentage] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const answerStartTime = useRef(Date.now())
+  const submittingRef = useRef(false)
 
   useEffect(() => {
     if (state === 'answering') answerStartTime.current = Date.now()
   }, [state])
 
   async function handleSubmit(selectedId: string) {
+    if (submittingRef.current) return
+    submittingRef.current = true
     const q = questions[currentIndex]
-    if (!q) return
+    if (!q) {
+      submittingRef.current = false
+      return
+    }
     setSubmitting(true)
     setSelectedOption(selectedId)
     const responseTimeMs = Date.now() - answerStartTime.current
@@ -55,18 +62,22 @@ export function useSessionState({
       console.error('Failed to submit answer:', err)
       setError('Something went wrong. Please try again.')
       setSubmitting(false)
+      submittingRef.current = false
       return
     }
     if (!result.success) {
       setError(result.error)
       setSubmitting(false)
+      submittingRef.current = false
       return
     }
     setError(null)
     setFeedback(result)
+    setAnsweredCount((c) => c + 1)
     if (result.isCorrect) setCorrectCount((c) => c + 1)
     setState('feedback')
     setSubmitting(false)
+    submittingRef.current = false
   }
 
   async function handleNext() {
@@ -98,6 +109,7 @@ export function useSessionState({
   return {
     state,
     currentIndex,
+    answeredCount,
     feedback,
     submitting,
     selectedOption,

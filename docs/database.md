@@ -235,8 +235,8 @@ CREATE TABLE quiz_sessions (
   total_questions  INT NOT NULL DEFAULT 0,
   correct_count    INT NOT NULL DEFAULT 0,
   score_percentage NUMERIC(5,2) NULL,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-  -- No deleted_at: sessions are immutable records of what happened
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at       TIMESTAMPTZ NULL     -- added in migration 023 for discarded sessions
   -- No updated_at: only ended_at is set once, on completion
 );
 ```
@@ -315,11 +315,11 @@ CREATE TABLE audit_events (
 
 ### quiz_drafts
 ```sql
--- Temporary storage for interrupted quiz sessions. One draft per student (UNIQUE on student_id).
+-- Temporary storage for interrupted quiz sessions. Up to 20 drafts per student.
 -- APPROVED EXCEPTION: uses real DELETE (not soft delete) — drafts are disposable temp storage.
 CREATE TABLE quiz_drafts (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id      UUID NOT NULL REFERENCES users(id) UNIQUE,
+  student_id      UUID NOT NULL REFERENCES users(id),
   organization_id UUID NOT NULL REFERENCES organizations(id),
   session_config  JSONB NOT NULL DEFAULT '{}',  -- { sessionId, subjectName?, subjectCode? }
   question_ids    UUID[] NOT NULL,
@@ -367,6 +367,23 @@ CREATE POLICY "tenant_isolation" ON questions
 This means deleted records are invisible to all normal queries automatically.
 No `WHERE deleted_at IS NULL` needed in application code — RLS handles it.
 
+### Scoring Soft-Deleted Questions
+
+When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to score a question that was soft-deleted *after* the quiz session started. This is safe because:
+
+1. **Membership was validated at session start** — `quiz_sessions.config.question_ids` was locked when the session began, before the question could be deleted.
+2. **Explanations are preserved** — the question record still exists (soft-deleted, not hard-deleted), so we can still retrieve explanation text and images.
+3. **Historical integrity** — we score the response as it was when the student answered, not based on the question's current (deleted) state.
+
+**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` when fetching questions for explanation. RLS policies do not apply inside SECURITY DEFINER functions, so the RPC can access deleted questions as needed to complete historical scoring.
+
+```sql
+-- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
+SELECT q.explanation_text, q.explanation_image_url
+FROM questions q
+WHERE q.id = v_question_id;  -- No `deleted_at IS NULL` filter
+```
+
 ### Viewing Deleted Records (admin/compliance only)
 
 ```sql
@@ -388,7 +405,7 @@ ORDER BY deleted_at DESC;
 | `questions` | Yes | Retired questions still referenced in historical responses |
 | `courses` | Yes | Archived courses still referenced in historical sessions |
 | `lessons` | Yes | Retired lessons still referenced in historical sessions |
-| `quiz_sessions` | No | Immutable record of what happened |
+| `quiz_sessions` | Yes | Sessions can be discarded (soft-deleted via `deleted_at`) |
 | `quiz_session_answers` | No | Immutable |
 | `student_responses` | No | Immutable |
 | `fsrs_cards` | No | Updated in place; deletion would break FSRS state |
@@ -410,6 +427,7 @@ Use Postgres functions (RPCs) for:
 ```
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
+  check_quiz_answer          ← read, verify answer + return explanation (immediate feedback)
   submit_quiz_answer         ← write, atomic: single answer + fsrs + audit (DEPRECATED — use batch_submit_quiz)
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
@@ -596,6 +614,16 @@ $$;
 
 Submits all quiz answers in a single transaction. Replaces the per-answer `submit_quiz_answer` loop + separate `complete_quiz_session` call. Calculates scores and completes the session atomically — if any answer fails, the entire batch rolls back.
 
+**Key behavior:**
+- Allows partial submissions (students may skip questions; score = `correct / answered`, not `correct / total`)
+- Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction (migration 022), eliminating the window where the incorrect-filter counter could read stale data
+- Full FSRS scheduling (due, stability, difficulty) continues to be handled by the application layer after the RPC returns
+- Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
+- Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
+- Hardens field validation (migration 026): validates `jsonb_typeof(v_config->'question_ids')` = 'array' BEFORE extraction (fixes eval-before-guard issue); validates `selected_option` and `response_time_ms` per answer AFTER extraction
+- Uses case-insensitive UUID regex (migration 028): validates question_id with `!~*` instead of `!~` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth hardening
+- Hardens null guard (migration 030): adds explicit `IS NULL` check on `v_config->'question_ids'` BEFORE calling `jsonb_typeof` (prevents SQL NULL vs missing key ambiguity); raises if no correct option found for a question (data integrity check)
+
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
 ```sql
@@ -611,6 +639,7 @@ AS $$
 DECLARE
   v_student_id      uuid := auth.uid();
   v_org_id          uuid;
+  v_config          jsonb;
   v_answer          jsonb;
   v_correct_option  text;
   v_is_correct      boolean;
@@ -621,48 +650,126 @@ DECLARE
   v_response_time   int;
   v_results         jsonb := '[]'::jsonb;
   v_total           int;
+  v_answered        int;
   v_correct_count   int;
   v_score           numeric(5,2);
+  v_session_question_ids uuid[];
+  v_qid_text        text;
+  v_rt_text         text;
+  v_ended_at        timestamptz;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
-  -- Verify session belongs to this student and is still active (FOR UPDATE prevents race)
-  SELECT qs.organization_id, qs.total_questions
-  INTO v_org_id, v_total
+  -- Step 1: Fetch session row (allow already-completed sessions for idempotent replay)
+  SELECT qs.organization_id, qs.total_questions, qs.config, qs.ended_at,
+         qs.correct_count, qs.score_percentage
+  INTO v_org_id, v_total, v_config, v_ended_at, v_correct_count, v_score
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
-    AND qs.ended_at IS NULL
+    AND qs.deleted_at IS NULL
   FOR UPDATE;
+  -- FOR UPDATE is acquired before the completed-session check intentionally:
+  -- it serializes concurrent retries so the second caller sees v_ended_at IS NOT NULL
+  -- and takes the replay path instead of double-writing. The read-only replay holds
+  -- the lock briefly (two SELECTs) — acceptable trade-off vs. a TOCTOU two-phase check.
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'session not found or already completed';
+    RAISE EXCEPTION 'session not found or not accessible';
   END IF;
 
-  -- Guard against empty answers
-  IF jsonb_array_length(p_answers) = 0 THEN
-    RAISE EXCEPTION 'answers must not be empty';
+  -- Idempotent replay: if session already completed, return existing results
+  IF v_ended_at IS NOT NULL THEN
+    SELECT count(*)::int INTO v_answered
+    FROM quiz_session_answers WHERE session_id = p_session_id;
+
+    SELECT jsonb_agg(jsonb_build_object(
+      'question_id', qsa.question_id,
+      'is_correct', qsa.is_correct,
+      'correct_option_id', (
+        SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt
+        WHERE (opt->>'correct')::boolean LIMIT 1
+      ),
+      'explanation_text', q.explanation_text,
+      'explanation_image_url', q.explanation_image_url
+    ))
+    INTO v_results
+    FROM quiz_session_answers qsa
+    JOIN questions q ON q.id = qsa.question_id
+    WHERE qsa.session_id = p_session_id;
+
+    RETURN jsonb_build_object(
+      'results', COALESCE(v_results, '[]'::jsonb),
+      'total_questions', v_total,
+      'answered_count', v_answered,
+      'correct_count', v_correct_count,
+      'score_percentage', v_score
+    );
   END IF;
 
-  -- Process each answer
+  -- Step 2: Guard against malformed config BEFORE extracting question_ids
+  IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+    RAISE EXCEPTION 'session config is malformed — question_ids not set';
+  END IF;
+
+  -- Step 3: Now safe to extract question_ids
+  v_session_question_ids := ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[];
+
+  -- Validate p_answers is a non-null JSON array
+  IF p_answers IS NULL
+     OR jsonb_typeof(p_answers) <> 'array'
+     OR jsonb_array_length(p_answers) = 0 THEN
+    RAISE EXCEPTION 'answers must be a non-empty JSON array';
+  END IF;
+
+  -- Reject duplicate question_id entries in payload (validate as text before casting)
+  IF (
+    SELECT count(*) <> count(DISTINCT lower(e->>'question_id'))
+    FROM jsonb_array_elements(p_answers) AS e
+  ) THEN
+    RAISE EXCEPTION 'duplicate question_id in answers payload';
+  END IF;
+
+  -- Process each provided answer (partial submission is allowed — students may skip questions)
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP
-    v_question_id     := (v_answer->>'question_id')::uuid;
+    -- Extract as text first, validate format, THEN cast
+    v_qid_text        := v_answer->>'question_id';
     v_selected_option := v_answer->>'selected_option';
-    v_response_time   := (v_answer->>'response_time_ms')::int;
+    v_rt_text         := v_answer->>'response_time_ms';
 
-    -- Get correct answer and explanation
+    IF v_qid_text IS NULL OR v_qid_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+      RAISE EXCEPTION 'invalid question_id format: %', coalesce(v_qid_text, 'NULL');
+    END IF;
+    IF v_selected_option IS NULL OR v_selected_option = '' THEN
+      RAISE EXCEPTION 'answer for question % has empty selected_option', v_qid_text;
+    END IF;
+    IF v_rt_text IS NULL OR v_rt_text !~ '^\d{1,9}$' THEN
+      RAISE EXCEPTION 'answer for question % has invalid response_time_ms', v_qid_text;
+    END IF;
+
+    v_question_id   := v_qid_text::uuid;
+    v_response_time := v_rt_text::int;
+
+    -- Validate question belongs to this session
+    IF NOT (v_question_id = ANY(v_session_question_ids)) THEN
+      RAISE EXCEPTION 'question % does not belong to session %', v_question_id, p_session_id;
+    END IF;
+
+    -- Get correct answer and explanation.
+    -- Intentionally no deleted_at filter: session membership was verified against
+    -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
+    -- A question soft-deleted after that point must still score correctly.
     SELECT
       (SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt WHERE (opt->>'correct')::boolean LIMIT 1),
       q.explanation_text,
       q.explanation_image_url
     INTO v_correct_option, v_expl_text, v_expl_image_url
     FROM questions q
-    WHERE q.id = v_question_id
-      AND q.deleted_at IS NULL;
+    WHERE q.id = v_question_id;
 
     IF NOT FOUND THEN
       RAISE EXCEPTION 'question not found: %', v_question_id;
@@ -686,6 +793,18 @@ BEGIN
        v_selected_option, v_is_correct, v_response_time)
     ON CONFLICT DO NOTHING;
 
+    -- Update last_was_correct atomically within this transaction.
+    -- Full FSRS scheduling (due, stability, difficulty, etc.) is handled by the
+    -- application layer after the RPC returns. Updating last_was_correct here
+    -- ensures the incorrect-filter counter is always accurate immediately after
+    -- session completion, with no window where stale data could be read.
+    INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
+    VALUES (v_student_id, v_question_id, v_is_correct, now())
+    ON CONFLICT (student_id, question_id)
+    DO UPDATE SET
+      last_was_correct = EXCLUDED.last_was_correct,
+      updated_at = now();
+
     -- Accumulate result
     v_results := v_results || jsonb_build_object(
       'question_id', v_question_id,
@@ -696,13 +815,16 @@ BEGIN
     );
   END LOOP;
 
-  -- Calculate correct count from all session answers (v_total already set from quiz_sessions)
-  SELECT count(*) FILTER (WHERE qsa.is_correct)::int
-  INTO v_correct_count
+  -- Count answered and correct from this session (idempotent ON CONFLICT means re-runs are safe)
+  SELECT
+    count(*)::int,
+    count(*) FILTER (WHERE qsa.is_correct)::int
+  INTO v_answered, v_correct_count
   FROM quiz_session_answers qsa
   WHERE qsa.session_id = p_session_id;
 
-  v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
+  -- Score over answered questions only (unanswered questions are excluded from the denominator)
+  v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
 
   -- Complete session
   UPDATE quiz_sessions
@@ -722,14 +844,121 @@ BEGIN
     'quiz_session.batch_submitted',
     'quiz_session',
     p_session_id,
-    jsonb_build_object('total', v_total, 'correct', v_correct_count, 'score', v_score)
+    jsonb_build_object(
+      'total_questions', v_total,
+      'answered', v_answered,
+      'correct', v_correct_count,
+      'score', v_score
+    )
   );
 
   RETURN jsonb_build_object(
     'results', v_results,
     'total_questions', v_total,
+    'answered_count', v_answered,
     'correct_count', v_correct_count,
     'score_percentage', v_score
+  );
+END;
+$$;
+```
+
+#### `check_quiz_answer` — verify answer + return explanation
+
+Verifies a student's answer for a question during an active quiz session. Returns correctness, correct option ID, and explanation. Requires session ownership.
+
+**Key behavior:**
+- Validates that the session belongs to the current student and is still active
+- Validates that the question belongs to the session's locked question set
+- Returns only the correct option ID and explanation — never exposes the full options array
+- Used for immediate feedback during quiz sessions (answers are typically batched later via `batch_submit_quiz`)
+
+**Parameters:**
+- `p_question_id` — UUID of the question being answered
+- `p_selected_option_id` — the selected option ('a', 'b', 'c', or 'd')
+- `p_session_id` — UUID of the active quiz session (added in migration 029 for security hardening)
+
+**Returns:**
+- `is_correct` — boolean indicating correctness
+- `correct_option_id` — the correct option ('a', 'b', 'c', or 'd')
+- `explanation_text` — explanation text for the question
+- `explanation_image_url` — optional explanation image URL
+
+```sql
+CREATE OR REPLACE FUNCTION check_quiz_answer(
+  p_question_id        uuid,
+  p_selected_option_id text,
+  p_session_id         uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_student_id        uuid := auth.uid();
+  v_config            jsonb;
+  v_correct_option_id text;
+  v_explanation_text  text;
+  v_explanation_image text;
+  v_is_correct        boolean;
+  v_session_question_ids uuid[];
+BEGIN
+  -- Auth guard
+  IF v_student_id IS NULL THEN
+    RAISE EXCEPTION 'not authenticated';
+  END IF;
+
+  -- Session ownership: verify the student owns an active session
+  SELECT qs.config
+  INTO v_config
+  FROM quiz_sessions qs
+  WHERE qs.id = p_session_id
+    AND qs.student_id = v_student_id
+    AND qs.ended_at IS NULL
+    AND qs.deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'session not found or not owned by this student';
+  END IF;
+
+  -- Guard against malformed config (matches pattern in batch_submit_quiz)
+  IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+    RAISE EXCEPTION 'session config is malformed — question_ids not set';
+  END IF;
+
+  -- Verify question belongs to this session
+  v_session_question_ids := ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[];
+  IF NOT (p_question_id = ANY(v_session_question_ids)) THEN
+    RAISE EXCEPTION 'question % does not belong to session %', p_question_id, p_session_id;
+  END IF;
+
+  -- Fetch correct option and explanation.
+  -- Intentionally no deleted_at filter: session membership was verified against
+  -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
+  -- A question soft-deleted after that point must still be answerable.
+  SELECT
+    (SELECT opt->>'id'
+       FROM jsonb_array_elements(q.options) opt
+      WHERE (opt->>'correct')::boolean
+      LIMIT 1),
+    q.explanation_text,
+    q.explanation_image_url
+  INTO v_correct_option_id, v_explanation_text, v_explanation_image
+  FROM questions q
+  WHERE q.id = p_question_id;
+
+  IF NOT FOUND OR v_correct_option_id IS NULL THEN
+    RAISE EXCEPTION 'question not found or has no correct option';
+  END IF;
+
+  v_is_correct := (p_selected_option_id = v_correct_option_id);
+
+  RETURN jsonb_build_object(
+    'is_correct',           v_is_correct,
+    'correct_option_id',    v_correct_option_id,
+    'explanation_text',     v_explanation_text,
+    'explanation_image_url', v_explanation_image
   );
 END;
 $$;
@@ -835,7 +1064,7 @@ CREATE INDEX idx_lessons_org         ON lessons(organization_id) WHERE deleted_a
 CREATE INDEX idx_quiz_sessions_org   ON quiz_sessions(organization_id);
 CREATE INDEX idx_student_responses_org ON student_responses(organization_id);
 
--- FSRS queue (the hot path — runs every time a student opens Smart Review)
+-- FSRS statistics (queried in statistics tab, sorted by due for review scheduling)
 CREATE INDEX idx_fsrs_cards_due      ON fsrs_cards(student_id, due)
   WHERE state != 'new';
 
@@ -883,4 +1112,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-12 | Companion: docs/security.md*
+*Last updated: 2026-03-13 (migration 030: batch_submit null guards) | Companion: docs/security.md*

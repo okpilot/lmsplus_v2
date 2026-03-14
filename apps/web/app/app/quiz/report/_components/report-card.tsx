@@ -28,7 +28,10 @@ export function ReportCard({ report }: { report: QuizReportData }) {
         <p className="text-sm text-muted-foreground">Your Score</p>
         <p className={`mt-2 text-5xl font-bold tabular-nums ${scoreColor(rounded)}`}>{rounded}%</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          {report.correctCount} / {report.totalQuestions} correct
+          {report.correctCount} / {report.answeredCount} correct
+          {report.answeredCount < report.totalQuestions && (
+            <span className="ml-1">({report.totalQuestions - report.answeredCount} skipped)</span>
+          )}
         </p>
         {duration && <p className="mt-1 text-xs text-muted-foreground">Time taken: {duration}</p>}
       </div>

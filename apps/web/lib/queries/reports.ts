@@ -5,6 +5,7 @@ export type SessionReport = {
   mode: string
   subjectName: string | null
   totalQuestions: number
+  answeredCount: number
   correctCount: number
   scorePercentage: number | null
   startedAt: string
@@ -25,6 +26,8 @@ type SessionRow = {
 
 type SubjectNameRow = { id: string; name: string }
 
+type AnswerCountRow = { session_id: string }
+
 export async function getAllSessions(): Promise<SessionReport[]> {
   const supabase = await createServerSupabaseClient()
   const {
@@ -41,37 +44,61 @@ export async function getAllSessions(): Promise<SessionReport[]> {
     )
     .eq('student_id' as string & keyof never, user.id)
     .not('ended_at' as string & keyof never, 'is', null)
+    .is('deleted_at' as string & keyof never, null)
     .order('started_at' as string & keyof never, { ascending: false })
     .returns<SessionRow[]>()
 
   if (sessionsError) throw new Error(`Failed to fetch sessions: ${sessionsError.message}`)
   if (!sessions?.length) return []
 
-  const subjectIds = [...new Set(sessions.map((s) => s.subject_id).filter(Boolean))] as string[]
-  const { data: subjects, error: subjectsError } =
-    subjectIds.length > 0
-      ? await supabase
-          .from('easa_subjects')
-          .select('id, name')
-          .in('id' as string & keyof never, subjectIds)
-          .returns<SubjectNameRow[]>()
-      : { data: [] as SubjectNameRow[], error: null }
+  const sessionIds = sessions.map((s) => s.id)
 
-  if (subjectsError) throw new Error(`Failed to fetch subjects: ${subjectsError.message}`)
-  if (!subjects) throw new Error('Failed to fetch subjects: unexpected null response')
+  const [subjectsResult, answersResult] = await Promise.all([
+    (() => {
+      const subjectIds = [...new Set(sessions.map((s) => s.subject_id).filter(Boolean))] as string[]
+      return subjectIds.length > 0
+        ? supabase
+            .from('easa_subjects')
+            .select('id, name')
+            .in('id' as string & keyof never, subjectIds)
+            .returns<SubjectNameRow[]>()
+        : Promise.resolve({ data: [] as SubjectNameRow[], error: null })
+    })(),
+    supabase
+      .from('quiz_session_answers')
+      .select('session_id')
+      .in('session_id' as string & keyof never, sessionIds)
+      .returns<AnswerCountRow[]>(),
+  ])
 
-  const subjectMap = new Map(subjects.map((s) => [s.id, s.name]))
+  if (subjectsResult.error)
+    throw new Error(`Failed to fetch subjects: ${subjectsResult.error.message}`)
+  if (!subjectsResult.data) throw new Error('Failed to fetch subjects: unexpected null response')
+  if (answersResult.error)
+    throw new Error(`Failed to fetch answer counts: ${answersResult.error.message}`)
+
+  const subjectMap = new Map((subjectsResult.data ?? []).map((s) => [s.id, s.name]))
+
+  const answeredCountMap = new Map<string, number>()
+  for (const row of answersResult.data ?? []) {
+    answeredCountMap.set(row.session_id, (answeredCountMap.get(row.session_id) ?? 0) + 1)
+  }
 
   return sessions.map((s) => {
     const start = new Date(s.started_at).getTime()
     const end = new Date(s.ended_at).getTime()
     const durationMinutes = Math.max(0, Math.round((end - start) / 60000))
+    const answered = answeredCountMap.get(s.id)
+    if (answered === undefined) {
+      console.warn('[getAllSessions] No answer rows for completed session:', s.id)
+    }
 
     return {
       id: s.id,
       mode: s.mode,
       subjectName: s.subject_id ? (subjectMap.get(s.subject_id) ?? null) : null,
       totalQuestions: s.total_questions,
+      answeredCount: answered ?? s.total_questions,
       correctCount: s.correct_count,
       scorePercentage: s.score_percentage,
       startedAt: s.started_at,

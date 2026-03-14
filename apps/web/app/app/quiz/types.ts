@@ -41,6 +41,7 @@ export type BatchSubmitResult =
   | {
       success: true
       totalQuestions: number
+      answeredCount: number
       correctCount: number
       scorePercentage: number
       results: BatchAnswerResult[]
@@ -56,8 +57,26 @@ export type BatchRpcResult = {
     explanation_image_url: string | null
   }[]
   total_questions: number
+  answered_count: number
   correct_count: number
   score_percentage: number
+}
+
+export type CheckAnswerResult =
+  | {
+      success: true
+      isCorrect: boolean
+      correctOptionId: string
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
+  | { success: false; error: string }
+
+export type AnswerFeedback = {
+  isCorrect: boolean
+  correctOptionId: string
+  explanationText: string | null
+  explanationImageUrl: string | null
 }
 
 export type DraftAnswer = { selectedOptionId: string; responseTimeMs: number }
@@ -76,3 +95,15 @@ export type DraftData = {
 export type DraftResult = { success: true } | { success: false; error: string }
 
 export type LoadDraftResult = { draft: DraftData | null }
+
+export type LoadDraftsResult = { drafts: DraftData[] }
+
+export type QuizStateOpts = {
+  sessionId: string
+  questions: import('@/app/app/_components/session-runner').SessionQuestion[]
+  initialAnswers?: Record<string, DraftAnswer>
+  initialIndex?: number
+  draftId?: string
+  subjectName?: string
+  subjectCode?: string
+}

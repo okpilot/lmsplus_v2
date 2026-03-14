@@ -9,7 +9,7 @@ function renderGrid(overrides: Partial<Parameters<typeof QuestionGrid>[0]> = {})
     totalQuestions: 5,
     currentIndex: 0,
     answeredIds: new Set<string>(),
-    flaggedIds: new Set<string>(),
+    pinnedIds: new Set<string>(),
     questionIds: IDS,
     onNavigate: vi.fn(),
     ...overrides,
@@ -50,16 +50,16 @@ describe('QuestionGrid', () => {
     expect(unanswered.className).toContain('bg-muted')
   })
 
-  it('shows flagged state with yellow color', () => {
-    renderGrid({ flaggedIds: new Set(['q3']) })
-    const flagged = screen.getByTestId('grid-btn-2') // q3 is index 2
-    expect(flagged.className).toContain('bg-yellow-100')
+  it('shows pinned state with yellow color', () => {
+    renderGrid({ pinnedIds: new Set(['q3']) })
+    const pinned = screen.getByTestId('grid-btn-2') // q3 is index 2
+    expect(pinned.className).toContain('bg-yellow-100')
   })
 
-  it('flagged takes precedence over answered', () => {
+  it('pinned takes precedence over answered', () => {
     renderGrid({
       answeredIds: new Set(['q1']),
-      flaggedIds: new Set(['q1']),
+      pinnedIds: new Set(['q1']),
     })
     const btn = screen.getByTestId('grid-btn-0')
     expect(btn.className).toContain('bg-yellow-100')

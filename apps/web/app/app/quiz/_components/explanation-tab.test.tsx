@@ -1,15 +1,48 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { mockFetchExplanation } = vi.hoisted(() => ({
+  mockFetchExplanation: vi.fn(),
+}))
+
+vi.mock('../actions/fetch-explanation', () => ({
+  fetchExplanation: mockFetchExplanation,
+}))
+
 import { ExplanationTab } from './explanation-tab'
 
 describe('ExplanationTab', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('fetches and shows explanation before answering', async () => {
+    mockFetchExplanation.mockResolvedValue({
+      success: true,
+      explanationText: 'Pre-answer explanation.',
+      explanationImageUrl: null,
+    })
+    render(<ExplanationTab hasAnswered={false} questionId="q-1" sessionId="s-1" />)
+    await waitFor(() => {
+      expect(screen.getByText('Pre-answer explanation.')).toBeInTheDocument()
+    })
+  })
+
+  it('shows fallback when fetch returns no explanation', async () => {
+    mockFetchExplanation.mockResolvedValue({ success: false })
+    render(<ExplanationTab hasAnswered={false} questionId="q-1" sessionId="s-1" />)
+    await waitFor(() => {
+      expect(screen.getByText('No explanation available for this question.')).toBeInTheDocument()
+    })
+  })
+
   it('shows correct message when answer is correct', () => {
     render(
       <ExplanationTab
+        hasAnswered={true}
         explanationText="This is the explanation."
         explanationImageUrl={null}
         isCorrect={true}
-        correctOptionId="opt-1"
       />,
     )
     expect(screen.getByText('You answered correctly.')).toBeInTheDocument()
@@ -19,10 +52,10 @@ describe('ExplanationTab', () => {
   it('shows incorrect message when answer is wrong', () => {
     render(
       <ExplanationTab
+        hasAnswered={true}
         explanationText={null}
         explanationImageUrl={null}
         isCorrect={false}
-        correctOptionId="opt-2"
       />,
     )
     expect(screen.getByText('You answered incorrectly.')).toBeInTheDocument()
@@ -32,10 +65,10 @@ describe('ExplanationTab', () => {
   it('renders explanation image when provided', () => {
     render(
       <ExplanationTab
+        hasAnswered={true}
         explanationText="Some text"
         explanationImageUrl="https://example.com/img.png"
         isCorrect={true}
-        correctOptionId="opt-1"
       />,
     )
     expect(screen.getByAltText('Explanation illustration')).toBeInTheDocument()

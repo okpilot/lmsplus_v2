@@ -53,14 +53,6 @@ describe('AppShell', () => {
     expect(screen.getByText('Session content')).toBeInTheDocument()
   })
 
-  it('renders in fullscreen mode for review session routes', () => {
-    mockUsePathname.mockReturnValue('/app/review/session')
-    render(<AppShell displayName="Ada Pilot">Review content</AppShell>)
-
-    expect(screen.queryByRole('banner')).not.toBeInTheDocument()
-    expect(screen.getByText('Review content')).toBeInTheDocument()
-  })
-
   it('renders the LMS Plus brand name in the header', () => {
     mockUsePathname.mockReturnValue('/app/progress')
     render(<AppShell displayName="Ada Pilot">Content</AppShell>)

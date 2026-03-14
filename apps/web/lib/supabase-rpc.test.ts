@@ -67,4 +67,12 @@ describe('upsert', () => {
       { onConflict: 'student_id,question_id' },
     )
   })
+
+  it('throws when the upsert returns a DB error', async () => {
+    const upsertFn = vi.fn().mockResolvedValue({ data: null, error: { message: 'RLS denied' } })
+    const client = makeClient({ upsertFn })
+    await expect(
+      upsert(client as unknown as never, 'fsrs_cards', { student_id: 'u1' }),
+    ).rejects.toThrow('[upsert:fsrs_cards] RLS denied')
+  })
 })

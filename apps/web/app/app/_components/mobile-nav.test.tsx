@@ -30,9 +30,9 @@ describe('MobileNav', () => {
     await user.click(screen.getByRole('button', { name: 'Open menu' }))
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Smart Review')).toBeInTheDocument()
     expect(screen.getByText('Quiz')).toBeInTheDocument()
     expect(screen.getByText('Progress')).toBeInTheDocument()
+    expect(screen.queryByText('Smart Review')).not.toBeInTheDocument()
   })
 
   it('closes when close button is clicked', async () => {
@@ -61,14 +61,14 @@ describe('MobileNav', () => {
   })
 
   it('highlights the link when pathname is a sub-route', async () => {
-    mockUsePathname.mockReturnValue('/app/review/session/abc')
+    mockUsePathname.mockReturnValue('/app/quiz/session')
     const user = userEvent.setup({ delay: null })
     render(<MobileNav />)
 
     await user.click(screen.getByRole('button', { name: 'Open menu' }))
 
-    const reviewLink = screen.getByText('Smart Review')
-    expect(reviewLink.className).toContain('bg-primary/10')
+    const quizLink = screen.getByText('Quiz')
+    expect(quizLink.className).toContain('bg-primary/10')
 
     const progressLink = screen.getByText('Progress')
     expect(progressLink.className).not.toContain('bg-primary/10')

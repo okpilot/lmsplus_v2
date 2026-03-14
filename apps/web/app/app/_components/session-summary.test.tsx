@@ -13,85 +13,60 @@ describe('SessionSummary', () => {
     render(
       <SessionSummary
         totalQuestions={10}
+        answeredCount={10}
         correctCount={7}
         scorePercentage={70.4}
-        mode="quick_quiz"
       />,
     )
     expect(screen.getByText('70%')).toBeInTheDocument()
   })
 
-  it('displays correct and incorrect counts', () => {
+  it('displays correct and incorrect counts based on answered (not total)', () => {
     render(
       <SessionSummary
         totalQuestions={10}
+        answeredCount={10}
         correctCount={7}
         scorePercentage={70}
-        mode="quick_quiz"
       />,
     )
     expect(screen.getByText('7')).toBeInTheDocument() // correctCount
-    expect(screen.getByText('3')).toBeInTheDocument() // totalQuestions - correctCount
-    expect(screen.getByText('10')).toBeInTheDocument() // total
+    expect(screen.getByText('3')).toBeInTheDocument() // answeredCount - correctCount
+    expect(screen.getByText('10')).toBeInTheDocument() // answeredCount
   })
 
   it('shows "Quiz Complete" label for quick_quiz mode', () => {
     render(
       <SessionSummary
         totalQuestions={10}
+        answeredCount={10}
         correctCount={7}
         scorePercentage={70}
-        mode="quick_quiz"
       />,
     )
     expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
-  })
-
-  it('shows "Smart Review Complete" label for smart_review mode', () => {
-    render(
-      <SessionSummary
-        totalQuestions={10}
-        correctCount={7}
-        scorePercentage={70}
-        mode="smart_review"
-      />,
-    )
-    expect(screen.getByText('Smart Review Complete')).toBeInTheDocument()
   })
 
   it('links "Start Another" to /app/quiz for quick_quiz mode', () => {
     render(
       <SessionSummary
         totalQuestions={10}
+        answeredCount={10}
         correctCount={7}
         scorePercentage={70}
-        mode="quick_quiz"
       />,
     )
     const link = screen.getByRole('link', { name: 'Start Another' })
     expect(link).toHaveAttribute('href', '/app/quiz')
   })
 
-  it('links "Start Another" to /app/review for smart_review mode', () => {
+  it('links "Back to Dashboard" to /app/dashboard', () => {
     render(
       <SessionSummary
         totalQuestions={10}
+        answeredCount={10}
         correctCount={7}
         scorePercentage={70}
-        mode="smart_review"
-      />,
-    )
-    const link = screen.getByRole('link', { name: 'Start Another' })
-    expect(link).toHaveAttribute('href', '/app/review')
-  })
-
-  it('links "Back to Dashboard" to /app/dashboard in both modes', () => {
-    render(
-      <SessionSummary
-        totalQuestions={10}
-        correctCount={7}
-        scorePercentage={70}
-        mode="quick_quiz"
       />,
     )
     const link = screen.getByRole('link', { name: 'Back to Dashboard' })
@@ -102,13 +77,55 @@ describe('SessionSummary', () => {
     render(
       <SessionSummary
         totalQuestions={5}
+        answeredCount={5}
         correctCount={5}
         scorePercentage={100}
-        mode="smart_review"
       />,
     )
-    // Incorrect = 5 - 5 = 0
     const incorrectEl = screen.getByText('Incorrect').previousElementSibling
     expect(incorrectEl?.textContent).toBe('0')
+  })
+
+  it('shows skipped count and answered count when questions were skipped', () => {
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={8}
+        correctCount={6}
+        scorePercentage={75}
+      />,
+    )
+    expect(screen.getByText('Skipped')).toBeInTheDocument()
+    // skippedCount = 10 - 8 = 2; use label sibling to disambiguate from incorrectCount (also 2)
+    const skippedEl = screen.getByText('Skipped').previousElementSibling
+    expect(skippedEl?.textContent).toBe('2')
+    expect(screen.getByText('8')).toBeInTheDocument() // answeredCount
+    expect(screen.getByText('Answered')).toBeInTheDocument()
+  })
+
+  it('does not show skipped stat when all questions were answered', () => {
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={10}
+        correctCount={7}
+        scorePercentage={70}
+      />,
+    )
+    expect(screen.queryByText('Skipped')).not.toBeInTheDocument()
+  })
+
+  it('computes incorrect as answered minus correct, not total minus correct', () => {
+    // 10 total, 7 answered, 5 correct → incorrect = 2 (not 5)
+    render(
+      <SessionSummary
+        totalQuestions={10}
+        answeredCount={7}
+        correctCount={5}
+        scorePercentage={71.4}
+      />,
+    )
+    const incorrectEl = screen.getByText('Incorrect').previousElementSibling
+    expect(incorrectEl?.textContent).toBe('2')
   })
 })

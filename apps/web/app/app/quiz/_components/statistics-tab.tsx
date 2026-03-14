@@ -1,73 +1,28 @@
 'use client'
 
 import type { QuestionStats } from '@/lib/queries/question-stats'
-import { type ReactNode, useRef, useState, useTransition } from 'react'
-import { fetchQuestionStats } from '../actions/fetch-stats'
+import { useQuestionStats } from '../_hooks/use-question-stats'
 
 type StatisticsTabProps = {
   questionId: string
   hasAnswered: boolean
 }
-function useQuestionStats(questionId: string) {
-  const [stats, setStats] = useState<QuestionStats | null>(null)
-  const [, startTransition] = useTransition()
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const prevQuestionId = useRef(questionId)
-  const generation = useRef(0)
-  if (prevQuestionId.current !== questionId) {
-    prevQuestionId.current = questionId
-    generation.current += 1
-    setStats(null)
-    setError(null)
-    if (isLoading) setIsLoading(false)
-  }
-  function loadStats() {
-    const gen = generation.current
-    setError(null)
-    setIsLoading(true)
-    startTransition(async () => {
-      try {
-        const data = await fetchQuestionStats(questionId)
-        if (gen === generation.current) setStats(data)
-      } catch {
-        if (gen === generation.current) setError('Failed to load statistics.')
-      } finally {
-        if (gen === generation.current) setIsLoading(false)
-      }
-    })
-  }
-  return { stats, isLoading, error, loadStats }
-}
+
 export function StatisticsTab({ questionId, hasAnswered }: StatisticsTabProps) {
   const { stats, isLoading, error, loadStats } = useQuestionStats(questionId)
-  if (!hasAnswered) return <NotAnsweredMessage />
-  if (!stats && !isLoading && !error) return <LoadButton onClick={loadStats} />
   if (isLoading) return <LoadingSkeleton />
   if (error) return <ErrorMessage message={error} onRetry={loadStats} />
-  if (!stats) return null
+  if (!stats) return <NotAnsweredMessage hasAnswered={hasAnswered} />
   return <StatsDisplay stats={stats} />
 }
-function NotAnsweredMessage() {
-  return (
-    <div className="py-8 text-center text-sm text-muted-foreground">
-      Answer the question to see your statistics.
-    </div>
-  )
+
+function NotAnsweredMessage({ hasAnswered }: { hasAnswered: boolean }) {
+  const message = hasAnswered
+    ? 'No statistics available for this question yet.'
+    : 'Answer this question to see statistics.'
+  return <div className="py-8 text-center text-sm text-muted-foreground">{message}</div>
 }
-function LoadButton({ onClick }: { onClick: () => void }) {
-  return (
-    <div className="py-6 text-center">
-      <button
-        type="button"
-        onClick={onClick}
-        className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
-      >
-        Load Statistics
-      </button>
-    </div>
-  )
-}
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-3 py-4">
@@ -77,6 +32,7 @@ function LoadingSkeleton() {
     </div>
   )
 }
+
 function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="space-y-2 py-8 text-center">
@@ -87,15 +43,7 @@ function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => vo
     </div>
   )
 }
-const FSRS_STATE_LABELS: Record<string, string> = {
-  new: 'New',
-  learning: 'Learning',
-  review: 'Review',
-  relearning: 'Relearning',
-}
-function formatFsrsState(state: string): string {
-  return FSRS_STATE_LABELS[state] ?? state.charAt(0).toUpperCase() + state.slice(1)
-}
+
 function StatsDisplay({ stats }: { stats: QuestionStats }) {
   const accuracy =
     stats.timesSeen > 0 ? Math.round((stats.correctCount / stats.timesSeen) * 100) : 0
@@ -115,30 +63,13 @@ function StatsDisplay({ stats }: { stats: QuestionStats }) {
           })}
         />
       )}
-      <FsrsSection stats={stats} />
+      <p className="pt-2 text-xs text-muted-foreground">
+        Statistics reflect your previous quiz sessions.
+      </p>
     </div>
   )
 }
-function FsrsSection({ stats }: { stats: QuestionStats }): ReactNode {
-  if (!stats.fsrsState) return null
-  return (
-    <>
-      <div className="border-t border-border pt-2 text-xs font-medium text-muted-foreground">
-        FSRS Data
-      </div>
-      <StatRow label="State" value={formatFsrsState(stats.fsrsState)} />
-      {stats.fsrsStability != null && (
-        <StatRow label="Stability" value={stats.fsrsStability.toFixed(1)} />
-      )}
-      {stats.fsrsDifficulty != null && (
-        <StatRow label="Difficulty" value={stats.fsrsDifficulty.toFixed(1)} />
-      )}
-      {stats.fsrsInterval != null && (
-        <StatRow label="Interval" value={`${stats.fsrsInterval} days`} />
-      )}
-    </>
-  )
-}
+
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">

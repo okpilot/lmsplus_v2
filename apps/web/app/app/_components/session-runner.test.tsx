@@ -36,7 +36,6 @@ function renderRunner(questions = QUESTIONS) {
     <SessionRunner
       sessionId="sess-1"
       questions={questions}
-      mode="quick_quiz"
       onSubmitAnswer={mockSubmit}
       onComplete={mockComplete}
     />,
