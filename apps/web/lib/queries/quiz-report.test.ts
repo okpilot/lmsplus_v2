@@ -107,7 +107,7 @@ describe('getQuizReport', () => {
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
-  it('returns null when getUser returns an auth error', async () => {
+  it('returns null when auth returns an error', async () => {
     mockGetUser.mockResolvedValueOnce({
       data: { user: null },
       error: { message: 'token expired' },

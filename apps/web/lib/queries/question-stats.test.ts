@@ -39,7 +39,7 @@ describe('getQuestionStats', () => {
     await expect(getQuestionStats('q-1')).rejects.toThrow('Not authenticated')
   })
 
-  it('throws when getUser returns an auth error', async () => {
+  it('throws when auth returns an error', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'invalid JWT' },
@@ -47,18 +47,23 @@ describe('getQuestionStats', () => {
     await expect(getQuestionStats('q-1')).rejects.toThrow('Auth error: invalid JWT')
   })
 
-  it('returns stats with counts when data is available', async () => {
+  it('returns distinct total and correct counts when responses exist', async () => {
+    let callCount = 0
     mockFrom.mockImplementation(() => {
-      return buildChain({
-        count: 5,
-        data: [{ created_at: '2026-03-11T00:00:00Z' }],
-        error: null,
-      })
+      callCount++
+      if (callCount === 1) {
+        return buildChain({ count: 8, data: null, error: null })
+      }
+      if (callCount === 2) {
+        return buildChain({ count: 5, data: null, error: null })
+      }
+      return buildChain({ count: 0, data: [{ created_at: '2026-03-11T00:00:00Z' }], error: null })
     })
 
     const result = await getQuestionStats('q-1')
-    expect(result.timesSeen).toBe(5)
+    expect(result.timesSeen).toBe(8)
     expect(result.correctCount).toBe(5)
+    expect(result.incorrectCount).toBe(3)
     expect(result.lastAnswered).toBe('2026-03-11T00:00:00Z')
   })
 

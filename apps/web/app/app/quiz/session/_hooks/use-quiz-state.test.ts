@@ -166,7 +166,7 @@ describe('useQuizState — answer selection', () => {
     expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-a')
   })
 
-  it('ignores a second answer selection for the same question (re-entry guard)', async () => {
+  it('ignores a second answer for an already-answered question', async () => {
     const { result } = renderHook(() =>
       useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
@@ -177,7 +177,7 @@ describe('useQuizState — answer selection', () => {
     expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-a')
   })
 
-  it('blocks a concurrent double-click before the first async response settles (ref lock)', async () => {
+  it('blocks concurrent answer selections until the first completes', async () => {
     // Simulate a slow checkAnswer so both calls can be in-flight simultaneously.
     // Without lockedQuestionsRef, both calls would pass the answers.has() check
     // (state hasn't updated yet) and both would call checkAnswer.
@@ -223,7 +223,7 @@ describe('useQuizState — answer selection', () => {
     expect(result.current.answeredCount).toBe(1)
   })
 
-  it('hydrates answers from initialAnswers', () => {
+  it('restores previously saved answers on mount', () => {
     const { result } = renderHook(() =>
       useQuizState({
         sessionId: SESSION_ID,
@@ -240,7 +240,7 @@ describe('useQuizState — answer selection', () => {
 // ---- Submit ---------------------------------------------------------------
 
 describe('useQuizState — handleSubmit empty-answers guard', () => {
-  it('sets error and does not call handleSubmitSession when no answers have been recorded', async () => {
+  it('shows error when submitting with no answers recorded', async () => {
     // Simulate the empty-answers guard: handleSubmitSession calls setError when answers empty.
     // We replicate the guard by having the mock invoke setError via the passed opts.
     mockHandleSubmitSession.mockImplementation(
@@ -284,7 +284,7 @@ describe('useQuizState — handleSubmit', () => {
     expect(mockRouterPush).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
   })
 
-  it('sets error state when submission fails', async () => {
+  it('shows error when submission fails', async () => {
     mockHandleSubmitSession.mockImplementation(
       (opts: { setError: (e: string | null) => void; setSubmitting: (v: boolean) => void }) => {
         opts.setError('Session expired')
@@ -309,7 +309,7 @@ describe('useQuizState — handleSubmit', () => {
 // ---- Save draft -----------------------------------------------------------
 
 describe('useQuizState — handleSave', () => {
-  it('delegates to handleSaveSession with correct arguments', async () => {
+  it('saves current progress with correct quiz data', async () => {
     const { result } = renderHook(() =>
       useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 1 }),
     )
@@ -324,7 +324,7 @@ describe('useQuizState — handleSave', () => {
     )
   })
 
-  it('sets error state when saving the draft fails', async () => {
+  it('shows error when saving fails', async () => {
     mockHandleSaveSession.mockImplementation(
       (opts: { setError: (e: string | null) => void; setSubmitting: (v: boolean) => void }) => {
         opts.setError('Failed to save draft')
@@ -340,7 +340,7 @@ describe('useQuizState — handleSave', () => {
     expect(result.current.error).toBe('Failed to save draft')
   })
 
-  it('forwards draftId to handleSaveSession when provided', async () => {
+  it('includes draft id when saving existing draft', async () => {
     const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
     const { result } = renderHook(() =>
       useQuizState({
@@ -356,7 +356,7 @@ describe('useQuizState — handleSave', () => {
     )
   })
 
-  it('forwards subjectName and subjectCode to handleSaveSession when provided', async () => {
+  it('includes subject metadata when saving', async () => {
     const { result } = renderHook(() =>
       useQuizState({
         sessionId: SESSION_ID,
@@ -379,7 +379,7 @@ describe('useQuizState — handleSave', () => {
 // ---- Discard session ------------------------------------------------------
 
 describe('useQuizState — handleDiscard', () => {
-  it('delegates to handleDiscardSession with the correct sessionId', async () => {
+  it('discards the current quiz session', async () => {
     const { result } = renderHook(() =>
       useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
@@ -390,7 +390,7 @@ describe('useQuizState — handleDiscard', () => {
     )
   })
 
-  it('forwards draftId to handleDiscardSession when provided', async () => {
+  it('includes draft id when discarding', async () => {
     const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
     const { result } = renderHook(() =>
       useQuizState({
@@ -406,7 +406,7 @@ describe('useQuizState — handleDiscard', () => {
     )
   })
 
-  it('sets error state when discard fails', async () => {
+  it('shows error when discard fails', async () => {
     mockHandleDiscardSession.mockImplementation(
       (opts: { setError: (e: string | null) => void; setSubmitting: (v: boolean) => void }) => {
         opts.setError('Discard failed')
@@ -426,14 +426,14 @@ describe('useQuizState — handleDiscard', () => {
 // ---- Finish dialog ---------------------------------------------------------
 
 describe('useQuizState — showFinishDialog', () => {
-  it('starts closed (false)', () => {
+  it('finish dialog is hidden by default', () => {
     const { result } = renderHook(() =>
       useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     expect(result.current.showFinishDialog).toBe(false)
   })
 
-  it('opens the finish dialog when setShowFinishDialog is called with true', () => {
+  it('opens the finish dialog', () => {
     const { result } = renderHook(() =>
       useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
@@ -441,7 +441,7 @@ describe('useQuizState — showFinishDialog', () => {
     expect(result.current.showFinishDialog).toBe(true)
   })
 
-  it('closes the finish dialog when setShowFinishDialog is called with false', () => {
+  it('closes the finish dialog', () => {
     const { result } = renderHook(() =>
       useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )

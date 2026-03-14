@@ -69,7 +69,7 @@ describe('clearAllMessages', () => {
     vi.restoreAllMocks()
   })
 
-  it('sends DELETE to Mailpit messages endpoint', async () => {
+  it('clears all messages from the inbox', async () => {
     const mockFetch = vi.spyOn(global, 'fetch').mockImplementation(async () => new Response())
     await clearAllMessages('test@example.com')
     expect(mockFetch).toHaveBeenCalledWith(
@@ -82,7 +82,7 @@ describe('clearAllMessages', () => {
     )
   })
 
-  it('still clears all messages when no email is provided', async () => {
+  it('clears messages without filtering by email', async () => {
     const mockFetch = vi.spyOn(global, 'fetch').mockImplementation(async () => new Response())
     await clearAllMessages()
     expect(mockFetch).toHaveBeenCalledWith(
@@ -91,7 +91,7 @@ describe('clearAllMessages', () => {
     )
   })
 
-  it('throws when the DELETE request returns a non-OK status', async () => {
+  it('throws when Mailpit returns an error status', async () => {
     vi.spyOn(global, 'fetch').mockImplementation(async () => new Response(null, { status: 503 }))
     await expect(clearAllMessages('test@example.com')).rejects.toThrow('clearAllMessages: 503')
   })
@@ -186,13 +186,13 @@ describe('getLatestEmail', () => {
     expect(result.Subject).toBe(newerDetail.Subject)
   })
 
-  it('surfaces Mailpit search polling failures', async () => {
+  it('throws when search request fails', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 500 }))
     const promise = getLatestEmail('test@example.com')
     await expect(promise).rejects.toThrow('listMessages: 500')
   })
 
-  it('surfaces Mailpit message detail failures', async () => {
+  it('throws when message detail request fails', async () => {
     vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
       const u = url.toString()
       if (u.includes('/api/v1/search')) {

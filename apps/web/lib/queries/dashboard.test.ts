@@ -53,7 +53,7 @@ describe('getDashboardData', () => {
     await expect(getDashboardData()).rejects.toThrow('Not authenticated')
   })
 
-  it('throws when getUser returns an auth error', async () => {
+  it('throws when auth returns an error', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'token expired' },
