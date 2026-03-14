@@ -63,6 +63,7 @@
 | ARIA tab role missing on button-based tab UI | 1 | 2026-03-13 | Watch — QuizTabs (46113bf): buttons used as tabs lack role="tab", aria-selected, and enclosing role="tablist"; pre-existing gap, not introduced by the TabButton extraction; flagged by semantic-reviewer as a suggestion; if a second component is flagged for missing semantic ARIA tab attributes, add a note to code-style.md Section 2 (component rules) |
 | Error message not updated after control flow change eliminates its code path | 1 | 2026-03-14 | Watch — batch_submit_quiz (d057128/ce35a31): original error message 'session not found or already completed' became inaccurate after the idempotent replay path was added (completed sessions no longer reach the error branch); caught by semantic-reviewer post-commit; fixed in ce35a31 with 'session not found or not accessible'; first occurrence; the root cause: when a control flow change eliminates a code path (e.g., converting an error to a replay), any error message that referenced that path by name must be updated in the same commit |
 | FOR UPDATE lock scope wider than write path (read-only replay serialization) | 1 | 2026-03-14 | Watch — batch_submit_quiz (d057128): FOR UPDATE lock on session SELECT is held even during the idempotent read-only replay path, briefly serializing replay reads; flagged by semantic-reviewer; accepted as documented trade-off (prevents TOCTOU race on concurrent new submissions); comment added in ce35a31 explaining the trade-off explicitly; first occurrence; accepted pattern with required documentation — not a violation |
+| consoleSpy created without try/finally cleanup (spy leaks on test failure) | 1 | 2026-03-14 | Watch — start.test.ts and check-answer.test.ts (15ad393): consoleSpy created via vi.spyOn(console, 'error') with mockRestore() called at the end of the test body but not in a finally block; if the test throws before mockRestore(), the spy leaks console suppression into subsequent tests; the correct pattern (try/finally) was applied to quiz-submit.test.ts in the same commit but not to the other two files; suggestion-level flagging from semantic-reviewer; first occurrence; do not change test-writer memory on a single occurrence |
 
 ## Lessons Learned
 
@@ -1010,3 +1011,67 @@ Three occurrences confirms this is a systemic gap. The correct home for the fix 
 - The test in 45da072 covers both the RPC string match and the user-facing message text — two assertions for one new branch. Well-targeted.
 
 ---
+
+### 2026-03-14 — Test naming overhaul + PR 2 completion (commits 15ad393, b3ab893)
+
+**Context:** Two-commit cycle on fix/pr2-test-naming. 15ad393 renamed ~80 test titles across 14 files, split the monolithic `quiz/actions.test.ts` (300 lines) into 3 co-located per-action files (`start.test.ts`, `submit.test.ts`, `complete.test.ts`), fixed a `question-stats` mock to use distinct counts, and added `try/finally` cleanup for a consoleSpy in `quiz-submit.test.ts`. b3ab893 updated `docs/tech-debt-batches.md` to mark PR 2 as DONE and appended a future integration-test expansion roadmap section. All 4 agents reported clean on both commits.
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING — clean. Test-only commits benefit from relaxed line limits; the 3 new test files split from the 300-line monolith are all within limits.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE. 3 SUGGESTIONs — all pre-existing, none introduced by this commit.
+
+1. **SUGGESTION — consoleSpy created without try/finally in start.test.ts (15ad393):** A single test creates `vi.spyOn(console, 'error')` and calls `consoleSpy.mockRestore()` at the end of the test body. If the test throws before reaching `mockRestore()`, the spy persists into subsequent tests and silently suppresses their console output. The correct pattern is `try { ... } finally { consoleSpy.mockRestore() }`. The fix was applied to `quiz-submit.test.ts` in the same commit but not propagated to `start.test.ts` (1 spy) or `check-answer.test.ts` (8 spies). Suggestion-level — no fix in this commit. **First occurrence as a named pattern.** Logged and watched.
+
+2. **SUGGESTION — consoleSpy try/finally missing in check-answer.test.ts (15ad393):** Same pattern as above — 8 `consoleSpy` instances in `check-answer.test.ts` call `mockRestore()` inline after assertions without a `finally` guard. Pre-existing code, not introduced in this commit (15ad393 only added test name changes to that file). Counted as the same occurrence as the `start.test.ts` instance (same commit, same pattern).
+
+3. **SUGGESTION — submitQuizAnswer dual failure modes (pre-existing):** The semantic-reviewer noted that `submitQuizAnswer` in `submit.test.ts` distinguishes between a Supabase error and a zero-row insert but the user-facing message is identical for both paths, making incident diagnosis harder. Pre-existing gap not introduced by this commit. First occurrence of this specific sub-pattern. Logged and watched.
+
+**Doc updater:** Updated `docs/tech-debt-batches.md` to mark PR 2 DONE, added completion note and the integration test roadmap section. No schema, RPC, or route surface changed. Clean — no partial-doc-fix pattern.
+
+**Test writer:** Clean. 22 tests preserved and remapped correctly through the split (actions.test.ts → start, submit, complete). No coverage gaps introduced by the split. The question-stats mock fix (distinct counts total=8, correct=5) makes the test correctly fail if the `is_correct` filter is dropped — a meaningful behavioral assertion improvement.
+
+**Pattern analysis — consoleSpy try/finally (count 1, first occurrence):**
+
+The pattern: a test creates a `vi.spyOn(console, 'error').mockImplementation(() => {})` inline at the top of an `it()` body. The spy suppresses console output during the test. `consoleSpy.mockRestore()` is called at the end of the test body after assertions. If any assertion throws (test failure), `mockRestore()` is never reached, and the spy leaks console suppression to all subsequent tests in the same file, hiding their error output.
+
+The correct pattern, used in `quiz-submit.test.ts`:
+```ts
+const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+try {
+  const result = await action(...)
+  expect(consoleSpy).toHaveBeenCalledWith(...)
+} finally {
+  consoleSpy.mockRestore()
+}
+```
+
+This is a suggestion-level finding (not ISSUE): the 8 instances in `check-answer.test.ts` are type-guard rejection tests that currently pass reliably — the spy is unlikely to leak in practice because the assertions are simple equality checks that do not throw. But the pattern is fragile.
+
+**Decision:** Log and watch. Do not update test-writer patterns memory on a single occurrence. If a second commit introduces new consoleSpy instances without try/finally, or if a test failure is caused by a leaked spy, update `.claude/agent-memory/test-writer/patterns.md` with the guidance: always wrap consoleSpy usage in `try { ... } finally { consoleSpy.mockRestore() }`.
+
+**Pattern check — previously-pending RULE CANDIDATEs:**
+
+- **"Error path in existing function untested" (count 3, RULE CANDIDATE):** Not triggered — this commit touched only test files (renames, splits). No new production code paths were introduced.
+- **"consoleSpy try/finally" (new, count 1):** Logged above.
+- **"useTransition + manual loading state hybrid" (count 2, RULE CANDIDATE):** Not flagged — no state logic touched.
+- **"test-writer TS2532 unchecked array index" (count 2, RULE CANDIDATE):** Not triggered — no new array index access in generated test code.
+
+**Pending recommended changes (carried forward — not yet applied):**
+
+These recommendations from prior cycles are still awaiting orchestrator approval:
+
+1. **`.claude/agent-memory/test-writer/patterns.md`** — add note: scan every new `if (error) return` / early-return branch in files that already have a co-located test file; write the branch test in the same commit (3rd occurrence, actionable).
+2. **`.claude/agent-memory/test-writer/patterns.md`** — add note: always construct test fixtures by annotating with the exported TypeScript type (e.g., `const fixture: SubjectOption = { ... }`) to force compile-time shape validation (2nd occurrence, actionable).
+3. **`.claude/agent-memory/test-writer/patterns.md`** — add note: use optional chaining (`arr?.[i]`) or a length-gated assertion when accessing array indices in generated test assertions (2nd occurrence, actionable).
+
+**Actions taken:**
+- Frequency table: "consoleSpy created without try/finally cleanup" added at count 1, status WATCH.
+- No rule or memory changes applied — single occurrence, no threshold reached.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- All 4 agents clean on both commits. This is the second consecutive fully-clean cycle.
+- The test split (300-line monolith → 3 co-located files) is the correct structural response to a large test file and directly follows the project's co-location rule. Each new file is scoped to a single action's behavior.
+- The question-stats mock fix (distinct total=8 vs correct=5) transforms a coincidentally-passing test into a test that would fail under a real regression. This is a meaningful improvement: the original mock used identical values, so dropping the `is_correct` filter would still produce the same count and the test would not catch the bug.
+- The `try/finally` fix in `quiz-submit.test.ts` demonstrates the correct pattern being actively applied — the pattern is known and correct, just not yet propagated to all spy sites.
