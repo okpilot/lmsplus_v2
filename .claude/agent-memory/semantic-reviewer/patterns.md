@@ -4,6 +4,27 @@
 
 ## Recurring Issues
 
+### catch-all console.error logging ZodErrors as unexpected errors
+**First seen:** commit 40ce785 (2026-03-14)
+**File:** `apps/web/app/app/quiz/actions/fetch-stats.ts`
+**Pattern:** A try/catch added to a Server Action wraps both input validation
+(Zod) and internal async calls (DB, auth) under a single `console.error`.
+ZodErrors are expected validation rejections for malformed client input — they
+are not unexpected internal errors. Logging them at error level alongside real
+DB/auth failures pollutes production logs and erodes signal quality.
+**Fix pattern:** Discriminate before logging:
+```ts
+} catch (err) {
+  if (!(err instanceof ZodError)) console.error('[fn] Error:', err)
+  throw err
+}
+```
+**Watch for:** any new or modified try/catch in a Server Action or Server
+Component function where the catch block calls `console.error(err)` without
+first checking `err instanceof ZodError`. The pattern is especially risky when
+validation and async DB calls share a single try block.
+**Status:** ISSUE — flagged in 40ce785, pending fix.
+
 ### shared generation counter across independent async slots
 **First seen:** commit 57af0d6 (2026-03-13)
 **File:** `apps/web/app/app/quiz/_hooks/use-quiz-cascade.ts`
@@ -1665,3 +1686,47 @@ Migration 030 preserves the pre-existing carryover: score query counts ALL rows 
 Changing `">=7.24.0"` to `">=7.24.0 <8"` is the correct pattern for security overrides:
 minimum version for the fix, maximum version to stay within a tested major. Apply this to
 all future `pnpm.overrides` security entries.
+
+### startTransition async without try/finally — stuck isLoading state
+**First seen:** PR-level sweep 2026-03-14
+**File:** `apps/web/app/app/quiz/_components/explanation-tab.tsx` (`PreAnswerExplanation`)
+**Pattern:** `setIsLoading(true)` is called before `startTransition(async () => { ... })`.
+`setIsLoading(false)` is only called inside the callback body — no `finally` block. If the
+Server Action throws (any reason: network, uncaught exception), `startTransition` silently
+swallows the error, `setIsLoading` is never called, and the component renders the skeleton
+permanently.
+**Fix pattern:** Always wrap async Server Action calls in `try/finally` inside `startTransition`:
+```ts
+startTransition(async () => {
+  try {
+    const result = await someServerAction(...)
+    if (!cancelled) { /* update state */ }
+  } catch {
+    // action threw — handle gracefully
+  } finally {
+    if (!cancelled) setIsLoading(false)
+  }
+})
+```
+**Watch for:** Any `useEffect` or `startTransition` that calls a Server Action and sets loading
+state before the call. Check that `setIsLoading(false)` (or equivalent) is in a `finally` block,
+not only in the success body.
+**Status:** ISSUE — found in PR-level sweep 2026-03-14, pending fix.
+
+### check_quiz_answer vs batch_submit_quiz deleted_at inconsistency
+**First seen:** PR-level sweep 2026-03-14
+**Files:** `supabase/migrations/20260313000029_check_answer_session_guard.sql` (line 68),
+`supabase/migrations/20260314000031_batch_submit_idempotent_softdelete.sql` (line 143)
+**Pattern:** Two RPCs called in sequence for the same question have different `deleted_at`
+filtering. `check_quiz_answer` requires `q.deleted_at IS NULL`. `batch_submit_quiz` (031)
+intentionally removes this filter to allow scoring soft-deleted questions. When a question is
+soft-deleted between session start and the student's answer attempt, `checkAnswer` fails with
+"question not found", preventing the answer from being recorded. The permissive 031 path never
+fires for this question because the answer never reaches the answers Map.
+**Fix:** Remove `AND q.deleted_at IS NULL` from `check_quiz_answer` to match the 031 reasoning.
+Any question in the session config at session start should be answerable regardless of later
+soft-deletion.
+**Watch for:** When one RPC is hardened or loosened (e.g., deleted_at filter removed), search
+for sibling RPCs that operate on the same resource in the same flow and verify they are
+consistently updated.
+**Status:** ISSUE — found in PR-level sweep 2026-03-14, pending fix.
