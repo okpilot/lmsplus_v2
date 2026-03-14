@@ -107,6 +107,42 @@ describe('proxy', () => {
     expect(setCookie).toContain('sb-token=refreshed')
   })
 
+  it('redirects to / when authentication fails on an /app/* route', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockGetUser.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'session expired' },
+      })
+
+      const response = await proxy(makeRequest('/app/dashboard'))
+
+      expect(response.status).toBe(307)
+      expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/')
+      expect(consoleSpy).toHaveBeenCalledWith('[proxy] getUser error:', 'session expired')
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
+  it('does not redirect to /app/dashboard when authentication fails on /', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockGetUser.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'session expired' },
+      })
+
+      const response = await proxy(makeRequest('/'))
+
+      // Auth error means user is null — no authenticated redirect, fall through to login page
+      expect(response).toBe(MOCK_SESSION_RESPONSE)
+      expect(consoleSpy).toHaveBeenCalledWith('[proxy] getUser error:', 'session expired')
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
   it('redirects /?code=<pkce> to /auth/callback?code=<pkce>', async () => {
     // getUser result does not matter for this branch — code check runs before auth guard
     mockGetUser.mockResolvedValue({ data: { user: null } })

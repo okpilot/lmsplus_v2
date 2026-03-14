@@ -59,9 +59,9 @@
 
 ---
 
-## PR 4 — Security & Auth Hardening (6 issues)
+## PR 4 — Security & Auth Hardening (8 issues) — DONE
 
-*Auth checks, input sanitization, validation. Review carefully.*
+*Auth checks, input sanitization, validation. Completed 2026-03-14. Three new migrations (035-037) added soft-delete guards and option membership validation to RPCs. Auth error handling hardened across 14 files. Login form errors sanitized. Auth callback rejects null user.*
 
 | # | Title |
 |---|-------|
@@ -69,10 +69,11 @@
 | 24 | fix: handle null user after successful code exchange in auth callback |
 | 9 | Sanitize raw auth error in login form |
 | 61 | Refactor: Handle auth.getUser() errors explicitly across codebase |
-| 91 | Add per-element UUID validation for session_config.question_ids in batch_submit_quiz |
+| 91 | Add per-element UUID validation for session_config.question_ids in batch_submit_quiz (already resolved in migration 031, line 121 — UUID regex check) |
 | 90 | Validate selected_option belongs to question in batch_submit_quiz |
-| NEW | fix: add `AND deleted_at IS NULL` guard to `complete_quiz_session` RPC (allows completing a discarded session) |
-| NEW | fix: add `AND deleted_at IS NULL` guard to `submit_quiz_answer` RPC (allows submitting to a discarded session) |
+| NEW | fix: add `AND deleted_at IS NULL` guard to `complete_quiz_session` RPC (migration 035) — prevents completing a discarded session |
+| NEW | fix: add `AND deleted_at IS NULL` guard to `submit_quiz_answer` RPC (migration 036) + option membership validation — prevents submitting to discarded session, validates selected_option in question's options |
+| NEW | fix: add option membership validation to `batch_submit_quiz` RPC (migration 037) — prevents bulk-submitting arbitrary option strings |
 
 ---
 
@@ -196,7 +197,7 @@
 | 1 | Docs & comments | 10 | None | **DONE** |
 | 2 | Test naming | 9 | None | **DONE** |
 | 3 | Test coverage gaps | 4 | None | **DONE** |
-| 4 | Security & auth | 6 | Medium | Planned |
+| 4 | Security & auth | 8 | Medium | **DONE** |
 | 5 | Race conditions & async bugs | 5 | Medium | Planned |
 | 6 | Split oversized files | 10 | Low | Planned |
 | 7 | Type safety & cleanup | 7 | Low | Planned |

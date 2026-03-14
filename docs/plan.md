@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-13
+> Last updated: 2026-03-14
 
 ---
 
@@ -105,6 +105,15 @@
 - Session Zod types: SubmitRpcResult, CompleteRpcResult, StartQuizResult, SubmitQuizAnswerResult, CompleteQuizResult, BatchAnswerResult, BatchSubmitResult
 - QuizSession component displays explanation immediately after answer selection
 - Report queries: fetch answered count per session from `quiz_session_answers` for accurate scoring on partial submissions
+
+**Tech Debt PR #4 done (2026-03-14):** Security & Auth Hardening:
+- Auth error handling: explicit `getUser()` error destructuring across 14 files (10 Server Actions, proxy, layout, auth callback, fetch-stats)
+- Auth callback: now rejects null user instead of silently redirecting (closes auth bypass gap)
+- Login form: raw Supabase errors sanitized with friendly messages for users
+- Migration 035: `complete_quiz_session` RPC — added `deleted_at IS NULL` guard to prevent completing soft-deleted sessions
+- Migration 036: `submit_quiz_answer` RPC — added `deleted_at IS NULL` guard + option membership validation (prevents submitting to discarded sessions, validates selected_option exists in question's options JSONB array)
+- Migration 037: `batch_submit_quiz` RPC — added option membership validation for each answer in batch (prevents bulk-submitting arbitrary option strings)
+- Test updates: auth callback, fetch-stats mocks, login-form error assertions
 
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote

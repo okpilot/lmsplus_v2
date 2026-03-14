@@ -50,6 +50,17 @@ describe('submitQuizAnswer', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
+  it('returns failure when authentication fails', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'JWT expired' },
+    })
+    const result = await submitQuizAnswer(validInput)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Not authenticated')
+  })
+
   it('surfaces an answer submission failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'Answer not valid' } })

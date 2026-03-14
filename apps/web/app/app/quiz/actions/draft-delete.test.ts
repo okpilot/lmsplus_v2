@@ -57,6 +57,15 @@ describe('deleteDraft', () => {
     expect(result).toEqual({ success: false })
   })
 
+  it('returns failure when authentication fails', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'JWT expired' },
+    })
+    const result = await deleteDraft({ draftId: DRAFT_ID })
+    expect(result).toEqual({ success: false })
+  })
+
   it('returns failure when draftId is not a valid UUID', async () => {
     setupAuthenticatedUser()
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

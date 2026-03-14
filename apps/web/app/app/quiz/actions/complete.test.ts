@@ -38,6 +38,17 @@ describe('completeQuiz', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
+  it('returns failure when authentication fails', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'session expired' },
+    })
+    const result = await completeQuiz(validInput)
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Not authenticated')
+  })
+
   it('surfaces a quiz completion failure', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValue({ data: null, error: { message: 'Session not found' } })

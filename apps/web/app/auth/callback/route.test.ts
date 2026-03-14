@@ -96,18 +96,33 @@ describe('GET /auth/callback', () => {
     expect(location.pathname).toBe('/app/dashboard')
   })
 
-  it('redirects to /app/dashboard even when getUser returns no user after exchange', async () => {
-    // Edge case: exchange succeeds but getUser returns null user — should still redirect to dashboard
+  it('redirects to /auth/verify with auth_failed error when getUser returns no user after exchange', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: null })
     mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockSignOut.mockResolvedValue({})
 
     const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
     const response = await GET(request)
 
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/app/dashboard')
-    // signOut must NOT be called when there is no user
-    expect(mockSignOut).not.toHaveBeenCalled()
+    expect(location.pathname).toBe('/auth/verify')
+    expect(location.searchParams.get('error')).toBe('auth_failed')
+    expect(mockSignOut).toHaveBeenCalledOnce()
+  })
+
+  it('redirects to /auth/verify with auth_failed error when getUser returns an error', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'session expired' } })
+    mockSignOut.mockResolvedValue({})
+
+    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
+    const response = await GET(request)
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/auth/verify')
+    expect(location.searchParams.get('error')).toBe('auth_failed')
+    expect(mockSignOut).toHaveBeenCalledOnce()
   })
 })

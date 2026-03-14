@@ -4,6 +4,58 @@
 
 ## Recurring Issues
 
+### getUser hardening sweep — easy to miss one file (2nd occurrence)
+**First seen:** commit 83ae098 (2026-03-14)
+**File:** `apps/web/app/app/quiz/session/page.tsx`
+**Pattern:** When a commit claims to harden `getUser()` error handling "across N files",
+it is common for one file in the same directory tree to be missed. In this commit,
+`quiz/session/page.tsx` still uses `if (!user) redirect('/')` without checking `authError`,
+while every other /app/* page and layout was updated. The diff does not include the file,
+so it passes the per-file review — only a grep across the whole tree catches it.
+**Watch for:** Any commit that describes a "consistent" change across many files — always
+grep for the old pattern across the full tree, not just the diff. Command:
+  `grep -rn "getUser" apps/web --include="*.ts" --include="*.tsx" | grep -v "authError"`
+**Status:** ISSUE — flagged in 83ae098.
+
+### signOut omitted on new error branch in auth callback (1st occurrence)
+**First seen:** commit 83ae098 (2026-03-14)
+**File:** `apps/web/app/auth/callback/route.ts`
+**Pattern:** When a new early-return branch is added to the auth callback after
+`exchangeCodeForSession` succeeds, the existing `not_registered` branch's `signOut()` call
+is the reference pattern for session cleanup. New branches that redirect away without
+calling `signOut()` leave a potentially valid session cookie in the browser.
+**Watch for:** Any new redirect branch in `route.ts` that follows `exchangeCodeForSession`
+— verify `signOut()` is called before the redirect. Also verify the corresponding test
+asserts `expect(mockSignOut).toHaveBeenCalledOnce()` or `.not.toHaveBeenCalled()` to
+document intent explicitly.
+**Status:** ISSUE — flagged in 83ae098.
+
+### NULL correct_option not guarded in submit_quiz_answer but guarded in batch_submit (1st occurrence)
+**First seen:** commit 83ae098 (2026-03-14)
+**Files:** `supabase/migrations/20260314000036_submit_answer_softdelete_and_option_validation.sql`,
+           `supabase/migrations/20260314000037_batch_submit_option_validation.sql`
+**Pattern:** When two RPCs perform equivalent answer-scoring logic, a guard added to one
+(batch_submit: `IF v_correct_option IS NULL THEN RAISE...`) should be added to both.
+Migration 037 added the NULL-correct-option guard but the same-commit migration 036 did not.
+**Watch for:** Any time `submit_quiz_answer` and `batch_submit_quiz` are updated in the same
+commit — check both for behavioral parity on: NULL correct option, soft-deleted questions,
+session ended check, membership check. They must remain consistent.
+**Status:** ISSUE — flagged in 83ae098.
+
+### getUser authError split-guard pattern in discard.ts diverges from all other Server Actions
+**First seen:** commit 83ae098 (2026-03-14)
+**File:** `apps/web/app/app/quiz/actions/discard.ts`
+**Pattern:** `discard.ts` uses two separate guards with two different error strings instead
+of the combined `if (authError || !user)` pattern used by every other Server Action.
+The pre-existing inconsistency was not caught by the hardening sweep. User-visible error
+messages that differ between `authError` and `!user` cases leak Supabase internal state
+categorization unnecessarily.
+**Standard pattern (use this):**
+  `if (authError || !user) return { success: false, error: 'Not authenticated' }`
+**Watch for:** Any Server Action that returns different error strings for `authError` vs
+`!user`. They should be treated as one case from the caller's perspective.
+**Status:** ISSUE — flagged in 83ae098.
+
 ### Biome CSS formatting (trailing zeros, quote normalisation) is semantically safe
 **First seen:** commit 7216c0e (2026-03-14)
 **File:** `apps/web/app/globals.css`

@@ -45,6 +45,21 @@ describe('startQuizSession', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
+  it('returns failure when authentication fails', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'session expired' },
+    })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-0000-0000-000000000001',
+      topicId: null,
+      count: 5,
+    })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Not authenticated')
+  })
+
   it('returns failure when no questions are available', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetRandomQuestionIds.mockResolvedValue([])

@@ -82,6 +82,17 @@ describe('batchSubmitQuiz', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
+  it('returns failure when authentication fails', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'token refresh failed' },
+    })
+    const result = await batchSubmitQuiz({ sessionId: SESSION_ID, answers: VALID_ANSWERS })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Not authenticated')
+  })
+
   it('rejects unauthenticated calls before reaching Zod validation', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     const result = await batchSubmitQuiz({})

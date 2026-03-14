@@ -104,6 +104,15 @@ describe('saveDraft', () => {
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
   })
 
+  it('returns failure when authentication fails', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'session expired' },
+    })
+    const result = await saveDraft(VALID_DRAFT_INPUT)
+    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+  })
+
   it('returns failure with Zod message when input fails validation', async () => {
     setupAuthenticatedUser()
     const result = await saveDraft({ sessionId: 'not-a-uuid' })

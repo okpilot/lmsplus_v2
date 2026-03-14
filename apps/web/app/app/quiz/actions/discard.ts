@@ -17,8 +17,7 @@ export async function discardQuiz(
       data: { user },
       error: authError,
     } = await supabase.auth.getUser()
-    if (authError) return { success: false, error: 'Auth error. Please refresh.' }
-    if (!user) return { success: false, error: 'Not authenticated' }
+    if (authError || !user) return { success: false, error: 'Not authenticated' }
 
     let input: { sessionId: string; draftId?: string }
     try {

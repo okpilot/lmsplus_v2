@@ -6,6 +6,15 @@ import { z } from 'zod'
 
 const EmailSchema = z.string().email('Please enter a valid email address')
 
+// Map known Supabase error messages to user-friendly text
+const FRIENDLY_AUTH_ERRORS: Record<string, string> = {
+  'Email rate limit exceeded': 'Too many attempts. Please wait a moment and try again.',
+  'Unable to validate email address: invalid format': 'Please enter a valid email address.',
+  'Signups not allowed for otp': 'Unable to send sign-in link. Please try again.',
+  'For security purposes, you can only request this once every 60 seconds':
+    'Please wait 60 seconds before requesting another link.',
+}
+
 export function LoginForm() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -34,7 +43,9 @@ export function LoginForm() {
     setLoading(false)
 
     if (authError) {
-      setError(authError.message)
+      setError(
+        FRIENDLY_AUTH_ERRORS[authError.message] ?? 'Unable to send sign-in link. Please try again.',
+      )
       return
     }
 

@@ -140,7 +140,7 @@ describe('LoginForm', () => {
     })
   })
 
-  it('shows the Supabase error message when the OTP request fails', async () => {
+  it('shows a friendly fallback when the OTP request fails with an unknown error', async () => {
     mockSignInWithOtp.mockResolvedValue({ error: { message: 'Rate limit exceeded' } })
     const user = userEvent.setup()
     render(<LoginForm />)
@@ -148,7 +148,21 @@ describe('LoginForm', () => {
     await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
     await user.click(screen.getByRole('button', { name: /send magic link/i }))
 
-    expect(await screen.findByText(/rate limit exceeded/i)).toBeInTheDocument()
+    expect(await screen.findByText(/unable to send sign-in link/i)).toBeInTheDocument()
+    expect(assignedHrefs).toHaveLength(0)
+  })
+
+  it('shows a mapped friendly message for a known Supabase error', async () => {
+    mockSignInWithOtp.mockResolvedValue({
+      error: { message: 'Email rate limit exceeded' },
+    })
+    const user = userEvent.setup()
+    render(<LoginForm />)
+
+    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
+    await user.click(screen.getByRole('button', { name: /send magic link/i }))
+
+    expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument()
     expect(assignedHrefs).toHaveLength(0)
   })
 

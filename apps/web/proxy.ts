@@ -9,9 +9,14 @@ export async function proxy(request: NextRequest): Promise<Response> {
   )
 
   // Refresh session — must run on every request to keep tokens valid
+  // On auth error, treat as unauthenticated — proxy must not crash
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
+  if (authError) {
+    console.error('[proxy] getUser error:', authError.message)
+  }
 
   const { pathname, searchParams } = request.nextUrl
 

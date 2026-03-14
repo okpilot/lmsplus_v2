@@ -48,8 +48,9 @@ export async function loadDrafts(): Promise<LoadDraftsResult> {
     const supabase = await createServerSupabaseClient()
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser()
-    if (!user) return { drafts: [] }
+    if (authError || !user) return { drafts: [] }
 
     const { data, error } = await supabase
       .from('quiz_drafts' as 'users')

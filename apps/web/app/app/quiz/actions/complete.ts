@@ -9,8 +9,9 @@ export async function completeQuiz(raw: unknown): Promise<CompleteQuizResult> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  if (authError || !user) return { success: false, error: 'Not authenticated' }
   let input: { sessionId: string }
   try {
     input = CompleteQuizSessionSchema.parse(raw)

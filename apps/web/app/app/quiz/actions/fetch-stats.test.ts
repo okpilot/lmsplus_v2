@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ZodError } from 'zod'
 
-const { mockGetQuestionStats } = vi.hoisted(() => ({
+const { mockGetQuestionStats, mockGetUser } = vi.hoisted(() => ({
   mockGetQuestionStats: vi.fn(),
+  mockGetUser: vi.fn(),
 }))
 
 vi.mock('@/lib/queries/question-stats', () => ({
   getQuestionStats: mockGetQuestionStats,
+}))
+
+vi.mock('@repo/db/server', () => ({
+  createServerSupabaseClient: async () => ({
+    auth: { getUser: mockGetUser },
+  }),
 }))
 
 import { fetchQuestionStats } from './fetch-stats'
@@ -14,6 +21,7 @@ import { fetchQuestionStats } from './fetch-stats'
 describe('fetchQuestionStats', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
   })
 
   it('returns stats for a valid question id', async () => {
@@ -32,10 +40,10 @@ describe('fetchQuestionStats', () => {
   })
 
   it('rejects when the stats query fails', async () => {
-    mockGetQuestionStats.mockRejectedValue(new Error('Not authenticated'))
+    mockGetQuestionStats.mockRejectedValue(new Error('DB error'))
 
     await expect(fetchQuestionStats('00000000-0000-0000-0000-000000000001')).rejects.toThrow(
-      'Not authenticated',
+      'DB error',
     )
   })
 
@@ -49,6 +57,27 @@ describe('fetchQuestionStats', () => {
 
   it('short-circuits before querying when the id is invalid', async () => {
     await fetchQuestionStats('not-a-uuid').catch(() => undefined)
+    expect(mockGetQuestionStats).not.toHaveBeenCalled()
+  })
+
+  it('throws when user is not authenticated', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+
+    await expect(fetchQuestionStats('00000000-0000-0000-0000-000000000001')).rejects.toThrow(
+      'Not authenticated',
+    )
+    expect(mockGetQuestionStats).not.toHaveBeenCalled()
+  })
+
+  it('throws when authentication fails', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'session expired' },
+    })
+
+    await expect(fetchQuestionStats('00000000-0000-0000-0000-000000000001')).rejects.toThrow(
+      'Auth error',
+    )
     expect(mockGetQuestionStats).not.toHaveBeenCalled()
   })
 })

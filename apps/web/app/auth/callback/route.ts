@@ -25,29 +25,36 @@ export async function GET(request: NextRequest) {
   // Verify this user has a record in our users table (pre-created by admin)
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
 
-  if (user) {
-    const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', user.id)
-      .single()
+  if (authError || !user) {
+    // Clear any stale session cookie left by exchangeCodeForSession
+    await supabase.auth.signOut()
+    redirectTo.pathname = '/auth/verify'
+    redirectTo.searchParams.set('error', 'auth_failed')
+    return NextResponse.redirect(redirectTo)
+  }
 
-    if (profileError && profileError.code !== 'PGRST116') {
-      // Transient DB error — don't sign out, let them retry
-      console.error('[auth/callback] Profile lookup failed:', profileError.message)
-      redirectTo.pathname = '/auth/verify'
-      redirectTo.searchParams.set('error', 'profile_lookup_failed')
-      return NextResponse.redirect(redirectTo)
-    }
+  const { data: profile, error: profileError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', user.id)
+    .single()
 
-    if (!profile) {
-      await supabase.auth.signOut()
-      redirectTo.pathname = '/auth/verify'
-      redirectTo.searchParams.set('error', 'not_registered')
-      return NextResponse.redirect(redirectTo)
-    }
+  if (profileError && profileError.code !== 'PGRST116') {
+    // Transient DB error — don't sign out, let them retry
+    console.error('[auth/callback] Profile lookup failed:', profileError.message)
+    redirectTo.pathname = '/auth/verify'
+    redirectTo.searchParams.set('error', 'profile_lookup_failed')
+    return NextResponse.redirect(redirectTo)
+  }
+
+  if (!profile) {
+    await supabase.auth.signOut()
+    redirectTo.pathname = '/auth/verify'
+    redirectTo.searchParams.set('error', 'not_registered')
+    return NextResponse.redirect(redirectTo)
   }
 
   redirectTo.pathname = '/app/dashboard'

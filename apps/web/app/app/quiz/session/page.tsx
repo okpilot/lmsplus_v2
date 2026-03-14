@@ -8,8 +8,9 @@ export default async function QuizSessionPage() {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
-  if (!user) redirect('/')
+  if (authError || !user) redirect('/')
 
   return (
     <main>
