@@ -82,7 +82,7 @@ describe('batchSubmitQuiz', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
-  it('returns failure when getUser returns an auth error', async () => {
+  it('returns failure when authentication fails', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'token refresh failed' },

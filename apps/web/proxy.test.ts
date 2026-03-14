@@ -107,33 +107,40 @@ describe('proxy', () => {
     expect(setCookie).toContain('sb-token=refreshed')
   })
 
-  it('redirects to / when getUser returns an auth error on an /app/* route', async () => {
+  it('redirects to / when authentication fails on an /app/* route', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
+    try {
+      mockGetUser.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'session expired' },
+      })
 
-    const response = await proxy(makeRequest('/app/dashboard'))
+      const response = await proxy(makeRequest('/app/dashboard'))
 
-    expect(response.status).toBe(307)
-    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/')
-    expect(consoleSpy).toHaveBeenCalledWith('[proxy] getUser error:', 'session expired')
-    consoleSpy.mockRestore()
+      expect(response.status).toBe(307)
+      expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/')
+      expect(consoleSpy).toHaveBeenCalledWith('[proxy] getUser error:', 'session expired')
+    } finally {
+      consoleSpy.mockRestore()
+    }
   })
 
-  it('does not redirect to /app/dashboard when getUser returns an auth error on /', async () => {
+  it('does not redirect to /app/dashboard when authentication fails on /', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: 'session expired' },
-    })
+    try {
+      mockGetUser.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'session expired' },
+      })
 
-    const response = await proxy(makeRequest('/'))
+      const response = await proxy(makeRequest('/'))
 
-    // Auth error means user is null — no authenticated redirect, fall through to login page
-    expect(response).toBe(MOCK_SESSION_RESPONSE)
-    consoleSpy.mockRestore()
+      // Auth error means user is null — no authenticated redirect, fall through to login page
+      expect(response).toBe(MOCK_SESSION_RESPONSE)
+      expect(consoleSpy).toHaveBeenCalledWith('[proxy] getUser error:', 'session expired')
+    } finally {
+      consoleSpy.mockRestore()
+    }
   })
 
   it('redirects /?code=<pkce> to /auth/callback?code=<pkce>', async () => {

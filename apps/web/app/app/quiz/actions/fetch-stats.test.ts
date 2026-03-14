@@ -69,7 +69,7 @@ describe('fetchQuestionStats', () => {
     expect(mockGetQuestionStats).not.toHaveBeenCalled()
   })
 
-  it('throws when getUser returns an auth error', async () => {
+  it('throws when authentication fails', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'session expired' },

@@ -55,7 +55,8 @@ BEGIN
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
-    AND qs.deleted_at IS NULL;
+    AND qs.deleted_at IS NULL
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found';

@@ -57,7 +57,7 @@ describe('deleteDraft', () => {
     expect(result).toEqual({ success: false })
   })
 
-  it('returns failure when getUser returns an auth error', async () => {
+  it('returns failure when authentication fails', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'JWT expired' },

@@ -69,7 +69,7 @@
 | 24 | fix: handle null user after successful code exchange in auth callback |
 | 9 | Sanitize raw auth error in login form |
 | 61 | Refactor: Handle auth.getUser() errors explicitly across codebase |
-| 91 | Add per-element UUID validation for session_config.question_ids in batch_submit_quiz |
+| 91 | Add per-element UUID validation for session_config.question_ids in batch_submit_quiz (already resolved in migration 031, line 121 — UUID regex check) |
 | 90 | Validate selected_option belongs to question in batch_submit_quiz |
 | NEW | fix: add `AND deleted_at IS NULL` guard to `complete_quiz_session` RPC (migration 035) — prevents completing a discarded session |
 | NEW | fix: add `AND deleted_at IS NULL` guard to `submit_quiz_answer` RPC (migration 036) + option membership validation — prevents submitting to discarded session, validates selected_option in question's options |

@@ -60,7 +60,7 @@ describe('loadDrafts', () => {
     expect(result).toEqual({ drafts: [] })
   })
 
-  it('returns empty drafts when getUser returns an auth error', async () => {
+  it('returns empty drafts when authentication fails', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'session expired' },

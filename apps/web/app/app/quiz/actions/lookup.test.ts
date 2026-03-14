@@ -131,7 +131,7 @@ describe('getFilteredCount — auth and validation', () => {
     expect(result).toEqual({ count: 0 })
   })
 
-  it('returns count 0 when getUser returns an auth error', async () => {
+  it('returns count 0 when authentication fails', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'JWT expired' },
