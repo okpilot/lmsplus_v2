@@ -32,7 +32,7 @@ test.describe('Red Team: RPC Question Membership Check', () => {
       const { data: subjectB } = await adminClient
         .from('easa_subjects')
         .upsert(
-          { code: '010', name: 'Air Law', short: 'ALW', sort_order: 10 },
+          { code: '010', name: 'Air Law', short: 'ALW', sort_order: 100 },
           { onConflict: 'code' },
         )
         .select('id')
