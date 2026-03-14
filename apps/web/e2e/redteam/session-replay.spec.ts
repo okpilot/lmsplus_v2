@@ -82,6 +82,8 @@ test.describe('Red Team: Session Replay', () => {
     })
     expect(batchError).toBeNull()
     originalScore = (batchData as { score_percentage?: number })?.score_percentage ?? 0
+    expect(typeof originalScore).toBe('number')
+    expect(originalScore).toBeGreaterThanOrEqual(0)
 
     // Step 5: Replay batch_submit_quiz with a new set of answers on the completed session
     const replayAnswers = typedQuestions.map((q) => ({

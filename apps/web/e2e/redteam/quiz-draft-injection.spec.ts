@@ -116,8 +116,11 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
       }
     }
 
-    // Cleanup: remove the injected draft so it doesn't pollute other tests
-    await adminClient.from('quiz_drafts').delete().eq('id', draftId)
+    // Cleanup: soft-delete the injected draft so it doesn't pollute other tests
+    await adminClient
+      .from('quiz_drafts')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', draftId)
   })
 
   test('attacker cannot insert a draft owned by another student (student_id forgery)', async () => {

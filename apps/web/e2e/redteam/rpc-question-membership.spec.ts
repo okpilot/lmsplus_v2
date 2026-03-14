@@ -95,6 +95,13 @@ test.describe('Red Team: RPC Question Membership Check', () => {
         }
       }
     }
+
+    // Verify seed succeeded — fail fast with a clear message instead of a cryptic assertion later
+    const { data: verifySubjects } = await adminClient.from('easa_subjects').select('id').limit(2)
+    expect(
+      verifySubjects?.length,
+      'Seed failed: need at least 2 subjects for membership check test',
+    ).toBeGreaterThanOrEqual(2)
   })
 
   test('submit_quiz_answer rejects a question that does not belong to the session subject', async () => {
