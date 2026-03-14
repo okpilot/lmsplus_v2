@@ -26,6 +26,10 @@ describe('ExplanationTab', () => {
     await waitFor(() => {
       expect(screen.getByText('Pre-answer explanation.')).toBeInTheDocument()
     })
+    expect(mockFetchExplanation).toHaveBeenCalledWith({
+      questionId: 'q-1',
+      sessionId: 's-1',
+    })
   })
 
   it('shows fallback when fetch returns no explanation', async () => {

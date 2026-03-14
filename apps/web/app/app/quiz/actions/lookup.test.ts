@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -88,11 +89,11 @@ describe('fetchTopicsForSubject', () => {
   })
 
   it('throws (Zod) when the id is not a valid UUID', async () => {
-    await expect(fetchTopicsForSubject('not-a-uuid')).rejects.toThrow()
+    await expect(fetchTopicsForSubject('not-a-uuid')).rejects.toThrow(ZodError)
   })
 
   it('throws (Zod) when the id is null', async () => {
-    await expect(fetchTopicsForSubject(null)).rejects.toThrow()
+    await expect(fetchTopicsForSubject(null)).rejects.toThrow(ZodError)
   })
 })
 
@@ -113,11 +114,11 @@ describe('fetchSubtopicsForTopic', () => {
   })
 
   it('throws (Zod) when the id is not a valid UUID', async () => {
-    await expect(fetchSubtopicsForTopic('not-a-uuid')).rejects.toThrow()
+    await expect(fetchSubtopicsForTopic('not-a-uuid')).rejects.toThrow(ZodError)
   })
 
   it('throws (Zod) when the id is null', async () => {
-    await expect(fetchSubtopicsForTopic(null)).rejects.toThrow()
+    await expect(fetchSubtopicsForTopic(null)).rejects.toThrow(ZodError)
   })
 })
 
@@ -131,17 +132,21 @@ describe('getFilteredCount — auth and validation', () => {
   })
 
   it('throws (Zod) when subjectId is not a valid UUID', async () => {
-    await expect(getFilteredCount({ subjectId: 'not-a-uuid', filter: 'all' })).rejects.toThrow()
+    await expect(getFilteredCount({ subjectId: 'not-a-uuid', filter: 'all' })).rejects.toThrow(
+      ZodError,
+    )
   })
 
   it('throws (Zod) when filter is an unknown value', async () => {
-    await expect(getFilteredCount({ subjectId: SUBJECT_ID, filter: 'random' })).rejects.toThrow()
+    await expect(getFilteredCount({ subjectId: SUBJECT_ID, filter: 'random' })).rejects.toThrow(
+      ZodError,
+    )
   })
 
   it('throws (Zod) when topicId is present but not a UUID', async () => {
     await expect(
       getFilteredCount({ subjectId: SUBJECT_ID, topicId: 'bad-id', filter: 'all' }),
-    ).rejects.toThrow()
+    ).rejects.toThrow(ZodError)
   })
 
   it('treats an empty string topicId as absent (OptionalUuid preprocessor)', async () => {

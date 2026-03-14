@@ -25,7 +25,13 @@ export default defineConfig({
     {
       name: 'e2e',
       testMatch: '**/*.spec.ts',
+      testIgnore: '**/redteam/**',
       dependencies: ['setup'],
+    },
+    {
+      name: 'redteam',
+      testDir: './e2e/redteam',
+      testMatch: '**/*.spec.ts',
     },
   ],
   webServer: {

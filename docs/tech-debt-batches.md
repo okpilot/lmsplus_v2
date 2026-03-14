@@ -45,9 +45,10 @@
 
 ---
 
-## PR 3 — Test Coverage Gaps (4 issues)
+## PR 3 — Test Coverage Gaps (4 issues) — DONE
 
 *Add missing test assertions and failure-path coverage.*
+*Completed 2026-03-14. Tightened Zod assertions to use ZodError class across 8 files, added sessionId forwarding assertion, added analytics failure-path tests, split draft-delete tests into co-located file.*
 
 | # | Title |
 |---|-------|
@@ -70,6 +71,8 @@
 | 61 | Refactor: Handle auth.getUser() errors explicitly across codebase |
 | 91 | Add per-element UUID validation for session_config.question_ids in batch_submit_quiz |
 | 90 | Validate selected_option belongs to question in batch_submit_quiz |
+| NEW | fix: add `AND deleted_at IS NULL` guard to `complete_quiz_session` RPC (allows completing a discarded session) |
+| NEW | fix: add `AND deleted_at IS NULL` guard to `submit_quiz_answer` RPC (allows submitting to a discarded session) |
 
 ---
 
@@ -192,7 +195,7 @@
 |----|-------|--------|------|--------|
 | 1 | Docs & comments | 10 | None | **DONE** |
 | 2 | Test naming | 9 | None | **DONE** |
-| 3 | Test coverage gaps | 4 | None | Planned |
+| 3 | Test coverage gaps | 4 | None | **DONE** |
 | 4 | Security & auth | 6 | Medium | Planned |
 | 5 | Race conditions & async bugs | 5 | Medium | Planned |
 | 6 | Split oversized files | 10 | Low | Planned |

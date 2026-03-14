@@ -460,8 +460,9 @@ git commit
         1. code-reviewer (haiku) — diff against code-style.md
         2. doc-updater (haiku) — check docs freshness
         3. test-writer (sonnet) — find/write missing tests
-        4. learner (haiku) — detect patterns, update rules/memory
-        5. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+        4. learner (sonnet) — detect patterns, update rules/memory
+        5. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
+        6. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
     → Fix any findings → commit again → repeat until clean
 
 git push (only with user approval)
@@ -472,6 +473,7 @@ GitHub PR
     → [CodeRabbit] reviews PR against .coderabbit.yaml rules
     → [GitHub Actions ci.yml] lint + types + unit tests
     → [GitHub Actions e2e.yml] integration + E2E tests (PRs + master)
+    → [GitHub Actions redteam.yml] red-team security tests (triggered on security-sensitive paths)
 
 Context approaching limit
     → [PreCompact hook] saves HANDOVER-YYYY-MM-DD.md before compression
@@ -522,6 +524,16 @@ Weekly
 ✅ **5B-5 done:** GitHub Actions CI — `ci.yml` (PR: lint + types + tests + audit) + `e2e.yml` (PRs + master + nightly: integration + E2E with local Supabase)
 
 Test summary: 247 unit tests (32 files) + 35 integration tests + 10 E2E tests. All passing.
+
+## Phase 5B-6 (COMPLETE — 2026-03-14)
+
+✅ **Red-team security testing suite added:**
+- 9 Playwright attack vector specs: RPC question membership, cross-tenant isolation, unauthenticated server actions, audit event forgery, quiz draft injection, session replay, session race conditions, PKCE state forgery, rate limiting
+- Seed helpers for adversarial users + cross-org test fixtures
+- Separate Playwright project (redteam) with dedicated CI workflow (redteam.yml)
+- Red-team agent (sonnet) integrated into post-commit pipeline — auto-triggers on security-sensitive file changes
+- Attack surface memory system for tracking exploitation patterns
+- `/redteam` skill command for on-demand test execution
 
 ### Sprint 4 — Dashboard v4 Redesign (PLANNED — 2026-03-14)
 

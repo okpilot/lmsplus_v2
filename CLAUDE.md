@@ -153,8 +153,11 @@ Read ALL agent results. Fix any issues found. Commit fixes. Repeat until clean.
 Then run:
 5. **learner** (sonnet) — reads all agents' findings, identifies patterns, updates rules/memory
 
+If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts, security.md), also run:
+6. **red-team** (sonnet) — maps diff to red-team specs, flags coverage gaps. If specs are affected, run `pnpm --filter @repo/web e2e:redteam`
+
 If rules changed (code-style.md, security.md, biome.json), also run:
-6. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
+7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
 
 Never push without all agents reporting clean.
 

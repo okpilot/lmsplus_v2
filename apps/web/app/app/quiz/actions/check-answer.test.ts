@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -100,19 +101,19 @@ describe('checkAnswer', () => {
         selectedOptionId: CORRECT_OPTION_ID,
         sessionId: SESSION_ID,
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow(ZodError)
   })
 
   it('rejects an empty selected option id', async () => {
     setupAuthenticatedUser()
     await expect(
       checkAnswer({ questionId: QUESTION_ID, selectedOptionId: '', sessionId: SESSION_ID }),
-    ).rejects.toThrow()
+    ).rejects.toThrow(ZodError)
   })
 
   it('rejects input missing required fields', async () => {
     setupAuthenticatedUser()
-    await expect(checkAnswer({})).rejects.toThrow()
+    await expect(checkAnswer({})).rejects.toThrow(ZodError)
   })
 
   it('returns failure when session does not belong to user', async () => {

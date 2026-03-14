@@ -192,6 +192,14 @@ ORDER BY tablename, policyname;
 -- Never a policy with cmd = NULL (that's ALL operations!)
 ```
 
+### Red-Team Testing
+After schema or Server Action changes, verify RLS actually enforces tenant isolation:
+```bash
+pnpm --filter @repo/web e2e:redteam
+```
+
+This runs a suite of adversarial tests that exploit cross-tenant access, RLS bypass, session forgery, and other attack vectors. If a test fails, the defense doesn't hold — treat as blocking.
+
 ---
 
 ## 4. Correct Answer Stripping (Critical)
@@ -440,10 +448,9 @@ ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "audit_no_update" ON audit_events FOR UPDATE USING (false);
 CREATE POLICY "audit_no_delete" ON audit_events FOR DELETE USING (false);
-CREATE POLICY "audit_insert_own_org" ON audit_events
-  FOR INSERT WITH CHECK (
-    organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
-  );
+-- Block all direct client INSERTs. Only SECURITY DEFINER RPCs can write audit events.
+CREATE POLICY "audit_no_direct_insert" ON audit_events
+  FOR INSERT WITH CHECK (false);
 CREATE POLICY "audit_read_instructors" ON audit_events
   FOR SELECT USING (
     organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())
@@ -556,4 +563,4 @@ These are covered by Supabase infrastructure — no additional work needed:
 
 ---
 
-*Last updated: 2026-03-13 | Owner: Claude (security-auditor agent reviews every push)*
+*Last updated: 2026-03-14 | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*
