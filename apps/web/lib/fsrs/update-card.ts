@@ -39,7 +39,7 @@ export async function updateFsrsCard(
     .select(
       'due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, last_review, last_was_correct, consecutive_correct_count',
     )
-    // Cast required: `.returns<FsrsCardRow[]>()` above changes the query's intermediate
+    // Cast required: `.returns<FsrsCardRow[]>()` below changes the query's intermediate
     // type, so `.eq()` loses column-name inference from the generated schema. Without
     // the cast, TypeScript rejects any string as the column name parameter.
     .eq('student_id' as string & keyof never, userId)

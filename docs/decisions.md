@@ -436,7 +436,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Migration `20260312000016_analytics_rpcs_param_clamp.sql` adds parameter validation:
   - `get_daily_activity` p_days clamped to [1, 365] — raises exception if out of range (prevents negative days, year+ span queries)
   - `get_subject_scores` p_limit clamped to [1, 100] — raises exception if out of range (prevents unbounded result sets, matches app-side limit)
-  - Both RPCs use a two-layer identity guard: (1) `IF auth.uid() IS NULL` raises `'not authenticated'` for callers with no session, (2) `IF auth.uid() IS DISTINCT FROM p_student_id` raises `'forbidden'` for authenticated callers who aren't the target student. The `IS DISTINCT FROM` operator replaces the original `!=` — in SQL, `NULL != value` evaluates to NULL (not TRUE), silently passing the guard. `IS DISTINCT FROM` treats NULL as a concrete value, closing that gap.
+  - Migration 16 replaces `!=` with `IS DISTINCT FROM` in the identity check (layer 2, alongside the `IS NULL` guard from migration 14). In SQL, `NULL != value` evaluates to NULL (not TRUE), silently passing the guard. `IS DISTINCT FROM` treats NULL as a concrete value, closing that gap.
 - Validates at the SQL layer to prevent bypassing app-side guards, ensures consistent behavior across clients
 
 ---
