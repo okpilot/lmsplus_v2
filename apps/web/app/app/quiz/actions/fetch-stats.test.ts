@@ -15,7 +15,7 @@ describe('fetchQuestionStats', () => {
     vi.resetAllMocks()
   })
 
-  it('delegates to getQuestionStats and returns its result', async () => {
+  it('returns stats for a valid question id', async () => {
     const stats = {
       timesSeen: 5,
       correctCount: 3,
@@ -30,7 +30,7 @@ describe('fetchQuestionStats', () => {
     expect(result).toEqual(stats)
   })
 
-  it('propagates errors thrown by getQuestionStats', async () => {
+  it('rejects when the stats query fails', async () => {
     mockGetQuestionStats.mockRejectedValue(new Error('Not authenticated'))
 
     await expect(fetchQuestionStats('00000000-0000-0000-0000-000000000001')).rejects.toThrow(
@@ -38,15 +38,15 @@ describe('fetchQuestionStats', () => {
     )
   })
 
-  it('throws a ZodError when questionId is not a valid UUID', async () => {
+  it('rejects a non-UUID question id', async () => {
     await expect(fetchQuestionStats('not-a-uuid')).rejects.toThrow()
   })
 
-  it('throws a ZodError when questionId is an empty string', async () => {
+  it('rejects an empty question id', async () => {
     await expect(fetchQuestionStats('')).rejects.toThrow()
   })
 
-  it('does not call getQuestionStats when UUID validation fails', async () => {
+  it('short-circuits before querying when the id is invalid', async () => {
     await fetchQuestionStats('not-a-uuid').catch(() => undefined)
     expect(mockGetQuestionStats).not.toHaveBeenCalled()
   })

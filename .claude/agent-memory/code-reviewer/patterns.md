@@ -10,6 +10,65 @@
   - Commit f0f8d0e extracted `useQuestionStats()` hook + `ChartBody` component, bringing `statistics-tab.tsx` to exactly 150 lines (limit), split `activity-chart.tsx` into two helper functions
   - Pattern: Extracting hooks for stateful logic + extracting sub-components for presentation is working well; file sizes stabilizing after refactors
 - **Session ownership guard pattern established**: Commit 7ae13b6 demonstrates defense-in-depth security pattern for answer checking. Session ownership verified in both Server Action boundary AND RPC layer. Pattern: dual-layer auth guards on sensitive operations.
+- **Test naming convention solidified (2026-03-14)**: Behavior-focused test naming is now the standard. Commit 15ad393 successfully renamed ~80 test titles across 14 files to describe user-visible behavior instead of implementation details. This pattern is establishing itself as the norm across the test suite.
+
+## Session 2026-03-14 (commit 15ad393) — Test refactoring: Behavior-focused naming + file split (CLEAN)
+
+### Commit: 15ad393 (test: rename implementation-focused test names to behavior-focused)
+- Status: **CLEAN** — No violations
+- Files changed: 14 files, 446 insertions, 390 deletions
+- Summary: Rename ~80 test titles across 14 files to describe behavior instead of implementation details. Split monolithic quiz/actions.test.ts (300 lines) into 3 co-located per-action test files (start.test.ts, submit.test.ts, complete.test.ts). Fix question-stats mock to use distinct counts. Add try/finally for console.error spy cleanup.
+
+**✅ All checks PASS:**
+- ✓ File sizes (test files, exempt from line limits):
+  - Deleted: apps/web/app/app/quiz/actions.test.ts (300 lines) ✓
+  - Created: start.test.ts (125 lines) ✓
+  - Created: submit.test.ts (139 lines) ✓
+  - Created: complete.test.ts (84 lines) ✓
+  - Largest modified test file: draft.test.ts (580 lines, acceptable for tests) ✓
+- ✓ File organization:
+  - All new test files co-located with their source files (start.ts, submit.ts, complete.ts) ✓
+  - No barrel index.ts files created ✓
+  - No new directories created ✓
+- ✓ Test naming (Section 7, Rule 4: describe behavior, not implementation):
+  - "calls updateFsrsState" → "updates spaced repetition schedule" ✓
+  - "returns success result from batchSubmitQuiz on happy path" → "returns success after submitting all answers" ✓
+  - "throws a ZodError when questionId is not a valid UUID" → "rejects a non-UUID question id" ✓
+  - "ignores a second answer selection (re-entry guard)" → "ignores a second answer for an already-answered question" ✓
+  - "returns failure when RPC data is a non-null primitive (type guard rejects it)" → "returns failure when RPC returns a non-null primitive" ✓
+  - "logs via console.error when draft cleanup fails" → "logs error when draft cleanup fails after successful submit" ✓
+  - All 80+ renames follow the pattern: present-tense, user-facing behavior, no mention of impl details ✓
+- ✓ Test structure:
+  - `vi.hoisted()` mock pattern maintained consistently across all test files ✓
+  - `vi.resetAllMocks()` in beforeEach ✓
+  - Consistent test comment sections (Mocks, Subject, Tests/Fixtures) ✓
+  - Type narrowing in expectations: `if (result.success) return` pattern prevents assertion on wrong type ✓
+- ✓ Test improvements:
+  - Mock fixture: question-stats.test.ts updated to use distinct counts (total=8, correct=5) to catch filter violations ✓
+  - Spy cleanup: quiz-submit.test.ts now uses try/finally for console.error spy cleanup (prevents spy leak across tests) ✓
+- ✓ No code changes:
+  - This commit is test-only; no production code modified
+  - No new utilities, hooks, or components — no test coverage gap
+  - No type safety issues; no new `any` types introduced
+
+**Testing pattern observation:**
+- The behavior-focused naming convention is now the established standard. Commit examples show mature test authorship:
+  - Test names answer "what does this function do?" not "what does this test exercise?"
+  - Spy assertions paired with behavior expectations (e.g., "log error when draft cleanup fails" includes both spy assertion and success path check)
+  - Edge cases described as outcomes, not mechanisms (e.g., "returns failure when RPC returns non-null primitive" not "type guard rejects non-null primitive")
+- This represents a shift from implementation-testing to behavior-testing, which is the correct TDD approach.
+
+**File organization pattern:**
+- The monolithic test file split is an example of the "one test file per source file" pattern (code-style.md Section 7, Rule 2). This structure makes tests easier to locate, maintain, and review as individual actions grow.
+- Co-location works well: developers modifying start.ts naturally see start.test.ts and keep them in sync.
+
+**Positive patterns in this commit:**
+- Consistent mock setup across all new files (vi.hoisted pattern)
+- Behavioral test names are self-documenting
+- No test logic overhead; assertions directly match test names
+- Mock fixtures clearly separated from test execution
+
+---
 
 ## Session 2026-03-13 (commit e41807f) — Null guards + scope re-fetch (CLEAN)
 

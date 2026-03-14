@@ -75,7 +75,7 @@ beforeEach(() => {
 // ---- submitQuizSession ---------------------------------------------------
 
 describe('submitQuizSession', () => {
-  it('returns success result from batchSubmitQuiz on happy path', async () => {
+  it('returns success after submitting all answers', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
 
     const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS)
@@ -88,7 +88,7 @@ describe('submitQuizSession', () => {
     }
   })
 
-  it('passes answers as an array with correct shape to batchSubmitQuiz', async () => {
+  it('formats answers as the expected array shape', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
 
     await submitQuizSession(SESSION_ID, TWO_ANSWERS)
@@ -102,7 +102,7 @@ describe('submitQuizSession', () => {
     })
   })
 
-  it('calls deleteDraft with draftId after a successful submit when draftId is provided', async () => {
+  it('cleans up saved draft after successful submission', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
 
@@ -112,7 +112,7 @@ describe('submitQuizSession', () => {
     expect(mockDeleteDraft).toHaveBeenCalledTimes(1)
   })
 
-  it('does not call deleteDraft when no draftId is provided', async () => {
+  it('skips draft cleanup when no draft exists', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
 
     await submitQuizSession(SESSION_ID, TWO_ANSWERS)
@@ -120,7 +120,7 @@ describe('submitQuizSession', () => {
     expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
 
-  it('returns failure when batchSubmitQuiz reports an error', async () => {
+  it('returns failure when batch submission fails', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({
       success: false,
       error: 'session not found',
@@ -132,7 +132,7 @@ describe('submitQuizSession', () => {
     if (!result.success) expect(result.error).toBe('session not found')
   })
 
-  it('does not call deleteDraft when batchSubmitQuiz fails', async () => {
+  it('preserves saved draft when submission fails', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session not found' })
     const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
 
@@ -141,7 +141,7 @@ describe('submitQuizSession', () => {
     expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
 
-  it('returns generic failure when batchSubmitQuiz throws', async () => {
+  it('returns generic failure when submission throws unexpectedly', async () => {
     mockBatchSubmitQuiz.mockRejectedValue(new Error('network error'))
 
     const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS)
@@ -150,7 +150,7 @@ describe('submitQuizSession', () => {
     if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
   })
 
-  it('handles an empty answers map', async () => {
+  it('submits an empty answers list when no answers recorded', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'No answers' })
 
     const result = await submitQuizSession(SESSION_ID, new Map())
@@ -162,33 +162,36 @@ describe('submitQuizSession', () => {
     expect(result.success).toBe(false)
   })
 
-  it('logs via console.error when draft cleanup fails after successful submit', async () => {
+  it('logs error when draft cleanup fails after successful submit', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const cleanupError = new Error('draft cleanup network failure')
     mockDeleteDraft.mockRejectedValue(cleanupError)
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
 
-    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
+    try {
+      const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
 
-    // Submit still succeeds despite cleanup failure
-    expect(result.success).toBe(true)
+      // Submit still succeeds despite cleanup failure
+      expect(result.success).toBe(true)
 
-    // Fire-and-forget: give the microtask queue time to reject
-    await Promise.resolve()
+      // Fire-and-forget: give the microtask queue time to reject
+      await Promise.resolve()
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[submitQuizSession] Draft cleanup failed:',
-      cleanupError,
-    )
-    consoleSpy.mockRestore()
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[submitQuizSession] Draft cleanup failed:',
+        cleanupError,
+      )
+    } finally {
+      consoleSpy.mockRestore()
+    }
   })
 })
 
 // ---- saveQuizDraft -------------------------------------------------------
 
 describe('saveQuizDraft', () => {
-  it('calls saveDraft with serialised answers and currentIndex', async () => {
+  it('saves serialised answers and current position', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     await saveQuizDraft({
@@ -210,7 +213,7 @@ describe('saveQuizDraft', () => {
     })
   })
 
-  it('redirects to /app/quiz when saveDraft succeeds', async () => {
+  it('redirects to quiz page after saving', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     const result = await saveQuizDraft({
@@ -225,7 +228,7 @@ describe('saveQuizDraft', () => {
     expect(result.success).toBe(true)
   })
 
-  it('returns failure and does not redirect when saveDraft reports an error', async () => {
+  it('stays on page when save fails', async () => {
     mockSaveDraft.mockResolvedValue({ success: false, error: 'Failed to save draft' })
 
     const result = await saveQuizDraft({
@@ -241,7 +244,7 @@ describe('saveQuizDraft', () => {
     if (!result.success) expect(result.error).toBe('Failed to save draft')
   })
 
-  it('converts answers Map to a plain object for saveDraft', async () => {
+  it('serialises answers Map to a plain object', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     await saveQuizDraft({
@@ -258,7 +261,7 @@ describe('saveQuizDraft', () => {
     expect(called.answers[Q1_ID]).toEqual({ selectedOptionId: 'opt-b', responseTimeMs: 800 })
   })
 
-  it('forwards subjectName and subjectCode to saveDraft when provided', async () => {
+  it('includes subject metadata when saving', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     await saveQuizDraft({
@@ -279,7 +282,7 @@ describe('saveQuizDraft', () => {
     )
   })
 
-  it('omits subjectName and subjectCode from saveDraft when not provided', async () => {
+  it('omits subject metadata when not provided', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     await saveQuizDraft({
@@ -312,7 +315,7 @@ describe('handleSubmitSession', () => {
     }
   }
 
-  it('sets error and returns early when answers map is empty', async () => {
+  it('shows error when submitting with no answers', async () => {
     const opts = makeOpts({ answers: new Map() })
     await handleSubmitSession(opts)
     expect(opts.setError).toHaveBeenCalledWith('No answers to submit.')
@@ -320,7 +323,7 @@ describe('handleSubmitSession', () => {
     expect(mockBatchSubmitQuiz).not.toHaveBeenCalled()
   })
 
-  it('calls onSuccess and navigates to report on successful submit', async () => {
+  it('navigates to report page after successful submission', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const opts = makeOpts()
     await handleSubmitSession(opts)
@@ -329,7 +332,7 @@ describe('handleSubmitSession', () => {
     expect(opts.setError).toHaveBeenCalledWith(null)
   })
 
-  it('sets error and clears submitting state when submit fails', async () => {
+  it('shows error and stops loading when submission fails', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session discarded' })
     const opts = makeOpts()
     await handleSubmitSession(opts)
@@ -339,7 +342,7 @@ describe('handleSubmitSession', () => {
     expect(opts.router.push).not.toHaveBeenCalled()
   })
 
-  it('sets submitting true and clears error before calling batchSubmitQuiz', async () => {
+  it('shows loading state before submitting', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const setSubmittingOrder: boolean[] = []
     const setErrorOrder: Array<string | null> = []
@@ -372,7 +375,7 @@ describe('handleSaveSession', () => {
     }
   }
 
-  it('sets submitting true and clears error before calling saveDraft', async () => {
+  it('shows loading state before saving', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
     const opts = makeOpts()
     await handleSaveSession(opts)
@@ -380,7 +383,7 @@ describe('handleSaveSession', () => {
     expect(opts.setError).toHaveBeenCalledWith(null)
   })
 
-  it('does not set error or reset submitting when save succeeds', async () => {
+  it('clears without error when save succeeds', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
     const opts = makeOpts()
     await handleSaveSession(opts)
@@ -390,7 +393,7 @@ describe('handleSaveSession', () => {
     expect(errorStrings).toHaveLength(0)
   })
 
-  it('sets error and resets submitting when save fails', async () => {
+  it('shows error and stops loading when save fails', async () => {
     mockSaveDraft.mockResolvedValue({ success: false, error: 'draft limit reached' })
     const opts = makeOpts()
     await handleSaveSession(opts)
@@ -398,7 +401,7 @@ describe('handleSaveSession', () => {
     expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
   })
 
-  it('maps questions array to questionIds for saveDraft', async () => {
+  it('extracts question ids from questions array for saving', async () => {
     mockSaveDraft.mockResolvedValue({ success: true })
     const opts = makeOpts()
     await handleSaveSession(opts)
@@ -421,7 +424,7 @@ describe('handleDiscardSession', () => {
     }
   }
 
-  it('sets submitting true and clears error before discarding', async () => {
+  it('shows loading state before discarding', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts()
     await handleDiscardSession(opts)
@@ -429,14 +432,14 @@ describe('handleDiscardSession', () => {
     expect(opts.setError).toHaveBeenCalledWith(null)
   })
 
-  it('navigates away when discard succeeds', async () => {
+  it('navigates to quiz page after discarding', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts()
     await handleDiscardSession(opts)
     expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
   })
 
-  it('sets error and resets submitting when discard fails', async () => {
+  it('shows error and stops loading when discard fails', async () => {
     mockDiscardQuiz.mockResolvedValue({ success: false, error: 'already discarded' })
     const opts = makeOpts()
     await handleDiscardSession(opts)
@@ -444,7 +447,7 @@ describe('handleDiscardSession', () => {
     expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
   })
 
-  it('sets error and resets submitting when discardQuiz throws', async () => {
+  it('shows error and stops loading when discard throws unexpectedly', async () => {
     mockDiscardQuiz.mockRejectedValue(new Error('network failure'))
     const opts = makeOpts()
     await handleDiscardSession(opts)
@@ -452,7 +455,7 @@ describe('handleDiscardSession', () => {
     expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
   })
 
-  it('passes draftId through to discardQuiz', async () => {
+  it('includes draft id when discarding', async () => {
     const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ draftId: DRAFT_ID })

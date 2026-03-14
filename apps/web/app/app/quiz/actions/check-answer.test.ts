@@ -92,7 +92,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
-  it('throws a ZodError when questionId is not a valid UUID', async () => {
+  it('rejects a non-UUID question id', async () => {
     setupAuthenticatedUser()
     await expect(
       checkAnswer({
@@ -103,14 +103,14 @@ describe('checkAnswer', () => {
     ).rejects.toThrow()
   })
 
-  it('throws a ZodError when selectedOptionId is an empty string', async () => {
+  it('rejects an empty selected option id', async () => {
     setupAuthenticatedUser()
     await expect(
       checkAnswer({ questionId: QUESTION_ID, selectedOptionId: '', sessionId: SESSION_ID }),
     ).rejects.toThrow()
   })
 
-  it('throws a ZodError when raw input is missing required fields', async () => {
+  it('rejects input missing required fields', async () => {
     setupAuthenticatedUser()
     await expect(checkAnswer({})).rejects.toThrow()
   })
@@ -147,7 +147,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not in session')
   })
 
-  it('returns failure when question_ids in config is null (Array.isArray guard)', async () => {
+  it('returns failure when question_ids in config is null', async () => {
     setupAuthenticatedUser()
     mockFrom.mockReturnValue(buildSessionChain({ data: { config: { question_ids: null } } }))
 
@@ -162,7 +162,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not in session')
   })
 
-  it('returns failure when question_ids in config is a plain string (Array.isArray guard)', async () => {
+  it('returns failure when question_ids in config is a plain string', async () => {
     setupAuthenticatedUser()
     mockFrom.mockReturnValue(buildSessionChain({ data: { config: { question_ids: QUESTION_ID } } }))
 
@@ -177,7 +177,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not in session')
   })
 
-  it('returns failure when config itself is null (Array.isArray guard)', async () => {
+  it('returns failure when config itself is null', async () => {
     setupAuthenticatedUser()
     mockFrom.mockReturnValue(buildSessionChain({ data: { config: null } }))
 
@@ -231,7 +231,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not found')
   })
 
-  it('returns failure when RPC data is a non-null primitive (type guard rejects it)', async () => {
+  it('returns failure when RPC returns a non-null primitive', async () => {
     setupAuthenticatedUser()
     setupValidSession()
     mockRpc.mockResolvedValue({ data: 'unexpected-string', error: null })
@@ -249,7 +249,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not found')
   })
 
-  it('returns failure when RPC data is missing is_correct field (type guard rejects it)', async () => {
+  it('returns failure when RPC response is missing is_correct field', async () => {
     setupAuthenticatedUser()
     setupValidSession()
     mockRpc.mockResolvedValue({
@@ -275,7 +275,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not found')
   })
 
-  it('returns failure when RPC data has is_correct as a string instead of boolean (type guard rejects it)', async () => {
+  it('returns failure when RPC returns is_correct as a string instead of boolean', async () => {
     setupAuthenticatedUser()
     setupValidSession()
     mockRpc.mockResolvedValue({
@@ -301,7 +301,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not found')
   })
 
-  it('returns failure when RPC data has correct_option_id as null instead of string (type guard rejects it)', async () => {
+  it('returns failure when RPC returns correct_option_id as null instead of string', async () => {
     setupAuthenticatedUser()
     setupValidSession()
     mockRpc.mockResolvedValue({
@@ -327,7 +327,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not found')
   })
 
-  it('returns failure when RPC data has explanation_text as a number instead of string or null (type guard rejects it)', async () => {
+  it('returns failure when RPC returns explanation_text as a number instead of string or null', async () => {
     setupAuthenticatedUser()
     setupValidSession()
     mockRpc.mockResolvedValue({
@@ -353,7 +353,7 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Question not found')
   })
 
-  it('returns failure when RPC data has explanation_image_url as a number instead of string or null (type guard rejects it)', async () => {
+  it('returns failure when RPC returns explanation_image_url as a number instead of string or null', async () => {
     setupAuthenticatedUser()
     setupValidSession()
     mockRpc.mockResolvedValue({
@@ -463,7 +463,7 @@ describe('checkAnswer', () => {
     expect(result.explanationImageUrl).toBeNull()
   })
 
-  it('calls the check_quiz_answer RPC with correct parameters', async () => {
+  it('sends correct parameters to the answer-checking RPC', async () => {
     setupAuthenticatedUser()
     setupValidSession()
     mockRpc.mockResolvedValue({ data: RPC_SUCCESS_CORRECT, error: null })

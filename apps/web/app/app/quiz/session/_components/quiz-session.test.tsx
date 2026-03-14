@@ -221,7 +221,7 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('question-number')).toHaveTextContent('1')
   })
 
-  it('stores answer in state without calling batchSubmitQuiz', () => {
+  it('stores answer in state without submitting to server', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
     fireEvent.click(screen.getByTestId('option-a'))
     expect(mockBatchSubmitQuiz).not.toHaveBeenCalled()
@@ -287,7 +287,7 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('dialog-answered')).toHaveTextContent('2')
   })
 
-  it('calls batchSubmitQuiz on submit and redirects to report page', async () => {
+  it('submits all answers and redirects to report page', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({
       success: true,
       totalQuestions: 3,
@@ -322,7 +322,7 @@ describe('QuizSession', () => {
     })
   })
 
-  it('shows error when batchSubmitQuiz fails', async () => {
+  it('shows error when batch submission fails', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({
       success: false,
       error: 'Server error occurred',
