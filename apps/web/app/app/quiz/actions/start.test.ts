@@ -112,14 +112,20 @@ describe('startQuizSession', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetRandomQuestionIds.mockRejectedValue(new Error('unexpected DB failure'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await startQuizSession({
-      subjectId: '00000000-0000-0000-0000-000000000001',
-      topicId: null,
-      count: 5,
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
-    expect(consoleSpy).toHaveBeenCalledWith('[startQuizSession] Uncaught error:', expect.any(Error))
-    consoleSpy.mockRestore()
+    try {
+      const result = await startQuizSession({
+        subjectId: '00000000-0000-0000-0000-000000000001',
+        topicId: null,
+        count: 5,
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[startQuizSession] Uncaught error:',
+        expect.any(Error),
+      )
+    } finally {
+      consoleSpy.mockRestore()
+    }
   })
 })
