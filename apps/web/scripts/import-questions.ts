@@ -82,6 +82,15 @@ function createAdminClient() {
     console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
     process.exit(1)
   }
+
+  const isLocal = url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')
+  if (!isLocal && !process.argv.includes('--force-remote')) {
+    console.error(
+      `Refusing to run against non-local Supabase URL: ${url}\nPass --force-remote to override this safety check.`,
+    )
+    process.exit(1)
+  }
+
   return createClient(url, key)
 }
 
@@ -424,7 +433,15 @@ async function main() {
   await ensureBucket(db)
   console.log()
 
-  // Resolve refs (subject/topic/subtopic) — do once since all questions share them
+  // Validate all questions share the same subject before resolving refs once
+  const subjects = new Set(questions.map((q) => q.subject))
+  if (subjects.size > 1) {
+    console.error(
+      `Questions reference multiple subjects: ${[...subjects].join(', ')}.\nImport one subject per file. Split the JSON and re-run.`,
+    )
+    process.exit(1)
+  }
+
   console.log('Reference data:')
   const refs = await resolveRefs(db, questions[0], folderMeta)
   console.log(`  Subject: ${questions[0].subject} → ${refs.subjectId}`)
