@@ -21,7 +21,6 @@ export function SessionRunner({
   const s = useSessionState({ sessionId, questions, onSubmitAnswer, onComplete })
   const question = questions[s.currentIndex]
   if (!question) return null
-
   if (s.state === 'complete') {
     return (
       <SessionSummary
@@ -32,7 +31,6 @@ export function SessionRunner({
       />
     )
   }
-
   return (
     <ActiveSession
       question={question}

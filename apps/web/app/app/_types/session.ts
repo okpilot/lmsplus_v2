@@ -26,3 +26,12 @@ export type SubmitInput = {
   selectedOptionId: string
   responseTimeMs: number
 }
+
+export type SessionState = 'answering' | 'feedback' | 'complete'
+
+export type UseSessionStateOpts = {
+  sessionId: string
+  questions: SessionQuestion[]
+  onSubmitAnswer: (input: SubmitInput) => Promise<AnswerResult>
+  onComplete: (input: { sessionId: string }) => Promise<CompleteResult>
+}

@@ -7,6 +7,29 @@ import type { QuizState } from '../_hooks/use-quiz-state'
 import { QuizControls } from './quiz-controls'
 import { QuizTabContent } from './quiz-tab-content'
 
+type QuizProgressBarProps = {
+  answeredCount: number
+  totalQuestions: number
+}
+
+function QuizProgressBar({ answeredCount, totalQuestions }: QuizProgressBarProps) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-1.5 flex-1 rounded-full bg-muted">
+        <div
+          data-testid="progress-bar"
+          className="h-1.5 rounded-full bg-primary transition-all"
+          style={{ width: `${(answeredCount / totalQuestions) * 100}%` }}
+        />
+      </div>
+      <span className="text-xs text-muted-foreground">
+        {answeredCount}/{totalQuestions}
+      </span>
+      <SessionTimer />
+    </div>
+  )
+}
+
 type QuizMainPanelProps = {
   s: QuizState
   sessionId: string
@@ -25,19 +48,7 @@ export function QuizMainPanel({
   if (!s.question) return null
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="h-1.5 flex-1 rounded-full bg-muted">
-          <div
-            data-testid="progress-bar"
-            className="h-1.5 rounded-full bg-primary transition-all"
-            style={{ width: `${(s.answeredCount / totalQuestions) * 100}%` }}
-          />
-        </div>
-        <span className="text-xs text-muted-foreground">
-          {s.answeredCount}/{totalQuestions}
-        </span>
-        <SessionTimer />
-      </div>
+      <QuizProgressBar answeredCount={s.answeredCount} totalQuestions={totalQuestions} />
       <QuestionCard
         questionText={s.question.question_text}
         questionImageUrl={s.question.question_image_url}

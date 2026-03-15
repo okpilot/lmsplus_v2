@@ -1,6 +1,29 @@
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuizNavBar } from './quiz-nav-bar'
 
+type PinToggleButtonProps = {
+  isPinned: boolean
+  onTogglePin: () => void
+}
+
+function PinToggleButton({ isPinned, onTogglePin }: PinToggleButtonProps) {
+  return (
+    <button
+      type="button"
+      data-testid="pin-button"
+      onClick={onTogglePin}
+      className={
+        isPinned
+          ? 'rounded-lg border border-yellow-400 bg-yellow-100 px-3 py-2 text-sm font-medium text-yellow-700 transition-colors dark:border-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+          : 'rounded-lg border border-input px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted'
+      }
+      aria-pressed={isPinned}
+    >
+      {isPinned ? 'Unpin' : 'Pin'}
+    </button>
+  )
+}
+
 type QuizControlsProps = {
   isPinned: boolean
   currentIndex: number
@@ -37,19 +60,7 @@ export function QuizControls({
   return (
     <>
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          data-testid="pin-button"
-          onClick={onTogglePin}
-          className={
-            isPinned
-              ? 'rounded-lg border border-yellow-400 bg-yellow-100 px-3 py-2 text-sm font-medium text-yellow-700 transition-colors dark:border-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
-              : 'rounded-lg border border-input px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted'
-          }
-          aria-pressed={isPinned}
-        >
-          {isPinned ? 'Unpin' : 'Pin'}
-        </button>
+        <PinToggleButton isPinned={isPinned} onTogglePin={onTogglePin} />
         <div className="flex-1">
           <QuizNavBar
             currentIndex={currentIndex}

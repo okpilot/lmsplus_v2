@@ -1,9 +1,9 @@
 'use client'
 
 import type { SessionQuestion } from '@/app/app/_types/session'
-import { useEffect, useState } from 'react'
 import { QuestionGrid } from '../../_components/question-grid'
 import type { DraftAnswer } from '../../types'
+import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { QuizMainPanel } from './quiz-main-panel'
 
@@ -19,14 +19,7 @@ type QuizSessionProps = {
 
 export function QuizSession(props: QuizSessionProps) {
   const s = useQuizState(props)
-  const [activeTab, setActiveTab] = useState<
-    'question' | 'explanation' | 'comments' | 'statistics'
-  >('question')
-  // Reset tab on question navigation — not data fetching
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger on index change
-  useEffect(() => {
-    setActiveTab('question')
-  }, [s.currentIndex])
+  const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
   if (!s.question) return null
 
   return (

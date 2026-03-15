@@ -1,18 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { AnswerResult, CompleteResult, SessionQuestion, SubmitInput } from '../_types/session'
+import type { AnswerResult, SessionState, UseSessionStateOpts } from '../_types/session'
 import { executeComplete, executeSubmit } from './session-operations'
 
-export function useSessionState(opts: {
-  sessionId: string
-  questions: SessionQuestion[]
-  onSubmitAnswer: (input: SubmitInput) => Promise<AnswerResult>
-  onComplete: (input: { sessionId: string }) => Promise<CompleteResult>
-}) {
+export function useSessionState(opts: UseSessionStateOpts) {
   const { sessionId, questions, onSubmitAnswer, onComplete } = opts
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [state, setState] = useState<'answering' | 'feedback' | 'complete'>('answering')
+  const [state, setState] = useState<SessionState>('answering')
   const [feedback, setFeedback] = useState<AnswerResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
