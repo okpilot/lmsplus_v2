@@ -129,9 +129,10 @@
 
 ---
 
-## PR 8 — Accessibility (4 issues)
+## PR 8 — Accessibility (4 issues) — DONE
 
 *a11y improvements — ARIA attributes, keyboard nav, accessible names.*
+*Completed 2026-03-15. WAI-ARIA tablist pattern with keyboard navigation added to quiz tabs. Dialog accessible names added to ZoomableImage and MobileNav. Deferred focus via useEffect for React concurrent mode safety. 12 new tests.*
 
 | # | Title |
 |---|-------|
@@ -204,7 +205,7 @@
 | 5 | Race conditions & async bugs | 5 | Medium | **DONE** |
 | 6 | Split oversized files | 10 | Low | **DONE** |
 | 7 | Type safety & cleanup | 7 | Low | **DONE** |
-| 8 | Accessibility | 4 | Low | Planned |
+| 8 | Accessibility | 4 | Low | **DONE** |
 | 9 | UX, perf & architecture | 10 | Medium | Planned |
 | 10 | Infrastructure & scripts | 7 | Low | Planned |
 | — | Parking lot (needs discussion) | 7 | — | — |

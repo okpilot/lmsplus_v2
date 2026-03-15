@@ -138,6 +138,15 @@
 - Test mocks refactored: replaced .returns() terminal with thenable chain pattern
 - Issues #3 (shared RPC types) and #65 (NaN in boundParam) confirmed already resolved; all 7 issues closed
 
+**Tech Debt PR #8 done (2026-03-15):** Accessibility:
+- Quiz tabs: WAI-ARIA tablist pattern (role="tablist", role="tab", aria-selected, aria-controls, aria-labelledby, tabpanel)
+- Quiz tabs: keyboard navigation (ArrowLeft/Right, Home/End) with deferred focus via useEffect
+- Quiz tabs: aria-controls scoped to active tab only (inactive panel not in DOM)
+- ZoomableImage: aria-label on Dialog.Popup using alt text
+- MobileNav: aria-label="Navigation menu" on Dialog.Popup
+- Tests: 10 new ARIA/keyboard tests for quiz-tabs, 2 new dialog aria-label tests
+- Issues #102, #50, #30, #28 closed
+
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
 - `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys
