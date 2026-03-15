@@ -23,3 +23,40 @@ export const CompleteQuizSessionSchema = z.object({
 })
 
 export type CompleteQuizSessionInput = z.infer<typeof CompleteQuizSessionSchema>
+
+// --- Admin: Syllabus CRUD schemas ---
+
+export const UpsertSubjectSchema = z.object({
+  id: z.string().uuid().optional(),
+  code: z.string().min(1).max(10),
+  name: z.string().min(1).max(200),
+  short: z.string().min(1).max(50),
+  sort_order: z.number().int().min(0).optional(),
+})
+
+export type UpsertSubjectInput = z.infer<typeof UpsertSubjectSchema>
+
+export const UpsertTopicSchema = z.object({
+  id: z.string().uuid().optional(),
+  subject_id: z.string().uuid(),
+  code: z.string().min(1).max(20),
+  name: z.string().min(1).max(200),
+  sort_order: z.number().int().min(0).optional(),
+})
+
+export type UpsertTopicInput = z.infer<typeof UpsertTopicSchema>
+
+export const UpsertSubtopicSchema = z.object({
+  id: z.string().uuid().optional(),
+  topic_id: z.string().uuid(),
+  code: z.string().min(1).max(30),
+  name: z.string().min(1).max(200),
+  sort_order: z.number().int().min(0).optional(),
+})
+
+export type UpsertSubtopicInput = z.infer<typeof UpsertSubtopicSchema>
+
+export const DeleteSyllabusItemSchema = z.object({
+  id: z.string().uuid(),
+  table: z.enum(['easa_subjects', 'easa_topics', 'easa_subtopics']),
+})

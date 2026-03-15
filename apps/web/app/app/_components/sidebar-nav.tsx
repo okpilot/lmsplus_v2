@@ -2,20 +2,19 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { ADMIN_NAV_ITEMS, NAV_ITEMS } from './nav-items'
 
-const NAV_ITEMS = [
-  { href: '/app/dashboard', label: 'Dashboard' },
-  { href: '/app/quiz', label: 'Quiz' },
-  { href: '/app/progress', label: 'Progress' },
-  { href: '/app/reports', label: 'Reports' },
-]
+type SidebarNavProps = {
+  userRole?: string
+}
 
-export function SidebarNav() {
+export function SidebarNav({ userRole }: SidebarNavProps) {
   const pathname = usePathname()
+  const items = userRole === 'admin' ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS
 
   return (
     <nav className="flex flex-col gap-1">
-      {NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
         return (
           <Link

@@ -67,6 +67,18 @@ export const config = {
 }
 ```
 
+### Admin Route Protection (defense in depth)
+
+Admin routes (`/app/admin/*`) require two independent guards — both must pass.
+
+**Layer 1 — Proxy guard (`apps/web/proxy.ts`):**
+Checks `users.role = 'admin'` for any request matching `/app/admin/*`. Returns 403 if the authenticated user is not an admin. This blocks the request before it reaches any Server Component or Server Action.
+
+**Layer 2 — Server Action guard (`apps/web/lib/auth/require-admin.ts`):**
+`requireAdmin()` verifies both auth (non-null session) and admin role. Called at the top of every admin Server Action before any data access. If either check fails, it throws — the action never proceeds.
+
+**Why both:** The proxy guard prevents UI rendering for non-admins. The Server Action guard ensures admin actions are self-defending even if the proxy is misconfigured or bypassed (e.g., direct API calls). Neither layer trusts the other.
+
 ---
 
 ## 3. Row Level Security (RLS)
@@ -563,4 +575,4 @@ These are covered by Supabase infrastructure — no additional work needed:
 
 ---
 
-*Last updated: 2026-03-14 | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*
+*Last updated: 2026-03-15 (admin route protection added) | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*

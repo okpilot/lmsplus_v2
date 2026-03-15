@@ -45,6 +45,33 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirectWithCookies(new URL('/', request.url))
   }
 
+  // Block non-admin users from /app/admin/* routes
+  const isAdminRoute = pathname === '/app/admin' || pathname.startsWith('/app/admin/')
+  if (isAdminRoute && user) {
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle<{ role: string }>()
+
+    if (profileError) {
+      console.error('[proxy] admin role lookup error:', profileError.message)
+      const unavailable = new NextResponse('Service unavailable', { status: 503 })
+      for (const cookie of response.cookies.getAll()) {
+        unavailable.cookies.set(cookie)
+      }
+      return unavailable
+    }
+
+    if (profile?.role !== 'admin') {
+      const forbidden = new NextResponse('Forbidden', { status: 403 })
+      for (const cookie of response.cookies.getAll()) {
+        forbidden.cookies.set(cookie)
+      }
+      return forbidden
+    }
+  }
+
   // Redirect authenticated users away from login page to dashboard
   if (pathname === '/' && user) {
     return redirectWithCookies(new URL('/app/dashboard', request.url))
