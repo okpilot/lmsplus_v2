@@ -85,7 +85,7 @@ describe('deleteItem', () => {
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
-    it('returns the DB error message for other delete failures', async () => {
+    it('returns a sanitized error message for other delete failures', async () => {
       mockAdminWithDeleteResult({ error: { message: 'row not found' } })
 
       const result = await deleteItem({ id: VALID_UUID, table: 'easa_topics' })

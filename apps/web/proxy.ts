@@ -46,12 +46,12 @@ export async function proxy(request: NextRequest): Promise<Response> {
   }
 
   // Block non-admin users from /app/admin/* routes
-  if (pathname.startsWith('/app/admin') && user) {
+  if (pathname.startsWith('/app/admin/') && user) {
     const { data: profile, error: profileError } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
-      .single<{ role: string }>()
+      .maybeSingle<{ role: string }>()
 
     if (profileError) {
       console.error('[proxy] admin role lookup error:', profileError.message)

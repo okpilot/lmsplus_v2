@@ -20,18 +20,22 @@ export function SubtopicRow({ subtopic, topicId }: Props) {
 
   function handleEdit(data: Record<string, string>) {
     startTransition(async () => {
-      const result = await upsertSubtopic({
-        id: subtopic.id,
-        topic_id: topicId,
-        code: data.code,
-        name: data.name,
-        sort_order: subtopic.sort_order,
-      })
-      if (result.success) {
-        toast.success(`Subtopic "${data.code}" updated`)
-        setEditing(false)
-      } else {
-        toast.error(result.error)
+      try {
+        const result = await upsertSubtopic({
+          id: subtopic.id,
+          topic_id: topicId,
+          code: data.code,
+          name: data.name,
+          sort_order: subtopic.sort_order,
+        })
+        if (result.success) {
+          toast.success(`Subtopic "${data.code}" updated`)
+          setEditing(false)
+        } else {
+          toast.error(result.error)
+        }
+      } catch {
+        toast.error('Service error. Please try again.')
       }
     })
   }

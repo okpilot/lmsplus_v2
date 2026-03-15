@@ -16,15 +16,19 @@ export function SyllabusManager({ initialTree }: Props) {
 
   function handleAddSubject(data: Record<string, string>) {
     startTransition(async () => {
-      const result = await upsertSubject({
-        code: data.code,
-        name: data.name,
-        short: data.short,
-      })
-      if (result.success) {
-        toast.success(`Subject "${data.code}" added`)
-      } else {
-        toast.error(result.error)
+      try {
+        const result = await upsertSubject({
+          code: data.code,
+          name: data.name,
+          short: data.short,
+        })
+        if (result.success) {
+          toast.success(`Subject "${data.code}" added`)
+        } else {
+          toast.error(result.error)
+        }
+      } catch {
+        toast.error('Service error. Please try again.')
       }
     })
   }

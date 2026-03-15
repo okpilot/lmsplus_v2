@@ -25,33 +25,41 @@ export function TopicRow({ topic, subjectId }: Props) {
 
   function handleEdit(data: Record<string, string>) {
     startTransition(async () => {
-      const result = await upsertTopic({
-        id: topic.id,
-        subject_id: subjectId,
-        code: data.code,
-        name: data.name,
-        sort_order: topic.sort_order,
-      })
-      if (result.success) {
-        toast.success(`Topic "${data.code}" updated`)
-        setEditing(false)
-      } else {
-        toast.error(result.error)
+      try {
+        const result = await upsertTopic({
+          id: topic.id,
+          subject_id: subjectId,
+          code: data.code,
+          name: data.name,
+          sort_order: topic.sort_order,
+        })
+        if (result.success) {
+          toast.success(`Topic "${data.code}" updated`)
+          setEditing(false)
+        } else {
+          toast.error(result.error)
+        }
+      } catch {
+        toast.error('Service error. Please try again.')
       }
     })
   }
 
   function handleAddSubtopic(data: Record<string, string>) {
     startTransition(async () => {
-      const result = await upsertSubtopic({
-        topic_id: topic.id,
-        code: data.code,
-        name: data.name,
-      })
-      if (result.success) {
-        toast.success(`Subtopic "${data.code}" added`)
-      } else {
-        toast.error(result.error)
+      try {
+        const result = await upsertSubtopic({
+          topic_id: topic.id,
+          code: data.code,
+          name: data.name,
+        })
+        if (result.success) {
+          toast.success(`Subtopic "${data.code}" added`)
+        } else {
+          toast.error(result.error)
+        }
+      } catch {
+        toast.error('Service error. Please try again.')
       }
     })
   }
