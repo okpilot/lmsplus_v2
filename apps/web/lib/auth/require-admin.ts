@@ -16,11 +16,15 @@ export async function requireAdmin(): Promise<AdminAuth> {
     throw new Error('Not authenticated')
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
     .single<{ role: string }>()
+
+  if (profileError) {
+    console.error('[requireAdmin] Profile query error:', profileError.message)
+  }
 
   if (profile?.role !== 'admin') {
     throw new Error('Forbidden: admin role required')

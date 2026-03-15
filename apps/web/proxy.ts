@@ -53,7 +53,11 @@ export async function proxy(request: NextRequest): Promise<Response> {
       .eq('id', user.id)
       .single<{ role: string }>()
     if (profile?.role !== 'admin') {
-      return new NextResponse('Forbidden', { status: 403 })
+      const forbidden = new NextResponse('Forbidden', { status: 403 })
+      for (const cookie of response.cookies.getAll()) {
+        forbidden.cookies.set(cookie)
+      }
+      return forbidden
     }
   }
 
