@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-14
+> Last updated: 2026-03-15
 
 ---
 
@@ -114,6 +114,19 @@
 - Migration 036: `submit_quiz_answer` RPC — added `deleted_at IS NULL` guard + option membership validation (prevents submitting to discarded sessions, validates selected_option exists in question's options JSONB array)
 - Migration 037: `batch_submit_quiz` RPC — added option membership validation for each answer in batch (prevents bulk-submitting arbitrary option strings)
 - Test updates: auth callback, fetch-stats mocks, login-form error assertions
+
+**Tech Debt PR #5 done (2026-03-14):** Race Conditions & Async Bugs:
+- In-flight guard added to useSessionState submit/next handlers (#40)
+- Navigation guard false positive on unchanged resumed drafts fixed (#53)
+- Issues #86, #51, #67 confirmed already implemented — closed
+
+**Tech Debt PR #6 done (2026-03-15):** Split Oversized Files:
+- Shared types (SessionQuestion, AnswerResult, CompleteResult, SubmitInput) extracted to `_types/session.ts`
+- SessionRunner split into SessionRunner + ActiveSession + SessionProgressBar + SessionAnswerBlock
+- QuizSession split into QuizSession + QuizMainPanel + QuizTabContent + QuizControls + useQuizActiveTab
+- use-session-state.ts refactored: async operations extracted to session-operations.ts, type refs to _types/session.ts (79/80 lines)
+- ActivityChart tooltip/axis config hoisted to module constants
+- Issues #2, #36, #71, #80, #96 already resolved in prior PRs — all 10 PR 6 issues closed
 
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
