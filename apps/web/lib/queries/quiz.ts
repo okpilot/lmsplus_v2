@@ -194,10 +194,12 @@ async function filterUnseen(
   userId: string,
   questions: QuestionIdRow[],
 ): Promise<QuestionIdRow[]> {
+  const questionIds = questions.map((q) => q.id)
   const { data: answeredData } = await supabase
     .from('student_responses')
     .select('question_id')
     .eq('student_id', userId)
+    .in('question_id', questionIds)
 
   const answered = (answeredData ?? []) as QuestionFilterRef[]
   const answeredIds = new Set(answered.map((r) => r.question_id))

@@ -26,6 +26,9 @@ export async function updateExistingDraft(
   input: SaveDraftParsed,
   userId: string,
 ): Promise<DraftResult> {
+  if (!input.draftId) {
+    return { success: false, error: 'Invalid draft ID' }
+  }
   // TypeScript resolves the Update payload type as `never` here due to complexity
   // limits on the generated Database type — the shape is correct per types.ts.
   const payload: Database['public']['Tables']['quiz_drafts']['Update'] = {
@@ -39,7 +42,7 @@ export async function updateExistingDraft(
     // tsc complexity limit on generated Database type — payload shape matches quiz_drafts Update in types.ts
     // @ts-expect-error TS2345: payload type resolves to `never` due to TypeScript inference depth limit
     .update(payload)
-    .eq('id', input.draftId as string)
+    .eq('id', input.draftId)
     .eq('student_id', userId)
     .select('id')
   if (error) {

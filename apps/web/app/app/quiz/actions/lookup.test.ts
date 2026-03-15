@@ -307,15 +307,6 @@ describe('getFilteredCount — filter: unseen', () => {
       if (callIndex === 1) {
         return buildQueryChain([{ id: Q1_ID }])
       }
-      // student_responses returns null data
-      return buildQueryChain([], null)
-    })
-    // Override terminal data to null to test null handling
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) {
-        return buildQueryChain([{ id: Q1_ID }])
-      }
       const nullChain = buildQueryChain([], null)
       // biome-ignore lint/suspicious/noThenProperty: Supabase query builders are thenable
       nullChain.then = vi.fn((resolve: (v: unknown) => unknown) =>
@@ -323,7 +314,6 @@ describe('getFilteredCount — filter: unseen', () => {
       )
       return nullChain
     })
-    callIndex = 0
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filter: 'unseen' })
 
