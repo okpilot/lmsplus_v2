@@ -4,6 +4,8 @@ export type SessionQuestion = {
   question_image_url: string | null
   question_number: string | null
   options: { id: string; text: string }[]
+  explanation_text: string | null
+  explanation_image_url: string | null
 }
 
 export type AnswerResult =

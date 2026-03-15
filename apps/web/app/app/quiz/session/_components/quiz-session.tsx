@@ -36,7 +36,6 @@ export function QuizSession(props: QuizSessionProps) {
       </div>
       <QuizMainPanel
         s={s}
-        sessionId={props.sessionId}
         totalQuestions={props.questions.length}
         activeTab={activeTab}
         onTabChange={setActiveTab}

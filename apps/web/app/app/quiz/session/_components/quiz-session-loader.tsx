@@ -13,6 +13,8 @@ type Question = {
   question_text: string
   question_image_url: string | null
   question_number: string | null
+  explanation_text: string | null
+  explanation_image_url: string | null
   options: { id: string; text: string }[]
 }
 

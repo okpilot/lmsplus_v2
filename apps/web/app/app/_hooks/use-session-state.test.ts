@@ -15,6 +15,8 @@ const TWO_QUESTIONS: SessionQuestion[] = [
     question_text: 'Q1',
     question_image_url: null,
     question_number: null,
+    explanation_text: null,
+    explanation_image_url: null,
     options: [{ id: 'opt-a', text: 'Option A' }],
   },
   {
@@ -22,6 +24,8 @@ const TWO_QUESTIONS: SessionQuestion[] = [
     question_text: 'Q2',
     question_image_url: null,
     question_number: null,
+    explanation_text: null,
+    explanation_image_url: null,
     options: [{ id: 'opt-b', text: 'Option B' }],
   },
 ]

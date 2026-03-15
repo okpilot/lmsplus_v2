@@ -173,6 +173,8 @@ const QUESTIONS = [
     question_text: 'What is lift?',
     question_image_url: null,
     question_number: '050-01-01-001',
+    explanation_text: null,
+    explanation_image_url: null,
     options: [
       { id: 'a', text: 'A force' },
       { id: 'b', text: 'A moment' },
@@ -183,6 +185,8 @@ const QUESTIONS = [
     question_text: 'What is drag?',
     question_image_url: null,
     question_number: '050-01-01-002',
+    explanation_text: null,
+    explanation_image_url: null,
     options: [
       { id: 'c', text: 'Resistance' },
       { id: 'd', text: 'Thrust' },
@@ -193,6 +197,8 @@ const QUESTIONS = [
     question_text: 'What is weight?',
     question_image_url: null,
     question_number: null,
+    explanation_text: null,
+    explanation_image_url: null,
     options: [
       { id: 'e', text: 'Gravity force' },
       { id: 'f', text: 'Mass' },

@@ -32,19 +32,12 @@ function QuizProgressBar({ answeredCount, totalQuestions }: QuizProgressBarProps
 
 type QuizMainPanelProps = {
   s: QuizState
-  sessionId: string
   totalQuestions: number
   activeTab: QuestionTab
   onTabChange: (tab: QuestionTab) => void
 }
 
-export function QuizMainPanel({
-  s,
-  sessionId,
-  totalQuestions,
-  activeTab,
-  onTabChange,
-}: QuizMainPanelProps) {
+export function QuizMainPanel({ s, totalQuestions, activeTab, onTabChange }: QuizMainPanelProps) {
   if (!s.question) return null
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
@@ -73,9 +66,10 @@ export function QuizMainPanel({
       <QuizTabContent
         activeTab={activeTab}
         questionId={s.questionId}
-        sessionId={sessionId}
         existingAnswer={s.existingAnswer}
         currentFeedback={s.currentFeedback}
+        explanationText={s.question.explanation_text}
+        explanationImageUrl={s.question.explanation_image_url}
       />
       <QuizControls
         isPinned={s.isPinned}

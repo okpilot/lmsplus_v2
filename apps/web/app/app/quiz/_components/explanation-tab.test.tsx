@@ -1,78 +1,68 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const { mockFetchExplanation } = vi.hoisted(() => ({
-  mockFetchExplanation: vi.fn(),
-}))
-
-vi.mock('../actions/fetch-explanation', () => ({
-  fetchExplanation: mockFetchExplanation,
-}))
-
 import { ExplanationTab } from './explanation-tab'
+
+vi.mock('../../_components/zoomable-image', () => ({
+  ZoomableImage: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+}))
+
+vi.mock('../../_components/markdown-text', () => ({
+  MarkdownText: ({ children }: { children: string }) => <span>{children}</span>,
+}))
 
 describe('ExplanationTab', () => {
   beforeEach(() => {
     vi.resetAllMocks()
   })
 
-  it('fetches and shows explanation before answering', async () => {
-    mockFetchExplanation.mockResolvedValue({
-      success: true,
-      explanationText: 'Pre-answer explanation.',
-      explanationImageUrl: null,
-    })
-    render(<ExplanationTab hasAnswered={false} questionId="q-1" sessionId="s-1" />)
-    await waitFor(() => {
-      expect(screen.getByText('Pre-answer explanation.')).toBeInTheDocument()
-    })
-    expect(mockFetchExplanation).toHaveBeenCalledWith({
-      questionId: 'q-1',
-      sessionId: 's-1',
-    })
-  })
-
-  it('shows fallback when fetch returns no explanation', async () => {
-    mockFetchExplanation.mockResolvedValue({ success: false })
-    render(<ExplanationTab hasAnswered={false} questionId="q-1" sessionId="s-1" />)
-    await waitFor(() => {
-      expect(screen.getByText('No explanation available for this question.')).toBeInTheDocument()
-    })
-  })
-
-  it('shows correct message when answer is correct', () => {
+  it('shows "correctly" message and explanation text when answer is correct', () => {
     render(
       <ExplanationTab
-        hasAnswered={true}
-        explanationText="This is the explanation."
-        explanationImageUrl={null}
         isCorrect={true}
+        explanationText="The stall speed increases with bank angle."
+        explanationImageUrl={null}
       />,
     )
     expect(screen.getByText('You answered correctly.')).toBeInTheDocument()
-    expect(screen.getByText('This is the explanation.')).toBeInTheDocument()
+    expect(screen.getByText('The stall speed increases with bank angle.')).toBeInTheDocument()
   })
 
-  it('shows incorrect message when answer is wrong', () => {
+  it('shows "incorrectly" message and explanation text when answer is wrong', () => {
     render(
       <ExplanationTab
-        hasAnswered={true}
-        explanationText={null}
-        explanationImageUrl={null}
         isCorrect={false}
+        explanationText="The stall speed increases with bank angle."
+        explanationImageUrl={null}
       />,
     )
     expect(screen.getByText('You answered incorrectly.')).toBeInTheDocument()
+    expect(screen.getByText('The stall speed increases with bank angle.')).toBeInTheDocument()
+  })
+
+  it('shows no correctness message when question has not been answered', () => {
+    render(
+      <ExplanationTab
+        isCorrect={null}
+        explanationText="Background explanation."
+        explanationImageUrl={null}
+      />,
+    )
+    expect(screen.queryByText('You answered correctly.')).not.toBeInTheDocument()
+    expect(screen.queryByText('You answered incorrectly.')).not.toBeInTheDocument()
+    expect(screen.getByText('Background explanation.')).toBeInTheDocument()
+  })
+
+  it('shows fallback message when explanation text is null', () => {
+    render(<ExplanationTab isCorrect={null} explanationText={null} explanationImageUrl={null} />)
     expect(screen.getByText('No explanation available for this question.')).toBeInTheDocument()
   })
 
-  it('renders explanation image when provided', () => {
+  it('renders ZoomableImage when an explanation image URL is provided', () => {
     render(
       <ExplanationTab
-        hasAnswered={true}
-        explanationText="Some text"
-        explanationImageUrl="https://example.com/img.png"
         isCorrect={true}
+        explanationText={null}
+        explanationImageUrl="https://example.com/diagram.png"
       />,
     )
     expect(screen.getByAltText('Explanation illustration')).toBeInTheDocument()

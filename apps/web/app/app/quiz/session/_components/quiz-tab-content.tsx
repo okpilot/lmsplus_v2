@@ -7,28 +7,27 @@ import type { AnswerFeedback, DraftAnswer } from '../../types'
 type QuizTabContentProps = {
   activeTab: QuestionTab
   questionId: string
-  sessionId: string
   existingAnswer: DraftAnswer | undefined
   currentFeedback: AnswerFeedback | null
+  explanationText: string | null
+  explanationImageUrl: string | null
 }
 
 export function QuizTabContent({
   activeTab,
   questionId,
-  sessionId,
   existingAnswer,
   currentFeedback,
+  explanationText,
+  explanationImageUrl,
 }: QuizTabContentProps) {
   if (activeTab === 'explanation') {
-    return currentFeedback ? (
+    return (
       <ExplanationTab
-        hasAnswered={true}
-        isCorrect={currentFeedback.isCorrect}
-        explanationText={currentFeedback.explanationText}
-        explanationImageUrl={currentFeedback.explanationImageUrl}
+        explanationText={explanationText}
+        explanationImageUrl={explanationImageUrl}
+        isCorrect={currentFeedback?.isCorrect ?? null}
       />
-    ) : (
-      <ExplanationTab hasAnswered={false} questionId={questionId} sessionId={sessionId} />
     )
   }
   if (activeTab === 'comments') return <CommentsTab />
