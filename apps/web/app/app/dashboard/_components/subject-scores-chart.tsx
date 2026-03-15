@@ -58,28 +58,30 @@ function ScoresChartContent({ data }: { data: SubjectScore[] }) {
   return (
     <div className="rounded-lg border border-border p-4">
       <h3 className="mb-3 text-sm font-medium">Subject Scores</h3>
-      <div className="flex items-center gap-4">
-        <ResponsiveContainer width="50%" height={200}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              innerRadius={50}
-              outerRadius={80}
-              paddingAngle={2}
-              dataKey="value"
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(value) => [`${value}%`, 'Avg Score']}
-              contentStyle={TOOLTIP_STYLE}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+      <div className="flex flex-col items-center gap-4 sm:flex-row">
+        <div className="w-full sm:w-1/2">
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value) => [`${value}%`, 'Avg Score']}
+                contentStyle={TOOLTIP_STYLE}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
         <ScoresLegend chartData={chartData} />
       </div>
     </div>
