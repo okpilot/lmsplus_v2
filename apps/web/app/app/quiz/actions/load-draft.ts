@@ -53,7 +53,7 @@ export async function loadDrafts(): Promise<LoadDraftsResult> {
     if (authError || !user) return { drafts: [] }
 
     const { data, error } = await supabase
-      .from('quiz_drafts' as 'users')
+      .from('quiz_drafts')
       .select('*')
       .eq('student_id', user.id)
       .order('updated_at', { ascending: false })
@@ -63,8 +63,7 @@ export async function loadDrafts(): Promise<LoadDraftsResult> {
       return { drafts: [] }
     }
 
-    const rows = (data ?? []) as unknown as QuizDraftRow[]
-    return { drafts: rows.map(rowToDraftData) }
+    return { drafts: (data ?? []).map(rowToDraftData) }
   } catch (err) {
     console.error('[loadDrafts] Uncaught error:', err)
     return { drafts: [] }

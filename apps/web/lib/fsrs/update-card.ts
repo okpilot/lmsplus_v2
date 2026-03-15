@@ -34,18 +34,16 @@ export async function updateFsrsCard(
   questionId: string,
   isCorrect: boolean,
 ) {
-  const { data: existing, error: cardError } = await supabase
+  const { data: rawExisting, error: cardError } = await supabase
     .from('fsrs_cards')
     .select(
       'due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, last_review, last_was_correct, consecutive_correct_count',
     )
-    // Cast required: `.returns<FsrsCardRow[]>()` below changes the query's intermediate
-    // type, so `.eq()` loses column-name inference from the generated schema. Without
-    // the cast, TypeScript rejects any string as the column name parameter.
-    .eq('student_id' as string & keyof never, userId)
-    .eq('question_id' as string & keyof never, questionId)
-    .returns<FsrsCardRow[]>()
+    .eq('student_id', userId)
+    .eq('question_id', questionId)
     .maybeSingle()
+
+  const existing = rawExisting as FsrsCardRow | null
 
   if (cardError) {
     console.error('FSRS card lookup failed:', cardError.message)

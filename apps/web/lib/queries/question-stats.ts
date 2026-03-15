@@ -40,14 +40,14 @@ async function getResponseCounts(
     supabase
       .from('student_responses')
       .select('*', { count: 'exact', head: true })
-      .eq('student_id' as string & keyof never, userId)
-      .eq('question_id' as string & keyof never, questionId),
+      .eq('student_id', userId)
+      .eq('question_id', questionId),
     supabase
       .from('student_responses')
       .select('*', { count: 'exact', head: true })
-      .eq('student_id' as string & keyof never, userId)
-      .eq('question_id' as string & keyof never, questionId)
-      .eq('is_correct' as string & keyof never, true),
+      .eq('student_id', userId)
+      .eq('question_id', questionId)
+      .eq('is_correct', true),
   ])
 
   if (totalResult.error) throw new Error(`Failed to count responses: ${totalResult.error.message}`)
@@ -57,6 +57,8 @@ async function getResponseCounts(
   return { total: totalResult.count ?? 0, correct: correctResult.count ?? 0 }
 }
 
+type LastResponseRow = { created_at: string }
+
 async function getLastResponse(
   supabase: SupabaseClient,
   userId: string,
@@ -65,13 +67,12 @@ async function getLastResponse(
   const { data, error } = await supabase
     .from('student_responses')
     .select('created_at')
-    .eq('student_id' as string & keyof never, userId)
-    .eq('question_id' as string & keyof never, questionId)
-    .order('created_at' as string & keyof never, { ascending: false })
+    .eq('student_id', userId)
+    .eq('question_id', questionId)
+    .order('created_at', { ascending: false })
     .limit(1)
-    .returns<{ created_at: string }[]>()
 
   if (error) throw new Error(`Failed to fetch last response: ${error.message}`)
 
-  return data?.[0]?.created_at ?? null
+  return ((data ?? []) as LastResponseRow[])[0]?.created_at ?? null
 }

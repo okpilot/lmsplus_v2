@@ -29,7 +29,7 @@ type SessionRow = {
   ended_at: string | null
   total_questions: number
   correct_count: number
-  score_percentage: number
+  score_percentage: number | null
 }
 
 type AnswerRow = {
@@ -60,36 +60,37 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
   }
   if (!user) return null
 
-  const { data: session } = await supabase
+  const { data: sessionData } = await supabase
     .from('quiz_sessions')
     .select('id, started_at, ended_at, total_questions, correct_count, score_percentage')
-    .eq('id' as string & keyof never, sessionId)
-    .is('deleted_at' as string & keyof never, null)
-    .returns<SessionRow[]>()
+    .eq('id', sessionId)
+    .eq('student_id', user.id)
+    .is('deleted_at', null)
     .maybeSingle()
 
+  const session = sessionData as SessionRow | null
   if (!session) return null
   // Only serve reports for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return null
 
-  const { data: answers } = await supabase
+  const { data: answersData } = await supabase
     .from('quiz_session_answers')
     .select('question_id, selected_option_id, is_correct, response_time_ms')
-    .eq('session_id' as string & keyof never, sessionId)
-    .returns<AnswerRow[]>()
+    .eq('session_id', sessionId)
 
-  if (!answers?.length) return null
+  const answers = (answersData ?? []) as AnswerRow[]
+  if (!answers.length) return null
 
   const questionIds = answers.map((a) => a.question_id)
 
-  const { data: questions } = await supabase
+  const { data: questionsData } = await supabase
     .from('questions')
     .select('id, question_text, question_number, options, explanation_text')
-    .in('id' as string & keyof never, questionIds)
-    .returns<QuestionRow[]>()
+    .in('id', questionIds)
 
+  const questions = (questionsData ?? []) as QuestionRow[]
   const questionMap = new Map<string, QuestionRow>()
-  for (const q of questions ?? []) {
+  for (const q of questions) {
     questionMap.set(q.id, q)
   }
 
@@ -100,7 +101,7 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
     totalQuestions: session.total_questions,
     answeredCount: answers.length,
     correctCount: session.correct_count,
-    scorePercentage: session.score_percentage,
+    scorePercentage: session.score_percentage ?? 0,
     startedAt: session.started_at,
     endedAt: session.ended_at,
     questions: reportQuestions,

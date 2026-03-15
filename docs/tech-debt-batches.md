@@ -112,9 +112,10 @@
 
 ---
 
-## PR 7 — Type Safety & Cleanup (7 issues)
+## PR 7 — Type Safety & Cleanup (7 issues) — DONE
 
 *Remove type casts, dead code, duplicate types.*
+*Completed 2026-03-15. Regenerated Supabase types from linked project. Removed ~50 type-cast workarounds across 10 query files. Consolidated duplicate QuestionFilter type. Hoisted ReactMarkdown components to module scope. Removed duplicate CSS declaration. Issues #3 and #65 confirmed already resolved.*
 
 | # | Title |
 |---|-------|
@@ -202,7 +203,7 @@
 | 4 | Security & auth | 8 | Medium | **DONE** |
 | 5 | Race conditions & async bugs | 5 | Medium | **DONE** |
 | 6 | Split oversized files | 10 | Low | **DONE** |
-| 7 | Type safety & cleanup | 7 | Low | Planned |
+| 7 | Type safety & cleanup | 7 | Low | **DONE** |
 | 8 | Accessibility | 4 | Low | Planned |
 | 9 | UX, perf & architecture | 10 | Medium | Planned |
 | 10 | Infrastructure & scripts | 7 | Low | Planned |

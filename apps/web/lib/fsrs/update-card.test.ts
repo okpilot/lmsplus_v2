@@ -36,7 +36,6 @@ function buildSupabaseChain(maybeSingleReturn: unknown) {
   const chain = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    returns: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue(maybeSingleReturn),
   }
   return {
