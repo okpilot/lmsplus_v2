@@ -1,6 +1,6 @@
 'use client'
 
-import { type KeyboardEvent, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 
 type QuizTabsProps = {
   draftCount: number
@@ -13,7 +13,7 @@ type TabButtonProps = {
   isActive: boolean
   label: string
   testId: string
-  panelId: string
+  panelId: string | undefined
   onClick: () => void
   badge?: number
 }
@@ -48,27 +48,36 @@ function TabButton({ id, isActive, label, testId, panelId, onClick, badge }: Tab
   )
 }
 
-const TABS = ['new', 'saved'] as const
+const TAB_NAMES: Record<number, 'new' | 'saved'> = { 0: 'new', 1: 'saved' }
 
 export function QuizTabs({ draftCount, newQuizContent, savedDraftContent }: QuizTabsProps) {
   const [tab, setTab] = useState<'new' | 'saved'>('new')
   const tabListRef = useRef<HTMLDivElement>(null)
+  const pendingFocusRef = useRef<string | null>(null)
+
+  // Focus the tab button after React commits the state update.
+  // `tab` triggers the effect; pendingFocusRef gates execution to keyboard nav only.
+  useEffect(() => {
+    if (pendingFocusRef.current) {
+      tabListRef.current?.querySelector<HTMLElement>(`#tab-${tab}`)?.focus()
+      pendingFocusRef.current = null
+    }
+  }, [tab])
 
   function handleKeyDown(e: KeyboardEvent) {
-    const currentIndex = TABS.indexOf(tab)
+    const currentIndex = tab === 'new' ? 0 : 1
     let nextIndex = currentIndex
 
-    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % TABS.length
-    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + TABS.length) % TABS.length
+    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % 2
+    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + 2) % 2
     else if (e.key === 'Home') nextIndex = 0
-    else if (e.key === 'End') nextIndex = TABS.length - 1
+    else if (e.key === 'End') nextIndex = 1
     else return
 
     e.preventDefault()
-    const nextTab = nextIndex === 0 ? 'new' : 'saved'
+    const nextTab = TAB_NAMES[nextIndex] ?? 'new'
+    pendingFocusRef.current = nextTab
     setTab(nextTab)
-    const button = tabListRef.current?.querySelector<HTMLElement>(`#tab-${nextTab}`)
-    button?.focus()
   }
 
   return (
@@ -85,7 +94,7 @@ export function QuizTabs({ draftCount, newQuizContent, savedDraftContent }: Quiz
           isActive={tab === 'new'}
           label="New Quiz"
           testId="tab-new"
-          panelId="tabpanel-new"
+          panelId={tab === 'new' ? 'tabpanel-new' : undefined}
           onClick={() => setTab('new')}
         />
         <TabButton
@@ -93,7 +102,7 @@ export function QuizTabs({ draftCount, newQuizContent, savedDraftContent }: Quiz
           isActive={tab === 'saved'}
           label="Saved Quizzes"
           testId="tab-saved"
-          panelId="tabpanel-saved"
+          panelId={tab === 'saved' ? 'tabpanel-saved' : undefined}
           onClick={() => setTab('saved')}
           badge={draftCount}
         />

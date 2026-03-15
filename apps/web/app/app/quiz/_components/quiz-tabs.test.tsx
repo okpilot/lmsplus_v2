@@ -82,10 +82,10 @@ describe('QuizTabs', () => {
       expect(screen.getByTestId('tab-saved')).toHaveAttribute('tabindex', '-1')
     })
 
-    it('links tabs to their panel via aria-controls', () => {
+    it('only sets aria-controls on the active tab', () => {
       renderTabs()
-      const newTab = screen.getByTestId('tab-new')
-      expect(newTab).toHaveAttribute('aria-controls', 'tabpanel-new')
+      expect(screen.getByTestId('tab-new')).toHaveAttribute('aria-controls', 'tabpanel-new')
+      expect(screen.getByTestId('tab-saved')).not.toHaveAttribute('aria-controls')
     })
 
     it('renders a tabpanel linked to the active tab', () => {
