@@ -3,7 +3,7 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 
 type QuizTabsProps = {
-  draftCount: number
+  draftCount?: number | null
   newQuizContent: React.ReactNode
   savedDraftContent: React.ReactNode
 }
@@ -50,7 +50,7 @@ function TabButton({ id, isActive, label, testId, panelId, onClick, badge }: Tab
 
 const TAB_NAMES: Record<number, 'new' | 'saved'> = { 0: 'new', 1: 'saved' }
 
-export function QuizTabs({ draftCount, newQuizContent, savedDraftContent }: QuizTabsProps) {
+export function QuizTabs({ draftCount = null, newQuizContent, savedDraftContent }: QuizTabsProps) {
   const [tab, setTab] = useState<'new' | 'saved'>('new')
   const tabListRef = useRef<HTMLDivElement>(null)
   const pendingFocusRef = useRef<string | null>(null)
@@ -104,7 +104,7 @@ export function QuizTabs({ draftCount, newQuizContent, savedDraftContent }: Quiz
           testId="tab-saved"
           panelId={tab === 'saved' ? 'tabpanel-saved' : undefined}
           onClick={() => setTab('saved')}
-          badge={draftCount}
+          badge={draftCount ?? undefined}
         />
       </div>
       <div id={`tabpanel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
