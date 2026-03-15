@@ -24,7 +24,8 @@ export async function deleteItem(input: unknown): Promise<ActionResult> {
         error: 'Cannot delete: questions reference this item',
       }
     }
-    return { success: false, error: error.message }
+    console.error('[deleteItem] Delete failed:', { code: error.code, message: error.message })
+    return { success: false, error: 'Could not delete syllabus item' }
   }
 
   revalidatePath('/app/admin/syllabus')

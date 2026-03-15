@@ -30,11 +30,15 @@ export function DeleteButton({ id, table, label, questionCount }: DeleteButtonPr
 
   function handleDelete() {
     startTransition(async () => {
-      const result = await deleteItem({ id, table })
-      if (result.success) {
-        toast.success(`Deleted "${label}"`)
-      } else {
-        toast.error(result.error)
+      try {
+        const result = await deleteItem({ id, table })
+        if (result.success) {
+          toast.success(`Deleted "${label}"`)
+        } else {
+          toast.error(result.error)
+        }
+      } catch {
+        toast.error('Service error. Please try again.')
       }
     })
   }
@@ -62,8 +66,8 @@ export function DeleteButton({ id, table, label, questionCount }: DeleteButtonPr
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={handleDelete}>
-            Delete
+          <AlertDialogAction variant="destructive" onClick={handleDelete} disabled={isPending}>
+            {isPending ? 'Deleting…' : 'Delete'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

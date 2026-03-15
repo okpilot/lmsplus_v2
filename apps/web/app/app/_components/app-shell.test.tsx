@@ -12,8 +12,16 @@ vi.mock('next/navigation', () => ({
 }))
 
 // Child components are layout-only; mock to keep tests fast and isolated
-vi.mock('./mobile-nav', () => ({ MobileNav: () => <div data-testid="mobile-nav" /> }))
-vi.mock('./sidebar-nav', () => ({ SidebarNav: () => <nav data-testid="sidebar-nav" /> }))
+vi.mock('./mobile-nav', () => ({
+  MobileNav: ({ userRole }: { userRole?: string }) => (
+    <div data-testid="mobile-nav" data-user-role={userRole ?? ''} />
+  ),
+}))
+vi.mock('./sidebar-nav', () => ({
+  SidebarNav: ({ userRole }: { userRole?: string }) => (
+    <nav data-testid="sidebar-nav" data-user-role={userRole ?? ''} />
+  ),
+}))
 vi.mock('./sign-out-button', () => ({
   SignOutButton: () => <button type="button">Sign out</button>,
 }))
@@ -78,7 +86,7 @@ describe('AppShell', () => {
       </AppShell>,
     )
 
-    expect(screen.getByTestId('sidebar-nav')).toBeInTheDocument()
-    expect(screen.getByTestId('mobile-nav')).toBeInTheDocument()
+    expect(screen.getByTestId('sidebar-nav')).toHaveAttribute('data-user-role', 'admin')
+    expect(screen.getByTestId('mobile-nav')).toHaveAttribute('data-user-role', 'admin')
   })
 })

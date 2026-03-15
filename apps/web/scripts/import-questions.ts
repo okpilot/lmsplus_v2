@@ -1,5 +1,5 @@
 /**
- * Question import script — reads JSON files, validates, upserts reference data,
+ * Question import script — reads JSON files, validates reference data exists,
  * uploads images to Supabase Storage, and inserts questions.
  *
  * Usage:

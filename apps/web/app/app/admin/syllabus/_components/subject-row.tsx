@@ -41,15 +41,11 @@ export function SubjectRow({ subject }: Props) {
   }
 
   function handleAddTopic(data: Record<string, string>) {
-    const sortOrder =
-      subject.topics.length > 0 ? Math.max(...subject.topics.map((t) => t.sort_order)) + 1 : 0
-
     startTransition(async () => {
       const result = await upsertTopic({
         subject_id: subject.id,
         code: data.code,
         name: data.name,
-        sort_order: sortOrder,
       })
       if (result.success) {
         toast.success(`Topic "${data.code}" added`)

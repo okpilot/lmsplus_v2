@@ -31,7 +31,7 @@ export const UpsertSubjectSchema = z.object({
   code: z.string().min(1).max(10),
   name: z.string().min(1).max(200),
   short: z.string().min(1).max(50),
-  sort_order: z.number().int().min(0),
+  sort_order: z.number().int().min(0).optional(),
 })
 
 export type UpsertSubjectInput = z.infer<typeof UpsertSubjectSchema>
@@ -41,7 +41,7 @@ export const UpsertTopicSchema = z.object({
   subject_id: z.string().uuid(),
   code: z.string().min(1).max(20),
   name: z.string().min(1).max(200),
-  sort_order: z.number().int().min(0),
+  sort_order: z.number().int().min(0).optional(),
 })
 
 export type UpsertTopicInput = z.infer<typeof UpsertTopicSchema>
@@ -51,7 +51,7 @@ export const UpsertSubtopicSchema = z.object({
   topic_id: z.string().uuid(),
   code: z.string().min(1).max(30),
   name: z.string().min(1).max(200),
-  sort_order: z.number().int().min(0),
+  sort_order: z.number().int().min(0).optional(),
 })
 
 export type UpsertSubtopicInput = z.infer<typeof UpsertSubtopicSchema>

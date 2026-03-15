@@ -59,6 +59,7 @@ export function InlineForm({
         <Input
           key={field.name}
           ref={i === 0 ? firstInputRef : undefined}
+          aria-label={field.placeholder}
           placeholder={field.placeholder}
           value={values[field.name] ?? ''}
           onChange={(e) => setValues((prev) => ({ ...prev, [field.name]: e.target.value }))}

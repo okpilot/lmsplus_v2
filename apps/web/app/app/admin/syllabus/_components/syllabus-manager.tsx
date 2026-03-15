@@ -15,15 +15,11 @@ export function SyllabusManager({ initialTree }: Props) {
   const [isPending, startTransition] = useTransition()
 
   function handleAddSubject(data: Record<string, string>) {
-    const sortOrder =
-      initialTree.length > 0 ? Math.max(...initialTree.map((s) => s.sort_order)) + 1 : 0
-
     startTransition(async () => {
       const result = await upsertSubject({
         code: data.code,
         name: data.name,
         short: data.short,
-        sort_order: sortOrder,
       })
       if (result.success) {
         toast.success(`Subject "${data.code}" added`)

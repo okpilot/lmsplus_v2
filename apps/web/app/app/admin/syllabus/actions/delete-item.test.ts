@@ -92,7 +92,7 @@ describe('deleteItem', () => {
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('row not found')
+      expect(result.error).toBe('Could not delete syllabus item')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
   })
