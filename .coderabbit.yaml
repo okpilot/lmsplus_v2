@@ -149,7 +149,9 @@ reviews:
           - .env files committed
           - NEXT_PUBLIC_ env vars containing secret keys
           - Hardcoded Supabase URLs or API keys in source files
-          Block if any found.
+          Exclude test files (*.test.ts, *.test.tsx) that set fake env var
+          placeholders like 'test-service-role-key' — these are not real secrets.
+          Block if any real secret value is found.
 
       - mode: "error"
         name: "no-answer-exposure"
