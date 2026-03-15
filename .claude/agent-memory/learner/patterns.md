@@ -44,7 +44,7 @@
 | Direct SELECT from `questions` bypassing RPC (correct-answer exposure) | 2 | 2026-03-13 | RULE EXISTS (security.md rule 1, CLAUDE.md) — 2nd occurrence: checkAnswer in feat/post-sprint-3-polish directly queried questions table exposing `correct` flag; fixed in f6ba7a0 with check_quiz_answer RPC; rule is clear, compliance gap at authoring time |
 | ON CONFLICT clause with no supporting UNIQUE constraint (dead code) | 1 | 2026-03-13 | Watch — student_responses (a09c6be); ON CONFLICT on (session_id, question_id) silently ignored because UNIQUE constraint was never created; fixed by adding UNIQUE constraint in migration; first occurrence |
 | TOCTOU race on count-gated INSERT (read-then-write without lock) | 1 | 2026-03-13 | Watch — draft count check before inserting quiz_draft (feat/post-sprint-3-polish); concurrent requests could both pass the count check; fixed with DB trigger enforcing limit at DB level; first occurrence |
-| Query missing student_id scope (returns wrong student's data) | 1 | 2026-03-13 | Watch — getFilteredCount fetched student_responses without WHERE student_id = auth.uid() (feat/post-sprint-3-polish); fixed by scoping query; first occurrence; distinct from RPC identity-guard pattern (that is SECURITY DEFINER param mismatch — this is a plain query missing a filter clause) |
+| Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE — first: getFilteredCount in feat/post-sprint-3-polish (2026-03-13); second: getQuizReport quiz_sessions query missing student_id scope (b46b0bf → 199e927, CRITICAL); both fixed; root cause: auth check (getUser) ≠ ownership scoping — queries on student-owned tables must always scope to student_id; distinct from RPC identity-guard pattern (that is SECURITY DEFINER param mismatch); propose security.md note on third occurrence |
 | UI event handler missing re-entry guard (double-fire on fast interaction) | 1 | 2026-03-13 | Watch — handleSelectAnswer had no guard preventing a second async call while first was in-flight (feat/post-sprint-3-polish); fixed with isSubmitting ref check; first occurrence |
 | Server Action file exceeding 100-line limit after Biome auto-format | 1 | 2026-03-13 | Watch — draft.ts was 166 lines, split to 114+37 (6d274fa); the 114-line file still exceeds the 100-line Server Action limit; root cause: Biome expanded compact code from 97→114 lines during pre-commit format pass; authoring-time count ≠ post-format count; first occurrence of this specific mechanism (Biome expansion pushing over limit) |
 | Biome auto-format expanding compact code past file-size limit | 1 | 2026-03-13 | Watch — draft.ts written at ~97 lines, Biome format expanded to 114 lines on pre-commit (6d274fa); the 100-line Server Action limit check must be done against post-format line count, not authoring-time count; first occurrence |
@@ -71,6 +71,8 @@
 | Stale cookie from partial auth flow (session set before guard check, not cleaned up on guard failure) | 1 | 2026-03-14 | Watch — auth callback (83ae098 → 08abee0): exchangeCodeForSession set session cookie before users-table check; if users check failed, signOut() was not called before redirecting to auth_failed; fixed in 08abee0; any multi-step auth flow where session is set before all guards run must call signOut() on all post-session failure paths; first occurrence |
 | useMemo with empty deps used as stability guarantee (should be useRef) | 1 | 2026-03-14 | Watch — use-quiz-state.ts (1b38542 → fixed 9ea234b): initial fix used `useMemo(() => value, [])` to snapshot mount-time value; semantic-reviewer correctly flagged that useMemo is a performance hint whose result is not guaranteed stable in concurrent mode; correct tool is useRef; first occurrence; if a second component uses useMemo with empty deps to capture a mount-time constant, add a note to code-style.md Section 2 or 6 about the distinction |
 | test-writer generates deprecated vi.fn generic syntax (two-arg form) | 2 | 2026-03-15 | RULE ADDED — first: use-session-state.test.ts (9ea234b, 2026-03-14); second: session-operations.test.ts (69273cf, 2026-03-15); both required orchestrator correction before type-check passed; correct form is `vi.fn<(arg: A) => R>()` (single function-type argument, Vitest v4); test-writer patterns.md updated with explicit rule and code examples; stale wrong-syntax example on line 238 also corrected |
+| ZodError escaping Server Action with typed error return type (parse() without try/catch) | 1 | 2026-03-15 | Watch — checkAnswer called CheckAnswerSchema.parse(raw) without try/catch; ZodError propagated as unhandled exception instead of returning typed { success: false } response (199e927); fixed with try/catch returning typed error shape; first occurrence; distinct from "Server Action without Zod validation" (that is missing validation — this is validation present but exceptions escaping the return-type contract) |
+| Supabase `.returns<T>()` causing forced intermediate type casts (`as string & keyof never`) | 1 | 2026-03-15 | Watch — PR #7 (b46b0bf) systematically removed `.returns<T>()` chains that caused `as string & keyof never` casts on query builder methods; fix pattern: drop `.returns<T>()`, execute query, cast result directly via `const typed = data as TargetType | null`; first occurrence of systematic cleanup; first occurrence of original antipattern being named |
 
 ## Lessons Learned
 
@@ -1395,3 +1397,65 @@ This is distinct from "auth error from getUser() swallowed without logging" (tha
 **Positive signals:**
 - Code reviewer reported fully clean — the file splits in PR 6 were structurally correct with no violations introduced.
 - The two-occurrence threshold enforcement worked as designed: the pattern was logged at first occurrence (9ea234b) and escalated exactly when it recurred (69273cf). The system caught it before it became a persistent habit in the test-writer's output.
+
+---
+
+### 2026-03-15 — PR 7 type safety cleanup (commits b46b0bf, 199e927)
+
+**Context:** fix/pr7-type-safety-cleanup branch. b46b0bf was the main cleanup commit — removed `as string & keyof never` casts introduced by `Supabase .returns<T>()`, standardised query result casting, and cleaned up type patterns across query files. 199e927 was the semantic-reviewer fix commit — added `student_id` ownership filter to `getQuizReport` and wrapped `checkAnswer`'s `parse()` call in a try/catch.
+
+**Code reviewer:** CLEAN — 0 BLOCKING, 0 WARNING on both commits.
+
+**Semantic reviewer (b46b0bf):** 1 CRITICAL + 1 ISSUE, both fixed in 199e927. 3 SUGGESTIONS (non-blocking).
+
+1. **CRITICAL — `getQuizReport` missing `student_id` ownership filter (fixed 199e927):** The `quiz_sessions` query fetched a session by `id` only (`.eq('id', sessionId)`), without scoping to `.eq('student_id', user.id)`. Any authenticated student could view any other student's quiz report by guessing or knowing a session UUID. Fixed in 199e927 by adding `.eq('student_id', user.id)` to the query chain. Root cause: the auth check (`getUser()`) was present, but the query itself did not enforce ownership. Auth != ownership scoping — both are required. **This is the second occurrence of "Query missing student_id scope"** (first: `getFilteredCount` in feat/post-sprint-3-polish, where `student_responses` was fetched without a student_id filter). Count in frequency table: 1 → 2. Status: RULE CANDIDATE.
+
+2. **ISSUE — `checkAnswer` ZodError uncaught (fixed 199e927):** `checkAnswer` called `CheckAnswerSchema.parse(raw)` directly without a try/catch. All other Server Actions in the directory handle parse failures explicitly (returning a typed error response). An uncaught `ZodError` from `checkAnswer` would propagate as an unhandled exception rather than returning `{ success: false, error: 'Invalid input' }` as the caller expects. Fixed in 199e927 by wrapping `parse()` in a try/catch that returns the standard error shape. Root cause: the ZodError handling convention is not uniformly applied — some actions use `.parse()` directly (relying on a top-level boundary to catch it), while others explicitly try/catch. The inconsistency means the caller contract is not predictably met on bad input. **First occurrence of this specific sub-pattern (ZodError escaping a Server Action that has a typed error return type).** Logged as new watch item. Distinct from "Server Action shipped without Zod validation" (that pattern is about missing validation entirely — this is about validation present but exceptions escaping the return-type contract).
+
+3. **3 SUGGESTIONS (non-blocking):** All pre-existing concerns, not introduced by PR #7. No action taken.
+
+**Semantic reviewer (199e927):** clean — 0 issues, 0 suggestions.
+
+**Doc updater:** `docs/plan.md` and `docs/tech-debt-batches.md` updated to record PR #7 completion. No schema, RPC, or route surface changed. Clean.
+
+**Test writer:** No new tests needed. All 836 tests passing. The PR #7 changes were type cleanup (no behavior change) + the two post-commit fixes (ownership filter + parse try/catch). The ownership filter is covered by the existing session-access red-team specs. The parse try/catch is covered by existing check-answer error-path tests.
+
+**Pattern analysis — "Query missing student_id scope" (count 2, RULE CANDIDATE):**
+
+Both occurrences share the same structure: an authenticated query fetches rows by a non-user identifier (session ID, response ID) without scoping the WHERE clause to `student_id = auth.uid()`. The auth check confirms the user is logged in, but the query does not restrict which user's data is returned. Any authenticated user could access another user's data.
+
+Occurrences:
+1. `getFilteredCount` in `feat/post-sprint-3-polish` (2026-03-13): `student_responses` fetched without `WHERE student_id = auth.uid()` filter. Fixed by scoping query.
+2. `getQuizReport` in PR #7 (b46b0bf → 199e927, 2026-03-15): `quiz_sessions` fetched by `id` only, no `student_id` scope. Classified CRITICAL. Fixed in 199e927.
+
+Root cause: developers correctly add `getUser()` auth checks, then write the query scoped to the resource ID (which they have), but forget that another student could know that ID and invoke the same query. The pattern is: fetching by resource ID is not equivalent to fetching by (resource ID + student ownership). Both are required for any query on student-owned data.
+
+Two occurrences across different commits and different query files confirm this is a systemic gap. The correct home for a note is `docs/security.md` or the semantic-reviewer's memory, not `code-style.md` (it is a security rule, not a style rule). The existing `security.md` rules cover RLS (`USING` policies) and auth checks, but do not explicitly state the application-layer scoping requirement for queries on student-owned tables.
+
+No rule change to `security.md` proposed yet — both occurrences were caught post-commit by the semantic-reviewer, not by RLS failures (RLS did enforce ownership at the DB level, but the application query was still wrong). The semantic-reviewer should continue checking ownership scoping on all queries against student-owned tables. If a third occurrence surfaces, add an explicit note to `security.md`: "queries on student-owned tables (quiz_sessions, student_responses, quiz_drafts) must always include AND student_id = [auth user id] in the WHERE clause, even when RLS is enabled."
+
+**Pattern analysis — Supabase `.returns<T>()` causing forced type casts (count 1, NEW):**
+
+PR #7's primary cleanup was removing the `as string & keyof never` casts that Supabase's `.returns<T>()` chain method generates when the inferred column types don't match the expected return type. The fix pattern adopted throughout: drop `.returns<T>()`, execute the query, then cast the result directly via `const typed = data as TargetType | null`. This is cleaner because the cast is explicit and co-located with the variable declaration, not hidden in a chain method that silently emits incorrect intermediate types.
+
+First occurrence of this specific antipattern being systematically cleaned up. Logged as a watch item. If new query files are written with `.returns<T>()` causing forced casts, note that the correct pattern is to cast the result, not the chain.
+
+**Actions taken:**
+- Frequency table: "Query missing student_id scope (returns wrong student's data)" count updated 1 → 2. Status: RULE CANDIDATE. No rule change to `security.md` yet — awaiting third occurrence or explicit orchestrator approval.
+- Frequency table: 2 new watch items added (both first occurrences): "ZodError escaping Server Action with typed error return type (parse() without try/catch)" and "Supabase `.returns<T>()` causing forced intermediate type casts (use result-cast pattern instead)".
+- No changes to `code-style.md`, `security.md`, or `biome.json`.
+
+**Pending recommended changes (carried forward — still awaiting orchestrator action):**
+
+1. **`.claude/agent-memory/test-writer/patterns.md`** — consoleSpy try/finally (3rd occurrence — from cb0395c cycle, actionable).
+2. **`.claude/agent-memory/test-writer/patterns.md`** — scan every new `if (error) return` branch in files with existing tests; write the branch test in the same commit (3rd occurrence — from d057128 cycle, actionable).
+3. **`.claude/agent-memory/test-writer/patterns.md`** — always construct test fixtures by annotating with the exported TypeScript type (2nd occurrence — from bba9800 cycle, actionable).
+4. **`.claude/agent-memory/test-writer/patterns.md`** — use optional chaining (`arr?.[i]`) when accessing array indices in generated test assertions (2nd occurrence — from 99c67d2 cycle, actionable).
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer clean on both commits — the type cleanup did not introduce any style violations.
+- The CRITICAL ownership gap was caught by the semantic-reviewer one commit after the PR landed, not in production and not by a user accessing another student's data.
+- The Supabase result-cast pattern (drop `.returns<T>()`, cast result directly) is now consistently applied across all query files that were cleaned up. Future readers have a clear model to follow.
+- 836 tests all passing confirms the type cleanup was non-behavioral — no regressions introduced.

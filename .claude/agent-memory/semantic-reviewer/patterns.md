@@ -271,6 +271,39 @@ isCorrect values to wrong questions — silently.
 **Fix:** Use `Map<questionId, isCorrect>` from results instead of positional index.
 **Status: RESOLVED in commit 741ae30** — `updateFsrsCards` now uses `new Map(results.map(r => [r.questionId, r.isCorrect]))` and iterates `answers`, looking up each questionId in the map. Order-independent. Pattern resolved.
 
+### getQuizReport missing student_id ownership check (1st occurrence)
+**First seen:** commit b46b0bf (2026-03-15)
+**File:** `apps/web/lib/queries/quiz-report.ts` line 63-68
+**Pattern:** A query against a student-owned resource (quiz_sessions) filtered only by
+session id and deleted_at — omitting student_id ownership. The session ID is exposed in
+the URL, making the gap exploitable without guessing. This is the second instance of a
+missing `.eq('student_id', user.id)` ownership filter (the first was flagged for
+quiz_session_answers in PR #4). The pattern: any query that fetches a row "by ID" for
+display to the authenticated user must also filter by the user's ID, not rely on the ID
+being secret.
+**Fix:** Add `.eq('student_id', user.id)` to the quiz_sessions query.
+**Watch for:** Any query that takes a resource ID from user input (URL param, search param,
+request body) and fetches a row by that ID without also filtering by the authenticated
+user's ID. This applies to: quiz_sessions, quiz_drafts, student_responses, fsrs_cards.
+**Status:** CRITICAL — flagged in b46b0bf, must fix before merge.
+
+### auth-before-parse divergence in getFilteredCount (1st occurrence in lookup.ts)
+**First seen:** commit b46b0bf (2026-03-15)
+**File:** `apps/web/app/app/quiz/actions/lookup.ts` line 31-38
+**Pattern:** FilteredCountSchema.parse(input) is called before the auth check, reversing
+the established codebase pattern (auth first, parse second). The prior instances where
+this was flagged and fixed: startQuizSession (commit 23a9f10), batchSubmitQuiz (54e9351).
+Both were fixed to auth-first. lookup.ts was introduced after those fixes and does not
+follow the corrected pattern.
+**Impact:** An unauthenticated caller can observe Zod validation error shapes (field names,
+validation rules) before being rejected, leaking schema information.
+**Fix:** Move auth check above FilteredCountSchema.parse(input).
+**Watch for:** Any new Server Action where .parse(raw) or .parse(input) appears before
+supabase.auth.getUser() / requireAuth().
+**Status:** SUGGESTION — non-blocking, logged as 2nd pattern occurrence (first was
+lookup-type functions; both startQuizSession and batchSubmitQuiz are now clean). If a
+third occurrence appears, add a code-style.md rule.
+
 ### loadSessionQuestions — 'use server' Server Action missing auth check
 **First seen:** commit 97ab4ac (2026-03-12)
 **File:** `apps/web/lib/queries/load-session-questions.ts`
