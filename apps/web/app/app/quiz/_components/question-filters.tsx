@@ -1,6 +1,6 @@
 'use client'
 
-export type QuestionFilter = 'all' | 'unseen' | 'incorrect'
+import type { QuestionFilter } from '@/lib/queries/quiz'
 
 type QuestionFiltersProps = {
   value: QuestionFilter

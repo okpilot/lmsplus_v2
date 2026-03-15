@@ -1,6 +1,6 @@
 import type { SubjectOption } from '@/lib/queries/quiz'
+import type { QuestionFilter } from '@/lib/queries/quiz'
 import { useRef, useState, useTransition } from 'react'
-import type { QuestionFilter } from '../_components/question-filters'
 import { getFilteredCount } from '../actions/lookup'
 import { useQuizCascade } from './use-quiz-cascade'
 import { useQuizStart } from './use-quiz-start'

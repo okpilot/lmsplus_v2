@@ -70,7 +70,7 @@
 | Test spec encodes a security gap as a passing assertion | 1 | 2026-03-14 | Watch — session-race-condition.spec.ts (a1335ff) had a test that asserted the race condition response was acceptable/expected, effectively baking the security gap into the passing baseline rather than asserting the gap does not exist; semantic-reviewer flagged this as an ISSUE: a test that passes because it accepts wrong behavior is worse than a failing test; first occurrence; the correct form for a security spec is: assert the hardened behavior, fail if the unguarded path succeeds |
 | Stale cookie from partial auth flow (session set before guard check, not cleaned up on guard failure) | 1 | 2026-03-14 | Watch — auth callback (83ae098 → 08abee0): exchangeCodeForSession set session cookie before users-table check; if users check failed, signOut() was not called before redirecting to auth_failed; fixed in 08abee0; any multi-step auth flow where session is set before all guards run must call signOut() on all post-session failure paths; first occurrence |
 | useMemo with empty deps used as stability guarantee (should be useRef) | 1 | 2026-03-14 | Watch — use-quiz-state.ts (1b38542 → fixed 9ea234b): initial fix used `useMemo(() => value, [])` to snapshot mount-time value; semantic-reviewer correctly flagged that useMemo is a performance hint whose result is not guaranteed stable in concurrent mode; correct tool is useRef; first occurrence; if a second component uses useMemo with empty deps to capture a mount-time constant, add a note to code-style.md Section 2 or 6 about the distinction |
-| test-writer generates deprecated vi.fn generic syntax (two-arg form) | 1 | 2026-03-14 | Watch — use-session-state.test.ts (9ea234b): test-writer generated vi.fn with deprecated Vitest v4 two-argument generic form; correct form is `vi.fn<(arg: A) => R>()` (single function-type arg); fixed by orchestrator before commit; first occurrence; do not add to test-writer memory until second occurrence |
+| test-writer generates deprecated vi.fn generic syntax (two-arg form) | 2 | 2026-03-15 | RULE ADDED — first: use-session-state.test.ts (9ea234b, 2026-03-14); second: session-operations.test.ts (69273cf, 2026-03-15); both required orchestrator correction before type-check passed; correct form is `vi.fn<(arg: A) => R>()` (single function-type argument, Vitest v4); test-writer patterns.md updated with explicit rule and code examples; stale wrong-syntax example on line 238 also corrected |
 
 ## Lessons Learned
 
@@ -1357,3 +1357,41 @@ This is distinct from "auth error from getUser() swallowed without logging" (tha
 - The semantic-reviewer correctly distinguished `useMemo` from `useRef` for a stability guarantee — a subtle correctness issue that lint and type-check cannot catch. The fix (9ea234b) is minimal and correct: 4 lines changed.
 - The 4 navigation guard tests (43ec916) are high-signal: they directly encode the invariant that "pre-loaded answers at mount must not trigger the navigation guard." Any future change to the guard condition that breaks this invariant will immediately fail a test.
 - The dual-mechanism `submittingRef` + `setSubmitting` pattern (ref for synchronous guard, state for UI feedback) is the same correct approach used in `use-answer-handler.ts`. The pattern is becoming a consistent convention in the codebase for in-flight guards on user interaction handlers.
+
+---
+
+### 2026-03-15 — PR 6 split oversized files (commits 44f9232, 69273cf, 4a1e1b8)
+
+**Context:** fix/pr6-split-oversized-files branch. 44f9232 was the main refactor commit — split oversized files to meet code-style limits. 69273cf added unit tests for new session-operations helpers (test-writer output, 10 tests). 4a1e1b8 updated docs/tech-debt-batches.md to mark PR 6 complete.
+
+**Code reviewer:** CLEAN — 0 BLOCKING, 0 WARNING. No violations found across any of the three commits.
+
+**Semantic reviewer (44f9232):** 0 CRITICAL, 0 ISSUE, 1 SUGGESTION.
+- **SUGGESTION — QuizState prop coupling in quiz-main-panel.tsx:** The component receives an opaque `QuizState` object and accesses internal fields rather than accepting explicit typed props. Suggestion-level only; not fixed this cycle. First occurrence of this specific prop-coupling pattern in this component.
+
+**Doc updater:** `docs/tech-debt-batches.md` updated to mark PR 6 complete. No schema, RPC, or route surface changed. Clean.
+
+**Test writer (69273cf — session-operations.test.ts, 10 tests):** Test-writer again generated `vi.fn()` calls using the old two-argument generic syntax (`vi.fn<[SubmitInput], Promise<AnswerResult>>()`). The orchestrator corrected the syntax to `vi.fn<(input: SubmitInput) => Promise<AnswerResult>>()` before the commit landed. **This is the second occurrence across different commits (first was 9ea234b, 2026-03-14).** Two-occurrence threshold met — rule added.
+
+**Pattern checks this cycle:**
+
+1. **"Deprecated vi.fn generic syntax" (count 2, RULE ADDED):** Second occurrence confirmed. Frequency table updated. Rule added to `.claude/agent-memory/test-writer/patterns.md`: use `vi.fn<(arg: A) => R>()` (single function-type argument, Vitest v4 form). Stale wrong-syntax code example on line 238 of that file also corrected. No change to `code-style.md`, `security.md`, or `biome.json` — this is a test-authoring pattern, correctly placed in test-writer memory only.
+
+2. **"QuizState prop coupling" (count 1, NEW):** First occurrence — semantic-reviewer suggestion, not an issue. Logged and watching.
+
+3. **Pending RULE CANDIDATE patterns (carried forward — still awaiting orchestrator action):**
+   - consoleSpy try/finally (3rd occurrence, actionable)
+   - scan new error-return branches for missing test coverage (3rd occurrence, actionable)
+   - construct test fixtures from exported TypeScript type (2nd occurrence, actionable)
+   - optional chaining on array index access in tests (2nd occurrence, actionable)
+
+**Actions taken:**
+- Frequency table: "Deprecated vi.fn generic syntax" escalated from count 1/WATCH to count 2/RULE ADDED.
+- `test-writer/patterns.md` updated: new section "vi.fn Generic Typing — Vitest v4 Syntax (RULE ADDED 2026-03-15)" added; stale wrong-syntax example corrected.
+- No changes to `code-style.md`, `security.md`, `biome.json`, or any `.claude/agents/*.md` file.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer reported fully clean — the file splits in PR 6 were structurally correct with no violations introduced.
+- The two-occurrence threshold enforcement worked as designed: the pattern was logged at first occurrence (9ea234b) and escalated exactly when it recurred (69273cf). The system caught it before it became a persistent habit in the test-writer's output.

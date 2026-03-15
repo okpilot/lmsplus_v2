@@ -35,33 +35,23 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
   if (!user) throw new Error('Not authenticated')
 
   const [subjectsRes, topicsRes, questionsRes, correctRes] = await Promise.all([
-    supabase
-      .from('easa_subjects')
-      .select('id, code, name, short, sort_order')
-      .order('sort_order')
-      .returns<SubjectRow[]>(),
+    supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
     supabase
       .from('easa_topics')
       .select('id, code, name, subject_id, sort_order')
-      .order('sort_order')
-      .returns<TopicRow[]>(),
-    supabase
-      .from('questions')
-      .select('id, subject_id, topic_id')
-      .eq('status' as string & keyof never, 'active')
-      .returns<QuestionRow[]>(),
+      .order('sort_order'),
+    supabase.from('questions').select('id, subject_id, topic_id').eq('status', 'active'),
     supabase
       .from('student_responses')
       .select('question_id')
-      .eq('student_id' as string & keyof never, user.id)
-      .eq('is_correct' as string & keyof never, true)
-      .returns<ResponseRow[]>(),
+      .eq('student_id', user.id)
+      .eq('is_correct', true),
   ])
 
-  const subjects = subjectsRes.data ?? []
-  const topics = topicsRes.data ?? []
-  const questions = questionsRes.data ?? []
-  const correctIds = new Set((correctRes.data ?? []).map((r) => r.question_id))
+  const subjects = (subjectsRes.data ?? []) as SubjectRow[]
+  const topics = (topicsRes.data ?? []) as TopicRow[]
+  const questions = (questionsRes.data ?? []) as QuestionRow[]
+  const correctIds = new Set(((correctRes.data ?? []) as ResponseRow[]).map((r) => r.question_id))
 
   const qBySubject = new Map<string, string[]>()
   const qByTopic = new Map<string, string[]>()

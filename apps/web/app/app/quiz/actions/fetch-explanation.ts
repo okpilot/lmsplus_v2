@@ -27,10 +27,10 @@ export async function fetchExplanation(raw: unknown): Promise<FetchExplanationRe
   const { data: session, error: sessionError } = await supabase
     .from('quiz_sessions')
     .select('config')
-    .eq('id' as string & keyof never, sessionId)
-    .eq('student_id' as string & keyof never, user.id)
-    .is('ended_at' as string & keyof never, null)
-    .is('deleted_at' as string & keyof never, null)
+    .eq('id', sessionId)
+    .eq('student_id', user.id)
+    .is('ended_at', null)
+    .is('deleted_at', null)
     .single()
   if (sessionError || !session) return { success: false }
   const config = (session as unknown as { config: { question_ids: unknown } }).config

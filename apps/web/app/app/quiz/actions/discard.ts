@@ -27,6 +27,7 @@ export async function discardQuiz(
     }
 
     // Soft-delete the session — only if it belongs to this user and is still active
+    // Cast: quiz_sessions.deleted_at exists in DB (migration 023) but not in remote-generated types yet
     const { error: sessionError } = await supabase
       .from('quiz_sessions' as 'users')
       .update({ deleted_at: new Date().toISOString() } as never)
@@ -53,7 +54,7 @@ export async function discardQuiz(
     // Hard-delete the associated draft if one exists (quiz_drafts has no deleted_at column)
     if (input.draftId) {
       const { error: draftError } = await supabase
-        .from('quiz_drafts' as 'users')
+        .from('quiz_drafts')
         .delete()
         .eq('id', input.draftId)
         .eq('student_id', user.id)

@@ -37,16 +37,22 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
   } = await supabase.auth.getUser()
   if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-  const { questionId, selectedOptionId, sessionId } = CheckAnswerSchema.parse(raw)
+  let parsed: z.infer<typeof CheckAnswerSchema>
+  try {
+    parsed = CheckAnswerSchema.parse(raw)
+  } catch {
+    return { success: false, error: 'Invalid input' }
+  }
+  const { questionId, selectedOptionId, sessionId } = parsed
 
   // Verify session belongs to this user, is active, and contains the question
   const { data: session, error: sessionError } = await supabase
     .from('quiz_sessions')
     .select('config')
-    .eq('id' as string & keyof never, sessionId)
-    .eq('student_id' as string & keyof never, user.id)
-    .is('ended_at' as string & keyof never, null)
-    .is('deleted_at' as string & keyof never, null)
+    .eq('id', sessionId)
+    .eq('student_id', user.id)
+    .is('ended_at', null)
+    .is('deleted_at', null)
     .single()
   if (sessionError || !session) return { success: false, error: 'Session not found' }
   const config = (session as unknown as { config: { question_ids: unknown } }).config

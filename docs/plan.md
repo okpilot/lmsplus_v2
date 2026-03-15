@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-14
+> Last updated: 2026-03-15
 
 ---
 
@@ -114,6 +114,29 @@
 - Migration 036: `submit_quiz_answer` RPC — added `deleted_at IS NULL` guard + option membership validation (prevents submitting to discarded sessions, validates selected_option exists in question's options JSONB array)
 - Migration 037: `batch_submit_quiz` RPC — added option membership validation for each answer in batch (prevents bulk-submitting arbitrary option strings)
 - Test updates: auth callback, fetch-stats mocks, login-form error assertions
+
+**Tech Debt PR #5 done (2026-03-14):** Race Conditions & Async Bugs:
+- In-flight guard added to useSessionState submit/next handlers (#40)
+- Navigation guard false positive on unchanged resumed drafts fixed (#53)
+- Issues #86, #51, #67 confirmed already implemented — closed
+
+**Tech Debt PR #6 done (2026-03-15):** Split Oversized Files:
+- Shared types (SessionQuestion, AnswerResult, CompleteResult, SubmitInput) extracted to `_types/session.ts`
+- SessionRunner split into SessionRunner + ActiveSession + SessionProgressBar + SessionAnswerBlock
+- QuizSession split into QuizSession + QuizMainPanel + QuizTabContent + QuizControls + useQuizActiveTab
+- use-session-state.ts refactored: async operations extracted to session-operations.ts, type refs to _types/session.ts (79/80 lines)
+- ActivityChart tooltip/axis config hoisted to module constants
+- Issues #2, #36, #71, #80, #96 already resolved in prior PRs — all 10 PR 6 issues closed
+
+**Tech Debt PR #7 done (2026-03-15):** Type Safety & Cleanup:
+- Supabase types regenerated from linked project (picks up all 37 migrations)
+- Removed ~50 `as string & keyof never` column-name casts across 10 query files by eliminating `.returns<T>()` and casting results at point of use instead
+- Removed `as 'users'` / `as never` casts from quiz draft actions (quiz_drafts now properly typed in generated types)
+- Consolidated duplicate QuestionFilter type: canonical def in lib/queries/quiz.ts, all other imports reference it
+- ReactMarkdown components and remarkPlugins hoisted to module scope (prevents re-allocation on every render)
+- Removed duplicate --radius declaration from .dark block in globals.css
+- Test mocks refactored: replaced .returns() terminal with thenable chain pattern
+- Issues #3 (shared RPC types) and #65 (NaN in boundParam) confirmed already resolved; all 7 issues closed
 
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
@@ -617,4 +640,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-14 — Tech debt PR 1 (Docs & Comments) merged. Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks. Design prototype approved in Paper Design (light + dark mode). New shadcn theme installed.*
+*Last updated: 2026-03-15 — Tech debt PR #7 (Type Safety & Cleanup) completed. Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks.*

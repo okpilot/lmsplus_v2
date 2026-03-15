@@ -1,6 +1,11 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: '14.1'
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -240,7 +245,7 @@ export type Database = {
           id: string
           lapses: number
           last_review: string | null
-          last_was_correct: boolean | null
+          last_was_correct: boolean
           question_id: string
           reps: number
           scheduled_days: number
@@ -257,7 +262,7 @@ export type Database = {
           id?: string
           lapses?: number
           last_review?: string | null
-          last_was_correct?: boolean | null
+          last_was_correct?: boolean
           question_id: string
           reps?: number
           scheduled_days?: number
@@ -274,7 +279,7 @@ export type Database = {
           id?: string
           lapses?: number
           last_review?: string | null
-          last_was_correct?: boolean | null
+          last_was_correct?: boolean
           question_id?: string
           reps?: number
           scheduled_days?: number
@@ -907,6 +912,15 @@ export type Database = {
           total_questions: number
         }[]
       }
+      get_daily_activity: {
+        Args: { p_days?: number; p_student_id: string }
+        Returns: {
+          correct: number
+          day: string
+          incorrect: number
+          total: number
+        }[]
+      }
       get_quiz_questions: {
         Args: { p_question_ids: string[] }
         Returns: {
@@ -922,6 +936,16 @@ export type Database = {
           subject_code: string
           subtopic_name: string
           topic_name: string
+        }[]
+      }
+      get_subject_scores: {
+        Args: { p_limit?: number; p_student_id: string }
+        Returns: {
+          avg_score: number
+          session_count: number
+          subject_id: string
+          subject_name: string
+          subject_short: string
         }[]
       }
       start_quiz_session: {

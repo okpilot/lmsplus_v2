@@ -146,6 +146,44 @@ The reference pattern in `use-question-stats.ts` is 1:1: one counter per async r
 **Watch for:** Any hook with multiple independent async operations sharing one generation/abort signal.
 **Status:** ISSUE — pending fix.
 
+### refactor: error path behavioral change in handleSubmit / handleNext (1st occurrence)
+**First seen:** commit 44f9232 (2026-03-14)
+**File:** `apps/web/app/app/_hooks/use-session-state.ts`
+**Pattern:** When async operations are extracted from hooks into helper functions,
+error-path flow changes must be carefully verified. In this refactor, the old
+`try/catch` + `return` pattern was replaced with `executeSubmit` returning a
+discriminated union. The behavioral outcome is identical (setSubmitting(false)
+and submittingRef.current = false always run), but the structural change from
+early-return to if/else requires tracing both branches against existing tests.
+**Verification method:** Check that every code path through the new if/else
+still reaches `setSubmitting(false)` and `submittingRef.current = false`.
+**Status:** GOOD — verified clean. No behavioral regression.
+
+### QuizTabContent 'question' tab rendering — null vs not-rendered (1st occurrence)
+**First seen:** commit 44f9232 (2026-03-14)
+**File:** `apps/web/app/app/quiz/session/_components/quiz-tab-content.tsx`
+**Pattern:** The old `quiz-session.tsx` used `&&` guards — tab components were
+never mounted for `activeTab === 'question'`. The new `QuizTabContent` always
+mounts but returns `null` for `'question'`. React treats `null` return and
+unmounted children identically in terms of DOM output. No behavioral difference.
+**Watch for:** Stateful tab components (if added in future) that should be
+unmounted when inactive, not just hidden via null render.
+**Status:** GOOD — verified clean for current stateless tab implementation.
+
+### QuizState passed as opaque prop `s` (1st occurrence)
+**First seen:** commit 44f9232 (2026-03-14)
+**File:** `apps/web/app/app/quiz/session/_components/quiz-main-panel.tsx`
+**Pattern:** `QuizMainPanel` accepts the full `QuizState` return value as `s: QuizState`.
+This is a structural convenience for a refactor commit, but couples the panel
+tightly to the full hook surface. Future changes to `useQuizState`'s return shape
+will automatically affect this component without a type error unless the shape
+changes incompatibly. The `QuizState = ReturnType<typeof useQuizState>` export
+is appropriate for the current scope.
+**Watch for:** If `QuizMainPanel` is reused in a different context where
+`useQuizState` is not the hook, the opaque-props pattern will need to be
+replaced with explicit props.
+**Status:** SUGGESTION — non-blocking, logged for future awareness.
+
 ### auth-before-parse ordering
 **First seen:** commit 23a9f10 (2026-03-12)
 **Files:** `apps/web/app/app/quiz/actions.ts` — `startQuizSession`; `apps/web/app/app/quiz/actions/batch-submit.ts` — `batchSubmitQuiz` (commit 54e9351)
