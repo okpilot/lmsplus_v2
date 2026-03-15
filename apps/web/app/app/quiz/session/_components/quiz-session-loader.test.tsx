@@ -21,11 +21,17 @@ vi.mock('./quiz-session', () => ({
   QuizSession: ({
     sessionId,
     initialIndex,
+    initialAnswers,
   }: {
     sessionId: string
     initialIndex?: number
+    initialAnswers?: Record<string, unknown>
   }) => (
-    <div data-testid="quiz-session" data-initial-index={initialIndex}>
+    <div
+      data-testid="quiz-session"
+      data-initial-index={initialIndex}
+      data-answer-keys={initialAnswers ? Object.keys(initialAnswers).join(',') : ''}
+    >
       {sessionId}
     </div>
   ),
@@ -152,5 +158,27 @@ describe('QuizSessionLoader', () => {
     const el = screen.getByTestId('quiz-session')
     // No draft index → attribute should be absent (undefined → not rendered)
     expect(el.getAttribute('data-initial-index')).toBeNull()
+  })
+
+  it('strips stale answer keys that are not present in the loaded questions', async () => {
+    const sessionWithStaleAnswer = {
+      ...SESSION_DATA,
+      draftAnswers: {
+        q1: { selectedOptionId: 'opt-a', responseTimeMs: 1000 },
+        'deleted-question-id': { selectedOptionId: 'opt-b', responseTimeMs: 500 },
+      },
+    }
+    sessionStorage.setItem('quiz-session', JSON.stringify(sessionWithStaleAnswer))
+    mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
+
+    render(<QuizSessionLoader />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
+    })
+
+    const el = screen.getByTestId('quiz-session')
+    // Only q1 survives — the stale key is filtered out
+    expect(el.getAttribute('data-answer-keys')).toBe('q1')
   })
 })
