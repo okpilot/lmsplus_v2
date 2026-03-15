@@ -412,6 +412,8 @@ ORDER BY deleted_at DESC;
 | `audit_events` | No | Immutable compliance log |
 | `easa_subjects/topics/subtopics` | No | Reference data, never deleted |
 
+> **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE/DELETE to users where `is_admin()` returns `true`. All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature.
+
 ---
 
 ## 4. RPC Conventions
@@ -1086,6 +1088,26 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 -- Validation: p_limit must be 1–100, raises exception if outside range
 ```
 
+#### `is_admin()` — Admin role check helper
+
+Returns `boolean`. SECURITY DEFINER with `SET search_path = public`.
+Checks `auth.uid()` against `users.role = 'admin'`. Returns `false` (not an exception) when no user is authenticated, so it is safe to call from RLS policies without causing errors for unauthenticated requests.
+
+Used by RLS policies on `easa_subjects`, `easa_topics`, and `easa_subtopics` to gate INSERT/UPDATE/DELETE to admin users only (migration 039).
+
+```sql
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$;
+```
+
 ---
 
 ## 5. Indexes
@@ -1145,4 +1167,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-13 (migration 030: batch_submit null guards) | Companion: docs/security.md*
+*Last updated: 2026-03-15 (migration 039: is_admin() + admin RLS on easa tables) | Companion: docs/security.md*

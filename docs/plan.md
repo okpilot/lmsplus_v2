@@ -147,6 +147,13 @@
 - Tests: 10 new ARIA/keyboard tests for quiz-tabs, 2 new dialog aria-label tests
 - Issues #102, #50, #30, #28 closed
 
+**Admin Syllabus Manager done (2026-03-15, issue #171):**
+- Migration 039: `is_admin()` helper RPC + admin INSERT/UPDATE/DELETE policies on `easa_subjects`, `easa_topics`, `easa_subtopics`
+- Admin route guard: `proxy.ts` checks `users.role = 'admin'` on `/app/admin/*`, returns 403 if not admin
+- `requireAdmin()` Server Action guard in `apps/web/lib/auth/require-admin.ts` — verifies auth + admin role, called by all admin Server Actions
+- CRUD UI: create/edit/delete subjects, topics, subtopics via admin interface
+- 45 new tests covering admin guards, RLS policies, and CRUD Server Actions
+
 **Tech Debt PR #9 done (2026-03-15):** UX, Perf & Architecture:
 - Migration 038: `get_quiz_questions` RPC returns real explanation fields (was NULL)
 - ExplanationTab refactored to pure render component (deleted `fetchExplanation` Server Action)
