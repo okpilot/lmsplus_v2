@@ -147,6 +147,18 @@
 - Tests: 10 new ARIA/keyboard tests for quiz-tabs, 2 new dialog aria-label tests
 - Issues #102, #50, #30, #28 closed
 
+**Tech Debt PR #9 done (2026-03-15):** UX, Perf & Architecture:
+- Migration 038: `get_quiz_questions` RPC returns real explanation fields (was NULL)
+- ExplanationTab refactored to pure render component (deleted `fetchExplanation` Server Action)
+- Suspense boundary on quiz page for subjects section streaming
+- Parallel queries in `getSubjectsWithCounts()` via `Promise.all`
+- `question-stats.ts`: 3 COUNT queries collapsed to 1 select + JS aggregation (capped at 500 rows)
+- `subject-scores-chart.tsx`: responsive layout (stack on mobile, side-by-side on sm+)
+- Draft Zod `.superRefine()` for cross-field validation + stale answer filtering in loader
+- Test quality: error message assertions, specific selectors, mock body fixes
+- Issues #43, #4, #29 closed as stale (Smart Review removed), #101 already done
+- PR #181 merged
+
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
 - `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys
@@ -575,55 +587,6 @@ Test summary: 247 unit tests (32 files) + 35 integration tests + 10 E2E tests. A
 - Red-team agent (sonnet) integrated into post-commit pipeline — auto-triggers on security-sensitive file changes
 - Attack surface memory system for tracking exploitation patterns
 - `/redteam` skill command for on-demand test execution
-
-### Sprint 4 — Dashboard v4 Redesign (PLANNED — 2026-03-14)
-
-Design prototype approved in Paper Design. New theme installed (`shadcnthemer.com/r/themes/b9f9a2d2`). Key changes: remove charts, add stat cards, redesign heatmap, add actionable subject cards, collapsible sidebar.
-
-**Theme change (already applied to `globals.css`):**
-- Font: system-ui sans-serif stack (was Open Sans)
-- Radius: 0.625rem / 10px (was 1.3rem / 21px)
-- Primary: `oklch(0.6231 0.188 259.8145)` — medium blue-purple
-- Neutral gray text, pure white bg, subtle blue-gray borders
-
-#### Remove (delete files + unimport from page.tsx)
-- [ ] 4.1 Delete `activity-chart.tsx` — daily activity bar chart (replaced by heatmap)
-- [ ] 4.2 Delete `subject-scores-chart.tsx` — pie/donut chart (not needed)
-- [ ] 4.3 Delete `analytics.ts` queries for daily activity + subject scores (if no longer used)
-
-#### Modify existing
-- [ ] 4.4 **Sidebar**: Remove "Progress" link from `sidebar-nav.tsx` + `mobile-nav.tsx`
-- [ ] 4.5 **Sidebar**: Add collapsible state — toggle button, icon-only mode (~48px), persist preference
-- [ ] 4.6 **Page header**: Change subtitle from "X questions answered across N subjects" to "Welcome back, [Name] 👋" — pass `displayName` to dashboard page
-- [ ] 4.7 **Page header**: Move "Start Quiz" button inline top-right of header (not separate section)
-- [ ] 4.8 **Heatmap**: Refactor to single-row 31-day layout for current month (not last-30-days wrapping grid)
-- [ ] 4.9 **Heatmap**: Add day numbers below squares (every 5th day labeled)
-- [ ] 4.10 **Heatmap**: Replace inline Less/More legend with `?` icon + shadcn HoverCard/Tooltip explaining colors
-- [ ] 4.11 **Subject cards**: Add color-coded progress bars — red (<50%), amber (50-89%), green (90%+), grey (no data)
-- [ ] 4.12 **Subject cards**: Add "Last practiced: [relative date]" — needs `lastPracticedAt` field
-- [ ] 4.13 **Subject cards**: Add "Practice" link per card — navigates to `/app/quiz?subject=[code]`
-- [ ] 4.14 **Subject cards**: Show all 9 EASA PPL subjects (010-090)
-
-#### New components
-- [ ] 4.15 **Exam Readiness card**: percentage of subjects at 90%+ mastery, color-coded (red <30%, amber 30-70%, green 70%+), "X / 9 subjects at 90%+", "Est. ready by [date]" projection
-- [ ] 4.16 **Questions Today card**: today's question count / 50 daily goal, color-coded (<25 red, 25-50 amber, 50+ green), mini progress bar, "N more to hit your daily goal"
-- [ ] 4.17 **Study Streak card**: consecutive days with activity, best streak, encouraging copy ("Best: N days — keep going!")
-
-#### Backend / data queries
-- [ ] 4.18 **`lastPracticedAt` per subject**: New query joining `quiz_session_answers` → `quiz_sessions` → group by subject, MAX(created_at)
-- [ ] 4.19 **Today's question count**: Query or filter from daily activity data — count questions answered today
-- [ ] 4.20 **Study streak calculation**: Compute consecutive days with activity from daily activity data; track best streak
-- [ ] 4.21 **Exam readiness projection**: Pace-based estimate — (questions/day rate) × (remaining questions) → estimated completion date
-- [ ] 4.22 **Daily goal config**: Hardcoded 50 for now; later make configurable per student
-
-#### Implementation order
-1. Remove: 4.1, 4.2, 4.3 (delete old charts)
-2. Backend: 4.18, 4.19, 4.20, 4.21 (data queries)
-3. Modify: 4.4, 4.6, 4.7, 4.14 (sidebar + header + subject count)
-4. New: 4.15, 4.16, 4.17 (stat cards)
-5. Modify: 4.8, 4.9, 4.10 (heatmap redesign)
-6. Modify: 4.11, 4.12, 4.13 (subject card enhancements)
-7. Polish: 4.5 (collapsible sidebar — most complex, do last)
 
 ---
 
