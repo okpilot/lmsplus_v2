@@ -1,19 +1,11 @@
 'use client'
 
-import { AnswerOptions } from '@/app/app/_components/answer-options'
-import { QuestionCard } from '@/app/app/_components/question-card'
-import type { SessionQuestion } from '@/app/app/_components/session-runner'
-import { SessionTimer } from '@/app/app/_components/session-timer'
-import { useEffect, useState } from 'react'
-import { CommentsTab } from '../../_components/comments-tab'
-import { ExplanationTab } from '../../_components/explanation-tab'
-import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
+import type { SessionQuestion } from '@/app/app/_types/session'
 import { QuestionGrid } from '../../_components/question-grid'
-import { QuestionTabs } from '../../_components/question-tabs'
-import { StatisticsTab } from '../../_components/statistics-tab'
 import type { DraftAnswer } from '../../types'
+import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizState } from '../_hooks/use-quiz-state'
-import { QuizNavBar } from './quiz-nav-bar'
+import { QuizMainPanel } from './quiz-main-panel'
 
 type QuizSessionProps = {
   sessionId: string
@@ -26,17 +18,8 @@ type QuizSessionProps = {
 }
 
 export function QuizSession(props: QuizSessionProps) {
-  const s = useQuizState(props) // draftId forwarded via props spread
-  const [activeTab, setActiveTab] = useState<
-    'question' | 'explanation' | 'comments' | 'statistics'
-  >('question')
-
-  // Reset tab to 'question' when navigating between questions — not data fetching
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger on index change
-  useEffect(() => {
-    setActiveTab('question')
-  }, [s.currentIndex])
-
+  const s = useQuizState(props)
+  const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
   if (!s.question) return null
 
   return (
@@ -51,95 +34,13 @@ export function QuizSession(props: QuizSessionProps) {
           onNavigate={s.navigateTo}
         />
       </div>
-      <div className="mx-auto w-full max-w-2xl space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="h-1.5 flex-1 rounded-full bg-muted">
-            <div
-              data-testid="progress-bar"
-              className="h-1.5 rounded-full bg-primary transition-all"
-              style={{ width: `${(s.answeredCount / props.questions.length) * 100}%` }}
-            />
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {s.answeredCount}/{props.questions.length}
-          </span>
-          <SessionTimer />
-        </div>
-        <QuestionCard
-          questionText={s.question.question_text}
-          questionImageUrl={s.question.question_image_url}
-          questionNumber={s.currentIndex + 1}
-          totalQuestions={props.questions.length}
-          dbQuestionNumber={s.question.question_number}
-        />
-        {s.error && (
-          <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            {s.error}
-          </div>
-        )}
-        <AnswerOptions
-          key={s.question.id}
-          options={s.question.options}
-          onSubmit={s.handleSelectAnswer}
-          disabled={s.submitting}
-          selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
-          correctOptionId={s.currentFeedback?.correctOptionId ?? null}
-        />
-        <QuestionTabs activeTab={activeTab} onTabChange={setActiveTab} />
-        {activeTab === 'explanation' &&
-          (s.currentFeedback ? (
-            <ExplanationTab
-              hasAnswered={true}
-              isCorrect={s.currentFeedback.isCorrect}
-              explanationText={s.currentFeedback.explanationText}
-              explanationImageUrl={s.currentFeedback.explanationImageUrl}
-            />
-          ) : (
-            <ExplanationTab
-              hasAnswered={false}
-              questionId={s.questionId}
-              sessionId={props.sessionId}
-            />
-          ))}
-        {activeTab === 'comments' && <CommentsTab />}
-        {activeTab === 'statistics' && (
-          <StatisticsTab questionId={s.questionId} hasAnswered={!!s.existingAnswer} />
-        )}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            data-testid="pin-button"
-            onClick={s.togglePin}
-            className={
-              s.isPinned
-                ? 'rounded-lg border border-yellow-400 bg-yellow-100 px-3 py-2 text-sm font-medium text-yellow-700 transition-colors dark:border-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
-                : 'rounded-lg border border-input px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted'
-            }
-            aria-pressed={s.isPinned}
-          >
-            {s.isPinned ? 'Unpin' : 'Pin'}
-          </button>
-          <div className="flex-1">
-            <QuizNavBar
-              currentIndex={s.currentIndex}
-              totalQuestions={props.questions.length}
-              onPrev={() => s.navigate(-1)}
-              onNext={() => s.navigate(1)}
-              onFinish={() => s.setShowFinishDialog(true)}
-            />
-          </div>
-        </div>
-        <FinishQuizDialog
-          open={s.showFinishDialog}
-          answeredCount={s.answeredCount}
-          totalQuestions={props.questions.length}
-          submitting={s.submitting}
-          onSubmit={s.handleSubmit}
-          onCancel={() => s.setShowFinishDialog(false)}
-          onSave={s.handleSave}
-          onDiscard={s.handleDiscard}
-        />
-      </div>
+      <QuizMainPanel
+        s={s}
+        sessionId={props.sessionId}
+        totalQuestions={props.questions.length}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
     </div>
   )
 }

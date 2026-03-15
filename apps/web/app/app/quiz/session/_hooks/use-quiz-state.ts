@@ -7,6 +7,8 @@ import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
 import { useQuizSubmit } from './use-quiz-submit'
 
+export type QuizState = ReturnType<typeof useQuizState>
+
 export function useQuizState(opts: QuizStateOpts) {
   const { sessionId, questions, initialAnswers } = opts
   const router = useRouter()

@@ -100,7 +100,7 @@ export type LoadDraftsResult = { drafts: DraftData[] }
 
 export type QuizStateOpts = {
   sessionId: string
-  questions: import('@/app/app/_components/session-runner').SessionQuestion[]
+  questions: import('@/app/app/_types/session').SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
   initialIndex?: number
   draftId?: string

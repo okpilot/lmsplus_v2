@@ -1,28 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type {
-  AnswerResult,
-  CompleteResult,
-  SessionQuestion,
-  SubmitInput,
-} from '../_components/session-runner'
+import type { AnswerResult, SessionState, UseSessionStateOpts } from '../_types/session'
+import { executeComplete, executeSubmit } from './session-operations'
 
-type SessionState = 'answering' | 'feedback' | 'complete'
-
-type UseSessionStateProps = {
-  sessionId: string
-  questions: SessionQuestion[]
-  onSubmitAnswer: (input: SubmitInput) => Promise<AnswerResult>
-  onComplete: (input: { sessionId: string }) => Promise<CompleteResult>
-}
-
-export function useSessionState({
-  sessionId,
-  questions,
-  onSubmitAnswer,
-  onComplete,
-}: UseSessionStateProps) {
+export function useSessionState(opts: UseSessionStateOpts) {
+  const { sessionId, questions, onSubmitAnswer, onComplete } = opts
   const [currentIndex, setCurrentIndex] = useState(0)
   const [state, setState] = useState<SessionState>('answering')
   const [feedback, setFeedback] = useState<AnswerResult | null>(null)
@@ -34,11 +17,9 @@ export function useSessionState({
   const [error, setError] = useState<string | null>(null)
   const answerStartTime = useRef(Date.now())
   const submittingRef = useRef(false)
-
   useEffect(() => {
     if (state === 'answering') answerStartTime.current = Date.now()
   }, [state])
-
   async function handleSubmit(selectedId: string) {
     if (submittingRef.current) return
     submittingRef.current = true
@@ -49,37 +30,24 @@ export function useSessionState({
     }
     setSubmitting(true)
     setSelectedOption(selectedId)
-    const responseTimeMs = Date.now() - answerStartTime.current
-    let result: AnswerResult
-    try {
-      result = await onSubmitAnswer({
-        sessionId,
-        questionId: q.id,
-        selectedOptionId: selectedId,
-        responseTimeMs,
-      })
-    } catch (err) {
-      console.error('Failed to submit answer:', err)
-      setError('Something went wrong. Please try again.')
-      setSubmitting(false)
-      submittingRef.current = false
-      return
-    }
+    const result = await executeSubmit(onSubmitAnswer, {
+      sessionId,
+      questionId: q.id,
+      selectedOptionId: selectedId,
+      responseTimeMs: Date.now() - answerStartTime.current,
+    })
     if (!result.success) {
       setError(result.error)
-      setSubmitting(false)
-      submittingRef.current = false
-      return
+    } else {
+      setError(null)
+      setFeedback(result)
+      setAnsweredCount((c) => c + 1)
+      if (result.isCorrect) setCorrectCount((c) => c + 1)
+      setState('feedback')
     }
-    setError(null)
-    setFeedback(result)
-    setAnsweredCount((c) => c + 1)
-    if (result.isCorrect) setCorrectCount((c) => c + 1)
-    setState('feedback')
     setSubmitting(false)
     submittingRef.current = false
   }
-
   async function handleNext() {
     setError(null)
     if (currentIndex + 1 < questions.length) {
@@ -92,25 +60,14 @@ export function useSessionState({
     if (submittingRef.current) return
     submittingRef.current = true
     setSubmitting(true)
-    let result: CompleteResult
-    try {
-      result = await onComplete({ sessionId })
-    } catch (err) {
-      console.error('Failed to complete session:', err)
-      setError('Something went wrong. Please try again.')
-      setSubmitting(false)
-      submittingRef.current = false
-      return
-    }
+    const result = await executeComplete(onComplete, sessionId)
     if (!result.success) {
       setError(result.error)
-      setSubmitting(false)
-      submittingRef.current = false
-      return
+    } else {
+      setCorrectCount(result.correctCount)
+      setScorePercentage(result.scorePercentage)
+      setState('complete')
     }
-    setCorrectCount(result.correctCount)
-    setScorePercentage(result.scorePercentage)
-    setState('complete')
     setSubmitting(false)
     submittingRef.current = false
   }

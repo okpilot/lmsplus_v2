@@ -92,9 +92,10 @@
 
 ---
 
-## PR 6 — Refactor: Split Oversized Files (10 issues)
+## PR 6 — Refactor: Split Oversized Files (10 issues) — DONE
 
 *Code-style compliance. Split hooks/components over line limits.*
+*Completed 2026-03-15. Extracted shared types into _types/session.ts, split SessionRunner into SessionRunner + ActiveSession, split QuizSession into QuizMainPanel + QuizTabContent + QuizControls, extracted session-operations.ts from use-session-state.ts, extracted ActivityChart config constants. Issues #2, #36, #71, #80, #96 were already resolved in prior PRs.*
 
 | # | Title |
 |---|-------|
@@ -200,7 +201,7 @@
 | 3 | Test coverage gaps | 4 | None | **DONE** |
 | 4 | Security & auth | 8 | Medium | **DONE** |
 | 5 | Race conditions & async bugs | 5 | Medium | **DONE** |
-| 6 | Split oversized files | 10 | Low | Planned |
+| 6 | Split oversized files | 10 | Low | **DONE** |
 | 7 | Type safety & cleanup | 7 | Low | Planned |
 | 8 | Accessibility | 4 | Low | Planned |
 | 9 | UX, perf & architecture | 10 | Medium | Planned |
