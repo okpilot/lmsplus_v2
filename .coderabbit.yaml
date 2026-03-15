@@ -149,8 +149,9 @@ reviews:
           - .env files committed
           - NEXT_PUBLIC_ env vars containing secret keys
           - Hardcoded Supabase URLs or API keys in source files
-          Exclude test files (*.test.ts, *.test.tsx) that set fake env var
-          placeholders like 'test-service-role-key' — these are not real secrets.
+          In test files, ignore only explicit fake placeholder values
+          (e.g., 'test-service-role-key', 'fake-key', 'mock-token').
+          Continue scanning test files for all other secret patterns.
           Block if any real secret value is found.
 
       - mode: "error"
