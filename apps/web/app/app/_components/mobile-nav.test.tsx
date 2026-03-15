@@ -83,4 +83,24 @@ describe('MobileNav', () => {
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveAttribute('aria-label', 'Navigation menu')
   })
+
+  it('shows admin nav items when userRole is admin', async () => {
+    const user = userEvent.setup({ delay: null })
+    render(<MobileNav userRole="admin" />)
+
+    await user.click(screen.getByRole('button', { name: 'Open menu' }))
+
+    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('Syllabus')).toBeInTheDocument()
+  })
+
+  it('hides admin nav items for student role', async () => {
+    const user = userEvent.setup({ delay: null })
+    render(<MobileNav userRole="student" />)
+
+    await user.click(screen.getByRole('button', { name: 'Open menu' }))
+
+    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    expect(screen.queryByText('Syllabus')).not.toBeInTheDocument()
+  })
 })

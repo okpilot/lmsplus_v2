@@ -1,21 +1,31 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { SidebarNav } from './sidebar-nav'
 
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(() => '/app/dashboard'),
 }))
 
-// Re-import to control the mock per test
 import { usePathname } from 'next/navigation'
+import { SidebarNav } from './sidebar-nav'
 
 describe('SidebarNav', () => {
-  it('renders all navigation links', () => {
+  it('renders all student navigation links', () => {
     render(<SidebarNav />)
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Quiz')).toBeInTheDocument()
     expect(screen.getByText('Progress')).toBeInTheDocument()
-    expect(screen.queryByText('Smart Review')).not.toBeInTheDocument()
+    expect(screen.queryByText('Syllabus')).not.toBeInTheDocument()
+  })
+
+  it('shows admin nav items when userRole is admin', () => {
+    render(<SidebarNav userRole="admin" />)
+    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('Syllabus')).toBeInTheDocument()
+  })
+
+  it('hides admin nav items for student role', () => {
+    render(<SidebarNav userRole="student" />)
+    expect(screen.queryByText('Syllabus')).not.toBeInTheDocument()
   })
 
   it('links point to correct routes', () => {

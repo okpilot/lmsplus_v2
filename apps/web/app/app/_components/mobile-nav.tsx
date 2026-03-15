@@ -4,17 +4,16 @@ import { Dialog } from '@base-ui/react/dialog'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState } from 'react'
+import { ADMIN_NAV_ITEMS, NAV_ITEMS } from './nav-items'
 
-const NAV_ITEMS = [
-  { href: '/app/dashboard', label: 'Dashboard' },
-  { href: '/app/quiz', label: 'Quiz' },
-  { href: '/app/progress', label: 'Progress' },
-  { href: '/app/reports', label: 'Reports' },
-]
+type MobileNavProps = {
+  userRole?: string
+}
 
-export function MobileNav() {
+export function MobileNav({ userRole }: MobileNavProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
+  const items = userRole === 'admin' ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS
 
   // Close drawer on route change
   const prevPathname = useRef(pathname)
@@ -64,7 +63,7 @@ export function MobileNav() {
               </button>
             </div>
             <nav className="flex flex-col gap-1">
-              {NAV_ITEMS.map((item) => {
+              {items.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
                 return (
                   <Link

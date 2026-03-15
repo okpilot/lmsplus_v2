@@ -69,4 +69,16 @@ describe('AppShell', () => {
     rerender(<AppShell displayName="Ada Pilot">Session child</AppShell>)
     expect(screen.getByText('Session child')).toBeInTheDocument()
   })
+
+  it('passes userRole to SidebarNav and MobileNav', () => {
+    mockUsePathname.mockReturnValue('/app/dashboard')
+    render(
+      <AppShell displayName="Ada Pilot" userRole="admin">
+        Content
+      </AppShell>,
+    )
+
+    expect(screen.getByTestId('sidebar-nav')).toBeInTheDocument()
+    expect(screen.getByTestId('mobile-nav')).toBeInTheDocument()
+  })
 })

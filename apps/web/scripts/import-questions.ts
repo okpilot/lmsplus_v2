@@ -199,87 +199,46 @@ function parseFolderPath(baseDir: string) {
   return { topicCode, topicName, subtopicCode, subtopicName }
 }
 
-function deriveSortOrder(code: string): number {
-  // "050" → 50, "050-01" → 1, "050-01-01" → 1
-  const segments = code.split('-')
-  const last = segments[segments.length - 1]
-  return Number.parseInt(last, 10)
-}
+async function lookupSubject(db: ReturnType<typeof createClient>, code: string) {
+  const { data, error } = await db.from('easa_subjects').select('id').eq('code', code).single()
 
-async function upsertSubject(
-  db: ReturnType<typeof createClient>,
-  code: string,
-  name: string,
-  short: string,
-) {
-  const { data, error } = await db
-    .from('easa_subjects')
-    .upsert({ code, name, short, sort_order: deriveSortOrder(code) }, { onConflict: 'code' })
-    .select('id')
-    .single()
-
-  if (error) throw new Error(`Failed to upsert subject ${code}: ${error.message}`)
+  if (error || !data) {
+    throw new Error(
+      `Subject code '${code}' not found in database. Add it via /app/admin/syllabus first.`,
+    )
+  }
   return data.id as string
 }
 
-async function upsertTopic(
-  db: ReturnType<typeof createClient>,
-  subjectId: string,
-  code: string,
-  name: string,
-) {
-  // Check existing first (composite unique on subject_id + code)
-  const { data: existing } = await db
+async function lookupTopic(db: ReturnType<typeof createClient>, subjectId: string, code: string) {
+  const { data, error } = await db
     .from('easa_topics')
     .select('id')
     .eq('subject_id', subjectId)
     .eq('code', code)
     .single()
 
-  if (existing) return existing.id as string
-
-  const { data, error } = await db
-    .from('easa_topics')
-    .insert({
-      subject_id: subjectId,
-      code,
-      name,
-      sort_order: deriveSortOrder(code),
-    })
-    .select('id')
-    .single()
-
-  if (error) throw new Error(`Failed to upsert topic ${code}: ${error.message}`)
+  if (error || !data) {
+    throw new Error(
+      `Topic code '${code}' not found in database. Add it via /app/admin/syllabus first.`,
+    )
+  }
   return data.id as string
 }
 
-async function upsertSubtopic(
-  db: ReturnType<typeof createClient>,
-  topicId: string,
-  code: string,
-  name: string,
-) {
-  const { data: existing } = await db
+async function lookupSubtopic(db: ReturnType<typeof createClient>, topicId: string, code: string) {
+  const { data, error } = await db
     .from('easa_subtopics')
     .select('id')
     .eq('topic_id', topicId)
     .eq('code', code)
     .single()
 
-  if (existing) return existing.id as string
-
-  const { data, error } = await db
-    .from('easa_subtopics')
-    .insert({
-      topic_id: topicId,
-      code,
-      name,
-      sort_order: deriveSortOrder(code),
-    })
-    .select('id')
-    .single()
-
-  if (error) throw new Error(`Failed to upsert subtopic ${code}: ${error.message}`)
+  if (error || !data) {
+    throw new Error(
+      `Subtopic code '${code}' not found in database. Add it via /app/admin/syllabus first.`,
+    )
+  }
   return data.id as string
 }
 
@@ -289,34 +248,20 @@ async function resolveRefs(
   folderMeta: ReturnType<typeof parseFolderPath>,
 ): Promise<RefIds> {
   // Subject — always from the question data
-  const subjectShorts: Record<string, string> = {
-    '010': 'ALW',
-    '020': 'AGK',
-    '030': 'FPP',
-    '040': 'HPL',
-    '050': 'MET',
-    '060': 'NAV',
-    '070': 'OPS',
-    '080': 'POF',
-    '090': 'COM',
-  }
-  const short = subjectShorts[question.subject] ?? question.subject
-  const subjectId = await upsertSubject(db, question.subject, question.subject_name, short)
+  const subjectId = await lookupSubject(db, question.subject)
 
   // Topic — from question JSON or folder path
   const topicCode = question.topic ?? folderMeta.topicCode
-  const topicName = question.topic_name ?? folderMeta.topicName
   let topicId: string | null = null
-  if (topicCode && topicName) {
-    topicId = await upsertTopic(db, subjectId, topicCode, topicName)
+  if (topicCode) {
+    topicId = await lookupTopic(db, subjectId, topicCode)
   }
 
   // Subtopic — from question JSON or folder path
   const subtopicCode = question.subtopic ?? folderMeta.subtopicCode
-  const subtopicName = question.subtopic_name ?? folderMeta.subtopicName
   let subtopicId: string | null = null
-  if (topicId && subtopicCode && subtopicName) {
-    subtopicId = await upsertSubtopic(db, topicId, subtopicCode, subtopicName)
+  if (topicId && subtopicCode) {
+    subtopicId = await lookupSubtopic(db, topicId, subtopicCode)
   }
 
   return { subjectId, topicId, subtopicId }

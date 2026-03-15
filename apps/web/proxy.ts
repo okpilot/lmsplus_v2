@@ -45,6 +45,18 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirectWithCookies(new URL('/', request.url))
   }
 
+  // Block non-admin users from /app/admin/* routes
+  if (pathname.startsWith('/app/admin') && user) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single<{ role: string }>()
+    if (profile?.role !== 'admin') {
+      return new NextResponse('Forbidden', { status: 403 })
+    }
+  }
+
   // Redirect authenticated users away from login page to dashboard
   if (pathname === '/' && user) {
     return redirectWithCookies(new URL('/app/dashboard', request.url))
