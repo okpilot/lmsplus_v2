@@ -11,6 +11,61 @@
   - Pattern: Extracting hooks for stateful logic + extracting sub-components for presentation is working well; file sizes stabilizing after refactors
 - **Session ownership guard pattern established**: Commit 7ae13b6 demonstrates defense-in-depth security pattern for answer checking. Session ownership verified in both Server Action boundary AND RPC layer. Pattern: dual-layer auth guards on sensitive operations.
 - **Test naming convention solidified (2026-03-14)**: Behavior-focused test naming is now the standard. Commit 15ad393 successfully renamed ~80 test titles across 14 files to describe user-visible behavior instead of implementation details. This pattern is establishing itself as the norm across the test suite.
+- **Accessibility patterns emerging (2026-03-15)**: Commit b0de349 demonstrates consistent WAI-ARIA pattern implementation. Dialog components now include `aria-label` attributes. TabList pattern correctly implemented with full keyboard navigation (ArrowRight/Left, Home/End) + tabpanel linking. Test coverage includes both ARIA attribute validation and keyboard behavior. Pattern: accessibility features are paired with dedicated tests from day one.
+
+## Session 2026-03-15 (commit b0de349) — Accessibility: ARIA tablist + keyboard nav (CLEAN)
+
+### Commit: b0de349 (fix: add ARIA tablist, keyboard nav, and dialog accessible names)
+- Status: **CLEAN** — No violations
+- Files changed: 4 files, 157 insertions, 49 deletions
+- Summary: Add `aria-label` to Dialog.Popup components in mobile-nav and zoomable-image. Implement WAI-ARIA tablist pattern in quiz-tabs component with keyboard navigation (ArrowRight, ArrowLeft, Home, End) and proper tab/tabpanel linking. Expand test suite with 9 new tests validating ARIA attributes and keyboard behavior.
+
+**✅ All checks PASS:**
+- ✓ File sizes:
+  - mobile-nav.tsx: 89 lines (component limit: 150) ✓
+  - zoomable-image.tsx: 50 lines (component limit: 150) ✓
+  - quiz-tabs.tsx: 106 lines (component limit: 150) ✓
+  - quiz-tabs.test.tsx: 144 lines (test file, exempt) ✓
+- ✓ Function lengths:
+  - TabButton(): 29 lines ✓
+  - handleKeyDown(): 16 lines ✓
+  - QuizTabs(): 54 lines (component with JSX, acceptable) ✓
+- ✓ Parameter handling:
+  - TabButtonProps destructured as object (7 properties) — correct pattern ✓
+  - handleKeyDown() takes 1 parameter (KeyboardEvent) ✓
+- ✓ Nesting depth:
+  - handleKeyDown(): 3 levels max (early returns, no nesting chains) ✓
+  - TabButton() JSX: 3 levels max ✓
+  - QuizTabs() JSX: 3 levels max ✓
+- ✓ TypeScript:
+  - KeyboardEvent properly imported and typed ✓
+  - useRef<HTMLDivElement>(null) properly typed ✓
+  - No `any` types ✓
+  - No unvalidated casts ✓
+- ✓ React patterns:
+  - 'use client' at top ✓
+  - Proper useState/useRef usage ✓
+  - No useEffect ✓
+- ✓ Accessibility (commit purpose):
+  - Dialog components: aria-label added to Dialog.Popup ✓
+  - Tablist pattern: role="tablist" + aria-label on container ✓
+  - Tab buttons: role="tab", aria-selected, aria-controls, tabIndex ✓
+  - Tab panels: role="tabpanel", aria-labelledby, id ✓
+  - Keyboard navigation: ArrowRight, ArrowLeft, Home, End all implemented ✓
+- ✓ Test coverage:
+  - Helper function renderTabs() reduces duplication ✓
+  - 4 ARIA tablist pattern tests ✓
+  - 5 keyboard navigation tests ✓
+  - Behavior-focused test names ✓
+
+**Positive patterns in this commit:**
+- Accessibility features are properly tested — ARIA attributes validated, keyboard behavior validated separately
+- Keyboard navigation uses clean modulo arithmetic for wrap-around (e.g., `(currentIndex + 1) % TABS.length`)
+- Constants extracted at module level (TABS array) improves maintainability
+- Test helper function reduces render boilerplate and improves readability
+- Optional chaining used appropriately (`tabListRef.current?.querySelector`)
+
+---
 
 ## Session 2026-03-14 (commit 15ad393) — Test refactoring: Behavior-focused naming + file split (CLEAN)
 

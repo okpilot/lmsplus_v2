@@ -19,6 +19,13 @@ describe('ZoomableImage', () => {
     expect(images.length).toBe(2)
   })
 
+  it('dialog popup carries an aria-label that includes the image alt text', () => {
+    render(<ZoomableImage src="/test.png" alt="Runway diagram" />)
+    fireEvent.click(screen.getByAltText('Runway diagram'))
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveAttribute('aria-label', 'Zoomed image: Runway diagram')
+  })
+
   it('closes the dialog when close button is clicked', () => {
     render(<ZoomableImage src="/test.png" alt="Test image" />)
     fireEvent.click(screen.getByAltText('Test image'))

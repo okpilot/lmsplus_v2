@@ -211,6 +211,46 @@ instead of returning `{ success: false, error: ... }`.
 The partial-write failure mode is eliminated.
 **Watch for:** batch operations against immutable tables where partial writes cannot be undone.
 
+### keyboard navigation activates tab on arrow keys instead of moving focus only (1st occurrence)
+**First seen:** commit b0de349 (2026-03-15)
+**File:** `apps/web/app/app/quiz/_components/quiz-tabs.tsx` line 61-68
+**Pattern:** The WAI-ARIA Tabs pattern (APG 3.2.1) defines two keyboard interaction models:
+- **Manual activation**: arrow keys move focus only; Enter/Space activates the focused tab.
+- **Automatic activation**: arrow keys both move focus AND activate the tab simultaneously.
+Both are valid. This implementation uses automatic activation (setTab called inside handleKeyDown).
+The risk is that if tab panels trigger expensive operations (data fetches, animations), every
+ArrowRight keypress triggers that operation. For this app the tab panels are static content
+passed as props so automatic activation is safe. If panels ever trigger async operations, the
+activation model should be revisited.
+**Watch for:** Any change that makes savedDraftContent or newQuizContent trigger side effects
+(data fetches, mutations) — at that point, rethink whether automatic activation is still correct.
+**Status:** GOOD — currently safe given static props, logged for future awareness.
+
+### WAI-ARIA: tabpanel `aria-labelledby` points to active tab only — inactive panel not in DOM
+**First seen:** commit b0de349 (2026-03-15)
+**File:** `apps/web/app/app/quiz/_components/quiz-tabs.tsx` line 101
+**Pattern:** The component renders a single `<div role="tabpanel">` whose `id` and
+`aria-labelledby` swap dynamically as `tab` state changes. Because only the active panel is
+in the DOM at any time (conditional rendering), inactive tabs correctly have no panel in DOM.
+This is the correct implementation for a single-panel tab UI. The only correctness concern is
+that `aria-controls` on the inactive tab (`tabpanel-saved` when `tab === 'new'`) points to a
+DOM element that does not currently exist. This is technically non-conforming — `aria-controls`
+is expected to reference an existing ID. It does not cause AT failures in practice today, but
+it is a minor spec deviation.
+**Status:** SUGGESTION — logged as a known a11y spec deviation, non-blocking for now.
+
+### Dialog.Popup aria-label vs aria-labelledby: label source not dynamic
+**First seen:** commit b0de349 (2026-03-15)
+**Files:** `apps/web/app/app/_components/mobile-nav.tsx`,
+          `apps/web/app/app/_components/zoomable-image.tsx`
+**Pattern:** Both dialogs now use `aria-label` (static string). `aria-label` is correct here
+because no visible heading element exists inside the dialog to point `aria-labelledby` at.
+The zoomable image case is correctly dynamic: `aria-label={Zoomed image: ${alt}}` means screen
+readers announce the image being zoomed, which changes per usage. The mobile nav case is a
+static string "Navigation menu". Both are valid uses of `aria-label`. The pattern is consistent
+across both dialogs.
+**Status:** GOOD — consistent and correct for both dialog use cases.
+
 ### red-team specs: RPC parameter mismatch across partial fix commits
 **First seen:** PR #4 (2026-03-14)
 **Files:** `apps/web/e2e/redteam/session-replay.spec.ts`, `session-race-condition.spec.ts`,

@@ -73,4 +73,14 @@ describe('MobileNav', () => {
     const progressLink = screen.getByText('Progress')
     expect(progressLink.className).not.toContain('bg-primary/10')
   })
+
+  it('drawer popup carries an aria-label of "Navigation menu"', async () => {
+    const user = userEvent.setup({ delay: null })
+    render(<MobileNav />)
+
+    await user.click(screen.getByRole('button', { name: 'Open menu' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveAttribute('aria-label', 'Navigation menu')
+  })
 })

@@ -2311,3 +2311,23 @@ const onSuccess = vi.fn()
 **When it matters:** When a test passes the mock as a typed parameter (e.g., a Server Action prop typed as `(input: X) => Promise<Y>`) and TypeScript needs to verify the shape. In those cases use the v4 single-arg form above.
 
 **Origin:** Pattern recurred in 9ea234b (2026-03-14, use-session-state.test.ts) and 69273cf (2026-03-15, session-operations.test.ts). Both commits required orchestrator correction before type-check passed. Rule added on second occurrence.
+
+---
+
+## Testing Base UI Dialog.Popup aria-label (2026-03-15)
+
+`@base-ui/react/dialog`'s `Dialog.Popup` renders as `<div role="dialog">` in jsdom. When an `aria-label` prop is added to the popup, assert it with `getByRole('dialog')` + `toHaveAttribute`:
+
+```tsx
+// Source: Dialog.Popup aria-label={`Zoomed image: ${alt}`}
+it('dialog popup carries an aria-label that includes the image alt text', () => {
+  render(<ZoomableImage src="/test.png" alt="Runway diagram" />)
+  fireEvent.click(screen.getByAltText('Runway diagram'))
+  const dialog = screen.getByRole('dialog')
+  expect(dialog).toHaveAttribute('aria-label', 'Zoomed image: Runway diagram')
+})
+```
+
+The dialog is only in the DOM when open — always trigger the open action before querying `getByRole('dialog')`. No need to mock `@base-ui/react/dialog`; it renders correctly in jsdom.
+
+**Origin:** Commit b0de349 (2026-03-15) — ARIA accessible names added to ZoomableImage and MobileNav dialogs.
