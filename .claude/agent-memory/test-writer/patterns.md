@@ -224,6 +224,24 @@ mockFrom.mockImplementation((table: string) => {
 })
 ```
 
+### Testing pure async wrapper functions with try/catch (2026-03-14)
+For thin wrapper functions that call a callback and catch errors (e.g., `executeSubmit`,
+`executeComplete`), pass typed `vi.fn()` mocks directly — no module mocking needed.
+Spy on `console.error` to assert logging without output noise:
+```ts
+beforeEach(() => {
+  vi.restoreAllMocks()
+  vi.spyOn(console, 'error').mockImplementation(() => undefined)
+})
+
+it('returns a failure result when the callback rejects', async () => {
+  const onSubmit = vi.fn<(input: Input) => Promise<Result>>().mockRejectedValue(new Error('boom'))
+  const result = await executeSubmit(onSubmit, input)
+  expect(result).toEqual({ success: false, error: 'Something went wrong. Please try again.' })
+})
+```
+Always confirm the exact fallback error string from the production source before asserting.
+
 ### Testing formatTimeAgo (text split across DOM nodes)
 When a time string appears inside a paragraph alongside other text nodes, use a function
 matcher instead of `getByText(string)`:
@@ -2266,3 +2284,30 @@ should not activate the guard until the user adds a new answer in the current se
 
 ### Suite state after this commit
 2 files (1 new, 1 extended). New: 11 tests. Extended: +4 tests. Running total: ~80 test files, ~762 tests.
+
+## vi.fn Generic Typing — Vitest v4 Syntax (RULE ADDED 2026-03-15)
+
+**Background:** This project uses Vitest 4.x. The old two-argument generic form (`vi.fn<[ArgTypes], ReturnType>()`) was deprecated in Vitest 3 and removed in Vitest 4. Generated test code that uses the old form will fail `pnpm check-types` and block the pre-commit hook.
+
+**Rule:** Always use the single function-type argument form:
+
+```ts
+// ❌ WRONG — deprecated two-argument form (Vitest ≤3, removed in v4)
+const onSubmit = vi.fn<[SubmitInput], Promise<AnswerResult>>()
+const fn = vi.fn<[string, number], void>()
+
+// ✅ CORRECT — single function-type argument (Vitest v4)
+const onSubmit = vi.fn<(input: SubmitInput) => Promise<AnswerResult>>()
+const fn = vi.fn<(s: string, n: number) => void>()
+```
+
+For simple callbacks with no complex typing, plain `vi.fn()` is fine — only add generics when the type must be explicit for assertion correctness:
+
+```ts
+// ✅ also fine — no generics needed when the mock's type is inferred
+const onSuccess = vi.fn()
+```
+
+**When it matters:** When a test passes the mock as a typed parameter (e.g., a Server Action prop typed as `(input: X) => Promise<Y>`) and TypeScript needs to verify the shape. In those cases use the v4 single-arg form above.
+
+**Origin:** Pattern recurred in 9ea234b (2026-03-14, use-session-state.test.ts) and 69273cf (2026-03-15, session-operations.test.ts). Both commits required orchestrator correction before type-check passed. Rule added on second occurrence.

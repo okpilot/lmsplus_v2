@@ -37,19 +37,19 @@ export async function getAllSessions(): Promise<SessionReport[]> {
   if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
-  const { data: sessions, error: sessionsError } = await supabase
+  const { data: sessionsData, error: sessionsError } = await supabase
     .from('quiz_sessions')
     .select(
       'id, mode, total_questions, correct_count, score_percentage, started_at, ended_at, subject_id',
     )
-    .eq('student_id' as string & keyof never, user.id)
-    .not('ended_at' as string & keyof never, 'is', null)
-    .is('deleted_at' as string & keyof never, null)
-    .order('started_at' as string & keyof never, { ascending: false })
-    .returns<SessionRow[]>()
+    .eq('student_id', user.id)
+    .not('ended_at', 'is', null)
+    .is('deleted_at', null)
+    .order('started_at', { ascending: false })
 
   if (sessionsError) throw new Error(`Failed to fetch sessions: ${sessionsError.message}`)
-  if (!sessions?.length) return []
+  const sessions = (sessionsData ?? []) as SessionRow[]
+  if (!sessions.length) return []
 
   const sessionIds = sessions.map((s) => s.id)
 
@@ -57,18 +57,10 @@ export async function getAllSessions(): Promise<SessionReport[]> {
     (() => {
       const subjectIds = [...new Set(sessions.map((s) => s.subject_id).filter(Boolean))] as string[]
       return subjectIds.length > 0
-        ? supabase
-            .from('easa_subjects')
-            .select('id, name')
-            .in('id' as string & keyof never, subjectIds)
-            .returns<SubjectNameRow[]>()
+        ? supabase.from('easa_subjects').select('id, name').in('id', subjectIds)
         : Promise.resolve({ data: [] as SubjectNameRow[], error: null })
     })(),
-    supabase
-      .from('quiz_session_answers')
-      .select('session_id')
-      .in('session_id' as string & keyof never, sessionIds)
-      .returns<AnswerCountRow[]>(),
+    supabase.from('quiz_session_answers').select('session_id').in('session_id', sessionIds),
   ])
 
   if (subjectsResult.error)
@@ -77,10 +69,12 @@ export async function getAllSessions(): Promise<SessionReport[]> {
   if (answersResult.error)
     throw new Error(`Failed to fetch answer counts: ${answersResult.error.message}`)
 
-  const subjectMap = new Map((subjectsResult.data ?? []).map((s) => [s.id, s.name]))
+  const subjectData = subjectsResult.data as SubjectNameRow[]
+  const subjectMap = new Map(subjectData.map((s) => [s.id, s.name]))
 
+  const answerData = (answersResult.data ?? []) as AnswerCountRow[]
   const answeredCountMap = new Map<string, number>()
-  for (const row of answersResult.data ?? []) {
+  for (const row of answerData) {
     answeredCountMap.set(row.session_id, (answeredCountMap.get(row.session_id) ?? 0) + 1)
   }
 

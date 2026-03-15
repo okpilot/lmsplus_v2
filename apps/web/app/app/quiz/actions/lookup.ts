@@ -40,49 +40,50 @@ export async function getFilteredCount(input: unknown): Promise<{ count: number 
   let query = supabase
     .from('questions')
     .select('id')
-    .eq('status' as string & keyof never, 'active')
-    .eq('subject_id' as string & keyof never, subjectId)
-    .is('deleted_at' as string & keyof never, null)
+    .eq('status', 'active')
+    .eq('subject_id', subjectId)
+    .is('deleted_at', null)
 
-  if (topicId) query = query.eq('topic_id' as string & keyof never, topicId)
-  if (subtopicId) query = query.eq('subtopic_id' as string & keyof never, subtopicId)
+  if (topicId) query = query.eq('topic_id', topicId)
+  if (subtopicId) query = query.eq('subtopic_id', subtopicId)
 
-  const { data, error } = await query.returns<QuestionIdRow[]>()
+  const { data: rawData, error } = await query
   if (error) {
     console.error('[getFilteredCount] Questions query error:', error.message)
     return { count: 0 }
   }
-  if (!data?.length) return { count: 0 }
+  const data = (rawData ?? []) as QuestionIdRow[]
+  if (!data.length) return { count: 0 }
 
   if (filter === 'all') return { count: data.length }
 
   const questionIds = data.map((q) => q.id)
 
   if (filter === 'unseen') {
-    const { data: answered, error: answeredError } = await supabase
+    const { data: answeredData, error: answeredError } = await supabase
       .from('student_responses')
       .select('question_id')
-      .eq('student_id' as string & keyof never, user.id)
-      .in('question_id' as string & keyof never, questionIds)
-      .returns<QuestionFilterRef[]>()
+      .eq('student_id', user.id)
+      .in('question_id', questionIds)
     if (answeredError) {
       console.error('[getFilteredCount] student_responses query error:', answeredError.message)
     }
-    const answeredIds = new Set((answered ?? []).map((r) => r.question_id))
+    const answered = (answeredData ?? []) as QuestionFilterRef[]
+    const answeredIds = new Set(answered.map((r) => r.question_id))
     return { count: data.filter((q) => !answeredIds.has(q.id)).length }
   }
 
   // filter === 'incorrect'
-  const { data: incorrectCards, error: incorrectError } = await supabase
+  const { data: incorrectData, error: incorrectError } = await supabase
     .from('fsrs_cards')
     .select('question_id')
-    .eq('student_id' as string & keyof never, user.id)
-    .eq('last_was_correct' as string & keyof never, false)
-    .in('question_id' as string & keyof never, questionIds)
-    .returns<QuestionFilterRef[]>()
+    .eq('student_id', user.id)
+    .eq('last_was_correct', false)
+    .in('question_id', questionIds)
   if (incorrectError) {
     console.error('[getFilteredCount] fsrs_cards query error:', incorrectError.message)
   }
-  const incorrectIds = new Set((incorrectCards ?? []).map((r) => r.question_id))
+  const incorrectCards = (incorrectData ?? []) as QuestionFilterRef[]
+  const incorrectIds = new Set(incorrectCards.map((r) => r.question_id))
   return { count: data.filter((q) => incorrectIds.has(q.id)).length }
 }

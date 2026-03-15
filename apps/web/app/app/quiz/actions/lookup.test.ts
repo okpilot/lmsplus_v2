@@ -54,7 +54,7 @@ function setupUnauthenticated() {
 
 /**
  * Build a chainable Supabase from() mock.
- * `terminalData` is returned from `.returns()`.
+ * The chain is thenable — awaiting it resolves to `{ data, error }`.
  */
 function buildQueryChain(terminalData: unknown[], terminalError: unknown = null) {
   const terminal = { data: terminalData, error: terminalError }
@@ -63,7 +63,8 @@ function buildQueryChain(terminalData: unknown[], terminalError: unknown = null)
     eq: vi.fn().mockReturnThis(),
     is: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
-    returns: vi.fn().mockReturnValue(terminal),
+    // biome-ignore lint/suspicious/noThenProperty: Supabase query builders are thenable — mock must implement .then() to be awaitable
+    then: vi.fn((resolve: (v: unknown) => unknown) => Promise.resolve(resolve(terminal))),
   }
   return chain
 }
@@ -307,13 +308,22 @@ describe('getFilteredCount — filter: unseen', () => {
         return buildQueryChain([{ id: Q1_ID }])
       }
       // student_responses returns null data
-      return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        in: vi.fn().mockReturnThis(),
-        returns: vi.fn().mockReturnValue({ data: null, error: null }),
-      }
+      return buildQueryChain([], null)
     })
+    // Override terminal data to null to test null handling
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) {
+        return buildQueryChain([{ id: Q1_ID }])
+      }
+      const nullChain = buildQueryChain([], null)
+      // biome-ignore lint/suspicious/noThenProperty: Supabase query builders are thenable
+      nullChain.then = vi.fn((resolve: (v: unknown) => unknown) =>
+        Promise.resolve(resolve({ data: null, error: null })),
+      )
+      return nullChain
+    })
+    callIndex = 0
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filter: 'unseen' })
 
@@ -368,12 +378,12 @@ describe('getFilteredCount — filter: incorrect', () => {
       if (callIndex === 1) {
         return buildQueryChain([{ id: Q1_ID }])
       }
-      return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        in: vi.fn().mockReturnThis(),
-        returns: vi.fn().mockReturnValue({ data: null, error: null }),
-      }
+      const nullChain = buildQueryChain([], null)
+      // biome-ignore lint/suspicious/noThenProperty: Supabase query builders are thenable
+      nullChain.then = vi.fn((resolve: (v: unknown) => unknown) =>
+        Promise.resolve(resolve({ data: null, error: null })),
+      )
+      return nullChain
     })
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filter: 'incorrect' })
