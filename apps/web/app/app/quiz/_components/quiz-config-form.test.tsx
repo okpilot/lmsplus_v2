@@ -91,9 +91,7 @@ describe('QuizConfigForm', () => {
 
     await waitFor(() => {
       expect(mockFetchTopics).toHaveBeenCalledWith('sub-1')
-    })
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Topic/)).toBeInTheDocument()
+      expect(screen.getByLabelText('Topic (optional)')).toBeInTheDocument()
     })
   })
 
@@ -132,9 +130,9 @@ describe('QuizConfigForm', () => {
     await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Topic/)).toBeInTheDocument()
+      expect(screen.getByLabelText('Topic (optional)')).toBeInTheDocument()
     })
-    await user.selectOptions(screen.getByLabelText(/Topic/), 'top-1')
+    await user.selectOptions(screen.getByLabelText('Topic (optional)'), 'top-1')
     await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
 
     expect(mockStartQuizSession).toHaveBeenCalledWith(
@@ -266,14 +264,14 @@ describe('QuizConfigForm', () => {
     render(<QuizConfigForm subjects={SUBJECTS} />)
     await user.selectOptions(screen.getByLabelText('Subject'), 'sub-1')
     await waitFor(() => {
-      expect(screen.getByLabelText(/Topic/)).toBeInTheDocument()
+      expect(screen.getByLabelText('Topic (optional)')).toBeInTheDocument()
     })
 
     // Change subject — topics should disappear
     mockFetchTopics.mockResolvedValue([])
     await user.selectOptions(screen.getByLabelText('Subject'), 'sub-2')
     await waitFor(() => {
-      expect(screen.queryByLabelText(/Topic/)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Topic (optional)')).not.toBeInTheDocument()
     })
   })
 })

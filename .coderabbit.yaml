@@ -149,7 +149,10 @@ reviews:
           - .env files committed
           - NEXT_PUBLIC_ env vars containing secret keys
           - Hardcoded Supabase URLs or API keys in source files
-          Block if any found.
+          In test files, ignore only explicit fake placeholder values
+          (e.g., 'test-service-role-key', 'fake-key', 'mock-token').
+          Continue scanning test files for all other secret patterns.
+          Block if any real secret value is found.
 
       - mode: "error"
         name: "no-answer-exposure"

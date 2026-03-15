@@ -8,6 +8,8 @@ type QuizQuestionRow = {
   question_text: string
   question_image_url: string | null
   question_number: string | null
+  explanation_text: string | null
+  explanation_image_url: string | null
   options: unknown
 }
 
@@ -16,6 +18,8 @@ type Question = {
   question_text: string
   question_image_url: string | null
   question_number: string | null
+  explanation_text: string | null
+  explanation_image_url: string | null
   options: { id: string; text: string }[]
 }
 
@@ -51,6 +55,8 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
     question_text: q.question_text,
     question_image_url: q.question_image_url,
     question_number: q.question_number,
+    explanation_text: q.explanation_text,
+    explanation_image_url: q.explanation_image_url,
     options: (q.options as { id: string; text: string }[]) ?? [],
   }))
 

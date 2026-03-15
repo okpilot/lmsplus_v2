@@ -1,13 +1,13 @@
-import { getSubjectsWithCounts } from '@/lib/queries/quiz'
-import { QuizConfigForm } from './_components/quiz-config-form'
+import { Suspense } from 'react'
 import { QuizTabs } from './_components/quiz-tabs'
 import { SavedDraftCard } from './_components/saved-draft-card'
+import { SubjectsSection } from './_components/subjects-section'
 import { loadDrafts } from './actions/load-draft'
 
 export const dynamic = 'force-dynamic'
 
 export default async function QuizPage() {
-  const [subjects, { drafts }] = await Promise.all([getSubjectsWithCounts(), loadDrafts()])
+  const { drafts } = await loadDrafts()
 
   return (
     <main className="space-y-6">
@@ -22,9 +22,9 @@ export default async function QuizPage() {
         <QuizTabs
           draftCount={drafts.length}
           newQuizContent={
-            <div className="rounded-lg border border-border bg-card p-6">
-              <QuizConfigForm subjects={subjects} />
-            </div>
+            <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
+              <SubjectsSection />
+            </Suspense>
           }
           savedDraftContent={<SavedDraftCard drafts={drafts} />}
         />

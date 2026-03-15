@@ -143,22 +143,23 @@
 
 ---
 
-## PR 9 — UX, Perf & Architecture (10 issues)
+## PR 9 — UX, Perf & Architecture (10 issues) — DONE
 
 *UX polish, performance, data architecture improvements.*
+*Completed 2026-03-15. Migration 038 adds explanation fields to get_quiz_questions RPC. ExplanationTab simplified to pure render (deleted fetchExplanation action). Suspense boundaries on quiz page. Parallel queries in getSubjectsWithCounts. question-stats collapsed from 3 queries to 1. Chart responsive on mobile. Draft Zod superRefine + stale answer filtering. Test quality improvements. Issues #43, #4, #29 stale (Smart Review removed). Issue #101 already implemented in migration 031.*
 
-| # | Title |
-|---|-------|
-| 75 | Refactor explanation-tab.tsx: replace useEffect data fetch with server-side loading |
-| 43 | Refactor: Replace useEffect data fetching in review-session-loader |
-| 49 | Perf: add Suspense boundaries to quiz page for parallel loading |
-| 66 | refactor: replace parallel COUNT queries with single GROUP BY aggregation |
-| 58 | UX: Make subject-scores-chart responsive on small screens |
-| 4 | feat: add loading state during completeReviewSession |
-| 52 | Draft improvements: soft-delete, cross-field validation, stale answer filtering |
-| 29 | Push subject filter into RPC for getDueCards |
-| 101 | feat: make batch_submit_quiz retry-idempotent |
-| 17 | Minor CodeRabbit review items (test quality + UX polish) |
+| # | Title | Status |
+|---|-------|--------|
+| 75 | Refactor explanation-tab.tsx: replace useEffect data fetch with server-side loading | DONE |
+| 43 | Refactor: Replace useEffect data fetching in review-session-loader | Stale (Smart Review removed) |
+| 49 | Perf: add Suspense boundaries to quiz page for parallel loading | DONE |
+| 66 | refactor: replace parallel COUNT queries with single GROUP BY aggregation | DONE |
+| 58 | UX: Make subject-scores-chart responsive on small screens | DONE |
+| 4 | feat: add loading state during completeReviewSession | Stale (Smart Review removed) |
+| 52 | Draft improvements: soft-delete, cross-field validation, stale answer filtering | DONE (soft-delete declined) |
+| 29 | Push subject filter into RPC for getDueCards | Stale (Smart Review removed) |
+| 101 | feat: make batch_submit_quiz retry-idempotent | Already done (migration 031) |
+| 17 | Minor CodeRabbit review items (test quality + UX polish) | DONE |
 
 ---
 
@@ -206,7 +207,7 @@
 | 6 | Split oversized files | 10 | Low | **DONE** |
 | 7 | Type safety & cleanup | 7 | Low | **DONE** |
 | 8 | Accessibility | 4 | Low | **DONE** |
-| 9 | UX, perf & architecture | 10 | Medium | Planned |
+| 9 | UX, perf & architecture | 10 | Medium | **DONE** |
 | 10 | Infrastructure & scripts | 7 | Low | Planned |
 | — | Parking lot (needs discussion) | 7 | — | — |
 | | **Total** | **79** | | |

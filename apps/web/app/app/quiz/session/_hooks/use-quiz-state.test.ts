@@ -58,9 +58,33 @@ const Q2_ID = '00000000-0000-0000-0000-000000000022'
 const Q3_ID = '00000000-0000-0000-0000-000000000033'
 
 const THREE_QUESTIONS = [
-  { id: Q1_ID, question_text: 'Q1', question_image_url: null, question_number: null, options: [] },
-  { id: Q2_ID, question_text: 'Q2', question_image_url: null, question_number: null, options: [] },
-  { id: Q3_ID, question_text: 'Q3', question_image_url: null, question_number: null, options: [] },
+  {
+    id: Q1_ID,
+    question_text: 'Q1',
+    question_image_url: null,
+    question_number: null,
+    explanation_text: null,
+    explanation_image_url: null,
+    options: [],
+  },
+  {
+    id: Q2_ID,
+    question_text: 'Q2',
+    question_image_url: null,
+    question_number: null,
+    explanation_text: null,
+    explanation_image_url: null,
+    options: [],
+  },
+  {
+    id: Q3_ID,
+    question_text: 'Q3',
+    question_image_url: null,
+    question_number: null,
+    explanation_text: null,
+    explanation_image_url: null,
+    options: [],
+  },
 ]
 
 // ---- Lifecycle ------------------------------------------------------------

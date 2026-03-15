@@ -13,6 +13,8 @@ type Question = {
   question_text: string
   question_image_url: string | null
   question_number: string | null
+  explanation_text: string | null
+  explanation_image_url: string | null
   options: { id: string; text: string }[]
 }
 
@@ -68,6 +70,14 @@ export function QuizSessionLoader() {
     })
   }, [router])
 
+  const filteredAnswers = (() => {
+    if (!session?.draftAnswers || !questions) return session?.draftAnswers
+    const questionIdSet = new Set(questions.map((q) => q.id))
+    return Object.fromEntries(
+      Object.entries(session.draftAnswers).filter(([key]) => questionIdSet.has(key)),
+    )
+  })()
+
   if (error) {
     return <p className="text-sm text-destructive">{error}</p>
   }
@@ -99,7 +109,7 @@ export function QuizSessionLoader() {
     <QuizSession
       sessionId={session.sessionId}
       questions={questions}
-      initialAnswers={session.draftAnswers}
+      initialAnswers={filteredAnswers}
       initialIndex={clampedIndex}
       draftId={session.draftId}
       subjectName={session.subjectName}

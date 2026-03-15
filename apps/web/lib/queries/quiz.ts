@@ -33,19 +33,13 @@ type QuestionIdRow = { id: string }
 export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
   const supabase = await createServerSupabaseClient()
 
-  const { data: subjectsData } = await supabase
-    .from('easa_subjects')
-    .select('id, code, name, short, sort_order')
-    .order('sort_order')
+  const [{ data: subjectsData }, { data: countsData }] = await Promise.all([
+    supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
+    supabase.from('questions').select('subject_id').eq('status', 'active').is('deleted_at', null),
+  ])
 
   const subjects = (subjectsData ?? []) as SubjectRow[]
   if (!subjects.length) return []
-
-  const { data: countsData } = await supabase
-    .from('questions')
-    .select('subject_id')
-    .eq('status', 'active')
-    .is('deleted_at', null)
 
   const counts = (countsData ?? []) as QuestionRefRow[]
 

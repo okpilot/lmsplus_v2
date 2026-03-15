@@ -13,6 +13,8 @@ const QUESTIONS: SessionQuestion[] = [
     question_text: 'What is lift?',
     question_image_url: null,
     question_number: null,
+    explanation_text: null,
+    explanation_image_url: null,
     options: [
       { id: 'a', text: 'A force' },
       { id: 'b', text: 'A weight' },
@@ -24,6 +26,8 @@ const QUESTIONS: SessionQuestion[] = [
     question_text: 'What is drag?',
     question_image_url: null,
     question_number: null,
+    explanation_text: null,
+    explanation_image_url: null,
     options: [
       { id: 'd', text: 'Air resistance' },
       { id: 'e', text: 'Thrust' },

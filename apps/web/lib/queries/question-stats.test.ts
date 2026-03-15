@@ -48,17 +48,21 @@ describe('getQuestionStats', () => {
   })
 
   it('returns distinct total and correct counts when responses exist', async () => {
-    let callCount = 0
-    mockFrom.mockImplementation(() => {
-      callCount++
-      if (callCount === 1) {
-        return buildChain({ count: 8, data: null, error: null })
-      }
-      if (callCount === 2) {
-        return buildChain({ count: 5, data: null, error: null })
-      }
-      return buildChain({ count: 0, data: [{ created_at: '2026-03-11T00:00:00Z' }], error: null })
-    })
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [
+          { is_correct: true, created_at: '2026-03-11T00:00:00Z' },
+          { is_correct: false, created_at: '2026-03-10T00:00:00Z' },
+          { is_correct: true, created_at: '2026-03-09T00:00:00Z' },
+          { is_correct: true, created_at: '2026-03-08T00:00:00Z' },
+          { is_correct: false, created_at: '2026-03-07T00:00:00Z' },
+          { is_correct: true, created_at: '2026-03-06T00:00:00Z' },
+          { is_correct: true, created_at: '2026-03-05T00:00:00Z' },
+          { is_correct: false, created_at: '2026-03-04T00:00:00Z' },
+        ],
+        error: null,
+      }),
+    )
 
     const result = await getQuestionStats('q-1')
     expect(result.timesSeen).toBe(8)
@@ -67,61 +71,34 @@ describe('getQuestionStats', () => {
     expect(result.lastAnswered).toBe('2026-03-11T00:00:00Z')
   })
 
-  it('throws when the total response count query returns an error', async () => {
-    let studentResponsesCall = 0
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'student_responses') {
-        studentResponsesCall++
-        if (studentResponsesCall === 1) {
-          return buildChain({ count: null, error: { message: 'DB failure' } })
-        }
-      }
-      return buildChain({ count: 5, data: null, error: null })
-    })
+  it('throws when the response query returns an error', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'DB failure' } }))
 
-    await expect(getQuestionStats('q-1')).rejects.toThrow('Failed to count responses: DB failure')
+    await expect(getQuestionStats('q-1')).rejects.toThrow('Failed to fetch responses: DB failure')
   })
 
-  it('throws when the correct response count query returns an error', async () => {
-    let studentResponsesCall = 0
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'student_responses') {
-        studentResponsesCall++
-        if (studentResponsesCall === 2) {
-          return buildChain({ count: null, error: { message: 'correct count failure' } })
-        }
-      }
-      return buildChain({ count: 2, data: null, error: null })
-    })
-
-    await expect(getQuestionStats('q-1')).rejects.toThrow(
-      'Failed to count correct responses: correct count failure',
-    )
-  })
-
-  it('throws when the last response query returns an error', async () => {
-    let studentResponsesCall = 0
-    mockFrom.mockImplementation(() => {
-      studentResponsesCall++
-      // Calls 1-2 are the parallel COUNTs inside getResponseCounts,
-      // call 3 is getLastResponse (concurrent via outer Promise.all)
-      if (studentResponsesCall === 3) {
-        return buildChain({ data: null, error: { message: 'last response failure' } })
-      }
-      return buildChain({ count: 1, data: null, error: null })
-    })
-
-    await expect(getQuestionStats('q-1')).rejects.toThrow(
-      'Failed to fetch last response: last response failure',
-    )
-  })
-
-  it('returns zero counts when no responses exist', async () => {
-    mockFrom.mockImplementation(() => buildChain({ count: 0, data: null, error: null }))
+  it('returns zero counts and null lastAnswered when no responses exist', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
 
     const result = await getQuestionStats('q-1')
     expect(result.timesSeen).toBe(0)
     expect(result.correctCount).toBe(0)
     expect(result.incorrectCount).toBe(0)
+    expect(result.lastAnswered).toBeNull()
+  })
+
+  it('uses the most recent created_at as lastAnswered (first row of desc-sorted results)', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [
+          { is_correct: false, created_at: '2026-03-15T12:00:00Z' },
+          { is_correct: true, created_at: '2026-03-14T08:00:00Z' },
+        ],
+        error: null,
+      }),
+    )
+
+    const result = await getQuestionStats('q-1')
+    expect(result.lastAnswered).toBe('2026-03-15T12:00:00Z')
   })
 })

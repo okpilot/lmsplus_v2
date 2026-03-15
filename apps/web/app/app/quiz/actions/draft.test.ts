@@ -319,6 +319,21 @@ describe('saveDraft', () => {
     })
     expect(result).toEqual({ success: false, error: 'Current index out of range' })
   })
+
+  it('rejects answers whose keys are not present in questionIds', async () => {
+    setupAuthenticatedUser()
+    const staleQuestionId = '00000000-0000-0000-0000-000000000099'
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      answers: {
+        [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 },
+        [staleQuestionId]: { selectedOptionId: 'opt-b', responseTimeMs: 500 },
+      },
+    })
+    expect(result.success).toBe(false)
+    if (!result.success)
+      expect(result.error).toBe(`Answer key "${staleQuestionId}" is not in questionIds`)
+  })
 })
 
 // ---- saveDraft — update path (draftId provided) ----------------------------

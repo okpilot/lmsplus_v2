@@ -5,21 +5,41 @@ import { ZodError, z } from 'zod'
 import type { DraftResult } from '../types'
 import { insertNewDraft, updateExistingDraft } from './draft-helpers'
 
-const SaveDraftInput = z.object({
-  draftId: z.string().uuid().optional(),
-  sessionId: z.string().uuid(),
-  questionIds: z.array(z.string().uuid()).min(1),
-  answers: z.record(
-    z.string(),
-    z.object({
-      selectedOptionId: z.string().min(1),
-      responseTimeMs: z.number().int().nonnegative(),
-    }),
-  ),
-  currentIndex: z.number().int().nonnegative(),
-  subjectName: z.string().max(100).optional(),
-  subjectCode: z.string().max(10).optional(),
-})
+const SaveDraftInput = z
+  .object({
+    draftId: z.string().uuid().optional(),
+    sessionId: z.string().uuid(),
+    questionIds: z.array(z.string().uuid()).min(1),
+    answers: z.record(
+      z.string(),
+      z.object({
+        selectedOptionId: z.string().min(1),
+        responseTimeMs: z.number().int().nonnegative(),
+      }),
+    ),
+    currentIndex: z.number().int().nonnegative(),
+    subjectName: z.string().max(100).optional(),
+    subjectCode: z.string().max(10).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.currentIndex >= data.questionIds.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['currentIndex'],
+        message: 'Current index out of range',
+      })
+    }
+    const questionIdSet = new Set(data.questionIds)
+    for (const key of Object.keys(data.answers)) {
+      if (!questionIdSet.has(key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['answers', key],
+          message: `Answer key "${key}" is not in questionIds`,
+        })
+      }
+    }
+  })
 
 export async function saveDraft(raw: unknown): Promise<DraftResult> {
   try {
@@ -31,9 +51,6 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     if (authError || !user) return { success: false, error: 'Not authenticated' }
 
     const input = SaveDraftInput.parse(raw)
-    if (input.currentIndex >= input.questionIds.length) {
-      return { success: false, error: 'Current index out of range' }
-    }
     if (input.draftId) return await updateExistingDraft(supabase, input, user.id)
 
     const { data: u, error: userError } = await supabase

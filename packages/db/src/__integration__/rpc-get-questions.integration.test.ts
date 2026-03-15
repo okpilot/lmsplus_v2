@@ -93,13 +93,15 @@ describe('RPC: get_quiz_questions', () => {
     }
   })
 
-  it('returns NULL for explanation fields', async () => {
-    const { data } = await studentClient.rpc('get_quiz_questions', {
+  it('returns explanation fields from questions table', async () => {
+    const { data, error } = await studentClient.rpc('get_quiz_questions', {
       p_question_ids: questionIds,
     })
+    expect(error).toBeNull()
+    expect(data).toHaveLength(questionIds.length)
 
     for (const q of data ?? []) {
-      expect(q.explanation_text).toBeNull()
+      expect(typeof q.explanation_text).toBe('string')
       expect(q.explanation_image_url).toBeNull()
     }
   })

@@ -69,16 +69,19 @@ describe('LoginForm', () => {
     const user = userEvent.setup()
     render(<LoginForm />)
 
-    // Type then clear to avoid the HTML5 `required` short-circuit in jsdom
+    // Type then clear so the field is empty; use fireEvent.submit to bypass
+    // jsdom's type="email" + required constraint (same approach as the invalid-email test above)
     const input = screen.getByLabelText(/email address/i)
     await user.type(input, 'a')
     await user.clear(input)
-    await user.click(screen.getByRole('button', { name: /send magic link/i }))
+    const form = screen
+      .getByRole('button', { name: /send magic link/i })
+      .closest('form') as HTMLFormElement
+    fireEvent.submit(form)
 
-    // Zod .email() rejects an empty string
-    await waitFor(() => {
-      expect(mockSignInWithOtp).not.toHaveBeenCalled()
-    })
+    // Zod .email() rejects an empty string — verify the error is shown in the DOM
+    expect(await screen.findByText(/please enter a valid email address/i)).toBeInTheDocument()
+    expect(mockSignInWithOtp).not.toHaveBeenCalled()
   })
 
   it('calls Supabase signInWithOtp with the entered email', async () => {
