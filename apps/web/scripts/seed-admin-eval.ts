@@ -125,12 +125,13 @@ async function seed() {
     .single()
   if (metErr) throw new Error(`Subject MET: ${metErr.message}`)
 
-  const { data: topic } = await db
+  const { data: topic, error: topicLookupErr } = await db
     .from('easa_topics')
     .select('id')
     .eq('subject_id', met.id)
     .eq('code', '050-01')
-    .single()
+    .maybeSingle()
+  if (topicLookupErr) throw new Error(`Topic lookup: ${topicLookupErr.message}`)
 
   let topicId: string
   if (topic) {
@@ -145,12 +146,13 @@ async function seed() {
     topicId = newTopic.id
   }
 
-  const { data: subtopic } = await db
+  const { data: subtopic, error: subtopicLookupErr } = await db
     .from('easa_subtopics')
     .select('id')
     .eq('topic_id', topicId)
     .eq('code', '050-01-01')
-    .single()
+    .maybeSingle()
+  if (subtopicLookupErr) throw new Error(`Subtopic lookup: ${subtopicLookupErr.message}`)
 
   let subtopicId: string
   if (subtopic) {
