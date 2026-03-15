@@ -148,8 +148,8 @@
 *UX polish, performance, data architecture improvements.*
 *Completed 2026-03-15. Migration 038 adds explanation fields to get_quiz_questions RPC. ExplanationTab simplified to pure render (deleted fetchExplanation action). Suspense boundaries on quiz page. Parallel queries in getSubjectsWithCounts. question-stats collapsed from 3 queries to 1. Chart responsive on mobile. Draft Zod superRefine + stale answer filtering. Test quality improvements. Issues #43, #4, #29 stale (Smart Review removed). Issue #101 already implemented in migration 031.*
 
-| # | Title |
-|---|-------|
+| # | Title | Status |
+|---|-------|--------|
 | 75 | Refactor explanation-tab.tsx: replace useEffect data fetch with server-side loading | DONE |
 | 43 | Refactor: Replace useEffect data fetching in review-session-loader | Stale (Smart Review removed) |
 | 49 | Perf: add Suspense boundaries to quiz page for parallel loading | DONE |

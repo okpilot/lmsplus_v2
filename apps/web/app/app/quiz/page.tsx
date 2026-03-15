@@ -1,20 +1,10 @@
-import { getSubjectsWithCounts } from '@/lib/queries/quiz'
 import { Suspense } from 'react'
-import { QuizConfigForm } from './_components/quiz-config-form'
 import { QuizTabs } from './_components/quiz-tabs'
 import { SavedDraftCard } from './_components/saved-draft-card'
+import { SubjectsSection } from './_components/subjects-section'
 import { loadDrafts } from './actions/load-draft'
 
 export const dynamic = 'force-dynamic'
-
-async function SubjectsSection() {
-  const subjects = await getSubjectsWithCounts()
-  return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <QuizConfigForm subjects={subjects} />
-    </div>
-  )
-}
 
 export default async function QuizPage() {
   const { drafts } = await loadDrafts()
