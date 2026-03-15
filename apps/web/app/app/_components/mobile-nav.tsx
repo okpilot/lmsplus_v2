@@ -48,7 +48,10 @@ export function MobileNav() {
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/50 transition-opacity" />
-          <Dialog.Popup className="fixed inset-y-0 left-0 z-50 w-64 bg-background p-6 shadow-lg">
+          <Dialog.Popup
+            aria-label="Navigation menu"
+            className="fixed inset-y-0 left-0 z-50 w-64 bg-background p-6 shadow-lg"
+          >
             <div className="mb-6 flex items-center justify-between">
               <span className="text-sm font-semibold">LMS Plus</span>
               <button

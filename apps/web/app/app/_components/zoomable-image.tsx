@@ -25,7 +25,10 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/80 transition-opacity" />
-          <Dialog.Popup className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <Dialog.Popup
+            aria-label={`Zoomed image: ${alt}`}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
             <button
               type="button"
               onClick={() => setOpen(false)}
