@@ -23,6 +23,16 @@ if (!SERVICE_ROLE_KEY) {
   process.exit(1)
 }
 
+// Local-only script — refuse to run against non-local URLs
+const isLocal =
+  SUPABASE_URL.startsWith('http://localhost') || SUPABASE_URL.startsWith('http://127.0.0.1')
+if (!isLocal && !process.argv.includes('--force-remote')) {
+  console.error(
+    `Refusing to seed against non-local Supabase URL: ${SUPABASE_URL}\nPass --force-remote to override.`,
+  )
+  process.exit(1)
+}
+
 const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
