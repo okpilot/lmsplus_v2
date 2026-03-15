@@ -166,7 +166,7 @@ describe('ensureTestUser', () => {
     const mockClient = buildMockClient({
       listUsers: { data: { users: [] } },
       createUser: { data: { user: { id: 'new-user-id' } }, error: null },
-      userRow: { data: null },
+      userRow: { data: null, error: { message: 'no rows found', code: 'PGRST116' } },
     })
     mockCreateClient.mockReturnValue(mockClient)
 
@@ -197,7 +197,7 @@ describe('ensureTestUser', () => {
   it('inserts a public users row when auth user exists but no public row is found', async () => {
     const mockClient = buildMockClient({
       listUsers: { data: { users: [{ id: 'user-no-row', email: TEST_EMAIL }] } },
-      userRow: { data: null },
+      userRow: { data: null, error: { message: 'no rows found', code: 'PGRST116' } },
       insertError: null,
     })
     mockCreateClient.mockReturnValue(mockClient)
@@ -221,7 +221,7 @@ describe('ensureTestUser', () => {
   it('updates organization when user exists in a different org', async () => {
     const mockClient = buildMockClient({
       listUsers: { data: { users: [{ id: 'user-wrong-org', email: TEST_EMAIL }] } },
-      userRow: { data: { id: 'user-wrong-org', organization_id: 'other-org' } },
+      userRow: { data: { id: 'user-wrong-org', organization_id: 'other-org' }, error: null },
       updateError: null,
     })
     mockCreateClient.mockReturnValue(mockClient)
@@ -235,7 +235,7 @@ describe('ensureTestUser', () => {
     mockCreateClient.mockReturnValue(
       buildMockClient({
         listUsers: { data: { users: [{ id: 'user-wrong-org', email: TEST_EMAIL }] } },
-        userRow: { data: { id: 'user-wrong-org', organization_id: 'other-org' } },
+        userRow: { data: { id: 'user-wrong-org', organization_id: 'other-org' }, error: null },
         updateError: { message: 'foreign key violation' },
       }),
     )

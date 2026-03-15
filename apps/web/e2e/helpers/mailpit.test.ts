@@ -192,7 +192,7 @@ describe('getLatestEmail', () => {
     await expect(promise).rejects.toThrow('listMessages: 500')
   })
 
-  it('throws when message detail request fails', async () => {
+  it('throws when message detail request fails with a 404', async () => {
     vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
       const u = url.toString()
       if (u.includes('/api/v1/search')) {
@@ -202,5 +202,17 @@ describe('getLatestEmail', () => {
     })
     const promise = getLatestEmail('test@example.com')
     await expect(promise).rejects.toThrow('getMessage: 404')
+  })
+
+  it('throws when message detail request fails with a 500', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
+      const u = url.toString()
+      if (u.includes('/api/v1/search')) {
+        return new Response(JSON.stringify({ messages: [MOCK_MESSAGE] }))
+      }
+      return new Response(null, { status: 500 })
+    })
+    const promise = getLatestEmail('test@example.com')
+    await expect(promise).rejects.toThrow('getMessage: 500')
   })
 })
