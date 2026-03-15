@@ -30,6 +30,8 @@ export async function getQuestionStats(questionId: string): Promise<QuestionStat
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
+const MAX_RESPONSE_ROWS = 500
+
 async function fetchResponses(
   supabase: SupabaseClient,
   userId: string,
@@ -41,6 +43,7 @@ async function fetchResponses(
     .eq('student_id', userId)
     .eq('question_id', questionId)
     .order('created_at', { ascending: false })
+    .limit(MAX_RESPONSE_ROWS)
 
   if (error) throw new Error(`Failed to fetch responses: ${error.message}`)
 

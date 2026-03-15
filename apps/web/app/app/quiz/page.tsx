@@ -16,12 +16,9 @@ async function SubjectsSection() {
   )
 }
 
-async function DraftsSection() {
+export default async function QuizPage() {
   const { drafts } = await loadDrafts()
-  return <SavedDraftCard drafts={drafts} />
-}
 
-export default function QuizPage() {
   return (
     <main className="space-y-6">
       <div>
@@ -33,16 +30,13 @@ export default function QuizPage() {
 
       <div className="mx-auto max-w-md">
         <QuizTabs
+          draftCount={drafts.length}
           newQuizContent={
             <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
               <SubjectsSection />
             </Suspense>
           }
-          savedDraftContent={
-            <Suspense fallback={<div className="h-32 animate-pulse rounded-lg bg-muted" />}>
-              <DraftsSection />
-            </Suspense>
-          }
+          savedDraftContent={<SavedDraftCard drafts={drafts} />}
         />
       </div>
     </main>
