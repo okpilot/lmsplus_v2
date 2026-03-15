@@ -64,7 +64,12 @@ export function SubtopicRow({ subtopic, topicId }: Props) {
       <Badge variant="secondary" className="text-xs">
         {subtopic.questionCount} Q
       </Badge>
-      <Button variant="ghost" size="icon-xs" onClick={() => setEditing(true)}>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Edit subtopic"
+        onClick={() => setEditing(true)}
+      >
         <svg
           width="14"
           height="14"

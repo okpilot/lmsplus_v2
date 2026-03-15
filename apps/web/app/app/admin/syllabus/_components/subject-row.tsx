@@ -84,7 +84,9 @@ export function SubjectRow({ subject }: Props) {
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
-        <CollapsibleTrigger render={<Button variant="ghost" size="icon-xs" />}>
+        <CollapsibleTrigger
+          render={<Button variant="ghost" size="icon-xs" aria-label="Toggle subject" />}
+        >
           <ChevronRight className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`} />
         </CollapsibleTrigger>
 
@@ -94,7 +96,12 @@ export function SubjectRow({ subject }: Props) {
         <Badge variant="secondary" className="text-xs">
           {subject.questionCount} Q
         </Badge>
-        <Button variant="ghost" size="icon-xs" onClick={() => setEditing(true)}>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Edit subject"
+          onClick={() => setEditing(true)}
+        >
           <svg
             width="14"
             height="14"

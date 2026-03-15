@@ -46,7 +46,8 @@ export async function proxy(request: NextRequest): Promise<Response> {
   }
 
   // Block non-admin users from /app/admin/* routes
-  if (pathname.startsWith('/app/admin/') && user) {
+  const isAdminRoute = pathname === '/app/admin' || pathname.startsWith('/app/admin/')
+  if (isAdminRoute && user) {
     const { data: profile, error: profileError } = await supabase
       .from('users')
       .select('role')

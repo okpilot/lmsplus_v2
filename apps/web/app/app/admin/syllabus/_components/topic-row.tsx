@@ -84,7 +84,9 @@ export function TopicRow({ topic, subjectId }: Props) {
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50">
-        <CollapsibleTrigger render={<Button variant="ghost" size="icon-xs" />}>
+        <CollapsibleTrigger
+          render={<Button variant="ghost" size="icon-xs" aria-label="Toggle topic" />}
+        >
           <ChevronRight className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
         </CollapsibleTrigger>
 
@@ -93,7 +95,12 @@ export function TopicRow({ topic, subjectId }: Props) {
         <Badge variant="secondary" className="text-xs">
           {topic.questionCount} Q
         </Badge>
-        <Button variant="ghost" size="icon-xs" onClick={() => setEditing(true)}>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Edit topic"
+          onClick={() => setEditing(true)}
+        >
           <svg
             width="14"
             height="14"
