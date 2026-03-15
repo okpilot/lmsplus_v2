@@ -75,4 +75,20 @@ describe('requireAdmin', () => {
 
     await expect(requireAdmin()).rejects.toThrow('Forbidden: admin role required')
   })
+
+  it('throws a service error when the profile query fails', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'user-3' } },
+      error: null,
+    })
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: { message: 'connection lost' } }),
+        }),
+      }),
+    })
+
+    await expect(requireAdmin()).rejects.toThrow('Service error: could not verify admin role')
+  })
 })

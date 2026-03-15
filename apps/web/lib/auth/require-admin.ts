@@ -24,6 +24,7 @@ export async function requireAdmin(): Promise<AdminAuth> {
 
   if (profileError) {
     console.error('[requireAdmin] Profile query error:', profileError.message)
+    throw new Error('Service error: could not verify admin role')
   }
 
   if (profile?.role !== 'admin') {
