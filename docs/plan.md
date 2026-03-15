@@ -128,6 +128,16 @@
 - ActivityChart tooltip/axis config hoisted to module constants
 - Issues #2, #36, #71, #80, #96 already resolved in prior PRs — all 10 PR 6 issues closed
 
+**Tech Debt PR #7 done (2026-03-15):** Type Safety & Cleanup:
+- Supabase types regenerated from linked project (picks up all 37 migrations)
+- Removed ~50 `as string & keyof never` column-name casts across 10 query files by eliminating `.returns<T>()` and casting results at point of use instead
+- Removed `as 'users'` / `as never` casts from quiz draft actions (quiz_drafts now properly typed in generated types)
+- Consolidated duplicate QuestionFilter type: canonical def in lib/queries/quiz.ts, all other imports reference it
+- ReactMarkdown components and remarkPlugins hoisted to module scope (prevents re-allocation on every render)
+- Removed duplicate --radius declaration from .dark block in globals.css
+- Test mocks refactored: replaced .returns() terminal with thenable chain pattern
+- Issues #3 (shared RPC types) and #65 (NaN in boundParam) confirmed already resolved; all 7 issues closed
+
 **Local dev setup (2026-03-11):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
 - `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys

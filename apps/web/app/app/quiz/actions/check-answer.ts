@@ -37,7 +37,13 @@ export async function checkAnswer(raw: unknown): Promise<CheckAnswerResult> {
   } = await supabase.auth.getUser()
   if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-  const { questionId, selectedOptionId, sessionId } = CheckAnswerSchema.parse(raw)
+  let parsed: z.infer<typeof CheckAnswerSchema>
+  try {
+    parsed = CheckAnswerSchema.parse(raw)
+  } catch {
+    return { success: false, error: 'Invalid input' }
+  }
+  const { questionId, selectedOptionId, sessionId } = parsed
 
   // Verify session belongs to this user, is active, and contains the question
   const { data: session, error: sessionError } = await supabase

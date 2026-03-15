@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -108,27 +107,30 @@ describe('checkAnswer', () => {
     expect(result.error).toBe('Not authenticated')
   })
 
-  it('rejects a non-UUID question id', async () => {
+  it('returns failure for a non-UUID question id', async () => {
     setupAuthenticatedUser()
-    await expect(
-      checkAnswer({
-        questionId: 'not-a-uuid',
-        selectedOptionId: CORRECT_OPTION_ID,
-        sessionId: SESSION_ID,
-      }),
-    ).rejects.toThrow(ZodError)
+    const result = await checkAnswer({
+      questionId: 'not-a-uuid',
+      selectedOptionId: CORRECT_OPTION_ID,
+      sessionId: SESSION_ID,
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
-  it('rejects an empty selected option id', async () => {
+  it('returns failure for an empty selected option id', async () => {
     setupAuthenticatedUser()
-    await expect(
-      checkAnswer({ questionId: QUESTION_ID, selectedOptionId: '', sessionId: SESSION_ID }),
-    ).rejects.toThrow(ZodError)
+    const result = await checkAnswer({
+      questionId: QUESTION_ID,
+      selectedOptionId: '',
+      sessionId: SESSION_ID,
+    })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
-  it('rejects input missing required fields', async () => {
+  it('returns failure for input missing required fields', async () => {
     setupAuthenticatedUser()
-    await expect(checkAnswer({})).rejects.toThrow(ZodError)
+    const result = await checkAnswer({})
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
   it('returns failure when session does not belong to user', async () => {
