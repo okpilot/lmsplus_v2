@@ -37,10 +37,10 @@ process.stdin.on('end', () => {
   // Allow edits to non-production files
   if (
     filePath.includes('.test.') ||
-    filePath.includes('.claude/') ||
-    filePath.includes('.claude\\') ||
-    filePath.includes('docs/') ||
-    filePath.includes('docs\\') ||
+    filePath.startsWith('.claude/') ||
+    filePath.startsWith('.claude\\') ||
+    filePath.startsWith('docs/') ||
+    filePath.startsWith('docs\\') ||
     filePath.endsWith('.md')
   ) {
     process.exit(0)

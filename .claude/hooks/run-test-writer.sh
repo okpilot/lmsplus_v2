@@ -14,7 +14,8 @@ NEW_FILES=$(git diff --name-only --diff-filter=AM HEAD~1..HEAD 2>/dev/null \
   | grep -v '\.spec\.' \
   | grep -v 'node_modules' \
   | grep -v 'types\.ts$' \
-  | grep -v 'config' \
+  | grep -v '\.config\.' \
+  | grep -v 'config\.\(ts\|js\|mjs\)$' \
   | grep -v 'migrations' \
   || true)
 

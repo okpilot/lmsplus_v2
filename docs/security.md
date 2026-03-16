@@ -495,11 +495,21 @@ Mock exam sessions are single-use. A `quiz_session` with `mode = 'mock_exam'` mu
 4. **Question set locked** — question IDs are written to `quiz_sessions.config` at session start and cannot change mid-session
 
 ```sql
--- Enforce single-use exam sessions
-CREATE POLICY "exam_sessions_no_restart" ON quiz_sessions
-  FOR UPDATE USING (
-    NOT (mode = 'mock_exam' AND started_at IS NOT NULL AND NEW.started_at IS DISTINCT FROM OLD.started_at)
-  );
+-- Enforce single-use exam sessions (via trigger, not RLS — NEW/OLD are trigger-only)
+CREATE OR REPLACE FUNCTION prevent_exam_restart()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.mode = 'mock_exam' AND OLD.started_at IS NOT NULL
+     AND NEW.started_at IS DISTINCT FROM OLD.started_at THEN
+    RAISE EXCEPTION 'Cannot restart a mock exam session';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_exam_no_restart
+  BEFORE UPDATE ON quiz_sessions
+  FOR EACH ROW EXECUTE FUNCTION prevent_exam_restart();
 ```
 
 ---

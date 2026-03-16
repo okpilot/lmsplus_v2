@@ -15,7 +15,7 @@ try {
   process.exit(0)
 }
 
-const command = toolInput?.command ?? ''
+const command = toolInput?.tool_input?.command ?? toolInput?.command ?? ''
 
 const BLOCKED_PATTERNS = [
   // Destructive filesystem

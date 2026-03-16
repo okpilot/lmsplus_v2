@@ -3,7 +3,7 @@
 # Saves a HANDOVER file so nothing is lost when context is compressed.
 set -euo pipefail
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "/c/Users/pilot/Desktop/lmsplusv2")"
+PROJECT_ROOT="$(git rev-parse --show-toplevel)" || { echo "ERROR: not in a git repo"; exit 1; }
 HANDOVER_DIR="$PROJECT_ROOT/.claude/handovers"
 mkdir -p "$HANDOVER_DIR"
 
