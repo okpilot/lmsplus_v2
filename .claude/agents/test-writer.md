@@ -23,7 +23,7 @@ Write Vitest tests for new TypeScript code. You read source files, understand wh
 - Test behaviour, not implementation: `it('returns null when session is inactive')` not `it('calls checkStatus')`
 - Never test implementation details (internal function names, private methods)
 - Mock all external dependencies (Supabase, fetch, timers)
-- Co-locate: `src/fsrs.ts` → `src/fsrs.test.ts`
+- Co-locate: `src/actions.ts` → `src/actions.test.ts`
 
 ## Test naming pattern
 ```typescript

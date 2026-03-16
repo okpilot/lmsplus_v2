@@ -3,10 +3,9 @@ import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc, mockUpdateFsrsCard } = vi.hoisted(() => ({
+const { mockGetUser, mockRpc } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockRpc: vi.fn(),
-  mockUpdateFsrsCard: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -19,10 +18,6 @@ vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
 }))
 
-vi.mock('@/lib/fsrs/update-card', () => ({
-  updateFsrsCard: mockUpdateFsrsCard,
-}))
-
 // ---- Subject under test ---------------------------------------------------
 
 import { submitQuizAnswer } from './submit'
@@ -31,7 +26,6 @@ import { submitQuizAnswer } from './submit'
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockUpdateFsrsCard.mockResolvedValue(undefined)
 })
 
 describe('submitQuizAnswer', () => {
@@ -97,43 +91,6 @@ describe('submitQuizAnswer', () => {
     expect(result.correctOptionId).toBe('a')
     expect(result.explanationText).toBe('Because reasons')
     expect(result.explanationImageUrl).toBeNull()
-  })
-
-  it('updates spaced repetition schedule after a correct answer', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockRpc.mockResolvedValue({
-      data: [
-        {
-          is_correct: true,
-          correct_option_id: 'a',
-          explanation_text: null,
-          explanation_image_url: null,
-        },
-      ],
-      error: null,
-    })
-    await submitQuizAnswer(validInput)
-    expect(mockUpdateFsrsCard).toHaveBeenCalledOnce()
-  })
-
-  it('succeeds even when spaced repetition update fails', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockUpdateFsrsCard.mockRejectedValue(new Error('DB connection lost'))
-    mockRpc.mockResolvedValue({
-      data: [
-        {
-          is_correct: true,
-          correct_option_id: 'a',
-          explanation_text: null,
-          explanation_image_url: null,
-        },
-      ],
-      error: null,
-    })
-    const result = await submitQuizAnswer(validInput)
-    expect(result.success).toBe(true)
-    if (!result.success) return
-    expect(result.isCorrect).toBe(true)
   })
 
   it('rejects unauthenticated calls before input validation', async () => {

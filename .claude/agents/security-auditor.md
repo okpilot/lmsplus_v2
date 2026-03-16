@@ -148,8 +148,6 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 
 3. **Do NOT confuse RLS policy types** — INSERT uses only WITH CHECK (no old row). SELECT/DELETE use only USING. UPDATE requires BOTH. Do not flag missing WITH CHECK on a SELECT-only policy.
 
-4. **Do NOT flag best-effort FSRS scheduling as a security gap** — `updateFsrsCard()` uses try/catch intentionally. Answer submission must never be blocked by a scheduling failure. If upsert is wrapped in try/catch, that's correct.
-
 5. **Do NOT flag cookie forwarding on redirects as CRITICAL if all branches are consistent** — Only flag CRITICAL if ONE branch forgets cookies while others include them. Consistent forwarding = GOOD.
 
 6. **Do NOT double-count findings** — If an issue is found in the diff, report it once at the most specific location. Do not repeat the same finding for the same root cause.

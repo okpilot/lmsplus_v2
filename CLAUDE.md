@@ -81,7 +81,6 @@ Before writing any code, validate the plan against the actual codebase. This is 
 ## Stack
 - Next.js App Router (`apps/web/`) + Tailwind v4 + shadcn/ui
 - Supabase (Postgres + Auth + Storage) — `packages/db/`
-- ts-fsrs for spaced repetition
 - Biome for lint/format | Vitest for tests | Playwright for E2E
 - Magic link auth only
 

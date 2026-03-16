@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockRpc, mockUpdateFsrsCard } = vi.hoisted(() => ({
+const { mockGetUser, mockRpc } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockRpc: vi.fn(),
-  mockUpdateFsrsCard: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -16,10 +15,6 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
-}))
-
-vi.mock('@/lib/fsrs/update-card', () => ({
-  updateFsrsCard: mockUpdateFsrsCard,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -68,7 +63,6 @@ function mockSuccessfulRun() {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockUpdateFsrsCard.mockResolvedValue(undefined)
 })
 
 // ---- batchSubmitQuiz ------------------------------------------------------
@@ -188,15 +182,6 @@ describe('batchSubmitQuiz', () => {
     )
   })
 
-  it('calls updateFsrsCard once per answer after successful submit', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockSuccessfulRun()
-
-    await batchSubmitQuiz({ sessionId: SESSION_ID, answers: VALID_ANSWERS })
-
-    expect(mockUpdateFsrsCard).toHaveBeenCalledTimes(2)
-  })
-
   it('returns failure when batch RPC returns an error', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'session not found' } })
@@ -222,18 +207,6 @@ describe('batchSubmitQuiz', () => {
 
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('This session could not be found.')
-  })
-
-  it('still returns success when FSRS card update throws (non-fatal)', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockSuccessfulRun()
-    mockUpdateFsrsCard.mockRejectedValue(new Error('FSRS DB down'))
-
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await batchSubmitQuiz({ sessionId: SESSION_ID, answers: VALID_ANSWERS })
-    consoleSpy.mockRestore()
-
-    expect(result.success).toBe(true)
   })
 
   it('returns generic failure and logs when an unexpected error is thrown', async () => {

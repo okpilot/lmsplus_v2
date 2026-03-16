@@ -49,8 +49,8 @@ describe('rpc', () => {
 describe('upsert', () => {
   it('calls from() with the table name then upsert() with the values', async () => {
     const client = makeClient({})
-    await upsert(client as unknown as never, 'fsrs_cards', { student_id: 'u1', reps: 3 })
-    expect(client.from).toHaveBeenCalledWith('fsrs_cards')
+    await upsert(client as unknown as never, 'some_table', { student_id: 'u1', reps: 3 })
+    expect(client.from).toHaveBeenCalledWith('some_table')
     expect(client._upsertMethod).toHaveBeenCalledWith({ student_id: 'u1', reps: 3 }, undefined)
   })
 
@@ -58,7 +58,7 @@ describe('upsert', () => {
     const client = makeClient({})
     await upsert(
       client as unknown as never,
-      'fsrs_cards',
+      'some_table',
       { student_id: 'u1' },
       { onConflict: 'student_id,question_id' },
     )
@@ -72,7 +72,7 @@ describe('upsert', () => {
     const upsertFn = vi.fn().mockResolvedValue({ data: null, error: { message: 'RLS denied' } })
     const client = makeClient({ upsertFn })
     await expect(
-      upsert(client as unknown as never, 'fsrs_cards', { student_id: 'u1' }),
-    ).rejects.toThrow('[upsert:fsrs_cards] RLS denied')
+      upsert(client as unknown as never, 'some_table', { student_id: 'u1' }),
+    ).rejects.toThrow('[upsert:some_table] RLS denied')
   })
 })
