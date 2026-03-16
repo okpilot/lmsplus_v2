@@ -13,7 +13,7 @@
     "e2e": "turbo run e2e"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
+    "@biomejs/biome": "^2.4.7",
     "@commitlint/cli": "^19.0.0",
     "@commitlint/config-conventional": "^19.0.0",
     "lefthook": "^1.10.0",
