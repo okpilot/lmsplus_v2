@@ -39,8 +39,6 @@ export async function updateExistingDraft(
   }
   const { data, error } = await supabase
     .from('quiz_drafts')
-    // tsc complexity limit on generated Database type — payload shape matches quiz_drafts Update in types.ts
-    // @ts-expect-error TS2345: payload type resolves to `never` due to TypeScript inference depth limit
     .update(payload)
     .eq('id', input.draftId)
     .eq('student_id', userId)
@@ -80,8 +78,6 @@ export async function insertNewDraft(
     answers: input.answers as Json,
     current_index: input.currentIndex,
   }
-  // tsc complexity limit on generated Database type — row shape matches quiz_drafts Insert in types.ts
-  // @ts-expect-error TS2769: row type resolves to `never` due to TypeScript inference depth limit
   const { error } = await supabase.from('quiz_drafts').insert(row)
   if (error) {
     console.error('[saveDraft] Insert error:', error.message)

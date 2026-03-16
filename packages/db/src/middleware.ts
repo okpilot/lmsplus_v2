@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import type { CookieOptions } from '@supabase/ssr'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import type { Database } from './types'
@@ -19,7 +20,7 @@ export function createMiddlewareSupabaseClient(request: NextRequest) {
         cookiesToSet: Array<{
           name: string
           value: string
-          options: Record<string, unknown>
+          options: CookieOptions
         }>,
       ) {
         for (const { name, value } of cookiesToSet) {

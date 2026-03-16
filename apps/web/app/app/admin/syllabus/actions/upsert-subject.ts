@@ -17,7 +17,6 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
 
   if (id) {
     // Update: sort_order is client-supplied (preserves existing order during code/name edits)
-    // @ts-expect-error TS2345: row type resolves to `never` due to TypeScript inference depth limit
     const { error } = await supabase.from('easa_subjects').update(data).eq('id', id)
     if (error) {
       return { success: false, error: error.message }

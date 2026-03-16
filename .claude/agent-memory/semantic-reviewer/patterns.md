@@ -4,6 +4,75 @@
 
 ## Recurring Issues
 
+### Partial @ts-expect-error removal after library type improvement (confirmed ISSUE — 2nd occurrence)
+**First seen:** commit 225a163 (2026-03-16, PR #211)
+**Second seen:** PR #211 full-diff review (2026-03-16) — confirmed ISSUE, not SUGGESTION
+**Files:** `apps/web/app/app/admin/syllabus/actions/upsert-subject.ts`,
+           `apps/web/app/app/admin/syllabus/actions/upsert-topic.ts`,
+           `apps/web/app/app/admin/syllabus/actions/upsert-subtopic.ts`
+**Pattern:** When a dependency upgrade improves TypeScript inference depth (removing the
+need for `@ts-expect-error`), the removal sweep was applied only to `.update()` calls.
+The `.insert()` calls in the same files still carry the suppression. A dangling
+`@ts-expect-error` that suppresses no error is itself a TS2578 compile error in TS ≥5.5.
+The Turborepo type-check cache masked this — a force re-check is needed.
+**Watch for:** Any commit that removes `@ts-expect-error` for one method on a table while
+leaving the same suppression on a sibling method on the same table. Verify both remove
+cleanly with `pnpm check-types --force` (bypass turbo cache).
+**Rule:** When turbo reports "cached" for type-checks in a commit that bumped dependencies,
+always force a re-check: `pnpm check-types --force`. The cache cannot reflect the new types.
+**Status:** ISSUE — confirmed in PR #211 full-diff review.
+
+### Turbo type-check cache can mask new compile errors after dependency bumps (1st occurrence)
+**First seen:** PR #211 review (2026-03-16)
+**Pattern:** `pnpm check-types` showed "3 cached, 3 total" after a batch dependency bump
+that changed `@supabase/supabase-js`, `@supabase/ssr`, and `vitest`. Cached results do not
+reflect new type definitions introduced by the bumped packages. Any `@ts-expect-error`
+removals or new casts made in the same commit on the assumption that types improved could
+be silently wrong if the cache serves a pre-bump result.
+**Watch for:** Any dependency-bump commit where `pnpm check-types` reports cache hits.
+Always add `--force` when evaluating type correctness of dep-bump commits.
+**Status:** SUGGESTION — flagged in PR #211.
+
+### Dependency version bump diverges local cookie options type annotation from library type (RESOLVED)
+**First seen:** commit 225a163 (2026-03-16, per-commit review)
+**Resolved:** commit 603b36c (2026-03-16, same PR) — CookieOptions imported from @supabase/ssr
+**Files:** `packages/db/src/server.ts`, `packages/db/src/middleware.ts`
+**Package:** `@supabase/ssr` bumped from 0.5.2 → 0.9.0
+**Pattern:** The `setAll` callback annotated `options` as `Record<string, unknown>` (per-commit
+review of 225a163), while 0.9.0 defines `CookieOptions = Partial<SerializeOptions>`. This was
+fixed in the same PR by commit 603b36c: both files now import `CookieOptions` from `@supabase/ssr`
+directly and use it as the parameter type. The `@types/cookie@0.6.0` entry was also removed from
+pnpm-lock.yaml; cookie types now come from the `cookie@^1.x` package bundled by ssr.
+**Status:** RESOLVED — fixed in commit 603b36c, PR #211.
+
+### Non-redirect responses in proxy.ts missing cookie copy (1st occurrence)
+**First seen:** commit 6b49021 (2026-03-15)
+**File:** `apps/web/proxy.ts`
+**Pattern:** The proxy uses a `redirectWithCookies()` helper to ensure every
+redirect copies the refreshed Supabase session cookies from the `response` object.
+When a non-redirect response is added (e.g., a `new NextResponse('Forbidden', { status: 403 })`),
+it bypasses `redirectWithCookies()` and drops the token refresh silently. The
+affected user's next request will see an expired token.
+**Root cause:** The pattern is easy to get right for redirects (the helper is
+prominent) but easy to forget for non-2xx responses, where the developer's mental
+model is "it's an error, no session needed".
+**Watch for:** Any `return new NextResponse(...)` in proxy.ts that does NOT go
+through `redirectWithCookies()`. The `response.cookies.getAll()` loop must be
+applied to EVERY response that leaves the proxy after a `getUser()` call.
+**Status:** CRITICAL — flagged in 6b49021.
+
+### Supabase query error silently swallowed in auth helpers (2nd occurrence)
+**First seen:** commit 83ae098 (2026-03-14) — getUser error ignored in some Server Actions
+**Second seen:** commit 6b49021 (2026-03-15) — requireAdmin() profile lookup ignores error
+**File:** `apps/web/lib/auth/require-admin.ts`
+**Pattern:** Auth helper functions that make a secondary DB lookup (e.g., fetching
+the user's role profile) frequently destructure only `{ data }` and silently ignore
+`{ error }`. Because the fallback behavior when error occurs happens to be safe
+(access denied), the bug is invisible in production — but it produces no log signal
+when the DB has a connectivity problem, making incident diagnosis much harder.
+**Rule:** Always destructure `{ data, error }` and log the error before the guard check.
+**Status:** ISSUE — flagged twice, should become a code-style rule.
+
 ### getUser hardening sweep — easy to miss one file (2nd occurrence)
 **First seen:** commit 83ae098 (2026-03-14)
 **File:** `apps/web/app/app/quiz/session/page.tsx`
@@ -108,6 +177,87 @@ Component function where the catch block calls `console.error(err)` without
 first checking `err instanceof ZodError`. The pattern is especially risky when
 validation and async DB calls share a single try block.
 **Status:** ISSUE — flagged in 40ce785, pending fix.
+
+### actions/checkout bumped to a version that does not yet exist on GitHub Marketplace (1st occurrence)
+**First seen:** commit 13ce663 (2026-03-16)
+**Files:** `.github/workflows/ci.yml`, `e2e.yml`, `codeql.yml`, `redteam.yml`
+**Pattern:** `actions/checkout@v6` is a real, published version (v6.0.0, 2025-11-20).
+However it is a very new major version — Dependabot proposed v4 (actions/setup-node),
+and the manual bump to checkout@v6 skipped v5 entirely. The key risk: v6's main
+change is "persist creds to a separate file" (credential isolation). Projects that
+relied on the `.git/config` credential helper approach will behave differently.
+For a standard checkout-and-build pipeline this is benign, but it should be noted.
+**Also note:** upload-artifact@v7 changes the default upload to ESM internally and
+adds a new `archive` parameter. No breaking change for existing callers — the default
+behaviour (archive=true) is preserved. No action needed.
+**Watch for:** If Dependabot later proposes checkout@v5 (which it would if the repo
+was pinned to v4), reject it — we are now at v6. Ensure Dependabot's minor/patch group
+for github-actions will pick up v6.x patch releases automatically.
+**Status:** GOOD — all versions confirmed real. Flagged for awareness only.
+
+### CI action version bump — all four workflow files must be bumped together (1st occurrence)
+**First seen:** commit 13ce663 (2026-03-16)
+**Files:** `.github/workflows/ci.yml`, `e2e.yml`, `codeql.yml`, `redteam.yml`
+**Pattern:** When bumping shared GitHub Actions versions across multiple workflow files,
+the commit correctly updates all four files together with no missed occurrence.
+Every `actions/checkout@v4` became `@v6`, every `upload-artifact@v4` became `@v7`,
+and both `codeql-action` sub-actions (`init` and `analyze`) moved to `@v4` in sync.
+**Watch for:** Future bumps — the pattern is 4 files share `checkout` + `setup-node`;
+ci.yml is the only file without Supabase setup steps and thus has a simpler dependency
+graph for version changes.
+**Status:** GOOD — no missed occurrences found.
+
+### awk `found` flag never reset between files in timeout-fallback branch of security auditor (1st occurrence)
+**First seen:** commit f2357a0 (2026-03-15)
+**File:** `.claude/hooks/run-security-auditor.sh` lines 88-94
+**Pattern:** The timeout-fallback branch wraps the awk adminClient check in a
+redundant outer `grep` filter and does NOT reset `found` when a new `+++ b/` header
+for a non-app/ file is encountered. The inner awk pattern lacks the reset rule
+`/^\+\+\+ b\//{if(!/apps\/web\/app\//)found=0}`. If an app/ file header appears earlier
+in the diff and a later non-app/ file adds `adminClient`, the inner awk will still match
+and produce a false positive. The agent-failure fallback branch (line 119) has the correct
+reset rule. The two fallback branches are inconsistent.
+**Watch for:** Any edit to the security-auditor fallback awk checks — verify both the
+timeout branch (around line 90) and the agent-failure branch (around line 119) have identical
+awk logic, specifically the `found=0` reset when a new non-app/ file header is seen.
+**Status:** ISSUE — flagged in f2357a0.
+
+### localhost guard in import script does not cover HTTPS URLs pointing to localhost (1st occurrence)
+**First seen:** commit f2357a0 (2026-03-15)
+**File:** `apps/web/scripts/import-questions.ts` line 86
+**Pattern:** The guard checks `url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')`.
+HTTPS variants (`https://localhost`, `https://127.0.0.1`) would bypass the guard and
+trigger the safety exit with a misleading error message (refusing to run but actually the URL
+IS local). This is low-risk in practice because local Supabase only serves HTTP, but the
+guard's intent is "is this local?" and the implementation is incomplete.
+**Status:** SUGGESTION — flagged in f2357a0.
+
+### seed script subject validation missing: questions array empty check before subjects.size check (1st occurrence)
+**First seen:** commit f2357a0 (2026-03-15)
+**File:** `apps/web/scripts/import-questions.ts` lines 437-443
+**Pattern:** The new subjects-consistency validation calls `questions[0]` in `resolveRefs`
+immediately after the set check. If `questions` is an empty array, `subjects.size` is 0
+(not > 1), the check passes, and then `questions[0]` is `undefined`, crashing in `resolveRefs`
+with a TypeError instead of a meaningful message. The `ImportFileSchema.safeParse` may or
+may not enforce `minLength(1)` — needs verification.
+**Watch for:** Any array validated by size/diversity checks where the empty-array case
+is not separately guarded before the diversity check.
+**Status:** ISSUE — flagged in f2357a0.
+
+### seed script topic/subtopic lookup silently ignores Supabase errors (1st occurrence)
+**First seen:** commit f2357a0 (2026-03-15)
+**File:** `apps/web/scripts/seed-admin-eval.ts` lines 128-133, 148-153
+**Pattern:** The topic and subtopic `.single()` queries destructure only `{ data }`,
+discarding `{ error }`. If the Supabase query fails (network, RLS, malformed data),
+`data` will be `null`, the code falls into the `else` branch and attempts an INSERT.
+If the SELECT failed because the row exists but the query errored, the INSERT will
+fail with a unique-constraint violation and a confusing error message. The fix is
+to destructure `{ data, error }` and rethrow on unexpected error codes (not PGRST116,
+which is "row not found").
+**Watch for:** Any select-then-insert pattern in scripts where `{ error }` is not
+destructured from the SELECT call. The existing org/question-bank lookups in the same
+file handle errors correctly — this is an inconsistency within the same script.
+**Status:** ISSUE — flagged in f2357a0.
 
 ### console.error spy not guarded with try/finally in start.test.ts
 **First seen:** commit 15ad393 (2026-03-14)
@@ -372,6 +522,41 @@ it checks `ended_at IS NULL`.
 **Watch for:** Any spec that uses an `if (completeError) { ... } else { ... }` branch to accept
 two contradictory outcomes — this always signals a missing enforcement layer.
 **Status:** ISSUE — flagged in a396438.
+
+### CI workflow with schedule-only trigger missing pull_request event (1st occurrence)
+**First seen:** commit 58389479 (2026-03-16)
+**File:** `.github/workflows/codeql.yml`
+**Pattern:** A security workflow (CodeQL) was configured with `schedule` only, no `pull_request`
+trigger. The entire value of integrating CodeQL into a PR-gated pipeline is pre-merge feedback.
+A schedule-only scan is reactive (post-merge detection) rather than preventive (pre-merge gate).
+Every other security-sensitive workflow in this repo (redteam.yml) triggers on `pull_request`.
+**Fix:** Add `pull_request: branches: [master]` and `workflow_dispatch` triggers alongside schedule.
+**Watch for:** Any new security workflow file that lacks a `pull_request` trigger — check whether
+pre-merge feedback is the intent. If it is, the PR trigger is mandatory.
+**Status:** ISSUE — flagged in 58389479.
+
+### cancel-in-progress: true on scheduled CodeQL scan corrupts scanning baseline (1st occurrence)
+**First seen:** commit 58389479 (2026-03-16)
+**File:** `.github/workflows/codeql.yml`
+**Pattern:** `concurrency: cancel-in-progress: true` is appropriate for workflows that produce
+independent artifacts (test results, coverage reports) — cancelling an old run is safe because
+the new run will produce a fresh artifact. CodeQL is different: it uploads SARIF results to GitHub
+Advanced Security incrementally. If the scan is cancelled mid-upload, the security baseline in
+GHES may be left in a partial state, causing false-positive deltas on the next scan.
+**Rule:** CodeQL workflows should use `cancel-in-progress: false` (or no concurrency group).
+**Watch for:** Any SARIF-uploading workflow (`github/codeql-action/analyze`) with
+`cancel-in-progress: true` — this combination is incorrect.
+**Status:** ISSUE — flagged in 58389479.
+
+### autobuild step included in JS/TS CodeQL workflow (1st occurrence)
+**First seen:** commit 58389479 (2026-03-16)
+**File:** `.github/workflows/codeql.yml`
+**Pattern:** `github/codeql-action/autobuild` is only necessary for compiled languages (C++, Java,
+C#, Go) where CodeQL must intercept the compiler to trace data flows. For `javascript-typescript`,
+CodeQL scans source files directly without a build step. Including autobuild adds CI time with no
+benefit.
+**Fix:** Remove the `Autobuild` step. Correct minimal workflow: checkout → init → analyze.
+**Status:** SUGGESTION — non-blocking, wastes runner time.
 
 ### module-level cache (cachedSession) shared between quiz and review loader modules
 **First seen:** commit 97ab4ac (2026-03-12)
@@ -845,12 +1030,52 @@ on the FOR UPDATE lock. The second caller acquires the lock, finds v_ended_at IS
 and returns the idempotent replay result. This is exactly the intended behavior: no double
 writes, no errors on retry.
 
+---
+
+## Session 2026-03-16 (commit b41ffa8) — refactor: remove FSRS remnants from codebase
+
+### POSITIVE — FSRS last_was_correct tracking correctly moved into RPC (migration 040)
+Migration 040 adds the same `INSERT INTO fsrs_cards ... ON CONFLICT DO UPDATE SET last_was_correct`
+block to `submit_quiz_answer` that has been in `batch_submit_quiz` since migration 022. The
+ON CONFLICT key `(student_id, question_id)` matches the table's UNIQUE constraint. The write
+is atomic within the same transaction as the answer insert. This is the correct move: previously
+`last_was_correct` was only tracked via TypeScript after the RPC returned (best-effort, lossy
+on connection drops). Now both submission paths — single (`submit_quiz_answer`) and batch
+(`batch_submit_quiz`) — are consistent in their `fsrs_cards` update behavior.
+
+### POSITIVE — consecutive_correct_count intentionally not tracked in migration 040
+The old TypeScript `updateFsrsCard` maintained `consecutive_correct_count` (incrementing on correct,
+resetting on incorrect). Migration 040 does NOT carry this forward. The column still exists in the
+schema but is no longer written by any RPC. Since `consecutive_correct_count` is not read anywhere
+in the current TypeScript codebase (confirmed by grep), this is a clean silent deprecation of an
+unused column, not a behavioral regression.
+
+### POSITIVE — `last_was_correct` consumer code (lookup.ts, quiz.ts) still correct after migration 040
+The `getFilteredCount` action and `lib/queries/quiz.ts` both query `fsrs_cards.last_was_correct = false`
+for the 'incorrect' filter mode. Migration 040 ensures this column is now written atomically by
+`submit_quiz_answer`, so single-question practice mode correctly feeds the incorrect-answer filter.
+Previously only batch-mode answers updated the column; single-answer practice mode left `last_was_correct`
+as NULL (never triggered incorrect filter). Migration 040 closes this gap.
+
+### NOTE — submit_quiz_answer is still marked DEPRECATED in docs/database.md
+`docs/database.md` line 433 labels `submit_quiz_answer` as `DEPRECATED — use batch_submit_quiz`.
+Migration 040 effectively rehabilitates this RPC to parity with batch_submit_quiz in terms of
+`last_was_correct` tracking. The DEPRECATED label should be revisited: if single-answer practice
+mode still uses this RPC (confirmed — quiz-submit.ts uses batchSubmitQuiz, but submit.ts exists
+and is tested), the deprecation comment is misleading. Doc update needed.
+
+### NOTE — packages/db/migrations/ does not include migration 040
+`packages/db/migrations/` (numbered, claimed as source of truth in MEMORY.md) stops at 031.
+`supabase/migrations/` (timestamped) has migrations up to 040. This gap has existed since migration
+032 and is not introduced by this commit, but worth tracking. The two directories are diverged.
+
 ## Positive Patterns
 
-### FSRS best-effort scheduling with try/catch
-**File:** `apps/web/app/app/quiz/actions/submit.ts`, `apps/web/app/app/quiz/actions/batch-submit.ts`, `apps/web/app/app/review/actions.ts`
-All three paths wrap `updateFsrsCard` in try/catch so that a scheduling failure never blocks
-answer submission. Consistent across the entire codebase.
+### POSITIVE — FSRS scheduling atomicity restored at DB layer
+With `updateFsrsCard` removed, `last_was_correct` is now written transactionally by the RPC itself.
+A connection drop after the RPC commits can no longer produce a state where the answer is recorded
+but `last_was_correct` is not updated. This is strictly safer than the previous TypeScript best-effort
+try/catch approach.
 
 ### Auth-before-Zod pattern now consistently applied in startQuizSession and review/actions.ts
 `startReviewSession` already had auth before parse. `startQuizSession` now matches it.
@@ -954,8 +1179,8 @@ flags on options). The data boundary between server and client is clean.
 ## High-Scrutiny Files
 - `apps/web/proxy.ts` — auth flow, cookie handling, redirects
 - `apps/web/app/auth/callback/route.ts` — PKCE code exchange, session creation
-- `apps/web/app/app/quiz/actions/batch-submit.ts` — single atomic batch RPC; watch FSRS positional index alignment
-- `apps/web/app/app/quiz/actions/submit.ts` — individual submit, no try/catch wrapper (ZodError propagates)
+- `apps/web/app/app/quiz/actions/batch-submit.ts` — single atomic batch RPC
+- `apps/web/app/app/quiz/actions/submit.ts` — individual submit, no try/catch wrapper (ZodError propagates); submit_quiz_answer RPC now tracks last_was_correct atomically (migration 040)
 - `apps/web/app/app/quiz/actions/complete.ts` — completeQuiz, no try/catch wrapper (ZodError propagates)
 - `apps/web/lib/queries/load-session-questions.ts` — Server Action serving questions; verify auth check is present
 - `apps/web/lib/queries/quiz-report.ts` — direct questions SELECT post-session; verify correct stripping stays in buildReportQuestions
@@ -2317,3 +2542,140 @@ E2E suite and require separate explicit invocation.
 fully idempotent. Repeated test runs don't accumulate duplicate users. The public.users row
 is also checked independently, guarding against half-created state.
 **Status:** Positive pattern — log and reinforce.
+
+---
+
+## PR #9 Learnings (2026-03-15)
+
+### Suspense refactor silently drops a badge / count feature (1st occurrence)
+**First seen:** PR #9 — commits bc5984e + quiz/page.tsx
+**Pattern:** When a `Promise.all([fetchA(), fetchB()])` is split into separate Suspense-wrapped
+async server components for streaming, any derived value that was computed from the combined
+result (e.g., `drafts.length` for a badge count) is silently lost. Each Suspense slot is
+self-contained and cannot pass data back up to the parent page (which is now synchronous).
+The type change (`draftCount: number` → `draftCount?: number | null`) makes this compile
+without error, and the default-to-null means no crash — the badge just disappears silently.
+**Watch for:** Any Suspense refactor that changes a page from `async` to sync and splits
+`Promise.all` — enumerate every derived value that was computed from the combined result set
+and verify each one still reaches its consumer.
+**Status:** ISSUE — flagged in PR #9. Fix required before merge.
+
+### SELECT all rows vs COUNT for aggregation: unbounded payload risk (1st occurrence)
+**First seen:** PR #9 — apps/web/lib/queries/question-stats.ts
+**Pattern:** Replacing `COUNT(*)` with `head: true` (zero data transfer) with a full row
+fetch + JS `.filter()` is a correct functional change but introduces an unbounded payload.
+For a student with 500+ responses to the same question, this transfers 500 rows where before
+it transferred 0. The JS aggregation is simple and correct, but the data volume scales with
+user activity and history.
+**Rule:** When replacing COUNT queries with row-fetch aggregation, always add a `.limit(N)`
+where N is a documented ceiling (e.g., `MAX_RESPONSE_HISTORY = 500`). Document why with a
+comment. The limit should be defensively large but finite.
+**Watch for:** Any migration from `select('*', { count: 'exact', head: true })` to
+`select('field1, field2')` with JS aggregation — check if a LIMIT is present.
+**Status:** ISSUE — flagged in PR #9. Fix required before merge.
+
+### Supabase .single() error shape: { data: null, error: { code: 'PGRST116' } } not { data: null, error: null }
+**First seen:** PR #9 — apps/web/e2e/helpers/supabase.test.ts
+**Pattern:** When mocking Supabase `.single()` for the "no row found" case, the correct
+mock shape is `{ data: null, error: { message: '...', code: 'PGRST116' } }`. Mocking as
+`{ data: null, error: null }` is inaccurate: real Supabase returns a non-null error for
+`.single()` with 0 results. Tests that use `{ data: null, error: null }` to represent
+"not found" are testing a code path that will never actually be reached in production.
+**Fix pattern:** Always use `{ data: null, error: { message: 'no rows found', code: 'PGRST116' } }`
+for `.single()` no-row mocks.
+**Watch for:** Any test mock for `.single()` that uses `{ data: null, error: null }` to mean "not found".
+**Status:** GOOD — PR #9 correctly fixed these mocks. Log as a pattern to check in future test reviews.
+
+### GOOD: explanation data moved from client-fetch to RPC prop — clean elimination of useEffect
+**First seen:** PR #9 — explanation-tab.tsx refactor (#75)
+**Pattern:** `ExplanationTab` previously used `useEffect` + `fetchExplanation` Server Action
+to load explanation data after mount (one extra round-trip per question navigation). The refactor
+moves `explanation_text` and `explanation_image_url` into `get_quiz_questions()` RPC return, so
+the data arrives with the questions at session start. The component becomes a pure render function
+with props. This is the correct direction: RSC/RPC fetches data, client components render it.
+No security concern: explanation fields contain no `correct` markers.
+**Positive pattern to reinforce:** When a `useEffect`-based fetch pattern is found in a client
+component, the correct fix is to move the data into the upstream RPC/Server Component, not to
+refactor the fetch mechanism.
+
+### profileError silently masking as "Forbidden" in auth helpers (2nd occurrence of DB-error-masking)
+**First seen:** commit 6b49021 / PR #10 (2026-03-15) — requireAdmin()
+**File:** `apps/web/lib/auth/require-admin.ts`
+**Pattern:** The function logs `profileError` but then falls through to the role-guard check.
+When `profileError` is non-null, `profile` is null, so `profile?.role !== 'admin'` is true and
+the function throws "Forbidden: admin role required". A DB connectivity failure presents to the
+caller — and to logs — as a legitimate access-denied, not as a service error. The admin user is
+denied with no signal that it was a transient failure.
+**Fix pattern:**
+```ts
+if (profileError) {
+  console.error('[requireAdmin] Profile query error:', profileError.message)
+  throw new Error('Service error: could not verify admin role')
+}
+```
+**Related:** The Supabase-query-error-silently-swallowed pattern (first occurrence above) is the
+same root cause — only destructuring `{ data }` and ignoring `{ error }`. Second occurrence
+confirms this is a recurring pattern across auth helpers.
+**Watch for:** Any auth helper that makes a secondary DB lookup after the initial `getUser()`.
+Always ensure `error` is checked with an early return/throw, not merely logged before the guard.
+**Status:** ISSUE — flagged in PR #10 sweep.
+
+### hard DELETE in admin Server Actions violates soft-delete rule (1st occurrence in admin context)
+**First seen:** PR #10 (2026-03-15)
+**File:** `apps/web/app/app/admin/syllabus/actions/delete-item.ts`
+**Pattern:** The `deleteItem` Server Action issues a literal `DELETE` against EASA syllabus tables.
+The feature was built this way because the three tables do not have `deleted_at` columns. However,
+the absence of a `deleted_at` column is itself the violation — the column should have been added in
+the migration (031) that added write access to these tables.
+**Root cause:** The migration added RLS policies for admin INSERT/UPDATE/DELETE but did not add
+soft-delete infrastructure, and the Server Action author did not check the soft-delete rule.
+**Pattern to flag:** Any new table receiving DELETE RLS policies that lacks `deleted_at TIMESTAMPTZ NULL`.
+**Fix requires two steps:**
+1. New migration adding `deleted_at` to `easa_subjects`, `easa_topics`, `easa_subtopics`
+2. Update `deleteItem` to `UPDATE SET deleted_at = now()`
+3. Update `getSyllabusTree` queries to filter `.is('deleted_at', null)`
+**Status:** ISSUE — flagged in PR #10 sweep, must fix before push.
+
+### sort_order schema requires field that insert path recomputes server-side (1st occurrence)
+**First seen:** PR #10 (2026-03-15)
+**Files:** `packages/db/src/schema.ts`, `apps/web/app/app/admin/syllabus/actions/upsert-*.ts`,
+           `apps/web/app/app/admin/syllabus/_components/subject-row.tsx`
+**Pattern:** `UpsertSubjectSchema` (and Topic/Subtopic variants) require `sort_order: z.number().int().min(0)`.
+On the insert path, the Server Action overwrites the client-supplied value with a server-computed MAX+1.
+On the update path, the client-supplied value is used directly (preserved from the existing row).
+This creates an ambiguous contract: `sort_order` is required by the schema but meaningless on insert.
+The client components compute their own `sortOrder` values (from local state) before calling insert,
+even though the server will discard them.
+**This is not a bug today** (single-admin, server always recomputes), but the schema makes the
+insert path's behavior non-obvious to future readers.
+**Fix:** Either make `sort_order` optional in the Zod schema (insert path ignores it) or document
+clearly in the action that it is intentionally overridden on insert.
+**Status:** SUGGESTION — logged for pattern awareness.
+
+---
+
+## Session 2026-03-16 — commit 8eeeff9 (docs: soften last_was_correct wording to best-effort)
+
+### Commit: 8eeeff9 — STATUS: CLEAN
+- Files changed: 1 (docs/database.md only)
+- Nature: Documentation-only wording correction. No code, no migrations, no tests.
+
+**Summary:** Two wording instances in `docs/database.md` changed "always accurate" to "best-effort
+tracking" for `fsrs_cards.last_was_correct`. The change is technically correct: the upsert is
+atomic within the transaction but the column is a tracking convenience, not a strict guaranteed-correct
+invariant (ON CONFLICT DO NOTHING on quiz_session_answers means retries skip re-inserting the answer
+but still re-upsert last_was_correct — harmless but confirms best-effort nature).
+
+**SUGGESTION — docs/decisions.md:417 inconsistency (non-blocking):**
+`docs/decisions.md` line 417 still reads "fully atomic in migration 040" without the new "best-effort"
+qualifier. The phrase "fully atomic" describes the transactional scope (still true) but the overall
+tone does not reflect the softened guarantee introduced in this commit. No reader will be misled about
+security or correctness, but the two docs use different framings for the same column. Fix when
+decisions.md is next touched.
+
+**POSITIVE — both instances updated consistently:**
+The wording change was applied to both the prose key-behavior list (line 650) and the inline SQL
+comment block (lines 827-828). Partial updates — changing prose but leaving the SQL comment, or vice
+versa — would leave stale inline documentation. Both were updated. Correct scope.
+
+**No issues found in this commit.**

@@ -12,7 +12,7 @@
 | Pre-push hooks too slow for large diffs | 1 | 2026-03-11 | Fixed — diff cap + timeout + grep fallback |
 | Hook file exceeding 80-line limit | 4 | 2026-03-13 | RULE EXISTS — 70-line watch added to code-reviewer memory (9f5a6cc); still recurring despite watch threshold; use-quiz-state.ts hit 117 lines in 741ae30 (4th occurrence); fix required hook split in 34a9352 |
 | SQL score aggregation over full table (not current batch) | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in f53eccf |
-| Array positional pairing instead of Map lookup (FSRS) | 1 | 2026-03-12 | Watch — batch-submit.ts updateFsrsCards; fixed in f53eccf |
+| Array positional pairing instead of Map lookup (FSRS) | 1 | 2026-03-12 | RESOLVED — batch-submit.ts updateFsrsCards; fixed in f53eccf; entire FSRS TS layer removed in b41ffa8 — no active call sites remain |
 | Empty-array guard missing at SQL level | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in f53eccf |
 | New hook/utility file shipped without a test file | 3 | 2026-03-12 | RULE ADDED (9f5a6cc) — still recurring; rule exists but not followed at write time |
 | Top-level await in node16 package test file | 1 | 2026-03-12 | Watch — packages/db/src/server.test.ts; fixed with dynamic import helper |
@@ -73,6 +73,15 @@
 | test-writer generates deprecated vi.fn generic syntax (two-arg form) | 2 | 2026-03-15 | RULE ADDED — first: use-session-state.test.ts (9ea234b, 2026-03-14); second: session-operations.test.ts (69273cf, 2026-03-15); both required orchestrator correction before type-check passed; correct form is `vi.fn<(arg: A) => R>()` (single function-type argument, Vitest v4); test-writer patterns.md updated with explicit rule and code examples; stale wrong-syntax example on line 238 also corrected |
 | ZodError escaping Server Action with typed error return type (parse() without try/catch) | 1 | 2026-03-15 | Watch — checkAnswer called CheckAnswerSchema.parse(raw) without try/catch; ZodError propagated as unhandled exception instead of returning typed { success: false } response (199e927); fixed with try/catch returning typed error shape; first occurrence; distinct from "Server Action without Zod validation" (that is missing validation — this is validation present but exceptions escaping the return-type contract) |
 | Supabase `.returns<T>()` causing forced intermediate type casts (`as string & keyof never`) | 1 | 2026-03-15 | Watch — PR #7 (b46b0bf) systematically removed `.returns<T>()` chains that caused `as string & keyof never` casts on query builder methods; fix pattern: drop `.returns<T>()`, execute query, cast result directly via `const typed = data as TargetType | null`; first occurrence of systematic cleanup; first occurrence of original antipattern being named |
+| Non-redirect response in proxy.ts dropping refreshed session cookies | 1 | 2026-03-15 | Watch — proxy.ts admin 403 guard returned bare `new NextResponse(...)` bypassing `redirectWithCookies()` cookie-copy loop (6b49021); fixed in cebf441; any response after `getUser()` in proxy.ts must copy `response.cookies.getAll()` before returning; CRITICAL severity |
+| Supabase query (SELECT) error silently swallowed in auth helper (distinct from mutation pattern) | 2 | 2026-03-15 | RULE CANDIDATE — first: getUser error ignored in Server Actions (83ae098, 2026-03-14); second: requireAdmin() profile SELECT discards `{ error }` (6b49021, 2026-03-15); both in auth-path helpers; fix: always destructure `{ data, error }` and log before guard decision; existing code-style.md rule covers mutations only — clarification extension proposed |
+| Server-authoritative ordering value (sort_order) computed client-side and trusted on submission | 1 | 2026-03-15 | Watch — subject-row.tsx passed sort_order as prop to upsert Server Action; fixed in cebf441 by computing sort_order server-side from sibling count; first occurrence; applies to any derived ordering or position value that should reflect DB state at write time |
+| `@ts-expect-error` for Supabase TypeScript inference depth limit on easa_* tables | 1 | 2026-03-15 | PARTIAL RESOLUTION (2026-03-16) — @supabase/ssr upgraded 0.5.0 → 0.9.0; fixed inference depth limit for quiz_drafts (draft-helpers.ts, 2 suppressions removed); easa_* tables (upsert-subject, upsert-subtopic, upsert-topic) still require suppressions on `.insert()` — TypeScript still cannot resolve the easa_* generated type chain to a non-never Insert type; suppressions are documented with JSDoc comment explaining the root cause; validated as still-needed by semantic-reviewer on 603b36c cycle (false positive rejected) |
+| `.single()` used where no-row is a valid outcome (silently swallows PGRST116 error) | 1 | 2026-03-15 | Watch — seed-admin-eval.ts topic/subtopic lookups used `.single()` for rows that may legitimately not exist yet; `.single()` raises PGRST116 on zero rows and its error is swallowed if not explicitly checked; fixed in 4363a34 with `.maybeSingle()` which returns `{ data: null, error: null }` when no row is found; distinct from "Supabase mutation result not destructured" (that is about .insert/.update calls — this is about SELECT lookups where zero rows is an expected valid state); first occurrence |
+| Duplicated fallback/error-handling code in same file that drifts out of sync | 1 | 2026-03-15 | Watch — security auditor script had two copies of the same grep fallback logic (timeout-fallback path and agent-failure path); they diverged silently; fixed in 4363a34 by extracting to a shared helper; first occurrence; root cause: copy-paste duplication in shell/TS scripts is harder to spot than in application code because scripts often have bespoke control flow with no shared abstraction layer |
+| Migration-based consolidation (TS best-effort write moved to RPC for atomicity) | 1 | 2026-03-16 | Watch — migration 040 moved last_was_correct write from TypeScript try/catch into submit_quiz_answer RPC; first occurrence as a named pattern; prior examples: draft_count DB trigger, consecutive_correct_count in batch_submit_quiz; propose note in agent memory if a third TS best-effort post-RPC write appears |
+| Behavioral gap silently fixed by migration (cross-path column population) | 1 | 2026-03-16 | Watch — migration 040 closed last_was_correct gap in single-answer mode; filter:incorrect was silently incomplete; fixed as side-effect of FSRS removal; implication: when a migration adds a write path for a column, check all query consumers that filter on that column across all write paths |
+| Upstream named type used as structural approximation after library upgrade | 1 | 2026-03-16 | Watch — `Record<string, unknown>` used for `CookieOptions` in middleware.ts and server.ts; after @supabase/ssr upgrade to 0.9.0 the named type became available; fixed in 603b36c with correct import; first occurrence; apply: after any library upgrade, cross-check hand-rolled Record/structural types against the library's updated public exports |
 
 ## Lessons Learned
 
@@ -1459,3 +1468,313 @@ First occurrence of this specific antipattern being systematically cleaned up. L
 - The CRITICAL ownership gap was caught by the semantic-reviewer one commit after the PR landed, not in production and not by a user accessing another student's data.
 - The Supabase result-cast pattern (drop `.returns<T>()`, cast result directly) is now consistently applied across all query files that were cleaned up. Future readers have a clear model to follow.
 - 836 tests all passing confirms the type cleanup was non-behavioral — no regressions introduced.
+
+---
+
+### 2026-03-15 — Admin Syllabus Manager (commits 6b49021, cebf441)
+
+**Context:** Two-commit cycle for the Admin Syllabus Manager feature. 6b49021 was the main feature commit — added EASA syllabus admin UI (subjects/topics/subtopics CRUD), admin RLS migration, `require-admin` auth helper, proxy 403 guard, 5 Server Actions with full test suites, and nav updates. cebf441 was the semantic-reviewer fix commit — fixed proxy cookie copy, profile error logging, sort_order stale prop, and added action/query tests. 42 files changed, 2301 insertions.
+
+**Code reviewer (6b49021 + cebf441):** CLEAN — 0 BLOCKING, 0 WARNING. Clean pass on both commits.
+
+**Semantic reviewer (6b49021):** 1 CRITICAL + 3 ISSUEs + 3 SUGGESTIONs. CRITICAL and 2 ISSUEs fixed in cebf441. 1 ISSUE deferred (single-org acceptable). All 3 SUGGESTIONs accepted as-is or deferred.
+
+1. **CRITICAL — Proxy 403 response dropping refreshed session cookies (fixed cebf441):** The new admin path guard in `proxy.ts` returned `new NextResponse('Forbidden', { status: 403 })` as a bare response. The proxy's `redirectWithCookies()` helper copies refreshed Supabase session cookies from the upstream `response` object onto every outgoing response. The bare 403 bypassed this helper, silently dropping any token refresh that occurred during the `getUser()` call. The affected user's next request would see an expired token. Fixed in cebf441 by copying `response.cookies.getAll()` onto the 403 response before returning. Root cause: the `redirectWithCookies()` helper makes cookie copying prominent for redirects; it is invisible for non-2xx responses where the developer's mental model is "it's an error, no session needed." **First occurrence as a named pattern in learner memory.** The semantic-reviewer memory already recorded this (first seen 6b49021). Logged.
+
+2. **ISSUE — `requireAdmin()` profile error swallowed without logging (fixed cebf441):** `require-admin.ts` destructured only `{ data }` from the Supabase profile lookup, silently discarding `{ error }`. Because the fallback behavior (access denied) is safe, the bug is invisible in production — but it produces no log signal when the DB has a connectivity problem. Fixed in cebf441 with `{ data, error }` destructure and `console.error` before the guard. Root cause: same family as the "Supabase mutation result not destructured" pattern — the query variant (not just mutations) drops errors. **This is the second occurrence of "Supabase query error silently swallowed in an auth helper."** The semantic-reviewer memory records the prior occurrence as commit 83ae098 (2026-03-14). Count: 2. Status: RULE CANDIDATE — confirm actionability with orchestrator.
+
+3. **ISSUE — `sort_order` trusts stale client prop instead of computing server-side (fixed cebf441):** `subject-row.tsx` passed `sort_order` as a prop to the upsert Server Action, allowing a stale or client-modified value to be written to the DB. The correct approach computes `sort_order` from the current sibling count at the Server Action level (a fresh DB query), guaranteeing the value reflects actual DB state. Fixed in cebf441 by removing the client prop and computing sort_order in the action. Root cause: treating sort_order as a client-computed value that is passed back on save, rather than a server-authoritative value that is derived fresh on write. **First occurrence of this specific pattern: a server-authoritative ordering value computed client-side and trusted on submission.** Logged as new watch item.
+
+4. **ISSUE — `getQuizQuestions`-style scoping: question count not scoped to org (deferred — single-org acceptable):** The question count query in `queries.ts` counts all questions in the bank without filtering to the current admin's organisation. For a single-org deployment (current state), this returns correct data. Deferred: the product operates as single-org; org-scoping is tracked as a future concern. No action taken in this cycle. Logged as a design note.
+
+5. **SUGGESTION — Hard delete on admin syllabus items (accepted — admin exception documented):** `delete-item.ts` uses hard DELETE for syllabus items (subjects, topics, subtopics). The semantic-reviewer noted this diverges from the project's soft-delete policy. After review, accepted: admin-managed reference data (syllabus structure) is distinct from student-owned immutable records; hard delete is appropriate for admin CRUD on schema-like content. The design exception was documented in the PR. No action to rules — the soft-delete rule in `security.md` covers student records and audit data, not admin reference data.
+
+6. **SUGGESTION — `is_admin` NULL guard safe as-is:** `require-admin.ts` checks `profile.is_admin !== true` which safely treats NULL as not-admin. The semantic-reviewer noted this is intentionally strict. No action.
+
+7. **SUGGESTION — JWT claims approach deferred:** Adding `is_admin` to the JWT custom claims would save a DB lookup on every admin request. Deferred as a future optimisation; not blocking. No action.
+
+**Semantic reviewer (cebf441):** CLEAN — 0 issues, 0 suggestions.
+
+**Doc updater (6b49021 + cebf441):** 3 doc updates needed — `docs/database.md` (new migration 039, admin RLS policies), `docs/security.md` (admin guard pattern, proxy cookie rule), `docs/plan.md` (Admin Syllabus Manager completion entry). Updates applied in the same cycle. Clean — no partial-doc-fix pattern.
+
+**Test writer:** 5 test files written (45 tests) covering `require-admin.ts`, all 3 upsert actions, `delete-item.ts`, and `queries.ts`. One mock complication: `subject-row.tsx` originally passed `sort_order` as a prop; after cebf441 moved sort_order computation to the Server Action, the test mocks for the upsert actions needed adjustment (remove the sort_order prop from call assertions). Tests were fixed and all 45 passing. No new hook/utility files shipped without tests — all co-located test files landed alongside their source files in the feature commit itself.
+
+**Pattern checks this cycle:**
+
+1. **Proxy 403 dropping cookies (count 1, NEW):** The bare `new NextResponse(...)` path in proxy.ts is a recurrence risk whenever the proxy gains a new non-redirect response path. The semantic-reviewer memory (patterns.md) already recorded this at first occurrence. Logged in learner memory now as well. The fix pattern is: any response returned after a `getUser()` call in proxy.ts must copy `response.cookies.getAll()` onto it before returning.
+
+2. **Supabase query error silently swallowed in auth helper (count 2, RULE CANDIDATE):** The second occurrence (requireAdmin profile lookup) matches the first occurrence (83ae098 Server Action sweep). Both involve a secondary DB lookup in an auth helper that discards `{ error }` silently. The fix is consistent: destructure `{ data, error }`, log the error. Two occurrences across different commits confirm the pattern. This is distinct from the "Supabase mutation result not destructured" rule (code-style.md Section 5, which covers insert/update/delete calls) — this is about SELECT queries in auth helper functions. The existing code-style.md rule reads "All Supabase mutation calls must destructure { error }." It does not explicitly mention queries. A clarification note is warranted on the next orchestrator approval cycle.
+
+3. **`@ts-expect-error` for Supabase TypeScript inference depth limit on easa_* tables (PARTIAL RESOLUTION 2026-03-16):** First seen 2026-03-15 (6b49021). Upgrading `@supabase/ssr` 0.5.0 → 0.9.0 (commit 225a163) removed the 2 suppressions in `draft-helpers.ts` (quiz_drafts table). However, the 3 suppressions in `upsert-subject.ts`, `upsert-subtopic.ts`, and `upsert-topic.ts` still apply — the TypeScript inference depth limit persists for the easa_* generated types on `.insert()` calls. Validated as still-needed (false positive) when semantic-reviewer flagged them in the 603b36c cycle and orchestrator confirmed the remaining suppressions are legitimate. The suppressions carry JSDoc comments explaining the root cause. Status: watch — not closed.
+
+4. **Server-authoritative ordering value computed client-side (count 1, NEW):** `sort_order` was passed as a client prop and trusted on submission. Fixed to compute server-side. First occurrence. Watch for other cases where a server-authoritative derived value (order, position, rank) is passed from the client as a prop to a Server Action.
+
+5. **New feature's tests co-located and shipped in the same commit (POSITIVE SIGNAL):** Unlike many prior cycles where tests were backfilled post-commit by the test-writer, this feature shipped all 5 test files alongside their source files in commit 6b49021. The test-writer's role was to verify correctness and catch one mock adjustment needed after cebf441. This is the intended pattern from code-style.md Section 7.
+
+6. **Hard delete exception for admin reference data (design note — not a pattern violation):** `delete-item.ts` uses hard DELETE. The soft-delete rule covers student data and audit records, not admin-managed reference schema. The semantic-reviewer's suggestion was accepted as by-design and documented. No change to security.md — the existing rule text already limits the soft-delete requirement to the relevant tables. FALSE POSITIVE risk: the semantic-reviewer will likely flag hard deletes in admin actions in future commits. No suppression needed — the reviewer correctly flags it, and the orchestrator correctly accepts it with documentation.
+
+**Actions taken:**
+- Frequency table: "Non-redirect response in proxy.ts dropping session cookies" added at count 1, status WATCH. (The semantic-reviewer memory already has this as first-seen 6b49021.)
+- Frequency table: "Supabase query error silently swallowed in auth/query helper (SELECT path)" added at count 2, status RULE CANDIDATE. Distinct from the existing "Supabase mutation result not destructured" entry.
+- Frequency table: "Server-authoritative ordering value computed client-side and trusted on submission" added at count 1, status WATCH.
+- Frequency table: "`@ts-expect-error` for Supabase inference depth limit on easa_* tables" partially resolved 2026-03-16; status updated to PARTIAL RESOLUTION — quiz_drafts suppressions removed by @supabase/ssr upgrade, but easa_* table suppressions persist (confirmed still needed by semantic-reviewer false-positive validation on 603b36c cycle).
+- No changes proposed to `code-style.md`, `security.md`, or `biome.json` in this cycle — the Supabase query-error pattern is at count 2 but the action (clarifying the existing code-style.md rule to cover queries, not just mutations) should await orchestrator approval.
+
+**Recommended changes (awaiting orchestrator approval):**
+
+1. **`.claude/rules/code-style.md` Section 5 (TypeScript Rules — Supabase destructuring):** Extend the "Destructure Supabase Mutation Results" rule to cover Supabase SELECT/query calls in auth helper functions. The current rule reads "All Supabase mutation calls (.insert(), .update(), .delete(), .upsert()) must destructure { error }." Add: "The same applies to `.select()` queries in auth-related helpers (e.g., require-admin.ts, require-auth patterns) — always destructure { data, error } and log the error before returning a guard decision." Two occurrences across different commits (83ae098 and 6b49021) confirm this is a recurring pattern that the current rule text does not cover.
+
+**Pending recommended changes (carried forward — still awaiting orchestrator action):**
+
+1. **`.claude/agent-memory/test-writer/patterns.md`** — consoleSpy try/finally (3rd occurrence — from cb0395c cycle, actionable).
+2. **`.claude/agent-memory/test-writer/patterns.md`** — scan every new `if (error) return` branch in files with existing tests; write the branch test in the same commit (3rd occurrence — from d057128 cycle, actionable).
+3. **`.claude/agent-memory/test-writer/patterns.md`** — always construct test fixtures by annotating with the exported TypeScript type (2nd occurrence — from bba9800 cycle, actionable).
+4. **`.claude/agent-memory/test-writer/patterns.md`** — use optional chaining (`arr?.[i]`) when accessing array indices in generated test assertions (2nd occurrence — from 99c67d2 cycle, actionable).
+
+**False positives:**
+- Semantic-reviewer flagged hard DELETE on syllabus items — accepted as by-design. Admin reference data is not covered by the soft-delete rule. No suppression added; the reviewer is correct to flag it and the orchestrator is correct to accept it with documentation. The pattern review note above captures the reasoning for future cycles.
+
+**Positive signals:**
+- Code reviewer was fully clean on both commits — the feature was written within all file-size limits from the start.
+- cebf441 was clean on semantic review — the fix cycle closed in exactly one follow-up commit with no tertiary issues.
+- The proxy cookie fix is a clean, minimal pattern: copy `response.cookies.getAll()` onto the outgoing response. Any future non-redirect path in proxy.ts will have this commit as a reference.
+- 45 tests co-located with source in the feature commit is the best test-discipline outcome seen in any feature commit to date.
+
+---
+
+### 2026-03-16 — Dependency update batch (commits 225a163, 603b36c)
+
+**Context:** Dependency update PR — minor/patch bumps across `package.json` files (225a163), followed immediately by a targeted type fix (603b36c) triggered by the semantic-reviewer ISSUE finding. No new features or migrations. Code reviewer and doc-updater reported clean. Test writer confirmed no gaps.
+
+**Code reviewer:** CLEAN — 0 BLOCKING, 0 WARNING. Dependency updates contain no style-reviewable code changes. The type annotation fix in 603b36c is a single-line import addition in two files; within all line limits.
+
+**Semantic reviewer (225a163 → 603b36c):** 1 ISSUE + 1 SUGGESTION.
+
+1. **ISSUE — `Record<string, unknown>` instead of `CookieOptions` type annotation (225a163 → fixed 603b36c):** `packages/db/src/middleware.ts` and `packages/db/src/server.ts` both typed the `options` field in the `cookiesToSet` array as `Record<string, unknown>`. After the `@supabase/ssr` upgrade to 0.9.0 the `CookieOptions` type became publicly available from `@supabase/ssr`. Using the correct named type rather than a structural approximation gives better IDE support and ensures any future breaking change to the cookie options shape is caught by TypeScript at the call site. Fixed in 603b36c by importing `type { CookieOptions }` from `@supabase/ssr` in both files and replacing the `Record<string, unknown>` annotations. **First occurrence of this specific pattern (upstream type available but structural approximation used instead).** Logged as new watch item.
+
+2. **SUGGESTION — Remaining `@ts-expect-error` suppressions on `easa_*` `.insert()` calls (225a163):** Semantic-reviewer flagged that three `@ts-expect-error` comments remain in `upsert-subject.ts`, `upsert-subtopic.ts`, and `upsert-topic.ts` after the `@supabase/ssr` upgrade. After investigation, confirmed these suppressions are still legitimately required — the TypeScript inference depth limit for the `easa_*` generated types on `.insert()` was not resolved by the `@supabase/ssr` upgrade (which only fixed the `quiz_drafts` inference path). The reviewer's suggestion to remove them would introduce a TS2769 compile error. **FALSE POSITIVE — the suppressions are correct and necessary.** Frequency table entry for `@ts-expect-error` on easa_* tables updated from RESOLVED to PARTIAL RESOLUTION. The suppressions carry JSDoc comments explaining the root cause; no further action needed.
+
+**Doc updater:** CLEAN — no doc changes needed. Dependency bumps and a type annotation fix do not affect schema, routes, or architecture docs.
+
+**Test writer:** CLEAN — no new test gaps. The type annotation change in 603b36c is a compile-time-only fix with no behavioral surface; no new tests needed. `packages/db/src/server.test.ts` and `middleware.ts` tests remain adequate.
+
+**Pattern checks this cycle:**
+
+1. **Upstream named type available but structural approximation used (count 1, NEW):** `Record<string, unknown>` was used for a cookie options shape that `@supabase/ssr` now exports as `CookieOptions`. After a library upgrade, any `Record<string, unknown>` or hand-rolled structural type annotation should be cross-checked against the updated library's public exports to see if a named type is now available. First occurrence — logged and watched. If a second instance appears (e.g., another `Record<string, X>` approximating a library type), add a note to code-style.md Section 5 about preferring named library types over structural approximations.
+
+2. **`@ts-expect-error` on easa_* tables (PARTIAL RESOLUTION confirmed 2026-03-16):** Frequency table entry corrected — the @supabase/ssr upgrade only resolved the `quiz_drafts` suppressions. The `easa_*` suppressions persist and are necessary. The semantic-reviewer's suggestion to remove them is a false positive; the orchestrator correctly rejected it after validating that removing the comments causes TS2769 compile errors. False positive risk going forward: any semantic-reviewer pass over these three files will likely re-flag the suppressions. The JSDoc comments on each suppression explain the root cause and should be treated as authoritative justification.
+
+**Actions taken:**
+- Frequency table: "Upstream named type available but structural approximation used after library upgrade" added at count 1, status WATCH.
+- Frequency table: "`@ts-expect-error` for Supabase inference depth limit on easa_* tables" corrected from RESOLVED to PARTIAL RESOLUTION — easa_* suppressions confirmed still needed.
+- No changes proposed to `code-style.md`, `security.md`, or `biome.json` in this cycle — all patterns are first occurrences or confirmed false positives.
+
+**False positives:**
+- Semantic-reviewer suggested removing `@ts-expect-error` on `easa_*` insert calls — validated as false positive. The suppressions are still legitimately required; removing them causes TS2769. The `@supabase/ssr` upgrade fixed the inference depth for `quiz_drafts` but not the more complex `easa_*` type chain. This pattern of the semantic-reviewer re-flagging these suppressions is expected on any future diff that touches these files.
+
+**Positive signals:**
+- Code reviewer clean on both commits — the dependency update introduced no style drift.
+- Semantic-reviewer caught a real type improvement opportunity (CookieOptions) that the dependency upgrade made possible but the original author of `middleware.ts`/`server.ts` could not have anticipated at write time. This is the intended value of the post-commit reviewer.
+- Fix cycle closed in exactly one follow-up commit (603b36c) targeting exactly the two affected files. Minimal, correct fix.
+- doc-updater and test-writer both clean — the cycle produced zero deferred debt.
+
+---
+
+### 2026-03-15 — Tech Debt PR #10 infrastructure & scripts (commits f2357a0, 4363a34, 8e918bc)
+
+**Context:** Three-commit cycle on tech-debt/pr10-infrastructure-scripts. f2357a0 was the main commit — hardened CI config and infrastructure scripts. 4363a34 fixed two semantic-reviewer findings from the first commit. 8e918bc updated `docs/plan.md` to record PR #10 completion.
+
+**Code reviewer:** CLEAN — 0 BLOCKING, 0 WARNING. No violations across any commit.
+
+**Semantic reviewer (f2357a0):** 2 ISSUEs, both fixed in 4363a34.
+
+1. **ISSUE — `seed-admin-eval.ts` topic/subtopic lookups used `.single()` where zero rows is a valid outcome (fixed 4363a34):** The seed script looked up topics and subtopics with `.single()`. The `.single()` Supabase client method raises a `PGRST116` error when the query returns zero rows — and that error is silently swallowed unless the caller explicitly destructures and checks `{ error }`. In a seed script that creates data conditionally (insert if not found), finding zero rows is an expected success path, not a DB error. The correct method is `.maybeSingle()`, which returns `{ data: null, error: null }` on zero rows and reserves `{ error }` for genuine DB-level failures. Fixed in 4363a34 by replacing both `.single()` calls with `.maybeSingle()`. Root cause: `.single()` vs `.maybeSingle()` distinction is non-obvious — `.single()` conflates "found exactly one row" with "query success," which is wrong for conditional-existence patterns. **First occurrence as a named pattern.** Logged and watched. Distinct from the existing "Supabase mutation result not destructured" rule (that is about `.insert()/.update()/.delete()` calls — this is about `.select()` lookups where zero rows is a valid state).
+
+2. **ISSUE — Security auditor script had two diverged copies of the same grep fallback logic (fixed 4363a34):** The security auditor had separate implementations of the same grep fallback in two paths: the timeout-fallback branch and the agent-failure-fallback branch. The two copies had drifted out of sync — one had been updated with a bug fix that the other did not receive. Fixed in 4363a34 by extracting the shared logic to a single helper function called by both paths. Root cause: copy-paste duplication in shell/infrastructure scripts is harder to spot than in application code — there is no shared abstraction layer and no type-checker to flag divergence. **First occurrence as a named pattern.** Logged and watched. The principle: in scripts (shell or TS) with multiple error-handling code paths, shared logic must be extracted to a function rather than duplicated, for the same reason as application code.
+
+**Semantic reviewer (4363a34):** 1 SUGGESTION (non-blocking).
+
+- **SUGGESTION — Redundant outer grep guard in security auditor:** A guard condition in the security auditor was technically redundant given the surrounding control flow — the condition could never be false at that point. Non-functional, not worth fixing. Logged.
+
+**Semantic reviewer (8e918bc):** Not run — docs-only commit with no production or script changes.
+
+**Doc updater (8e918bc):** Updated `docs/plan.md` with PR #10 completion entry. Clean — no partial-doc-fix pattern.
+
+**Test writer:** No new tests needed. The files changed (infrastructure scripts, CI config, seed script) are in the `scripts/` directory, which is explicitly excluded from the co-located test requirement per the code-reviewer agent's known suppressions. No behavioral logic was added — only hardening and bug fixes in operational tooling.
+
+**Pattern analysis — `.single()` where `.maybeSingle()` is correct (count 1, NEW):**
+
+The `.single()` vs `.maybeSingle()` distinction matters for any SELECT lookup where zero rows is an expected valid state (conditional existence checks, "find or create" patterns, optional resource lookups). `.single()` treats zero rows as an error (PGRST116). `.maybeSingle()` treats zero rows as `{ data: null, error: null }`.
+
+The seed script pattern is the canonical case: looking up a topic that may or may not exist in order to decide whether to insert it. Using `.single()` here means a first-run seed (where no data exists yet) generates silent PGRST116 errors that appear as DB failures in the error log. If the caller does not check `{ error }`, the seed silently proceeds with `data: null` and may produce incorrect inserts.
+
+**First occurrence — log and watch.** Rule change requires 2+ occurrences across different commits. If a second lookup using `.single()` on a "may or may not exist" query is found, add a note to `code-style.md` Section 5 or the semantic-reviewer's checklist: "use `.maybeSingle()` for optional-existence lookups; reserve `.single()` only for queries where zero rows is a bug (e.g., fetching a record by primary key that is guaranteed to exist by prior business logic)."
+
+**Pattern analysis — duplicated error/fallback code in scripts that drifts (count 1, NEW):**
+
+Scripts (shell, seed, infrastructure) are the lowest-enforcement-density code in the project: no type-checker, no Biome formatting for shell, no test coverage. When error-handling branches are copy-pasted between two code paths (e.g., two catch blocks, two timeout handlers), they drift silently — one receives a fix, the other does not. The result is inconsistent behavior under failure conditions.
+
+**First occurrence — log and watch.** The correct prevention: any script with two or more similar error-handling or fallback sections must extract the shared logic to a named function. If a second script-level copy-paste drift appears in a later commit, add a note to code-style.md Section 3 (Function Rules): the DRY rule applies equally to scripts and infrastructure files — duplicated fallback logic must be extracted.
+
+**Actions taken:**
+- Frequency table: "`.single()` used where no-row is a valid outcome (silently swallows PGRST116 error)" added at count 1, status WATCH.
+- Frequency table: "Duplicated fallback/error-handling code in same file that drifts out of sync" added at count 1, status WATCH.
+- No changes proposed to `code-style.md`, `security.md`, or `biome.json` — both patterns are first occurrences.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer was clean on all commits — the infrastructure hardening stayed within all structural rules.
+- The semantic reviewer caught both ISSUEs (`.single()` and diverged fallback copy) on the first pass. Both were targeted, one-function fixes in 4363a34. The fix cycle closed in exactly one follow-up commit.
+- Scripts directory exemption from co-located test rule was correctly applied by the test-writer — no false "missing test" flag generated.
+- PR #10 is the cleanest tech-debt batch to date: 1 ISSUE round, both fixed in a single follow-up commit, all agents clean after that.
+
+---
+
+### 2026-03-16 — FSRS removal (commit b41ffa8)
+
+**Context:** Single commit removing all ts-fsrs library remnants from the codebase. Deleted `lib/fsrs/update-card.ts` and its test, removed the `ts-fsrs` npm dependency, deleted caller code in `submit.ts`, `review/actions.ts`, and associated test assertions. Migration 040 moved `last_was_correct` tracking atomically into `submit_quiz_answer` RPC, putting single-answer mode on parity with batch mode.
+
+**Code reviewer:** CLEAN — 0 BLOCKING, 0 WARNING. The commit was a deletion-heavy refactor with no new file size violations. All surviving files within limits.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE. 2 SUGGESTIONS.
+
+1. **SUGGESTION — `submit_quiz_answer` DEPRECATED label in docs/database.md is now misleading:** Migration 040 rehabilitates the RPC to parity with `batch_submit_quiz` on `last_was_correct` tracking. The DEPRECATED label was appropriate before migration 040 when single-answer mode silently skipped `last_was_correct` writes; it is misleading now. Doc-updater follow-up commit resolved this in the same session. Non-blocking.
+
+2. **SUGGESTION — Stale FSRS references in agent memory files:** The semantic-reviewer flagged that `.claude/agent-memory/code-reviewer/patterns.md` and `.claude/agent-memory/test-writer/patterns.md` contain session entries referencing deleted files (`lib/fsrs/update-card.ts`, `updateFsrsCard`, `@repo/db/fsrs` mock patterns). These entries are historically accurate but the code no longer exists. Deferred to the learner cycle (this entry) for annotation rather than immediate file edits by the semantic-reviewer, which is outside its scope.
+
+**Doc updater:** Updated 4 docs in the same commit cycle — `docs/plan.md`, `docs/decisions.md`, `docs/database.md` (DEPRECATED label fix), `MEMORY.md`. Clean — no partial-doc-fix pattern.
+
+**Test writer:** No coverage gaps. 876 tests passing. `lib/fsrs/update-card.test.ts` was deleted alongside `lib/fsrs/update-card.ts` in the commit, so the test suite correctly shrank by those tests. No new source files introduced.
+
+---
+
+**Pattern analysis — Migration-based consolidation (count 1, NEW):**
+
+Migration 040 is the third instance of moving TypeScript-side logic into a Postgres RPC for atomicity (prior examples: `consecutive_correct_count` tracking in `batch_submit_quiz`, `draft_count` enforcement via DB trigger). The pattern: when a TypeScript post-call update can be lost on connection failure (best-effort try/catch), moving the write into the RPC transaction eliminates the loss window entirely. The trade-off is that the SQL must replicate the logic — but for simple `ON CONFLICT DO UPDATE SET` patterns the SQL is less complex than the try/catch wrapper it replaces.
+
+**First occurrence as an explicitly named pattern.** Logged and watched. If a third instance of TypeScript best-effort post-RPC writes appears, propose a note in `code-style.md` or agent memory: "writes that must be atomic with a preceding DB operation belong in the RPC, not in TypeScript caller code."
+
+---
+
+**Pattern analysis — Clean library removal discipline (count 1, NEW):**
+
+The FSRS removal was executed as a single atomic commit: dependency deleted, wrapper file deleted, callers updated, tests deleted/updated, docs updated, agent memory stale references flagged for annotation. No step was deferred to a follow-up commit. This is the first time this full removal checklist was observed in a single commit. The positive outcome: code reviewer and test writer both reported clean, confirming the removal was complete.
+
+The checklist for a clean library removal:
+1. Delete the npm dependency from `package.json`.
+2. Delete all wrapper/adapter files in `lib/` or `packages/`.
+3. Update all callers — remove import lines, remove call sites, adjust return-type handling.
+4. Delete or update co-located test files for deleted/changed source files.
+5. Update docs (plan.md, decisions.md, database.md) in the same commit.
+6. Annotate agent memory files that reference the deleted code as stale (or flag to learner).
+
+**First occurrence as a named positive pattern.** No rule change needed — this is a positive exemplar to reference in future removal work.
+
+---
+
+**Pattern analysis — Behavioral gap silently fixed by migration (count 1, NEW):**
+
+Migration 040 fixed a latent behavioral gap: `last_was_correct` was never written in single-answer practice mode. The `filter:incorrect` mode in the quiz trainer therefore never showed questions answered wrong via the single-answer path. This gap had existed since the feature shipped — it was never flagged by any post-commit agent because no test existed for the cross-path consistency of `last_was_correct`. The fix was a side-effect of the FSRS removal, not a targeted bugfix.
+
+**Implication:** When a migration adds a column write path to an RPC that previously lacked it, the semantic-reviewer should check whether any query-side consumers (filters, analytics) depend on that column being populated by all write paths. If only one write path populates a column that multiple paths should populate, the filter silently returns incomplete results.
+
+**First occurrence as a named pattern.** Logged and watched.
+
+---
+
+**Stale FSRS references in agent memory — annotation:**
+
+The following agent memory entries reference code that no longer exists after commit b41ffa8. They remain historically accurate but the code paths are gone:
+
+- `code-reviewer/patterns.md`: Multiple session entries reference `apps/web/lib/fsrs/update-card.ts`, `updateFsrsCard()` 4-param exception, FSRS best-effort try/catch pattern. These are historical records, not active watch items. The 4-param exception entry on line 721 ("`updateFsrsCard uses 4 params`") should NOT be removed — it is the canonical justification for why 4-param utility functions are an acceptable exception to the 3-param rule. The file is deleted but the rule exception remains valid.
+
+- `test-writer/patterns.md`: Entries referencing `lib/fsrs/update-card.ts`, the `@repo/db/fsrs` mock pattern, and "non-fatal FSRS" test cases. These are historical records. The mock pattern for `@repo/db/fsrs` is now unused (the package export is gone), but the general principle (vi.hoisted + vi.mock for module-level deps) is still valid and documented elsewhere in test-writer memory.
+
+---
+
+### 2026-03-16 — CodeQL + Dependabot CI configuration (commits 5838947, 83b4844)
+
+**Context:** Two commits. First (5838947) added `.github/workflows/codeql.yml` and `.github/dependabot.yml`. Second (83b4844) applied fixes from the semantic-reviewer round. Changes were YAML configuration only — no TypeScript, no migrations, no production code.
+
+**Code reviewer:** CLEAN — 0 BLOCKING, 0 WARNING. YAML config files are exempt from file-size limits (config file relaxation documented in agent suppressions).
+
+**Doc updater:** 2 updates applied — `docs/plan.md` (progress tracking) and `docs/decisions.md` (new decision entry for CodeQL/Dependabot addition). Both applied in the same cycle. No partial-doc-fix pattern.
+
+**Test writer:** No coverage gaps. YAML config files produce no testable TypeScript surface. Correct — no action taken.
+
+**Semantic reviewer (5838947):** 2 ISSUEs + 3 SUGGESTIONs.
+
+1. **ISSUE — `cancel-in-progress: true` wrong for CodeQL SARIF workflows (5838947 → fixed 83b4844):** CodeQL uploads SARIF results to GitHub Security dashboard on every run. Using `cancel-in-progress: true` in `concurrency` settings kills in-flight runs, which GitHub interprets as missing SARIF uploads — suppressing security alerts for the cancelled commit. Fixed in 83b4844 by removing `cancel-in-progress: true` from the CodeQL workflow (the group key was also removed). **First occurrence of this CodeQL-specific pattern.** Logged as new watch item.
+
+2. **ISSUE — Missing `pull_request` trigger on CodeQL workflow (5838947 → deferred by plan):** CodeQL workflow lacked a `pull_request` trigger, so code scanning would not run on PRs — defeating the primary use case of catching vulnerabilities before merge. Acknowledged during review as an intentional deferral: the current workflow only runs on push/schedule while the project is pre-multi-contributor. The trigger will be added when PR-based review workflow is established. **Not a false positive — genuine gap accepted as a documented trade-off.** Logged as watch item.
+
+3. **SUGGESTION — `autobuild` step unnecessary for TypeScript (5838947 → fixed 83b4844):** The CodeQL workflow included a `uses: github/codeql-action/autobuild@v3` step. For interpreted/transpiled languages (TypeScript/JavaScript), CodeQL does not require a build step — it analyzes source files directly. The `autobuild` step added noise and potential failure surface. Fixed in 83b4844 by removing the step. **First occurrence.** Logged as new watch item.
+
+4. **SUGGESTION — `major` version group ungrouped in Dependabot (5838947 → intentional):** Dependabot config did not define a separate group for `major` version bumps, meaning major updates would be batched with minor/patch in the same PR. Acknowledged as intentional — major updates require individual review and manual grouping is preferable. No action taken. **Not a false positive — intentional design choice.**
+
+5. **SUGGESTION — Maintenance comment on schedule block (5838947 → skipped):** Minor suggestion to add an inline comment explaining the CodeQL weekly schedule. Skipped as low value for a small team. **First occurrence — log and watch.**
+
+**Actions taken:**
+- Frequency table: added "cancel-in-progress misapplied to SARIF workflow" as new watch item (count 1). First occurrence — no rule change. If a second CI workflow ships with this misconfiguration, add a note to CI workflow authoring guidance.
+- Frequency table: added "CodeQL autobuild step unnecessary for TypeScript" as new watch item (count 1). First occurrence — no rule change.
+- Frequency table: "missing PR trigger on CodeQL" logged as intentional deferral, not a violation. Status: accepted trade-off, add trigger when multi-contributor PR workflow begins.
+- No changes to `code-style.md`, `security.md`, or `biome.json` — all patterns are first occurrences and neither pattern is the type enforced by those files (CI config authoring is outside their scope).
+
+**False positives:** none detected. The semantic-reviewer's 2 ISSUEs were both real — one fixed, one intentionally deferred with documentation.
+
+**Positive signals:**
+- Code reviewer correctly exempted YAML config from line-limit checks. Suppression is working.
+- Test writer correctly produced no output for a YAML-only diff. Agent scope boundaries held.
+- Doc updater applied both doc targets (plan.md + decisions.md) in the same cycle — no partial-doc-fix pattern.
+- Fix commit (83b4844) was clean on all agents. Two targeted removals (autobuild step, cancel-in-progress) closed the ISSUE and SUGGESTION without introducing new findings.
+
+No edits needed to those files beyond this notation. The entries are accurate historical records.
+
+---
+
+**Actions taken:**
+- Frequency table: "Array positional pairing instead of Map lookup (FSRS)" — status updated to RESOLVED (the entire FSRS TS layer is removed; the Map lookup pattern in `updateFsrsCards` was the last call site and that code is now gone).
+- Frequency table: "Migration-based consolidation (TS logic moved to RPC)" added at count 1, status WATCH.
+- Frequency table: No other frequency table changes — all findings this cycle are first occurrences.
+- No changes proposed to `code-style.md`, `security.md`, or `biome.json` — all patterns are first occurrences.
+
+**False positives:**
+- Semantic-reviewer flagged stale DEPRECATED label for `submit_quiz_answer` — this was a real doc gap, not a false positive. Fixed by doc-updater in the same session.
+
+**Positive signals:**
+- Code reviewer and test writer both clean — the library removal was executed completely in one commit with no dangling references.
+- Migration 040 closes the single-answer `last_was_correct` gap, making the `filter:incorrect` mode reliable across both submission paths for the first time. This is a behavioral improvement that shipped as a side-effect, not an oversight.
+- The FSRS removal is the cleanest dependency removal to date: single commit, all agents clean first pass, no follow-up fix commit needed.
+
+---
+
+### 2026-03-16 — GH Actions version bump (commit 13ce663)
+
+**Context:** Single commit bumping GitHub Actions versions across CI/CD workflows — `actions/checkout` v4→v6, `actions/upload-artifact` to v7, `actions/github-script` to v7, `github/codeql-action` to v4. YAML-only diff, no TypeScript, no migrations, no production code.
+
+**Code reviewer:** CLEAN — 0 findings. YAML config files are exempt from file-size limits (config file relaxation in agent suppressions). Correct.
+
+**Doc updater:** No updates needed. No schema changes, no new routes, no architectural decisions. Correct.
+
+**Test writer:** No tests needed. YAML config files produce no testable TypeScript surface. Correct.
+
+**Semantic reviewer:** 1 ISSUE + 3 GOOD.
+
+1. **ISSUE — `actions/checkout` v4→v6 credential isolation change (assessed as inert):** The semantic-reviewer flagged that `actions/checkout@v6` changed credential scope/isolation semantics versus v4. After assessment: the change is inert for this repo's workflow structure — no steps in any workflow rely on cross-job credential sharing or the specific credential persistence behavior that changed between versions. The ISSUE was reviewed and accepted with no fix needed. **Logged as an intentional no-action decision, not a false positive.** The reviewer's flag was technically correct (behavior did change) but the change does not affect this repo's workflows in practice.
+
+2. **3 GOOD findings:** Semantic-reviewer noted clean patterns in the version bump — consistent pinning strategy, no mixed version states across workflows, and the bump did not introduce any workflow trigger changes. Positive signals acknowledged.
+
+**Actions taken:**
+- Frequency table: no changes. No new patterns introduced — this was a clean infrastructure maintenance commit.
+- No changes to `code-style.md`, `security.md`, or `biome.json`.
+- The `actions/checkout` v6 credential isolation assessment logged here as reference for future GH Actions upgrades — when bumping `actions/checkout` past v4, verify no workflow relies on cross-job credential sharing.
+
+**False positives:** none. The semantic-reviewer ISSUE was a real behavior change; the no-action decision was based on assessment of the specific repo's workflow structure, not dismissal of the finding.
+
+**Positive signals:**
+- All 4 agents correctly handled a YAML-only diff with no spurious findings. Agent scope boundaries held cleanly.
+- Code reviewer, doc updater, and test writer all produced correct "nothing to do" outputs — zero noise for a maintenance commit.
+- The semantic-reviewer ISSUE was assessed and consciously accepted rather than silently ignored — the validate-before-fixing protocol working as intended.
+
+---

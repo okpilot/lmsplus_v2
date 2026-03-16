@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import type { CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from './types'
 
@@ -18,7 +19,7 @@ export async function createServerSupabaseClient() {
         cookiesToSet: Array<{
           name: string
           value: string
-          options: Record<string, unknown>
+          options: CookieOptions
         }>,
       ) {
         try {
