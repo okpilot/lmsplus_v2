@@ -47,7 +47,10 @@ export function FinishQuizDialog({
         open
         className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') handleClose()
+          else e.stopPropagation()
+        }}
         aria-label="Finish quiz"
       >
         <h2 className="text-lg font-semibold text-foreground">Finish Quiz</h2>
