@@ -43,7 +43,7 @@ type QuestionRow = {
   id: string
   question_text: string
   question_number: string | null
-  options: { id: string; text: string; correct: boolean }[]
+  options: { id: string; text: string }[]
   explanation_text: string | null
 }
 
@@ -94,7 +94,15 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
     questionMap.set(q.id, q)
   }
 
-  const reportQuestions = buildReportQuestions(answers, questionMap)
+  const { data: correctData } = await supabase.rpc('get_report_correct_options', {
+    p_question_ids: questionIds,
+  })
+  const correctMap = new Map<string, string>()
+  for (const row of correctData ?? []) {
+    correctMap.set(row.question_id, row.correct_option_id)
+  }
+
+  const reportQuestions = buildReportQuestions(answers, questionMap, correctMap)
 
   return {
     sessionId: session.id,
@@ -111,11 +119,11 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
 function buildReportQuestions(
   answers: AnswerRow[],
   questionMap: Map<string, QuestionRow>,
+  correctMap: Map<string, string>,
 ): QuizReportQuestion[] {
   return answers.map((answer) => {
     const question = questionMap.get(answer.question_id)
     const options = question?.options ?? []
-    const correctOption = options.find((o) => o.correct)
 
     return {
       questionId: answer.question_id,
@@ -123,8 +131,8 @@ function buildReportQuestions(
       questionNumber: question?.question_number ?? null,
       isCorrect: answer.is_correct,
       selectedOptionId: answer.selected_option_id,
-      correctOptionId: correctOption?.id ?? '',
-      options: options.map((o) => ({ id: o.id, text: o.text })),
+      correctOptionId: correctMap.get(answer.question_id) ?? '',
+      options,
       explanationText: question?.explanation_text ?? null,
       responseTimeMs: answer.response_time_ms,
     }

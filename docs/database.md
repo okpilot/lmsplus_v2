@@ -429,6 +429,7 @@ Use Postgres functions (RPCs) for:
 ```
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
+  get_report_correct_options ← read, returns correct option IDs for completed-session reports
   check_quiz_answer          ← read, verify answer + return explanation (immediate feedback)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (deferred writes pattern)
@@ -896,6 +897,33 @@ BEGIN
     'correct_count', v_correct_count,
     'score_percentage', v_score
   );
+END;
+$$;
+```
+
+#### `get_report_correct_options` — correct option IDs for reports
+
+Returns correct option IDs for a set of questions. Used by the quiz report (completed sessions only) so the TypeScript layer never reads the raw `correct` boolean from options JSONB.
+
+```sql
+CREATE OR REPLACE FUNCTION get_report_correct_options(p_question_ids uuid[])
+RETURNS TABLE (question_id uuid, correct_option_id text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  RETURN QUERY
+  SELECT q.id, (opt->>'id')::text
+  FROM questions q,
+  LATERAL jsonb_array_elements(q.options) AS opt
+  WHERE q.id = ANY(p_question_ids)
+    AND q.deleted_at IS NULL
+    AND (opt->>'correct')::boolean = true;
 END;
 $$;
 ```

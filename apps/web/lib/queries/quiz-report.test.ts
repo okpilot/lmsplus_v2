@@ -10,9 +10,12 @@ const mockGetUser = vi.fn().mockResolvedValue({
   data: { user: { id: 'user-1' } },
 })
 
+const mockRpc = vi.fn()
+
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     from: mockFrom,
+    rpc: mockRpc,
     auth: { getUser: mockGetUser },
   }),
 }))
@@ -76,8 +79,8 @@ const questionsData = [
     question_text: 'What is lift?',
     question_number: '050-01-001',
     options: [
-      { id: 'opt-a', text: 'Upward force', correct: true },
-      { id: 'opt-b', text: 'Downward force', correct: false },
+      { id: 'opt-a', text: 'Upward force' },
+      { id: 'opt-b', text: 'Downward force' },
     ],
     explanation_text: 'Lift acts upward.',
   },
@@ -86,11 +89,16 @@ const questionsData = [
     question_text: 'What is drag?',
     question_number: '050-01-002',
     options: [
-      { id: 'opt-c', text: 'Forward force', correct: false },
-      { id: 'opt-d', text: 'Opposing force', correct: true },
+      { id: 'opt-c', text: 'Forward force' },
+      { id: 'opt-d', text: 'Opposing force' },
     ],
     explanation_text: null,
   },
+]
+
+const correctOptionsData = [
+  { question_id: 'q1', correct_option_id: 'opt-a' },
+  { question_id: 'q2', correct_option_id: 'opt-d' },
 ]
 
 // ---- Tests ----------------------------------------------------------------
@@ -119,6 +127,7 @@ describe('getQuizReport', () => {
 
   it('returns full report data when session, answers, and questions exist', async () => {
     mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
+    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
 
     const report = await getQuizReport('sess-1')
 
@@ -134,6 +143,7 @@ describe('getQuizReport', () => {
 
   it('maps question details correctly', async () => {
     mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
+    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
 
     const report = await getQuizReport('sess-1')
     // First answer from fixture is correct
@@ -151,6 +161,7 @@ describe('getQuizReport', () => {
 
   it('identifies incorrect answers and correct option', async () => {
     mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
+    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
 
     const report = await getQuizReport('sess-1')
     // Second answer from fixture is incorrect
@@ -175,20 +186,21 @@ describe('getQuizReport', () => {
     expect(mockFrom).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to empty correctOptionId when no option is marked correct', async () => {
+  it('falls back to empty correctOptionId when RPC returns no match', async () => {
     const noCorrectQuestions = [
       {
         id: 'q1',
         question_text: 'What is lift?',
         question_number: '050-01-001',
         options: [
-          { id: 'opt-a', text: 'Upward force', correct: false },
-          { id: 'opt-b', text: 'Downward force', correct: false },
+          { id: 'opt-a', text: 'Upward force' },
+          { id: 'opt-b', text: 'Downward force' },
         ],
         explanation_text: null,
       },
     ]
     mockFromSequence({ data: sessionRow }, { data: [answersData[0]] }, { data: noCorrectQuestions })
+    mockRpc.mockResolvedValueOnce({ data: [] })
     const report = await getQuizReport('sess-1')
     expect(report).not.toBeNull()
     expect(report!.questions[0]!.correctOptionId).toBe('')
@@ -196,6 +208,7 @@ describe('getQuizReport', () => {
 
   it('handles null questions response from DB with fallback values', async () => {
     mockFromSequence({ data: sessionRow }, { data: [answersData[0]] }, { data: null })
+    mockRpc.mockResolvedValueOnce({ data: null })
     const report = await getQuizReport('sess-1')
     expect(report).not.toBeNull()
     const q = report!.questions[0]!
@@ -208,6 +221,7 @@ describe('getQuizReport', () => {
 
   it('passes response time through to the report', async () => {
     mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
+    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
     const report = await getQuizReport('sess-1')
     expect(report!.questions[0]!.responseTimeMs).toBe(3000)
     expect(report!.questions[1]!.responseTimeMs).toBe(5000)
@@ -237,6 +251,7 @@ describe('getQuizReport', () => {
       { data: [answersData[0]] },
       { data: [] }, // no questions found
     )
+    mockRpc.mockResolvedValueOnce({ data: [] })
 
     const report = await getQuizReport('sess-1')
     expect(report).not.toBeNull()
