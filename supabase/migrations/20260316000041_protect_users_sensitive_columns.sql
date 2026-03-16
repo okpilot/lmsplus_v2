@@ -9,7 +9,7 @@ CREATE OR REPLACE FUNCTION protect_users_sensitive_columns()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Allow service-role (superuser) to modify anything
-  IF current_setting('role') = 'service_role' THEN
+  IF current_role = 'service_role' THEN
     RETURN NEW;
   END IF;
 
@@ -32,7 +32,7 @@ $$ LANGUAGE plpgsql
    SET search_path = public;
 
 CREATE TRIGGER trg_protect_users_sensitive_columns
-  BEFORE UPDATE ON users
+  BEFORE UPDATE OF role, organization_id, deleted_at ON users
   FOR EACH ROW
   EXECUTE FUNCTION protect_users_sensitive_columns();
 

@@ -1112,6 +1112,36 @@ $$;
 
 ---
 
+## 4b. Triggers & Defensive Constraints
+
+### Column-level protection on `users`
+
+RLS controls which **rows** can be updated, not which **columns**. A `BEFORE UPDATE` trigger on `users` prevents non-service-role connections from changing sensitive columns:
+
+| Column | Why protected |
+|--------|--------------|
+| `role` | Prevents student → admin privilege escalation |
+| `organization_id` | Prevents cross-tenant data access |
+| `deleted_at` | Soft-delete must go through service role |
+
+```sql
+-- Trigger: trg_protect_users_sensitive_columns (migration 041)
+-- Only fires when role, organization_id, or deleted_at is in the UPDATE SET clause.
+-- Service-role connections (current_role = 'service_role') bypass the check.
+-- All other connections get EXCEPTION if they attempt to change these columns.
+```
+
+If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that accepts only safe fields (`full_name`, etc.) — never a blanket UPDATE policy on `users`.
+
+### Other triggers
+
+| Trigger | Table | Purpose |
+|---------|-------|---------|
+| `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021) |
+| `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (migration 041) |
+
+---
+
 ## 5. Indexes
 
 ```sql
