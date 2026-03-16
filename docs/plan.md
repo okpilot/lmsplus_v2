@@ -369,6 +369,8 @@
 - ✅ Migration 031: batch_submit_quiz idempotent retry + soft-delete scoring — if session already completed, return existing results instead of raising error; allow scoring questions soft-deleted after quiz started (membership validated at session start, safe to score historical responses for retired questions)
 - ✅ Migration 032: add `get_report_correct_options` RPC — returns correct option IDs for quiz report page (strips `correct` boolean before client sees it)
 - ✅ Migration 033: scope `get_report_correct_options` to session — added `p_session_id` parameter; validates session ownership, completion, and soft-delete status before revealing correct options (prevents arbitrary question ID probing by unauthenticated/non-owning students)
+- ✅ Migration 034: derive question set from quiz_session_answers — drops `p_question_ids` parameter; questions now derived from session answers, preventing arbitrary question ID probing via the Supabase REST API
+- ✅ Migration 035: add DISTINCT ON to `get_report_correct_options` — prevents duplicate rows when a question has multiple `correct: true` options in JSONB, matching LIMIT 1 pattern in other RPCs
 - ✅ saveDraft error logging: added console.error logging for draft count query and insert errors for better observability
 
 ---

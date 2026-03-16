@@ -929,8 +929,11 @@ BEGIN
     RAISE EXCEPTION 'Session not found, not owned, or not completed';
   END IF;
 
+  -- Ownership verified above via EXISTS on quiz_sessions.
+  -- This SECURITY DEFINER function bypasses RLS — do not remove the guard.
   RETURN QUERY
-  SELECT sa.question_id, (opt->>'id')::text
+  SELECT DISTINCT ON (sa.question_id)
+    sa.question_id, (opt->>'id')::text
   FROM quiz_session_answers sa
   JOIN questions q ON q.id = sa.question_id
   CROSS JOIN LATERAL jsonb_array_elements(q.options) AS opt
