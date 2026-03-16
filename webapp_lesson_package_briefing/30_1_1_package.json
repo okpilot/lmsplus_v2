@@ -1,0 +1,717 @@
+{
+  "$schema_version": "1.0",
+  "$schema_note": "Enriched lesson package. Single source of truth for board, handout, and lesson plan views. All text uses **bold** markdown for emphasis. Images referenced by ID — webapp fetches from Supabase storage bucket.",
+
+  "topic": "30.1.1",
+  "title": "The Atmosphere",
+  "subtitle": "Composition, extent & vertical division",
+  "subject": {
+    "code": "030",
+    "name": "Meteorology"
+  },
+  "los": [
+    { "code": "30.1.1.1.1", "short": "1.1.1", "text": "List the composition of gases in dry air" },
+    {
+      "code": "30.1.1.1.2",
+      "short": "1.1.2",
+      "text": "List the different layers of the atmosphere and know their approximate extent"
+    },
+    {
+      "code": "30.1.1.1.3",
+      "short": "1.1.3",
+      "text": "Describe the temperature profile within the troposphere and stratosphere"
+    },
+    {
+      "code": "30.1.1.1.4",
+      "short": "1.1.4",
+      "text": "Explain the relationship between air pressure, air density and air temperature"
+    },
+    {
+      "code": "30.1.1.2.1",
+      "short": "1.2.1",
+      "text": "Explain the significance of water vapour in the atmosphere"
+    },
+    {
+      "code": "30.1.1.2.2",
+      "short": "1.2.2",
+      "text": "Define the tropopause and state the variation of its height"
+    },
+    { "code": "30.1.1.2.3", "short": "1.2.3", "text": "State the temperature above the tropopause" }
+  ],
+  "duration_minutes": 25,
+  "question_count": 12,
+
+  "images": {
+    "composition_pie": {
+      "id": "met_01_s004_01.jpg",
+      "alt": "Atmospheric composition pie chart",
+      "caption": "Composition of dry air by volume",
+      "source": "ATPL Presentations — Meteorology Lesson 1"
+    },
+    "temperature_profile": {
+      "id": "met_01_s006_00.jpg",
+      "alt": "Temperature profile through atmospheric layers — ICAO Standard Atmosphere",
+      "caption": "Temperature profile through the atmospheric layers (ICAO Standard Atmosphere)",
+      "source": "ATPL Presentations — Meteorology Lesson 1"
+    },
+    "tropopause_latitude": {
+      "id": "met_01_s009_00.jpg",
+      "alt": "Tropopause height variation by latitude",
+      "caption": "Tropopause height variation by latitude",
+      "source": "ATPL Presentations — Meteorology Lesson 1"
+    },
+    "tropopause_folds": {
+      "id": "met_01_s010_00.jpg",
+      "alt": "Tropopause folds and jet stream location",
+      "caption": "Tropopause folds and breaks — jet stream location",
+      "source": "ATPL Presentations — Meteorology Lesson 1"
+    }
+  },
+
+  "data": {
+    "gas_composition": [
+      { "gas": "Nitrogen", "formula": "N₂", "percentage": 78, "highlight": false },
+      { "gas": "Oxygen", "formula": "O₂", "percentage": 21, "highlight": false },
+      { "gas": "Argon", "formula": "Ar", "percentage": 0.93, "minor": true },
+      { "gas": "Carbon dioxide", "formula": "CO₂", "percentage": 0.04, "minor": true },
+      {
+        "gas": "Water vapour",
+        "formula": "H₂O",
+        "percentage_range": "0–4",
+        "highlight": true,
+        "note": "Variable — not included in dry air figures"
+      }
+    ],
+    "atmospheric_layers": [
+      {
+        "layer": "Troposphere",
+        "extent": "0–11 km",
+        "temperature_trend": "decreases",
+        "primary": true
+      },
+      {
+        "layer": "Stratosphere",
+        "extent": "11–50 km",
+        "temperature_trend": "constant then increases"
+      },
+      { "layer": "Mesosphere", "extent": "50–80 km", "temperature_trend": "decreases" },
+      { "layer": "Thermosphere", "extent": "80 km+", "temperature_trend": "increases" }
+    ],
+    "isa_values": {
+      "sea_level": {
+        "temperature": { "value": 15, "unit": "°C" },
+        "pressure": { "value": 1013.25, "unit": "hPa" },
+        "density": { "value": 1.225, "unit": "kg/m³" }
+      },
+      "lapse_rate": { "value": 1.98, "unit": "°C/1,000 ft" },
+      "tropopause_temperature": { "value": -56.5, "unit": "°C" },
+      "tropopause_height": { "value": 36090, "unit": "ft", "km": 11 }
+    },
+    "tropopause_heights": [
+      { "location": "Equator / Tropics", "height_km": "16–18", "height_ft": "~53,000" },
+      { "location": "Mid-latitudes (ISA)", "height_km": "~11", "height_ft": "~36,000" },
+      { "location": "Poles", "height_km": "8–10", "height_ft": "~28,000" }
+    ],
+    "relationships": [
+      { "increase": "Altitude", "decrease": "Pressure", "note": "Halves every ~18,000 ft" },
+      { "increase": "Altitude", "decrease": "Temperature", "note": "Troposphere lapse rate" },
+      { "increase": "Altitude", "decrease": "Density", "note": "Less pressure, cooler air" },
+      { "increase": "Temperature", "decrease": "Density", "note": "Warm air is less dense" },
+      { "increase": "Humidity", "decrease": "Density", "note": "H₂O lighter than N₂/O₂" }
+    ]
+  },
+
+  "sections": [
+    {
+      "id": "composition",
+      "title": "Gas Composition & Water Vapour",
+      "los": ["30.1.1.1.1", "30.1.1.2.1"],
+      "images": ["composition_pie"],
+      "data_refs": ["gas_composition"],
+      "content": [
+        "**Dry air:** **Nitrogen 78%**, **Oxygen 21%**, other gases ~1% (Argon 0.93%, CO₂ 0.04%). Constant to ~60 km. Oxygen: breathing + engine combustion.",
+        "**Water vapour** (0–4%) is separate from dry air. The **only** gas that changes state (gas ↔ liquid ↔ solid). State changes release/absorb **latent heat** — drives all weather. No water vapour = no clouds, no rain, no fog."
+      ],
+      "must_know": [
+        "N₂ + O₂ = 99% of dry air. Everything else is trace.",
+        "Troposphere: ~75% of mass, ~99% of water vapour.",
+        "Warmer air holds more water vapour → more intense weather."
+      ],
+      "insights": [
+        "**Nitrogen and oxygen together make up 99%** of dry air. Everything else is trace amounts.",
+        "These are **dry air** figures — water vapour is separate, variable (0–4%), and we cover it below.",
+        "Water vapour is the **only** atmospheric gas that changes state (gas ↔ liquid ↔ solid) — this is what creates **all weather**.",
+        "The troposphere holds ~75% of atmospheric mass and ~99% of all water vapour."
+      ]
+    },
+    {
+      "id": "layers",
+      "title": "Atmospheric Layers & Temperature Profile",
+      "los": ["30.1.1.1.2", "30.1.1.1.3", "30.1.1.2.3"],
+      "images": ["temperature_profile"],
+      "data_refs": ["atmospheric_layers", "isa_values"],
+      "content": [
+        "Layers defined by temperature change. **Troposphere** (to ~11 km) — all weather. **Stratosphere** (11–50 km) — stable. **Mesosphere** (50–80 km). **Thermosphere** (80 km+). Boundaries = **\"pauses\"**.",
+        "Temp falls at **~2 °C / 1,000 ft** in troposphere. At tropopause: **−56.5 °C**. Constant to ~FL 650, then rises (ozone absorbs UV)."
+      ],
+      "must_know": [
+        "**Troposphere** = where we fly, where all weather occurs.",
+        "ISA is a **model** — memorise values, real conditions vary."
+      ],
+      "insights": [
+        "The atmosphere is divided into layers based on **how temperature changes** with height.",
+        "The **troposphere** is where we fly and where **all weather** occurs.",
+        "Temperature falls at ~2 °C / 1,000 ft in the troposphere. Above the tropopause, it **stops falling**.",
+        "The ISA is a **theoretical model** — real conditions vary, but these are the reference values for aviation."
+      ]
+    },
+    {
+      "id": "tropopause",
+      "title": "Tropopause",
+      "los": ["30.1.1.2.2"],
+      "images": ["tropopause_latitude", "tropopause_folds"],
+      "data_refs": ["tropopause_heights"],
+      "content": [
+        "The **boundary** between troposphere and stratosphere. Height where temperature stops decreasing. Acts as a **lid** — stable air above traps weather below.",
+        "Higher in summer than winter. Higher over warm air masses. Jet streams form near breaks in the tropopause."
+      ],
+      "must_know": [
+        "It is a **boundary**, not a layer. Warmer → **higher**. Summer → higher.",
+        "Varies with **season & latitude** — NOT water vapour (exam distractor)."
+      ],
+      "insights": [
+        "The tropopause is a **boundary**, not a layer — it separates the troposphere from the stratosphere.",
+        "It acts as a **lid on weather** — the stable air above prevents weather from rising further.",
+        "Warmer surface air → **higher tropopause**. Colder surface air → lower tropopause.",
+        "The tropopause is **higher in summer** and **lower in winter**."
+      ]
+    },
+    {
+      "id": "relationships",
+      "title": "Key Relationships",
+      "los": ["30.1.1.1.4"],
+      "images": [],
+      "data_refs": ["relationships"],
+      "content": [],
+      "must_know": [
+        "**Pressure** = weight of air above. Higher up = less.",
+        "**Density** falls with altitude, heat, humidity.",
+        "Humid air is **less dense** than dry air."
+      ],
+      "insights": [
+        "**Pressure** is the weight of air above you — less air above means less pressure.",
+        "Pressure halves approximately every **18,000 ft** — a useful rule to memorise.",
+        "**Density** is how tightly packed the air molecules are — it decreases with altitude, heat, and humidity."
+      ]
+    }
+  ],
+
+  "bookends": {
+    "opening": {
+      "label": "In this lesson you will learn",
+      "items": [
+        "What the atmosphere is made of — and why the answer surprises most people",
+        "How the atmosphere is divided into layers, and which layer matters for pilots",
+        "What happens to temperature, pressure, and density as you climb",
+        "What the tropopause is, where it sits, and why it varies",
+        "Why water vapour — invisible and tiny in quantity — creates all our weather"
+      ]
+    },
+    "closing": {
+      "label": "In this lesson you learned",
+      "items": [
+        "The atmosphere is 78% nitrogen, 21% oxygen — not the other way around",
+        "Water vapour (0–4%) is the only gas that changes state — and it drives all weather",
+        "The troposphere is the lowest layer (surface to ~11 km) — where we fly, where weather happens",
+        "Temperature drops at ~2 °C per 1,000 ft. ISA sea level: 15 °C, 1013.25 hPa",
+        "Pressure halves every ~18,000 ft. Warm air is less dense. Humid air is less dense.",
+        "The tropopause is higher at the equator, lower at the poles, higher in summer, lower in winter"
+      ],
+      "footer": "These are the foundations. Everything from here — clouds, wind, pressure systems, weather charts — builds on this."
+    }
+  },
+
+  "handout": {
+    "takeaways": [
+      "The atmosphere is **78% nitrogen**, **21% oxygen**",
+      "Water vapour (0–4%) drives **all weather**",
+      "The **troposphere** (to ~11 km): we fly here, weather happens here",
+      "ISA: **15 °C**, **1013.25 hPa**, lapse **~2 °C / 1,000 ft**",
+      "Pressure halves every ~18,000 ft. Warm & humid air = less dense.",
+      "Tropopause: higher at equator/summer, lower at poles/winter"
+    ],
+    "definitions": [
+      { "term": "ISA", "definition": "International Standard Atmosphere" },
+      { "term": "Lapse rate", "definition": "Temp decrease / altitude (1.98 °C/1,000 ft)" },
+      { "term": "Tropopause", "definition": "Boundary: troposphere / stratosphere" },
+      { "term": "Latent heat", "definition": "Energy from state changes — drives weather" },
+      { "term": "FL", "definition": "Flight Level (hundreds of ft, std pressure)" },
+      { "term": "hPa", "definition": "Hectopascal = millibar" }
+    ],
+    "exam_tips": [
+      "**N₂ 78%, O₂ 21%** — distractors swap or replace N₂ with He/H₂. Memory: N before O, 78 before 21.",
+      "**Argon** is the 3rd gas, not CO₂.",
+      "Tropopause = **boundary**, not a layer.",
+      "Tropopause varies with **season & latitude**, NOT water vapour.",
+      "Weather in **troposphere** only. ECQB: 18 km tropics / 6 km poles."
+    ],
+    "pages": [
+      {
+        "page": 1,
+        "title": "The Atmosphere",
+        "subtitle": "30.1.1 — Composition, extent & vertical division",
+        "sections": ["composition", "relationships"],
+        "show_header": true,
+        "show_takeaways": true
+      },
+      {
+        "page": 2,
+        "title": "Atmospheric Layers & Temperature",
+        "subtitle": "30.1.1 — LOs 1.1.2, 1.1.3, 1.2.3",
+        "sections": ["layers"]
+      },
+      {
+        "page": 3,
+        "title": "Tropopause, Definitions & Exam Focus",
+        "subtitle": "30.1.1 — LO 1.2.2",
+        "sections": ["tropopause"],
+        "show_definitions": true,
+        "show_exam_tips": true
+      }
+    ]
+  },
+
+  "flow": [
+    {
+      "phase": "Opening",
+      "duration_minutes": 2,
+      "tier": "must_know",
+      "section": null,
+      "instruction": "Start zoomed out — the whole board visible. Introduce the topic and set expectations: by the end of this lesson, students will know what the atmosphere is made of, how it is structured into layers, and why pilots need to understand this.",
+      "socratic_questions": [
+        {
+          "text": "We fly through the atmosphere every time we go up. But what actually is it? If I asked you to guess the main gas in the air around us right now, what would you say?",
+          "tier": "must_know",
+          "note": "Most will say oxygen. Don't correct yet — let the surprise come when you show the composition."
+        }
+      ],
+      "board_focus": "Overview — full board visible. Point to the title and the four section headings to preview the journey."
+    },
+    {
+      "phase": "Gas Composition",
+      "lo": "30.1.1.1.1",
+      "duration_minutes": 3,
+      "section": "composition",
+      "instruction": "Zoom into the Gas Composition section. Reveal the pie chart. Let the visual surprise register — nitrogen dominates, not oxygen. Walk through each gas from largest to smallest.",
+      "key_points": [
+        {
+          "text": "Nitrogen makes up 78% of the atmosphere — it is the dominant gas, not oxygen",
+          "tier": "must_know"
+        },
+        {
+          "text": "Oxygen makes up 21% — the gas we breathe and that engines need for combustion",
+          "tier": "must_know"
+        },
+        { "text": "Together, nitrogen and oxygen account for 99% of dry air", "tier": "must_know" },
+        {
+          "text": "The remaining 1% is mostly argon (0.93%) and carbon dioxide (0.04%)",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "These are the figures for DRY air — water vapour is separate and we will cover it shortly",
+          "tier": "must_know"
+        },
+        {
+          "text": "This composition stays roughly the same from the surface up to about 60 km",
+          "tier": "good_to_know"
+        }
+      ],
+      "socratic_questions": [
+        {
+          "text": "So if nitrogen is 78% and oxygen is 21%, what percentage does that leave for everything else?",
+          "tier": "must_know",
+          "note": "Simple arithmetic check. Answer: about 1%. Reinforces how dominant N₂ and O₂ are."
+        },
+        {
+          "text": "We said this is DRY air. But the air outside is not always dry — what else might be in it?",
+          "tier": "must_know",
+          "note": "Leads naturally to water vapour, which comes next."
+        }
+      ],
+      "common_misconceptions": [
+        "Students almost always think oxygen is the main gas — nitrogen is. Memory aid: N before O in the alphabet, 78 before 21.",
+        "Students may think water vapour is included in these figures — it is not. These are dry air percentages."
+      ],
+      "exam_link": "4 ECQB questions. Common distractors: swapping N₂ and O₂ percentages, or replacing nitrogen with helium or hydrogen.",
+      "board_focus": "Gas Composition section — pie chart and gas cards"
+    },
+    {
+      "phase": "Water Vapour",
+      "lo": "30.1.1.2.1",
+      "duration_minutes": 3,
+      "section": "composition",
+      "instruction": "Stay in the Gas Composition section — point to the amber water vapour card. Explain that water vapour is the key ingredient that creates weather. Keep it simple: water vapour is invisible, it varies, and it matters.",
+      "key_points": [
+        {
+          "text": "Water vapour is present in the atmosphere in varying amounts: from 0% (very cold, dry air) to about 4% (hot, tropical air)",
+          "tier": "must_know"
+        },
+        {
+          "text": "The troposphere (the lowest layer — we will define it next) holds about 75% of all atmospheric mass and about 99% of all water vapour",
+          "tier": "must_know"
+        },
+        {
+          "text": "Water vapour is the only atmospheric gas that changes between gas, liquid, and solid (evaporation, condensation, freezing)",
+          "tier": "must_know"
+        },
+        {
+          "text": "These changes of state are what create clouds, rain, fog — in short, weather",
+          "tier": "must_know"
+        },
+        {
+          "text": "Water vapour itself is invisible — what we see as clouds are tiny liquid water droplets or ice crystals, not vapour",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "Warmer air can hold more water vapour than cooler air — this is why tropical regions tend to have more intense weather",
+          "tier": "good_to_know"
+        }
+      ],
+      "socratic_questions": [
+        {
+          "text": "If water vapour is invisible, then what are clouds made of?",
+          "tier": "must_know",
+          "note": "Answer: tiny liquid water droplets or ice crystals — the visible result of vapour condensing."
+        },
+        {
+          "text": "We said water vapour creates weather. So if we could remove all the water vapour from the atmosphere, what would happen to the weather?",
+          "tier": "good_to_know",
+          "note": "Answer: no clouds, no rain, no fog — essentially no weather as we know it. Reinforces the concept."
+        }
+      ],
+      "common_misconceptions": [
+        "Students may think clouds ARE water vapour — they are the result of vapour condensing into droplets or ice.",
+        "Students may confuse 'the troposphere contains most water vapour' with 'the troposphere is mostly water vapour' — water vapour is only 0–4%."
+      ],
+      "exam_link": "3 ECQB questions. Key exam facts: weather occurs in the troposphere (not tropopause!), troposphere holds ~75% of atmospheric mass and ~99% of water vapour.",
+      "board_focus": "Gas Composition section — amber water vapour card"
+    },
+    {
+      "phase": "Atmospheric Layers",
+      "lo": "30.1.1.1.2",
+      "duration_minutes": 4,
+      "section": "layers",
+      "instruction": "Zoom into the Atmospheric Layers section. Point to the temperature profile diagram. Start from the ground and walk upwards through each layer. Spend most time on the troposphere — it is our layer.",
+      "key_points": [
+        {
+          "text": "The atmosphere is divided into layers based on how temperature changes with height",
+          "tier": "must_know"
+        },
+        {
+          "text": "Troposphere: from the surface to approximately 11 km — this is where we fly and where all weather occurs",
+          "tier": "must_know"
+        },
+        {
+          "text": "Stratosphere: from about 11 km to 50 km — stable air, almost no weather",
+          "tier": "must_know"
+        },
+        {
+          "text": "The boundary between troposphere and stratosphere is called the tropopause — we will look at it in detail shortly",
+          "tier": "must_know"
+        },
+        {
+          "text": "Above the stratosphere: mesosphere (50–80 km) and thermosphere (above 80 km)",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "Each boundary is named with '-pause': tropopause, stratopause, mesopause",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "A light aircraft like a Cessna 172 typically flies below 10,000 ft — that is only about 3 km, a small fraction of the troposphere",
+          "tier": "fun_to_know"
+        }
+      ],
+      "socratic_questions": [
+        {
+          "text": "We said the troposphere goes up to about 11 km. That is roughly 36,000 feet. Can you think of what flies up at that altitude?",
+          "tier": "good_to_know",
+          "note": "Answer: airliners. This gives a sense of scale. Do not assume students know about flight levels or airline operations."
+        }
+      ],
+      "common_misconceptions": [
+        "The tropopause is NOT a layer — it is the boundary between the troposphere and stratosphere. Students often confuse the two.",
+        "Students may think weather happens throughout the entire atmosphere — it is concentrated in the troposphere."
+      ],
+      "exam_link": "1 ECQB question: 'The lowest layer of the atmosphere is the...' Answer: troposphere.",
+      "board_focus": "Atmospheric Layers section — temperature profile diagram + Layer Boundaries card"
+    },
+    {
+      "phase": "Temperature and the ISA",
+      "lo": "30.1.1.1.3",
+      "duration_minutes": 3,
+      "section": "layers",
+      "instruction": "Stay on the temperature profile diagram. Trace the temperature line from the surface upwards. Explain what happens in each layer. Then zoom briefly to the ISA card to introduce the standard values.",
+      "key_points": [
+        {
+          "text": "In the troposphere, temperature decreases as you go higher — roughly 2 °C for every 1,000 feet of altitude gained",
+          "tier": "must_know"
+        },
+        {
+          "text": "This rate of decrease is called the lapse rate. The standard (ISA) lapse rate is 1.98 °C per 1,000 ft",
+          "tier": "must_know"
+        },
+        {
+          "text": "The ISA (International Standard Atmosphere) defines reference values at sea level: temperature 15 °C, pressure 1013.25 hPa",
+          "tier": "must_know"
+        },
+        {
+          "text": "At the tropopause (~36,000 ft), the ISA temperature reaches −56.5 °C",
+          "tier": "must_know"
+        },
+        {
+          "text": "Above the tropopause, in the lower stratosphere, temperature stops decreasing and stays constant at −56.5 °C",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "Higher in the stratosphere, temperature actually rises — because ozone absorbs ultraviolet radiation from the sun",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "The ISA is a theoretical model — real atmospheric conditions vary day to day and place to place",
+          "tier": "good_to_know"
+        }
+      ],
+      "socratic_questions": [
+        {
+          "text": "If the temperature at sea level is 15 °C and it drops by about 2 °C every 1,000 ft, what would you expect the temperature to be at 5,000 ft?",
+          "tier": "must_know",
+          "note": "Answer: 15 − 10 = 5 °C. Simple mental arithmetic using the lapse rate. Builds confidence."
+        },
+        {
+          "text": "We said temperature decreases in the troposphere. Does it keep decreasing forever as you go higher and higher?",
+          "tier": "must_know",
+          "note": "Answer: no — it stops at the tropopause. Leads naturally to the next concept."
+        }
+      ],
+      "common_misconceptions": [
+        "Students may assume temperature always decreases with altitude — it does not. It stops at the tropopause and rises in the upper stratosphere.",
+        "Students may treat the ISA lapse rate as an exact rule — it is an average. Real conditions can differ significantly."
+      ],
+      "exam_link": "ISA values (15 °C, 1013.25 hPa, lapse rate) appear across many Met exam questions, not just this topic.",
+      "board_focus": "Temperature profile diagram (trace the curve) → ISA Sea-Level Reference card"
+    },
+    {
+      "phase": "Pressure, Density and Their Relationship to Temperature",
+      "lo": "30.1.1.1.4",
+      "duration_minutes": 3,
+      "section": "relationships",
+      "instruction": "Zoom into the Key Relationships section. Introduce pressure and density as simple concepts first, then show how they relate to altitude and temperature. Keep examples grounded — no reference to aircraft performance concepts that haven't been taught.",
+      "key_points": [
+        {
+          "text": "Pressure is the weight of the air above you. The higher you go, the less air is above, so pressure decreases with altitude",
+          "tier": "must_know"
+        },
+        {
+          "text": "Useful rule: atmospheric pressure halves approximately every 18,000 ft",
+          "tier": "must_know"
+        },
+        {
+          "text": "Density is how tightly packed the air molecules are. It also decreases with altitude — less pressure means molecules spread out",
+          "tier": "must_know"
+        },
+        {
+          "text": "Temperature affects density: when air is warmed, molecules move faster and spread apart, so warm air is less dense than cold air",
+          "tier": "must_know"
+        },
+        {
+          "text": "Humidity also affects density: water vapour molecules (H₂O) are lighter than nitrogen (N₂) and oxygen (O₂) molecules, so humid air is slightly less dense than dry air",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "The molecular weight of water is 18, nitrogen is 28, oxygen is 32 — so when water vapour replaces nitrogen or oxygen in the air, the mixture becomes lighter",
+          "tier": "fun_to_know"
+        }
+      ],
+      "socratic_questions": [
+        {
+          "text": "If pressure is the weight of air above you, what happens to the pressure as you climb higher — does it increase or decrease?",
+          "tier": "must_know",
+          "note": "Answer: decreases. Straightforward — they just need to reason from the definition given."
+        },
+        {
+          "text": "We said warm air is less dense. So is humid air more dense or less dense than dry air?",
+          "tier": "good_to_know",
+          "note": "This is counterintuitive. Most students guess 'more dense'. Reveal: humid air is actually LESS dense. Only ask this if you have taught the humidity point."
+        }
+      ],
+      "cross_references": [
+        {
+          "text": "In later meteorology topics, students will learn how pressure and density affect altimeter readings. For now, just establish the basic relationships.",
+          "topic": "30.3"
+        },
+        {
+          "text": "If students have already covered Principles of Flight (050), the instructor can relate air density to lift and engine performance. This is a suggestion, not an assumption.",
+          "topic": "050"
+        }
+      ],
+      "common_misconceptions": [
+        "Students often assume humid air is heavier than dry air — it is actually lighter. This surprises most people.",
+        "Students may think pressure and density are the same thing — they are related but distinct concepts."
+      ],
+      "exam_link": "No direct ECQB questions on this LO in the 30.1.1 bank, but understanding these relationships is essential for later topics (altimetry, density altitude).",
+      "board_focus": "Key Relationships section — relationship rows"
+    },
+    {
+      "phase": "The Tropopause",
+      "lo": "30.1.1.2.2",
+      "duration_minutes": 4,
+      "section": "tropopause",
+      "instruction": "Zoom into the Tropopause section. Start with the table, then pan to the two images. This is the most exam-heavy part of 30.1.1 — take time here.",
+      "key_points": [
+        {
+          "text": "The tropopause is the boundary between the troposphere and the stratosphere",
+          "tier": "must_know"
+        },
+        {
+          "text": "It is defined as the height where temperature stops decreasing with altitude",
+          "tier": "must_know"
+        },
+        {
+          "text": "It acts as a lid — the air above is very stable, so weather is mostly trapped below it",
+          "tier": "must_know"
+        },
+        {
+          "text": "The tropopause is not at the same height everywhere. It is higher at the equator (16–18 km) and lower at the poles (8–10 km)",
+          "tier": "must_know"
+        },
+        { "text": "It is higher in summer and lower in winter", "tier": "must_know" },
+        {
+          "text": "The ISA standard tropopause height is 11 km (36,090 ft) — this represents mid-latitude conditions",
+          "tier": "must_know"
+        },
+        {
+          "text": "The general rule: warmer air below pushes the tropopause higher, colder air means a lower tropopause",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "Jet streams — very strong high-altitude winds — form near breaks or folds in the tropopause",
+          "tier": "good_to_know"
+        }
+      ],
+      "socratic_questions": [
+        {
+          "text": "We said the tropopause is higher at the equator and lower at the poles. The equator is hotter, the poles are colder. Can you see a pattern?",
+          "tier": "must_know",
+          "note": "Answer: warmer surface → higher tropopause. They can reason this from what was just taught — no assumed knowledge."
+        },
+        {
+          "text": "If the tropopause acts like a lid on weather, what might happen when it is very high? Would that allow taller or shorter clouds?",
+          "tier": "good_to_know",
+          "note": "Answer: taller clouds — more room for weather to develop vertically. This is why tropical thunderstorms are so tall."
+        }
+      ],
+      "common_misconceptions": [
+        "Students confuse the tropopause (a boundary) with the stratosphere (a layer).",
+        "A common ECQB distractor claims the tropopause height varies with water vapour content — it varies with season and latitude, not water vapour."
+      ],
+      "exam_link": "4 ECQB questions — the heaviest exam topic in 30.1.1. Tests: definition, height variation by latitude and season, specific height figures. Note: ECQB question QDB-688867 uses simplified figures (18 km tropics, 6 km poles) vs textbook figures (16–18 km, 8–10 km) — students should recognise both.",
+      "board_focus": "Tropopause section — Height by Latitude card → tropopause images"
+    },
+    {
+      "phase": "Above the Tropopause",
+      "lo": "30.1.1.2.3",
+      "duration_minutes": 2,
+      "section": "layers",
+      "instruction": "Pan back to the temperature profile diagram. Point to the flat section above the tropopause. Briefly describe what happens above — this is context, not a deep dive.",
+      "key_points": [
+        {
+          "text": "In the ISA, temperature stays constant at −56.5 °C from the tropopause up to about 20 km (FL 650)",
+          "tier": "must_know"
+        },
+        {
+          "text": "Above 20 km, temperature begins to rise because ozone absorbs ultraviolet radiation from the sun",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "The stratosphere is very stable — air moves horizontally, not vertically, so there is almost no weather there",
+          "tier": "good_to_know"
+        },
+        {
+          "text": "Airline jets cruise near the tropopause or in the lower stratosphere because the stable air gives a smoother ride",
+          "tier": "fun_to_know"
+        }
+      ],
+      "socratic_questions": [
+        {
+          "text": "Looking at the diagram, does the temperature keep falling above the tropopause?",
+          "tier": "must_know",
+          "note": "Answer: no — it stays constant, then rises. They can read this directly from the diagram."
+        }
+      ],
+      "common_misconceptions": [
+        "The isothermal (constant temperature) layer is an ISA simplification — in reality the transition is more gradual."
+      ],
+      "exam_link": "No direct ECQB questions on this specific LO.",
+      "board_focus": "Temperature profile diagram (flat section above tropopause) → Layer Boundaries card"
+    },
+    {
+      "phase": "Conclusion",
+      "duration_minutes": 1,
+      "tier": "must_know",
+      "section": null,
+      "instruction": "Zoom back out to the full board (press 0). Circle back to the opening question. Deliver a clear summary that gives students a sense of completeness.",
+      "summary": [
+        "We started by asking what the atmosphere is made of. Now you know: 78% nitrogen, 21% oxygen — and a small but crucial variable amount of water vapour that creates all our weather.",
+        "The atmosphere is structured in layers. As pilots, we live and fly in the troposphere — the lowest layer, where all the weather happens.",
+        "Temperature, pressure, and density all decrease as we climb. The ISA gives us standard reference values: 15 °C and 1013.25 hPa at sea level, dropping at about 2 °C per thousand feet.",
+        "The tropopause — the boundary at the top of the troposphere — is not at a fixed height. It is higher at the equator, lower at the poles, higher in summer, lower in winter.",
+        "These are the foundations. Everything we learn from here on — clouds, wind, pressure systems, weather charts — builds on what you learned today."
+      ],
+      "exam_reminder": "There are 12 exam questions in the bank for this topic. The three most common traps: swapped N₂/O₂ percentages, confusing the tropopause with the stratosphere, and the claim that tropopause height varies with water vapour (it does not — it varies with season and latitude). Your handout has the full exam focus section.",
+      "board_focus": "Full board overview — zoom out to show all sections. The students see the complete picture."
+    }
+  ],
+
+  "pedagogy": {
+    "tiers": {
+      "must_know": "Mandatory. Exam-tested facts and concepts every student must leave with.",
+      "good_to_know": "Cover if time allows. Deepens understanding but not essential for the exam.",
+      "fun_to_know": "Optional. Interesting context, real-world connections. Depends on time and group."
+    },
+    "assumptions": "Zero prior knowledge. This is the first meteorology lesson. Every concept must be introduced before it is used.",
+    "preparation": "Distribute the handout before the lesson. Students should have it in front of them. Open the board in the browser and fit-to-screen (press 0) so students see the full overview."
+  },
+
+  "exam": {
+    "question_count": 12,
+    "question_ids": [
+      "MET-Q004",
+      "QDB-688863",
+      "ECQB-IMG_7121",
+      "ECQB-IMG_7123",
+      "QDB-688864",
+      "MET-Q005",
+      "QDB-688865",
+      "QDB-688866",
+      "MET-Q009",
+      "QDB-688867",
+      "ECQB-IMG_7124",
+      "ECQB-750553"
+    ]
+  },
+
+  "sources": {
+    "primary": ["Pooleys APM Vol 2 Meteorology", "PadPilot PPL Meteorology"],
+    "images": "ATPL Presentations (Meteorology Lesson 1)"
+  },
+
+  "versioning": {
+    "version": "1.0",
+    "created_at": "2026-03-16T18:00:00Z",
+    "updated_at": "2026-03-16T18:00:00Z",
+    "changelog": "Initial enriched package — combines lesson plan v2, board v1, handout v5 into single self-contained JSON.",
+    "previous_version": null,
+    "content_hash_note": "Webapp should compute a hash of this JSON on import to detect changes. If hash differs from stored version, create new version (soft delete old)."
+  }
+}

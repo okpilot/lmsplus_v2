@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>30.1.1 — Lesson Plan — The Atmosphere</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+  @page { size: 297mm 210mm; margin: 0; }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --text: #1A1A1A;
+    --text-mid: #3A3A3A;
+    --text-muted: #6B6B6B;
+    --accent: #2563EB;
+    --accent-light: #DBEAFE;
+    --accent-bg: #F0F4FF;
+    --border: #E5E5E0;
+    --green: #15803D;
+    --green-bg: #F0FDF4;
+    --amber: #92400E;
+    --amber-bg: #FEF3C7;
+    --red: #991B1B;
+    --red-bg: #FEF2F2;
+    --purple: #6D28D9;
+    --purple-bg: #F5F3FF;
+  }
+
+  html {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    line-height: 1.45;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body { margin: 0; padding: 0; }
+
+  /* ============================================================
+     PAGE STRUCTURE (same as handout)
+     ============================================================ */
+  .page {
+    width: 297mm;
+    height: 210mm;
+    padding: 8mm 10mm;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+  .page + .page { break-before: page; }
+
+  .col-content {
+    flex: 0 0 68%;
+    padding-right: 12px;
+    display: flex;
+    flex-direction: column;
+    order: 1;
+  }
+  .col-notes {
+    flex: 0 0 32%;
+    padding-left: 12px;
+    border-left: 1.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    order: 2;
+  }
+  .notes-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 8px; font-weight: 700; color: var(--text-muted);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding-bottom: 4px; border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+  }
+  .notes-lines {
+    flex: 1;
+    background-image: repeating-linear-gradient(
+      to bottom, transparent 0px, transparent 21px,
+      #E4E4E0 21px, #E4E4E0 22px
+    );
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page-num {
+    position: absolute; bottom: 8mm; right: 10mm;
+    font-family: 'JetBrains Mono', monospace; font-size: 7px; color: #bbb;
+  }
+
+  /* Left/right hand toggle (CSS checkbox) */
+  #hand-switch { position: absolute; opacity: 0; pointer-events: none; }
+  #hand-switch:checked ~ .page .col-notes {
+    order: 1; padding-left: 0; padding-right: 12px;
+    border-left: none; border-right: 1.5px solid var(--border);
+  }
+  #hand-switch:checked ~ .page .col-content {
+    order: 2; padding-right: 0; padding-left: 12px;
+  }
+  #hand-switch:checked ~ .page .page-num { right: auto; left: 10mm; }
+
+  .hand-toggle {
+    position: fixed; top: 20px; right: 20px;
+    display: flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 100; font-family: 'Inter', sans-serif; font-size: 11px;
+    color: var(--text-mid); cursor: pointer; user-select: none;
+  }
+  .hand-toggle:hover { background: var(--accent-bg); }
+  .hand-toggle .label { font-weight: 500; }
+  @media print {
+    .hand-toggle { display: none !important; }
+    #hand-switch { display: none; }
+  }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+  .header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 6px; border-bottom: 2.5px solid var(--accent); margin-bottom: 8px;
+  }
+  .header-left { display: flex; flex-direction: column; gap: 1px; }
+  .header-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; font-weight: 500; color: var(--accent);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .header-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15;
+  }
+  .header-sub { font-size: 10px; color: var(--text-muted); }
+  .header-right { text-align: right; padding-top: 2px; }
+  .header-meta {
+    font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--text-muted);
+  }
+
+  .page-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 4px; border-bottom: 1.5px solid var(--accent); margin-bottom: 6px;
+  }
+  .page-header-title {
+    font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700;
+  }
+  .page-header-code {
+    font-family: 'JetBrains Mono', monospace; font-size: 7px; color: var(--accent);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  /* ============================================================
+     LEGEND / PREP / MATERIALS
+     ============================================================ */
+  .legend-box {
+    display: flex; gap: 12px; margin-bottom: 6px;
+    padding: 5px 10px; background: #FAFAFA;
+    border: 1px solid var(--border); border-radius: 4px; font-size: 9px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .tier-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .tier-must { background: var(--accent); }
+  .tier-good { background: var(--amber); }
+  .tier-fun { background: var(--purple); }
+  .legend-item span { color: var(--text-muted); }
+
+  .assumptions-box {
+    background: var(--amber-bg); border-radius: 4px;
+    padding: 5px 10px; margin-bottom: 6px;
+    font-size: 9px; color: var(--amber);
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .assumptions-box strong {
+    font-family: 'Space Grotesk', sans-serif; font-size: 8px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+  }
+
+  .prep-box {
+    background: var(--accent-bg); border-radius: 4px;
+    padding: 5px 10px; margin-bottom: 6px;
+    display: flex; gap: 12px;
+  }
+  .prep-label {
+    font-family: 'Space Grotesk', sans-serif; font-size: 8px; font-weight: 700;
+    color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase;
+    white-space: nowrap; padding-top: 1px;
+  }
+  .prep-text { font-size: 9px; color: var(--text-mid); }
+
+  .materials { display: flex; gap: 8px; margin-bottom: 8px; }
+  .material-tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--text-muted);
+    background: #F5F5F5; padding: 2px 6px; border-radius: 3px; border: 1px solid var(--border);
+  }
+
+  /* ============================================================
+     PHASE BLOCKS
+     ============================================================ */
+  .phase { margin-bottom: 8px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .phase-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 10px; background: #FAFAFA; border-bottom: 1px solid var(--border);
+  }
+  .phase-number {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;
+    color: #fff; background: var(--accent);
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .phase-title {
+    font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; flex: 1;
+  }
+  .phase-lo {
+    font-family: 'JetBrains Mono', monospace; font-size: 7px; font-weight: 500;
+    color: var(--accent); background: var(--accent-light);
+    padding: 1px 5px; border-radius: 3px;
+  }
+  .phase-time {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); flex-shrink: 0;
+  }
+  .phase-body { padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; }
+
+  .instruction {
+    font-size: 10px; color: var(--text); font-weight: 500;
+    padding: 4px 8px; background: #FAFAFA;
+    border-radius: 3px; border-left: 2.5px solid var(--accent);
+  }
+
+  .board-focus {
+    font-size: 9px; color: var(--text-muted); font-style: italic;
+    padding-left: 10px; border-left: 1.5px solid var(--border);
+  }
+  .board-focus strong { color: var(--text-mid); font-style: normal; }
+
+  .sub-section { display: flex; flex-direction: column; gap: 2px; }
+  .sub-label {
+    font-family: 'Space Grotesk', sans-serif; font-size: 8px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .sub-label.green { color: var(--green); }
+  .sub-label.amber { color: var(--amber); }
+  .sub-label.red { color: var(--red); }
+  .sub-label.blue { color: var(--accent); }
+  .sub-label.purple { color: var(--purple); }
+
+  ul { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+  ul li {
+    font-size: 9.5px; color: var(--text-mid);
+    padding-left: 12px; position: relative; line-height: 1.35;
+  }
+  ul li::before { position: absolute; left: 0; font-weight: 700; }
+
+  .key-points li { padding: 2px 6px 2px 18px; border-radius: 3px; }
+  .key-points li::before { content: ''; width: 5px; height: 5px; border-radius: 50%; top: 6px; left: 6px; }
+  .key-points li.must::before { background: var(--accent); }
+  .key-points li.good::before { background: var(--amber); }
+  .key-points li.fun::before { background: var(--purple); }
+  .key-points li.must { background: #F8FAFF; }
+  .key-points li.good { background: #FFFBF0; }
+  .key-points li.fun { background: #FAF5FF; }
+
+  .questions li { padding: 3px 6px 3px 18px; border-radius: 3px; }
+  .questions li::before { content: '?'; font-family: 'JetBrains Mono', monospace; font-size: 9px; top: 3px; left: 6px; }
+  .questions li.must { background: var(--green-bg); }
+  .questions li.must::before { color: var(--green); }
+  .questions li.good { background: #FEFCE8; }
+  .questions li.good::before { color: var(--amber); }
+  .questions li.fun { background: var(--purple-bg); }
+  .questions li.fun::before { color: var(--purple); }
+  .q-note { display: block; font-size: 8.5px; color: var(--text-muted); font-style: italic; margin-top: 1px; }
+
+  .misconceptions li::before { content: '\2717'; color: var(--red); font-size: 8px; }
+  .misconceptions li {
+    background: var(--red-bg); padding: 2px 6px 2px 14px; border-radius: 3px; font-size: 9px;
+  }
+
+  .cross-ref {
+    background: var(--purple-bg); padding: 2px 6px 2px 14px; border-radius: 3px;
+    font-size: 9px; color: var(--purple);
+  }
+
+  .exam-link {
+    font-size: 9px; color: var(--amber);
+    background: var(--amber-bg); padding: 3px 6px; border-radius: 3px; line-height: 1.35;
+  }
+
+  .conclusion-list { display: flex; flex-direction: column; gap: 3px; }
+  .conclusion-list li {
+    font-size: 9.5px; color: var(--text-mid);
+    padding: 3px 8px; background: var(--accent-bg);
+    border-radius: 3px; border-left: 2.5px solid var(--accent); line-height: 1.4;
+  }
+
+  .footer {
+    display: flex; justify-content: space-between;
+    padding-top: 4px; border-top: 1px solid var(--border); margin-top: auto;
+  }
+  .footer span { font-size: 7px; color: #aaa; }
+
+  @media screen {
+    html { background: #D0D0CC; }
+    body { padding: 20px 0; }
+    .page { background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.12); margin: 0 auto 20px; }
+  }
+</style>
+</head>
+<body>
+
+<input type="checkbox" id="hand-switch" />
+<label for="hand-switch" class="hand-toggle" title="Switch notes side">
+  <svg id="hand-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+  <span class="label" id="hand-label">Right-handed</span>
+</label>
+
+<!-- ================================================================ -->
+<!-- PAGE 1: Header, Setup, Phases 1-3 -->
+<!-- ================================================================ -->
+<div class="page">
+  <div class="col-content">
+    <div class="header">
+      <div class="header-left">
+        <div class="header-code">Instructor Lesson Plan</div>
+        <div class="header-title">The Atmosphere</div>
+        <div class="header-sub">30.1.1 &mdash; Composition, Extent &amp; Vertical Division</div>
+      </div>
+      <div class="header-right">
+        <div class="header-meta">030 Meteorology</div>
+        <div class="header-meta">7 LOs &middot; 25 min &middot; 12 ECQB</div>
+      </div>
+    </div>
+
+    <div class="legend-box">
+      <div class="legend-item"><div class="tier-dot tier-must"></div><span>Must Know</span></div>
+      <div class="legend-item"><div class="tier-dot tier-good"></div><span>Good to Know</span></div>
+      <div class="legend-item"><div class="tier-dot tier-fun"></div><span>Fun to Know</span></div>
+    </div>
+
+    <div class="assumptions-box">
+      <strong>Assumptions</strong>
+      Zero prior knowledge. First meteorology lesson. Every concept introduced before used. Cross-references are suggestions only.
+    </div>
+
+    <div class="prep-box">
+      <div class="prep-label">Before class</div>
+      <div class="prep-text">Distribute handout. Open board in browser, fit-to-screen (press 0).</div>
+    </div>
+
+    <div class="materials">
+      <div class="material-tag">Board: 30_1_1_board.html</div>
+      <div class="material-tag">Handout: 30_1_1_handout.html</div>
+      <div class="material-tag">4 ATPL diagrams</div>
+    </div>
+
+    <!-- PHASE 1 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">1</div>
+        <div class="phase-title">Opening</div>
+        <div class="phase-time">2 min</div>
+      </div>
+      <div class="phase-body">
+        <div class="instruction">Start zoomed out &mdash; whole board visible. Set expectations: what the atmosphere is made of, how it&rsquo;s structured, why pilots care.</div>
+        <div class="sub-section">
+          <div class="sub-label green">Ask the class</div>
+          <ul class="questions">
+            <li class="must">We fly through the atmosphere every time we go up. What do you think the main gas is?<span class="q-note">Most say oxygen. Don&rsquo;t correct yet &mdash; let the surprise come.</span></li>
+          </ul>
+        </div>
+        <div class="board-focus"><strong>Board:</strong> Overview &mdash; full board. Point to section headings.</div>
+      </div>
+    </div>
+
+    <!-- PHASE 2 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">2</div>
+        <div class="phase-title">Gas Composition</div>
+        <span class="phase-lo">30.1.1.1.1</span>
+        <div class="phase-time">3 min</div>
+      </div>
+      <div class="phase-body">
+        <div class="instruction">Zoom into Gas Composition. Reveal pie chart. Walk through each gas.</div>
+        <div class="sub-section">
+          <div class="sub-label blue">Key Points</div>
+          <ul class="key-points">
+            <li class="must">Nitrogen 78% &mdash; dominant gas, not oxygen</li>
+            <li class="must">Oxygen 21% &mdash; breathing + combustion</li>
+            <li class="must">N&#8322; + O&#8322; = 99% of dry air</li>
+            <li class="good">Rest ~1%: Argon 0.93%, CO&#8322; 0.04%</li>
+            <li class="must">DRY air figures &mdash; water vapour separate</li>
+            <li class="good">Composition constant to ~60 km</li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label green">Ask the class</div>
+          <ul class="questions">
+            <li class="must">N&#8322; 78% + O&#8322; 21% = what&rsquo;s left?<span class="q-note">~1%. Reinforces dominance of N&#8322;+O&#8322;.</span></li>
+            <li class="must">This is DRY air. What else might be in real air?<span class="q-note">Leads to water vapour.</span></li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label red">Misconceptions</div>
+          <ul class="misconceptions">
+            <li>O&#8322; is the main gas &rarr; no, N&#8322;. Memory: N before O, 78 before 21.</li>
+          </ul>
+        </div>
+        <div class="exam-link">4 ECQB Qs. Distractors swap N&#8322;/O&#8322; or replace N&#8322; with He/H&#8322;.</div>
+        <div class="board-focus"><strong>Board:</strong> Gas Composition &mdash; pie chart + gas cards</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>EASA PPL(A) &mdash; Pooleys APM Vol 2, PadPilot PPL Met</span>
+      <span>030 / 30.1.1 &mdash; Lesson Plan v3</span>
+    </div>
+  </div>
+  <div class="col-notes"><div class="notes-title">Instructor Notes</div><div class="notes-lines"></div></div>
+  <div class="page-num">1 / 5</div>
+</div>
+
+<!-- ================================================================ -->
+<!-- PAGE 2: Phases 3-4 -->
+<!-- ================================================================ -->
+<div class="page">
+  <div class="col-content">
+    <div class="page-header">
+      <div class="page-header-title">Phases 3&ndash;4: Water Vapour &amp; Layers</div>
+      <div class="page-header-code">30.1.1 &mdash; Lesson Plan</div>
+    </div>
+
+    <!-- PHASE 3 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">3</div>
+        <div class="phase-title">Water Vapour</div>
+        <span class="phase-lo">30.1.1.2.1</span>
+        <div class="phase-time">3 min</div>
+      </div>
+      <div class="phase-body">
+        <div class="instruction">Stay in Gas Composition &mdash; point to amber water vapour card. Water vapour is invisible, variable, and creates all weather.</div>
+        <div class="sub-section">
+          <div class="sub-label blue">Key Points</div>
+          <ul class="key-points">
+            <li class="must">Water vapour: 0&ndash;4% by volume, variable</li>
+            <li class="must">Troposphere: ~75% of atmospheric mass, ~99% of water vapour</li>
+            <li class="must">Only gas that changes state (gas &harr; liquid &harr; solid)</li>
+            <li class="must">State changes = latent heat = drives weather</li>
+            <li class="good">Water vapour is invisible &mdash; clouds are droplets/ice, not vapour</li>
+            <li class="good">Warmer air holds more vapour &rarr; more intense weather</li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label green">Ask the class</div>
+          <ul class="questions">
+            <li class="must">If water vapour is invisible, what are clouds?<span class="q-note">Liquid droplets or ice crystals.</span></li>
+            <li class="good">Remove all water vapour &mdash; what happens to weather?<span class="q-note">No clouds, rain, fog. Essentially no weather.</span></li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label red">Misconceptions</div>
+          <ul class="misconceptions">
+            <li>Clouds = water vapour &rarr; no, clouds = condensed droplets/ice.</li>
+          </ul>
+        </div>
+        <div class="exam-link">3 ECQB Qs. Weather in troposphere (not tropopause!), 75% mass, 99% vapour.</div>
+        <div class="board-focus"><strong>Board:</strong> Gas Composition &mdash; amber water vapour card</div>
+      </div>
+    </div>
+
+    <!-- PHASE 4 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">4</div>
+        <div class="phase-title">Atmospheric Layers</div>
+        <span class="phase-lo">30.1.1.1.2</span>
+        <div class="phase-time">4 min</div>
+      </div>
+      <div class="phase-body">
+        <div class="instruction">Zoom to Atmospheric Layers. Point to temperature profile. Start from ground, walk upward. Troposphere gets most time.</div>
+        <div class="sub-section">
+          <div class="sub-label blue">Key Points</div>
+          <ul class="key-points">
+            <li class="must">Layers defined by how temperature changes with height</li>
+            <li class="must">Troposphere (to ~11 km) &mdash; we fly here, all weather here</li>
+            <li class="must">Stratosphere (11&ndash;50 km) &mdash; stable, almost no weather</li>
+            <li class="must">Tropopause = boundary (detail in Phase 7)</li>
+            <li class="good">Mesosphere (50&ndash;80 km), Thermosphere (80 km+)</li>
+            <li class="good">Boundaries named &ldquo;-pause&rdquo;: tropopause, stratopause, mesopause</li>
+            <li class="fun">Cessna 172 ceiling ~14,000 ft = ~3 km, tiny fraction of troposphere</li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label green">Ask the class</div>
+          <ul class="questions">
+            <li class="good">Troposphere to ~36,000 ft. What flies that high?<span class="q-note">Airliners. Sense of scale. Don&rsquo;t assume they know.</span></li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label red">Misconceptions</div>
+          <ul class="misconceptions">
+            <li>Tropopause = a layer &rarr; no, it&rsquo;s a boundary.</li>
+            <li>Weather everywhere &rarr; no, concentrated in troposphere.</li>
+          </ul>
+        </div>
+        <div class="exam-link">1 ECQB Q: &ldquo;The lowest layer is the...&rdquo; &rarr; Troposphere.</div>
+        <div class="board-focus"><strong>Board:</strong> Atmospheric Layers &mdash; temp profile + Layer Boundaries card</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>EASA PPL(A) &mdash; Pooleys APM Vol 2, PadPilot PPL Met</span>
+      <span>030 / 30.1.1 &mdash; Lesson Plan v3</span>
+    </div>
+  </div>
+  <div class="col-notes"><div class="notes-title">Instructor Notes</div><div class="notes-lines"></div></div>
+  <div class="page-num">2 / 5</div>
+</div>
+
+<!-- ================================================================ -->
+<!-- PAGE 3: Phases 5-6 -->
+<!-- ================================================================ -->
+<div class="page">
+  <div class="col-content">
+    <div class="page-header">
+      <div class="page-header-title">Phases 5&ndash;6: Temperature, Pressure &amp; Density</div>
+      <div class="page-header-code">30.1.1 &mdash; Lesson Plan</div>
+    </div>
+
+    <!-- PHASE 5 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">5</div>
+        <div class="phase-title">Temperature and the ISA</div>
+        <span class="phase-lo">30.1.1.1.3</span>
+        <div class="phase-time">3 min</div>
+      </div>
+      <div class="phase-body">
+        <div class="instruction">Stay on temp profile diagram. Trace the line from surface up. Then zoom to ISA card.</div>
+        <div class="sub-section">
+          <div class="sub-label blue">Key Points</div>
+          <ul class="key-points">
+            <li class="must">Troposphere: temp falls ~2 &deg;C / 1,000 ft (ISA lapse rate: 1.98 &deg;C)</li>
+            <li class="must">ISA sea level: 15 &deg;C, 1013.25 hPa</li>
+            <li class="must">At tropopause (~36,000 ft): &minus;56.5 &deg;C</li>
+            <li class="good">Lower stratosphere: constant &minus;56.5 &deg;C to ~FL 650</li>
+            <li class="good">Upper stratosphere: temp rises (ozone absorbs UV)</li>
+            <li class="good">ISA = theoretical model, real conditions vary</li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label green">Ask the class</div>
+          <ul class="questions">
+            <li class="must">15 &deg;C at sea level, &minus;2 &deg;C per 1,000 ft. Temperature at 5,000 ft?<span class="q-note">15 &minus; 10 = 5 &deg;C. Simple arithmetic.</span></li>
+            <li class="must">Does temperature keep falling forever above troposphere?<span class="q-note">No &mdash; stops at tropopause. Leads to next.</span></li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label red">Misconceptions</div>
+          <ul class="misconceptions">
+            <li>Temp always decreases &rarr; no, stops at tropopause, rises in stratosphere.</li>
+          </ul>
+        </div>
+        <div class="exam-link">ISA values (15 &deg;C, 1013.25, lapse rate) appear across many Met questions.</div>
+        <div class="board-focus"><strong>Board:</strong> Temp profile (trace curve) &rarr; ISA card</div>
+      </div>
+    </div>
+
+    <!-- PHASE 6 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">6</div>
+        <div class="phase-title">Pressure, Density &amp; Temperature</div>
+        <span class="phase-lo">30.1.1.1.4</span>
+        <div class="phase-time">3 min</div>
+      </div>
+      <div class="phase-body">
+        <div class="instruction">Zoom to Key Relationships. Introduce pressure and density simply. No aircraft performance references.</div>
+        <div class="sub-section">
+          <div class="sub-label blue">Key Points</div>
+          <ul class="key-points">
+            <li class="must">Pressure = weight of air above. Higher up = less pressure.</li>
+            <li class="must">Pressure halves every ~18,000 ft</li>
+            <li class="must">Density = how tightly packed air is. Decreases with altitude.</li>
+            <li class="must">Warm air less dense, cold air more dense</li>
+            <li class="good">Humid air less dense than dry air (H&#8322;O lighter than N&#8322;/O&#8322;)</li>
+            <li class="fun">Molecular weights: H&#8322;O=18, N&#8322;=28, O&#8322;=32</li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label green">Ask the class</div>
+          <ul class="questions">
+            <li class="must">Pressure = weight of air above. Climb higher &mdash; increase or decrease?<span class="q-note">Decrease. Straightforward.</span></li>
+            <li class="good">Is humid air more or less dense than dry air?<span class="q-note">Less. Counterintuitive. Only ask after teaching it.</span></li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label purple">Cross-references (suggestions)</div>
+          <ul class="misconceptions" style="background: none;">
+            <li class="cross-ref">Later Met topics (30.3): pressure/density affect altimeters. Just basics now.</li>
+            <li class="cross-ref">If students covered PoF (050): relate density to lift. Suggestion only.</li>
+          </ul>
+        </div>
+        <div class="exam-link">No direct ECQB Qs here, but essential for later topics.</div>
+        <div class="board-focus"><strong>Board:</strong> Key Relationships &mdash; relationship rows</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>EASA PPL(A) &mdash; Pooleys APM Vol 2, PadPilot PPL Met</span>
+      <span>030 / 30.1.1 &mdash; Lesson Plan v3</span>
+    </div>
+  </div>
+  <div class="col-notes"><div class="notes-title">Instructor Notes</div><div class="notes-lines"></div></div>
+  <div class="page-num">3 / 5</div>
+</div>
+
+<!-- ================================================================ -->
+<!-- PAGE 4: Phases 7-8 -->
+<!-- ================================================================ -->
+<div class="page">
+  <div class="col-content">
+    <div class="page-header">
+      <div class="page-header-title">Phases 7&ndash;8: Tropopause &amp; Above</div>
+      <div class="page-header-code">30.1.1 &mdash; Lesson Plan</div>
+    </div>
+
+    <!-- PHASE 7 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">7</div>
+        <div class="phase-title">The Tropopause</div>
+        <span class="phase-lo">30.1.1.2.2</span>
+        <div class="phase-time">4 min</div>
+      </div>
+      <div class="phase-body">
+        <div class="instruction">Zoom to Tropopause section. Start with table, then pan to images. Most exam-heavy part of 30.1.1.</div>
+        <div class="sub-section">
+          <div class="sub-label blue">Key Points</div>
+          <ul class="key-points">
+            <li class="must">Boundary between troposphere and stratosphere</li>
+            <li class="must">Where temperature stops decreasing</li>
+            <li class="must">Acts as a lid &mdash; weather trapped below</li>
+            <li class="must">Higher at equator (16&ndash;18 km), lower at poles (8&ndash;10 km)</li>
+            <li class="must">Higher in summer, lower in winter</li>
+            <li class="must">ISA: 11 km (36,090 ft) = mid-latitudes</li>
+            <li class="good">Warmer below &rarr; higher tropopause</li>
+            <li class="good">Jet streams form near tropopause breaks</li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label green">Ask the class</div>
+          <ul class="questions">
+            <li class="must">Equator hotter, poles colder. Tropopause higher where?<span class="q-note">Equator. Warmer &rarr; higher. Reason from what was taught.</span></li>
+            <li class="good">If tropopause is a lid, what happens when it&rsquo;s very high?<span class="q-note">Taller clouds. Tropical thunderstorms.</span></li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label red">Misconceptions</div>
+          <ul class="misconceptions">
+            <li>Tropopause = stratosphere &rarr; no, tropopause is the boundary.</li>
+            <li>Height varies with water vapour &rarr; no, season + latitude (ECQB distractor).</li>
+          </ul>
+        </div>
+        <div class="exam-link">4 ECQB Qs &mdash; heaviest topic. ECQB uses 18/6 km alongside textbook 16&ndash;18 / 8&ndash;10 km.</div>
+        <div class="board-focus"><strong>Board:</strong> Tropopause &mdash; table &rarr; globe images</div>
+      </div>
+    </div>
+
+    <!-- PHASE 8 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">8</div>
+        <div class="phase-title">Above the Tropopause</div>
+        <span class="phase-lo">30.1.1.2.3</span>
+        <div class="phase-time">2 min</div>
+      </div>
+      <div class="phase-body">
+        <div class="instruction">Pan back to temp profile. Point to flat section above tropopause. Brief context, not deep dive.</div>
+        <div class="sub-section">
+          <div class="sub-label blue">Key Points</div>
+          <ul class="key-points">
+            <li class="must">ISA: constant &minus;56.5 &deg;C from tropopause to ~FL 650</li>
+            <li class="good">Above FL 650: temp rises (ozone absorbs UV)</li>
+            <li class="good">Stratosphere: stable, horizontal movement, almost no weather</li>
+            <li class="fun">Airlines cruise here for smooth air</li>
+          </ul>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label green">Ask the class</div>
+          <ul class="questions">
+            <li class="must">Looking at the diagram &mdash; does temp keep falling above tropopause?<span class="q-note">No &mdash; constant, then rises. Read from diagram.</span></li>
+          </ul>
+        </div>
+        <div class="exam-link">No direct ECQB Qs on this LO.</div>
+        <div class="board-focus"><strong>Board:</strong> Temp profile (flat section) &rarr; Layer Boundaries card</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>EASA PPL(A) &mdash; Pooleys APM Vol 2, PadPilot PPL Met</span>
+      <span>030 / 30.1.1 &mdash; Lesson Plan v3</span>
+    </div>
+  </div>
+  <div class="col-notes"><div class="notes-title">Instructor Notes</div><div class="notes-lines"></div></div>
+  <div class="page-num">4 / 5</div>
+</div>
+
+<!-- ================================================================ -->
+<!-- PAGE 5: Phase 9 Conclusion -->
+<!-- ================================================================ -->
+<div class="page">
+  <div class="col-content">
+    <div class="page-header">
+      <div class="page-header-title">Phase 9: Conclusion</div>
+      <div class="page-header-code">30.1.1 &mdash; Lesson Plan</div>
+    </div>
+
+    <!-- PHASE 9 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">9</div>
+        <div class="phase-title">Conclusion</div>
+        <div class="phase-time">1 min</div>
+      </div>
+      <div class="phase-body">
+        <div class="instruction">Zoom back out to full board (press 0). Circle back to opening question. Deliver clear summary.</div>
+        <div class="sub-section">
+          <div class="sub-label blue">Summary &mdash; tie back to the opening</div>
+          <ul class="conclusion-list">
+            <li>We started by asking what the atmosphere is made of. Now you know: 78% nitrogen, 21% oxygen &mdash; and a small but crucial variable amount of water vapour that creates all our weather.</li>
+            <li>The atmosphere is structured in layers. As pilots, we live and fly in the troposphere &mdash; the lowest layer, where all the weather happens.</li>
+            <li>Temperature, pressure, and density all decrease as we climb. The ISA gives us standard reference values: 15 &deg;C and 1013.25 hPa at sea level, dropping at about 2 &deg;C per thousand feet.</li>
+            <li>The tropopause is not at a fixed height. Higher at the equator, lower at the poles, higher in summer, lower in winter.</li>
+            <li>These are the foundations. Everything from here &mdash; clouds, wind, pressure systems, weather charts &mdash; builds on what you learned today.</li>
+          </ul>
+        </div>
+        <div class="exam-link">12 exam questions for this topic. Three traps: swapped N&#8322;/O&#8322;, tropopause vs stratosphere, tropopause height varies with season+latitude (not water vapour).</div>
+        <div class="board-focus"><strong>Board:</strong> Full overview &mdash; zoom out. Students see the complete picture.</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>EASA PPL(A) &mdash; Pooleys APM Vol 2, PadPilot PPL Met</span>
+      <span>030 / 30.1.1 &mdash; Lesson Plan v3</span>
+    </div>
+  </div>
+  <div class="col-notes"><div class="notes-title">Instructor Notes</div><div class="notes-lines"></div></div>
+  <div class="page-num">5 / 5</div>
+</div>
+
+<script>
+(function() {
+  var cb = document.getElementById('hand-switch');
+  var label = document.getElementById('hand-label');
+  var icon = document.getElementById('hand-icon');
+  cb.addEventListener('change', function() {
+    label.textContent = cb.checked ? 'Left-handed' : 'Right-handed';
+    icon.style.transform = cb.checked ? 'scaleX(-1)' : 'scaleX(1)';
+  });
+})();
+</script>
+
+</body>
+</html>

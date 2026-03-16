@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>30.1.1 — The Atmosphere — Student Handout</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+  @page { size: 297mm 210mm; margin: 0; }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --text: #1A1A1A;
+    --text-mid: #3A3A3A;
+    --text-muted: #6B6B6B;
+    --accent: #2563EB;
+    --accent-light: #DBEAFE;
+    --accent-bg: #F0F4FF;
+    --border: #E5E5E0;
+    --amber: #92400E;
+    --amber-bg: #FEF3C7;
+  }
+
+  html {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body { margin: 0; padding: 0; }
+
+  /* ============================================================
+     PAGE STRUCTURE
+     ============================================================ */
+  .page {
+    width: 297mm;
+    height: 210mm;
+    padding: 10mm;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+  .page + .page { break-before: page; }
+
+  .col-content {
+    flex: 0 0 66%;
+    padding-right: 14px;
+    display: flex;
+    flex-direction: column;
+    order: 1;
+  }
+  .col-notes {
+    flex: 0 0 34%;
+    padding-left: 14px;
+    border-left: 1.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    order: 2;
+  }
+
+  /* Left-handed: driven by checkbox state (persists in print) */
+  #hand-switch {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #hand-switch:checked ~ .page .col-notes {
+    order: 1;
+    padding-left: 0;
+    padding-right: 14px;
+    border-left: none;
+    border-right: 1.5px solid var(--border);
+  }
+  #hand-switch:checked ~ .page .col-content {
+    order: 2;
+    padding-right: 0;
+    padding-left: 14px;
+  }
+  #hand-switch:checked ~ .page .page-num {
+    right: auto;
+    left: 12mm;
+  }
+  .notes-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9px; font-weight: 700; color: var(--text-muted);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding-bottom: 4px; border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+  }
+  .notes-lines {
+    flex: 1;
+    background-image: repeating-linear-gradient(
+      to bottom, transparent 0px, transparent 23px,
+      #E4E4E0 23px, #E4E4E0 24px
+    );
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page-num {
+    position: absolute; bottom: 10mm; right: 12mm;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; color: #bbb;
+  }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+  .header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 8px; border-bottom: 2.5px solid var(--accent);
+    margin-bottom: 10px;
+  }
+  .header-left { display: flex; flex-direction: column; gap: 1px; }
+  .header-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 500; color: var(--accent);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .header-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15;
+  }
+  .header-sub { font-size: 10px; color: var(--text-muted); }
+  .header-right { text-align: right; padding-top: 2px; }
+  .header-right div {
+    font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--text-muted);
+  }
+
+  .page-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 5px; border-bottom: 1.5px solid var(--accent);
+    margin-bottom: 8px;
+  }
+  .page-header-title {
+    font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 700;
+  }
+  .page-header-code {
+    font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--accent);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  /* ============================================================
+     COMPONENTS
+     ============================================================ */
+  .takeaways {
+    background: var(--accent-bg); border: 1px solid var(--accent-light);
+    border-radius: 5px; padding: 7px 10px; margin-bottom: 10px;
+  }
+  .takeaways-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 8px; font-weight: 700; color: var(--accent);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .takeaways-list {
+    list-style: none; display: grid; grid-template-columns: 1fr 1fr;
+    gap: 2px 12px;
+  }
+  .takeaways-list li {
+    font-size: 9.5px; color: var(--text-mid);
+    padding-left: 10px; position: relative; line-height: 1.35;
+  }
+  .takeaways-list li::before {
+    content: ''; position: absolute; left: 0; top: 4px;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+  }
+  .takeaways-list li strong { color: var(--text); font-weight: 600; }
+
+  .section { margin-bottom: 8px; }
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px; font-weight: 700; color: var(--text);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 4px; padding-bottom: 2px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .lo-badges { display: flex; gap: 3px; margin-left: auto; }
+  .lo-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7px; font-weight: 500; color: var(--accent);
+    background: var(--accent-light); padding: 1px 4px; border-radius: 2px;
+  }
+
+  .content-block {
+    font-size: 10px; color: var(--text-mid); line-height: 1.5; margin-bottom: 5px;
+  }
+  .content-block strong { color: var(--text); font-weight: 600; }
+
+  .must-know { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+  .mk {
+    font-size: 9.5px; color: var(--text-mid); padding: 3px 8px;
+    background: #FAFAFA; border-left: 2.5px solid var(--accent);
+    border-radius: 0 3px 3px 0; line-height: 1.35;
+  }
+  .mk strong { color: var(--text); font-weight: 600; }
+
+  .two-col { display: flex; gap: 10px; }
+  .two-col > * { flex: 1; }
+
+  .data-panel {
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 6px 8px; margin-bottom: 6px;
+  }
+  .data-panel.blue { background: var(--accent-bg); border-color: var(--accent-light); }
+  .panel-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 7.5px; font-weight: 700; color: var(--accent);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  th {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 7.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-muted);
+    text-align: left; padding: 3px 6px; border-bottom: 1.5px solid var(--border);
+  }
+  td { padding: 3px 6px; border-bottom: 1px solid var(--border); color: var(--text-mid); }
+  td.mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600; color: var(--text); text-align: right;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  .isa-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+  .isa-item { display: flex; flex-direction: column; }
+  .isa-val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--text); }
+  .isa-label { font-size: 7.5px; font-weight: 500; color: var(--text-muted); }
+  .isa-small .isa-val { font-size: 12px; }
+
+  .img-block { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+  .img-block img { border-radius: 4px; border: 1px solid var(--border); max-width: 100%; }
+  .img-cap { font-size: 7.5px; color: var(--text-muted); text-align: center; font-style: italic; }
+
+  .key-facts { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+  .key-facts li {
+    font-size: 10px; color: var(--text-mid);
+    padding-left: 11px; position: relative; line-height: 1.35;
+  }
+  .key-facts li::before {
+    content: '\2192'; color: var(--accent); font-weight: 700;
+    position: absolute; left: 0; font-size: 9px;
+  }
+
+  .def-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; font-size: 9.5px; }
+  .def-item { display: flex; gap: 4px; line-height: 1.3; }
+  .def-term { font-weight: 600; color: var(--text); white-space: nowrap; }
+  .def-desc { color: var(--text-mid); }
+
+  .exam-section {
+    background: var(--amber-bg); border-radius: 4px; padding: 6px 8px;
+  }
+  .exam-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 8px; font-weight: 700; color: var(--amber);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .exam-tip {
+    font-size: 9.5px; color: var(--text-mid); line-height: 1.35;
+    padding-left: 10px; position: relative; margin-bottom: 2px;
+  }
+  .exam-tip::before { content: '!'; font-weight: 700; color: var(--amber); position: absolute; left: 0; }
+  .exam-tip strong { color: var(--text); }
+  .exam-tip:last-child { margin-bottom: 0; }
+
+  .footer {
+    display: flex; justify-content: space-between;
+    padding-top: 4px; border-top: 1px solid var(--border); margin-top: auto;
+  }
+  .footer span { font-size: 7.5px; color: #aaa; }
+
+  /* ============================================================
+     HAND TOGGLE (screen only, hidden in print)
+     ============================================================ */
+  .hand-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 100;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--text-mid);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .hand-toggle:hover { background: var(--accent-bg); }
+  .hand-toggle svg { flex-shrink: 0; }
+  .hand-toggle .label { font-weight: 500; }
+
+  @media print {
+    .hand-toggle { display: none !important; }
+    #hand-switch { display: none; }
+  }
+
+  @media screen {
+    html { background: #D0D0CC; }
+    body { padding: 20px 0; }
+    .page {
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+      margin: 0 auto 20px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- Hand toggle: checkbox drives layout via CSS, label is the visible button -->
+<input type="checkbox" id="hand-switch" />
+<label for="hand-switch" class="hand-toggle" title="Switch notes column side">
+  <svg id="hand-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+  <span class="label" id="hand-label">Right-handed</span>
+</label>
+
+<!-- ================================================================ -->
+<!-- PAGE 1: Header, Takeaways, Gas Composition -->
+<!-- ================================================================ -->
+<div class="page">
+  <div class="col-content">
+    <div class="header">
+      <div class="header-left">
+        <div class="header-code">030 Meteorology &mdash; Student Handout</div>
+        <div class="header-title">The Atmosphere</div>
+        <div class="header-sub">30.1.1 &mdash; Composition, extent &amp; vertical division</div>
+      </div>
+      <div class="header-right">
+        <div>7 LOs &middot; 12 ECQB Questions</div>
+        <div>~25 min lesson</div>
+      </div>
+    </div>
+
+    <div class="takeaways">
+      <div class="takeaways-title">Key Takeaways</div>
+      <ul class="takeaways-list">
+        <li>The atmosphere is <strong>78% nitrogen</strong>, <strong>21% oxygen</strong></li>
+        <li>Water vapour (0&ndash;4%) drives <strong>all weather</strong></li>
+        <li>The <strong>troposphere</strong> (to ~11 km): we fly here, weather happens here</li>
+        <li>ISA: <strong>15 &deg;C</strong>, <strong>1013.25 hPa</strong>, lapse <strong>~2 &deg;C / 1,000 ft</strong></li>
+        <li>Pressure halves every ~18,000 ft. Warm &amp; humid air = less dense.</li>
+        <li>Tropopause: higher at equator/summer, lower at poles/winter</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Gas Composition &amp; Water Vapour <div class="lo-badges"><span class="lo-badge">1.1.1</span><span class="lo-badge">1.2.1</span></div></div>
+      <div style="display: flex; gap: 14px; align-items: flex-start;">
+        <div class="img-block" style="flex-shrink: 0;">
+          <img src="../diagrams/atpl/met_01_s004_01.jpg" alt="Composition pie chart" style="width: 55mm; height: 55mm; object-fit: contain;" />
+          <div class="img-cap">Dry air by volume</div>
+        </div>
+        <div style="flex: 1;">
+          <div class="content-block">
+            <strong>Dry air:</strong> <strong>Nitrogen 78%</strong>, <strong>Oxygen 21%</strong>, other gases ~1% (Argon 0.93%, CO&#8322; 0.04%). Constant to ~60 km. Oxygen: breathing + engine combustion.
+          </div>
+          <div class="content-block">
+            <strong>Water vapour</strong> (0&ndash;4%) is separate from dry air. The <strong>only</strong> gas that changes state (gas &harr; liquid &harr; solid). State changes release/absorb <strong>latent heat</strong> &mdash; drives all weather. No water vapour = no clouds, no rain, no fog.
+          </div>
+          <div class="must-know">
+            <div class="mk"><strong>N&#8322; + O&#8322; = 99%</strong> of dry air. Everything else is trace.</div>
+            <div class="mk">Troposphere: ~<strong>75% of mass</strong>, ~<strong>99% of water vapour</strong>.</div>
+            <div class="mk">Warmer air holds more water vapour &rarr; more intense weather.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Key Relationships <div class="lo-badges"><span class="lo-badge">1.1.4</span></div></div>
+      <div class="two-col">
+        <ul class="key-facts">
+          <li>&uarr; Altitude &rarr; <strong>&darr; Pressure</strong> (halves every ~18,000 ft)</li>
+          <li>&uarr; Altitude &rarr; <strong>&darr; Temperature</strong> (troposphere)</li>
+          <li>&uarr; Altitude &rarr; <strong>&darr; Density</strong></li>
+          <li>&uarr; Temperature &rarr; <strong>&darr; Density</strong> (warm = less dense)</li>
+          <li>&uarr; Humidity &rarr; <strong>&darr; Density</strong> (H&#8322;O lighter than N&#8322;/O&#8322;)</li>
+        </ul>
+        <div class="must-know">
+          <div class="mk"><strong>Pressure</strong> = weight of air above. Higher up = less.</div>
+          <div class="mk"><strong>Density</strong> falls with altitude, heat, humidity.</div>
+          <div class="mk">Humid air is <strong>less dense</strong> than dry air.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>EASA PPL(A) &mdash; Pooleys APM Vol 2, PadPilot PPL Met</span>
+      <span>030 / 30.1.1 &mdash; v5</span>
+    </div>
+  </div>
+  <div class="col-notes">
+    <div class="notes-title">Your Notes</div>
+    <div class="notes-lines"></div>
+  </div>
+  <div class="page-num">1 / 3</div>
+</div>
+
+<!-- ================================================================ -->
+<!-- PAGE 2: Atmospheric Layers, Temperature Profile, ISA -->
+<!-- ================================================================ -->
+<div class="page">
+  <div class="col-content">
+    <div class="page-header">
+      <div class="page-header-title">Atmospheric Layers &amp; Temperature</div>
+      <div class="page-header-code">30.1.1 &mdash; LOs 1.1.2, 1.1.3, 1.2.3</div>
+    </div>
+
+    <div class="content-block">
+      Layers defined by temperature change. <strong>Troposphere</strong> (to ~11 km) &mdash; all weather. <strong>Stratosphere</strong> (11&ndash;50 km) &mdash; stable. <strong>Mesosphere</strong> (50&ndash;80 km). <strong>Thermosphere</strong> (80 km+). Boundaries = <strong>&ldquo;pauses&rdquo;</strong>. Temp falls at <strong>~2 &deg;C / 1,000 ft</strong> in troposphere. At tropopause: <strong>&minus;56.5 &deg;C</strong>. Constant to ~FL 650, then rises (ozone absorbs UV).
+    </div>
+
+    <div style="display: flex; gap: 14px; align-items: flex-start; margin-bottom: 8px;">
+      <div class="img-block" style="flex: 1;">
+        <img src="../diagrams/atpl/met_01_s006_00.jpg" alt="Temperature profile" style="width: 100%; max-height: 115mm; object-fit: contain;" />
+        <div class="img-cap">Temperature profile &mdash; ICAO Standard Atmosphere</div>
+      </div>
+      <div style="flex: 0 0 42%; display: flex; flex-direction: column; gap: 8px;">
+        <div class="data-panel blue">
+          <div class="panel-title">ISA Sea Level</div>
+          <div class="isa-grid">
+            <div class="isa-item"><span class="isa-val">15 &deg;C</span><span class="isa-label">Temperature</span></div>
+            <div class="isa-item"><span class="isa-val">1013.25</span><span class="isa-label">Pressure (hPa)</span></div>
+            <div class="isa-item"><span class="isa-val">1.225</span><span class="isa-label">Density (kg/m&#179;)</span></div>
+          </div>
+          <div class="isa-grid isa-small" style="margin-top: 4px;">
+            <div class="isa-item"><span class="isa-val">1.98 &deg;C</span><span class="isa-label">Lapse / 1,000 ft</span></div>
+            <div class="isa-item"><span class="isa-val">&minus;56.5 &deg;C</span><span class="isa-label">Tropopause</span></div>
+          </div>
+        </div>
+        <div class="data-panel">
+          <div class="panel-title" style="color: var(--text-muted);">Layers</div>
+          <table>
+            <thead><tr><th>Layer</th><th>Extent</th><th style="text-align:right;">T</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Troposphere</strong></td><td>0 &ndash; ~11 km</td><td class="mono" style="font-size:8px;">&darr;</td></tr>
+              <tr><td>Stratosphere</td><td>11 &ndash; 50 km</td><td class="mono" style="font-size:8px;">= &uarr;</td></tr>
+              <tr><td>Mesosphere</td><td>50 &ndash; 80 km</td><td class="mono" style="font-size:8px;">&darr;</td></tr>
+              <tr><td>Thermosphere</td><td>80 km +</td><td class="mono" style="font-size:8px;">&uarr;</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="must-know">
+          <div class="mk"><strong>Troposphere</strong> = where we fly, where all weather occurs.</div>
+          <div class="mk">ISA is a <strong>model</strong> &mdash; memorise values, real conditions vary.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>EASA PPL(A) &mdash; Pooleys APM Vol 2, PadPilot PPL Met</span>
+      <span>030 / 30.1.1 &mdash; v5</span>
+    </div>
+  </div>
+  <div class="col-notes">
+    <div class="notes-title">Your Notes</div>
+    <div class="notes-lines"></div>
+  </div>
+  <div class="page-num">2 / 3</div>
+</div>
+
+<!-- ================================================================ -->
+<!-- PAGE 3: Tropopause, Definitions, Exam -->
+<!-- ================================================================ -->
+<div class="page">
+  <div class="col-content">
+    <div class="page-header">
+      <div class="page-header-title">Tropopause, Definitions &amp; Exam Focus</div>
+      <div class="page-header-code">30.1.1 &mdash; LO 1.2.2</div>
+    </div>
+
+    <div class="content-block">
+      The <strong>boundary</strong> between troposphere and stratosphere. Height where temperature stops decreasing. Acts as a <strong>lid</strong> &mdash; stable air above traps weather below.
+    </div>
+
+    <table style="margin-bottom: 8px; max-width: 75mm;">
+      <thead><tr><th>Location</th><th style="text-align:right;">Height</th></tr></thead>
+      <tbody>
+        <tr><td>Equator / Tropics</td><td class="mono">16 &ndash; 18 km</td></tr>
+        <tr><td>Mid-latitudes (ISA)</td><td class="mono">~11 km</td></tr>
+        <tr><td>Poles</td><td class="mono">8 &ndash; 10 km</td></tr>
+      </tbody>
+    </table>
+
+    <div style="display: flex; gap: 14px; margin-bottom: 8px;">
+      <div class="img-block" style="flex: 1;">
+        <img src="../diagrams/atpl/met_01_s009_00.jpg" alt="Tropopause height by latitude" style="width: 100%; object-fit: contain;" />
+        <div class="img-cap">Height variation by latitude</div>
+      </div>
+      <div class="img-block" style="flex: 1;">
+        <img src="../diagrams/atpl/met_01_s010_00.jpg" alt="Tropopause folds" style="width: 100%; object-fit: contain;" />
+        <div class="img-cap">Folds, breaks &amp; jet streams</div>
+      </div>
+    </div>
+
+    <div class="must-know">
+      <div class="mk">It is a <strong>boundary</strong>, not a layer. Warmer &rarr; <strong>higher</strong>. Summer &rarr; higher.</div>
+      <div class="mk">Varies with <strong>season &amp; latitude</strong> &mdash; NOT water vapour (exam distractor).</div>
+    </div>
+
+    <div class="section" style="margin-top: 6px;">
+      <div class="section-title">Key Definitions</div>
+      <div class="def-grid">
+        <div class="def-item"><span class="def-term">ISA</span> <span class="def-desc">International Standard Atmosphere</span></div>
+        <div class="def-item"><span class="def-term">Lapse rate</span> <span class="def-desc">Temp decrease / altitude (1.98 &deg;C/1,000 ft)</span></div>
+        <div class="def-item"><span class="def-term">Tropopause</span> <span class="def-desc">Boundary: troposphere / stratosphere</span></div>
+        <div class="def-item"><span class="def-term">Latent heat</span> <span class="def-desc">Energy from state changes &mdash; drives weather</span></div>
+        <div class="def-item"><span class="def-term">FL</span> <span class="def-desc">Flight Level (hundreds of ft, std pressure)</span></div>
+        <div class="def-item"><span class="def-term">hPa</span> <span class="def-desc">Hectopascal = millibar</span></div>
+      </div>
+    </div>
+
+    <div class="exam-section">
+      <div class="exam-title">Exam Focus &mdash; 12 Questions</div>
+      <div class="exam-tip"><strong>N&#8322; 78%, O&#8322; 21%</strong> &mdash; distractors swap or replace N&#8322; with He/H&#8322;. Memory: N before O, 78 before 21.</div>
+      <div class="exam-tip"><strong>Argon</strong> is the 3rd gas, not CO&#8322;.</div>
+      <div class="exam-tip">Tropopause = <strong>boundary</strong>, not a layer.</div>
+      <div class="exam-tip">Tropopause varies with <strong>season &amp; latitude</strong>, NOT water vapour.</div>
+      <div class="exam-tip">Weather in <strong>troposphere</strong> only. ECQB: 18 km tropics / 6 km poles.</div>
+    </div>
+
+    <div class="footer">
+      <span>EASA PPL(A) &mdash; Pooleys APM Vol 2, PadPilot PPL Met</span>
+      <span>030 / 30.1.1 &mdash; v5</span>
+    </div>
+  </div>
+  <div class="col-notes">
+    <div class="notes-title">Your Notes</div>
+    <div class="notes-lines"></div>
+  </div>
+  <div class="page-num">3 / 3</div>
+</div>
+
+
+<script>
+(function() {
+  const cb = document.getElementById('hand-switch');
+  const label = document.getElementById('hand-label');
+  const icon = document.getElementById('hand-icon');
+  cb.addEventListener('change', function() {
+    label.textContent = cb.checked ? 'Left-handed' : 'Right-handed';
+    icon.style.transform = cb.checked ? 'scaleX(-1)' : 'scaleX(1)';
+  });
+})();
+</script>
+
+</body>
+</html>

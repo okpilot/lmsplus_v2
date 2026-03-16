@@ -1,0 +1,143 @@
+{
+  "topic": "30.1.1",
+  "title": "The Atmosphere",
+  "subtitle": "Composition, extent & vertical division",
+  "subject": {
+    "code": "030",
+    "name": "Meteorology"
+  },
+
+  "los": [
+    { "code": "30.1.1.1.1", "short": "1.1.1", "text": "List the composition of gases in dry air" },
+    {
+      "code": "30.1.1.1.2",
+      "short": "1.1.2",
+      "text": "List the different layers of the atmosphere and know their approximate extent"
+    },
+    {
+      "code": "30.1.1.1.3",
+      "short": "1.1.3",
+      "text": "Describe the temperature profile within the troposphere and stratosphere"
+    },
+    {
+      "code": "30.1.1.1.4",
+      "short": "1.1.4",
+      "text": "Explain the relationship between air pressure, air density and air temperature"
+    },
+    {
+      "code": "30.1.1.2.1",
+      "short": "1.2.1",
+      "text": "Explain the significance of water vapour in the atmosphere"
+    },
+    {
+      "code": "30.1.1.2.2",
+      "short": "1.2.2",
+      "text": "Define the tropopause and state the variation of its height"
+    },
+    { "code": "30.1.1.2.3", "short": "1.2.3", "text": "State the temperature above the tropopause" }
+  ],
+
+  "duration_minutes": 25,
+  "question_count": 12,
+
+  "images": {
+    "composition_pie": {
+      "id": "met_01_s004_01.jpg",
+      "alt": "Atmospheric composition pie chart",
+      "caption": "Composition of dry air by volume"
+    },
+    "temperature_profile": {
+      "id": "met_01_s006_00.jpg",
+      "alt": "Temperature profile through atmospheric layers",
+      "caption": "Temperature profile (ICAO Standard Atmosphere)"
+    },
+    "tropopause_latitude": {
+      "id": "met_01_s009_00.jpg",
+      "alt": "Tropopause height variation by latitude",
+      "caption": "Tropopause height variation by latitude"
+    },
+    "tropopause_folds": {
+      "id": "met_01_s010_00.jpg",
+      "alt": "Tropopause folds and jet stream location",
+      "caption": "Tropopause folds and breaks"
+    }
+  },
+
+  "flow": [
+    { "phase": "Opening", "duration_minutes": 2, "section": null, "lo": null },
+    {
+      "phase": "Gas Composition",
+      "duration_minutes": 3,
+      "section": "composition",
+      "lo": "30.1.1.1.1"
+    },
+    {
+      "phase": "Water Vapour",
+      "duration_minutes": 3,
+      "section": "composition",
+      "lo": "30.1.1.2.1"
+    },
+    {
+      "phase": "Atmospheric Layers",
+      "duration_minutes": 4,
+      "section": "layers",
+      "lo": "30.1.1.1.2"
+    },
+    {
+      "phase": "Temperature and the ISA",
+      "duration_minutes": 3,
+      "section": "layers",
+      "lo": "30.1.1.1.3"
+    },
+    {
+      "phase": "Pressure, Density and Relationships",
+      "duration_minutes": 3,
+      "section": "relationships",
+      "lo": "30.1.1.1.4"
+    },
+    {
+      "phase": "The Tropopause",
+      "duration_minutes": 4,
+      "section": "tropopause",
+      "lo": "30.1.1.2.2"
+    },
+    {
+      "phase": "Above the Tropopause",
+      "duration_minutes": 2,
+      "section": "layers",
+      "lo": "30.1.1.2.3"
+    },
+    { "phase": "Conclusion", "duration_minutes": 1, "section": null, "lo": null }
+  ],
+
+  "exam": {
+    "question_count": 12,
+    "question_ids": [
+      "MET-Q004",
+      "QDB-688863",
+      "ECQB-IMG_7121",
+      "ECQB-IMG_7123",
+      "QDB-688864",
+      "MET-Q005",
+      "QDB-688865",
+      "QDB-688866",
+      "MET-Q009",
+      "QDB-688867",
+      "ECQB-IMG_7124",
+      "ECQB-750553"
+    ]
+  },
+
+  "sources": {
+    "primary": ["Pooleys APM Vol 2 Meteorology", "PadPilot PPL Meteorology"],
+    "images": "ATPL Presentations (Meteorology Lesson 1)"
+  },
+
+  "versioning": {
+    "version": "1.0",
+    "created_at": "2026-03-16T18:00:00Z",
+    "updated_at": "2026-03-16T18:00:00Z",
+    "changelog": "Initial import — HTML content with lean metadata sidecar.",
+    "previous_version": null
+  }
+}
