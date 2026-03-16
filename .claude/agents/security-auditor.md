@@ -90,11 +90,11 @@ You receive:
 
 ### MEDIUM (warn, not blocking)
 
-11. `as SomeType` casts on unvalidated external data
-12. `console.log` statements that might print user data or tokens
-13. Missing `'use server'` directive on Server Actions
-14. Missing `'use client'` / `'use server'` boundary violations
-15. Dependencies added without a comment explaining why they're trusted
+16. `as SomeType` casts on unvalidated external data
+17. `console.log` statements that might print user data or tokens
+18. Missing `'use server'` directive on Server Actions
+19. Missing `'use client'` / `'use server'` boundary violations
+20. Dependencies added without a comment explaining why they're trusted
 
 ## Output Format
 

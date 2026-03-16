@@ -29,16 +29,24 @@ include an explicit "read the migration file" instruction or fall back to "treat
 unmet" when the referenced artifact is not visible.
 **Status:** ISSUE — 1st occurrence, watching.
 
-### Suppression rule numbering collision with main checklist numbering (RESOLVED)
+### Suppression rule numbering collision with main checklist numbering (PARTIALLY RESOLVED — ISSUE open)
 **First seen:** commit b32d56a (2026-03-16) — security-auditor.md DO NOT section
 **File:** `.claude/agents/security-auditor.md`
 **Pattern:** The HIGH section and the DO NOT section both use sequential integers
 starting from single digits. After the commit, both sections contain an item
 numbered 9. Non-contiguous DO NOT numbering (1,2,3,5,6,8,9) also pre-existed.
+After the branch fixes (d6e8224, 0f40bd6), the DO NOT section collision and the
+duplicate HIGH block were resolved. However, the MEDIUM section still starts at 11,
+overlapping with HIGH items 11-15. A reader or the agent itself sees two independent
+items numbered 12 in different severity classes. Flagged as ISSUE in PR-level review
+(2026-03-16).
 **Watch for:** Agent files where the DO NOT section is numbered and the main
 checklist is also numbered — collision is easy to introduce when a new item is
-appended to DO NOT without checking the checklist numbering.
-**Status:** RESOLVED — DO NOT section renumbered 1-7 in d6e8224, HIGH section duplicate block removed and renumbered 11-15 in follow-up fix.
+appended to DO NOT without checking the checklist numbering. Applies equally to
+severity-section boundaries: renumbering one section without auditing adjacent sections
+leaves a collision intact.
+**Status:** ISSUE — DO NOT section resolved (d6e8224), HIGH duplicate resolved (0f40bd6),
+MEDIUM collision (items 11-15 overlap with HIGH 11-15) still open. Fix: renumber MEDIUM 16-20.
 
 ### Partial @ts-expect-error removal after library type improvement (confirmed ISSUE — 2nd occurrence)
 **First seen:** commit 225a163 (2026-03-16, PR #211)
