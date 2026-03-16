@@ -15,6 +15,7 @@ try {
   process.exit(0)
 }
 
+// Claude Code wraps tool params under tool_input; fall back to flat shape for compatibility
 const command = toolInput?.tool_input?.command ?? toolInput?.command ?? ''
 
 const BLOCKED_PATTERNS = [
