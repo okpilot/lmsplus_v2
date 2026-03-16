@@ -230,6 +230,9 @@
   - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
     - Permissions: `contents: read` (principle of least privilege, enforced 2026-03-15)
   - `e2e.yml` — runs on pull requests + push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
+  - `codeql.yml` — weekly security scan (Monday 05:30 UTC) for JavaScript/TypeScript via GitHub CodeQL action, logs to Security tab
+  - `dependabot.yml` — automated dependency updates with auto-grouping by ecosystem/directory, weekly schedule, `tech-debt` label, commits with `ci` or `chore` prefix
+    - Scopes: GitHub Actions + npm root + apps/web + packages/{db,ui,typescript-config}
   - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
   - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 20 questions for E2E (expanded from 5 to support review flow after quiz)
   - Playwright config updated: uses `pnpm start` (production build) in CI, `pnpm dev` locally

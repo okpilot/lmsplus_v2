@@ -277,7 +277,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - [ ] Update `apps/web/app/layout.tsx` metadata (still says "Create Next App") — do in Phase 4
 - [x] Add security headers to `apps/web/next.config.ts` — done in Phase 2
 - [ ] Consider `git diff --check` in Lefthook pre-commit for whitespace issues
-- [ ] Add GitHub Actions CI/CD once repo goes to GitHub (mirror Lefthook checks)
+- [x] Add GitHub Actions CI/CD — `ci.yml`, `e2e.yml`, `codeql.yml`, `redteam.yml` complete; `dependabot.yml` auto-update config added (2026-03-16)
 - [ ] Add Sentry error tracking after Phase 5 goes live
 
 ---
