@@ -32,7 +32,7 @@ test.describe('Red Team: PKCE Code Forwarding', () => {
   })
 
   test('rejects callback with structurally malformed code', async ({ page }) => {
-    const fakeUuid = '00000000-0000-0000-0000-000000000000'
+    const fakeUuid = '00000000-0000-4000-a000-000000000000'
     await page.goto(`/auth/callback?code=${fakeUuid}`)
 
     await page.waitForURL('**/auth/verify*', { timeout: 10_000 })

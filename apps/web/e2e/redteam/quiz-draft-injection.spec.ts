@@ -63,7 +63,7 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     const { data: questions } = await adminClient
       .from('questions')
       .select('id')
-      .in('topic_id', topicIds.length > 0 ? topicIds : ['00000000-0000-0000-0000-000000000000'])
+      .in('topic_id', topicIds.length > 0 ? topicIds : ['00000000-0000-4000-a000-000000000000'])
       .is('deleted_at', null)
       .limit(5)
 
@@ -73,8 +73,8 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     // still be tested (just won't find real data at read time either way).
     if (foreignQuestionIds.length === 0) {
       foreignQuestionIds = [
-        '00000000-0000-0000-0000-000000000010',
-        '00000000-0000-0000-0000-000000000011',
+        '00000000-0000-4000-a000-000000000010',
+        '00000000-0000-4000-a000-000000000011',
       ]
     }
   })
