@@ -16,7 +16,6 @@ export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
   const { id, ...data } = parsed.data
 
   if (id) {
-    // @ts-expect-error TS2345: row type resolves to `never` due to TypeScript inference depth limit
     const { error } = await supabase.from('easa_subtopics').update(data).eq('id', id)
     if (error) {
       return { success: false, error: error.message }
