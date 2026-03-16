@@ -37,7 +37,6 @@ function buildChain(returnValue: unknown) {
 /**
  * getDashboardData makes many parallel from() calls. We intercept by table name.
  * The order of from() calls:
- *   getDueCount          -> 'fsrs_cards' (count query)
  *   getSubjectProgress   -> 'easa_subjects', 'questions', 'student_responses', 'questions' (correct in subject)
  *   getTotalAnswered     -> 'student_responses' (count query)
  *   getRecentSessions    -> 'quiz_sessions', optional 'easa_subjects'
@@ -65,7 +64,6 @@ describe('getDashboardData', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'fsrs_cards') return buildChain({ count: 0 })
       if (table === 'easa_subjects') return buildChain({ data: [] })
       if (table === 'student_responses') return buildChain({ count: 0, data: [] })
       if (table === 'questions') return buildChain({ data: [] })
@@ -74,7 +72,6 @@ describe('getDashboardData', () => {
     })
 
     const result = await getDashboardData()
-    expect(result.dueCount).toBe(0)
     expect(result.totalQuestions).toBe(0)
     expect(result.answeredCount).toBe(0)
     expect(result.subjects).toEqual([])
@@ -85,7 +82,6 @@ describe('getDashboardData', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'fsrs_cards') return buildChain({ count: 2 })
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
@@ -119,7 +115,6 @@ describe('getDashboardData', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'fsrs_cards') return buildChain({ count: 0 })
       if (table === 'easa_subjects')
         return buildChain({
           data: [
@@ -153,7 +148,6 @@ describe('getDashboardData', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'fsrs_cards') return buildChain({ count: 0 })
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'MET', name: 'Met', short: 'MET', sort_order: 1 }],
@@ -186,7 +180,6 @@ describe('getDashboardData', () => {
     ]
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'fsrs_cards') return buildChain({ count: 0 })
       if (table === 'easa_subjects') {
         // Called twice: once for subjects list, once for subject name lookup in sessions
         return buildChain({

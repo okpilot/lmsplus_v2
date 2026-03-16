@@ -1,7 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 
 export type DashboardData = {
-  dueCount: number
   totalQuestions: number
   answeredCount: number
   subjects: SubjectProgress[]
@@ -37,15 +36,13 @@ export async function getDashboardData(): Promise<DashboardData> {
   if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
-  const [dueCards, subjects, responses, recentSessions] = await Promise.all([
-    getDueCount(supabase, user.id),
+  const [subjects, responses, recentSessions] = await Promise.all([
     getSubjectProgress(supabase, user.id),
     getTotalAnswered(supabase, user.id),
     getRecentSessions(supabase, user.id),
   ])
 
   return {
-    dueCount: dueCards,
     totalQuestions: subjects.reduce((sum, s) => sum + s.totalQuestions, 0),
     answeredCount: responses,
     subjects,
@@ -54,15 +51,6 @@ export async function getDashboardData(): Promise<DashboardData> {
 }
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
-
-async function getDueCount(supabase: SupabaseClient, userId: string): Promise<number> {
-  const { count } = await supabase
-    .from('fsrs_cards')
-    .select('*', { count: 'exact', head: true })
-    .eq('student_id', userId)
-    .lte('due', new Date().toISOString())
-  return count ?? 0
-}
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type QuestionSubjectRow = { subject_id: string }

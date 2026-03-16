@@ -1,6 +1,5 @@
 'use server'
 
-import { updateFsrsCard } from '@/lib/fsrs/update-card'
 import { rpc } from '@/lib/supabase-rpc'
 import { SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
@@ -28,12 +27,6 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
   }
 
   const result = data[0]
-  // FSRS scheduling is best-effort — don't fail the answer if it errors
-  try {
-    await updateFsrsCard(supabase, user.id, input.questionId, result.is_correct)
-  } catch (e) {
-    console.error('FSRS card update failed (non-fatal):', e)
-  }
 
   return {
     success: true,

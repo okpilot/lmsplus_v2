@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-15
+> Last updated: 2026-03-16
 
 ---
 
@@ -82,7 +82,6 @@
 - Quiz session: deferred writes architecture — answers accumulate in React state, batch submitted on finish. Partial submissions allowed (students can skip questions).
 - Immediate feedback: answers locked after selection, explanation shown in-session
 - Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData
-- Spaced repetition scheduling via `packages/db/src/fsrs.ts` (internal, not student-facing)
 - UI components (shadcn): Badge, Card, Progress, Skeleton
 - Tests written for auth flow, middleware, server actions
 - Session state machine: answering → show-finish-dialog → submit-batch → complete
@@ -510,11 +509,6 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 - `SessionSummary` — end-of-session score, time, breakdown
 - `SubjectSelector` — EASA subject tree with drill-down
 
-### Spaced repetition (internal)
-- `packages/db/src/fsrs.ts` — scheduling engine (not exposed to students)
-- On answer: update `fsrs_cards` table with scheduling values
-- Statistics tab displays: times seen, accuracy %, last answered date
-
 ---
 
 ## Automation Pipeline
@@ -631,4 +625,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-15 — Tech debt PR #7 (Type Safety & Cleanup) completed. Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks.*
+*Last updated: 2026-03-16 — FSRS remnants removed (#113). Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks.*

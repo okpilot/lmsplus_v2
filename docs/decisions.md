@@ -22,7 +22,6 @@
 - **Monorepo:** Turborepo + pnpm (Vercel-native, simpler than Nx)
 - **Frontend:** Next.js + Tailwind CSS v4 + shadcn/ui
 - **Backend/DB:** Supabase (Postgres + Auth + Storage + Realtime)
-- **FSRS:** ts-fsrs (TypeScript FSRS-5 implementation)
 - **Auth:** Magic link only
 - **Hosting:** Vercel
 - **Multi-tenant:** organization_id on every table, RLS policies
@@ -66,7 +65,7 @@ Configured in `.claude/settings.json` under `mcpServers`.
 | MCP | Package | What it unlocks |
 |-----|---------|----------------|
 | **Supabase** | `@supabase/mcp-server-supabase` | Claude runs migrations, manages RLS, queries DB directly — no copy-pasting SQL into dashboard |
-| **Context7** | `@upstash/context7-mcp` | Pulls live docs for ts-fsrs, Next.js, Supabase, shadcn — prevents stale API usage |
+| **Context7** | `@upstash/context7-mcp` | Pulls live docs for Next.js, Supabase, shadcn — prevents stale API usage |
 | **shadcn/ui** | `shadcn@latest mcp` | Claude auto-installs components; no manual `npx shadcn add` after every prompt |
 
 **Add when needed (not yet configured):**
@@ -109,7 +108,7 @@ Full reference: `docs/database.md`. Key decisions:
 - **Idempotency** — all INSERTs on mutable data use `ON CONFLICT DO NOTHING` or upsert. Safe to retry on network failure.
 - **SECURITY DEFINER RPCs** — must always include manual `auth.uid()` check + `SET search_path = public`. Never skip these.
 - **Constraints** — FK, NOT NULL, CHECK on every table. DB enforces consistency, not just app code.
-- **Indexes** — FSRS due-queue index is critical hot path. Partial indexes on `deleted_at IS NULL` for active-record queries.
+- **Indexes** — partial indexes on `deleted_at IS NULL` for active-record queries (ensures efficient soft-delete filtering).
 - **Migrations** — forward-only, named `YYYYMMDDHHMMSS_description.sql` (Supabase CLI format), RLS enabled in same file as CREATE TABLE.
 
 ### Security (confirmed 2026-03-11)
@@ -256,7 +255,6 @@ One app, one window, one login. Builder + Player + LMS backbone + question bank 
 
 ### Non-blocking
 - [ ] Student onboarding — how does a student get invited to an org? (email invite flow)
-- [ ] FSRS parameters — use ts-fsrs defaults initially, tune later
 - [ ] API pattern — Server Actions for mutations, direct Supabase client for reads (confirm when building)
 
 ---
@@ -416,7 +414,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - If any answer fails, entire batch rolls back — no orphaned answers or incomplete sessions
 - Replaces `submit_quiz_answer()` (per-answer) and `complete_quiz_session()` (separate call) for new code
 - Old RPCs deprecated but kept for backwards compatibility
-- All FSRS updates (ts-fsrs calculation) happen client-side post-batch, with best-effort error handling (non-fatal)
+- Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction (migration 022, then fully atomic in migration 040 for `submit_quiz_answer`)
 - Audit event type: `quiz_session.batch_submitted` (distinct from per-answer audit)
 
 ---

@@ -96,7 +96,7 @@ All checks passed. Good commit.
 
 2. **Do NOT flag Server Action files at 110–120 lines** — Action files containing 3+ focused exported functions (each ≤30 lines) plus private helpers are acceptable. Only flag if individual functions exceed 30 lines or the file exceeds 150 lines.
 
-3. **Do NOT flag 4-parameter infrastructure utilities** — Functions like `updateFsrsCard(supabase, userId, questionId, isCorrect)` are acceptable when each parameter maps to a distinct semantic role AND the function has a JSDoc comment. Only flag >3 params on business-logic functions.
+3. **Do NOT flag 4-parameter infrastructure utilities** — Functions with 4 parameters are acceptable when each parameter maps to a distinct semantic role AND the function has a JSDoc comment. Only flag >3 params on business-logic functions.
 
 4. **Do NOT flag duplicate types under 3 instances** — Duplicated types (e.g., RPC result shapes across features) are acceptable at 1–2 instances. Only flag when the same shape appears 3+ times.
 

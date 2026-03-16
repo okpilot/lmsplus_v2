@@ -1,6 +1,5 @@
 'use server'
 
-import { updateFsrsCard } from '@/lib/fsrs/update-card'
 import { rpc } from '@/lib/supabase-rpc'
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
@@ -57,8 +56,6 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
       explanationImageUrl: r.explanation_image_url,
     }))
 
-    await updateFsrsCards(supabase, user.id, input.answers, results)
-
     return {
       success: true,
       totalQuestions: data.total_questions,
@@ -71,27 +68,5 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
     const message = err instanceof Error ? err.message : String(err)
     console.error('[batchSubmitQuiz] Uncaught error:', message)
     return { success: false, error: 'Something went wrong. Please try again.' }
-  }
-}
-
-type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
-type AnswerInput = { questionId: string; selectedOptionId: string; responseTimeMs: number }
-type AnswerResult = { questionId: string; isCorrect: boolean }
-
-async function updateFsrsCards(
-  supabase: SupabaseClient,
-  userId: string,
-  answers: AnswerInput[],
-  results: AnswerResult[],
-) {
-  const resultsByQuestion = new Map(results.map((r) => [r.questionId, r.isCorrect]))
-  for (const answer of answers) {
-    const isCorrect = resultsByQuestion.get(answer.questionId)
-    if (isCorrect === undefined) continue
-    try {
-      await updateFsrsCard(supabase, userId, answer.questionId, isCorrect)
-    } catch (e) {
-      console.error('FSRS card update failed (non-fatal):', e)
-    }
   }
 }
