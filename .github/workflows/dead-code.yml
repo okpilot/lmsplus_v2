@@ -51,6 +51,12 @@ jobs:
             echo 'KNIP_EOF'
           } >> $GITHUB_OUTPUT
 
+      - name: Fail on config/runtime error
+        if: steps.knip.outputs.exit_code == '2'
+        run: |
+          echo "::error::Knip failed with a configuration or runtime error (exit code 2). Check logs above."
+          exit 1
+
       - name: Create or update issue
         if: steps.knip.outputs.exit_code == '1'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
