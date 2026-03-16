@@ -19,9 +19,9 @@ import { useQuizCascade } from './use-quiz-cascade'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const SUBJECT_ID = '00000000-0000-0000-0000-000000000010'
-const TOPIC_ID = '00000000-0000-0000-0000-000000000020'
-const SUBTOPIC_ID = '00000000-0000-0000-0000-000000000030'
+const SUBJECT_ID = '00000000-0000-4000-a000-000000000010'
+const TOPIC_ID = '00000000-0000-4000-a000-000000000020'
+const SUBTOPIC_ID = '00000000-0000-4000-a000-000000000030'
 
 const TOPICS = [{ id: TOPIC_ID, name: 'Aerodynamics', code: 'AERO' }]
 
@@ -85,7 +85,7 @@ describe('useQuizCascade — handleSubjectChange', () => {
 
     // Change to a different subject
     await act(async () =>
-      result.current.handleSubjectChange('00000000-0000-0000-0000-000000000099'),
+      result.current.handleSubjectChange('00000000-0000-4000-a000-000000000099'),
     )
 
     expect(result.current.topicId).toBe('')
@@ -129,7 +129,7 @@ describe('useQuizCascade — handleTopicChange', () => {
     mockFetchSubtopicsForTopic.mockResolvedValueOnce([])
 
     // Change to a different topic
-    await act(async () => result.current.handleTopicChange('00000000-0000-0000-0000-000000000099'))
+    await act(async () => result.current.handleTopicChange('00000000-0000-4000-a000-000000000099'))
 
     expect(result.current.subtopicId).toBe('')
     expect(result.current.subtopics).toEqual([])
@@ -165,8 +165,8 @@ describe('useQuizCascade — full cascade flow', () => {
 
 describe('useQuizCascade — stale async guard', () => {
   it('ignores topics from a superseded subject change when a newer change resolves first', async () => {
-    const SUBJECT_A = '00000000-0000-0000-0000-000000000010'
-    const SUBJECT_B = '00000000-0000-0000-0000-000000000011'
+    const SUBJECT_A = '00000000-0000-4000-a000-000000000010'
+    const SUBJECT_B = '00000000-0000-4000-a000-000000000011'
     const TOPICS_A = [{ id: 'ta1', name: 'Topic A', code: 'TA' }]
     const TOPICS_B = [{ id: 'tb1', name: 'Topic B', code: 'TB' }]
 
@@ -206,8 +206,8 @@ describe('useQuizCascade — stale async guard', () => {
   })
 
   it('ignores subtopics from a superseded topic change when a newer change resolves first', async () => {
-    const TOPIC_A = '00000000-0000-0000-0000-000000000020'
-    const TOPIC_B = '00000000-0000-0000-0000-000000000021'
+    const TOPIC_A = '00000000-0000-4000-a000-000000000020'
+    const TOPIC_B = '00000000-0000-4000-a000-000000000021'
     const SUBTOPICS_A = [{ id: 'sa1', name: 'Sub A', code: 'SA' }]
     const SUBTOPICS_B = [{ id: 'sb1', name: 'Sub B', code: 'SB' }]
 

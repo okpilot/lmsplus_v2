@@ -37,10 +37,10 @@ import { useQuizConfig } from './use-quiz-config'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const SUBJECT_ID = '00000000-0000-0000-0000-000000000001'
-const TOPIC_ID = '00000000-0000-0000-0000-000000000002'
-const SUBTOPIC_ID = '00000000-0000-0000-0000-000000000003'
-const SESSION_ID = '00000000-0000-0000-0000-000000000099'
+const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
+const TOPIC_ID = '00000000-0000-4000-a000-000000000002'
+const SUBTOPIC_ID = '00000000-0000-4000-a000-000000000003'
+const SESSION_ID = '00000000-0000-4000-a000-000000000099'
 
 const SUBJECTS = [{ id: SUBJECT_ID, name: 'Air Law', code: 'ALW', short: 'ALW', questionCount: 30 }]
 
@@ -350,7 +350,7 @@ describe('useQuizConfig — re-fetches filteredCount on scope change', () => {
     expect(result.current.filteredCount).toBe(7)
 
     // Change subject — should re-fetch filteredCount with new subject
-    const NEW_SUBJECT_ID = '00000000-0000-0000-0000-000000000010'
+    const NEW_SUBJECT_ID = '00000000-0000-4000-a000-000000000010'
     const newSubjects = [
       ...SUBJECTS,
       { id: NEW_SUBJECT_ID, name: 'Nav', code: 'NAV', short: 'NAV', questionCount: 50 },

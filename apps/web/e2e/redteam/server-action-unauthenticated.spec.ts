@@ -34,20 +34,20 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     // Resolve real IDs to use as attack inputs — these represent data an
     // attacker might enumerate from leaked IDs or guessing UUIDs.
     const { data: subjects } = await adminClient.from('easa_subjects').select('id').limit(1)
-    knownSubjectId = subjects?.[0]?.id ?? '00000000-0000-0000-0000-000000000000'
+    knownSubjectId = subjects?.[0]?.id ?? '00000000-0000-4000-a000-000000000000'
 
     const { data: topics } = await adminClient
       .from('easa_topics')
       .select('id')
       .eq('subject_id', knownSubjectId)
       .limit(1)
-    knownTopicId = topics?.[0]?.id ?? '00000000-0000-0000-0000-000000000003'
+    knownTopicId = topics?.[0]?.id ?? '00000000-0000-4000-a000-000000000003'
 
     const { data: sessions } = await adminClient.from('quiz_sessions').select('id').limit(1)
-    knownSessionId = sessions?.[0]?.id ?? '00000000-0000-0000-0000-000000000001'
+    knownSessionId = sessions?.[0]?.id ?? '00000000-0000-4000-a000-000000000001'
 
     const { data: questions } = await adminClient.from('questions').select('id').limit(1)
-    knownQuestionId = questions?.[0]?.id ?? '00000000-0000-0000-0000-000000000002'
+    knownQuestionId = questions?.[0]?.id ?? '00000000-0000-4000-a000-000000000002'
   })
 
   // --- RPC vectors ---
@@ -74,7 +74,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     const { data, error } = await unauthClient.rpc('submit_quiz_answer', {
       p_session_id: knownSessionId,
       p_question_id: knownQuestionId,
-      p_selected_option: '00000000-0000-0000-0000-000000000099',
+      p_selected_option: '00000000-0000-4000-a000-000000000099',
       p_response_time_ms: 1000,
     })
 

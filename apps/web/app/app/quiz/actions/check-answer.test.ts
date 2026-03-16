@@ -25,9 +25,9 @@ import { checkAnswer } from './check-answer'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const QUESTION_ID = '00000000-0000-0000-0000-000000000011'
-const SESSION_ID = '00000000-0000-0000-0000-000000000099'
+const USER_ID = '00000000-0000-4000-a000-000000000001'
+const QUESTION_ID = '00000000-0000-4000-a000-000000000011'
+const SESSION_ID = '00000000-0000-4000-a000-000000000099'
 const CORRECT_OPTION_ID = 'opt-correct'
 const WRONG_OPTION_ID = 'opt-wrong'
 

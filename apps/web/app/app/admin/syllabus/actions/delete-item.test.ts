@@ -15,7 +15,7 @@ import { deleteItem } from './delete-item'
 
 // ---- Helpers ---------------------------------------------------------------
 
-const VALID_UUID = '00000000-0000-0000-0000-000000000001'
+const VALID_UUID = '00000000-0000-4000-a000-000000000001'
 
 function mockAdminWithDeleteResult(result: {
   error: { message: string; code?: string } | null

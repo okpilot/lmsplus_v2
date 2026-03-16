@@ -52,7 +52,7 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
     return { success: true, sessionId, questionIds }
   } catch (err) {
     if (err instanceof ZodError) {
-      return { success: false, error: err.errors[0]?.message ?? 'Invalid input' }
+      return { success: false, error: err.issues[0]?.message ?? 'Invalid input' }
     }
     console.error('[startQuizSession] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }
