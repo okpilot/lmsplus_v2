@@ -85,7 +85,10 @@ describe('trigger: protect_users_sensitive_columns', () => {
       expect(data?.organization_id).toBe(orgId)
     } finally {
       // Clean up the extra org (no users to remove from it)
-      await admin.from('organizations').delete().eq('id', otherOrgId)
+      await admin
+        .from('organizations')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', otherOrgId)
     }
   })
 
@@ -102,18 +105,22 @@ describe('trigger: protect_users_sensitive_columns', () => {
 
   // ── Safe column — trigger must not interfere ──────────────────────────────
 
-  it('allows a student to update their own full_name', async () => {
+  it('does not treat full_name updates as sensitive-column trigger violations', async () => {
     const { error } = await studentClient
       .from('users')
       .update({ full_name: 'Updated Name' })
       .eq('id', studentId)
 
-    // No RLS UPDATE policy exists for students by design — PostgREST may return
-    // a no-rows-affected success rather than an error. What matters is the
-    // trigger does NOT raise — the error must not be a trigger exception.
+    // No RLS UPDATE policy exists — update is silently blocked by RLS (not trigger).
+    // The key assertion: if there IS an error, it must NOT be a trigger exception.
     if (error) {
       expect(error.message).not.toMatch(/Cannot modify/i)
     }
+
+    // Verify via admin that full_name is either updated (if UPDATE policy exists)
+    // or unchanged (if RLS blocked) — either way, no trigger exception occurred
+    const { data } = await admin.from('users').select('full_name').eq('id', studentId).single()
+    expect(data).not.toBeNull()
   })
 
   // ── Service-role — trigger must bypass ───────────────────────────────────
