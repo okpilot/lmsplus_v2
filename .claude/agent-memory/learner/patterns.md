@@ -86,8 +86,96 @@
 | Test fixtures using zeroed UUID format (`00000000-0000-0000-0000-*`) invalid under Zod 4 RFC 4122 enforcement | 1 | 2026-03-16 | Watch — 559bf9e: 27 test files required UUID constant replacements from `00000000-0000-0000-0000-*` to `00000000-0000-4000-a000-*`; Zod 4 validates version bits (nibble 13 must be 4–5) and variant bits (nibble 17 must be 8–b); also affected E2E sentinel UUIDs (5ad3c16); first occurrence; if new test file added with zeroed UUIDs, update test-writer memory with compliant constant form |
 | `err.errors` property access silently undefined after Zod 4 removal (was Zod 3 alias for `.issues`) | 1 | 2026-03-16 | Watch — 559bf9e: two production source files accessed `.errors` on ZodError instances; Zod 4 removed the property (not deprecated); returns undefined, silently falls through to fallback strings; caught by pre-commit tsc gate; fix: use `.issues` throughout; first occurrence |
 | Turbo type-check cache masking new compile errors after dependency bumps | 2 | 2026-03-16 | RULE CANDIDATE — first: PR #211 (@supabase/ssr, @supabase/supabase-js, vitest bumps): `pnpm check-types` showed "3 cached, 3 total" after a batch dep bump; turbo served pre-bump type results, silently hiding whether new types introduced errors; second: c5025f6 (commitlint 20, jsdom 29, @types/node 22 bumps): semantic-reviewer flagged same concern; workaround is `pnpm check-types --force` on dep-bump commits; turbo cache does not know that the type signatures behind the packages changed; propose CLAUDE.md workflow note: after any dep-bump commit, run `pnpm check-types --force` to bypass turbo cache before treating type-check as passing |
+| Undefined severity level used in agent rule (label not in agent's schema) | 1 | 2026-03-16 | Watch — b32d56a: new suppression condition 9 in security-auditor.md assigned "WARNING" severity; security-auditor schema defines only CRITICAL, HIGH, MEDIUM; undefined level has no blocking/non-blocking contract; pre-push hook cannot act on it; fixed in d6e8224 with MEDIUM; first occurrence; watch for agent edits that introduce severity labels without cross-checking the agent's own severity table |
+| Agent suppression condition requiring out-of-diff artifact verification | 1 | 2026-03-16 | Watch — b32d56a: suppression condition required verifying RPC's SELECT list does not expose correct answers; RPC definition lives in a migration file not present in the diff; if the migration file is inaccessible, the agent must flag as HIGH rather than suppress; fixed in d6e8224 with explicit fallback instruction: "If the migration file is not accessible, flag as HIGH"; first occurrence; watch for suppression rules that require knowledge of artifacts outside the current diff |
+| Agent file DO NOT section numbering collision with main checklist numbering | 1 | 2026-03-16 | Watch — b32d56a: new DO NOT item numbered "9" collided with checklist item "9" in HIGH section; non-contiguous DO NOT numbering (1,2,3,5,6,8,9) also pre-existed; fixed in d6e8224 (DO NOT renumbered 1-7) and 0f40bd6 (duplicate HIGH block removed, renumbered 11-15); first occurrence; watch for agent file edits that append to a numbered DO NOT section without checking for collisions with the main checklist |
+| SECURITY DEFINER RPC input array not validated against caller-owned records | 1 | 2026-03-16 | Watch — f1f6c32/7029f4e (fix/45-remove-answer-keys-from-test): get_student_questions RPC accepted p_question_ids from caller without verifying those IDs belonged to the caller's session; fixed in 7029f4e/1f76a7b by deriving question set from session answers rather than trusting caller input; distinct from "Query missing student_id scope" (that is a missing WHERE clause on a SELECT — this is an RPC SECURITY DEFINER trusting a caller-supplied array without cross-checking ownership against session state); rule already in security.md covers auth.uid() identity check but not input array ownership validation; first occurrence |
+| TypeScript type cast used as data-stripping mechanism (answer key exposure) | 1 | 2026-03-16 | Watch — f1f6c32 (fix/45-remove-answer-keys-from-test): correct field present on runtime object cast to QuestionForStudent type; TypeScript type does not exclude the field at runtime — only explicit SQL SELECT projection or object spread omitting the field strips it; directly violates security.md rule 1 (correct answers must be stripped server-side); fixed by moving answer-key stripping into the RPC SELECT list; distinct from "Type cast bypassing runtime validation" (that is about missing runtime guards on cast data — this is about using a type cast as a security boundary for data stripping, which provides zero runtime protection); first occurrence |
+| RPC `.rpc()` call result not destructured for error (silent swallow on RPC failure) | 1 | 2026-03-16 | Watch — f1f6c32 (fix/45-remove-answer-keys-from-test): supabase.rpc() call result was not destructured for { error }; existing code-style.md Section 5 rule covers .insert/.update/.delete/.upsert mutations; .rpc() calls are semantically equivalent — any Supabase client call that can fail must destructure { data, error }; fixed in 7029f4e; first occurrence as a named gap in the rule's coverage; if a second .rpc() call ships without error destructuring, extend the code-style.md rule to explicitly list .rpc() alongside mutation methods |
+| Security fix requiring multiple rounds due to incomplete self-defending audit | 1 | 2026-03-16 | Watch — fix/45-remove-answer-keys-from-test (f1f6c32 → 7029f4e → 1f76a7b): branch required 3 semantic-reviewer rounds because each fix addressed the flagged issue but not the adjacent gap it exposed; round 1: correct field in runtime object; round 2: RPC not session-scoped; round 3: p_question_ids not validated against session; root cause: security fixes to SECURITY DEFINER RPCs were applied narrowly (one gap at a time) rather than with a full self-defending audit (ownership check, input validation, output projection, error handling all verified together); first occurrence; when any SECURITY DEFINER RPC is modified, audit all four axes before committing: (1) auth.uid() identity check present, (2) input arrays validated against owned records, (3) output SELECT excludes sensitive fields explicitly, (4) result destructured for error |
 
 ## Lessons Learned
+
+### 2026-03-16 — fix/45-remove-answer-keys-from-test (commits f1f6c32, 7029f4e, 1f76a7b)
+
+**Context:** Fix for #45 — remove raw answer keys from web-layer test contract. Involved a new SECURITY DEFINER RPC (`get_student_questions`) to strip correct answers server-side rather than relying on TypeScript type casting. Branch required 3 review rounds before all agents reported clean.
+
+**Round 1 (f1f6c32):**
+
+- Code reviewer: clean.
+- Semantic reviewer: 2 ISSUEs. Both real.
+  1. **Correct field in runtime object** — TypeScript `as QuestionForStudent` cast does not strip `correct` from the returned object at runtime. The RPC SELECT still included `correct`, so it was present on the wire. This is a direct violation of security.md rule 1. Fixed in 7029f4e by removing `correct` from the RPC SELECT list.
+  2. **RPC not session-scoped** — get_student_questions accepted `p_question_ids` from the caller without verifying the caller had a session containing those questions. Any authenticated user could pass arbitrary question IDs and retrieve question data for questions outside their session. Fixed in 7029f4e by deriving the question set from session answers rather than trusting caller-supplied IDs.
+- Test writer: 3 tests added covering the new RPC behavior.
+- Doc updater: decisions.md and security.md updated.
+
+**Round 2 (7029f4e):**
+
+- Code reviewer: clean.
+- Semantic reviewer: 1 ISSUE. Real.
+  1. **p_question_ids not validated against session** — even after scoping the RPC to require a session, the implementation still accepted `p_question_ids` as input and did not cross-check them against the session's actual answer set. A caller could still inject question IDs outside their session scope. Fixed in 1f76a7b by removing the `p_question_ids` parameter entirely and deriving the question set exclusively from `quiz_session_answers`.
+- Test writer: 2 tests added.
+- Doc updater: plan.md updated.
+
+**Round 3 (1f76a7b):**
+
+- All agents clean. 2 suggestions only (comment quality — not actioned).
+
+**Root cause of 3-round cycle:** Security fixes were applied narrowly — each fix addressed the specific flagged gap without auditing adjacent axes. A "self-defending RPC audit" would have caught all three gaps in round 1: (1) output projection strips sensitive fields, (2) input arrays are validated against caller-owned records, (3) result is destructured for error, (4) auth.uid() identity check present.
+
+**Actions taken:**
+- Frequency table: "SECURITY DEFINER RPC input array not validated against caller-owned records" added as new watch item (count 1). First occurrence — log and watch.
+- Frequency table: "TypeScript type cast used as data-stripping mechanism (answer key exposure)" added as new watch item (count 1). First occurrence — log and watch.
+- Frequency table: "RPC `.rpc()` call result not destructured for error" added as new watch item (count 1). First occurrence — log and watch; existing code-style.md rule covers mutations but not `.rpc()` calls; one more occurrence warrants extending the rule.
+- Frequency table: "Security fix requiring multiple rounds due to incomplete self-defending audit" added as new watch item (count 1). First occurrence — log and watch.
+
+**No rule changes proposed** — all 4 new patterns are single occurrences. Rule change threshold requires 2+ occurrences.
+
+**Recommended change (proposed, not applied):** When a SECURITY DEFINER RPC is created or modified, the author should verify all four axes before committing: (1) auth.uid() identity check present, (2) input arrays validated against owned records (not trusted from caller), (3) SELECT list explicitly excludes sensitive fields — not relying on type casts, (4) RPC call result destructured for `{ data, error }`. This could be added as a checklist item to `docs/security.md` or the semantic-reviewer's agent definition once a second occurrence confirms the pattern.
+
+**False positives:** none detected across all 3 rounds. All semantic-reviewer ISSUEs were confirmed real.
+
+**Positive signals:**
+- Code reviewer clean across all 3 rounds — no mechanical violations introduced.
+- Three-round convergence is expected for a security RPC being written for the first time. The self-defending audit checklist above would reduce this to 1 round in future.
+- Doc updater correctly tracked the evolving security decision across rounds without double-writing.
+
+---
+
+### 2026-03-16 — fix/56-narrow-auth-delegation-suppression (commits b32d56a, d6e8224, 0f40bd6)
+
+**Context:** Config-only change narrowing the security-auditor's auth-delegation suppression rule (DO NOT item 9) from a one-line blanket exemption to a 4-condition gate. No production code changed.
+
+**Code reviewer:** clean — 0 blocking, 0 warnings.
+
+**Test writer:** no tests needed — config-only change, no testable logic.
+
+**Doc updater:** no doc updates needed — no docs referenced issue #56 or the suppression rule.
+
+**Semantic reviewer round 1:** 3 ISSUEs, 2 SUGGESTIONs. All 3 ISSUEs were real.
+1. **Undefined severity "WARNING"** — condition 3 assigned "WARNING" severity; security-auditor schema defines CRITICAL, HIGH, MEDIUM only. Fixed in d6e8224 with MEDIUM. Root cause: author did not cross-check the severity label against the agent's own severity table before writing the rule.
+2. **Unverifiable suppression condition from diff context** — condition 3 required the agent to verify the RPC's SELECT list does not expose correct answers, but the RPC definition is in a migration file not present in the diff. Without an explicit fallback instruction, the agent had no guidance when the artifact was inaccessible and might suppress a CRITICAL finding incorrectly. Fixed in d6e8224 with: "If the migration file is not accessible, flag as HIGH."
+3. **DO NOT numbering collision** — new item added as "9" collided with HIGH checklist item "9". Non-contiguous pre-existing numbering (1,2,3,5,6,8,9) also cleaned up. Fixed in d6e8224 (DO NOT renumbered 1-7).
+
+**Semantic reviewer round 2:** 2 ISSUEs (pre-existing). Both were real, both fixed in 0f40bd6.
+1. **Duplicate HIGH checklist block** — a prior edit had left two copies of HIGH items 11-15. Removed in 0f40bd6.
+2. **Stale pattern status in semantic-reviewer patterns memory** — a pattern row still showed "watching" when it had already been resolved. Updated.
+
+**Actions taken:**
+- Frequency table: "Undefined severity level used in agent rule" added as new watch item (count 1). First occurrence — log and watch, no rule change.
+- Frequency table: "Agent suppression condition requiring out-of-diff artifact verification" added as new watch item (count 1). First occurrence — log and watch, no rule change.
+- Frequency table: "Agent file DO NOT section numbering collision" added as new watch item (count 1). First occurrence — log and watch, no rule change.
+
+**No rule changes proposed** — all 3 patterns are single occurrences (first time seen across different commits). Rule change threshold requires 2+ occurrences.
+
+**False positives:** none detected. All semantic-reviewer findings were confirmed real.
+
+**Positive signals:**
+- Code reviewer, test writer, and doc updater all reported clean on a config-only change — as expected. Pipeline behaved correctly.
+- The semantic reviewer correctly identified real issues in a config-only commit, demonstrating the agent provides value even when no production code changes. This is the intended behavior.
+- The 4-condition suppression structure (Zod + SECURITY DEFINER RPC + non-sensitive return + JSDoc waiver) is a strong pattern: each condition is independently verifiable, and the fallback behavior when a condition cannot be verified is now explicit (flag as HIGH rather than suppress).
+
+---
 
 ### 2026-03-11 — Initial session
 - **Root cause of pushed broken code:** Type-check and tests were in pre-push (too late), not pre-commit. Pre-push had slow security-auditor that timed out, forcing `--no-verify`. All quality gates collapsed.
