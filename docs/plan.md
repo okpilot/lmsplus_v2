@@ -166,12 +166,23 @@
 - Issues #43, #4, #29 closed as stale (Smart Review removed), #101 already done
 - PR #181 merged
 
-**Local dev setup (2026-03-11):**
+**Tech Debt PR #10 done (2026-03-15):** Infrastructure & Scripts:
+- CI security hardening: added `permissions: contents: read` to `ci.yml` (principle of least privilege)
+- Security auditor grep fix: improved detection of `adminClient` usage in app files (scans full file diffs, not just line context)
+- Import script hardening: `import-questions.ts` now refuses non-local Supabase URLs unless `--force-remote` flag passed (prevents accidental remote pushes)
+- Import validation: enforces all questions in JSON file reference same subject (prevents mixing subjects in single import)
+- Seed script created: `apps/web/scripts/seed-admin-eval.ts` — creates admin+student users, org, bank, and 3 test questions with error handling for manual eval (closes #85)
+- Biome lint fixes: template literal normalization across scripts
+- Issues #22, #18, #13, #14, #85 closed
+
+**Local dev setup (2026-03-11, updated 2026-03-15):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
 - `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys
 - Mailpit at `http://localhost:54324` — catches all magic link emails locally
 - Studio at `http://localhost:54323`
 - `scripts/dev-login.ts` — generates magic link via admin API (no email needed)
+- `scripts/import-questions.ts` — imports questions from JSON; refuses non-local URLs unless `--force-remote` flag passed
+- `scripts/seed-admin-eval.ts` — seeds admin/student users for manual eval; run after `npx supabase db reset`
 - 73 questions seeded locally (050-01-01 through 050-01-05)
 - Migrations in `supabase/migrations/`:
   - 003: add `question_number` column
@@ -218,6 +229,7 @@
   - Pre-merge checks: no-secrets, no-answer-exposure, soft-delete-only
 - **GitHub Actions CI** (cloud):
   - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
+    - Permissions: `contents: read` (principle of least privilege, enforced 2026-03-15)
   - `e2e.yml` — runs on pull requests + push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
   - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
   - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 20 questions for E2E (expanded from 5 to support review flow after quiz)

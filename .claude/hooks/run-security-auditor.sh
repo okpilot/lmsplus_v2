@@ -84,10 +84,13 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
       ISSUES=$((ISSUES + 1))
     fi
 
-    # Check for adminClient in app/ files — scope grep to lines following app/ file headers
-    if printf '%s' "$DIFF_FULL" | grep -A5 '^\+\+\+ b/apps/web/app/.*\.tsx\?' | grep -q 'adminClient'; then
-      echo "[HIGH] adminClient used in app/ code!"
-      ISSUES=$((ISSUES + 1))
+    # Check for adminClient in added lines of app/ files
+    if printf '%s' "$DIFF_FULL" | grep -E '^\+.*adminClient' | grep -v '^\+\+\+' | grep -q 'adminClient'; then
+      # Verify it's in an app/ file by checking surrounding file headers
+      if printf '%s' "$DIFF_FULL" | awk '/^\+\+\+ b\/apps\/web\/app\/.*\.tsx?/{found=1} /^\+\+\+ b\//{if(!/apps\/web\/app\//)found=0} found && /^\+[^+]/ && /adminClient/{print; exit}' | grep -q 'adminClient'; then
+        echo "[HIGH] adminClient used in app/ code!"
+        ISSUES=$((ISSUES + 1))
+      fi
     fi
 
     if [ "$ISSUES" -gt 0 ]; then
@@ -112,7 +115,8 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
     echo "[CRITICAL] Direct SELECT * on questions table (answer exposure risk)!"
     ISSUES=$((ISSUES + 1))
   fi
-  if printf '%s' "$DIFF_FULL" | grep -A5 '^\+\+\+ b/apps/web/app/.*\.tsx\?' | grep -q 'adminClient'; then
+  # Check for adminClient in added lines of app/ files
+  if printf '%s' "$DIFF_FULL" | awk '/^\+\+\+ b\/apps\/web\/app\/.*\.tsx?/{found=1} /^\+\+\+ b\//{if(!/apps\/web\/app\//)found=0} found && /^\+[^+]/ && /adminClient/{print; exit}' | grep -q 'adminClient'; then
     echo "[HIGH] adminClient used in app/ code!"
     ISSUES=$((ISSUES + 1))
   fi
