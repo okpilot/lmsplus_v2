@@ -10,6 +10,7 @@ on:
       - 'apps/web/app/auth/**'
       - 'apps/web/proxy.ts'
       - 'apps/web/e2e/redteam/**'
+      - 'docs/security.md'
   workflow_dispatch:
 
 permissions:

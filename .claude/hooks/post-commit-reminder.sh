@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+echo ""
+echo "=========================================================="
+echo "  POST-COMMIT: Run subagents now (Agent tool)"
+echo "  Parallel:  1. code-reviewer   2. semantic-reviewer"
+echo "             3. doc-updater     4. test-writer"
+echo "  Then:      5. learner"
+echo "  If security files changed:  6. red-team"
+echo "  If rules changed:          7. coderabbit-sync"
+echo "  See CLAUDE.md 'Post-commit review' section"
+echo "=========================================================="
+echo ""
