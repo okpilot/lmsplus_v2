@@ -8,6 +8,7 @@
       "entry": [
         "app/**/page.tsx",
         "app/**/layout.tsx",
+        "app/**/loading.tsx",
         "app/**/actions/*.ts",
         "app/**/route.ts",
         "app/globals.css",
