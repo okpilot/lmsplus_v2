@@ -286,4 +286,46 @@ describe('getQuizReport', () => {
     await getQuizReport('sess-1')
     expect(mockRpc).not.toHaveBeenCalled()
   })
+
+  it('forwards sessionId as p_session_id when calling the correct-options RPC', async () => {
+    mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
+    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
+
+    await getQuizReport('sess-1')
+
+    expect(mockRpc).toHaveBeenCalledWith('get_report_correct_options', {
+      p_session_id: 'sess-1',
+    })
+  })
+
+  it('strips the correct field from options so it is never exposed in the report', async () => {
+    const questionsWithCorrectField = [
+      {
+        id: 'q1',
+        question_text: 'What is lift?',
+        question_number: '050-01-001',
+        options: [
+          { id: 'opt-a', text: 'Upward force', correct: true },
+          { id: 'opt-b', text: 'Downward force', correct: false },
+        ],
+        explanation_text: null,
+      },
+    ]
+    mockFromSequence(
+      { data: sessionRow },
+      { data: [answersData[0]] },
+      { data: questionsWithCorrectField },
+    )
+    mockRpc.mockResolvedValueOnce({ data: [correctOptionsData[0]] })
+
+    const report = await getQuizReport('sess-1')
+    const options = report!.questions[0]!.options
+
+    expect(options).toHaveLength(2)
+    expect(options[0]).toEqual({ id: 'opt-a', text: 'Upward force' })
+    expect(options[1]).toEqual({ id: 'opt-b', text: 'Downward force' })
+    // Ensure correct field is absent — not just falsy
+    expect(options[0]).not.toHaveProperty('correct')
+    expect(options[1]).not.toHaveProperty('correct')
+  })
 })

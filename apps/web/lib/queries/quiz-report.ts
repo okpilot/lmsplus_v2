@@ -96,7 +96,6 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
 
   const { data: correctData, error: rpcError } = await supabase.rpc('get_report_correct_options', {
     p_session_id: sessionId,
-    p_question_ids: questionIds,
   })
   if (rpcError) {
     console.error('[getQuizReport] RPC error:', rpcError.message)

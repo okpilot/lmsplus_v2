@@ -292,11 +292,13 @@ Correct answers are only fetched server-side when validating a submitted answer,
 
 ### Post-Session Exception
 
-Post-session report queries (e.g., `getQuizReport()`) may SELECT from `questions` directly and read the `correct` field server-side, provided:
+Post-session report queries (e.g., `getQuizReport()`) may read the `correct` field from questions server-side, provided:
 
 1. The query verifies the session is **completed** (`ended_at IS NOT NULL` — student has already answered all questions)
 2. The `correct` boolean is **stripped before returning** — the client receives only `correctOptionId` (a single ID) and options without the `correct` field
 3. The query runs in a **Server Component** (data never hits the client as raw DB rows)
+
+**Implementation:** Use `get_report_correct_options()` RPC to fetch correct option IDs (not the raw boolean). The RPC internally reads the `correct` field and returns only the ID, so the TypeScript layer never touches the boolean field.
 
 This is intentional feedback — showing which answer was correct after the student has answered is the core learning loop, not a data leak.
 

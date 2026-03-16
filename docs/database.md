@@ -908,7 +908,7 @@ Returns correct option IDs for a set of questions, scoped to a completed session
 **Security:** Validates session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), and soft-delete status. Raises exception if any check fails.
 
 ```sql
-CREATE OR REPLACE FUNCTION get_report_correct_options(p_session_id uuid, p_question_ids uuid[])
+CREATE OR REPLACE FUNCTION get_report_correct_options(p_session_id uuid)
 RETURNS TABLE (question_id uuid, correct_option_id text)
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -930,10 +930,11 @@ BEGIN
   END IF;
 
   RETURN QUERY
-  SELECT q.id, (opt->>'id')::text
-  FROM questions q,
-  LATERAL jsonb_array_elements(q.options) AS opt
-  WHERE q.id = ANY(p_question_ids)
+  SELECT sa.question_id, (opt->>'id')::text
+  FROM quiz_session_answers sa
+  JOIN questions q ON q.id = sa.question_id
+  CROSS JOIN LATERAL jsonb_array_elements(q.options) AS opt
+  WHERE sa.session_id = p_session_id
     AND q.deleted_at IS NULL
     AND (opt->>'correct')::boolean = true;
 END;

@@ -367,6 +367,8 @@
 - ✅ UUID validation fix: `lookup.ts` `getFilteredCount` validates empty string UUID correctly (closes #10)
 - ✅ Migration 028: UUID case-insensitive regex in batch_submit_quiz — changed to `!~*` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth input validation
 - ✅ Migration 031: batch_submit_quiz idempotent retry + soft-delete scoring — if session already completed, return existing results instead of raising error; allow scoring questions soft-deleted after quiz started (membership validated at session start, safe to score historical responses for retired questions)
+- ✅ Migration 032: add `get_report_correct_options` RPC — returns correct option IDs for quiz report page (strips `correct` boolean before client sees it)
+- ✅ Migration 033: scope `get_report_correct_options` to session — added `p_session_id` parameter; validates session ownership, completion, and soft-delete status before revealing correct options (prevents arbitrary question ID probing by unauthenticated/non-owning students)
 - ✅ saveDraft error logging: added console.error logging for draft count query and insert errors for better observability
 
 ---
