@@ -1,0 +1,98 @@
+version: 2
+
+updates:
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci"
+    labels:
+      - tech-debt
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # npm — root
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore"
+    labels:
+      - tech-debt
+    groups:
+      npm-root-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # npm — apps/web
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore"
+    labels:
+      - tech-debt
+    groups:
+      npm-web-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # npm — packages/db
+  - package-ecosystem: npm
+    directory: /packages/db
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore"
+    labels:
+      - tech-debt
+    groups:
+      npm-db-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # npm — packages/ui
+  - package-ecosystem: npm
+    directory: /packages/ui
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore"
+    labels:
+      - tech-debt
+    groups:
+      npm-ui-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # npm — packages/typescript-config
+  - package-ecosystem: npm
+    directory: /packages/typescript-config
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore"
+    labels:
+      - tech-debt
+    groups:
+      npm-tsconfig-minor-patch:
+        update-types:
+          - minor
+          - patch
