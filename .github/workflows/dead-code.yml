@@ -39,6 +39,11 @@ jobs:
           EXIT_CODE=$?
           set -e
           echo "$OUTPUT"
+          # Truncate to stay under GitHub Issue body limit (65,536 chars)
+          MAX_LEN=60000
+          if [ "${#OUTPUT}" -gt "$MAX_LEN" ]; then
+            OUTPUT="${OUTPUT:0:$MAX_LEN}"$'\n\n[Report truncated — see full output in workflow logs]'
+          fi
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           {
             echo 'report<<KNIP_EOF'
