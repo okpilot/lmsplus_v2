@@ -262,4 +262,28 @@ describe('getQuizReport', () => {
     expect(q.correctOptionId).toBe('')
     expect(q.options).toEqual([])
   })
+
+  it('falls back to zero scorePercentage when session score_percentage is null', async () => {
+    const sessionWithNullScore = { ...sessionRow, score_percentage: null }
+    mockFromSequence({ data: sessionWithNullScore }, { data: answersData }, { data: questionsData })
+    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
+
+    const report = await getQuizReport('sess-1')
+    expect(report).not.toBeNull()
+    expect(report!.scorePercentage).toBe(0)
+  })
+
+  it('returns null when correct-options RPC returns an error', async () => {
+    mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc failed' } })
+
+    const report = await getQuizReport('sess-1')
+    expect(report).toBeNull()
+  })
+
+  it('does not call the correct-options RPC when answers array is empty', async () => {
+    mockFromSequence({ data: sessionRow }, { data: [] })
+    await getQuizReport('sess-1')
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
 })

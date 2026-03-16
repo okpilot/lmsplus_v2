@@ -903,10 +903,12 @@ $$;
 
 #### `get_report_correct_options` — correct option IDs for reports
 
-Returns correct option IDs for a set of questions. Used by the quiz report (completed sessions only) so the TypeScript layer never reads the raw `correct` boolean from options JSONB.
+Returns correct option IDs for a set of questions, scoped to a completed session owned by the caller. Used by the quiz report so the TypeScript layer never reads the raw `correct` boolean from options JSONB.
+
+**Security:** Validates session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), and soft-delete status. Raises exception if any check fails.
 
 ```sql
-CREATE OR REPLACE FUNCTION get_report_correct_options(p_question_ids uuid[])
+CREATE OR REPLACE FUNCTION get_report_correct_options(p_session_id uuid, p_question_ids uuid[])
 RETURNS TABLE (question_id uuid, correct_option_id text)
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -915,6 +917,16 @@ AS $$
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM quiz_sessions
+    WHERE id = p_session_id
+      AND student_id = auth.uid()
+      AND ended_at IS NOT NULL
+      AND deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Session not found, not owned, or not completed';
   END IF;
 
   RETURN QUERY

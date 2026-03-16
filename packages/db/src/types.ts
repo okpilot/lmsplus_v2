@@ -939,7 +939,7 @@ export type Database = {
         }[]
       }
       get_report_correct_options: {
-        Args: { p_question_ids: string[] }
+        Args: { p_session_id: string; p_question_ids: string[] }
         Returns: {
           correct_option_id: string
           question_id: string

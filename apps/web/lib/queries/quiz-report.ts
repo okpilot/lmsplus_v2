@@ -94,9 +94,14 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
     questionMap.set(q.id, q)
   }
 
-  const { data: correctData } = await supabase.rpc('get_report_correct_options', {
+  const { data: correctData, error: rpcError } = await supabase.rpc('get_report_correct_options', {
+    p_session_id: sessionId,
     p_question_ids: questionIds,
   })
+  if (rpcError) {
+    console.error('[getQuizReport] RPC error:', rpcError.message)
+    return null
+  }
   const correctMap = new Map<string, string>()
   for (const row of correctData ?? []) {
     correctMap.set(row.question_id, row.correct_option_id)
@@ -132,7 +137,7 @@ function buildReportQuestions(
       isCorrect: answer.is_correct,
       selectedOptionId: answer.selected_option_id,
       correctOptionId: correctMap.get(answer.question_id) ?? '',
-      options,
+      options: options.map((o) => ({ id: o.id, text: o.text })),
       explanationText: question?.explanation_text ?? null,
       responseTimeMs: answer.response_time_ms,
     }
