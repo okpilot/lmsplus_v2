@@ -1,1 +1,0 @@
-# Security Auditor — Findings Log

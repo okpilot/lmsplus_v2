@@ -36,9 +36,15 @@ Thumbs.db
 .idea/
 *.swp
 
-# Claude Code local overrides
-.claude/settings.local.json
-.claude/review-gate.json
+# Claude Code — proprietary config, agents, rules, memory
+CLAUDE.md
+.claude/
+
+# Proprietary documentation
+docs/
+app-design-document.md
+step-zero-research.md
+performance-optimization-strategy.md
 
 # Logs
 *.log
