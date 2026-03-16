@@ -75,29 +75,26 @@ You receive:
     - Any UPDATE or DELETE on `student_responses`, `quiz_session_answers`, or `audit_events`
 
 12. **Missing input validation**
-   - Server Actions that accept parameters without Zod validation
-   - API routes that use `req.body` directly without schema parsing
+    - Server Actions that accept parameters without Zod validation
+    - API routes that use `req.body` directly without schema parsing
 
-7. **Immutable record violations**
-   - Any `UPDATE` or `DELETE` on `student_responses`, `audit_events`, or `quiz_session_answers`
+13. **Exam integrity violations**
+    - Server-side code that accepts quiz answers after the exam's `end_time`
+    - Code that allows a mock exam session to be restarted
 
-8. **Exam integrity violations**
-   - Server-side code that accepts quiz answers after the exam's `end_time`
-   - Code that allows a mock exam session to be restarted
+14. **Security headers missing**
+    - `next.config.ts` changes that remove security headers defined in `docs/security.md`
 
-9. **Security headers missing**
-   - `next.config.ts` changes that remove security headers defined in `docs/security.md`
-
-10. **Audit log gaps**
+15. **Audit log gaps**
     - New features involving student logins, quiz sessions, or exam completions that do not write to `audit_events`
 
 ### MEDIUM (warn, not blocking)
 
-11. `as SomeType` casts on unvalidated external data
-12. `console.log` statements that might print user data or tokens
-13. Missing `'use server'` directive on Server Actions
-14. Missing `'use client'` / `'use server'` boundary violations
-15. Dependencies added without a comment explaining why they're trusted
+16. `as SomeType` casts on unvalidated external data
+17. `console.log` statements that might print user data or tokens
+18. Missing `'use server'` directive on Server Actions
+19. Missing `'use client'` / `'use server'` boundary violations
+20. Dependencies added without a comment explaining why they're trusted
 
 ## Output Format
 
@@ -148,13 +145,19 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 
 3. **Do NOT confuse RLS policy types** — INSERT uses only WITH CHECK (no old row). SELECT/DELETE use only USING. UPDATE requires BOTH. Do not flag missing WITH CHECK on a SELECT-only policy.
 
-5. **Do NOT flag cookie forwarding on redirects as CRITICAL if all branches are consistent** — Only flag CRITICAL if ONE branch forgets cookies while others include them. Consistent forwarding = GOOD.
+4. **Do NOT flag cookie forwarding on redirects as CRITICAL if all branches are consistent** — Only flag CRITICAL if ONE branch forgets cookies while others include them. Consistent forwarding = GOOD.
 
-6. **Do NOT double-count findings** — If an issue is found in the diff, report it once at the most specific location. Do not repeat the same finding for the same root cause.
+5. **Do NOT double-count findings** — If an issue is found in the diff, report it once at the most specific location. Do not repeat the same finding for the same root cause.
 
-8. **Do NOT flag missing `deleted_at` or hard DELETE on ephemeral tables** — `quiz_drafts` is scratch data (temporary, user-owned, no audit value). Hard DELETE is correct for these tables. Do not suggest adding `deleted_at`.
+6. **Do NOT flag missing `deleted_at` or hard DELETE on ephemeral tables** — `quiz_drafts` is scratch data (temporary, user-owned, no audit value). Hard DELETE is correct for these tables. Do not suggest adding `deleted_at`.
 
-9. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — If a Server Action calls an RPC that has its own `auth.uid()` check, that's defense in depth. Only flag if BOTH the action AND the RPC lack auth checks.
+7. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — but ONLY suppress when ALL 4 conditions are met. This suppression applies ONLY to the auth-check finding; it does not suppress any other check (e.g., correct-answer exposure, RLS gaps, input validation).
+   1. **Strict Zod validation** — the Server Action parses input with Zod `.parse()` before calling the RPC
+   2. **SECURITY DEFINER RPC with auth.uid() check** — the RPC has both `SECURITY DEFINER` and `IF auth.uid() IS NULL THEN RAISE EXCEPTION`
+   3. **Non-sensitive return shape** — locate the RPC's SQL definition in `supabase/migrations/` or `packages/db/migrations/` and verify the SELECT list does not return user PII, correct answers (`options.correct`), admin-only fields, or other students' data. Note: the agent receives only the git diff as input, so for RPCs defined in earlier commits the migration file will typically not be in the diff. When the migration is not accessible, this condition is unverifiable — flag as HIGH (this is the expected conservative default, not an error).
+   4. **JSDoc waiver present** — the Server Action has a comment documenting why auth delegation is safe (e.g., `// Delegated auth: Zod-validated input, RPC has SECURITY DEFINER + auth.uid(), non-sensitive response`)
+
+   If ANY condition is missing, flag it. A missing waiver comment is MEDIUM; missing Zod validation or missing RPC auth is HIGH.
 
 ## Tone
 
