@@ -1,4 +1,4 @@
-import { type SupabaseClient, createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = 'http://127.0.0.1:54321'
 const ANON_KEY = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'

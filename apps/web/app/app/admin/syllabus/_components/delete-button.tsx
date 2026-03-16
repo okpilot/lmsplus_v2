@@ -1,5 +1,8 @@
 'use client'
 
+import { Trash2 } from 'lucide-react'
+import { useTransition } from 'react'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,9 +15,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Trash2 } from 'lucide-react'
-import { useTransition } from 'react'
-import { toast } from 'sonner'
 import { deleteItem } from '../actions/delete-item'
 
 type DeleteButtonProps = {

@@ -1,8 +1,8 @@
 'use server'
 
-import { rpc } from '@/lib/supabase-rpc'
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { rpc } from '@/lib/supabase-rpc'
 import type { CheckAnswerResult } from '../types'
 
 const CheckAnswerSchema = z.object({

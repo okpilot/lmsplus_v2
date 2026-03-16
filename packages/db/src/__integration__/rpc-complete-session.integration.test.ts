@@ -72,10 +72,7 @@ describe('RPC: complete_quiz_session', () => {
     await cleanupTestData({ admin, orgId, userIds })
   })
 
-  async function startAndAnswer(opts: {
-    correctCount: number
-    totalCount: number
-  }) {
+  async function startAndAnswer(opts: { correctCount: number; totalCount: number }) {
     const qIds = questionIds.slice(0, opts.totalCount)
     const { data: sessionId } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',

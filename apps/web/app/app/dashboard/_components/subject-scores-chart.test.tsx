@@ -1,6 +1,6 @@
-import type { SubjectScore } from '@/lib/queries/analytics'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import type { SubjectScore } from '@/lib/queries/analytics'
 
 // Recharts uses SVG APIs not available in jsdom — stub it out entirely.
 vi.mock('recharts', () => ({

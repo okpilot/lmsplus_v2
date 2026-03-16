@@ -1,6 +1,6 @@
-import type { DailyActivity } from '@/lib/queries/analytics'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DailyActivity } from '@/lib/queries/analytics'
 
 // Capture the data prop passed to BarChart so we can assert on formatted labels.
 let capturedBarChartData: unknown[] = []

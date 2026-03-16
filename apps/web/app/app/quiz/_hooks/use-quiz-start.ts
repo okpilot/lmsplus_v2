@@ -1,7 +1,6 @@
-import type { SubjectOption } from '@/lib/queries/quiz'
-import type { QuestionFilter } from '@/lib/queries/quiz'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import type { QuestionFilter, SubjectOption } from '@/lib/queries/quiz'
 import { startQuizSession } from '../actions/start'
 
 type UseQuizStartOpts = {

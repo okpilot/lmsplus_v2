@@ -2679,3 +2679,58 @@ comment block (lines 827-828). Partial updates — changing prose but leaving th
 versa — would leave stale inline documentation. Both were updated. Correct scope.
 
 **No issues found in this commit.**
+
+---
+
+## Session: commit 559bf9e — chore: migrate zod 3 to 4 (2026-03-16)
+
+### Zod 4 UUID tightening breaks test fixtures that use non-RFC-4122 UUIDs (1st occurrence)
+**File:** Multiple test files (unit tests only — NOT production code)
+**Pattern:** Zod 3 accepted any 8-4-4-4-12 hex string as a "UUID". Zod 4 enforces RFC 4122
+compliance: the version nibble (position 13) must be 1-5 (or all-zeros nil UUID), and the
+variant bits (position 17) must be 8-b for RFC variant (or nil). The old test fixture pattern
+`00000000-0000-0000-0000-000000000001` has version nibble = 0 and is NOT a valid RFC 4122 UUID.
+The migration correctly updated all test fixtures to `00000000-0000-4000-a000-000000000NNN`
+(version=4, variant=a). This was a thorough sweep.
+**Risk if missed:** Any fixture still using the old pattern that flows through a Zod schema with
+`.uuid()` will cause the test to fail with "Invalid UUID" rather than exercising the intended path.
+**Watch for:** In future test additions, always use v4-format UUIDs: `00000000-0000-4000-a000-000000000NNN`.
+**Status:** RESOLVED — all unit test fixtures updated correctly in this commit.
+
+### Redteam E2E tests retain old-format UUIDs — safe because they bypass Zod (1st observation)
+**Files:** `apps/web/e2e/redteam/quiz-draft-injection.spec.ts`,
+           `apps/web/e2e/redteam/server-action-unauthenticated.spec.ts`,
+           `apps/web/e2e/redteam/pkce-state.spec.ts`
+**Pattern:** These specs use `00000000-0000-0000-0000-00000000000X` as sentinel/fallback values.
+They were NOT updated in this commit. This is correct: these values are passed directly to
+Supabase RPCs or as URL parameters, bypassing Server Action Zod validation entirely. They are
+safe because: (a) the real test paths resolve live IDs from the DB first; (b) the fallback
+UUIDs are for "no real data found" branches where the DB will simply return empty results; and
+(c) none flow through the Server Action validation layer.
+**Watch for:** If a future change routes E2E test inputs through Server Actions that validate
+with Zod, these fallback sentinels will silently fail UUID validation.
+
+### ZodError.errors removed in Zod 4 — migration required .issues instead (confirmed pattern)
+**Pattern:** Zod 4 removed the `.errors` alias on ZodError (it was a deprecated alias for `.issues`
+in Zod 3). The migration correctly replaced `err.errors[0]?.message` with `err.issues[0]?.message`
+in both production files that used it: `start.ts` and `draft.ts`. A grep confirmed no `.errors[`
+accessor remains in any production file. The test assertions for error messages were also updated
+to reflect the changed Zod 4 error message wording (e.g., "Invalid uuid" → "Invalid UUID",
+"Required" → "Invalid input: expected string, received undefined").
+**Watch for:** Any new ZodError handling that accidentally uses `.errors` — it will be `undefined`
+at runtime in Zod 4 and the fallback message will always be returned, masking the real error.
+**Rule:** In Zod 4, always use `.issues[0]?.message` not `.errors[0]?.message`.
+
+### z.ZodIssueCode.custom still works in Zod 4 (positive signal)
+**Pattern:** The `draft.ts` `superRefine` uses `z.ZodIssueCode.custom` for custom issue codes.
+This API was preserved in Zod 4 — no change required. The `.superRefine()` API also works
+identically.
+
+### zod-to-json-schema 3.25.1 is compatible with Zod 4 (positive signal)
+**Pattern:** `zod-to-json-schema@3.25.1` declares `peerDependencies: { "zod": "^3.25 || ^4" }`.
+The pnpm-lock shows the `zod@4.3.6` variant is installed. Verified at runtime: zod-to-json-schema
+generates JSON schema from Zod 4 schemas without error.
+
+### Turbo type-check cache risk applies here too (watch item)
+**Pattern:** Recorded in previous session — always run `pnpm check-types --force` after a dep
+bump to bypass the turbo cache. This applies to this Zod 3→4 migration.

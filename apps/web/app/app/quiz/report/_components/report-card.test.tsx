@@ -1,6 +1,6 @@
-import type { QuizReportData } from '@/lib/queries/quiz-report'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import type { QuizReportData } from '@/lib/queries/quiz-report'
 import { ReportCard } from './report-card'
 
 const mockReport: QuizReportData = {

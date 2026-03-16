@@ -1,8 +1,8 @@
 'use server'
 
-import { rpc } from '@/lib/supabase-rpc'
 import { SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
+import { rpc } from '@/lib/supabase-rpc'
 import type { SubmitQuizAnswerResult, SubmitRpcResult } from '../types'
 
 export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerResult> {

@@ -1,8 +1,8 @@
 'use server'
 
-import { requireAdmin } from '@/lib/auth/require-admin'
 import { UpsertSubtopicSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
+import { requireAdmin } from '@/lib/auth/require-admin'
 
 type ActionResult = { success: true } | { success: false; error: string }
 

@@ -82,6 +82,9 @@
 | Migration-based consolidation (TS best-effort write moved to RPC for atomicity) | 1 | 2026-03-16 | Watch — migration 040 moved last_was_correct write from TypeScript try/catch into submit_quiz_answer RPC; first occurrence as a named pattern; prior examples: draft_count DB trigger, consecutive_correct_count in batch_submit_quiz; propose note in agent memory if a third TS best-effort post-RPC write appears |
 | Behavioral gap silently fixed by migration (cross-path column population) | 1 | 2026-03-16 | Watch — migration 040 closed last_was_correct gap in single-answer mode; filter:incorrect was silently incomplete; fixed as side-effect of FSRS removal; implication: when a migration adds a write path for a column, check all query consumers that filter on that column across all write paths |
 | Upstream named type used as structural approximation after library upgrade | 1 | 2026-03-16 | Watch — `Record<string, unknown>` used for `CookieOptions` in middleware.ts and server.ts; after @supabase/ssr upgrade to 0.9.0 the named type became available; fixed in 603b36c with correct import; first occurrence; apply: after any library upgrade, cross-check hand-rolled Record/structural types against the library's updated public exports |
+| Zod error message pinned to exact internal text | 2 | 2026-03-16 | RULE CANDIDATE — first: cb0395c (2026-03-14) test file assertion pinned to Zod 3 internal string; second: 559bf9e Zod 3→4 migration — "Invalid uuid"→"Invalid UUID", "Required"→"Invalid input:…" changed in production source files; Zod internal messages are not public API; assert `error instanceof ZodError` or `.issues[0].code`, never `.message` text |
+| Test fixtures using zeroed UUID format (`00000000-0000-0000-0000-*`) invalid under Zod 4 RFC 4122 enforcement | 1 | 2026-03-16 | Watch — 559bf9e: 27 test files required UUID constant replacements from `00000000-0000-0000-0000-*` to `00000000-0000-4000-a000-*`; Zod 4 validates version bits (nibble 13 must be 4–5) and variant bits (nibble 17 must be 8–b); also affected E2E sentinel UUIDs (5ad3c16); first occurrence; if new test file added with zeroed UUIDs, update test-writer memory with compliant constant form |
+| `err.errors` property access silently undefined after Zod 4 removal (was Zod 3 alias for `.issues`) | 1 | 2026-03-16 | Watch — 559bf9e: two production source files accessed `.errors` on ZodError instances; Zod 4 removed the property (not deprecated); returns undefined, silently falls through to fallback strings; caught by pre-commit tsc gate; fix: use `.issues` throughout; first occurrence |
 
 ## Lessons Learned
 
@@ -1776,5 +1779,62 @@ No edits needed to those files beyond this notation. The entries are accurate hi
 - All 4 agents correctly handled a YAML-only diff with no spurious findings. Agent scope boundaries held cleanly.
 - Code reviewer, doc updater, and test writer all produced correct "nothing to do" outputs — zero noise for a maintenance commit.
 - The semantic-reviewer ISSUE was assessed and consciously accepted rather than silently ignored — the validate-before-fixing protocol working as intended.
+
+---
+
+### 2026-03-16 — Zod 3 → 4 migration (commits 559bf9e + 5ad3c16)
+
+**Context:** `apps/web` and `packages/db` upgraded from Zod 3 to Zod 4 (559bf9e). A follow-up commit (5ad3c16) was required to fix E2E red-team sentinel UUIDs that were invalid under Zod 4's stricter UUID validation. The migration touched 29 files — 27 test files and 2 production source files (`draft.ts`, `start.ts`). Both production file changes were one-line error-message string updates.
+
+**Code reviewer:** CLEAN — 0 blocking, 0 warnings. Correct: the changes were test fixture constant replacements and one-line string updates, all within file limits.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE, 1 SUGGESTION, 5 GOOD. The SUGGESTION (E2E redteam UUID sentinels were invalid under Zod 4 RFC 4122 enforcement) was addressed in the follow-up commit 5ad3c16 before the learner ran.
+
+**Doc updater:** No updates needed. No schema, RPC, route, or architecture surface changed.
+
+**Test writer:** No coverage gaps. All affected test files were already being updated as part of the migration.
+
+**Patterns detected this cycle:**
+
+1. **[NEW] Test fixtures using zeroed UUID format (`00000000-0000-0000-0000-*`) invalid under Zod 4 RFC 4122 enforcement**
+   - Zod 4 validates version bits (nibble 13 must be 4–5) and variant bits (nibble 17 must be 8–b) per RFC 4122. Zeroed-suffix UUIDs like `00000000-0000-0000-0000-000000000001` have `0000` in version position — they pass Zod 3 but fail Zod 4.
+   - Impact: 27 test files required UUID constant replacements to `00000000-0000-4000-a000-*` format.
+   - Also affected: E2E red-team sentinel UUIDs hardcoded in spec files (5ad3c16).
+   - First occurrence as a named pattern. Logged and watched.
+   - Action: log and watch. If a new test file is added with zeroed-suffix UUIDs after this migration, add a note to test-writer patterns memory: "always use RFC 4122-compliant UUID fixtures — version nibble must be 4 or 5, variant nibble must be 8–b. Safe constant: `00000000-0000-4000-a000-000000000001`."
+
+2. **[NEW] Zod 4 error message strings changed from Zod 3 (breaking string-pinned test assertions)**
+   - Two production source files had error message strings pinned to Zod 3 internal text that changed in Zod 4: `"Invalid uuid"` → `"Invalid UUID"` (capitalisation); `"Required"` → `"Invalid input: expected string, received undefined"` (full message rewrite).
+   - Root cause connection: This is the second occurrence of the broader "Zod error message pinned to exact internal text" pattern (first logged in cb0395c, 2026-03-14 — test file pinning to Zod internal strings). That pattern is now at count 2 across different commits. **Status promoted from WATCH to RULE CANDIDATE.**
+   - Count in frequency table: 1 → 2. See "Zod error message pinned to exact internal text" entry.
+   - Action: frequency table updated. Propose rule note for test-writer patterns memory and/or code-style.md: never assert on the `.message` text of a Zod error directly in tests or production code — assert on `error instanceof ZodError`, `issues[0].code`, or a controlled message you set yourself via `.message()` or a `.catch()` transform.
+
+3. **[NEW] `err.errors` property access silently returning `undefined` after Zod 4 removal**
+   - Zod 4 removed the `.errors` property (Zod 3 alias for `.issues`). Accessing `err.errors` on a ZodError in Zod 4 returns `undefined` rather than throwing, causing code paths that destructure or iterate `.errors` to silently fall through to fallback strings rather than surfacing the actual validation failures.
+   - Two production source files were affected; both required updating to `.issues`. Because Zod's TypeScript types correctly track the removal, the changes were caught by the pre-commit `tsc --noEmit` gate — no silent runtime failures reached git.
+   - First occurrence as a named pattern. Logged and watched.
+   - Action: log and watch. The pre-commit type-check gate is the correct mechanical gate here — no additional rule needed unless a second occurrence slips through (which would indicate a gap in type-check coverage, not just authoring habit).
+
+**Patterns checked from frequency table:**
+
+- **"Zod error message pinned to exact internal text" (count 1 → 2, RULE CANDIDATE):** The prior occurrence (cb0395c) was a test file. This occurrence is production source files. Both involve pinning to Zod's internal message strings that are not part of the public API. Count: 2. Status: RULE CANDIDATE.
+
+**Recommended changes (awaiting orchestrator approval before applying):**
+
+1. **test-writer patterns memory** — add a note: when generating test fixtures that include UUID values, always use RFC 4122-compliant constants. Safe form: `00000000-0000-4000-a000-000000000001` (version nibble = 4, variant nibble = a). The zeroed form `00000000-0000-0000-0000-000000000001` is not RFC 4122-compliant and will fail Zod's `.uuid()` validator.
+
+2. **test-writer patterns memory / code-style.md Section 5** — when asserting on Zod validation errors, do not pin to `.message` text. Prefer: `expect(error).toBeInstanceOf(ZodError)` and/or `expect(error.issues[0].code).toBe('invalid_type')`. Zod's internal message strings changed between v3 and v4 and are not part of its public API contract. This is the second occurrence across different commits — rule candidate threshold met.
+
+**Actions taken:**
+- Frequency table: "Zod error message pinned to exact internal text" count updated 1 → 2. Status: RULE CANDIDATE.
+- Frequency table: 2 new watch items added (both first occurrences): "Test fixtures using zeroed UUID format invalid under Zod 4 RFC 4122 enforcement" and "`err.errors` property access silently undefined after Zod 4 removal."
+
+**False positives:** none. The semantic-reviewer SUGGESTION on E2E sentinel UUIDs was valid and fixed in 5ad3c16.
+
+**Positive signals:**
+- The pre-commit `tsc --noEmit` gate caught every `err.errors` access (removed in Zod 4) at commit time — none reached git as a runtime silent failure. The mechanical gate worked exactly as intended.
+- All 4 agents reported clean or near-clean on a 29-file migration — signal that the migration was well-scoped and the codebase has good test coverage.
+- The semantic-reviewer's GOOD patterns (5 total) reflect consistent Zod 4 adoption: `.parse()` still in try/catch, schema definitions structurally unchanged, no regressions in Server Action input validation.
+- The follow-up UUID commit (5ad3c16) was small and targeted — 1 file, 9 constant replacements. The E2E gate caught the gap cleanly.
 
 ---

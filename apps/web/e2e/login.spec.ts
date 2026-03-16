@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { clearAllMessages, extractMagicLink, getLatestEmail } from './helpers/mailpit'
-import { TEST_EMAIL, ensureTestUser } from './helpers/supabase'
+import { ensureTestUser, TEST_EMAIL } from './helpers/supabase'
 
 // Run without saved auth state — we want to test the full login flow
 test.use({ storageState: { cookies: [], origins: [] } })

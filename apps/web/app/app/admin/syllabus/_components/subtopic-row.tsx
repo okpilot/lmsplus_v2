@@ -1,9 +1,9 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { upsertSubtopic } from '../actions/upsert-subtopic'
 import type { SyllabusSubtopic } from '../types'
 import { DeleteButton } from './delete-button'

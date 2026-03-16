@@ -1,8 +1,8 @@
 'use server'
 
-import { rpc } from '@/lib/supabase-rpc'
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { rpc } from '@/lib/supabase-rpc'
 import type { BatchRpcResult, BatchSubmitResult } from '../types'
 
 const BatchSubmitInput = z.object({

@@ -20,9 +20,9 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
-  seedRedTeamUsers,
 } from './helpers/seed'
 
 test.describe('Red Team: Quiz Draft Question Injection', () => {

@@ -1,10 +1,7 @@
 import { useRef, useState } from 'react'
 import { clampIndex } from '../_utils/clamp-index'
 
-export function useQuizNavigation(opts: {
-  totalQuestions: number
-  initialIndex?: number
-}) {
+export function useQuizNavigation(opts: { totalQuestions: number; initialIndex?: number }) {
   const [currentIndex, setCurrentIndex] = useState(
     clampIndex(opts.initialIndex, opts.totalQuestions),
   )

@@ -1,6 +1,6 @@
+import Link from 'next/link'
 import { getDailyActivity, getSubjectScores } from '@/lib/queries/analytics'
 import { getDashboardData } from '@/lib/queries/dashboard'
-import Link from 'next/link'
 import { ActivityChart } from './_components/activity-chart'
 import { ActivityHeatmap } from './_components/activity-heatmap'
 import { QuickActions } from './_components/quick-actions'

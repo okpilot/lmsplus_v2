@@ -37,11 +37,30 @@
 | 2 | #211 | Batch minor/patch npm updates (pnpm update) | P1 | S | Todo |
 | 3 | #215 | Dev tooling majors (commitlint 20, vite-react 6, jsdom 29, @types/node 25) | P2 | M | Todo |
 | 4 | #214 | Migrate Lefthook 1→2 (breaking config change) | P2 | M | Todo |
-| 5 | #213 | Migrate Biome 1→2 (breaking config change) | P1 | L | Todo |
+| 5 | #213 | Migrate Biome 1→2 (breaking config change) | P1 | L | Done |
 | 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Todo |
 
 **Scope:** 2S + 2M + 2L
 **Context:** Dependabot opened 16 PRs on first run. GH Actions PR #194 merged. Remaining 15 closed — Dependabot can't regenerate pnpm-lock.yaml for monorepos. All updates will be done manually.
+
+**Tech Debt: Biome 1→2 Migration done (2026-03-16, commit a9930ac):**
+- Upgraded @biomejs/biome from ^1.9.0 to ^2.4.7
+- Config auto-migrated via `biome migrate --write`:
+  - `$schema` updated to `https://biomejs.dev/schemas/2.4.7/schema.json`
+  - `ignore/include` → `includes` with negation patterns
+  - `overrides include` → `includes` with `**` prefix
+  - `noVar` rule moved from `style` to `suspicious` group
+  - Added `css.parser.tailwindDirectives` for Tailwind v4 compatibility
+- New lint rules addressed:
+  - `noImgElement`: suppressed in `zoomable-image.tsx` (intentional raw img for zoom overlay)
+  - `noStaticElementInteractions`: suppressed in `finish-quiz-dialog.tsx`
+  - `useIterableCallbackReturn`: fixed in `use-answer-handler.test.ts`
+  - Removed stale suppression comment in `seed.ts`
+- Auto-fixes applied by Biome 2:
+  - Import sorting across 60+ files (new organizeImports default behavior)
+  - package.json array formatting (multi-line)
+  - CSS formatting in `globals.css` (trailing zeros, line breaks, quote normalization)
+- All tests passing, no breaking changes to linting semantics
 
 ---
 

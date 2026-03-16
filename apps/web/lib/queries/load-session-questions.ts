@@ -1,7 +1,7 @@
 'use server'
 
-import { rpc } from '@/lib/supabase-rpc'
 import { createServerSupabaseClient } from '@repo/db/server'
+import { rpc } from '@/lib/supabase-rpc'
 
 type QuizQuestionRow = {
   id: string

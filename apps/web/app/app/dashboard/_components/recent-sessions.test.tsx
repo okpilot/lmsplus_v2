@@ -1,6 +1,6 @@
-import type { RecentSession } from '@/lib/queries/dashboard'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import type { RecentSession } from '@/lib/queries/dashboard'
 import { RecentSessions } from './recent-sessions'
 
 function makeSession(overrides: Partial<RecentSession> = {}): RecentSession {

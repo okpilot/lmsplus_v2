@@ -1,7 +1,7 @@
 'use client'
 
-import type { SubjectDetail } from '@/lib/queries/progress'
 import { useState } from 'react'
+import type { SubjectDetail } from '@/lib/queries/progress'
 
 type SubjectBreakdownProps = {
   subjects: SubjectDetail[]

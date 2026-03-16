@@ -17,9 +17,7 @@ import { deleteItem } from './delete-item'
 
 const VALID_UUID = '00000000-0000-4000-a000-000000000001'
 
-function mockAdminWithDeleteResult(result: {
-  error: { message: string; code?: string } | null
-}) {
+function mockAdminWithDeleteResult(result: { error: { message: string; code?: string } | null }) {
   mockFrom.mockReturnValue({
     delete: vi.fn().mockReturnValue({
       eq: vi.fn().mockResolvedValue(result),
@@ -59,18 +57,19 @@ describe('deleteItem', () => {
   })
 
   describe('delete from each allowed table', () => {
-    it.each(['easa_subjects', 'easa_topics', 'easa_subtopics'] as const)(
-      'deletes from %s and revalidates on success',
-      async (table) => {
-        mockAdminWithDeleteResult({ error: null })
+    it.each([
+      'easa_subjects',
+      'easa_topics',
+      'easa_subtopics',
+    ] as const)('deletes from %s and revalidates on success', async (table) => {
+      mockAdminWithDeleteResult({ error: null })
 
-        const result = await deleteItem({ id: VALID_UUID, table })
+      const result = await deleteItem({ id: VALID_UUID, table })
 
-        expect(result.success).toBe(true)
-        expect(mockFrom).toHaveBeenCalledWith(table)
-        expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/syllabus')
-      },
-    )
+      expect(result.success).toBe(true)
+      expect(mockFrom).toHaveBeenCalledWith(table)
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/syllabus')
+    })
   })
 
   describe('error paths', () => {

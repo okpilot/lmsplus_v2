@@ -9,11 +9,7 @@ type QuestionGridProps = {
   onNavigate: (index: number) => void
 }
 
-function getButtonClass(opts: {
-  isCurrent: boolean
-  isAnswered: boolean
-  isPinned: boolean
-}) {
+function getButtonClass(opts: { isCurrent: boolean; isAnswered: boolean; isPinned: boolean }) {
   if (opts.isPinned) {
     return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
   }

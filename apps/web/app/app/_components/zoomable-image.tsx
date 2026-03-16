@@ -15,6 +15,7 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="cursor-zoom-in">
+        {/* biome-ignore lint/performance/noImgElement: intentional raw img for zoom overlay — Next.js Image requires known dimensions */}
         <img
           src={src}
           alt={alt}
@@ -37,6 +38,7 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
             >
               ✕
             </button>
+            {/* biome-ignore lint/performance/noImgElement: intentional raw img for zoom overlay — Next.js Image requires known dimensions */}
             <img
               src={src}
               alt={alt}

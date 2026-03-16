@@ -1,5 +1,5 @@
-import { getQuizReport } from '@/lib/queries/quiz-report'
 import { redirect } from 'next/navigation'
+import { getQuizReport } from '@/lib/queries/quiz-report'
 import { ReportCard } from './_components/report-card'
 
 export default async function QuizReportPage({

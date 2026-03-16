@@ -1,7 +1,7 @@
-import type { SessionReport } from '@/lib/queries/reports'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import type { SessionReport } from '@/lib/queries/reports'
 import { ReportsList } from './reports-list'
 
 function makeSession(overrides: Partial<SessionReport> = {}): SessionReport {

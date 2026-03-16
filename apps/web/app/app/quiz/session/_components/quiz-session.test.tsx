@@ -59,7 +59,10 @@ vi.mock('@/app/app/_components/question-card', () => ({
   QuestionCard: ({
     questionText,
     questionNumber,
-  }: { questionText: string; questionNumber: number }) => (
+  }: {
+    questionText: string
+    questionNumber: number
+  }) => (
     <div data-testid="question-card">
       <span data-testid="question-text">{questionText}</span>
       <span data-testid="question-number">{questionNumber}</span>

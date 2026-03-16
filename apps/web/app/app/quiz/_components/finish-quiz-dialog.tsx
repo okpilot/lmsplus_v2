@@ -35,6 +35,7 @@ export function FinishQuizDialog({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay for click-outside dismiss
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={handleClose}
@@ -46,7 +47,10 @@ export function FinishQuizDialog({
         open
         className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          e.stopPropagation()
+          if (e.key === 'Escape') handleClose()
+        }}
         aria-label="Finish quiz"
       >
         <h2 className="text-lg font-semibold text-foreground">Finish Quiz</h2>

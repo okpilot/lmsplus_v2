@@ -95,7 +95,6 @@ export async function createCrossOrgUser(): Promise<{
 // ---------------------------------------------------------------------------
 
 async function upsertUser(
-  // biome-ignore lint/suspicious/noExplicitAny: admin client from getAdminClient()
   admin: ReturnType<typeof getAdminClient>,
   email: string,
   password: string,

@@ -1,6 +1,6 @@
-import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { ReportQuestionRow } from './report-question-row'
 
 // ---- Fixtures ----------------------------------------------------------------

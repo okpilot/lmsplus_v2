@@ -1,8 +1,8 @@
 'use server'
 
-import { type QuestionStats, getQuestionStats } from '@/lib/queries/question-stats'
 import { createServerSupabaseClient } from '@repo/db/server'
 import { ZodError, z } from 'zod'
+import { getQuestionStats, type QuestionStats } from '@/lib/queries/question-stats'
 
 const FetchStatsSchema = z.object({ questionId: z.string().uuid() })
 

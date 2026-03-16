@@ -1,7 +1,7 @@
-import type { SubjectDetail } from '@/lib/queries/progress'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import type { SubjectDetail } from '@/lib/queries/progress'
 import { SubjectBreakdown } from './subject-breakdown'
 
 function makeSubject(overrides: Partial<SubjectDetail> = {}): SubjectDetail {
