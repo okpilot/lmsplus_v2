@@ -5,7 +5,7 @@ vi.hoisted(() => {
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
 })
 
-import { TEST_EMAIL, TEST_PASSWORD, ensureTestUser, getAdminClient } from './supabase'
+import { ensureTestUser, getAdminClient, TEST_EMAIL, TEST_PASSWORD } from './supabase'
 
 // ---------------------------------------------------------------------------
 // Helpers to build a chainable Supabase mock

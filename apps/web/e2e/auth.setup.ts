@@ -1,6 +1,6 @@
 import { expect, test as setup } from '@playwright/test'
 import { clearAllMessages, extractMagicLink, getLatestEmail } from './helpers/mailpit'
-import { TEST_EMAIL, ensureTestUser } from './helpers/supabase'
+import { ensureTestUser, TEST_EMAIL } from './helpers/supabase'
 
 const AUTH_FILE = 'e2e/.auth/user.json'
 

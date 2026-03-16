@@ -1,7 +1,7 @@
 'use client'
 
-import type { QuestionStats } from '@/lib/queries/question-stats'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import type { QuestionStats } from '@/lib/queries/question-stats'
 import { fetchQuestionStats } from '../actions/fetch-stats'
 
 /**

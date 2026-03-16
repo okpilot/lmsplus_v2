@@ -1,5 +1,5 @@
-import type { QuizReportData } from '@/lib/queries/quiz-report'
 import Link from 'next/link'
+import type { QuizReportData } from '@/lib/queries/quiz-report'
 import { ReportQuestionRow } from './report-question-row'
 
 function scoreColor(percentage: number): string {

@@ -12,8 +12,8 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { ImportFileSchema } from '@repo/db/import-schema'
 import type { ImportQuestion } from '@repo/db/import-schema'
+import { ImportFileSchema } from '@repo/db/import-schema'
 import { createClient } from '@supabase/supabase-js'
 
 // Load .env.local from apps/web or repo root

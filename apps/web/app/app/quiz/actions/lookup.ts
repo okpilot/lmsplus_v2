@@ -1,9 +1,9 @@
 'use server'
 
-import { getSubtopicsForTopic, getTopicsForSubject } from '@/lib/queries/quiz'
-import type { SubtopicOption, TopicOption } from '@/lib/queries/quiz'
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import type { SubtopicOption, TopicOption } from '@/lib/queries/quiz'
+import { getSubtopicsForTopic, getTopicsForSubject } from '@/lib/queries/quiz'
 
 const IdSchema = z.string().uuid()
 

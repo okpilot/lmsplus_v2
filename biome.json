@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -7,15 +7,16 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": [
-      "node_modules",
-      ".next",
-      "dist",
-      "coverage",
-      "*.lock",
-      "pnpm-lock.yaml",
-      ".turbo",
-      "next-env.d.ts"
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/coverage",
+      "!**/*.lock",
+      "!**/pnpm-lock.yaml",
+      "!**/.turbo",
+      "!**/next-env.d.ts"
     ]
   },
   "formatter": {
@@ -33,12 +34,17 @@
         "noUnusedImports": "error"
       },
       "suspicious": {
-        "noExplicitAny": "error"
+        "noExplicitAny": "error",
+        "noVar": "error"
       },
       "style": {
-        "useConst": "error",
-        "noVar": "error"
+        "useConst": "error"
       }
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   },
   "javascript": {
@@ -50,7 +56,7 @@
   },
   "overrides": [
     {
-      "include": ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx"],
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
       "linter": {
         "rules": {
           "suspicious": {

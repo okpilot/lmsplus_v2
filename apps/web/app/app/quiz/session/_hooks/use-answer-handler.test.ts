@@ -273,7 +273,7 @@ describe('useAnswerHandler — multiple questions', () => {
     const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
     const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
       const next = updater(answers)
-      next.forEach((v, k) => answers.set(k, v))
+      for (const [k, v] of next) answers.set(k, v)
     })
 
     const { result } = renderHook(() =>

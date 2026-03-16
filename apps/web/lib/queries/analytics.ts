@@ -1,5 +1,5 @@
-import { rpc } from '@/lib/supabase-rpc'
 import { createServerSupabaseClient } from '@repo/db/server'
+import { rpc } from '@/lib/supabase-rpc'
 
 function boundParam(value: number, min: number, max: number): number {
   const n = Number.isFinite(value) ? value : min

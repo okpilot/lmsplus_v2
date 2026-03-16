@@ -1,9 +1,9 @@
 'use server'
 
-import { getRandomQuestionIds } from '@/lib/queries/quiz'
-import { rpc } from '@/lib/supabase-rpc'
 import { createServerSupabaseClient } from '@repo/db/server'
 import { ZodError, z } from 'zod'
+import { getRandomQuestionIds } from '@/lib/queries/quiz'
+import { rpc } from '@/lib/supabase-rpc'
 import type { StartQuizResult } from '../types'
 
 const StartQuizInput = z.object({

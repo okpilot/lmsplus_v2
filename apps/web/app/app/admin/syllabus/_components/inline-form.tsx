@@ -1,8 +1,8 @@
 'use client'
 
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useRef, useState } from 'react'
 
 type FieldConfig = {
   name: string

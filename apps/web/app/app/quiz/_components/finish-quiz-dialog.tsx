@@ -35,6 +35,7 @@ export function FinishQuizDialog({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay for click-outside dismiss
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={handleClose}

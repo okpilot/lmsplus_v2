@@ -1,8 +1,8 @@
 'use server'
 
-import { rpc } from '@/lib/supabase-rpc'
 import { CompleteQuizSessionSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
+import { rpc } from '@/lib/supabase-rpc'
 import type { CompleteQuizResult, CompleteRpcResult } from '../types'
 
 export async function completeQuiz(raw: unknown): Promise<CompleteQuizResult> {

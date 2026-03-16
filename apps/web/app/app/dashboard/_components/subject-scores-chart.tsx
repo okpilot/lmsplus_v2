@@ -1,8 +1,8 @@
 'use client'
 
-import type { SubjectScore } from '@/lib/queries/analytics'
 import { useEffect, useState } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import type { SubjectScore } from '@/lib/queries/analytics'
 
 type SubjectScoresChartProps = {
   data: SubjectScore[]

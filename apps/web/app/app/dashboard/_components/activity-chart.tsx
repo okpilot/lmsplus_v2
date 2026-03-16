@@ -1,8 +1,8 @@
 'use client'
 
-import type { DailyActivity } from '@/lib/queries/analytics'
 import { useEffect, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import type { DailyActivity } from '@/lib/queries/analytics'
 
 type ActivityChartProps = {
   data: DailyActivity[]

@@ -1,5 +1,5 @@
-import type { SubtopicOption, TopicOption } from '@/lib/queries/quiz'
 import { useRef, useState, useTransition } from 'react'
+import type { SubtopicOption, TopicOption } from '@/lib/queries/quiz'
 import { fetchSubtopicsForTopic, fetchTopicsForSubject } from '../actions/lookup'
 
 export function useQuizCascade() {

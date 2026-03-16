@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExplanationTab } from './explanation-tab'
 
 vi.mock('../../_components/zoomable-image', () => ({
-  ZoomableImage: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+  ZoomableImage: ({ src, alt }: { src: string; alt: string }) => (
+    // biome-ignore lint/performance/noImgElement: test mock — no Next.js Image needed
+    <img src={src} alt={alt} />
+  ),
 }))
 
 vi.mock('../../_components/markdown-text', () => ({

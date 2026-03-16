@@ -1,6 +1,6 @@
-import type { DailyActivity } from '@/lib/queries/analytics'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import type { DailyActivity } from '@/lib/queries/analytics'
 import { ActivityHeatmap } from './activity-heatmap'
 
 function makeDay(day: string, total: number): DailyActivity {

@@ -1,8 +1,8 @@
 'use client'
 
-import type { SessionReport } from '@/lib/queries/reports'
 import Link from 'next/link'
 import { useState } from 'react'
+import type { SessionReport } from '@/lib/queries/reports'
 
 type ReportsListProps = {
   sessions: SessionReport[]
