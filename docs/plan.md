@@ -36,7 +36,7 @@
 | 1 | #210 | Bump GitHub Actions versions (checkout v6, setup-node v6, upload-artifact v7, codeql-action v4) | P1 | S | PR #216 |
 | 2 | #211 | Batch minor/patch npm updates (pnpm update) | P1 | S | Todo |
 | 3 | #215 | Dev tooling majors (commitlint 20, vite-react 6, jsdom 29, @types/node 25) | P2 | M | Todo |
-| 4 | #214 | Migrate Lefthook 1→2 (breaking config change) | P2 | M | Todo |
+| 4 | #214 | Migrate Lefthook 1→2 (breaking config change) | P2 | M | Done |
 | 5 | #213 | Migrate Biome 1→2 (breaking config change) | P1 | L | Done |
 | 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Todo |
 
@@ -61,6 +61,15 @@
   - package.json array formatting (multi-line)
   - CSS formatting in `globals.css` (trailing zeros, line breaks, quote normalization)
 - All tests passing, no breaking changes to linting semantics
+
+**Tech Debt: Lefthook 1→2 Migration done (2026-03-16, commit d743cb8):**
+- Upgraded lefthook from ^1.10.0 to ^2.1.4
+- Config verification: lefthook.yml uses no deprecated options (skip_output, exclude regexp), so no syntax changes needed
+- All hooks verified working under Lefthook 2:
+  - pre-commit: biome check + type-check + pnpm test (parallel)
+  - commit-msg: commitlint (conventional commits)
+  - pre-push: security-auditor agent + pnpm audit (parallel)
+- Closes #214
 
 ---
 
