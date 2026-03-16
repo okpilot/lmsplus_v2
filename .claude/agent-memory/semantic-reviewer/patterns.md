@@ -361,6 +361,30 @@ could leak validation error details (field names, schema shape) before being rej
 **Recurrence (54e9351):** `batchSubmitQuiz` in `batch-submit.ts` correctly continues the pattern — auth check at line 32 before `BatchSubmitInput.parse(raw)` at line 34. Pattern is holding.
 **Watch for:** any new Server Action where `.parse(raw)` appears before `getUser()` / `requireAuth()`.
 
+### current_setting('role') vs current_role confusion in trigger functions (1st occurrence)
+**First seen:** commit 6595229 (2026-03-16)
+**File:** `supabase/migrations/20260316000041_protect_users_sensitive_columns.sql` line 12
+**Pattern:** A BEFORE UPDATE trigger used `current_setting('role') = 'service_role'` to detect
+whether the caller is the Supabase service role. This is the wrong API:
+- `current_setting('role')` reads a GUC (Grand Unified Configuration) parameter named "role".
+  This GUC does not exist by default and throws `ERROR: unrecognized configuration parameter "role"`
+  unless something has explicitly SET it in the session.
+- `current_role` (or `current_user`) is the Postgres built-in that returns the active role name —
+  this is what PostgREST sets when it uses the service role key.
+The bug means the trigger throws on every UPDATE to the table, including from the service role,
+rather than allowing service-role writes through.
+**Fix:** Replace `current_setting('role')` with `current_role`.
+**Secondary pattern (SECURITY DEFINER interaction):** If a SECURITY DEFINER RPC owned by `postgres`
+needs to UPDATE sensitive columns, `current_role` inside the trigger will return `postgres`, not
+`service_role`. In that case use a session-level application flag:
+  `PERFORM set_config('app.bypass_user_trigger', 'true', true)` before the UPDATE, and check
+  `current_setting('app.bypass_user_trigger', true) = 'true'` in the trigger.
+**Watch for:** Any trigger function that inspects the caller's identity to make an allow/block
+decision. Always use `current_role` for Postgres role checks, not `current_setting('role')`.
+Also watch for `SECURITY DEFINER` RPCs that UPDATE tables with column-guarding triggers — the
+trigger sees the definer's role, not the original caller's role.
+**Status:** ISSUE — flagged in 6595229.
+
 ### submitQuizAnswer / completeQuiz — ZodError propagates uncaught (FULLY RESOLVED in commit 9d9e898)
 **First seen:** commit 23a9f10 (2026-03-12)
 **File:** `apps/web/app/app/quiz/actions.ts` — `submitQuizAnswer`, `completeQuiz` (now deleted)

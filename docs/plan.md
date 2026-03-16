@@ -212,6 +212,15 @@
 - Issues #43, #4, #29 closed as stale (Smart Review removed), #101 already done
 - PR #181 merged
 
+**Security & dev tooling sprint (2026-03-16):**
+- PR #227: commitlint 19→20, jsdom 28→29, @types/node 20→22
+- PR #228: removed hardcoded Supabase keys from integration tests
+- PR #230: pinned all GitHub Actions to immutable commit SHAs
+- PR #231: added knip dead-code scanner (weekly cron + manual dispatch)
+- PR #232: re-tracked docs/config + fixed 7 hook bugs (guard-bash CRITICAL, review-gate, code-reviewer scope, etc.)
+- PR #245: defense-in-depth trigger on users table blocking role/org/deleted_at privilege escalation (#236)
+- 7 Dependabot PRs auto-created for SHA-pinned action bumps
+
 **Tech Debt PR #10 done (2026-03-15):** Infrastructure & Scripts:
 - CI security hardening: added `permissions: contents: read` to `ci.yml` (principle of least privilege)
 - Security auditor grep fix: improved detection of `adminClient` usage in app files (scans full file diffs, not just line context)
