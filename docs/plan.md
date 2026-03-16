@@ -1,0 +1,679 @@
+# Build Plan — LMS Plus v2
+
+> This is the master plan. Start every new session by reading this file.
+> User writes zero code. Claude plans, builds, tests, reviews, documents.
+> Last updated: 2026-03-16
+
+---
+
+## Known Issues — Fix Before Next Sprint
+
+### `easa_subjects` / `easa_topics` / `easa_subtopics` tables are empty everywhere
+
+**Discovered:** 2026-03-12 during remote→local data sync investigation.
+
+**Problem:** The `easa_subjects`, `easa_topics`, and `easa_subtopics` tables exist in the schema (migration `001_initial_schema.sql`) but are **never populated** — not on remote, not on local. The import script (`import-questions.ts`) likely writes subject/topic/subtopic data somewhere else, or the reference data was never seeded.
+
+**Impact:** Any query joining `questions` → `easa_subtopics` → `easa_topics` → `easa_subjects` will return zero rows. The dashboard analytics, review config drill-down, and progress pages may silently show empty results for subject-level breakdowns.
+
+**Investigation needed:**
+1. Check how `import-questions.ts` handles subject/topic/subtopic data — does it populate `easa_*` tables or derive from folder paths only?
+2. Check if `questions.subtopic_id` FK points to `easa_subtopics` — if so, questions can't be imported without seeding the reference tables first
+3. Check all queries that join on `easa_*` tables — are they returning empty results in production?
+4. Decide: seed the `easa_*` tables from QDB folder structure during import, or create a standalone seed migration
+
+**Priority:** HIGH — fix first thing next session before any new feature work.
+
+---
+
+## Status: SPRINT 3 — Dependency Updates (2026-03-16)
+
+**Goal:** Get all dependencies current before any new feature work.
+**Order:** Easy wins first, then big migrations.
+
+| Order | Issue | Title | Priority | Size | Status |
+|-------|-------|-------|----------|------|--------|
+| 1 | #210 | Bump GitHub Actions versions (checkout v6, setup-node v6, upload-artifact v7, codeql-action v4) | P1 | S | PR #216 |
+| 2 | #211 | Batch minor/patch npm updates (pnpm update) | P1 | S | Todo |
+| 3 | #215 | Dev tooling majors (commitlint 20, vite-react 6, jsdom 29, @types/node 25) | P2 | M | Todo |
+| 4 | #214 | Migrate Lefthook 1→2 (breaking config change) | P2 | M | Done |
+| 5 | #213 | Migrate Biome 1→2 (breaking config change) | P1 | L | Done |
+| 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Todo |
+
+**Scope:** 2S + 2M + 2L
+**Context:** Dependabot opened 16 PRs on first run. GH Actions PR #194 merged. Remaining 15 closed — Dependabot can't regenerate pnpm-lock.yaml for monorepos. All updates will be done manually.
+
+**Tech Debt: Biome 1→2 Migration done (2026-03-16, commit a9930ac):**
+- Upgraded @biomejs/biome from ^1.9.0 to ^2.4.7
+- Config auto-migrated via `biome migrate --write`:
+  - `$schema` updated to `https://biomejs.dev/schemas/2.4.7/schema.json`
+  - `ignore/include` → `includes` with negation patterns
+  - `overrides include` → `includes` with `**` prefix
+  - `noVar` rule moved from `style` to `suspicious` group
+  - Added `css.parser.tailwindDirectives` for Tailwind v4 compatibility
+- New lint rules addressed:
+  - `noImgElement`: suppressed in `zoomable-image.tsx` (intentional raw img for zoom overlay)
+  - `noStaticElementInteractions`: suppressed in `finish-quiz-dialog.tsx`
+  - `useIterableCallbackReturn`: fixed in `use-answer-handler.test.ts`
+  - Removed stale suppression comment in `seed.ts`
+- Auto-fixes applied by Biome 2:
+  - Import sorting across 60+ files (new organizeImports default behavior)
+  - package.json array formatting (multi-line)
+  - CSS formatting in `globals.css` (trailing zeros, line breaks, quote normalization)
+- All tests passing, no breaking changes to linting semantics
+
+**Tech Debt: Lefthook 1→2 Migration done (2026-03-16, commit d743cb8):**
+- Upgraded lefthook from ^1.10.0 to ^2.1.4
+- Config verification: lefthook.yml uses no deprecated options (skip_output, exclude regexp), so no syntax changes needed
+- All hooks verified working under Lefthook 2:
+  - pre-commit: biome check + type-check + pnpm test (parallel)
+  - commit-msg: commitlint (conventional commits)
+  - pre-push: security-auditor agent + pnpm audit (parallel)
+- Closes #214
+
+---
+
+## SPRINT 1 COMPLETE — Quick Wins shipped
+
+**Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
+
+**Phase 2 done (2026-03-11):** Supabase setup complete:
+- `apps/web/.env.local` with all credentials (publishable key, secret key, access token)
+- Supabase MCP scoped to project `uepvblipahxizozxvwjn`
+- Full schema: 14 tables with RLS + FORCE RLS on all tables
+- RLS policies: tenant isolation, immutability guards, role-scoped access
+- 4 RPC functions: `get_quiz_questions`, `submit_quiz_answer`, `start_quiz_session`, `complete_quiz_session`
+- All indexes from `docs/database.md`
+- Typed Supabase clients: browser (`client.ts`), server (`server.ts`), admin (`admin.ts`)
+- Generated TypeScript types from live schema
+- Zod validation schemas for all mutations
+- Security headers in `next.config.ts` (CSP, HSTS, X-Frame-Options, etc.)
+
+**Phase 3 done (2026-03-11):** Question import tool:
+- `packages/db/src/import-schema.ts` — Zod validation for import JSON
+- `apps/web/scripts/import-questions.ts` — full import pipeline
+- Bootstraps org (Egmont Aviation), admin user, question bank (EASA PPL(A) QDB)
+- Parses folder paths → derives topic/subtopic codes & names → upserts reference data
+- Uploads images to Supabase Storage (`question-images` bucket)
+- Dedup by `question_number` per bank (unique index)
+- Migration `002_add_question_number.sql` — added `question_number` column
+- `@repo/db` package exports map added
+- Test batch: 5 questions from 050-01-01 imported + idempotency verified
+- 4 Claude subagents run via Agent tool after each commit (not Lefthook):
+  - `code-reviewer` (haiku) — reviews diff for code style violations
+  - `doc-updater` (haiku) — checks if docs need updates
+  - `test-writer` (sonnet) — writes missing tests for new source files
+  - `security-auditor` (sonnet) → pre-push via Lefthook, **blocking** on CRITICAL/HIGH findings
+- Agent memory dirs: `.claude/agent-memory/{code-reviewer,security-auditor,doc-updater,test-writer}/`
+
+**Phase 4 done (2026-03-11):** Student auth (magic link):
+- Login page at `/` with email input + Zod validation
+- Magic link via `supabase.auth.signInWithOtp()` → redirects to `/auth/verify`
+- Auth callback at `/auth/callback` — exchanges code for session, checks `users` table exists (pre-created by admin)
+- Unregistered users signed out + redirected to error page
+- Proxy (`proxy.ts`, Next.js 16 convention) protects all `/app/*` routes, refreshes session tokens, propagates auth cookies on redirects
+- Authenticated users auto-redirected from `/` to `/app/dashboard`
+- App layout with user display name + sign-out button
+- Dashboard placeholder at `/app/dashboard`
+- Supabase middleware client helper in `packages/db/src/middleware.ts`
+- Root layout metadata updated (was "Create Next App")
+
+**Phase 5 done (2026-03-11, refined 2026-03-13):** Question Bank Trainer (MVP 2):
+- Dashboard (`/app/dashboard`) — subject progress grid, recent sessions, quick actions (Start Quiz)
+- Quiz (`/app/quiz`) — subject selector, question count, randomized quiz mode
+- Progress (`/app/progress`) — detailed breakdown by subject/topic with mastery percentages
+- Reports (`/app/reports`) — session history with sortable columns, click-through to quiz report
+- Shared components: QuestionCard, AnswerOptions, FeedbackPanel, SessionSummary
+- Sidebar navigation for all modes
+- Server Actions split into feature files: quiz/actions/{start, submit, complete, batch-submit}.ts
+- Quiz session: deferred writes architecture — answers accumulate in React state, batch submitted on finish. Partial submissions allowed (students can skip questions).
+- Immediate feedback: answers locked after selection, explanation shown in-session
+- Query functions: getDashboardData, getSubjectsWithCounts, getRandomQuestionIds, getProgressData
+- UI components (shadcn): Badge, Card, Progress, Skeleton
+- Tests written for auth flow, middleware, server actions
+- Session state machine: answering → show-finish-dialog → submit-batch → complete
+- Dark mode: next-themes provider, system default, toggle in header
+- Quiz drafts: up to 20 saved drafts per student for resuming interrupted sessions
+- Statistics tab: per-question stats (times seen, accuracy %, last answered date), auto-loads on tab click
+
+**Phase 5B-7 done (2026-03-12, refined 2026-03-13):** Deferred Quiz Writes & Immediate Feedback:
+- Refactored quiz/actions.ts into feature-based files: start.ts, submit.ts, complete.ts, batch-submit.ts, discard.ts (new)
+- Quiz state machine updated: answers stored in React state (Map<questionId, {selectedOptionId, responseTimeMs}>)
+- Migration 017: `batch_submit_quiz` RPC — allows partial answers; score calculated as `correct / answered` (not `correct / total`)
+- Migration 022: `batch_submit_quiz` updated to atomically set `fsrs_cards.last_was_correct` within the transaction (closes race condition window)
+- Migration 025: `batch_submit_quiz` input validation hardening — validates non-null JSON array, rejects duplicates, checks question membership
+- Discard session: students can discard active quiz (soft-delete session), with optional draft cleanup
+- FinishQuizDialog: modal with unanswered count warning, options: Return to Quiz, Save for Later, Submit Quiz, Discard Quiz
+- QuizNavBar: question navigator with previous/next buttons, current index display
+- Pinned questions: renamed from "flagged" to "pinned" for clarity (use-pinned-questions.ts hook)
+- Immediate answer feedback: after selection, answer is locked and explanation shown inline (not deferred to end)
+- SessionSummary: now displays `answeredCount` alongside `totalQuestions` for clarity on partial submissions
+- Session Zod types: SubmitRpcResult, CompleteRpcResult, StartQuizResult, SubmitQuizAnswerResult, CompleteQuizResult, BatchAnswerResult, BatchSubmitResult
+- QuizSession component displays explanation immediately after answer selection
+- Report queries: fetch answered count per session from `quiz_session_answers` for accurate scoring on partial submissions
+
+**Tech Debt PR #4 done (2026-03-14):** Security & Auth Hardening:
+- Auth error handling: explicit `getUser()` error destructuring across 14 files (10 Server Actions, proxy, layout, auth callback, fetch-stats)
+- Auth callback: now rejects null user instead of silently redirecting (closes auth bypass gap)
+- Login form: raw Supabase errors sanitized with friendly messages for users
+- Migration 035: `complete_quiz_session` RPC — added `deleted_at IS NULL` guard to prevent completing soft-deleted sessions
+- Migration 036: `submit_quiz_answer` RPC — added `deleted_at IS NULL` guard + option membership validation (prevents submitting to discarded sessions, validates selected_option exists in question's options JSONB array)
+- Migration 037: `batch_submit_quiz` RPC — added option membership validation for each answer in batch (prevents bulk-submitting arbitrary option strings)
+- Test updates: auth callback, fetch-stats mocks, login-form error assertions
+
+**Tech Debt PR #5 done (2026-03-14):** Race Conditions & Async Bugs:
+- In-flight guard added to useSessionState submit/next handlers (#40)
+- Navigation guard false positive on unchanged resumed drafts fixed (#53)
+- Issues #86, #51, #67 confirmed already implemented — closed
+
+**Tech Debt PR #6 done (2026-03-15):** Split Oversized Files:
+- Shared types (SessionQuestion, AnswerResult, CompleteResult, SubmitInput) extracted to `_types/session.ts`
+- SessionRunner split into SessionRunner + ActiveSession + SessionProgressBar + SessionAnswerBlock
+- QuizSession split into QuizSession + QuizMainPanel + QuizTabContent + QuizControls + useQuizActiveTab
+- use-session-state.ts refactored: async operations extracted to session-operations.ts, type refs to _types/session.ts (79/80 lines)
+- ActivityChart tooltip/axis config hoisted to module constants
+- Issues #2, #36, #71, #80, #96 already resolved in prior PRs — all 10 PR 6 issues closed
+
+**Tech Debt PR #7 done (2026-03-15):** Type Safety & Cleanup:
+- Supabase types regenerated from linked project (picks up all 37 migrations)
+- Removed ~50 `as string & keyof never` column-name casts across 10 query files by eliminating `.returns<T>()` and casting results at point of use instead
+- Removed `as 'users'` / `as never` casts from quiz draft actions (quiz_drafts now properly typed in generated types)
+- Consolidated duplicate QuestionFilter type: canonical def in lib/queries/quiz.ts, all other imports reference it
+- ReactMarkdown components and remarkPlugins hoisted to module scope (prevents re-allocation on every render)
+- Removed duplicate --radius declaration from .dark block in globals.css
+- Test mocks refactored: replaced .returns() terminal with thenable chain pattern
+- Issues #3 (shared RPC types) and #65 (NaN in boundParam) confirmed already resolved; all 7 issues closed
+
+**Tech Debt PR #8 done (2026-03-15):** Accessibility:
+- Quiz tabs: WAI-ARIA tablist pattern (role="tablist", role="tab", aria-selected, aria-controls, aria-labelledby, tabpanel)
+- Quiz tabs: keyboard navigation (ArrowLeft/Right, Home/End) with deferred focus via useEffect
+- Quiz tabs: aria-controls scoped to active tab only (inactive panel not in DOM)
+- ZoomableImage: aria-label on Dialog.Popup using alt text
+- MobileNav: aria-label="Navigation menu" on Dialog.Popup
+- Tests: 10 new ARIA/keyboard tests for quiz-tabs, 2 new dialog aria-label tests
+- Issues #102, #50, #30, #28 closed
+
+**Admin Syllabus Manager done (2026-03-15, issue #171):**
+- Migration 039: `is_admin()` helper RPC + admin INSERT/UPDATE/DELETE policies on `easa_subjects`, `easa_topics`, `easa_subtopics`
+- Admin route guard: `proxy.ts` checks `users.role = 'admin'` on `/app/admin/*`, returns 403 if not admin
+- `requireAdmin()` Server Action guard in `apps/web/lib/auth/require-admin.ts` — verifies auth + admin role, called by all admin Server Actions
+- CRUD UI: create/edit/delete subjects, topics, subtopics via admin interface
+- 45 new tests covering admin guards, RLS policies, and CRUD Server Actions
+
+**Tech Debt PR #9 done (2026-03-15):** UX, Perf & Architecture:
+- Migration 038: `get_quiz_questions` RPC returns real explanation fields (was NULL)
+- ExplanationTab refactored to pure render component (deleted `fetchExplanation` Server Action)
+- Suspense boundary on quiz page for subjects section streaming
+- Parallel queries in `getSubjectsWithCounts()` via `Promise.all`
+- `question-stats.ts`: 3 COUNT queries collapsed to 1 select + JS aggregation (capped at 500 rows)
+- `subject-scores-chart.tsx`: responsive layout (stack on mobile, side-by-side on sm+)
+- Draft Zod `.superRefine()` for cross-field validation + stale answer filtering in loader
+- Test quality: error message assertions, specific selectors, mock body fixes
+- Issues #43, #4, #29 closed as stale (Smart Review removed), #101 already done
+- PR #181 merged
+
+**Tech Debt PR #10 done (2026-03-15):** Infrastructure & Scripts:
+- CI security hardening: added `permissions: contents: read` to `ci.yml` (principle of least privilege)
+- Security auditor grep fix: improved detection of `adminClient` usage in app files (scans full file diffs, not just line context)
+- Import script hardening: `import-questions.ts` now refuses non-local Supabase URLs unless `--force-remote` flag passed (prevents accidental remote pushes)
+- Import validation: enforces all questions in JSON file reference same subject (prevents mixing subjects in single import)
+- Seed script created: `apps/web/scripts/seed-admin-eval.ts` — creates admin+student users, org, bank, and 3 test questions with error handling for manual eval (closes #85)
+- Biome lint fixes: template literal normalization across scripts
+- Issues #22, #18, #13, #14, #85 closed
+
+**Local dev setup (2026-03-11, updated 2026-03-16):**
+- Local Supabase via `supabase start` (Docker) — all dev against local, never remote
+- `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys
+- Mailpit at `http://localhost:54324` — catches all magic link emails locally
+- Studio at `http://localhost:54323`
+- `scripts/dev-login.ts` — generates magic link via admin API (no email needed)
+- `scripts/import-questions.ts` — imports questions from JSON; refuses non-local URLs unless `--force-remote` flag passed
+- `scripts/seed-admin-eval.ts` — seeds admin/student users for manual eval; run after `npx supabase db reset`
+- 73 questions seeded locally (050-01-01 through 050-01-05)
+- **Integration tests locally:** Require `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` env vars (security fix 2026-03-16). Set via: `eval "$(supabase status -o env)"` before running `pnpm --filter @repo/db test:integration`
+- Migrations in `supabase/migrations/`:
+  - 003: add `question_number` column
+  - 004: fix users RLS (infinite recursion from self-referencing policy)
+  - 005: fix immutable table RLS (restrict to SELECT+INSERT only)
+  - 006: drop INSERT policies on immutable answer tables (RPC-only writes)
+  - 007: add SECURITY DEFINER to start_quiz_session (required for quiz initialization)
+  - 008: add question_number to get_quiz_questions() RPC return set
+- CSP updated: `connect-src` and `img-src` allow `http://localhost:*` for local dev
+- Image URLs use `localhost:54321` (not `127.0.0.1`) to match browser origin
+- React Strict Mode fix: session loaders cache data to survive double-mount
+
+**Phase 5B-1 done (2026-03-11):** Fixed existing test failures (middleware env var test).
+**Phase 5B-2 done (2026-03-11):** 9 new unit test files for Phase 5 components. 212 tests passing across 28 files.
+**Phase 5B-3 done (2026-03-11):** 35 integration tests against local Supabase:
+- 4 RPC test suites: `get_quiz_questions`, `start_quiz_session`, `submit_quiz_answer`, `complete_quiz_session`
+- RLS tenant isolation tests (cross-org, cross-student, role-based)
+- RLS immutable table tests (quiz_session_answers, student_responses, audit_events)
+- Found + fixed real RLS bug: permissive ALL policies overrode no_update/no_delete (migration 005)
+- Test infra: `packages/db/src/__integration__/setup.ts` (helpers for user/org/question seeding + cleanup)
+
+**Phase 5B-4 done (2026-03-11):** E2E tests (Playwright):
+- Auth setup flow: magic link, OTP extraction, session persistence
+- 10 E2E tests across 4 spec files: login flow, protected routes (5), quiz session, progress (2)
+- Mailpit helper (`e2e/helpers/mailpit.ts`): fetch latest email, extract magic link
+- Supabase helper (`e2e/helpers/supabase.ts`): ensure E2E test user exists in Egmont Aviation org
+- Playwright config: auth state caching, headless + headed modes, HTML reporter
+- Scripts: `pnpm e2e`, `pnpm e2e:ui`, `pnpm e2e:headed`
+- All core user flows covered: login → quiz/review → progress → back to dashboard
+
+**Phase 5B-5 done (2026-03-11):** CI/QA pipelines (Lefthook + subagents + GitHub Actions):
+- **Lefthook local QA** (3-layer mechanical gates, all blocking):
+  - **Layer 1: pre-commit** (parallel): biome-check + type-check + test — catches broken code before git history
+  - **Layer 2: commit-msg**: commitlint — enforces Conventional Commits
+  - **Layer 3: pre-push**: security-auditor + dep audit — final defense before remote
+- **Claude Code subagents** (run via Agent tool after each commit — findings flow back to conversation):
+  - code-reviewer (haiku) — reviews diff for code style violations
+  - doc-updater (haiku) — checks if docs need updates
+  - test-writer (sonnet) — writes missing tests, runs them
+  - learner (haiku) — analyzes findings, detects patterns, updates rules/memory
+  - coderabbit-sync (haiku) — keeps .coderabbit.yaml aligned when rules change
+- **CodeRabbit** (GitHub PR review):
+  - `.coderabbit.yaml` — assertive profile, path-specific rules mirroring code-style.md + security.md
+  - Pre-merge checks: no-secrets, no-answer-exposure, soft-delete-only
+- **GitHub Actions CI** (cloud):
+  - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
+    - Permissions: `contents: read` (principle of least privilege, enforced 2026-03-15)
+  - `e2e.yml` — runs on pull requests + push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
+  - `codeql.yml` — weekly security scan (Monday 05:30 UTC) for JavaScript/TypeScript via GitHub CodeQL action, logs to Security tab
+  - `dependabot.yml` — automated dependency updates with auto-grouping by ecosystem/directory, weekly schedule, `tech-debt` label, commits with `ci` or `chore` prefix
+    - Scopes: GitHub Actions + npm root + apps/web + packages/{db,ui,typescript-config}
+  - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
+  - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 20 questions for E2E (expanded from 5 to support review flow after quiz)
+  - Playwright config updated: uses `pnpm start` (production build) in CI, `pnpm dev` locally
+  - Playwright report + test results uploaded as artifacts (14-day / 7-day retention)
+  - Concurrency groups prevent duplicate runs on the same branch
+
+**Phase 5B-6 done (2026-03-11):** CodeRabbit review findings addressed:
+- **CSP tightened:** `script-src` drops `unsafe-eval` in production (kept in dev for HMR); `allowLocal` flag enables localhost in dev + production builds targeting local Supabase (E2E CI)
+- **RLS hardened:** Migration 006 drops INSERT policies on immutable answer tables (`quiz_session_answers`, `student_responses`) — writes only via SECURITY DEFINER RPCs
+- **Docs updated:** security.md and database.md reflect immutable table policy pattern (RPC-only writes, no direct client inserts)
+- Migration 005 (`quiz_session_answers` → `quiz_sessions` FK) moved; `020260311000006` is the immutable INSERT restriction
+
+**Phase 6-Sprint1 complete (2026-03-12, refined 2026-03-13):** Quick Wins — all 10 backlog items (1.1–1.10) done in 8 commits on `feat/sprint-1-quick-wins`:
+- ✅ Renamed "Quick Quiz" → "Quiz" throughout UI (sidebar, page heading, session summary, recent sessions list)
+- ✅ Migration 008: added `question_number` to `get_quiz_questions()` RPC return set
+- ✅ MarkdownText component (`react-markdown` + `remark-gfm`) for questions and explanations
+- ✅ ZoomableImage component (click-to-expand lightbox via `@base-ui/react/dialog`)
+- ✅ Question number displayed in quiz session UI
+- ✅ Elapsed timer component visible during quiz sessions
+- ✅ Loading skeletons: Skeleton UI component, `loading.tsx` files for dashboard/quiz/progress, skeleton states in session loaders
+- ✅ Mobile navigation drawer: hamburger menu below `md` breakpoint, slide-out drawer with nav links via `@base-ui/react/dialog`, auto-closes on route change
+- ✅ Immediate answer feedback in quiz: answers locked + explanation shown inline after selection
+- Tests updated for renamed labels; new test files for MarkdownText, ZoomableImage, MobileNav
+
+**Phase 6-Sprint2 complete (2026-03-12):** Quiz Overhaul — all items (2.1–2.11) on `feat/sprint-2-quiz-overhaul`:
+- ✅ Migration 009: new `quiz_drafts` table for saving/resuming interrupted quizzes
+- ✅ Subject → topic → subtopic drill-down selectors (2.3)
+- ✅ Question filters: unseen, incorrectly answered, all (2.4)
+- ✅ Question count slider (2.5)
+- ✅ Deferred quiz writes: answers accumulate in React state, batch submitted on finish (2.6)
+- ✅ Save/resume quiz drafts: 3-action finish dialog (Submit/Cancel/Save), auto-save to localStorage + DB, resume on next quiz open (2.7)
+- ✅ Navigation-away warning: `beforeunload` event + Next.js route change guard with 3-option dialog (2.11)
+- ✅ Incorrectly-answered tracking: `consecutive_correct_count` and `last_was_correct` on `fsrs_cards` (2.9)
+- ✅ Question tabs: Question/Explanation/Comments/Statistics tabs inside quiz (2.2)
+- ✅ Quiz report card: score %, question-by-question breakdown, sortable results list (2.8)
+- ✅ Migration 011: new `batch_submit_quiz` RPC — atomic all-or-nothing session completion (replaces per-answer loop)
+- ✅ Exit button for fullscreen quiz session (2.1)
+- ✅ Saved drafts tab: tab UI + draft card with subject metadata, resume/delete (2.10)
+
+### Sprint 3 — Dashboard & Analytics (COMPLETE — 2026-03-12)
+
+- ✅ Migration 013: `get_daily_activity` + `get_subject_scores` analytics RPCs (SECURITY DEFINER + auth.uid() guard)
+- ✅ recharts integration: activity bar chart (30-day stacked correct/incorrect), subject scores donut chart
+- ✅ CSS grid study-streak heatmap (5-tier green intensity)
+- ✅ Quick actions (Start Quiz / Start Review) on dashboard
+- ✅ Dashboard reshaped: charts + heatmap + subject grid + reports link (replaced RecentSessions)
+- ✅ `/app/reports` page: sortable session history (date/score/subject), click → quiz report
+- ✅ Statistics tab: per-question stats (times seen, accuracy)
+- ✅ Navigation updated: Reports added to sidebar + mobile nav
+- ✅ Query layer: `analytics.ts`, `reports.ts`, `question-stats.ts` with tests (11 new tests)
+
+**Post-sprint fixes (CodeRabbit PR #57 — 2026-03-12):**
+- ✅ Migration 000016: add parameter clamping to analytics RPCs (`get_daily_activity` p_days [1,365], `get_subject_scores` p_limit [1,100]) + use IS DISTINCT FROM for null-safe auth check
+- ✅ UTC date parsing fix in activity-chart and activity-heatmap (off-by-one for west-of-UTC users)
+- ✅ Remove unnecessary 'use client' from activity-heatmap (Server Component only)
+- ✅ Split subject-scores-chart into 3 sub-components (chart container + legend + tooltip) to meet 30-line limit
+- ✅ Dashboard page switched to Promise.allSettled (analytics failures now degrade gracefully)
+- ✅ Add `/coderabbit` skill command for triaging CodeRabbit review comments
+
+**Tech debt PR 1 — Docs & Comments (2026-03-14, `fix/pr1-docs-comments`):**
+- ✅ PR #105 merged — 10 doc/comment issues fixed (see `docs/tech-debt-batches.md` PR 1)
+- ✅ Biome CSS formatting fix (`globals.css` — trailing zeros, line breaks, quote normalization)
+- ✅ Stylelint disabled in `.coderabbit.yaml` (was producing false positives on unquoted font names)
+
+**Post-sprint polish (2026-03-13, `feat/post-sprint-3-polish`):**
+- ✅ Remove FSRS metadata from statistics tab (state, stability, difficulty, interval) — simplify student view to: times seen, accuracy %, last answered date
+- ✅ New `fetchExplanation` Server Action — fetches question explanation (text + image) before answering, shows loading state
+- ✅ Update `ExplanationTab` to load explanations pre-answer — students can preview explanations in study mode before attempting questions
+- ✅ Draft update support: `saveDraft` now accepts optional `draftId` to update existing draft instead of creating new one (fix: resuming draft then re-saving creates duplicate)
+- ✅ Navigation guard fix: added `e.returnValue = ''` to beforeunload handler for cross-browser support
+- ✅ Session ownership checks: `checkAnswer` and `fetchExplanation` verify session belongs to authenticated user and question is in session config (security hardening)
+- ✅ Error recovery: `handleSelectAnswer` reverts locked state and clears answer on `checkAnswer` failure, allowing user retry (closes #8)
+- ✅ Migration 026: batch_submit_quiz field validation — validates jsonb_typeof before extracting question_ids (fixes eval-before-guard #33); validates selected_option/response_time_ms per answer (closes #38)
+- ✅ Hook split: `use-quiz-state` → `use-answer-handler` extraction to stay under 80-line limit
+- ✅ UUID validation fix: `lookup.ts` `getFilteredCount` validates empty string UUID correctly (closes #10)
+- ✅ Migration 028: UUID case-insensitive regex in batch_submit_quiz — changed to `!~*` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth input validation
+- ✅ Migration 031: batch_submit_quiz idempotent retry + soft-delete scoring — if session already completed, return existing results instead of raising error; allow scoring questions soft-deleted after quiz started (membership validated at session start, safe to score historical responses for retired questions)
+- ✅ saveDraft error logging: added console.error logging for draft count query and insert errors for better observability
+
+---
+
+## Phase 1 — Foundation (do this first, one session)
+
+### 1A. Monorepo scaffold
+```
+npx create-turbo@latest lmsplusv2 --package-manager pnpm
+```
+Then reshape into final structure:
+```
+lmsplusv2/
+├── apps/
+│   └── web/                ← Next.js (create-next-app, App Router, TypeScript, Tailwind)
+├── packages/
+│   ├── db/                 ← Supabase client + schema + migrations
+│   ├── ui/                 ← shadcn/ui shared components
+│   └── typescript-config/  ← shared tsconfig (base, nextjs, react-library)
+├── CLAUDE.md
+├── .claudeignore
+├── lefthook.yml
+├── biome.json
+├── turbo.json
+└── package.json (root)
+```
+
+### 1A-pre. MCP setup (do before anything else)
+Before building, configure the three essential MCPs so Claude has full tool access throughout the build:
+
+1. **Supabase MCP** — get personal access token from supabase.com → Account → Access Tokens
+   Add to `.claude/settings.local.json` (gitignored): `SUPABASE_ACCESS_TOKEN=sbp_xxxx` (MCP token only — not a runtime secret)
+   Once project created, add `--project-ref <ref>` to `.claude/settings.json` Supabase args.
+
+2. **Context7** — no setup needed, works immediately after `settings.json` is in place
+
+3. **shadcn/ui** — no setup needed
+
+### 1B. Claude Code config (write all files)
+Full `.claude/` directory — see decisions.md for complete file tree.
+
+Files to create (✅ = already created):
+- `CLAUDE.md` (root, 50-80 lines)
+- `.claudeignore`
+- `.claude/settings.json` (all hooks)
+- `.claude/hooks/pre-compact-handover.sh`
+- ✅ `.claude/settings.json` — mcpServers (Supabase, Context7, shadcn) + hook stubs
+- ✅ `.claude/agents/code-reviewer.md` — haiku, post-commit, quality + structure
+- ✅ `.claude/agents/security-auditor.md` — sonnet, pre-push, vulns + secrets
+- `.claude/agents/test-writer.md`
+- `.claude/agents/doc-updater.md`
+- `.claude/commands/review.md`
+- `.claude/commands/test.md`
+- `.claude/commands/plan.md`
+- `.claude/commands/insights.md`
+- `.claude/skills/nextjs-patterns.md`
+- `.claude/skills/supabase-rls.md`
+- `.claude/skills/fsrs-patterns.md`
+- ✅ `.claude/rules/code-style.md` — file size limits, component rules, TS rules
+- `.claude/rules/security.md` (short, points to docs/security.md)
+
+### 1C. Tooling config
+- `biome.json` — linting + formatting rules
+- `lefthook.yml` — pre-commit (biome), commit-msg (commitlint), pre-push (tsc + vitest)
+- `packages/typescript-config/` — base.json, nextjs.json, react-library.json
+- `turbo.json` — tasks: build, lint, test, check-types, e2e
+- Root `package.json` — pnpm workspaces, scripts
+
+### 1D. Git init
+```
+git init
+git add .
+git commit -m "chore: initial monorepo scaffold"
+```
+Branching: `main` (protected) + feature branches `feat/xxx`
+
+---
+
+## Phase 2 — Supabase setup (BLOCKED until user provides keys)
+
+### 2A. Database schema
+Create migration files in `packages/db/migrations/`:
+
+**Full schema + SQL in `docs/database.md`.** Summary:
+
+```
+organizations        + deleted_at (soft delete)
+users                + deleted_at (soft delete)
+easa_subjects        reference data, no delete
+easa_topics          reference data, no delete
+easa_subtopics       reference data, no delete
+question_banks       + deleted_at (soft delete)
+questions            + deleted_at (soft delete), options JSONB (correct stripped by RPC)
+courses              + deleted_at (soft delete)
+lessons              + deleted_at (soft delete), content JSONB
+quiz_sessions        immutable record (no delete)
+quiz_session_answers IMMUTABLE — no UPDATE, no DELETE, UNIQUE(session_id, question_id)
+student_responses    IMMUTABLE — no UPDATE, no DELETE
+fsrs_cards           upsert-only, UNIQUE(student_id, question_id)
+audit_events         IMMUTABLE — append-only compliance log
+```
+
+**Rules:**
+- No hard DELETE anywhere — always `UPDATE SET deleted_at = now()`
+- RLS on every table: USING + WITH CHECK + `AND deleted_at IS NULL` on soft-delete tables
+- All multi-table operations go through RPCs (atomic transactions)
+- All INSERTs use `ON CONFLICT DO NOTHING` / upsert (idempotent)
+
+**Core RPCs:** `get_quiz_questions`, `submit_quiz_answer`, `start_quiz_session`, `complete_quiz_session`
+See `docs/database.md` for full SQL.
+
+### 2B. Supabase client package
+`packages/db/`:
+- `src/client.ts` — typed Supabase client
+- `src/types.ts` — generated types from schema
+- `src/schema.ts` — Zod validation schemas
+
+### 2C. Auth setup
+- Supabase magic link configured
+- Email template customized
+- Redirect URLs configured:
+  - **Site URL:** `https://lmsplus.app` (production)
+  - **Allowed redirects:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
+  - Configured via Supabase Management API (not config.toml — that's local dev only)
+
+### 2D. Security baseline
+- Security headers in `apps/web/next.config.ts` (CSP, HSTS, X-Frame-Options)
+- `packages/db/src/admin.ts` — service role client with browser guard
+- `get_quiz_questions()` Postgres RPC function created
+- `audit_events` table with append-only policies
+- Verify all tables have RLS USING + WITH CHECK (run checklist from docs/security.md §3)
+
+---
+
+## Phase 3 — Question import tool
+
+### Goal
+Import ~3,000 questions from JSON into Supabase.
+
+### JSON format (Claude will design proposal, confirm with user)
+```json
+{
+  "subject": "010",
+  "subject_name": "Air Law",
+  "topic": "010-01",
+  "subtopic": "010-01-01",
+  "lo_reference": "010-01-01-a",
+  "text": "What is the minimum...",
+  "question_image_url": null,
+  "options": {
+    "a": "Option A text",
+    "b": "Option B text",
+    "c": "Option C text",
+    "d": "Option D text"
+  },
+  "correct": "b",
+  "explanation": "The correct answer is...",
+  "explanation_image_url": null,
+  "difficulty": 2
+}
+```
+
+### Import tool
+`apps/web/scripts/import-questions.ts` — reads JSON, validates with Zod, upserts to Supabase.
+
+---
+
+## Phase 4 — Student auth
+
+### Pages
+- `/` — landing / login page
+- `/auth/callback` — magic link callback handler
+- `/auth/verify` — "check your email" page
+
+### Proxy (Next.js 16)
+`apps/web/proxy.ts` — protect all `/app/*` routes, redirect to login if not authenticated.
+
+### Session
+Supabase session via `@supabase/ssr` package (server-side session management for Next.js App Router).
+
+---
+
+## Phase 5 — Question Bank Trainer (MVP 2)
+
+### Route structure
+```
+/app/
+├── dashboard/              ← progress overview, recent sessions, quick actions
+├── quiz/                   ← Quiz config (subject, count, randomized mode)
+│   └── session/            ← active quiz session (immediate feedback + in-session explanation)
+├── progress/               ← detailed progress per subject/topic/subtopic
+└── reports/                ← session history with sortable columns, links to quiz reports
+```
+
+### Components (in `packages/ui/`)
+- `QuestionCard` — question text + optional image
+- `AnswerOptions` — 4 radio options, submit button
+- `FeedbackPanel` — correct/incorrect, explanation, explanation image, LO ref
+- `ProgressBar` — subject/topic completion
+- `SessionSummary` — end-of-session score, time, breakdown
+- `SubjectSelector` — EASA subject tree with drill-down
+
+---
+
+## Automation Pipeline
+
+```
+Claude finishes responding
+    → [Stop hook] biome format changed files
+    → [Stop hook] vitest run affected tests
+    → [Stop hook] PowerShell toast notification
+
+git commit
+    → [Lefthook pre-commit] biome check --write + type-check + unit tests (BLOCKING)
+    → [Lefthook commit-msg] commitlint validates message format
+    → [Claude subagents — run by me via Agent tool, results come back to conversation]
+        1. code-reviewer (haiku) — diff against code-style.md
+        2. doc-updater (haiku) — check docs freshness
+        3. test-writer (sonnet) — find/write missing tests
+        4. learner (sonnet) — detect patterns, update rules/memory
+        5. red-team (sonnet) — if diff touches security files, map to attack specs + flag gaps
+        6. coderabbit-sync (haiku) — sync .coderabbit.yaml if rules changed
+    → Fix any findings → commit again → repeat until clean
+
+git push (only with user approval)
+    → [Lefthook pre-push] security-auditor agent (sonnet) — BLOCKING on CRITICAL/HIGH
+    → [Lefthook pre-push] pnpm audit — dependency vulnerabilities
+
+GitHub PR
+    → [CodeRabbit] reviews PR against .coderabbit.yaml rules
+    → [GitHub Actions ci.yml] lint + types + unit tests
+    → [GitHub Actions e2e.yml] integration + E2E tests (PRs + master)
+    → [GitHub Actions redteam.yml] red-team security tests (triggered on security-sensitive paths)
+
+Context approaching limit
+    → [PreCompact hook] saves HANDOVER-YYYY-MM-DD.md before compression
+
+Weekly
+    → /project:insights → reads git log + test failures + agent memories
+                        → updates MEMORY.md + suggests rule improvements
+```
+
+---
+
+## How to start a new session
+
+1. Read `docs/plan.md` (this file)
+2. Check current status in the Status section above
+3. Enter Plan Mode (Shift+Tab twice)
+4. Tell Claude which phase to work on
+5. Approve tool permission prompts as they appear
+6. Test in browser when Claude says it's done
+
+---
+
+## Session prompts (copy-paste ready)
+
+**Start Phase 1 (foundation):**
+> Read docs/plan.md and docs/decisions.md, then build Phase 1 completely — monorepo scaffold, all Claude Code config files, tooling config, and git init. Use Plan Mode first.
+
+**Start Phase 2 (after getting Supabase keys):**
+> I've created the Supabase project. URL: [xxx], anon key: [xxx], service role key: [xxx]. Read docs/plan.md and build Phase 2 — database schema, RLS policies, Supabase client package, and auth setup.
+
+**Start Phase 3:**
+> Read docs/plan.md and build the question import tool (Phase 3). Propose the JSON format first, I'll confirm before you write any import code.
+
+**Start Phase 4:**
+> Read docs/plan.md and build student auth (Phase 4) — login page, magic link flow, auth callback, session middleware.
+
+**Start Phase 5:**
+> Read docs/plan.md and build the Question Bank Trainer (Phase 5), starting with the dashboard and quiz mode.
+
+---
+
+## Phase 5B — Test Hardening (COMPLETE as of 2026-03-11)
+
+✅ **5B-1 done:** Fixed middleware test failure
+✅ **5B-2 done:** Unit test coverage for Phase 5 components (dashboard, quiz, review, progress)
+✅ **5B-3 done:** 35 integration tests for all 4 RPC functions + RLS policies (tenant isolation, immutability)
+✅ **5B-4 done:** 10 Playwright E2E tests across 4 spec files (login, protected routes, quiz flow, progress)
+✅ **5B-5 done:** GitHub Actions CI — `ci.yml` (PR: lint + types + tests + audit) + `e2e.yml` (PRs + master + nightly: integration + E2E with local Supabase)
+
+Test summary: 247 unit tests (32 files) + 35 integration tests + 10 E2E tests. All passing.
+
+## Phase 5B-6 (COMPLETE — 2026-03-14)
+
+✅ **Red-team security testing suite added:**
+- 9 Playwright attack vector specs: RPC question membership, cross-tenant isolation, unauthenticated server actions, audit event forgery, quiz draft injection, session replay, session race conditions, PKCE state forgery, rate limiting
+- Seed helpers for adversarial users + cross-org test fixtures
+- Separate Playwright project (redteam) with dedicated CI workflow (redteam.yml)
+- Red-team agent (sonnet) integrated into post-commit pipeline — auto-triggers on security-sensitive file changes
+- Attack surface memory system for tracking exploitation patterns
+- `/redteam` skill command for on-demand test execution
+
+---
+
+## Phase 6 — Feature Backlog (post-MVP feedback)
+
+Full backlog with sizing and sprint grouping: **`docs/backlog.md`**
+
+| Sprint | Focus | Key items |
+|--------|-------|-----------|
+| 1 | Quick Wins | Markdown rendering, image lightbox, question ID, timer, skeletons, mobile, smart review fixes |
+| 2 | Quiz Overhaul | Fullscreen env, question tabs (Q/Explanation/Comments/Stats), deferred DB writes, save/resume, report card, incorrect tracking, Moodle-style question grid |
+| 3 | Dashboard & Analytics | Activity graph, pie chart, calendar heatmap, reports page, progress/dashboard differentiation |
+| 4 | Social, Search, Study | Search page, study mode (correct answers shown), per-question comments, FAQ |
+| 5 | Admin & Infrastructure | Admin frontend (students, questions), learning objectives/study cards, AWS backup |
+
+## Post-Phase 5 Suggestions
+
+From setup audit (2026-03-11):
+- **CI/CD:** GitHub Actions mirroring Lefthook checks (once repo goes to GitHub)
+- **Error tracking:** Sentry integration after Phase 5 goes live
+- **Monitoring:** Vercel Web Analytics dashboard
+- **Vercel MCP:** Add after first deploy
+
+---
+
+*Last updated: 2026-03-16 — FSRS remnants removed (#113). Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks.*
