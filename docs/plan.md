@@ -625,4 +625,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-15 — Tech debt PR #7 (Type Safety & Cleanup) completed. Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks.*
+*Last updated: 2026-03-16 — FSRS remnants removed (#113). Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks.*

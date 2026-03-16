@@ -430,7 +430,7 @@ Use Postgres functions (RPCs) for:
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
   check_quiz_answer          ← read, verify answer + return explanation (immediate feedback)
-  submit_quiz_answer         ← write, atomic: single answer + last_was_correct + audit
+  submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz)
