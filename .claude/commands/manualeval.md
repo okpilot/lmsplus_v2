@@ -9,9 +9,11 @@ Prepare the local environment for manual testing of the current feature branch.
    - Verify current branch and latest commit
 
 2. **Reset local Supabase**
+
    ```bash
    npx supabase db reset
    ```
+
    This reapplies all migrations from scratch on a clean database.
 
 3. **Run the feature's seed script**
@@ -23,6 +25,7 @@ Prepare the local environment for manual testing of the current feature branch.
    - Run: `cd apps/web && npx tsx scripts/seed-<feature>-eval.ts`
 
 4. **Start dev server**
+
    ```bash
    pnpm dev
    ```
@@ -36,7 +39,8 @@ Prepare the local environment for manual testing of the current feature branch.
 ## Output format
 
 Print a clean summary:
-```
+
+```text
 === MANUAL EVAL READY ===
 
 Branch:  feat/xyz
@@ -53,6 +57,8 @@ CHECKLIST:
 ```
 
 ## Rules
+
+
 - Always reset the DB fresh — never rely on leftover state
 - Seed scripts must be idempotent (safe to re-run)
 - Use email/password auth for local eval (not magic links — faster iteration)
