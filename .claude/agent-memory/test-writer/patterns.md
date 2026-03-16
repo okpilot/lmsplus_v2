@@ -397,6 +397,36 @@ vi.mock('./quiz-session', () => ({
 ```
 Pass through key props so tests can assert on them (e.g., `screen.getByText(sessionId)`).
 
+---
+
+## Integration test pattern: BEFORE UPDATE trigger
+
+Triggers raise a Postgres EXCEPTION, which PostgREST surfaces as `{ error: { message: '...' } }`
+(unlike RLS silent-block, which returns success with 0 affected rows). Test both the block
+and the service-role bypass in the same file:
+
+```ts
+// Block path — error must be non-null and message must match trigger text
+const { error } = await studentClient.from('users').update({ role: 'admin' }).eq('id', id)
+expect(error).not.toBeNull()
+expect(error?.message).toMatch(/Cannot modify role column/i)
+
+// Verify unchanged via admin client (not trusted client)
+const { data } = await admin.from('users').select('role').eq('id', id).single()
+expect(data?.role).toBe('student')
+
+// Service-role bypass — must succeed (error is null)
+const { error: adminErr } = await admin.from('users').update({ role: 'instructor' }).eq('id', id)
+expect(adminErr).toBeNull()
+```
+
+Key differences from RLS immutability tests:
+- Trigger exceptions ARE returned as errors — assert `error` is non-null and check message
+- RLS silent-block tests assert data is unchanged; trigger tests assert BOTH error AND data
+- Service-role bypass tests run after block tests and restore state in the same `it` block
+
+File: `packages/db/src/__integration__/trigger-protect-users-columns.integration.test.ts` (added 2026-03-16)
+
 ### useRouter with replace (not push)
 Navigation-away patterns use `router.replace`, not `router.push`. Mock accordingly:
 ```ts
