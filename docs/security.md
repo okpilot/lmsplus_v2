@@ -113,10 +113,16 @@ CREATE POLICY "tenant_isolation" ON table_name
 ### Role-Scoped Policies (where needed)
 
 ```sql
--- Students: own data only (mutable tables — allows all operations with condition)
-CREATE POLICY "users_own_profile" ON users
-  USING (id = auth.uid())
-  WITH CHECK (id = auth.uid());
+-- Users table: SELECT only. No UPDATE policy exists by design.
+-- RLS controls rows, not columns — a blanket UPDATE policy would let
+-- students change their own role/organization_id (privilege escalation).
+-- If profile editing is needed, use a SECURITY DEFINER RPC that accepts
+-- only safe fields (full_name, avatar_url, etc.).
+-- Defense-in-depth: trg_protect_users_sensitive_columns blocks role/org/deleted_at
+-- changes for non-service-role connections even if an UPDATE policy is added.
+CREATE POLICY "users_select" ON users
+  FOR SELECT
+  USING (id = auth.uid() AND deleted_at IS NULL);
 
 -- Instructors: read all student data within their org (no write)
 CREATE POLICY "instructors_read_students" ON student_responses
