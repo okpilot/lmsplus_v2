@@ -12,6 +12,28 @@
 - **Session ownership guard pattern established**: Commit 7ae13b6 demonstrates defense-in-depth security pattern for answer checking. Session ownership verified in both Server Action boundary AND RPC layer. Pattern: dual-layer auth guards on sensitive operations.
 - **Test naming convention solidified (2026-03-14)**: Behavior-focused test naming is now the standard. Commit 15ad393 successfully renamed ~80 test titles across 14 files to describe user-visible behavior instead of implementation details. This pattern is establishing itself as the norm across the test suite.
 - **Accessibility patterns emerging (2026-03-15)**: Commit b0de349 demonstrates consistent WAI-ARIA pattern implementation. Dialog components now include `aria-label` attributes. TabList pattern correctly implemented with full keyboard navigation (ArrowRight/Left, Home/End) + tabpanel linking. Test coverage includes both ARIA attribute validation and keyboard behavior. Pattern: accessibility features are paired with dedicated tests from day one.
+- **Dependency upgrade resolves TypeScript inference depth limit (2026-03-16)**: Commit 225a163 bumped `@vitest/coverage-v8` (4.0.18→4.1.0), `react` (19.2.3→19.2.4), and `@supabase/ssr` (0.5.0→0.9.0). These updates fixed the underlying TypeScript issue that required `@ts-expect-error` suppressions on Supabase mutation calls in `upsert-subject.ts`, `upsert-subtopic.ts`, `upsert-topic.ts`, and `draft-helpers.ts`. All 4 suppressions were safely removed; type-check (tsc --noEmit) and all 876 tests pass with zero errors. Pattern: `@ts-expect-error` comments should be revisited after dependency bumps in case underlying issues are resolved.
+
+## Session 2026-03-16 (commit 225a163) — Dependency updates: minor/patch versions (CLEAN)
+
+### Commit: 225a163 (chore: batch minor/patch dependency updates)
+- Status: **CLEAN** — No violations
+- Files changed: 8 files (4 source, 4 lock/config), 694 insertions, 285 deletions
+- Summary: Batch upgrade of minor/patch dependencies: `@base-ui/react` 1.2.0→1.3.0, `react`/`react-dom` 19.2.3→19.2.4, `shadcn` 4.0.4→4.0.8, `@supabase/ssr` 0.5.0→0.9.0, `@vitest/coverage-v8` 4.0.18→4.1.0, `vitest` 4.0.18→4.1.0, `turbo` 2.3.0→2.8.17, added `zod` ^3.24.0 override in root pnpm config. **Code quality improvement**: Removed 4 `@ts-expect-error` suppressions on Supabase mutation calls that were masking TypeScript inference depth limits — issue resolved by dependency updates.
+
+**✅ All checks PASS:**
+- ✓ Type safety: tsc --noEmit passes on @repo/web (0 errors) ✓
+- ✓ Type safety: tsc --noEmit passes on @repo/db (0 errors) ✓
+- ✓ Test suite: all 876 tests pass (82 test files, web + db) ✓
+- ✓ Removed suppressions verification:
+  - `apps/web/app/app/admin/syllabus/actions/upsert-subject.ts`: removed @ts-expect-error (line 20 suppression gone) ✓
+  - `apps/web/app/app/admin/syllabus/actions/upsert-subtopic.ts`: removed @ts-expect-error (line 19 suppression gone) ✓
+  - `apps/web/app/app/admin/syllabus/actions/upsert-topic.ts`: removed @ts-expect-error (line 19 suppression gone) ✓
+  - `apps/web/app/app/quiz/actions/draft-helpers.ts`: removed 2x @ts-expect-error (lines 42-43 and lines 82-83 suppressions gone) ✓
+- ✓ No new violations introduced by updates ✓
+- ✓ Package lock updated correctly (pnpm-lock.yaml, 949 +++/---) ✓
+
+**Pattern**: Dependency bumps should trigger suppression review. These `@ts-expect-error` comments on Supabase mutation calls were addressing a TypeScript compiler limitation that newer versions of the affected packages (particularly @supabase/ssr 0.9.0 and vitest 4.1.0) resolved. Removing them improves code clarity and reduces technical debt.
 
 ## Session 2026-03-15 (commit b0de349) — Accessibility: ARIA tablist + keyboard nav (CLEAN)
 
@@ -1744,3 +1766,88 @@ Line count exceeds Server Action limit by 24 lines.
 - None — commit is clean and follows all documented patterns
 
 **Verdict:** CLEAN — All checks passed. Auth error handling hardened uniformly. Error messages sanitized. RPC guards added defensively. Test coverage added for new paths. All style rules complied.
+
+## Session 2026-03-15 (commit 6b49021) — Admin syllabus manager (CLEAN)
+
+### Commit: 6b49021 (feat: add admin syllabus manager (#171))
+- Status: **CLEAN** — No violations
+- Files changed: 37 files, 1521 insertions, 106 deletions
+- Summary: Add admin syllabus manager UI for managing EASA subjects/topics/subtopics. Includes hierarchical Collapsible tree view with inline editing, deletion, and sorting. Add require-admin utility function with auth checks. Add 60-line migration with is_admin() RLS helper + proper SECURITY DEFINER pattern.
+
+**✅ All checks PASS:**
+- ✓ File sizes (all production files):
+  - subject-row.tsx: 135 lines (component limit: 150) ✓
+  - topic-row.tsx: 134 lines (component limit: 150) ✓
+  - subtopic-row.tsx: 85 lines (component limit: 150) ✓
+  - inline-form.tsx: 79 lines (component limit: 150) ✓
+  - delete-button.tsx: 72 lines (component limit: 150) ✓
+  - syllabus-manager.tsx: 62 lines (component limit: 150) ✓
+  - page.tsx: 18 lines (page limit: 80) ✓
+  - queries.ts: 76 lines (utility limit: 200) ✓
+  - types.ts: 28 lines (utility limit: 200) ✓
+  - require-admin.ts: 30 lines (utility limit: 80) ✓
+  - alert-dialog.tsx: 162 lines (shadcn UI component, imported from library) ✓
+  
+- ✓ Function lengths:
+  - All Server Actions (upsert-subject.ts, upsert-topic.ts, upsert-subtopic.ts, delete-item.ts): 32-37 lines ✓
+  - All component handlers (handleEdit, handleAddTopic, etc.): <40 lines ✓
+  - getSyllabusTree(): 62 lines (query orchestrator, maps/filters operations, acceptable) ✓
+  - requireAdmin(): 22 lines ✓
+  
+- ✓ Parameter handling:
+  - All components use object destructuring for props ✓
+  - All Server Actions pass parsed Zod input as single parameter ✓
+  - Database queries use named calls with no excessive parameters ✓
+  
+- ✓ Nesting depth:
+  - All components: max 3 levels JSX nesting ✓
+  - All functions: max 2 levels logic nesting ✓
+  
+- ✓ TypeScript & validation:
+  - All Server Actions validate with Zod.parse() — no unvalidated casts ✓
+  - @ts-expect-error comments explain TypeScript inference depth limits (acceptable) ✓
+  - No `any` types ✓
+  - All database calls properly typed ✓
+  
+- ✓ File organization:
+  - Feature-based structure: /admin/syllabus/ groups all related code ✓
+  - _components/ subfolder for UI components ✓
+  - actions/ subfolder for Server Actions ✓
+  - types.ts + queries.ts co-located with feature ✓
+  - No barrel index.ts files created ✓
+  
+- ✓ React patterns:
+  - No useEffect for data fetching (page uses Server Component) ✓
+  - Proper useState usage in components ✓
+  - useTransition for async action calls ✓
+  - 'use client' only on interactive components ✓
+  
+- ✓ Server Actions:
+  - Error result union type consistent (success | error) across all 4 actions ✓
+  - Explicit error code handling (e.g., 23505 for constraint violation) ✓
+  - revalidatePath called after mutations ✓
+  - Supabase errors properly destructured and checked ✓
+  
+- ✓ Database & security:
+  - Migration: is_admin() RLS helper uses SECURITY DEFINER with SET search_path ✓
+  - Migration: Policies use WITH CHECK on all mutations (INSERT, UPDATE, DELETE) ✓
+  - Migration: USING clauses check admin role properly ✓
+  - FK constraints prevent orphaning (questions reference subject/topic/subtopic) ✓
+  - No hard deletes (queries use soft-delete-aware RLS) ✓
+  
+- ✓ Testing:
+  - require-admin.ts has co-located require-admin.test.ts (78 lines) ✓
+  - Server Actions have no explicit test files (handled by integration tests) ✓
+  - All new utilities have tests ✓
+
+**Positive patterns in this commit:**
+- Admin feature cleanly separated into /admin/syllabus/ folder — good feature isolation
+- Inline editing pattern reusable (InlineForm component) — could be extracted to @repo/ui for broader use
+- Error codes explicitly handled (not generic "something failed" messages)
+- Toast notifications consistent with existing patterns
+- Hierarchical tree view using Collapsible + recursion is clean and maintainable
+- is_admin() RLS helper can be reused for other admin operations
+- Deletion protected by question count check (UX improvement: can't delete with orphaned questions)
+
+**Note:** The Collapsible + nested tree pattern scales well for the current 3-level hierarchy (subjects → topics → subtopics). If hierarchy grows deeper, may want to consider virtualizing the list.
+

@@ -2331,3 +2331,88 @@ it('dialog popup carries an aria-label that includes the image alt text', () => 
 The dialog is only in the DOM when open — always trigger the open action before querying `getByRole('dialog')`. No need to mock `@base-ui/react/dialog`; it renders correctly in jsdom.
 
 **Origin:** Commit b0de349 (2026-03-15) — ARIA accessible names added to ZoomableImage and MobileNav dialogs.
+
+---
+
+## Files created in latest commit (admin syllabus actions + queries)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/admin/syllabus/actions/upsert-subject.ts` | `actions/upsert-subject.test.ts` | 10 tests: Zod validation, insert happy path, insert 23505 duplicate, insert generic error, update happy path, update error, requireAdmin throw propagation |
+| `apps/web/app/app/admin/syllabus/actions/upsert-topic.ts` | `actions/upsert-topic.test.ts` | 10 tests: same structure, topic-specific duplicate message |
+| `apps/web/app/app/admin/syllabus/actions/upsert-subtopic.ts` | `actions/upsert-subtopic.test.ts` | 10 tests: same structure, subtopic-specific duplicate message |
+| `apps/web/app/app/admin/syllabus/actions/delete-item.ts` | `actions/delete-item.test.ts` | 9 tests: Zod validation (missing, bad UUID, disallowed table), delete all 3 tables, FK violation (23503), generic error, requireAdmin throw |
+| `apps/web/app/app/admin/syllabus/queries.ts` | `queries.test.ts` | 6 tests: empty DB, full tree with counts, zero counts, topic scoping, empty topics array, null data fallback |
+
+### Mocking requireAdmin in Server Action tests
+Admin Server Actions call `requireAdmin()` which wraps both auth and role check. Mock it at
+the module level and resolve with `{ supabase: { from: mockFrom }, userId: 'admin-1' }`.
+For auth-failure tests, make it reject:
+
+```ts
+const mockRequireAdmin = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
+
+// Happy path setup helper:
+function mockAdminWithResult(leafResult: { error: ... | null }) {
+  const chain = buildChain(leafResult)
+  mockFrom.mockReturnValue(chain)
+  mockRequireAdmin.mockResolvedValue({ supabase: { from: mockFrom }, userId: 'admin-1' })
+  return chain
+}
+
+// Auth guard test:
+it('propagates the error when requireAdmin throws', async () => {
+  mockRequireAdmin.mockRejectedValue(new Error('Forbidden: admin role required'))
+  await expect(upsertSubject(validInput)).rejects.toThrow('Forbidden: admin role required')
+})
+```
+
+This is simpler than mocking Supabase + auth chain separately, because requireAdmin is already tested in isolation.
+
+### Upsert Server Action chain: insert vs update paths
+The upsert pattern (no-id → insert, with-id → update) needs separate chain mocks because
+`insert()` resolves directly while `update()` returns an object with `eq()` that resolves:
+
+```ts
+function buildChain(leafResult: { error: ... | null }) {
+  return {
+    insert: vi.fn().mockResolvedValue(leafResult),
+    update: vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue(leafResult),
+    }),
+  }
+}
+```
+
+To test the update path, pass a valid UUID in the `id` field.
+To test the insert path, omit `id`.
+
+### queries.ts: parallel Promise.all with mixed chain endings
+`getSyllabusTree` runs 4 parallel queries in `Promise.all`. Three end in `.order()`, one
+(questions) ends in `.select()` with no `.order()`. Use two distinct helper functions:
+
+```ts
+// For .from().select().order() queries
+function makeOrderedChain(data: unknown[]) {
+  const chain = {
+    select: vi.fn(),
+    order: vi.fn().mockResolvedValue({ data, error: null }),
+  }
+  chain.select.mockReturnValue(chain)
+  return chain
+}
+
+// For .from().select() queries (no .order())
+function makeSelectOnlyChain(data: unknown[]) {
+  return {
+    select: vi.fn().mockResolvedValue({ data, error: null }),
+  }
+}
+```
+
+Sequence via `mockReturnValueOnce` in the same order as the source's `Promise.all` array.
+The call order is: easa_subjects (ordered) → easa_topics (ordered) → easa_subtopics (ordered) → questions (select-only).
+
+### Suite state after these files
+50 test files, ~490 tests — all passing.
