@@ -75,20 +75,17 @@ You receive:
     - Any UPDATE or DELETE on `student_responses`, `quiz_session_answers`, or `audit_events`
 
 12. **Missing input validation**
-   - Server Actions that accept parameters without Zod validation
-   - API routes that use `req.body` directly without schema parsing
+    - Server Actions that accept parameters without Zod validation
+    - API routes that use `req.body` directly without schema parsing
 
-7. **Immutable record violations**
-   - Any `UPDATE` or `DELETE` on `student_responses`, `audit_events`, or `quiz_session_answers`
+13. **Exam integrity violations**
+    - Server-side code that accepts quiz answers after the exam's `end_time`
+    - Code that allows a mock exam session to be restarted
 
-8. **Exam integrity violations**
-   - Server-side code that accepts quiz answers after the exam's `end_time`
-   - Code that allows a mock exam session to be restarted
+14. **Security headers missing**
+    - `next.config.ts` changes that remove security headers defined in `docs/security.md`
 
-9. **Security headers missing**
-   - `next.config.ts` changes that remove security headers defined in `docs/security.md`
-
-10. **Audit log gaps**
+15. **Audit log gaps**
     - New features involving student logins, quiz sessions, or exam completions that do not write to `audit_events`
 
 ### MEDIUM (warn, not blocking)
@@ -154,7 +151,7 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 
 6. **Do NOT flag missing `deleted_at` or hard DELETE on ephemeral tables** — `quiz_drafts` is scratch data (temporary, user-owned, no audit value). Hard DELETE is correct for these tables. Do not suggest adding `deleted_at`.
 
-7. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — but ONLY suppress when ALL 4 conditions are met. This suppression applies ONLY to the auth-check finding; it does not suppress other checks (e.g., correct-answer exposure, input validation).
+7. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — but ONLY suppress when ALL 4 conditions are met. This suppression applies ONLY to the auth-check finding; it does not suppress any other check (e.g., correct-answer exposure, RLS gaps, input validation).
    1. **Strict Zod validation** — the Server Action parses input with Zod `.parse()` before calling the RPC
    2. **SECURITY DEFINER RPC with auth.uid() check** — the RPC has both `SECURITY DEFINER` and `IF auth.uid() IS NULL THEN RAISE EXCEPTION`
    3. **Non-sensitive return shape** — locate the RPC's SQL definition in `supabase/migrations/` or `packages/db/migrations/` and verify the SELECT list does not return user PII, correct answers (`options.correct`), admin-only fields, or other students' data. If the migration file is not accessible, flag as HIGH.

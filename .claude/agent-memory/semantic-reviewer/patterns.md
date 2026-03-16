@@ -29,7 +29,7 @@ include an explicit "read the migration file" instruction or fall back to "treat
 unmet" when the referenced artifact is not visible.
 **Status:** ISSUE — 1st occurrence, watching.
 
-### Suppression rule numbering collision with main checklist numbering (1st occurrence)
+### Suppression rule numbering collision with main checklist numbering (RESOLVED)
 **First seen:** commit b32d56a (2026-03-16) — security-auditor.md DO NOT section
 **File:** `.claude/agents/security-auditor.md`
 **Pattern:** The HIGH section and the DO NOT section both use sequential integers
@@ -38,7 +38,7 @@ numbered 9. Non-contiguous DO NOT numbering (1,2,3,5,6,8,9) also pre-existed.
 **Watch for:** Agent files where the DO NOT section is numbered and the main
 checklist is also numbered — collision is easy to introduce when a new item is
 appended to DO NOT without checking the checklist numbering.
-**Status:** ISSUE — 1st occurrence, watching.
+**Status:** RESOLVED — DO NOT section renumbered 1-7 in d6e8224, HIGH section duplicate block removed and renumbered 11-15 in follow-up fix.
 
 ### Partial @ts-expect-error removal after library type improvement (confirmed ISSUE — 2nd occurrence)
 **First seen:** commit 225a163 (2026-03-16, PR #211)
