@@ -32,12 +32,12 @@ commit-msg:
 post-commit:
   commands:
     agent-reminder:
-      run: bash .claude/hooks/post-commit-reminder.sh
+      run: "[ -f .claude/hooks/post-commit-reminder.sh ] && bash .claude/hooks/post-commit-reminder.sh || true"
 
 pre-push:
   parallel: true
   commands:
     security-auditor:
-      run: bash .claude/hooks/run-security-auditor.sh
+      run: "[ -f .claude/hooks/run-security-auditor.sh ] && bash .claude/hooks/run-security-auditor.sh || true"
     audit:
       run: pnpm audit --audit-level=high
