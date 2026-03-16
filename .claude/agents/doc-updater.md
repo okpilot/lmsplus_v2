@@ -11,6 +11,8 @@ Keep documentation accurate and current. You update docs when:
 - Database schema changes → update `docs/database.md`
 - New decisions are made → update `docs/decisions.md`
 - Phase completes → update `docs/plan.md` status
+- Sprint item progresses or completes → update the sprint tracking table in `docs/plan.md` (change Status column from "Todo" to "In Progress", "PR #N", or "Done")
+- Commit message contains `Closes #N` or `Fixes #N` → find the matching row in the sprint table and update its status
 - New routes/pages added → update `docs/plan.md` route structure
 - Dependencies change → update relevant decision entries
 
