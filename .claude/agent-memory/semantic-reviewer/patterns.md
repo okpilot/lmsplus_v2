@@ -4,6 +4,42 @@
 
 ## Recurring Issues
 
+### Suppression rules referencing undefined severity levels (1st occurrence)
+**First seen:** commit b32d56a (2026-03-16) — security-auditor suppression rule 9
+**File:** `.claude/agents/security-auditor.md`
+**Pattern:** A new suppression condition was assigned "WARNING" severity, but the
+security-auditor's severity schema only defines CRITICAL, HIGH, and MEDIUM. An
+undefined level has no blocking/non-blocking declaration, so the pre-push hook
+cannot act on it correctly. The finding will be emitted but never blocked.
+**Watch for:** Any agent rule that introduces a severity label not present in that
+agent's own severity table. Always cross-check the label against the agent's defined
+levels before finalizing the rule.
+**Status:** ISSUE — 1st occurrence, watching.
+
+### Agent suppression rules with unverifiable conditions from diff context alone (1st occurrence)
+**First seen:** commit b32d56a (2026-03-16) — security-auditor suppression rule 9, condition 3
+**File:** `.claude/agents/security-auditor.md`
+**Pattern:** A suppression condition required verifying that an RPC "does not return
+PII or correct answers." The agent operates on git diffs. When the RPC definition
+is in a migration file not included in the diff, the agent cannot verify the condition
+and may suppress a CRITICAL finding (correct-answer exposure) incorrectly.
+**Watch for:** Suppression rules that require knowledge of code NOT in the diff
+(RPC SQL bodies, schema definitions, existing policy text). These rules must either
+include an explicit "read the migration file" instruction or fall back to "treat as
+unmet" when the referenced artifact is not visible.
+**Status:** ISSUE — 1st occurrence, watching.
+
+### Suppression rule numbering collision with main checklist numbering (1st occurrence)
+**First seen:** commit b32d56a (2026-03-16) — security-auditor.md DO NOT section
+**File:** `.claude/agents/security-auditor.md`
+**Pattern:** The HIGH section and the DO NOT section both use sequential integers
+starting from single digits. After the commit, both sections contain an item
+numbered 9. Non-contiguous DO NOT numbering (1,2,3,5,6,8,9) also pre-existed.
+**Watch for:** Agent files where the DO NOT section is numbered and the main
+checklist is also numbered — collision is easy to introduce when a new item is
+appended to DO NOT without checking the checklist numbering.
+**Status:** ISSUE — 1st occurrence, watching.
+
 ### Partial @ts-expect-error removal after library type improvement (confirmed ISSUE — 2nd occurrence)
 **First seen:** commit 225a163 (2026-03-16, PR #211)
 **Second seen:** PR #211 full-diff review (2026-03-16) — confirmed ISSUE, not SUGGESTION
