@@ -647,7 +647,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 
 **Key behavior:**
 - Allows partial submissions (students may skip questions; score = `correct / answered`, not `correct / total`)
-- Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction, ensuring the incorrect-filter counter is always accurate
+- Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction as best-effort tracking for incorrect-filter queries
 - Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
 - Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
 - Hardens field validation (migration 026): validates `jsonb_typeof(v_config->'question_ids')` = 'array' BEFORE extraction (fixes eval-before-guard issue); validates `selected_option` and `response_time_ms` per answer AFTER extraction
@@ -824,8 +824,8 @@ BEGIN
        v_selected_option, v_is_correct, v_response_time)
     ON CONFLICT DO NOTHING;
 
-    -- Update last_was_correct atomically within this transaction,
-    -- ensuring the incorrect-filter counter is always accurate.
+    -- Update last_was_correct atomically within this transaction
+    -- as best-effort tracking for incorrect-filter queries.
     INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
     VALUES (v_student_id, v_question_id, v_is_correct, now())
     ON CONFLICT (student_id, question_id)
