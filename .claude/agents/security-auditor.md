@@ -154,7 +154,13 @@ Update your memory file at `.claude/agent-memory/security-auditor/findings.md`:
 
 8. **Do NOT flag missing `deleted_at` or hard DELETE on ephemeral tables** — `quiz_drafts` is scratch data (temporary, user-owned, no audit value). Hard DELETE is correct for these tables. Do not suggest adding `deleted_at`.
 
-9. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — If a Server Action calls an RPC that has its own `auth.uid()` check, that's defense in depth. Only flag if BOTH the action AND the RPC lack auth checks.
+9. **Do NOT flag missing auth in Server Actions that delegate to auth-checked RPCs** — but ONLY suppress when ALL 4 conditions are met:
+   1. **Strict Zod validation** — the Server Action parses input with Zod `.parse()` before calling the RPC
+   2. **SECURITY DEFINER RPC with auth.uid() check** — the RPC has both `SECURITY DEFINER` and `IF auth.uid() IS NULL THEN RAISE EXCEPTION`
+   3. **Non-sensitive return shape** — the RPC does not return user PII, correct answers (`options.correct`), admin-only fields, or other students' data
+   4. **JSDoc waiver present** — the Server Action has a comment documenting why auth delegation is safe (e.g., `// Delegated auth: Zod-validated input, RPC has SECURITY DEFINER + auth.uid(), non-sensitive response`)
+
+   If ANY condition is missing, flag it. A missing waiver comment is a WARNING; missing Zod validation or missing RPC auth is HIGH.
 
 ## Tone
 
