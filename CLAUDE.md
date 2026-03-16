@@ -94,6 +94,8 @@ pnpm check        # biome lint + format
 pnpm check-types  # tsc --noEmit all packages
 ```
 
+After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache) to confirm new type definitions do not introduce errors.
+
 ## Critical rules (full details in linked docs)
 - page.tsx: 80 lines max, composition only, no logic
 - No `useEffect` for data fetching — Server Components only

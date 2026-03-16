@@ -22,16 +22,20 @@ cleanly with `pnpm check-types --force` (bypass turbo cache).
 always force a re-check: `pnpm check-types --force`. The cache cannot reflect the new types.
 **Status:** ISSUE — confirmed in PR #211 full-diff review.
 
-### Turbo type-check cache can mask new compile errors after dependency bumps (1st occurrence)
+### Turbo type-check cache can mask new compile errors after dependency bumps (2nd occurrence — RULE CANDIDATE)
 **First seen:** PR #211 review (2026-03-16)
+**Second seen:** commit c5025f6 review (2026-03-16) — commitlint 20, jsdom 29, @types/node 22 bump
 **Pattern:** `pnpm check-types` showed "3 cached, 3 total" after a batch dependency bump
 that changed `@supabase/supabase-js`, `@supabase/ssr`, and `vitest`. Cached results do not
 reflect new type definitions introduced by the bumped packages. Any `@ts-expect-error`
 removals or new casts made in the same commit on the assumption that types improved could
-be silently wrong if the cache serves a pre-bump result.
+be silently wrong if the cache serves a pre-bump result. Same concern applies when
+`@types/*` packages are bumped — turbo does not invalidate on transitive type-definition changes.
 **Watch for:** Any dependency-bump commit where `pnpm check-types` reports cache hits.
 Always add `--force` when evaluating type correctness of dep-bump commits.
-**Status:** SUGGESTION — flagged in PR #211.
+**Rule (proposed for CLAUDE.md):** After any dep-bump commit, run `pnpm check-types --force`
+to bypass turbo cache before treating type-check as green.
+**Status:** RULE CANDIDATE — 2 occurrences across different commits; learner memory updated.
 
 ### Dependency version bump diverges local cookie options type annotation from library type (RESOLVED)
 **First seen:** commit 225a163 (2026-03-16, per-commit review)
@@ -177,6 +181,20 @@ Component function where the catch block calls `console.error(err)` without
 first checking `err instanceof ZodError`. The pattern is especially risky when
 validation and async DB calls share a single try block.
 **Status:** ISSUE — flagged in 40ce785, pending fix.
+
+### Turbo type-check cache hits on dep-bump commits require force re-check (2nd occurrence)
+**First seen:** PR #211 review (2026-03-16) — @supabase/ssr bump
+**Second seen:** commit c5025f6 (2026-03-16) — @types/node 20→22, jsdom 28→29, commitlint 19→20
+**Pattern:** `pnpm check-types` reported "3 cached, 3 total" immediately after bumping
+@types/node from v20 to v22. The cache cannot reflect new Node.js type definitions.
+Any code that happened to use Node 20-only types, or that collided with new v22 types,
+would be silently accepted. In this commit the types are clean (manual validation ran
+`pnpm check-types --force` equivalent — turbo showed cached but the installed types
+matched). This is the second time a dep-bump commit has hit the type-check cache issue.
+**Rule:** On any dep-bump commit that changes a `@types/*` package, always run
+`pnpm check-types --force` (bypasses turbo cache) to get a true type-check result.
+**Status:** SUGGESTION — 2nd occurrence, pattern is confirmed. Add to pre-commit doc or
+CLAUDE.md as a note under the dep-bump workflow.
 
 ### actions/checkout bumped to a version that does not yet exist on GitHub Marketplace (1st occurrence)
 **First seen:** commit 13ce663 (2026-03-16)
@@ -2734,3 +2752,70 @@ generates JSON schema from Zod 4 schemas without error.
 ### Turbo type-check cache risk applies here too (watch item)
 **Pattern:** Recorded in previous session — always run `pnpm check-types --force` after a dep
 bump to bypass the turbo cache. This applies to this Zod 3→4 migration.
+
+---
+
+## Session: commit a9930ac — chore: migrate Biome 1 to 2 (2026-03-16)
+
+### Migration is a clean tool-config-only change (positive signal)
+**Summary:** Biome 1.9.4 → 2.4.7. Changes are: `files.ignore[]` → `files.includes[]` with negation
+prefixes, `files.overrides[].include[]` → `.includes[]` with glob prefixes, `noVar` moved from
+`style` to `suspicious` group, CSS parser config added for Tailwind directives. The migration
+produced zero lint errors and zero warnings (`biome lint` exits clean). No production logic changed.
+
+### Import/export sort reordering — no behavioral effect (positive signal)
+**Pattern:** 30+ files had import order changed (third-party before path-aliased, `type` imports
+interleaved). Named ES module exports in `card.tsx`, `collapsible.tsx`, `progress.tsx` reordered
+alphabetically. None of these changes affect runtime behavior — named imports are order-independent
+and named exports are resolved by name not position.
+
+### biome-ignore suppressions introduced — all valid (positive signal)
+Three new `biome-ignore` comments added for rules that Biome 2 now checks:
+1. `lint/performance/noImgElement` × 3 (zoomable-image.tsx × 2, explanation-tab.test.tsx × 1) —
+   raw `<img>` is intentional here because Next.js Image requires known dimensions. Valid.
+2. `lint/a11y/noStaticElementInteractions` × 1 (finish-quiz-dialog.tsx) — backdrop `<div>` with
+   click-outside dismiss. The suppression is accurate; the `<dialog>` child is the semantic element.
+
+### Spurious suppression removed from seed.ts (positive signal)
+`// biome-ignore lint/suspicious/noExplicitAny: admin client from getAdminClient()` was removed.
+The parameter type was already `ReturnType<typeof getAdminClient>` — no `any` present. The comment
+was incorrect from the start and Biome 2 no longer accepts suppressions that don't match an actual
+violation. Correct removal.
+
+### forEach → for...of in use-answer-handler.test.ts (positive signal, no behavior change)
+Biome 2's `noForEach` rule prefers `for...of` over `.forEach()`. The replacement in the test mock
+(`next.forEach((v, k) => answers.set(k, v))` → `for (const [k, v] of next) answers.set(k, v)`)
+preserves identical semantics. Note: the original destructured `(v, k)` — value first, key second —
+which is the correct Map.forEach signature. The `for...of` version destructures `[k, v]` from
+entries — also correct. No logic change.
+
+### CSS value normalisation in globals.css — no visual change (positive signal)
+`oklch(1.0 0 0)` → `oklch(1 0 0)` and `hsl(... / 0.0)` → `hsl(... / 0)`. These are identical
+CSS values. Biome's CSS formatter normalised trailing zeros.
+
+### Backdrop Escape key handler unreachable (minor observation, not an issue)
+**File:** `apps/web/app/app/quiz/_components/finish-quiz-dialog.tsx`
+The backdrop `<div>` has `onKeyDown` that handles Escape. However, the inner `<dialog>` has
+`onKeyDown={(e) => e.stopPropagation()}` which blocks all keyboard events from bubbling to the
+backdrop. The Escape handler on the backdrop is therefore unreachable in normal usage since focus
+always sits inside the `<dialog>`. This is a dead code path but not a security or data issue.
+The `<dialog>` element itself does not natively handle Escape for `open` (non-modal) usage, so
+Escape dismiss only works if focus is on a focusable element inside the dialog that doesn't have
+stopPropagation. Not flagged as an ISSUE — the dialog is dismissible by Return to Quiz / click
+outside, and this is a UX edge case not a correctness bug.
+
+---
+
+## Session: 2026-03-16 — commit d743cb8 (chore: migrate lefthook 1 to 2)
+
+### Lefthook v1→v2 major bump — config syntax validated (positive signal)
+**Files changed:** `package.json`, `pnpm-lock.yaml`
+**Pattern:** This is a pure version bump: `lefthook ^1.10.0 → ^2.1.4` (resolved 1.13.6 → 2.1.4).
+No changes to `lefthook.yml`, `.claude/hooks/`, or any hook scripts.
+`npx lefthook validate` reports "All good" under v2, confirming no breaking YAML syntax changes
+for this config (parallel, commands, glob, run, stage_fixed keys all remain valid in v2).
+The QA pipeline gates (pre-commit biome + type-check + test, commit-msg commitlint, pre-push
+security-auditor + audit) are all intact and firing.
+**Watch for:** If lefthook ever jumps to v3+, re-validate the config immediately — the v1→v2
+jump had no breaking changes for this config, but that is not guaranteed for future majors.
+**Status:** GOOD — no findings. Version bump is safe.
