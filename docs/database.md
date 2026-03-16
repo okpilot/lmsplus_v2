@@ -903,7 +903,7 @@ $$;
 
 #### `get_report_correct_options` — correct option IDs for reports
 
-Returns correct option IDs for a set of questions, scoped to a completed session owned by the caller. Used by the quiz report so the TypeScript layer never reads the raw `correct` boolean from options JSONB.
+Returns correct option IDs for the questions answered in a completed session owned by the caller. The RPC derives that question set from `quiz_session_answers`, so the TypeScript layer never reads the raw `correct` boolean from options JSONB.
 
 **Security:** Validates session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), and soft-delete status. Raises exception if any check fails.
 
