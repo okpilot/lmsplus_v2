@@ -52,10 +52,10 @@ import { useQuizState } from './use-quiz-state'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const SESSION_ID = '00000000-0000-0000-0000-000000000001'
-const Q1_ID = '00000000-0000-0000-0000-000000000011'
-const Q2_ID = '00000000-0000-0000-0000-000000000022'
-const Q3_ID = '00000000-0000-0000-0000-000000000033'
+const SESSION_ID = '00000000-0000-4000-a000-000000000001'
+const Q1_ID = '00000000-0000-4000-a000-000000000011'
+const Q2_ID = '00000000-0000-4000-a000-000000000022'
+const Q3_ID = '00000000-0000-4000-a000-000000000033'
 
 const THREE_QUESTIONS = [
   {
@@ -366,7 +366,7 @@ describe('useQuizState — handleSave', () => {
   })
 
   it('includes draft id when saving existing draft', async () => {
-    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
+    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
     const { result } = renderHook(() =>
       useQuizState({
         sessionId: SESSION_ID,
@@ -416,7 +416,7 @@ describe('useQuizState — handleDiscard', () => {
   })
 
   it('includes draft id when discarding', async () => {
-    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
+    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
     const { result } = renderHook(() =>
       useQuizState({
         sessionId: SESSION_ID,

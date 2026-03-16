@@ -37,9 +37,9 @@ import {
 
 // ---- Fixtures -------------------------------------------------------------
 
-const SESSION_ID = '00000000-0000-0000-0000-000000000001'
-const Q1_ID = '00000000-0000-0000-0000-000000000011'
-const Q2_ID = '00000000-0000-0000-0000-000000000022'
+const SESSION_ID = '00000000-0000-4000-a000-000000000001'
+const Q1_ID = '00000000-0000-4000-a000-000000000011'
+const Q2_ID = '00000000-0000-4000-a000-000000000022'
 
 function makeAnswers(
   entries: Array<[string, { selectedOptionId: string; responseTimeMs: number }]>,
@@ -104,7 +104,7 @@ describe('submitQuizSession', () => {
 
   it('cleans up saved draft after successful submission', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
+    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
 
     await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
 
@@ -134,7 +134,7 @@ describe('submitQuizSession', () => {
 
   it('preserves saved draft when submission fails', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session not found' })
-    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
+    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
 
     await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
 
@@ -167,7 +167,7 @@ describe('submitQuizSession', () => {
     const cleanupError = new Error('draft cleanup network failure')
     mockDeleteDraft.mockRejectedValue(cleanupError)
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
+    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
 
     try {
       const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
@@ -456,7 +456,7 @@ describe('handleDiscardSession', () => {
   })
 
   it('includes draft id when discarding', async () => {
-    const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
+    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ draftId: DRAFT_ID })
     await handleDiscardSession(opts)

@@ -49,7 +49,7 @@ describe('discardQuiz', () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
 
     const result = await discardQuiz({
-      sessionId: '00000000-0000-0000-0000-000000000001',
+      sessionId: '00000000-0000-4000-a000-000000000001',
     })
 
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
@@ -69,7 +69,7 @@ describe('discardQuiz', () => {
 
   it('returns invalid-input error when draftId is present but not a UUID', async () => {
     const result = await discardQuiz({
-      sessionId: '00000000-0000-0000-0000-000000000001',
+      sessionId: '00000000-0000-4000-a000-000000000001',
       draftId: 'not-a-uuid',
     })
     expect(result).toEqual({ success: false, error: 'Invalid input' })
@@ -81,7 +81,7 @@ describe('discardQuiz', () => {
     mockFrom.mockReturnValue(buildChain({ error: null }))
 
     const result = await discardQuiz({
-      sessionId: '00000000-0000-0000-0000-000000000001',
+      sessionId: '00000000-0000-4000-a000-000000000001',
     })
 
     expect(result).toEqual({ success: true })
@@ -96,7 +96,7 @@ describe('discardQuiz', () => {
     })
 
     const result = await discardQuiz({
-      sessionId: '00000000-0000-0000-0000-000000000001',
+      sessionId: '00000000-0000-4000-a000-000000000001',
     })
 
     expect(result).toEqual({ success: false, error: 'Failed to discard quiz' })
@@ -112,8 +112,8 @@ describe('discardQuiz', () => {
     })
 
     const result = await discardQuiz({
-      sessionId: '00000000-0000-0000-0000-000000000001',
-      draftId: '00000000-0000-0000-0000-000000000002',
+      sessionId: '00000000-0000-4000-a000-000000000001',
+      draftId: '00000000-0000-4000-a000-000000000002',
     })
 
     expect(result).toEqual({ success: true })
@@ -128,8 +128,8 @@ describe('discardQuiz', () => {
     })
 
     const result = await discardQuiz({
-      sessionId: '00000000-0000-0000-0000-000000000001',
-      draftId: '00000000-0000-0000-0000-000000000002',
+      sessionId: '00000000-0000-4000-a000-000000000001',
+      draftId: '00000000-0000-4000-a000-000000000002',
     })
 
     // Session was discarded; draft error is non-fatal
@@ -140,7 +140,7 @@ describe('discardQuiz', () => {
     mockFrom.mockReturnValue(buildChain({ error: null }))
 
     await discardQuiz({
-      sessionId: '00000000-0000-0000-0000-000000000001',
+      sessionId: '00000000-0000-4000-a000-000000000001',
     })
 
     const tablesCalled = mockFrom.mock.calls.map((c: unknown[]) => c[0])
@@ -177,8 +177,8 @@ describe('discardQuiz', () => {
     })
 
     await discardQuiz({
-      sessionId: '00000000-0000-0000-0000-000000000001',
-      draftId: '00000000-0000-0000-0000-000000000002',
+      sessionId: '00000000-0000-4000-a000-000000000001',
+      draftId: '00000000-0000-4000-a000-000000000002',
     })
 
     expect(draftChainMethods).toContain('delete')
@@ -191,7 +191,7 @@ describe('discardQuiz', () => {
     mockGetUser.mockRejectedValue(new Error('network failure'))
 
     const result = await discardQuiz({
-      sessionId: '00000000-0000-0000-0000-000000000001',
+      sessionId: '00000000-0000-4000-a000-000000000001',
     })
 
     expect(result).toEqual({

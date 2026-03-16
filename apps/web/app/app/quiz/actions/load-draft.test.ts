@@ -20,8 +20,8 @@ import { loadDrafts } from './load-draft'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const DRAFT_ID = 'draft-00000000-0000-0000-0000-000000000001'
+const USER_ID = '00000000-0000-4000-a000-000000000001'
+const DRAFT_ID = 'draft-00000000-0000-4000-a000-000000000001'
 
 function buildDraftRow(overrides: Record<string, unknown> = {}) {
   return {

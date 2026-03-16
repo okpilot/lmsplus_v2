@@ -23,9 +23,9 @@ import { batchSubmitQuiz } from './batch-submit'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const SESSION_ID = '00000000-0000-0000-0000-000000000001'
-const Q1_ID = '00000000-0000-0000-0000-000000000011'
-const Q2_ID = '00000000-0000-0000-0000-000000000022'
+const SESSION_ID = '00000000-0000-4000-a000-000000000001'
+const Q1_ID = '00000000-0000-4000-a000-000000000011'
+const Q2_ID = '00000000-0000-4000-a000-000000000022'
 
 const VALID_ANSWERS = [
   { questionId: Q1_ID, selectedOptionId: 'a', responseTimeMs: 2000 },

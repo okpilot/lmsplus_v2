@@ -20,12 +20,12 @@ import { saveDraft } from './draft'
 
 // ---- Fixtures -------------------------------------------------------------
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const ORG_ID = '00000000-0000-0000-0000-000000000099'
-const SESSION_ID = '00000000-0000-0000-0000-000000000002'
-const DRAFT_ID = '00000000-0000-0000-0000-000000000050'
-const Q1_ID = '00000000-0000-0000-0000-000000000011'
-const Q2_ID = '00000000-0000-0000-0000-000000000022'
+const USER_ID = '00000000-0000-4000-a000-000000000001'
+const ORG_ID = '00000000-0000-4000-a000-000000000099'
+const SESSION_ID = '00000000-0000-4000-a000-000000000002'
+const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
+const Q1_ID = '00000000-0000-4000-a000-000000000011'
+const Q2_ID = '00000000-0000-4000-a000-000000000022'
 
 const VALID_DRAFT_INPUT = {
   sessionId: SESSION_ID,
@@ -117,7 +117,7 @@ describe('saveDraft', () => {
     setupAuthenticatedUser()
     const result = await saveDraft({ sessionId: 'not-a-uuid' })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid uuid')
+    if (!result.success) expect(result.error).toBe('Invalid UUID')
   })
 
   it('returns failure when organization_id is not found', async () => {
@@ -282,7 +282,7 @@ describe('saveDraft', () => {
       questionIds: ['not-a-uuid'],
     })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid uuid')
+    if (!result.success) expect(result.error).toBe('Invalid UUID')
   })
 
   it('validates that answers have non-negative responseTimeMs', async () => {
@@ -322,7 +322,7 @@ describe('saveDraft', () => {
 
   it('rejects answers whose keys are not present in questionIds', async () => {
     setupAuthenticatedUser()
-    const staleQuestionId = '00000000-0000-0000-0000-000000000099'
+    const staleQuestionId = '00000000-0000-4000-a000-000000000099'
     const result = await saveDraft({
       ...VALID_DRAFT_INPUT,
       answers: {

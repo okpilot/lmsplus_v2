@@ -33,16 +33,16 @@ describe('fetchQuestionStats', () => {
     }
     mockGetQuestionStats.mockResolvedValue(stats)
 
-    const result = await fetchQuestionStats('00000000-0000-0000-0000-000000000001')
+    const result = await fetchQuestionStats('00000000-0000-4000-a000-000000000001')
 
-    expect(mockGetQuestionStats).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001')
+    expect(mockGetQuestionStats).toHaveBeenCalledWith('00000000-0000-4000-a000-000000000001')
     expect(result).toEqual(stats)
   })
 
   it('rejects when the stats query fails', async () => {
     mockGetQuestionStats.mockRejectedValue(new Error('DB error'))
 
-    await expect(fetchQuestionStats('00000000-0000-0000-0000-000000000001')).rejects.toThrow(
+    await expect(fetchQuestionStats('00000000-0000-4000-a000-000000000001')).rejects.toThrow(
       'DB error',
     )
   })
@@ -63,7 +63,7 @@ describe('fetchQuestionStats', () => {
   it('throws when user is not authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
 
-    await expect(fetchQuestionStats('00000000-0000-0000-0000-000000000001')).rejects.toThrow(
+    await expect(fetchQuestionStats('00000000-0000-4000-a000-000000000001')).rejects.toThrow(
       'Not authenticated',
     )
     expect(mockGetQuestionStats).not.toHaveBeenCalled()
@@ -75,7 +75,7 @@ describe('fetchQuestionStats', () => {
       error: { message: 'session expired' },
     })
 
-    await expect(fetchQuestionStats('00000000-0000-0000-0000-000000000001')).rejects.toThrow(
+    await expect(fetchQuestionStats('00000000-0000-4000-a000-000000000001')).rejects.toThrow(
       'Auth error',
     )
     expect(mockGetQuestionStats).not.toHaveBeenCalled()

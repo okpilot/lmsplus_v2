@@ -15,7 +15,7 @@ import { upsertSubject } from './upsert-subject'
 
 // ---- Helpers ---------------------------------------------------------------
 
-const VALID_UUID = '00000000-0000-0000-0000-000000000001'
+const VALID_UUID = '00000000-0000-4000-a000-000000000001'
 
 function buildChain(leafResult: { error: { message: string; code?: string } | null }) {
   // Single chain that supports both sort_order query and insert/update

@@ -136,7 +136,7 @@ describe('RPC: get_quiz_questions', () => {
 
   it('returns empty for non-existent IDs', async () => {
     const { data, error } = await studentClient.rpc('get_quiz_questions', {
-      p_question_ids: ['00000000-0000-0000-0000-000000000001'],
+      p_question_ids: ['00000000-0000-4000-a000-000000000001'],
     })
     expect(error).toBeNull()
     expect(data).toHaveLength(0)

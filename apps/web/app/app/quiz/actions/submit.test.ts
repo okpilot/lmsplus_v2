@@ -30,8 +30,8 @@ beforeEach(() => {
 
 describe('submitQuizAnswer', () => {
   const validInput = {
-    sessionId: '00000000-0000-0000-0000-000000000001',
-    questionId: '00000000-0000-0000-0000-000000000002',
+    sessionId: '00000000-0000-4000-a000-000000000001',
+    questionId: '00000000-0000-4000-a000-000000000002',
     selectedOptionId: 'a',
     responseTimeMs: 3000,
   }

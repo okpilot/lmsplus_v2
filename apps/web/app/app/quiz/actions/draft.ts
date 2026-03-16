@@ -66,7 +66,7 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     return await insertNewDraft(supabase, input, user.id, u.organization_id)
   } catch (err) {
     if (err instanceof ZodError)
-      return { success: false, error: err.errors[0]?.message ?? 'Invalid input' }
+      return { success: false, error: err.issues[0]?.message ?? 'Invalid input' }
     console.error('[saveDraft] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }
   }

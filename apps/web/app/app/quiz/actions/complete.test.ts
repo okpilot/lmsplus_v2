@@ -28,7 +28,7 @@ beforeEach(() => {
 })
 
 describe('completeQuiz', () => {
-  const validInput = { sessionId: '00000000-0000-0000-0000-000000000001' }
+  const validInput = { sessionId: '00000000-0000-4000-a000-000000000001' }
 
   it('returns failure when user is not authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
