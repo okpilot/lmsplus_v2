@@ -1,8 +1,14 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'http://127.0.0.1:54321'
-const ANON_KEY = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'
-const SERVICE_ROLE_KEY = 'sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz'
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`${name} is required — run \`supabase status\` to get it`)
+  return value
+}
+
+const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321'
+const ANON_KEY = requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+const SERVICE_ROLE_KEY = requireEnv('SUPABASE_SERVICE_ROLE_KEY')
 
 /** Service role client — bypasses RLS, used for setup/teardown */
 export function getAdminClient(): SupabaseClient {
