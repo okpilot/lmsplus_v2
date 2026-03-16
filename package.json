@@ -10,12 +10,14 @@
     "test": "turbo run test",
     "coverage": "turbo run coverage",
     "check-types": "turbo run check-types",
-    "e2e": "turbo run e2e"
+    "e2e": "turbo run e2e",
+    "knip": "knip"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.7",
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
+    "knip": "^5.87.0",
     "lefthook": "^2.1.4",
     "turbo": "^2.8.17",
     "typescript": "^5.7.0"
