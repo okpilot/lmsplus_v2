@@ -572,7 +572,8 @@ BEGIN
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
-    AND qs.deleted_at IS NULL;
+    AND qs.deleted_at IS NULL
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found';
@@ -595,7 +596,8 @@ BEGIN
     RAISE EXCEPTION 'question does not belong to this session';
   END IF;
 
-  -- Get correct answer, explanation, and full options array (service-level access)
+  -- Get correct answer, explanation, and full options array (service-level access).
+  -- deleted_at filter applied: active sessions should only reference active questions.
   SELECT
     (SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt WHERE (opt->>'correct')::boolean LIMIT 1),
     q.explanation_text,
