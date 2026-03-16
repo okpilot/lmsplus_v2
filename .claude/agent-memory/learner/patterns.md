@@ -45,7 +45,7 @@
 | ON CONFLICT clause with no supporting UNIQUE constraint (dead code) | 1 | 2026-03-13 | Watch — student_responses (a09c6be); ON CONFLICT on (session_id, question_id) silently ignored because UNIQUE constraint was never created; fixed by adding UNIQUE constraint in migration; first occurrence |
 | TOCTOU race on count-gated INSERT (read-then-write without lock) | 1 | 2026-03-13 | Watch — draft count check before inserting quiz_draft (feat/post-sprint-3-polish); concurrent requests could both pass the count check; fixed with DB trigger enforcing limit at DB level; first occurrence |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE — first: getFilteredCount in feat/post-sprint-3-polish (2026-03-13); second: getQuizReport quiz_sessions query missing student_id scope (b46b0bf → 199e927, CRITICAL); both fixed; root cause: auth check (getUser) ≠ ownership scoping — queries on student-owned tables must always scope to student_id; distinct from RPC identity-guard pattern (that is SECURITY DEFINER param mismatch); propose security.md note on third occurrence |
-| UI event handler missing re-entry guard (double-fire on fast interaction) | 1 | 2026-03-13 | Watch — handleSelectAnswer had no guard preventing a second async call while first was in-flight (feat/post-sprint-3-polish); fixed with isSubmitting ref check; first occurrence |
+| UI event handler missing re-entry guard (double-fire on fast interaction) | 2 | 2026-03-16 | RULE CANDIDATE — first: handleSelectAnswer async double-fire (2026-03-13, fixed with isSubmitting ref); second: finish-quiz-dialog Escape double-fire via DOM bubbling (4439640, fixed with unconditional stopPropagation); two different mechanisms (async lock vs. event propagation); common principle: any close/submit action must be audited for re-entry at authoring time |
 | Server Action file exceeding 100-line limit after Biome auto-format | 1 | 2026-03-13 | Watch — draft.ts was 166 lines, split to 114+37 (6d274fa); the 114-line file still exceeds the 100-line Server Action limit; root cause: Biome expanded compact code from 97→114 lines during pre-commit format pass; authoring-time count ≠ post-format count; first occurrence of this specific mechanism (Biome expansion pushing over limit) |
 | Biome auto-format expanding compact code past file-size limit | 1 | 2026-03-13 | Watch — draft.ts written at ~97 lines, Biome format expanded to 114 lines on pre-commit (6d274fa); the 100-line Server Action limit check must be done against post-format line count, not authoring-time count; first occurrence |
 | Async fetch in useEffect without stale-result cancellation flag | 1 | 2026-03-13 | Watch — useEffect in draft.ts initiated fetch without cancelled flag; if the component unmounted or deps changed before the fetch resolved, setState was called on stale/unmounted context; fixed with cancelled flag pattern in fe4ffff; distinct from "useEffect data fetching in client component" (that is about banned server-action fetching — this is a permitted client fetch missing a cleanup guard); first occurrence |
@@ -85,6 +85,7 @@
 | Zod error message pinned to exact internal text | 2 | 2026-03-16 | RULE CANDIDATE — first: cb0395c (2026-03-14) test file assertion pinned to Zod 3 internal string; second: 559bf9e Zod 3→4 migration — "Invalid uuid"→"Invalid UUID", "Required"→"Invalid input:…" changed in production source files; Zod internal messages are not public API; assert `error instanceof ZodError` or `.issues[0].code`, never `.message` text |
 | Test fixtures using zeroed UUID format (`00000000-0000-0000-0000-*`) invalid under Zod 4 RFC 4122 enforcement | 1 | 2026-03-16 | Watch — 559bf9e: 27 test files required UUID constant replacements from `00000000-0000-0000-0000-*` to `00000000-0000-4000-a000-*`; Zod 4 validates version bits (nibble 13 must be 4–5) and variant bits (nibble 17 must be 8–b); also affected E2E sentinel UUIDs (5ad3c16); first occurrence; if new test file added with zeroed UUIDs, update test-writer memory with compliant constant form |
 | `err.errors` property access silently undefined after Zod 4 removal (was Zod 3 alias for `.issues`) | 1 | 2026-03-16 | Watch — 559bf9e: two production source files accessed `.errors` on ZodError instances; Zod 4 removed the property (not deprecated); returns undefined, silently falls through to fallback strings; caught by pre-commit tsc gate; fix: use `.issues` throughout; first occurrence |
+| Turbo type-check cache masking new compile errors after dependency bumps | 2 | 2026-03-16 | RULE CANDIDATE — first: PR #211 (@supabase/ssr, @supabase/supabase-js, vitest bumps): `pnpm check-types` showed "3 cached, 3 total" after a batch dep bump; turbo served pre-bump type results, silently hiding whether new types introduced errors; second: c5025f6 (commitlint 20, jsdom 29, @types/node 22 bumps): semantic-reviewer flagged same concern; workaround is `pnpm check-types --force` on dep-bump commits; turbo cache does not know that the type signatures behind the packages changed; propose CLAUDE.md workflow note: after any dep-bump commit, run `pnpm check-types --force` to bypass turbo cache before treating type-check as passing |
 
 ## Lessons Learned
 
@@ -1836,5 +1837,87 @@ No edits needed to those files beyond this notation. The entries are accurate hi
 - All 4 agents reported clean or near-clean on a 29-file migration — signal that the migration was well-scoped and the codebase has good test coverage.
 - The semantic-reviewer's GOOD patterns (5 total) reflect consistent Zod 4 adoption: `.parse()` still in try/catch, schema definitions structurally unchanged, no regressions in Server Action input validation.
 - The follow-up UUID commit (5ad3c16) was small and targeted — 1 file, 9 constant replacements. The E2E gate caught the gap cleanly.
+
+---
+
+### 2026-03-16 — Biome 1→2 migration + batch minor/patch deps + Escape double-fire fix (commits a9930ac, 7a93e37, 03fada1, 4439640)
+
+**Context:** Four commits processed in this learner cycle. a9930ac migrated Biome from v1 to v2 (biome.json restructured, `globals.css` formatting updated). 7a93e37 was a batch minor/patch dependency update (Dependabot). 03fada1 addressed a semantic-reviewer finding from the Biome migration cycle — the initial fix for the Escape double-fire in `finish-quiz-dialog.tsx`. 4439640 was the corrected fix (stopPropagation() moved before the key check). The Escape double-fire bug was originally present in the codebase before these commits and was first surfaced by the PR-level semantic review sweep, not by the per-commit round on the individual commit that contained the component.
+
+**Code reviewer:** CLEAN — 0 BLOCKING, 0 WARNING.
+
+**Doc updater:** `docs/plan.md` updated (sprint/phase progress). No schema, RPC, or route changes.
+
+**Test writer:** No coverage gaps found. The `finish-quiz-dialog.tsx` fix was a 1-line change to event propagation ordering — the behavioral change is the absence of a double-fire, which is not directly testable via vitest unit tests (requires DOM event bubbling through a real or simulated backdrop, which is outside the jsdom unit test scope for this component).
+
+**Semantic reviewer:** 0 CRITICAL, 1 ISSUE (Escape double-fire, fixed), 2 SUGGESTIONS. The ISSUE was caught in the PR-level diff sweep (`git diff master...HEAD`), not in the per-commit round on the commit that introduced the component change. This confirms the PR-level sweep provides qualitatively different coverage than per-commit review.
+
+**Patterns detected this cycle:**
+
+1. **[REPEAT] UI event handler double-fire — Escape key in dialog (count 2)**
+   - The `finish-quiz-dialog.tsx` `onKeyDown` handler called `e.stopPropagation()` only in the non-Escape branch, allowing Escape events to bubble from the inner dialog `div` to the outer backdrop handler, triggering `handleClose()` twice. The correct fix: call `e.stopPropagation()` unconditionally before the key check.
+   - First occurrence: `handleSelectAnswer` had no guard preventing a second async call while first was in-flight (feat/post-sprint-3-polish, 2026-03-13). Second occurrence: `finish-quiz-dialog.tsx` Escape double-fire (this cycle).
+   - Both involve a UI interaction path that can fire twice due to missing event or state guard. Both were caught post-commit rather than at authoring time.
+   - Count in frequency table: 1 → 2. Status: RULE CANDIDATE.
+   - The two occurrences are different mechanisms (async in-flight guard vs. DOM event bubbling), so a single mechanical rule is not obvious. The common principle: any interactive component with a close/submit/complete action must be audited at authoring time for re-entry paths — both async double-invocation (use a ref lock) and DOM event double-fire (use stopPropagation before guard check).
+
+2. **[POSITIVE SIGNAL] PR-level sweep catching a bug that per-commit review missed**
+   - The Escape double-fire was present in code that was committed and passed per-commit review. It was caught only when the semantic-reviewer saw the full PR diff (`git diff master...HEAD`). The specific context that revealed the bug: the relationship between `finish-quiz-dialog.tsx`'s `onKeyDown` on the inner div and the backdrop's `onClick`/`onKeyDown` handlers — cross-component event interaction that is invisible when reviewing a single commit.
+   - This is the second explicit validation of the PR-level sweep's value (first was documented as a system-level insight in the 2026-03-13 CodeRabbit meta-pattern observation). The PR-level sweep requirement in `agent-workflow.md` is confirmed necessary and working.
+   - No action needed — the rule already requires PR-level sweep before push. This is a positive confirmation.
+
+**Patterns checked from frequency table:**
+
+- **"UI event handler missing re-entry guard (double-fire on fast interaction)" (count 1 → 2, RULE CANDIDATE):** Count updated. The two occurrences use different mechanisms. No single mechanically checkable rule emerges; log as RULE CANDIDATE for agent memory guidance rather than code-style.md addition.
+
+**Actions taken:**
+- Frequency table: "UI event handler missing re-entry guard (double-fire on fast interaction)" count updated 1 → 2. Status: RULE CANDIDATE.
+- No changes to `code-style.md`, `security.md`, or `biome.json` — the double-fire pattern spans two different mechanisms and does not map to a single mechanical rule. The guidance belongs in semantic-reviewer checklist awareness or agent memory, not a style rule.
+
+**False positives:** none.
+
+**Positive signals:**
+- All 4 agents clean on the Biome migration (a9930ac) — a large-footprint config migration (74 files) with zero code-style violations or test gaps. Signal: the migration was purely mechanical.
+- The Biome 2 migration required no production logic changes — all deltas were formatting (globals.css) and config restructuring (biome.json). The pre-commit Biome gate confirmed correctness on the first attempt.
+- The PR-level sweep caught a real interaction bug invisible to per-commit review. Fix was minimal (1 line, move stopPropagation before key check). This is the intended sweet spot for PR-level review: catches cross-component behavioral assumptions that single-commit diff review cannot see.
+- The dependency batch (7a93e37) was processed cleanly — code reviewer correctly applied config file relaxation, test writer correctly produced no output. Agent scope boundaries held.
+
+---
+
+### 2026-03-16 — Pure devDependency bump (commit c5025f6)
+
+**Commit:** chore: bump commitlint 20, jsdom 29, @types/node 22
+**Files changed:** `apps/web/package.json`, `package.json`, `pnpm-lock.yaml`
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean. Config/lockfile changes only; relaxed file-size limits apply.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE. 1 SUGGESTION: turbo type-check cache does not invalidate on `@types/*` package bumps, so `pnpm check-types` on dep-bump commits may serve a cached pre-bump result. Workaround: run `pnpm check-types --force`. This is the second occurrence of this observation (first was PR #211 documented in semantic-reviewer memory).
+
+**Doc updater:** no changes needed. Pure devDependency bump; no schema, API, or architecture changes.
+
+**Test writer:** no tests needed. No production source files changed.
+
+**Pattern analysis:**
+
+1. **[REPEAT — 2nd occurrence] Turbo type-check cache masking new compile errors after dependency bumps**
+   - First occurrence: PR #211 batch dep bump (@supabase/ssr, @supabase/supabase-js, vitest) — semantic-reviewer logged in its own memory as "1st occurrence, SUGGESTION."
+   - Second occurrence: c5025f6 commitlint 20 / jsdom 29 / @types/node 22 bump — semantic-reviewer flagged the same SUGGESTION again.
+   - Count is now 2 across different commits. Threshold for RULE CANDIDATE met.
+   - Recommended action: add a workflow note to CLAUDE.md (or agent memory) stating that after any dep-bump commit, `pnpm check-types --force` must be run to bypass the turbo cache before treating type-check as green. This is not a code-style rule and not a Biome/Lefthook enforcement concern — it is a workflow habit for dep-bump commits specifically.
+   - Frequency table updated: "Turbo type-check cache masking new compile errors after dependency bumps" count 1 → 2, status RULE CANDIDATE.
+
+**Recommended changes:**
+- [ ] `CLAUDE.md` — add note to the "Commands" or "QA pipeline" section: "After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache) to confirm new type definitions do not introduce errors."
+
+**Actions taken:**
+- Frequency table: added "Turbo type-check cache masking new compile errors after dependency bumps" as new row, count 2, status RULE CANDIDATE.
+- No changes to `code-style.md`, `security.md`, or `biome.json` — this is a workflow habit, not a mechanical lint rule.
+- Proposed CLAUDE.md change above; orchestrator decides whether to apply it.
+
+**False positives:** none.
+
+**Positive signals:**
+- All 4 agents fully clean on a pure devDependency bump. Agent scoping is working correctly: code-reviewer applied config relaxation, test-writer correctly produced no output, doc-updater correctly found nothing to update.
+- The semantic reviewer's SUGGESTION (turbo cache) was handled correctly via `--force` at authoring time — no type errors were silently masked in this commit. The SUGGESTION is about future dep-bump commits, not a gap in this one.
 
 ---
