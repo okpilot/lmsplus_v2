@@ -6,7 +6,8 @@ function requireEnv(name: string): string {
   return value
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321'
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321'
+// Environment-specific — no safe default; run `supabase status` to get it
 const ANON_KEY = requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
 const SERVICE_ROLE_KEY = requireEnv('SUPABASE_SERVICE_ROLE_KEY')
 

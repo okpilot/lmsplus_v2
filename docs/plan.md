@@ -221,7 +221,7 @@
 - Biome lint fixes: template literal normalization across scripts
 - Issues #22, #18, #13, #14, #85 closed
 
-**Local dev setup (2026-03-11, updated 2026-03-15):**
+**Local dev setup (2026-03-11, updated 2026-03-16):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
 - `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys
 - Mailpit at `http://localhost:54324` — catches all magic link emails locally
@@ -230,6 +230,7 @@
 - `scripts/import-questions.ts` — imports questions from JSON; refuses non-local URLs unless `--force-remote` flag passed
 - `scripts/seed-admin-eval.ts` — seeds admin/student users for manual eval; run after `npx supabase db reset`
 - 73 questions seeded locally (050-01-01 through 050-01-05)
+- **Integration tests locally:** Require `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` env vars (security fix 2026-03-16). Set via: `eval "$(supabase status -o env)"` before running `pnpm --filter @repo/db test:integration`
 - Migrations in `supabase/migrations/`:
   - 003: add `question_number` column
   - 004: fix users RLS (infinite recursion from self-referencing policy)
