@@ -408,7 +408,7 @@ ORDER BY deleted_at DESC;
 | `quiz_sessions` | Yes | Sessions can be discarded (soft-deleted via `deleted_at`) |
 | `quiz_session_answers` | No | Immutable |
 | `student_responses` | No | Immutable |
-| `fsrs_cards` | No | Updated in place; deletion would break FSRS state |
+| `fsrs_cards` | No | Updated in place; stores `last_was_correct` for incorrect-filter queries |
 | `audit_events` | No | Immutable compliance log |
 | `easa_subjects/topics/subtopics` | No | Reference data, never deleted |
 
@@ -430,7 +430,7 @@ Use Postgres functions (RPCs) for:
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
   check_quiz_answer          ← read, verify answer + return explanation (immediate feedback)
-  submit_quiz_answer         ← write, atomic: single answer + fsrs + audit (DEPRECATED — use batch_submit_quiz)
+  submit_quiz_answer         ← write, atomic: single answer + last_was_correct + audit
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz)
@@ -636,9 +636,6 @@ BEGIN
      p_selected_option, v_is_correct, p_response_time_ms)
   ON CONFLICT DO NOTHING;
 
-  -- Upsert FSRS card state (handled by application layer calling ts-fsrs,
-  -- then calling update_fsrs_card RPC with computed values)
-
   RETURN QUERY SELECT v_is_correct, v_expl_text, v_expl_image_url, v_correct_option;
 END;
 $$;
@@ -650,8 +647,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 
 **Key behavior:**
 - Allows partial submissions (students may skip questions; score = `correct / answered`, not `correct / total`)
-- Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction (migration 022), eliminating the window where the incorrect-filter counter could read stale data
-- Full FSRS scheduling (due, stability, difficulty) continues to be handled by the application layer after the RPC returns
+- Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction, ensuring the incorrect-filter counter is always accurate
 - Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
 - Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
 - Hardens field validation (migration 026): validates `jsonb_typeof(v_config->'question_ids')` = 'array' BEFORE extraction (fixes eval-before-guard issue); validates `selected_option` and `response_time_ms` per answer AFTER extraction
@@ -828,11 +824,8 @@ BEGIN
        v_selected_option, v_is_correct, v_response_time)
     ON CONFLICT DO NOTHING;
 
-    -- Update last_was_correct atomically within this transaction.
-    -- Full FSRS scheduling (due, stability, difficulty, etc.) is handled by the
-    -- application layer after the RPC returns. Updating last_was_correct here
-    -- ensures the incorrect-filter counter is always accurate immediately after
-    -- session completion, with no window where stale data could be read.
+    -- Update last_was_correct atomically within this transaction,
+    -- ensuring the incorrect-filter counter is always accurate.
     INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
     VALUES (v_student_id, v_question_id, v_is_correct, now())
     ON CONFLICT (student_id, question_id)
@@ -1119,9 +1112,8 @@ CREATE INDEX idx_lessons_org         ON lessons(organization_id) WHERE deleted_a
 CREATE INDEX idx_quiz_sessions_org   ON quiz_sessions(organization_id);
 CREATE INDEX idx_student_responses_org ON student_responses(organization_id);
 
--- FSRS statistics (queried in statistics tab, sorted by due for review scheduling)
-CREATE INDEX idx_fsrs_cards_due      ON fsrs_cards(student_id, due)
-  WHERE state != 'new';
+-- fsrs_cards lookup (for filtering by last_was_correct)
+CREATE INDEX idx_fsrs_cards_student  ON fsrs_cards(student_id, last_was_correct);
 
 -- Student data queries
 CREATE INDEX idx_student_responses_student ON student_responses(student_id, created_at DESC);
