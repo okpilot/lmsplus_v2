@@ -48,8 +48,8 @@ export function FinishQuizDialog({
         className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
+          e.stopPropagation()
           if (e.key === 'Escape') handleClose()
-          else e.stopPropagation()
         }}
         aria-label="Finish quiz"
       >
