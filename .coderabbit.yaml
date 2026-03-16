@@ -50,6 +50,9 @@ reviews:
         - Default to Server Components. Only add 'use client' at lowest interactive boundary.
         - Functions max 30 lines, max 3 params (use options object otherwise).
         - Max 3 nesting levels — use early returns.
+        - Use Next.js <Image> instead of <img> (Biome noImgElement). Suppress only when dimensions are unknown.
+        - Click handlers on static elements need paired keyboard handlers (Biome useKeyWithClickEvents).
+        - Static elements must not have interaction handlers without an appropriate role (Biome noStaticElementInteractions).
 
     # Server Actions — validated mutations
     - path: "apps/web/app/**/actions.ts"
