@@ -3,6 +3,7 @@ name: "CodeQL"
 on:
   schedule:
     - cron: "30 5 * * 1" # Monday 05:30 UTC (offset from e2e nightly at 03:00)
+  workflow_dispatch: # manual re-runs for security-sensitive changes
 
 permissions:
   security-events: write
@@ -10,7 +11,7 @@ permissions:
 
 concurrency:
   group: codeql-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   analyze:
@@ -25,9 +26,6 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
