@@ -638,8 +638,7 @@ BEGIN
      p_selected_option, v_is_correct, p_response_time_ms)
   ON CONFLICT DO NOTHING;
 
-  -- Update last_was_correct atomically within this transaction
-  -- as best-effort tracking for incorrect-filter queries.
+  -- Update last_was_correct atomically within this transaction.
   INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
   VALUES (v_student_id, p_question_id, v_is_correct, now())
   ON CONFLICT (student_id, question_id)
