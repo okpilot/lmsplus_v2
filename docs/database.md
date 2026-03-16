@@ -933,13 +933,13 @@ BEGIN
   -- This SECURITY DEFINER function bypasses RLS — do not remove the guard.
   RETURN QUERY
   SELECT DISTINCT ON (sa.question_id)
-    sa.question_id, (opt->>'id')::text
+    sa.question_id, (opt.value->>'id')::text
   FROM quiz_session_answers sa
   JOIN questions q ON q.id = sa.question_id
-  CROSS JOIN LATERAL jsonb_array_elements(q.options) AS opt
+  CROSS JOIN LATERAL jsonb_array_elements(q.options) WITH ORDINALITY AS opt(value, ord)
   WHERE sa.session_id = p_session_id
-    AND q.deleted_at IS NULL
-    AND (opt->>'correct')::boolean = true;
+    AND (opt.value->>'correct')::boolean = true
+  ORDER BY sa.question_id, opt.ord;
 END;
 $$;
 ```
