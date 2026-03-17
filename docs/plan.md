@@ -35,12 +35,13 @@
 |-------|-------|-------|----------|------|--------|
 | 1 | #210 | Bump GitHub Actions versions (checkout v6, setup-node v6, upload-artifact v7, codeql-action v4) | P1 | S | PR #216 |
 | 2 | #211 | Batch minor/patch npm updates (pnpm update) | P1 | S | Todo |
-| 3 | #215 | Dev tooling majors (commitlint 20, vite-react 6, jsdom 29, @types/node 25) | P2 | M | Todo |
+| 3 | #215 | Dev tooling majors (commitlint 20, jsdom 29, @types/node 25) | P2 | M | Done |
+| 3b | #226 | Migrate vite 7→8 + @vitejs/plugin-react 5→6 (split from #215) | P2 | M | Done |
 | 4 | #214 | Migrate Lefthook 1→2 (breaking config change) | P2 | M | Done |
 | 5 | #213 | Migrate Biome 1→2 (breaking config change) | P1 | L | Done |
 | 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Todo |
 
-**Scope:** 2S + 2M + 2L
+**Scope:** 2S + 3M + 2L
 **Context:** Dependabot opened 16 PRs on first run. GH Actions PR #194 merged. Remaining 15 closed — Dependabot can't regenerate pnpm-lock.yaml for monorepos. All updates will be done manually.
 
 **Tech Debt: Biome 1→2 Migration done (2026-03-16, commit a9930ac):**
