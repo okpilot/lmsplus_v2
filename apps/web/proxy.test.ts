@@ -142,38 +142,4 @@ describe('proxy', () => {
       consoleSpy.mockRestore()
     }
   })
-
-  it('redirects /?code=<pkce> to /auth/callback?code=<pkce>', async () => {
-    // getUser result does not matter for this branch — code check runs before auth guard
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-
-    const response = await proxy(makeRequest('/?code=pkce-abc123'))
-
-    expect(response.status).toBe(307)
-    const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/callback')
-    expect(location.searchParams.get('code')).toBe('pkce-abc123')
-  })
-
-  it('forwards only the code param in PKCE redirect, stripping other query params', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-
-    const response = await proxy(makeRequest('/?code=pkce-abc123&next=%2Fadmin'))
-
-    expect(response.status).toBe(307)
-    const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/callback')
-    expect(location.searchParams.get('code')).toBe('pkce-abc123')
-    expect(location.search).toBe('?code=pkce-abc123')
-  })
-
-  it('copies session cookies onto the PKCE redirect to /auth/callback', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-
-    const response = await proxy(makeRequest('/?code=pkce-abc123'))
-
-    expect(response.status).toBe(307)
-    const setCookie = response.headers.get('set-cookie') ?? ''
-    expect(setCookie).toContain('sb-token=refreshed')
-  })
 })

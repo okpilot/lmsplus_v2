@@ -22,7 +22,7 @@
 - **Monorepo:** Turborepo + pnpm (Vercel-native, simpler than Nx)
 - **Frontend:** Next.js + Tailwind CSS v4 + shadcn/ui
 - **Backend/DB:** Supabase (Postgres + Auth + Storage + Realtime)
-- **Auth:** Magic link only
+- **Auth:** Email + password (changed from magic link, Decision 29)
 - **Hosting:** Vercel
 - **Multi-tenant:** organization_id on every table, RLS policies
 - **AI-to-slides:** Claude API → Structured JSON → Template Renderer (future, not MVP 2)
@@ -510,4 +510,22 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-17 — Decision 28: Weekly CI health monitoring*
+## Decision 29: Auth method switch — magic link → email + password (2026-03-17)
+
+**Context:** Magic link auth caused friction in development (Mailpit setup, rate limits, PKCE code forwarding complexity in proxy) and in production (email deliverability, user confusion with magic link flow). Email + password is simpler for an internal training platform.
+
+**Decision:**
+- Switch from `signInWithOtp` (magic link) to `signInWithPassword` (email + password)
+- Add forgot password flow (`resetPasswordForEmail` → `/auth/callback?type=recovery` → `/auth/reset-password`)
+- Remove `/auth/verify` page (no longer needed — no email confirmation step)
+- Remove PKCE code forwarding from `proxy.ts` (no longer needed)
+- Auth callback error redirects changed from `/auth/verify?error=X` to `/?error=X`
+- Login page now handles error display via `searchParams`
+- Existing magic-link-only users can use "Forgot password?" to set their initial password
+- Font changed from Geist to Inter across the app
+
+**Files changed:** `login-form.tsx`, `page.tsx`, `auth/callback/route.ts`, `proxy.ts`, new forgot-password and reset-password pages. Verify page deleted.
+
+---
+
+*Last updated: 2026-03-17 — Decision 29: Auth switch to email + password*

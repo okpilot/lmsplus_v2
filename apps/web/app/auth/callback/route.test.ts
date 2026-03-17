@@ -32,17 +32,17 @@ describe('GET /auth/callback', () => {
     vi.clearAllMocks()
   })
 
-  it('redirects to /auth/verify with missing_code error when no code is in the URL', async () => {
+  it('redirects to / with missing_code error when no code is in the URL', async () => {
     const request = makeRequest('http://localhost:3000/auth/callback')
     const response = await GET(request)
 
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/verify')
+    expect(location.pathname).toBe('/')
     expect(location.searchParams.get('error')).toBe('missing_code')
   })
 
-  it('redirects to /auth/verify with invalid_code error when code exchange fails', async () => {
+  it('redirects to / with invalid_code error when code exchange fails', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: { message: 'invalid' } })
 
     const request = makeRequest('http://localhost:3000/auth/callback?code=bad-code')
@@ -50,11 +50,11 @@ describe('GET /auth/callback', () => {
 
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/verify')
+    expect(location.pathname).toBe('/')
     expect(location.searchParams.get('error')).toBe('invalid_code')
   })
 
-  it('redirects to /auth/verify with not_registered error when user has no profile row', async () => {
+  it('redirects to / with not_registered error when user has no profile row', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: null })
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     // Simulate no profile found
@@ -73,7 +73,7 @@ describe('GET /auth/callback', () => {
     expect(mockSignOut).toHaveBeenCalledOnce()
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/verify')
+    expect(location.pathname).toBe('/')
     expect(location.searchParams.get('error')).toBe('not_registered')
   })
 
@@ -96,7 +96,7 @@ describe('GET /auth/callback', () => {
     expect(location.pathname).toBe('/app/dashboard')
   })
 
-  it('redirects to /auth/verify with auth_failed error when getUser returns no user after exchange', async () => {
+  it('redirects to / with auth_failed error when getUser returns no user after exchange', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: null })
     mockGetUser.mockResolvedValue({ data: { user: null } })
     mockSignOut.mockResolvedValue({})
@@ -106,12 +106,12 @@ describe('GET /auth/callback', () => {
 
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/verify')
+    expect(location.pathname).toBe('/')
     expect(location.searchParams.get('error')).toBe('auth_failed')
     expect(mockSignOut).toHaveBeenCalledOnce()
   })
 
-  it('redirects to /auth/verify with auth_failed error when getUser returns an error', async () => {
+  it('redirects to / with auth_failed error when getUser returns an error', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: null })
     mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'session expired' } })
     mockSignOut.mockResolvedValue({})
@@ -121,8 +121,19 @@ describe('GET /auth/callback', () => {
 
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/verify')
+    expect(location.pathname).toBe('/')
     expect(location.searchParams.get('error')).toBe('auth_failed')
     expect(mockSignOut).toHaveBeenCalledOnce()
+  })
+
+  it('redirects to /auth/reset-password when type=recovery after successful code exchange', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+
+    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code&type=recovery')
+    const response = await GET(request)
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/auth/reset-password')
   })
 })

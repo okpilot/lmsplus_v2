@@ -9,34 +9,28 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-const LoginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-})
+const ResetPasswordSchema = z
+  .object({
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
 
-const FRIENDLY_AUTH_ERRORS: Record<string, string> = {
-  'Invalid login credentials': 'Invalid email or password.',
-  'Email rate limit exceeded': 'Too many attempts. Please wait a moment and try again.',
-  'For security purposes, you can only request this once every 60 seconds':
-    'Please wait 60 seconds before trying again.',
-}
-
-type LoginFormProps = {
-  initialError?: string
-}
-
-export function LoginForm({ initialError }: LoginFormProps) {
-  const [email, setEmail] = useState('')
+export function ResetPasswordForm() {
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState<string | null>(initialError ?? null)
+  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
 
-    const result = LoginSchema.safeParse({ email, password })
+    const result = ResetPasswordSchema.safeParse({ password, confirmPassword })
     if (!result.success) {
       setError(result.error.issues[0]?.message ?? 'Invalid input')
       return
@@ -44,14 +38,13 @@ export function LoginForm({ initialError }: LoginFormProps) {
 
     setLoading(true)
     const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: result.data.email,
+    const { error: updateError } = await supabase.auth.updateUser({
       password: result.data.password,
     })
     setLoading(false)
 
-    if (authError) {
-      setError(FRIENDLY_AUTH_ERRORS[authError.message] ?? 'Unable to sign in. Please try again.')
+    if (updateError) {
+      setError('Unable to update password. Please try again.')
       return
     }
 
@@ -61,28 +54,16 @@ export function LoginForm({ initialError }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email">Email address</Label>
-        <Input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@flightschool.com"
-          required
-          autoFocus
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">New password</Label>
         <div className="relative">
           <Input
             id="password"
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
+            placeholder="At least 6 characters"
             required
+            autoFocus
             className="pr-10"
           />
           <button
@@ -96,23 +77,28 @@ export function LoginForm({ initialError }: LoginFormProps) {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <Link
-          href="/auth/forgot-password"
-          className="text-sm text-muted-foreground hover:text-primary"
-        >
-          Forgot password?
-        </Link>
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Input
+          id="confirmPassword"
+          type={showPassword ? 'text' : 'password'}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Repeat your password"
+          required
+        />
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Button type="submit" disabled={loading} className="w-full">
-        {loading ? 'Signing in...' : 'Sign in'}
+        {loading ? 'Updating...' : 'Update password'}
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
-        Don&apos;t have an account? Contact your administrator.
+      <p className="text-center text-sm">
+        <Link href="/" className="text-muted-foreground hover:text-primary">
+          Back to login
+        </Link>
       </p>
     </form>
   )

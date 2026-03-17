@@ -26,20 +26,20 @@
 
 ---
 
-## Status: SPRINT 3 — Dependency Updates (2026-03-16)
+## Status: SPRINT 3 — Dependency Updates (COMPLETE — 2026-03-17)
 
 **Goal:** Get all dependencies current before any new feature work.
 **Order:** Easy wins first, then big migrations.
 
 | Order | Issue | Title | Priority | Size | Status |
 |-------|-------|-------|----------|------|--------|
-| 1 | #210 | Bump GitHub Actions versions (checkout v6, setup-node v6, upload-artifact v7, codeql-action v4) | P1 | S | PR #216 |
-| 2 | #211 | Batch minor/patch npm updates (pnpm update) | P1 | S | Todo |
+| 1 | #210 | Bump GitHub Actions versions (checkout v6, setup-node v6, upload-artifact v7, codeql-action v4) | P1 | S | Done |
+| 2 | #211 | Batch minor/patch npm updates (pnpm update) | P1 | S | Done |
 | 3 | #215 | Dev tooling majors (commitlint 20, jsdom 29, @types/node 25) | P2 | M | Done |
 | 3b | #226 | Migrate vite 7→8 + @vitejs/plugin-react 5→6 (split from #215) | P2 | M | Done |
 | 4 | #214 | Migrate Lefthook 1→2 (breaking config change) | P2 | M | Done |
 | 5 | #213 | Migrate Biome 1→2 (breaking config change) | P1 | L | Done |
-| 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Todo |
+| 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Done |
 
 **Scope:** 2S + 3M + 2L
 **Context:** Dependabot opened 16 PRs on first run. GH Actions PR #194 merged. Remaining 15 closed — Dependabot can't regenerate pnpm-lock.yaml for monorepos. All updates will be done manually.
@@ -107,11 +107,12 @@
   - `security-auditor` (sonnet) → pre-push via Lefthook, **blocking** on CRITICAL/HIGH findings
 - Agent memory dirs: `.claude/agent-memory/{code-reviewer,security-auditor,doc-updater,test-writer}/`
 
-**Phase 4 done (2026-03-11):** Student auth (magic link):
-- Login page at `/` with email input + Zod validation
-- Magic link via `supabase.auth.signInWithOtp()` → redirects to `/auth/verify`
-- Auth callback at `/auth/callback` — exchanges code for session, checks `users` table exists (pre-created by admin)
-- Unregistered users signed out + redirected to error page
+**Phase 4 done (2026-03-11, updated 2026-03-17):** Student auth (email + password):
+- Login page at `/` with email + password inputs, Zod validation, error display via `searchParams`
+- Email + password auth via `supabase.auth.signInWithPassword()`
+- Forgot password flow: `/auth/forgot-password` → reset email → `/auth/callback?type=recovery` → `/auth/reset-password`
+- Auth callback at `/auth/callback` — exchanges code for session, detects recovery flow, checks `users` table
+- Unregistered users signed out + redirected to `/?error=not_registered`
 - Proxy (`proxy.ts`, Next.js 16 convention) protects all `/app/*` routes, refreshes session tokens, propagates auth cookies on redirects
 - Authenticated users auto-redirected from `/` to `/app/dashboard`
 - App layout with user display name + sign-out button
