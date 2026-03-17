@@ -41,7 +41,7 @@
 | 5 | #213 | Migrate Biome 1→2 (breaking config change) | P1 | L | Done |
 | 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Todo |
 
-**Scope:** 2S + 2M + 2L
+**Scope:** 2S + 3M + 2L
 **Context:** Dependabot opened 16 PRs on first run. GH Actions PR #194 merged. Remaining 15 closed — Dependabot can't regenerate pnpm-lock.yaml for monorepos. All updates will be done manually.
 
 **Tech Debt: Biome 1→2 Migration done (2026-03-16, commit a9930ac):**
