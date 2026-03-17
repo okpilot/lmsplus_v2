@@ -56,7 +56,7 @@ jobs:
           parse_lcov() {
             local file="$1"
             if [ ! -f "$file" ]; then echo "0 0 0 0 0 0"; return; fi
-            awk '/^LH:/{lh+=$0+0} /^LF:/{lf+=$0+0} /^BRH:/{brh+=$0+0} /^BRF:/{brf+=$0+0} /^FNH:/{fnh+=$0+0} /^FNF:/{fnf+=$0+0} END{print lh,lf,brh,brf,fnh,fnf}' FS=: "$file"
+            awk -F: '/^LH:/{lh+=$2} /^LF:/{lf+=$2} /^BRH:/{brh+=$2} /^BRF:/{brf+=$2} /^FNH:/{fnh+=$2} /^FNF:/{fnf+=$2} END{print lh,lf,brh,brf,fnh,fnf}' "$file"
           }
 
           # Aggregate lcov data from both packages
@@ -105,36 +105,7 @@ jobs:
           # Write new baseline for artifact upload
           echo "$CURRENT_JSON" > coverage-baseline.json
 
-          # Compare with python3
-          RESULT=$(python3 - <<PYEOF
-          import json, sys
-
-          current  = json.loads('$CURRENT_JSON')
-          baseline = json.loads('$BASELINE_JSON')
-
-          THRESHOLD = 2.0  # percentage points
-          regression = False
-          rows = []
-
-          for metric in ("lines", "branches", "functions"):
-              before = baseline.get(metric, 0.0)
-              after  = current.get(metric,  0.0)
-              delta  = after - before
-              flag   = ""
-              if delta < -THRESHOLD:
-                  regression = True
-                  flag = " ⚠️"
-              rows.append(f"| {metric.capitalize()} | {before:.2f}% | {after:.2f}% | {delta:+.2f}%{flag} |")
-
-          table = "\n".join(rows)
-          print(f"regression={'true' if regression else 'false'}")
-          print(f"table<<EOF")
-          print(table)
-          print("EOF")
-          PYEOF
-          )
-
-          # Write multi-line outputs to GITHUB_OUTPUT
+          # Compare and write outputs to GITHUB_OUTPUT
           python3 - <<PYEOF >> "$GITHUB_OUTPUT"
           import json
 
@@ -202,6 +173,7 @@ jobs:
               repo: context.repo.repo,
               state: 'open',
               labels: 'tech-debt',
+              creator: 'github-actions[bot]',
             });
 
             const existing = issues.find(i => i.title === title);
@@ -237,6 +209,7 @@ jobs:
               repo: context.repo.repo,
               state: 'open',
               labels: 'tech-debt',
+              creator: 'github-actions[bot]',
             });
 
             const existing = issues.find(i => i.title === title);

@@ -97,14 +97,14 @@ jobs:
             echo "regression=false" >> $GITHUB_OUTPUT
             echo "report=Bundle size line not found in build output." >> $GITHUB_OUTPUT
             # Write a null baseline so we don't skip forever
-            echo '{"sharedBundleKb":null,"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline-new.json
+            echo '{"sharedBundleKb":null,"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline.json
             exit 0
           fi
 
           echo "Current shared bundle: ${CURRENT_KB} kB"
 
           # Write new baseline
-          echo '{"sharedBundleKb":'"$CURRENT_KB"',"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline-new.json
+          echo '{"sharedBundleKb":'"$CURRENT_KB"',"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline.json
 
           # Compare against baseline
           if [ -z "$BASELINE_PATH" ] || [ ! -f "$BASELINE_PATH" ]; then
@@ -152,8 +152,8 @@ jobs:
       - name: Ensure baseline file exists for upload
         if: steps.build.outputs.build_failed != 'true'
         run: |
-          if [ ! -f /tmp/bundle-baseline-new.json ]; then
-            echo '{"sharedBundleKb":null,"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline-new.json
+          if [ ! -f /tmp/bundle-baseline.json ]; then
+            echo '{"sharedBundleKb":null,"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline.json
           fi
 
       - name: Upload new baseline as artifact
@@ -161,7 +161,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: bundle-baseline
-          path: /tmp/bundle-baseline-new.json
+          path: /tmp/bundle-baseline.json
           retention-days: 90
           overwrite: true
 
@@ -202,6 +202,7 @@ jobs:
               repo: context.repo.repo,
               state: 'open',
               labels: 'tech-debt',
+              creator: 'github-actions[bot]',
             });
 
             const existing = issues.find(i => i.title === title);
@@ -241,6 +242,7 @@ jobs:
               repo: context.repo.repo,
               state: 'open',
               labels: 'tech-debt',
+              creator: 'github-actions[bot]',
             });
 
             const existing = issues.find(i => i.title === title);
