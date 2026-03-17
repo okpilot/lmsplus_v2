@@ -39,6 +39,7 @@ The highest-value targets are:
 - Auth redirect config lives in Supabase remote settings (Management API), NOT in `config.toml` (local dev only)
 
 ### Auth Callback Guard Ordering
+
 When adding or modifying any branch in `apps/web/app/auth/callback/route.ts`, verify the full guard ordering before committing:
 1. All existence/registration checks (`getUser()`, `public.users` lookup) must execute **before** any branch-specific redirect.
 2. Any branch that fails after a session is established must call `signOut()` before redirecting.

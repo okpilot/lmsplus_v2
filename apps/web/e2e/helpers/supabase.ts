@@ -36,6 +36,11 @@ export async function ensureTestUser() {
   let userId: string
   if (existingAuth) {
     userId = existingAuth.id
+    // Ensure password matches TEST_PASSWORD (may have been changed or set differently)
+    const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
+      password: TEST_PASSWORD,
+    })
+    if (resetError) throw new Error(`ensureTestUser reset password: ${resetError.message}`)
   } else {
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
       email: TEST_EMAIL,

@@ -69,6 +69,7 @@ function buildMockClient(opts: MockClientOptions) {
       admin: {
         listUsers: vi.fn().mockResolvedValue(listUsers),
         createUser: vi.fn().mockResolvedValue(createUser),
+        updateUserById: vi.fn().mockResolvedValue({ error: null }),
       },
     },
   }
