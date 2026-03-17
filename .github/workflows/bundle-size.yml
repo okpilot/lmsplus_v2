@@ -76,10 +76,12 @@ jobs:
 
       - name: Run build
         id: build
+        shell: bash
         run: |
           set +e
+          set -o pipefail
           pnpm build 2>&1 | tee /tmp/build-output.txt
-          BUILD_EXIT=$?
+          BUILD_EXIT=${PIPESTATUS[0]}
           set -e
           if [ $BUILD_EXIT -ne 0 ]; then
             echo "::warning::Build failed — bundle size check skipped"

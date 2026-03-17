@@ -481,6 +481,8 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - `/redteam` skill command for on-demand execution (useful for validating fixes)
 - Principle: if you can't prove the defense holds under attack, it doesn't
 
+---
+
 ## Decision 28: Weekly CI health monitoring (2026-03-17)
 - **What:** 4 new GitHub Actions workflows for automated weekly health checks
 - **Why:** Agent memory, coverage baselines, bundle sizes, and issue backlogs drift silently. Manual `/insights` runs are easy to forget.

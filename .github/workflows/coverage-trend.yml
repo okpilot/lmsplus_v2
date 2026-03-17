@@ -64,8 +64,9 @@ jobs:
         shell: bash
         run: |
           set +e
+          set -o pipefail
           pnpm coverage 2>&1 | tee /tmp/coverage-output.txt
-          COVERAGE_EXIT=$?
+          COVERAGE_EXIT=${PIPESTATUS[0]}
           set -e
           echo "coverage_exit=$COVERAGE_EXIT" >> "$GITHUB_OUTPUT"
 
