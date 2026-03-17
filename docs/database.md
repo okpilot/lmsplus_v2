@@ -1238,7 +1238,7 @@ CREATE UNIQUE INDEX idx_questions_bank_number ON questions(bank_id, question_num
   WHERE deleted_at IS NULL AND question_number IS NOT NULL;
 
 -- Quiz analytics queries
-CREATE INDEX idx_quiz_sessions_subject ON quiz_sessions(subject_id);
+CREATE INDEX idx_quiz_sessions_subject ON quiz_sessions(subject_id) WHERE subject_id IS NOT NULL;
 
 -- Audit log queries (compliance exports)
 CREATE INDEX idx_audit_events_org    ON audit_events(organization_id, created_at DESC);
