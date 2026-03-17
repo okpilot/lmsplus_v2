@@ -1192,7 +1192,7 @@ RLS controls which **rows** can be updated, not which **columns**. A `BEFORE UPD
 | `deleted_at` | Soft-delete must go through service role |
 
 ```sql
--- Trigger: trg_protect_users_sensitive_columns (migration 041)
+-- Trigger: trg_protect_users_sensitive_columns (20260316000041_protect_users_sensitive_columns.sql)
 -- Only fires when role, organization_id, or deleted_at is in the UPDATE SET clause.
 -- Service-role connections (current_role = 'service_role') bypass the check.
 -- All other connections get EXCEPTION if they attempt to change these columns.
@@ -1205,7 +1205,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 | Trigger | Table | Purpose |
 |---------|-------|---------|
 | `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021) |
-| `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (migration 041) |
+| `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 
 ---
 
