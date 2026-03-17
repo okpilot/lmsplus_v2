@@ -1,0 +1,307 @@
+name: Agent System Health
+
+on:
+  schedule:
+    - cron: '0 7 * * 0' # Sunday 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health-check:
+    name: Agent System Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Run health checks
+        id: checks
+        run: |
+          set -euo pipefail
+          TODAY=$(date -u +%Y-%m-%d)
+          FINDINGS=""
+
+          # ─────────────────────────────────────────────────────────────────
+          # Check 1: Orphan specs — .spec.ts files not mentioned in attack-surface.md
+          # ─────────────────────────────────────────────────────────────────
+          ATTACK_SURFACE=".claude/agent-memory/red-team/attack-surface.md"
+          REDTEAM_DIR="apps/web/e2e/redteam"
+          ORPHAN_LIST=""
+
+          for spec_path in "$REDTEAM_DIR"/*.spec.ts; do
+            [ -f "$spec_path" ] || continue
+            basename_spec=$(basename "$spec_path")
+            if ! grep -qF "$basename_spec" "$ATTACK_SURFACE" 2>/dev/null; then
+              ORPHAN_LIST="${ORPHAN_LIST}- \`${basename_spec}\`\n"
+            fi
+          done || true
+
+          if [ -n "$ORPHAN_LIST" ]; then
+            ORPHAN_SECTION="### Orphan Specs
+          ⚠️ Spec files not referenced in \`attack-surface.md\`:
+          $(printf '%b' "$ORPHAN_LIST")"
+          else
+            ORPHAN_SECTION="### Orphan Specs
+          ✅ All specs mapped"
+          fi
+
+          # ─────────────────────────────────────────────────────────────────
+          # Check 2: Stale vector mappings — specs referenced in attack-surface.md that don't exist
+          # ─────────────────────────────────────────────────────────────────
+          STALE_LIST=""
+
+          while IFS= read -r line; do
+            # Extract filename from table rows containing .spec.ts
+            spec_name=$(echo "$line" | grep -oP '[\w-]+\.spec\.ts' | head -1) || true
+            [ -z "$spec_name" ] && continue
+            # Skip if it's a header or helper file pattern
+            [[ "$spec_name" == *"helper"* ]] && continue
+            if [ ! -f "$REDTEAM_DIR/$spec_name" ]; then
+              STALE_LIST="${STALE_LIST}- \`${spec_name}\`\n"
+            fi
+          done < <(grep -P '^\|' "$ATTACK_SURFACE" 2>/dev/null | grep '\.spec\.ts' || true)
+
+          if [ -n "$STALE_LIST" ]; then
+            STALE_SECTION="### Stale Vector Mappings
+          ⚠️ Spec files referenced in \`attack-surface.md\` but missing on disk:
+          $(printf '%b' "$STALE_LIST")"
+          else
+            STALE_SECTION="### Stale Vector Mappings
+          ✅ All mappings valid"
+          fi
+
+          # ─────────────────────────────────────────────────────────────────
+          # Check 3: Stuck learner patterns — count >= 2 with Watch status (not promoted)
+          # ─────────────────────────────────────────────────────────────────
+          PATTERNS_FILE=".claude/agent-memory/learner/patterns.md"
+          STUCK_LIST=""
+
+          while IFS= read -r row; do
+            # Parse pipe-delimited table row: | Issue Type | Count | Last Seen | Status |
+            # Extract count field (field 2) and status field (field 4)
+            count_field=$(echo "$row" | awk -F'|' '{print $3}' | xargs 2>/dev/null) || true
+            status_field=$(echo "$row" | awk -F'|' '{print $5}' | xargs 2>/dev/null) || true
+            issue_field=$(echo "$row" | awk -F'|' '{print $2}' | xargs 2>/dev/null) || true
+
+            [ -z "$count_field" ] && continue
+            [ -z "$status_field" ] && continue
+            [ -z "$issue_field" ] && continue
+
+            # Skip header rows
+            [[ "$count_field" == "Count" ]] && continue
+            [[ "$count_field" == "---"* ]] && continue
+
+            # Parse numeric count from field that may contain text like "2 | ..."
+            count_num=$(echo "$count_field" | grep -oP '^\d+' | head -1) || true
+            [ -z "$count_num" ] && continue
+
+            # Check count >= 2
+            if [ "$count_num" -ge 2 ] 2>/dev/null; then
+              # Status must contain "Watch" (case-insensitive)
+              if echo "$status_field" | grep -qi "watch"; then
+                # Status must NOT contain any promoted keywords
+                if ! echo "$status_field" | grep -qiE "(rule|candidate|added|applied|exists)"; then
+                  # Truncate issue name for readability
+                  short_issue=$(echo "$issue_field" | cut -c1-80)
+                  STUCK_LIST="${STUCK_LIST}- **${short_issue}** (count: ${count_num})\n"
+                fi
+              fi
+            fi
+          done < <(grep -P '^\|' "$PATTERNS_FILE" 2>/dev/null || true)
+
+          if [ -n "$STUCK_LIST" ]; then
+            STUCK_SECTION="### Stuck Learner Patterns
+          ⚠️ Patterns with count ≥ 2 still in Watch status (not promoted to rule):
+          $(printf '%b' "$STUCK_LIST")"
+          else
+            STUCK_SECTION="### Stuck Learner Patterns
+          ✅ No stuck patterns"
+          fi
+
+          # ─────────────────────────────────────────────────────────────────
+          # Check 4: Agent memory staleness — files not touched in > 14 days
+          # ─────────────────────────────────────────────────────────────────
+          NOW_EPOCH=$(date +%s)
+          STALE_MEM_LIST=""
+          THRESHOLD=1209600  # 14 days in seconds
+
+          while IFS= read -r mem_file; do
+            [ -f "$mem_file" ] || continue
+            last_ts=$(git log -1 --format="%ct" -- "$mem_file" 2>/dev/null) || true
+            [ -z "$last_ts" ] && continue
+            age_secs=$(( NOW_EPOCH - last_ts ))
+            if [ "$age_secs" -gt "$THRESHOLD" ]; then
+              age_days=$(( age_secs / 86400 ))
+              rel_path="${mem_file#./}"
+              STALE_MEM_LIST="${STALE_MEM_LIST}- \`${rel_path}\` (${age_days} days)\n"
+            fi
+          done < <(find .claude/agent-memory -name "*.md" -type f 2>/dev/null || true)
+
+          if [ -n "$STALE_MEM_LIST" ]; then
+            STALE_MEM_SECTION="### Agent Memory Staleness
+          ⚠️ Files not updated in > 14 days:
+          $(printf '%b' "$STALE_MEM_LIST")"
+          else
+            STALE_MEM_SECTION="### Agent Memory Staleness
+          ✅ All files fresh"
+          fi
+
+          # ─────────────────────────────────────────────────────────────────
+          # Check 5: Security checklist alignment — section count divergence
+          # ─────────────────────────────────────────────────────────────────
+          SECURITY_DOC="docs/security.md"
+          AUDITOR_AGENT=".claude/agents/security-auditor.md"
+          SEC_SECTION_COUNT=0
+          AUDITOR_SECTION_COUNT=0
+
+          if [ -f "$SECURITY_DOC" ]; then
+            SEC_SECTION_COUNT=$(grep -cP '^#{2,3} [0-9]' "$SECURITY_DOC" 2>/dev/null) || true
+          fi
+          if [ -f "$AUDITOR_AGENT" ]; then
+            AUDITOR_SECTION_COUNT=$(grep -cP '^#{2,3} [0-9]' "$AUDITOR_AGENT" 2>/dev/null) || true
+          fi
+
+          DIFF_COUNT=$(( SEC_SECTION_COUNT - AUDITOR_SECTION_COUNT ))
+          ABS_DIFF=${DIFF_COUNT#-}  # absolute value
+
+          if [ "$ABS_DIFF" -gt 2 ] 2>/dev/null; then
+            SEC_SECTION="### Security Checklist
+          ⚠️ Section count mismatch: \`docs/security.md\` has ${SEC_SECTION_COUNT} numbered sections, \`.claude/agents/security-auditor.md\` has ${AUDITOR_SECTION_COUNT} (diff: ${DIFF_COUNT})"
+          else
+            SEC_SECTION="### Security Checklist
+          ✅ Aligned (security.md: ${SEC_SECTION_COUNT} sections, security-auditor: ${AUDITOR_SECTION_COUNT} sections)"
+          fi
+
+          # ─────────────────────────────────────────────────────────────────
+          # Check 6: CodeRabbit drift — code-style.md sections without CodeRabbit coverage
+          # ─────────────────────────────────────────────────────────────────
+          CODE_STYLE=".claude/rules/code-style.md"
+          CODERABBIT=".coderabbit.yaml"
+          DRIFT_LIST=""
+
+          while IFS= read -r section_line; do
+            # Extract section title after "## N. "
+            title=$(echo "$section_line" | sed 's/^## [0-9]*\. *//' | xargs 2>/dev/null) || true
+            [ -z "$title" ] && continue
+            # Use first meaningful word(s) as keyword for grep
+            keyword=$(echo "$title" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
+            [ -z "$keyword" ] && continue
+            if ! grep -qi "$keyword" "$CODERABBIT" 2>/dev/null; then
+              DRIFT_LIST="${DRIFT_LIST}- **${title}** (keyword: \`${keyword}\`)\n"
+            fi
+          done < <(grep -P '^## [0-9]+\.' "$CODE_STYLE" 2>/dev/null || true)
+
+          if [ -n "$DRIFT_LIST" ]; then
+            DRIFT_SECTION="### CodeRabbit Drift
+          ⚠️ Code-style sections with no matching coverage in \`.coderabbit.yaml\`:
+          $(printf '%b' "$DRIFT_LIST")"
+          else
+            DRIFT_SECTION="### CodeRabbit Drift
+          ✅ All sections covered"
+          fi
+
+          # ─────────────────────────────────────────────────────────────────
+          # Aggregate findings and set outputs
+          # ─────────────────────────────────────────────────────────────────
+          HAS_FINDINGS="false"
+          for section in "$ORPHAN_SECTION" "$STALE_SECTION" "$STUCK_SECTION" "$STALE_MEM_SECTION" "$SEC_SECTION" "$DRIFT_SECTION"; do
+            if echo "$section" | grep -q '⚠️'; then
+              HAS_FINDINGS="true"
+              break
+            fi
+          done
+
+          REPORT="## Weekly agent system health — ${TODAY}
+
+          ${ORPHAN_SECTION}
+
+          ${STALE_SECTION}
+
+          ${STUCK_SECTION}
+
+          ${STALE_MEM_SECTION}
+
+          ${SEC_SECTION}
+
+          ${DRIFT_SECTION}
+
+          _Generated by agent-health.yml workflow_"
+
+          echo "has_findings=${HAS_FINDINGS}" >> "$GITHUB_OUTPUT"
+          {
+            echo 'report<<HEALTH_EOF'
+            echo "$REPORT"
+            echo 'HEALTH_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create or update issue (findings)
+        if: steps.checks.outputs.has_findings == 'true'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const title = '🤖 Agent system health report';
+            const body = process.env.HEALTH_REPORT;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'tech-debt',
+              creator: 'github-actions[bot]'
+            });
+
+            const existing = issues.data.find(i => i.title === title);
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body
+              });
+              console.log(`Updated issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['tech-debt']
+              });
+              console.log(`Created issue #${created.data.number}`);
+            }
+        env:
+          HEALTH_REPORT: ${{ steps.checks.outputs.report }}
+
+      - name: Close issue if clean
+        if: steps.checks.outputs.has_findings == 'false'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const title = '🤖 Agent system health report';
+
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'tech-debt',
+              creator: 'github-actions[bot]'
+            });
+
+            const existing = issues.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+              console.log(`Closed issue #${existing.number} — all checks clean`);
+            } else {
+              console.log('No open issue to close — system is clean');
+            }

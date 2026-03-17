@@ -1,0 +1,299 @@
+name: Bundle Size
+
+on:
+  schedule:
+    - cron: '0 8 * * 0' # Sunday 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '9.15.0'
+
+jobs:
+  bundle-size:
+    name: Bundle Size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: pnpm/action-setup@5b4374b04084dc1f9032b52464284b769ac5059e # v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Find previous successful run
+        id: prev-run
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'bundle-size.yml',
+              status: 'success',
+              per_page: 1,
+            });
+            const runId = runs.data.workflow_runs[0]?.id || '';
+            core.setOutput('run_id', runId ? String(runId) : '');
+            core.info(runId ? `Previous successful run: ${runId}` : 'No previous successful run found');
+
+      - name: Download previous baseline artifact
+        if: steps.prev-run.outputs.run_id != ''
+        id: download-baseline
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bundle-baseline
+          path: /tmp/bundle-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.prev-run.outputs.run_id }}
+        continue-on-error: true
+
+      - name: Resolve baseline file
+        id: resolve-baseline
+        run: |
+          if [ -f /tmp/bundle-artifact/bundle-baseline.json ]; then
+            echo "baseline_path=/tmp/bundle-artifact/bundle-baseline.json" >> $GITHUB_OUTPUT
+            echo "Using downloaded baseline artifact"
+          elif [ -f .github/bundle-baseline.json ]; then
+            echo "baseline_path=.github/bundle-baseline.json" >> $GITHUB_OUTPUT
+            echo "Using seed baseline from repo"
+          else
+            echo "baseline_path=" >> $GITHUB_OUTPUT
+            echo "No baseline found — first run"
+          fi
+
+      - name: Run build
+        id: build
+        shell: bash
+        run: |
+          set +e
+          set -o pipefail
+          pnpm build 2>&1 | tee /tmp/build-output.txt
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+          if [ $BUILD_EXIT -ne 0 ]; then
+            echo "::warning::Build failed — bundle size check skipped"
+            echo "build_failed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Parse bundle size and compare
+        id: bundle
+        if: steps.build.outputs.build_failed != 'true'
+        run: |
+          BASELINE_PATH="${{ steps.resolve-baseline.outputs.baseline_path }}"
+
+          # Parse current bundle size
+          CURRENT_KB=$(python3 << 'PYEOF'
+          import re, json, sys
+
+          with open('/tmp/build-output.txt') as f:
+              text = f.read()
+
+          # Match "First Load JS shared by all" line
+          m = re.search(r'First Load JS shared by all\s+([\d.]+)\s*(kB|MB)', text)
+          if not m:
+              print('not_found')
+              sys.exit(0)
+
+          value = float(m.group(1))
+          unit = m.group(2)
+          kb = value * 1024 if unit == 'MB' else value
+          print(f'{kb:.1f}')
+          PYEOF
+          )
+
+          if [ "$CURRENT_KB" = "not_found" ] || [ -z "$CURRENT_KB" ]; then
+            echo "::warning::Could not find 'First Load JS shared by all' in build output — regression check skipped"
+            echo "regression=false" >> $GITHUB_OUTPUT
+            echo "report=Bundle size line not found in build output." >> $GITHUB_OUTPUT
+            # Preserve prior baseline — don't overwrite with null
+            if [ -n "$BASELINE_PATH" ] && [ -f "$BASELINE_PATH" ]; then
+              cp "$BASELINE_PATH" /tmp/bundle-baseline.json
+            else
+              echo '{"sharedBundleKb":null,"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline.json
+            fi
+            exit 0
+          fi
+
+          echo "Current shared bundle: ${CURRENT_KB} kB"
+
+          # Write new baseline
+          echo '{"sharedBundleKb":'"$CURRENT_KB"',"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline.json
+
+          # Compare against baseline
+          if [ -z "$BASELINE_PATH" ] || [ ! -f "$BASELINE_PATH" ]; then
+            echo "No baseline to compare against — recording first measurement (${CURRENT_KB} kB)"
+            echo "regression=false" >> $GITHUB_OUTPUT
+            echo "report=First run: recorded baseline of ${CURRENT_KB} kB." >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          BASELINE_KB=$(python3 -c "
+          import json
+          with open('$BASELINE_PATH') as f:
+              d = json.load(f)
+          v = d.get('sharedBundleKb')
+          print(v if v is not None else 'null')
+          ")
+
+          if [ "$BASELINE_KB" = "null" ] || [ -z "$BASELINE_KB" ]; then
+            echo "Baseline has no recorded value — recording first measurement (${CURRENT_KB} kB)"
+            echo "regression=false" >> $GITHUB_OUTPUT
+            echo "report=First valid measurement: ${CURRENT_KB} kB." >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Calculate growth percentage
+          GROWTH=$(python3 -c "
+          baseline = float('$BASELINE_KB')
+          current = float('$CURRENT_KB')
+          if baseline == 0:
+              print('0.0')
+          else:
+              print(f'{((current - baseline) / baseline) * 100:.1f}')
+          ")
+
+          echo "Baseline: ${BASELINE_KB} kB | Current: ${CURRENT_KB} kB | Growth: ${GROWTH}%"
+
+          REGRESSION=$(python3 -c "print('true' if float('$GROWTH') > 10 else 'false')")
+
+          echo "regression=$REGRESSION" >> $GITHUB_OUTPUT
+          echo "current_kb=$CURRENT_KB" >> $GITHUB_OUTPUT
+          echo "baseline_kb=$BASELINE_KB" >> $GITHUB_OUTPUT
+          echo "growth=$GROWTH" >> $GITHUB_OUTPUT
+          echo "report=Baseline: ${BASELINE_KB} kB → Current: ${CURRENT_KB} kB (${GROWTH}% growth)" >> $GITHUB_OUTPUT
+
+      - name: Ensure baseline file exists for upload
+        if: steps.build.outputs.build_failed != 'true'
+        run: |
+          if [ ! -f /tmp/bundle-baseline.json ]; then
+            echo '{"sharedBundleKb":null,"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline.json
+          fi
+
+      - name: Upload new baseline as artifact
+        if: steps.build.outputs.build_failed != 'true'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: bundle-baseline
+          path: /tmp/bundle-baseline.json
+          retention-days: 90
+          overwrite: true
+
+      - name: Create or update regression issue
+        if: steps.bundle.outputs.regression == 'true'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          CURRENT_KB: ${{ steps.bundle.outputs.current_kb }}
+          BASELINE_KB: ${{ steps.bundle.outputs.baseline_kb }}
+          GROWTH: ${{ steps.bundle.outputs.growth }}
+        with:
+          script: |
+            const title = '📦 Bundle size regression detected';
+            const currentKb = process.env.CURRENT_KB;
+            const baselineKb = process.env.BASELINE_KB;
+            const growth = process.env.GROWTH;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const date = new Date().toISOString().split('T')[0];
+
+            const body = [
+              `## Bundle size regression detected`,
+              ``,
+              `| | Size |`,
+              `|---|---|`,
+              `| **Baseline** | ${baselineKb} kB |`,
+              `| **Current** | ${currentKb} kB |`,
+              `| **Growth** | +${growth}% |`,
+              ``,
+              `**Date:** ${date}`,
+              `**Workflow run:** ${runUrl}`,
+              ``,
+              `The shared First Load JS bundle grew by more than 10%. Please investigate and reduce bundle size.`,
+            ].join('\n');
+
+            // Check if issue already open
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'tech-debt',
+              creator: 'github-actions[bot]',
+            });
+
+            const existing = issues.find(i => i.title === title);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `## Updated measurement\n\n${body}`,
+              });
+              core.info(`Updated existing issue #${existing.number}`);
+            } else {
+              const { data: issue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['tech-debt'],
+              });
+              core.info(`Created issue #${issue.number}`);
+            }
+
+      - name: Close regression issue if recovered
+        if: steps.bundle.outputs.regression == 'false' && steps.bundle.outputs.current_kb != ''
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          CURRENT_KB: ${{ steps.bundle.outputs.current_kb }}
+          BASELINE_KB: ${{ steps.bundle.outputs.baseline_kb }}
+          GROWTH: ${{ steps.bundle.outputs.growth }}
+        with:
+          script: |
+            const title = '📦 Bundle size regression detected';
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'tech-debt',
+              creator: 'github-actions[bot]',
+            });
+
+            const existing = issues.find(i => i.title === title);
+            if (!existing) {
+              core.info('No open regression issue — nothing to close');
+              return;
+            }
+
+            const currentKb = process.env.CURRENT_KB;
+            const baselineKb = process.env.BASELINE_KB;
+            const growth = process.env.GROWTH;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body: `## Regression resolved\n\nBundle size is within threshold. Baseline: ${baselineKb} kB → Current: ${currentKb} kB (${growth}%).\n\n**Workflow run:** ${runUrl}`,
+            });
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              state: 'closed',
+            });
+
+            core.info(`Closed issue #${existing.number}`);

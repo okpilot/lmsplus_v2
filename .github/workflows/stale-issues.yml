@@ -1,0 +1,31 @@
+name: Stale Issues
+
+on:
+  schedule:
+    - cron: '30 8 * * 0' # Sunday 08:30 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  stale:
+    name: Label & Close Stale Issues
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9
+        with:
+          only: 'issues'
+          days-before-stale: 30
+          days-before-close: 30
+          close-issue-reason: 'not_planned'
+          stale-issue-label: 'stale'
+          stale-issue-message: >
+            This issue has had no activity for 30 days and has been marked as stale.
+            It will be closed in 30 more days if no further activity occurs.
+            If this is still relevant, please leave a comment or update the issue.
+          close-issue-message: >
+            This issue has been automatically closed after 60 days of inactivity.
+            If you believe this is still relevant, please open a new issue with updated context.
+          exempt-issue-labels: 'P0 - Critical,bug,security'
+          operations-per-run: 100
