@@ -32,12 +32,32 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Find previous successful run
+        id: prev-run
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'bundle-size.yml',
+              status: 'success',
+              per_page: 1,
+            });
+            const runId = runs.data.workflow_runs[0]?.id || '';
+            core.setOutput('run_id', runId ? String(runId) : '');
+            core.info(runId ? `Previous successful run: ${runId}` : 'No previous successful run found');
+
       - name: Download previous baseline artifact
+        if: steps.prev-run.outputs.run_id != ''
         id: download-baseline
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bundle-baseline
           path: /tmp/bundle-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.prev-run.outputs.run_id }}
         continue-on-error: true
 
       - name: Resolve baseline file
@@ -96,8 +116,12 @@ jobs:
             echo "::warning::Could not find 'First Load JS shared by all' in build output — regression check skipped"
             echo "regression=false" >> $GITHUB_OUTPUT
             echo "report=Bundle size line not found in build output." >> $GITHUB_OUTPUT
-            # Write a null baseline so we don't skip forever
-            echo '{"sharedBundleKb":null,"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline.json
+            # Preserve prior baseline — don't overwrite with null
+            if [ -n "$BASELINE_PATH" ] && [ -f "$BASELINE_PATH" ]; then
+              cp "$BASELINE_PATH" /tmp/bundle-baseline.json
+            else
+              echo '{"sharedBundleKb":null,"date":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/bundle-baseline.json
+            fi
             exit 0
           fi
 

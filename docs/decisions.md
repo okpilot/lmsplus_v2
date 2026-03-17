@@ -485,10 +485,10 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - **What:** 4 new GitHub Actions workflows for automated weekly health checks
 - **Why:** Agent memory, coverage baselines, bundle sizes, and issue backlogs drift silently. Manual `/insights` runs are easy to forget.
 - **Workflows:**
-  - `agent-health.yml` (Sun 07:00) — checks orphan specs, stale vector mappings, stuck learner patterns, agent memory staleness, security checklist alignment, CodeRabbit drift
-  - `coverage-trend.yml` (Sun 07:30) — runs test suite, compares coverage to baseline, flags > 2% drops
-  - `bundle-size.yml` (Sun 08:00) — runs Next.js build, tracks shared bundle size, flags > 10% growth
-  - `stale-issues.yml` (Sun 08:30) — labels issues inactive 30 days, closes at 60 days
+  - `agent-health.yml` (Sun 07:00 UTC) — checks orphan specs, stale vector mappings, stuck learner patterns, agent memory staleness, security checklist alignment, CodeRabbit drift
+  - `coverage-trend.yml` (Sun 07:30 UTC) — runs test suite, compares coverage to baseline, flags > 2% drops
+  - `bundle-size.yml` (Sun 08:00 UTC) — runs Next.js build, tracks shared bundle size, flags > 10% growth
+  - `stale-issues.yml` (Sun 08:30 UTC) — labels issues inactive 30 days, closes at 60 days
 - **Baselines:** Stored as workflow artifacts (90-day retention), not git commits. Avoids branch protection issues. Seed files in `.github/` for first run.
 - **Reporting:** Each workflow creates/updates/closes a single GitHub Issue (same pattern as `dead-code.yml`)
 - **`/insights` expanded:** Now reads all 7 agent memory files + outputs structured agent health table alongside project health bullets
