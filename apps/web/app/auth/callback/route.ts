@@ -21,11 +21,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(redirectTo)
   }
 
-  // Recovery flow (password reset) — redirect to reset password page
-  if (type === 'recovery') {
-    return NextResponse.redirect(new URL('/auth/reset-password', request.url))
-  }
-
   // Verify this user has a record in our users table (pre-created by admin)
   const {
     data: { user },
@@ -54,6 +49,12 @@ export async function GET(request: NextRequest) {
     await supabase.auth.signOut()
     redirectTo.searchParams.set('error', 'not_registered')
     return NextResponse.redirect(redirectTo)
+  }
+
+  // Recovery flow (password reset) — redirect to reset password page
+  // Runs after profile check to prevent orphaned auth users from getting a session
+  if (type === 'recovery') {
+    return NextResponse.redirect(new URL('/auth/reset-password', request.url))
   }
 
   redirectTo.pathname = '/app/dashboard'

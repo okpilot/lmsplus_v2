@@ -235,9 +235,8 @@
 **Local dev setup (2026-03-11, updated 2026-03-16):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
 - `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys
-- Mailpit at `http://localhost:54324` — catches all magic link emails locally
+- Mailpit at `http://localhost:54324` — catches password reset emails locally
 - Studio at `http://localhost:54323`
-- `scripts/dev-login.ts` — generates magic link via admin API (no email needed)
 - `scripts/import-questions.ts` — imports questions from JSON; refuses non-local URLs unless `--force-remote` flag passed
 - `scripts/seed-admin-eval.ts` — seeds admin/student users for manual eval; run after `npx supabase db reset`
 - 73 questions seeded locally (050-01-01 through 050-01-05)
@@ -262,10 +261,10 @@
 - Found + fixed real RLS bug: permissive ALL policies overrode no_update/no_delete (migration 005)
 - Test infra: `packages/db/src/__integration__/setup.ts` (helpers for user/org/question seeding + cleanup)
 
-**Phase 5B-4 done (2026-03-11):** E2E tests (Playwright):
-- Auth setup flow: magic link, OTP extraction, session persistence
+**Phase 5B-4 done (2026-03-11, updated 2026-03-17):** E2E tests (Playwright):
+- Auth setup flow: email + password login, session persistence
 - 10 E2E tests across 4 spec files: login flow, protected routes (5), quiz session, progress (2)
-- Mailpit helper (`e2e/helpers/mailpit.ts`): fetch latest email, extract magic link
+- Mailpit helper (`e2e/helpers/mailpit.ts`): fetch latest email, extract links (used for password reset)
 - Supabase helper (`e2e/helpers/supabase.ts`): ensure E2E test user exists in Egmont Aviation org
 - Playwright config: auth state caching, headless + headed modes, HTML reporter
 - Scripts: `pnpm e2e`, `pnpm e2e:ui`, `pnpm e2e:headed`
@@ -491,8 +490,8 @@ See `docs/database.md` for full SQL.
 - `src/schema.ts` — Zod validation schemas
 
 ### 2C. Auth setup
-- Supabase magic link configured
-- Email template customized
+- Supabase email + password auth configured
+- Email templates customized (password reset)
 - Redirect URLs configured:
   - **Site URL:** `https://lmsplus.app` (production)
   - **Allowed redirects:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
@@ -543,9 +542,10 @@ Import ~3,000 questions from JSON into Supabase.
 ## Phase 4 — Student auth
 
 ### Pages
-- `/` — landing / login page
-- `/auth/callback` — magic link callback handler
-- `/auth/verify` — "check your email" page
+- `/` — landing / login page (email + password)
+- `/auth/callback` — auth callback handler (code exchange, recovery detection)
+- `/auth/forgot-password` — forgot password form
+- `/auth/reset-password` — set new password after reset email
 
 ### Proxy (Next.js 16)
 `apps/web/proxy.ts` — protect all `/app/*` routes, redirect to login if not authenticated.
@@ -640,7 +640,7 @@ Weekly
 > Read docs/plan.md and build the question import tool (Phase 3). Propose the JSON format first, I'll confirm before you write any import code.
 
 **Start Phase 4:**
-> Read docs/plan.md and build student auth (Phase 4) — login page, magic link flow, auth callback, session middleware.
+> Read docs/plan.md and build student auth (Phase 4) — login page, email+password auth, auth callback, session middleware.
 
 **Start Phase 5:**
 > Read docs/plan.md and build the Question Bank Trainer (Phase 5), starting with the dashboard and quiz mode.
