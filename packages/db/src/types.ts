@@ -938,6 +938,13 @@ export type Database = {
           topic_name: string
         }[]
       }
+      get_report_correct_options: {
+        Args: { p_session_id: string }
+        Returns: {
+          correct_option_id: string
+          question_id: string
+        }[]
+      }
       get_subject_scores: {
         Args: { p_limit?: number; p_student_id: string }
         Returns: {

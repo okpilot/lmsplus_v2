@@ -429,6 +429,7 @@ Use Postgres functions (RPCs) for:
 ```
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
+  get_report_correct_options ← read, returns correct option IDs for completed-session reports
   check_quiz_answer          ← read, verify answer + return explanation (immediate feedback)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (deferred writes pattern)
@@ -896,6 +897,49 @@ BEGIN
     'correct_count', v_correct_count,
     'score_percentage', v_score
   );
+END;
+$$;
+```
+
+#### `get_report_correct_options` — correct option IDs for reports
+
+Returns correct option IDs for the questions answered in a completed session owned by the caller. The RPC derives that question set from `quiz_session_answers`, so the TypeScript layer never reads the raw `correct` boolean from options JSONB.
+
+**Security:** Validates session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), and soft-delete status. Raises exception if any check fails.
+
+```sql
+CREATE OR REPLACE FUNCTION get_report_correct_options(p_session_id uuid)
+RETURNS TABLE (question_id uuid, correct_option_id text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM quiz_sessions
+    WHERE id = p_session_id
+      AND student_id = auth.uid()
+      AND ended_at IS NOT NULL
+      AND deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Session not found, not owned, or not completed';
+  END IF;
+
+  -- Ownership verified above via EXISTS on quiz_sessions.
+  -- This SECURITY DEFINER function bypasses RLS — do not remove the guard.
+  RETURN QUERY
+  SELECT DISTINCT ON (sa.question_id)
+    sa.question_id, (opt.value->>'id')::text
+  FROM quiz_session_answers sa
+  JOIN questions q ON q.id = sa.question_id
+  CROSS JOIN LATERAL jsonb_array_elements(q.options) WITH ORDINALITY AS opt(value, ord)
+  WHERE sa.session_id = p_session_id
+    AND (opt.value->>'correct')::boolean = true
+  ORDER BY sa.question_id, opt.ord;
 END;
 $$;
 ```

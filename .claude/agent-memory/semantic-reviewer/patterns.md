@@ -4,6 +4,32 @@
 
 ## Recurring Issues
 
+### RPC RETURN QUERY missing session_id ownership scope on join table (1st occurrence)
+**First seen:** commit 1f76a7b (2026-03-16) — get_report_correct_options migration 034
+**File:** `packages/db/migrations/034_report_correct_options_derive_from_session.sql`
+**Pattern:** The RETURN QUERY joins `quiz_session_answers` and `questions` but filters
+only by `sa.session_id = p_session_id`. The session ownership check happens in a
+preceding EXISTS guard. However, because `quiz_session_answers` has RLS with
+`USING (session_id IN (SELECT id FROM quiz_sessions WHERE student_id = auth.uid()))`,
+a SECURITY DEFINER function bypasses RLS entirely — the RETURN QUERY executes as the
+function definer, not as the calling user. The preceding EXISTS guard covers the
+session ownership check, so this is NOT a bug in this commit (the guard works correctly).
+But the pattern is worth watching: in future SECURITY DEFINER functions that query
+join tables, RLS is bypassed and the WHERE clause must carry the ownership filter explicitly.
+**Watch for:** Any SECURITY DEFINER RETURN QUERY that joins tables whose RLS relies on
+session ownership — the RLS is invisible to the function, the WHERE clause must encode it.
+**Status:** SUGGESTION — reviewed 1f76a7b, no bug in current code. Watch for future RPC patterns.
+
+### quiz_session_answers has no deleted_at — SECURITY DEFINER query correctly omits the filter (confirmed GOOD pattern)
+**First seen:** commit 1f76a7b (2026-03-16)
+**File:** `packages/db/migrations/034_report_correct_options_derive_from_session.sql`
+**Pattern:** `quiz_session_answers` is an immutable table with no `deleted_at` column
+(schema confirmed in initial_schema.sql). The new RETURN QUERY correctly omits a
+`deleted_at IS NULL` filter for `sa`. This is correct — there is no such column.
+Only `questions q` carries `AND q.deleted_at IS NULL`, which is also correct.
+Do NOT flag missing `deleted_at` filter on quiz_session_answers — the table does not have the column.
+**Status:** GOOD — confirmed correct, no action needed. Logged to prevent false-positive re-flagging.
+
 ### Suppression rules referencing undefined severity levels (1st occurrence)
 **First seen:** commit b32d56a (2026-03-16) — security-auditor suppression rule 9
 **File:** `.claude/agents/security-auditor.md`
@@ -305,6 +331,39 @@ may not enforce `minLength(1)` — needs verification.
 **Watch for:** Any array validated by size/diversity checks where the empty-array case
 is not separately guarded before the diversity check.
 **Status:** ISSUE — flagged in f2357a0.
+
+### SECURITY DEFINER RPC missing session-ownership scope — correct answers exposed to arbitrary authenticated users (1st occurrence)
+**First seen:** commit f1f6c32 (2026-03-16)
+**File:** `packages/db/migrations/032_get_report_correct_options.sql`
+**Pattern:** A new `get_report_correct_options` RPC accepts an arbitrary `p_question_ids uuid[]`
+and returns correct option IDs, guarded only by `auth.uid() IS NULL`. Any authenticated student
+can call it directly via the Supabase JS client, bypassing the TypeScript completed-session check
+in `quiz-report.ts`. The TypeScript caller correctly checks `session.ended_at`, but that check
+lives in the caller — a SECURITY DEFINER function is itself the security boundary (it bypasses RLS),
+so the ownership and completion check must also be in the RPC.
+**Rule:** Any SECURITY DEFINER RPC that returns answer-keyed data must accept a `p_session_id`
+parameter and verify: (1) the session is owned by `auth.uid()`, (2) `ended_at IS NOT NULL`,
+(3) `deleted_at IS NULL`. The TypeScript caller's guards are defence-in-depth, not the primary gate.
+**Watch for:** Any new RPC that takes a list of question IDs and returns correct-answer data
+without a session-scoped ownership check. "The caller checks this" is not a sufficient defence —
+callers can be bypassed.
+**Status:** ISSUE — flagged in f1f6c32.
+
+### explicit `correct`-field strip removed incidentally during refactor, leaking field via hydration payload (1st occurrence)
+**First seen:** commit f1f6c32 (2026-03-16)
+**File:** `apps/web/lib/queries/quiz-report.ts` line ~133 (buildReportQuestions)
+**Pattern:** The pre-refactor code had an explicit `.map((o) => ({ id: o.id, text: o.text }))` to
+strip the `correct` boolean from options before returning to the client. The refactor removed this
+projection (replacing it with `options,`) because the `QuestionRow` type no longer declares `correct`.
+But TypeScript `as` casts are compile-time only — the runtime object still carries `correct: true/false`
+from the DB. The field is visible in `__NEXT_DATA__` / RSC flight data.
+**Rule:** Stripping sensitive fields from DB objects must happen via explicit property projection
+(`{ id, text }` spread), never via TypeScript type narrowing alone. Type narrowing does not mutate
+the runtime value. The correct test for "did we strip it?" is `Object.keys(options[0])` not
+`options[0].correct === undefined` in TypeScript.
+**Watch for:** Any `as SomeType[]` cast on a DB result where the source type has more fields than
+the target type. Narrowing to a smaller type does not remove the extra fields at runtime.
+**Status:** ISSUE — flagged in f1f6c32.
 
 ### seed script topic/subtopic lookup silently ignores Supabase errors (1st occurrence)
 **First seen:** commit f2357a0 (2026-03-15)

@@ -4,6 +4,7 @@
 
 - **Hooks at 70+ lines**: Flag as WARNING-level watch item. Authors should know they are 10 lines from the hard limit before they get there, not after. Hooks that reach 70 lines should include a note about what to extract if they grow further.
 - **`use-quiz-state.ts` approaching limit (138/80 lines)**: Added 12 lines in commit 157f421. Currently 58 lines over limit. **WATCH**: This hook is now a blocker and should be split into smaller hooks (one per handler: useQuizSubmit, useQuizAnswerHandling, useQuizSave, useQuizDiscard). Pattern suggests each handler (submit, save, discard, answer selection) should be its own hook — they're loosely coupled state machines for different quiz actions.
+- **RPC error handling standardized (2026-03-16)**: Commit 7029f4e demonstrates proper pattern for destructuring RPC results: `{ data, error }` with early return on error. Pattern is now consistent across codebase — all RPC calls destructure error and log before returning. This is a positive pattern to preserve.
 - **Input validation pattern solidifying**: Commit 028fc09 (`lookup.ts`) demonstrates consistent adoption of Zod validation in Server Actions. This is a positive pattern — all lookup functions now validate UUID inputs before use. No more unvalidated type casts at the boundary.
 - **Component extraction working well**: Multiple successful refactorings in this sprint:
   - Commit 53efbdd extracted `FsrsSection` sub-component from `StatsDisplay`, bringing `statistics-tab.tsx` down to 158 lines
@@ -34,6 +35,80 @@
 - ✓ Package lock updated correctly (pnpm-lock.yaml, 949 +++/---) ✓
 
 **Pattern**: Dependency bumps should trigger suppression review. These `@ts-expect-error` comments on Supabase mutation calls were addressing a TypeScript compiler limitation that newer versions of the affected packages (particularly @supabase/ssr 0.9.0 and vitest 4.1.0) resolved. Removing them improves code clarity and reduces technical debt.
+
+## Session 2026-03-16 (commit 1f76a7b) — RPC parameter refactoring & test expansion (WATCH: getQuizReport approaching size concern)
+
+### Commit: 1f76a7b (fix: derive question set from session answers in RPC, update docs)
+- Status: **WARNINGS** — Function size monitoring
+- Files changed: 9 files (2 source, 5 doc, 2 migration), 127 insertions, 10 deletions
+- Summary: Refactored `get_report_correct_options()` RPC to derive question IDs from session_answers instead of accepting `p_question_ids` parameter. Improves security by preventing arbitrary question ID probing via the REST API. Added 2 new test cases for RPC parameter verification and correct field stripping. Updated docs (database.md, decisions.md, plan.md, security.md) to document the new RPC implementation.
+
+**⚠️ WARNINGS:**
+- ⚠ quiz-report.ts: getQuizReport() now 72 lines (orchestrator function)
+  - Orchestrator functions with >30 lines are acceptable when each line/block maps to a distinct step
+  - This function has clear ownership: auth → fetch session → fetch answers → fetch questions → call RPC → build report
+  - Pattern is correct, but **WATCH** — if next change grows it further, consider extracting fetch steps into separate functions (e.g., `async function fetchSessionData()`)
+  - Currently acceptable but flagging as watch item
+
+**✅ All other checks PASS:**
+- ✓ File sizes:
+  - quiz-report.ts: 145 lines (utility limit: 200) ✓
+  - quiz-report.test.ts: 332 lines (test file, exempt from utility limits per Section 7) ✓
+  - Migration files: 35 lines each (migration limit: 300) ✓
+- ✓ TypeScript & error handling:
+  - RPC call: `{ data: correctData, error: rpcError }` destructured correctly ✓
+  - Error check with early return: `if (rpcError) { console.error(...); return null }` ✓
+  - Options projection: `options.map((o) => ({ id: o.id, text: o.text }))` removes `correct` boolean ✓
+- ✓ Test naming:
+  - "forwards sessionId as p_session_id when calling the correct-options RPC" — behavior-focused ✓
+  - "strips the correct field from options so it is never exposed in the report" — behavior-focused ✓
+- ✓ No barrel files created ✓
+- ✓ No useEffect for data fetching ✓
+- ✓ No `any` types ✓
+
+## Session 2026-03-16 (commit 7029f4e) — Quiz report security & RPC error handling (CLEAN)
+
+### Commit: 7029f4e (fix: scope RPC to session, restore options projection, handle RPC errors)
+- Status: **CLEAN** — No violations
+- Files changed: 6 files, 96 insertions, 2 deletions
+- Summary: Security hardening of `get_report_correct_options` RPC. RPC now scoped to completed sessions owned by caller (session ownership + ended_at check + soft-delete filter). Options array properly projected to exclude raw `correct` boolean. RPC result error destructured and handled with early return. Added 3 new test cases for error paths and edge cases.
+
+**✅ All checks PASS:**
+- ✓ File sizes:
+  - quiz-report.ts: 152 lines (utility limit: 200) ✓
+  - quiz-report.test.ts: 290 lines (test file, exempt from utility limits per Section 7) ✓
+  - Migration files: 34 lines each (migration limit: 300) ✓
+- ✓ Function lengths:
+  - getQuizReport(): 52 lines (multi-responsibility orchestrator, acceptable) ✓
+  - buildReportQuestions(): modified but under 30 lines ✓
+  - RPC function: 24 lines ✓
+- ✓ TypeScript & error handling:
+  - RPC result: `{ data: correctData, error: rpcError }` destructured correctly ✓
+  - Error check with early return: `if (rpcError) { console.error(...); return null }` ✓
+  - Options projection: `options.map((o) => ({ id: o.id, text: o.text }))` removes `correct` boolean ✓
+  - No `any` types ✓
+  - No unvalidated casts ✓
+- ✓ Supabase patterns:
+  - RPC parameter added: `p_session_id: sessionId` passed to function ✓
+  - SECURITY DEFINER with `auth.uid()` check ✓
+  - `SET search_path = public` in migration ✓
+  - Dual-layer auth: Server Action caller + RPC ownership check ✓
+- ✓ Security (session scoping):
+  - RPC validates: `student_id = auth.uid()` ✓
+  - RPC validates: `ended_at IS NOT NULL` (completed sessions only) ✓
+  - RPC validates: `deleted_at IS NULL` (soft-delete check) ✓
+  - Prevents question ID probing by unauthenticated users ✓
+- ✓ Test coverage:
+  - Test 1: "falls back to zero scorePercentage when null" — edge case for null scores ✓
+  - Test 2: "returns null when RPC returns error" — error path testing ✓
+  - Test 3: "does not call RPC when answers empty" — optimization path testing ✓
+  - All test names describe behavior, not implementation ✓
+  - mockRpc.not.toHaveBeenCalled() validates call optimization ✓
+
+**Pattern**: Security hardening of query functions follows dual-layer defense pattern:
+1. Server Action layer: caller identity verified
+2. RPC layer: resource ownership + completion status + soft-delete filter
+This pattern was first established in commit 7ae13b6 for answer-checking and is now consistently applied to reporting functions. Pattern is solid and should be extended to other sensitive queries.
 
 ## Session 2026-03-15 (commit b0de349) — Accessibility: ARIA tablist + keyboard nav (CLEAN)
 
@@ -1851,3 +1926,44 @@ Line count exceeds Server Action limit by 24 lines.
 
 **Note:** The Collapsible + nested tree pattern scales well for the current 3-level hierarchy (subjects → topics → subtopics). If hierarchy grows deeper, may want to consider virtualizing the list.
 
+
+## Session 2026-03-16 (commit f1f6c32) — Security: Remove answer keys from test contract (CLEAN)
+
+### Commit: f1f6c32 (fix: remove raw answer keys from web-layer test contract #45)
+- Status: **CLEAN** — No violations
+- Files changed: 6 files, 161 insertions, 9 deletions
+- Summary: Add `get_report_correct_options` RPC so quiz-report.ts derives correctOptionId from Postgres instead of reading the `correct` boolean from options JSONB in TypeScript. Test fixtures no longer contain answer keys.
+
+**✅ All checks PASS:**
+- ✓ File sizes:
+  - quiz-report.ts: 140 lines (utility/query limit: 200) ✓
+  - quiz-report.test.ts: 265 lines (test file, exempt from component limits) ✓
+- ✓ Function lengths:
+  - getQuizReport(): 67 lines — acceptable as server-side query orchestrator (multiple sequential DB calls + RPC with proper error handling) ✓
+  - buildReportQuestions(): 17 lines ✓
+- ✓ Parameters:
+  - getQuizReport(): 1 param ✓
+  - buildReportQuestions(): 3 params ✓
+- ✓ Security:
+  - New RPC `get_report_correct_options`: SECURITY DEFINER + auth.uid() check + SET search_path = public ✓
+  - Answer keys (`correct` boolean) never exposed to TypeScript/web layer ✓
+  - Options returned from SQL layer stripped of sensitive fields ✓
+- ✓ Types:
+  - QuestionRow.options type changed from `{ id, text, correct }` to `{ id, text }` — correct (no more answer keys) ✓
+  - No `any` types introduced ✓
+- ✓ Testing:
+  - Test fixtures updated to remove `correct: true/false` from options ✓
+  - All 8 existing tests adjusted to mock new RPC call ✓
+  - Behavior-focused test names maintained ("falls back to empty correctOptionId when RPC returns no match") ✓
+- ✓ Migrations:
+  - packages/db/migrations/032_get_report_correct_options.sql (25 lines) ✓
+  - supabase/migrations/20260316221722_get_report_correct_options.sql (mirror) ✓
+- ✓ Documentation:
+  - docs/database.md updated with RPC signature and intent ✓
+
+**Positive patterns in this commit:**
+- Answer disclosure control moved from TypeScript to SQL layer — good security boundary
+- RPC pattern consistent with existing `get_quiz_questions`, `check_quiz_answer`, `submit_quiz_answer`
+- Test contract evolution: fixture data no longer contains secrets — test data is safe to share/review
+- Migration follows established pattern: numbered + timestamped (dual-track sync)
+- Types reflect new contract (options without `correct` field)

@@ -439,16 +439,17 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-## Decision 25: Post-session exception for question feedback (2026-03-13)
+## Decision 25: Post-session exception for question feedback (2026-03-13, updated 2026-03-16)
 
 **Context:** `getQuizReport()` reads `questions.options` (including `correct: boolean`) server-side to build post-session feedback. The `get_quiz_questions()` RPC strips correct answers but is designed for active sessions, not completed-session reports. Semantic reviewer identified that the report page lacked an `ended_at` guard, allowing mid-session access to correct answers.
 
 **Decided:**
-- Post-session report queries MAY read `questions.correct` server-side, provided all three conditions are met:
-  1. Session is verified completed (`ended_at IS NOT NULL`)
-  2. `correct` boolean is stripped before returning to client (options mapped to `{ id, text }` only)
+- Post-session report queries use the `get_report_correct_options()` RPC to obtain correct option IDs. The TypeScript layer never reads the raw `correct` boolean from options JSONB. Conditions:
+  1. Session is verified completed (`ended_at IS NOT NULL`) — checked both in TypeScript and inside the RPC
+  2. Options returned to the client are stripped to `{ id, text }` only (explicit `map()` projection)
   3. Query runs in a Server Component (no raw DB rows reach the client)
-- Guard implemented: `if (!session.ended_at) return null` in `quiz-report.ts`
+- **Implementation (2026-03-16):** `get_report_correct_options(p_session_id)` RPC derives the question set from `quiz_session_answers`, validates session ownership and completion, and returns only `(question_id, correct_option_id)`. `getQuizReport()` merges RPC results with question data to build the report.
+- Guard implemented: `if (!session.ended_at) return null` in `quiz-report.ts`; RPC second-checks on the server
 - `.coderabbit.yaml` `no-answer-exposure` rule updated to require both conditions
 - `docs/security.md` Section 4 updated with the post-session exception
 - Rationale: showing correct answers after answering is the core learning loop, not a data leak

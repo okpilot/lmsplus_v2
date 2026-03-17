@@ -397,6 +397,38 @@ vi.mock('./quiz-session', () => ({
 ```
 Pass through key props so tests can assert on them (e.g., `screen.getByText(sessionId)`).
 
+### Asserting RPC argument shapes after signature changes (2026-03-16)
+
+When an RPC gains a new parameter (e.g., `p_session_id` added to `get_report_correct_options`),
+always add a test that calls `expect(mockRpc).toHaveBeenCalledWith(rpcName, { ...allArgs })`.
+This catches silent regressions where a new required arg is dropped from the call site.
+Pair it with a test that passes options with the field being projected out and asserts via
+`not.toHaveProperty()` that the stripped field is absent from the output:
+
+```ts
+it('forwards sessionId as p_session_id when calling the correct-options RPC', async () => {
+  // arrange mocks ...
+  await getQuizReport('sess-1')
+  expect(mockRpc).toHaveBeenCalledWith('get_report_correct_options', {
+    p_session_id: 'sess-1',
+    p_question_ids: ['q1', 'q2'],
+  })
+})
+
+it('strips the correct field from options so it is never exposed', async () => {
+  const questionsWithCorrectField = [{
+    id: 'q1',
+    options: [{ id: 'opt-a', text: 'Upward force', correct: true }],
+    // ...
+  }]
+  // arrange, call, then:
+  expect(options[0]).not.toHaveProperty('correct')
+})
+```
+
+Rule: whenever a production function projects a DB/RPC result shape, the test fixture MUST
+include the fields being projected out — otherwise the projection code is untested.
+
 ---
 
 ## Integration test pattern: BEFORE UPDATE trigger
