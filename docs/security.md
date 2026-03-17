@@ -38,6 +38,13 @@ The highest-value targets are:
 - **Allowed redirect URLs:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
 - Auth redirect config lives in Supabase remote settings (Management API), NOT in `config.toml` (local dev only)
 
+### Auth Callback Guard Ordering
+When adding or modifying any branch in `apps/web/app/auth/callback/route.ts`, verify the full guard ordering before committing:
+1. All existence/registration checks (`getUser()`, `public.users` lookup) must execute **before** any branch-specific redirect.
+2. Any branch that fails after a session is established must call `signOut()` before redirecting.
+
+This rule exists because guard ordering errors have occurred twice (commits 83ae098, 5cc4109) — new branches were inserted above the profile gate, allowing orphaned auth users to bypass the `not_registered` check.
+
 ### Session Configuration (set in Supabase dashboard)
 ```
 JWT expiry:           3600s (1 hour)
