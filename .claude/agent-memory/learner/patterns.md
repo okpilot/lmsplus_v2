@@ -85,7 +85,8 @@
 | Zod error message pinned to exact internal text | 2 | 2026-03-16 | RULE CANDIDATE — first: cb0395c (2026-03-14) test file assertion pinned to Zod 3 internal string; second: 559bf9e Zod 3→4 migration — "Invalid uuid"→"Invalid UUID", "Required"→"Invalid input:…" changed in production source files; Zod internal messages are not public API; assert `error instanceof ZodError` or `.issues[0].code`, never `.message` text |
 | Test fixtures using zeroed UUID format (`00000000-0000-0000-0000-*`) invalid under Zod 4 RFC 4122 enforcement | 1 | 2026-03-16 | Watch — 559bf9e: 27 test files required UUID constant replacements from `00000000-0000-0000-0000-*` to `00000000-0000-4000-a000-*`; Zod 4 validates version bits (nibble 13 must be 4–5) and variant bits (nibble 17 must be 8–b); also affected E2E sentinel UUIDs (5ad3c16); first occurrence; if new test file added with zeroed UUIDs, update test-writer memory with compliant constant form |
 | `err.errors` property access silently undefined after Zod 4 removal (was Zod 3 alias for `.issues`) | 1 | 2026-03-16 | Watch — 559bf9e: two production source files accessed `.errors` on ZodError instances; Zod 4 removed the property (not deprecated); returns undefined, silently falls through to fallback strings; caught by pre-commit tsc gate; fix: use `.issues` throughout; first occurrence |
-| Turbo type-check cache masking new compile errors after dependency bumps | 2 | 2026-03-16 | RULE CANDIDATE — first: PR #211 (@supabase/ssr, @supabase/supabase-js, vitest bumps): `pnpm check-types` showed "3 cached, 3 total" after a batch dep bump; turbo served pre-bump type results, silently hiding whether new types introduced errors; second: c5025f6 (commitlint 20, jsdom 29, @types/node 22 bumps): semantic-reviewer flagged same concern; workaround is `pnpm check-types --force` on dep-bump commits; turbo cache does not know that the type signatures behind the packages changed; propose CLAUDE.md workflow note: after any dep-bump commit, run `pnpm check-types --force` to bypass turbo cache before treating type-check as passing |
+| Turbo type-check cache masking new compile errors after dependency bumps | 3 | 2026-03-17 | RULE APPLIED (CLAUDE.md) — first: PR #211 (@supabase/ssr, @supabase/supabase-js, vitest bumps); second: c5025f6 (commitlint 20, jsdom 29, @types/node 22 bumps); third: d9de1dd (vite 7→8, @vitejs/plugin-react 5→6); CLAUDE.md rule added after 2nd occurrence: "After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache)"; 3rd occurrence confirms the rule was followed — ISSUE was pre-empted; rule is working; no further change needed |
+| rolldown-vite RC bundled in @vitejs/plugin-react@6 | 1 | 2026-03-17 | Watch — d9de1dd: @vitejs/plugin-react@6 bundles rolldown-vite (Rust-based bundler) as an internal dep; RC status means breaking changes possible in minor bumps; no action needed now; first occurrence — log and watch |
 | Undefined severity level used in agent rule (label not in agent's schema) | 1 | 2026-03-16 | Watch — b32d56a: new suppression condition 9 in security-auditor.md assigned "WARNING" severity; security-auditor schema defines only CRITICAL, HIGH, MEDIUM; undefined level has no blocking/non-blocking contract; pre-push hook cannot act on it; fixed in d6e8224 with MEDIUM; first occurrence; watch for agent edits that introduce severity labels without cross-checking the agent's own severity table |
 | Agent suppression condition requiring out-of-diff artifact verification | 1 | 2026-03-16 | Watch — b32d56a: suppression condition required verifying RPC's SELECT list does not expose correct answers; RPC definition lives in a migration file not present in the diff; if the migration file is inaccessible, the agent must flag as HIGH rather than suppress; fixed in d6e8224 with explicit fallback instruction: "If the migration file is not accessible, flag as HIGH"; first occurrence; watch for suppression rules that require knowledge of artifacts outside the current diff |
 | Agent file DO NOT section numbering collision with main checklist numbering | 1 | 2026-03-16 | Watch — b32d56a: new DO NOT item numbered "9" collided with checklist item "9" in HIGH section; non-contiguous DO NOT numbering (1,2,3,5,6,8,9) also pre-existed; fixed in d6e8224 (DO NOT renumbered 1-7) and 0f40bd6 (duplicate HIGH block removed, renumbered 11-15); first occurrence; watch for agent file edits that append to a numbered DO NOT section without checking for collisions with the main checklist |
@@ -302,6 +303,43 @@
 - Code reviewer was clean on both commits — E2E test files correctly benefit from relaxed line limits.
 - The progress-bar flush gate fix (7f7eed8) is a clean, minimal change — single `await expect` assertion before the click. Good pattern for future E2E work against deferred-write flows.
 - Doc-updater caught the missing route entry immediately and the fix was applied in the same cycle, consistent with the no-partial-doc-fix discipline.
+
+---
+
+### 2026-03-17 — Vite 7→8 dependency upgrade (commits d9de1dd, 5428b5c)
+
+**Context:** Pure dependency upgrade — Vite 7→8 (`@vitejs/plugin-react` 5→6) on branch chore/226-vite-8-migration. Two commits: d9de1dd (upgrade + pin explicit vite devDependency) and 5428b5c (lockfile dedupe + plan.md update). No production logic changed.
+
+**Code reviewer:** clean — 0 blocking, 0 warnings. Pure dep upgrade; no source file content changed.
+
+**Test writer:** no tests needed — no new logic or modules introduced. Correct outcome for a dep-only commit.
+
+**Doc updater:** suggested updating plan.md sprint table to mark #215 Done and add #226 row. Applied and committed in 5428b5c. Correct outcome — doc-updater caught a missing progress entry.
+
+**Semantic reviewer:** 1 ISSUE, 2 SUGGESTIONs, 2 GOODs.
+
+1. **ISSUE — `pnpm check-types --force` needed after dep bump (d9de1dd):** The semantic reviewer flagged that the standard `pnpm check-types` after a dep-bump commit might be served from turbo cache, masking new type errors introduced by the upgraded packages. This is not a new pattern — it is the third occurrence of "Turbo type-check cache masking new compile errors after dependency bumps" (count updated from 2→3). The flag was already applied before committing (per CLAUDE.md rule added after the second occurrence). The reviewer confirmed the type check was clean. ISSUE resolved pre-commit, not post-commit.
+
+2. **SUGGESTION — rolldown-vite RC watch item (d9de1dd):** `@vitejs/plugin-react@6` bundles rolldown-vite (Rust-based bundler) as an internal dependency; RC status means breaking changes possible in minor bumps. No action needed now — watch for follow-up releases. First occurrence as a named watch item.
+
+3. **SUGGESTION — esbuild version duplication + lightningcss redundancy in lockfile (d9de1dd → resolved 5428b5c):** The initial upgrade introduced two esbuild versions (0.27.3 and 0.27.4) and a lightningcss duplicate alongside the Vite-bundled copy. Addressed in 5428b5c by running `pnpm dedupe`, which collapsed esbuild to 0.27.4 and removed 270 orphaned lockfile lines. Duplication was non-breaking but wasteful.
+
+4. **GOOD — CI Node.js compat confirmed (d9de1dd):** Vite 8 requires Node.js ≥18; CI already runs Node 20. No matrix change needed.
+
+5. **GOOD — Clean Babel removal confirmed (d9de1dd):** `@vitejs/plugin-react@6` dropped `@babel/core` as a peer dep in favour of `@vitejs/plugin-react-oxc` transform. Lockfile correctly shows Babel packages removed, not just version-bumped.
+
+**Positive signals:**
+- Code reviewer, test writer all reported clean — pipeline behaved correctly for a dep-only commit.
+- The CLAUDE.md `pnpm check-types --force` rule (added after the second turbo-cache occurrence) was followed before committing. The ISSUE flagged by the semantic reviewer was therefore already resolved at commit time. The rule is working.
+- `pnpm dedupe` as a follow-up commit is a clean pattern: one commit for the bump, one for lockfile hygiene. Keeps diffs readable.
+- No production code touched — zero post-commit test failures, zero rule violations.
+
+**Actions taken:**
+- Frequency table: "Turbo type-check cache masking new compile errors after dependency bumps" count updated 2→3. Status remains RULE CANDIDATE — the CLAUDE.md rule was already applied after the second occurrence. No further rule change warranted; this is now a compliance-tracking entry.
+- Frequency table: "rolldown-vite RC watch item" added as new watch item (count 1). First occurrence — log and watch.
+- No new rule changes proposed — turbo-cache rule already applied; rolldown item is first occurrence only.
+
+**False positives:** none detected. The semantic reviewer ISSUE was valid and had been pre-empted correctly.
 
 ---
 

@@ -14,7 +14,7 @@
 
 -- quiz_sessions.subject_id — used in get_subject_scores() JOIN
 CREATE INDEX IF NOT EXISTS idx_quiz_sessions_subject
-  ON quiz_sessions(subject_id);
+  ON quiz_sessions(subject_id) WHERE subject_id IS NOT NULL;
 
 -- questions.subtopic_id — FK join column, matches existing partial index pattern
 CREATE INDEX IF NOT EXISTS idx_questions_subtopic

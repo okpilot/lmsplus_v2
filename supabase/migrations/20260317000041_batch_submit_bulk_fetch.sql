@@ -82,6 +82,8 @@ BEGIN
     ))
     INTO v_results
     FROM quiz_session_answers qsa
+    -- Reads directly from questions (temp table not yet created on replay path).
+    -- If question content changed post-submission, replay returns current values.
     JOIN questions q ON q.id = qsa.question_id
     WHERE qsa.session_id = p_session_id;
 
@@ -118,6 +120,9 @@ BEGIN
   END IF;
 
   -- Bulk-fetch all questions for this session into a temp table (fixes N+1).
+  -- DROP IF EXISTS guards against re-creation within a single explicit transaction
+  -- (e.g., test harness wrapping two batch_submit calls in BEGIN...COMMIT).
+  DROP TABLE IF EXISTS _batch_questions;
   -- Intentionally no deleted_at filter: session membership was verified against
   -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
   -- A question soft-deleted after that point must still score correctly.
