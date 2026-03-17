@@ -11,8 +11,11 @@ setup('create authenticated session', async ({ page }) => {
   await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
 
+  // Wait for the sign-in API call to complete before checking navigation
   await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 
+  // Wait for cookies to be fully set by @supabase/ssr before saving state
+  await page.waitForTimeout(1000)
   await page.context().storageState({ path: AUTH_FILE })
 })
