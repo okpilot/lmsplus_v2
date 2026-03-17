@@ -43,23 +43,29 @@ export function LoginForm({ initialError }: LoginFormProps) {
     }
 
     setLoading(true)
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: result.data.email,
-      password: result.data.password,
-    })
-    setLoading(false)
+    try {
+      const supabase = createClient()
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: result.data.email,
+        password: result.data.password,
+      })
 
-    if (authError) {
-      setError(FRIENDLY_AUTH_ERRORS[authError.message] ?? 'Unable to sign in. Please try again.')
+      if (authError) {
+        setError(FRIENDLY_AUTH_ERRORS[authError.message] ?? 'Unable to sign in. Please try again.')
+        return
+      }
+    } catch {
+      setError('Unable to sign in. Please try again.')
       return
+    } finally {
+      setLoading(false)
     }
 
     window.location.href = '/app/dashboard'
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full space-y-4">
+    <form noValidate onSubmit={handleSubmit} className="w-full space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email address</Label>
         <Input

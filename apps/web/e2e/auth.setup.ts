@@ -8,7 +8,7 @@ setup('create authenticated session', async ({ page }) => {
 
   await page.goto('/')
   await page.getByLabel('Email address').fill(TEST_EMAIL)
-  await page.getByLabel('Password').fill(TEST_PASSWORD)
+  await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
 
   await page.waitForURL('**/app/dashboard', { timeout: 15_000 })

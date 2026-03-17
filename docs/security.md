@@ -46,7 +46,8 @@ When adding or modifying any branch in `apps/web/app/auth/callback/route.ts`, ve
 This rule exists because guard ordering errors have occurred twice (commits 83ae098, 5cc4109) — new branches were inserted above the profile gate, allowing orphaned auth users to bypass the `not_registered` check.
 
 ### Session Configuration (set in Supabase dashboard)
-```
+
+```text
 JWT expiry:           3600s (1 hour)
 Refresh token reuse:  Disabled (rotation enabled)
 Refresh token expiry: 7 days (sliding)
@@ -438,7 +439,7 @@ Configure in Supabase dashboard (Auth → Rate Limits):
 
 | Endpoint | Limit |
 |----------|-------|
-| Sign in attempts | 30 per hour per IP |
+| Sign-in attempts | 30 per hour per IP |
 | Password reset | 3 per hour per email |
 | Token verification | 10 per hour per IP |
 

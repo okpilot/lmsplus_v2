@@ -640,7 +640,7 @@ Weekly
 > Read docs/plan.md and build the question import tool (Phase 3). Propose the JSON format first, I'll confirm before you write any import code.
 
 **Start Phase 4:**
-> Read docs/plan.md and build student auth (Phase 4) — login page, email+password auth, auth callback, session middleware.
+> Read docs/plan.md and build student auth (Phase 4) — login page, email+password auth, auth callback, proxy.ts auth guard.
 
 **Start Phase 5:**
 > Read docs/plan.md and build the Question Bank Trainer (Phase 5), starting with the dashboard and quiz mode.

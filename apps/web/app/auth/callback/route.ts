@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 
   if (profileError && profileError.code !== 'PGRST116') {
     console.error('[auth/callback] Profile lookup failed:', profileError.message)
+    await supabase.auth.signOut()
     redirectTo.searchParams.set('error', 'profile_lookup_failed')
     return NextResponse.redirect(redirectTo)
   }

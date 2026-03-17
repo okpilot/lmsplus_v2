@@ -96,6 +96,33 @@ describe('GET /auth/callback', () => {
     expect(location.pathname).toBe('/app/dashboard')
   })
 
+  it('signs out and redirects to / with profile_lookup_failed on transient DB error', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({
+            data: null,
+            error: { code: 'PGRST500', message: 'connection lost' },
+          }),
+        }),
+      }),
+    })
+    mockSignOut.mockResolvedValue({})
+
+    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
+    const response = await GET(request)
+
+    expect(mockSignOut).toHaveBeenCalledOnce()
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/')
+    expect(location.searchParams.get('error')).toBe('profile_lookup_failed')
+    consoleSpy.mockRestore()
+  })
+
   it('redirects to / with auth_failed error when getUser returns no user after exchange', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: null })
     mockGetUser.mockResolvedValue({ data: { user: null } })

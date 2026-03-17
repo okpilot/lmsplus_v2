@@ -27,15 +27,21 @@ export function ForgotPasswordForm() {
     }
 
     setLoading(true)
-    const supabase = createClient()
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(result.data, {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    })
-    setLoading(false)
+    try {
+      const supabase = createClient()
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(result.data, {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      })
 
-    if (resetError) {
+      if (resetError) {
+        setError('Unable to send reset email. Please try again.')
+        return
+      }
+    } catch {
       setError('Unable to send reset email. Please try again.')
       return
+    } finally {
+      setLoading(false)
     }
 
     setSent(true)
@@ -59,7 +65,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full space-y-4">
+    <form noValidate onSubmit={handleSubmit} className="w-full space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email address</Label>
         <Input

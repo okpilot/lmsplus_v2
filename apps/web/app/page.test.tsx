@@ -25,14 +25,14 @@ describe('LoginPage', () => {
   it('maps missing_code to the correct human-readable message', async () => {
     await renderPage({ error: 'missing_code' })
     expect(screen.getByTestId('login-form').dataset.initialError).toBe(
-      'The sign-in link is invalid. Please try again.',
+      'Authentication failed. Please try signing in again.',
     )
   })
 
   it('maps invalid_code to the correct human-readable message', async () => {
     await renderPage({ error: 'invalid_code' })
     expect(screen.getByTestId('login-form').dataset.initialError).toBe(
-      'The sign-in link has expired or already been used.',
+      'The authentication code has expired or already been used.',
     )
   })
 

@@ -13,7 +13,7 @@ test('email + password login flow: fill credentials → dashboard', async ({ pag
 
   // 2. Fill in credentials and submit
   await page.getByLabel('Email address').fill(TEST_EMAIL)
-  await page.getByLabel('Password').fill(TEST_PASSWORD)
+  await page.getByLabel('Password', { exact: true }).fill(TEST_PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
 
   // 3. Should end up on dashboard

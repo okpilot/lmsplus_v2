@@ -1,8 +1,8 @@
 import { LoginForm } from './_components/login-form'
 
 const ERROR_MESSAGES: Record<string, string> = {
-  missing_code: 'The sign-in link is invalid. Please try again.',
-  invalid_code: 'The sign-in link has expired or already been used.',
+  missing_code: 'Authentication failed. Please try signing in again.',
+  invalid_code: 'The authentication code has expired or already been used.',
   not_registered:
     'Your account has not been set up yet. Please contact your flight school administrator.',
   profile_lookup_failed: 'We could not verify your account right now. Please try again.',

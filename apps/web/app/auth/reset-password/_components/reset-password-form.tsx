@@ -37,22 +37,28 @@ export function ResetPasswordForm() {
     }
 
     setLoading(true)
-    const supabase = createClient()
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: result.data.password,
-    })
-    setLoading(false)
+    try {
+      const supabase = createClient()
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: result.data.password,
+      })
 
-    if (updateError) {
+      if (updateError) {
+        setError('Unable to update password. Please try again.')
+        return
+      }
+    } catch {
       setError('Unable to update password. Please try again.')
       return
+    } finally {
+      setLoading(false)
     }
 
     window.location.href = '/app/dashboard'
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full space-y-4">
+    <form noValidate onSubmit={handleSubmit} className="w-full space-y-4">
       <div className="space-y-2">
         <Label htmlFor="password">New password</Label>
         <div className="relative">
