@@ -4,6 +4,7 @@
 
 - **Hooks at 70+ lines**: Flag as WARNING-level watch item. Authors should know they are 10 lines from the hard limit before they get there, not after. Hooks that reach 70 lines should include a note about what to extract if they grow further.
 - **`use-quiz-state.ts` approaching limit (138/80 lines)**: Added 12 lines in commit 157f421. Currently 58 lines over limit. **WATCH**: This hook is now a blocker and should be split into smaller hooks (one per handler: useQuizSubmit, useQuizAnswerHandling, useQuizSave, useQuizDiscard). Pattern suggests each handler (submit, save, discard, answer selection) should be its own hook — they're loosely coupled state machines for different quiz actions.
+- **SQL migration files 264/300 lines**: Migration 041 (`batch_submit_bulk_fetch.sql`, 2026-03-17) is at 88% of the 300-line limit. The function is complex but justified (N+1 fix with extensive validation). Pattern: When a single-function migration approaches the limit, it's usually correct — don't force unnecessary splits. Monitor future migrations to ensure they don't exceed.
 - **RPC error handling standardized (2026-03-16)**: Commit 7029f4e demonstrates proper pattern for destructuring RPC results: `{ data, error }` with early return on error. Pattern is now consistent across codebase — all RPC calls destructure error and log before returning. This is a positive pattern to preserve.
 - **Input validation pattern solidifying**: Commit 028fc09 (`lookup.ts`) demonstrates consistent adoption of Zod validation in Server Actions. This is a positive pattern — all lookup functions now validate UUID inputs before use. No more unvalidated type casts at the boundary.
 - **Component extraction working well**: Multiple successful refactorings in this sprint:
@@ -14,6 +15,34 @@
 - **Test naming convention solidified (2026-03-14)**: Behavior-focused test naming is now the standard. Commit 15ad393 successfully renamed ~80 test titles across 14 files to describe user-visible behavior instead of implementation details. This pattern is establishing itself as the norm across the test suite.
 - **Accessibility patterns emerging (2026-03-15)**: Commit b0de349 demonstrates consistent WAI-ARIA pattern implementation. Dialog components now include `aria-label` attributes. TabList pattern correctly implemented with full keyboard navigation (ArrowRight/Left, Home/End) + tabpanel linking. Test coverage includes both ARIA attribute validation and keyboard behavior. Pattern: accessibility features are paired with dedicated tests from day one.
 - **Dependency upgrade resolves TypeScript inference depth limit (2026-03-16)**: Commit 225a163 bumped `@vitest/coverage-v8` (4.0.18→4.1.0), `react` (19.2.3→19.2.4), and `@supabase/ssr` (0.5.0→0.9.0). These updates fixed the underlying TypeScript issue that required `@ts-expect-error` suppressions on Supabase mutation calls in `upsert-subject.ts`, `upsert-subtopic.ts`, `upsert-topic.ts`, and `draft-helpers.ts`. All 4 suppressions were safely removed; type-check (tsc --noEmit) and all 876 tests pass with zero errors. Pattern: `@ts-expect-error` comments should be revisited after dependency bumps in case underlying issues are resolved.
+
+## Session 2026-03-17 (commit 7fe8eb6) — N+1 fix in batch_submit_quiz + indexes (CLEAN)
+
+### Commit: 7fe8eb6 (fix: resolve N+1 query in batch_submit_quiz and add missing indexes)
+- Status: **CLEAN** — No violations
+- Files changed: 2 migration files, 293 insertions, 0 deletions
+- Summary: Fixed N+1 query in `batch_submit_quiz()` RPC by bulk-fetching all session questions into a temp table before the answer loop (migration 041, 264 lines). Added 4 missing indexes on frequently-joined FK columns (migration 042, 29 lines). Addresses issue #188.
+
+**✅ All checks PASS:**
+- ✓ File sizes:
+  - Migration 041: 264 lines (migration limit: 300) — at 88% of limit but justified (single complex function, proper validation) ✓
+  - Migration 042: 29 lines (well under limit) ✓
+- ✓ Migration naming:
+  - `20260317000041_batch_submit_bulk_fetch.sql` — follows YYYYMMDDHHMMSS_description pattern ✓
+  - `20260317000042_add_missing_indexes.sql` — follows YYYYMMDDHHMMSS_description pattern ✓
+- ✓ Comments & documentation:
+  - Migration 041: Clear comment explaining N+1 fix strategy (temp table + loop lookup) ✓
+  - Migration 041: All variables and validation steps documented ✓
+  - Migration 042: Explains CONCURRENTLY limitation + documents why certain indexes were skipped ✓
+- ✓ SQL best practices:
+  - Migration 041: SECURITY DEFINER function with `auth.uid()` check ✓
+  - Migration 041: Comprehensive input validation (format checks, constraint checks, membership validation) ✓
+  - Migration 041: Idempotency: ON CONFLICT DO NOTHING on all INSERT statements ✓
+  - Migration 041: FOR UPDATE on session SELECT for serialization ✓
+  - Migration 042: IF NOT EXISTS on all CREATE INDEX statements ✓
+  - Migration 042: Partial indexes use soft-delete filter (deleted_at IS NULL) ✓
+
+**Pattern**: Complex SQL functions are acceptable within size limits when they solve real performance issues (N+1 reduction) and include extensive validation. Comments explaining the fix strategy improve maintainability.
 
 ## Session 2026-03-16 (commit 225a163) — Dependency updates: minor/patch versions (CLEAN)
 

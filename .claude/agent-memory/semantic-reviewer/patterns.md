@@ -135,6 +135,43 @@ through `redirectWithCookies()`. The `response.cookies.getAll()` loop must be
 applied to EVERY response that leaves the proxy after a `getUser()` call.
 **Status:** CRITICAL — flagged in 6b49021.
 
+### RC bundler (rolldown) pulled into production test toolchain via Vite 8 (1st occurrence)
+**First seen:** commit d9de1dd (2026-03-17) — vite 7→8 migration
+**Files:** `apps/web/package.json`, `packages/db/package.json`
+**Pattern:** Vite 8.0.0 replaces rollup with rolldown@1.0.0-rc.9 as its bundler, and
+`@vitejs/plugin-react` 6.0.1 drops Babel/react-refresh in favour of rolldown's OXC
+transform (via `@oxc-project/runtime`). The RC designation (`rc.9`) is pre-stable.
+The concern is whether OXC's JSX transform is byte-for-byte compatible with Babel's
+output in all cases (especially import meta, decorators, or edge-case JSX spread patterns).
+In practice for a test-only scenario (vitest, not the Next.js build), the risk is
+contained: Next.js itself still uses its own Babel/SWC pipeline. However, the OXC
+runtime is executing as part of every `pnpm test` run. Any OXC bug that affects
+coverage instrumentation or module mocking could silently mis-report coverage or
+cause test-pass false positives. Watch for: tests that pass locally but fail
+in CI on the OXC code path; coverage drops not explained by code changes.
+**Status:** SUGGESTION — 1st occurrence, watching. No current bug visible in diff.
+
+### esbuild promoted from required to optional in Vite 8 (1st occurrence)
+**First seen:** commit d9de1dd (2026-03-17) — vite 7→8 migration
+**Files:** `pnpm-lock.yaml`
+**Pattern:** In Vite 7, `esbuild` was a required (non-optional) dependency; in Vite 8
+it is an optional peer (`optional: true` in lockfile). In this project esbuild@0.27.4
+is still installed (it is an optional peer that pnpm resolved). The risk is that in
+environments where esbuild is absent (e.g., a stripped Docker layer), Vite 8 falls
+back to the rolldown/OXC pipeline exclusively. As long as esbuild is pinned in the
+lockfile this is not a gap — but it is worth noting if the lockfile is regenerated
+on a machine that excludes optional deps.
+**Status:** SUGGESTION — 1st occurrence, no current gap. Logged for awareness.
+
+### Turbo type-check cache masks new compile errors after dep bumps (3rd occurrence — RULE ACTIVE)
+**Seen again:** commit d9de1dd (2026-03-17) — vite 7→8, @vitejs/plugin-react 5→6
+**Pattern:** Same pattern as c5025f6 and PR #211. `@vitejs/plugin-react` 6 changes
+its TS export surface (Babel type declarations removed, OXC types added). If
+`pnpm check-types` reports cache hits after this bump, the result is unreliable.
+`pnpm check-types --force` is mandatory before treating type-check as green on this
+commit.
+**Status:** RULE ACTIVE — already in CLAUDE.md. Enforce `--force` on this commit.
+
 ### Supabase query error silently swallowed in auth helpers (2nd occurrence)
 **First seen:** commit 83ae098 (2026-03-14) — getUser error ignored in some Server Actions
 **Second seen:** commit 6b49021 (2026-03-15) — requireAdmin() profile lookup ignores error
@@ -2946,3 +2983,41 @@ security-auditor + audit) are all intact and firing.
 **Watch for:** If lefthook ever jumps to v3+, re-validate the config immediately — the v1→v2
 jump had no breaking changes for this config, but that is not guaranteed for future majors.
 **Status:** GOOD — no findings. Version bump is safe.
+
+---
+
+## Session: 2026-03-17 — commit 7fe8eb69 (fix: N+1 batch_submit_quiz bulk-fetch + missing indexes)
+
+### PL/pgSQL CREATE TEMP TABLE without preceding DROP IF EXISTS — not idempotent under connection reuse (1st occurrence)
+**First seen:** commit 7fe8eb69 (2026-03-17) — migration 041
+**File:** `supabase/migrations/20260317000041_batch_submit_bulk_fetch.sql`
+**Pattern:** `CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS SELECT ...` is created
+inside a SECURITY DEFINER function without a preceding `DROP TABLE IF EXISTS _batch_questions`.
+Under Supabase's default transaction-mode pooling, each DB transaction gets a separate session,
+so ON COMMIT DROP is sufficient. However, under session-mode pooling (or when callers wrap
+multiple RPC calls in an explicit transaction), two invocations can share a session. The second
+call hits `ERROR: relation "_batch_questions" already exists` because the first call's ON COMMIT
+DROP has not yet fired (the first transaction is still open when the second starts).
+**Fix:** Add `DROP TABLE IF EXISTS _batch_questions;` immediately before the CREATE TEMP TABLE
+statement. This is idempotent: if no prior run's table exists, the DROP is a no-op; if a
+prior run left the table (exception path, session reuse), the DROP cleans it up before re-creation.
+**Watch for:** Any PL/pgSQL function that contains `CREATE TEMP TABLE` without an immediately
+preceding `DROP ... IF EXISTS`. The pattern is valid only when the function can guarantee a
+single invocation per session, which is not possible for SECURITY DEFINER RPCs callable by
+any authenticated user.
+**Status:** ISSUE — flagged in 7fe8eb69, must fix before merge.
+
+### Nullable FK column indexed without partial WHERE clause — inconsistent with project partial-index pattern (1st occurrence)
+**First seen:** commit 7fe8eb69 (2026-03-17) — migration 042
+**File:** `supabase/migrations/20260317000042_add_missing_indexes.sql`
+**Pattern:** `idx_quiz_sessions_subject` is created as a full index on `quiz_sessions(subject_id)`
+even though `subject_id` is declared `UUID ... NULL` in the schema. Every other nullable-FK
+index in the project uses `WHERE <column> IS NOT NULL` (initial schema: idx_questions_subject,
+idx_questions_topic, idx_questions_bank; migration 042 itself: idx_questions_subtopic,
+idx_users_org, idx_courses_org). The full index includes null rows, which have no selectivity
+for join queries. A partial index `WHERE subject_id IS NOT NULL` would be smaller and consistent
+with the project pattern.
+**Watch for:** Any new `CREATE INDEX` on a nullable column that does not carry
+`WHERE <col> IS NOT NULL`. Compare against the project's established index naming and partial
+index conventions before committing.
+**Status:** SUGGESTION — query correctness is not affected, only index efficiency and consistency.

@@ -665,6 +665,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Uses case-insensitive UUID regex (migration 028): validates question_id with `!~*` instead of `!~` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth hardening
 - Hardens null guard (migration 030): adds explicit `IS NULL` check on `v_config->'question_ids'` BEFORE calling `jsonb_typeof` (prevents SQL NULL vs missing key ambiguity); raises if no correct option found for a question (data integrity check)
 - Option membership validation (migration 037): verifies each `selected_option` exists in the question's options JSONB array. Prevents attackers from submitting arbitrary strings as option IDs in batch operations.
+- **N+1 fix (migration 041):** uses `CREATE TEMP TABLE _batch_questions` to bulk-fetch all questions for the session in a single query before the answer loop, then reads from the temp table per-answer instead of issuing N separate SELECT statements. Reduces query overhead from O(N) to O(1) for question lookups.
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -699,6 +700,7 @@ DECLARE
   v_qid_text        text;
   v_rt_text         text;
   v_ended_at        timestamptz;
+  v_options         jsonb;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
@@ -767,7 +769,7 @@ BEGIN
     RAISE EXCEPTION 'answers must be a non-empty JSON array';
   END IF;
 
-  -- Reject duplicate question_id entries in payload (validate as text before casting)
+  -- Reject duplicate question_id entries in payload (compare as text, no cast)
   IF (
     SELECT count(*) <> count(DISTINCT lower(e->>'question_id'))
     FROM jsonb_array_elements(p_answers) AS e
@@ -775,7 +777,22 @@ BEGIN
     RAISE EXCEPTION 'duplicate question_id in answers payload';
   END IF;
 
-  -- Process each provided answer (partial submission is allowed — students may skip questions)
+  -- Bulk-fetch all questions for this session into a temp table (fixes N+1).
+  -- Intentionally no deleted_at filter: session membership was verified against
+  -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
+  -- A question soft-deleted after that point must still score correctly.
+  CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
+  SELECT
+    q.id,
+    (SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt
+     WHERE (opt->>'correct')::boolean LIMIT 1) AS correct_option,
+    q.explanation_text,
+    q.explanation_image_url,
+    q.options
+  FROM questions q
+  WHERE q.id = ANY(v_session_question_ids);
+
+  -- Process each provided answer (partial submission is allowed)
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP
     -- Extract as text first, validate format, THEN cast
@@ -801,20 +818,26 @@ BEGIN
       RAISE EXCEPTION 'question % does not belong to session %', v_question_id, p_session_id;
     END IF;
 
-    -- Get correct answer and explanation.
-    -- Intentionally no deleted_at filter: session membership was verified against
-    -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
-    -- A question soft-deleted after that point must still score correctly.
-    SELECT
-      (SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt WHERE (opt->>'correct')::boolean LIMIT 1),
-      q.explanation_text,
-      q.explanation_image_url
-    INTO v_correct_option, v_expl_text, v_expl_image_url
-    FROM questions q
-    WHERE q.id = v_question_id;
+    -- Look up from pre-fetched temp table (single query for all questions)
+    SELECT bq.correct_option, bq.explanation_text, bq.explanation_image_url, bq.options
+    INTO v_correct_option, v_expl_text, v_expl_image_url, v_options
+    FROM _batch_questions bq
+    WHERE bq.id = v_question_id;
 
     IF NOT FOUND THEN
       RAISE EXCEPTION 'question not found: %', v_question_id;
+    END IF;
+
+    IF v_correct_option IS NULL THEN
+      RAISE EXCEPTION 'question % has no correct option', v_question_id;
+    END IF;
+
+    -- Validate selected option belongs to this question's options array
+    IF NOT EXISTS (
+      SELECT 1 FROM jsonb_array_elements(v_options) opt
+      WHERE opt->>'id' = v_selected_option
+    ) THEN
+      RAISE EXCEPTION 'selected option % does not belong to question %', v_selected_option, v_question_id;
     END IF;
 
     v_is_correct := (v_selected_option = v_correct_option);
@@ -1169,7 +1192,7 @@ RLS controls which **rows** can be updated, not which **columns**. A `BEFORE UPD
 | `deleted_at` | Soft-delete must go through service role |
 
 ```sql
--- Trigger: trg_protect_users_sensitive_columns (migration 041)
+-- Trigger: trg_protect_users_sensitive_columns (20260316000041_protect_users_sensitive_columns.sql)
 -- Only fires when role, organization_id, or deleted_at is in the UPDATE SET clause.
 -- Service-role connections (current_role = 'service_role') bypass the check.
 -- All other connections get EXCEPTION if they attempt to change these columns.
@@ -1182,7 +1205,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 | Trigger | Table | Purpose |
 |---------|-------|---------|
 | `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021) |
-| `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (migration 041) |
+| `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 
 ---
 
@@ -1194,6 +1217,8 @@ CREATE INDEX idx_questions_org       ON questions(organization_id) WHERE deleted
 CREATE INDEX idx_lessons_org         ON lessons(organization_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_quiz_sessions_org   ON quiz_sessions(organization_id);
 CREATE INDEX idx_student_responses_org ON student_responses(organization_id);
+CREATE INDEX idx_users_org           ON users(organization_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_courses_org         ON courses(organization_id) WHERE deleted_at IS NULL;
 
 -- fsrs_cards lookup (for filtering by last_was_correct)
 CREATE INDEX idx_fsrs_cards_student  ON fsrs_cards(student_id, last_was_correct);
@@ -1205,11 +1230,15 @@ CREATE INDEX idx_quiz_sessions_student     ON quiz_sessions(student_id, created_
 -- Question bank browsing
 CREATE INDEX idx_questions_subject   ON questions(subject_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_questions_topic     ON questions(topic_id)   WHERE deleted_at IS NULL;
+CREATE INDEX idx_questions_subtopic  ON questions(subtopic_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_questions_bank      ON questions(bank_id)    WHERE deleted_at IS NULL;
 
 -- Question dedup (unique question_number per bank)
 CREATE UNIQUE INDEX idx_questions_bank_number ON questions(bank_id, question_number)
   WHERE deleted_at IS NULL AND question_number IS NOT NULL;
+
+-- Quiz analytics queries
+CREATE INDEX idx_quiz_sessions_subject ON quiz_sessions(subject_id) WHERE subject_id IS NOT NULL;
 
 -- Audit log queries (compliance exports)
 CREATE INDEX idx_audit_events_org    ON audit_events(organization_id, created_at DESC);
@@ -1242,4 +1271,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-15 (migration 039: is_admin() + admin RLS on easa tables) | Companion: docs/security.md*
+*Last updated: 2026-03-17 (migration 041-042: N+1 fix in batch_submit_quiz + 4 missing indexes) | Companion: docs/security.md*
