@@ -168,12 +168,16 @@ jobs:
       - name: Create or update regression issue
         if: steps.bundle.outputs.regression == 'true'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          CURRENT_KB: ${{ steps.bundle.outputs.current_kb }}
+          BASELINE_KB: ${{ steps.bundle.outputs.baseline_kb }}
+          GROWTH: ${{ steps.bundle.outputs.growth }}
         with:
           script: |
             const title = '📦 Bundle size regression detected';
-            const currentKb = '${{ steps.bundle.outputs.current_kb }}';
-            const baselineKb = '${{ steps.bundle.outputs.baseline_kb }}';
-            const growth = '${{ steps.bundle.outputs.growth }}';
+            const currentKb = process.env.CURRENT_KB;
+            const baselineKb = process.env.BASELINE_KB;
+            const growth = process.env.GROWTH;
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const date = new Date().toISOString().split('T')[0];
 
@@ -224,6 +228,10 @@ jobs:
       - name: Close regression issue if recovered
         if: steps.bundle.outputs.regression == 'false' && steps.bundle.outputs.current_kb != ''
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          CURRENT_KB: ${{ steps.bundle.outputs.current_kb }}
+          BASELINE_KB: ${{ steps.bundle.outputs.baseline_kb }}
+          GROWTH: ${{ steps.bundle.outputs.growth }}
         with:
           script: |
             const title = '📦 Bundle size regression detected';
@@ -241,9 +249,9 @@ jobs:
               return;
             }
 
-            const currentKb = '${{ steps.bundle.outputs.current_kb }}';
-            const baselineKb = '${{ steps.bundle.outputs.baseline_kb }}';
-            const growth = '${{ steps.bundle.outputs.growth }}';
+            const currentKb = process.env.CURRENT_KB;
+            const baselineKb = process.env.BASELINE_KB;
+            const growth = process.env.GROWTH;
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
             await github.rest.issues.createComment({
