@@ -57,6 +57,13 @@ describe('LoginPage', () => {
     )
   })
 
+  it('maps invalid_recovery_link to the correct human-readable message', async () => {
+    await renderPage({ error: 'invalid_recovery_link' })
+    expect(screen.getByTestId('login-form').dataset.initialError).toBe(
+      'The password reset link is invalid or has expired. Please request a new one.',
+    )
+  })
+
   it('falls back to a generic message for an unrecognised error code', async () => {
     await renderPage({ error: 'totally_unknown_code' })
     expect(screen.getByTestId('login-form').dataset.initialError).toBe(

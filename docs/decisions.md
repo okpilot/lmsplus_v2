@@ -510,13 +510,13 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-## Decision 29: Auth method switch — magic link → email + password (2026-03-17)
+## Decision 29: Auth method switch — magic link → email + password (2026-03-17, refined 2026-03-18)
 
 **Context:** Magic link auth caused friction in development (Mailpit setup, rate limits, PKCE code forwarding complexity in proxy) and in production (email deliverability, user confusion with magic link flow). Email + password is simpler for an internal training platform.
 
 **Decision:**
 - Switch from `signInWithOtp` (magic link) to `signInWithPassword` (email + password)
-- Add forgot password flow (`resetPasswordForEmail` → `/auth/callback?type=recovery` → `/auth/reset-password`)
+- Add forgot password flow using PKCE pattern: `resetPasswordForEmail` → recovery email with token_hash → `/auth/confirm` (server-side verifyOtp) → `/auth/reset-password`
 - Remove `/auth/verify` page (no longer needed — no email confirmation step)
 - Remove PKCE code forwarding from `proxy.ts` (no longer needed)
 - Auth callback error redirects changed from `/auth/verify?error=X` to `/?error=X`
@@ -524,8 +524,14 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Existing magic-link-only users can use "Forgot password?" to set their initial password
 - Font changed from Geist to Inter across the app
 
-**Files changed:** `login-form.tsx`, `page.tsx`, `auth/callback/route.ts`, `proxy.ts`, new forgot-password and reset-password pages. Verify page deleted.
+**Refinement (2026-03-18):**
+- Password reset was using implicit flow (hash fragment redirect `type=recovery`) which proxies/servers never see
+- Replaced with PKCE pattern: new `/auth/confirm` route validates token_hash server-side via `verifyOtp()`, then redirects
+- Recovery email template updated with `/auth/confirm?token_hash=...&type=recovery&next=/auth/reset-password` format
+- Removed AuthListener (implicit flow guard no longer needed)
+
+**Files changed:** `login-form.tsx`, `page.tsx`, `auth/callback/route.ts`, `auth/confirm/route.ts` (new), `supabase/templates/recovery.html` (new), `forgot-password-form.tsx`, proxy.ts, forgot-password and reset-password pages. Verify page deleted.
 
 ---
 
-*Last updated: 2026-03-17 — Decision 29: Auth switch to email + password*
+*Last updated: 2026-03-18 — Decision 29 refinement: PKCE pattern for password reset*

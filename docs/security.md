@@ -32,10 +32,10 @@ The highest-value targets are:
 ### Email + Password Auth
 - Supabase Auth handles password hashing, session tokens, and expiry
 - Login via `signInWithPassword({ email, password })`
-- Forgot password via `resetPasswordForEmail()` → callback with `type=recovery` → `/auth/reset-password`
+- Forgot password via `resetPasswordForEmail()` → recovery email with PKCE token → `/auth/confirm` (verifyOtp server-side) → `/auth/reset-password`
 - Password minimum length: 6 characters (enforced by Zod on client, Supabase on server)
 - **Production domain:** `https://lmsplus.app`
-- **Allowed redirect URLs:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
+- **Allowed redirect URLs:** `https://lmsplus.app/auth/callback`, `https://lmsplus.app/auth/confirm`, `http://localhost:3000/auth/callback`, `http://localhost:3000/auth/confirm`
 - Auth redirect config lives in Supabase remote settings (Management API), NOT in `config.toml` (local dev only)
 
 ### Auth Callback Guard Ordering

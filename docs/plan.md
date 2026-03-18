@@ -107,11 +107,11 @@
   - `security-auditor` (sonnet) → pre-push via Lefthook, **blocking** on CRITICAL/HIGH findings
 - Agent memory dirs: `.claude/agent-memory/{code-reviewer,security-auditor,doc-updater,test-writer}/`
 
-**Phase 4 done (2026-03-11, updated 2026-03-17):** Student auth (email + password):
+**Phase 4 done (2026-03-11, updated 2026-03-18):** Student auth (email + password):
 - Login page at `/` with email + password inputs, Zod validation, error display via `searchParams`
 - Email + password auth via `supabase.auth.signInWithPassword()`
-- Forgot password flow: `/auth/forgot-password` → reset email → `/auth/callback?type=recovery` → `/auth/reset-password`
-- Auth callback at `/auth/callback` — exchanges code for session, detects recovery flow, checks `users` table
+- Forgot password flow: `/auth/forgot-password` → reset email (PKCE) → `/auth/confirm` (verifyOtp) → `/auth/reset-password`
+- Auth callback at `/auth/callback` — exchanges code for session, checks `users` table
 - Unregistered users signed out + redirected to `/?error=not_registered`
 - Proxy (`proxy.ts`, Next.js 16 convention) protects all `/app/*` routes, refreshes session tokens, propagates auth cookies on redirects
 - Authenticated users auto-redirected from `/` to `/app/dashboard`
@@ -494,7 +494,7 @@ See `docs/database.md` for full SQL.
 - Email templates customized (password reset)
 - Redirect URLs configured:
   - **Site URL:** `https://lmsplus.app` (production)
-  - **Allowed redirects:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
+  - **Allowed redirects:** `https://lmsplus.app/auth/callback`, `https://lmsplus.app/auth/confirm`, `http://localhost:3000/auth/callback`, `http://localhost:3000/auth/confirm`
   - Configured via Supabase Management API (not config.toml — that's local dev only)
 
 ### 2D. Security baseline
@@ -543,7 +543,8 @@ Import ~3,000 questions from JSON into Supabase.
 
 ### Pages
 - `/` — landing / login page (email + password)
-- `/auth/callback` — auth callback handler (code exchange, recovery detection)
+- `/auth/callback` — auth callback handler (code exchange for login)
+- `/auth/confirm` — PKCE token exchange for password reset (verifyOtp)
 - `/auth/forgot-password` — forgot password form
 - `/auth/reset-password` — set new password after reset email
 
