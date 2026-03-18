@@ -9,16 +9,16 @@ vi.mock('next/navigation', () => ({
   usePathname: mockUsePathname,
 }))
 
-import { MobileNav } from './mobile-nav'
+import { BottomTabBar } from './bottom-tab-bar'
 
 beforeEach(() => {
   vi.resetAllMocks()
   mockUsePathname.mockReturnValue('/app/dashboard')
 })
 
-describe('MobileNav', () => {
-  it('renders the bottom tab bar with navigation links', () => {
-    render(<MobileNav />)
+describe('BottomTabBar', () => {
+  it('renders 3 navigation tabs', () => {
+    render(<BottomTabBar />)
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Quiz')).toBeInTheDocument()
@@ -27,12 +27,28 @@ describe('MobileNav', () => {
 
   it('highlights the active tab matching the current pathname', () => {
     mockUsePathname.mockReturnValue('/app/quiz')
-    render(<MobileNav />)
+    render(<BottomTabBar />)
 
     const quizLink = screen.getByText('Quiz').closest('a')
     expect(quizLink?.className).toContain('text-primary')
 
     const dashboardLink = screen.getByText('Dashboard').closest('a')
     expect(dashboardLink?.className).not.toContain('text-primary')
+  })
+
+  it('highlights parent tab when on a sub-path', () => {
+    mockUsePathname.mockReturnValue('/app/quiz/session')
+    render(<BottomTabBar />)
+
+    const quizLink = screen.getByText('Quiz').closest('a')
+    expect(quizLink?.className).toContain('text-primary')
+  })
+
+  it('links point to correct routes', () => {
+    render(<BottomTabBar />)
+
+    expect(screen.getByText('Dashboard').closest('a')).toHaveAttribute('href', '/app/dashboard')
+    expect(screen.getByText('Quiz').closest('a')).toHaveAttribute('href', '/app/quiz')
+    expect(screen.getByText('Reports').closest('a')).toHaveAttribute('href', '/app/reports')
   })
 })

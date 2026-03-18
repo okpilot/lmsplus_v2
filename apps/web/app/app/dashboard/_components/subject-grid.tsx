@@ -1,20 +1,39 @@
+import Link from 'next/link'
 import type { SubjectProgress } from '@/lib/queries/dashboard'
 
 type SubjectGridProps = {
   subjects: SubjectProgress[]
 }
 
+function getRelativeDate(dateStr: string | null): string {
+  if (!dateStr) return 'Never'
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'today'
+  if (diffDays === 1) return 'yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  const diffWeeks = Math.floor(diffDays / 7)
+  if (diffWeeks === 1) return '1 week ago'
+  if (diffWeeks < 5) return `${diffWeeks} weeks ago`
+  const diffMonths = Math.floor(diffDays / 30)
+  return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`
+}
+
+function getBarColor(mastery: number): string {
+  if (mastery < 50) return 'bg-red-500'
+  if (mastery < 90) return 'bg-amber-500'
+  return 'bg-green-500'
+}
+
 export function SubjectGrid({ subjects }: SubjectGridProps) {
   if (subjects.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No subjects available yet. Questions need to be imported first.
-      </p>
-    )
+    return <p className="text-sm text-muted-foreground">No subjects available yet.</p>
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {subjects.map((subject) => (
         <SubjectCard key={subject.id} subject={subject} />
       ))}
@@ -23,25 +42,30 @@ export function SubjectGrid({ subjects }: SubjectGridProps) {
 }
 
 function SubjectCard({ subject }: { subject: SubjectProgress }) {
+  const barColor = getBarColor(subject.masteryPercentage)
+  const relativeDate = getRelativeDate(subject.lastPracticedAt)
+
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">{subject.code}</p>
-          <p className="mt-0.5 text-sm font-medium">{subject.name}</p>
-        </div>
-        <span className="text-lg font-semibold tabular-nums">{subject.masteryPercentage}%</span>
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">{subject.code}</span>
+        <span className="font-semibold tabular-nums">{subject.masteryPercentage}%</span>
       </div>
-      <div className="mt-3">
-        <div className="h-1.5 w-full rounded-full bg-muted">
-          <div
-            className="h-1.5 rounded-full bg-primary transition-all"
-            style={{ width: `${subject.masteryPercentage}%` }}
-          />
-        </div>
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          {subject.answeredCorrectly} / {subject.totalQuestions} questions mastered
-        </p>
+      <p className="mt-1 font-medium">{subject.name}</p>
+      <div className="mt-3 h-1.5 w-full rounded-full bg-muted">
+        <div
+          className={`h-1.5 rounded-full transition-all ${barColor}`}
+          style={{ width: `${subject.masteryPercentage}%` }}
+        />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+        <span>Last practiced: {relativeDate}</span>
+        <Link
+          href={`/app/quiz?subject=${subject.id}`}
+          className="font-medium text-primary hover:underline"
+        >
+          Practice
+        </Link>
       </div>
     </div>
   )

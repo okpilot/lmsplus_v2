@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { redirect } from 'next/navigation'
 import { AppShell } from './_components/app-shell'
+import { UserProvider } from './_components/user-context'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -20,8 +21,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const displayName = profile?.full_name ?? profile?.email ?? user.email ?? 'Student'
 
   return (
-    <AppShell displayName={displayName} userRole={profile?.role ?? 'student'}>
-      {children}
-    </AppShell>
+    <UserProvider displayName={displayName} userRole={profile?.role}>
+      <AppShell displayName={displayName} userRole={profile?.role ?? 'student'}>
+        {children}
+      </AppShell>
+    </UserProvider>
   )
 }
