@@ -40,36 +40,38 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
       <h3 className="mb-3 text-sm font-medium">
         {monthName} {year}
       </h3>
-      <div className="flex gap-1">
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const day = i + 1
-          const isFuture = day > todayDay
-          const isToday = day === todayDay
-          const total = activityByDay.get(day) ?? 0
-          const intensity = getIntensity(total, isFuture)
-          const ring = isToday ? ' ring-2 ring-primary' : ''
+      <div className="overflow-x-auto">
+        <div className="flex min-w-max gap-1">
+          {Array.from({ length: daysInMonth }, (_, i) => {
+            const day = i + 1
+            const isFuture = day > todayDay
+            const isToday = day === todayDay
+            const total = activityByDay.get(day) ?? 0
+            const intensity = getIntensity(total, isFuture)
+            const ring = isToday ? ' ring-2 ring-primary' : ''
 
-          return (
-            <div
-              key={day}
-              title={`${day} ${monthName}: ${total} questions`}
-              className={`h-6 w-6 flex-shrink-0 rounded-sm sm:h-4 sm:w-4 ${intensity}${ring}`}
-            />
-          )
-        })}
-      </div>
-      <div className="mt-1 flex gap-1">
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const day = i + 1
-          return (
-            <div
-              key={day}
-              className="w-6 flex-shrink-0 text-center text-[9px] text-muted-foreground sm:w-4"
-            >
-              {labelDays.has(day) ? day : ''}
-            </div>
-          )
-        })}
+            return (
+              <div
+                key={day}
+                title={`${day} ${monthName}: ${total} questions`}
+                className={`h-4 w-4 flex-shrink-0 rounded-sm md:h-6 md:w-6 ${intensity}${ring}`}
+              />
+            )
+          })}
+        </div>
+        <div className="mt-1 flex min-w-max gap-1">
+          {Array.from({ length: daysInMonth }, (_, i) => {
+            const day = i + 1
+            return (
+              <div
+                key={day}
+                className="w-4 flex-shrink-0 text-center text-[9px] text-muted-foreground md:w-6"
+              >
+                {labelDays.has(day) ? day : ''}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
