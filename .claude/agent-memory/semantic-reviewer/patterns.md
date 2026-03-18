@@ -2,6 +2,32 @@
 
 > Running log of recurring issues, positive patterns, and areas needing extra scrutiny.
 
+## Session Log
+
+### 2026-03-18 — PR-level sweep: feat/174-login-redesign (18 commits, full diff)
+- **Files reviewed:** proxy.ts, confirm/route.ts, callback/route.ts, reset-password/page.tsx, reset-password/actions.ts, done/route.ts, reset-password-form.tsx, forgot-password-form.tsx, proxy.test.ts, confirm/route.test.ts, callback/route.test.ts, reset-password-form.test.tsx, password-reset.spec.ts
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 3 | **GOOD:** 6
+- **Issue:** proxy.ts gained two new behaviors (recovery session guard + error-param preservation) with no new tests in proxy.test.ts. New behavior is tested by E2E but not unit-tested.
+- **Suggestion 1:** clearRecoveryCookie in actions.ts is exported but never imported or called — dead code. Cookie cleanup is handled by done/route.ts instead.
+- **Suggestion 2:** callback/route.test.ts mocks `.single()` returning `{ data: null }` with no error for the "no profile" case, but real Supabase .single() returns `{ data: null, error: { code: 'PGRST116' } }`. The test outcome is correct but the mock doesn't reflect the real Supabase behavior.
+- **Suggestion 3:** window.location.origin in forgot-password-form.tsx (pre-existing, still unfixed) — see Recurring Issues.
+- **Pre-existing open issues not addressed in this PR:** login audit event missing, window.location.origin in redirectTo.
+- **Core security properties confirmed correct:** allowlist-guarded confirm route, proxy recovery guard, page-level cookie gate, 10-minute cookie TTL, signOut after password update.
+
+### 2026-03-18 — commit 610e358 (fix: address remaining CodeRabbit findings on PR #262)
+- **Files changed:** reset-password-form.tsx, reset-success.tsx (new), docs/decisions.md
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 3
+- **Suggestion:** `__recovery_pending` cookie is only cleaned up if the user clicks
+  the "Sign in" link in `ResetSuccess`. If the user closes the tab after seeing
+  the success message, the cookie persists. Because `signOut()` already ran, the
+  cookie strands them on a confusing "session missing" error on their next visit to
+  /reset-password. Fix: call `clearRecoveryCookie()` Server Action from `handleSubmit`
+  immediately after `setSuccess(true)`.
+- **Pattern noted:** Side-effect cleanup split across a user-action link vs. an
+  unconditional code path — watch for this in other auth success flows.
+
+---
+
 ## Recurring Issues
 
 ### Auth route partial-gate bypass — recovery branch skips profile-existence check (1st occurrence)

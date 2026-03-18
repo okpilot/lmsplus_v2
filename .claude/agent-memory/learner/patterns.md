@@ -101,6 +101,39 @@
 
 ## Lessons Learned
 
+### 2026-03-18 — feat/174-login-redesign fix cycle (commit 610e358)
+
+**Context:** Post-CodeRabbit fix commit on PR #262. Extracted `ResetSuccess` sub-component from `reset-password-form.tsx` (to get the file under the 150-line component limit) and fixed a markdown blank-line issue in `decisions.md`. Three source files changed: reset-password-form.tsx (shrunk by 17 lines), new reset-success.tsx (15 lines), decisions.md (+1 line).
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean.
+
+**Doc updater:** No documentation updates needed. Clean.
+
+**Test writer:** No new tests needed. Existing `reset-password-form.test.tsx` covers `ResetSuccess` via the integration test path (the parent form test renders the component end-to-end including the success state). Clean.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE. 1 SUGGESTION — recovery cookie may linger if the user closes the browser on the success screen without clicking the login link. Non-blocking and suggestion-level only; the cookie is short-lived (session-scoped) and the reset-password page already gates behind it. No action required.
+
+**Pattern analysis:**
+
+No new patterns. No frequency table rows updated. The component-split extraction is the expected mechanical fix for a file-size violation — code-reviewer caught the limit approach, CodeRabbit flagged it externally, and the fix commit is clean on all four agents on the first pass. This is the system working correctly.
+
+One observation worth noting: the `ResetSuccess` extraction was driven by an external CodeRabbit finding rather than being caught by the internal code-reviewer at the time of the original commit. The original commit's file sat within the 150-line limit at authoring time but the reviewer rounds (fixes, formatting) pushed it over. This is the same mechanism as "Biome auto-format expanding compact code past file-size limit" (row 50) — post-authoring transformations (here: successive small edits across a review cycle rather than Biome formatting) can push a file over its limit in a way that is invisible at authoring time. Count for that pattern does not increase (different mechanism: incremental edits vs. Biome format pass) but the shared root cause is worth noting.
+
+**Actions taken:**
+- No frequency table changes. All findings are clean or single-occurrence patterns already logged.
+- Suggestion about lingering recovery cookie logged in this lesson entry. Not a new frequency table row — it is a suggestion-level finding, not a repeat of an existing pattern, and the risk is bounded by cookie lifetime.
+
+**No rule changes applied this cycle.** All agents clean on first pass. System is working as designed.
+
+**False positives:** none.
+
+**Positive signals:**
+- All four agents clean on a fix commit — the mechanical extraction of a sub-component is a well-understood, low-risk refactor. Pipeline correctly produced no noise.
+- Test-writer correctly identified that the existing integration test covers the extracted component without needing a new test file. This avoids a duplicate-coverage antipattern.
+- The recovery cookie suggestion from semantic-reviewer is correctly categorised as suggestion-level (not ISSUE): the risk is bounded, the UX path is short-lived, and the existing gate already prevents re-entry. No false negative in the reviewer's severity assignment.
+
+---
+
 ### 2026-03-18 — feat/174-login-redesign (commits ce47d5b, 738eb43, ca5bbd5, 11a36af)
 
 **Context:** Login page redesign + PKCE-based password reset flow. New /auth/confirm Route Handler (OTP verification + redirect). Supabase email template updated to pass `{{ .RedirectTo }}`. E2E spec added for full password reset flow.

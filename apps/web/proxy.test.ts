@@ -142,4 +142,24 @@ describe('proxy', () => {
       consoleSpy.mockRestore()
     }
   })
+
+  it('redirects authenticated users with recovery cookie to /auth/reset-password', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    const request = makeRequest('/')
+    request.cookies.set('__recovery_pending', '1')
+    const response = await proxy(request)
+
+    expect(response.status).toBe(307)
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/reset-password')
+  })
+
+  it('lets authenticated users stay on / when error query param is present', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    const response = await proxy(makeRequest('/?error=session_expired'))
+
+    // Should NOT redirect to dashboard — error param must be shown on login page
+    expect(response).toBe(MOCK_SESSION_RESPONSE)
+  })
 })
