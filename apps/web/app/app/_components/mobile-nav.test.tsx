@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { UserProvider } from './user-context'
 
 const { mockUsePathname } = vi.hoisted(() => ({
-  mockUsePathname: vi.fn(),
+  mockUsePathname: vi.fn<() => string>(),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -17,90 +17,28 @@ beforeEach(() => {
   mockUsePathname.mockReturnValue('/app/dashboard')
 })
 
+function renderMobileNav() {
+  return render(
+    <UserProvider displayName="Test" userRole="student">
+      <MobileNav />
+    </UserProvider>,
+  )
+}
+
 describe('MobileNav', () => {
-  it('renders a hamburger button', () => {
-    render(<MobileNav />)
-    expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
-  })
-
-  it('shows navigation links when opened', async () => {
-    const user = userEvent.setup({ delay: null })
-    render(<MobileNav />)
-
-    await user.click(screen.getByRole('button', { name: 'Open menu' }))
-
+  it('renders the bottom tab bar with navigation links', () => {
+    renderMobileNav()
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Quiz')).toBeInTheDocument()
-    expect(screen.getByText('Progress')).toBeInTheDocument()
-    expect(screen.queryByText('Smart Review')).not.toBeInTheDocument()
+    expect(screen.getByText('Reports')).toBeInTheDocument()
   })
 
-  it('closes when close button is clicked', async () => {
-    const user = userEvent.setup({ delay: null })
-    render(<MobileNav />)
-
-    await user.click(screen.getByRole('button', { name: 'Open menu' }))
-    expect(screen.getByRole('button', { name: 'Close menu' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Close menu' }))
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
-  })
-
-  it('highlights the active navigation link matching the current pathname', async () => {
+  it('highlights the active tab matching the current pathname', () => {
     mockUsePathname.mockReturnValue('/app/quiz')
-    const user = userEvent.setup({ delay: null })
-    render(<MobileNav />)
-
-    await user.click(screen.getByRole('button', { name: 'Open menu' }))
-
-    const quizLink = screen.getByText('Quiz')
-    expect(quizLink.className).toContain('bg-primary/10')
-
-    const dashboardLink = screen.getByText('Dashboard')
-    expect(dashboardLink.className).not.toContain('bg-primary/10')
-  })
-
-  it('highlights the link when pathname is a sub-route', async () => {
-    mockUsePathname.mockReturnValue('/app/quiz/session')
-    const user = userEvent.setup({ delay: null })
-    render(<MobileNav />)
-
-    await user.click(screen.getByRole('button', { name: 'Open menu' }))
-
-    const quizLink = screen.getByText('Quiz')
-    expect(quizLink.className).toContain('bg-primary/10')
-
-    const progressLink = screen.getByText('Progress')
-    expect(progressLink.className).not.toContain('bg-primary/10')
-  })
-
-  it('drawer popup carries an aria-label of "Navigation menu"', async () => {
-    const user = userEvent.setup({ delay: null })
-    render(<MobileNav />)
-
-    await user.click(screen.getByRole('button', { name: 'Open menu' }))
-
-    const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveAttribute('aria-label', 'Navigation menu')
-  })
-
-  it('shows admin nav items when userRole is admin', async () => {
-    const user = userEvent.setup({ delay: null })
-    render(<MobileNav userRole="admin" />)
-
-    await user.click(screen.getByRole('button', { name: 'Open menu' }))
-
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Syllabus')).toBeInTheDocument()
-  })
-
-  it('hides admin nav items for student role', async () => {
-    const user = userEvent.setup({ delay: null })
-    render(<MobileNav userRole="student" />)
-
-    await user.click(screen.getByRole('button', { name: 'Open menu' }))
-
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.queryByText('Syllabus')).not.toBeInTheDocument()
+    renderMobileNav()
+    const quizLink = screen.getByText('Quiz').closest('a')
+    expect(quizLink?.className).toContain('text-primary')
+    const dashboardLink = screen.getByText('Dashboard').closest('a')
+    expect(dashboardLink?.className).not.toContain('text-primary')
   })
 })

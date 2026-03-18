@@ -37,9 +37,14 @@ function buildChain(returnValue: unknown) {
 /**
  * getDashboardData makes many parallel from() calls. We intercept by table name.
  * The order of from() calls:
- *   getSubjectProgress   -> 'easa_subjects', 'questions', 'student_responses', 'questions' (correct in subject)
- *   getTotalAnswered     -> 'student_responses' (count query)
- *   getRecentSessions    -> 'quiz_sessions', optional 'easa_subjects'
+ *   getSubjectProgressWithMap -> 'easa_subjects', 'questions', 'student_responses', 'questions'
+ *   getTotalAnswered          -> 'student_responses' (count query)
+ *   getQuestionsToday         -> 'student_responses' (count + gte filter)
+ *   getStreakData             -> 'student_responses' (created_at select)
+ *   applyLastPracticed        -> 'student_responses' (question_id, created_at)
+ *
+ * Since buildChain returns the same value for all chain calls on a table, we set
+ * both `count` and `data` so all consumer shapes work from one mock value.
  */
 
 beforeEach(() => {
@@ -67,7 +72,6 @@ describe('getDashboardData', () => {
       if (table === 'easa_subjects') return buildChain({ data: [] })
       if (table === 'student_responses') return buildChain({ count: 0, data: [] })
       if (table === 'questions') return buildChain({ data: [] })
-      if (table === 'quiz_sessions') return buildChain({ data: [] })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -75,7 +79,10 @@ describe('getDashboardData', () => {
     expect(result.totalQuestions).toBe(0)
     expect(result.answeredCount).toBe(0)
     expect(result.subjects).toEqual([])
-    expect(result.recentSessions).toEqual([])
+    expect(result.questionsToday).toBe(0)
+    expect(result.currentStreak).toBe(0)
+    expect(result.bestStreak).toBe(0)
+    expect(result.examReadiness).toEqual({ readyCount: 0, totalCount: 0, projectedDate: null })
   })
 
   it('computes question counts and mastery per subject', async () => {
@@ -87,11 +94,12 @@ describe('getDashboardData', () => {
           data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
         })
       if (table === 'student_responses') {
-        // Two different calls: count query and correctResponses select
-        return buildChain({ count: 10, data: [{ question_id: 'q1' }] })
+        return buildChain({
+          count: 10,
+          data: [{ question_id: 'q1', created_at: '2026-03-18T10:00:00Z' }],
+        })
       }
       if (table === 'questions') {
-        // Two calls: active questions list and correctQuestions with subject
         return buildChain({
           data: [
             { id: 'q1', subject_id: 's1' },
@@ -99,7 +107,6 @@ describe('getDashboardData', () => {
           ],
         })
       }
-      if (table === 'quiz_sessions') return buildChain({ data: [] })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -123,7 +130,10 @@ describe('getDashboardData', () => {
           ],
         })
       if (table === 'student_responses')
-        return buildChain({ count: 5, data: [{ question_id: 'q1' }] })
+        return buildChain({
+          count: 5,
+          data: [{ question_id: 'q1', created_at: '2026-03-18T10:00:00Z' }],
+        })
       if (table === 'questions')
         return buildChain({
           data: [
@@ -132,7 +142,6 @@ describe('getDashboardData', () => {
             { id: 'q3', subject_id: 's2' },
           ],
         })
-      if (table === 'quiz_sessions') return buildChain({ data: [] })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -154,7 +163,6 @@ describe('getDashboardData', () => {
         })
       if (table === 'student_responses') return buildChain({ count: 0, data: [] })
       if (table === 'questions') return buildChain({ data: [] }) // no questions for this subject
-      if (table === 'quiz_sessions') return buildChain({ data: [] })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -164,39 +172,128 @@ describe('getDashboardData', () => {
     expect(result.totalQuestions).toBe(0)
   })
 
-  it('enriches recent sessions with the subject display name', async () => {
+  it('counts questions answered today', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    const sessions = [
-      {
-        id: 'sess1',
-        mode: 'quick_quiz',
-        total_questions: 10,
-        correct_count: 8,
-        score_percentage: 80,
-        started_at: '2026-03-11T09:00:00Z',
-        subject_id: 's1',
-      },
-    ]
-
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'easa_subjects') {
-        // Called twice: once for subjects list, once for subject name lookup in sessions
-        return buildChain({
-          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
-        })
-      }
-      if (table === 'student_responses') return buildChain({ count: 0, data: [] })
-      if (table === 'questions') return buildChain({ data: [{ id: 'q1', subject_id: 's1' }] })
-      if (table === 'quiz_sessions') return buildChain({ data: sessions })
+      if (table === 'easa_subjects') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 7, data: [] })
+      if (table === 'questions') return buildChain({ data: [] })
       throw new Error(`Unexpected table: ${table}`)
     })
 
     const result = await getDashboardData()
-    expect(result.recentSessions).toHaveLength(1)
-    // Test setup guarantees one session in result
-    expect(result.recentSessions[0]!.subjectName).toBe('Aircraft General')
-    expect(result.recentSessions[0]!.correctCount).toBe(8)
-    expect(result.recentSessions[0]!.scorePercentage).toBe(80)
+    expect(result.questionsToday).toBe(7)
+  })
+
+  it('computes current streak of consecutive days', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    const today = new Date().toISOString().slice(0, 10)
+    const d1 = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    const d2 = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10)
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects') return buildChain({ data: [] })
+      if (table === 'student_responses')
+        return buildChain({
+          count: 3,
+          data: [
+            { question_id: 'q1', created_at: `${today}T10:00:00Z` },
+            { question_id: 'q2', created_at: `${d1}T10:00:00Z` },
+            { question_id: 'q3', created_at: `${d2}T10:00:00Z` },
+          ],
+        })
+      if (table === 'questions') return buildChain({ data: [] })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.currentStreak).toBe(3)
+  })
+
+  it('breaks streak on gap day', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    const today = new Date().toISOString().slice(0, 10)
+    // Skip yesterday — gap at d1
+    const d2 = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10)
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects') return buildChain({ data: [] })
+      if (table === 'student_responses')
+        return buildChain({
+          count: 2,
+          data: [
+            { question_id: 'q1', created_at: `${today}T10:00:00Z` },
+            { question_id: 'q2', created_at: `${d2}T10:00:00Z` },
+          ],
+        })
+      if (table === 'questions') return buildChain({ data: [] })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.currentStreak).toBe(1)
+  })
+
+  it('tracks best streak separately from current', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    const today = new Date().toISOString().slice(0, 10)
+    // Only practiced today (current streak = 1)
+    // Historical 5-day streak 10–14 days ago
+    const makeDate = (daysAgo: number) =>
+      new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10)
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects') return buildChain({ data: [] })
+      if (table === 'student_responses')
+        return buildChain({
+          count: 6,
+          data: [
+            { question_id: 'q1', created_at: `${today}T10:00:00Z` },
+            // gap at days 1-9
+            { question_id: 'q2', created_at: `${makeDate(10)}T10:00:00Z` },
+            { question_id: 'q3', created_at: `${makeDate(11)}T10:00:00Z` },
+            { question_id: 'q4', created_at: `${makeDate(12)}T10:00:00Z` },
+            { question_id: 'q5', created_at: `${makeDate(13)}T10:00:00Z` },
+            { question_id: 'q6', created_at: `${makeDate(14)}T10:00:00Z` },
+          ],
+        })
+      if (table === 'questions') return buildChain({ data: [] })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.currentStreak).toBe(1)
+    expect(result.bestStreak).toBe(5)
+  })
+
+  it('includes lastPracticedAt per subject', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    const practiceDate = '2026-03-17T14:00:00Z'
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
+        })
+      if (table === 'student_responses')
+        return buildChain({
+          count: 1,
+          data: [{ question_id: 'q1', created_at: practiceDate }],
+        })
+      if (table === 'questions')
+        return buildChain({
+          data: [{ id: 'q1', subject_id: 's1' }],
+        })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.subjects).toHaveLength(1)
+    expect(result.subjects[0]!.lastPracticedAt).toBe(practiceDate)
   })
 })

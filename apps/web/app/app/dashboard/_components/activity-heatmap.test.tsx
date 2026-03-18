@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DailyActivity } from '@/lib/queries/analytics'
 import { ActivityHeatmap } from './activity-heatmap'
 
@@ -8,75 +8,52 @@ function makeDay(day: string, total: number): DailyActivity {
 }
 
 describe('ActivityHeatmap', () => {
-  it('renders null when data array is empty', () => {
-    const { container } = render(<ActivityHeatmap data={[]} />)
-    expect(container.firstChild).toBeNull()
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'))
   })
 
-  it('renders a cell for each day in the data', () => {
-    const data = [makeDay('2026-03-01', 5), makeDay('2026-03-02', 10), makeDay('2026-03-03', 20)]
-    render(<ActivityHeatmap data={data} />)
-    // Each cell has a title attribute like "1 Mar: N questions"
-    expect(screen.getAllByTitle(/questions/)).toHaveLength(3)
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  it('applies muted class for zero activity (total = 0)', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 0)]} />)
-    const cell = screen.getByTitle(/0 questions/)
-    expect(cell.className).toContain('bg-muted')
+  it('renders a cell for every day in the current month', () => {
+    render(<ActivityHeatmap data={[]} />)
+    const cells = screen.getAllByTitle(/questions/)
+    expect(cells).toHaveLength(31) // March has 31 days
   })
 
-  it('applies green-200 class for low activity (total = 1 to 5)', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 3)]} />)
-    const cell = screen.getByTitle(/3 questions/)
+  it('shows bg-muted for a past day with no activity', () => {
+    render(<ActivityHeatmap data={[]} />)
+    const cells = screen.getAllByTitle(/: 0 questions/)
+    expect(cells.length).toBeGreaterThan(0)
+    const firstCell = cells[0]
+    expect(firstCell).toBeDefined()
+    expect(firstCell?.className).toMatch(/bg-muted/)
+  })
+
+  it('applies green-200 for activity with total 1-2', () => {
+    render(<ActivityHeatmap data={[makeDay('2026-03-18', 1)]} />)
+    const cell = screen.getByTitle(/18 March: 1 questions/)
     expect(cell.className).toContain('bg-green-200')
   })
 
-  it('applies green-300 class for medium-low activity (total = 6 to 15)', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 10)]} />)
-    const cell = screen.getByTitle(/10 questions/)
-    expect(cell.className).toContain('bg-green-300')
+  it('applies green-700 for activity with total > 10', () => {
+    render(<ActivityHeatmap data={[makeDay('2026-03-18', 15)]} />)
+    const cell = screen.getByTitle(/18 March: 15 questions/)
+    expect(cell.className).toContain('bg-green-700')
   })
 
-  it('applies green-400 class for medium activity (total = 16 to 30)', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 25)]} />)
-    const cell = screen.getByTitle(/25 questions/)
-    expect(cell.className).toContain('bg-green-400')
+  it('marks today with ring-2 ring-primary', () => {
+    render(<ActivityHeatmap data={[makeDay('2026-03-18', 5)]} />)
+    const todayCell = screen.getByTitle(/18 March: 5 questions/)
+    expect(todayCell.className).toContain('ring-2')
+    expect(todayCell.className).toContain('ring-primary')
   })
 
-  it('applies green-500 class for medium-high activity (total = 31 to 50)', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 40)]} />)
-    const cell = screen.getByTitle(/40 questions/)
-    expect(cell.className).toContain('bg-green-500')
-  })
-
-  it('applies green-600 class for high activity (total > 50)', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 51)]} />)
-    const cell = screen.getByTitle(/51 questions/)
-    expect(cell.className).toContain('bg-green-600')
-  })
-
-  it('renders the boundary value of 5 as green-200 (not muted)', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 5)]} />)
-    const cell = screen.getByTitle(/5 questions/)
-    expect(cell.className).toContain('bg-green-200')
-    expect(cell.className).not.toContain('bg-muted')
-  })
-
-  it('renders the boundary value of 15 as green-300', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 15)]} />)
-    const cell = screen.getByTitle(/15 questions/)
-    expect(cell.className).toContain('bg-green-300')
-  })
-
-  it('renders the "Study Streak" heading', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 1)]} />)
-    expect(screen.getByText('Study Streak')).toBeInTheDocument()
-  })
-
-  it('formats the tooltip date in en-GB locale (e.g. "1 Mar")', () => {
-    render(<ActivityHeatmap data={[makeDay('2026-03-01', 7)]} />)
-    // title should include "1 Mar"
-    expect(screen.getByTitle(/1 Mar/)).toBeInTheDocument()
+  it('renders the month name and year in the header', () => {
+    render(<ActivityHeatmap data={[]} />)
+    expect(screen.getByText('March 2026')).toBeInTheDocument()
   })
 })

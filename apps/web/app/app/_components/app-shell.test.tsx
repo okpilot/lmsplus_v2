@@ -11,14 +11,16 @@ vi.mock('next/navigation', () => ({
   usePathname: mockUsePathname,
 }))
 
+vi.mock('./use-sidebar', () => ({
+  useSidebar: vi.fn(() => ({ collapsed: false, toggle: vi.fn(), hydrated: true })),
+}))
+
 // Child components are layout-only; mock to keep tests fast and isolated
 vi.mock('./mobile-nav', () => ({
-  MobileNav: ({ userRole }: { userRole?: string }) => (
-    <div data-testid="mobile-nav" data-user-role={userRole ?? ''} />
-  ),
+  MobileNav: () => <div data-testid="mobile-nav" />,
 }))
 vi.mock('./sidebar-nav', () => ({
-  SidebarNav: ({ userRole }: { userRole?: string }) => (
+  SidebarNav: ({ userRole }: { userRole?: string; collapsed: boolean; onToggle: () => void }) => (
     <nav data-testid="sidebar-nav" data-user-role={userRole ?? ''} />
   ),
 }))
@@ -62,7 +64,7 @@ describe('AppShell', () => {
   })
 
   it('renders the LMS Plus brand name in the header', () => {
-    mockUsePathname.mockReturnValue('/app/progress')
+    mockUsePathname.mockReturnValue('/app/dashboard')
     render(<AppShell displayName="Ada Pilot">Content</AppShell>)
 
     expect(screen.getByText('LMS Plus')).toBeInTheDocument()
@@ -78,7 +80,7 @@ describe('AppShell', () => {
     expect(screen.getByText('Session child')).toBeInTheDocument()
   })
 
-  it('passes userRole to SidebarNav and MobileNav', () => {
+  it('passes userRole to SidebarNav', () => {
     mockUsePathname.mockReturnValue('/app/dashboard')
     render(
       <AppShell displayName="Ada Pilot" userRole="admin">
@@ -87,6 +89,25 @@ describe('AppShell', () => {
     )
 
     expect(screen.getByTestId('sidebar-nav')).toHaveAttribute('data-user-role', 'admin')
-    expect(screen.getByTestId('mobile-nav')).toHaveAttribute('data-user-role', 'admin')
+  })
+
+  it('renders MobileNav outside the header', () => {
+    mockUsePathname.mockReturnValue('/app/dashboard')
+    render(<AppShell displayName="Ada Pilot">Content</AppShell>)
+
+    const mobileNav = screen.getByTestId('mobile-nav')
+    const header = screen.getByRole('banner')
+
+    expect(mobileNav).toBeInTheDocument()
+    expect(header.contains(mobileNav)).toBe(false)
+  })
+
+  it('adds bottom padding to main content area on mobile', () => {
+    mockUsePathname.mockReturnValue('/app/dashboard')
+    render(<AppShell displayName="Ada Pilot">Content</AppShell>)
+
+    // The div wrapping children has pb-16 for mobile bottom bar spacing
+    const contentEl = screen.getByText('Content')
+    expect(contentEl.className).toContain('pb-16')
   })
 })

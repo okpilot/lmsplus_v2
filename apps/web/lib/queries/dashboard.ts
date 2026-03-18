@@ -1,10 +1,19 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import {
+  applyLastPracticed,
+  computeExamReadiness,
+  getQuestionsToday,
+  getStreakData,
+} from './dashboard-stats'
 
 export type DashboardData = {
   totalQuestions: number
   answeredCount: number
   subjects: SubjectProgress[]
-  recentSessions: RecentSession[]
+  questionsToday: number
+  currentStreak: number
+  bestStreak: number
+  examReadiness: { readyCount: number; totalCount: number; projectedDate: string | null }
 }
 
 export type SubjectProgress = {
@@ -15,16 +24,7 @@ export type SubjectProgress = {
   totalQuestions: number
   answeredCorrectly: number
   masteryPercentage: number
-}
-
-export type RecentSession = {
-  id: string
-  mode: string
-  subjectName: string | null
-  totalQuestions: number
-  correctCount: number
-  scorePercentage: number | null
-  startedAt: string
+  lastPracticedAt: string | null
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
@@ -36,45 +36,62 @@ export async function getDashboardData(): Promise<DashboardData> {
   if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
-  const [subjects, responses, recentSessions] = await Promise.all([
-    getSubjectProgress(supabase, user.id),
+  const [subjectResult, responses, questionsToday, streakData] = await Promise.all([
+    getSubjectProgressWithMap(supabase, user.id),
     getTotalAnswered(supabase, user.id),
-    getRecentSessions(supabase, user.id),
+    getQuestionsToday(supabase, user.id),
+    getStreakData(supabase, user.id),
   ])
 
-  return {
-    totalQuestions: subjects.reduce((sum, s) => sum + s.totalQuestions, 0),
-    answeredCount: responses,
+  const { subjects, questionSubjectMap } = subjectResult
+  const subjectsWithDates = await applyLastPracticed(
+    supabase,
+    user.id,
     subjects,
-    recentSessions,
+    questionSubjectMap,
+  )
+  const examReadiness = computeExamReadiness(subjectsWithDates)
+
+  return {
+    totalQuestions: subjectsWithDates.reduce((sum, s) => sum + s.totalQuestions, 0),
+    answeredCount: responses,
+    subjects: subjectsWithDates,
+    questionsToday,
+    currentStreak: streakData.currentStreak,
+    bestStreak: streakData.bestStreak,
+    examReadiness,
   }
 }
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
-type QuestionSubjectRow = { subject_id: string }
 type QuestionIdSubjectRow = { id: string; subject_id: string }
 type ResponseRow = { question_id: string }
 
-async function getSubjectProgress(
+type SubjectProgressResult = {
+  subjects: SubjectProgress[]
+  questionSubjectMap: Map<string, string>
+}
+
+async function getSubjectProgressWithMap(
   supabase: SupabaseClient,
   userId: string,
-): Promise<SubjectProgress[]> {
+): Promise<SubjectProgressResult> {
   const { data: subjectsData } = await supabase
     .from('easa_subjects')
     .select('id, code, name, short, sort_order')
     .order('sort_order')
 
   const subjects = (subjectsData ?? []) as SubjectRow[]
-  if (!subjects.length) return []
+  if (!subjects.length) return { subjects: [], questionSubjectMap: new Map() }
 
   const { data: questionCountsData } = await supabase
     .from('questions')
-    .select('subject_id')
+    .select('id, subject_id')
     .eq('status', 'active')
 
-  const questionCounts = (questionCountsData ?? []) as QuestionSubjectRow[]
+  const questionCounts = (questionCountsData ?? []) as QuestionIdSubjectRow[]
 
   const { data: correctResponsesData } = await supabase
     .from('student_responses')
@@ -85,8 +102,10 @@ async function getSubjectProgress(
   const correctResponses = (correctResponsesData ?? []) as ResponseRow[]
 
   const qCountMap = new Map<string, number>()
+  const questionSubjectMap = new Map<string, string>()
   for (const q of questionCounts) {
     qCountMap.set(q.subject_id, (qCountMap.get(q.subject_id) ?? 0) + 1)
+    questionSubjectMap.set(q.id, q.subject_id)
   }
 
   const correctQuestionIds = new Set(correctResponses.map((r) => r.question_id))
@@ -96,6 +115,7 @@ async function getSubjectProgress(
       ? await supabase
           .from('questions')
           .select('id, subject_id')
+          .eq('status', 'active')
           .in('id', [...correctQuestionIds])
       : { data: [] }
 
@@ -111,7 +131,7 @@ async function getSubjectProgress(
     set.add(q.id)
   }
 
-  return subjects
+  const result = subjects
     .map((s) => {
       const total = qCountMap.get(s.id) ?? 0
       const correct = correctPerSubject.get(s.id)?.size ?? 0
@@ -123,9 +143,12 @@ async function getSubjectProgress(
         totalQuestions: total,
         answeredCorrectly: correct,
         masteryPercentage: total > 0 ? Math.round((correct / total) * 100) : 0,
+        lastPracticedAt: null as string | null,
       }
     })
     .filter((s) => s.totalQuestions > 0)
+
+  return { subjects: result, questionSubjectMap }
 }
 
 async function getTotalAnswered(supabase: SupabaseClient, userId: string): Promise<number> {
@@ -134,52 +157,4 @@ async function getTotalAnswered(supabase: SupabaseClient, userId: string): Promi
     .select('*', { count: 'exact', head: true })
     .eq('student_id', userId)
   return count ?? 0
-}
-
-type SessionRow = {
-  id: string
-  mode: string
-  total_questions: number
-  correct_count: number
-  score_percentage: number | null
-  started_at: string
-  subject_id: string | null
-}
-
-type SubjectNameRow = { id: string; name: string }
-
-async function getRecentSessions(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<RecentSession[]> {
-  const { data: sessionsData } = await supabase
-    .from('quiz_sessions')
-    .select('id, mode, total_questions, correct_count, score_percentage, started_at, subject_id')
-    .eq('student_id', userId)
-    .not('ended_at', 'is', null)
-    .is('deleted_at', null)
-    .order('started_at', { ascending: false })
-    .limit(5)
-
-  const sessions = (sessionsData ?? []) as SessionRow[]
-  if (!sessions.length) return []
-
-  const subjectIds = [...new Set(sessions.map((s) => s.subject_id).filter(Boolean))] as string[]
-  const { data: subjectsData } =
-    subjectIds.length > 0
-      ? await supabase.from('easa_subjects').select('id, name').in('id', subjectIds)
-      : { data: [] }
-
-  const subjects = (subjectsData ?? []) as SubjectNameRow[]
-  const subjectMap = new Map(subjects.map((s) => [s.id, s.name]))
-
-  return sessions.map((s) => ({
-    id: s.id,
-    mode: s.mode,
-    subjectName: s.subject_id ? (subjectMap.get(s.subject_id) ?? null) : null,
-    totalQuestions: s.total_questions,
-    correctCount: s.correct_count,
-    scorePercentage: s.score_percentage,
-    startedAt: s.started_at,
-  }))
 }

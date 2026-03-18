@@ -4,48 +4,74 @@ type ActivityHeatmapProps = {
   data: DailyActivity[]
 }
 
-function getIntensity(total: number): string {
+const LABEL_DAYS = new Set([1, 5, 10, 15, 20, 25])
+
+function getIntensity(total: number, isFuture: boolean): string {
+  if (isFuture) return 'bg-muted/30'
   if (total === 0) return 'bg-muted'
-  if (total <= 5) return 'bg-green-200 dark:bg-green-900'
-  if (total <= 15) return 'bg-green-300 dark:bg-green-700'
-  if (total <= 30) return 'bg-green-400 dark:bg-green-600'
-  if (total <= 50) return 'bg-green-500 dark:bg-green-500'
-  return 'bg-green-600 dark:bg-green-400'
+  if (total <= 2) return 'bg-green-200 dark:bg-green-900'
+  if (total <= 5) return 'bg-green-300 dark:bg-green-800'
+  if (total <= 10) return 'bg-green-500 dark:bg-green-600'
+  return 'bg-green-700 dark:bg-green-400'
 }
 
 export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
-  if (data.length === 0) {
-    return null
+  const now = new Date()
+  const year = now.getUTCFullYear()
+  const month = now.getUTCMonth() + 1
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const todayDay = now.getUTCDate()
+
+  const monthStr = String(month).padStart(2, '0')
+  const monthName = now.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })
+
+  const activityByDay = new Map<number, number>()
+  for (const entry of data) {
+    if (entry.day.startsWith(`${year}-${monthStr}-`)) {
+      const day = Number.parseInt(entry.day.slice(8, 10), 10)
+      activityByDay.set(day, entry.total)
+    }
   }
 
+  const labelDays = new Set([...LABEL_DAYS, daysInMonth])
+
   return (
-    <div className="rounded-lg border border-border p-4">
-      <h3 className="mb-3 text-sm font-medium">Study Streak</h3>
-      <div className="flex flex-wrap gap-1">
-        {data.map((d) => {
-          const label = new Date(`${d.day}T00:00:00Z`).toLocaleDateString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            timeZone: 'UTC',
-          })
-          return (
-            <div
-              key={d.day}
-              className={`h-4 w-4 rounded-sm ${getIntensity(d.total)}`}
-              title={`${label}: ${d.total} questions`}
-            />
-          )
-        })}
-      </div>
-      <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-        <span>Less</span>
-        <div className="h-3 w-3 rounded-sm bg-muted" />
-        <div className="h-3 w-3 rounded-sm bg-green-200 dark:bg-green-900" />
-        <div className="h-3 w-3 rounded-sm bg-green-300 dark:bg-green-700" />
-        <div className="h-3 w-3 rounded-sm bg-green-400 dark:bg-green-600" />
-        <div className="h-3 w-3 rounded-sm bg-green-500 dark:bg-green-500" />
-        <div className="h-3 w-3 rounded-sm bg-green-600 dark:bg-green-400" />
-        <span>More</span>
+    <div className="rounded-xl border border-border bg-card p-4">
+      <h3 className="mb-3 text-sm font-medium">
+        {monthName} {year}
+      </h3>
+      <div className="overflow-x-auto">
+        <div className="flex min-w-max gap-1">
+          {Array.from({ length: daysInMonth }, (_, i) => {
+            const day = i + 1
+            const isFuture = day > todayDay
+            const isToday = day === todayDay
+            const total = activityByDay.get(day) ?? 0
+            const intensity = getIntensity(total, isFuture)
+            const ring = isToday ? ' ring-2 ring-primary' : ''
+
+            return (
+              <div
+                key={day}
+                title={`${day} ${monthName}: ${total} questions`}
+                className={`h-4 w-4 flex-shrink-0 rounded-sm md:h-6 md:w-6 ${intensity}${ring}`}
+              />
+            )
+          })}
+        </div>
+        <div className="mt-1 flex min-w-max gap-1">
+          {Array.from({ length: daysInMonth }, (_, i) => {
+            const day = i + 1
+            return (
+              <div
+                key={day}
+                className="w-4 flex-shrink-0 text-center text-[9px] text-muted-foreground md:w-6"
+              >
+                {labelDays.has(day) ? day : ''}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
