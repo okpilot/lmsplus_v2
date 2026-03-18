@@ -27,6 +27,7 @@ export async function getStreakData(
     .from('student_responses')
     .select('created_at')
     .eq('student_id', userId)
+    .order('created_at', { ascending: false })
     .limit(10000)
 
   const rows = (data ?? []) as { created_at: string }[]
