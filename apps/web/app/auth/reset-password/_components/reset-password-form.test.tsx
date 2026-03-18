@@ -86,7 +86,7 @@ describe('ResetPasswordForm', () => {
 
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpassword123' })
-      expect(assignedHrefs).toContain('/app/dashboard')
+      expect(assignedHrefs).toContain('/')
     })
   })
 

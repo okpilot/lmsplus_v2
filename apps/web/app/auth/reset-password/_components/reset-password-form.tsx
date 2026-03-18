@@ -61,7 +61,7 @@ export function ResetPasswordForm() {
       setLoading(false)
     }
 
-    window.location.href = '/app/dashboard'
+    window.location.href = '/'
   }
 
   return (

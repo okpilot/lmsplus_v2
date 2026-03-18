@@ -42,9 +42,9 @@ test.describe('password reset flow', () => {
     await page.getByLabel('Confirm password').fill(newPassword)
     await page.getByRole('button', { name: /update password/i }).click()
 
-    // 8. Should redirect to dashboard after password update
-    await page.waitForURL('**/app/dashboard', { timeout: 15_000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    // 8. Should redirect to login page after password update
+    await page.waitForURL('/', { timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
   })
 
   test('forgot-password page renders correctly', async ({ page }) => {
