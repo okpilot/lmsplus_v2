@@ -74,6 +74,51 @@
 
 ---
 
+## Status: SPRINT 4 — Dashboard v4 Redesign (COMPLETE — 2026-03-18)
+
+**Goal:** Redesign dashboard UI with stat cards, single-row heatmap, color-coded subject cards, collapsible sidebar, and mobile bottom tab bar. Remove recharts dependency.
+
+**Scope:** 22 items (remove + modify + new + backend)
+
+| Order | Item | Description | Status |
+|-------|------|-------------|--------|
+| Remove | 4.1 | Delete `activity-chart.tsx` (replaced by heatmap) | Done |
+| Remove | 4.2 | Delete `subject-scores-chart.tsx` (not needed) | Done |
+| Remove | 4.3 | Delete `analytics.ts` queries (chart-only) | Done |
+| Modify | 4.4 | Remove "Progress" link from sidebar + mobile nav | Done |
+| Modify | 4.5 | Add collapsible sidebar with localStorage persistence | Done |
+| Modify | 4.6 | Header greeting: "Welcome back, [Name]" via UserContext | Done |
+| Modify | 4.7 | Start Quiz button moved inline top-right | Done |
+| Modify | 4.8 | Heatmap single-row 31-day monthly layout | Done |
+| Modify | 4.9 | Heatmap day labels (every 5th day) | Done |
+| Modify | 4.10 | Heatmap legend via hover tooltip | Done |
+| New | 4.11 | Subject cards: color-coded progress bars (red/amber/green) | Done |
+| New | 4.12 | Subject cards: "Last practiced" dates | Done |
+| New | 4.13 | Subject cards: Practice link per card | Done |
+| New | 4.14 | All 9 EASA PPL subjects displayed | Done |
+| New | 4.15 | Exam Readiness card (X/9 at 90%+) | Done |
+| New | 4.16 | Questions Today card (N/50 daily goal) | Done |
+| New | 4.17 | Study Streak card (current + best) | Done |
+| Backend | 4.18 | Extract `dashboard-stats.ts` helpers (streak, today, lastPracticed, readiness) | Done |
+| Backend | 4.19 | Today's question count query | Done |
+| Backend | 4.20 | Study streak calculation (consecutive days) | Done |
+| Backend | 4.21 | Exam readiness computation | Done |
+| Backend | 4.22 | Daily goal: hardcoded 50 (configurable later) | Done |
+
+**Implementation complete (2026-03-18):**
+- Removed 4 chart components + analytics queries. Removed recharts from `package.json`.
+- Redesigned heatmap: 31-day calendar month view, 5-tier green intensity, day labels, today highlight
+- New stat cards: Exam Readiness (X/9 at 90%+), Questions Today (N/50), Study Streak (current + best)
+- Subject cards: color-coded progress bars (red <50%, amber 50-89%, green 90%+), last-practiced dates, Practice links
+- Collapsible sidebar: toggle button, icon-only mode (~48px), localStorage persistence
+- Mobile: replaced hamburger drawer with fixed bottom tab bar (nav icons)
+- New `UserContext` provider: passes `displayName` and `userRole` down app tree, used in dashboard greeting
+- New `dashboard-stats.ts`: pure helpers for streak calc, today count, last practiced, exam readiness
+- All helpers tested + dashboard queries refactored under 200 lines
+- Closes #175
+
+---
+
 ## SPRINT 1 COMPLETE — Quick Wins shipped
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui v4 (Base UI + oklch blue theme), git init. 3 commits on `master`.
@@ -692,4 +737,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-18 — FSRS remnants removed (#113). Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks.*
+*Last updated: 2026-03-18 — Sprint 4 (Dashboard v4 Redesign) complete (#175). Stat cards, single-row heatmap, collapsible sidebar, mobile bottom tab bar, UserContext, dashboard-stats extraction.*
