@@ -19,6 +19,25 @@ const ResetPasswordSchema = z
     path: ['confirmPassword'],
   })
 
+async function updatePassword(password: string) {
+  const supabase = createClient()
+  const { error } = await supabase.auth.updateUser({ password })
+
+  if (error) {
+    const isSessionMissing = error.message?.includes('session missing')
+    return {
+      ok: false as const,
+      isSessionMissing,
+      message: isSessionMissing
+        ? 'Your reset link has expired. Please request a new one.'
+        : 'Unable to update password. Please try again.',
+    }
+  }
+
+  await supabase.auth.signOut()
+  return { ok: true as const }
+}
+
 export function ResetPasswordForm() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -40,24 +59,12 @@ export function ResetPasswordForm() {
 
     setLoading(true)
     try {
-      const supabase = createClient()
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: result.data.password,
-      })
-
-      if (updateError) {
-        const isSessionMissing = updateError.message?.includes('session missing')
-        setError(
-          isSessionMissing
-            ? 'Your reset link has expired. Please request a new one.'
-            : 'Unable to update password. Please try again.',
-        )
-        setShowRequestLink(isSessionMissing)
+      const result2 = await updatePassword(result.data.password)
+      if (!result2.ok) {
+        setError(result2.message)
+        setShowRequestLink(result2.isSessionMissing)
         return
       }
-
-      // Sign out the recovery session — cookie cleared via /done route
-      await supabase.auth.signOut()
     } catch {
       setError('Unable to update password. Please try again.')
       return

@@ -61,13 +61,10 @@ test.describe('password reset flow', () => {
     await expect(page.getByRole('link', { name: /back to login/i })).toBeVisible()
   })
 
-  test('reset-password page renders form fields', async ({ page }) => {
-    // Visit directly — without a valid session this won't let you reset,
-    // but the form should still render
+  test('reset-password page redirects to login without recovery cookie', async ({ page }) => {
     await page.goto('/auth/reset-password')
-    await expect(page.getByLabel('New password', { exact: true })).toBeVisible()
-    await expect(page.getByLabel('Confirm password')).toBeVisible()
-    await expect(page.getByRole('button', { name: /update password/i })).toBeVisible()
+    await expect(page).toHaveURL('/')
+    await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
   })
 
   test('invalid confirm link shows error on login page', async ({ page }) => {

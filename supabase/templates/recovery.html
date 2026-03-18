@@ -2,5 +2,5 @@
 
 <p>Follow this link to reset the password for your user:</p>
 <p>
-  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next={{ .RedirectTo }}">Reset Password</a>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next={{ urlquery .RedirectTo }}">Reset Password</a>
 </p>

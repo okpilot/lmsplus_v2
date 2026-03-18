@@ -30,6 +30,7 @@ The highest-value targets are:
 ## 2. Authentication & Sessions
 
 ### Email + Password Auth
+
 - Supabase Auth handles password hashing, session tokens, and expiry
 - Login via `signInWithPassword({ email, password })`
 - Forgot password via `resetPasswordForEmail()` → recovery email with PKCE token → `/auth/confirm` (verifyOtp server-side) → `/auth/reset-password`
