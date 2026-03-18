@@ -3,10 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NavIcon } from './nav-icon'
-import { NAV_ITEMS } from './nav-items'
+import { ADMIN_NAV_ITEMS, NAV_ITEMS } from './nav-items'
+import { useUser } from './user-context'
 
 export function BottomTabBar() {
   const pathname = usePathname()
+  const { userRole } = useUser()
+  const items = userRole === 'admin' ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS
 
   return (
     <nav
@@ -14,7 +17,7 @@ export function BottomTabBar() {
       aria-label="Bottom navigation"
     >
       <div className="flex items-center justify-around pb-[env(safe-area-inset-bottom)] pt-2">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
           return (
             <Link

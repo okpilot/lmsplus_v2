@@ -20,7 +20,7 @@ vi.mock('./mobile-nav', () => ({
   MobileNav: () => <div data-testid="mobile-nav" />,
 }))
 vi.mock('./sidebar-nav', () => ({
-  SidebarNav: ({ userRole }: { userRole?: string }) => (
+  SidebarNav: ({ userRole }: { userRole?: string; collapsed: boolean; onToggle: () => void }) => (
     <nav data-testid="sidebar-nav" data-user-role={userRole ?? ''} />
   ),
 }))

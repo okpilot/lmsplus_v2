@@ -16,7 +16,7 @@ type AppShellProps = {
 
 export function AppShell({ displayName, userRole, children }: AppShellProps) {
   const pathname = usePathname()
-  const { collapsed } = useSidebar()
+  const { collapsed, toggle } = useSidebar()
   const isFullscreen = pathname.split('/').includes('session')
 
   if (isFullscreen) {
@@ -39,7 +39,7 @@ export function AppShell({ displayName, userRole, children }: AppShellProps) {
         <aside
           className={`hidden shrink-0 transition-all duration-200 md:block ${collapsed ? 'w-16' : 'w-48'}`}
         >
-          <SidebarNav userRole={userRole} />
+          <SidebarNav userRole={userRole} collapsed={collapsed} onToggle={toggle} />
         </aside>
         <div className="min-w-0 flex-1 pb-16 md:pb-0">{children}</div>
       </div>

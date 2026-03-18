@@ -4,15 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NavIcon } from './nav-icon'
 import { ADMIN_NAV_ITEMS, NAV_ITEMS } from './nav-items'
-import { useSidebar } from './use-sidebar'
 
 type SidebarNavProps = {
   userRole?: string
+  collapsed: boolean
+  onToggle: () => void
 }
 
-export function SidebarNav({ userRole }: SidebarNavProps) {
+export function SidebarNav({ userRole, collapsed, onToggle }: SidebarNavProps) {
   const pathname = usePathname()
-  const { collapsed, toggle } = useSidebar()
   const items = userRole === 'admin' ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS
 
   return (
@@ -36,7 +36,7 @@ export function SidebarNav({ userRole }: SidebarNavProps) {
       })}
       <button
         type="button"
-        onClick={toggle}
+        onClick={onToggle}
         className="mt-4 flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >

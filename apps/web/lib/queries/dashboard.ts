@@ -66,7 +66,6 @@ export async function getDashboardData(): Promise<DashboardData> {
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
-type QuestionSubjectRow = { subject_id: string }
 type QuestionIdSubjectRow = { id: string; subject_id: string }
 type ResponseRow = { question_id: string }
 
@@ -89,10 +88,10 @@ async function getSubjectProgressWithMap(
 
   const { data: questionCountsData } = await supabase
     .from('questions')
-    .select('subject_id')
+    .select('id, subject_id')
     .eq('status', 'active')
 
-  const questionCounts = (questionCountsData ?? []) as QuestionSubjectRow[]
+  const questionCounts = (questionCountsData ?? []) as QuestionIdSubjectRow[]
 
   const { data: correctResponsesData } = await supabase
     .from('student_responses')
@@ -103,8 +102,10 @@ async function getSubjectProgressWithMap(
   const correctResponses = (correctResponsesData ?? []) as ResponseRow[]
 
   const qCountMap = new Map<string, number>()
+  const questionSubjectMap = new Map<string, string>()
   for (const q of questionCounts) {
     qCountMap.set(q.subject_id, (qCountMap.get(q.subject_id) ?? 0) + 1)
+    questionSubjectMap.set(q.id, q.subject_id)
   }
 
   const correctQuestionIds = new Set(correctResponses.map((r) => r.question_id))
@@ -119,10 +120,8 @@ async function getSubjectProgressWithMap(
 
   const correctQuestions = (correctQuestionsData ?? []) as QuestionIdSubjectRow[]
 
-  const questionSubjectMap = new Map<string, string>()
   const correctPerSubject = new Map<string, Set<string>>()
   for (const q of correctQuestions) {
-    questionSubjectMap.set(q.id, q.subject_id)
     let set = correctPerSubject.get(q.subject_id)
     if (!set) {
       set = new Set()
