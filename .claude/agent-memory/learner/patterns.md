@@ -68,7 +68,7 @@
 | Hard DELETE in test/spec cleanup code | 1 | 2026-03-14 | Watch — session-race-condition.spec.ts (a396438/a1335ff) used hard DELETE in a `afterAll` cleanup block instead of soft-delete; test code is exempt from the application-level soft-delete rule (it is seeding/cleanup, not student data), but for security-sensitive red-team specs the pattern of writing hard DELETEs is a habit that can accidentally propagate to production code; first occurrence; acceptable in test cleanup only — document the exception if flagged again |
 | Red-team spec written against wrong schema column or RPC signature | 2 | 2026-03-14 | Watch — first: multiple specs in f278d5c used wrong column names (e.g. wrong foreign key column), wrong RPC parameter names, and wrong table names; second: a396438 + a1335ff required further alignment of RPC signatures and schema assertions; distinct from "test fixture shape mismatch" (that is TypeScript type mismatch — this is SQL/RPC API mismatch in Playwright E2E); both caught pre-merge by CI failures; root cause: red-team specs are written speculatively from memory of the schema rather than reading actual migration files; if a third spec ships with wrong schema references, add a rule to the red-team agent: always read the relevant migration file before writing DB assertions |
 | Test spec encodes a security gap as a passing assertion | 1 | 2026-03-14 | Watch — session-race-condition.spec.ts (a1335ff) had a test that asserted the race condition response was acceptable/expected, effectively baking the security gap into the passing baseline rather than asserting the gap does not exist; semantic-reviewer flagged this as an ISSUE: a test that passes because it accepts wrong behavior is worse than a failing test; first occurrence; the correct form for a security spec is: assert the hardened behavior, fail if the unguarded path succeeds |
-| Stale cookie from partial auth flow (session set before guard check, not cleaned up on guard failure) | 1 | 2026-03-14 | Watch — auth callback (83ae098 → 08abee0): exchangeCodeForSession set session cookie before users-table check; if users check failed, signOut() was not called before redirecting to auth_failed; fixed in 08abee0; any multi-step auth flow where session is set before all guards run must call signOut() on all post-session failure paths; first occurrence |
+| Auth callback guard ordering error (guards run in wrong order, allowing bypass) | 2 | 2026-03-17 | RULE CANDIDATE — first (83ae098 → 08abee0, 2026-03-14): exchangeCodeForSession set session cookie before users-table check; if users check failed, signOut() was not called; second (5cc4109 → 47df5cf, 2026-03-17): recovery branch placed before profile-existence gate, allowing orphaned auth users to bypass not_registered check via password reset; both fixed in follow-up commits; root cause: multi-step auth callback branches are added without auditing the full ordering of guards; rule candidate: when any new branch is added to the auth callback, the ordering of all guards must be verified — session actions always precede existence/registration checks, and all post-session failure paths must call signOut() before redirecting |
 | useMemo with empty deps used as stability guarantee (should be useRef) | 1 | 2026-03-14 | Watch — use-quiz-state.ts (1b38542 → fixed 9ea234b): initial fix used `useMemo(() => value, [])` to snapshot mount-time value; semantic-reviewer correctly flagged that useMemo is a performance hint whose result is not guaranteed stable in concurrent mode; correct tool is useRef; first occurrence; if a second component uses useMemo with empty deps to capture a mount-time constant, add a note to code-style.md Section 2 or 6 about the distinction |
 | test-writer generates deprecated vi.fn generic syntax (two-arg form) | 2 | 2026-03-15 | RULE ADDED — first: use-session-state.test.ts (9ea234b, 2026-03-14); second: session-operations.test.ts (69273cf, 2026-03-15); both required orchestrator correction before type-check passed; correct form is `vi.fn<(arg: A) => R>()` (single function-type argument, Vitest v4); test-writer patterns.md updated with explicit rule and code examples; stale wrong-syntax example on line 238 also corrected |
 | ZodError escaping Server Action with typed error return type (parse() without try/catch) | 1 | 2026-03-15 | Watch — checkAnswer called CheckAnswerSchema.parse(raw) without try/catch; ZodError propagated as unhandled exception instead of returning typed { success: false } response (199e927); fixed with try/catch returning typed error shape; first occurrence; distinct from "Server Action without Zod validation" (that is missing validation — this is validation present but exceptions escaping the return-type contract) |
@@ -96,6 +96,44 @@
 | Security fix requiring multiple rounds due to incomplete self-defending audit | 1 | 2026-03-16 | Watch — fix/45-remove-answer-keys-from-test (f1f6c32 → 7029f4e → 1f76a7b): branch required 3 semantic-reviewer rounds because each fix addressed the flagged issue but not the adjacent gap it exposed; round 1: correct field in runtime object; round 2: RPC not session-scoped; round 3: p_question_ids not validated against session; root cause: security fixes to SECURITY DEFINER RPCs were applied narrowly (one gap at a time) rather than with a full self-defending audit (ownership check, input validation, output projection, error handling all verified together); first occurrence; when any SECURITY DEFINER RPC is modified, audit all four axes before committing: (1) auth.uid() identity check present, (2) input arrays validated against owned records, (3) output SELECT excludes sensitive fields explicitly, (4) result destructured for error |
 
 ## Lessons Learned
+
+### 2026-03-17 — feat/auth-email-password (commits 5cc4109, 47df5cf)
+
+**Context:** Auth mechanism switched from magic link to email+password. New pages: forgot-password, reset-password. Auth callback updated with recovery branch. Fix commit 47df5cf addressed a guard ordering ISSUE found by semantic-reviewer, cleaned up stale magic link docs, and added missing page.tsx tests.
+
+**Code reviewer:** clean — 0 blocking, 0 warnings.
+
+**Doc updater:** stale magic link references in `docs/plan.md` — fixed in 47df5cf. No other doc drift. Correct behavior: doc update committed in the same cycle as the triggering change.
+
+**Test writer:** missing tests for `apps/web/app/page.tsx` (login page error-mapping behavior) — 8 tests written and added in 47df5cf. This is another instance of a new or significantly modified page/component shipping without co-located tests.
+
+**Semantic reviewer:** 3 findings.
+
+1. **Recovery branch bypassing profile check — ISSUE, real, fixed in 47df5cf.** Recovery branch was positioned before the profile-existence gate, allowing orphaned Supabase Auth users (account created but no `users` table row) to bypass `not_registered` check via password reset. Fixed by moving recovery handling to after the profile gate. This is the second auth-callback guard ordering error across different commits (first: 83ae098 — session cookie set before users-table check). Pattern count now at 2 — meets RULE CANDIDATE threshold. Updated frequency table accordingly.
+
+2. **`window.location.origin` in forgot-password `redirectTo` — FALSE POSITIVE.** Semantic-reviewer flagged this as a potential SSR issue, but the form is a client component (`'use client'`), so `window` is always available at call time. The same pattern was present and accepted in the old magic link code. Recorded as a false positive.
+
+3. **`student.login` audit event not emitted — PRE-EXISTING GAP, not introduced by this commit.** Audit logging for login was never implemented under magic link auth either. This is a known coverage gap, not a regression. Not tracked as a new pattern — pre-existing state, no action.
+
+**Pattern analysis:**
+
+- Auth callback guard ordering (row updated, count 2): second occurrence across different commits. RULE CANDIDATE. Proposed rule: when any branch is added to the auth callback, verify the full guard ordering — all existence/registration checks must precede branch-specific actions, and all post-session failure paths must call `signOut()` before redirecting.
+- Missing tests for modified page (recurring, existing watch item "New hook file extracted without shipping tests"): page.tsx tests were missing from 5cc4109. Caught by test-writer and fixed in same cycle. No new rule change warranted — existing rule (code-style.md Section 7) covers this. The compliance gap at authoring time persists.
+- False positive logged: `window.location.origin` in client component `redirectTo` — not an SSR issue when component is `'use client'`.
+
+**Actions taken:**
+- Frequency table row 71 updated: "Auth callback guard ordering error" count raised to 2, status changed to RULE CANDIDATE, description expanded to cover both occurrences.
+- False positive logged in this lesson entry. Not added to frequency table (false positives do not count as pattern recurrences).
+- Pre-existing audit gap noted. Not added to frequency table (not introduced by this commit).
+
+**No rule changes applied this cycle** — RULE CANDIDATE for auth callback guard ordering requires orchestrator decision before being written into `docs/security.md` or `CLAUDE.md`. Proposed text: "When adding or modifying any branch in the auth callback, verify the full guard ordering before committing: (1) all existence/registration checks execute before branch-specific session actions, (2) any branch that fails after a session is established must call `signOut()` before redirecting."
+
+**Positive signals:**
+- Single fix commit (47df5cf) covered all three outputs: ISSUE fix + doc cleanup + test addition. No deferred work.
+- Guard ordering bug was caught by semantic-reviewer and fixed in the same session — did not reach production.
+- Code reviewer clean across both commits — no mechanical violations introduced in a large new-feature commit.
+
+---
 
 ### 2026-03-16 — fix/45-remove-answer-keys-from-test (commits f1f6c32, 7029f4e, 1f76a7b)
 

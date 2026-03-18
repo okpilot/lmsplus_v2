@@ -5,7 +5,6 @@ import { NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const type = searchParams.get('type')
   const redirectTo = new URL('/', request.url)
 
   if (!code) {
@@ -50,12 +49,6 @@ export async function GET(request: NextRequest) {
     await supabase.auth.signOut()
     redirectTo.searchParams.set('error', 'not_registered')
     return NextResponse.redirect(redirectTo)
-  }
-
-  // Recovery flow (password reset) — redirect to reset password page
-  // Runs after profile check to prevent orphaned auth users from getting a session
-  if (type === 'recovery') {
-    return NextResponse.redirect(new URL('/auth/reset-password', request.url))
   }
 
   redirectTo.pathname = '/app/dashboard'

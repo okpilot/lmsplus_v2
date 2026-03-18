@@ -1,13 +1,11 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Geist } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import { cn } from '@/lib/utils'
 import { ThemeProvider } from './_components/theme-provider'
 import './globals.css'
 
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-})
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
   title: 'LMS Plus — EASA PPL Training',
@@ -20,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning className={cn('font-sans', geist.variable)}>
+      <body className="antialiased">
         <ThemeProvider>
           {children}
           <Toaster />

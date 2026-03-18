@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GET } from './route'
 
-// Mutable mock state for Supabase behaviour
 const mockExchangeCodeForSession = vi.fn()
 const mockGetUser = vi.fn()
 const mockSignOut = vi.fn()
@@ -33,8 +32,7 @@ describe('GET /auth/callback', () => {
   })
 
   it('redirects to / with missing_code error when no code is in the URL', async () => {
-    const request = makeRequest('http://localhost:3000/auth/callback')
-    const response = await GET(request)
+    const response = await GET(makeRequest('http://localhost:3000/auth/callback'))
 
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
@@ -45,36 +43,12 @@ describe('GET /auth/callback', () => {
   it('redirects to / with invalid_code error when code exchange fails', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: { message: 'invalid' } })
 
-    const request = makeRequest('http://localhost:3000/auth/callback?code=bad-code')
-    const response = await GET(request)
+    const response = await GET(makeRequest('http://localhost:3000/auth/callback?code=bad-code'))
 
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/')
     expect(location.searchParams.get('error')).toBe('invalid_code')
-  })
-
-  it('redirects to / with not_registered error when user has no profile row', async () => {
-    mockExchangeCodeForSession.mockResolvedValue({ error: null })
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    // Simulate no profile found
-    mockFrom.mockReturnValue({
-      select: () => ({
-        eq: () => ({
-          single: async () => ({ data: null }),
-        }),
-      }),
-    })
-    mockSignOut.mockResolvedValue({})
-
-    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
-    const response = await GET(request)
-
-    expect(mockSignOut).toHaveBeenCalledOnce()
-    expect(response.status).toBe(307)
-    const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/')
-    expect(location.searchParams.get('error')).toBe('not_registered')
   })
 
   it('redirects to /app/dashboard when code is valid and user has a profile', async () => {
@@ -88,15 +62,63 @@ describe('GET /auth/callback', () => {
       }),
     })
 
-    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
-    const response = await GET(request)
+    const response = await GET(makeRequest('http://localhost:3000/auth/callback?code=valid-code'))
 
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
     expect(location.pathname).toBe('/app/dashboard')
   })
 
-  it('signs out and redirects to / with profile_lookup_failed on transient DB error', async () => {
+  it('signs out and redirects with not_registered when user has no profile', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: null }),
+        }),
+      }),
+    })
+    mockSignOut.mockResolvedValue({})
+
+    const response = await GET(makeRequest('http://localhost:3000/auth/callback?code=valid-code'))
+
+    expect(mockSignOut).toHaveBeenCalledOnce()
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/')
+    expect(location.searchParams.get('error')).toBe('not_registered')
+  })
+
+  it('signs out and redirects with auth_failed when getUser returns no user', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    mockSignOut.mockResolvedValue({})
+
+    const response = await GET(makeRequest('http://localhost:3000/auth/callback?code=valid-code'))
+
+    expect(mockSignOut).toHaveBeenCalledOnce()
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/')
+    expect(location.searchParams.get('error')).toBe('auth_failed')
+  })
+
+  it('signs out and redirects with auth_failed when getUser returns an error', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'session expired' } })
+    mockSignOut.mockResolvedValue({})
+
+    const response = await GET(makeRequest('http://localhost:3000/auth/callback?code=valid-code'))
+
+    expect(mockSignOut).toHaveBeenCalledOnce()
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/')
+    expect(location.searchParams.get('error')).toBe('auth_failed')
+  })
+
+  it('signs out on profile_lookup_failed (transient DB error)', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockExchangeCodeForSession.mockResolvedValue({ error: null })
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
@@ -112,8 +134,7 @@ describe('GET /auth/callback', () => {
     })
     mockSignOut.mockResolvedValue({})
 
-    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
-    const response = await GET(request)
+    const response = await GET(makeRequest('http://localhost:3000/auth/callback?code=valid-code'))
 
     expect(mockSignOut).toHaveBeenCalledOnce()
     expect(response.status).toBe(307)
@@ -121,76 +142,5 @@ describe('GET /auth/callback', () => {
     expect(location.pathname).toBe('/')
     expect(location.searchParams.get('error')).toBe('profile_lookup_failed')
     consoleSpy.mockRestore()
-  })
-
-  it('redirects to / with auth_failed error when getUser returns no user after exchange', async () => {
-    mockExchangeCodeForSession.mockResolvedValue({ error: null })
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-    mockSignOut.mockResolvedValue({})
-
-    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
-    const response = await GET(request)
-
-    expect(response.status).toBe(307)
-    const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/')
-    expect(location.searchParams.get('error')).toBe('auth_failed')
-    expect(mockSignOut).toHaveBeenCalledOnce()
-  })
-
-  it('redirects to / with auth_failed error when getUser returns an error', async () => {
-    mockExchangeCodeForSession.mockResolvedValue({ error: null })
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'session expired' } })
-    mockSignOut.mockResolvedValue({})
-
-    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code')
-    const response = await GET(request)
-
-    expect(response.status).toBe(307)
-    const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/')
-    expect(location.searchParams.get('error')).toBe('auth_failed')
-    expect(mockSignOut).toHaveBeenCalledOnce()
-  })
-
-  it('redirects to /auth/reset-password when type=recovery and user has a profile', async () => {
-    mockExchangeCodeForSession.mockResolvedValue({ error: null })
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    mockFrom.mockReturnValue({
-      select: () => ({
-        eq: () => ({
-          single: async () => ({ data: { id: 'user-1' } }),
-        }),
-      }),
-    })
-
-    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code&type=recovery')
-    const response = await GET(request)
-
-    expect(response.status).toBe(307)
-    const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/reset-password')
-  })
-
-  it('rejects recovery flow when user has no profile', async () => {
-    mockExchangeCodeForSession.mockResolvedValue({ error: null })
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    mockFrom.mockReturnValue({
-      select: () => ({
-        eq: () => ({
-          single: async () => ({ data: null }),
-        }),
-      }),
-    })
-    mockSignOut.mockResolvedValue({})
-
-    const request = makeRequest('http://localhost:3000/auth/callback?code=valid-code&type=recovery')
-    const response = await GET(request)
-
-    expect(mockSignOut).toHaveBeenCalledOnce()
-    expect(response.status).toBe(307)
-    const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/')
-    expect(location.searchParams.get('error')).toBe('not_registered')
   })
 })

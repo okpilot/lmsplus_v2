@@ -55,7 +55,7 @@ describe('ForgotPasswordForm', () => {
       expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
         'pilot@example.com',
         expect.objectContaining({
-          redirectTo: expect.stringContaining('/auth/callback'),
+          redirectTo: expect.stringContaining('/auth/reset-password'),
         }),
       )
     })
