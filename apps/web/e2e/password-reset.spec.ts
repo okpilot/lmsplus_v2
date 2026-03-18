@@ -36,8 +36,8 @@ test.describe('password reset flow', () => {
     await page.goto(confirmLink)
     await expect(page).toHaveURL('/auth/reset-password', { timeout: 10_000 })
 
-    // 7. Fill in the new password and submit
-    const newPassword = LOGIN_TEST_PASSWORD // Reset back to same password for test idempotency
+    // 7. Fill in a DIFFERENT password (Supabase rejects same-password updates with 422)
+    const newPassword = `${LOGIN_TEST_PASSWORD}-reset`
     await page.getByLabel('New password', { exact: true }).fill(newPassword)
     await page.getByLabel('Confirm password').fill(newPassword)
     await page.getByRole('button', { name: /update password/i }).click()
