@@ -53,6 +53,7 @@ export function DraftCard({ draft }: { draft: DraftData }) {
     setError(null)
     const result = await deleteDraft({ draftId: draft.id })
     if (result.success) {
+      setDeleting(false)
       router.refresh()
     } else {
       setError('Failed to delete. Please try again.')

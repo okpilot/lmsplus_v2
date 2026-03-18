@@ -21,10 +21,18 @@ test('progress page updates after completing a quiz', async ({ page }) => {
 
   // 2. Complete a quick quiz with 2 questions
   await page.goto('/app/quiz')
-  const subjectSelect = page.locator('#subject')
-  await subjectSelect.waitFor({ state: 'visible' })
-  await subjectSelect.selectOption({ index: 1 })
-  await page.locator('#count').fill('2')
+  const subjectTrigger = page.locator('[data-slot="select-trigger"]')
+  await subjectTrigger.waitFor({ state: 'visible' })
+  await subjectTrigger.click()
+  await page.locator('[data-slot="select-item"]').first().click()
+
+  // Set count to 2 via slider keyboard
+  const sliderThumb = page.locator('[data-slot="slider-thumb"]')
+  await sliderThumb.waitFor({ state: 'visible' })
+  await sliderThumb.click()
+  await sliderThumb.press('Home') // go to min (1)
+  await sliderThumb.press('ArrowRight') // now at 2
+
   await page.getByRole('button', { name: 'Start Quiz' }).click()
   await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
   await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })

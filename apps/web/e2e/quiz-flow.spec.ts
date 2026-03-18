@@ -8,19 +8,19 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await page.goto('/app/quiz')
   await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
 
-  // 2. Select the first subject from dropdown
-  const subjectSelect = page.locator('#subject')
-  await subjectSelect.waitFor({ state: 'visible' })
-  const options = subjectSelect.locator('option')
-  const optionCount = await options.count()
-  expect(optionCount).toBeGreaterThan(1) // at least one subject + the placeholder
+  // 2. Select the first subject from the shadcn Select dropdown
+  const subjectTrigger = page.locator('[data-slot="select-trigger"]')
+  await subjectTrigger.waitFor({ state: 'visible' })
+  await subjectTrigger.click()
+  await page.locator('[data-slot="select-item"]').first().click()
 
-  // Select the first real subject (index 1 since index 0 is "Select a subject...")
-  await subjectSelect.selectOption({ index: 1 })
-
-  // 3. Set question count to 3 (small for fast tests)
-  const countInput = page.locator('#count')
-  await countInput.fill('3')
+  // 3. Set question count to 3 via slider keyboard control
+  const sliderThumb = page.locator('[data-slot="slider-thumb"]')
+  await sliderThumb.waitFor({ state: 'visible' })
+  await sliderThumb.click()
+  await sliderThumb.press('Home') // go to min (1)
+  await sliderThumb.press('ArrowRight')
+  await sliderThumb.press('ArrowRight') // now at 3
 
   // 4. Start quiz
   await page.getByRole('button', { name: 'Start Quiz' }).click()

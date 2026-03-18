@@ -14,6 +14,7 @@ export function ModeToggle({ value, onValueChange }: ModeToggleProps) {
       <div className="flex rounded-[10px] border border-border p-0.5">
         <button
           type="button"
+          aria-pressed={value === 'study'}
           onClick={() => onValueChange('study')}
           className={`flex-1 rounded-[8px] px-4 py-2 text-sm font-medium transition-colors ${
             value === 'study'
@@ -26,6 +27,7 @@ export function ModeToggle({ value, onValueChange }: ModeToggleProps) {
         <button
           type="button"
           disabled
+          aria-pressed={false}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-[8px] px-4 py-2 text-sm font-medium text-muted-foreground opacity-50"
         >
           Exam

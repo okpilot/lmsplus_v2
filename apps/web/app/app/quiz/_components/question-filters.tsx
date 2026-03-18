@@ -1,6 +1,6 @@
 'use client'
 
-type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'
+import type { QuestionFilterValue } from '../types'
 
 type QuestionFiltersProps = {
   value: QuestionFilterValue[]
