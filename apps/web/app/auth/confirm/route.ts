@@ -7,9 +7,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const tokenHash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
-  const nextParam = searchParams.get('next') ?? '/'
+  const ALLOWED_NEXT_PATHS = ['/auth/reset-password']
+  const rawNext = searchParams.get('next') ?? '/'
   // next may be a full URL (from {{ .RedirectTo }}) or just a path — extract pathname only
-  const nextPath = nextParam.startsWith('http') ? new URL(nextParam).pathname : nextParam
+  const extracted = rawNext.startsWith('http') ? new URL(rawNext).pathname : rawNext
+  const nextPath = ALLOWED_NEXT_PATHS.includes(extracted) ? extracted : '/'
 
   if (tokenHash && type) {
     const supabase = await createServerSupabaseClient()

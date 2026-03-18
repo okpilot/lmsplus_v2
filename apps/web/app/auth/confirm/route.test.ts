@@ -102,4 +102,18 @@ describe('GET /auth/confirm', () => {
 
     expect(mockRedirect).toHaveBeenCalledWith('/')
   })
+
+  it('rejects disallowed next paths and falls back to /', async () => {
+    mockVerifyOtp.mockResolvedValue({ error: null })
+
+    await expect(
+      GET(
+        makeRequest(
+          'http://localhost:3000/auth/confirm?token_hash=abc123&type=recovery&next=/app/admin',
+        ),
+      ),
+    ).rejects.toThrow('NEXT_REDIRECT:/')
+
+    expect(mockRedirect).toHaveBeenCalledWith('/')
+  })
 })
