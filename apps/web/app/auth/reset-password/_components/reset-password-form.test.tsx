@@ -14,11 +14,6 @@ vi.mock('@repo/db/client', () => ({
   }),
 }))
 
-const mockClearRecoveryCookie = vi.fn().mockResolvedValue(undefined)
-vi.mock('../actions', () => ({
-  clearRecoveryCookie: () => mockClearRecoveryCookie(),
-}))
-
 vi.mock('next/link', () => ({
   default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
     <a href={href} {...props}>
@@ -96,7 +91,7 @@ describe('ResetPasswordForm', () => {
     })
     expect(screen.getByText(/password has been updated successfully/i)).toBeInTheDocument()
     const loginLink = screen.getByRole('link', { name: /sign in with your new password/i })
-    expect(loginLink).toHaveAttribute('href', '/')
+    expect(loginLink).toHaveAttribute('href', '/auth/reset-password/done')
   })
 
   it('shows a generic error when updateUser fails', async () => {

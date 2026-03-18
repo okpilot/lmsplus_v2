@@ -93,9 +93,52 @@
 | SECURITY DEFINER RPC input array not validated against caller-owned records | 1 | 2026-03-16 | Watch — f1f6c32/7029f4e (fix/45-remove-answer-keys-from-test): get_student_questions RPC accepted p_question_ids from caller without verifying those IDs belonged to the caller's session; fixed in 7029f4e/1f76a7b by deriving question set from session answers rather than trusting caller input; distinct from "Query missing student_id scope" (that is a missing WHERE clause on a SELECT — this is an RPC SECURITY DEFINER trusting a caller-supplied array without cross-checking ownership against session state); rule already in security.md covers auth.uid() identity check but not input array ownership validation; first occurrence |
 | TypeScript type cast used as data-stripping mechanism (answer key exposure) | 1 | 2026-03-16 | Watch — f1f6c32 (fix/45-remove-answer-keys-from-test): correct field present on runtime object cast to QuestionForStudent type; TypeScript type does not exclude the field at runtime — only explicit SQL SELECT projection or object spread omitting the field strips it; directly violates security.md rule 1 (correct answers must be stripped server-side); fixed by moving answer-key stripping into the RPC SELECT list; distinct from "Type cast bypassing runtime validation" (that is about missing runtime guards on cast data — this is about using a type cast as a security boundary for data stripping, which provides zero runtime protection); first occurrence |
 | RPC `.rpc()` call result not destructured for error (silent swallow on RPC failure) | 1 | 2026-03-16 | Watch — f1f6c32 (fix/45-remove-answer-keys-from-test): supabase.rpc() call result was not destructured for { error }; existing code-style.md Section 5 rule covers .insert/.update/.delete/.upsert mutations; .rpc() calls are semantically equivalent — any Supabase client call that can fail must destructure { data, error }; fixed in 7029f4e; first occurrence as a named gap in the rule's coverage; if a second .rpc() call ships without error destructuring, extend the code-style.md rule to explicitly list .rpc() alongside mutation methods |
+| `NextResponse.redirect()` dropping cookies set via `cookies()` API in Route Handler | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): verifyOtp wrote session cookies via Supabase cookies() API; NextResponse.redirect() does not carry those cookies to the browser — cookies set via the Next.js cookies() API only flow through responses built by the framework's own redirect() helper; fixed by switching to `redirect()` from `next/navigation`; applies to any Route Handler that mutates cookies (auth, session, etc.) and then redirects — always use next/navigation `redirect()` or copy cookies onto the NextResponse manually; first occurrence |
+| `{{ .RedirectTo }}` in Supabase email templates passes full URL, not pathname | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): Supabase passes the full absolute URL (e.g. `http://localhost:3000/auth/reset-password`) as the `next` query param when `{{ .RedirectTo }}` is used in email templates; if code naively appends this to a base URL, the full URL becomes a path segment and doubles the origin; fixed by extracting `.pathname` from a `new URL(next)` call before appending; applies to any code that reads a `next` param arriving from a Supabase email template redirect; first occurrence |
+| Supabase `updateUser` returns 422 when new password matches current password | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): E2E reset-password spec tried to reset to the same password the account already had; Supabase auth API returns HTTP 422 with no explicit error message, causing a confusing test failure; fixed by using a distinct password value in E2E tests and by handling 422 in the UI with a user-facing error message; applies to any E2E test covering the password reset flow — always reset to a value different from the current one; also applies to the reset-password UI, which should handle 422 distinctly from other errors; first occurrence |
+| Open redirect via unvalidated `next` param in Route Handler | 1 | 2026-03-18 | Watch — ca5bbd5 (feat/174-login-redesign): /auth/confirm accepted any `next` query param and redirected to it without validation; a crafted link could redirect users to arbitrary internal paths (e.g. `/app/admin`); fixed by validating `next` against an explicit allowlist (only `/auth/reset-password` permitted); applies to any Route Handler or Server Action that reads a redirect target from query params or form input — always validate against an allowlist before redirecting; semantic-reviewer caught this as an ISSUE; first occurrence as a named pattern |
 | Security fix requiring multiple rounds due to incomplete self-defending audit | 1 | 2026-03-16 | Watch — fix/45-remove-answer-keys-from-test (f1f6c32 → 7029f4e → 1f76a7b): branch required 3 semantic-reviewer rounds because each fix addressed the flagged issue but not the adjacent gap it exposed; round 1: correct field in runtime object; round 2: RPC not session-scoped; round 3: p_question_ids not validated against session; root cause: security fixes to SECURITY DEFINER RPCs were applied narrowly (one gap at a time) rather than with a full self-defending audit (ownership check, input validation, output projection, error handling all verified together); first occurrence; when any SECURITY DEFINER RPC is modified, audit all four axes before committing: (1) auth.uid() identity check present, (2) input arrays validated against owned records, (3) output SELECT excludes sensitive fields explicitly, (4) result destructured for error |
 
 ## Lessons Learned
+
+### 2026-03-18 — feat/174-login-redesign (commits ce47d5b, 738eb43, ca5bbd5, 11a36af)
+
+**Context:** Login page redesign + PKCE-based password reset flow. New /auth/confirm Route Handler (OTP verification + redirect). Supabase email template updated to pass `{{ .RedirectTo }}`. E2E spec added for full password reset flow.
+
+**Code reviewer:** clean — 0 blocking, 0 warnings across all commits.
+
+**Doc updater:** decisions.md (Decision 29 added), security.md (open redirect prevention noted), plan.md (progress updated). All committed in 11a36af. No drift.
+
+**Test writer:** comprehensive — 7 unit tests for confirm route, 6 for forgot-password form, 6 for reset-password form, 8 for callback, 6 for page, 5 E2E tests for full password reset flow. No gaps found.
+
+**Semantic reviewer:** 0 CRITICAL, 3 ISSUE, 2 SUGGESTION, 5 GOOD. All 3 ISSUEs were real. Two of the three ISSUEs are the same root cause (URL handling) described from different angles; they share one fix commit (738eb43).
+
+1. **Open redirect via unvalidated `next` param — ISSUE, real, fixed in ca5bbd5.** /auth/confirm accepted any value in the `next` query param and redirected to it without validation. A crafted PKCE confirmation link could silently redirect users to unintended internal paths. Fixed by validating `next` against an explicit allowlist. First occurrence as a named pattern — log and watch.
+
+2. **Full URL doubling when `{{ .RedirectTo }}` passes absolute URL — ISSUE, real, fixed in 738eb43.** Supabase email templates inject the full origin+pathname into `{{ .RedirectTo }}`; naively appending this to a base URL doubles the origin. Fixed by extracting `.pathname` via `new URL(next)` before using the value. First occurrence — log and watch.
+
+3. **`NextResponse.redirect()` dropping cookies from cookies() API — ISSUE, real, fixed in 738eb43.** verifyOtp wrote session cookies via Next.js cookies() API; NextResponse.redirect() does not carry those cookies to the browser. Switching to `redirect()` from `next/navigation` preserves the cookie store. First occurrence — log and watch.
+
+**Pattern analysis:**
+
+- All three ISSUEs are first occurrences. No existing frequency table rows are promoted this cycle. All four new rows added to the frequency table are single-occurrence watch items.
+- The two Supabase-specific patterns (#2 and #3 above) are framework-level gotchas that are non-obvious and not documented in any existing rule. If either recurs, a note in `docs/security.md` or `code-style.md` Section 6 is warranted.
+- The open redirect pattern (#1) is already covered by the general principle "never trust client input" (security.md rule 4 — Zod validates data, same principle applies to redirect targets). No new rule needed at count 1.
+
+**Actions taken:**
+- Frequency table: 4 new watch rows added (NextResponse cookie drop, full URL doubling, Supabase 422 same-password, open redirect via next param). All at count 1 — log and watch only, no rule changes.
+
+**No rule changes applied this cycle** — all patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** none detected. All 3 semantic-reviewer ISSUEs were confirmed real.
+
+**Positive signals:**
+- All 3 ISSUEs caught and fixed before the branch is pushed — semantic-reviewer gate functioning correctly.
+- Code reviewer clean across all commits in this login redesign cycle — no mechanical violations introduced.
+- Comprehensive test coverage written in the same cycle: unit tests for every new route + E2E for the full flow. Test-writer found no gaps.
+- The three-fix convergence (ce47d5b → 738eb43 → ca5bbd5) is tight and purposeful — each commit addresses a distinct, independently verifiable issue.
+
+---
 
 ### 2026-03-17 — feat/auth-email-password (commits 5cc4109, 47df5cf)
 

@@ -1,6 +1,15 @@
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { ResetPasswordForm } from './_components/reset-password-form'
 
-export default function ResetPasswordPage() {
+export default async function ResetPasswordPage() {
+  const cookieStore = await cookies()
+  const recoveryPending = cookieStore.get('__recovery_pending')?.value === '1'
+
+  if (!recoveryPending) {
+    redirect('/')
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-[400px] md:rounded-lg md:border md:border-border md:p-8 md:shadow-sm">

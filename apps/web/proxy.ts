@@ -67,7 +67,8 @@ export async function proxy(request: NextRequest): Promise<Response> {
   }
 
   // Redirect authenticated users away from login page to dashboard
-  if (pathname === '/' && user) {
+  // But preserve error messages (e.g. expired recovery links)
+  if (pathname === '/' && user && !request.nextUrl.searchParams.has('error')) {
     return redirectWithCookies(new URL('/app/dashboard', request.url))
   }
 

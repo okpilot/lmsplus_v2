@@ -8,7 +8,6 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { clearRecoveryCookie } from '../actions'
 
 const ResetPasswordSchema = z
   .object({
@@ -57,8 +56,7 @@ export function ResetPasswordForm() {
         return
       }
 
-      // Clear recovery lock cookie, then sign out so user must log in fresh
-      await clearRecoveryCookie()
+      // Sign out the recovery session — cookie cleared via /done route
       await supabase.auth.signOut()
     } catch {
       setError('Unable to update password. Please try again.')
@@ -77,7 +75,7 @@ export function ResetPasswordForm() {
           Your password has been updated successfully.
         </p>
         <Link
-          href="/"
+          href="/auth/reset-password/done"
           className="inline-block text-sm font-medium text-primary hover:underline underline-offset-4"
         >
           Sign in with your new password
