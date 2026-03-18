@@ -197,6 +197,8 @@ describe('proxy', () => {
     const response = await proxy(makeRequest('/app/admin/syllabus'))
 
     expect(response.status).toBe(403)
+    const setCookie403 = response.headers.get('set-cookie') ?? ''
+    expect(setCookie403).toContain('sb-token=refreshed')
   })
 
   it('returns 503 when the admin role lookup fails', async () => {
@@ -208,6 +210,8 @@ describe('proxy', () => {
       const response = await proxy(makeRequest('/app/admin/syllabus'))
 
       expect(response.status).toBe(503)
+      const setCookie503 = response.headers.get('set-cookie') ?? ''
+      expect(setCookie503).toContain('sb-token=refreshed')
       expect(consoleSpy).toHaveBeenCalledWith(
         '[proxy] admin role lookup error:',
         'connection reset',
