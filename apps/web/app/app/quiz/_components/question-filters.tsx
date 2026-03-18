@@ -38,6 +38,7 @@ export function QuestionFilters({ value, onValueChange }: QuestionFiltersProps) 
             <button
               key={opt.value}
               type="button"
+              aria-pressed={isActive}
               onClick={() => handleToggle(opt.value)}
               className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                 isActive

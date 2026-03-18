@@ -14,13 +14,8 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await subjectTrigger.click()
   await page.locator('[data-slot="select-item"]').first().click()
 
-  // 3. Set question count to 3 via slider keyboard control
-  const sliderThumb = page.locator('[data-slot="slider-thumb"]')
-  await sliderThumb.waitFor({ state: 'visible' })
-  await sliderThumb.click()
-  await sliderThumb.press('Home') // go to min (1)
-  await sliderThumb.press('ArrowRight')
-  await sliderThumb.press('ArrowRight') // now at 3
+  // 3. Use the "10" preset button for a reliable question count
+  await page.getByRole('button', { name: '10' }).click()
 
   // 4. Start quiz
   await page.getByRole('button', { name: 'Start Quiz' }).click()
@@ -29,8 +24,8 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
   await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })
 
-  // 6. Answer all 3 questions (deferred writes — no per-answer feedback)
-  for (let i = 0; i < 3; i++) {
+  // 6. Answer all 10 questions (deferred writes — no per-answer feedback)
+  for (let i = 0; i < 10; i++) {
     await expect(page.getByText(`Question ${i + 1}`)).toBeVisible()
 
     // Click the first answer option
@@ -42,7 +37,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
     await page.getByRole('button', { name: 'Submit Answer' }).click()
 
     // Navigate to next question (or finish on the last one)
-    if (i < 2) {
+    if (i < 9) {
       await page.getByRole('button', { name: 'Next' }).click()
     }
   }

@@ -19,32 +19,28 @@ test('progress page updates after completing a quiz', async ({ page }) => {
   await expect(page.getByText('Overall Mastery')).toBeVisible()
   await expect(page.getByText(/\d+ \/ \d+ questions mastered/)).toBeVisible()
 
-  // 2. Complete a quick quiz with 2 questions
+  // 2. Complete a quiz with 10 questions (smallest preset)
   await page.goto('/app/quiz')
   const subjectTrigger = page.locator('[data-slot="select-trigger"]')
   await subjectTrigger.waitFor({ state: 'visible' })
   await subjectTrigger.click()
   await page.locator('[data-slot="select-item"]').first().click()
 
-  // Set count to 2 via slider keyboard
-  const sliderThumb = page.locator('[data-slot="slider-thumb"]')
-  await sliderThumb.waitFor({ state: 'visible' })
-  await sliderThumb.click()
-  await sliderThumb.press('Home') // go to min (1)
-  await sliderThumb.press('ArrowRight') // now at 2
+  // Use the "10" preset button for reliable count
+  await page.getByRole('button', { name: '10' }).click()
 
   await page.getByRole('button', { name: 'Start Quiz' }).click()
   await page.waitForURL('**/app/quiz/session', { timeout: 10_000 })
   await expect(page.getByText('Question 1')).toBeVisible({ timeout: 10_000 })
 
-  // Answer both questions (deferred writes — no per-answer feedback)
-  for (let i = 0; i < 2; i++) {
+  // Answer all 10 questions (deferred writes — no per-answer feedback)
+  for (let i = 0; i < 10; i++) {
     const answerButtons = page.locator('button:has(span.rounded-full)')
     await answerButtons.first().waitFor({ state: 'visible' })
     await answerButtons.first().click()
     await page.getByRole('button', { name: 'Submit Answer' }).click()
 
-    if (i < 1) {
+    if (i < 9) {
       await page.getByRole('button', { name: 'Next' }).click()
     }
   }
