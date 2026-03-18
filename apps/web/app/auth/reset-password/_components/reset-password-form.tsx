@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ResetSuccess } from './reset-success'
 
 const ResetPasswordSchema = z
   .object({
@@ -75,21 +76,7 @@ export function ResetPasswordForm() {
     setSuccess(true)
   }
 
-  if (success) {
-    return (
-      <div className="space-y-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          Your password has been updated successfully.
-        </p>
-        <Link
-          href="/auth/reset-password/done"
-          className="inline-block text-sm font-medium text-primary hover:underline underline-offset-4"
-        >
-          Sign in with your new password
-        </Link>
-      </div>
-    )
-  }
+  if (success) return <ResetSuccess />
 
   return (
     <form noValidate onSubmit={handleSubmit} className="w-full space-y-4">
