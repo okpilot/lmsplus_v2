@@ -22,13 +22,24 @@ export type SubtopicOption = {
   questionCount: number
 }
 
+export type TopicWithSubtopics = {
+  id: string
+  code: string
+  name: string
+  questionCount: number
+  subtopics: SubtopicOption[]
+}
+
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type TopicRow = { id: string; code: string; name: string; sort_order: number }
-type SubtopicRow = { id: string; code: string; name: string; sort_order: number }
+type SubtopicRow = { id: string; code: string; name: string; sort_order: number; topic_id: string }
 type QuestionRefRow = { subject_id: string }
 type QuestionTopicRow = { topic_id: string }
 type QuestionSubtopicRow = { subtopic_id: string }
 type QuestionIdRow = { id: string }
+type QuestionFilterRef = { question_id: string }
+
+export type QuestionFilter = 'all' | 'unseen' | 'incorrect' | 'flagged'
 
 export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
   const supabase = await createServerSupabaseClient()
@@ -131,16 +142,77 @@ export async function getSubtopicsForTopic(topicId: string): Promise<SubtopicOpt
     .filter((st) => st.questionCount > 0)
 }
 
-type QuestionFilterRef = { question_id: string }
+export async function getTopicsWithSubtopics(subjectId: string): Promise<TopicWithSubtopics[]> {
+  const supabase = await createServerSupabaseClient()
 
-export type QuestionFilter = 'all' | 'unseen' | 'incorrect'
+  const { data: topicsData } = await supabase
+    .from('easa_topics')
+    .select('id, code, name, sort_order')
+    .eq('subject_id', subjectId)
+    .order('sort_order')
+
+  const topics = (topicsData ?? []) as TopicRow[]
+  if (!topics.length) return []
+
+  const topicIds = topics.map((t) => t.id)
+
+  const [{ data: subtopicsData }, { data: qTopicData }, { data: qSubtopicData }] =
+    await Promise.all([
+      supabase
+        .from('easa_subtopics')
+        .select('id, code, name, sort_order, topic_id')
+        .in('topic_id', topicIds)
+        .order('sort_order'),
+      supabase
+        .from('questions')
+        .select('topic_id')
+        .eq('status', 'active')
+        .eq('subject_id', subjectId)
+        .is('deleted_at', null),
+      supabase
+        .from('questions')
+        .select('subtopic_id')
+        .eq('status', 'active')
+        .eq('subject_id', subjectId)
+        .is('deleted_at', null),
+    ])
+
+  const subtopics = (subtopicsData ?? []) as SubtopicRow[]
+  const topicCounts = new Map<string, number>()
+  for (const q of (qTopicData ?? []) as QuestionTopicRow[]) {
+    topicCounts.set(q.topic_id, (topicCounts.get(q.topic_id) ?? 0) + 1)
+  }
+  const subtopicCounts = new Map<string, number>()
+  for (const q of (qSubtopicData ?? []) as QuestionSubtopicRow[]) {
+    subtopicCounts.set(q.subtopic_id, (subtopicCounts.get(q.subtopic_id) ?? 0) + 1)
+  }
+
+  const subtopicsByTopic = new Map<string, SubtopicOption[]>()
+  for (const st of subtopics) {
+    const count = subtopicCounts.get(st.id) ?? 0
+    if (count === 0) continue
+    const list = subtopicsByTopic.get(st.topic_id) ?? []
+    list.push({ id: st.id, code: st.code, name: st.name, questionCount: count })
+    subtopicsByTopic.set(st.topic_id, list)
+  }
+
+  return topics
+    .map((t) => ({
+      id: t.id,
+      code: t.code,
+      name: t.name,
+      questionCount: topicCounts.get(t.id) ?? 0,
+      subtopics: subtopicsByTopic.get(t.id) ?? [],
+    }))
+    .filter((t) => t.questionCount > 0)
+}
 
 export async function getRandomQuestionIds(opts: {
   subjectId: string
-  topicId?: string | null
-  subtopicId?: string | null
+  topicIds?: string[]
+  subtopicIds?: string[]
   count: number
-  filter?: QuestionFilter
+  filters?: QuestionFilter[]
   userId?: string
 }): Promise<string[]> {
   const supabase = await createServerSupabaseClient()
@@ -152,12 +224,12 @@ export async function getRandomQuestionIds(opts: {
     .eq('subject_id', opts.subjectId)
     .is('deleted_at', null)
 
-  if (opts.topicId) {
-    query = query.eq('topic_id', opts.topicId)
+  if (opts.topicIds?.length) {
+    query = query.in('topic_id', opts.topicIds)
   }
 
-  if (opts.subtopicId) {
-    query = query.eq('subtopic_id', opts.subtopicId)
+  if (opts.subtopicIds?.length) {
+    query = query.in('subtopic_id', opts.subtopicIds)
   }
 
   const { data: rawData } = await query
@@ -166,15 +238,23 @@ export async function getRandomQuestionIds(opts: {
   if (!data.length) return []
 
   let filtered = data
-  const filter = opts.filter ?? 'all'
 
-  if (filter === 'unseen' && opts.userId) {
-    filtered = await filterUnseen(supabase, opts.userId, data)
-  } else if (filter === 'incorrect' && opts.userId) {
-    filtered = await filterIncorrect(supabase, opts.userId, data)
+  const activeFilters = opts.filters?.filter((f) => f !== 'all') ?? []
+  // Guard narrowed above — extract to satisfy no-non-null-assertion rule
+  const userId = opts.userId
+  if (activeFilters.length > 0 && userId) {
+    const matchingSets = await Promise.all(
+      activeFilters.map((f) => {
+        if (f === 'unseen') return filterUnseen(supabase, userId, filtered)
+        if (f === 'incorrect') return filterIncorrect(supabase, userId, filtered)
+        if (f === 'flagged') return filterFlagged(supabase, userId, filtered)
+        return Promise.resolve(filtered)
+      }),
+    )
+    const unionIds = new Set(matchingSets.flatMap((s) => s.map((q) => q.id)))
+    filtered = filtered.filter((q) => unionIds.has(q.id))
   }
 
-  // Shuffle and take requested count
   const shuffled = filtered
     .map((q) => ({ id: q.id, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
@@ -217,4 +297,35 @@ async function filterIncorrect(
   const incorrectCards = (incorrectData ?? []) as QuestionFilterRef[]
   const incorrectIds = new Set(incorrectCards.map((r) => r.question_id))
   return questions.filter((q) => incorrectIds.has(q.id))
+}
+
+type UntypedClient = {
+  from: (table: string) => {
+    select: (col: string) => UntypedQuery
+  }
+}
+type UntypedQuery = {
+  eq: (col: string, val: unknown) => UntypedQuery
+  is: (col: string, val: unknown) => UntypedQuery
+  in: (col: string, vals: unknown[]) => Promise<{ data: unknown[] | null }>
+}
+
+async function filterFlagged(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  questions: QuestionIdRow[],
+): Promise<QuestionIdRow[]> {
+  if (!questions.length) return []
+  const questionIds = questions.map((q) => q.id)
+  // flagged_questions is not yet in the generated DB types — cast via unknown
+  const client = supabase as unknown as UntypedClient
+  const { data: flaggedData } = await client
+    .from('flagged_questions')
+    .select('question_id')
+    .eq('student_id', userId)
+    .is('deleted_at', null)
+    .in('question_id', questionIds)
+
+  const flaggedIds = new Set(((flaggedData ?? []) as QuestionFilterRef[]).map((r) => r.question_id))
+  return questions.filter((q) => flaggedIds.has(q.id))
 }

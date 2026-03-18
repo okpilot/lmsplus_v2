@@ -1,43 +1,90 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { QuestionFilterValue } from '../types'
 import { QuestionFilters } from './question-filters'
 
 describe('QuestionFilters', () => {
-  it('renders all three filter options', () => {
-    render(<QuestionFilters value="all" onChange={vi.fn()} />)
-    expect(screen.getByLabelText('All questions')).toBeInTheDocument()
-    expect(screen.getByLabelText('Unseen only')).toBeInTheDocument()
-    expect(screen.getByLabelText('Incorrectly answered')).toBeInTheDocument()
+  beforeEach(() => {
+    vi.resetAllMocks()
   })
 
-  it('checks the radio matching the current value', () => {
-    render(<QuestionFilters value="unseen" onChange={vi.fn()} />)
-    expect(screen.getByLabelText('Unseen only')).toBeChecked()
-    expect(screen.getByLabelText('All questions')).not.toBeChecked()
-    expect(screen.getByLabelText('Incorrectly answered')).not.toBeChecked()
+  it('renders all 4 filter pills', () => {
+    render(<QuestionFilters value={['all']} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'All questions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unseen only' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Incorrectly answered' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Flagged' })).toBeInTheDocument()
   })
 
-  it('calls onChange when a different filter is selected', async () => {
+  it('"All questions" pill is active when value is [\'all\']', () => {
+    render(<QuestionFilters value={['all']} onValueChange={vi.fn()} />)
+    // Active pills have border-primary class; inactive do not
+    const allBtn = screen.getByRole('button', { name: 'All questions' })
+    expect(allBtn.className).toContain('border-primary')
+    expect(allBtn.className).toContain('text-primary')
+  })
+
+  it('marks the correct pill as active when a specific filter is set', () => {
+    render(<QuestionFilters value={['unseen']} onValueChange={vi.fn()} />)
+    const unseenBtn = screen.getByRole('button', { name: 'Unseen only' })
+    expect(unseenBtn.className).toContain('border-primary')
+    const allBtn = screen.getByRole('button', { name: 'All questions' })
+    expect(allBtn.className).not.toContain('border-primary')
+  })
+
+  it('clicking a specific filter calls onValueChange without "all"', async () => {
     const user = userEvent.setup()
-    const onChange = vi.fn()
-    render(<QuestionFilters value="all" onChange={onChange} />)
-
-    await user.click(screen.getByLabelText('Incorrectly answered'))
-    expect(onChange).toHaveBeenCalledWith('incorrect')
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['all']} onValueChange={onValueChange} />)
+    await user.click(screen.getByRole('button', { name: 'Unseen only' }))
+    expect(onValueChange).toHaveBeenCalledWith(['unseen'])
   })
 
-  it('does not call onChange when clicking the already selected filter', async () => {
+  it('clicking "All questions" calls onValueChange with [\'all\']', async () => {
     const user = userEvent.setup()
-    const onChange = vi.fn()
-    render(<QuestionFilters value="all" onChange={onChange} />)
-
-    await user.click(screen.getByLabelText('All questions'))
-    expect(onChange).not.toHaveBeenCalled()
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['unseen']} onValueChange={onValueChange} />)
+    await user.click(screen.getByRole('button', { name: 'All questions' }))
+    expect(onValueChange).toHaveBeenCalledWith(['all'])
   })
 
-  it('renders a fieldset with legend', () => {
-    render(<QuestionFilters value="all" onChange={vi.fn()} />)
-    expect(screen.getByRole('group', { name: 'Question filter' })).toBeInTheDocument()
+  it("toggling off the only active specific filter reverts to ['all']", async () => {
+    const user = userEvent.setup()
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['unseen']} onValueChange={onValueChange} />)
+    await user.click(screen.getByRole('button', { name: 'Unseen only' }))
+    expect(onValueChange).toHaveBeenCalledWith(['all'])
+  })
+
+  it('multiple specific filters can be active simultaneously', async () => {
+    const user = userEvent.setup()
+    const onValueChange = vi.fn()
+    // Start with unseen already selected, add incorrect
+    render(<QuestionFilters value={['unseen']} onValueChange={onValueChange} />)
+    await user.click(screen.getByRole('button', { name: 'Incorrectly answered' }))
+    const called = onValueChange.mock.calls[0]![0] as QuestionFilterValue[]
+    expect(called).toContain('unseen')
+    expect(called).toContain('incorrect')
+    expect(called).not.toContain('all')
+  })
+
+  it('removing one filter from a multi-selection leaves the other active', async () => {
+    const user = userEvent.setup()
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['unseen', 'incorrect']} onValueChange={onValueChange} />)
+    await user.click(screen.getByRole('button', { name: 'Unseen only' }))
+    expect(onValueChange).toHaveBeenCalledWith(['incorrect'])
+  })
+
+  it('marks multiple pills as active when multiple filters are selected', () => {
+    render(<QuestionFilters value={['unseen', 'flagged']} onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Unseen only' }).className).toContain(
+      'border-primary',
+    )
+    expect(screen.getByRole('button', { name: 'Flagged' }).className).toContain('border-primary')
+    expect(screen.getByRole('button', { name: 'All questions' }).className).not.toContain(
+      'border-primary',
+    )
   })
 })

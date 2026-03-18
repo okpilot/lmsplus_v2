@@ -189,7 +189,7 @@ describe('getRandomQuestionIds', () => {
     const result = await getRandomQuestionIds({
       subjectId: 's1',
       count: 10,
-      filter: 'incorrect',
+      filters: ['incorrect'],
       userId: 'u1',
     })
     expect(result).toEqual(['q2'])
@@ -204,7 +204,7 @@ describe('getRandomQuestionIds', () => {
     const result = await getRandomQuestionIds({
       subjectId: 's1',
       count: 10,
-      filter: 'incorrect',
+      filters: ['incorrect'],
       userId: 'u1',
     })
     expect(result).toEqual([])
@@ -216,7 +216,7 @@ describe('getRandomQuestionIds', () => {
     const result = await getRandomQuestionIds({
       subjectId: 's1',
       count: 10,
-      filter: 'incorrect',
+      filters: ['incorrect'],
       // no userId
     })
     // Without userId, filter is bypassed — all questions returned
@@ -231,7 +231,7 @@ describe('getRandomQuestionIds', () => {
     const result = await getRandomQuestionIds({
       subjectId: 's1',
       count: 10,
-      filter: 'incorrect',
+      filters: ['incorrect'],
       userId: 'u1',
     })
 

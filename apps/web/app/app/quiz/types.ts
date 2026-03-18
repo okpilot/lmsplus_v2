@@ -107,3 +107,7 @@ export type QuizStateOpts = {
   subjectName?: string
   subjectCode?: string
 }
+
+export type QuizMode = 'study' | 'exam'
+
+export type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'

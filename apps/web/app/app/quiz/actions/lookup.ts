@@ -2,8 +2,12 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import type { SubtopicOption, TopicOption } from '@/lib/queries/quiz'
-import { getSubtopicsForTopic, getTopicsForSubject } from '@/lib/queries/quiz'
+import type { SubtopicOption, TopicOption, TopicWithSubtopics } from '@/lib/queries/quiz'
+import {
+  getSubtopicsForTopic,
+  getTopicsForSubject,
+  getTopicsWithSubtopics,
+} from '@/lib/queries/quiz'
 
 const IdSchema = z.string().uuid()
 
@@ -15,20 +19,78 @@ export async function fetchSubtopicsForTopic(raw: unknown): Promise<SubtopicOpti
   return getSubtopicsForTopic(IdSchema.parse(raw))
 }
 
-const OptionalUuid = z.preprocess((v) => (v === '' ? undefined : v), z.string().uuid().optional())
+export async function fetchTopicsWithSubtopics(raw: unknown): Promise<TopicWithSubtopics[]> {
+  return getTopicsWithSubtopics(IdSchema.parse(raw))
+}
 
 const FilteredCountSchema = z.object({
   subjectId: z.string().uuid(),
-  topicId: OptionalUuid,
-  subtopicId: OptionalUuid,
-  filter: z.enum(['all', 'unseen', 'incorrect']),
+  topicIds: z.array(z.string().uuid()).optional(),
+  subtopicIds: z.array(z.string().uuid()).optional(),
+  filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
 })
 
 type QuestionIdRow = { id: string }
 type QuestionFilterRef = { question_id: string }
+type UntypedQuery = {
+  eq: (col: string, val: unknown) => UntypedQuery
+  is: (col: string, val: unknown) => UntypedQuery
+  in: (col: string, vals: unknown[]) => Promise<{ data: unknown[] | null }>
+}
+type UntypedClient = { from: (table: string) => { select: (col: string) => UntypedQuery } }
+
+async function applyUnionFilters(opts: {
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
+  userId: string
+  questions: QuestionIdRow[]
+  filters: string[]
+}): Promise<QuestionIdRow[]> {
+  const { supabase, userId, questions, filters } = opts
+  const questionIds = questions.map((q) => q.id)
+
+  const sets = await Promise.all(
+    filters.map(async (f) => {
+      if (f === 'unseen') {
+        const { data } = await supabase
+          .from('student_responses')
+          .select('question_id')
+          .eq('student_id', userId)
+          .in('question_id', questionIds)
+        const answeredIds = new Set(((data ?? []) as QuestionFilterRef[]).map((r) => r.question_id))
+        return questions.filter((q) => !answeredIds.has(q.id))
+      }
+      if (f === 'incorrect') {
+        const { data } = await supabase
+          .from('fsrs_cards')
+          .select('question_id')
+          .eq('student_id', userId)
+          .eq('last_was_correct', false)
+          .in('question_id', questionIds)
+        const ids = new Set(((data ?? []) as QuestionFilterRef[]).map((r) => r.question_id))
+        return questions.filter((q) => ids.has(q.id))
+      }
+      if (f === 'flagged') {
+        // flagged_questions is not yet in the generated DB types — cast via unknown
+        const client = supabase as unknown as UntypedClient
+        const { data } = await client
+          .from('flagged_questions')
+          .select('question_id')
+          .eq('student_id', userId)
+          .is('deleted_at', null)
+          .in('question_id', questionIds)
+        const ids = new Set(((data ?? []) as QuestionFilterRef[]).map((r) => r.question_id))
+        return questions.filter((q) => ids.has(q.id))
+      }
+      return questions
+    }),
+  )
+
+  const unionIds = new Set(sets.flatMap((s) => s.map((q) => q.id)))
+  return questions.filter((q) => unionIds.has(q.id))
+}
 
 export async function getFilteredCount(input: unknown): Promise<{ count: number }> {
-  const { subjectId, topicId, subtopicId, filter } = FilteredCountSchema.parse(input)
+  const { subjectId, topicIds, subtopicIds, filters } = FilteredCountSchema.parse(input)
   const supabase = await createServerSupabaseClient()
 
   const {
@@ -44,8 +106,8 @@ export async function getFilteredCount(input: unknown): Promise<{ count: number 
     .eq('subject_id', subjectId)
     .is('deleted_at', null)
 
-  if (topicId) query = query.eq('topic_id', topicId)
-  if (subtopicId) query = query.eq('subtopic_id', subtopicId)
+  if (topicIds?.length) query = query.in('topic_id', topicIds)
+  if (subtopicIds?.length) query = query.in('subtopic_id', subtopicIds)
 
   const { data: rawData, error } = await query
   if (error) {
@@ -55,35 +117,14 @@ export async function getFilteredCount(input: unknown): Promise<{ count: number 
   const data = (rawData ?? []) as QuestionIdRow[]
   if (!data.length) return { count: 0 }
 
-  if (filter === 'all') return { count: data.length }
+  const activeFilters = filters.filter((f) => f !== 'all')
+  if (!activeFilters.length) return { count: data.length }
 
-  const questionIds = data.map((q) => q.id)
-
-  if (filter === 'unseen') {
-    const { data: answeredData, error: answeredError } = await supabase
-      .from('student_responses')
-      .select('question_id')
-      .eq('student_id', user.id)
-      .in('question_id', questionIds)
-    if (answeredError) {
-      console.error('[getFilteredCount] student_responses query error:', answeredError.message)
-    }
-    const answered = (answeredData ?? []) as QuestionFilterRef[]
-    const answeredIds = new Set(answered.map((r) => r.question_id))
-    return { count: data.filter((q) => !answeredIds.has(q.id)).length }
-  }
-
-  // filter === 'incorrect'
-  const { data: incorrectData, error: incorrectError } = await supabase
-    .from('fsrs_cards')
-    .select('question_id')
-    .eq('student_id', user.id)
-    .eq('last_was_correct', false)
-    .in('question_id', questionIds)
-  if (incorrectError) {
-    console.error('[getFilteredCount] fsrs_cards query error:', incorrectError.message)
-  }
-  const incorrectCards = (incorrectData ?? []) as QuestionFilterRef[]
-  const incorrectIds = new Set(incorrectCards.map((r) => r.question_id))
-  return { count: data.filter((q) => incorrectIds.has(q.id)).length }
+  const result = await applyUnionFilters({
+    supabase,
+    userId: user.id,
+    questions: data,
+    filters: activeFilters,
+  })
+  return { count: result.length }
 }

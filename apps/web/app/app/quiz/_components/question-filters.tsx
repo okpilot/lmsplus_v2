@@ -1,37 +1,55 @@
 'use client'
 
-import type { QuestionFilter } from '@/lib/queries/quiz'
+type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'
 
 type QuestionFiltersProps = {
-  value: QuestionFilter
-  onChange: (filter: QuestionFilter) => void
+  value: QuestionFilterValue[]
+  onValueChange: (filters: QuestionFilterValue[]) => void
 }
 
-const OPTIONS: { value: QuestionFilter; label: string }[] = [
+const OPTIONS: { value: QuestionFilterValue; label: string }[] = [
   { value: 'all', label: 'All questions' },
   { value: 'unseen', label: 'Unseen only' },
   { value: 'incorrect', label: 'Incorrectly answered' },
+  { value: 'flagged', label: 'Flagged' },
 ]
 
-export function QuestionFilters({ value, onChange }: QuestionFiltersProps) {
+export function QuestionFilters({ value, onValueChange }: QuestionFiltersProps) {
+  function handleToggle(filter: QuestionFilterValue) {
+    if (filter === 'all') {
+      onValueChange(['all'])
+      return
+    }
+    // Remove 'all' if present, toggle the specific filter
+    const withoutAll = value.filter((f) => f !== 'all')
+    const isActive = withoutAll.includes(filter)
+    const next = isActive ? withoutAll.filter((f) => f !== filter) : [...withoutAll, filter]
+    // If nothing selected, revert to 'all'
+    onValueChange(next.length === 0 ? ['all'] : next)
+  }
+
   return (
-    <fieldset>
-      <legend className="mb-1.5 text-sm font-medium">Question filter</legend>
-      <div className="flex flex-wrap gap-4">
-        {OPTIONS.map((opt) => (
-          <label key={opt.value} className="flex items-center gap-1.5 text-sm">
-            <input
-              type="radio"
-              name="question-filter"
-              value={opt.value}
-              checked={value === opt.value}
-              onChange={() => onChange(opt.value)}
-              className="accent-primary"
-            />
-            {opt.label}
-          </label>
-        ))}
+    <div className="space-y-1.5">
+      <span className="text-[13px] font-medium">Question Filter</span>
+      <div className="flex flex-wrap gap-2">
+        {OPTIONS.map((opt) => {
+          const isActive = value.includes(opt.value)
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => handleToggle(opt.value)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                isActive
+                  ? 'border-primary text-primary'
+                  : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+            </button>
+          )
+        })}
       </div>
-    </fieldset>
+    </div>
   )
 }

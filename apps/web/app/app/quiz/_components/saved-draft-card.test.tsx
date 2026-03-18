@@ -52,10 +52,9 @@ describe('SavedDraftCard', () => {
     expect(screen.getByText(/no saved quizzes/i)).toBeInTheDocument()
   })
 
-  it('displays subject name and code', () => {
+  it('displays subject name', () => {
     render(<SavedDraftCard drafts={[DRAFT]} />)
     expect(screen.getByText('Principles of Flight')).toBeInTheDocument()
-    expect(screen.getByText('POF')).toBeInTheDocument()
   })
 
   it('displays progress count', () => {

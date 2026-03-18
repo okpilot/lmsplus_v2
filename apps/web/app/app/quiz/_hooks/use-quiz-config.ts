@@ -1,79 +1,82 @@
 import { useRef, useState, useTransition } from 'react'
-import type { QuestionFilter, SubjectOption } from '@/lib/queries/quiz'
+import type { SubjectOption } from '@/lib/queries/quiz'
 import { getFilteredCount } from '../actions/lookup'
-import { useQuizCascade } from './use-quiz-cascade'
+import type { QuestionFilterValue, QuizMode } from '../types'
 import { useQuizStart } from './use-quiz-start'
+import { useTopicTree } from './use-topic-tree'
 
 export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
-  const cascade = useQuizCascade()
-  const [filter, setFilter] = useState<QuestionFilter>('all')
+  const [subjectId, setSubjectId] = useState('')
+  const [mode, setMode] = useState<QuizMode>('study')
+  const [filters, setFilters] = useState<QuestionFilterValue[]>(['all'])
   const [count, setCount] = useState(10)
   const [filteredCount, setFilteredCount] = useState<number | null>(null)
   const [, startFilterTransition] = useTransition()
   const filterGeneration = useRef(0)
+  const topicTree = useTopicTree()
 
-  const { subjectId, topicId, subtopicId, topics, subtopics } = cascade
-
-  const staticCount = subtopicId
-    ? (subtopics.find((st) => st.id === subtopicId)?.questionCount ?? 0)
-    : topicId
-      ? (topics.find((t) => t.id === topicId)?.questionCount ?? 0)
-      : (subjects.find((s) => s.id === subjectId)?.questionCount ?? 0)
-
-  const availableCount = filteredCount ?? staticCount
-  const maxQuestions = Math.min(availableCount, 50)
+  const hasActiveFilter = filters.some((f) => f !== 'all')
+  const availableCount =
+    hasActiveFilter && filteredCount !== null ? filteredCount : topicTree.selectedQuestionCount
 
   const { loading, error, handleStart } = useQuizStart({
     subjectId,
-    topicId,
-    subtopicId,
     subjects,
     count,
-    maxQuestions,
-    filter,
+    maxQuestions: availableCount,
+    filters,
+    topicTree,
   })
 
-  function refetchFilteredCount(f: QuestionFilter, sId: string, tId?: string, stId?: string) {
+  function refetchFilteredCount(newFilters?: QuestionFilterValue[]) {
     setFilteredCount(null)
-    if (!sId || f === 'all') return
+    if (!subjectId) return
+    const activeFilters = (newFilters ?? filters).filter((f) => f !== 'all')
+    if (!activeFilters.length) return
     filterGeneration.current++
     const gen = filterGeneration.current
     startFilterTransition(async () => {
       const result = await getFilteredCount({
-        subjectId: sId,
-        topicId: tId,
-        subtopicId: stId,
-        filter: f,
+        subjectId,
+        topicIds: topicTree.getSelectedTopicIds(),
+        subtopicIds: topicTree.getSelectedSubtopicIds(),
+        filters: activeFilters,
       })
       if (gen === filterGeneration.current) setFilteredCount(result.count)
     })
   }
 
+  function handleSubjectChange(id: string) {
+    setSubjectId(id)
+    setFilteredCount(null)
+    setFilters(['all'])
+    setCount(10)
+    if (id) {
+      topicTree.loadTopics(id)
+    } else {
+      topicTree.reset()
+    }
+  }
+
+  function handleFiltersChange(newFilters: QuestionFilterValue[]) {
+    setFilters(newFilters)
+    refetchFilteredCount(newFilters)
+  }
+
   return {
-    ...cascade,
-    handleSubjectChange: (id: string) => {
-      cascade.handleSubjectChange(id)
-      refetchFilteredCount(filter, id)
-    },
-    handleTopicChange: (id: string) => {
-      cascade.handleTopicChange(id)
-      refetchFilteredCount(filter, subjectId, id || undefined, undefined)
-    },
-    setSubtopicId: (id: string) => {
-      cascade.setSubtopicId(id)
-      refetchFilteredCount(filter, subjectId, topicId || undefined, id || undefined)
-    },
-    filter,
-    setFilter: (newFilter: QuestionFilter) => {
-      setFilter(newFilter)
-      refetchFilteredCount(newFilter, subjectId, topicId || undefined, subtopicId || undefined)
-    },
+    subjectId,
+    mode,
+    setMode,
+    filters,
+    setFilters: handleFiltersChange,
     count,
     setCount,
+    availableCount,
+    topicTree,
     loading,
     error,
-    maxQuestions,
-    filteredCount,
+    isPending: topicTree.isPending,
+    handleSubjectChange,
     handleStart,
   }
 }

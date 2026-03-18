@@ -27,6 +27,12 @@ export function SavedDraftCard({ drafts }: SavedDraftCardProps) {
   )
 }
 
+function progressColor(pct: number): string {
+  if (pct >= 90) return 'text-green-600'
+  if (pct < 50) return 'text-amber-500'
+  return 'text-primary'
+}
+
 function DraftCard({ draft }: { draft: DraftData }) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
@@ -36,7 +42,16 @@ function DraftCard({ draft }: { draft: DraftData }) {
   const totalCount = draft.questionIds.length
   const progress = totalCount > 0 ? (answeredCount / totalCount) * 100 : 0
   const subjectLabel = draft.subjectName ?? 'Unknown subject'
-  const dateLabel = draft.createdAt ? new Date(draft.createdAt).toLocaleDateString() : ''
+  const dateLabel = draft.createdAt
+    ? `${new Date(draft.createdAt).toLocaleString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'UTC',
+      })} UTC`
+    : ''
 
   function handleResume() {
     sessionStorage.setItem(
@@ -68,51 +83,48 @@ function DraftCard({ draft }: { draft: DraftData }) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium">{subjectLabel}</p>
-          {draft.subjectCode && (
-            <span className="text-xs text-muted-foreground">{draft.subjectCode}</span>
-          )}
+    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{subjectLabel}</p>
+          {dateLabel && <p className="text-xs text-muted-foreground">Saved {dateLabel}</p>}
         </div>
-        {dateLabel && <span className="text-xs text-muted-foreground">{dateLabel}</span>}
+        <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            data-testid="resume-draft"
+            onClick={handleResume}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Resume
+          </button>
+          <button
+            type="button"
+            data-testid="delete-draft"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
       </div>
       <div className="space-y-1">
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>
+        <div className="flex justify-between text-xs">
+          <span className="text-muted-foreground">
             {answeredCount} of {totalCount} answered
           </span>
-          <span>{Math.round(progress)}%</span>
+          <span className={`font-medium ${progressColor(progress)}`}>{Math.round(progress)}%</span>
         </div>
-        <div className="h-1.5 rounded-full bg-muted">
+        <div className="h-1 rounded-full bg-muted">
           <div
             data-testid="draft-progress"
-            className="h-1.5 rounded-full bg-primary transition-all"
+            className="h-1 rounded-full bg-primary transition-all"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          data-testid="resume-draft"
-          onClick={handleResume}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Resume
-        </button>
-        <button
-          type="button"
-          data-testid="delete-draft"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-        >
-          {deleting ? 'Deleting...' : 'Delete'}
-        </button>
-      </div>
     </div>
   )
 }
