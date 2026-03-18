@@ -115,6 +115,7 @@ async function getSubjectProgressWithMap(
       ? await supabase
           .from('questions')
           .select('id, subject_id')
+          .eq('status', 'active')
           .in('id', [...correctQuestionIds])
       : { data: [] }
 
