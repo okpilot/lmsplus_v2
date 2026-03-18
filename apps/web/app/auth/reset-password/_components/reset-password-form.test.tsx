@@ -90,7 +90,7 @@ describe('ResetPasswordForm', () => {
     })
   })
 
-  it('shows an error when updateUser fails', async () => {
+  it('shows a generic error when updateUser fails', async () => {
     mockUpdateUser.mockResolvedValue({ error: { message: 'fail' } })
     const user = userEvent.setup()
     render(<ResetPasswordForm />)
@@ -100,6 +100,25 @@ describe('ResetPasswordForm', () => {
     await user.click(screen.getByRole('button', { name: /update password/i }))
 
     expect(await screen.findByText(/unable to update password/i)).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /request a new reset link/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows expired session error with link to request new reset when session is missing', async () => {
+    mockUpdateUser.mockResolvedValue({
+      error: { message: 'Auth session missing!' },
+    })
+    const user = userEvent.setup()
+    render(<ResetPasswordForm />)
+
+    await user.type(screen.getByLabelText(/new password/i), 'newpassword123')
+    await user.type(screen.getByLabelText(/confirm password/i), 'newpassword123')
+    await user.click(screen.getByRole('button', { name: /update password/i }))
+
+    expect(await screen.findByText(/reset link has expired/i)).toBeInTheDocument()
+    const resetLink = screen.getByRole('link', { name: /request a new reset link/i })
+    expect(resetLink).toHaveAttribute('href', '/auth/forgot-password')
   })
 
   it('toggles password visibility', async () => {

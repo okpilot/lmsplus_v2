@@ -24,6 +24,7 @@ export function ResetPasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showRequestLink, setShowRequestLink] = useState(false)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -44,7 +45,13 @@ export function ResetPasswordForm() {
       })
 
       if (updateError) {
-        setError('Unable to update password. Please try again.')
+        const isSessionMissing = updateError.message?.includes('session missing')
+        setError(
+          isSessionMissing
+            ? 'Your reset link has expired. Please request a new one.'
+            : 'Unable to update password. Please try again.',
+        )
+        setShowRequestLink(isSessionMissing)
         return
       }
     } catch {
@@ -95,7 +102,19 @@ export function ResetPasswordForm() {
         />
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <div className="space-y-1">
+          <p className="text-sm text-destructive">{error}</p>
+          {showRequestLink && (
+            <Link
+              href="/auth/forgot-password"
+              className="text-sm font-medium text-primary hover:underline underline-offset-4"
+            >
+              Request a new reset link
+            </Link>
+          )}
+        </div>
+      )}
 
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? 'Updating...' : 'Update password'}
