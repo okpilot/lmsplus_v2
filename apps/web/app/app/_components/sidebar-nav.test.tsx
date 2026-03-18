@@ -65,10 +65,10 @@ describe('SidebarNav', () => {
     expect(quizLink?.className).not.toContain('bg-primary')
   })
 
-  it('hides labels when collapsed', () => {
+  it('visually hides labels when collapsed but keeps them for screen readers', () => {
     render(<SidebarNav collapsed={true} onToggle={vi.fn()} />)
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
-    expect(screen.queryByText('Quiz')).not.toBeInTheDocument()
+    const label = screen.getByText('Dashboard')
+    expect(label.className).toContain('sr-only')
   })
 
   it('renders collapse toggle button', () => {

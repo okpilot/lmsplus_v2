@@ -19,7 +19,7 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
   const now = new Date()
   const year = now.getUTCFullYear()
   const month = now.getUTCMonth() + 1
-  const daysInMonth = new Date(year, month, 0).getDate()
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
   const todayDay = now.getUTCDate()
 
   const monthStr = String(month).padStart(2, '0')

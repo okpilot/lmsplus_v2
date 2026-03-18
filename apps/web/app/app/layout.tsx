@@ -20,9 +20,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const displayName = profile?.full_name ?? profile?.email ?? user.email ?? 'Student'
 
+  const userRole = profile?.role ?? 'student'
+
   return (
-    <UserProvider displayName={displayName} userRole={profile?.role}>
-      <AppShell displayName={displayName} userRole={profile?.role ?? 'student'}>
+    <UserProvider displayName={displayName} userRole={userRole}>
+      <AppShell displayName={displayName} userRole={userRole}>
         {children}
       </AppShell>
     </UserProvider>

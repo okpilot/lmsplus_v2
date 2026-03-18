@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage() {
   const [dataResult, dailyResult] = await Promise.allSettled([
     getDashboardData(),
-    getDailyActivity(),
+    getDailyActivity(31),
   ])
 
   if (dataResult.status !== 'fulfilled') throw dataResult.reason

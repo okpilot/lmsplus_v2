@@ -30,7 +30,7 @@ export function SidebarNav({ userRole, collapsed, onToggle }: SidebarNavProps) {
             } ${collapsed ? 'justify-center px-2' : ''}`}
           >
             {item.icon && <NavIcon name={item.icon} />}
-            {!collapsed && <span>{item.label}</span>}
+            <span className={collapsed ? 'sr-only' : undefined}>{item.label}</span>
           </Link>
         )
       })}

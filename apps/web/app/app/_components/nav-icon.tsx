@@ -1,4 +1,5 @@
-type NavIconProps = { name: string; className?: string }
+type IconName = 'home' | 'file-question' | 'bar-chart'
+type NavIconProps = { name: IconName; className?: string }
 
 export function NavIcon({ name, className = 'h-5 w-5' }: NavIconProps) {
   switch (name) {

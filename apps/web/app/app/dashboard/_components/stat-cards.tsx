@@ -26,7 +26,7 @@ export function StatCards({
     : 'Keep practicing'
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
       <div className="rounded-xl border border-border bg-card p-4 text-center">
         <p className="text-xs font-medium text-muted-foreground">Exam Readiness</p>
         <p className="mt-1 text-3xl font-bold text-amber-500">{readinessPct}%</p>
