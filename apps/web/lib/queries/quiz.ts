@@ -307,7 +307,10 @@ type UntypedClient = {
 type UntypedQuery = {
   eq: (col: string, val: unknown) => UntypedQuery
   is: (col: string, val: unknown) => UntypedQuery
-  in: (col: string, vals: unknown[]) => Promise<{ data: unknown[] | null }>
+  in: (
+    col: string,
+    vals: unknown[],
+  ) => Promise<{ data: unknown[] | null; error: { message: string } | null }>
 }
 
 async function filterFlagged(
@@ -319,13 +322,16 @@ async function filterFlagged(
   const questionIds = questions.map((q) => q.id)
   // flagged_questions is not yet in the generated DB types — cast via unknown
   const client = supabase as unknown as UntypedClient
-  const { data: flaggedData } = await client
+  const { data: flaggedData, error } = await client
     .from('flagged_questions')
     .select('question_id')
     .eq('student_id', userId)
     .is('deleted_at', null)
     .in('question_id', questionIds)
-
+  if (error) {
+    console.error('[filterFlagged] flagged_questions query error:', error.message)
+    return []
+  }
   const flaggedIds = new Set(((flaggedData ?? []) as QuestionFilterRef[]).map((r) => r.question_id))
   return questions.filter((q) => flaggedIds.has(q.id))
 }

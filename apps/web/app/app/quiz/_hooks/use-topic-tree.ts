@@ -1,7 +1,12 @@
 import { useRef, useState, useTransition } from 'react'
 import type { TopicWithSubtopics } from '@/lib/queries/quiz'
 import { fetchTopicsWithSubtopics } from '../actions/lookup'
-import { calcSelectedCount } from './topic-tree-helpers'
+import {
+  calcSelectedCount,
+  computeSelectAll,
+  computeToggleSubtopic,
+  computeToggleTopic,
+} from './topic-tree-helpers'
 
 export type { UseTopicTreeReturn } from './topic-tree-helpers'
 
@@ -33,47 +38,26 @@ export function useTopicTree() {
   }
 
   function toggleTopic(topicId: string) {
-    const topic = topics.find((t) => t.id === topicId)
-    if (!topic) return
-    const adding = !checkedTopics.has(topicId)
-    setCheckedTopics((prev) => {
-      const n = new Set(prev)
-      adding ? n.add(topicId) : n.delete(topicId)
-      return n
-    })
-    setCheckedSubtopics((prev) => {
-      const n = new Set(prev)
-      for (const st of topic.subtopics) adding ? n.add(st.id) : n.delete(st.id)
-      return n
-    })
+    const result = computeToggleTopic(topicId, topics, checkedTopics, checkedSubtopics)
+    setCheckedTopics(result.topics)
+    setCheckedSubtopics(result.subtopics)
   }
-
   function toggleSubtopic(subtopicId: string, topicId: string) {
-    const topic = topics.find((t) => t.id === topicId)
-    if (!topic) return
-    setCheckedSubtopics((prev) => {
-      const n = new Set(prev)
-      n.has(subtopicId) ? n.delete(subtopicId) : n.add(subtopicId)
-      const allChecked = topic.subtopics.every((st) => n.has(st.id))
-      setCheckedTopics((tp) => {
-        const nt = new Set(tp)
-        allChecked ? nt.add(topicId) : nt.delete(topicId)
-        return nt
-      })
-      return n
-    })
+    const result = computeToggleSubtopic(
+      subtopicId,
+      topicId,
+      topics,
+      checkedTopics,
+      checkedSubtopics,
+    )
+    setCheckedTopics(result.topics)
+    setCheckedSubtopics(result.subtopics)
   }
-
   function selectAll() {
-    if (allSelected) {
-      setCheckedTopics(new Set())
-      setCheckedSubtopics(new Set())
-    } else {
-      setCheckedTopics(new Set(topics.map((t) => t.id)))
-      setCheckedSubtopics(new Set(topics.flatMap((t) => t.subtopics.map((st) => st.id))))
-    }
+    const result = computeSelectAll(allSelected, topics)
+    setCheckedTopics(result.topics)
+    setCheckedSubtopics(result.subtopics)
   }
-
   function reset() {
     generation.current++
     setTopics([])

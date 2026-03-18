@@ -10,7 +10,7 @@ const StartQuizInput = z.object({
   subjectId: z.string().uuid(),
   topicIds: z.array(z.string().uuid()).optional(),
   subtopicIds: z.array(z.string().uuid()).optional(),
-  count: z.number().int().min(1),
+  count: z.number().int().min(1).max(500),
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
 })
 
@@ -40,7 +40,7 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
     const { data: sessionId, error } = await rpc<string>(supabase, 'start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: input.subjectId,
-      p_topic_id: input.topicIds?.[0] ?? null,
+      p_topic_id: input.topicIds?.length === 1 ? input.topicIds[0] : null,
       p_question_ids: questionIds,
     })
 

@@ -8,21 +8,15 @@
 
 ## Known Issues — Fix Before Next Sprint
 
-### `easa_subjects` / `easa_topics` / `easa_subtopics` tables are empty everywhere
+### Password recovery email redirect broken (#270)
 
-**Discovered:** 2026-03-12 during remote→local data sync investigation.
+**Discovered:** 2026-03-18 during manual testing.
 
-**Problem:** The `easa_subjects`, `easa_topics`, and `easa_subtopics` tables exist in the schema (migration `001_initial_schema.sql`) but are **never populated** — not on remote, not on local. The import script (`import-questions.ts`) likely writes subject/topic/subtopic data somewhere else, or the reference data was never seeded.
+**Problem:** Supabase recovery emails redirect to `https://www.lmsplus.app/#access_token=...&type=recovery` (implicit flow). The app doesn't handle hash fragment tokens at the root URL. Users cannot reset their password via email.
 
-**Impact:** Any query joining `questions` → `easa_subtopics` → `easa_topics` → `easa_subjects` will return zero rows. The dashboard analytics, review config drill-down, and progress pages may silently show empty results for subject-level breakdowns.
+**Workaround:** Admin can set passwords directly via Supabase Dashboard or the admin API.
 
-**Investigation needed:**
-1. Check how `import-questions.ts` handles subject/topic/subtopic data — does it populate `easa_*` tables or derive from folder paths only?
-2. Check if `questions.subtopic_id` FK points to `easa_subtopics` — if so, questions can't be imported without seeding the reference tables first
-3. Check all queries that join on `easa_*` tables — are they returning empty results in production?
-4. Decide: seed the `easa_*` tables from QDB folder structure during import, or create a standalone seed migration
-
-**Priority:** HIGH — fix first thing next session before any new feature work.
+**Priority:** P1 — fix next session. See issue #270.
 
 ---
 
@@ -119,6 +113,45 @@
 
 ---
 
+## Status: SPRINT 5 — Quiz Setup Redesign (COMPLETE — 2026-03-18)
+
+**Goal:** Redesign quiz setup page with cascading filters, topic tree, and persistent question flags. Replace dropdown selectors with multi-select UI.
+
+**Scope:** 18 items (UI components, hooks, actions, database, filtering logic)
+
+| Order | Item | Description | Status |
+|-------|------|-------------|--------|
+| DB | 5.1 | New `flagged_questions` table for persistent per-student flags (migration 043) | Done |
+| UI | 5.2 | Card 1: Subject selector (shadcn select) + study/exam mode toggle | Done |
+| UI | 5.3 | Card 1: Multi-select filter pills (All/Unseen/Incorrect/Flagged) | Done |
+| UI | 5.4 | Card 2: Question count slider (10-All, no hard 50-question cap) | Done |
+| UI | 5.5 | Card 2: Preset buttons (10/25/50/All) | Done |
+| UI | 5.6 | Card 3: Collapsible topic tree with checkboxes | Done |
+| UI | 5.7 | Card 3: Per-topic and per-subtopic question counts | Done |
+| UI | 5.8 | New components: `mode-toggle.tsx`, `question-count.tsx`, `subject-select.tsx`, `topic-row.tsx`, `topic-tree.tsx` | Done |
+| UI | 5.9 | New shadcn components: select, slider, checkbox | Done |
+| UI | 5.10 | Tabs restyled to underline pattern | Done |
+| UI | 5.11 | Saved quiz cards redesigned with new layout | Done |
+| Hooks | 5.12 | New `use-topic-tree.ts` hook (replaces use-quiz-cascade) | Done |
+| Hooks | 5.13 | Updated `use-quiz-config.ts` to accept topicIds/subtopicIds arrays + filters array | Done |
+| Logic | 5.14 | Filter union logic: combine active filters on topic-selected question pool | Done |
+| Logic | 5.15 | Exam mode: UI stub only (disabled with "Coming soon" badge) | Done |
+| Tests | 5.16 | Updated question-filters, quiz-config-form, use-quiz-config, use-quiz-start tests for new UI | Done |
+| Tests | 5.17 | Updated lookup and start actions tests for new filter/topic arrays | Done |
+| Tests | 5.18 | All 918 tests passing, type check clean, lint clean | Done |
+
+**Implementation complete (2026-03-18):**
+- Replaced cascading dropdown filters with multi-select topic tree (useTopicTree hook)
+- Filter pills: All/Unseen/Incorrect/Flagged — union of active filters applied on topic-selected question pool
+- Question count: slider range [10, All] with preset buttons — no hard 50-question cap
+- New `flagged_questions` table (migration 043) for persistent per-student flags
+- Updated start action to accept `topicIds` / `subtopicIds` arrays + `filters` array
+- Deleted `use-quiz-cascade` hook (functionality moved to `use-topic-tree`)
+- Exam mode UI stub (disabled, "Coming soon" badge)
+- Closes #176
+
+---
+
 ## SPRINT 1 COMPLETE — Quick Wins shipped
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui v4 (Base UI + oklch blue theme), git init. 3 commits on `master`.
@@ -126,7 +159,7 @@
 **Phase 2 done (2026-03-11):** Supabase setup complete:
 - `apps/web/.env.local` with all credentials (publishable key, secret key, access token)
 - Supabase MCP scoped to project `uepvblipahxizozxvwjn`
-- Full schema: 14 tables with RLS + FORCE RLS on all tables
+- Full schema: 15 tables with RLS + FORCE RLS on all tables
 - RLS policies: tenant isolation, immutability guards, role-scoped access
 - 4 RPC functions: `get_quiz_questions`, `submit_quiz_answer`, `start_quiz_session`, `complete_quiz_session`
 - All indexes from `docs/database.md`

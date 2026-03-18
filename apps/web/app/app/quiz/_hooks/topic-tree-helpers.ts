@@ -30,3 +30,47 @@ export function calcSelectedCount(
     )
   }, 0)
 }
+
+export function computeToggleTopic(
+  topicId: string,
+  topics: TopicWithSubtopics[],
+  checkedTopics: Set<string>,
+  checkedSubtopics: Set<string>,
+): { topics: Set<string>; subtopics: Set<string> } {
+  const topic = topics.find((t) => t.id === topicId)
+  if (!topic) return { topics: checkedTopics, subtopics: checkedSubtopics }
+  const adding = !checkedTopics.has(topicId)
+  const newTopics = new Set(checkedTopics)
+  adding ? newTopics.add(topicId) : newTopics.delete(topicId)
+  const newSubtopics = new Set(checkedSubtopics)
+  for (const st of topic.subtopics) adding ? newSubtopics.add(st.id) : newSubtopics.delete(st.id)
+  return { topics: newTopics, subtopics: newSubtopics }
+}
+
+export function computeToggleSubtopic(
+  subtopicId: string,
+  topicId: string,
+  topics: TopicWithSubtopics[],
+  checkedTopics: Set<string>,
+  checkedSubtopics: Set<string>,
+): { topics: Set<string>; subtopics: Set<string> } {
+  const topic = topics.find((t) => t.id === topicId)
+  if (!topic) return { topics: checkedTopics, subtopics: checkedSubtopics }
+  const newSubtopics = new Set(checkedSubtopics)
+  newSubtopics.has(subtopicId) ? newSubtopics.delete(subtopicId) : newSubtopics.add(subtopicId)
+  const allChecked = topic.subtopics.every((st) => newSubtopics.has(st.id))
+  const newTopics = new Set(checkedTopics)
+  allChecked ? newTopics.add(topicId) : newTopics.delete(topicId)
+  return { topics: newTopics, subtopics: newSubtopics }
+}
+
+export function computeSelectAll(
+  allSelected: boolean,
+  topics: TopicWithSubtopics[],
+): { topics: Set<string>; subtopics: Set<string> } {
+  if (allSelected) return { topics: new Set(), subtopics: new Set() }
+  return {
+    topics: new Set(topics.map((t) => t.id)),
+    subtopics: new Set(topics.flatMap((t) => t.subtopics.map((st) => st.id))),
+  }
+}

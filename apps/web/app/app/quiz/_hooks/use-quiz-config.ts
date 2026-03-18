@@ -15,9 +15,10 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
   const filterGeneration = useRef(0)
   const topicTree = useTopicTree()
 
-  const hasActiveFilter = filters.some((f) => f !== 'all')
   const availableCount =
-    hasActiveFilter && filteredCount !== null ? filteredCount : topicTree.selectedQuestionCount
+    filters.some((f) => f !== 'all') && filteredCount !== null
+      ? filteredCount
+      : topicTree.selectedQuestionCount
 
   const { loading, error, handleStart } = useQuizStart({
     subjectId,
@@ -51,13 +52,9 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     setFilteredCount(null)
     setFilters(['all'])
     setCount(10)
-    if (id) {
-      topicTree.loadTopics(id)
-    } else {
-      topicTree.reset()
-    }
+    if (id) topicTree.loadTopics(id)
+    else topicTree.reset()
   }
-
   function handleFiltersChange(newFilters: QuestionFilterValue[]) {
     setFilters(newFilters)
     refetchFilteredCount(newFilters)

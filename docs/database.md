@@ -330,6 +330,28 @@ CREATE TABLE quiz_drafts (
 );
 ```
 
+### flagged_questions
+```sql
+-- Per-student persistent question flags for later review filtering.
+-- Students flag questions during quiz sessions; flags persist across sessions.
+-- Used in quiz setup to filter "Flagged" questions.
+CREATE TABLE flagged_questions (
+  student_id   UUID NOT NULL REFERENCES users(id),
+  question_id  UUID NOT NULL REFERENCES questions(id),
+  flagged_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at   TIMESTAMPTZ,
+  PRIMARY KEY (student_id, question_id)
+);
+
+-- Index for quiz setup filter queries (student lookup)
+CREATE INDEX idx_flagged_questions_student ON flagged_questions (student_id)
+  WHERE deleted_at IS NULL;
+```
+
+RLS policies:
+- Students can only access and modify their own flags via `student_id = auth.uid() AND deleted_at IS NULL`
+- Soft-deletable (unflag via UPDATE with `deleted_at = now()`)
+
 ---
 
 ## 3. Soft Delete
