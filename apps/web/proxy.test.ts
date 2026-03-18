@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { proxy } from './proxy'
 
 const mockGetUser = vi.fn()
+const mockFrom = vi.fn()
 
 // A plain object that stands in for the session-refreshed supabase NextResponse
 const MOCK_SESSION_RESPONSE = {
@@ -27,6 +28,7 @@ vi.mock('@repo/db/middleware', () => ({
   createMiddlewareSupabaseClient: () => ({
     supabase: {
       auth: { getUser: mockGetUser },
+      from: mockFrom,
     },
     response: MOCK_SESSION_RESPONSE,
   }),
@@ -34,6 +36,20 @@ vi.mock('@repo/db/middleware', () => ({
 
 function makeRequest(pathname: string, base = 'http://localhost:3000') {
   return new NextRequest(new URL(pathname, base))
+}
+
+function buildChain(returnValue: unknown) {
+  const awaitable = {
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+      Promise.resolve(returnValue).then(resolve, reject),
+  }
+  return new Proxy(awaitable as Record<string, unknown>, {
+    get(target, prop) {
+      if (prop === 'then') return target.then
+      return (..._args: unknown[]) => buildChain(returnValue)
+    },
+  })
 }
 
 describe('proxy', () => {
@@ -143,37 +159,65 @@ describe('proxy', () => {
     }
   })
 
-  it('redirects /?code=<pkce> to /auth/callback?code=<pkce>', async () => {
-    // getUser result does not matter for this branch — code check runs before auth guard
-    mockGetUser.mockResolvedValue({ data: { user: null } })
+  it('redirects authenticated users with recovery cookie to /auth/reset-password', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
 
-    const response = await proxy(makeRequest('/?code=pkce-abc123'))
-
-    expect(response.status).toBe(307)
-    const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/callback')
-    expect(location.searchParams.get('code')).toBe('pkce-abc123')
-  })
-
-  it('forwards only the code param in PKCE redirect, stripping other query params', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-
-    const response = await proxy(makeRequest('/?code=pkce-abc123&next=%2Fadmin'))
+    const request = makeRequest('/')
+    request.cookies.set('__recovery_pending', '1')
+    const response = await proxy(request)
 
     expect(response.status).toBe(307)
-    const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/auth/callback')
-    expect(location.searchParams.get('code')).toBe('pkce-abc123')
-    expect(location.search).toBe('?code=pkce-abc123')
-  })
-
-  it('copies session cookies onto the PKCE redirect to /auth/callback', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-
-    const response = await proxy(makeRequest('/?code=pkce-abc123'))
-
-    expect(response.status).toBe(307)
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/reset-password')
     const setCookie = response.headers.get('set-cookie') ?? ''
     expect(setCookie).toContain('sb-token=refreshed')
+  })
+
+  it('lets authenticated users stay on / when error query param is present', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    const response = await proxy(makeRequest('/?error=session_expired'))
+
+    // Should NOT redirect to dashboard — error param must be shown on login page
+    expect(response).toBe(MOCK_SESSION_RESPONSE)
+  })
+
+  it('passes an admin user through to /app/admin routes', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }))
+
+    const response = await proxy(makeRequest('/app/admin/syllabus'))
+
+    expect(response).toBe(MOCK_SESSION_RESPONSE)
+  })
+
+  it('returns 403 for a non-admin user accessing /app/admin routes', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
+
+    const response = await proxy(makeRequest('/app/admin/syllabus'))
+
+    expect(response.status).toBe(403)
+    const setCookie403 = response.headers.get('set-cookie') ?? ''
+    expect(setCookie403).toContain('sb-token=refreshed')
+  })
+
+  it('returns 503 when the admin role lookup fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection reset' } }))
+
+      const response = await proxy(makeRequest('/app/admin/syllabus'))
+
+      expect(response.status).toBe(503)
+      const setCookie503 = response.headers.get('set-cookie') ?? ''
+      expect(setCookie503).toContain('sb-token=refreshed')
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[proxy] admin role lookup error:',
+        'connection reset',
+      )
+    } finally {
+      consoleSpy.mockRestore()
+    }
   })
 })

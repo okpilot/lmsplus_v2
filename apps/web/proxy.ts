@@ -18,7 +18,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
     console.error('[proxy] getUser error:', authError.message)
   }
 
-  const { pathname, searchParams } = request.nextUrl
+  const { pathname } = request.nextUrl
 
   function redirectWithCookies(url: URL) {
     const redirect = NextResponse.redirect(url)
@@ -28,16 +28,10 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirect
   }
 
-  // Forward auth code from magic link to callback route (PKCE flow).
-  // This branch MUST run before the authenticated-user redirect below:
-  // when a magic link is clicked, user is null (code not yet exchanged),
-  // so we capture the code and forward it to /auth/callback before any
-  // user-presence check would redirect away and discard the code.
-  const code = searchParams.get('code')
-  if (pathname === '/' && code) {
-    const callbackUrl = new URL('/auth/callback', request.url)
-    callbackUrl.searchParams.set('code', code)
-    return redirectWithCookies(callbackUrl)
+  // Recovery sessions can only access /auth/reset-password — block everything else
+  const recoveryPending = request.cookies.get('__recovery_pending')?.value === '1'
+  if (recoveryPending && user) {
+    return redirectWithCookies(new URL('/auth/reset-password', request.url))
   }
 
   // Protect /app/* routes — redirect to login if not authenticated
@@ -73,7 +67,8 @@ export async function proxy(request: NextRequest): Promise<Response> {
   }
 
   // Redirect authenticated users away from login page to dashboard
-  if (pathname === '/' && user) {
+  // But preserve error messages (e.g. expired recovery links)
+  if (pathname === '/' && user && !request.nextUrl.searchParams.has('error')) {
     return redirectWithCookies(new URL('/app/dashboard', request.url))
   }
 

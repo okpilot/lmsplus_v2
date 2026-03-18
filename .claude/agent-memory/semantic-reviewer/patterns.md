@@ -2,7 +2,73 @@
 
 > Running log of recurring issues, positive patterns, and areas needing extra scrutiny.
 
+## Session Log
+
+### 2026-03-18 — PR-level sweep: feat/174-login-redesign (18 commits, full diff)
+- **Files reviewed:** proxy.ts, confirm/route.ts, callback/route.ts, reset-password/page.tsx, reset-password/actions.ts, done/route.ts, reset-password-form.tsx, forgot-password-form.tsx, proxy.test.ts, confirm/route.test.ts, callback/route.test.ts, reset-password-form.test.tsx, password-reset.spec.ts
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 3 | **GOOD:** 6
+- **Issue:** proxy.ts gained two new behaviors (recovery session guard + error-param preservation) with no new tests in proxy.test.ts. New behavior is tested by E2E but not unit-tested.
+- **Suggestion 1:** clearRecoveryCookie in actions.ts is exported but never imported or called — dead code. Cookie cleanup is handled by done/route.ts instead.
+- **Suggestion 2:** callback/route.test.ts mocks `.single()` returning `{ data: null }` with no error for the "no profile" case, but real Supabase .single() returns `{ data: null, error: { code: 'PGRST116' } }`. The test outcome is correct but the mock doesn't reflect the real Supabase behavior.
+- **Suggestion 3:** window.location.origin in forgot-password-form.tsx (pre-existing, still unfixed) — see Recurring Issues.
+- **Pre-existing open issues not addressed in this PR:** login audit event missing, window.location.origin in redirectTo.
+- **Core security properties confirmed correct:** allowlist-guarded confirm route, proxy recovery guard, page-level cookie gate, 10-minute cookie TTL, signOut after password update.
+
+### 2026-03-18 — commit 610e358 (fix: address remaining CodeRabbit findings on PR #262)
+- **Files changed:** reset-password-form.tsx, reset-success.tsx (new), docs/decisions.md
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 3
+- **Suggestion:** `__recovery_pending` cookie is only cleaned up if the user clicks
+  the "Sign in" link in `ResetSuccess`. If the user closes the tab after seeing
+  the success message, the cookie persists. Because `signOut()` already ran, the
+  cookie strands them on a confusing "session missing" error on their next visit to
+  /reset-password. Fix: call `clearRecoveryCookie()` Server Action from `handleSubmit`
+  immediately after `setSuccess(true)`.
+- **Pattern noted:** Side-effect cleanup split across a user-action link vs. an
+  unconditional code path — watch for this in other auth success flows.
+
+---
+
 ## Recurring Issues
+
+### Auth route partial-gate bypass — recovery branch skips profile-existence check (1st occurrence)
+**First seen:** commit 5cc4109 (2026-03-17) — auth switch to email+password
+**File:** `apps/web/app/auth/callback/route.ts`
+**Pattern:** A new flow branch (recovery/password-reset) was added to an existing
+auth route handler that has a mandatory gate (profile-existence check + signOut on
+missing profile). The new branch was inserted after `exchangeCodeForSession` but
+before the gate, so it exits the route without running the gate. Any user who exists
+in Supabase Auth but has no `public.users` row can obtain a live session via the
+recovery flow.
+**Rule:** When adding a branch to an auth route, treat every existing early-exit
+(signOut + error redirect) as a gate that the new branch must also pass through,
+unless there is a documented reason to skip it.
+**Status:** FIXED — commit 47df5cf moved the recovery branch after all profile gates. Two regression tests added (one for the happy path with profile, one for the rejection path without profile). Both tests would have been red against the original code. Closed.
+
+### Client-side origin in server-configured redirectTo URL (1st occurrence)
+**First seen:** commit 5cc4109 (2026-03-17) — forgot-password-form.tsx
+**File:** `apps/web/app/auth/forgot-password/_components/forgot-password-form.tsx`
+**Pattern:** `window.location.origin` was used to construct the `redirectTo` URL
+passed to Supabase's `resetPasswordForEmail`. The value is correct in production
+but fragile — it depends on the browser's current origin being canonical. On
+preview deployments or misconfigured environments, Supabase will reject the URL,
+causing confusing errors. The pattern should use a server-supplied env var.
+**Watch for:** Any `redirectTo`, `callbackUrl`, or similar Supabase-consumed URL
+constructed from `window.location.*` in client components. These should use
+`process.env.NEXT_PUBLIC_APP_URL` or equivalent.
+**Status:** ISSUE — 1st occurrence, fix in progress.
+
+### Required audit event not emitted after auth method switch (1st occurrence)
+**First seen:** commit 5cc4109 (2026-03-17) — login flow moved to client-side
+**Pattern:** The `student.login` audit event was implicitly emitted via the server-side
+`/auth/callback` route (which ran on every magic-link login). After switching to
+`signInWithPassword` in a client component, the login flow never hits a server-side
+route, so the audit event is never written. The security doc's event table became
+stale without the migration being flagged.
+**Watch for:** When an auth flow is refactored, explicitly audit which server-side
+handlers are no longer in the hot path. Required audit events (security.md §10) must
+be emitted from server-authoritative code — client components cannot be trusted to
+write to the audit log.
+**Status:** ISSUE — 1st occurrence, fix in progress.
 
 ### RPC RETURN QUERY missing session_id ownership scope on join table (1st occurrence)
 **First seen:** commit 1f76a7b (2026-03-16) — get_report_correct_options migration 034
@@ -3021,3 +3087,17 @@ with the project pattern.
 `WHERE <col> IS NOT NULL`. Compare against the project's established index naming and partial
 index conventions before committing.
 **Status:** SUGGESTION — query correctness is not affected, only index efficiency and consistency.
+
+### /auth/* pages not in proxy matcher — client-side session defence only (1st occurrence)
+**First seen:** commit 47df5cf (2026-03-17) — reset-password page review
+**File:** `apps/web/app/auth/reset-password/page.tsx`, `apps/web/proxy.ts`
+**Pattern:** The proxy matcher covers only `'/'` and `'/app/:path*'`. Auth sub-pages
+(`/auth/reset-password`, `/auth/forgot-password`, `/auth/callback`) are not in the matcher.
+`/auth/reset-password` renders a client component that calls `supabase.auth.updateUser()`;
+Supabase rejects the call if no session exists, so there is no security hole. But the
+user sees the form before the rejection, and the guard is implicit rather than explicit.
+A server-side redirect from the page component or an expanded proxy matcher would make
+the session requirement visible and consistent with the `/app/*` pattern.
+**Watch for:** Any new `/auth/*` page whose functionality requires a valid session should
+either add a server-side `getUser()` check in the page or expand the proxy matcher.
+**Status:** SUGGESTION — 1st occurrence, not a security gap. Watch for repeat pattern.

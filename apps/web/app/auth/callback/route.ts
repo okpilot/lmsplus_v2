@@ -8,7 +8,6 @@ export async function GET(request: NextRequest) {
   const redirectTo = new URL('/', request.url)
 
   if (!code) {
-    redirectTo.pathname = '/auth/verify'
     redirectTo.searchParams.set('error', 'missing_code')
     return NextResponse.redirect(redirectTo)
   }
@@ -17,7 +16,6 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
-    redirectTo.pathname = '/auth/verify'
     redirectTo.searchParams.set('error', 'invalid_code')
     return NextResponse.redirect(redirectTo)
   }
@@ -29,9 +27,7 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    // Clear any stale session cookie left by exchangeCodeForSession
     await supabase.auth.signOut()
-    redirectTo.pathname = '/auth/verify'
     redirectTo.searchParams.set('error', 'auth_failed')
     return NextResponse.redirect(redirectTo)
   }
@@ -43,16 +39,14 @@ export async function GET(request: NextRequest) {
     .single()
 
   if (profileError && profileError.code !== 'PGRST116') {
-    // Transient DB error — don't sign out, let them retry
     console.error('[auth/callback] Profile lookup failed:', profileError.message)
-    redirectTo.pathname = '/auth/verify'
+    await supabase.auth.signOut()
     redirectTo.searchParams.set('error', 'profile_lookup_failed')
     return NextResponse.redirect(redirectTo)
   }
 
   if (!profile) {
     await supabase.auth.signOut()
-    redirectTo.pathname = '/auth/verify'
     redirectTo.searchParams.set('error', 'not_registered')
     return NextResponse.redirect(redirectTo)
   }

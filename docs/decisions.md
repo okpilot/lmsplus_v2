@@ -22,14 +22,16 @@
 - **Monorepo:** Turborepo + pnpm (Vercel-native, simpler than Nx)
 - **Frontend:** Next.js + Tailwind CSS v4 + shadcn/ui
 - **Backend/DB:** Supabase (Postgres + Auth + Storage + Realtime)
-- **Auth:** Magic link only
+- **Auth:** Email + password (changed from magic link, Decision 29)
 - **Hosting:** Vercel
 - **Multi-tenant:** organization_id on every table, RLS policies
 - **AI-to-slides:** Claude API → Structured JSON → Template Renderer (future, not MVP 2)
 
-### UI Theme (confirmed 2026-03-11)
-- **shadcn/ui** — initialized with Tailwind v4 in `apps/web/`
-- **Theme** — tweakcn theme `cmjhgwebp000404jl22fv5sh6` applied via registry URL, tokens in `apps/web/app/globals.css` (updated 2026-03-11, was `cmlhfpjhw000004l4f4ax3m7z`)
+### UI Theme (confirmed 2026-03-11, updated 2026-03-18)
+
+- **shadcn/ui v4** — initialized with Tailwind v4 in `apps/web/`, uses Base UI (not Radix) under the hood
+- **Theme** — shadcn official "Blue" theme (oklch color space) on neutral base. CSS variables in `apps/web/app/globals.css`. Replaced earlier tweakcn/HSL themes.
+- **Colors** — oklch format (not HSL). Tailwind v4 reads oklch values directly via `@theme inline` in globals.css.
 - **Dark mode** — `next-themes` with `attribute="class"`, defaults to system preference, toggle in app header
 
 ### Tooling (all confirmed 2026-03-11)
@@ -510,4 +512,28 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-17 — Decision 28: Weekly CI health monitoring*
+## Decision 29: Auth method switch — magic link → email + password (2026-03-17, refined 2026-03-18)
+
+**Context:** Magic link auth caused friction in development (Mailpit setup, rate limits, PKCE code forwarding complexity in proxy) and in production (email deliverability, user confusion with magic link flow). Email + password is simpler for an internal training platform.
+
+**Decision:**
+- Switch from `signInWithOtp` (magic link) to `signInWithPassword` (email + password)
+- Add forgot password flow using PKCE pattern: `resetPasswordForEmail` → recovery email with token_hash → `/auth/confirm` (server-side verifyOtp) → `/auth/reset-password`
+- Remove `/auth/verify` page (no longer needed — no email confirmation step)
+- Remove PKCE code forwarding from `proxy.ts` (no longer needed)
+- Auth callback error redirects changed from `/auth/verify?error=X` to `/?error=X`
+- Login page now handles error display via `searchParams`
+- Existing magic-link-only users can use "Forgot password?" to set their initial password
+- Font changed from Geist to Inter across the app
+
+**Refinement (2026-03-18):**
+- Password reset was using implicit flow (hash fragment redirect `type=recovery`) which proxies/servers never see
+- Replaced with PKCE pattern: new `/auth/confirm` route validates token_hash server-side via `verifyOtp()`, then redirects
+- Recovery email template updated with `/auth/confirm?token_hash=...&type=recovery&next=/auth/reset-password` format
+- Removed AuthListener (implicit flow guard no longer needed)
+
+**Files changed:** `login-form.tsx`, `page.tsx`, `auth/callback/route.ts`, `auth/confirm/route.ts` (new), `supabase/templates/recovery.html` (new), `forgot-password-form.tsx`, proxy.ts, forgot-password and reset-password pages. Verify page deleted.
+
+---
+
+*Last updated: 2026-03-18 — Decision 29 refinement: PKCE pattern for password reset*

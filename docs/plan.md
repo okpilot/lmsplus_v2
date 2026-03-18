@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-16
+> Last updated: 2026-03-18
 
 ---
 
@@ -26,20 +26,20 @@
 
 ---
 
-## Status: SPRINT 3 — Dependency Updates (2026-03-16)
+## Status: SPRINT 3 — Dependency Updates (COMPLETE — 2026-03-17)
 
 **Goal:** Get all dependencies current before any new feature work.
 **Order:** Easy wins first, then big migrations.
 
 | Order | Issue | Title | Priority | Size | Status |
 |-------|-------|-------|----------|------|--------|
-| 1 | #210 | Bump GitHub Actions versions (checkout v6, setup-node v6, upload-artifact v7, codeql-action v4) | P1 | S | PR #216 |
-| 2 | #211 | Batch minor/patch npm updates (pnpm update) | P1 | S | Todo |
+| 1 | #210 | Bump GitHub Actions versions (checkout v6, setup-node v6, upload-artifact v7, codeql-action v4) | P1 | S | Done |
+| 2 | #211 | Batch minor/patch npm updates (pnpm update) | P1 | S | Done |
 | 3 | #215 | Dev tooling majors (commitlint 20, jsdom 29, @types/node 25) | P2 | M | Done |
 | 3b | #226 | Migrate vite 7→8 + @vitejs/plugin-react 5→6 (split from #215) | P2 | M | Done |
 | 4 | #214 | Migrate Lefthook 1→2 (breaking config change) | P2 | M | Done |
 | 5 | #213 | Migrate Biome 1→2 (breaking config change) | P1 | L | Done |
-| 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Todo |
+| 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Done |
 
 **Scope:** 2S + 3M + 2L
 **Context:** Dependabot opened 16 PRs on first run. GH Actions PR #194 merged. Remaining 15 closed — Dependabot can't regenerate pnpm-lock.yaml for monorepos. All updates will be done manually.
@@ -76,7 +76,7 @@
 
 ## SPRINT 1 COMPLETE — Quick Wins shipped
 
-**Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
+**Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui v4 (Base UI + oklch blue theme), git init. 3 commits on `master`.
 
 **Phase 2 done (2026-03-11):** Supabase setup complete:
 - `apps/web/.env.local` with all credentials (publishable key, secret key, access token)
@@ -107,11 +107,12 @@
   - `security-auditor` (sonnet) → pre-push via Lefthook, **blocking** on CRITICAL/HIGH findings
 - Agent memory dirs: `.claude/agent-memory/{code-reviewer,security-auditor,doc-updater,test-writer}/`
 
-**Phase 4 done (2026-03-11):** Student auth (magic link):
-- Login page at `/` with email input + Zod validation
-- Magic link via `supabase.auth.signInWithOtp()` → redirects to `/auth/verify`
-- Auth callback at `/auth/callback` — exchanges code for session, checks `users` table exists (pre-created by admin)
-- Unregistered users signed out + redirected to error page
+**Phase 4 done (2026-03-11, updated 2026-03-18):** Student auth (email + password):
+- Login page at `/` with email + password inputs, Zod validation, error display via `searchParams`
+- Email + password auth via `supabase.auth.signInWithPassword()`
+- Forgot password flow: `/auth/forgot-password` → reset email (PKCE) → `/auth/confirm` (verifyOtp) → `/auth/reset-password`
+- Auth callback at `/auth/callback` — exchanges code for session, checks `users` table
+- Unregistered users signed out + redirected to `/?error=not_registered`
 - Proxy (`proxy.ts`, Next.js 16 convention) protects all `/app/*` routes, refreshes session tokens, propagates auth cookies on redirects
 - Authenticated users auto-redirected from `/` to `/app/dashboard`
 - App layout with user display name + sign-out button
@@ -234,9 +235,8 @@
 **Local dev setup (2026-03-11, updated 2026-03-16):**
 - Local Supabase via `supabase start` (Docker) — all dev against local, never remote
 - `.env.local` → local keys (`localhost:54321`), `.env.remote` → backup of production keys
-- Mailpit at `http://localhost:54324` — catches all magic link emails locally
+- Mailpit at `http://localhost:54324` — catches password reset emails locally
 - Studio at `http://localhost:54323`
-- `scripts/dev-login.ts` — generates magic link via admin API (no email needed)
 - `scripts/import-questions.ts` — imports questions from JSON; refuses non-local URLs unless `--force-remote` flag passed
 - `scripts/seed-admin-eval.ts` — seeds admin/student users for manual eval; run after `npx supabase db reset`
 - 73 questions seeded locally (050-01-01 through 050-01-05)
@@ -261,10 +261,10 @@
 - Found + fixed real RLS bug: permissive ALL policies overrode no_update/no_delete (migration 005)
 - Test infra: `packages/db/src/__integration__/setup.ts` (helpers for user/org/question seeding + cleanup)
 
-**Phase 5B-4 done (2026-03-11):** E2E tests (Playwright):
-- Auth setup flow: magic link, OTP extraction, session persistence
+**Phase 5B-4 done (2026-03-11, updated 2026-03-17):** E2E tests (Playwright):
+- Auth setup flow: email + password login, session persistence
 - 10 E2E tests across 4 spec files: login flow, protected routes (5), quiz session, progress (2)
-- Mailpit helper (`e2e/helpers/mailpit.ts`): fetch latest email, extract magic link
+- Mailpit helper (`e2e/helpers/mailpit.ts`): fetch latest email, extract links (used for password reset)
 - Supabase helper (`e2e/helpers/supabase.ts`): ensure E2E test user exists in Egmont Aviation org
 - Playwright config: auth state caching, headless + headed modes, HTML reporter
 - Scripts: `pnpm e2e`, `pnpm e2e:ui`, `pnpm e2e:headed`
@@ -490,11 +490,11 @@ See `docs/database.md` for full SQL.
 - `src/schema.ts` — Zod validation schemas
 
 ### 2C. Auth setup
-- Supabase magic link configured
-- Email template customized
+- Supabase email + password auth configured
+- Email templates customized (password reset)
 - Redirect URLs configured:
   - **Site URL:** `https://lmsplus.app` (production)
-  - **Allowed redirects:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
+  - **Allowed redirects:** `https://lmsplus.app/auth/callback`, `https://lmsplus.app/auth/confirm`, `http://localhost:3000/auth/callback`, `http://localhost:3000/auth/confirm`
   - Configured via Supabase Management API (not config.toml — that's local dev only)
 
 ### 2D. Security baseline
@@ -542,9 +542,11 @@ Import ~3,000 questions from JSON into Supabase.
 ## Phase 4 — Student auth
 
 ### Pages
-- `/` — landing / login page
-- `/auth/callback` — magic link callback handler
-- `/auth/verify` — "check your email" page
+- `/` — landing / login page (email + password)
+- `/auth/callback` — auth callback handler (code exchange for login)
+- `/auth/confirm` — PKCE token exchange for password reset (verifyOtp)
+- `/auth/forgot-password` — forgot password form
+- `/auth/reset-password` — set new password after reset email
 
 ### Proxy (Next.js 16)
 `apps/web/proxy.ts` — protect all `/app/*` routes, redirect to login if not authenticated.
@@ -639,7 +641,7 @@ Weekly
 > Read docs/plan.md and build the question import tool (Phase 3). Propose the JSON format first, I'll confirm before you write any import code.
 
 **Start Phase 4:**
-> Read docs/plan.md and build student auth (Phase 4) — login page, magic link flow, auth callback, session middleware.
+> Read docs/plan.md and build student auth (Phase 4) — login page, email+password auth, auth callback, proxy.ts auth guard.
 
 **Start Phase 5:**
 > Read docs/plan.md and build the Question Bank Trainer (Phase 5), starting with the dashboard and quiz mode.
@@ -690,4 +692,4 @@ From setup audit (2026-03-11):
 
 ---
 
-*Last updated: 2026-03-16 — FSRS remnants removed (#113). Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks.*
+*Last updated: 2026-03-18 — FSRS remnants removed (#113). Sprint 4 (Dashboard v4 Redesign) planned with 22 items across remove/modify/new/backend tracks.*

@@ -29,17 +29,27 @@ The highest-value targets are:
 
 ## 2. Authentication & Sessions
 
-### Magic Link Only (MVP)
-- Supabase Auth handles token generation and expiry
-- No passwords stored — phishing-resistant by default
-- Magic link tokens expire after **1 hour** (configure in Supabase dashboard)
+### Email + Password Auth
+
+- Supabase Auth handles password hashing, session tokens, and expiry
+- Login via `signInWithPassword({ email, password })`
+- Forgot password via `resetPasswordForEmail()` → recovery email with PKCE token → `/auth/confirm` (verifyOtp server-side) → `/auth/reset-password`
+- Password minimum length: 6 characters (enforced by Zod on client, Supabase on server)
 - **Production domain:** `https://lmsplus.app`
-- **Allowed redirect URLs:** `https://lmsplus.app/auth/callback`, `http://localhost:3000/auth/callback`
+- **Allowed redirect URLs:** `https://lmsplus.app/auth/callback`, `https://lmsplus.app/auth/confirm`, `http://localhost:3000/auth/callback`, `http://localhost:3000/auth/confirm`
 - Auth redirect config lives in Supabase remote settings (Management API), NOT in `config.toml` (local dev only)
-- **PKCE flow:** Supabase sends `?code=` to `site_url` (root `/`). `proxy.ts` forwards only the `code` param to `/auth/callback` for exchange.
+
+### Auth Callback Guard Ordering
+
+When adding or modifying any branch in `apps/web/app/auth/callback/route.ts`, verify the full guard ordering before committing:
+1. All existence/registration checks (`getUser()`, `public.users` lookup) must execute **before** any branch-specific redirect.
+2. Any branch that fails after a session is established must call `signOut()` before redirecting.
+
+This rule exists because guard ordering errors have occurred twice (commits 83ae098, 5cc4109) — new branches were inserted above the profile gate, allowing orphaned auth users to bypass the `not_registered` check.
 
 ### Session Configuration (set in Supabase dashboard)
-```
+
+```text
 JWT expiry:           3600s (1 hour)
 Refresh token reuse:  Disabled (rotation enabled)
 Refresh token expiry: 7 days (sliding)
@@ -431,7 +441,8 @@ Configure in Supabase dashboard (Auth → Rate Limits):
 
 | Endpoint | Limit |
 |----------|-------|
-| Magic link send | 3 per hour per email |
+| Sign-in attempts | 30 per hour per IP |
+| Password reset | 3 per hour per email |
 | Token verification | 10 per hour per IP |
 
 Proxy-level limiting (add to `apps/web/proxy.ts`):
@@ -482,7 +493,7 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 
 | Event | Trigger |
 |-------|---------|
-| `student.login` | Successful magic link verification |
+| `student.login` | Successful email + password sign-in |
 | `quiz_session.started` | Student begins any quiz mode |
 | `quiz_session.completed` | Student finishes session (score recorded) |
 | `exam.started` | Mock exam begins |

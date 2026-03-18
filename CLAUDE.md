@@ -79,10 +79,10 @@ Before writing any code, validate the plan against the actual codebase. This is 
 - `.claude/rules/agent-*.md` — per-agent handling rules with DO/NEVER (binding)
 
 ## Stack
-- Next.js App Router (`apps/web/`) + Tailwind v4 + shadcn/ui
+- Next.js App Router (`apps/web/`) + Tailwind v4 + shadcn/ui v4 (Base UI, oklch colors)
 - Supabase (Postgres + Auth + Storage) — `packages/db/`
 - Biome for lint/format | Vitest for tests | Playwright for E2E
-- Magic link auth only
+- Email + password auth (not magic link)
 
 ## Commands
 ```bash

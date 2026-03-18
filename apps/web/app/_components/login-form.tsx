@@ -1,85 +1,125 @@
 'use client'
 
 import { createClient } from '@repo/db/client'
-import { useEffect, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
 import { z } from 'zod'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
-const EmailSchema = z.string().email('Please enter a valid email address')
+const LoginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
+})
 
-// Map known Supabase error messages to user-friendly text
 const FRIENDLY_AUTH_ERRORS: Record<string, string> = {
+  'Invalid login credentials': 'Invalid email or password.',
   'Email rate limit exceeded': 'Too many attempts. Please wait a moment and try again.',
-  'Unable to validate email address: invalid format': 'Please enter a valid email address.',
-  'Signups not allowed for otp': 'Unable to send sign-in link. Please try again.',
   'For security purposes, you can only request this once every 60 seconds':
-    'Please wait 60 seconds before requesting another link.',
+    'Please wait 60 seconds before trying again.',
 }
 
-export function LoginForm() {
-  const [email, setEmail] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [hydrated, setHydrated] = useState(false)
+type LoginFormProps = {
+  initialError?: string
+}
 
-  // SSR renders button disabled; enables after hydration so Playwright auto-waits
-  useEffect(() => setHydrated(true), [])
+export function LoginForm({ initialError }: LoginFormProps) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState<string | null>(initialError ?? null)
+  const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
 
-    const result = EmailSchema.safeParse(email)
+    const result = LoginSchema.safeParse({ email, password })
     if (!result.success) {
-      setError(result.error.issues[0]?.message ?? 'Invalid email')
+      setError(result.error.issues[0]?.message ?? 'Invalid input')
       return
     }
 
     setLoading(true)
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithOtp({
-      email: result.data,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    })
-    setLoading(false)
+    try {
+      const supabase = createClient()
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: result.data.email,
+        password: result.data.password,
+      })
 
-    if (authError) {
-      setError(
-        FRIENDLY_AUTH_ERRORS[authError.message] ?? 'Unable to send sign-in link. Please try again.',
-      )
+      if (authError) {
+        setError(FRIENDLY_AUTH_ERRORS[authError.message] ?? 'Unable to sign in. Please try again.')
+        return
+      }
+    } catch {
+      setError('Unable to sign in. Please try again.')
       return
+    } finally {
+      setLoading(false)
     }
 
-    window.location.href = '/auth/verify'
+    window.location.href = '/app/dashboard'
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full space-y-4">
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-foreground">
-          Email address
-        </label>
-        <input
+    <form noValidate onSubmit={handleSubmit} className="w-full space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="email">Email address</Label>
+        <Input
           id="email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@flightschool.com"
           required
-          // biome-ignore lint/a11y/noAutofocus: login email is the primary action
           autoFocus
-          className="mt-1.5 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            required
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Link
+          href="/auth/forgot-password"
+          className="text-sm text-muted-foreground hover:text-primary"
+        >
+          Forgot password?
+        </Link>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={!hydrated || loading}
-        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {loading ? 'Sending link...' : 'Send magic link'}
-      </button>
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? 'Signing in...' : 'Sign in'}
+      </Button>
+
+      <p className="text-center text-sm text-muted-foreground">
+        Don&apos;t have an account? Contact your administrator.
+      </p>
     </form>
   )
 }

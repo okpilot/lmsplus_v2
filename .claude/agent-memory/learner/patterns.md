@@ -68,7 +68,7 @@
 | Hard DELETE in test/spec cleanup code | 1 | 2026-03-14 | Watch — session-race-condition.spec.ts (a396438/a1335ff) used hard DELETE in a `afterAll` cleanup block instead of soft-delete; test code is exempt from the application-level soft-delete rule (it is seeding/cleanup, not student data), but for security-sensitive red-team specs the pattern of writing hard DELETEs is a habit that can accidentally propagate to production code; first occurrence; acceptable in test cleanup only — document the exception if flagged again |
 | Red-team spec written against wrong schema column or RPC signature | 2 | 2026-03-14 | Watch — first: multiple specs in f278d5c used wrong column names (e.g. wrong foreign key column), wrong RPC parameter names, and wrong table names; second: a396438 + a1335ff required further alignment of RPC signatures and schema assertions; distinct from "test fixture shape mismatch" (that is TypeScript type mismatch — this is SQL/RPC API mismatch in Playwright E2E); both caught pre-merge by CI failures; root cause: red-team specs are written speculatively from memory of the schema rather than reading actual migration files; if a third spec ships with wrong schema references, add a rule to the red-team agent: always read the relevant migration file before writing DB assertions |
 | Test spec encodes a security gap as a passing assertion | 1 | 2026-03-14 | Watch — session-race-condition.spec.ts (a1335ff) had a test that asserted the race condition response was acceptable/expected, effectively baking the security gap into the passing baseline rather than asserting the gap does not exist; semantic-reviewer flagged this as an ISSUE: a test that passes because it accepts wrong behavior is worse than a failing test; first occurrence; the correct form for a security spec is: assert the hardened behavior, fail if the unguarded path succeeds |
-| Stale cookie from partial auth flow (session set before guard check, not cleaned up on guard failure) | 1 | 2026-03-14 | Watch — auth callback (83ae098 → 08abee0): exchangeCodeForSession set session cookie before users-table check; if users check failed, signOut() was not called before redirecting to auth_failed; fixed in 08abee0; any multi-step auth flow where session is set before all guards run must call signOut() on all post-session failure paths; first occurrence |
+| Auth callback guard ordering error (guards run in wrong order, allowing bypass) | 2 | 2026-03-17 | RULE CANDIDATE — first (83ae098 → 08abee0, 2026-03-14): exchangeCodeForSession set session cookie before users-table check; if users check failed, signOut() was not called; second (5cc4109 → 47df5cf, 2026-03-17): recovery branch placed before profile-existence gate, allowing orphaned auth users to bypass not_registered check via password reset; both fixed in follow-up commits; root cause: multi-step auth callback branches are added without auditing the full ordering of guards; rule candidate: when any new branch is added to the auth callback, the ordering of all guards must be verified — session actions always precede existence/registration checks, and all post-session failure paths must call signOut() before redirecting |
 | useMemo with empty deps used as stability guarantee (should be useRef) | 1 | 2026-03-14 | Watch — use-quiz-state.ts (1b38542 → fixed 9ea234b): initial fix used `useMemo(() => value, [])` to snapshot mount-time value; semantic-reviewer correctly flagged that useMemo is a performance hint whose result is not guaranteed stable in concurrent mode; correct tool is useRef; first occurrence; if a second component uses useMemo with empty deps to capture a mount-time constant, add a note to code-style.md Section 2 or 6 about the distinction |
 | test-writer generates deprecated vi.fn generic syntax (two-arg form) | 2 | 2026-03-15 | RULE ADDED — first: use-session-state.test.ts (9ea234b, 2026-03-14); second: session-operations.test.ts (69273cf, 2026-03-15); both required orchestrator correction before type-check passed; correct form is `vi.fn<(arg: A) => R>()` (single function-type argument, Vitest v4); test-writer patterns.md updated with explicit rule and code examples; stale wrong-syntax example on line 238 also corrected |
 | ZodError escaping Server Action with typed error return type (parse() without try/catch) | 1 | 2026-03-15 | Watch — checkAnswer called CheckAnswerSchema.parse(raw) without try/catch; ZodError propagated as unhandled exception instead of returning typed { success: false } response (199e927); fixed with try/catch returning typed error shape; first occurrence; distinct from "Server Action without Zod validation" (that is missing validation — this is validation present but exceptions escaping the return-type contract) |
@@ -93,9 +93,123 @@
 | SECURITY DEFINER RPC input array not validated against caller-owned records | 1 | 2026-03-16 | Watch — f1f6c32/7029f4e (fix/45-remove-answer-keys-from-test): get_student_questions RPC accepted p_question_ids from caller without verifying those IDs belonged to the caller's session; fixed in 7029f4e/1f76a7b by deriving question set from session answers rather than trusting caller input; distinct from "Query missing student_id scope" (that is a missing WHERE clause on a SELECT — this is an RPC SECURITY DEFINER trusting a caller-supplied array without cross-checking ownership against session state); rule already in security.md covers auth.uid() identity check but not input array ownership validation; first occurrence |
 | TypeScript type cast used as data-stripping mechanism (answer key exposure) | 1 | 2026-03-16 | Watch — f1f6c32 (fix/45-remove-answer-keys-from-test): correct field present on runtime object cast to QuestionForStudent type; TypeScript type does not exclude the field at runtime — only explicit SQL SELECT projection or object spread omitting the field strips it; directly violates security.md rule 1 (correct answers must be stripped server-side); fixed by moving answer-key stripping into the RPC SELECT list; distinct from "Type cast bypassing runtime validation" (that is about missing runtime guards on cast data — this is about using a type cast as a security boundary for data stripping, which provides zero runtime protection); first occurrence |
 | RPC `.rpc()` call result not destructured for error (silent swallow on RPC failure) | 1 | 2026-03-16 | Watch — f1f6c32 (fix/45-remove-answer-keys-from-test): supabase.rpc() call result was not destructured for { error }; existing code-style.md Section 5 rule covers .insert/.update/.delete/.upsert mutations; .rpc() calls are semantically equivalent — any Supabase client call that can fail must destructure { data, error }; fixed in 7029f4e; first occurrence as a named gap in the rule's coverage; if a second .rpc() call ships without error destructuring, extend the code-style.md rule to explicitly list .rpc() alongside mutation methods |
+| `NextResponse.redirect()` dropping cookies set via `cookies()` API in Route Handler | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): verifyOtp wrote session cookies via Supabase cookies() API; NextResponse.redirect() does not carry those cookies to the browser — cookies set via the Next.js cookies() API only flow through responses built by the framework's own redirect() helper; fixed by switching to `redirect()` from `next/navigation`; applies to any Route Handler that mutates cookies (auth, session, etc.) and then redirects — always use next/navigation `redirect()` or copy cookies onto the NextResponse manually; first occurrence |
+| `{{ .RedirectTo }}` in Supabase email templates passes full URL, not pathname | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): Supabase passes the full absolute URL (e.g. `http://localhost:3000/auth/reset-password`) as the `next` query param when `{{ .RedirectTo }}` is used in email templates; if code naively appends this to a base URL, the full URL becomes a path segment and doubles the origin; fixed by extracting `.pathname` from a `new URL(next)` call before appending; applies to any code that reads a `next` param arriving from a Supabase email template redirect; first occurrence |
+| Supabase `updateUser` returns 422 when new password matches current password | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): E2E reset-password spec tried to reset to the same password the account already had; Supabase auth API returns HTTP 422 with no explicit error message, causing a confusing test failure; fixed by using a distinct password value in E2E tests and by handling 422 in the UI with a user-facing error message; applies to any E2E test covering the password reset flow — always reset to a value different from the current one; also applies to the reset-password UI, which should handle 422 distinctly from other errors; first occurrence |
+| Open redirect via unvalidated `next` param in Route Handler | 1 | 2026-03-18 | Watch — ca5bbd5 (feat/174-login-redesign): /auth/confirm accepted any `next` query param and redirected to it without validation; a crafted link could redirect users to arbitrary internal paths (e.g. `/app/admin`); fixed by validating `next` against an explicit allowlist (only `/auth/reset-password` permitted); applies to any Route Handler or Server Action that reads a redirect target from query params or form input — always validate against an allowlist before redirecting; semantic-reviewer caught this as an ISSUE; first occurrence as a named pattern |
 | Security fix requiring multiple rounds due to incomplete self-defending audit | 1 | 2026-03-16 | Watch — fix/45-remove-answer-keys-from-test (f1f6c32 → 7029f4e → 1f76a7b): branch required 3 semantic-reviewer rounds because each fix addressed the flagged issue but not the adjacent gap it exposed; round 1: correct field in runtime object; round 2: RPC not session-scoped; round 3: p_question_ids not validated against session; root cause: security fixes to SECURITY DEFINER RPCs were applied narrowly (one gap at a time) rather than with a full self-defending audit (ownership check, input validation, output projection, error handling all verified together); first occurrence; when any SECURITY DEFINER RPC is modified, audit all four axes before committing: (1) auth.uid() identity check present, (2) input arrays validated against owned records, (3) output SELECT excludes sensitive fields explicitly, (4) result destructured for error |
 
 ## Lessons Learned
+
+### 2026-03-18 — feat/174-login-redesign fix cycle (commit 610e358)
+
+**Context:** Post-CodeRabbit fix commit on PR #262. Extracted `ResetSuccess` sub-component from `reset-password-form.tsx` (to get the file under the 150-line component limit) and fixed a markdown blank-line issue in `decisions.md`. Three source files changed: reset-password-form.tsx (shrunk by 17 lines), new reset-success.tsx (15 lines), decisions.md (+1 line).
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean.
+
+**Doc updater:** No documentation updates needed. Clean.
+
+**Test writer:** No new tests needed. Existing `reset-password-form.test.tsx` covers `ResetSuccess` via the integration test path (the parent form test renders the component end-to-end including the success state). Clean.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE. 1 SUGGESTION — recovery cookie may linger if the user closes the browser on the success screen without clicking the login link. Non-blocking and suggestion-level only; the cookie is short-lived (session-scoped) and the reset-password page already gates behind it. No action required.
+
+**Pattern analysis:**
+
+No new patterns. No frequency table rows updated. The component-split extraction is the expected mechanical fix for a file-size violation — code-reviewer caught the limit approach, CodeRabbit flagged it externally, and the fix commit is clean on all four agents on the first pass. This is the system working correctly.
+
+One observation worth noting: the `ResetSuccess` extraction was driven by an external CodeRabbit finding rather than being caught by the internal code-reviewer at the time of the original commit. The original commit's file sat within the 150-line limit at authoring time but the reviewer rounds (fixes, formatting) pushed it over. This is the same mechanism as "Biome auto-format expanding compact code past file-size limit" (row 50) — post-authoring transformations (here: successive small edits across a review cycle rather than Biome formatting) can push a file over its limit in a way that is invisible at authoring time. Count for that pattern does not increase (different mechanism: incremental edits vs. Biome format pass) but the shared root cause is worth noting.
+
+**Actions taken:**
+- No frequency table changes. All findings are clean or single-occurrence patterns already logged.
+- Suggestion about lingering recovery cookie logged in this lesson entry. Not a new frequency table row — it is a suggestion-level finding, not a repeat of an existing pattern, and the risk is bounded by cookie lifetime.
+
+**No rule changes applied this cycle.** All agents clean on first pass. System is working as designed.
+
+**False positives:** none.
+
+**Positive signals:**
+- All four agents clean on a fix commit — the mechanical extraction of a sub-component is a well-understood, low-risk refactor. Pipeline correctly produced no noise.
+- Test-writer correctly identified that the existing integration test covers the extracted component without needing a new test file. This avoids a duplicate-coverage antipattern.
+- The recovery cookie suggestion from semantic-reviewer is correctly categorised as suggestion-level (not ISSUE): the risk is bounded, the UX path is short-lived, and the existing gate already prevents re-entry. No false negative in the reviewer's severity assignment.
+
+---
+
+### 2026-03-18 — feat/174-login-redesign (commits ce47d5b, 738eb43, ca5bbd5, 11a36af)
+
+**Context:** Login page redesign + PKCE-based password reset flow. New /auth/confirm Route Handler (OTP verification + redirect). Supabase email template updated to pass `{{ .RedirectTo }}`. E2E spec added for full password reset flow.
+
+**Code reviewer:** clean — 0 blocking, 0 warnings across all commits.
+
+**Doc updater:** decisions.md (Decision 29 added), security.md (open redirect prevention noted), plan.md (progress updated). All committed in 11a36af. No drift.
+
+**Test writer:** comprehensive — 7 unit tests for confirm route, 6 for forgot-password form, 6 for reset-password form, 8 for callback, 6 for page, 5 E2E tests for full password reset flow. No gaps found.
+
+**Semantic reviewer:** 0 CRITICAL, 3 ISSUE, 2 SUGGESTION, 5 GOOD. All 3 ISSUEs were real. Two of the three ISSUEs are the same root cause (URL handling) described from different angles; they share one fix commit (738eb43).
+
+1. **Open redirect via unvalidated `next` param — ISSUE, real, fixed in ca5bbd5.** /auth/confirm accepted any value in the `next` query param and redirected to it without validation. A crafted PKCE confirmation link could silently redirect users to unintended internal paths. Fixed by validating `next` against an explicit allowlist. First occurrence as a named pattern — log and watch.
+
+2. **Full URL doubling when `{{ .RedirectTo }}` passes absolute URL — ISSUE, real, fixed in 738eb43.** Supabase email templates inject the full origin+pathname into `{{ .RedirectTo }}`; naively appending this to a base URL doubles the origin. Fixed by extracting `.pathname` via `new URL(next)` before using the value. First occurrence — log and watch.
+
+3. **`NextResponse.redirect()` dropping cookies from cookies() API — ISSUE, real, fixed in 738eb43.** verifyOtp wrote session cookies via Next.js cookies() API; NextResponse.redirect() does not carry those cookies to the browser. Switching to `redirect()` from `next/navigation` preserves the cookie store. First occurrence — log and watch.
+
+**Pattern analysis:**
+
+- All three ISSUEs are first occurrences. No existing frequency table rows are promoted this cycle. All four new rows added to the frequency table are single-occurrence watch items.
+- The two Supabase-specific patterns (#2 and #3 above) are framework-level gotchas that are non-obvious and not documented in any existing rule. If either recurs, a note in `docs/security.md` or `code-style.md` Section 6 is warranted.
+- The open redirect pattern (#1) is already covered by the general principle "never trust client input" (security.md rule 4 — Zod validates data, same principle applies to redirect targets). No new rule needed at count 1.
+
+**Actions taken:**
+- Frequency table: 4 new watch rows added (NextResponse cookie drop, full URL doubling, Supabase 422 same-password, open redirect via next param). All at count 1 — log and watch only, no rule changes.
+
+**No rule changes applied this cycle** — all patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** none detected. All 3 semantic-reviewer ISSUEs were confirmed real.
+
+**Positive signals:**
+- All 3 ISSUEs caught and fixed before the branch is pushed — semantic-reviewer gate functioning correctly.
+- Code reviewer clean across all commits in this login redesign cycle — no mechanical violations introduced.
+- Comprehensive test coverage written in the same cycle: unit tests for every new route + E2E for the full flow. Test-writer found no gaps.
+- The three-fix convergence (ce47d5b → 738eb43 → ca5bbd5) is tight and purposeful — each commit addresses a distinct, independently verifiable issue.
+
+---
+
+### 2026-03-17 — feat/auth-email-password (commits 5cc4109, 47df5cf)
+
+**Context:** Auth mechanism switched from magic link to email+password. New pages: forgot-password, reset-password. Auth callback updated with recovery branch. Fix commit 47df5cf addressed a guard ordering ISSUE found by semantic-reviewer, cleaned up stale magic link docs, and added missing page.tsx tests.
+
+**Code reviewer:** clean — 0 blocking, 0 warnings.
+
+**Doc updater:** stale magic link references in `docs/plan.md` — fixed in 47df5cf. No other doc drift. Correct behavior: doc update committed in the same cycle as the triggering change.
+
+**Test writer:** missing tests for `apps/web/app/page.tsx` (login page error-mapping behavior) — 8 tests written and added in 47df5cf. This is another instance of a new or significantly modified page/component shipping without co-located tests.
+
+**Semantic reviewer:** 3 findings.
+
+1. **Recovery branch bypassing profile check — ISSUE, real, fixed in 47df5cf.** Recovery branch was positioned before the profile-existence gate, allowing orphaned Supabase Auth users (account created but no `users` table row) to bypass `not_registered` check via password reset. Fixed by moving recovery handling to after the profile gate. This is the second auth-callback guard ordering error across different commits (first: 83ae098 — session cookie set before users-table check). Pattern count now at 2 — meets RULE CANDIDATE threshold. Updated frequency table accordingly.
+
+2. **`window.location.origin` in forgot-password `redirectTo` — FALSE POSITIVE.** Semantic-reviewer flagged this as a potential SSR issue, but the form is a client component (`'use client'`), so `window` is always available at call time. The same pattern was present and accepted in the old magic link code. Recorded as a false positive.
+
+3. **`student.login` audit event not emitted — PRE-EXISTING GAP, not introduced by this commit.** Audit logging for login was never implemented under magic link auth either. This is a known coverage gap, not a regression. Not tracked as a new pattern — pre-existing state, no action.
+
+**Pattern analysis:**
+
+- Auth callback guard ordering (row updated, count 2): second occurrence across different commits. RULE CANDIDATE. Proposed rule: when any branch is added to the auth callback, verify the full guard ordering — all existence/registration checks must precede branch-specific actions, and all post-session failure paths must call `signOut()` before redirecting.
+- Missing tests for modified page (recurring, existing watch item "New hook file extracted without shipping tests"): page.tsx tests were missing from 5cc4109. Caught by test-writer and fixed in same cycle. No new rule change warranted — existing rule (code-style.md Section 7) covers this. The compliance gap at authoring time persists.
+- False positive logged: `window.location.origin` in client component `redirectTo` — not an SSR issue when component is `'use client'`.
+
+**Actions taken:**
+- Frequency table row 71 updated: "Auth callback guard ordering error" count raised to 2, status changed to RULE CANDIDATE, description expanded to cover both occurrences.
+- False positive logged in this lesson entry. Not added to frequency table (false positives do not count as pattern recurrences).
+- Pre-existing audit gap noted. Not added to frequency table (not introduced by this commit).
+
+**No rule changes applied this cycle** — RULE CANDIDATE for auth callback guard ordering requires orchestrator decision before being written into `docs/security.md` or `CLAUDE.md`. Proposed text: "When adding or modifying any branch in the auth callback, verify the full guard ordering before committing: (1) all existence/registration checks execute before branch-specific session actions, (2) any branch that fails after a session is established must call `signOut()` before redirecting."
+
+**Positive signals:**
+- Single fix commit (47df5cf) covered all three outputs: ISSUE fix + doc cleanup + test addition. No deferred work.
+- Guard ordering bug was caught by semantic-reviewer and fixed in the same session — did not reach production.
+- Code reviewer clean across both commits — no mechanical violations introduced in a large new-feature commit.
+
+---
 
 ### 2026-03-16 — fix/45-remove-answer-keys-from-test (commits f1f6c32, 7029f4e, 1f76a7b)
 

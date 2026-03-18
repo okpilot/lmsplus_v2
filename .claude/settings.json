@@ -1,25 +1,4 @@
 {
-  "mcpServers": {
-    "supabase": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@supabase/mcp-server-supabase",
-        "--access-token",
-        "${SUPABASE_ACCESS_TOKEN}",
-        "--project-ref",
-        "uepvblipahxizozxvwjn"
-      ]
-    },
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"]
-    },
-    "shadcn": {
-      "command": "npx",
-      "args": ["-y", "shadcn@latest", "mcp"]
-    }
-  },
   "hooks": {
     "PreToolUse": [
       {

@@ -4,13 +4,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LoginForm } from './login-form'
 
 // Mock the Supabase client module
-const mockSignInWithOtp = vi.fn()
+const mockSignInWithPassword = vi.fn()
 vi.mock('@repo/db/client', () => ({
   createClient: () => ({
     auth: {
-      signInWithOtp: mockSignInWithOtp,
+      signInWithPassword: mockSignInWithPassword,
     },
   }),
+}))
+
+// Mock next/link to render a plain <a>
+vi.mock('next/link', () => ({
+  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }))
 
 // jsdom's window.location is not fully writable, so we track href via a custom getter/setter.
@@ -34,151 +43,138 @@ describe('LoginForm', () => {
     assignedHrefs.length = 0
   })
 
-  it('renders an email input and a submit button', () => {
+  it('renders email and password inputs with a submit button', () => {
     render(<LoginForm />)
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /send magic link/i })).toBeInTheDocument()
-  })
-
-  it('enables the submit button after hydration completes', () => {
-    // The component uses a useEffect to set hydrated=true after mount.
-    // @testing-library/react wraps render() in act(), which flushes all effects
-    // synchronously, so the button must be enabled by the time render() returns.
-    render(<LoginForm />)
-    expect(screen.getByRole('button', { name: /send magic link/i })).not.toBeDisabled()
+    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
   })
 
   it('shows a validation error when submitting with an invalid email', async () => {
-    const user = userEvent.setup()
     render(<LoginForm />)
-
-    await user.type(screen.getByLabelText(/email address/i), 'not-an-email')
-    // Use fireEvent.submit to bypass jsdom's type="email" constraint validation
-    // (we're testing our Zod validation, not browser built-in validation)
-    // Form element guaranteed to exist — button is inside the form we rendered
-    const form = screen
-      .getByRole('button', { name: /send magic link/i })
-      .closest('form') as HTMLFormElement
+    const form = screen.getByRole('button', { name: /sign in/i }).closest('form') as HTMLFormElement
+    const emailInput = screen.getByLabelText(/email address/i)
+    await userEvent.setup().type(emailInput, 'not-an-email')
     fireEvent.submit(form)
 
     expect(await screen.findByText(/please enter a valid email address/i)).toBeInTheDocument()
-    expect(mockSignInWithOtp).not.toHaveBeenCalled()
+    expect(mockSignInWithPassword).not.toHaveBeenCalled()
   })
 
-  it('shows a validation error when submitting an empty email field', async () => {
-    const user = userEvent.setup()
+  it('shows a validation error when password is empty', async () => {
     render(<LoginForm />)
-
-    // Type then clear so the field is empty; use fireEvent.submit to bypass
-    // jsdom's type="email" + required constraint (same approach as the invalid-email test above)
-    const input = screen.getByLabelText(/email address/i)
-    await user.type(input, 'a')
-    await user.clear(input)
-    const form = screen
-      .getByRole('button', { name: /send magic link/i })
-      .closest('form') as HTMLFormElement
+    const form = screen.getByRole('button', { name: /sign in/i }).closest('form') as HTMLFormElement
+    const emailInput = screen.getByLabelText(/email address/i)
+    await userEvent.setup().type(emailInput, 'pilot@example.com')
     fireEvent.submit(form)
 
-    // Zod .email() rejects an empty string — verify the error is shown in the DOM
-    expect(await screen.findByText(/please enter a valid email address/i)).toBeInTheDocument()
-    expect(mockSignInWithOtp).not.toHaveBeenCalled()
+    expect(await screen.findByText(/password is required/i)).toBeInTheDocument()
+    expect(mockSignInWithPassword).not.toHaveBeenCalled()
   })
 
-  it('calls Supabase signInWithOtp with the entered email', async () => {
-    mockSignInWithOtp.mockResolvedValue({ error: null })
+  it('calls signInWithPassword with email and password on valid submit', async () => {
+    mockSignInWithPassword.mockResolvedValue({ error: null })
     const user = userEvent.setup()
     render(<LoginForm />)
 
     await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send magic link/i }))
+    await user.type(screen.getByLabelText(/^password$/i), 'secret123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() => {
-      expect(mockSignInWithOtp).toHaveBeenCalledWith(
-        expect.objectContaining({ email: 'pilot@example.com' }),
-      )
+      expect(mockSignInWithPassword).toHaveBeenCalledWith({
+        email: 'pilot@example.com',
+        password: 'secret123',
+      })
     })
   })
 
-  it('includes the auth callback redirect URL in the OTP options', async () => {
-    mockSignInWithOtp.mockResolvedValue({ error: null })
+  it('redirects to /app/dashboard after successful sign-in', async () => {
+    mockSignInWithPassword.mockResolvedValue({ error: null })
     const user = userEvent.setup()
     render(<LoginForm />)
 
     await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send magic link/i }))
+    await user.type(screen.getByLabelText(/^password$/i), 'secret123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() => {
-      expect(mockSignInWithOtp).toHaveBeenCalledWith(
-        expect.objectContaining({
-          options: expect.objectContaining({
-            emailRedirectTo: expect.stringContaining('/auth/callback'),
-          }),
-        }),
-      )
+      expect(assignedHrefs).toContain('/app/dashboard')
     })
   })
 
-  it('shows a loading state while the OTP request is in flight', async () => {
-    // Never resolves so we can inspect the loading state mid-request
-    mockSignInWithOtp.mockReturnValue(new Promise(() => {}))
+  it('shows a loading state while the sign-in request is in flight', async () => {
+    mockSignInWithPassword.mockReturnValue(new Promise(() => {}))
     const user = userEvent.setup()
     render(<LoginForm />)
 
     await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send magic link/i }))
+    await user.type(screen.getByLabelText(/^password$/i), 'secret123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
 
-    expect(await screen.findByRole('button', { name: /sending link/i })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: /signing in/i })).toBeDisabled()
   })
 
-  it('redirects to /auth/verify after a successful OTP request', async () => {
-    mockSignInWithOtp.mockResolvedValue({ error: null })
+  it('maps "Invalid login credentials" to a friendly error', async () => {
+    mockSignInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } })
     const user = userEvent.setup()
     render(<LoginForm />)
 
     await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send magic link/i }))
+    await user.type(screen.getByLabelText(/^password$/i), 'wrong')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(await screen.findByText(/invalid email or password/i)).toBeInTheDocument()
+  })
+
+  it('shows a generic fallback for unknown auth errors', async () => {
+    mockSignInWithPassword.mockResolvedValue({ error: { message: 'Something unexpected' } })
+    const user = userEvent.setup()
+    render(<LoginForm />)
+
+    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'test')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(await screen.findByText(/unable to sign in/i)).toBeInTheDocument()
+  })
+
+  it('re-enables the submit button after a failed sign-in', async () => {
+    mockSignInWithPassword.mockResolvedValue({ error: { message: 'fail' } })
+    const user = userEvent.setup()
+    render(<LoginForm />)
+
+    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'test')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() => {
-      expect(assignedHrefs).toContain('/auth/verify')
+      expect(screen.getByRole('button', { name: /sign in/i })).not.toBeDisabled()
     })
   })
 
-  it('shows a friendly fallback when the OTP request fails with an unknown error', async () => {
-    mockSignInWithOtp.mockResolvedValue({ error: { message: 'Rate limit exceeded' } })
+  it('toggles password visibility when clicking the eye icon', async () => {
     const user = userEvent.setup()
     render(<LoginForm />)
 
-    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send magic link/i }))
+    const passwordInput = screen.getByLabelText(/^password$/i)
+    expect(passwordInput).toHaveAttribute('type', 'password')
 
-    expect(await screen.findByText(/unable to send sign-in link/i)).toBeInTheDocument()
-    expect(assignedHrefs).toHaveLength(0)
+    await user.click(screen.getByRole('button', { name: /show password/i }))
+    expect(passwordInput).toHaveAttribute('type', 'text')
+
+    await user.click(screen.getByRole('button', { name: /hide password/i }))
+    expect(passwordInput).toHaveAttribute('type', 'password')
   })
 
-  it('shows a mapped friendly message for a known Supabase error', async () => {
-    mockSignInWithOtp.mockResolvedValue({
-      error: { message: 'Email rate limit exceeded' },
-    })
-    const user = userEvent.setup()
-    render(<LoginForm />)
-
-    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send magic link/i }))
-
-    expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument()
-    expect(assignedHrefs).toHaveLength(0)
+  it('displays initialError prop when provided', () => {
+    render(<LoginForm initialError="Your account is not registered." />)
+    expect(screen.getByText('Your account is not registered.')).toBeInTheDocument()
   })
 
-  it('re-enables the submit button after a failed OTP request', async () => {
-    mockSignInWithOtp.mockResolvedValue({ error: { message: 'Something went wrong' } })
-    const user = userEvent.setup()
+  it('renders a "Forgot password?" link to /auth/forgot-password', () => {
     render(<LoginForm />)
-
-    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
-    await user.click(screen.getByRole('button', { name: /send magic link/i }))
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /send magic link/i })).not.toBeDisabled()
-    })
+    const link = screen.getByRole('link', { name: /forgot password/i })
+    expect(link).toHaveAttribute('href', '/auth/forgot-password')
   })
 })
