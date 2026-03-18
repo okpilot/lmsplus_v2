@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { proxy } from './proxy'
 
 const mockGetUser = vi.fn()
+const mockFrom = vi.fn()
 
 // A plain object that stands in for the session-refreshed supabase NextResponse
 const MOCK_SESSION_RESPONSE = {
@@ -27,6 +28,7 @@ vi.mock('@repo/db/middleware', () => ({
   createMiddlewareSupabaseClient: () => ({
     supabase: {
       auth: { getUser: mockGetUser },
+      from: mockFrom,
     },
     response: MOCK_SESSION_RESPONSE,
   }),
@@ -34,6 +36,20 @@ vi.mock('@repo/db/middleware', () => ({
 
 function makeRequest(pathname: string, base = 'http://localhost:3000') {
   return new NextRequest(new URL(pathname, base))
+}
+
+function buildChain(returnValue: unknown) {
+  const awaitable = {
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+      Promise.resolve(returnValue).then(resolve, reject),
+  }
+  return new Proxy(awaitable as Record<string, unknown>, {
+    get(target, prop) {
+      if (prop === 'then') return target.then
+      return (..._args: unknown[]) => buildChain(returnValue)
+    },
+  })
 }
 
 describe('proxy', () => {
@@ -152,6 +168,8 @@ describe('proxy', () => {
 
     expect(response.status).toBe(307)
     expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/auth/reset-password')
+    const setCookie = response.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('sb-token=refreshed')
   })
 
   it('lets authenticated users stay on / when error query param is present', async () => {
@@ -161,5 +179,41 @@ describe('proxy', () => {
 
     // Should NOT redirect to dashboard — error param must be shown on login page
     expect(response).toBe(MOCK_SESSION_RESPONSE)
+  })
+
+  it('passes an admin user through to /app/admin routes', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }))
+
+    const response = await proxy(makeRequest('/app/admin/syllabus'))
+
+    expect(response).toBe(MOCK_SESSION_RESPONSE)
+  })
+
+  it('returns 403 for a non-admin user accessing /app/admin routes', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
+
+    const response = await proxy(makeRequest('/app/admin/syllabus'))
+
+    expect(response.status).toBe(403)
+  })
+
+  it('returns 503 when the admin role lookup fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+      mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection reset' } }))
+
+      const response = await proxy(makeRequest('/app/admin/syllabus'))
+
+      expect(response.status).toBe(503)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[proxy] admin role lookup error:',
+        'connection reset',
+      )
+    } finally {
+      consoleSpy.mockRestore()
+    }
   })
 })
