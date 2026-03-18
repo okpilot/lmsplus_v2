@@ -21,6 +21,16 @@ vi.mock('next/navigation', () => ({
   },
 }))
 
+const mockCookieSet = vi.fn()
+const mockCookieDelete = vi.fn()
+vi.mock('next/headers', () => ({
+  cookies: async () => ({
+    set: mockCookieSet,
+    delete: mockCookieDelete,
+    getAll: () => [],
+  }),
+}))
+
 function makeRequest(url: string) {
   return new NextRequest(url)
 }
@@ -101,6 +111,38 @@ describe('GET /auth/confirm', () => {
     ).rejects.toThrow('NEXT_REDIRECT:/')
 
     expect(mockRedirect).toHaveBeenCalledWith('/')
+  })
+
+  it('sets __recovery_pending cookie when type is recovery', async () => {
+    mockVerifyOtp.mockResolvedValue({ error: null })
+
+    await expect(
+      GET(
+        makeRequest(
+          'http://localhost:3000/auth/confirm?token_hash=abc123&type=recovery&next=/auth/reset-password',
+        ),
+      ),
+    ).rejects.toThrow('NEXT_REDIRECT')
+
+    expect(mockCookieSet).toHaveBeenCalledWith(
+      '__recovery_pending',
+      '1',
+      expect.objectContaining({ httpOnly: true, maxAge: 600 }),
+    )
+  })
+
+  it('does not set __recovery_pending cookie for non-recovery types', async () => {
+    mockVerifyOtp.mockResolvedValue({ error: null })
+
+    await expect(
+      GET(
+        makeRequest(
+          'http://localhost:3000/auth/confirm?token_hash=abc123&type=signup&next=/auth/reset-password',
+        ),
+      ),
+    ).rejects.toThrow('NEXT_REDIRECT')
+
+    expect(mockCookieSet).not.toHaveBeenCalled()
   })
 
   it('rejects disallowed next paths and falls back to /', async () => {

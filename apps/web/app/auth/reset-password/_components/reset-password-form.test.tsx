@@ -4,12 +4,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ResetPasswordForm } from './reset-password-form'
 
 const mockUpdateUser = vi.fn()
+const mockSignOut = vi.fn().mockResolvedValue({})
 vi.mock('@repo/db/client', () => ({
   createClient: () => ({
     auth: {
       updateUser: mockUpdateUser,
+      signOut: mockSignOut,
     },
   }),
+}))
+
+const mockClearRecoveryCookie = vi.fn().mockResolvedValue(undefined)
+vi.mock('../actions', () => ({
+  clearRecoveryCookie: () => mockClearRecoveryCookie(),
 }))
 
 vi.mock('next/link', () => ({
@@ -75,7 +82,7 @@ describe('ResetPasswordForm', () => {
     expect(mockUpdateUser).not.toHaveBeenCalled()
   })
 
-  it('calls updateUser with matching passwords and redirects to dashboard', async () => {
+  it('shows success confirmation with login link after password update', async () => {
     mockUpdateUser.mockResolvedValue({ error: null })
     const user = userEvent.setup()
     render(<ResetPasswordForm />)
@@ -86,8 +93,10 @@ describe('ResetPasswordForm', () => {
 
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpassword123' })
-      expect(assignedHrefs).toContain('/')
     })
+    expect(screen.getByText(/password has been updated successfully/i)).toBeInTheDocument()
+    const loginLink = screen.getByRole('link', { name: /sign in with your new password/i })
+    expect(loginLink).toHaveAttribute('href', '/')
   })
 
   it('shows a generic error when updateUser fails', async () => {

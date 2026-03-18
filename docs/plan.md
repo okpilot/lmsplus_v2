@@ -76,7 +76,7 @@
 
 ## SPRINT 1 COMPLETE — Quick Wins shipped
 
-**Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui + tweakcn theme, git init. 3 commits on `master`.
+**Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui v4 (Base UI + oklch blue theme), git init. 3 commits on `master`.
 
 **Phase 2 done (2026-03-11):** Supabase setup complete:
 - `apps/web/.env.local` with all credentials (publishable key, secret key, access token)

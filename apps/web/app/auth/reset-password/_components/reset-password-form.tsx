@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { clearRecoveryCookie } from '../actions'
 
 const ResetPasswordSchema = z
   .object({
@@ -25,6 +26,7 @@ export function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showRequestLink, setShowRequestLink] = useState(false)
+  const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -54,6 +56,10 @@ export function ResetPasswordForm() {
         setShowRequestLink(isSessionMissing)
         return
       }
+
+      // Clear recovery lock cookie, then sign out so user must log in fresh
+      await clearRecoveryCookie()
+      await supabase.auth.signOut()
     } catch {
       setError('Unable to update password. Please try again.')
       return
@@ -61,7 +67,23 @@ export function ResetPasswordForm() {
       setLoading(false)
     }
 
-    window.location.href = '/'
+    setSuccess(true)
+  }
+
+  if (success) {
+    return (
+      <div className="space-y-4 text-center">
+        <p className="text-sm text-muted-foreground">
+          Your password has been updated successfully.
+        </p>
+        <Link
+          href="/"
+          className="inline-block text-sm font-medium text-primary hover:underline underline-offset-4"
+        >
+          Sign in with your new password
+        </Link>
+      </div>
+    )
   }
 
   return (

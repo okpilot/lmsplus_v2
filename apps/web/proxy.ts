@@ -28,6 +28,12 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return redirect
   }
 
+  // Recovery sessions can only access /auth/reset-password — block everything else
+  const recoveryPending = request.cookies.get('__recovery_pending')?.value === '1'
+  if (recoveryPending && user) {
+    return redirectWithCookies(new URL('/auth/reset-password', request.url))
+  }
+
   // Protect /app/* routes — redirect to login if not authenticated
   if (pathname.startsWith('/app') && !user) {
     return redirectWithCookies(new URL('/', request.url))

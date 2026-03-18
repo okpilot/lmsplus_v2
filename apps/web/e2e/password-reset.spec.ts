@@ -42,8 +42,15 @@ test.describe('password reset flow', () => {
     await page.getByLabel('Confirm password').fill(newPassword)
     await page.getByRole('button', { name: /update password/i }).click()
 
-    // 8. Should redirect to login page after password update
-    await page.waitForURL('/', { timeout: 15_000 })
+    // 8. Should show success confirmation with login link
+    await expect(page.getByText(/password has been updated successfully/i)).toBeVisible({
+      timeout: 10_000,
+    })
+    const loginLink = page.getByRole('link', { name: /sign in with your new password/i })
+    await expect(loginLink).toBeVisible()
+
+    // 9. Click login link → should go to login page
+    await loginLink.click()
     await expect(page.getByRole('heading', { name: 'LMS Plus' })).toBeVisible()
   })
 

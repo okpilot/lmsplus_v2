@@ -10,7 +10,7 @@ export default function ResetPasswordPage() {
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">LMS Plus</h1>
         </div>
-        <p className="mb-6 text-center text-sm text-muted-foreground">Set your new password</p>
+        <p className="mb-6 text-center text-sm text-muted-foreground">Password reset</p>
         <ResetPasswordForm />
       </div>
     </main>

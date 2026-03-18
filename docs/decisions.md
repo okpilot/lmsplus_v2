@@ -27,9 +27,10 @@
 - **Multi-tenant:** organization_id on every table, RLS policies
 - **AI-to-slides:** Claude API → Structured JSON → Template Renderer (future, not MVP 2)
 
-### UI Theme (confirmed 2026-03-11)
-- **shadcn/ui** — initialized with Tailwind v4 in `apps/web/`
-- **Theme** — tweakcn theme `cmjhgwebp000404jl22fv5sh6` applied via registry URL, tokens in `apps/web/app/globals.css` (updated 2026-03-11, was `cmlhfpjhw000004l4f4ax3m7z`)
+### UI Theme (confirmed 2026-03-11, updated 2026-03-18)
+- **shadcn/ui v4** — initialized with Tailwind v4 in `apps/web/`, uses Base UI (not Radix) under the hood
+- **Theme** — shadcn official "Blue" theme (oklch color space) on neutral base. CSS variables in `apps/web/app/globals.css`. Replaced earlier tweakcn/HSL themes.
+- **Colors** — oklch format (not HSL). Tailwind v4 reads oklch values directly via `@theme inline` in globals.css.
 - **Dark mode** — `next-themes` with `attribute="class"`, defaults to system preference, toggle in app header
 
 ### Tooling (all confirmed 2026-03-11)

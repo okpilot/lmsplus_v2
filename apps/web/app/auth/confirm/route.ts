@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { NextRequest } from 'next/server'
 
@@ -18,7 +19,17 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash })
 
     if (!error) {
-      // Use next/navigation redirect so cookies set by verifyOtp are preserved
+      // Lock recovery sessions to /auth/reset-password only (proxy enforces)
+      if (type === 'recovery') {
+        const cookieStore = await cookies()
+        cookieStore.set('__recovery_pending', '1', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 600,
+        })
+      }
       redirect(nextPath)
     }
 
