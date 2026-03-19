@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+// Note: z.uuid() returns ZodUUID (not ZodString) in Zod v4.
+// Inferred TS type is still `string`. Do not instanceof-check against ZodString.
+
 export const SubmitAnswerSchema = z.object({
   sessionId: z.uuid(),
   questionId: z.uuid(),

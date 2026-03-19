@@ -24,6 +24,7 @@ const SaveDraftInput = z
   .superRefine((data, ctx) => {
     if (data.currentIndex >= data.questionIds.length) {
       ctx.addIssue({
+        // 'custom' is the Zod v4 literal for ZodIssueCode.custom
         code: 'custom',
         path: ['currentIndex'],
         message: 'Current index out of range',

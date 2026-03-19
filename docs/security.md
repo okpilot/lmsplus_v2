@@ -400,8 +400,8 @@ export default {
 import { z } from 'zod'
 
 const SubmitAnswerSchema = z.object({
-  questionId: z.string().uuid(),
-  sessionId:  z.string().uuid(),
+  questionId: z.uuid(),
+  sessionId:  z.uuid(),
   selectedOptionId: z.enum(['a', 'b', 'c', 'd']),
 })
 
