@@ -35,7 +35,7 @@ export function InlineForm({
   })
   const firstInputRef = useRef<HTMLInputElement>(null)
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     const allFilled = fields.every((f) => values[f.name]?.trim())
     if (!allFilled) return
