@@ -14,11 +14,11 @@ export default async function QuizPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Quiz</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Test your knowledge with a randomized quiz on any subject.
+          Configure and start a practice session.
         </p>
       </div>
 
-      <div className="mx-auto max-w-md">
+      <div className="mx-auto max-w-xl">
         <QuizTabs
           draftCount={drafts.length}
           newQuizContent={

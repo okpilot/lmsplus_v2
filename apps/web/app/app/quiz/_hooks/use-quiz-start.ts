@@ -1,20 +1,23 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import type { QuestionFilter, SubjectOption } from '@/lib/queries/quiz'
+import type { SubjectOption } from '@/lib/queries/quiz'
 import { startQuizSession } from '../actions/start'
+import type { QuestionFilterValue } from '../types'
 
 type UseQuizStartOpts = {
   subjectId: string
-  topicId: string
-  subtopicId: string
   subjects: SubjectOption[]
   count: number
   maxQuestions: number
-  filter: QuestionFilter
+  filters: QuestionFilterValue[]
+  topicTree: {
+    getSelectedTopicIds: () => string[]
+    getSelectedSubtopicIds: () => string[]
+  }
 }
 
 export function useQuizStart(opts: UseQuizStartOpts) {
-  const { subjectId, topicId, subtopicId, subjects, count, maxQuestions, filter } = opts
+  const { subjectId, subjects, count, maxQuestions, filters, topicTree } = opts
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -24,12 +27,15 @@ export function useQuizStart(opts: UseQuizStartOpts) {
     setLoading(true)
     setError(null)
     try {
+      const topicIds = topicTree.getSelectedTopicIds()
+      const subtopicIds = topicTree.getSelectedSubtopicIds()
+      const effectiveCount = Math.min(count, maxQuestions || 1)
       const result = await startQuizSession({
         subjectId,
-        topicId: topicId || null,
-        subtopicId: subtopicId || null,
-        count: Math.min(count, maxQuestions || 1),
-        filter,
+        topicIds: topicIds.length > 0 ? topicIds : undefined,
+        subtopicIds: subtopicIds.length > 0 ? subtopicIds : undefined,
+        count: effectiveCount,
+        filters,
       })
       if (result.success) {
         const selectedSubject = subjects.find((s) => s.id === subjectId)

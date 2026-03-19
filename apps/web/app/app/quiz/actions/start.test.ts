@@ -37,7 +37,6 @@ describe('startQuizSession', () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
-      topicId: null,
       count: 5,
     })
     expect(result.success).toBe(false)
@@ -52,7 +51,6 @@ describe('startQuizSession', () => {
     })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
-      topicId: null,
       count: 5,
     })
     expect(result.success).toBe(false)
@@ -65,7 +63,6 @@ describe('startQuizSession', () => {
     mockGetRandomQuestionIds.mockResolvedValue([])
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
-      topicId: null,
       count: 5,
     })
     expect(result.success).toBe(false)
@@ -79,7 +76,6 @@ describe('startQuizSession', () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'DB error' } })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
-      topicId: null,
       count: 5,
     })
     expect(result.success).toBe(false)
@@ -93,13 +89,69 @@ describe('startQuizSession', () => {
     mockRpc.mockResolvedValue({ data: 'session-123', error: null })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
-      topicId: null,
       count: 3,
     })
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.sessionId).toBe('session-123')
     expect(result.questionIds).toEqual(['q1', 'q2', 'q3'])
+  })
+
+  it('passes topicIds array to getRandomQuestionIds', async () => {
+    const TOPIC_ID = '00000000-0000-4000-a000-000000000020'
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      topicIds: [TOPIC_ID],
+      count: 1,
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ topicIds: [TOPIC_ID] }),
+    )
+  })
+
+  it('passes subtopicIds array to getRandomQuestionIds', async () => {
+    const SUBTOPIC_ID = '00000000-0000-4000-a000-000000000030'
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      subtopicIds: [SUBTOPIC_ID],
+      count: 1,
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ subtopicIds: [SUBTOPIC_ID] }),
+    )
+  })
+
+  it('passes filters array to getRandomQuestionIds', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+      filters: ['unseen', 'incorrect'],
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: ['unseen', 'incorrect'] }),
+    )
+  })
+
+  it("defaults filters to ['all'] when omitted", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: ['all'] }),
+    )
   })
 
   it('rejects unauthenticated calls before input validation', async () => {
@@ -109,7 +161,7 @@ describe('startQuizSession', () => {
     if (!result.success) expect(result.error).toBe('Not authenticated')
   })
 
-  it('returns failure for an invalid quiz configuration', async () => {
+  it('returns failure for an invalid quiz configuration (missing subjectId)', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await startQuizSession({})
     expect(result.success).toBe(false)
@@ -119,9 +171,53 @@ describe('startQuizSession', () => {
 
   it('returns failure for a non-UUID subject ID', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    const result = await startQuizSession({ subjectId: 'not-a-uuid', topicId: null, count: 5 })
+    const result = await startQuizSession({ subjectId: 'not-a-uuid', count: 5 })
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Invalid UUID')
+  })
+
+  it('returns failure when topicIds contains a non-UUID', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      topicIds: ['not-a-uuid'],
+      count: 5,
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid UUID')
+  })
+
+  it('returns failure when subtopicIds contains a non-UUID', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      subtopicIds: ['bad-id'],
+      count: 5,
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid UUID')
+  })
+
+  it('returns failure when filters contains an unknown value', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 5,
+      filters: ['random'],
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts count without a max cap (no upper limit enforced by schema)', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 200,
+    })
+    // Schema has no .max() — a large count is valid; the application layer caps it
+    expect(result.success).toBe(true)
   })
 
   it('returns failure and logs when an unexpected error is thrown', async () => {
@@ -131,7 +227,6 @@ describe('startQuizSession', () => {
     try {
       const result = await startQuizSession({
         subjectId: '00000000-0000-4000-a000-000000000001',
-        topicId: null,
         count: 5,
       })
       expect(result.success).toBe(false)
