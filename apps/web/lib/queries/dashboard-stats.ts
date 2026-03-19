@@ -10,7 +10,7 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 type ResponseDateRow = { question_id: string; created_at: string }
 
 export async function getQuestionsToday(supabase: SupabaseClient, userId: string): Promise<number> {
-  const todayStart = new Date().toISOString().slice(0, 10)
+  const todayStart = new Date(Date.now()).toISOString().slice(0, 10)
   const { count } = await supabase
     .from('student_responses')
     .select('*', { count: 'exact', head: true })
@@ -43,8 +43,9 @@ export function computeStreaks(sortedDatesDesc: string[]): {
 } {
   if (!sortedDatesDesc.length) return { currentStreak: 0, bestStreak: 0 }
 
-  const today = new Date().toISOString().slice(0, 10)
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+  const now = Date.now()
+  const today = new Date(now).toISOString().slice(0, 10)
+  const yesterday = new Date(now - 86400000).toISOString().slice(0, 10)
   const anchoredToNow = sortedDatesDesc[0] === today || sortedDatesDesc[0] === yesterday
 
   let streak = 1
