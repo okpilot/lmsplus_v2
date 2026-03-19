@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 
 const DeleteDraftInput = z.object({
-  draftId: z.string().uuid(),
+  draftId: z.uuid(),
 })
 
 export async function deleteDraft(raw: unknown): Promise<{ success: boolean }> {

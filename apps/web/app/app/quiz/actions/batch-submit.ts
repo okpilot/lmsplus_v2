@@ -6,11 +6,11 @@ import { rpc } from '@/lib/supabase-rpc'
 import type { BatchRpcResult, BatchSubmitResult } from '../types'
 
 const BatchSubmitInput = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.uuid(),
   answers: z
     .array(
       z.object({
-        questionId: z.string().uuid(),
+        questionId: z.uuid(),
         selectedOptionId: z.string(),
         responseTimeMs: z.number().int().positive(),
       }),
