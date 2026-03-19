@@ -1,0 +1,17 @@
+# Codecov configuration
+# https://docs.codecov.com/docs/codecov-yaml
+
+coverage:
+  status:
+    project:
+      default:
+        target: 60%
+        threshold: 2% # allow 2% drop before flagging
+    patch:
+      default:
+        target: 50% # new code in PRs
+
+comment:
+  layout: reach,diff,flags,files
+  behavior: default # update existing comment
+  require_changes: true # only comment when coverage changes
