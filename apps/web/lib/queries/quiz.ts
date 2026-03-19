@@ -215,6 +215,14 @@ export async function getRandomQuestionIds(opts: {
   filters?: QuestionFilter[]
   userId?: string
 }): Promise<string[]> {
+  // Explicit empty arrays = nothing selected → zero results
+  if (
+    (Array.isArray(opts.topicIds) && opts.topicIds.length === 0) ||
+    (Array.isArray(opts.subtopicIds) && opts.subtopicIds.length === 0)
+  ) {
+    return []
+  }
+
   const supabase = await createServerSupabaseClient()
 
   let query = supabase
@@ -273,13 +281,17 @@ async function filterUnseen(
   questions: QuestionIdRow[],
 ): Promise<QuestionIdRow[]> {
   const questionIds = questions.map((q) => q.id)
-  const { data: answeredData } = await supabase
+  const { data: answeredData, error } = await supabase
     .from('student_responses')
     .select('question_id')
     .eq('student_id', userId)
     .in('question_id', questionIds)
+  if (error || !answeredData) {
+    console.error('[filterUnseen] student_responses query error:', error?.message ?? 'null data')
+    return []
+  }
 
-  const answered = (answeredData ?? []) as QuestionFilterRef[]
+  const answered = answeredData as QuestionFilterRef[]
   const answeredIds = new Set(answered.map((r) => r.question_id))
   return questions.filter((q) => !answeredIds.has(q.id))
 }
@@ -291,14 +303,18 @@ async function filterIncorrect(
 ): Promise<QuestionIdRow[]> {
   if (!questions.length) return []
   const questionIds = questions.map((q) => q.id)
-  const { data: incorrectData } = await supabase
+  const { data: incorrectData, error } = await supabase
     .from('fsrs_cards')
     .select('question_id')
     .eq('student_id', userId)
     .eq('last_was_correct', false)
     .in('question_id', questionIds)
+  if (error || !incorrectData) {
+    console.error('[filterIncorrect] fsrs_cards query error:', error?.message ?? 'null data')
+    return []
+  }
 
-  const incorrectCards = (incorrectData ?? []) as QuestionFilterRef[]
+  const incorrectCards = incorrectData as QuestionFilterRef[]
   const incorrectIds = new Set(incorrectCards.map((r) => r.question_id))
   return questions.filter((q) => incorrectIds.has(q.id))
 }
