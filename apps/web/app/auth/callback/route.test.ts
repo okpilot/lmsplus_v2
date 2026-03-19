@@ -6,6 +6,7 @@ const mockExchangeCodeForSession = vi.fn()
 const mockGetUser = vi.fn()
 const mockSignOut = vi.fn()
 const mockFrom = vi.fn()
+const mockCookieSet = vi.fn()
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
@@ -16,6 +17,10 @@ vi.mock('@repo/db/server', () => ({
     },
     from: mockFrom,
   }),
+}))
+
+vi.mock('next/headers', () => ({
+  cookies: async () => ({ set: mockCookieSet }),
 }))
 
 function makeRequest(url: string) {
@@ -142,5 +147,30 @@ describe('GET /auth/callback', () => {
     expect(location.pathname).toBe('/')
     expect(location.searchParams.get('error')).toBe('profile_lookup_failed')
     consoleSpy.mockRestore()
+  })
+
+  it('redirects to /auth/reset-password and sets recovery cookie when next param is a recovery path', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: { id: 'user-1' } }),
+        }),
+      }),
+    })
+
+    const response = await GET(
+      makeRequest('http://localhost:3000/auth/callback?code=valid-code&next=/auth/reset-password'),
+    )
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/auth/reset-password')
+    expect(mockCookieSet).toHaveBeenCalledWith(
+      '__recovery_pending',
+      '1',
+      expect.objectContaining({ httpOnly: true, path: '/', maxAge: 600 }),
+    )
   })
 })

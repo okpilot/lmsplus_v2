@@ -23,6 +23,7 @@ vi.mock('next/link', () => ({
 describe('ForgotPasswordForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
   })
 
   it('renders an email input and submit button', () => {
@@ -55,7 +56,7 @@ describe('ForgotPasswordForm', () => {
       expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
         'pilot@example.com',
         expect.objectContaining({
-          redirectTo: expect.stringContaining('/auth/reset-password'),
+          redirectTo: 'http://localhost:3000/auth/reset-password',
         }),
       )
     })

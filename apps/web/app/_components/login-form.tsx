@@ -61,7 +61,7 @@ export function LoginForm({ initialError }: LoginFormProps) {
       setLoading(false)
     }
 
-    window.location.href = '/app/dashboard'
+    window.location.href = '/auth/login-complete'
   }
 
   return (

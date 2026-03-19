@@ -89,7 +89,7 @@ describe('LoginForm', () => {
     })
   })
 
-  it('redirects to /app/dashboard after successful sign-in', async () => {
+  it('redirects to /auth/login-complete after successful sign-in', async () => {
     mockSignInWithPassword.mockResolvedValue({ error: null })
     const user = userEvent.setup()
     render(<LoginForm />)
@@ -99,7 +99,7 @@ describe('LoginForm', () => {
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() => {
-      expect(assignedHrefs).toContain('/app/dashboard')
+      expect(assignedHrefs).toContain('/auth/login-complete')
     })
   })
 
