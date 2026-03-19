@@ -24,6 +24,8 @@ flags:
 ignore:
   - "**/*.config.*"
   - "**/e2e/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
 
 comment:
   layout: header,diff,flags,files,footer
