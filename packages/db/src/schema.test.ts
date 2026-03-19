@@ -9,288 +9,136 @@ import {
   UpsertTopicSchema,
 } from './schema'
 
-// ---- Fixtures ----------------------------------------------------------------
-
 const VALID_UUID = '00000000-0000-4000-a000-000000000001'
 const INVALID_UUID = 'not-a-uuid'
 
-// ---- SubmitAnswerSchema -------------------------------------------------------
-
 describe('SubmitAnswerSchema', () => {
+  const valid = {
+    sessionId: VALID_UUID,
+    questionId: VALID_UUID,
+    selectedOptionId: 'a',
+    responseTimeMs: 1000,
+  }
+
   it('accepts a valid submission', () => {
-    const result = SubmitAnswerSchema.safeParse({
-      sessionId: VALID_UUID,
-      questionId: VALID_UUID,
-      selectedOptionId: 'a',
-      responseTimeMs: 1000,
-    })
-    expect(result.success).toBe(true)
+    expect(SubmitAnswerSchema.safeParse(valid).success).toBe(true)
   })
 
-  it('rejects a non-UUID sessionId', () => {
-    const result = SubmitAnswerSchema.safeParse({
-      sessionId: INVALID_UUID,
-      questionId: VALID_UUID,
-      selectedOptionId: 'b',
-      responseTimeMs: 500,
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects a non-UUID questionId', () => {
-    const result = SubmitAnswerSchema.safeParse({
-      sessionId: VALID_UUID,
-      questionId: INVALID_UUID,
-      selectedOptionId: 'c',
-      responseTimeMs: 500,
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects an option outside the enum', () => {
-    const result = SubmitAnswerSchema.safeParse({
-      sessionId: VALID_UUID,
-      questionId: VALID_UUID,
-      selectedOptionId: 'e',
-      responseTimeMs: 500,
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects zero responseTimeMs', () => {
-    const result = SubmitAnswerSchema.safeParse({
-      sessionId: VALID_UUID,
-      questionId: VALID_UUID,
-      selectedOptionId: 'd',
-      responseTimeMs: 0,
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects negative responseTimeMs', () => {
-    const result = SubmitAnswerSchema.safeParse({
-      sessionId: VALID_UUID,
-      questionId: VALID_UUID,
-      selectedOptionId: 'a',
-      responseTimeMs: -100,
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects a fractional responseTimeMs', () => {
-    const result = SubmitAnswerSchema.safeParse({
-      sessionId: VALID_UUID,
-      questionId: VALID_UUID,
-      selectedOptionId: 'a',
-      responseTimeMs: 1.5,
-    })
-    expect(result.success).toBe(false)
+  it.each([
+    ['non-UUID sessionId', { ...valid, sessionId: INVALID_UUID }],
+    ['non-UUID questionId', { ...valid, questionId: INVALID_UUID }],
+    ['option outside enum', { ...valid, selectedOptionId: 'e' }],
+    ['zero responseTimeMs', { ...valid, responseTimeMs: 0 }],
+    ['negative responseTimeMs', { ...valid, responseTimeMs: -100 }],
+    ['fractional responseTimeMs', { ...valid, responseTimeMs: 1.5 }],
+  ])('rejects %s', (_, payload) => {
+    expect(SubmitAnswerSchema.safeParse(payload).success).toBe(false)
   })
 })
 
-// ---- StartQuizSessionSchema --------------------------------------------------
-
 describe('StartQuizSessionSchema', () => {
+  const valid = {
+    mode: 'quick_quiz' as const,
+    subjectId: VALID_UUID,
+    topicId: VALID_UUID,
+    questionIds: [VALID_UUID],
+  }
+
   it('accepts a valid session with all fields', () => {
-    const result = StartQuizSessionSchema.safeParse({
-      mode: 'quick_quiz',
-      subjectId: VALID_UUID,
-      topicId: VALID_UUID,
-      questionIds: [VALID_UUID],
-    })
-    expect(result.success).toBe(true)
+    expect(StartQuizSessionSchema.safeParse(valid).success).toBe(true)
   })
 
   it('accepts null subjectId and null topicId', () => {
-    const result = StartQuizSessionSchema.safeParse({
-      mode: 'mock_exam',
-      subjectId: null,
-      topicId: null,
-      questionIds: [VALID_UUID],
-    })
-    expect(result.success).toBe(true)
+    expect(
+      StartQuizSessionSchema.safeParse({ ...valid, subjectId: null, topicId: null }).success,
+    ).toBe(true)
   })
 
-  it('rejects an empty questionIds array', () => {
-    const result = StartQuizSessionSchema.safeParse({
-      mode: 'quick_quiz',
-      subjectId: null,
-      topicId: null,
-      questionIds: [],
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects a non-UUID in questionIds', () => {
-    const result = StartQuizSessionSchema.safeParse({
-      mode: 'quick_quiz',
-      subjectId: null,
-      topicId: null,
-      questionIds: [INVALID_UUID],
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects an unrecognised mode', () => {
-    const result = StartQuizSessionSchema.safeParse({
-      mode: 'unknown_mode',
-      subjectId: null,
-      topicId: null,
-      questionIds: [VALID_UUID],
-    })
-    expect(result.success).toBe(false)
+  it.each([
+    ['empty questionIds', { ...valid, questionIds: [] }],
+    ['non-UUID in questionIds', { ...valid, questionIds: [INVALID_UUID] }],
+    ['unrecognised mode', { ...valid, mode: 'unknown_mode' }],
+  ])('rejects %s', (_, payload) => {
+    expect(StartQuizSessionSchema.safeParse(payload).success).toBe(false)
   })
 })
-
-// ---- CompleteQuizSessionSchema -----------------------------------------------
 
 describe('CompleteQuizSessionSchema', () => {
   it('accepts a valid UUID sessionId', () => {
-    const result = CompleteQuizSessionSchema.safeParse({ sessionId: VALID_UUID })
-    expect(result.success).toBe(true)
+    expect(CompleteQuizSessionSchema.safeParse({ sessionId: VALID_UUID }).success).toBe(true)
   })
 
-  it('rejects a non-UUID sessionId', () => {
-    const result = CompleteQuizSessionSchema.safeParse({ sessionId: INVALID_UUID })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects a missing sessionId', () => {
-    const result = CompleteQuizSessionSchema.safeParse({})
-    expect(result.success).toBe(false)
+  it.each([
+    ['non-UUID sessionId', { sessionId: INVALID_UUID }],
+    ['missing sessionId', {}],
+  ])('rejects %s', (_, payload) => {
+    expect(CompleteQuizSessionSchema.safeParse(payload).success).toBe(false)
   })
 })
-
-// ---- UpsertSubjectSchema -----------------------------------------------------
 
 describe('UpsertSubjectSchema', () => {
-  it('accepts a valid subject without id (create path)', () => {
-    const result = UpsertSubjectSchema.safeParse({
-      code: 'MET',
-      name: 'Meteorology',
-      short: 'MET',
-      sort_order: 1,
-    })
-    expect(result.success).toBe(true)
+  const valid = { code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 1 }
+
+  it('accepts a valid subject without id (create)', () => {
+    expect(UpsertSubjectSchema.safeParse(valid).success).toBe(true)
   })
 
-  it('accepts a valid subject with a UUID id (update path)', () => {
-    const result = UpsertSubjectSchema.safeParse({
-      id: VALID_UUID,
-      code: 'MET',
-      name: 'Meteorology',
-      short: 'MET',
-    })
-    expect(result.success).toBe(true)
+  it('accepts a valid subject with UUID id (update)', () => {
+    expect(UpsertSubjectSchema.safeParse({ ...valid, id: VALID_UUID }).success).toBe(true)
   })
 
-  it('rejects a non-UUID id', () => {
-    const result = UpsertSubjectSchema.safeParse({
-      id: INVALID_UUID,
-      code: 'MET',
-      name: 'Meteorology',
-      short: 'MET',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects an empty code', () => {
-    const result = UpsertSubjectSchema.safeParse({ code: '', name: 'Meteorology', short: 'MET' })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects a code exceeding 10 characters', () => {
-    const result = UpsertSubjectSchema.safeParse({
-      code: 'TOOLONGCODE',
-      name: 'Meteorology',
-      short: 'MET',
-    })
-    expect(result.success).toBe(false)
+  it.each([
+    ['non-UUID id', { ...valid, id: INVALID_UUID }],
+    ['empty code', { ...valid, code: '' }],
+    ['code exceeding 10 chars', { ...valid, code: 'TOOLONGCODE' }],
+  ])('rejects %s', (_, payload) => {
+    expect(UpsertSubjectSchema.safeParse(payload).success).toBe(false)
   })
 })
-
-// ---- UpsertTopicSchema -------------------------------------------------------
 
 describe('UpsertTopicSchema', () => {
+  const valid = { subject_id: VALID_UUID, code: '050', name: 'Meteorology' }
+
   it('accepts a valid topic', () => {
-    const result = UpsertTopicSchema.safeParse({
-      subject_id: VALID_UUID,
-      code: '050',
-      name: 'Meteorology',
-    })
-    expect(result.success).toBe(true)
+    expect(UpsertTopicSchema.safeParse(valid).success).toBe(true)
   })
 
-  it('rejects a non-UUID subject_id', () => {
-    const result = UpsertTopicSchema.safeParse({
-      subject_id: INVALID_UUID,
-      code: '050',
-      name: 'Meteorology',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects an empty topic name', () => {
-    const result = UpsertTopicSchema.safeParse({
-      subject_id: VALID_UUID,
-      code: '050',
-      name: '',
-    })
-    expect(result.success).toBe(false)
+  it.each([
+    ['non-UUID subject_id', { ...valid, subject_id: INVALID_UUID }],
+    ['empty name', { ...valid, name: '' }],
+  ])('rejects %s', (_, payload) => {
+    expect(UpsertTopicSchema.safeParse(payload).success).toBe(false)
   })
 })
-
-// ---- UpsertSubtopicSchema ----------------------------------------------------
 
 describe('UpsertSubtopicSchema', () => {
+  const valid = { topic_id: VALID_UUID, code: '050-01', name: 'The Atmosphere' }
+
   it('accepts a valid subtopic', () => {
-    const result = UpsertSubtopicSchema.safeParse({
-      topic_id: VALID_UUID,
-      code: '050-01',
-      name: 'The Atmosphere',
-    })
-    expect(result.success).toBe(true)
+    expect(UpsertSubtopicSchema.safeParse(valid).success).toBe(true)
   })
 
-  it('rejects a non-UUID topic_id', () => {
-    const result = UpsertSubtopicSchema.safeParse({
-      topic_id: INVALID_UUID,
-      code: '050-01',
-      name: 'The Atmosphere',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects a code exceeding 30 characters', () => {
-    const result = UpsertSubtopicSchema.safeParse({
-      topic_id: VALID_UUID,
-      code: 'A'.repeat(31),
-      name: 'The Atmosphere',
-    })
-    expect(result.success).toBe(false)
+  it.each([
+    ['non-UUID topic_id', { ...valid, topic_id: INVALID_UUID }],
+    ['code exceeding 30 chars', { ...valid, code: 'A'.repeat(31) }],
+  ])('rejects %s', (_, payload) => {
+    expect(UpsertSubtopicSchema.safeParse(payload).success).toBe(false)
   })
 })
 
-// ---- DeleteSyllabusItemSchema ------------------------------------------------
-
 describe('DeleteSyllabusItemSchema', () => {
-  it('accepts a valid delete for each table', () => {
-    for (const table of ['easa_subjects', 'easa_topics', 'easa_subtopics'] as const) {
-      const result = DeleteSyllabusItemSchema.safeParse({ id: VALID_UUID, table })
-      expect(result.success).toBe(true)
-    }
+  it.each([
+    'easa_subjects',
+    'easa_topics',
+    'easa_subtopics',
+  ] as const)('accepts table %s', (table) => {
+    expect(DeleteSyllabusItemSchema.safeParse({ id: VALID_UUID, table }).success).toBe(true)
   })
 
-  it('rejects a non-UUID id', () => {
-    const result = DeleteSyllabusItemSchema.safeParse({
-      id: INVALID_UUID,
-      table: 'easa_subjects',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects an unrecognised table name', () => {
-    const result = DeleteSyllabusItemSchema.safeParse({ id: VALID_UUID, table: 'easa_questions' })
-    expect(result.success).toBe(false)
+  it.each([
+    ['non-UUID id', { id: INVALID_UUID, table: 'easa_subjects' }],
+    ['unrecognised table', { id: VALID_UUID, table: 'easa_questions' }],
+  ])('rejects %s', (_, payload) => {
+    expect(DeleteSyllabusItemSchema.safeParse(payload).success).toBe(false)
   })
 })
