@@ -177,4 +177,30 @@ describe('LoginForm', () => {
     const link = screen.getByRole('link', { name: /forgot password/i })
     expect(link).toHaveAttribute('href', '/auth/forgot-password')
   })
+
+  it('maps "Email rate limit exceeded" to a friendly error', async () => {
+    mockSignInWithPassword.mockResolvedValue({
+      error: { message: 'Email rate limit exceeded' },
+    })
+    const user = userEvent.setup()
+    render(<LoginForm />)
+
+    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'secret123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument()
+  })
+
+  it('shows a generic error when signInWithPassword throws an exception', async () => {
+    mockSignInWithPassword.mockRejectedValue(new Error('Network error'))
+    const user = userEvent.setup()
+    render(<LoginForm />)
+
+    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'secret123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(await screen.findByText(/unable to sign in/i)).toBeInTheDocument()
+  })
 })

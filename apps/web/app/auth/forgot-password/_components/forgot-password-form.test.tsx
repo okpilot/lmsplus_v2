@@ -91,4 +91,15 @@ describe('ForgotPasswordForm', () => {
     const link = screen.getByRole('link', { name: /back to login/i })
     expect(link).toHaveAttribute('href', '/')
   })
+
+  it('shows an error when resetPasswordForEmail throws an exception', async () => {
+    mockResetPasswordForEmail.mockRejectedValue(new Error('Network failure'))
+    const user = userEvent.setup()
+    render(<ForgotPasswordForm />)
+
+    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
+    await user.click(screen.getByRole('button', { name: /send reset email/i }))
+
+    expect(await screen.findByText(/unable to send reset email/i)).toBeInTheDocument()
+  })
 })

@@ -55,7 +55,8 @@ export async function GET(request: NextRequest) {
   const ALLOWED_NEXT_PATHS = ['/auth/reset-password']
   const rawNext = searchParams.get('next') ?? ''
   const extractedNext = rawNext.startsWith('http') ? new URL(rawNext).pathname : rawNext
-  const isRecoveryRedirect = ALLOWED_NEXT_PATHS.includes(extractedNext)
+  const isSafePath = extractedNext.startsWith('/') && !extractedNext.startsWith('//')
+  const isRecoveryRedirect = isSafePath && ALLOWED_NEXT_PATHS.includes(extractedNext)
 
   if (isRecoveryRedirect) {
     const { cookies } = await import('next/headers')

@@ -173,4 +173,51 @@ describe('GET /auth/callback', () => {
       expect.objectContaining({ httpOnly: true, path: '/', maxAge: 600 }),
     )
   })
+
+  it('extracts pathname from a full URL next param for recovery redirect', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: { id: 'user-1' } }),
+        }),
+      }),
+    })
+
+    const fullNextUrl = encodeURIComponent('https://lmsplus.app/auth/reset-password')
+    const response = await GET(
+      makeRequest(`http://localhost:3000/auth/callback?code=valid-code&next=${fullNextUrl}`),
+    )
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/auth/reset-password')
+    expect(mockCookieSet).toHaveBeenCalledWith(
+      '__recovery_pending',
+      '1',
+      expect.objectContaining({ httpOnly: true, path: '/', maxAge: 600 }),
+    )
+  })
+
+  it('ignores a disallowed next param and redirects to /app/dashboard', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: { id: 'user-1' } }),
+        }),
+      }),
+    })
+
+    const response = await GET(
+      makeRequest('http://localhost:3000/auth/callback?code=valid-code&next=/app/admin'),
+    )
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/app/dashboard')
+    expect(mockCookieSet).not.toHaveBeenCalled()
+  })
 })
