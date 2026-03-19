@@ -32,8 +32,9 @@ The highest-value targets are:
 ### Email + Password Auth
 
 - Supabase Auth handles password hashing, session tokens, and expiry
-- Login via `signInWithPassword({ email, password })`
+- Login via `signInWithPassword({ email, password })` → `/auth/login-complete` (server hop) → `record_login()` RPC (audit event) → `/app/dashboard`
 - Forgot password via `resetPasswordForEmail()` → recovery email with PKCE token → `/auth/confirm` (verifyOtp server-side) → `/auth/reset-password`
+- Recovery defense-in-depth: `/auth/callback` also supports `?next=/auth/reset-password` with allowlist validation (blocks open-redirect, protocol-relative URLs, malformed URLs)
 - Password minimum length: 6 characters (enforced by Zod on client, Supabase on server)
 - **Production domain:** `https://lmsplus.app`
 - **Allowed redirect URLs:** `https://lmsplus.app/auth/callback`, `https://lmsplus.app/auth/confirm`, `http://localhost:3000/auth/callback`, `http://localhost:3000/auth/confirm`
@@ -493,7 +494,7 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 
 | Event | Trigger |
 |-------|---------|
-| `student.login` | Successful email + password sign-in |
+| `student.login` | Successful email + password sign-in (via `record_login()` RPC, 60s rate-limited) |
 | `quiz_session.started` | Student begins any quiz mode |
 | `quiz_session.completed` | Student finishes session (score recorded) |
 | `exam.started` | Mock exam begins |

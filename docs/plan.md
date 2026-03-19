@@ -6,17 +6,16 @@
 
 ---
 
-## Known Issues — Fix Before Next Sprint
+## Bug Fixes — 2026-03-19
 
-### Password recovery email redirect broken (#270)
+Fixed 4 open bugs in a single session:
 
-**Discovered:** 2026-03-18 during manual testing.
+- **#274** — `flagged_questions` RLS WITH CHECK missing `deleted_at IS NULL` (security gap, migration 044)
+- **#270** — Password recovery redirect broken: `/auth/callback` now recovery-aware with `next` param allowlist
+- **#268** — `window.location.origin` replaced with `NEXT_PUBLIC_APP_URL` env var (+ fallback)
+- **#261** — `student.login` audit event: new `record_login()` RPC + `/auth/login-complete` server route
 
-**Problem:** Supabase recovery emails redirect to `https://www.lmsplus.app/#access_token=...&type=recovery` (implicit flow). The app doesn't handle hash fragment tokens at the root URL. Users cannot reset their password via email.
-
-**Workaround:** Admin can set passwords directly via Supabase Dashboard or the admin API.
-
-**Priority:** P1 — fix next session. See issue #270.
+Migrations 044–047. 1032 tests, all passing. Production Supabase email template still needs manual verification.
 
 ---
 
@@ -159,7 +158,7 @@
   - Added eval seed script: `apps/web/scripts/seed-quiz-setup-eval.ts`
 - New shadcn components: `switch.tsx`, `tooltip.tsx`
 - PR #272, Closes #176
-- Follow-up issues: #273 (WITH CHECK guard), #274 (a11y), #275 (red-team specs), #276 (count cap eval)
+- Follow-up issues: #273 (a11y), #275 (red-team specs), #276 (count cap eval) — #274 (WITH CHECK guard) fixed 2026-03-19
 
 ---
 
