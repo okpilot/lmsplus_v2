@@ -29,17 +29,17 @@ function TabButton({ id, isActive, label, testId, panelId, onClick, badge }: Tab
       tabIndex={isActive ? 0 : -1}
       data-testid={testId}
       onClick={onClick}
-      className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
         isActive
-          ? 'bg-background text-foreground shadow-sm'
-          : 'text-muted-foreground hover:text-foreground'
+          ? 'border-primary text-primary'
+          : 'border-transparent text-muted-foreground hover:text-foreground'
       }`}
     >
       {label}
       {badge != null && badge > 0 && (
         <span
           data-testid="draft-count-badge"
-          className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
+          className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
         >
           {badge}
         </span>
@@ -87,7 +87,7 @@ export function QuizTabs({ draftCount = null, newQuizContent, savedDraftContent 
         role="tablist"
         aria-label="Quiz options"
         onKeyDown={handleKeyDown}
-        className="flex gap-1 rounded-lg bg-muted p-1"
+        className="flex border-b border-border"
       >
         <TabButton
           id="tab-new"

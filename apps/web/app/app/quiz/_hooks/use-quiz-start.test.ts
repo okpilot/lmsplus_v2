@@ -19,6 +19,7 @@ vi.mock('../actions/start', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import type { QuestionFilterValue } from '../types'
 import { useQuizStart } from './use-quiz-start'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -32,14 +33,18 @@ const Q2_ID = '00000000-0000-4000-a000-000000000022'
 
 const SUBJECTS = [{ id: SUBJECT_ID, code: '010', name: 'Air Law', short: 'ALW', questionCount: 50 }]
 
+const mockTopicTree = {
+  getSelectedTopicIds: vi.fn(() => ['topic-1'] as string[]),
+  getSelectedSubtopicIds: vi.fn(() => ['sub-1'] as string[]),
+}
+
 const DEFAULT_OPTS = {
   subjectId: SUBJECT_ID,
-  topicId: '',
-  subtopicId: '',
   subjects: SUBJECTS,
   count: 10,
   maxQuestions: 50,
-  filter: 'all' as const,
+  filters: ['all'] as QuestionFilterValue[],
+  topicTree: mockTopicTree,
 }
 
 const SUCCESS_RESULT = {
@@ -52,12 +57,13 @@ const SUCCESS_RESULT = {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  // Replace sessionStorage.setItem with our spy
   Object.defineProperty(globalThis, 'sessionStorage', {
     value: { setItem: mockSessionStorageSetItem, getItem: vi.fn(), removeItem: vi.fn() },
     writable: true,
   })
   mockStartQuizSession.mockResolvedValue(SUCCESS_RESULT)
+  mockTopicTree.getSelectedTopicIds.mockReturnValue(['topic-1'])
+  mockTopicTree.getSelectedSubtopicIds.mockReturnValue(['sub-1'])
 })
 
 // ---- Initial state -------------------------------------------------------
@@ -84,36 +90,69 @@ describe('useQuizStart — handleStart guard', () => {
 // ---- handleStart — happy path --------------------------------------------
 
 describe('useQuizStart — handleStart happy path', () => {
-  it('calls startQuizSession with the correct arguments', async () => {
+  it('calls startQuizSession with topicIds and subtopicIds from topicTree', async () => {
     const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
 
     expect(mockStartQuizSession).toHaveBeenCalledWith(
       expect.objectContaining({
         subjectId: SUBJECT_ID,
-        topicId: null,
-        subtopicId: null,
+        topicIds: ['topic-1'],
+        subtopicIds: ['sub-1'],
         count: 10,
-        filter: 'all',
+        filters: ['all'],
       }),
     )
   })
 
-  it('passes topicId and subtopicId when they are non-empty', async () => {
+  it('calls startQuizSession with filters array when non-all filters are set', async () => {
     const { result } = renderHook(() =>
-      useQuizStart({ ...DEFAULT_OPTS, topicId: TOPIC_ID, subtopicId: SUBTOPIC_ID }),
+      useQuizStart({ ...DEFAULT_OPTS, filters: ['unseen', 'incorrect'] as QuestionFilterValue[] }),
     )
     await act(async () => result.current.handleStart())
 
     expect(mockStartQuizSession).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: ['unseen', 'incorrect'] }),
+    )
+  })
+
+  it('omits topicIds when topicTree returns an empty array', async () => {
+    mockTopicTree.getSelectedTopicIds.mockReturnValue([])
+    mockTopicTree.getSelectedSubtopicIds.mockReturnValue([])
+    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+
+    const call = mockStartQuizSession.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call.topicIds).toBeUndefined()
+    expect(call.subtopicIds).toBeUndefined()
+  })
+
+  it('omits subtopicIds when topicTree returns an empty subtopics array', async () => {
+    mockTopicTree.getSelectedTopicIds.mockReturnValue([TOPIC_ID])
+    mockTopicTree.getSelectedSubtopicIds.mockReturnValue([])
+    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+
+    const call = mockStartQuizSession.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call.topicIds).toEqual([TOPIC_ID])
+    expect(call.subtopicIds).toBeUndefined()
+  })
+
+  it('passes topicIds and subtopicIds when topicTree returns non-empty arrays', async () => {
+    mockTopicTree.getSelectedTopicIds.mockReturnValue([TOPIC_ID])
+    mockTopicTree.getSelectedSubtopicIds.mockReturnValue([SUBTOPIC_ID])
+    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+
+    expect(mockStartQuizSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        topicId: TOPIC_ID,
-        subtopicId: SUBTOPIC_ID,
+        topicIds: [TOPIC_ID],
+        subtopicIds: [SUBTOPIC_ID],
       }),
     )
   })
 
-  it('caps count at maxQuestions to prevent over-requesting', async () => {
+  it('clamps count to maxQuestions to prevent over-requesting', async () => {
     const { result } = renderHook(() =>
       useQuizStart({ ...DEFAULT_OPTS, count: 100, maxQuestions: 20 }),
     )

@@ -2,8 +2,13 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import type { SubtopicOption, TopicOption } from '@/lib/queries/quiz'
-import { getSubtopicsForTopic, getTopicsForSubject } from '@/lib/queries/quiz'
+import type { SubtopicOption, TopicOption, TopicWithSubtopics } from '@/lib/queries/quiz'
+import {
+  getSubtopicsForTopic,
+  getTopicsForSubject,
+  getTopicsWithSubtopics,
+} from '@/lib/queries/quiz'
+import { applyFilters } from './filter-helpers'
 
 const IdSchema = z.string().uuid()
 
@@ -15,75 +20,92 @@ export async function fetchSubtopicsForTopic(raw: unknown): Promise<SubtopicOpti
   return getSubtopicsForTopic(IdSchema.parse(raw))
 }
 
-const OptionalUuid = z.preprocess((v) => (v === '' ? undefined : v), z.string().uuid().optional())
+export async function fetchTopicsWithSubtopics(raw: unknown): Promise<TopicWithSubtopics[]> {
+  return getTopicsWithSubtopics(IdSchema.parse(raw))
+}
 
 const FilteredCountSchema = z.object({
   subjectId: z.string().uuid(),
-  topicId: OptionalUuid,
-  subtopicId: OptionalUuid,
-  filter: z.enum(['all', 'unseen', 'incorrect']),
+  topicIds: z.array(z.string().uuid()).optional(),
+  subtopicIds: z.array(z.string().uuid()).optional(),
+  filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
 })
 
-type QuestionIdRow = { id: string }
-type QuestionFilterRef = { question_id: string }
+type QuestionWithGroup = { id: string; topic_id: string; subtopic_id: string | null }
 
-export async function getFilteredCount(input: unknown): Promise<{ count: number }> {
-  const { subjectId, topicId, subtopicId, filter } = FilteredCountSchema.parse(input)
+export type FilteredCountResult = {
+  count: number
+  byTopic: Record<string, number>
+  bySubtopic: Record<string, number>
+}
+
+export async function getFilteredCount(input: unknown): Promise<FilteredCountResult> {
+  const empty: FilteredCountResult = { count: 0, byTopic: {}, bySubtopic: {} }
+  const { subjectId, topicIds, subtopicIds, filters } = FilteredCountSchema.parse(input)
   const supabase = await createServerSupabaseClient()
 
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError || !user) return { count: 0 }
+  if (authError || !user) return empty
 
   let query = supabase
     .from('questions')
-    .select('id')
+    .select('id, topic_id, subtopic_id')
     .eq('status', 'active')
     .eq('subject_id', subjectId)
     .is('deleted_at', null)
 
-  if (topicId) query = query.eq('topic_id', topicId)
-  if (subtopicId) query = query.eq('subtopic_id', subtopicId)
+  // Explicit empty arrays = nothing selected → zero results
+  if ((topicIds && topicIds.length === 0) || (subtopicIds && subtopicIds.length === 0)) {
+    return empty
+  }
+
+  // OR logic: include questions matching selected topics (leaf topics without
+  // subtopics) OR selected subtopics. AND would drop leaf-topic questions
+  // whose subtopic_id is NULL.
+  if (topicIds?.length && subtopicIds?.length) {
+    query = query.or(
+      `topic_id.in.(${topicIds.join(',')}),subtopic_id.in.(${subtopicIds.join(',')})`,
+    )
+  } else if (topicIds?.length) {
+    query = query.in('topic_id', topicIds)
+  } else if (subtopicIds?.length) {
+    query = query.in('subtopic_id', subtopicIds)
+  }
 
   const { data: rawData, error } = await query
   if (error) {
     console.error('[getFilteredCount] Questions query error:', error.message)
-    return { count: 0 }
+    return empty
   }
-  const data = (rawData ?? []) as QuestionIdRow[]
-  if (!data.length) return { count: 0 }
+  const data = (rawData ?? []) as QuestionWithGroup[]
+  if (!data.length) return empty
 
-  if (filter === 'all') return { count: data.length }
+  const activeFilters = filters.filter((f) => f !== 'all')
+  if (!activeFilters.length) return { count: data.length, ...groupCounts(data) }
 
-  const questionIds = data.map((q) => q.id)
+  const result = await applyFilters({
+    supabase,
+    userId: user.id,
+    questions: data,
+    filters: activeFilters,
+  })
 
-  if (filter === 'unseen') {
-    const { data: answeredData, error: answeredError } = await supabase
-      .from('student_responses')
-      .select('question_id')
-      .eq('student_id', user.id)
-      .in('question_id', questionIds)
-    if (answeredError) {
-      console.error('[getFilteredCount] student_responses query error:', answeredError.message)
+  const filteredIds = new Set(result.map((q) => q.id))
+  const filtered = data.filter((q) => filteredIds.has(q.id))
+  return { count: filtered.length, ...groupCounts(filtered) }
+}
+
+function groupCounts(rows: QuestionWithGroup[]) {
+  const byTopic: Record<string, number> = {}
+  const bySubtopic: Record<string, number> = {}
+  for (const r of rows) {
+    byTopic[r.topic_id] = (byTopic[r.topic_id] ?? 0) + 1
+    if (r.subtopic_id) {
+      bySubtopic[r.subtopic_id] = (bySubtopic[r.subtopic_id] ?? 0) + 1
     }
-    const answered = (answeredData ?? []) as QuestionFilterRef[]
-    const answeredIds = new Set(answered.map((r) => r.question_id))
-    return { count: data.filter((q) => !answeredIds.has(q.id)).length }
   }
-
-  // filter === 'incorrect'
-  const { data: incorrectData, error: incorrectError } = await supabase
-    .from('fsrs_cards')
-    .select('question_id')
-    .eq('student_id', user.id)
-    .eq('last_was_correct', false)
-    .in('question_id', questionIds)
-  if (incorrectError) {
-    console.error('[getFilteredCount] fsrs_cards query error:', incorrectError.message)
-  }
-  const incorrectCards = (incorrectData ?? []) as QuestionFilterRef[]
-  const incorrectIds = new Set(incorrectCards.map((r) => r.question_id))
-  return { count: data.filter((q) => incorrectIds.has(q.id)).length }
+  return { byTopic, bySubtopic }
 }

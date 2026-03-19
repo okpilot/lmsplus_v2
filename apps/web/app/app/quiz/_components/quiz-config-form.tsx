@@ -2,142 +2,77 @@
 
 import type { SubjectOption } from '@/lib/queries/quiz'
 import { useQuizConfig } from '../_hooks/use-quiz-config'
+import { ModeToggle } from './mode-toggle'
+import { QuestionCount } from './question-count'
 import { QuestionFilters } from './question-filters'
+import { SubjectSelect } from './subject-select'
+import { TopicTree } from './topic-tree'
 
 type QuizConfigFormProps = {
   subjects: SubjectOption[]
 }
 
 export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
-  const {
-    subjectId,
-    topicId,
-    subtopicId,
-    setSubtopicId,
-    topics,
-    subtopics,
-    filter,
-    setFilter,
-    count,
-    setCount,
-    loading,
-    error,
-    isPending,
-    maxQuestions,
-    filteredCount,
-    handleSubjectChange,
-    handleTopicChange,
-    handleStart,
-  } = useQuizConfig({ subjects })
+  const config = useQuizConfig({ subjects })
 
   return (
     <div className="space-y-4">
-      <SelectField
-        id="subject"
-        label="Subject"
-        value={subjectId}
-        onChange={handleSubjectChange}
-        placeholder="Select a subject..."
-        options={subjects.map((s) => ({
-          value: s.id,
-          label: `${s.code} — ${s.name} (${s.questionCount})`,
-        }))}
-      />
-
-      {topics.length > 0 && (
-        <SelectField
-          id="topic"
-          label="Topic (optional)"
-          value={topicId}
-          onChange={handleTopicChange}
-          placeholder="All topics"
-          options={topics.map((t) => ({
-            value: t.id,
-            label: `${t.code} — ${t.name} (${t.questionCount})`,
-          }))}
+      {/* Card 1: Quiz Configuration */}
+      <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+        <SubjectSelect
+          subjects={subjects}
+          value={config.subjectId}
+          onValueChange={config.handleSubjectChange}
         />
-      )}
+        <ModeToggle value={config.mode} onValueChange={config.setMode} />
+        {config.subjectId && (
+          <QuestionFilters value={config.filters} onValueChange={config.setFilters} />
+        )}
+      </div>
 
-      {subtopics.length > 0 && (
-        <SelectField
-          id="subtopic"
-          label="Subtopic (optional)"
-          value={subtopicId}
-          onChange={(v) => setSubtopicId(v)}
-          placeholder="All subtopics"
-          options={subtopics.map((st) => ({
-            value: st.id,
-            label: `${st.code} — ${st.name} (${st.questionCount})`,
-          }))}
-        />
-      )}
-
-      {subjectId && <QuestionFilters value={filter} onChange={setFilter} />}
-
-      {subjectId && (
-        <div>
-          <label htmlFor="count" className="mb-1.5 block text-sm font-medium">
-            Number of questions: {Math.min(count, maxQuestions || 1)}
-          </label>
-          <input
-            id="count"
-            type="range"
-            min={1}
-            max={maxQuestions || 1}
-            value={Math.min(count, maxQuestions || 1)}
-            onChange={(e) => setCount(Number(e.target.value))}
-            className="w-full accent-primary"
+      {/* Card 2: Topics — only show when topics loaded */}
+      {config.topicTree.topics.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-6">
+          <TopicTree
+            topics={config.topicTree.topics}
+            checkedTopics={config.topicTree.checkedTopics}
+            checkedSubtopics={config.topicTree.checkedSubtopics}
+            onToggleTopic={config.topicTree.toggleTopic}
+            onToggleSubtopic={config.topicTree.toggleSubtopic}
+            onSelectAll={config.topicTree.selectAll}
+            totalQuestions={config.topicTree.totalQuestions}
+            allSelected={config.topicTree.allSelected}
+            filteredByTopic={config.filteredByTopic}
+            filteredBySubtopic={config.filteredBySubtopic}
           />
-          <p className="mt-1 text-xs text-muted-foreground">
-            {filter !== 'all' && filteredCount === null
-              ? 'Counting…'
-              : `Up to ${maxQuestions} available`}
-          </p>
         </div>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {/* Card 3: Number of Questions — only show when subject selected */}
+      {config.subjectId && (
+        <div className="rounded-xl border border-border bg-card p-6">
+          <QuestionCount
+            value={config.count}
+            max={config.availableCount}
+            onValueChange={config.setCount}
+          />
+        </div>
+      )}
 
+      {/* Error */}
+      {config.error && <p className="text-sm text-destructive">{config.error}</p>}
+
+      {/* Start Quiz Button */}
       <button
         type="button"
-        disabled={!subjectId || loading || isPending}
-        onClick={handleStart}
-        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        disabled={
+          !config.subjectId || config.availableCount === 0 || config.loading || config.isPending
+        }
+        onClick={config.handleStart}
+        className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
-        {loading ? 'Starting...' : 'Start Quiz'}
+        {config.loading ? 'Starting...' : 'Start Quiz'}
       </button>
-    </div>
-  )
-}
-
-type SelectFieldProps = {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-  placeholder: string
-  options: { value: string; label: string }[]
-}
-
-function SelectField({ id, label, value, onChange, placeholder, options }: SelectFieldProps) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-      >
-        <option value="">{placeholder}</option>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
     </div>
   )
 }

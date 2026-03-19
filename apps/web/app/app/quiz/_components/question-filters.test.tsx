@@ -1,43 +1,114 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QuestionFilters } from './question-filters'
 
+// Mock the Switch to a simple checkbox for testability
+vi.mock('@/components/ui/switch', () => ({
+  Switch: ({
+    checked,
+    onCheckedChange,
+  }: {
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+  }) => (
+    <input
+      type="checkbox"
+      role="switch"
+      aria-checked={checked}
+      checked={checked}
+      onChange={(e) => onCheckedChange(e.target.checked)}
+    />
+  ),
+}))
+
 describe('QuestionFilters', () => {
-  it('renders all three filter options', () => {
-    render(<QuestionFilters value="all" onChange={vi.fn()} />)
-    expect(screen.getByLabelText('All questions')).toBeInTheDocument()
-    expect(screen.getByLabelText('Unseen only')).toBeInTheDocument()
-    expect(screen.getByLabelText('Incorrectly answered')).toBeInTheDocument()
+  beforeEach(() => {
+    vi.resetAllMocks()
   })
 
-  it('checks the radio matching the current value', () => {
-    render(<QuestionFilters value="unseen" onChange={vi.fn()} />)
-    expect(screen.getByLabelText('Unseen only')).toBeChecked()
-    expect(screen.getByLabelText('All questions')).not.toBeChecked()
-    expect(screen.getByLabelText('Incorrectly answered')).not.toBeChecked()
+  it('renders all 3 filter toggles', () => {
+    render(<QuestionFilters value={['all']} onValueChange={vi.fn()} />)
+    expect(screen.getByText('Previously unseen')).toBeInTheDocument()
+    expect(screen.getByText('Incorrectly answered')).toBeInTheDocument()
+    expect(screen.getByText('Flagged questions')).toBeInTheDocument()
   })
 
-  it('calls onChange when a different filter is selected', async () => {
+  it('all switches are off when value is [all]', () => {
+    render(<QuestionFilters value={['all']} onValueChange={vi.fn()} />)
+    const switches = screen.getAllByRole('switch')
+    expect(switches).toHaveLength(3)
+    for (const s of switches) {
+      expect(s).not.toBeChecked()
+    }
+  })
+
+  it('marks the correct switch as on when a filter is active', () => {
+    render(<QuestionFilters value={['unseen']} onValueChange={vi.fn()} />)
+    const switches = screen.getAllByRole('switch')
+    // Order: unseen, incorrect, flagged
+    expect(switches[0]).toBeChecked()
+    expect(switches[1]).not.toBeChecked()
+    expect(switches[2]).not.toBeChecked()
+  })
+
+  it('toggling on a filter calls onValueChange with that filter', async () => {
     const user = userEvent.setup()
-    const onChange = vi.fn()
-    render(<QuestionFilters value="all" onChange={onChange} />)
-
-    await user.click(screen.getByLabelText('Incorrectly answered'))
-    expect(onChange).toHaveBeenCalledWith('incorrect')
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['all']} onValueChange={onValueChange} />)
+    const switches = screen.getAllByRole('switch')
+    await user.click(switches[0]!) // unseen
+    expect(onValueChange).toHaveBeenCalledWith(['unseen'])
   })
 
-  it('does not call onChange when clicking the already selected filter', async () => {
+  it("toggling off the only active filter reverts to ['all']", async () => {
     const user = userEvent.setup()
-    const onChange = vi.fn()
-    render(<QuestionFilters value="all" onChange={onChange} />)
-
-    await user.click(screen.getByLabelText('All questions'))
-    expect(onChange).not.toHaveBeenCalled()
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['unseen']} onValueChange={onValueChange} />)
+    const switches = screen.getAllByRole('switch')
+    await user.click(switches[0]!) // toggle off unseen
+    expect(onValueChange).toHaveBeenCalledWith(['all'])
   })
 
-  it('renders a fieldset with legend', () => {
-    render(<QuestionFilters value="all" onChange={vi.fn()} />)
-    expect(screen.getByRole('group', { name: 'Question filter' })).toBeInTheDocument()
+  it('selecting unseen auto-deselects incorrect and flagged', async () => {
+    const user = userEvent.setup()
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['incorrect', 'flagged']} onValueChange={onValueChange} />)
+    const switches = screen.getAllByRole('switch')
+    await user.click(switches[0]!) // toggle on unseen
+    expect(onValueChange).toHaveBeenCalledWith(['unseen'])
+  })
+
+  it('selecting incorrect auto-deselects unseen', async () => {
+    const user = userEvent.setup()
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['unseen']} onValueChange={onValueChange} />)
+    const switches = screen.getAllByRole('switch')
+    await user.click(switches[1]!) // toggle on incorrect
+    expect(onValueChange).toHaveBeenCalledWith(['incorrect'])
+  })
+
+  it('selecting flagged auto-deselects unseen', async () => {
+    const user = userEvent.setup()
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['unseen']} onValueChange={onValueChange} />)
+    const switches = screen.getAllByRole('switch')
+    await user.click(switches[2]!) // toggle on flagged
+    expect(onValueChange).toHaveBeenCalledWith(['flagged'])
+  })
+
+  it('incorrect and flagged can be active simultaneously', async () => {
+    const user = userEvent.setup()
+    const onValueChange = vi.fn()
+    render(<QuestionFilters value={['incorrect']} onValueChange={onValueChange} />)
+    const switches = screen.getAllByRole('switch')
+    await user.click(switches[2]!) // toggle on flagged
+    expect(onValueChange).toHaveBeenCalledWith(['incorrect', 'flagged'])
+  })
+
+  it('renders info buttons for each filter', () => {
+    render(<QuestionFilters value={['all']} onValueChange={vi.fn()} />)
+    const hintButtons = screen.getAllByLabelText(/Info about/)
+    expect(hintButtons).toHaveLength(3)
   })
 })
