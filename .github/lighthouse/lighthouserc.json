@@ -3,7 +3,7 @@
     "collect": {
       "startServerCommand": "pnpm --filter @repo/web start",
       "startServerReadyPattern": "Ready in",
-      "url": ["http://localhost:3000/", "http://localhost:3000/auth/login"],
+      "url": ["http://localhost:3000/", "http://localhost:3000/auth/forgot-password"],
       "numberOfRuns": 3,
       "settings": {
         "preset": "desktop",
