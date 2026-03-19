@@ -12,7 +12,7 @@ export type UntypedQuery = {
 }
 export type UntypedClient = { from: (table: string) => { select: (col: string) => UntypedQuery } }
 
-export async function applyUnionFilters(opts: {
+export async function applyFilters(opts: {
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
   userId: string
   questions: QuestionIdRow[]
@@ -52,7 +52,7 @@ export async function applyUnionFilters(opts: {
           .is('deleted_at', null)
           .in('question_id', questionIds)
         if (error) {
-          console.error('[applyUnionFilters] flagged_questions query error:', error.message)
+          console.error('[applyFilters] flagged_questions query error:', error.message)
           return []
         }
         const ids = new Set(((data ?? []) as QuestionFilterRef[]).map((r) => r.question_id))
@@ -62,6 +62,14 @@ export async function applyUnionFilters(opts: {
     }),
   )
 
-  const unionIds = new Set(sets.flatMap((s) => s.map((q) => q.id)))
-  return questions.filter((q) => unionIds.has(q.id))
+  // Intersection: question must match ALL active filters
+  const idSets = sets.map((s) => new Set(s.map((q) => q.id)))
+  const intersection = idSets.reduce((acc, s) => {
+    const result = new Set<string>()
+    for (const id of acc) {
+      if (s.has(id)) result.add(id)
+    }
+    return result
+  })
+  return questions.filter((q) => intersection.has(q.id))
 }

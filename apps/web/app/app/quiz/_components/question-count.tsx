@@ -11,7 +11,18 @@ type QuestionCountProps = {
 const PRESETS = [10, 25, 50] as const
 
 export function QuestionCount({ value, max, onValueChange }: QuestionCountProps) {
-  const effectiveMax = Math.max(max, 1)
+  if (max === 0) {
+    return (
+      <div className="space-y-3">
+        <span className="text-[13px] font-medium">Number of Questions</span>
+        <p className="text-sm text-muted-foreground">
+          No questions available. Select at least one topic above.
+        </p>
+      </div>
+    )
+  }
+
+  const effectiveMax = max
   const effectiveValue = Math.min(value, effectiveMax)
 
   return (

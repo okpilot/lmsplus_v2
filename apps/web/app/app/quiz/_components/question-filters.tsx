@@ -1,5 +1,8 @@
 'use client'
 
+import { CircleHelp } from 'lucide-react'
+import { useState } from 'react'
+import { Switch } from '@/components/ui/switch'
 import type { QuestionFilterValue } from '../types'
 
 type QuestionFiltersProps = {
@@ -7,47 +10,77 @@ type QuestionFiltersProps = {
   onValueChange: (filters: QuestionFilterValue[]) => void
 }
 
-const OPTIONS: { value: QuestionFilterValue; label: string }[] = [
-  { value: 'all', label: 'All questions' },
-  { value: 'unseen', label: 'Unseen only' },
-  { value: 'incorrect', label: 'Incorrectly answered' },
-  { value: 'flagged', label: 'Flagged' },
+const FILTERS: { value: Exclude<QuestionFilterValue, 'all'>; label: string; hint: string }[] = [
+  {
+    value: 'unseen',
+    label: 'Previously unseen',
+    hint: 'Only questions you have not answered yet.',
+  },
+  {
+    value: 'incorrect',
+    label: 'Incorrectly answered',
+    hint: 'Questions where your last answer was wrong.',
+  },
+  {
+    value: 'flagged',
+    label: 'Flagged questions',
+    hint: 'Questions you flagged for review during a quiz.',
+  },
 ]
 
+function FilterHint({ hint, label }: { hint: string; label: string }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        className="inline-flex text-muted-foreground/60 hover:text-muted-foreground"
+        aria-label={`Info about ${label}`}
+      >
+        <CircleHelp className="size-3.5" />
+      </button>
+      {open && (
+        <span className="absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-xs text-background shadow-md">
+          {hint}
+        </span>
+      )}
+    </span>
+  )
+}
+
 export function QuestionFilters({ value, onValueChange }: QuestionFiltersProps) {
-  function handleToggle(filter: QuestionFilterValue) {
-    if (filter === 'all') {
-      onValueChange(['all'])
-      return
-    }
-    // Remove 'all' if present, toggle the specific filter
+  function handleToggle(filter: Exclude<QuestionFilterValue, 'all'>) {
     const withoutAll = value.filter((f) => f !== 'all')
     const isActive = withoutAll.includes(filter)
-    const next = isActive ? withoutAll.filter((f) => f !== filter) : [...withoutAll, filter]
-    // If nothing selected, revert to 'all'
+    let next = isActive ? withoutAll.filter((f) => f !== filter) : [...withoutAll, filter]
+    if (!isActive) {
+      if (filter === 'unseen') {
+        next = next.filter((f) => f !== 'incorrect' && f !== 'flagged')
+      } else if (filter === 'incorrect' || filter === 'flagged') {
+        next = next.filter((f) => f !== 'unseen')
+      }
+    }
     onValueChange(next.length === 0 ? ['all'] : next)
   }
 
   return (
-    <div className="space-y-1.5">
-      <span className="text-[13px] font-medium">Question Filter</span>
-      <div className="flex flex-wrap gap-2">
-        {OPTIONS.map((opt) => {
+    <div className="space-y-3">
+      <span className="text-[13px] font-medium">Question Preferences</span>
+      <div className="space-y-2.5">
+        {FILTERS.map((opt) => {
           const isActive = value.includes(opt.value)
           return (
-            <button
-              key={opt.value}
-              type="button"
-              aria-pressed={isActive}
-              onClick={() => handleToggle(opt.value)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                isActive
-                  ? 'border-primary text-primary'
-                  : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
-              }`}
-            >
-              {opt.label}
-            </button>
+            <div key={opt.value} className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                {opt.label}
+                <FilterHint hint={opt.hint} label={opt.label} />
+              </span>
+              <Switch checked={isActive} onCheckedChange={() => handleToggle(opt.value)} />
+            </div>
           )
         })}
       </div>

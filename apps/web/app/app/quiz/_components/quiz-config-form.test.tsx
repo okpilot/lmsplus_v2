@@ -94,6 +94,8 @@ function buildDefaultConfig() {
       toggleSubtopic: vi.fn(),
       selectAll: vi.fn(),
     },
+    filteredByTopic: null as Record<string, number> | null,
+    filteredBySubtopic: null as Record<string, number> | null,
     loading: false,
     error: null as string | null,
     isPending: false,

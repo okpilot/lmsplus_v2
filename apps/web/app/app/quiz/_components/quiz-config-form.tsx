@@ -30,18 +30,7 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
         )}
       </div>
 
-      {/* Card 2: Number of Questions — only show when subject selected */}
-      {config.subjectId && (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <QuestionCount
-            value={config.count}
-            max={config.availableCount}
-            onValueChange={config.setCount}
-          />
-        </div>
-      )}
-
-      {/* Card 3: Topics — only show when topics loaded */}
+      {/* Card 2: Topics — only show when topics loaded */}
       {config.topicTree.topics.length > 0 && (
         <div className="rounded-xl border border-border bg-card p-6">
           <TopicTree
@@ -53,6 +42,19 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
             onSelectAll={config.topicTree.selectAll}
             totalQuestions={config.topicTree.totalQuestions}
             allSelected={config.topicTree.allSelected}
+            filteredByTopic={config.filteredByTopic}
+            filteredBySubtopic={config.filteredBySubtopic}
+          />
+        </div>
+      )}
+
+      {/* Card 3: Number of Questions — only show when subject selected */}
+      {config.subjectId && (
+        <div className="rounded-xl border border-border bg-card p-6">
+          <QuestionCount
+            value={config.count}
+            max={config.availableCount}
+            onValueChange={config.setCount}
           />
         </div>
       )}
@@ -63,7 +65,9 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
       {/* Start Quiz Button */}
       <button
         type="button"
-        disabled={!config.subjectId || config.loading || config.isPending}
+        disabled={
+          !config.subjectId || config.availableCount === 0 || config.loading || config.isPending
+        }
         onClick={config.handleStart}
         className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >

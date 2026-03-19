@@ -130,7 +130,7 @@ describe('getFilteredCount — auth and validation', () => {
   it('returns count 0 when user is not authenticated', async () => {
     setupUnauthenticated()
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
-    expect(result).toEqual({ count: 0 })
+    expect(result).toMatchObject({ count: 0 })
   })
 
   it('returns count 0 when authentication fails', async () => {
@@ -139,7 +139,7 @@ describe('getFilteredCount — auth and validation', () => {
       error: { message: 'JWT expired' },
     })
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
-    expect(result).toEqual({ count: 0 })
+    expect(result).toMatchObject({ count: 0 })
   })
 
   it('throws (Zod) when subjectId is not a valid UUID', async () => {
@@ -171,7 +171,7 @@ describe("getFilteredCount — filters: ['all']", () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
-    expect(result).toEqual({ count: 3 })
+    expect(result).toMatchObject({ count: 3 })
   })
 
   it('returns count 0 when no questions match the subject', async () => {
@@ -181,7 +181,7 @@ describe("getFilteredCount — filters: ['all']", () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
-    expect(result).toEqual({ count: 0 })
+    expect(result).toMatchObject({ count: 0 })
   })
 
   it('filters by topicIds when provided', async () => {
@@ -195,7 +195,7 @@ describe("getFilteredCount — filters: ['all']", () => {
       filters: ['all'],
     })
 
-    expect(result).toEqual({ count: 1 })
+    expect(result).toMatchObject({ count: 1 })
     // in() called for topicIds
     expect((chain.in as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(1)
   })
@@ -212,7 +212,7 @@ describe("getFilteredCount — filters: ['all']", () => {
       filters: ['all'],
     })
 
-    expect(result).toEqual({ count: 1 })
+    expect(result).toMatchObject({ count: 1 })
     expect((chain.in as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 })
@@ -235,7 +235,7 @@ describe("getFilteredCount — filters: ['unseen']", () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['unseen'] })
 
-    expect(result).toEqual({ count: 2 })
+    expect(result).toMatchObject({ count: 2 })
   })
 
   it('returns all questions when the student has no answered questions', async () => {
@@ -252,7 +252,7 @@ describe("getFilteredCount — filters: ['unseen']", () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['unseen'] })
 
-    expect(result).toEqual({ count: 2 })
+    expect(result).toMatchObject({ count: 2 })
   })
 
   it('returns 0 when student has answered all questions', async () => {
@@ -269,7 +269,7 @@ describe("getFilteredCount — filters: ['unseen']", () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['unseen'] })
 
-    expect(result).toEqual({ count: 0 })
+    expect(result).toMatchObject({ count: 0 })
   })
 })
 
@@ -291,7 +291,7 @@ describe("getFilteredCount — filters: ['incorrect']", () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['incorrect'] })
 
-    expect(result).toEqual({ count: 2 })
+    expect(result).toMatchObject({ count: 2 })
   })
 
   it('returns 0 when no incorrectly-answered cards exist for the student', async () => {
@@ -308,7 +308,7 @@ describe("getFilteredCount — filters: ['incorrect']", () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['incorrect'] })
 
-    expect(result).toEqual({ count: 0 })
+    expect(result).toMatchObject({ count: 0 })
   })
 
   it('only counts questions that are in the base subject set (intersection)', async () => {
@@ -326,7 +326,7 @@ describe("getFilteredCount — filters: ['incorrect']", () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['incorrect'] })
 
-    expect(result).toEqual({ count: 1 })
+    expect(result).toMatchObject({ count: 1 })
   })
 })
 
@@ -341,7 +341,7 @@ describe('getFilteredCount — questions query error', () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
-    expect(result).toEqual({ count: 0 })
+    expect(result).toMatchObject({ count: 0 })
     expect(consoleSpy).toHaveBeenCalledWith(
       '[getFilteredCount] Questions query error:',
       'questions DB error',
@@ -357,7 +357,7 @@ describe('getFilteredCount — questions query error', () => {
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['unseen'] })
 
-    expect(result).toEqual({ count: 0 })
+    expect(result).toMatchObject({ count: 0 })
     consoleSpy.mockRestore()
   })
 })

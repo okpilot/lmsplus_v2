@@ -23,6 +23,9 @@ type SubjectSelectProps = {
 }
 
 export function SubjectSelect({ subjects, value, onValueChange }: SubjectSelectProps) {
+  const selected = subjects.find((s) => s.id === value)
+  const displayLabel = selected ? `${selected.code} — ${selected.name}` : undefined
+
   return (
     <div className="space-y-1.5">
       <span className="text-[13px] font-medium">Subject</span>
@@ -33,14 +36,17 @@ export function SubjectSelect({ subjects, value, onValueChange }: SubjectSelectP
         }}
       >
         <SelectTrigger className="w-full rounded-[10px]">
-          <SelectValue placeholder="Select a subject..." />
+          <SelectValue placeholder="Select a subject...">{displayLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {subjects.map((s) => (
-            <SelectItem key={s.id} value={s.id}>
-              {s.code} — {s.name} ({s.questionCount})
-            </SelectItem>
-          ))}
+          {subjects.map((s) => {
+            const label = `${s.code} — ${s.name}`
+            return (
+              <SelectItem key={s.id} value={s.id} label={label}>
+                {label}
+              </SelectItem>
+            )
+          })}
         </SelectContent>
       </Select>
     </div>

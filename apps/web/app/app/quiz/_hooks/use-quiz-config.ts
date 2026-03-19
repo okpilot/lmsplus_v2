@@ -11,6 +11,8 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
   const [filters, setFilters] = useState<QuestionFilterValue[]>(['all'])
   const [count, setCount] = useState(10)
   const [filteredCount, setFilteredCount] = useState<number | null>(null)
+  const [filteredByTopic, setFilteredByTopic] = useState<Record<string, number> | null>(null)
+  const [filteredBySubtopic, setFilteredBySubtopic] = useState<Record<string, number> | null>(null)
   const [, startFilterTransition] = useTransition()
   const filterGeneration = useRef(0)
   const topicTree = useTopicTree()
@@ -29,8 +31,12 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     topicTree,
   })
 
+  const hasActiveFilters = filters.some((f) => f !== 'all')
+
   function refetchFilteredCount(newFilters?: QuestionFilterValue[]) {
     setFilteredCount(null)
+    setFilteredByTopic(null)
+    setFilteredBySubtopic(null)
     if (!subjectId) return
     const activeFilters = (newFilters ?? filters).filter((f) => f !== 'all')
     if (!activeFilters.length) return
@@ -43,13 +49,19 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
         subtopicIds: topicTree.getSelectedSubtopicIds(),
         filters: activeFilters,
       })
-      if (gen === filterGeneration.current) setFilteredCount(result.count)
+      if (gen === filterGeneration.current) {
+        setFilteredCount(result.count)
+        setFilteredByTopic(result.byTopic)
+        setFilteredBySubtopic(result.bySubtopic)
+      }
     })
   }
 
   function handleSubjectChange(id: string) {
     setSubjectId(id)
     setFilteredCount(null)
+    setFilteredByTopic(null)
+    setFilteredBySubtopic(null)
     setFilters(['all'])
     setCount(10)
     if (id) topicTree.loadTopics(id)
@@ -70,6 +82,8 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     setCount,
     availableCount,
     topicTree,
+    filteredByTopic: hasActiveFilters ? filteredByTopic : null,
+    filteredBySubtopic: hasActiveFilters ? filteredBySubtopic : null,
     loading,
     error,
     isPending: topicTree.isPending,

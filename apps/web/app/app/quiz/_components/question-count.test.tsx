@@ -62,9 +62,11 @@ describe('QuestionCount', () => {
     expect(screen.getByText('37')).toBeInTheDocument()
   })
 
-  it('uses 1 as effectiveMax when max is 0 to avoid a zero-range slider', () => {
+  it('shows empty state message when max is 0', () => {
     render(<QuestionCount value={1} max={0} onValueChange={vi.fn()} />)
-    expect(screen.getByText('of 1 selected')).toBeInTheDocument()
+    expect(
+      screen.getByText('No questions available. Select at least one topic above.'),
+    ).toBeInTheDocument()
   })
 
   it('calls onValueChange when the All button is clicked', async () => {

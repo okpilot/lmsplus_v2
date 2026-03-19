@@ -48,10 +48,10 @@ describe('SubjectSelect', () => {
     vi.resetAllMocks()
   })
 
-  it('renders subject items with code, name, and question count', () => {
+  it('renders subject items with code and name', () => {
     render(<SubjectSelect subjects={SUBJECTS} value="" onValueChange={vi.fn()} />)
-    expect(screen.getByText('010 — Air Law (40)')).toBeInTheDocument()
-    expect(screen.getByText('050 — Meteorology (80)')).toBeInTheDocument()
+    expect(screen.getByText('010 — Air Law')).toBeInTheDocument()
+    expect(screen.getByText('050 — Meteorology')).toBeInTheDocument()
   })
 
   it('calls onValueChange when the select value changes', async () => {

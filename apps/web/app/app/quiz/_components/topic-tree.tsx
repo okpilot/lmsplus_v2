@@ -22,6 +22,8 @@ type TopicTreeProps = {
   onSelectAll: () => void
   totalQuestions: number
   allSelected: boolean
+  filteredByTopic: Record<string, number> | null
+  filteredBySubtopic: Record<string, number> | null
 }
 
 export function TopicTree({
@@ -33,6 +35,8 @@ export function TopicTree({
   onSelectAll,
   totalQuestions,
   allSelected,
+  filteredByTopic,
+  filteredBySubtopic,
 }: TopicTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -69,6 +73,7 @@ export function TopicTree({
                 code={topic.code}
                 name={topic.name}
                 count={topic.questionCount}
+                filteredCount={filteredByTopic ? (filteredByTopic[topic.id] ?? 0) : null}
                 checked={isChecked}
                 onCheckedChange={() => onToggleTopic(topic.id)}
                 isExpanded={isExpanded}
@@ -76,18 +81,22 @@ export function TopicTree({
                   topic.subtopics.length > 0 ? () => toggleExpand(topic.id) : undefined
                 }
               />
-              {isExpanded &&
-                topic.subtopics.map((sub) => (
-                  <TopicRow
-                    key={sub.id}
-                    code={sub.code}
-                    name={sub.name}
-                    count={sub.questionCount}
-                    checked={checkedSubtopics.has(sub.id)}
-                    onCheckedChange={() => onToggleSubtopic(sub.id, topic.id)}
-                    indented
-                  />
-                ))}
+              {isExpanded && (
+                <div className="border-t border-border bg-muted/40">
+                  {topic.subtopics.map((sub) => (
+                    <TopicRow
+                      key={sub.id}
+                      code={sub.code}
+                      name={sub.name}
+                      count={sub.questionCount}
+                      filteredCount={filteredBySubtopic ? (filteredBySubtopic[sub.id] ?? 0) : null}
+                      checked={checkedSubtopics.has(sub.id)}
+                      onCheckedChange={() => onToggleSubtopic(sub.id, topic.id)}
+                      indented
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}

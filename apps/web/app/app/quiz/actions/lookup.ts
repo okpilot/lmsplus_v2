@@ -8,8 +8,7 @@ import {
   getTopicsForSubject,
   getTopicsWithSubtopics,
 } from '@/lib/queries/quiz'
-import type { QuestionIdRow } from './filter-helpers'
-import { applyUnionFilters } from './filter-helpers'
+import { applyFilters } from './filter-helpers'
 
 const IdSchema = z.string().uuid()
 
@@ -32,7 +31,16 @@ const FilteredCountSchema = z.object({
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
 })
 
-export async function getFilteredCount(input: unknown): Promise<{ count: number }> {
+type QuestionWithGroup = { id: string; topic_id: string; subtopic_id: string | null }
+
+export type FilteredCountResult = {
+  count: number
+  byTopic: Record<string, number>
+  bySubtopic: Record<string, number>
+}
+
+export async function getFilteredCount(input: unknown): Promise<FilteredCountResult> {
+  const empty: FilteredCountResult = { count: 0, byTopic: {}, bySubtopic: {} }
   const { subjectId, topicIds, subtopicIds, filters } = FilteredCountSchema.parse(input)
   const supabase = await createServerSupabaseClient()
 
@@ -40,11 +48,11 @@ export async function getFilteredCount(input: unknown): Promise<{ count: number 
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError || !user) return { count: 0 }
+  if (authError || !user) return empty
 
   let query = supabase
     .from('questions')
-    .select('id')
+    .select('id, topic_id, subtopic_id')
     .eq('status', 'active')
     .eq('subject_id', subjectId)
     .is('deleted_at', null)
@@ -55,19 +63,34 @@ export async function getFilteredCount(input: unknown): Promise<{ count: number 
   const { data: rawData, error } = await query
   if (error) {
     console.error('[getFilteredCount] Questions query error:', error.message)
-    return { count: 0 }
+    return empty
   }
-  const data = (rawData ?? []) as QuestionIdRow[]
-  if (!data.length) return { count: 0 }
+  const data = (rawData ?? []) as QuestionWithGroup[]
+  if (!data.length) return empty
 
   const activeFilters = filters.filter((f) => f !== 'all')
-  if (!activeFilters.length) return { count: data.length }
+  if (!activeFilters.length) return { count: data.length, ...groupCounts(data) }
 
-  const result = await applyUnionFilters({
+  const result = await applyFilters({
     supabase,
     userId: user.id,
     questions: data,
     filters: activeFilters,
   })
-  return { count: result.length }
+
+  const filteredIds = new Set(result.map((q) => q.id))
+  const filtered = data.filter((q) => filteredIds.has(q.id))
+  return { count: filtered.length, ...groupCounts(filtered) }
+}
+
+function groupCounts(rows: QuestionWithGroup[]) {
+  const byTopic: Record<string, number> = {}
+  const bySubtopic: Record<string, number> = {}
+  for (const r of rows) {
+    byTopic[r.topic_id] = (byTopic[r.topic_id] ?? 0) + 1
+    if (r.subtopic_id) {
+      bySubtopic[r.subtopic_id] = (bySubtopic[r.subtopic_id] ?? 0) + 1
+    }
+  }
+  return { byTopic, bySubtopic }
 }

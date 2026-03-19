@@ -98,6 +98,8 @@ function renderTree(overrides: Partial<Parameters<typeof TopicTree>[0]> = {}) {
     onSelectAll: vi.fn(),
     totalQuestions: 35,
     allSelected: false,
+    filteredByTopic: null,
+    filteredBySubtopic: null,
     ...overrides,
   }
   return render(<TopicTree {...props} />)
