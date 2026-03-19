@@ -590,6 +590,7 @@ All database design rules (soft delete, immutability, idempotency, RPC conventio
 - No hard `DELETE` anywhere in application code — always `UPDATE SET deleted_at = now()`
 - Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) have RLS policies blocking UPDATE and DELETE
 - `SECURITY DEFINER` RPCs must always include a manual `auth.uid()` check + `SET search_path = public`
+- **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query.
 - All multi-table mutations go through RPCs for atomicity — never multi-step application calls
 
 ## 15. What Supabase Handles For Us
