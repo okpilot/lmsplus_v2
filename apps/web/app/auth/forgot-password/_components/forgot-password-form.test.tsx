@@ -23,6 +23,7 @@ vi.mock('next/link', () => ({
 describe('ForgotPasswordForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
   })
 
   it('renders an email input and submit button', () => {
@@ -55,7 +56,7 @@ describe('ForgotPasswordForm', () => {
       expect(mockResetPasswordForEmail).toHaveBeenCalledWith(
         'pilot@example.com',
         expect.objectContaining({
-          redirectTo: expect.stringContaining('/auth/reset-password'),
+          redirectTo: 'http://localhost:3000/auth/reset-password',
         }),
       )
     })
@@ -89,5 +90,16 @@ describe('ForgotPasswordForm', () => {
     render(<ForgotPasswordForm />)
     const link = screen.getByRole('link', { name: /back to login/i })
     expect(link).toHaveAttribute('href', '/')
+  })
+
+  it('shows an error when resetPasswordForEmail throws an exception', async () => {
+    mockResetPasswordForEmail.mockRejectedValue(new Error('Network failure'))
+    const user = userEvent.setup()
+    render(<ForgotPasswordForm />)
+
+    await user.type(screen.getByLabelText(/email address/i), 'pilot@example.com')
+    await user.click(screen.getByRole('button', { name: /send reset email/i }))
+
+    expect(await screen.findByText(/unable to send reset email/i)).toBeInTheDocument()
   })
 })

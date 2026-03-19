@@ -13,6 +13,7 @@
 6. **Soft delete** — never hard DELETE. Always `UPDATE SET deleted_at = now()`.
 7. **Auth check in RPCs** — all SECURITY DEFINER functions must call `auth.uid()` manually and raise if null.
 8. **Secrets** — never commit `.env*` files. Pre-commit hook blocks them.
+9. **Soft-delete in RPCs** — every SELECT inside a SECURITY DEFINER function must include `AND deleted_at IS NULL` on soft-deletable tables. SECURITY DEFINER bypasses RLS, so soft-delete filters must be manual.
 
 ## When the security-auditor agent runs
 On every `git push` via Lefthook pre-push hook.

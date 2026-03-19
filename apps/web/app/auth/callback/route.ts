@@ -51,6 +51,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(redirectTo)
   }
 
-  redirectTo.pathname = '/app/dashboard'
+  // Support recovery flow: if `next` points to an allowed path, redirect there
+  const ALLOWED_NEXT_PATHS = ['/auth/reset-password']
+  const rawNext = searchParams.get('next') ?? ''
+  let extractedNext = rawNext
+  if (rawNext.startsWith('http')) {
+    try {
+      extractedNext = new URL(rawNext).pathname
+    } catch {
+      extractedNext = ''
+    }
+  }
+  const isSafePath = extractedNext.startsWith('/') && !extractedNext.startsWith('//')
+  const isRecoveryRedirect = isSafePath && ALLOWED_NEXT_PATHS.includes(extractedNext)
+
+  if (isRecoveryRedirect) {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    cookieStore.set('__recovery_pending', '1', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 600,
+    })
+    redirectTo.pathname = extractedNext
+  } else {
+    redirectTo.pathname = '/app/dashboard'
+  }
+
   return NextResponse.redirect(redirectTo)
 }
