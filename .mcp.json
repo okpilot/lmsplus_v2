@@ -18,6 +18,25 @@
     "shadcn": {
       "command": "npx.cmd",
       "args": ["-y", "shadcn@latest", "mcp"]
+    },
+    "sonarqube": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--name",
+        "sonarqube-mcp-server",
+        "--rm",
+        "-e",
+        "SONARQUBE_TOKEN",
+        "-e",
+        "SONARQUBE_ORG",
+        "mcp/sonarqube"
+      ],
+      "env": {
+        "SONARQUBE_TOKEN": "${SONAR_TOKEN}",
+        "SONARQUBE_ORG": "okpilot"
+      }
     }
   }
 }
