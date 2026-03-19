@@ -280,6 +280,7 @@ async function filterUnseen(
   userId: string,
   questions: QuestionIdRow[],
 ): Promise<QuestionIdRow[]> {
+  if (!questions.length) return []
   const questionIds = questions.map((q) => q.id)
   const { data: answeredData, error } = await supabase
     .from('student_responses')

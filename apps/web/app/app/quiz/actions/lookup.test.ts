@@ -19,15 +19,24 @@ vi.mock('@repo/db/server', () => ({
   }),
 }))
 
+const { mockGetTopicsWithSubtopics } = vi.hoisted(() => ({
+  mockGetTopicsWithSubtopics: vi.fn(),
+}))
+
 vi.mock('@/lib/queries/quiz', () => ({
   getTopicsForSubject: (...args: unknown[]) => mockGetTopicsForSubject(...args),
   getSubtopicsForTopic: (...args: unknown[]) => mockGetSubtopicsForTopic(...args),
-  getTopicsWithSubtopics: vi.fn().mockResolvedValue([]),
+  getTopicsWithSubtopics: (...args: unknown[]) => mockGetTopicsWithSubtopics(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
 
-import { fetchSubtopicsForTopic, fetchTopicsForSubject, getFilteredCount } from './lookup'
+import {
+  fetchSubtopicsForTopic,
+  fetchTopicsForSubject,
+  fetchTopicsWithSubtopics,
+  getFilteredCount,
+} from './lookup'
 
 // ---- Fixtures -------------------------------------------------------------
 
@@ -360,5 +369,100 @@ describe('getFilteredCount — questions query error', () => {
 
     expect(result).toMatchObject({ count: 0 })
     consoleSpy.mockRestore()
+  })
+})
+
+// ---- getFilteredCount — filters: ['flagged'] --------------------------------
+
+describe("getFilteredCount — filters: ['flagged']", () => {
+  it('returns count of questions flagged by the student', async () => {
+    setupAuthenticatedUser()
+
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) {
+        return buildQueryChain([
+          { id: Q1_ID, topic_id: TOPIC_ID, subtopic_id: null },
+          { id: Q2_ID, topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID },
+          { id: Q3_ID, topic_id: TOPIC_ID, subtopic_id: null },
+        ])
+      }
+      // flagged_questions — only Q2 is flagged
+      return buildQueryChain([{ question_id: Q2_ID }])
+    })
+
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['flagged'] })
+
+    expect(result).toMatchObject({ count: 1 })
+  })
+
+  it('returns count 0 when student has no flagged questions', async () => {
+    setupAuthenticatedUser()
+
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) {
+        return buildQueryChain([{ id: Q1_ID, topic_id: TOPIC_ID, subtopic_id: null }])
+      }
+      return buildQueryChain([])
+    })
+
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['flagged'] })
+
+    expect(result).toMatchObject({ count: 0 })
+  })
+
+  it('returns count 0 when topicIds is empty (short-circuit before DB query)', async () => {
+    setupAuthenticatedUser()
+    // Must provide a chain so the query builder can chain .from().select()...
+    // The empty topicIds guard fires before the chain is awaited.
+    mockFrom.mockReturnValue(buildQueryChain([]))
+
+    const result = await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      topicIds: [],
+      filters: ['flagged'],
+    })
+
+    expect(result).toMatchObject({ count: 0 })
+  })
+})
+
+// ---- fetchTopicsWithSubtopics -----------------------------------------------
+
+const TOPIC_WITH_SUBTOPICS = [
+  {
+    id: TOPIC_ID,
+    code: 'AERO',
+    name: 'Aerodynamics',
+    questionCount: 5,
+    subtopics: [{ id: SUBTOPIC_ID, code: 'LIFT', name: 'Lift', questionCount: 3 }],
+  },
+]
+
+describe('fetchTopicsWithSubtopics', () => {
+  it('delegates to getTopicsWithSubtopics with the provided subjectId', async () => {
+    mockGetTopicsWithSubtopics.mockResolvedValue(TOPIC_WITH_SUBTOPICS)
+    const result = await fetchTopicsWithSubtopics(SUBJECT_ID)
+    expect(mockGetTopicsWithSubtopics).toHaveBeenCalledWith(SUBJECT_ID)
+    expect(result).toEqual(TOPIC_WITH_SUBTOPICS)
+  })
+
+  it('returns an empty array when no topics exist for the subject', async () => {
+    mockGetTopicsWithSubtopics.mockResolvedValue([])
+    const result = await fetchTopicsWithSubtopics(SUBJECT_ID)
+    expect(result).toEqual([])
+  })
+
+  it('throws (Zod) when the id is not a valid UUID', async () => {
+    const { ZodError } = await import('zod')
+    await expect(fetchTopicsWithSubtopics('not-a-uuid')).rejects.toThrow(ZodError)
+  })
+
+  it('throws (Zod) when the id is null', async () => {
+    const { ZodError } = await import('zod')
+    await expect(fetchTopicsWithSubtopics(null)).rejects.toThrow(ZodError)
   })
 })

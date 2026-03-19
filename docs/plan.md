@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-18
+> Last updated: 2026-03-19
 
 ---
 
@@ -115,7 +115,7 @@
 
 ## Status: SPRINT 5 — Quiz Setup Redesign (COMPLETE — 2026-03-18)
 
-**Goal:** Redesign quiz setup page with cascading filters, topic tree, and persistent question flags. Replace dropdown selectors with multi-select UI.
+**Goal:** Redesign quiz setup page with multi-select topic tree, combinable filter pills, and persistent question flags.
 
 **Scope:** 18 items (UI components, hooks, actions, database, filtering logic)
 
@@ -138,17 +138,28 @@
 | Logic | 5.15 | Exam mode: UI stub only (disabled with "Coming soon" badge) | Done |
 | Tests | 5.16 | Updated question-filters, quiz-config-form, use-quiz-config, use-quiz-start tests for new UI | Done |
 | Tests | 5.17 | Updated lookup and start actions tests for new filter/topic arrays | Done |
-| Tests | 5.18 | All 918 tests passing, type check clean, lint clean | Done |
+| Tests | 5.18 | All 987 tests passing (94 files), type check clean, lint clean | Done |
 
-**Implementation complete (2026-03-18):**
+**Implementation complete (2026-03-18, refined 2026-03-19):**
 - Replaced cascading dropdown filters with multi-select topic tree (useTopicTree hook)
-- Filter pills: All/Unseen/Incorrect/Flagged — union of active filters applied on topic-selected question pool
+- Filter pills: All/Unseen/Incorrect/Flagged — intersection logic (not union) applied on topic-selected question pool
 - Question count: slider range [10, All] with preset buttons — no hard 50-question cap
 - New `flagged_questions` table (migration 043) for persistent per-student flags
 - Updated start action to accept `topicIds` / `subtopicIds` arrays + `filters` array
 - Deleted `use-quiz-cascade` hook (functionality moved to `use-topic-tree`)
 - Exam mode UI stub (disabled, "Coming soon" badge)
-- Closes #176
+- Polish refinements (4 commits, 2026-03-19):
+  - Filter logic switched from union to intersection
+  - Filters now use toggle switches (shadcn Switch component) instead of pill buttons
+  - Subject dropdown now displays names instead of UUIDs (Base UI label fix)
+  - Removed redundant question counts from subject dropdown
+  - Increased subtopic indentation for better visual hierarchy
+  - Per-topic/subtopic filtered counts shown when filters active
+  - Empty state handling when no topics selected (Start button disabled)
+  - Added eval seed script: `apps/web/scripts/seed-quiz-setup-eval.ts`
+- New shadcn components: `switch.tsx`, `tooltip.tsx`
+- PR #272, Closes #176
+- Follow-up issues: #273 (WITH CHECK guard), #274 (a11y), #275 (red-team specs), #276 (count cap eval)
 
 ---
 
