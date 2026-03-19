@@ -72,6 +72,7 @@ export async function applyFilters(opts: {
 
   // Intersection: question must match ALL active filters
   const idSets = sets.map((s) => new Set(s.map((q) => q.id)))
+  if (idSets.length === 0) return questions
   const intersection = idSets.reduce((acc, s) => {
     const result = new Set<string>()
     for (const id of acc) {

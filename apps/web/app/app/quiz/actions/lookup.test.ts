@@ -214,6 +214,7 @@ describe("getFilteredCount — filters: ['all']", () => {
     })
 
     expect(result).toMatchObject({ count: 1 })
+    expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('topic_id.in.'))
   })
 })
 
