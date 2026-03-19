@@ -332,11 +332,17 @@
 - **GitHub Actions CI** (cloud):
   - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests + coverage (Vitest with v8 provider), Codecov upload, dependency audit
     - Permissions: `contents: read` (principle of least privilege, enforced 2026-03-15)
-    - Codecov integration added (2026-03-19): uploads lcov reports, advisory only (fail_ci_if_error: false), thresholds 60/50 (lines/branches) aligned with Vitest config
-  - `sonarcloud.yml` — runs on PRs + push to master: SonarCloud code quality analysis with new code detection
-    - Configuration: `sonar-project.properties` defines source paths, test inclusions, coverage report paths, TypeScript tsconfig paths
-    - Executes `pnpm coverage` to generate lcov reports, then SonarCloud Scan action with SONAR_TOKEN
-  - `e2e.yml` — runs on pull requests + push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
+    - Codecov integration added (2026-03-19): uploads lcov reports, advisory only (fail_ci_if_error: false), thresholds 60/50/60 (lines/branches/functions) aligned with Vitest config
+  - `sonarcloud.yml` — runs on PRs + push to master: static code quality analysis via SonarCloud with new code detection
+    - Configuration: `sonar-project.properties` defines source paths, test inclusions, coverage report paths, TypeScript config paths
+    - Org: okpilot, project key: okpilot_lmsplus_v2 — SONAR_TOKEN secret configured
+    - Executes `pnpm coverage` to generate lcov reports, then uploads to SonarCloud
+  - `e2e.yml` — runs on pull requests + push to master + nightly + manual dispatch: migration test (clean reset) + integration tests (Supabase) + E2E tests (Playwright)
+    - Migration test: `supabase db reset --no-seed` verifies all migrations apply cleanly on fresh DB
+  - `lighthouse.yml` — runs on PRs + push to master: performance + accessibility audits via Lighthouse CI
+    - Config: `.github/lighthouse/lighthouserc.json` — 3 runs per page, min scores: a11y/best-practices 0.9, SEO 0.85, performance 0.6 (warn)
+    - Audits homepage + forgot-password page
+    - Artifacts uploaded to GitHub (14-day retention)
   - `codeql.yml` — weekly security scan (Monday 05:30 UTC) for JavaScript/TypeScript via GitHub CodeQL action, logs to Security tab
   - `dependabot.yml` — automated dependency updates with auto-grouping by ecosystem/directory, weekly schedule, `tech-debt` label, commits with `ci` or `chore` prefix
     - Scopes: GitHub Actions + npm root + apps/web + packages/{db,ui,typescript-config}
@@ -734,12 +740,13 @@ Full backlog with sizing and sprint grouping: **`docs/backlog.md`**
 
 ## Post-Phase 5 Suggestions
 
-From setup audit (2026-03-11):
-- **CI/CD:** GitHub Actions mirroring Lefthook checks (once repo goes to GitHub)
+From setup audit (2026-03-11), updated 2026-03-19:
+- **CI/CD:** GitHub Actions mirroring Lefthook checks ✓ (added: `lighthouse.yml` for performance/accessibility audits)
+- **Migration testing:** Added `migration-test` job in `e2e.yml` to verify clean DB resets
 - **Error tracking:** Sentry integration after Phase 5 goes live
 - **Monitoring:** Vercel Web Analytics dashboard
 - **Vercel MCP:** Add after first deploy
 
 ---
 
-*Last updated: 2026-03-18 — Sprint 4 (Dashboard v4 Redesign) complete (#175). Stat cards, single-row heatmap, collapsible sidebar, mobile bottom tab bar, UserContext, dashboard-stats extraction.*
+*Last updated: 2026-03-19 — Sprint 4 complete. Lighthouse CI workflow + DB migration test added to e2e.yml.*

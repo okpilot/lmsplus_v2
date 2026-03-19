@@ -3,6 +3,7 @@
     "collect": {
       "startServerCommand": "pnpm --filter @repo/web start",
       "startServerReadyPattern": "Ready in",
+      "startServerReadyTimeout": 60000,
       "url": ["http://localhost:3000/", "http://localhost:3000/auth/forgot-password"],
       "numberOfRuns": 3,
       "settings": {

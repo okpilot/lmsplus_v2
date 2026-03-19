@@ -40,6 +40,7 @@ jobs:
 
       - name: Verify all migrations applied
         run: |
+          set -e
           EXPECTED=$(ls supabase/migrations/*.sql | wc -l | tr -d ' ')
           ACTUAL=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -t -c \
             "SELECT count(*) FROM supabase_migrations.schema_migrations;" | tr -d ' ')
