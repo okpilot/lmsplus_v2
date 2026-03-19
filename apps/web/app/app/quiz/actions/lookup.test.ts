@@ -457,12 +457,10 @@ describe('fetchTopicsWithSubtopics', () => {
   })
 
   it('throws (Zod) when the id is not a valid UUID', async () => {
-    const { ZodError } = await import('zod')
     await expect(fetchTopicsWithSubtopics('not-a-uuid')).rejects.toThrow(ZodError)
   })
 
   it('throws (Zod) when the id is null', async () => {
-    const { ZodError } = await import('zod')
     await expect(fetchTopicsWithSubtopics(null)).rejects.toThrow(ZodError)
   })
 })

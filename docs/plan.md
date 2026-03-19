@@ -134,7 +134,7 @@
 | UI | 5.11 | Saved quiz cards redesigned with new layout | Done |
 | Hooks | 5.12 | New `use-topic-tree.ts` hook (replaces use-quiz-cascade) | Done |
 | Hooks | 5.13 | Updated `use-quiz-config.ts` to accept topicIds/subtopicIds arrays + filters array | Done |
-| Logic | 5.14 | Filter union logic: combine active filters on topic-selected question pool | Done |
+| Logic | 5.14 | Filter intersection logic: combine active filters on topic-selected question pool | Done |
 | Logic | 5.15 | Exam mode: UI stub only (disabled with "Coming soon" badge) | Done |
 | Tests | 5.16 | Updated question-filters, quiz-config-form, use-quiz-config, use-quiz-start tests for new UI | Done |
 | Tests | 5.17 | Updated lookup and start actions tests for new filter/topic arrays | Done |
