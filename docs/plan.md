@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-18
+> Last updated: 2026-03-19
 
 ---
 
@@ -330,12 +330,17 @@
   - `.coderabbit.yaml` — assertive profile, path-specific rules mirroring code-style.md + security.md
   - Pre-merge checks: no-secrets, no-answer-exposure, soft-delete-only
 - **GitHub Actions CI** (cloud):
-  - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests (Vitest), dependency audit
+  - `ci.yml` — runs on every PR and push to master: lint (Biome), type-check (tsc), unit tests + coverage (Vitest with v8 provider), Codecov upload, dependency audit
     - Permissions: `contents: read` (principle of least privilege, enforced 2026-03-15)
+    - Codecov integration added (2026-03-19): uploads lcov reports, advisory only (fail_ci_if_error: false), thresholds 60/50 (lines/branches) aligned with Vitest config
+  - `sonarcloud.yml` — runs on PRs + push to master: SonarCloud code quality analysis with new code detection
+    - Configuration: `sonar-project.properties` defines source paths, test inclusions, coverage report paths, TypeScript tsconfig paths
+    - Executes `pnpm coverage` to generate lcov reports, then SonarCloud Scan action with SONAR_TOKEN
   - `e2e.yml` — runs on pull requests + push to master + nightly + manual dispatch: integration tests (Supabase) + E2E tests (Playwright)
   - `codeql.yml` — weekly security scan (Monday 05:30 UTC) for JavaScript/TypeScript via GitHub CodeQL action, logs to Security tab
   - `dependabot.yml` — automated dependency updates with auto-grouping by ecosystem/directory, weekly schedule, `tech-debt` label, commits with `ci` or `chore` prefix
     - Scopes: GitHub Actions + npm root + apps/web + packages/{db,ui,typescript-config}
+  - `health-monitoring.yml` — weekly workflows: dependency audit, security audit, codeql scan (added 2026-03-15, moved to separate weekly schedule for visibility)
   - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
   - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 20 questions for E2E (expanded from 5 to support review flow after quiz)
   - Playwright config updated: uses `pnpm start` (production build) in CI, `pnpm dev` locally
