@@ -54,7 +54,14 @@ export async function GET(request: NextRequest) {
   // Support recovery flow: if `next` points to an allowed path, redirect there
   const ALLOWED_NEXT_PATHS = ['/auth/reset-password']
   const rawNext = searchParams.get('next') ?? ''
-  const extractedNext = rawNext.startsWith('http') ? new URL(rawNext).pathname : rawNext
+  let extractedNext = rawNext
+  if (rawNext.startsWith('http')) {
+    try {
+      extractedNext = new URL(rawNext).pathname
+    } catch {
+      extractedNext = ''
+    }
+  }
   const isSafePath = extractedNext.startsWith('/') && !extractedNext.startsWith('//')
   const isRecoveryRedirect = isSafePath && ALLOWED_NEXT_PATHS.includes(extractedNext)
 

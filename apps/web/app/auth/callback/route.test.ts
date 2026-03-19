@@ -200,6 +200,50 @@ describe('GET /auth/callback', () => {
     )
   })
 
+  it('falls back to dashboard when next param is a malformed URL', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: { id: 'user-1' } }),
+        }),
+      }),
+    })
+
+    const response = await GET(
+      makeRequest('http://localhost:3000/auth/callback?code=valid-code&next=http://'),
+    )
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/app/dashboard')
+    expect(mockCookieSet).not.toHaveBeenCalled()
+  })
+
+  it('blocks protocol-relative URL in next param', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null })
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: { id: 'user-1' } }),
+        }),
+      }),
+    })
+
+    const response = await GET(
+      makeRequest(
+        'http://localhost:3000/auth/callback?code=valid-code&next=//evil.com/auth/reset-password',
+      ),
+    )
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/app/dashboard')
+    expect(mockCookieSet).not.toHaveBeenCalled()
+  })
+
   it('ignores a disallowed next param and redirects to /app/dashboard', async () => {
     mockExchangeCodeForSession.mockResolvedValue({ error: null })
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
