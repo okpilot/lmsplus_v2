@@ -22,6 +22,34 @@ env:
   PNPM_VERSION: '9.15.0'
 
 jobs:
+  migration-test:
+    name: Migration Test (clean reset)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: supabase/setup-cli@b60b5899c73b63a2d2d651b1e90db8d4c9392f51 # v1
+        with:
+          version: 2.78.1
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Reset DB (apply all migrations from scratch)
+        run: supabase db reset --no-seed
+
+      - name: Verify all migrations applied
+        run: |
+          set -e
+          EXPECTED=$(ls supabase/migrations/*.sql | wc -l | tr -d ' ')
+          ACTUAL=$(PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -t -c \
+            "SELECT count(*) FROM supabase_migrations.schema_migrations;" | tr -d ' ')
+          echo "Expected: $EXPECTED | Applied: $ACTUAL"
+          if [ "$ACTUAL" -ne "$EXPECTED" ]; then
+            echo "ERROR: Migration count mismatch"
+            exit 1
+          fi
+
   integration-tests:
     name: Integration Tests (Supabase)
     runs-on: ubuntu-latest

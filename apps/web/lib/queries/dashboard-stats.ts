@@ -10,7 +10,7 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 type ResponseDateRow = { question_id: string; created_at: string }
 
 export async function getQuestionsToday(supabase: SupabaseClient, userId: string): Promise<number> {
-  const todayStart = new Date().toISOString().slice(0, 10)
+  const todayStart = new Date(Date.now()).toISOString().slice(0, 10)
   const { count } = await supabase
     .from('student_responses')
     .select('*', { count: 'exact', head: true })

@@ -43,13 +43,13 @@ Triage CodeRabbit review comments on the current PR and decide what to fix, skip
 - Real bug (wrong output, crash, data loss)
 - Security gap (auth bypass, injection, DoS, answer exposure)
 - Violates a rule in `code-style.md` or `security.md`
-- Quick fix (< 10 lines, single file)
+- **Any finding fixable in < 10 lines, regardless of category** — a one-line doc typo doesn't need a GitHub Issue, just fix it
 
 ### Defer if:
 - Valid but too broad (affects 10+ files, systematic refactor)
 - UX enhancement, not a functional bug
 - Test coverage gap (tests work, just not comprehensive enough)
-- Doc polish
+- Doc restructuring or large doc rewrites (not quick typo fixes — those are FIX NOW)
 
 ### Skip if:
 - False positive (CodeRabbit misread the code)
