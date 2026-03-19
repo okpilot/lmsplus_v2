@@ -7,6 +7,21 @@ type ModeToggleProps = {
   onValueChange: (mode: QuizMode) => void
 }
 
+function ExamButton() {
+  return (
+    <button
+      type="button"
+      disabled
+      className="flex flex-1 items-center justify-center gap-1.5 rounded-[8px] px-4 py-2 text-sm font-medium text-muted-foreground opacity-50"
+    >
+      Exam
+      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+        Coming soon
+      </span>
+    </button>
+  )
+}
+
 export function ModeToggle({ value, onValueChange }: ModeToggleProps) {
   return (
     <div className="space-y-1.5">
@@ -24,17 +39,7 @@ export function ModeToggle({ value, onValueChange }: ModeToggleProps) {
         >
           Study
         </button>
-        <button
-          type="button"
-          disabled
-          aria-pressed={false}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-[8px] px-4 py-2 text-sm font-medium text-muted-foreground opacity-50"
-        >
-          Exam
-          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-            Coming soon
-          </span>
-        </button>
+        <ExamButton />
       </div>
       <p className="text-xs text-muted-foreground">
         Study mode shows explanations after each answer. Exam mode is timed with no hints.
