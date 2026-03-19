@@ -41,4 +41,21 @@ describe('ModeToggle', () => {
     render(<ModeToggle value="study" onValueChange={vi.fn()} />)
     expect(screen.getByRole('button', { name: /exam/i })).toBeDisabled()
   })
+
+  it('Exam button does not carry aria-pressed', () => {
+    // ExamButton is not a toggle — it was extracted without aria-pressed so
+    // screen readers do not announce it as a pressable toggle control.
+    render(<ModeToggle value="study" onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /exam/i })).not.toHaveAttribute('aria-pressed')
+  })
+
+  it('Study button reflects aria-pressed true when study mode is active', () => {
+    render(<ModeToggle value="study" onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /study/i })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('Study button reflects aria-pressed false when exam mode is active', () => {
+    render(<ModeToggle value="exam" onValueChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /study/i })).toHaveAttribute('aria-pressed', 'false')
+  })
 })

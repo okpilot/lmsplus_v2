@@ -219,6 +219,23 @@ describe('applyFilters — flagged filter', () => {
 // ---- applyFilters — multiple filters (intersection) -------------------------
 
 describe('applyFilters — multiple filters produce intersection', () => {
+  it('returns all matching questions when exactly one filter is active', async () => {
+    // With a single filter, idSets.slice(1) is empty — the reduce returns idSets[0]
+    // directly (the initial accumulator). This is the boundary case the reduce fix enables.
+    const supabase = makeClient({
+      fsrs_cards: { data: [{ question_id: 'q2' }], error: null },
+    })
+
+    const result = await applyFilters({
+      supabase: supabase as unknown as Parameters<typeof applyFilters>[0]['supabase'],
+      userId: USER_ID,
+      questions: Q,
+      filters: ['incorrect'],
+    })
+
+    expect(result.map((q) => q.id)).toEqual(['q2'])
+  })
+
   it('returns only questions matching ALL active filters', async () => {
     // q1 is unseen (not in student_responses) AND incorrect (in fsrs_cards)
     // q2 is unseen but not incorrect

@@ -137,6 +137,38 @@ describe('TopicRow', () => {
     expect(onToggleExpand).toHaveBeenCalledOnce()
   })
 
+  it('sets aria-expanded to true on the expand button when the row is expanded', () => {
+    render(
+      <TopicRow
+        code="050-01"
+        name="The Atmosphere"
+        count={12}
+        filteredCount={null}
+        checked={false}
+        onCheckedChange={vi.fn()}
+        isExpanded={true}
+        onToggleExpand={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('sets aria-expanded to false on the expand button when the row is collapsed', () => {
+    render(
+      <TopicRow
+        code="050-01"
+        name="The Atmosphere"
+        count={12}
+        filteredCount={null}
+        checked={false}
+        onCheckedChange={vi.fn()}
+        isExpanded={false}
+        onToggleExpand={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'false')
+  })
+
   it('does not render an expand button when onToggleExpand is not provided', () => {
     render(
       <TopicRow
