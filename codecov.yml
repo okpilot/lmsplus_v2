@@ -6,12 +6,26 @@ coverage:
     project:
       default:
         target: 60%
-        threshold: 2% # allow 2% drop before flagging
+        threshold: 2%
     patch:
       default:
-        target: 50% # new code in PRs
+        target: 50%
+
+flags:
+  web:
+    paths:
+      - apps/web/
+    carryforward: true
+  db:
+    paths:
+      - packages/db/
+    carryforward: true
+
+ignore:
+  - "**/*.config.*"
+  - "**/e2e/**"
 
 comment:
-  layout: reach,diff,flags,files
-  behavior: default # update existing comment
-  require_changes: true # only comment when coverage changes
+  layout: header,diff,flags,files,footer
+  behavior: default
+  require_changes: coverage_drop
