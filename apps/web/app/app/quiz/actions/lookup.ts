@@ -57,8 +57,23 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     .eq('subject_id', subjectId)
     .is('deleted_at', null)
 
-  if (topicIds?.length) query = query.in('topic_id', topicIds)
-  if (subtopicIds?.length) query = query.in('subtopic_id', subtopicIds)
+  // Explicit empty arrays = nothing selected → zero results
+  if ((topicIds && topicIds.length === 0) || (subtopicIds && subtopicIds.length === 0)) {
+    return empty
+  }
+
+  // OR logic: include questions matching selected topics (leaf topics without
+  // subtopics) OR selected subtopics. AND would drop leaf-topic questions
+  // whose subtopic_id is NULL.
+  if (topicIds?.length && subtopicIds?.length) {
+    query = query.or(
+      `topic_id.in.(${topicIds.join(',')}),subtopic_id.in.(${subtopicIds.join(',')})`,
+    )
+  } else if (topicIds?.length) {
+    query = query.in('topic_id', topicIds)
+  } else if (subtopicIds?.length) {
+    query = query.in('subtopic_id', subtopicIds)
+  }
 
   const { data: rawData, error } = await query
   if (error) {

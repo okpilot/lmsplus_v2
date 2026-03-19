@@ -24,22 +24,30 @@ export async function applyFilters(opts: {
   const sets = await Promise.all(
     filters.map(async (f) => {
       if (f === 'unseen') {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('student_responses')
           .select('question_id')
           .eq('student_id', userId)
           .in('question_id', questionIds)
-        const answeredIds = new Set(((data ?? []) as QuestionFilterRef[]).map((r) => r.question_id))
+        if (error) {
+          console.error('[applyFilters] student_responses query error:', error.message)
+          return []
+        }
+        const answeredIds = new Set((data as QuestionFilterRef[]).map((r) => r.question_id))
         return questions.filter((q) => !answeredIds.has(q.id))
       }
       if (f === 'incorrect') {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('fsrs_cards')
           .select('question_id')
           .eq('student_id', userId)
           .eq('last_was_correct', false)
           .in('question_id', questionIds)
-        const ids = new Set(((data ?? []) as QuestionFilterRef[]).map((r) => r.question_id))
+        if (error) {
+          console.error('[applyFilters] fsrs_cards query error:', error.message)
+          return []
+        }
+        const ids = new Set((data as QuestionFilterRef[]).map((r) => r.question_id))
         return questions.filter((q) => ids.has(q.id))
       }
       if (f === 'flagged') {

@@ -224,11 +224,15 @@ export async function getRandomQuestionIds(opts: {
     .eq('subject_id', opts.subjectId)
     .is('deleted_at', null)
 
-  if (opts.topicIds?.length) {
+  // OR logic: match selected topics OR subtopics (AND would drop
+  // leaf-topic questions whose subtopic_id is NULL)
+  if (opts.topicIds?.length && opts.subtopicIds?.length) {
+    query = query.or(
+      `topic_id.in.(${opts.topicIds.join(',')}),subtopic_id.in.(${opts.subtopicIds.join(',')})`,
+    )
+  } else if (opts.topicIds?.length) {
     query = query.in('topic_id', opts.topicIds)
-  }
-
-  if (opts.subtopicIds?.length) {
+  } else if (opts.subtopicIds?.length) {
     query = query.in('subtopic_id', opts.subtopicIds)
   }
 

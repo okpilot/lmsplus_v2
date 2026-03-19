@@ -64,6 +64,7 @@ function buildQueryChain(terminalData: unknown[], terminalError: unknown = null)
     eq: vi.fn().mockReturnThis(),
     is: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
     // biome-ignore lint/suspicious/noThenProperty: Supabase query builders are thenable — mock must implement .then() to be awaitable
     then: vi.fn((resolve: (v: unknown) => unknown) => Promise.resolve(resolve(terminal))),
   }
@@ -213,7 +214,6 @@ describe("getFilteredCount — filters: ['all']", () => {
     })
 
     expect(result).toMatchObject({ count: 1 })
-    expect((chain.in as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 })
 
