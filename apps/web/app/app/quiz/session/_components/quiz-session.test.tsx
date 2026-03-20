@@ -131,20 +131,15 @@ vi.mock('./quiz-nav-bar', () => ({
     totalQuestions,
     onPrev,
     onNext,
-    onFinish,
   }: {
     currentIndex: number
     totalQuestions: number
     onPrev: () => void
     onNext: () => void
-    onFinish: () => void
   }) => (
     <div data-testid="quiz-nav-bar">
       <button type="button" onClick={onPrev} disabled={currentIndex === 0}>
         Previous
-      </button>
-      <button type="button" onClick={onFinish}>
-        Finish Test
       </button>
       <button type="button" onClick={onNext} disabled={currentIndex === totalQuestions - 1}>
         Next
@@ -167,6 +162,15 @@ vi.mock('../../_components/comments-tab', () => ({
 
 vi.mock('../../_components/statistics-tab', () => ({
   StatisticsTab: () => <div data-testid="statistics-tab" />,
+}))
+
+const mockToggleFlag = vi.fn().mockResolvedValue(true)
+vi.mock('../_hooks/use-flagged-questions', () => ({
+  useFlaggedQuestions: () => ({
+    flaggedIds: new Set<string>(),
+    isFlagged: () => false,
+    toggleFlag: mockToggleFlag,
+  }),
 }))
 
 import { QuizSession } from './quiz-session'

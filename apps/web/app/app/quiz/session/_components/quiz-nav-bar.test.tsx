@@ -9,7 +9,6 @@ type NavBarProps = {
   totalQuestions?: number
   onPrev?: () => void
   onNext?: () => void
-  onFinish?: () => void
 }
 
 function renderNavBar(overrides: NavBarProps = {}) {
@@ -18,7 +17,6 @@ function renderNavBar(overrides: NavBarProps = {}) {
     totalQuestions: 5,
     onPrev: vi.fn(),
     onNext: vi.fn(),
-    onFinish: vi.fn(),
   }
   const props = { ...defaults, ...overrides }
   render(<QuizNavBar {...props} />)
@@ -32,10 +30,9 @@ describe('QuizNavBar', () => {
     vi.resetAllMocks()
   })
 
-  it('renders Previous, Finish Test, and Next buttons', () => {
+  it('renders Previous and Next buttons', () => {
     renderNavBar()
     expect(screen.getByRole('button', { name: /previous/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /finish test/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument()
   })
 
@@ -78,21 +75,5 @@ describe('QuizNavBar', () => {
     renderNavBar({ onNext, currentIndex: 0, totalQuestions: 3 })
     fireEvent.click(screen.getByRole('button', { name: /next/i }))
     expect(onNext).toHaveBeenCalledOnce()
-  })
-
-  it('calls onFinish when Finish Test is clicked', () => {
-    const onFinish = vi.fn()
-    renderNavBar({ onFinish })
-    fireEvent.click(screen.getByRole('button', { name: /finish test/i }))
-    expect(onFinish).toHaveBeenCalledOnce()
-  })
-
-  it('Finish Test button is never disabled regardless of position', () => {
-    renderNavBar({ currentIndex: 0, totalQuestions: 5 })
-    expect(screen.getByRole('button', { name: /finish test/i })).toBeEnabled()
-
-    // Re-render at last position
-    renderNavBar({ currentIndex: 4, totalQuestions: 5 })
-    expect(screen.getAllByRole('button', { name: /finish test/i })[0]).toBeEnabled()
   })
 })
