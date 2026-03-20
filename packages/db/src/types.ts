@@ -236,6 +236,42 @@ export type Database = {
           },
         ]
       }
+      flagged_questions: {
+        Row: {
+          deleted_at: string | null
+          flagged_at: string
+          question_id: string
+          student_id: string
+        }
+        Insert: {
+          deleted_at?: string | null
+          flagged_at?: string
+          question_id: string
+          student_id: string
+        }
+        Update: {
+          deleted_at?: string | null
+          flagged_at?: string
+          question_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'flagged_questions_question_id_fkey'
+            columns: ['question_id']
+            isOneToOne: false
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'flagged_questions_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       fsrs_cards: {
         Row: {
           consecutive_correct_count: number
@@ -484,6 +520,48 @@ export type Database = {
           },
         ]
       }
+      question_comments: {
+        Row: {
+          body: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          question_id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          question_id: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          question_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'question_comments_question_id_fkey'
+            columns: ['question_id']
+            isOneToOne: false
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'question_comments_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       questions: {
         Row: {
           bank_id: string
@@ -651,7 +729,7 @@ export type Database = {
           {
             foreignKeyName: 'quiz_drafts_student_id_fkey'
             columns: ['student_id']
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: 'users'
             referencedColumns: ['id']
           },
@@ -707,6 +785,7 @@ export type Database = {
           config: Json
           correct_count: number
           created_at: string
+          deleted_at: string | null
           ended_at: string | null
           id: string
           mode: string
@@ -722,6 +801,7 @@ export type Database = {
           config?: Json
           correct_count?: number
           created_at?: string
+          deleted_at?: string | null
           ended_at?: string | null
           id?: string
           mode: string
@@ -737,6 +817,7 @@ export type Database = {
           config?: Json
           correct_count?: number
           created_at?: string
+          deleted_at?: string | null
           ended_at?: string | null
           id?: string
           mode?: string
@@ -904,6 +985,14 @@ export type Database = {
         Args: { p_answers: Json; p_session_id: string }
         Returns: Json
       }
+      check_quiz_answer: {
+        Args: {
+          p_question_id: string
+          p_selected_option_id: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
       complete_quiz_session: {
         Args: { p_session_id: string }
         Returns: {
@@ -955,6 +1044,8 @@ export type Database = {
           subject_short: string
         }[]
       }
+      is_admin: { Args: never; Returns: boolean }
+      record_login: { Args: never; Returns: undefined }
       start_quiz_session: {
         Args: {
           p_mode: string

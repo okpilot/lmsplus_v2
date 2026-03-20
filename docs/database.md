@@ -352,6 +352,29 @@ RLS policies:
 - Students can only access and modify their own flags via `student_id = auth.uid() AND deleted_at IS NULL`
 - Soft-deletable (unflag via UPDATE with `deleted_at = now()`)
 
+### question_comments
+Per-question discussion threads. Students and admins can post comments on any question. Hard-delete table (low audit value).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PK, default gen_random_uuid() |
+| question_id | UUID | FK → questions(id), NOT NULL |
+| user_id | UUID | FK → users(id), NOT NULL |
+| body | TEXT | NOT NULL, CHECK 1–2000 chars |
+| created_at | TIMESTAMPTZ | NOT NULL, default now() |
+| deleted_at | TIMESTAMPTZ | nullable |
+
+**RLS policies:**
+- SELECT: any authenticated user, non-deleted only
+- INSERT: own user_id only, deleted_at must be NULL
+- DELETE (own): user_id = auth.uid()
+- DELETE (admin): public.is_admin()
+- No UPDATE policy (comments not editable)
+
+**Indexes:** (question_id, created_at) WHERE deleted_at IS NULL
+
+**Note:** This is a hard-delete table — the primary delete path is DELETE, not soft-delete. The deleted_at column exists as a safety net but is not used by application code.
+
 ---
 
 ## 3. Soft Delete
@@ -433,6 +456,9 @@ ORDER BY deleted_at DESC;
 | `fsrs_cards` | No | Updated in place; stores `last_was_correct` for incorrect-filter queries |
 | `audit_events` | No | Immutable compliance log |
 | `easa_subjects/topics/subtopics` | No | Reference data, never deleted |
+| `quiz_drafts` | Hard DELETE (approved exception) | Disposable temp storage; no recovery value |
+| `flagged_questions` | Yes (soft) | Unflag = set deleted_at; flags referenced in quiz filter queries |
+| `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
 
 > **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE/DELETE to users where `is_admin()` returns `true`. All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature.
 
