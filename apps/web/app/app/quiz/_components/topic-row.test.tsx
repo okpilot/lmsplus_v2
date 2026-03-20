@@ -169,6 +169,37 @@ describe('TopicRow', () => {
     expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'false')
   })
 
+  it('renders filtered count format when filteredCount is provided', () => {
+    render(
+      <TopicRow
+        code="050-01"
+        name="The Atmosphere"
+        count={12}
+        filteredCount={7}
+        checked={false}
+        onCheckedChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('7')).toBeInTheDocument()
+    expect(screen.getByText(/\/12/)).toBeInTheDocument()
+  })
+
+  it('renders aria-label with topic code and name on expand button', () => {
+    render(
+      <TopicRow
+        code="050-01"
+        name="The Atmosphere"
+        count={12}
+        filteredCount={null}
+        checked={false}
+        onCheckedChange={vi.fn()}
+        isExpanded={false}
+        onToggleExpand={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Toggle 050-01 The Atmosphere')
+  })
+
   it('does not render an expand button when onToggleExpand is not provided', () => {
     render(
       <TopicRow

@@ -98,6 +98,7 @@ function buildDefaultConfig() {
     filteredBySubtopic: null as Record<string, number> | null,
     loading: false,
     error: null as string | null,
+    authError: false,
     isPending: false,
     handleSubjectChange: vi.fn(),
     handleStart: vi.fn(),
@@ -191,10 +192,23 @@ describe('QuizConfigForm', () => {
     expect(screen.getByText('Not enough questions')).toBeInTheDocument()
   })
 
-  it('does not show error section when error is null', () => {
+  it('does not show error text when error is null', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', error: null }))
     render(<QuizConfigForm subjects={SUBJECTS} />)
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText(/not enough/i)).not.toBeInTheDocument()
+  })
+
+  it('shows session expired message and disables button when authError is true', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', authError: true }))
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    expect(screen.getByText('Session expired. Please refresh the page.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeDisabled()
+  })
+
+  it('does not show session expired message when authError is falsy', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', authError: false }))
+    render(<QuizConfigForm subjects={SUBJECTS} />)
+    expect(screen.queryByText('Session expired. Please refresh the page.')).not.toBeInTheDocument()
   })
 
   it('calls handleStart when Start Quiz button is clicked', async () => {

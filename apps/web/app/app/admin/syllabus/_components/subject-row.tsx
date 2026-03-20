@@ -85,7 +85,13 @@ export function SubjectRow({ subject }: Props) {
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
         <CollapsibleTrigger
-          render={<Button variant="ghost" size="icon-xs" aria-label="Toggle subject" />}
+          render={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Toggle ${subject.code} ${subject.name}`}
+            />
+          }
         >
           <ChevronRight className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`} />
         </CollapsibleTrigger>
