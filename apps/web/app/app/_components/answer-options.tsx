@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+
 type Option = {
   id: string
   text: string
@@ -13,6 +15,21 @@ type AnswerOptionsProps = {
   disabled: boolean
   correctOptionId?: string | null
   selectedOptionId?: string | null
+}
+
+function getOptionStyle(opts: {
+  showResult: boolean
+  isCorrect: boolean
+  isWrongSelection: boolean
+  isSelected: boolean
+}) {
+  if (opts.showResult && opts.isCorrect)
+    return { card: 'border-green-500 bg-green-500/10', circle: 'bg-green-500 text-white' }
+  if (opts.showResult && opts.isWrongSelection)
+    return { card: 'border-destructive bg-destructive/10', circle: 'bg-red-500 text-white' }
+  if (opts.isSelected && !opts.showResult)
+    return { card: 'border-primary bg-primary/5', circle: 'bg-primary text-primary-foreground' }
+  return { card: 'border-border hover:border-primary/40', circle: 'border border-current' }
 }
 
 export function AnswerOptions({
@@ -28,26 +45,31 @@ export function AnswerOptions({
 
   return (
     <div className="space-y-2">
-      {options.map((option) => {
-        let style = 'border-border hover:border-primary/40'
-        if (showResult && option.id === correctOptionId) {
-          style = 'border-green-500 bg-green-500/10'
-        } else if (showResult && option.id === lockedSelection && option.id !== correctOptionId) {
-          style = 'border-destructive bg-destructive/10'
-        } else if (currentSelection === option.id && !showResult) {
-          style = 'border-primary bg-primary/5'
-        }
+      {options.map((option, index) => {
+        const isCorrect = option.id === correctOptionId
+        const isWrongSelection = option.id === lockedSelection && option.id !== correctOptionId
+        const isSelected = currentSelection === option.id
+        const { card, circle } = getOptionStyle({
+          showResult,
+          isCorrect,
+          isWrongSelection,
+          isSelected,
+        })
 
         return (
           <button
             key={option.id}
             type="button"
+            data-testid={`option-${option.id}`}
+            data-selected={isSelected && !showResult ? 'true' : undefined}
             disabled={disabled}
             onClick={() => !showResult && setSelected(option.id)}
-            className={`flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${style} ${disabled && !showResult ? 'opacity-50' : ''}`}
+            className={`flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
-            <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current text-xs font-medium uppercase">
-              {option.id}
+            <span
+              className={`mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}
+            >
+              {LETTERS[index] ?? String(index + 1)}
             </span>
             <span>{option.text}</span>
           </button>
