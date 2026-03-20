@@ -63,7 +63,7 @@ export function AnswerOptions({
             data-testid={`option-${option.id}`}
             data-selected={isSelected && !showResult ? 'true' : undefined}
             disabled={disabled}
-            onClick={() => !showResult && setSelected(option.id)}
+            onClick={() => !showResult && !disabled && setSelected(option.id)}
             className={`flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
             <span
