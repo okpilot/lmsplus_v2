@@ -34,9 +34,16 @@ type QuizMainPanelProps = {
   totalQuestions: number
   activeTab: QuestionTab
   onTabChange: (tab: QuestionTab) => void
+  userId: string
 }
 
-export function QuizMainPanel({ s, totalQuestions, activeTab, onTabChange }: QuizMainPanelProps) {
+export function QuizMainPanel({
+  s,
+  totalQuestions,
+  activeTab,
+  onTabChange,
+  userId,
+}: QuizMainPanelProps) {
   if (!s.question) return null
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
@@ -75,6 +82,7 @@ export function QuizMainPanel({ s, totalQuestions, activeTab, onTabChange }: Qui
         currentFeedback={s.currentFeedback}
         explanationText={s.question.explanation_text}
         explanationImageUrl={s.question.explanation_image_url}
+        userId={userId}
       />
       <QuizControls
         isPinned={s.isPinned}

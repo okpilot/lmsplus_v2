@@ -11,6 +11,8 @@ type QuizTabContentProps = {
   currentFeedback: AnswerFeedback | null
   explanationText: string | null
   explanationImageUrl: string | null
+  userId: string
+  learningObjective?: string | null
 }
 
 export function QuizTabContent({
@@ -20,6 +22,8 @@ export function QuizTabContent({
   currentFeedback,
   explanationText,
   explanationImageUrl,
+  userId,
+  learningObjective,
 }: QuizTabContentProps) {
   if (activeTab === 'explanation') {
     return (
@@ -27,10 +31,12 @@ export function QuizTabContent({
         explanationText={explanationText}
         explanationImageUrl={explanationImageUrl}
         isCorrect={currentFeedback?.isCorrect ?? null}
+        learningObjective={learningObjective}
       />
     )
   }
-  if (activeTab === 'comments') return <CommentsTab />
+  if (activeTab === 'comments')
+    return <CommentsTab questionId={questionId} currentUserId={userId} />
   if (activeTab === 'statistics') {
     return <StatisticsTab questionId={questionId} hasAnswered={!!existingAnswer} />
   }

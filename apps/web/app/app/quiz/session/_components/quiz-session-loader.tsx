@@ -31,7 +31,7 @@ type SessionData = {
 // Cache parsed session to survive React Strict Mode double-mount
 let cachedSession: SessionData | null = null
 
-export function QuizSessionLoader() {
+export function QuizSessionLoader({ userId }: { userId: string }) {
   const router = useRouter()
   const [session, setSession] = useState<SessionData | null>(null)
   const [questions, setQuestions] = useState<Question[] | null>(null)
@@ -107,6 +107,7 @@ export function QuizSessionLoader() {
 
   return (
     <QuizSession
+      userId={userId}
       sessionId={session.sessionId}
       questions={questions}
       initialAnswers={filteredAnswers}
