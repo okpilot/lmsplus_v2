@@ -225,14 +225,14 @@ describe('QuizSession', () => {
   })
 
   it('renders first question on mount', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
     expect(screen.getByTestId('question-card')).toBeInTheDocument()
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is lift?')
     expect(screen.getByText(/Question 1 of/)).toBeInTheDocument()
   })
 
   it('stores answer in state without submitting to server', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
     fireEvent.click(screen.getByTestId('option-a'))
     expect(mockBatchSubmitQuiz).not.toHaveBeenCalled()
     // The selected option should be marked
@@ -240,7 +240,7 @@ describe('QuizSession', () => {
   })
 
   it('navigates to next question and back', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is drag?')
@@ -252,7 +252,7 @@ describe('QuizSession', () => {
   })
 
   it('disables Previous on first question and Next on last', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
@@ -265,7 +265,7 @@ describe('QuizSession', () => {
   })
 
   it('shows finish dialog when clicking Finish Test', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
@@ -274,7 +274,7 @@ describe('QuizSession', () => {
   })
 
   it('closes finish dialog on cancel', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
     expect(screen.getByTestId('finish-dialog')).toBeInTheDocument()
@@ -284,7 +284,7 @@ describe('QuizSession', () => {
   })
 
   it('tracks answered count in dialog', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     // Answer first question
     fireEvent.click(screen.getByTestId('option-a'))
@@ -306,7 +306,7 @@ describe('QuizSession', () => {
       results: [],
     })
 
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     // Answer a question
     fireEvent.click(screen.getByTestId('option-a'))
@@ -338,7 +338,7 @@ describe('QuizSession', () => {
       error: 'Server error occurred',
     })
 
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     fireEvent.click(screen.getByTestId('option-a'))
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
@@ -350,7 +350,7 @@ describe('QuizSession', () => {
   })
 
   it('preserves selected answer when navigating back to a question', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
     // Answer first question
     fireEvent.click(screen.getByTestId('option-a'))
@@ -365,19 +365,19 @@ describe('QuizSession', () => {
   })
 
   it('renders the question grid', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
     expect(screen.getByTestId('question-grid')).toBeInTheDocument()
   })
 
   it('navigates to a question via the grid', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
     fireEvent.click(screen.getByTestId('grid-nav-2'))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is weight?')
     expect(screen.getByText(/Question 3 of/)).toBeInTheDocument()
   })
 
   it('toggles pin state on the current question', () => {
-    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
     const pinBtn = screen.getByTestId('pin-button')
     expect(pinBtn).toHaveTextContent('Pin')
     expect(pinBtn).toHaveAttribute('aria-pressed', 'false')

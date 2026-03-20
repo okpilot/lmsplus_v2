@@ -9,6 +9,7 @@ import { useQuizState } from '../_hooks/use-quiz-state'
 import { QuizMainPanel } from './quiz-main-panel'
 
 type QuizSessionProps = {
+  userId: string
   sessionId: string
   questions: SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
@@ -52,6 +53,7 @@ export function QuizSession(props: QuizSessionProps) {
         totalQuestions={props.questions.length}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        userId={props.userId}
       />
     </div>
   )

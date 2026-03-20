@@ -49,32 +49,51 @@ function StatsDisplay({ stats }: { stats: QuestionStats }) {
     stats.timesSeen > 0 ? Math.round((stats.correctCount / stats.timesSeen) * 100) : 0
 
   return (
-    <div className="space-y-3 py-4 text-sm">
-      <StatRow label="Times seen" value={String(stats.timesSeen)} />
-      <StatRow label="Correct" value={`${stats.correctCount} (${accuracy}%)`} />
-      <StatRow label="Incorrect" value={String(stats.incorrectCount)} />
-      {stats.lastAnswered && (
+    <div className="space-y-3 py-4">
+      <h3 className="text-sm font-semibold">Your Statistics</h3>
+      <div className="divide-y divide-border rounded-lg border border-border">
+        <StatRow label="Times seen" value={String(stats.timesSeen)} />
         <StatRow
-          label="Last answered"
-          value={new Date(stats.lastAnswered).toLocaleDateString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-          })}
+          label="Correct"
+          value={`${stats.correctCount} (${accuracy}%)`}
+          className="text-green-600"
         />
-      )}
-      <p className="pt-2 text-xs text-muted-foreground">
+        <StatRow
+          label="Incorrect"
+          value={String(stats.incorrectCount)}
+          className="text-destructive"
+        />
+        {stats.lastAnswered && (
+          <StatRow
+            label="Last answered"
+            value={new Date(stats.lastAnswered).toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })}
+          />
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
         Statistics reflect your previous quiz sessions.
       </p>
     </div>
   )
 }
 
-function StatRow({ label, value }: { label: string; value: string }) {
+function StatRow({
+  label,
+  value,
+  className,
+}: {
+  label: string
+  value: string
+  className?: string
+}) {
   return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium tabular-nums">{value}</span>
+    <div className="flex justify-between px-4 py-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={`text-sm font-semibold tabular-nums ${className ?? ''}`}>{value}</span>
     </div>
   )
 }

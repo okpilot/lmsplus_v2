@@ -87,7 +87,13 @@ describe('QuizMainPanel', () => {
   it('returns null when question is absent', () => {
     const s = makeState({ question: undefined })
     const { container } = render(
-      <QuizMainPanel s={s} totalQuestions={3} activeTab="question" onTabChange={vi.fn()} />,
+      <QuizMainPanel
+        s={s}
+        totalQuestions={3}
+        activeTab="question"
+        onTabChange={vi.fn()}
+        userId="test-user-id"
+      />,
     )
     expect(container.firstChild).toBeNull()
   })
@@ -99,6 +105,7 @@ describe('QuizMainPanel', () => {
         totalQuestions={3}
         activeTab="question"
         onTabChange={vi.fn()}
+        userId="test-user-id"
       />,
     )
     expect(screen.getByTestId('question-card')).toHaveTextContent('What is lift?')
@@ -111,6 +118,7 @@ describe('QuizMainPanel', () => {
         totalQuestions={5}
         activeTab="question"
         onTabChange={vi.fn()}
+        userId="test-user-id"
       />,
     )
     expect(screen.getByText(/Question 2 of 5/)).toBeInTheDocument()
@@ -123,6 +131,7 @@ describe('QuizMainPanel', () => {
         totalQuestions={3}
         activeTab="question"
         onTabChange={vi.fn()}
+        userId="test-user-id"
       />,
     )
     expect(screen.getByText('No. 050-01-01-001')).toBeInTheDocument()
@@ -140,7 +149,15 @@ describe('QuizMainPanel', () => {
         options: [],
       },
     })
-    render(<QuizMainPanel s={s} totalQuestions={3} activeTab="question" onTabChange={vi.fn()} />)
+    render(
+      <QuizMainPanel
+        s={s}
+        totalQuestions={3}
+        activeTab="question"
+        onTabChange={vi.fn()}
+        userId="test-user-id"
+      />,
+    )
     expect(screen.queryByText(/^No\./)).not.toBeInTheDocument()
   })
 
@@ -151,6 +168,7 @@ describe('QuizMainPanel', () => {
         totalQuestions={3}
         activeTab="question"
         onTabChange={vi.fn()}
+        userId="test-user-id"
       />,
     )
     expect(screen.getByTestId('session-timer')).toBeInTheDocument()
@@ -158,7 +176,15 @@ describe('QuizMainPanel', () => {
 
   it('shows progress bar at correct width for answered questions', () => {
     const s = makeState({ answeredCount: 2 })
-    render(<QuizMainPanel s={s} totalQuestions={4} activeTab="question" onTabChange={vi.fn()} />)
+    render(
+      <QuizMainPanel
+        s={s}
+        totalQuestions={4}
+        activeTab="question"
+        onTabChange={vi.fn()}
+        userId="test-user-id"
+      />,
+    )
     const bar = screen.getByTestId('progress-bar')
     expect(bar).toHaveStyle({ width: '50%' })
   })
@@ -170,6 +196,7 @@ describe('QuizMainPanel', () => {
         totalQuestions={5}
         activeTab="question"
         onTabChange={vi.fn()}
+        userId="test-user-id"
       />,
     )
     const bar = screen.getByTestId('progress-bar')
@@ -183,6 +210,7 @@ describe('QuizMainPanel', () => {
         totalQuestions={3}
         activeTab="question"
         onTabChange={vi.fn()}
+        userId="test-user-id"
       />,
     )
     const bar = screen.getByTestId('progress-bar')
@@ -196,6 +224,7 @@ describe('QuizMainPanel', () => {
         totalQuestions={5}
         activeTab="question"
         onTabChange={vi.fn()}
+        userId="test-user-id"
       />,
     )
     expect(screen.getByText('2/5')).toBeInTheDocument()
@@ -203,7 +232,15 @@ describe('QuizMainPanel', () => {
 
   it('shows error alert when s.error is set', () => {
     const s = makeState({ error: 'Something went wrong' })
-    render(<QuizMainPanel s={s} totalQuestions={3} activeTab="question" onTabChange={vi.fn()} />)
+    render(
+      <QuizMainPanel
+        s={s}
+        totalQuestions={3}
+        activeTab="question"
+        onTabChange={vi.fn()}
+        userId="test-user-id"
+      />,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong')
   })
 
@@ -214,6 +251,7 @@ describe('QuizMainPanel', () => {
         totalQuestions={3}
         activeTab="question"
         onTabChange={vi.fn()}
+        userId="test-user-id"
       />,
     )
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

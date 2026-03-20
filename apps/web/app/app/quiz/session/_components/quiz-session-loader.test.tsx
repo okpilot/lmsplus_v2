@@ -62,7 +62,7 @@ describe('QuizSessionLoader', () => {
   // only when the module is freshly loaded. Subsequent tests that set session data
   // will populate the cache, so the "no data" scenario relies on fresh module state.
   it('redirects to /app/quiz when no session data exists in storage', async () => {
-    render(<QuizSessionLoader />)
+    render(<QuizSessionLoader userId="test-user-id" />)
     await waitFor(() => {
       expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
     })
@@ -73,7 +73,7 @@ describe('QuizSessionLoader', () => {
     // Return a promise that never resolves so we can observe the loading state
     mockLoadSessionQuestions.mockReturnValue(new Promise(() => {}))
 
-    const { container } = render(<QuizSessionLoader />)
+    const { container } = render(<QuizSessionLoader userId="test-user-id" />)
 
     // Skeleton elements have the animate-pulse class
     const skeletons = container.querySelectorAll('.animate-pulse')
@@ -84,7 +84,7 @@ describe('QuizSessionLoader', () => {
     sessionStorage.setItem('quiz-session', JSON.stringify(SESSION_DATA))
     mockLoadSessionQuestions.mockResolvedValue({ success: false, error: 'RPC call failed' })
 
-    render(<QuizSessionLoader />)
+    render(<QuizSessionLoader userId="test-user-id" />)
 
     await waitFor(() => {
       expect(screen.getByText('RPC call failed')).toBeInTheDocument()
@@ -95,7 +95,7 @@ describe('QuizSessionLoader', () => {
     sessionStorage.setItem('quiz-session', JSON.stringify(SESSION_DATA))
     mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
 
-    render(<QuizSessionLoader />)
+    render(<QuizSessionLoader userId="test-user-id" />)
 
     await waitFor(() => {
       expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
@@ -107,7 +107,7 @@ describe('QuizSessionLoader', () => {
     sessionStorage.setItem('quiz-session', JSON.stringify(SESSION_DATA))
     mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
 
-    render(<QuizSessionLoader />)
+    render(<QuizSessionLoader userId="test-user-id" />)
 
     await waitFor(() => {
       expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
@@ -119,7 +119,7 @@ describe('QuizSessionLoader', () => {
     sessionStorage.setItem('quiz-session', JSON.stringify(SESSION_DATA))
     mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
 
-    render(<QuizSessionLoader />)
+    render(<QuizSessionLoader userId="test-user-id" />)
 
     await waitFor(() => {
       expect(mockLoadSessionQuestions).toHaveBeenCalledWith(['q1', 'q2'])
@@ -134,7 +134,7 @@ describe('QuizSessionLoader', () => {
     sessionStorage.setItem('quiz-session', JSON.stringify(sessionWithOobIndex))
     mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
 
-    render(<QuizSessionLoader />)
+    render(<QuizSessionLoader userId="test-user-id" />)
 
     await waitFor(() => {
       expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('QuizSessionLoader', () => {
     sessionStorage.setItem('quiz-session', JSON.stringify(SESSION_DATA))
     mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
 
-    render(<QuizSessionLoader />)
+    render(<QuizSessionLoader userId="test-user-id" />)
 
     await waitFor(() => {
       expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
@@ -171,7 +171,7 @@ describe('QuizSessionLoader', () => {
     sessionStorage.setItem('quiz-session', JSON.stringify(sessionWithStaleAnswer))
     mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
 
-    render(<QuizSessionLoader />)
+    render(<QuizSessionLoader userId="test-user-id" />)
 
     await waitFor(() => {
       expect(screen.getByTestId('quiz-session')).toBeInTheDocument()

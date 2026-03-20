@@ -5,12 +5,14 @@ type ExplanationTabProps = {
   explanationText: string | null
   explanationImageUrl: string | null
   isCorrect: boolean | null
+  learningObjective?: string | null
 }
 
 export function ExplanationTab({
   explanationText,
   explanationImageUrl,
   isCorrect,
+  learningObjective,
 }: ExplanationTabProps) {
   return (
     <div className="space-y-3 py-4">
@@ -20,6 +22,14 @@ export function ExplanationTab({
         </p>
       )}
       <ExplanationContent text={explanationText} imageUrl={explanationImageUrl} />
+      {learningObjective && (
+        <div className="rounded-lg bg-muted/50 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Learning Objective
+          </p>
+          <p className="mt-1 text-sm">{learningObjective}</p>
+        </div>
+      )}
     </div>
   )
 }

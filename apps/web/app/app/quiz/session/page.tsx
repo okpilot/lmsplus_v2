@@ -14,7 +14,7 @@ export default async function QuizSessionPage() {
 
   return (
     <main>
-      <QuizSessionLoader />
+      <QuizSessionLoader userId={user.id} />
     </main>
   )
 }
