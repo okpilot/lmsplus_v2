@@ -152,4 +152,6 @@ export async function ensureLoginTestUser() {
       .eq('id', userId)
     if (updateError) throw new Error(`ensureLoginTestUser update org: ${updateError.message}`)
   }
+
+  return { orgId, userId }
 }
