@@ -2,33 +2,12 @@
 
 import { useState } from 'react'
 import { useComments } from '../session/_hooks/use-comments'
+import { getAvatarColor, getInitials } from './comment-helpers'
+import { CommentsSkeleton } from './comments-skeleton'
 
 type CommentsTabProps = {
   questionId: string
   currentUserId: string
-}
-
-function getAvatarColor(name: string): string {
-  const colors = [
-    'bg-blue-500',
-    'bg-amber-500',
-    'bg-purple-500',
-    'bg-green-500',
-    'bg-pink-500',
-    'bg-cyan-500',
-  ]
-  const index = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length
-  return colors[index] ?? 'bg-blue-500'
-}
-
-function getInitials(name: string | null): string {
-  if (!name) return '?'
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
 }
 
 export function CommentsTab({ questionId, currentUserId }: CommentsTabProps) {
@@ -128,27 +107,6 @@ export function CommentsTab({ questionId, currentUserId }: CommentsTabProps) {
         >
           Post
         </button>
-      </div>
-    </div>
-  )
-}
-
-function CommentsSkeleton() {
-  return (
-    <div className="space-y-3 py-4">
-      <div className="flex gap-3">
-        <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3 w-24 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-full animate-pulse rounded bg-muted" />
-        </div>
-      </div>
-      <div className="flex gap-3">
-        <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3 w-20 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
-        </div>
       </div>
     </div>
   )

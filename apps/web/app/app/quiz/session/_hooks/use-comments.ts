@@ -12,7 +12,6 @@ type Comment = {
   users: { full_name: string | null; role: string } | null
 }
 
-/** Manages the comment thread for a question: fetch, create, and delete. */
 export function useComments(questionId: string) {
   const [comments, setComments] = useState<Comment[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -27,7 +26,6 @@ export function useComments(questionId: string) {
     setComments([])
     setError(null)
   }
-
   const loadComments = useCallback(() => {
     const gen = generation.current
     setError(null)
