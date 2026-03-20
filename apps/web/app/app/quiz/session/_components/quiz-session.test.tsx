@@ -110,9 +110,10 @@ vi.mock('../../_components/question-grid', () => ({
   }: {
     totalQuestions: number
     currentIndex: number
-    answeredIds: Set<string>
     pinnedIds: Set<string>
+    flaggedIds: Set<string>
     questionIds: string[]
+    feedbackMap: Map<string, { isCorrect: boolean }>
     onNavigate: (index: number) => void
   }) => (
     <div data-testid="question-grid">
