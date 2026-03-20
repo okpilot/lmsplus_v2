@@ -11,7 +11,12 @@
     "coverage": "turbo run coverage",
     "check-types": "turbo run check-types",
     "e2e": "turbo run e2e",
-    "knip": "knip"
+    "knip": "knip",
+    "preinstall": "npx only-allow pnpm"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.7",

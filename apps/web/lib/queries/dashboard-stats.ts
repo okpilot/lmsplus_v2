@@ -64,13 +64,13 @@ export function computeStreaks(sortedDatesDesc: string[]): {
       streak++
       bestStreak = Math.max(bestStreak, streak)
     } else {
-      if (currentStreak === null) currentStreak = streak
+      currentStreak ??= streak
       streak = 1
     }
   }
 
   bestStreak = Math.max(bestStreak, streak)
-  if (currentStreak === null) currentStreak = streak
+  currentStreak ??= streak
 
   return { currentStreak: anchoredToNow ? currentStreak : 0, bestStreak }
 }

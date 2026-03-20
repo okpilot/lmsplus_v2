@@ -58,7 +58,7 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     .is('deleted_at', null)
 
   // Explicit empty arrays = nothing selected → zero results
-  if ((topicIds && topicIds.length === 0) || (subtopicIds && subtopicIds.length === 0)) {
+  if (topicIds?.length === 0 || subtopicIds?.length === 0) {
     return empty
   }
 
