@@ -64,19 +64,15 @@ export function useComments(questionId: string) {
     [questionId],
   )
 
-  const removeComment = useCallback(
-    async (commentId: string) => {
+  const removeComment = useCallback(async (commentId: string) => {
+    const result = await deleteComment({ commentId })
+    if (result.success) {
       setComments((prev) => prev.filter((c) => c.id !== commentId))
-      const result = await deleteComment({ commentId })
-      if (!result.success) {
-        setError(result.error)
-        loadComments()
-        return false
-      }
       return true
-    },
-    [loadComments],
-  )
+    }
+    setError(result.error)
+    return false
+  }, [])
 
   return { comments, isLoading, error, addComment, removeComment }
 }

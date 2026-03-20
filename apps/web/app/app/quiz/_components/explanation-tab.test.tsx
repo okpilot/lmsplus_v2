@@ -70,4 +70,40 @@ describe('ExplanationTab', () => {
     )
     expect(screen.getByAltText('Explanation illustration')).toBeInTheDocument()
   })
+
+  it('renders the learning objective box when learningObjective is provided', () => {
+    render(
+      <ExplanationTab
+        isCorrect={null}
+        explanationText="Some explanation."
+        explanationImageUrl={null}
+        learningObjective="Understand stall characteristics in turns."
+      />,
+    )
+    expect(screen.getByText('Learning Objective')).toBeInTheDocument()
+    expect(screen.getByText('Understand stall characteristics in turns.')).toBeInTheDocument()
+  })
+
+  it('does not render the learning objective box when learningObjective is not provided', () => {
+    render(
+      <ExplanationTab
+        isCorrect={null}
+        explanationText="Some explanation."
+        explanationImageUrl={null}
+      />,
+    )
+    expect(screen.queryByText('Learning Objective')).not.toBeInTheDocument()
+  })
+
+  it('does not render the learning objective box when learningObjective is null', () => {
+    render(
+      <ExplanationTab
+        isCorrect={null}
+        explanationText="Some explanation."
+        explanationImageUrl={null}
+        learningObjective={null}
+      />,
+    )
+    expect(screen.queryByText('Learning Objective')).not.toBeInTheDocument()
+  })
 })

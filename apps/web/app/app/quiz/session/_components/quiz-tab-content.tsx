@@ -23,6 +23,7 @@ export function QuizTabContent({
   explanationText,
   explanationImageUrl,
   userId,
+  learningObjective,
 }: QuizTabContentProps) {
   if (activeTab === 'explanation') {
     return (
@@ -30,6 +31,7 @@ export function QuizTabContent({
         explanationText={explanationText}
         explanationImageUrl={explanationImageUrl}
         isCorrect={currentFeedback?.isCorrect ?? null}
+        learningObjective={learningObjective}
       />
     )
   }
