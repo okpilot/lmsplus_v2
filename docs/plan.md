@@ -15,7 +15,7 @@ Fixed 4 open bugs in a single session:
 - **#268** — `window.location.origin` replaced with `NEXT_PUBLIC_APP_URL` env var (+ fallback)
 - **#261** — `student.login` audit event: new `record_login()` RPC + `/auth/login-complete` server route
 
-Migrations 044–047. 1032 tests, all passing. Production Supabase email template still needs manual verification.
+Migrations 044–047. 1082 tests, all passing. Production Supabase email template still needs manual verification.
 
 ---
 
@@ -137,7 +137,7 @@ Migrations 044–047. 1032 tests, all passing. Production Supabase email templat
 | Logic | 5.15 | Exam mode: UI stub only (disabled with "Coming soon" badge) | Done |
 | Tests | 5.16 | Updated question-filters, quiz-config-form, use-quiz-config, use-quiz-start tests for new UI | Done |
 | Tests | 5.17 | Updated lookup and start actions tests for new filter/topic arrays | Done |
-| Tests | 5.18 | All 987 tests passing (94 files), type check clean, lint clean | Done |
+| Tests | 5.18 | All 1082 tests passing (99 files), type check clean, lint clean | Done |
 
 **Implementation complete (2026-03-18, refined 2026-03-19):**
 - Replaced cascading dropdown filters with multi-select topic tree (useTopicTree hook)

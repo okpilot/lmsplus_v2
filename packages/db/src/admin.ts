@@ -3,7 +3,7 @@ import type { Database } from './types'
 
 // Guard: this module must never be imported in client-side code
 if (typeof (globalThis as Record<string, unknown>).window !== 'undefined') {
-  throw new Error('admin client must not be used in the browser')
+  throw new TypeError('admin client must not be used in the browser')
 }
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL

@@ -80,7 +80,7 @@ describe('GET /auth/callback', () => {
     mockFrom.mockReturnValue({
       select: () => ({
         eq: () => ({
-          single: async () => ({ data: null }),
+          single: async () => ({ data: null, error: { code: 'PGRST116', message: 'no rows' } }),
         }),
       }),
     })

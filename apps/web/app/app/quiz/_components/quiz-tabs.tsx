@@ -66,7 +66,7 @@ export function QuizTabs({ draftCount = null, newQuizContent, savedDraftContent 
 
   function handleKeyDown(e: KeyboardEvent) {
     const currentIndex = tab === 'new' ? 0 : 1
-    let nextIndex = currentIndex
+    let nextIndex: number
 
     if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % 2
     else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + 2) % 2
