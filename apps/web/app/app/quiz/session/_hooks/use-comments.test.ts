@@ -202,7 +202,7 @@ describe('useComments', () => {
   })
 
   describe('removeComment', () => {
-    it('removes the comment optimistically and returns true on success', async () => {
+    it('removes the comment after server confirms and returns true', async () => {
       const comments = [makeComment('c-1'), makeComment('c-2', 'Keep me')]
       mockGetComments.mockResolvedValue({ success: true, comments })
       mockDeleteComment.mockResolvedValue({ success: true })
