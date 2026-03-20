@@ -26,6 +26,65 @@ type TopicTreeProps = {
   filteredBySubtopic: Record<string, number> | null
 }
 
+type TopicListProps = {
+  topics: TopicItem[]
+  checkedTopics: Set<string>
+  checkedSubtopics: Set<string>
+  expanded: Set<string>
+  toggleExpand: (topicId: string) => void
+  onToggleTopic: (topicId: string) => void
+  onToggleSubtopic: (subtopicId: string, topicId: string) => void
+  filteredByTopic: Record<string, number> | null
+  filteredBySubtopic: Record<string, number> | null
+}
+
+function TopicList({
+  topics,
+  checkedTopics,
+  checkedSubtopics,
+  expanded,
+  toggleExpand,
+  onToggleTopic,
+  onToggleSubtopic,
+  filteredByTopic,
+  filteredBySubtopic,
+}: TopicListProps) {
+  return (
+    <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
+      {topics.map((topic) => (
+        <div key={topic.id} className="border-b border-border last:border-b-0">
+          <TopicRow
+            code={topic.code}
+            name={topic.name}
+            count={topic.questionCount}
+            filteredCount={filteredByTopic ? (filteredByTopic[topic.id] ?? 0) : null}
+            checked={checkedTopics.has(topic.id)}
+            onCheckedChange={() => onToggleTopic(topic.id)}
+            isExpanded={expanded.has(topic.id)}
+            onToggleExpand={topic.subtopics.length > 0 ? () => toggleExpand(topic.id) : undefined}
+          />
+          {expanded.has(topic.id) && (
+            <div className="border-t border-border bg-muted/40">
+              {topic.subtopics.map((sub) => (
+                <TopicRow
+                  key={sub.id}
+                  code={sub.code}
+                  name={sub.name}
+                  count={sub.questionCount}
+                  filteredCount={filteredBySubtopic ? (filteredBySubtopic[sub.id] ?? 0) : null}
+                  checked={checkedSubtopics.has(sub.id)}
+                  onCheckedChange={() => onToggleSubtopic(sub.id, topic.id)}
+                  indented
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function TopicTree({
   topics,
   checkedTopics,
@@ -63,44 +122,17 @@ export function TopicTree({
           </span>
         </div>
       </div>
-      <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
-        {topics.map((topic) => {
-          const isExpanded = expanded.has(topic.id)
-          const isChecked = checkedTopics.has(topic.id)
-          return (
-            <div key={topic.id} className="border-b border-border last:border-b-0">
-              <TopicRow
-                code={topic.code}
-                name={topic.name}
-                count={topic.questionCount}
-                filteredCount={filteredByTopic ? (filteredByTopic[topic.id] ?? 0) : null}
-                checked={isChecked}
-                onCheckedChange={() => onToggleTopic(topic.id)}
-                isExpanded={isExpanded}
-                onToggleExpand={
-                  topic.subtopics.length > 0 ? () => toggleExpand(topic.id) : undefined
-                }
-              />
-              {isExpanded && (
-                <div className="border-t border-border bg-muted/40">
-                  {topic.subtopics.map((sub) => (
-                    <TopicRow
-                      key={sub.id}
-                      code={sub.code}
-                      name={sub.name}
-                      count={sub.questionCount}
-                      filteredCount={filteredBySubtopic ? (filteredBySubtopic[sub.id] ?? 0) : null}
-                      checked={checkedSubtopics.has(sub.id)}
-                      onCheckedChange={() => onToggleSubtopic(sub.id, topic.id)}
-                      indented
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+      <TopicList
+        topics={topics}
+        checkedTopics={checkedTopics}
+        checkedSubtopics={checkedSubtopics}
+        expanded={expanded}
+        toggleExpand={toggleExpand}
+        onToggleTopic={onToggleTopic}
+        onToggleSubtopic={onToggleSubtopic}
+        filteredByTopic={filteredByTopic}
+        filteredBySubtopic={filteredBySubtopic}
+      />
     </div>
   )
 }

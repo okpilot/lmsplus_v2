@@ -36,7 +36,7 @@ User approves → Execute
 | Step | What to check | How | Blocker if... |
 |------|--------------|-----|---------------|
 | **Impact analysis** | Callers, importers, dependents of every file being changed | Explore agents: grep for imports/function usage | A caller relies on behavior you're about to change |
-| **Contract check** | Test assertions that match the code being changed | Read `.test.ts` files for every changed source file | A test asserts a value you're changing (e.g., fallback `?? 0`) |
+| **Contract check** | Test assertions, exported type contracts (types/interfaces callers depend on), Zod schema contracts (validators referencing changed types), and doc-asserted behaviors (docs/database.md) | Read `.test.ts` files, trace exported types/interfaces, check Zod schemas referencing changed types, read relevant doc sections | A test asserts a value you're changing, a TypeScript caller depends on a type you're restructuring, or a schema validator references a changed type |
 | **Pattern scan** | How similar code is written elsewhere in the repo | Explore agents: find 2-3 similar files | Your approach diverges from established patterns |
 | **Doc/schema check** | docs/database.md, docs/decisions.md, docs/plan.md | Read relevant doc sections | A doc table/matrix will become inaccurate |
 | **Security surface** | Auth checks, RLS policies, answer exposure, input validation | Read docs/security.md + check against plan | Change touches security boundary without matching rules |
@@ -177,6 +177,34 @@ Only then fix. This is a closed loop: `finding → validate → fix → re-valid
 
 ---
 
+## Proactive Engineering Guidance (MANDATORY)
+
+The user is learning software engineering. Claude must proactively flag non-obvious consequences before they become tech debt. This is not optional — silent execution of a bad process is worse than pausing to explain.
+
+### When to speak up:
+
+| Situation | What to say |
+|-----------|-------------|
+| Major dependency bump | "This needs a migration pass for deprecated APIs — let's do it in the same PR" |
+| Adding a new quality tool | "Let's configure exclusions for generated code first, then run a local baseline before enabling in CI" |
+| Adding a new CI check | "Let me run this locally first to triage the baseline — we don't want surprise failures blocking PRs" |
+| Architectural shortcut | "This works now but will cause [specific problem] when [specific trigger] — here's the alternative" |
+| Process gap | "We don't have a rule for X yet — here's what can go wrong and the rule I'd suggest" |
+
+### DO
+- Explain the *why* briefly — one sentence, not a lecture.
+- Flag before executing, not after the mess.
+- Suggest the fix alongside the warning.
+- If the user decides to proceed anyway, respect that — but log it.
+
+### NEVER
+- Execute silently when you know a step is missing.
+- Assume the user knows industry conventions — explain them.
+- Wait for tech debt to accumulate before mentioning it.
+- Over-explain or block progress — keep it brief and actionable.
+
+---
+
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`*
 
-*Last updated: 2026-03-14 (red-team agent added to pipeline)*
+*Last updated: 2026-03-19 (proactive guidance + dep migration rules added)*

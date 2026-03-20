@@ -1,6 +1,6 @@
 # Setup Audit Report — LMS Plus v2
 
-> Full project audit completed 2026-03-11, after Phase 1 completion.
+> **Snapshot from 2026-03-11** (Phase 1 completion). Some details below are outdated — see current docs for live references.
 > 46 files reviewed. Overall score: 9.5/10.
 
 ---
@@ -32,7 +32,7 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `package.json` — pnpm enforced, correct devDeps, private workspace
 - `turbo.json` — TUI enabled, correct task deps, caching strategy sound
 - `biome.json` — strict rules (`noExplicitAny` error, `noUnusedVariables` error), test overrides
-- `lefthook.yml` — pre-commit (biome), commit-msg (commitlint), pre-push (tsc + vitest + audit, parallel)
+- `lefthook.yml` — pre-commit (biome + type-check + unit tests), commit-msg (commitlint), pre-push (security-auditor agent + dep audit)
 - `commitlint.config.ts` — extends `@commitlint/config-conventional`
 - `pnpm-workspace.yaml` — `apps/*` + `packages/*`
 - `.env.example` — correct key separation (NEXT_PUBLIC_ vs server-only)
@@ -48,7 +48,7 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `packages/ui/tsconfig.json` — extends react-library
 
 ### Claude Code Setup (19 files) — excellent
-- `.claude/settings.json` — 3 MCPs (Supabase, Context7, shadcn), 3 hook types
+- `.mcp.json` — MCP servers (Supabase, Context7, shadcn, SonarQube)
 - `.claude/hooks/guard-bash.js` — blocks 9 dangerous patterns
 - `.claude/hooks/on-stop.sh` — biome format + vitest + Windows toast
 - `.claude/hooks/pre-compact-handover.sh` — saves context before compression
@@ -62,16 +62,15 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `.claude/commands/insights.md` — weekly self-review
 - `.claude/skills/nextjs-patterns.md` — Server Components, Server Actions patterns
 - `.claude/skills/supabase-rls.md` — RLS USING + WITH CHECK patterns
-- `.claude/skills/fsrs-patterns.md` — ts-fsrs card state + scheduling patterns
 - `.claude/rules/code-style.md` — file limits, function limits, naming, org
 - `.claude/rules/security.md` — quick reference pointing to docs/security.md
 - `.claude/agent-memory/*` — 4 memory files (empty, will populate as work progresses)
 
 ### Documentation (5 files) — comprehensive
-- `CLAUDE.md` — 43 lines, good balance of brevity vs. utility
+- `CLAUDE.md` — project guide (see file for current size)
 - `docs/plan.md` — master plan with phases, session prompts, automation pipeline
 - `docs/decisions.md` — full decision ledger with confirmed + open questions
-- `docs/database.md` — 18-table schema, 4 core RPCs, RLS policies, indexes
+- `docs/database.md` — 15-table schema, 4 core RPCs, RLS policies, indexes (see docs/database.md for current count)
 - `docs/security.md` — threat model, mitigations, GDPR requirements
 
 ### Source Code (4 files) — Phase 1 placeholder state
@@ -95,19 +94,10 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 
 ---
 
-## Blockers
+## Blockers (resolved)
 
-### Phase 2 (blocking all further development)
-1. Supabase project URL
-2. Anon key
-3. Service role key
-4. Personal access token (for Supabase MCP)
-
-### Phase 3 (needs decision)
-1. Question import JSON format — proposed in `docs/plan.md` Phase 3
-2. EASA taxonomy seed data — full or sample?
-3. Image handling — Supabase Storage bucket structure
+All Phase 2 and Phase 3 blockers were resolved during implementation. All phases (1-5) are now complete.
 
 ---
 
-*Audit completed: 2026-03-11*
+*Audit completed: 2026-03-11 | Updated: 2026-03-20 (stale references fixed)*
