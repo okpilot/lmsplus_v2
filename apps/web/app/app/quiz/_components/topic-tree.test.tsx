@@ -28,6 +28,7 @@ vi.mock('./topic-row', () => ({
     code,
     name,
     count,
+    filteredCount,
     checked,
     onCheckedChange,
     isExpanded,
@@ -37,6 +38,7 @@ vi.mock('./topic-row', () => ({
     code: string
     name: string
     count: number
+    filteredCount: number | null
     checked: boolean
     onCheckedChange: (c: boolean) => void
     isExpanded?: boolean
@@ -48,6 +50,7 @@ vi.mock('./topic-row', () => ({
       data-checked={String(checked)}
       data-expanded={String(isExpanded ?? false)}
       data-indented={String(indented ?? false)}
+      data-filtered-count={filteredCount === null ? 'null' : String(filteredCount)}
     >
       <span>{`${code} — ${name}`}</span>
       <span>{count}</span>
@@ -202,5 +205,46 @@ describe('TopicTree', () => {
   it('renders an empty list without crashing when topics array is empty', () => {
     renderTree({ topics: [], totalQuestions: 0 })
     expect(screen.getByText('0 questions available')).toBeInTheDocument()
+  })
+
+  it('passes null filteredCount to topic rows when filteredByTopic is null', () => {
+    renderTree({ filteredByTopic: null })
+    expect(screen.getByTestId('topic-row-050-01')).toHaveAttribute('data-filtered-count', 'null')
+    expect(screen.getByTestId('topic-row-050-02')).toHaveAttribute('data-filtered-count', 'null')
+  })
+
+  it('passes filteredCount from filteredByTopic map to matching topic rows', () => {
+    renderTree({ filteredByTopic: { 't-a': 7, 't-b': 3 } })
+    expect(screen.getByTestId('topic-row-050-01')).toHaveAttribute('data-filtered-count', '7')
+    expect(screen.getByTestId('topic-row-050-02')).toHaveAttribute('data-filtered-count', '3')
+  })
+
+  it('passes 0 as filteredCount when topic id is absent from filteredByTopic map', () => {
+    // 't-b' is not in the map — should fall back to 0, not null
+    renderTree({ filteredByTopic: { 't-a': 5 } })
+    expect(screen.getByTestId('topic-row-050-02')).toHaveAttribute('data-filtered-count', '0')
+  })
+
+  it('passes null filteredCount to subtopic rows when filteredBySubtopic is null', async () => {
+    const user = userEvent.setup()
+    renderTree({ filteredBySubtopic: null })
+    await user.click(screen.getByTestId('expand-050-01'))
+    expect(screen.getByTestId('topic-row-050-01-01')).toHaveAttribute('data-filtered-count', 'null')
+  })
+
+  it('passes filteredCount from filteredBySubtopic map to matching subtopic rows', async () => {
+    const user = userEvent.setup()
+    renderTree({ filteredBySubtopic: { 'st-a1': 4, 'st-a2': 6 } })
+    await user.click(screen.getByTestId('expand-050-01'))
+    expect(screen.getByTestId('topic-row-050-01-01')).toHaveAttribute('data-filtered-count', '4')
+    expect(screen.getByTestId('topic-row-050-01-02')).toHaveAttribute('data-filtered-count', '6')
+  })
+
+  it('passes 0 as filteredCount when subtopic id is absent from filteredBySubtopic map', async () => {
+    const user = userEvent.setup()
+    // 'st-a2' is not in the map — should fall back to 0
+    renderTree({ filteredBySubtopic: { 'st-a1': 2 } })
+    await user.click(screen.getByTestId('expand-050-01'))
+    expect(screen.getByTestId('topic-row-050-01-02')).toHaveAttribute('data-filtered-count', '0')
   })
 })

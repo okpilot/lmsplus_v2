@@ -66,7 +66,7 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     filteredBySubtopic: hasActiveFilters ? fc.filteredBySubtopic : null,
     loading,
     error,
-    isPending: topicTree.isPending,
+    isPending: topicTree.isPending || fc.isFilterPending,
     handleSubjectChange,
     handleStart,
   }

@@ -4,13 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetFilteredCount, mockLoadTopics } = vi.hoisted(() => ({
-  mockGetFilteredCount: vi.fn(),
+const { mockLoadTopics } = vi.hoisted(() => ({
   mockLoadTopics: vi.fn(),
-}))
-
-vi.mock('../actions/lookup', () => ({
-  getFilteredCount: (...args: unknown[]) => mockGetFilteredCount(...args),
 }))
 
 vi.mock('next/navigation', () => ({
