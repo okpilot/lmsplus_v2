@@ -34,7 +34,7 @@ export function QuizSession(props: QuizSessionProps) {
         totalQuestions={props.questions.length}
         currentIndex={s.currentIndex}
         pinnedIds={s.pinnedQuestions}
-        flaggedIds={new Set()}
+        flaggedIds={new Set()} // wired to DB flags in PR 5
         questionIds={s.questionIds}
         feedbackMap={feedbackMap}
         onNavigate={s.navigateTo}
