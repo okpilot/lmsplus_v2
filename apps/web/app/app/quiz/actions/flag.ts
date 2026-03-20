@@ -44,16 +44,19 @@ async function unflagQuestion(
   questionId: string,
 ): Promise<FlagResult> {
   // Atomic: only matches active (non-deleted) flags, safe against concurrent toggle
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('flagged_questions')
     .update({ deleted_at: new Date().toISOString() })
     .eq('student_id', userId)
     .eq('question_id', questionId)
     .is('deleted_at', null)
+    .select('student_id')
   if (error) {
     console.error('[toggleFlag] Unflag error:', error.message)
     return { success: false, error: 'Failed to unflag' }
   }
+  // Zero rows = already unflagged concurrently; still correct terminal state
+  if (!data?.length) return { success: true, flagged: false }
   return { success: true, flagged: false }
 }
 

@@ -297,6 +297,21 @@ if (error) {
 return { success: true }
 ```
 
+**Zero-row no-op check:** For ownership-scoped DELETE and UPDATE calls, verify at least one row was affected by chaining `.select('id')` and checking the returned array length. Supabase returns no error when RLS blocks a mutation — it returns 200 OK with zero affected rows. Without this check, cross-user or wrong-ID calls silently succeed.
+
+```ts
+// ❌ WRONG — RLS blocks cross-user delete, but returns no error
+const { error } = await supabase.from('comments').delete().eq('id', commentId)
+if (error) return { success: false }
+return { success: true }  // silent no-op if RLS blocked it
+
+// ✅ CORRECT — verify a row was actually deleted
+const { data, error } = await supabase.from('comments').delete().eq('id', commentId).select('id')
+if (error) return { success: false }
+if (!data?.length) return { success: false, error: 'Not found or not owned' }
+return { success: true }
+```
+
 ### Export Types Next to Their Functions
 ```ts
 // actions.ts
