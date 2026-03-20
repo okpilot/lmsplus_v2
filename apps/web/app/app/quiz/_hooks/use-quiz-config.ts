@@ -1,7 +1,7 @@
-import { useRef, useState, useTransition } from 'react'
+import { useState } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz'
-import { getFilteredCount } from '../actions/lookup'
 import type { QuestionFilterValue, QuizMode } from '../types'
+import { useFilteredCount } from './use-filtered-count'
 import { useQuizStart } from './use-quiz-start'
 import { useTopicTree } from './use-topic-tree'
 
@@ -10,12 +10,15 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
   const [mode, setMode] = useState<QuizMode>('study')
   const [filters, setFilters] = useState<QuestionFilterValue[]>(['all'])
   const [count, setCount] = useState(10)
-  const [filteredCount, setFilteredCount] = useState<number | null>(null)
-  const [filteredByTopic, setFilteredByTopic] = useState<Record<string, number> | null>(null)
-  const [filteredBySubtopic, setFilteredBySubtopic] = useState<Record<string, number> | null>(null)
-  const [, startFilterTransition] = useTransition()
-  const filterGeneration = useRef(0)
   const topicTree = useTopicTree()
+
+  const {
+    filteredCount,
+    filteredByTopic,
+    filteredBySubtopic,
+    hasActiveFilters,
+    refetchFilteredCount,
+  } = useFilteredCount({ subjectId, filters, topicTree })
 
   const availableCount =
     filters.some((f) => f !== 'all') && filteredCount !== null
@@ -31,42 +34,15 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     topicTree,
   })
 
-  const hasActiveFilters = filters.some((f) => f !== 'all')
-
-  function refetchFilteredCount(newFilters?: QuestionFilterValue[]) {
-    setFilteredCount(null)
-    setFilteredByTopic(null)
-    setFilteredBySubtopic(null)
-    if (!subjectId) return
-    const activeFilters = (newFilters ?? filters).filter((f) => f !== 'all')
-    if (!activeFilters.length) return
-    filterGeneration.current++
-    const gen = filterGeneration.current
-    startFilterTransition(async () => {
-      const result = await getFilteredCount({
-        subjectId,
-        topicIds: topicTree.getSelectedTopicIds(),
-        subtopicIds: topicTree.getSelectedSubtopicIds(),
-        filters: activeFilters,
-      })
-      if (gen === filterGeneration.current) {
-        setFilteredCount(result.count)
-        setFilteredByTopic(result.byTopic)
-        setFilteredBySubtopic(result.bySubtopic)
-      }
-    })
-  }
-
   function handleSubjectChange(id: string) {
     setSubjectId(id)
-    setFilteredCount(null)
-    setFilteredByTopic(null)
-    setFilteredBySubtopic(null)
     setFilters(['all'])
     setCount(10)
+    refetchFilteredCount(['all'])
     if (id) topicTree.loadTopics(id)
     else topicTree.reset()
   }
+
   function handleFiltersChange(newFilters: QuestionFilterValue[]) {
     setFilters(newFilters)
     refetchFilteredCount(newFilters)
