@@ -7,9 +7,9 @@ import { insertNewDraft, updateExistingDraft } from './draft-helpers'
 
 const SaveDraftInput = z
   .object({
-    draftId: z.string().uuid().optional(),
-    sessionId: z.string().uuid(),
-    questionIds: z.array(z.string().uuid()).min(1),
+    draftId: z.uuid().optional(),
+    sessionId: z.uuid(),
+    questionIds: z.array(z.uuid()).min(1),
     answers: z.record(
       z.string(),
       z.object({
@@ -24,7 +24,8 @@ const SaveDraftInput = z
   .superRefine((data, ctx) => {
     if (data.currentIndex >= data.questionIds.length) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        // 'custom' is the Zod v4 literal for ZodIssueCode.custom
+        code: 'custom',
         path: ['currentIndex'],
         message: 'Current index out of range',
       })
@@ -33,7 +34,7 @@ const SaveDraftInput = z
     for (const key of Object.keys(data.answers)) {
       if (!questionIdSet.has(key)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: ['answers', key],
           message: `Answer key "${key}" is not in questionIds`,
         })

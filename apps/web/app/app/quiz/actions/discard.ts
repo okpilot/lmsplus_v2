@@ -4,8 +4,8 @@ import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 
 const DiscardQuizInput = z.object({
-  sessionId: z.string().uuid(),
-  draftId: z.string().uuid().optional(),
+  sessionId: z.uuid(),
+  draftId: z.uuid().optional(),
 })
 
 export async function discardQuiz(

@@ -10,7 +10,7 @@ import {
 } from '@/lib/queries/quiz'
 import { applyFilters } from './filter-helpers'
 
-const IdSchema = z.string().uuid()
+const IdSchema = z.uuid()
 
 export async function fetchTopicsForSubject(raw: unknown): Promise<TopicOption[]> {
   return getTopicsForSubject(IdSchema.parse(raw))
@@ -25,9 +25,9 @@ export async function fetchTopicsWithSubtopics(raw: unknown): Promise<TopicWithS
 }
 
 const FilteredCountSchema = z.object({
-  subjectId: z.string().uuid(),
-  topicIds: z.array(z.string().uuid()).optional(),
-  subtopicIds: z.array(z.string().uuid()).optional(),
+  subjectId: z.uuid(),
+  topicIds: z.array(z.uuid()).optional(),
+  subtopicIds: z.array(z.uuid()).optional(),
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
 })
 

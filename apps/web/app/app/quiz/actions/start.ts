@@ -7,9 +7,9 @@ import { rpc } from '@/lib/supabase-rpc'
 import type { StartQuizResult } from '../types'
 
 const StartQuizInput = z.object({
-  subjectId: z.string().uuid(),
-  topicIds: z.array(z.string().uuid()).optional(),
-  subtopicIds: z.array(z.string().uuid()).optional(),
+  subjectId: z.uuid(),
+  topicIds: z.array(z.uuid()).optional(),
+  subtopicIds: z.array(z.uuid()).optional(),
   count: z.number().int().min(1).max(500),
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
 })
