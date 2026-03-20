@@ -240,7 +240,7 @@ jobs:
 
       - name: Create or update issue (findings)
         if: steps.checks.outputs.has_findings == 'true'
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const title = '🤖 Agent system health report';
@@ -279,7 +279,7 @@ jobs:
 
       - name: Close issue if clean
         if: steps.checks.outputs.has_findings == 'false'
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const title = '🤖 Agent system health report';

@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - uses: pnpm/action-setup@5b4374b04084dc1f9032b52464284b769ac5059e # v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
@@ -34,7 +34,7 @@ jobs:
 
       - name: Find previous successful run
         id: prev-run
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const runs = await github.rest.actions.listWorkflowRuns({
@@ -193,7 +193,7 @@ jobs:
 
       - name: Create or update regression issue
         if: steps.bundle.outputs.regression == 'true'
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           CURRENT_KB: ${{ steps.bundle.outputs.current_kb }}
           BASELINE_KB: ${{ steps.bundle.outputs.baseline_kb }}
@@ -254,7 +254,7 @@ jobs:
 
       - name: Close regression issue if recovered
         if: steps.bundle.outputs.regression == 'false' && steps.bundle.outputs.current_kb != ''
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           CURRENT_KB: ${{ steps.bundle.outputs.current_kb }}
           BASELINE_KB: ${{ steps.bundle.outputs.baseline_kb }}
