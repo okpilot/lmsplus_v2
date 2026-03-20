@@ -6,9 +6,9 @@ import { rpc } from '@/lib/supabase-rpc'
 import type { CheckAnswerResult } from '../types'
 
 const CheckAnswerSchema = z.object({
-  questionId: z.string().uuid(),
+  questionId: z.uuid(),
   selectedOptionId: z.string().min(1),
-  sessionId: z.string().uuid(),
+  sessionId: z.uuid(),
 })
 
 type CheckAnswerRpcResult = {
