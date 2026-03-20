@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AnswerOptions } from './answer-options'
 
 const OPTIONS = [
@@ -10,6 +10,10 @@ const OPTIONS = [
 ]
 
 describe('AnswerOptions', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
   it('renders all option buttons', () => {
     render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
     expect(screen.getByText('Option Alpha')).toBeInTheDocument()
@@ -105,5 +109,145 @@ describe('AnswerOptions', () => {
       await user.click(submitBtn)
     }
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  describe('letter circle labels', () => {
+    it('renders letter A on the first option', () => {
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      expect(screen.getByText('A')).toBeInTheDocument()
+    })
+
+    it('renders letters A, B, C in order for three options', () => {
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      expect(screen.getByText('A')).toBeInTheDocument()
+      expect(screen.getByText('B')).toBeInTheDocument()
+      expect(screen.getByText('C')).toBeInTheDocument()
+    })
+
+    it('renders letters A through H for eight options', () => {
+      const eightOptions = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((l, i) => ({
+        id: `opt-${i}`,
+        text: `Option ${l}`,
+      }))
+      render(<AnswerOptions options={eightOptions} onSubmit={vi.fn()} disabled={false} />)
+      for (const letter of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) {
+        expect(screen.getByText(letter)).toBeInTheDocument()
+      }
+    })
+
+    it('falls back to numeric label for options beyond position eight', () => {
+      const nineOptions = Array.from({ length: 9 }, (_, i) => ({
+        id: `opt-${i}`,
+        text: `Option ${i + 1}`,
+      }))
+      render(<AnswerOptions options={nineOptions} onSubmit={vi.fn()} disabled={false} />)
+      // Index 8 is beyond the LETTERS array — should render '9'
+      expect(screen.getByText('9')).toBeInTheDocument()
+    })
+
+    it('places the correct letter inside the button for each option', () => {
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      const alphaBtn = screen.getByTestId('option-a')
+      const betaBtn = screen.getByTestId('option-b')
+      expect(alphaBtn.querySelector('span')?.textContent).toBe('A')
+      expect(betaBtn.querySelector('span')?.textContent).toBe('B')
+    })
+  })
+
+  describe('letter circle styling states', () => {
+    it('applies neutral border circle style when option is unselected', () => {
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      const circle = screen.getByTestId('option-a').querySelector('span')
+      expect(circle?.className).toContain('border')
+      expect(circle?.className).not.toContain('bg-green-500')
+      expect(circle?.className).not.toContain('bg-red-500')
+      expect(circle?.className).not.toContain('bg-primary')
+    })
+
+    it('applies primary-coloured circle when option is selected before submission', async () => {
+      const user = userEvent.setup()
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      await user.click(screen.getByTestId('option-a'))
+      const circle = screen.getByTestId('option-a').querySelector('span')
+      expect(circle?.className).toContain('bg-primary')
+      expect(circle?.className).toContain('text-primary-foreground')
+    })
+
+    it('applies green circle on the correct option when result is shown', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          selectedOptionId="a"
+          correctOptionId="b"
+        />,
+      )
+      const circle = screen.getByTestId('option-b').querySelector('span')
+      expect(circle?.className).toContain('bg-green-500')
+      expect(circle?.className).toContain('text-white')
+    })
+
+    it('applies red circle on the wrong selection when result is shown', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          selectedOptionId="a"
+          correctOptionId="b"
+        />,
+      )
+      const circle = screen.getByTestId('option-a').querySelector('span')
+      expect(circle?.className).toContain('bg-red-500')
+      expect(circle?.className).toContain('text-white')
+    })
+
+    it('applies neutral border circle on an unselected non-correct option when result is shown', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          selectedOptionId="a"
+          correctOptionId="b"
+        />,
+      )
+      // Option C was neither selected nor correct
+      const circle = screen.getByTestId('option-c').querySelector('span')
+      expect(circle?.className).not.toContain('bg-green-500')
+      expect(circle?.className).not.toContain('bg-red-500')
+      expect(circle?.className).not.toContain('bg-primary')
+    })
+  })
+
+  describe('data-selected attribute', () => {
+    it('sets data-selected="true" on the option the user clicks before submission', async () => {
+      const user = userEvent.setup()
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      await user.click(screen.getByTestId('option-b'))
+      expect(screen.getByTestId('option-b')).toHaveAttribute('data-selected', 'true')
+    })
+
+    it('does not set data-selected on unselected options', async () => {
+      const user = userEvent.setup()
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      await user.click(screen.getByTestId('option-b'))
+      expect(screen.getByTestId('option-a')).not.toHaveAttribute('data-selected')
+    })
+
+    it('does not set data-selected when result is shown (lockedSelection)', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          selectedOptionId="a"
+          correctOptionId="b"
+        />,
+      )
+      // Even the locked selection should not carry data-selected in result state
+      expect(screen.getByTestId('option-a')).not.toHaveAttribute('data-selected')
+    })
   })
 })
