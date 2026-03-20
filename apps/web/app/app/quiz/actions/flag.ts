@@ -33,24 +33,38 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
     .eq('question_id', questionId)
     .maybeSingle()
 
-  if (existing) {
-    // Currently flagged — soft-delete (unflag)
-    const { error } = await supabase
-      .from('flagged_questions')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('student_id', user.id)
-      .eq('question_id', questionId)
-    if (error) {
-      console.error('[toggleFlag] Unflag error:', error.message)
-      return { success: false, error: 'Failed to unflag' }
-    }
-    return { success: true, flagged: false }
-  }
+  return existing
+    ? unflagQuestion(supabase, user.id, questionId)
+    : flagQuestion(supabase, user.id, questionId)
+}
 
-  // Not flagged — upsert handles both new insert and re-flag of soft-deleted row
+async function unflagQuestion(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  questionId: string,
+): Promise<FlagResult> {
+  // Atomic: only matches active (non-deleted) flags, safe against concurrent toggle
+  const { error } = await supabase
+    .from('flagged_questions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('student_id', userId)
+    .eq('question_id', questionId)
+    .is('deleted_at', null)
+  if (error) {
+    console.error('[toggleFlag] Unflag error:', error.message)
+    return { success: false, error: 'Failed to unflag' }
+  }
+  return { success: true, flagged: false }
+}
+
+async function flagQuestion(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  questionId: string,
+): Promise<FlagResult> {
   const { error } = await supabase.from('flagged_questions').upsert(
     {
-      student_id: user.id,
+      student_id: userId,
       question_id: questionId,
       flagged_at: new Date().toISOString(),
       deleted_at: null,

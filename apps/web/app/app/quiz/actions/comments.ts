@@ -83,11 +83,17 @@ export async function deleteComment(raw: unknown) {
     return { success: false as const, error: 'Invalid input' }
   }
 
-  const { error } = await supabase.from('question_comments').delete().eq('id', parsed.commentId)
+  // RLS scopes delete to own comments + admin; select confirms a row was removed
+  const { data, error } = await supabase
+    .from('question_comments')
+    .delete()
+    .eq('id', parsed.commentId)
+    .select('id')
 
   if (error) {
     console.error('[deleteComment]', error.message)
     return { success: false as const, error: 'Failed to delete comment' }
   }
+  if (!data?.length) return { success: false as const, error: 'Comment not found or not owned' }
   return { success: true as const }
 }
