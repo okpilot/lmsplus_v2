@@ -65,6 +65,9 @@ reviews:
         - No service role key (adminClient) — that lives in packages/db/src/admin.ts only.
         - Explicit return types on all exported functions.
         - No `any` type — use `unknown` with narrowing.
+        - Destructure { error } from ALL Supabase mutation calls (.insert/.update/.delete/.upsert).
+        - For ownership-scoped DELETE and UPDATE, chain .select('id') and check data?.length.
+          Supabase returns 200 OK with zero rows when RLS blocks — no error is thrown.
 
     # Hooks — small and focused
     - path: "apps/web/app/**/_hooks/use-*.ts"
