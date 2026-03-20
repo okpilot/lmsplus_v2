@@ -46,9 +46,9 @@ export function QuizMainPanel({ s, totalQuestions, activeTab, onTabChange }: Qui
           Question {s.currentIndex + 1} of {totalQuestions}
         </span>
         <SessionTimer className="text-sm" />
-        {s.question.question_number && (
-          <span className="text-muted-foreground">No. {s.question.question_number}</span>
-        )}
+        <span className="text-muted-foreground">
+          {s.question.question_number ? `No. ${s.question.question_number}` : '\u00A0'}
+        </span>
       </div>
       <QuestionCard
         questionText={s.question.question_text}
