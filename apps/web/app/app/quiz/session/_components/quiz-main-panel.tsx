@@ -25,7 +25,6 @@ function QuizProgressBar({ answeredCount, totalQuestions }: QuizProgressBarProps
       <span className="text-xs text-muted-foreground">
         {answeredCount}/{totalQuestions}
       </span>
-      <SessionTimer />
     </div>
   )
 }
@@ -42,12 +41,18 @@ export function QuizMainPanel({ s, totalQuestions, activeTab, onTabChange }: Qui
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
       <QuizProgressBar answeredCount={s.answeredCount} totalQuestions={totalQuestions} />
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium">
+          Question {s.currentIndex + 1} of {totalQuestions}
+        </span>
+        <SessionTimer className="text-sm" />
+        <span className="text-muted-foreground">
+          {s.question.question_number ? `No. ${s.question.question_number}` : '\u00A0'}
+        </span>
+      </div>
       <QuestionCard
         questionText={s.question.question_text}
         questionImageUrl={s.question.question_image_url}
-        questionNumber={s.currentIndex + 1}
-        totalQuestions={totalQuestions}
-        dbQuestionNumber={s.question.question_number}
       />
       {s.error && (
         <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">

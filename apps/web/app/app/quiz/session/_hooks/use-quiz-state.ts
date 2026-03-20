@@ -66,6 +66,7 @@ export function useQuizState(opts: QuizStateOpts) {
     currentFeedback: feedback.get(questionId) ?? null,
     questionIds: questions.map((q) => q.id),
     answeredIds: new Set(answers.keys()),
+    feedback,
     pinnedQuestions,
     isPinned: pinnedQuestions.has(questionId),
     handleSelectAnswer,
