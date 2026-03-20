@@ -149,8 +149,8 @@ describe('AnswerOptions', () => {
       render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
       const alphaBtn = screen.getByTestId('option-a')
       const betaBtn = screen.getByTestId('option-b')
-      expect(alphaBtn).toHaveTextContent('A')
-      expect(betaBtn).toHaveTextContent('B')
+      expect(alphaBtn.querySelector('span')?.textContent).toBe('A')
+      expect(betaBtn.querySelector('span')?.textContent).toBe('B')
     })
   })
 
