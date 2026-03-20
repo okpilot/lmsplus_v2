@@ -4,13 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetFilteredCount, mockLoadTopics } = vi.hoisted(() => ({
-  mockGetFilteredCount: vi.fn(),
+const { mockLoadTopics } = vi.hoisted(() => ({
   mockLoadTopics: vi.fn(),
-}))
-
-vi.mock('../actions/lookup', () => ({
-  getFilteredCount: (...args: unknown[]) => mockGetFilteredCount(...args),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -23,10 +18,12 @@ vi.mock('../actions/start', () => ({
 
 vi.mock('./use-quiz-start', () => ({ useQuizStart: vi.fn() }))
 vi.mock('./use-topic-tree', () => ({ useTopicTree: vi.fn() }))
+vi.mock('./use-filtered-count', () => ({ useFilteredCount: vi.fn() }))
 
 // ---- Subject under test ---------------------------------------------------
 
 import type { QuestionFilterValue } from '../types'
+import { useFilteredCount } from './use-filtered-count'
 import { useQuizConfig } from './use-quiz-config'
 import { useQuizStart } from './use-quiz-start'
 import { useTopicTree } from './use-topic-tree'
@@ -38,6 +35,8 @@ const SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
 const SUBJECTS = [{ id: SUBJECT_ID, name: 'Air Law', code: 'ALW', short: 'ALW', questionCount: 30 }]
 
 const mockHandleStart = vi.fn()
+const mockFcRefetch = vi.fn()
+const mockFcReset = vi.fn()
 
 function buildMockTopicTree(overrides?: Partial<ReturnType<typeof useTopicTree>>) {
   return {
@@ -59,11 +58,24 @@ function buildMockTopicTree(overrides?: Partial<ReturnType<typeof useTopicTree>>
   }
 }
 
+function buildMockFilteredCount(overrides?: Partial<ReturnType<typeof useFilteredCount>>) {
+  return {
+    filteredCount: null,
+    filteredByTopic: null,
+    filteredBySubtopic: null,
+    isFilterPending: false,
+    refetch: mockFcRefetch,
+    reset: mockFcReset,
+    ...overrides,
+  }
+}
+
 // ---- Lifecycle ------------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
   ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree())
+  ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount())
   ;(useQuizStart as Mock).mockReturnValue({
     loading: false,
     error: null,
@@ -108,7 +120,6 @@ describe('useQuizConfig — handleSubjectChange', () => {
   })
 
   it('resets filters to [all] and count to 10 when subject changes', async () => {
-    mockGetFilteredCount.mockResolvedValue({ count: 5 })
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
@@ -143,6 +154,14 @@ describe('useQuizConfig — handleSubjectChange', () => {
     })
     expect(mockTree.reset).toHaveBeenCalled()
   })
+
+  it('calls fc.reset when subject changes', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+    expect(mockFcReset).toHaveBeenCalled()
+  })
 })
 
 // ---- setFilters ----------------------------------------------------------
@@ -156,38 +175,17 @@ describe('useQuizConfig — setFilters', () => {
     expect(result.current.filters).toEqual(['unseen'])
   })
 
-  it('triggers a filtered count fetch when non-all filters are set and a subject is selected', async () => {
-    mockGetFilteredCount.mockResolvedValue({ count: 12 })
+  it('calls fc.refetch with the new filters when setFilters is called', async () => {
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
-    await act(async () => {
-      result.current.handleSubjectChange(SUBJECT_ID)
-    })
     await act(async () => {
       result.current.setFilters(['incorrect'] as QuestionFilterValue[])
     })
-    expect(mockGetFilteredCount).toHaveBeenCalledWith(
-      expect.objectContaining({ subjectId: SUBJECT_ID }),
+    expect(mockFcRefetch).toHaveBeenCalledWith(
+      '', // subjectId (initial value)
+      [],
+      [],
+      ['incorrect'],
     )
-  })
-
-  it('does not fetch filtered count when only [all] is set', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
-    await act(async () => {
-      result.current.handleSubjectChange(SUBJECT_ID)
-    })
-    mockGetFilteredCount.mockClear()
-    await act(async () => {
-      result.current.setFilters(['all'] as QuestionFilterValue[])
-    })
-    expect(mockGetFilteredCount).not.toHaveBeenCalled()
-  })
-
-  it('does not fetch filtered count when no subject is selected', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
-    await act(async () => {
-      result.current.setFilters(['unseen'] as QuestionFilterValue[])
-    })
-    expect(mockGetFilteredCount).not.toHaveBeenCalled()
   })
 })
 
@@ -224,32 +222,73 @@ describe('useQuizConfig — availableCount', () => {
   })
 
   it('uses filteredCount when a non-all filter is active and filteredCount is set', async () => {
-    mockGetFilteredCount.mockResolvedValue({ count: 7 })
     ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ selectedQuestionCount: 42 }))
+    ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ filteredCount: 7 }))
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
-    await act(async () => {
-      result.current.handleSubjectChange(SUBJECT_ID)
-    })
     await act(async () => {
       result.current.setFilters(['unseen'] as QuestionFilterValue[])
     })
-    // filteredCount fetch resolves to 7, so availableCount should be 7
+    // filteredCount is 7 and filters is non-all, so availableCount should be 7
     expect(result.current.availableCount).toBe(7)
   })
 
   it('falls back to topicTree.selectedQuestionCount when filteredCount is null (fetch pending)', async () => {
-    // Never resolve the promise — filteredCount stays null
-    mockGetFilteredCount.mockReturnValue(new Promise(() => {}))
     ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ selectedQuestionCount: 20 }))
+    ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ filteredCount: null }))
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
     await act(async () => {
-      result.current.handleSubjectChange(SUBJECT_ID)
-    })
-    act(() => {
       result.current.setFilters(['flagged'] as QuestionFilterValue[])
     })
-    // filteredCount is null while fetch is pending, so falls back to selectedQuestionCount
+    // filteredCount is null while fetch is pending, falls back to selectedQuestionCount
     expect(result.current.availableCount).toBe(20)
+  })
+})
+
+// ---- filteredByTopic / filteredBySubtopic gating -------------------------
+
+describe('useQuizConfig — filteredByTopic / filteredBySubtopic gating', () => {
+  it('returns filteredByTopic when a non-all filter is active', async () => {
+    const byTopic = { 'topic-1': 5 }
+    ;(useFilteredCount as Mock).mockReturnValue(
+      buildMockFilteredCount({ filteredCount: 5, filteredByTopic: byTopic }),
+    )
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.setFilters(['unseen'] as QuestionFilterValue[])
+    })
+    expect(result.current.filteredByTopic).toEqual(byTopic)
+  })
+
+  it('returns null for filteredByTopic when filters is [all]', () => {
+    ;(useFilteredCount as Mock).mockReturnValue(
+      buildMockFilteredCount({ filteredByTopic: { 'topic-1': 5 } }),
+    )
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    // filters is still ['all'] by default
+    expect(result.current.filteredByTopic).toBeNull()
+  })
+
+  it('returns filteredBySubtopic when a non-all filter is active', async () => {
+    const bySubtopic = { 'subtopic-1': 2 }
+    ;(useFilteredCount as Mock).mockReturnValue(
+      buildMockFilteredCount({ filteredCount: 2, filteredBySubtopic: bySubtopic }),
+    )
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.setFilters(['unseen'] as QuestionFilterValue[])
+    })
+    expect(result.current.filteredBySubtopic).toEqual(bySubtopic)
+  })
+})
+
+// ---- isPending — fc.isFilterPending gate ---------------------------------
+
+describe('useQuizConfig — isPending from fc.isFilterPending', () => {
+  it('is true when fc.isFilterPending is true even if topicTree.isPending is false', () => {
+    ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ isFilterPending: true }))
+    ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ isPending: false }))
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    expect(result.current.isPending).toBe(true)
   })
 })
 

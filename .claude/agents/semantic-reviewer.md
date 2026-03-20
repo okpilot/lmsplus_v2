@@ -141,9 +141,7 @@ Focus on what the others miss: **logic, behavior, consistency, and security reas
 
 3. **Do NOT flag type casts that have upstream Zod validation** — Before flagging `as SomeType`, trace the input origin. If the value was parsed by Zod earlier in the same function or Server Action, the cast is justified. Only flag raw unvalidated input (`req.body`, `searchParams`, `JSON.parse()` without schema).
 
-5. **Do NOT flag Server Actions that rely on RPC-level auth checks as "missing auth"** — If a Server Action calls an RPC that has its own `auth.uid()` check, that's defense in depth. Flag only if BOTH the action AND the RPC lack auth checks.
-
-6. **Do NOT flag open redirects on internal-only redirects** — Redirects to hardcoded paths (`/app/dashboard`, `/auth/callback`) are not open redirects. Only flag redirects constructed from user-supplied URLs or query params without validation.
+5. **Do NOT flag open redirects on internal-only redirects** — Redirects to hardcoded paths (`/app/dashboard`, `/auth/callback`) are not open redirects. Only flag redirects constructed from user-supplied URLs or query params without validation.
 
 7. **Do NOT write tests or fix code** — You report findings. The test-writer writes tests. The main session fixes code. Stay in your lane.
 

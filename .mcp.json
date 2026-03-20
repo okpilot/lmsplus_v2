@@ -4,7 +4,7 @@
       "command": "npx.cmd",
       "args": [
         "-y",
-        "@supabase/mcp-server-supabase",
+        "@supabase/mcp-server-supabase@0.7.0",
         "--access-token",
         "${SUPABASE_ACCESS_TOKEN}",
         "--project-ref",
@@ -13,11 +13,11 @@
     },
     "context7": {
       "command": "npx.cmd",
-      "args": ["-y", "@upstash/context7-mcp"]
+      "args": ["-y", "@upstash/context7-mcp@2.1.4"]
     },
     "shadcn": {
       "command": "npx.cmd",
-      "args": ["-y", "shadcn@latest", "mcp"]
+      "args": ["-y", "shadcn@4.1.0", "mcp"]
     },
     "sonarqube": {
       "command": "docker",
