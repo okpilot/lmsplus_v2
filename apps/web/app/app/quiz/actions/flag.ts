@@ -26,12 +26,17 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
   const { questionId } = parsed
 
   // RLS SELECT filters deleted_at IS NULL, so this only finds active flags
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from('flagged_questions')
     .select('student_id')
     .eq('student_id', user.id)
     .eq('question_id', questionId)
     .maybeSingle()
+
+  if (lookupError) {
+    console.error('[toggleFlag] Lookup error:', lookupError.message)
+    return { success: false, error: 'Failed to toggle flag' }
+  }
 
   return existing
     ? unflagQuestion(supabase, user.id, questionId)

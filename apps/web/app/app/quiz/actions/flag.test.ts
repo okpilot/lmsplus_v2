@@ -116,6 +116,17 @@ describe('toggleFlag', () => {
     expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
+  // ---- lookup error ----------------------------------------------------------
+
+  it('returns failure when the flag lookup errors', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection timeout' } }))
+
+    const result = await toggleFlag({ questionId: QUESTION_ID_A })
+
+    expect(result).toEqual({ success: false, error: 'Failed to toggle flag' })
+  })
+
   // ---- flag-on path (question not currently flagged) -----------------------
 
   it('returns flagged: true when the question was not previously flagged', async () => {
