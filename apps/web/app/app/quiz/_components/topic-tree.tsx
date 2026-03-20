@@ -48,7 +48,7 @@ function TopicList({
   onToggleSubtopic,
   filteredByTopic,
   filteredBySubtopic,
-}: TopicListProps) {
+}: Readonly<TopicListProps>) {
   return (
     <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
       {topics.map((topic) => (
