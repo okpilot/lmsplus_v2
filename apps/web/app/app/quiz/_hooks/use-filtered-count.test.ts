@@ -37,6 +37,7 @@ describe('useFilteredCount — initial state', () => {
     expect(result.current.filteredByTopic).toBeNull()
     expect(result.current.filteredBySubtopic).toBeNull()
     expect(result.current.isFilterPending).toBe(false)
+    expect(result.current.authError).toBe(false)
   })
 })
 
@@ -110,6 +111,99 @@ describe('useFilteredCount — refetch', () => {
       result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['flagged'])
     })
     expect(result.current.filteredCount).toBeNull()
+  })
+
+  it('preserves existing count when guard returns early (no subjectId)', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce({ count: 10, byTopic: {}, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+    })
+    expect(result.current.filteredCount).toBe(10)
+
+    // Empty subjectId should NOT wipe the existing count
+    await act(async () => {
+      result.current.refetch('', TOPIC_IDS, [], ['unseen'])
+    })
+    expect(result.current.filteredCount).toBe(10)
+    expect(mockGetFilteredCount).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves existing count when guard returns early (all-only filters)', async () => {
+    mockGetFilteredCount.mockResolvedValueOnce({ count: 10, byTopic: {}, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+    })
+    expect(result.current.filteredCount).toBe(10)
+
+    // all-only filters should NOT wipe the existing count
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['all'])
+    })
+    expect(result.current.filteredCount).toBe(10)
+    expect(mockGetFilteredCount).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ---- Auth error -----------------------------------------------------------
+
+describe('useFilteredCount — auth error', () => {
+  it('sets authError when server returns auth error', async () => {
+    mockGetFilteredCount.mockResolvedValue({
+      count: 0,
+      byTopic: {},
+      bySubtopic: {},
+      error: 'auth',
+    })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+    })
+    expect(result.current.authError).toBe(true)
+    expect(result.current.filteredCount).toBeNull()
+  })
+
+  it('clears authError on reset', async () => {
+    mockGetFilteredCount.mockResolvedValue({
+      count: 0,
+      byTopic: {},
+      bySubtopic: {},
+      error: 'auth',
+    })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+    })
+    expect(result.current.authError).toBe(true)
+
+    act(() => {
+      result.current.reset()
+    })
+    expect(result.current.authError).toBe(false)
+  })
+
+  it('clears authError on successful refetch', async () => {
+    // First: auth error
+    mockGetFilteredCount.mockResolvedValueOnce({
+      count: 0,
+      byTopic: {},
+      bySubtopic: {},
+      error: 'auth',
+    })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+    })
+    expect(result.current.authError).toBe(true)
+
+    // Second: successful fetch
+    mockGetFilteredCount.mockResolvedValueOnce({ count: 5, byTopic: {}, bySubtopic: {} })
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen'])
+    })
+    expect(result.current.authError).toBe(false)
+    expect(result.current.filteredCount).toBe(5)
   })
 })
 

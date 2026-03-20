@@ -64,6 +64,7 @@ function buildMockFilteredCount(overrides?: Partial<ReturnType<typeof useFiltere
     filteredByTopic: null,
     filteredBySubtopic: null,
     isFilterPending: false,
+    authError: false,
     refetch: mockFcRefetch,
     reset: mockFcReset,
     ...overrides,

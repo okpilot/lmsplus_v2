@@ -37,6 +37,7 @@ export type FilteredCountResult = {
   count: number
   byTopic: Record<string, number>
   bySubtopic: Record<string, number>
+  error?: 'auth'
 }
 
 export async function getFilteredCount(input: unknown): Promise<FilteredCountResult> {
@@ -48,7 +49,7 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError || !user) return empty
+  if (authError || !user) return { ...empty, error: 'auth' }
 
   let query = supabase
     .from('questions')
