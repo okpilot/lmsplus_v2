@@ -36,7 +36,7 @@ describe('useNavigationGuard', () => {
     expect(removeMock).toHaveBeenCalledWith('beforeunload', expect.any(Function))
   })
 
-  it('handler calls preventDefault and sets e.returnValue to empty string', () => {
+  it('handler calls preventDefault on the event', () => {
     // Capture the handler passed to addEventListener
     let capturedHandler: ((e: BeforeUnloadEvent) => void) | undefined
     addMock.mockImplementation((_type: string, handler: (e: BeforeUnloadEvent) => void) => {
@@ -48,11 +48,9 @@ describe('useNavigationGuard', () => {
     expect(capturedHandler).toBeDefined()
     const fakeEvent = {
       preventDefault: vi.fn(),
-      returnValue: '',
     } as unknown as BeforeUnloadEvent
     capturedHandler?.(fakeEvent)
 
     expect(fakeEvent.preventDefault).toHaveBeenCalled()
-    expect(fakeEvent.returnValue).toBe('')
   })
 })

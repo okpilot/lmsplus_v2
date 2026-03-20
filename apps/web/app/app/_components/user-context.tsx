@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, type ReactNode, useContext } from 'react'
+import { createContext, type ReactNode, useContext, useMemo } from 'react'
 
 type UserContextValue = {
   displayName: string
@@ -18,5 +18,6 @@ export function useUser(): UserContextValue {
 type UserProviderProps = UserContextValue & { children: ReactNode }
 
 export function UserProvider({ displayName, userRole, children }: UserProviderProps) {
-  return <UserContext value={{ displayName, userRole }}>{children}</UserContext>
+  const value = useMemo(() => ({ displayName, userRole }), [displayName, userRole])
+  return <UserContext value={value}>{children}</UserContext>
 }
