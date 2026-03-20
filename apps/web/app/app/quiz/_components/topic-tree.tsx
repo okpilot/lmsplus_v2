@@ -12,7 +12,6 @@ type TopicItem = {
   questionCount: number
   subtopics: SubtopicItem[]
 }
-
 type TopicTreeProps = {
   topics: TopicItem[]
   checkedTopics: Set<string>
@@ -26,6 +25,38 @@ type TopicTreeProps = {
   filteredBySubtopic: Record<string, number> | null
 }
 
+type SubtopicRowsProps = {
+  subtopics: SubtopicItem[]
+  topicId: string
+  filteredBySubtopic: Record<string, number> | null
+  checkedSubtopics: Set<string>
+  onToggleSubtopic: (subtopicId: string, topicId: string) => void
+}
+function SubtopicRows({
+  subtopics,
+  topicId,
+  filteredBySubtopic,
+  checkedSubtopics,
+  onToggleSubtopic,
+}: Readonly<SubtopicRowsProps>) {
+  return (
+    <div className="border-t border-border bg-muted/40">
+      {subtopics.map((sub) => (
+        <TopicRow
+          key={sub.id}
+          code={sub.code}
+          name={sub.name}
+          count={sub.questionCount}
+          filteredCount={filteredBySubtopic ? (filteredBySubtopic[sub.id] ?? 0) : null}
+          checked={checkedSubtopics.has(sub.id)}
+          onCheckedChange={() => onToggleSubtopic(sub.id, topicId)}
+          indented
+        />
+      ))}
+    </div>
+  )
+}
+
 type TopicListProps = {
   topics: TopicItem[]
   checkedTopics: Set<string>
@@ -37,7 +68,6 @@ type TopicListProps = {
   filteredByTopic: Record<string, number> | null
   filteredBySubtopic: Record<string, number> | null
 }
-
 function TopicList({
   topics,
   checkedTopics,
@@ -64,20 +94,13 @@ function TopicList({
             onToggleExpand={topic.subtopics.length > 0 ? () => toggleExpand(topic.id) : undefined}
           />
           {expanded.has(topic.id) && (
-            <div className="border-t border-border bg-muted/40">
-              {topic.subtopics.map((sub) => (
-                <TopicRow
-                  key={sub.id}
-                  code={sub.code}
-                  name={sub.name}
-                  count={sub.questionCount}
-                  filteredCount={filteredBySubtopic ? (filteredBySubtopic[sub.id] ?? 0) : null}
-                  checked={checkedSubtopics.has(sub.id)}
-                  onCheckedChange={() => onToggleSubtopic(sub.id, topic.id)}
-                  indented
-                />
-              ))}
-            </div>
+            <SubtopicRows
+              subtopics={topic.subtopics}
+              topicId={topic.id}
+              filteredBySubtopic={filteredBySubtopic}
+              checkedSubtopics={checkedSubtopics}
+              onToggleSubtopic={onToggleSubtopic}
+            />
           )}
         </div>
       ))}

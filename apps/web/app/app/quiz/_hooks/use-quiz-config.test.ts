@@ -267,6 +267,29 @@ describe('useQuizConfig — filteredByTopic / filteredBySubtopic gating', () => 
     // filters is still ['all'] by default
     expect(result.current.filteredByTopic).toBeNull()
   })
+
+  it('returns filteredBySubtopic when a non-all filter is active', async () => {
+    const bySubtopic = { 'subtopic-1': 2 }
+    ;(useFilteredCount as Mock).mockReturnValue(
+      buildMockFilteredCount({ filteredCount: 2, filteredBySubtopic: bySubtopic }),
+    )
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.setFilters(['unseen'] as QuestionFilterValue[])
+    })
+    expect(result.current.filteredBySubtopic).toEqual(bySubtopic)
+  })
+})
+
+// ---- isPending — fc.isFilterPending gate ---------------------------------
+
+describe('useQuizConfig — isPending from fc.isFilterPending', () => {
+  it('is true when fc.isFilterPending is true even if topicTree.isPending is false', () => {
+    ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ isFilterPending: true }))
+    ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ isPending: false }))
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    expect(result.current.isPending).toBe(true)
+  })
 })
 
 // ---- handleStart delegation ----------------------------------------------
