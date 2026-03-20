@@ -61,12 +61,19 @@ export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
 
       {/* Error */}
       {config.error && <p className="text-sm text-destructive">{config.error}</p>}
+      {config.authError && (
+        <p className="text-sm text-destructive">Session expired. Please refresh the page.</p>
+      )}
 
       {/* Start Quiz Button */}
       <button
         type="button"
         disabled={
-          !config.subjectId || config.availableCount === 0 || config.loading || config.isPending
+          !config.subjectId ||
+          config.availableCount === 0 ||
+          config.loading ||
+          config.isPending ||
+          config.authError
         }
         onClick={config.handleStart}
         className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"

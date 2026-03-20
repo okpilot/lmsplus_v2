@@ -10,7 +10,7 @@ permissions:
   issues: write
 
 env:
-  NODE_VERSION: '25'
+  NODE_VERSION: '22'
   PNPM_VERSION: '9.15.0'
 
 jobs:
