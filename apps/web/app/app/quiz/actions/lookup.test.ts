@@ -137,19 +137,19 @@ describe('fetchSubtopicsForTopic', () => {
 // ---- getFilteredCount — auth & validation ---------------------------------
 
 describe('getFilteredCount — auth and validation', () => {
-  it('returns count 0 when user is not authenticated', async () => {
+  it('returns auth error when user is not authenticated', async () => {
     setupUnauthenticated()
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
-    expect(result).toMatchObject({ count: 0 })
+    expect(result).toMatchObject({ count: 0, error: 'auth' })
   })
 
-  it('returns count 0 when authentication fails', async () => {
+  it('returns auth error when authentication fails', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'JWT expired' },
     })
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
-    expect(result).toMatchObject({ count: 0 })
+    expect(result).toMatchObject({ count: 0, error: 'auth' })
   })
 
   it('throws (Zod) when subjectId is not a valid UUID', async () => {

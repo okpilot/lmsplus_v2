@@ -64,6 +64,7 @@ function buildMockFilteredCount(overrides?: Partial<ReturnType<typeof useFiltere
     filteredByTopic: null,
     filteredBySubtopic: null,
     isFilterPending: false,
+    authError: false,
     refetch: mockFcRefetch,
     reset: mockFcReset,
     ...overrides,
@@ -322,5 +323,32 @@ describe('useQuizConfig — isPending', () => {
     ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ isPending: true }))
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
     expect(result.current.isPending).toBe(true)
+  })
+})
+
+// ---- authError passthrough -----------------------------------------------
+
+describe('useQuizConfig — authError', () => {
+  it('is false by default when useFilteredCount reports no auth error', () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    expect(result.current.authError).toBe(false)
+  })
+
+  it('is true when useFilteredCount reports an auth error', () => {
+    ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ authError: true }))
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    expect(result.current.authError).toBe(true)
+  })
+
+  it('returns to false after useFilteredCount clears the auth error', () => {
+    const mock = buildMockFilteredCount({ authError: true })
+    ;(useFilteredCount as Mock).mockReturnValue(mock)
+    const { result, rerender } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    expect(result.current.authError).toBe(true)
+
+    // Simulate auth error cleared (e.g. user re-authenticated)
+    ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ authError: false }))
+    rerender()
+    expect(result.current.authError).toBe(false)
   })
 })

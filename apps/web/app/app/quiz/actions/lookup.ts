@@ -9,6 +9,7 @@ import {
   getTopicsWithSubtopics,
 } from '@/lib/queries/quiz'
 import { applyFilters } from './filter-helpers'
+import { buildQuestionQuery, groupCounts } from './lookup-helpers'
 
 const IdSchema = z.uuid()
 
@@ -31,12 +32,11 @@ const FilteredCountSchema = z.object({
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
 })
 
-type QuestionWithGroup = { id: string; topic_id: string; subtopic_id: string | null }
-
 export type FilteredCountResult = {
   count: number
   byTopic: Record<string, number>
   bySubtopic: Record<string, number>
+  error?: 'auth'
 }
 
 export async function getFilteredCount(input: unknown): Promise<FilteredCountResult> {
@@ -48,39 +48,15 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError || !user) return empty
+  if (authError || !user) return { ...empty, error: 'auth' }
 
-  let query = supabase
-    .from('questions')
-    .select('id, topic_id, subtopic_id')
-    .eq('status', 'active')
-    .eq('subject_id', subjectId)
-    .is('deleted_at', null)
+  if (topicIds?.length === 0 || subtopicIds?.length === 0) return empty
 
-  // Explicit empty arrays = nothing selected → zero results
-  if (topicIds?.length === 0 || subtopicIds?.length === 0) {
-    return empty
-  }
-
-  // OR logic: include questions matching selected topics (leaf topics without
-  // subtopics) OR selected subtopics. AND would drop leaf-topic questions
-  // whose subtopic_id is NULL.
-  if (topicIds?.length && subtopicIds?.length) {
-    query = query.or(
-      `topic_id.in.(${topicIds.join(',')}),subtopic_id.in.(${subtopicIds.join(',')})`,
-    )
-  } else if (topicIds?.length) {
-    query = query.in('topic_id', topicIds)
-  } else if (subtopicIds?.length) {
-    query = query.in('subtopic_id', subtopicIds)
-  }
-
-  const { data: rawData, error } = await query
+  const { data, error } = await buildQuestionQuery(supabase, subjectId, topicIds, subtopicIds)
   if (error) {
     console.error('[getFilteredCount] Questions query error:', error.message)
     return empty
   }
-  const data = (rawData ?? []) as QuestionWithGroup[]
   if (!data.length) return empty
 
   const activeFilters = filters.filter((f) => f !== 'all')
@@ -92,20 +68,7 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     questions: data,
     filters: activeFilters,
   })
-
   const filteredIds = new Set(result.map((q) => q.id))
   const filtered = data.filter((q) => filteredIds.has(q.id))
   return { count: filtered.length, ...groupCounts(filtered) }
-}
-
-function groupCounts(rows: QuestionWithGroup[]) {
-  const byTopic: Record<string, number> = {}
-  const bySubtopic: Record<string, number> = {}
-  for (const r of rows) {
-    byTopic[r.topic_id] = (byTopic[r.topic_id] ?? 0) + 1
-    if (r.subtopic_id) {
-      bySubtopic[r.subtopic_id] = (bySubtopic[r.subtopic_id] ?? 0) + 1
-    }
-  }
-  return { byTopic, bySubtopic }
 }
