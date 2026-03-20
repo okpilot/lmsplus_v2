@@ -22,18 +22,23 @@ export function QuizSession(props: QuizSessionProps) {
   const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
   if (!s.question) return null
 
+  // Derive a simple isCorrect map for the grid
+  const feedbackMap = new Map<string, { isCorrect: boolean }>()
+  for (const [qId, fb] of s.feedback) {
+    feedbackMap.set(qId, { isCorrect: fb.isCorrect })
+  }
+
   return (
-    <div className="flex flex-col gap-4 md:flex-row">
-      <div className="shrink-0 md:w-48">
-        <QuestionGrid
-          totalQuestions={props.questions.length}
-          currentIndex={s.currentIndex}
-          answeredIds={s.answeredIds}
-          pinnedIds={s.pinnedQuestions}
-          questionIds={s.questionIds}
-          onNavigate={s.navigateTo}
-        />
-      </div>
+    <div className="flex flex-1 flex-col">
+      <QuestionGrid
+        totalQuestions={props.questions.length}
+        currentIndex={s.currentIndex}
+        pinnedIds={s.pinnedQuestions}
+        flaggedIds={new Set()}
+        questionIds={s.questionIds}
+        feedbackMap={feedbackMap}
+        onNavigate={s.navigateTo}
+      />
       <QuizMainPanel
         s={s}
         totalQuestions={props.questions.length}

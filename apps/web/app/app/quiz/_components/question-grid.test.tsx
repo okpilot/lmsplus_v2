@@ -8,9 +8,10 @@ function renderGrid(overrides: Partial<Parameters<typeof QuestionGrid>[0]> = {})
   const props = {
     totalQuestions: 5,
     currentIndex: 0,
-    answeredIds: new Set<string>(),
     pinnedIds: new Set<string>(),
+    flaggedIds: new Set<string>(),
     questionIds: IDS,
+    feedbackMap: new Map<string, { isCorrect: boolean }>(),
     onNavigate: vi.fn(),
     ...overrides,
   }
@@ -28,42 +29,68 @@ describe('QuestionGrid', () => {
     expect(buttons[4]).toHaveTextContent('5')
   })
 
-  it('highlights the current question with ring', () => {
+  it('highlights current question with primary color', () => {
     renderGrid({ currentIndex: 2 })
     const btn = screen.getByTestId('grid-btn-2')
-    expect(btn.className).toContain('ring-2')
+    expect(btn.className).toContain('bg-primary')
     expect(btn).toHaveAttribute('aria-current', 'step')
   })
 
   it('does not highlight non-current questions', () => {
     renderGrid({ currentIndex: 0 })
     const btn = screen.getByTestId('grid-btn-3')
-    expect(btn.className).not.toContain('ring-2')
+    expect(btn.className).not.toContain('bg-primary')
     expect(btn).not.toHaveAttribute('aria-current')
   })
 
-  it('shows answered state with primary color', () => {
-    renderGrid({ answeredIds: new Set(['q2', 'q4']) })
-    const answered = screen.getByTestId('grid-btn-1') // q2 is index 1
-    expect(answered.className).toContain('bg-primary/20')
-    const unanswered = screen.getByTestId('grid-btn-2')
-    expect(unanswered.className).toContain('bg-muted')
+  it('shows correct answer with green', () => {
+    const feedbackMap = new Map([['q2', { isCorrect: true }]])
+    renderGrid({ feedbackMap })
+    const btn = screen.getByTestId('grid-btn-1') // q2 is index 1
+    expect(btn.className).toContain('bg-green-500')
   })
 
-  it('shows pinned state with yellow color', () => {
-    renderGrid({ pinnedIds: new Set(['q3']) })
-    const pinned = screen.getByTestId('grid-btn-2') // q3 is index 2
-    expect(pinned.className).toContain('bg-yellow-100')
+  it('shows incorrect answer with red', () => {
+    const feedbackMap = new Map([['q3', { isCorrect: false }]])
+    renderGrid({ feedbackMap })
+    const btn = screen.getByTestId('grid-btn-2') // q3 is index 2
+    expect(btn.className).toContain('bg-red-500')
   })
 
-  it('pinned takes precedence over answered', () => {
-    renderGrid({
-      answeredIds: new Set(['q1']),
-      pinnedIds: new Set(['q1']),
-    })
+  it('shows unanswered with border only', () => {
+    renderGrid()
+    const btn = screen.getByTestId('grid-btn-3')
+    expect(btn.className).toContain('border')
+    expect(btn.className).toContain('text-muted-foreground')
+  })
+
+  it('current question overrides correct/incorrect color', () => {
+    const feedbackMap = new Map([['q1', { isCorrect: true }]])
+    renderGrid({ currentIndex: 0, feedbackMap })
     const btn = screen.getByTestId('grid-btn-0')
-    expect(btn.className).toContain('bg-yellow-100')
-    expect(btn.className).not.toContain('bg-primary/20')
+    expect(btn.className).toContain('bg-primary')
+    expect(btn.className).not.toContain('bg-green-500')
+  })
+
+  it('shows pinned state with amber bottom border', () => {
+    renderGrid({ pinnedIds: new Set(['q3']) })
+    const btn = screen.getByTestId('grid-btn-2')
+    expect(btn.className).toContain('border-amber-400')
+  })
+
+  it('shows flagged icon for flagged questions', () => {
+    renderGrid({ flaggedIds: new Set(['q2']) })
+    const btn = screen.getByTestId('grid-btn-1')
+    expect(btn.querySelector('svg')).toBeTruthy()
+    expect(btn).toHaveAttribute('aria-label', 'Question 2, flagged')
+  })
+
+  it('shows both flagged and pinned indicators', () => {
+    renderGrid({ flaggedIds: new Set(['q1']), pinnedIds: new Set(['q1']) })
+    const btn = screen.getByTestId('grid-btn-0')
+    const svgs = btn.querySelectorAll('svg')
+    expect(svgs).toHaveLength(2)
+    expect(btn).toHaveAttribute('aria-label', 'Question 1, flagged, pinned')
   })
 
   it('calls onNavigate with correct index when clicked', () => {

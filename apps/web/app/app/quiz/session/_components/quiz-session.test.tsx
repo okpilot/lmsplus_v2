@@ -227,7 +227,7 @@ describe('QuizSession', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
     expect(screen.getByTestId('question-card')).toBeInTheDocument()
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is lift?')
-    expect(screen.getByTestId('question-number')).toHaveTextContent('1')
+    expect(screen.getByText(/Question 1 of/)).toBeInTheDocument()
   })
 
   it('stores answer in state without submitting to server', () => {
@@ -243,11 +243,11 @@ describe('QuizSession', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is drag?')
-    expect(screen.getByTestId('question-number')).toHaveTextContent('2')
+    expect(screen.getByText(/Question 2 of/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous' }))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is lift?')
-    expect(screen.getByTestId('question-number')).toHaveTextContent('1')
+    expect(screen.getByText(/Question 1 of/)).toBeInTheDocument()
   })
 
   it('disables Previous on first question and Next on last', () => {
@@ -372,7 +372,7 @@ describe('QuizSession', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} />)
     fireEvent.click(screen.getByTestId('grid-nav-2'))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is weight?')
-    expect(screen.getByTestId('question-number')).toHaveTextContent('3')
+    expect(screen.getByText(/Question 3 of/)).toBeInTheDocument()
   })
 
   it('toggles pin state on the current question', () => {
