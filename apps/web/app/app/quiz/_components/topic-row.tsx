@@ -32,6 +32,7 @@ export function TopicRow({
         <button
           type="button"
           aria-expanded={isExpanded}
+          aria-label={`Toggle ${code} ${name}`}
           onClick={onToggleExpand}
           className="shrink-0 p-0.5 text-muted-foreground hover:text-foreground"
         >

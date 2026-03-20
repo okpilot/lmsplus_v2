@@ -127,7 +127,7 @@ export async function ensureLoginTestUser() {
 
   const { data: userRow, error: userRowError } = await admin
     .from('users')
-    .select('id')
+    .select('id, organization_id')
     .eq('id', userId)
     .single()
 
@@ -144,5 +144,14 @@ export async function ensureLoginTestUser() {
       role: 'student',
     })
     if (userError) throw new Error(`ensureLoginTestUser public: ${userError.message}`)
+  } else if (userRow.organization_id !== orgId) {
+    // Move user to the correct org (mirrors ensureTestUser pattern)
+    const { error: updateError } = await admin
+      .from('users')
+      .update({ organization_id: orgId })
+      .eq('id', userId)
+    if (updateError) throw new Error(`ensureLoginTestUser update org: ${updateError.message}`)
   }
+
+  return { orgId, userId }
 }
