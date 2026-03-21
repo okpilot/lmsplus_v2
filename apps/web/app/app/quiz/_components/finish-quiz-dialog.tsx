@@ -106,7 +106,10 @@ export function FinishQuizDialog({
         <div className="mt-6 flex flex-col gap-2">
           <button
             type="button"
-            onClick={onSubmit}
+            onClick={() => {
+              setConfirmingDiscard(false)
+              onSubmit()
+            }}
             disabled={submitting}
             className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >

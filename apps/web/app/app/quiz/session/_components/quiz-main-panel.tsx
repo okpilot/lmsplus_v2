@@ -83,7 +83,8 @@ export function QuizMainPanel({
         <button
           type="button"
           onClick={() => s.setShowFinishDialog(true)}
-          className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          disabled={s.submitting}
+          className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
           Finish Test
         </button>
