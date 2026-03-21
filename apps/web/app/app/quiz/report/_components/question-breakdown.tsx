@@ -6,7 +6,7 @@ import { ReportQuestionRow } from './report-question-row'
 
 const PAGE_SIZE = 5
 
-type Props = { questions: QuizReportQuestion[] }
+type Props = Readonly<{ questions: QuizReportQuestion[] }>
 
 export function QuestionBreakdown({ questions }: Props) {
   const [showAll, setShowAll] = useState(false)

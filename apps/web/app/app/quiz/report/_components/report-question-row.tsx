@@ -12,7 +12,7 @@ function formatResponseTime(ms: number): string {
 function optionLetter(options: { id: string; text: string }[], optionId: string): string {
   const idx = options.findIndex((o) => o.id === optionId)
   if (idx === -1) return ''
-  return String.fromCharCode(65 + idx)
+  return String.fromCodePoint(65 + idx)
 }
 
 export function ReportQuestionRow({

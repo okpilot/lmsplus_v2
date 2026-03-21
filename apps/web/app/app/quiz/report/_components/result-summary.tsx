@@ -20,7 +20,7 @@ function formatDate(dateStr: string): string {
   })
 }
 
-type Props = { report: QuizReportData }
+type Props = Readonly<{ report: QuizReportData }>
 
 export function ResultSummary({ report }: Props) {
   const dateStr = report.endedAt ?? report.startedAt

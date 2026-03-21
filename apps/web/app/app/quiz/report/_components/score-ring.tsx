@@ -1,16 +1,22 @@
-type Props = {
+type Props = Readonly<{
   percentage: number
   size?: number
+}>
+
+function scoreColor(pct: number): string {
+  // 70% = EASA PPL pass mark — thresholds use raw value, not rounded
+  if (pct >= 70) return '#22C55E'
+  if (pct >= 50) return '#F59E0B'
+  return '#EF4444'
 }
 
 export function ScoreRing({ percentage, size = 120 }: Props) {
+  const clamped = Math.min(100, Math.max(0, percentage))
   const radius = (size - 16) / 2
   const circumference = 2 * Math.PI * radius
-  const rounded = Math.round(percentage)
-  const offset = circumference - (percentage / 100) * circumference
-
-  // 70% = EASA PPL pass mark — thresholds use raw value, not rounded
-  const color = percentage >= 70 ? '#22C55E' : percentage >= 50 ? '#F59E0B' : '#EF4444'
+  const rounded = Math.round(clamped)
+  const offset = circumference - (clamped / 100) * circumference
+  const color = scoreColor(clamped)
 
   return (
     <svg width={size} height={size} role="img" aria-label={`Score: ${rounded}%`}>
