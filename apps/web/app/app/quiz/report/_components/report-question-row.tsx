@@ -37,11 +37,19 @@ export function ReportQuestionRow({
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex-shrink-0">
           {question.isCorrect ? (
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30">
+            <span
+              role="img"
+              aria-label="Correct"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30"
+            >
               <CheckIcon />
             </span>
           ) : (
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-destructive dark:bg-red-900/30">
+            <span
+              role="img"
+              aria-label="Incorrect"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-destructive dark:bg-red-900/30"
+            >
               <XIcon />
             </span>
           )}
