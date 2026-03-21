@@ -26,46 +26,50 @@ describe('ReportsList', () => {
     expect(screen.getByText(/no completed sessions yet/i)).toBeInTheDocument()
   })
 
-  it('renders a row for each session', () => {
+  it('renders score for each session', () => {
     const sessions = [
       makeSession({ id: 's1', scorePercentage: 80 }),
       makeSession({ id: 's2', scorePercentage: 60 }),
     ]
     render(<ReportsList sessions={sessions} />)
-    expect(screen.getByText('80%')).toBeInTheDocument()
-    expect(screen.getByText('60%')).toBeInTheDocument()
+    expect(screen.getAllByText('80%').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('60%').length).toBeGreaterThan(0)
   })
 
   it('displays score percentage rounded to nearest integer', () => {
     render(<ReportsList sessions={[makeSession({ scorePercentage: 66.7 })]} />)
-    expect(screen.getByText('67%')).toBeInTheDocument()
+    expect(screen.getAllByText('67%').length).toBeGreaterThan(0)
   })
 
   it('displays em dash when scorePercentage is null', () => {
     render(<ReportsList sessions={[makeSession({ scorePercentage: null })]} />)
-    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(screen.getAllByText('\u2014').length).toBeGreaterThan(0)
   })
 
-  it('maps quick_quiz mode to "Quiz" label', () => {
-    render(<ReportsList sessions={[makeSession({ mode: 'quick_quiz', subjectName: null })]} />)
-    expect(screen.getByText('Quiz')).toBeInTheDocument()
+  it('maps quick_quiz mode to "Study" label', () => {
+    render(<ReportsList sessions={[makeSession({ mode: 'quick_quiz' })]} />)
+    expect(screen.getAllByText('Study').length).toBeGreaterThan(0)
   })
 
-  it('maps mock_exam mode to "Mock Exam" label', () => {
-    render(<ReportsList sessions={[makeSession({ mode: 'mock_exam', subjectName: null })]} />)
-    expect(screen.getByText('Mock Exam')).toBeInTheDocument()
+  it('maps smart_review mode to "Study" label', () => {
+    render(<ReportsList sessions={[makeSession({ mode: 'smart_review' })]} />)
+    expect(screen.getAllByText('Study').length).toBeGreaterThan(0)
+  })
+
+  it('renders EXAM badge for mock_exam mode', () => {
+    render(<ReportsList sessions={[makeSession({ mode: 'mock_exam' })]} />)
+    expect(screen.getAllByText('Exam').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('EXAM').length).toBeGreaterThan(0)
   })
 
   it('falls back to raw mode string for unknown modes', () => {
-    render(<ReportsList sessions={[makeSession({ mode: 'custom_mode', subjectName: null })]} />)
-    expect(screen.getByText('custom_mode')).toBeInTheDocument()
+    render(<ReportsList sessions={[makeSession({ mode: 'custom_mode' })]} />)
+    expect(screen.getAllByText('custom_mode').length).toBeGreaterThan(0)
   })
 
-  it('appends subject name to the mode label when present', () => {
-    render(
-      <ReportsList sessions={[makeSession({ mode: 'quick_quiz', subjectName: 'Meteorology' })]} />,
-    )
-    expect(screen.getByText(/Quiz — Meteorology/)).toBeInTheDocument()
+  it('displays subject name in the session', () => {
+    render(<ReportsList sessions={[makeSession({ subjectName: 'Meteorology' })]} />)
+    expect(screen.getAllByText('Meteorology').length).toBeGreaterThan(0)
   })
 
   it('shows correct/total question counts and duration', () => {
@@ -74,14 +78,36 @@ describe('ReportsList', () => {
         sessions={[makeSession({ correctCount: 7, totalQuestions: 10, durationMinutes: 20 })]}
       />,
     )
-    expect(screen.getByText(/7\/10 correct/)).toBeInTheDocument()
-    expect(screen.getByText(/20min/)).toBeInTheDocument()
+    expect(screen.getAllByText(/7 \/ 10/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/20m/).length).toBeGreaterThan(0)
   })
 
   it('links each row to the quiz report page for that session', () => {
     render(<ReportsList sessions={[makeSession({ id: 'abc-123' })]} />)
-    const link = screen.getByRole('link')
-    expect(link).toHaveAttribute('href', '/app/quiz/report?session=abc-123')
+    const links = screen.getAllByRole('link')
+    expect(links.length).toBeGreaterThan(0)
+    expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=abc-123')
+  })
+
+  it('color-codes scores green for >=70%', () => {
+    render(<ReportsList sessions={[makeSession({ scorePercentage: 80 })]} />)
+    const scoreElements = screen.getAllByText('80%')
+    const colored = scoreElements.find((el) => el.style.color === 'rgb(34, 197, 94)')
+    expect(colored).toBeDefined()
+  })
+
+  it('color-codes scores amber for 50-69%', () => {
+    render(<ReportsList sessions={[makeSession({ scorePercentage: 60 })]} />)
+    const scoreElements = screen.getAllByText('60%')
+    const colored = scoreElements.find((el) => el.style.color === 'rgb(245, 158, 11)')
+    expect(colored).toBeDefined()
+  })
+
+  it('color-codes scores red for <50%', () => {
+    render(<ReportsList sessions={[makeSession({ scorePercentage: 40 })]} />)
+    const scoreElements = screen.getAllByText('40%')
+    const colored = scoreElements.find((el) => el.style.color === 'rgb(239, 68, 68)')
+    expect(colored).toBeDefined()
   })
 })
 
@@ -103,17 +129,15 @@ describe('ReportsList sorting', () => {
     render(<ReportsList sessions={[older, newer]} />)
     const links = screen.getAllByRole('link')
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-new')
-    expect(links[1]).toHaveAttribute('href', '/app/quiz/report?session=s-old')
   })
 
   it('toggles date to ascending when Date button is clicked twice', async () => {
     const user = userEvent.setup()
     render(<ReportsList sessions={[older, newer]} />)
     const dateBtn = screen.getByRole('button', { name: /date/i })
-    await user.click(dateBtn) // first click on active key → flip to asc
+    await user.click(dateBtn)
     const links = screen.getAllByRole('link')
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-old')
-    expect(links[1]).toHaveAttribute('href', '/app/quiz/report?session=s-new')
   })
 
   it('sorts by score ascending when Score button is clicked', async () => {
@@ -121,20 +145,17 @@ describe('ReportsList sorting', () => {
     render(<ReportsList sessions={[older, newer]} />)
     await user.click(screen.getByRole('button', { name: /score/i }))
     const links = screen.getAllByRole('link')
-    // newer has 50%, older has 90% — ascending puts 50% first
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-new')
-    expect(links[1]).toHaveAttribute('href', '/app/quiz/report?session=s-old')
   })
 
   it('sorts by score descending when Score button is clicked twice', async () => {
     const user = userEvent.setup()
     render(<ReportsList sessions={[older, newer]} />)
     const scoreBtn = screen.getByRole('button', { name: /score/i })
-    await user.click(scoreBtn) // asc
-    await user.click(scoreBtn) // desc
+    await user.click(scoreBtn)
+    await user.click(scoreBtn)
     const links = screen.getAllByRole('link')
-    expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-old') // 90%
-    expect(links[1]).toHaveAttribute('href', '/app/quiz/report?session=s-new') // 50%
+    expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-old')
   })
 
   it('sorts by subject alphabetically ascending when Subject button is clicked', async () => {
@@ -142,21 +163,16 @@ describe('ReportsList sorting', () => {
     render(<ReportsList sessions={[older, newer]} />)
     await user.click(screen.getByRole('button', { name: /subject/i }))
     const links = screen.getAllByRole('link')
-    // Alpha < Zulu
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-new')
-    expect(links[1]).toHaveAttribute('href', '/app/quiz/report?session=s-old')
   })
 
   it('shows the sort direction arrow on the active sort key', async () => {
     const user = userEvent.setup()
     render(<ReportsList sessions={[older, newer]} />)
-    // Default: date desc — the Date button should show a down arrow
-    expect(screen.getByRole('button', { name: /date/i }).textContent).toContain('↓')
-    // Switch to score
+    expect(screen.getByRole('button', { name: /date/i }).textContent).toContain('\u2193')
     await user.click(screen.getByRole('button', { name: /score/i }))
-    expect(screen.getByRole('button', { name: /score/i }).textContent).toContain('↑')
-    // Date button should no longer show an arrow
-    expect(screen.getByRole('button', { name: /date/i }).textContent).not.toContain('↑')
-    expect(screen.getByRole('button', { name: /date/i }).textContent).not.toContain('↓')
+    expect(screen.getByRole('button', { name: /score/i }).textContent).toContain('\u2191')
+    expect(screen.getByRole('button', { name: /date/i }).textContent).not.toContain('\u2191')
+    expect(screen.getByRole('button', { name: /date/i }).textContent).not.toContain('\u2193')
   })
 })

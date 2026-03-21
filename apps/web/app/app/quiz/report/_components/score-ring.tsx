@@ -1,14 +1,9 @@
+import { scoreColor } from '@/lib/utils/score-color'
+
 type Props = Readonly<{
   percentage: number
   size?: number
 }>
-
-function scoreColor(pct: number): string {
-  // 70% = EASA PPL pass mark — thresholds use raw value, not rounded
-  if (pct >= 70) return '#22C55E'
-  if (pct >= 50) return '#F59E0B'
-  return '#EF4444'
-}
 
 export function ScoreRing({ percentage, size = 120 }: Props) {
   const clamped = Math.min(100, Math.max(0, percentage))
