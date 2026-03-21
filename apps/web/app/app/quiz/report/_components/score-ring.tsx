@@ -8,6 +8,7 @@ export function ScoreRing({ percentage, size = 120 }: Props) {
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (percentage / 100) * circumference
 
+  // 70% = EASA PPL pass mark
   const color = percentage >= 70 ? '#22C55E' : percentage >= 50 ? '#F59E0B' : '#EF4444'
 
   return (

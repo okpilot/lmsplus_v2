@@ -79,14 +79,17 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
   // Only serve reports for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return null
 
-  // Resolve subject name if available
+  // Resolve subject name if available (display-only — don't abort report on failure)
   let subjectName: string | null = null
   if (session.subject_id) {
-    const { data: subjectData } = await supabase
+    const { data: subjectData, error: subjectError } = await supabase
       .from('easa_subjects')
       .select('name')
       .eq('id', session.subject_id)
       .maybeSingle()
+    if (subjectError) {
+      console.error('[getQuizReport] Subject lookup error:', subjectError.message)
+    }
     subjectName = (subjectData as { name: string } | null)?.name ?? null
   }
 
@@ -100,6 +103,8 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
 
   const questionIds = answers.map((a) => a.question_id)
 
+  // Direct SELECT is safe: ended_at guard above blocks mid-session access,
+  // and buildReportQuestions strips options[].correct before returning.
   const { data: questionsData } = await supabase
     .from('questions')
     .select('id, question_text, question_number, options, explanation_text')
