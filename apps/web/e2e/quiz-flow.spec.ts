@@ -50,9 +50,9 @@ test('quiz flow: configure → answer questions → view results → dashboard',
 
   // 8. Should redirect to quiz report page
   await page.waitForURL('**/app/quiz/report**', { timeout: 10_000 })
-  await expect(page.getByRole('heading', { name: 'Quiz Report' })).toBeVisible()
-  await expect(page.getByText('Your Score')).toBeVisible()
-  await expect(page.locator('.text-5xl').getByText(/\d+%/)).toBeVisible() // score percentage
+  await expect(page.getByRole('heading', { name: 'Quiz Results' })).toBeVisible()
+  await expect(page.getByText('Quiz Complete')).toBeVisible()
+  await expect(page.getByText(/\d+%/).first()).toBeVisible() // score percentage in ring
   await expect(page.getByRole('link', { name: 'Back to Dashboard' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Start Another Quiz' })).toBeVisible()
 

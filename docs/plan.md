@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-19
+> Last updated: 2026-03-20
 
 ---
 
@@ -159,6 +159,56 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 - New shadcn components: `switch.tsx`, `tooltip.tsx`
 - PR #272, Closes #176
 - Follow-up issues: #273 (a11y), #275 (red-team specs), #276 (count cap eval) — #274 (WITH CHECK guard) fixed 2026-03-19
+
+---
+
+## SPRINT 6 — Quiz Session Redesign (#177)
+**Status**: COMPLETE (2026-03-21)
+**Started**: 2026-03-20
+**Goal**: Full-screen quiz session with question grid, 4 tabs, action bar, comments, and finish dialog
+
+5 sequential PRs, each building on the previous:
+
+| # | PR | Scope | Status |
+|---|-----|-------|--------|
+| 1 | Comments + Flags backend | Migration 049, comment/flag Server Actions, 57 tests | ✅ Done (PR #315) |
+| 2 | Full-screen layout + navigator | Session layout, header, question grid redesign | ✅ Done (PR #317) |
+| 3 | Answer options + question card | Letter circles, selection states, question info bar | ✅ Done (PR #319) |
+| 4 | Tab content | Comments thread UI, statistics table, explanation images + LO box | ✅ Done (PR #320) |
+| 5 | Action bar + finish dialog | Previous/Flag/Submit/Pin/Next, mobile bottom sheet | ✅ Done (PR #322) |
+
+**Key decisions:**
+- Comments: org-wide visibility, hard DELETE (low audit value)
+- Flag (DB persistent) vs Pin (session ephemeral) — distinct visuals in grid
+- Full-screen session layout (no app shell/sidebar)
+- New rule: zero-row no-op check for ownership-scoped mutations
+
+---
+
+## SPRINT 7 — Quiz Results Redesign (#178)
+**Status**: COMPLETE (2026-03-21)
+**Started**: 2026-03-21
+**Goal**: Redesign quiz results page with visual score ring, stats grid, and improved question breakdown
+
+**Scope:** 3 new components, enhanced quiz-report query
+
+| Item | Description | Status |
+|------|-------------|--------|
+| New component: ScoreRing | SVG-based circular progress ring with percentage | ✅ Done |
+| New component: ResultSummary | Stats grid (subject, mode, duration, accuracy) + ScoreRing | ✅ Done |
+| New component: QuestionBreakdown | Paginated question list (5 per page) with answer details | ✅ Done |
+| Refactored: ReportCard | Simplified to layout-only, delegates content to ResultSummary + QuestionBreakdown | ✅ Done |
+| Refactored: ReportQuestionRow | Enhanced with letter prefixes (A/B/C/D) for options, pink tint on incorrect rows | ✅ Done |
+| Query enhancement: quiz-report.ts | Added `mode` and `subjectName` fields (resolves subject_id → name) | ✅ Done |
+
+**Implementation complete (2026-03-21):**
+- ScoreRing: canvas-like SVG for animated circular progress (configurable size, percentage)
+- ResultSummary: 2-column layout with stats (Subject, Mode, Duration, Accuracy) on left, score ring on right
+- QuestionBreakdown: paginated component (5 questions/page) with previous/next navigation
+- ReportQuestionRow enhancements: letter-prefixed answer options (e.g., "A — Upward force"), pink/red tint on incorrect rows
+- quiz-report query: now fetches `mode` (quick_quiz/practice/exam) and resolves `subject_id` → `name` (or null for Mixed)
+- All tests updated for new component structure (12 tests in report-card.test.tsx, 29 in report-question-row.test.tsx, 18 in quiz-report.test.ts)
+- Closes #178
 
 ---
 

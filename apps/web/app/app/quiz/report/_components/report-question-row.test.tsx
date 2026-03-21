@@ -31,12 +31,12 @@ describe('ReportQuestionRow', () => {
       render(
         <ReportQuestionRow question={makeQuestion({ questionNumber: '050-01-001' })} index={0} />,
       )
-      expect(screen.getByText(/050-01-001\./)).toBeInTheDocument()
+      expect(screen.getByText('050-01-001')).toBeInTheDocument()
     })
 
     it('falls back to Q{index+1} when questionNumber is null', () => {
       render(<ReportQuestionRow question={makeQuestion({ questionNumber: null })} index={2} />)
-      expect(screen.getByText(/Q3\./)).toBeInTheDocument()
+      expect(screen.getByText('Q3')).toBeInTheDocument()
     })
   })
 
@@ -46,24 +46,24 @@ describe('ReportQuestionRow', () => {
       expect(screen.getByText('What is lift?')).toBeInTheDocument()
     })
 
-    it('shows the selected answer text for a correct answer', () => {
+    it('shows the selected answer with letter prefix for a correct answer', () => {
       render(
         <ReportQuestionRow
           question={makeQuestion({ isCorrect: true, selectedOptionId: 'opt-a' })}
           index={0}
         />,
       )
-      expect(screen.getByText('Upward force')).toBeInTheDocument()
+      expect(screen.getByText(/A — Upward force/)).toBeInTheDocument()
     })
 
     it('does not show the correct answer row when the answer is correct', () => {
       render(<ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />)
-      expect(screen.queryByText('Correct answer:')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Correct answer:/)).not.toBeInTheDocument()
     })
   })
 
   describe('incorrect answer', () => {
-    it('shows the selected (wrong) answer text', () => {
+    it('shows the selected (wrong) answer with letter prefix', () => {
       render(
         <ReportQuestionRow
           question={makeQuestion({
@@ -74,7 +74,7 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      expect(screen.getByText('Downward force')).toBeInTheDocument()
+      expect(screen.getByText(/B — Downward force/)).toBeInTheDocument()
     })
 
     it('shows the correct answer row when the answer is incorrect', () => {
@@ -88,8 +88,24 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      expect(screen.getByText('Correct answer:')).toBeInTheDocument()
-      expect(screen.getByText('Upward force')).toBeInTheDocument()
+      expect(screen.getByText(/Correct answer:/)).toBeInTheDocument()
+      expect(screen.getByText(/A — Upward force/)).toBeInTheDocument()
+    })
+
+    it('applies pink tint background on incorrect rows', () => {
+      const { container } = render(
+        <ReportQuestionRow question={makeQuestion({ isCorrect: false })} index={0} />,
+      )
+      const row = container.firstElementChild as HTMLElement
+      expect(row.className).toContain('bg-red-50')
+    })
+
+    it('does not apply pink tint on correct rows', () => {
+      const { container } = render(
+        <ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />,
+      )
+      const row = container.firstElementChild as HTMLElement
+      expect(row.className).not.toContain('bg-red-50')
     })
 
     it('hides the correct answer row when correctOption is not found in options', () => {
@@ -103,8 +119,7 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      // correctOption is undefined, so the row should not render
-      expect(screen.queryByText('Correct answer:')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Correct answer:/)).not.toBeInTheDocument()
     })
   })
 
@@ -116,7 +131,7 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      expect(screen.getByText('No answer')).toBeInTheDocument()
+      expect(screen.getByText(/No answer/)).toBeInTheDocument()
     })
   })
 
@@ -128,13 +143,13 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      expect(screen.getByText('Explanation:')).toBeInTheDocument()
       expect(screen.getByText('Lift acts perpendicular to relative wind.')).toBeInTheDocument()
     })
 
     it('does not show explanation when explanationText is null', () => {
       render(<ReportQuestionRow question={makeQuestion({ explanationText: null })} index={0} />)
-      expect(screen.queryByText('Explanation:')).not.toBeInTheDocument()
+      // Only 3 text elements in the answer section (label, question text, your answer)
+      expect(screen.queryByText(/perpendicular/)).not.toBeInTheDocument()
     })
   })
 

@@ -14,6 +14,8 @@ export type QuizReportQuestion = {
 
 export type QuizReportData = {
   sessionId: string
+  mode: string
+  subjectName: string | null
   totalQuestions: number
   answeredCount: number
   correctCount: number
@@ -25,6 +27,8 @@ export type QuizReportData = {
 
 type SessionRow = {
   id: string
+  mode: string
+  subject_id: string | null
   started_at: string
   ended_at: string | null
   total_questions: number
@@ -62,7 +66,9 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
 
   const { data: sessionData } = await supabase
     .from('quiz_sessions')
-    .select('id, started_at, ended_at, total_questions, correct_count, score_percentage')
+    .select(
+      'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage',
+    )
     .eq('id', sessionId)
     .eq('student_id', user.id)
     .is('deleted_at', null)
@@ -72,6 +78,20 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
   if (!session) return null
   // Only serve reports for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return null
+
+  // Resolve subject name if available (display-only — don't abort report on failure)
+  let subjectName: string | null = null
+  if (session.subject_id) {
+    const { data: subjectData, error: subjectError } = await supabase
+      .from('easa_subjects')
+      .select('name')
+      .eq('id', session.subject_id)
+      .maybeSingle()
+    if (subjectError) {
+      console.error('[getQuizReport] Subject lookup error:', subjectError.message)
+    }
+    subjectName = (subjectData as { name: string } | null)?.name ?? null
+  }
 
   const { data: answersData } = await supabase
     .from('quiz_session_answers')
@@ -83,6 +103,8 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
 
   const questionIds = answers.map((a) => a.question_id)
 
+  // Direct SELECT is safe: ended_at guard above blocks mid-session access,
+  // and buildReportQuestions strips options[].correct before returning.
   const { data: questionsData } = await supabase
     .from('questions')
     .select('id, question_text, question_number, options, explanation_text')
@@ -110,6 +132,8 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
 
   return {
     sessionId: session.id,
+    mode: session.mode,
+    subjectName,
     totalQuestions: session.total_questions,
     answeredCount: answers.length,
     correctCount: session.correct_count,
