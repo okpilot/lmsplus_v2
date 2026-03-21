@@ -131,7 +131,7 @@ describe('ReportsList sorting', () => {
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-new')
   })
 
-  it('toggles date to ascending when Date button is clicked twice', async () => {
+  it('toggles date to ascending when Date button is clicked while date sort is active', async () => {
     const user = userEvent.setup()
     render(<ReportsList sessions={[older, newer]} />)
     const dateBtn = screen.getByRole('button', { name: /date/i })

@@ -33,33 +33,23 @@ function SessionRow({ session: s }: { session: SessionReport }) {
 
   return (
     <tr className="border-b border-border transition-colors last:border-0 hover:bg-accent">
-      <td className="px-4 py-3 text-muted-foreground">
-        <Link href={href}>{formatDate(s.startedAt)}</Link>
-      </td>
+      <td className="px-4 py-3 text-muted-foreground">{formatDate(s.startedAt)}</td>
       <td className="px-4 py-3 font-medium">
         <Link href={href}>{s.subjectName ?? '\u2014'}</Link>
       </td>
       <td className="px-4 py-3">
-        <Link href={href}>
-          {exam ? (
-            <ExamBadge />
-          ) : (
-            <span className="text-muted-foreground">{MODE_LABELS[s.mode] ?? s.mode}</span>
-          )}
-        </Link>
+        {exam ? (
+          <ExamBadge />
+        ) : (
+          <span className="text-muted-foreground">{MODE_LABELS[s.mode] ?? s.mode}</span>
+        )}
       </td>
       <td className="px-4 py-3 tabular-nums">
-        <Link href={href}>
-          {s.correctCount} / {s.totalQuestions}
-        </Link>
+        {s.correctCount} / {s.totalQuestions}
       </td>
-      <td className="px-4 py-3 text-muted-foreground">
-        <Link href={href}>{s.durationMinutes}m</Link>
-      </td>
-      <td className="px-4 py-3 text-right font-semibold tabular-nums">
-        <Link href={href} style={{ color }}>
-          {score}
-        </Link>
+      <td className="px-4 py-3 text-muted-foreground">{s.durationMinutes}m</td>
+      <td className="px-4 py-3 text-right font-semibold tabular-nums" style={{ color }}>
+        {score}
       </td>
     </tr>
   )
