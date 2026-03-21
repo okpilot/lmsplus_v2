@@ -19,18 +19,19 @@ describe('formatDate', () => {
 
 describe('MODE_LABELS', () => {
   it('maps smart_review to "Study"', () => {
-    expect(MODE_LABELS['smart_review']).toBe('Study')
+    expect(MODE_LABELS.smart_review).toBe('Study')
   })
 
   it('maps quick_quiz to "Study"', () => {
-    expect(MODE_LABELS['quick_quiz']).toBe('Study')
+    expect(MODE_LABELS.quick_quiz).toBe('Study')
   })
 
   it('maps mock_exam to "Exam"', () => {
-    expect(MODE_LABELS['mock_exam']).toBe('Exam')
+    expect(MODE_LABELS.mock_exam).toBe('Exam')
   })
 
   it('returns undefined for unknown mode keys', () => {
-    expect(MODE_LABELS['unknown_mode']).toBeUndefined()
+    const key = 'unknown_mode'
+    expect(MODE_LABELS[key]).toBeUndefined()
   })
 })
