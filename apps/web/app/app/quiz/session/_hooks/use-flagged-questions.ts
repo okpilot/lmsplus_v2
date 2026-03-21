@@ -8,14 +8,14 @@ export function useFlaggedQuestions(questionIds: string[]) {
   const [, startTransition] = useTransition()
   const prevIdsRef = useRef<string[]>([])
 
-  // Fetch flagged status when questionIds change
+  // Fetch flagged status when questionIds change (ref-equality skip first to prevent loops)
   useEffect(() => {
+    if (prevIdsRef.current === questionIds) return
+    prevIdsRef.current = questionIds
     if (questionIds.length === 0) {
       setFlaggedIds(new Set())
       return
     }
-    if (prevIdsRef.current === questionIds) return
-    prevIdsRef.current = questionIds
 
     startTransition(async () => {
       const result = await getFlaggedIds({ questionIds })

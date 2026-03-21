@@ -19,6 +19,7 @@ const Q3 = '00000000-0000-0000-0000-000000000003'
 
 // Stable array references — the hook skips re-fetch when the same reference
 // is passed again, so tests must use stable arrays to avoid infinite re-fetches.
+const EMPTY_IDS: string[] = []
 const IDS_Q1 = [Q1]
 const IDS_Q1_Q2 = [Q1, Q2]
 const IDS_Q1_Q2_Q3 = [Q1, Q2, Q3]
@@ -30,12 +31,12 @@ describe('useFlaggedQuestions', () => {
 
   describe('initial state', () => {
     it('starts with an empty flagged set when no questionIds are provided', () => {
-      const { result } = renderHook(() => useFlaggedQuestions([]))
+      const { result } = renderHook(() => useFlaggedQuestions(EMPTY_IDS))
       expect(result.current.flaggedIds.size).toBe(0)
     })
 
     it('does not call getFlaggedIds when questionIds array is empty', () => {
-      renderHook(() => useFlaggedQuestions([]))
+      renderHook(() => useFlaggedQuestions(EMPTY_IDS))
       expect(mockGetFlaggedIds).not.toHaveBeenCalled()
     })
   })
@@ -114,7 +115,7 @@ describe('useFlaggedQuestions', () => {
     })
 
     it('returns false for a question not in the flagged set', () => {
-      const { result } = renderHook(() => useFlaggedQuestions([]))
+      const { result } = renderHook(() => useFlaggedQuestions(EMPTY_IDS))
       expect(result.current.isFlagged(Q1)).toBe(false)
     })
   })
