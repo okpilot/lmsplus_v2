@@ -1,8 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { SessionReport } from '@/lib/queries/reports'
 import { ReportsList } from './reports-list'
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/app/reports',
+}))
 
 function makeSession(overrides: Partial<SessionReport> = {}): SessionReport {
   return {

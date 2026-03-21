@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import type { SessionReport } from '@/lib/queries/reports'
 import { scoreColor } from '@/lib/utils/score-color'
 import { formatDate, MODE_LABELS } from './reports-utils'
@@ -26,16 +29,22 @@ export function SessionTable({ sessions }: { sessions: SessionReport[] }) {
 }
 
 function SessionRow({ session: s }: { session: SessionReport }) {
+  const router = useRouter()
   const exam = s.mode === 'mock_exam'
   const score = s.scorePercentage != null ? `${Math.round(s.scorePercentage)}%` : '\u2014'
   const color = s.scorePercentage != null ? scoreColor(s.scorePercentage) : undefined
   const href = `/app/quiz/report?session=${s.id}`
 
   return (
-    <tr className="border-b border-border transition-colors last:border-0 hover:bg-accent">
+    <tr
+      className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-accent"
+      onClick={() => router.push(href)}
+    >
       <td className="px-4 py-3 text-muted-foreground">{formatDate(s.startedAt)}</td>
       <td className="px-4 py-3 font-medium">
-        <Link href={href}>{s.subjectName ?? '\u2014'}</Link>
+        <Link href={href} onClick={(e) => e.stopPropagation()}>
+          {s.subjectName ?? '\u2014'}
+        </Link>
       </td>
       <td className="px-4 py-3">
         {exam ? (
