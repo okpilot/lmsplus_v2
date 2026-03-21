@@ -51,7 +51,7 @@ test('progress page updates after completing a quiz', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Finish quiz' })).toBeVisible()
   await page.getByRole('button', { name: 'Submit Quiz' }).click()
   await page.waitForURL('**/app/quiz/report**', { timeout: 10_000 })
-  await expect(page.getByRole('heading', { name: 'Quiz Report' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Quiz Results' })).toBeVisible()
 
   // 3. Check progress again — the answered count should have changed
   await page.goto('/app/progress')
