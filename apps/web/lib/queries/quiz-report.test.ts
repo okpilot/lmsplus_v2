@@ -159,6 +159,21 @@ describe('getQuizReport', () => {
     expect(report!.subjectName).toBe('Meteorology')
   })
 
+  it('falls back to null subjectName when subject lookup fails', async () => {
+    const sessionWithSubject = { ...sessionRow, subject_id: 'sub-1' }
+    mockFromSequence(
+      { data: sessionWithSubject },
+      { data: null, error: { message: 'relation not found' } },
+      { data: answersData },
+      { data: questionsData },
+    )
+    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
+
+    const report = await getQuizReport('sess-1')
+    expect(report).not.toBeNull()
+    expect(report!.subjectName).toBeNull()
+  })
+
   it('maps question details correctly', async () => {
     mockFromSequence({ data: sessionRow }, { data: answersData }, { data: questionsData })
     mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
