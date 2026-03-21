@@ -1,5 +1,4 @@
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
-import { QuizNavBar } from './quiz-nav-bar'
 
 type QuizControlsProps = {
   isPinned: boolean
@@ -39,14 +38,15 @@ export function QuizControls({
   return (
     <>
       {/* Action bar: Previous / Flag / Pin / Next */}
-      <div className="flex items-center justify-between border-t border-border pt-3">
-        <QuizNavBar
-          currentIndex={currentIndex}
-          totalQuestions={totalQuestions}
-          onPrev={onPrev}
-          onNext={onNext}
-        />
-
+      <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={onPrev}
+          disabled={currentIndex === 0}
+          className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+        >
+          &lt; Previous
+        </button>
         <div className="flex items-center gap-2">
           <ActionButton
             active={isFlagged}
@@ -63,6 +63,14 @@ export function QuizControls({
             activeClass="border-amber-400 bg-amber-100 text-amber-700 dark:border-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
           />
         </div>
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={currentIndex === totalQuestions - 1}
+          className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+        >
+          Next &gt;
+        </button>
       </div>
 
       <FinishQuizDialog

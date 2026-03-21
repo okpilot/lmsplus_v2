@@ -10,8 +10,10 @@ export function useFlaggedQuestions(questionIds: string[]) {
 
   // Fetch flagged status when questionIds change
   useEffect(() => {
-    if (questionIds.length === 0) return
-    // Skip if same reference (stable array from parent)
+    if (questionIds.length === 0) {
+      setFlaggedIds(new Set())
+      return
+    }
     if (prevIdsRef.current === questionIds) return
     prevIdsRef.current = questionIds
 
@@ -19,6 +21,8 @@ export function useFlaggedQuestions(questionIds: string[]) {
       const result = await getFlaggedIds({ questionIds })
       if (result.success) {
         setFlaggedIds(new Set(result.flaggedIds))
+      } else {
+        setFlaggedIds(new Set())
       }
     })
   }, [questionIds])

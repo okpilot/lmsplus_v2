@@ -1,5 +1,5 @@
 import { useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { DraftAnswer, QuizStateOpts } from '../../types'
 import { useAnswerHandler } from './use-answer-handler'
@@ -57,6 +57,9 @@ export function useQuizState(opts: QuizStateOpts) {
   const initialSize = useRef(initialAnswers ? Object.keys(initialAnswers).length : 0)
   useNavigationGuard(answers.size > initialSize.current && !submitted.current)
 
+  // Stable array reference for hooks that depend on questionIds (e.g. useFlaggedQuestions)
+  const stableQuestionIds = useMemo(() => questions.map((q) => q.id), [questions])
+
   return {
     currentIndex: nav.currentIndex,
     question,
@@ -64,7 +67,7 @@ export function useQuizState(opts: QuizStateOpts) {
     answeredCount: answers.size,
     existingAnswer: answers.get(questionId),
     currentFeedback: feedback.get(questionId) ?? null,
-    questionIds: questions.map((q) => q.id),
+    questionIds: stableQuestionIds,
     answeredIds: new Set(answers.keys()),
     feedback,
     pinnedQuestions,
