@@ -52,7 +52,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await page.waitForURL('**/app/quiz/report**', { timeout: 10_000 })
   await expect(page.getByRole('heading', { name: 'Quiz Results' })).toBeVisible()
   await expect(page.getByText('Quiz Complete')).toBeVisible()
-  await expect(page.getByText(/\d+%/)).toBeVisible() // score percentage in ring
+  await expect(page.getByText(/\d+%/).first()).toBeVisible() // score percentage in ring
   await expect(page.getByRole('link', { name: 'Back to Dashboard' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Start Another Quiz' })).toBeVisible()
 
