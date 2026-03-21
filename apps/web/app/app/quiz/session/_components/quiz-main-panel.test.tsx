@@ -93,6 +93,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     expect(container.firstChild).toBeNull()
@@ -106,6 +108,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     expect(screen.getByTestId('question-card')).toHaveTextContent('What is lift?')
@@ -119,6 +123,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     expect(screen.getByText(/Question 2 of 5/)).toBeInTheDocument()
@@ -132,6 +138,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     expect(screen.getByText('No. 050-01-01-001')).toBeInTheDocument()
@@ -156,6 +164,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     expect(screen.queryByText(/^No\./)).not.toBeInTheDocument()
@@ -169,6 +179,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     expect(screen.getByTestId('session-timer')).toBeInTheDocument()
@@ -183,6 +195,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     const bar = screen.getByTestId('progress-bar')
@@ -197,6 +211,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     const bar = screen.getByTestId('progress-bar')
@@ -211,6 +227,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     const bar = screen.getByTestId('progress-bar')
@@ -225,6 +243,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     expect(screen.getByText('2/5')).toBeInTheDocument()
@@ -239,6 +259,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong')
@@ -252,6 +274,8 @@ describe('QuizMainPanel', () => {
         activeTab="question"
         onTabChange={vi.fn()}
         userId="test-user-id"
+        isFlagged={false}
+        onToggleFlag={vi.fn()}
       />,
     )
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

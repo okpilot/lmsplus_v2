@@ -35,6 +35,8 @@ type QuizMainPanelProps = {
   activeTab: QuestionTab
   onTabChange: (tab: QuestionTab) => void
   userId: string
+  isFlagged: boolean
+  onToggleFlag: () => void
 }
 
 export function QuizMainPanel({
@@ -43,6 +45,8 @@ export function QuizMainPanel({
   activeTab,
   onTabChange,
   userId,
+  isFlagged,
+  onToggleFlag,
 }: QuizMainPanelProps) {
   if (!s.question) return null
   return (
@@ -74,7 +78,17 @@ export function QuizMainPanel({
         selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
         correctOptionId={s.currentFeedback?.correctOptionId ?? null}
       />
-      <QuestionTabs activeTab={activeTab} onTabChange={onTabChange} />
+      <div className="flex items-center justify-between">
+        <QuestionTabs activeTab={activeTab} onTabChange={onTabChange} />
+        <button
+          type="button"
+          onClick={() => s.setShowFinishDialog(true)}
+          disabled={s.submitting}
+          className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          Finish Test
+        </button>
+      </div>
       <QuizTabContent
         activeTab={activeTab}
         questionId={s.questionId}
@@ -86,15 +100,16 @@ export function QuizMainPanel({
       />
       <QuizControls
         isPinned={s.isPinned}
+        isFlagged={isFlagged}
         currentIndex={s.currentIndex}
         totalQuestions={totalQuestions}
         answeredCount={s.answeredCount}
         submitting={s.submitting}
         showFinishDialog={s.showFinishDialog}
         onTogglePin={s.togglePin}
+        onToggleFlag={onToggleFlag}
         onPrev={() => s.navigate(-1)}
         onNext={() => s.navigate(1)}
-        onFinish={() => s.setShowFinishDialog(true)}
         onSubmit={s.handleSubmit}
         onCancel={() => s.setShowFinishDialog(false)}
         onSave={s.handleSave}

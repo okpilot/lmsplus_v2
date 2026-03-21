@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { QuestionGrid } from '../../_components/question-grid'
 import type { DraftAnswer } from '../../types'
+import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { QuizMainPanel } from './quiz-main-panel'
@@ -19,14 +20,11 @@ type QuizSessionProps = {
   subjectCode?: string
 }
 
-// Stable empty set to avoid new reference every render (wired to DB flags in PR 5)
-const EMPTY_SET = new Set<string>()
-
 export function QuizSession(props: QuizSessionProps) {
   const s = useQuizState(props)
   const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
+  const { flaggedIds, isFlagged, toggleFlag } = useFlaggedQuestions(s.questionIds)
 
-  // Derive a simple isCorrect map for the grid, memoized on feedback identity
   const feedbackMap = useMemo(() => {
     const map = new Map<string, { isCorrect: boolean }>()
     for (const [qId, fb] of s.feedback) {
@@ -43,7 +41,7 @@ export function QuizSession(props: QuizSessionProps) {
         totalQuestions={props.questions.length}
         currentIndex={s.currentIndex}
         pinnedIds={s.pinnedQuestions}
-        flaggedIds={EMPTY_SET}
+        flaggedIds={flaggedIds}
         questionIds={s.questionIds}
         feedbackMap={feedbackMap}
         onNavigate={s.navigateTo}
@@ -54,6 +52,8 @@ export function QuizSession(props: QuizSessionProps) {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         userId={props.userId}
+        isFlagged={isFlagged(s.questionId)}
+        onToggleFlag={() => toggleFlag(s.questionId)}
       />
     </div>
   )

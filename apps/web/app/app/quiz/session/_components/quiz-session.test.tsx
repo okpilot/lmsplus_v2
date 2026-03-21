@@ -131,20 +131,15 @@ vi.mock('./quiz-nav-bar', () => ({
     totalQuestions,
     onPrev,
     onNext,
-    onFinish,
   }: {
     currentIndex: number
     totalQuestions: number
     onPrev: () => void
     onNext: () => void
-    onFinish: () => void
   }) => (
     <div data-testid="quiz-nav-bar">
       <button type="button" onClick={onPrev} disabled={currentIndex === 0}>
         Previous
-      </button>
-      <button type="button" onClick={onFinish}>
-        Finish Test
       </button>
       <button type="button" onClick={onNext} disabled={currentIndex === totalQuestions - 1}>
         Next
@@ -167,6 +162,15 @@ vi.mock('../../_components/comments-tab', () => ({
 
 vi.mock('../../_components/statistics-tab', () => ({
   StatisticsTab: () => <div data-testid="statistics-tab" />,
+}))
+
+const mockToggleFlag = vi.fn().mockResolvedValue(true)
+vi.mock('../_hooks/use-flagged-questions', () => ({
+  useFlaggedQuestions: () => ({
+    flaggedIds: new Set<string>(),
+    isFlagged: () => false,
+    toggleFlag: mockToggleFlag,
+  }),
 }))
 
 import { QuizSession } from './quiz-session'
@@ -242,11 +246,11 @@ describe('QuizSession', () => {
   it('navigates to next question and back', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is drag?')
     expect(screen.getByText(/Question 2 of/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }))
+    fireEvent.click(screen.getByRole('button', { name: /Previous/ }))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is lift?')
     expect(screen.getByText(/Question 1 of/)).toBeInTheDocument()
   })
@@ -254,14 +258,14 @@ describe('QuizSession', () => {
   it('disables Previous on first question and Next on last', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
-    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /Previous/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Next/ })).toBeEnabled()
 
     // Navigate to last question
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Previous' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
+    expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Previous/ })).toBeEnabled()
   })
 
   it('shows finish dialog when clicking Finish Test', () => {
@@ -290,7 +294,7 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getByTestId('option-a'))
 
     // Go to second question and answer
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
     fireEvent.click(screen.getByTestId('option-c'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
@@ -357,8 +361,8 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
 
     // Navigate away and back
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }))
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Previous/ }))
 
     // Answer should still be selected
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')

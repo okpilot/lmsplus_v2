@@ -103,30 +103,33 @@ export function FinishQuizDialog({
           </div>
         )}
 
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-6 flex flex-col gap-2">
           <button
             type="button"
-            onClick={handleClose}
+            onClick={() => {
+              setConfirmingDiscard(false)
+              onSubmit()
+            }}
             disabled={submitting}
-            className="rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
-            Return to Quiz
+            {submitting ? 'Submitting...' : 'Submit Quiz'}
           </button>
           <button
             type="button"
             onClick={onSave}
             disabled={submitting}
-            className="rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
           >
             Save for Later
           </button>
           <button
             type="button"
-            onClick={onSubmit}
+            onClick={handleClose}
             disabled={submitting}
-            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
           >
-            {submitting ? 'Submitting...' : 'Submit Quiz'}
+            Return to Quiz
           </button>
         </div>
       </dialog>
