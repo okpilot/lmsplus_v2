@@ -33,7 +33,7 @@ export function ResultSummary({ report }: Props) {
       {/* Desktop layout */}
       <div className="hidden md:flex flex-row gap-6 items-center">
         <div className="shrink-0">
-          <ScoreRing percentage={Math.round(report.scorePercentage)} size={120} />
+          <ScoreRing percentage={report.scorePercentage} size={120} />
         </div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 flex-1">
           <div>
@@ -65,7 +65,7 @@ export function ResultSummary({ report }: Props) {
 
       {/* Mobile layout */}
       <div className="flex flex-col items-center gap-4 md:hidden">
-        <ScoreRing percentage={Math.round(report.scorePercentage)} size={90} />
+        <ScoreRing percentage={report.scorePercentage} size={90} />
         <div className="grid grid-cols-3 gap-4 w-full text-center">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Subject</p>

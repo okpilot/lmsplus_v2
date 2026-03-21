@@ -98,4 +98,20 @@ describe('ScoreRing', () => {
       expect(progressCircle?.getAttribute('transform')).toBe('rotate(-90 60 60)')
     })
   })
+
+  describe('rounding regression', () => {
+    it('69.5% rounds to 70 for display but uses amber color (below 70 threshold)', () => {
+      const { container } = render(<ScoreRing percentage={69.5} />)
+      expect(screen.getByText('70%')).toBeInTheDocument()
+      const progressCircle = container.querySelectorAll('circle')[1]
+      expect(progressCircle?.getAttribute('stroke')).toBe('#F59E0B')
+    })
+
+    it('49.5% rounds to 50 for display but uses red color (below 50 threshold)', () => {
+      const { container } = render(<ScoreRing percentage={49.5} />)
+      expect(screen.getByText('50%')).toBeInTheDocument()
+      const progressCircle = container.querySelectorAll('circle')[1]
+      expect(progressCircle?.getAttribute('stroke')).toBe('#EF4444')
+    })
+  })
 })
