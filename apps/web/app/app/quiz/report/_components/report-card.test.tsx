@@ -5,6 +5,8 @@ import { ReportCard } from './report-card'
 
 const mockReport: QuizReportData = {
   sessionId: 'sess-1',
+  mode: 'quick_quiz',
+  subjectName: '050 — Meteorology',
   totalQuestions: 3,
   answeredCount: 3,
   correctCount: 2,
@@ -58,25 +60,19 @@ const mockReport: QuizReportData = {
 }
 
 describe('ReportCard', () => {
-  it('displays score percentage', () => {
+  it('renders the score ring with rounded percentage', () => {
     render(<ReportCard report={mockReport} />)
-    expect(screen.getByText('67%')).toBeDefined()
+    expect(screen.getAllByText('67%').length).toBeGreaterThan(0)
   })
 
-  it('displays correct count out of total', () => {
+  it('displays subject name in stats', () => {
     render(<ReportCard report={mockReport} />)
-    expect(screen.getByText('2 / 3 correct')).toBeDefined()
+    expect(screen.getAllByText('050 — Meteorology').length).toBeGreaterThan(0)
   })
 
-  it('displays time taken when endedAt is available', () => {
+  it('displays correct count in stats', () => {
     render(<ReportCard report={mockReport} />)
-    expect(screen.getByText('Time taken: 3m 30s')).toBeDefined()
-  })
-
-  it('does not display time taken when endedAt is null', () => {
-    const noEndTime = { ...mockReport, endedAt: null }
-    render(<ReportCard report={noEndTime} />)
-    expect(screen.queryByText(/Time taken/)).toBeNull()
+    expect(screen.getAllByText('2 / 3').length).toBeGreaterThan(0)
   })
 
   it('renders all question rows', () => {
@@ -92,17 +88,15 @@ describe('ReportCard', () => {
     expect(screen.getByText('Start Another Quiz')).toBeDefined()
   })
 
-  it('applies green color for high score', () => {
-    const highScore = { ...mockReport, scorePercentage: 85 }
-    render(<ReportCard report={highScore} />)
-    const scoreEl = screen.getByText('85%')
-    expect(scoreEl.className).toContain('text-green-600')
+  it('shows "Mixed" when subjectName is null', () => {
+    const noSubject = { ...mockReport, subjectName: null }
+    render(<ReportCard report={noSubject} />)
+    expect(screen.getAllByText('Mixed').length).toBeGreaterThan(0)
   })
 
-  it('applies red color for low score', () => {
-    const lowScore = { ...mockReport, scorePercentage: 30 }
-    render(<ReportCard report={lowScore} />)
-    const scoreEl = screen.getByText('30%')
-    expect(scoreEl.className).toContain('text-destructive')
+  it('shows question breakdown header with count', () => {
+    render(<ReportCard report={mockReport} />)
+    expect(screen.getByText('Question Breakdown')).toBeDefined()
+    expect(screen.getByText('3 questions')).toBeDefined()
   })
 })

@@ -51,6 +51,8 @@ function mockFromSequence(...responses: unknown[]) {
 
 const sessionRow = {
   id: 'sess-1',
+  mode: 'quick_quiz',
+  subject_id: null as string | null,
   started_at: '2026-03-12T10:00:00Z',
   ended_at: '2026-03-12T10:05:00Z',
   total_questions: 2,
@@ -133,12 +135,28 @@ describe('getQuizReport', () => {
 
     expect(report).not.toBeNull()
     expect(report!.sessionId).toBe('sess-1')
+    expect(report!.mode).toBe('quick_quiz')
+    expect(report!.subjectName).toBeNull()
     expect(report!.totalQuestions).toBe(2)
     expect(report!.correctCount).toBe(1)
     expect(report!.scorePercentage).toBe(50)
     expect(report!.startedAt).toBe('2026-03-12T10:00:00Z')
     expect(report!.endedAt).toBe('2026-03-12T10:05:00Z')
     expect(report!.questions).toHaveLength(2)
+  })
+
+  it('resolves subject name when subject_id is present', async () => {
+    const sessionWithSubject = { ...sessionRow, subject_id: 'sub-1' }
+    mockFromSequence(
+      { data: sessionWithSubject },
+      { data: { name: 'Meteorology' } },
+      { data: answersData },
+      { data: questionsData },
+    )
+    mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
+
+    const report = await getQuizReport('sess-1')
+    expect(report!.subjectName).toBe('Meteorology')
   })
 
   it('maps question details correctly', async () => {

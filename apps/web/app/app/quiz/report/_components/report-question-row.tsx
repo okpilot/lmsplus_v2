@@ -6,8 +6,13 @@ function truncate(text: string, maxLength: number): string {
 }
 
 function formatResponseTime(ms: number): string {
-  const seconds = (ms / 1000).toFixed(1)
-  return `${seconds}s`
+  return `${(ms / 1000).toFixed(1)}s`
+}
+
+function optionLetter(options: { id: string; text: string }[], optionId: string): string {
+  const idx = options.findIndex((o) => o.id === optionId)
+  if (idx === -1) return ''
+  return String.fromCharCode(65 + idx)
 }
 
 export function ReportQuestionRow({
@@ -20,9 +25,15 @@ export function ReportQuestionRow({
   const selectedOption = question.options.find((o) => o.id === question.selectedOptionId)
   const correctOption = question.options.find((o) => o.id === question.correctOptionId)
   const label = question.questionNumber ?? `Q${index + 1}`
+  const selectedLetter = question.selectedOptionId
+    ? optionLetter(question.options, question.selectedOptionId)
+    : ''
+  const correctLetter = question.correctOptionId
+    ? optionLetter(question.options, question.correctOptionId)
+    : ''
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className={`px-4 py-3 ${question.isCorrect ? '' : 'bg-red-50 dark:bg-red-950/20'}`}>
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex-shrink-0">
           {question.isCorrect ? (
@@ -37,36 +48,29 @@ export function ReportQuestionRow({
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">
-            <span className="text-muted-foreground">{label}.</span>{' '}
-            {truncate(question.questionText, 80)}
-          </p>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs font-medium text-muted-foreground">{label}</span>
+            <span className="text-sm">{truncate(question.questionText, 80)}</span>
+            <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
+              {formatResponseTime(question.responseTimeMs)}
+            </span>
+          </div>
 
-          <div className="mt-2 space-y-1 text-xs">
-            <p>
-              <span className="text-muted-foreground">Your answer: </span>
-              <span className={question.isCorrect ? 'text-green-600' : 'text-destructive'}>
-                {selectedOption?.text ?? 'No answer'}
-              </span>
+          <div className="mt-1 space-y-0.5 text-xs">
+            <p className={question.isCorrect ? 'text-green-600' : 'text-destructive'}>
+              Your answer:{' '}
+              {selectedLetter ? `${selectedLetter} — ${selectedOption?.text ?? ''}` : 'No answer'}
             </p>
             {!question.isCorrect && correctOption && (
-              <p>
-                <span className="text-muted-foreground">Correct answer: </span>
-                <span className="text-green-600">{correctOption.text}</span>
+              <p className="text-green-600">
+                Correct answer: {correctLetter} — {correctOption.text}
               </p>
             )}
             {question.explanationText && (
-              <p className="text-muted-foreground">
-                <span className="font-medium">Explanation: </span>
-                {question.explanationText}
-              </p>
+              <p className="mt-1 text-muted-foreground">{question.explanationText}</p>
             )}
           </div>
         </div>
-
-        <span className="flex-shrink-0 text-xs text-muted-foreground">
-          {formatResponseTime(question.responseTimeMs)}
-        </span>
       </div>
     </div>
   )
