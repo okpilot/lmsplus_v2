@@ -349,8 +349,11 @@ CREATE INDEX idx_flagged_questions_student ON flagged_questions (student_id)
 ```
 
 RLS policies:
-- Students can only access and modify their own flags via `student_id = auth.uid() AND deleted_at IS NULL`
-- Soft-deletable (unflag via UPDATE with `deleted_at = now()`)
+- SELECT: `student_id = auth.uid()` (app filters `deleted_at IS NULL` in flag.ts)
+- INSERT: `student_id = auth.uid()`
+- UPDATE: `student_id = auth.uid()` (soft-delete via `deleted_at = now()` in app code)
+
+**Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, application code filters deleted records via `.is('deleted_at', null)` in flag.ts. RLS only enforces ownership.
 
 ### question_comments
 Per-question discussion threads. Students and admins can post comments on any question. Hard-delete table (low audit value).
@@ -411,6 +414,8 @@ CREATE POLICY "tenant_isolation" ON questions
 
 This means deleted records are invisible to all normal queries automatically.
 No `WHERE deleted_at IS NULL` needed in application code — RLS handles it.
+
+**Exception:** `flagged_questions` table filters `deleted_at IS NULL` in application code (flag.ts), not in RLS, to avoid `FORCE ROW LEVEL SECURITY` violations when soft-deleting rows. See the `flagged_questions` table docs (§2) for details.
 
 ### Scoring Soft-Deleted Questions
 

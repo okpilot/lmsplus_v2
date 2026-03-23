@@ -26,3 +26,10 @@ CREATE POLICY flagged_questions_student_update ON flagged_questions
   FOR UPDATE
   USING (student_id = auth.uid())
   WITH CHECK (student_id = auth.uid());
+
+-- ⚠️  WARNING: RLS no longer filters deleted_at on this table.
+-- All app queries against flagged_questions MUST include
+-- .is('deleted_at', null) to exclude soft-deleted rows.
+-- Prefer using this view for reads:
+CREATE OR REPLACE VIEW active_flagged_questions AS
+  SELECT * FROM flagged_questions WHERE deleted_at IS NULL;

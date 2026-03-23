@@ -76,11 +76,13 @@ vi.mock('@/app/app/_components/answer-options', () => ({
     onSubmit,
     disabled,
     selectedOptionId,
+    onSelectionChange,
   }: {
     options: { id: string; text: string }[]
     onSubmit: (id: string) => void
     disabled: boolean
     selectedOptionId?: string | null
+    onSelectionChange?: (id: string | null) => void
   }) => (
     <div data-testid="answer-options">
       {options.map((o) => (
@@ -89,7 +91,10 @@ vi.mock('@/app/app/_components/answer-options', () => ({
           type="button"
           data-testid={`option-${o.id}`}
           data-selected={selectedOptionId === o.id ? 'true' : 'false'}
-          onClick={() => onSubmit(o.id)}
+          onClick={() => {
+            onSelectionChange?.(o.id)
+            onSubmit(o.id)
+          }}
           disabled={disabled}
         >
           {o.text}
@@ -378,6 +383,20 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getByTestId('grid-nav-2'))
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is weight?')
     expect(screen.getByText(/Question 3 of/)).toBeInTheDocument()
+  })
+
+  it('desktop QuizControls always renders with showSubmit=false', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+
+    // Desktop QuizControls is hardcoded showSubmit=false — Submit Answer button absent initially
+    // (mobile controls also have showSubmit=false until a pending option is set)
+    expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
+  })
+
+  it('calls checkAnswer when an option is submitted via the answer options', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+    fireEvent.click(screen.getByTestId('option-a'))
+    expect(mockCheckAnswer).toHaveBeenCalled()
   })
 
   it('toggles pin state on the current question', () => {

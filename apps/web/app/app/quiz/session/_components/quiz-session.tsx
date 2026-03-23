@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SessionTimer } from '@/app/app/_components/session-timer'
 import { ThemeToggle } from '@/app/app/_components/theme-toggle'
 import type { SessionQuestion } from '@/app/app/_types/session'
@@ -40,6 +40,14 @@ export function QuizSession(props: QuizSessionProps) {
   // Track selected option for mobile footer submit button
   const [pendingOptionId, setPendingOptionId] = useState<string | null>(null)
   const handleSelectionChange = useCallback((id: string | null) => setPendingOptionId(id), [])
+
+  // Clear pending selection when navigating to a different question.
+  // currentIndex is read to trigger the effect — the value itself is unused.
+  const currentIndex = s.currentIndex
+  useEffect(() => {
+    void currentIndex
+    setPendingOptionId(null)
+  }, [currentIndex])
 
   if (!s.question) return null
 
