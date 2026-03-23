@@ -50,7 +50,6 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     topicTree,
   })
 
-  // Fetch filtered counts for the entire subject when filters change
   useEffect(() => {
     if (!subjectId || !hasActiveFilters || allTopicIds.length === 0) return
     fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters)

@@ -9,6 +9,12 @@ type InfoTooltipProps = {
   align?: 'left' | 'center' | 'right'
 }
 
+const ALIGN_CLASSES = {
+  left: 'left-0',
+  center: 'left-1/2 -translate-x-1/2',
+  right: 'right-0',
+} as const
+
 export function InfoTooltip({
   label,
   title,
@@ -32,11 +38,6 @@ export function InfoTooltip({
     return () => document.removeEventListener('click', onClickOutside, true)
   }, [open])
 
-  const ALIGN_CLASSES = {
-    left: 'left-0',
-    center: 'left-1/2 -translate-x-1/2',
-    right: 'right-0',
-  } as const
   const alignClass = ALIGN_CLASSES[align]
 
   return (
