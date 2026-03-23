@@ -64,7 +64,6 @@ export function computeToggleSubtopic(
   return { topics: newTopics, subtopics: newSubtopics }
 }
 
-/** Sum filtered counts for only the checked topics/subtopics. */
 export function calcFilteredAvailable(
   topics: TopicWithSubtopics[],
   checkedTopics: Set<string>,

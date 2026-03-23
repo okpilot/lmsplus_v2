@@ -11,7 +11,12 @@ type QuizMainPanelProps = {
   onSelectionChange?: (id: string | null) => void
 }
 
-export function QuizMainPanel({ s, activeTab, userId, onSelectionChange }: QuizMainPanelProps) {
+export function QuizMainPanel({
+  s,
+  activeTab,
+  userId,
+  onSelectionChange,
+}: Readonly<QuizMainPanelProps>) {
   if (!s.question) return null
 
   if (activeTab !== 'question') {

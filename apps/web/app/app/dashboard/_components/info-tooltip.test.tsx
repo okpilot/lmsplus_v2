@@ -70,19 +70,19 @@ describe('InfoTooltip', () => {
     expect(panel?.className).toMatch(/hidden/)
   })
 
-  it('applies right-0 positioning class when align is "right" (default)', () => {
+  it('aligns the panel to the right by default', () => {
     render(<InfoTooltip {...BASE_PROPS} />)
     const panel = screen.getByText('Daily Activity').closest('div')
     expect(panel?.className).toMatch(/right-0/)
   })
 
-  it('applies left-0 positioning class when align is "left"', () => {
+  it('aligns the panel to the left when specified', () => {
     render(<InfoTooltip {...BASE_PROPS} align="left" />)
     const panel = screen.getByText('Daily Activity').closest('div')
     expect(panel?.className).toMatch(/left-0/)
   })
 
-  it('applies -translate-x-1/2 class when align is "center"', () => {
+  it('centers the panel when specified', () => {
     render(<InfoTooltip {...BASE_PROPS} align="center" />)
     const panel = screen.getByText('Daily Activity').closest('div')
     expect(panel?.className).toMatch(/-translate-x-1\/2/)

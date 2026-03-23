@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz'
 import type { QuestionFilterValue, QuizMode } from '../types'
+import { createConfigHandlers } from './quiz-config-handlers'
 import { calcFilteredAvailable } from './topic-tree-helpers'
 import { useFilteredCount } from './use-filtered-count'
 import { useQuizStart } from './use-quiz-start'
@@ -13,9 +14,7 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
   const [count, setCount] = useState(10)
   const topicTree = useTopicTree()
   const fc = useFilteredCount()
-
   const hasActiveFilters = filters.some((f) => f !== 'all')
-
   const allTopicIds = useMemo(() => topicTree.topics.map((t) => t.id), [topicTree.topics])
   const allSubtopicIds = useMemo(
     () => topicTree.topics.flatMap((t) => t.subtopics.map((st) => st.id)),
@@ -34,7 +33,6 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
       fc.filteredBySubtopic,
     )
   }, [hasActiveFilters, fc.filteredByTopic, fc.filteredBySubtopic, topicTree])
-
   const { loading, error, handleStart } = useQuizStart({
     subjectId,
     subjects,
@@ -55,20 +53,13 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     if (!subjectId || !hasActiveFilters || allTopicIds.length === 0) return
     fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters)
   }, [subjectId, hasActiveFilters, filters, allTopicIds, allSubtopicIds, fc.refetch])
-
-  function handleSubjectChange(id: string) {
-    setSubjectId(id)
-    fc.reset()
-    setFilters(['all'])
-    setCount(10)
-    if (id) topicTree.loadTopics(id)
-    else topicTree.reset()
-  }
-
-  function handleFiltersChange(newFilters: QuestionFilterValue[]) {
-    setFilters(newFilters)
-    if (!newFilters.some((f) => f !== 'all')) fc.reset()
-  }
+  const { handleSubjectChange, handleFiltersChange } = createConfigHandlers({
+    setSubjectId,
+    setFilters,
+    setCount,
+    fc,
+    topicTree,
+  })
 
   return {
     subjectId,

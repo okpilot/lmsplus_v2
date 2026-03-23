@@ -41,11 +41,10 @@ export function QuizSession(props: QuizSessionProps) {
   const [pendingOptionId, setPendingOptionId] = useState<string | null>(null)
   const handleSelectionChange = useCallback((id: string | null) => setPendingOptionId(id), [])
 
-  // Clear pending selection when navigating to a different question.
-  // currentIndex is read to trigger the effect — the value itself is unused.
+  // Clear pending selection when navigating to a different question
   const currentIndex = s.currentIndex
+  // biome-ignore lint/correctness/useExhaustiveDependencies: currentIndex triggers reset on navigation
   useEffect(() => {
-    void currentIndex
     setPendingOptionId(null)
   }, [currentIndex])
 

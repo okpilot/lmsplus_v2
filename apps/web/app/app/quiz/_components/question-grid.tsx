@@ -58,8 +58,13 @@ export function QuestionGrid({
   const flaggedCount = flaggedIds.size
   const pinnedCount = pinnedIds.size
 
+  const effectiveFilter: GridFilter =
+    (filter === 'flagged' && flaggedCount === 0) || (filter === 'pinned' && pinnedCount === 0)
+      ? 'all'
+      : filter
+
   const twoRows = perRow * 2
-  const needsCollapse = totalQuestions > twoRows
+  const needsCollapse = effectiveFilter === 'all' && totalQuestions > twoRows
 
   // Sliding window: keep current question visible within 2 rows
   const windowStart = (() => {
@@ -79,7 +84,8 @@ export function QuestionGrid({
     const isFlagged = flaggedIds.has(qId)
     const isPinned = pinnedIds.has(qId)
 
-    const hidden = (filter === 'flagged' && !isFlagged) || (filter === 'pinned' && !isPinned)
+    const hidden =
+      (effectiveFilter === 'flagged' && !isFlagged) || (effectiveFilter === 'pinned' && !isPinned)
 
     if (hidden) return null
 
@@ -106,10 +112,14 @@ export function QuestionGrid({
       {/* Filter row */}
       {(flaggedCount > 0 || pinnedCount > 0) && (
         <div className="flex items-center gap-1 text-xs" data-testid="grid-filters">
-          <FilterPill active={filter === 'all'} onClick={() => setFilter('all')} label="All" />
+          <FilterPill
+            active={effectiveFilter === 'all'}
+            onClick={() => setFilter('all')}
+            label="All"
+          />
           {flaggedCount > 0 && (
             <FilterPill
-              active={filter === 'flagged'}
+              active={effectiveFilter === 'flagged'}
               onClick={() => setFilter('flagged')}
               label={`Flagged (${flaggedCount})`}
               testId="filter-flagged"
@@ -117,7 +127,7 @@ export function QuestionGrid({
           )}
           {pinnedCount > 0 && (
             <FilterPill
-              active={filter === 'pinned'}
+              active={effectiveFilter === 'pinned'}
               onClick={() => setFilter('pinned')}
               label={`Pinned (${pinnedCount})`}
               testId="filter-pinned"
@@ -173,12 +183,12 @@ function FilterPill({
   onClick,
   label,
   testId,
-}: {
+}: Readonly<{
   active: boolean
   onClick: () => void
   label: string
   testId?: string
-}) {
+}>) {
   return (
     <button
       type="button"
