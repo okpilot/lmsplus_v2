@@ -9,6 +9,11 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/app/reports',
 }))
 
+/** Return only <a> links (excludes <tr role="link"> which has no href) */
+function getAnchorLinks() {
+  return screen.getAllByRole('link').filter((el) => el.tagName === 'A')
+}
+
 function makeSession(overrides: Partial<SessionReport> = {}): SessionReport {
   return {
     id: 'sess-1',
@@ -89,7 +94,7 @@ describe('ReportsList', () => {
 
   it('links each row to the quiz report page for that session', () => {
     render(<ReportsList sessions={[makeSession({ id: 'abc-123' })]} />)
-    const links = screen.getAllByRole('link')
+    const links = getAnchorLinks()
     expect(links.length).toBeGreaterThan(0)
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=abc-123')
   })
@@ -132,7 +137,7 @@ describe('ReportsList sorting', () => {
 
   it('defaults to date descending — newest session appears first', () => {
     render(<ReportsList sessions={[older, newer]} />)
-    const links = screen.getAllByRole('link')
+    const links = getAnchorLinks()
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-new')
   })
 
@@ -141,7 +146,7 @@ describe('ReportsList sorting', () => {
     render(<ReportsList sessions={[older, newer]} />)
     const dateBtn = screen.getByRole('button', { name: /date/i })
     await user.click(dateBtn)
-    const links = screen.getAllByRole('link')
+    const links = getAnchorLinks()
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-old')
   })
 
@@ -149,7 +154,7 @@ describe('ReportsList sorting', () => {
     const user = userEvent.setup()
     render(<ReportsList sessions={[older, newer]} />)
     await user.click(screen.getByRole('button', { name: /score/i }))
-    const links = screen.getAllByRole('link')
+    const links = getAnchorLinks()
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-new')
   })
 
@@ -159,7 +164,7 @@ describe('ReportsList sorting', () => {
     const scoreBtn = screen.getByRole('button', { name: /score/i })
     await user.click(scoreBtn)
     await user.click(scoreBtn)
-    const links = screen.getAllByRole('link')
+    const links = getAnchorLinks()
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-old')
   })
 
@@ -167,7 +172,7 @@ describe('ReportsList sorting', () => {
     const user = userEvent.setup()
     render(<ReportsList sessions={[older, newer]} />)
     await user.click(screen.getByRole('button', { name: /subject/i }))
-    const links = screen.getAllByRole('link')
+    const links = getAnchorLinks()
     expect(links[0]).toHaveAttribute('href', '/app/quiz/report?session=s-new')
   })
 

@@ -3,10 +3,10 @@ import type { SessionReport } from '@/lib/queries/reports'
 import { scoreColor } from '@/lib/utils/score-color'
 import { formatDate, MODE_LABELS } from './reports-utils'
 
-export function SessionCard({ session: s }: { session: SessionReport }) {
+export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>) {
   const exam = s.mode === 'mock_exam'
-  const score = s.scorePercentage != null ? `${Math.round(s.scorePercentage)}%` : '\u2014'
-  const color = s.scorePercentage != null ? scoreColor(s.scorePercentage) : undefined
+  const score = s.scorePercentage == null ? '\u2014' : `${Math.round(s.scorePercentage)}%`
+  const color = s.scorePercentage == null ? undefined : scoreColor(s.scorePercentage)
 
   return (
     <Link

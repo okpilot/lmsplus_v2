@@ -212,6 +212,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 
 ---
 
+
 ## SPRINT 8 — Reports Redesign (#179)
 **Status**: COMPLETE (2026-03-21)
 **Started**: 2026-03-21

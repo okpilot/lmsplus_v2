@@ -6,7 +6,7 @@ import type { SessionReport } from '@/lib/queries/reports'
 import { scoreColor } from '@/lib/utils/score-color'
 import { formatDate, MODE_LABELS } from './reports-utils'
 
-export function SessionTable({ sessions }: { sessions: SessionReport[] }) {
+export function SessionTable({ sessions }: Readonly<{ sessions: SessionReport[] }>) {
   return (
     <table className="w-full text-sm">
       <thead>
@@ -28,17 +28,25 @@ export function SessionTable({ sessions }: { sessions: SessionReport[] }) {
   )
 }
 
-function SessionRow({ session: s }: { session: SessionReport }) {
+function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   const router = useRouter()
   const exam = s.mode === 'mock_exam'
-  const score = s.scorePercentage != null ? `${Math.round(s.scorePercentage)}%` : '\u2014'
-  const color = s.scorePercentage != null ? scoreColor(s.scorePercentage) : undefined
+  const score = s.scorePercentage == null ? '\u2014' : `${Math.round(s.scorePercentage)}%`
+  const color = s.scorePercentage == null ? undefined : scoreColor(s.scorePercentage)
   const href = `/app/quiz/report?session=${s.id}`
+  const navigate = () => router.push(href)
 
   return (
     <tr
-      className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-accent"
-      onClick={() => router.push(href)}
+      tabIndex={0}
+      className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      onClick={navigate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          navigate()
+        }
+      }}
     >
       <td className="px-4 py-3 text-muted-foreground">{formatDate(s.startedAt)}</td>
       <td className="px-4 py-3 font-medium">

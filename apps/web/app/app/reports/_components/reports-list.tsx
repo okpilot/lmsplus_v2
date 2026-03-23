@@ -8,7 +8,7 @@ import { SessionTable } from './session-table'
 type SortKey = 'date' | 'score' | 'subject'
 type SortDir = 'asc' | 'desc'
 
-export function ReportsList({ sessions }: { sessions: SessionReport[] }) {
+export function ReportsList({ sessions }: Readonly<{ sessions: SessionReport[] }>) {
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
