@@ -4,6 +4,17 @@
 
 ## Session Log
 
+### 2026-03-23 — commit e7648f9 (fix: address CodeRabbit, SonarCloud, and Codecov review findings)
+- **Files reviewed:** question-grid.tsx, quiz-config-handlers.ts (new), use-quiz-config.ts, quiz-session.tsx, quiz-main-panel.tsx, info-tooltip.tsx, info-tooltip.test.tsx, question-grid.test.tsx, migration 051
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 3 | **GOOD:** 5
+- **Issue:** `question-grid.tsx:61-67` — `effectiveFilter` correctly falls back to `'all'` when the active filter's count drops to 0, but `filter` state is never reset. When `flaggedCount` returns from 0 to 1 (user re-flags a question), `effectiveFilter` snaps back to `'flagged'` without user action, because `filter` was still `'flagged'` internally. Ghost-state bug. Fix: `useEffect` that resets `filter` when the triggering count reaches 0.
+- **Suggestion 1:** `quiz-config-handlers.ts` — `createConfigHandlers` factory called on every render, returns unstabilized function references. Behavior-preserving refactor but hides the stability gap. Future effect dependency additions may cause spurious re-runs.
+- **Suggestion 2:** `migration 051` — `security_invoker` is correct. App-level audit of direct `flagged_questions` queries (vs. using the view) is the outstanding completion step for Issue 2 from commit 5ef6d23.
+- **Suggestion 3:** `quiz-session.tsx:46` — biome-ignore suppression is justified. Comment could be strengthened to explain setter stability as well.
+- **Resolved from prior session:** Suggestion 3 from commit 5ef6d23 (needsCollapse computed from totalQuestions regardless of filter) is resolved — `needsCollapse` is now gated on `effectiveFilter === 'all'`.
+- **Resolved from prior session:** Issue 1 from commit 5ef6d23 (stale pendingOptionId on navigation) is resolved via `useEffect` keyed on `currentIndex`, with justified biome-ignore.
+- **New recurring pattern — ghost state via effectiveFilter:** `filter` state in `question-grid.tsx` is overridden by a derived `effectiveFilter` but not reset when the override condition clears. Pattern: when a derived value silently overrides a state variable's effect, the underlying state must be kept in sync via a reset effect. Otherwise the derived override can reactivate later without user action.
+
 ### 2026-03-23 — commit 5ef6d23 (feat(quiz): redesign session layout, fix unflag RLS, responsive grid)
 - **Files reviewed:** quiz-session.tsx, quiz-main-panel.tsx, quiz-controls.tsx, question-grid.tsx, answer-options.tsx, flag.ts, migration 050, question-grid.test.tsx, quiz-controls.test.tsx, quiz-main-panel.test.tsx, quiz-session.test.tsx, question-tabs.tsx, question-tabs.test.tsx, info-tooltip.test.tsx
 - **CRITICAL:** 0 | **ISSUE:** 2 | **SUGGESTION:** 3 | **GOOD:** 7

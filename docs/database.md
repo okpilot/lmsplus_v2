@@ -1,5 +1,5 @@
 ---
-date: 2026-03-12
+date: 2026-03-23
 status: active
 project: lmsplusv2
 ---
@@ -354,6 +354,20 @@ RLS policies:
 - UPDATE: `student_id = auth.uid()` (soft-delete via `deleted_at = now()` in app code)
 
 **Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, application code filters deleted records via `.is('deleted_at', null)` in flag.ts. RLS only enforces ownership.
+
+#### View: `active_flagged_questions`
+
+```sql
+CREATE OR REPLACE VIEW active_flagged_questions
+WITH (security_invoker = true) AS
+  SELECT * FROM flagged_questions WHERE deleted_at IS NULL;
+```
+
+This view filters soft-deleted flags and has `security_invoker = true` (migration 051), which means RLS policies on `flagged_questions` are enforced when the view is queried. Use this view instead of querying `flagged_questions` directly to ensure:
+1. Only non-deleted flags are visible
+2. Ownership RLS policies are applied via the view
+
+**Why `security_invoker`?** Without it, views inherit the caller's permissions, and RLS policies are bypassed. Setting `security_invoker = true` forces RLS evaluation inside the view definition, ensuring that queries like `SELECT * FROM active_flagged_questions` enforce `student_id = auth.uid()` even though the view itself runs as the table owner.
 
 ### question_comments
 Per-question discussion threads. Students and admins can post comments on any question. Hard-delete table (low audit value).

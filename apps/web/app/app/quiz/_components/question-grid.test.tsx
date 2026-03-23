@@ -156,6 +156,129 @@ describe('QuestionGrid — filter row', () => {
   })
 })
 
+describe('QuestionGrid — effectiveFilter fallback', () => {
+  it('falls back to all filter when flagged filter is active but flagged set becomes empty', () => {
+    // Start with a flagged question so filter pill appears, then activate flagged filter
+    const { rerender } = render(
+      <QuestionGrid
+        totalQuestions={5}
+        currentIndex={0}
+        pinnedIds={new Set<string>()}
+        flaggedIds={new Set(['q1'])}
+        questionIds={IDS}
+        feedbackMap={new Map()}
+        onNavigate={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('filter-flagged'))
+    // Flagged filter is now active — only q1 visible
+    expect(desktopBtn(0)).toBeTruthy()
+    expect(desktopBtn(1)).toBeNull()
+
+    // Re-render with empty flaggedIds — effectiveFilter falls back to 'all'
+    rerender(
+      <QuestionGrid
+        totalQuestions={5}
+        currentIndex={0}
+        pinnedIds={new Set<string>()}
+        flaggedIds={new Set<string>()}
+        questionIds={IDS}
+        feedbackMap={new Map()}
+        onNavigate={vi.fn()}
+      />,
+    )
+
+    // All questions visible again
+    expect(desktopBtn(0)).toBeTruthy()
+    expect(desktopBtn(4)).toBeTruthy()
+  })
+
+  it('falls back to all filter when pinned filter is active but pinned set becomes empty', () => {
+    const { rerender } = render(
+      <QuestionGrid
+        totalQuestions={5}
+        currentIndex={0}
+        pinnedIds={new Set(['q2'])}
+        flaggedIds={new Set<string>()}
+        questionIds={IDS}
+        feedbackMap={new Map()}
+        onNavigate={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('filter-pinned'))
+    // Pinned filter is active — only q2 (index 1) visible
+    expect(desktopBtn(1)).toBeTruthy()
+    expect(desktopBtn(0)).toBeNull()
+
+    // Re-render with empty pinnedIds — effectiveFilter falls back to 'all'
+    rerender(
+      <QuestionGrid
+        totalQuestions={5}
+        currentIndex={0}
+        pinnedIds={new Set<string>()}
+        flaggedIds={new Set<string>()}
+        questionIds={IDS}
+        feedbackMap={new Map()}
+        onNavigate={vi.fn()}
+      />,
+    )
+
+    // All questions visible
+    expect(desktopBtn(0)).toBeTruthy()
+    expect(desktopBtn(4)).toBeTruthy()
+  })
+
+  it('does not show collapse toggle when flagged filter is active regardless of total count', () => {
+    // With 40 questions and the flagged filter active, needsCollapse should be false
+    // because needsCollapse only fires when effectiveFilter === 'all'
+    const manyIds = Array.from({ length: 40 }, (_, i) => `q${i + 1}`)
+    renderGrid({
+      totalQuestions: 40,
+      questionIds: manyIds,
+      flaggedIds: new Set(['q1']),
+    })
+
+    fireEvent.click(screen.getByTestId('filter-flagged'))
+
+    // Toggle should not appear when effectiveFilter !== 'all'
+    expect(screen.queryByTestId('grid-toggle')).not.toBeInTheDocument()
+  })
+
+  it('All filter pill is active when effectiveFilter falls back from flagged', () => {
+    const { rerender } = render(
+      <QuestionGrid
+        totalQuestions={5}
+        currentIndex={0}
+        pinnedIds={new Set<string>()}
+        flaggedIds={new Set(['q1'])}
+        questionIds={IDS}
+        feedbackMap={new Map()}
+        onNavigate={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('filter-flagged'))
+
+    // Remove the flagged item — filter falls back to 'all'
+    rerender(
+      <QuestionGrid
+        totalQuestions={5}
+        currentIndex={0}
+        pinnedIds={new Set<string>()}
+        flaggedIds={new Set<string>()}
+        questionIds={IDS}
+        feedbackMap={new Map()}
+        onNavigate={vi.fn()}
+      />,
+    )
+
+    // Filter row hidden (nothing flagged or pinned), meaning effectiveFilter='all' is in effect
+    expect(screen.queryByTestId('grid-filters')).not.toBeInTheDocument()
+  })
+})
+
 describe('QuestionGrid — mobile collapse', () => {
   // jsdom offsetWidth = 0 → perRow defaults to max(floor(0+6)/(36+6), 1) = 1
   // So twoRows = 2, needsCollapse = totalQuestions > 2

@@ -3011,3 +3011,79 @@ The Submit button's visibility is covered by `QuizControls` unit tests (`showSub
 
 ### Suite state after this commit
 112 test files, 1360 tests — all passing.
+
+---
+
+## Files tested in commit fix/manual-eval-improvements (2026-03-23)
+
+| Source file | Test file | Status |
+|---|---|---|
+| `quiz-session.tsx` | `quiz-session.test.tsx` (extended) | 3 new tests for pendingOptionId clearing |
+| `topic-tree-helpers.ts` | `topic-tree-helpers.test.ts` (extended) | 11 new tests for `calcFilteredAvailable` |
+| `quiz-config-handlers.ts` | `quiz-config-handlers.test.ts` (new) | 11 tests, full coverage |
+| `question-grid.tsx` | `question-grid.test.tsx` (extended) | 4 new tests for effectiveFilter fallback |
+
+Suite after: 113 test files, 1389 tests — all passing.
+
+### Separating onSelectionChange from onSubmit in AnswerOptions mock (pendingOptionId tests)
+
+When a parent component has a `pendingOptionId` state driven by `onSelectionChange` alone,
+and the existing AnswerOptions mock fires BOTH `onSelectionChange` and `onSubmit` on click
+(which immediately sets `existingAnswer`, nullifying `pendingOptionId`'s effect), add
+dedicated "select-only" buttons to the mock:
+
+```tsx
+// In the AnswerOptions mock, alongside the normal option-{id} buttons:
+{options.map((o) => (
+  <button
+    key={`select-${o.id}`}
+    type="button"
+    data-testid={`select-btn-${o.id}`}
+    onClick={() => onSelectionChange?.(o.id)}
+    disabled={disabled}
+  >
+    Select only {o.text}
+  </button>
+))}
+```
+
+This allows tests to fire `onSelectionChange` without `onSubmit`, making `pendingOptionId`
+non-null without setting `existingAnswer`. The test can then:
+1. Click `select-btn-{id}` → asserts Submit Answer button appears (showSubmit=true)
+2. Navigate → asserts Submit Answer button disappears (pendingOptionId cleared)
+
+Do not change the existing `option-{id}` buttons — they test answer submission. This approach
+adds non-breaking capacity to the mock rather than changing existing behavior.
+
+### Testing effectiveFilter fallback via rerender
+
+When a component computes an "effective filter" that falls back when the backing set empties,
+test it with `rerender` rather than two separate renders. This avoids filter state being reset
+to `'all'` on unmount/remount:
+
+```tsx
+// 1. Render with flagged items + select flagged filter
+const { rerender } = render(<QuestionGrid flaggedIds={new Set(['q1'])} ... />)
+fireEvent.click(screen.getByTestId('filter-flagged'))
+
+// 2. Rerender with empty flaggedIds — effectiveFilter falls back to 'all'
+rerender(<QuestionGrid flaggedIds={new Set()} ... />)
+
+// 3. Assert all questions are now visible
+expect(desktopBtn(4)).toBeTruthy()
+```
+
+Key: the component's internal `filter` state stays `'flagged'` after rerender (because
+React preserves state through rerenders), but `effectiveFilter` recomputes to `'all'`
+because `flaggedCount === 0`. This correctly tests the guard logic.
+
+### Testing that the collapse toggle is absent when a subset filter is active
+
+`needsCollapse = effectiveFilter === 'all' && totalQuestions > twoRows`. To verify the
+toggle does NOT appear when a flagged/pinned filter is active (even with 40 questions):
+
+```tsx
+renderGrid({ totalQuestions: 40, questionIds: manyIds, flaggedIds: new Set(['q1']) })
+fireEvent.click(screen.getByTestId('filter-flagged'))
+expect(screen.queryByTestId('grid-toggle')).not.toBeInTheDocument()
+```

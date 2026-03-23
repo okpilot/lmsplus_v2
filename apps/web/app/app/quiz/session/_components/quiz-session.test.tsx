@@ -100,6 +100,18 @@ vi.mock('@/app/app/_components/answer-options', () => ({
           {o.text}
         </button>
       ))}
+      {/* Select-only buttons: trigger onSelectionChange without submitting */}
+      {options.map((o) => (
+        <button
+          key={`select-${o.id}`}
+          type="button"
+          data-testid={`select-btn-${o.id}`}
+          onClick={() => onSelectionChange?.(o.id)}
+          disabled={disabled}
+        >
+          Select only {o.text}
+        </button>
+      ))}
     </div>
   ),
 }))
@@ -412,5 +424,40 @@ describe('QuizSession', () => {
     fireEvent.click(pinBtn)
     expect(pinBtn).toHaveTextContent('Pin')
     expect(pinBtn).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('clears pending option when navigating to a different question', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+
+    // Select an option without submitting — this sets pendingOptionId
+    fireEvent.click(screen.getByTestId('select-btn-a'))
+
+    // Submit Answer button should now be present in mobile controls (showSubmit=true)
+    expect(screen.getAllByRole('button', { name: /Submit Answer/i })[0]).toBeInTheDocument()
+
+    // Navigate to next question — currentIndex changes, useEffect clears pendingOptionId
+    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
+
+    // Submit Answer button should be gone (pendingOptionId cleared)
+    expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
+  })
+
+  it('clears pending option when navigating via the question grid', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+
+    // Select an option without submitting
+    fireEvent.click(screen.getByTestId('select-btn-a'))
+    expect(screen.getAllByRole('button', { name: /Submit Answer/i })[0]).toBeInTheDocument()
+
+    // Navigate via grid jump
+    fireEvent.click(screen.getByTestId('grid-nav-2'))
+
+    // Pending selection should be cleared
+    expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
+  })
+
+  it('does not show Submit Answer button before any option is selected', () => {
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+    expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
   })
 })
