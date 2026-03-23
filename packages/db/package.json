@@ -32,7 +32,7 @@
     "@types/node": "^25",
     "@vitest/coverage-v8": "^4.1.0",
     "next": "^16.1.7",
-    "typescript": "^5.7.0",
+    "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^4.1.0"
   }
