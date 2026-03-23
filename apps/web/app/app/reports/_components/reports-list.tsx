@@ -1,22 +1,14 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import type { SessionReport } from '@/lib/queries/reports'
-
-type ReportsListProps = {
-  sessions: SessionReport[]
-}
+import { SessionCard } from './session-card'
+import { SessionTable } from './session-table'
 
 type SortKey = 'date' | 'score' | 'subject'
 type SortDir = 'asc' | 'desc'
 
-const MODE_LABELS: Record<string, string> = {
-  quick_quiz: 'Quiz',
-  mock_exam: 'Mock Exam',
-}
-
-export function ReportsList({ sessions }: ReportsListProps) {
+export function ReportsList({ sessions }: Readonly<{ sessions: SessionReport[] }>) {
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
@@ -49,7 +41,7 @@ export function ReportsList({ sessions }: ReportsListProps) {
 
   return (
     <div>
-      <div className="mb-2 flex gap-2 text-xs text-muted-foreground">
+      <div className="mb-3 flex gap-2 text-xs text-muted-foreground">
         <button type="button" onClick={() => toggleSort('date')} className="hover:text-foreground">
           Date{sortKey === 'date' ? arrow : ''}
         </button>
@@ -64,49 +56,16 @@ export function ReportsList({ sessions }: ReportsListProps) {
           Subject{sortKey === 'subject' ? arrow : ''}
         </button>
       </div>
-      <div className="space-y-2">
-        {sorted.map((session) => (
-          <SessionReportRow key={session.id} session={session} />
+
+      <div className="hidden rounded-lg border border-border md:block">
+        <SessionTable sessions={sorted} />
+      </div>
+
+      <div className="flex flex-col gap-3 md:hidden">
+        {sorted.map((s) => (
+          <SessionCard key={s.id} session={s} />
         ))}
       </div>
     </div>
-  )
-}
-
-function SessionReportRow({ session }: { session: SessionReport }) {
-  const score =
-    session.scorePercentage != null ? `${Math.round(session.scorePercentage)}%` : '\u2014'
-  const date = new Date(session.startedAt)
-  const dateStr = date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-
-  return (
-    <Link
-      href={`/app/quiz/report?session=${session.id}`}
-      className="flex items-center justify-between rounded-md border border-border px-4 py-3 transition-colors hover:bg-accent"
-    >
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium">
-          {MODE_LABELS[session.mode] ?? session.mode}
-          {session.subjectName ? ` \u2014 ${session.subjectName}` : ''}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {session.correctCount}/{session.answeredCount} correct
-          {session.answeredCount < session.totalQuestions && (
-            <span className="ml-1 text-muted-foreground/70">
-              ({session.totalQuestions - session.answeredCount} skipped)
-            </span>
-          )}
-          {' \u00B7 '}
-          {session.durationMinutes}min
-          {' \u00B7 '}
-          {dateStr}
-        </p>
-      </div>
-      <span className="ml-3 text-sm font-semibold tabular-nums">{score}</span>
-    </Link>
   )
 }

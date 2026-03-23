@@ -212,6 +212,38 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 
 ---
 
+
+## SPRINT 8 — Reports Redesign (#179)
+**Status**: COMPLETE (2026-03-21)
+**Started**: 2026-03-21
+**Goal**: Redesign reports page with session table (desktop) and session cards (mobile), mode badge, and color-coded scores
+
+**Scope:** 4 new components + shared utilities
+
+| Item | Description | Status |
+|------|-------------|--------|
+| New component: SessionTable | 6-column desktop table (Date, Subject, Mode, Correct, Time, Score) with sortable headers | ✅ Done |
+| New component: SessionCard | Mobile card layout with subject/score header and metadata row (mode, correct, time) | ✅ Done |
+| New component: ModeB badge | EXAM pill (amber) for mock_exam mode, "Study" for others | ✅ Done |
+| New utility: scoreColor | Shared score-color function: green >=70%, amber 50-69%, red <50% | ✅ Done |
+| Refactored: ReportsList | Split into SessionTable + SessionCard with responsive layout selection | ✅ Done |
+| Created: reports-utils.ts | Helper functions for formatting and filtering | ✅ Done |
+| Refactored: ScoreRing | Extracted shared scoreColor utility for reuse across components | ✅ Done |
+| Tests: reports-list.test.tsx | Updated to test both table and card layouts with responsive behavior | ✅ Done |
+
+**Implementation complete (2026-03-21):**
+- SessionTable: 6-column layout for desktop (Date, Subject, Mode, Correct, Time, Score)
+- SessionCard: Mobile/responsive card layout with collapsible metadata
+- Score color-coding: green (>=70%), amber (50-69%), red (<50%)
+- Mode badge: "EXAM" pill in amber for mock_exam mode, "Study" label for others
+- Extracted scoreColor utility to `lib/utils/score-color.ts` for shared use across score-ring, session-table, and session-card
+- ReportsList split into feature components: session-table.tsx, session-card.tsx, reports-utils.ts
+- Mobile-first design: stacked cards below `md` breakpoint, 6-column table above
+- All tests updated for new component structure and responsive behavior (96+ assertions in reports-list.test.tsx)
+- Closes #179
+
+---
+
 ## SPRINT 1 COMPLETE — Quick Wins shipped
 
 **Phase 1 done (2026-03-11):** Monorepo scaffold, all Claude Code config, tooling, shadcn/ui v4 (Base UI + oklch blue theme), git init. 3 commits on `master`.
