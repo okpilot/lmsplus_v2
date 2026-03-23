@@ -429,12 +429,13 @@ describe("getFilteredCount — filters: ['flagged']", () => {
     expect(result).toMatchObject({ count: 0 })
   })
 
-  it('returns count 0 when subtopicIds is empty (short-circuit before DB query)', async () => {
+  it('returns count 0 when both topicIds and subtopicIds are empty', async () => {
     setupAuthenticatedUser()
     mockFrom.mockReturnValue(buildQueryChain([]))
 
     const result = await getFilteredCount({
       subjectId: SUBJECT_ID,
+      topicIds: [],
       subtopicIds: [],
       filters: ['flagged'],
     })

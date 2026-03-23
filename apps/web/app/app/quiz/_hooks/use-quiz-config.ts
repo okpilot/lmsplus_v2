@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz'
 import type { QuestionFilterValue, QuizMode } from '../types'
 import { useFilteredCount } from './use-filtered-count'
@@ -15,10 +15,37 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
 
   const hasActiveFilters = filters.some((f) => f !== 'all')
 
-  const availableCount =
-    hasActiveFilters && fc.filteredCount !== null
-      ? fc.filteredCount
-      : topicTree.selectedQuestionCount
+  // Derive all topic/subtopic IDs for the entire subject (for filter queries)
+  const allTopicIds = useMemo(() => topicTree.topics.map((t) => t.id), [topicTree.topics])
+  const allSubtopicIds = useMemo(
+    () => topicTree.topics.flatMap((t) => t.subtopics.map((st) => st.id)),
+    [topicTree.topics],
+  )
+
+  // Available count for the quiz start: intersection of checked topics + active filter
+  const availableCount = useMemo(() => {
+    if (!hasActiveFilters || fc.filteredByTopic === null || fc.filteredBySubtopic === null) {
+      return topicTree.selectedQuestionCount
+    }
+    // Sum filtered counts for checked topics/subtopics only
+    let total = 0
+    for (const topic of topicTree.topics) {
+      if (topic.subtopics.length === 0) {
+        // Leaf topic (no subtopics) — count if topic is checked
+        if (topicTree.checkedTopics.has(topic.id)) {
+          total += fc.filteredByTopic[topic.id] ?? 0
+        }
+      } else {
+        // Topic with subtopics — sum checked subtopics
+        for (const st of topic.subtopics) {
+          if (topicTree.checkedSubtopics.has(st.id)) {
+            total += fc.filteredBySubtopic[st.id] ?? 0
+          }
+        }
+      }
+    }
+    return total
+  }, [hasActiveFilters, fc.filteredByTopic, fc.filteredBySubtopic, topicTree])
 
   const { loading, error, handleStart } = useQuizStart({
     subjectId,
@@ -29,14 +56,21 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     topicTree,
   })
 
-  function refetchFilteredCount(newFilters?: QuestionFilterValue[]) {
-    fc.refetch(
-      subjectId,
-      topicTree.getSelectedTopicIds(),
-      topicTree.getSelectedSubtopicIds(),
-      newFilters ?? filters,
-    )
-  }
+  // Skip the very first render (mount) to avoid a spurious refetch
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    mountedRef.current = true
+  }, [])
+
+  // Fetch filtered counts for the ENTIRE subject whenever filters change.
+  // This is independent of topic checkbox selection — counts are informational.
+  useEffect(() => {
+    if (!mountedRef.current) return
+    if (!subjectId || !hasActiveFilters) return
+    if (allTopicIds.length === 0) return
+
+    fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters)
+  }, [subjectId, hasActiveFilters, filters, allTopicIds, allSubtopicIds, fc.refetch])
 
   function handleSubjectChange(id: string) {
     setSubjectId(id)
@@ -49,7 +83,9 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
 
   function handleFiltersChange(newFilters: QuestionFilterValue[]) {
     setFilters(newFilters)
-    refetchFilteredCount(newFilters)
+    if (!newFilters.some((f) => f !== 'all')) {
+      fc.reset()
+    }
   }
 
   return {

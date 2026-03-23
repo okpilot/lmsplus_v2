@@ -20,8 +20,20 @@ describe('ActivityHeatmap', () => {
 
   it('renders a cell for every day in the current month', () => {
     render(<ActivityHeatmap data={[]} />)
-    const cells = screen.getAllByTitle(/questions/)
+    const cells = screen.getAllByTitle(/\d+ March: \d+ questions/)
     expect(cells).toHaveLength(31) // March has 31 days
+  })
+
+  it('renders weekday column headers', () => {
+    render(<ActivityHeatmap data={[]} />)
+    expect(screen.getByText('Mon')).toBeInTheDocument()
+    expect(screen.getByText('Sun')).toBeInTheDocument()
+  })
+
+  it('shows day numbers inside cells', () => {
+    render(<ActivityHeatmap data={[]} />)
+    const cell = screen.getByTitle('1 March: 0 questions')
+    expect(cell.textContent).toBe('1')
   })
 
   it('shows bg-muted for a past day with no activity', () => {

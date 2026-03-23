@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import type { SubjectProgress } from '@/lib/queries/dashboard'
 
 type SubjectGridProps = {
@@ -58,15 +57,7 @@ function SubjectCard({ subject }: { subject: SubjectProgress }) {
           style={{ width: `${subject.masteryPercentage}%` }}
         />
       </div>
-      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span>Last practiced: {relativeDate}</span>
-        <Link
-          href={`/app/quiz?subject=${subject.id}`}
-          className="font-medium text-primary hover:underline"
-        >
-          Practice
-        </Link>
-      </div>
+      <p className="mt-2 text-xs text-muted-foreground">Last practiced: {relativeDate}</p>
     </div>
   )
 }

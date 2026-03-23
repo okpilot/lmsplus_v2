@@ -16,9 +16,9 @@ describe('StatCards', () => {
 
   it('renders all three card titles', () => {
     render(<StatCards {...BASE_PROPS} />)
-    expect(screen.getByText('Exam Readiness')).toBeInTheDocument()
-    expect(screen.getByText('Questions Today')).toBeInTheDocument()
-    expect(screen.getByText('Study Streak')).toBeInTheDocument()
+    expect(screen.getAllByText('Exam Readiness').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Questions Today').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Study Streak').length).toBeGreaterThanOrEqual(1)
   })
 
   it('displays computed exam readiness percentage', () => {

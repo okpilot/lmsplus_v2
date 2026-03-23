@@ -176,17 +176,91 @@ describe('useQuizConfig — setFilters', () => {
     expect(result.current.filters).toEqual(['unseen'])
   })
 
-  it('calls fc.refetch with the new filters when setFilters is called', async () => {
+  it('triggers fc.refetch via effect with ALL topic IDs when filters change', async () => {
+    const mockTree = buildMockTopicTree({
+      topics: [
+        {
+          id: 't1',
+          code: '01',
+          name: 'T1',
+          questionCount: 5,
+          subtopics: [{ id: 's1', code: '01-01', name: 'S1', questionCount: 5 }],
+        },
+        {
+          id: 't2',
+          code: '02',
+          name: 'T2',
+          questionCount: 5,
+          subtopics: [{ id: 's2', code: '02-01', name: 'S2', questionCount: 5 }],
+        },
+      ],
+      checkedTopics: new Set(['t1']),
+      checkedSubtopics: new Set(['s1']),
+      selectedQuestionCount: 5,
+    })
+    ;(useTopicTree as Mock).mockReturnValue(mockTree)
+
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+    mockFcRefetch.mockClear()
+
     await act(async () => {
       result.current.setFilters(['incorrect'] as QuestionFilterValue[])
     })
+    // Should pass ALL topics/subtopics, not just checked ones
     expect(mockFcRefetch).toHaveBeenCalledWith(
-      '', // subjectId (initial value)
-      [],
-      [],
+      SUBJECT_ID,
+      ['t1', 't2'],
+      ['s1', 's2'],
       ['incorrect'],
     )
+  })
+
+  it('does NOT re-fetch when only topic checkboxes change (counts are subject-wide)', async () => {
+    const topics = [
+      {
+        id: 't1',
+        code: '01',
+        name: 'T1',
+        questionCount: 5,
+        subtopics: [{ id: 's1', code: '01-01', name: 'S1', questionCount: 5 }],
+      },
+    ]
+    const mockTree = buildMockTopicTree({
+      topics,
+      checkedTopics: new Set(['t1']),
+      checkedSubtopics: new Set(['s1']),
+      selectedQuestionCount: 5,
+    })
+    ;(useTopicTree as Mock).mockReturnValue(mockTree)
+
+    const { result, rerender } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+
+    // Enable filter
+    await act(async () => {
+      result.current.setFilters(['unseen'] as QuestionFilterValue[])
+    })
+    mockFcRefetch.mockClear()
+
+    // Uncheck a topic — topics list unchanged, only checkboxes differ
+    const updatedTree = buildMockTopicTree({
+      topics,
+      checkedTopics: new Set(),
+      checkedSubtopics: new Set(),
+      selectedQuestionCount: 0,
+    })
+    ;(useTopicTree as Mock).mockReturnValue(updatedTree)
+    await act(async () => {
+      rerender()
+    })
+
+    // No re-fetch needed — per-topic counts are already subject-wide
+    expect(mockFcRefetch).not.toHaveBeenCalled()
   })
 })
 
@@ -222,14 +296,38 @@ describe('useQuizConfig — availableCount', () => {
     expect(result.current.availableCount).toBe(42)
   })
 
-  it('uses filteredCount when a non-all filter is active and filteredCount is set', async () => {
-    ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ selectedQuestionCount: 42 }))
-    ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ filteredCount: 7 }))
+  it('derives availableCount from filteredBySubtopic for checked subtopics when filter is active', async () => {
+    ;(useTopicTree as Mock).mockReturnValue(
+      buildMockTopicTree({
+        topics: [
+          {
+            id: 't1',
+            code: '01',
+            name: 'T1',
+            questionCount: 20,
+            subtopics: [
+              { id: 's1', code: '01-01', name: 'S1', questionCount: 12 },
+              { id: 's2', code: '01-02', name: 'S2', questionCount: 8 },
+            ],
+          },
+        ],
+        checkedTopics: new Set(['t1']),
+        checkedSubtopics: new Set(['s1']), // only s1 checked
+        selectedQuestionCount: 12,
+      }),
+    )
+    ;(useFilteredCount as Mock).mockReturnValue(
+      buildMockFilteredCount({
+        filteredCount: 15, // total for subject (unused directly now)
+        filteredByTopic: { t1: 15 },
+        filteredBySubtopic: { s1: 7, s2: 8 },
+      }),
+    )
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
     await act(async () => {
       result.current.setFilters(['unseen'] as QuestionFilterValue[])
     })
-    // filteredCount is 7 and filters is non-all, so availableCount should be 7
+    // Only s1 is checked, filteredBySubtopic[s1] = 7
     expect(result.current.availableCount).toBe(7)
   })
 
