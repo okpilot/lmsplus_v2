@@ -1381,4 +1381,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-23 (migration 041-042: N+1 fix in batch_submit_quiz + 4 missing indexes) | Companion: docs/security.md*
+*Last updated: 2026-03-23 (migration 050-051: flagged_questions RLS soft-delete fix + active_flagged_questions view security_invoker) | Companion: docs/security.md*

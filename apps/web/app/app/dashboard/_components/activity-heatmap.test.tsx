@@ -116,11 +116,9 @@ describe('ActivityHeatmap — month navigation', () => {
   })
 
   it('marks all days as future (muted/30) when viewing a future-offset month (positive offset)', () => {
-    // Navigate back then forward to be one behind, then — from the test's perspective —
-    // we can't go past offset=0, so instead verify no ring-primary in a past month
+    // Navigate back one month; verify past month days do not have today's ring
     render(<ActivityHeatmap data={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
-    // In February (past month), no day should have today's ring
     const cells = screen.getAllByTitle(/February/)
     expect(cells.every((c) => !c.className.includes('ring-primary'))).toBe(true)
   })
