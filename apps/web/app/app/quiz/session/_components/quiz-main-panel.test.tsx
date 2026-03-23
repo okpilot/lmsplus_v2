@@ -10,8 +10,24 @@ vi.mock('@/app/app/_components/question-card', () => ({
   ),
 }))
 
+const mockAnswerOptionsOnSelectionChange = vi.fn()
 vi.mock('@/app/app/_components/answer-options', () => ({
-  AnswerOptions: () => <div data-testid="answer-options" />,
+  AnswerOptions: ({
+    onSelectionChange,
+  }: {
+    options: { id: string; text: string }[]
+    onSubmit: (id: string) => void
+    disabled: boolean
+    selectedOptionId?: string | null
+    correctOptionId?: string | null
+    onSelectionChange?: (id: string | null) => void
+  }) => {
+    // Store the forwarded callback so tests can invoke it
+    if (onSelectionChange) {
+      mockAnswerOptionsOnSelectionChange.mockImplementation(onSelectionChange)
+    }
+    return <div data-testid="answer-options" />
+  },
 }))
 
 vi.mock('./quiz-tab-content', () => ({
@@ -111,5 +127,36 @@ describe('QuizMainPanel', () => {
   it('renders QuizTabContent for the statistics tab', () => {
     render(<QuizMainPanel s={makeState()} activeTab="statistics" userId="test-user-id" />)
     expect(screen.getByTestId('quiz-tab-content')).toBeInTheDocument()
+  })
+
+  describe('onSelectionChange forwarding', () => {
+    it('forwards onSelectionChange to AnswerOptions on the question tab', () => {
+      const onSelectionChange = vi.fn()
+      render(
+        <QuizMainPanel
+          s={makeState()}
+          activeTab="question"
+          userId="test-user-id"
+          onSelectionChange={onSelectionChange}
+        />,
+      )
+      // The mock captured the forwarded callback — invoke it to confirm identity
+      mockAnswerOptionsOnSelectionChange('opt-x')
+      expect(onSelectionChange).toHaveBeenCalledWith('opt-x')
+    })
+
+    it('does not forward onSelectionChange when not on question tab', () => {
+      const onSelectionChange = vi.fn()
+      render(
+        <QuizMainPanel
+          s={makeState()}
+          activeTab="explanation"
+          userId="test-user-id"
+          onSelectionChange={onSelectionChange}
+        />,
+      )
+      // QuizTabContent is rendered instead of AnswerOptions — callback not wired up
+      expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
+    })
   })
 })

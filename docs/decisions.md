@@ -536,4 +536,18 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-18 — Decision 29 refinement: PKCE pattern for password reset*
+### Decision 30: question_comments hard-delete exception
+**Date**: 2026-03-20
+**Context**: Comments on quiz questions have very low audit value — they're discussion threads, not compliance data.
+**Decision**: `question_comments` table uses hard DELETE instead of soft-delete. RLS DELETE policies allow own-row deletion and admin deletion. The `deleted_at` column is retained as a defensive safety net but the primary path is hard DELETE.
+**Rationale**: Avoids accumulating deleted comment rows that serve no audit or compliance purpose. The soft-delete matrix in `docs/database.md` documents this exception.
+
+### Decision 31: org-wide comment visibility
+**Date**: 2026-03-20
+**Context**: This is a single-org EASA PPL training product. Comments on questions are a shared discussion feature.
+**Decision**: All authenticated users can see all non-deleted comments on any question. No org-scoping or "questions I've answered" restriction on comment visibility.
+**Rationale**: Simplifies RLS and encourages knowledge sharing across the student cohort. If multi-tenancy is added later, comments will be scoped at that point.
+
+---
+
+*Last updated: 2026-03-20 — Decisions 30-31: hard-delete comments + org-wide comment visibility*

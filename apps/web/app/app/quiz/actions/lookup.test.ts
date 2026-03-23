@@ -444,6 +444,55 @@ describe("getFilteredCount — filters: ['flagged']", () => {
   })
 })
 
+// ---- getFilteredCount — bail logic (AND semantics) -----------------------
+
+describe('getFilteredCount — bail logic (both arrays must be empty to short-circuit)', () => {
+  it('does NOT bail when topicIds is empty but subtopicIds is undefined', async () => {
+    setupAuthenticatedUser()
+    // subtopicIds undefined means "no subtopic filter" — subject-level fallback applies
+    mockFrom.mockReturnValue(buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }]))
+
+    const result = await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      topicIds: [],
+      subtopicIds: undefined,
+      filters: ['all'],
+    })
+
+    // Query proceeds; result depends on what the DB returns, not the bail guard
+    expect(result).toMatchObject({ count: 2 })
+  })
+
+  it('does NOT bail when subtopicIds is empty but topicIds is undefined', async () => {
+    setupAuthenticatedUser()
+    mockFrom.mockReturnValue(buildQueryChain([{ id: Q1_ID }]))
+
+    const result = await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      topicIds: undefined,
+      subtopicIds: [],
+      filters: ['all'],
+    })
+
+    expect(result).toMatchObject({ count: 1 })
+  })
+
+  it('bails immediately when both topicIds and subtopicIds are empty arrays', async () => {
+    setupAuthenticatedUser()
+    // mockFrom should never be called if bail fires before the query
+    mockFrom.mockReturnValue(buildQueryChain([{ id: Q1_ID }]))
+
+    const result = await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      topicIds: [],
+      subtopicIds: [],
+      filters: ['all'],
+    })
+
+    expect(result).toMatchObject({ count: 0 })
+  })
+})
+
 // ---- fetchTopicsWithSubtopics -----------------------------------------------
 
 const TOPIC_WITH_SUBTOPICS = [

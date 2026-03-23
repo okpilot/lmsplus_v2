@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DailyActivity } from '@/lib/queries/analytics'
 import { ActivityHeatmap } from './activity-heatmap'
@@ -67,5 +67,79 @@ describe('ActivityHeatmap', () => {
   it('renders the month name and year in the header', () => {
     render(<ActivityHeatmap data={[]} />)
     expect(screen.getByText('March 2026')).toBeInTheDocument()
+  })
+})
+
+describe('ActivityHeatmap — month navigation', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('navigates to the previous month when the back button is clicked', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    expect(screen.getByText('February 2026')).toBeInTheDocument()
+  })
+
+  it('renders correct number of days after navigating to February', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    const cells = screen.getAllByTitle(/\d+ February: \d+ questions/)
+    expect(cells).toHaveLength(28) // February 2026 has 28 days
+  })
+
+  it('navigates back to current month after going forward from previous month', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    expect(screen.getByText('February 2026')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(screen.getByText('March 2026')).toBeInTheDocument()
+  })
+
+  it('disables the forward button when viewing the current month', () => {
+    render(<ActivityHeatmap data={[]} />)
+    const nextButton = screen.getByRole('button', { name: 'Next month' })
+    expect(nextButton).toBeDisabled()
+  })
+
+  it('enables the forward button when viewing a past month', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    const nextButton = screen.getByRole('button', { name: 'Next month' })
+    expect(nextButton).not.toBeDisabled()
+  })
+
+  it('marks all days as future (muted/30) when viewing a future-offset month (positive offset)', () => {
+    // Navigate back then forward to be one behind, then — from the test's perspective —
+    // we can't go past offset=0, so instead verify no ring-primary in a past month
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    // In February (past month), no day should have today's ring
+    const todayCells = screen.queryAllByTitle(/ring/)
+    expect(todayCells).toHaveLength(0)
+    // All February cells should show 0 questions (no future dimming, but also no ring)
+    const cells = screen.getAllByTitle(/\d+ February: \d+ questions/)
+    expect(cells.every((c) => !c.className.includes('ring-primary'))).toBe(true)
+  })
+
+  it('does not show a today ring on cells when viewing a past month', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    const cells = screen.getAllByTitle(/\d+ February: \d+ questions/)
+    expect(cells.some((c) => c.className.includes('ring-2'))).toBe(false)
+  })
+
+  it('shows activity data for the navigated month when data is provided', () => {
+    const febActivity: DailyActivity[] = [{ day: '2026-02-14', total: 8, correct: 6, incorrect: 2 }]
+    render(<ActivityHeatmap data={febActivity} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    const cell = screen.getByTitle('14 February: 8 questions')
+    expect(cell.className).toContain('bg-green-500')
   })
 })

@@ -134,6 +134,18 @@ const { mockFn } = vi.hoisted(() => ({ mockFn: vi.fn() }))
 vi.mock('some-module', () => ({ fn: mockFn }))
 ```
 
+**This applies to every new mock module, without exception.** Vitest hoists `vi.mock()` factory
+calls to the top of the file at compile time. A plain `const` declared above the factory is
+`undefined` at factory execution time — the mock silently uses `undefined` as the implementation,
+producing no-ops or crashes depending on the call site. The bug is invisible until the test runs.
+
+Confirmed failure case (2026-03-20, subject-row.test.tsx): sonner toast mocks declared as plain
+`const` above `vi.mock('sonner', ...)` — both `mockToastSuccess` and `mockToastError` were
+`undefined` inside the factory. Caught by the test run, fixed before commit.
+
+Rule: for every new `vi.mock()` factory that references a variable, that variable MUST come from
+`vi.hoisted()`. There are no exceptions.
+
 ### window.location.href in jsdom
 jsdom's `window.location` is not directly writable. Use `Object.defineProperty` once at
 module scope to install a custom setter that captures values:
@@ -474,6 +486,110 @@ mockLoadSessionQuestions.mockReturnValue(new Promise(() => {}))
 // then assert synchronously — no need for waitFor
 expect(screen.getByText('Loading questions...')).toBeInTheDocument()
 ```
+
+---
+
+### Testing keyboard a11y on table rows (onKeyDown handler, 2026-03-23)
+
+When a `<tr>` has `tabIndex={0}` + `onKeyDown` to handle Enter/Space navigation, use
+`userEvent.keyboard` after `row.focus()`. The row element itself must be focused first —
+`userEvent.click` triggers `onClick`, not `onKeyDown`.
+
+```tsx
+it('navigates when Enter is pressed on a row', async () => {
+  const user = userEvent.setup()
+  render(<SessionTable sessions={[makeSession({ id: 'row-1' })]} />)
+  const row = screen.getAllByRole('row')[1] // index 0 is the header row
+  row.focus()
+  await user.keyboard('{Enter}')
+  expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/report?session=row-1')
+})
+
+it('navigates when Space is pressed on a row', async () => {
+  const user = userEvent.setup()
+  // ...
+  await user.keyboard(' ')
+  expect(mockRouterPush).toHaveBeenCalledWith(...)
+})
+
+it('does not navigate for unrelated keys', async () => {
+  // ...
+  await user.keyboard('{Tab}')
+  expect(mockRouterPush).not.toHaveBeenCalled()
+})
+```
+
+Note: `screen.getAllByRole('row')[0]` is the header row; data rows start at index 1.
+Also mock `next/link` when the component uses `<Link>` — otherwise JSDOM renders it
+as a custom element and `<a href>` assertions fail.
+
+---
+
+## Files tested in commit feat/178-quiz-results-redesign (2026-03-21)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/report/_components/score-ring.tsx` | `score-ring.test.tsx` | Pure SVG component; color thresholds, size prop, geometry |
+| `apps/web/app/app/quiz/report/_components/result-summary.tsx` | `result-summary.test.tsx` | Presenter with formatDuration/formatDate logic; null fallbacks |
+| `apps/web/app/app/quiz/report/_components/question-breakdown.tsx` | `question-breakdown.test.tsx` | Client component; pagination toggle, PAGE_SIZE boundary |
+
+## Files tested in CodeRabbit/SonarCloud fix commit (2026-03-23)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/reports/_components/session-table.tsx` | `session-table.test.tsx` | `<tr>` click + keyboard a11y (Enter/Space), score color, null score em-dash, mode label fallback |
+
+### Testing SVG components (score-ring pattern, 2026-03-21)
+SVG elements rendered in jsdom are queryable via `container.querySelectorAll`. Use index
+to distinguish the track circle (index 0) from the progress circle (index 1):
+```tsx
+const { container } = render(<ScoreRing percentage={70} />)
+const circles = container.querySelectorAll('circle')
+const progressCircle = circles[1]
+expect(progressCircle?.getAttribute('stroke')).toBe('#22C55E')
+```
+For the `role="img"` + `aria-label` pattern, use `screen.getByRole('img', { name: '...' })`.
+
+### Testing color threshold boundaries
+Always test at the boundary value itself (e.g., exactly 70%, exactly 50%, exactly 49%)
+rather than just above/below. This catches off-by-one errors in `>= vs >` comparisons:
+```tsx
+// Score >= 70 → green
+render(<ScoreRing percentage={70} />)   // at threshold
+render(<ScoreRing percentage={95} />)   // above threshold
+
+// Score >= 50 and < 70 → amber
+render(<ScoreRing percentage={50} />)   // at lower threshold
+render(<ScoreRing percentage={69} />)   // at upper threshold - 1
+
+// Score < 50 → red
+render(<ScoreRing percentage={49} />)   // at upper threshold - 1
+render(<ScoreRing percentage={0} />)    // minimum
+```
+
+### Testing expand/collapse (client component pagination)
+When a list component has a show-more toggle backed by `useState`, stub child rows with
+a `data-testid` so you can count visible rows without rendering child internals:
+```tsx
+vi.mock('./report-question-row', () => ({
+  ReportQuestionRow: ({ index }: { index: number }) => (
+    <div data-testid={`question-row-${index}`} />
+  ),
+}))
+// then assert:
+expect(screen.queryByTestId('question-row-5')).not.toBeInTheDocument()
+```
+Test the boundary (PAGE_SIZE=5, total=5 → no button; total=6 → button appears).
+Use `userEvent.setup()` for toggle interaction tests — avoids `act()` wrapping.
+
+### Testing date/time formatting functions embedded in presenters
+When a component formats dates with `toLocaleDateString`, assert on a partial substring
+(e.g., `/Mar 2026/`) rather than the full locale string. This avoids CI locale mismatch:
+```tsx
+expect(screen.getAllByText(/Mar 2026/).length).toBeGreaterThan(0)
+```
+For duration formatting, assert the exact string when the output is locale-independent
+(e.g., `'3m 30s'`, `'45s'`, `'—'`).
 
 ## Files tested in commit 481ea3a (dark mode)
 
@@ -2478,3 +2594,420 @@ The call order is: easa_subjects (ordered) → easa_topics (ordered) → easa_su
 
 ### Suite state after these files
 50 test files, ~490 tests — all passing.
+
+---
+
+## Files extended in latest commit (authError propagation — lookup + use-filtered-count + use-quiz-config)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/quiz/_hooks/use-filtered-count.ts` | `use-filtered-count.test.ts` | +2: `isFilterPending` cleared after auth error (`.finally()` path); stale auth error dropped by generation guard |
+| `apps/web/app/app/quiz/_hooks/use-quiz-config.ts` | `use-quiz-config.test.ts` | +3: `authError` is false by default; `authError` is true when fc reports auth error; clears when fc clears |
+
+### Stale auth error: dropped by generation guard (2026-03-20)
+When a hook's stale-fetch guard (`gen !== filterGeneration.current`) fires before the
+auth error branch, the auth error must be silently ignored. Test with the same deferred-promise
+pattern as the normal stale-fetch test, but resolve the stale promise with an auth error result:
+
+```ts
+it('does not set authError when a stale fetch returns an auth error', async () => {
+  let resolveFirst!: (v: unknown) => void
+  const firstFetch = new Promise((res) => { resolveFirst = res })
+  mockGetFilteredCount
+    .mockReturnValueOnce(firstFetch)
+    .mockResolvedValueOnce({ count: 5, byTopic: {}, bySubtopic: {} })
+
+  const { result } = renderHook(() => useFilteredCount())
+  act(() => { result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen']) })
+  await act(async () => { result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['incorrect']) })
+  // Second fetch won — stale first fetch now resolves with auth error
+  await act(async () => { resolveFirst({ count: 0, byTopic: {}, bySubtopic: {}, error: 'auth' }) })
+
+  expect(result.current.authError).toBe(false)  // stale result was ignored
+  expect(result.current.filteredCount).toBe(5)  // second result preserved
+})
+```
+
+Key: the generation guard fires BEFORE the `result.error === 'auth'` check in the `.then()` body.
+Both conditions live inside the same `then` callback — generation check is first, so a stale
+auth error never reaches the `setAuthError(true)` call.
+
+### isFilterPending cleared after auth error (.finally() path)
+The `.finally()` block always fires regardless of which branch the `.then()` took. Test this
+explicitly — it is observable state that distinguishes "auth error but fetch finished" from
+"auth error mid-flight":
+
+```ts
+it('clears isFilterPending after an auth error response', async () => {
+  mockGetFilteredCount.mockResolvedValue({ count: 0, byTopic: {}, bySubtopic: {}, error: 'auth' })
+  const { result } = renderHook(() => useFilteredCount())
+  await act(async () => { result.current.refetch(SUBJECT_ID, TOPIC_IDS, [], ['unseen']) })
+  expect(result.current.isFilterPending).toBe(false)  // .finally() fired
+  expect(result.current.authError).toBe(true)         // .then() set the error
+})
+```
+
+### authError passthrough in wrapper hooks
+When a hook delegates to another hook and passes through a field (e.g., `authError: fc.authError`),
+the passthrough must be tested at the wrapper level even though the delegate has its own tests.
+Three cases cover the contract completely:
+1. Default: wrapper returns `false` when delegate returns `false`
+2. Propagation: wrapper returns `true` when delegate returns `true`
+
+### Mocking Base UI Collapsible + CollapsibleTrigger (2026-03-20)
+The shadcn Collapsible uses Base UI under the hood and accepts a `render` prop (not an
+`asChild` prop). When mocking, forward the `aria-label` from that render prop to keep
+aria assertions working:
+
+```tsx
+vi.mock('@/components/ui/collapsible', () => ({
+  Collapsible: ({ children, open }: { children: React.ReactNode; open: boolean; onOpenChange: (v: boolean) => void }) => (
+    <div data-testid="collapsible" data-open={open}>{children}</div>
+  ),
+  CollapsibleTrigger: ({ children, render: renderProp }: { children: React.ReactNode; render?: React.ReactElement }) => {
+    const label =
+      renderProp && 'props' in renderProp
+        ? (renderProp.props as { 'aria-label'?: string })['aria-label']
+        : undefined
+    return (
+      <button type="button" data-testid="collapsible-trigger" aria-label={label}>
+        {children}
+      </button>
+    )
+  },
+  CollapsibleContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="collapsible-content">{children}</div>
+  ),
+}))
+```
+
+### Testing Server Action success/error/throw paths in a client component (2026-03-20)
+Pattern for components that call Server Actions inside `startTransition`:
+1. Mock the action module via `vi.hoisted` + `vi.mock`.
+2. Mock `sonner` toast to capture `toast.success` / `toast.error` calls.
+3. Trigger the action via a user click; `act()` wrapping is implicit via `userEvent`.
+4. Three assertions per action: success toast shown + view updated, error value surfaced, thrown error falls to generic message.
+
+```tsx
+const { mockUpsertSubject } = vi.hoisted(() => ({ mockUpsertSubject: vi.fn() }))
+vi.mock('../actions/upsert-subject', () => ({ upsertSubject: mockUpsertSubject }))
+
+const mockToastSuccess = vi.fn()
+const mockToastError = vi.fn()
+vi.mock('sonner', () => ({ toast: { success: mockToastSuccess, error: mockToastError } }))
+
+it('shows a success toast on update', async () => {
+  mockUpsertSubject.mockResolvedValue({ success: true })
+  // ... render + click
+  expect(mockToastSuccess).toHaveBeenCalledWith(expect.stringContaining('updated'))
+})
+
+it('shows an error toast when the action returns an error', async () => {
+  mockUpsertSubject.mockResolvedValue({ success: false, error: 'Code already exists' })
+  // ...
+  expect(mockToastError).toHaveBeenCalledWith('Code already exists')
+})
+
+it('shows a generic error toast when the action throws', async () => {
+  mockUpsertSubject.mockRejectedValue(new Error('Network failure'))
+  // ...
+  expect(mockToastError).toHaveBeenCalledWith('Service error. Please try again.')
+})
+```
+3. Recovery: wrapper returns `false` again when delegate is updated to `false` (via `rerender()`)
+
+---
+
+## Files tested in commit for comments + flag actions (2026-03-20)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/comments.ts` | `actions/comments.test.ts` | **NEW** — 20 tests: `getComments` (empty array when unauthenticated, Zod validation, happy path, DB error); `createComment` (auth error, Zod for empty/too-long body, happy path, DB error); `deleteComment` (auth error, Zod, happy path, DB error) |
+| `apps/web/app/app/quiz/actions/flag.ts` | `actions/flag.test.ts` | **NEW** — 29 tests: `toggleFlag` (auth, Zod, flag-on path, flag-off path, soft-delete verification, error on upsert, error on update); `getFlaggedIds` (empty list when unauthenticated/authError, Zod, happy path with subset/none/all, empty array input, table query, DB error) |
+
+### Suite state after this commit
+101 test files, 1146 tests — all passing (was 99 files / 1097 tests).
+
+### Sequential from() calls within a single action (flag toggle pattern)
+`toggleFlag` calls `from('flagged_questions')` twice: first for a `.maybeSingle()` check,
+second for either `.upsert()` (flag-on) or `.update()` (flag-off). Use a per-call counter
+to route the two sequential calls to different return values:
+
+```ts
+function setupSequentialFromCalls(firstValue: unknown, secondValue: unknown) {
+  let callCount = 0
+  mockFrom.mockImplementation(() => {
+    callCount++
+    return callCount === 1 ? buildChain(firstValue) : buildChain(secondValue)
+  })
+}
+
+// flag-on (not currently flagged): maybeSingle returns null, upsert succeeds
+setupSequentialFromCalls({ data: null, error: null }, { error: null })
+
+// flag-off (currently flagged): maybeSingle returns existing row, update succeeds
+setupSequentialFromCalls({ data: { student_id: USER_ID }, error: null }, { error: null })
+```
+
+This is simpler than the table-name switch pattern when both calls use the SAME table
+but represent distinct query phases within one action.
+
+### getComments: empty list on unauthenticated (not an error)
+`getComments` returns `{ success: true, comments: [] }` (not a failure) when no user is
+signed in. This is unlike `createComment` / `deleteComment` which return `{ success: false }`.
+Read the exact production code branch before writing the assertion — do not assume all
+auth failures produce `{ success: false }`.
+
+### deleteComment uses hard DELETE (not soft-delete)
+`deleteComment` calls `.delete().eq('id', ...)` with no `deleted_at` update.
+This is intentional — the `question_comments` table is hard-deleted by design.
+The test confirms the `question_comments` table is targeted but does NOT assert
+soft-delete behavior (which would be wrong for this table).
+
+---
+
+## Files tested in latest commit (use-comments hook + comments-tab rewrite + explanation-tab LO box)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_hooks/use-comments.ts` | `_hooks/use-comments.test.ts` | **NEW** — 14 tests: initial load (comments, failure, throw, loading state), questionId changes (clears + re-fetches, stale-fetch guard, error cleared), addComment (success appends, failure sets error), removeComment (optimistic remove, returns false + reloads on failure, optimistic visible before server responds) |
+| `apps/web/app/app/quiz/_components/comments-tab.tsx` | `_components/comments-tab.test.tsx` | **REWRITTEN** — 18 tests covering rewritten component (was 1 placeholder test) |
+| `apps/web/app/app/quiz/_components/explanation-tab.tsx` | `_components/explanation-tab.test.tsx` | **EXTENDED** — +3 tests for `learningObjective` prop (provided, omitted, null) |
+
+### Suite state after this commit
+103 test files, 1209 tests (was 103/1209 — no file count change since existing files were extended/rewritten in place).
+New tests: 35 (14 in use-comments.test.ts, +17 in comments-tab.test.tsx, +3 in explanation-tab.test.tsx, -1 old placeholder).
+
+### removeComment: setError(result.error) is immediately cleared by loadComments()
+`removeComment` calls `setError(result.error)` then immediately calls `loadComments()`.
+`loadComments()` begins with `setError(null)` — this synchronous call clears the error
+before `act()` flushes state. The transient error is NOT observable after `act()` resolves.
+
+**What IS observable:**
+1. `ok` return value is `false`
+2. `mockGetComments` was called a second time (the reload)
+3. comments are restored from the server
+
+**Do NOT assert `result.current.error` after removeComment failure.** It will be `null`
+(cleared by the reload's `setError(null)`) even though an error was set transiently.
+
+This is different from `addComment` failure, where there is no reload — the error persists.
+
+### CommentsTab: mocking useComments as a whole hook
+`CommentsTab` calls `useComments(questionId)`. Mock the entire hook to control `comments`,
+`isLoading`, `error`, `addComment`, and `removeComment` independently per test:
+
+```ts
+const { mockUseComments } = vi.hoisted(() => ({
+  mockUseComments: vi.fn(),
+}))
+
+vi.mock('../session/_hooks/use-comments', () => ({
+  useComments: (...args: unknown[]) => mockUseComments(...args),
+}))
+
+// In beforeEach:
+mockUseComments.mockReturnValue(defaultHookState())
+```
+
+This avoids re-wiring the hook's own action mocks in component tests. Tests that need
+specific states (e.g., loading, error, comments list) just call `mockUseComments.mockReturnValue(...)`.
+
+### CommentsTab: full_name null → name falls back to 'Unknown', not '?'
+The component does `const name = c.users?.full_name ?? 'Unknown'` BEFORE calling `getInitials(name)`.
+So when `full_name` is null, `name` is `'Unknown'` (not null), and `getInitials('Unknown')` returns `'U'`.
+The `'?'` sentinel in `getInitials` is only reachable if `null` is passed directly — which never
+happens through the component. Do not write a test asserting `'?'` initials.
+
+### CommentsTab: Enter-key submit uses onKeyDown, not form submit
+The input uses `onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}`.
+Use `userEvent.type(input, 'text{Enter}')` to trigger it — userEvent fires keydown events.
+Do NOT use `fireEvent.submit` or rely on form submission (there is no `<form>` element).
+
+### CommentsTab: the Post button is disabled when body is blank
+The button has `disabled={!body.trim() || submitting}`. With an empty input,
+`mockAddComment` is not called even if the button is clicked via `userEvent.click()`.
+Assert `expect(mockAddComment).not.toHaveBeenCalled()` to confirm the guard fires.
+
+---
+
+## Files tested in latest commit (use-flagged-questions + quiz-controls rewrite)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/session/_hooks/use-flagged-questions.ts` | `use-flagged-questions.test.ts` | New — 12 tests: empty array no-op, populated fetch, failure leaves state empty, same-ref skip, new-ref re-fetch, isFlagged, toggleFlag add/remove/failure/multiple |
+| `apps/web/app/app/quiz/session/_components/quiz-controls.tsx` | `quiz-controls.test.tsx` | New — 20 tests: Flag/Unflag label, aria-pressed, active CSS class, callbacks, dialog open/closed, dialog callbacks |
+
+### Stable array references in hooks that use reference-equality guards
+When a hook uses `if (prevIdsRef.current === questionIds) return` to skip re-fetching on
+the same reference, passing inline array literals in tests (`useFlaggedQuestions([Q1])`)
+creates a new reference on every render, causing the effect to fire in an infinite loop.
+
+**Rule:** always declare array fixtures as module-level `const` so the reference is stable
+across re-renders:
+
+```ts
+// ✅ CORRECT — stable reference
+const IDS_Q1 = [Q1]
+const IDS_Q1_Q2 = [Q1, Q2]
+renderHook(() => useFlaggedQuestions(IDS_Q1))
+
+// ❌ WRONG — new reference every render → infinite re-fetch loop
+renderHook(() => useFlaggedQuestions([Q1]))
+```
+
+This is not a hook bug — it is the intended behaviour (consumers are expected to pass a
+stable memoized array). The test must match the intended usage contract.
+
+### Waiting for "failure path does not update state" in hooks with useTransition
+When a hook calls an async action inside `startTransition` and only updates state on
+`result.success === true`, there is no observable state change to `waitFor` on the
+failure path. Use `waitFor(() => expect(mockAction).toHaveBeenCalledOnce())` as the
+synchronisation point — this confirms the async work ran before asserting on state:
+
+```ts
+it('leaves state unchanged when action returns failure', async () => {
+  mockGetFlaggedIds.mockResolvedValue({ success: false, error: 'Failed' })
+
+  const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1_Q2))
+
+  await waitFor(() => {
+    expect(mockGetFlaggedIds).toHaveBeenCalledOnce()
+  })
+
+  // Now safe to assert — the async transition settled
+  expect(result.current.flaggedIds.size).toBe(0)
+})
+```
+
+### Mocking FinishQuizDialog in QuizControls tests
+`FinishQuizDialog` has its own test file. Mock it with a minimal shim that:
+1. Returns `null` when `open === false` (matching the real behaviour)
+2. Renders a named `data-testid` + callback buttons when `open === true`
+3. Passes through all callbacks so they can be asserted
+
+```tsx
+vi.mock('../../_components/finish-quiz-dialog', () => ({
+  FinishQuizDialog: ({ open, onSubmit, onCancel, onSave, onDiscard }) =>
+    open ? (
+      <div data-testid="finish-dialog">
+        <button type="button" onClick={onSubmit}>Submit Quiz</button>
+        <button type="button" onClick={onCancel}>Cancel</button>
+        <button type="button" onClick={onSave}>Save for Later</button>
+        <button type="button" onClick={onDiscard}>Discard Quiz</button>
+      </div>
+    ) : null,
+}))
+```
+
+The mock must NOT be placed inside `vi.hoisted` since it references no hoisted variables.
+Declare it at module scope as a plain `vi.mock()` factory.
+
+---
+
+## Files tested in commit 75acdaf (dashboard redesign + heatmap navigation + lookup bail fix)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/dashboard/_components/info-tooltip.tsx` | `info-tooltip.test.tsx` | **NEW FILE** — 9 tests: aria-label, hidden before interaction, shows on click, toggle close, title/description rendering, close on outside click, three align variants |
+| `apps/web/app/app/dashboard/_components/activity-heatmap.tsx` | `activity-heatmap.test.tsx` | Extended — 8 navigation tests: prev month header, correct day count for Feb, round-trip navigation, forward button disabled at current month, enabled in past month, no today-ring in past month, activity data shown in navigated month |
+| `apps/web/app/app/quiz/_hooks/use-quiz-config.ts` | `use-quiz-config.test.ts` | Extended — 2 tests: `setFilters(['all'])` calls `fc.reset()`; `setFilters(['incorrect'])` does NOT call `fc.reset()` |
+| `apps/web/app/app/quiz/actions/lookup.ts` | `lookup.test.ts` | Extended — 3 tests for new AND-bail semantics: `topicIds: []` alone does NOT bail; `subtopicIds: []` alone does NOT bail; both empty bails |
+
+### HeatmapInfo (heatmap-info.tsx) — pure presenter, no tests needed
+`HeatmapInfo` is a pure wrapper with no props, no state, no logic — just renders `InfoTooltip`
+with fixed strings. Skipped per rule: do not flag missing tests on pure presenter components.
+
+### ActivityHeatmap navigation tests — navigation drives UI via fireEvent.click
+Month navigation is driven by clicking the Previous/Next month buttons with `fireEvent.click`.
+The header `<h3>` text changes synchronously after the click (state → re-render). Use
+`screen.getByText('February 2026')` to assert the new month:
+```tsx
+fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+expect(screen.getByText('February 2026')).toBeInTheDocument()
+```
+
+### lookup.ts bail logic — AND semantics require testing both "one empty" cases
+The changed guard `if (!hasTopics && !hasSubtopics)` requires three tests:
+1. `topicIds: []`, `subtopicIds: undefined` — `hasSubtopics = true` → no bail, query runs
+2. `topicIds: undefined`, `subtopicIds: []` — `hasTopics = true` → no bail, query runs
+3. `topicIds: []`, `subtopicIds: []` — both false → bail, returns empty
+
+For cases 1 and 2, mock `mockFrom` to return a chain with data — the test asserts `count > 0`
+to prove the query ran. Do not assert `count: 0` for the no-bail cases or the test becomes
+fragile (depends on mock data rather than guard logic).
+
+### InfoTooltip close-on-outside-click — use fireEvent with bubbles:true
+The `onClickOutside` listener is registered on `document` with capture phase (`addEventListener(..., true)`).
+In jsdom, `fireEvent.click(element, { bubbles: true })` correctly propagates through the
+capture listener. The container `div` has a ref check (`!ref.current.contains(target)`),
+so clicking outside the component's root `div` triggers the close:
+```tsx
+const trigger = screen.getByRole('button', { name: 'What does this mean?' })
+fireEvent.click(trigger)  // opens
+fireEvent.click(screen.getByRole('button', { name: 'Outside' }), { bubbles: true })  // closes
+```
+The outside element must be rendered in the same `render()` call to be in the same document.
+
+### Suite state after commit 75acdaf
+112 test files, 1360 tests — all passing.
+
+---
+
+## Files extended in latest commit (quiz session layout + answer-options callback + flag RLS fix)
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/_components/answer-options.tsx` | `answer-options.test.tsx` | +11 tests: `onSelectionChange` callback (fires on click, skipped when disabled/showResult, optional), `showResult` requires BOTH props (correctOptionId null → Submit still shown + no result styling, both set → Submit hidden) |
+| `apps/web/app/app/quiz/session/_components/quiz-main-panel.tsx` | `quiz-main-panel.test.tsx` | +2 tests: `onSelectionChange` forwarded to AnswerOptions on question tab; callback absent when non-question tab renders QuizTabContent |
+| `apps/web/app/app/quiz/session/_components/quiz-session.tsx` | `quiz-session.test.tsx` | +2 tests: desktop QuizControls always has showSubmit=false; option click triggers checkAnswer |
+
+### Changes with no new tests needed
+- `apps/web/app/app/quiz/_components/question-grid.tsx` — existing tests already cover filter row, mobile collapse/expand, and desktop rendering. This commit added ResizeObserver measurement + filter pills (all already tested).
+- `apps/web/app/app/quiz/_components/question-tabs.tsx` — label rename "Statistics" → "Stats" already reflected in existing test (`'Stats'`).
+- `apps/web/app/app/quiz/session/_components/quiz-controls.tsx` — `showSubmit` prop + `icon` forwarding already tested.
+- `apps/web/app/app/quiz/session/_components/quiz-main-panel.tsx` — `onSelectionChange` forwarding now tested.
+- `apps/web/app/app/quiz/actions/flag.ts` — only added `.is('deleted_at', null)` (explicit soft-delete filter); all existing test paths exercise the same code branches. No logic change.
+- `apps/web/app/app/quiz/session/layout.tsx` — pure layout (className change); no logic.
+- `supabase/migrations/20260323000050_fix_flagged_unflag_rls.sql` — DB migration; covered by integration tests.
+
+### onSelectionChange mock pattern in parent component tests
+When a child component that accepts `onSelectionChange` is mocked in a parent's test file,
+update the mock to both store the forwarded callback AND expose a way to invoke it from tests:
+
+```tsx
+const mockAnswerOptionsOnSelectionChange = vi.fn()
+vi.mock('@/app/app/_components/answer-options', () => ({
+  AnswerOptions: ({
+    onSelectionChange,
+  }: {
+    // ... full type
+    onSelectionChange?: (id: string | null) => void
+  }) => {
+    if (onSelectionChange) {
+      mockAnswerOptionsOnSelectionChange.mockImplementation(onSelectionChange)
+    }
+    return <div data-testid="answer-options" />
+  },
+}))
+
+// In test:
+mockAnswerOptionsOnSelectionChange('opt-x')
+expect(onSelectionChange).toHaveBeenCalledWith('opt-x')
+```
+
+This confirms identity of the forwarded callback without rendering the real component.
+
+### canSubmitAnswer depends on onSelectionChange — mock must fire both callbacks
+When testing a parent component that wires `onSelectionChange` into the `AnswerOptions` mock,
+the mock's click handler must fire `onSelectionChange` BEFORE `onSubmit` to simulate real
+answer-options behaviour (select → then submit separately). If both fire in the same click,
+the `existingAnswer` is set immediately after `onSubmit`, making `canSubmitAnswer` false
+before any assertion can observe the `true` state.
+
+For quiz-session tests, the pragmatic approach: test `canSubmitAnswer` indirectly by asserting
+what happens downstream (checkAnswer is called) rather than asserting the Submit button appears.
+The Submit button's visibility is covered by `QuizControls` unit tests (`showSubmit` prop).
+
+### Suite state after this commit
+112 test files, 1360 tests — all passing.

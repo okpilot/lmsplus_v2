@@ -221,6 +221,108 @@ describe('AnswerOptions', () => {
     })
   })
 
+  describe('onSelectionChange callback', () => {
+    it('calls onSelectionChange with the option id when an option is clicked', async () => {
+      const user = userEvent.setup()
+      const onSelectionChange = vi.fn()
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          onSelectionChange={onSelectionChange}
+        />,
+      )
+      await user.click(screen.getByTestId('option-b'))
+      expect(onSelectionChange).toHaveBeenCalledWith('b')
+    })
+
+    it('does not call onSelectionChange when options are disabled', async () => {
+      const user = userEvent.setup()
+      const onSelectionChange = vi.fn()
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          onSelectionChange={onSelectionChange}
+        />,
+      )
+      await user.click(screen.getByTestId('option-a'))
+      expect(onSelectionChange).not.toHaveBeenCalled()
+    })
+
+    it('does not call onSelectionChange when result is already shown', () => {
+      const onSelectionChange = vi.fn()
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          selectedOptionId="a"
+          correctOptionId="b"
+          onSelectionChange={onSelectionChange}
+        />,
+      )
+      // Clicking an option when result is showing should be a no-op
+      screen.getByTestId('option-c').click()
+      expect(onSelectionChange).not.toHaveBeenCalled()
+    })
+
+    it('is optional — component renders without onSelectionChange', async () => {
+      const user = userEvent.setup()
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      // Should not throw when prop is omitted
+      await user.click(screen.getByTestId('option-a'))
+      expect(screen.getByTestId('option-a')).toHaveAttribute('data-selected', 'true')
+    })
+  })
+
+  describe('showResult condition requires both selectedOptionId and correctOptionId', () => {
+    it('still shows Submit button when selectedOptionId is set but correctOptionId is null', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          selectedOptionId="a"
+          correctOptionId={null}
+        />,
+      )
+      // correctOptionId is null → showResult is false → Submit button should appear
+      expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeInTheDocument()
+    })
+
+    it('does not show result styling when correctOptionId is null even though selectedOptionId is set', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          selectedOptionId="a"
+          correctOptionId={null}
+        />,
+      )
+      // No green or red styling — result mode is off
+      const btn = screen.getByText('Option Alpha').closest('button')
+      expect(btn?.className).not.toContain('border-green-500')
+      expect(btn?.className).not.toContain('border-destructive')
+    })
+
+    it('hides Submit button when both selectedOptionId and correctOptionId are provided', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          selectedOptionId="a"
+          correctOptionId="b"
+        />,
+      )
+      expect(screen.queryByRole('button', { name: 'Submit Answer' })).not.toBeInTheDocument()
+    })
+  })
+
   describe('data-selected attribute', () => {
     it('sets data-selected="true" on the option the user clicks before submission', async () => {
       const user = userEvent.setup()

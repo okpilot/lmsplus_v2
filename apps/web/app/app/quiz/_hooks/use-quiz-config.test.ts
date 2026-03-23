@@ -176,6 +176,27 @@ describe('useQuizConfig — setFilters', () => {
     expect(result.current.filters).toEqual(['unseen'])
   })
 
+  it('calls fc.reset when filters are cleared back to [all]', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    await act(async () => {
+      result.current.setFilters(['unseen'] as QuestionFilterValue[])
+    })
+    mockFcReset.mockClear()
+    await act(async () => {
+      result.current.setFilters(['all'] as QuestionFilterValue[])
+    })
+    expect(mockFcReset).toHaveBeenCalled()
+  })
+
+  it('does not call fc.reset when setting a non-all filter', async () => {
+    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    mockFcReset.mockClear()
+    await act(async () => {
+      result.current.setFilters(['incorrect'] as QuestionFilterValue[])
+    })
+    expect(mockFcReset).not.toHaveBeenCalled()
+  })
+
   it('triggers fc.refetch via effect with ALL topic IDs when filters change', async () => {
     const mockTree = buildMockTopicTree({
       topics: [
