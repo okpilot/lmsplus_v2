@@ -50,8 +50,8 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
   } = await supabase.auth.getUser()
   if (authError || !user) return { ...empty, error: 'auth' }
 
-  // Bail if an array was explicitly provided but is empty — means nothing is selected.
-  // Only bail when BOTH scoping arrays are empty/absent (no topics AND no subtopics).
+  // undefined = no scoping restriction (query all); [] = explicitly nothing selected.
+  // Only bail when BOTH arrays are explicitly empty — no topics AND no subtopics.
   const hasTopics = topicIds === undefined || topicIds.length > 0
   const hasSubtopics = subtopicIds === undefined || subtopicIds.length > 0
   if (!hasTopics && !hasSubtopics) {

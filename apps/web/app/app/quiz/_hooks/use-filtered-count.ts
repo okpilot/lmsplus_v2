@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { getFilteredCount } from '../actions/lookup'
 import type { QuestionFilterValue } from '../types'
 
@@ -34,7 +34,7 @@ export function useFilteredCount(): FilteredCountState {
     setAuthError(false)
   }
 
-  function refetch(
+  const refetch = useCallback(function refetch(
     subjectId: string,
     topicIds: string[],
     subtopicIds: string[],
@@ -65,7 +65,7 @@ export function useFilteredCount(): FilteredCountState {
       .finally(() => {
         if (gen === filterGeneration.current) setIsFilterPending(false)
       })
-  }
+  }, [])
 
   return {
     filteredCount,

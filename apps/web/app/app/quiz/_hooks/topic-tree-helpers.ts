@@ -64,6 +64,27 @@ export function computeToggleSubtopic(
   return { topics: newTopics, subtopics: newSubtopics }
 }
 
+/** Sum filtered counts for only the checked topics/subtopics. */
+export function calcFilteredAvailable(
+  topics: TopicWithSubtopics[],
+  checkedTopics: Set<string>,
+  checkedSubtopics: Set<string>,
+  filteredByTopic: Record<string, number>,
+  filteredBySubtopic: Record<string, number>,
+): number {
+  let total = 0
+  for (const topic of topics) {
+    if (topic.subtopics.length === 0) {
+      if (checkedTopics.has(topic.id)) total += filteredByTopic[topic.id] ?? 0
+    } else {
+      for (const st of topic.subtopics) {
+        if (checkedSubtopics.has(st.id)) total += filteredBySubtopic[st.id] ?? 0
+      }
+    }
+  }
+  return total
+}
+
 export function computeSelectAll(
   allSelected: boolean,
   topics: TopicWithSubtopics[],

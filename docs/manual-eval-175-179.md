@@ -42,7 +42,6 @@
 - [ ] Each card: subject code + name + percentage + color-coded progress bar
   - Red (<50%) / Amber (50-89%) / Green (90%+)
 - [ ] "Last practiced" relative date shown
-- [ ] "Practice" link navigates to `/app/quiz?subject=[code]`
 
 ### Dark Mode
 
@@ -228,7 +227,6 @@
 ### Navigation Flow
 
 - [ ] Dashboard "Start Quiz" → Quiz Setup page
-- [ ] Dashboard "Practice" link on subject card → Quiz Setup with subject pre-selected
 - [ ] Quiz Setup "Start Quiz" → Quiz Session (full-screen)
 - [ ] Quiz Session "Finish Test" → Submit → Quiz Results
 - [ ] Quiz Results "Start Another Quiz" → Quiz Setup
