@@ -367,7 +367,7 @@ This view filters soft-deleted flags and has `security_invoker = true` (migratio
 1. Only non-deleted flags are visible
 2. Ownership RLS policies are applied via the view
 
-**Why `security_invoker`?** Without it, views inherit the caller's permissions, and RLS policies are bypassed. Setting `security_invoker = true` forces RLS evaluation inside the view definition, ensuring that queries like `SELECT * FROM active_flagged_questions` enforce `student_id = auth.uid()` even though the view itself runs as the table owner.
+**Why `security_invoker`?** By default, views run with owner-context permission checks, bypassing caller RLS. Setting `security_invoker = true` switches to invoker-context, so RLS on `flagged_questions` is evaluated as the calling user — ensuring `student_id = auth.uid()` is enforced when querying `active_flagged_questions`.
 
 ### question_comments
 Per-question discussion threads. Students and admins can post comments on any question. Hard-delete table (low audit value).
@@ -1381,4 +1381,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-17 (migration 041-042: N+1 fix in batch_submit_quiz + 4 missing indexes) | Companion: docs/security.md*
+*Last updated: 2026-03-23 (migration 041-042: N+1 fix in batch_submit_quiz + 4 missing indexes) | Companion: docs/security.md*

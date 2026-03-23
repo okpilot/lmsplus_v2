@@ -32,8 +32,12 @@ export function InfoTooltip({
     return () => document.removeEventListener('click', onClickOutside, true)
   }, [open])
 
-  const alignClass =
-    align === 'left' ? 'left-0' : align === 'center' ? 'left-1/2 -translate-x-1/2' : 'right-0'
+  const ALIGN_CLASSES = {
+    left: 'left-0',
+    center: 'left-1/2 -translate-x-1/2',
+    right: 'right-0',
+  } as const
+  const alignClass = ALIGN_CLASSES[align]
 
   return (
     <div ref={ref} className="group relative inline-flex">

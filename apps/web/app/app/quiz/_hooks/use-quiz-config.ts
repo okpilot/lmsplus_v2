@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz'
 import type { QuestionFilterValue, QuizMode } from '../types'
 import { createConfigHandlers } from './quiz-config-handlers'
@@ -32,7 +32,15 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
       fc.filteredByTopic,
       fc.filteredBySubtopic,
     )
-  }, [hasActiveFilters, fc.filteredByTopic, fc.filteredBySubtopic, topicTree])
+  }, [
+    hasActiveFilters,
+    fc.filteredByTopic,
+    fc.filteredBySubtopic,
+    topicTree.selectedQuestionCount,
+    topicTree.topics,
+    topicTree.checkedTopics,
+    topicTree.checkedSubtopics,
+  ])
   const { loading, error, handleStart } = useQuizStart({
     subjectId,
     subjects,
@@ -42,14 +50,8 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     topicTree,
   })
 
-  const mountedRef = useRef(false)
-  useEffect(() => {
-    mountedRef.current = true
-  }, [])
-
   // Fetch filtered counts for the entire subject when filters change
   useEffect(() => {
-    if (!mountedRef.current) return
     if (!subjectId || !hasActiveFilters || allTopicIds.length === 0) return
     fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters)
   }, [subjectId, hasActiveFilters, filters, allTopicIds, allSubtopicIds, fc.refetch])

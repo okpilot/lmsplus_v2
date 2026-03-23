@@ -176,7 +176,7 @@ describe('useQuizConfig — setFilters', () => {
     expect(result.current.filters).toEqual(['unseen'])
   })
 
-  it('calls fc.reset when filters are cleared back to [all]', async () => {
+  it('resets filtered counts when clearing all filters', async () => {
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
     await act(async () => {
       result.current.setFilters(['unseen'] as QuestionFilterValue[])
@@ -188,7 +188,7 @@ describe('useQuizConfig — setFilters', () => {
     expect(mockFcReset).toHaveBeenCalled()
   })
 
-  it('does not call fc.reset when setting a non-all filter', async () => {
+  it('preserves filtered counts when applying a specific filter', async () => {
     const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
     mockFcReset.mockClear()
     await act(async () => {
@@ -197,7 +197,7 @@ describe('useQuizConfig — setFilters', () => {
     expect(mockFcReset).not.toHaveBeenCalled()
   })
 
-  it('triggers fc.refetch via effect with ALL topic IDs when filters change', async () => {
+  it('fetches filtered counts for all topics when filters change', async () => {
     const mockTree = buildMockTopicTree({
       topics: [
         {
@@ -237,6 +237,7 @@ describe('useQuizConfig — setFilters', () => {
       ['s1', 's2'],
       ['incorrect'],
     )
+    expect(mockFcRefetch).toHaveBeenCalledTimes(1)
   })
 
   it('does NOT re-fetch when only topic checkboxes change (counts are subject-wide)', async () => {

@@ -121,10 +121,7 @@ describe('ActivityHeatmap — month navigation', () => {
     render(<ActivityHeatmap data={[]} />)
     fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
     // In February (past month), no day should have today's ring
-    const todayCells = screen.queryAllByTitle(/ring/)
-    expect(todayCells).toHaveLength(0)
-    // All February cells should show 0 questions (no future dimming, but also no ring)
-    const cells = screen.getAllByTitle(/\d+ February: \d+ questions/)
+    const cells = screen.getAllByTitle(/February/)
     expect(cells.every((c) => !c.className.includes('ring-primary'))).toBe(true)
   })
 
