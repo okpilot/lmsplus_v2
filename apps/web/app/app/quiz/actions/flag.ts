@@ -25,12 +25,12 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
   }
   const { questionId } = parsed
 
-  // RLS SELECT filters deleted_at IS NULL, so this only finds active flags
   const { data: existing, error: lookupError } = await supabase
     .from('flagged_questions')
     .select('student_id')
     .eq('student_id', user.id)
     .eq('question_id', questionId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (lookupError) {
@@ -101,11 +101,11 @@ export async function getFlaggedIds(raw: unknown): Promise<GetFlaggedResult> {
     return { success: false, error: 'Invalid input' }
   }
 
-  // RLS automatically filters deleted_at IS NULL
   const { data, error } = await supabase
     .from('flagged_questions')
     .select('question_id')
     .eq('student_id', user.id)
+    .is('deleted_at', null)
     .in('question_id', parsed.questionIds)
 
   if (error) {

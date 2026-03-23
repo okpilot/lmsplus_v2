@@ -14,24 +14,8 @@ vi.mock('@/app/app/_components/answer-options', () => ({
   AnswerOptions: () => <div data-testid="answer-options" />,
 }))
 
-vi.mock('@/app/app/_components/session-timer', () => ({
-  SessionTimer: ({ className }: { className?: string }) => (
-    <span data-testid="session-timer" className={className}>
-      00:00
-    </span>
-  ),
-}))
-
-vi.mock('../../_components/question-tabs', () => ({
-  QuestionTabs: () => <div data-testid="question-tabs" />,
-}))
-
 vi.mock('./quiz-tab-content', () => ({
   QuizTabContent: () => <div data-testid="quiz-tab-content" />,
-}))
-
-vi.mock('./quiz-controls', () => ({
-  QuizControls: () => <div data-testid="quiz-controls" />,
 }))
 
 // ---- Subject under test ----------------------------------------------------
@@ -86,198 +70,46 @@ describe('QuizMainPanel', () => {
 
   it('returns null when question is absent', () => {
     const s = makeState({ question: undefined })
-    const { container } = render(
-      <QuizMainPanel
-        s={s}
-        totalQuestions={3}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
+    const { container } = render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
     expect(container.firstChild).toBeNull()
   })
 
-  it('renders the question card with the current question text', () => {
-    render(
-      <QuizMainPanel
-        s={makeState()}
-        totalQuestions={3}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
+  it('renders the question card with the current question text on the question tab', () => {
+    render(<QuizMainPanel s={makeState()} activeTab="question" userId="test-user-id" />)
     expect(screen.getByTestId('question-card')).toHaveTextContent('What is lift?')
   })
 
-  it('displays the correct question counter', () => {
-    render(
-      <QuizMainPanel
-        s={makeState({ currentIndex: 1 })}
-        totalQuestions={5}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
-    expect(screen.getByText(/Question 2 of 5/)).toBeInTheDocument()
+  it('renders answer options on the question tab', () => {
+    render(<QuizMainPanel s={makeState()} activeTab="question" userId="test-user-id" />)
+    expect(screen.getByTestId('answer-options')).toBeInTheDocument()
   })
 
-  it('shows the question number when present', () => {
-    render(
-      <QuizMainPanel
-        s={makeState()}
-        totalQuestions={3}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('No. 050-01-01-001')).toBeInTheDocument()
-  })
-
-  it('omits the question number element when question_number is null', () => {
-    const s = makeState({
-      question: {
-        id: 'q1',
-        question_text: 'What is drag?',
-        question_image_url: null,
-        question_number: null,
-        explanation_text: null,
-        explanation_image_url: null,
-        options: [],
-      },
-    })
-    render(
-      <QuizMainPanel
-        s={s}
-        totalQuestions={3}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
-    expect(screen.queryByText(/^No\./)).not.toBeInTheDocument()
-  })
-
-  it('renders the session timer', () => {
-    render(
-      <QuizMainPanel
-        s={makeState()}
-        totalQuestions={3}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
-    expect(screen.getByTestId('session-timer')).toBeInTheDocument()
-  })
-
-  it('shows progress bar at correct width for answered questions', () => {
-    const s = makeState({ answeredCount: 2 })
-    render(
-      <QuizMainPanel
-        s={s}
-        totalQuestions={4}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
-    const bar = screen.getByTestId('progress-bar')
-    expect(bar).toHaveStyle({ width: '50%' })
-  })
-
-  it('shows progress bar at 0% when no questions answered', () => {
-    render(
-      <QuizMainPanel
-        s={makeState({ answeredCount: 0 })}
-        totalQuestions={5}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
-    const bar = screen.getByTestId('progress-bar')
-    expect(bar).toHaveStyle({ width: '0%' })
-  })
-
-  it('shows progress bar at 100% when all questions answered', () => {
-    render(
-      <QuizMainPanel
-        s={makeState({ answeredCount: 3 })}
-        totalQuestions={3}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
-    const bar = screen.getByTestId('progress-bar')
-    expect(bar).toHaveStyle({ width: '100%' })
-  })
-
-  it('shows answered count fraction next to progress bar', () => {
-    render(
-      <QuizMainPanel
-        s={makeState({ answeredCount: 2 })}
-        totalQuestions={5}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('2/5')).toBeInTheDocument()
-  })
-
-  it('shows error alert when s.error is set', () => {
+  it('shows error alert when s.error is set on the question tab', () => {
     const s = makeState({ error: 'Something went wrong' })
-    render(
-      <QuizMainPanel
-        s={s}
-        totalQuestions={3}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
-    )
+    render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
     expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong')
   })
 
   it('does not render error alert when s.error is null', () => {
     render(
-      <QuizMainPanel
-        s={makeState({ error: null })}
-        totalQuestions={3}
-        activeTab="question"
-        onTabChange={vi.fn()}
-        userId="test-user-id"
-        isFlagged={false}
-        onToggleFlag={vi.fn()}
-      />,
+      <QuizMainPanel s={makeState({ error: null })} activeTab="question" userId="test-user-id" />,
     )
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('renders QuizTabContent instead of question card when tab is not question', () => {
+    render(<QuizMainPanel s={makeState()} activeTab="explanation" userId="test-user-id" />)
+    expect(screen.getByTestId('quiz-tab-content')).toBeInTheDocument()
+    expect(screen.queryByTestId('question-card')).not.toBeInTheDocument()
+  })
+
+  it('renders QuizTabContent for the comments tab', () => {
+    render(<QuizMainPanel s={makeState()} activeTab="comments" userId="test-user-id" />)
+    expect(screen.getByTestId('quiz-tab-content')).toBeInTheDocument()
+  })
+
+  it('renders QuizTabContent for the statistics tab', () => {
+    render(<QuizMainPanel s={makeState()} activeTab="statistics" userId="test-user-id" />)
+    expect(screen.getByTestId('quiz-tab-content')).toBeInTheDocument()
   })
 })

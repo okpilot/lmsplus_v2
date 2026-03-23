@@ -1,6 +1,5 @@
-// Full-screen overlay for quiz sessions. AppShell also strips nav for /session
-// routes — both layers are needed: AppShell removes nav from the React tree,
-// this layout provides the fixed fullscreen container.
+// Quiz session uses the AppShell fullscreen path (no sidebar/header).
+// This layout just ensures the session fills the viewport height.
 export default function QuizSessionLayout({ children }: { children: React.ReactNode }) {
-  return <div className="fixed inset-0 z-50 flex flex-col bg-background">{children}</div>
+  return <div className="flex min-h-[100dvh] flex-col">{children}</div>
 }

@@ -246,11 +246,11 @@ describe('QuizSession', () => {
   it('navigates to next question and back', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is drag?')
     expect(screen.getByText(/Question 2 of/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /Previous/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Previous/ })[0]!)
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is lift?')
     expect(screen.getByText(/Question 1 of/)).toBeInTheDocument()
   })
@@ -258,14 +258,14 @@ describe('QuizSession', () => {
   it('disables Previous on first question and Next on last', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
-    expect(screen.getByRole('button', { name: /Previous/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Next/ })).toBeEnabled()
+    expect(screen.getAllByRole('button', { name: /Previous/ })[0]!).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: /Next/ })[0]!).toBeEnabled()
 
     // Navigate to last question
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
-    expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Previous/ })).toBeEnabled()
+    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
+    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
+    expect(screen.getAllByRole('button', { name: /Next/ })[0]!).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: /Previous/ })[0]!).toBeEnabled()
   })
 
   it('shows finish dialog when clicking Finish Test', () => {
@@ -294,7 +294,7 @@ describe('QuizSession', () => {
     fireEvent.click(screen.getByTestId('option-a'))
 
     // Go to second question and answer
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
     fireEvent.click(screen.getByTestId('option-c'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
@@ -361,8 +361,8 @@ describe('QuizSession', () => {
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
 
     // Navigate away and back
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }))
-    fireEvent.click(screen.getByRole('button', { name: /Previous/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Next/ })[0]!)
+    fireEvent.click(screen.getAllByRole('button', { name: /Previous/ })[0]!)
 
     // Answer should still be selected
     expect(screen.getByTestId('option-a').dataset.selected).toBe('true')
@@ -382,7 +382,7 @@ describe('QuizSession', () => {
 
   it('toggles pin state on the current question', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
-    const pinBtn = screen.getByTestId('pin-button')
+    const pinBtn = screen.getAllByTestId('pin-button')[0]!
     expect(pinBtn).toHaveTextContent('Pin')
     expect(pinBtn).toHaveAttribute('aria-pressed', 'false')
 
