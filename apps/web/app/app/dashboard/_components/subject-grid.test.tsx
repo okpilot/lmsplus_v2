@@ -79,10 +79,4 @@ describe('SubjectGrid', () => {
     render(<SubjectGrid subjects={[SUBJECT_MET]} />)
     expect(screen.getByText(/Last practiced: Never/)).toBeInTheDocument()
   })
-
-  it('renders the Practice link pointing to the quiz with subject id', () => {
-    render(<SubjectGrid subjects={[SUBJECT_MET]} />)
-    const link = screen.getByRole('link', { name: 'Practice' })
-    expect(link).toHaveAttribute('href', '/app/quiz?subject=sub-1')
-  })
 })

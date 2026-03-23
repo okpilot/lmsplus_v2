@@ -15,6 +15,7 @@ type AnswerOptionsProps = {
   disabled: boolean
   correctOptionId?: string | null
   selectedOptionId?: string | null
+  onSelectionChange?: (id: string | null) => void
 }
 
 function getOptionStyle(opts: {
@@ -38,10 +39,17 @@ export function AnswerOptions({
   disabled,
   correctOptionId,
   selectedOptionId: lockedSelection,
+  onSelectionChange,
 }: AnswerOptionsProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const currentSelection = lockedSelection ?? selected
-  const showResult = lockedSelection != null
+  const showResult = lockedSelection != null && correctOptionId != null
+
+  function handleSelect(id: string) {
+    if (showResult || disabled) return
+    setSelected(id)
+    onSelectionChange?.(id)
+  }
 
   return (
     <div className="space-y-2">
@@ -63,11 +71,11 @@ export function AnswerOptions({
             data-testid={`option-${option.id}`}
             data-selected={isSelected && !showResult ? 'true' : undefined}
             disabled={disabled}
-            onClick={() => !showResult && !disabled && setSelected(option.id)}
-            className={`flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${disabled && !showResult ? 'opacity-50' : ''}`}
+            onClick={() => handleSelect(option.id)}
+            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
             <span
-              className={`mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}
             >
               {LETTERS[index] ?? String(index + 1)}
             </span>
@@ -81,7 +89,7 @@ export function AnswerOptions({
           type="button"
           disabled={!currentSelection || disabled}
           onClick={() => currentSelection && onSubmit(currentSelection)}
-          className="mt-3 w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="mt-3 hidden w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:block"
         >
           Submit Answer
         </button>

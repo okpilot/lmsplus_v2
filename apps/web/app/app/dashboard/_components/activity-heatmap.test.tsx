@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DailyActivity } from '@/lib/queries/analytics'
 import { ActivityHeatmap } from './activity-heatmap'
@@ -20,8 +20,20 @@ describe('ActivityHeatmap', () => {
 
   it('renders a cell for every day in the current month', () => {
     render(<ActivityHeatmap data={[]} />)
-    const cells = screen.getAllByTitle(/questions/)
+    const cells = screen.getAllByTitle(/\d+ March: \d+ questions/)
     expect(cells).toHaveLength(31) // March has 31 days
+  })
+
+  it('renders weekday column headers', () => {
+    render(<ActivityHeatmap data={[]} />)
+    expect(screen.getByText('Mon')).toBeInTheDocument()
+    expect(screen.getByText('Sun')).toBeInTheDocument()
+  })
+
+  it('shows day numbers inside cells', () => {
+    render(<ActivityHeatmap data={[]} />)
+    const cell = screen.getByTitle('1 March: 0 questions')
+    expect(cell.textContent).toBe('1')
   })
 
   it('shows bg-muted for a past day with no activity', () => {
@@ -55,5 +67,74 @@ describe('ActivityHeatmap', () => {
   it('renders the month name and year in the header', () => {
     render(<ActivityHeatmap data={[]} />)
     expect(screen.getByText('March 2026')).toBeInTheDocument()
+  })
+})
+
+describe('ActivityHeatmap — month navigation', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-18T12:00:00Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('navigates to the previous month when the back button is clicked', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    expect(screen.getByText('February 2026')).toBeInTheDocument()
+  })
+
+  it('renders correct number of days after navigating to February', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    const cells = screen.getAllByTitle(/\d+ February: \d+ questions/)
+    expect(cells).toHaveLength(28) // February 2026 has 28 days
+  })
+
+  it('navigates back to current month after going forward from previous month', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    expect(screen.getByText('February 2026')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(screen.getByText('March 2026')).toBeInTheDocument()
+  })
+
+  it('disables the forward button when viewing the current month', () => {
+    render(<ActivityHeatmap data={[]} />)
+    const nextButton = screen.getByRole('button', { name: 'Next month' })
+    expect(nextButton).toBeDisabled()
+  })
+
+  it('enables the forward button when viewing a past month', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    const nextButton = screen.getByRole('button', { name: 'Next month' })
+    expect(nextButton).not.toBeDisabled()
+  })
+
+  it('marks all days as future (muted/30) when viewing a future-offset month (positive offset)', () => {
+    // Navigate back one month; verify past month days do not have today's ring
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    const cells = screen.getAllByTitle(/February/)
+    expect(cells.every((c) => !c.className.includes('ring-primary'))).toBe(true)
+  })
+
+  it('does not show a today ring on cells when viewing a past month', () => {
+    render(<ActivityHeatmap data={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    const cells = screen.getAllByTitle(/\d+ February: \d+ questions/)
+    expect(cells.some((c) => c.className.includes('ring-2'))).toBe(false)
+  })
+
+  it('shows activity data for the navigated month when data is provided', () => {
+    const febActivity: DailyActivity[] = [{ day: '2026-02-14', total: 8, correct: 6, incorrect: 2 }]
+    render(<ActivityHeatmap data={febActivity} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    const cell = screen.getByTitle('14 February: 8 questions')
+    expect(cell.className).toContain('bg-green-500')
   })
 })

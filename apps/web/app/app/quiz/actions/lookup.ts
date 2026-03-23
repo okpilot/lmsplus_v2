@@ -50,7 +50,13 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
   } = await supabase.auth.getUser()
   if (authError || !user) return { ...empty, error: 'auth' }
 
-  if (topicIds?.length === 0 || subtopicIds?.length === 0) return empty
+  // undefined = no scoping restriction (query all); [] = explicitly nothing selected.
+  // Only bail when BOTH arrays are explicitly empty — no topics AND no subtopics.
+  const hasTopics = topicIds === undefined || topicIds.length > 0
+  const hasSubtopics = subtopicIds === undefined || subtopicIds.length > 0
+  if (!hasTopics && !hasSubtopics) {
+    return empty
+  }
 
   const { data, error } = await buildQuestionQuery(supabase, subjectId, topicIds, subtopicIds)
   if (error) {

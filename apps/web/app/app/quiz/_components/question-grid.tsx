@@ -1,4 +1,10 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { FilterRow, GridToggle, getSquareClass } from './filter-pill'
+
+type GridFilter = 'all' | 'flagged' | 'pinned'
 
 type QuestionGridProps = {
   totalQuestions: number
@@ -10,37 +16,56 @@ type QuestionGridProps = {
   onNavigate: (index: number) => void
 }
 
-function FlagIcon() {
-  return (
-    <svg
-      className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 text-orange-500"
-      viewBox="0 0 10 10"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M2 1v8M2 1h5l-1.5 2L7 5H2" />
-    </svg>
-  )
+const MIN_SQUARE = 36
+const GAP = 6
+
+function calcWindowStart(opts: {
+  needsCollapse: boolean
+  expanded: boolean
+  currentIndex: number
+  twoRows: number
+  perRow: number
+}) {
+  if (!opts.needsCollapse || opts.expanded || opts.currentIndex < opts.twoRows) return 0
+  return (Math.floor(opts.currentIndex / opts.perRow) - 1) * opts.perRow
 }
 
-function PinIcon() {
-  return (
-    <svg
-      className="absolute -top-0.5 -left-0.5 h-2.5 w-2.5 text-amber-500"
-      viewBox="0 0 10 10"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M5 0L3 4H7L5 0ZM5 4v6" />
-    </svg>
-  )
-}
-
-function getCircleClass(opts: { isCurrent: boolean; isCorrect: boolean | null }) {
-  if (opts.isCurrent) return 'bg-primary text-primary-foreground'
-  if (opts.isCorrect === true) return 'bg-green-500 text-white'
-  if (opts.isCorrect === false) return 'bg-red-500 text-white'
-  return 'border border-border text-muted-foreground'
+function buildSquares(opts: QuestionGridProps & { filter: GridFilter }) {
+  const {
+    totalQuestions,
+    currentIndex,
+    filter,
+    questionIds,
+    flaggedIds,
+    pinnedIds,
+    feedbackMap,
+    onNavigate,
+  } = opts
+  return Array.from({ length: totalQuestions }, (_, i) => {
+    const qId = questionIds[i] ?? ''
+    const isCurrent = i === currentIndex
+    const feedback = feedbackMap.get(qId)
+    const isCorrect = feedback ? feedback.isCorrect : null
+    const isFlagged = flaggedIds.has(qId)
+    const isPinned = pinnedIds.has(qId)
+    if ((filter === 'flagged' && !isFlagged) || (filter === 'pinned' && !isPinned)) return null
+    return (
+      <button
+        key={qId || i}
+        type="button"
+        data-testid={`grid-btn-${i}`}
+        onClick={() => onNavigate(i)}
+        className={cn(
+          'flex aspect-square items-center justify-center rounded-lg text-xs font-medium transition-all',
+          getSquareClass({ isCurrent, isCorrect }),
+        )}
+        aria-current={isCurrent ? 'step' : undefined}
+        aria-label={`Question ${i + 1}${isFlagged ? ', flagged' : ''}${isPinned ? ', pinned' : ''}`}
+      >
+        {i + 1}
+      </button>
+    )
+  })
 }
 
 export function QuestionGrid({
@@ -52,38 +77,78 @@ export function QuestionGrid({
   feedbackMap,
   onNavigate,
 }: QuestionGridProps) {
+  const [filter, setFilter] = useState<GridFilter>('all')
+  const [expanded, setExpanded] = useState(false)
+  const [perRow, setPerRow] = useState(9)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const measure = useCallback(() => {
+    if (!containerRef.current) return
+    const width = containerRef.current.offsetWidth
+    setPerRow(Math.max(Math.floor((width + GAP) / (MIN_SQUARE + GAP)), 1))
+  }, [])
+
+  useEffect(() => {
+    measure()
+    const observer = new ResizeObserver(measure)
+    if (containerRef.current) observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [measure])
+
+  const flaggedCount = flaggedIds.size
+  const pinnedCount = pinnedIds.size
+
+  useEffect(() => {
+    if (filter === 'flagged' && flaggedCount === 0) setFilter('all')
+    if (filter === 'pinned' && pinnedCount === 0) setFilter('all')
+  }, [filter, flaggedCount, pinnedCount])
+
+  const twoRows = perRow * 2
+  const needsCollapse = filter === 'all' && totalQuestions > twoRows
+  const windowStart = calcWindowStart({ needsCollapse, expanded, currentIndex, twoRows, perRow })
+  const windowEnd = expanded ? totalQuestions : Math.min(windowStart + twoRows, totalQuestions)
+  const squares = buildSquares({
+    totalQuestions,
+    currentIndex,
+    filter,
+    questionIds,
+    flaggedIds,
+    pinnedIds,
+    feedbackMap,
+    onNavigate,
+  })
+
   return (
-    <div
-      data-testid="question-grid"
-      className={cn('flex gap-1.5 overflow-x-auto p-2', 'md:flex-wrap md:overflow-x-visible')}
-    >
-      {Array.from({ length: totalQuestions }, (_, i) => {
-        const qId = questionIds[i] ?? ''
-        const isCurrent = i === currentIndex
-        const feedback = feedbackMap.get(qId)
-        const isCorrect = feedback ? feedback.isCorrect : null
-        const isFlagged = flaggedIds.has(qId)
-        const isPinned = pinnedIds.has(qId)
-        return (
-          <button
-            key={qId || i}
-            type="button"
-            data-testid={`grid-btn-${i}`}
-            onClick={() => onNavigate(i)}
-            className={cn(
-              'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors',
-              getCircleClass({ isCurrent, isCorrect }),
-              isPinned && 'border-b-2 border-amber-400',
-            )}
-            aria-current={isCurrent ? 'step' : undefined}
-            aria-label={`Question ${i + 1}${isFlagged ? ', flagged' : ''}${isPinned ? ', pinned' : ''}`}
-          >
-            {isFlagged && <FlagIcon />}
-            {isPinned && <PinIcon />}
-            {i + 1}
-          </button>
-        )
-      })}
+    <div className="space-y-2">
+      <FilterRow
+        filter={filter}
+        setFilter={setFilter}
+        flaggedCount={flaggedCount}
+        pinnedCount={pinnedCount}
+      />
+      <div
+        data-testid="question-grid"
+        className="hidden gap-1.5 md:grid"
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))' }}
+      >
+        {squares}
+      </div>
+      <div className="md:hidden" ref={containerRef}>
+        <div
+          data-testid="question-grid-mobile"
+          className="grid gap-1.5"
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(36px, 1fr))' }}
+        >
+          {expanded ? squares : squares.slice(windowStart, windowEnd)}
+        </div>
+        {needsCollapse && (
+          <GridToggle
+            expanded={expanded}
+            totalQuestions={totalQuestions}
+            onToggle={() => setExpanded((v) => !v)}
+          />
+        )}
+      </div>
     </div>
   )
 }

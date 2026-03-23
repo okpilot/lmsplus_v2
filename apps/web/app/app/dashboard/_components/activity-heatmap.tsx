@@ -1,10 +1,22 @@
+'use client'
+
+import { useCallback, useMemo, useState } from 'react'
 import type { DailyActivity } from '@/lib/queries/analytics'
+import { HeatmapInfo } from './heatmap-info'
 
 type ActivityHeatmapProps = {
   data: DailyActivity[]
 }
 
-const LABEL_DAYS = new Set([1, 5, 10, 15, 20, 25])
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+const LEGEND_TIERS = [
+  { label: '0', className: 'bg-muted' },
+  { label: '1-2', className: 'bg-green-200 dark:bg-green-900' },
+  { label: '3-5', className: 'bg-green-300 dark:bg-green-800' },
+  { label: '6-10', className: 'bg-green-500 dark:bg-green-600' },
+  { label: '11+', className: 'bg-green-700 dark:bg-green-400' },
+]
 
 function getIntensity(total: number, isFuture: boolean): string {
   if (isFuture) return 'bg-muted/30'
@@ -16,62 +28,121 @@ function getIntensity(total: number, isFuture: boolean): string {
 }
 
 export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
-  const now = new Date()
-  const year = now.getUTCFullYear()
-  const month = now.getUTCMonth() + 1
+  const now = useMemo(() => new Date(), [])
+  const [offset, setOffset] = useState(0)
+
+  const viewDate = useMemo(() => {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1))
+    return d
+  }, [now, offset])
+
+  const year = viewDate.getUTCFullYear()
+  const month = viewDate.getUTCMonth() + 1
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
-  const todayDay = now.getUTCDate()
-
   const monthStr = String(month).padStart(2, '0')
-  const monthName = now.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })
+  const monthName = viewDate.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })
 
-  const activityByDay = new Map<number, number>()
-  for (const entry of data) {
-    if (entry.day.startsWith(`${year}-${monthStr}-`)) {
-      const day = Number.parseInt(entry.day.slice(8, 10), 10)
-      activityByDay.set(day, entry.total)
+  const isCurrentMonth = offset === 0
+  const todayDay = isCurrentMonth ? now.getUTCDate() : -1
+
+  const activityByDay = useMemo(() => {
+    const map = new Map<number, number>()
+    const prefix = `${year}-${monthStr}-`
+    for (const entry of data) {
+      if (entry.day.startsWith(prefix)) {
+        const day = Number.parseInt(entry.day.slice(8, 10), 10)
+        map.set(day, entry.total)
+      }
     }
-  }
+    return map
+  }, [data, year, monthStr])
 
-  const labelDays = new Set([...LABEL_DAYS, daysInMonth])
+  // Monday = 0 ... Sunday = 6 (ISO weekday)
+  const firstDayOfWeek = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7
+  const totalCells = firstDayOfWeek + daysInMonth
+  const rows = Math.ceil(totalCells / 7)
+
+  const isFutureDay = useCallback(
+    (day: number) => {
+      if (offset > 0) return true
+      if (offset < 0) return false
+      return day > now.getUTCDate()
+    },
+    [offset, now],
+  )
+
+  const goBack = useCallback(() => setOffset((o) => o - 1), [])
+  const goForward = useCallback(() => setOffset((o) => Math.min(o + 1, 0)), [])
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <h3 className="mb-3 text-sm font-medium">
-        {monthName} {year}
-      </h3>
-      <div className="overflow-x-auto">
-        <div className="flex min-w-max gap-1">
-          {Array.from({ length: daysInMonth }, (_, i) => {
-            const day = i + 1
-            const isFuture = day > todayDay
-            const isToday = day === todayDay
-            const total = activityByDay.get(day) ?? 0
-            const intensity = getIntensity(total, isFuture)
-            const ring = isToday ? ' ring-2 ring-primary' : ''
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label="Previous month"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            &lsaquo;
+          </button>
+          <h3 className="min-w-[120px] text-center text-sm font-medium">
+            {monthName} {year}
+          </h3>
+          <button
+            type="button"
+            onClick={goForward}
+            disabled={isCurrentMonth}
+            aria-label="Next month"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+          >
+            &rsaquo;
+          </button>
+        </div>
+        <HeatmapInfo />
+      </div>
 
-            return (
-              <div
-                key={day}
-                title={`${day} ${monthName}: ${total} questions`}
-                className={`h-4 w-4 flex-shrink-0 rounded-sm md:h-6 md:w-6 ${intensity}${ring}`}
-              />
-            )
-          })}
-        </div>
-        <div className="mt-1 flex min-w-max gap-1">
-          {Array.from({ length: daysInMonth }, (_, i) => {
-            const day = i + 1
-            return (
-              <div
-                key={day}
-                className="w-4 flex-shrink-0 text-center text-[9px] text-muted-foreground md:w-6"
-              >
-                {labelDays.has(day) ? day : ''}
-              </div>
-            )
-          })}
-        </div>
+      <div className="grid grid-cols-7 gap-1">
+        {WEEKDAY_LABELS.map((label) => (
+          <div key={label} className="text-center text-[10px] font-medium text-muted-foreground">
+            {label}
+          </div>
+        ))}
+
+        {Array.from({ length: rows * 7 }, (_, i) => {
+          const day = i - firstDayOfWeek + 1
+          const isValid = day >= 1 && day <= daysInMonth
+
+          if (!isValid) return <div key={`pad-${day}`} />
+
+          const future = isFutureDay(day)
+          const isToday = day === todayDay
+          const total = activityByDay.get(day) ?? 0
+          const intensity = getIntensity(total, future)
+          const ring = isToday ? ' ring-2 ring-primary' : ''
+
+          return (
+            <div
+              key={day}
+              title={`${day} ${monthName}: ${total} questions`}
+              className={`aspect-square rounded-sm ${intensity}${ring} flex items-center justify-center text-[10px] text-muted-foreground`}
+            >
+              {day}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
+        <span>Less</span>
+        {LEGEND_TIERS.map((tier) => (
+          <div
+            key={tier.label}
+            title={`${tier.label} questions`}
+            className={`h-3.5 w-3.5 rounded-sm ${tier.className}`}
+          />
+        ))}
+        <span>More</span>
       </div>
     </div>
   )

@@ -2,7 +2,17 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-20
+> Last updated: 2026-03-23
+
+---
+
+## Maintenance — 2026-03-23
+
+**Migration 050 — RLS soft-delete fix for `flagged_questions` (2026-03-23):**
+- Refined migration 044: removed `deleted_at IS NULL` filter from SELECT/UPDATE/INSERT RLS policies
+- **Rationale:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of NEW row after UPDATE, which fails if RLS filters `deleted_at IS NULL`. Solution: app code filters deleted records via `.is('deleted_at', null)` in flag.ts; RLS only enforces ownership
+- **Impact:** `flagged_questions` is now a soft-delete exception documented in `docs/database.md` §2
+- **Cleanup:** Quiz session layout comments refined; CSS fixed for viewport height handling
 
 ---
 
@@ -11,6 +21,7 @@
 Fixed 4 open bugs in a single session:
 
 - **#274** — `flagged_questions` RLS WITH CHECK missing `deleted_at IS NULL` (security gap, migration 044)
+  - **Follow-up (2026-03-23):** Migration 050 refines the approach — app filters `deleted_at`, RLS enforces ownership only
 - **#270** — Password recovery redirect broken: `/auth/callback` now recovery-aware with `next` param allowlist
 - **#268** — `window.location.origin` replaced with `NEXT_PUBLIC_APP_URL` env var (+ fallback)
 - **#261** — `student.login` audit event: new `record_login()` RPC + `/auth/login-complete` server route
@@ -874,4 +885,4 @@ From setup audit (2026-03-11), updated 2026-03-19:
 
 ---
 
-*Last updated: 2026-03-19 — Sprint 4 complete. Lighthouse CI workflow + DB migration test added to e2e.yml.*
+*Last updated: 2026-03-23 — Sprint 4 complete. Lighthouse CI workflow + DB migration test added to e2e.yml.*

@@ -104,7 +104,7 @@ Full rules in `.claude/rules/code-style.md` — binding. Key limits:
 ### Database Principles (confirmed 2026-03-11)
 Full reference: `docs/database.md`. Key decisions:
 
-- **Soft delete everywhere** — `deleted_at TIMESTAMPTZ NULL` on all mutable tables. No hard `DELETE` ever. CAA compliance requires full history. RLS policies include `AND deleted_at IS NULL` so deleted rows are invisible by default.
+- **Soft delete everywhere** — `deleted_at TIMESTAMPTZ NULL` on all mutable tables. No hard `DELETE` ever (exception: `question_comments` — see Decision 30). CAA compliance requires full history. RLS policies include `AND deleted_at IS NULL` so deleted rows are invisible by default.
 - **Immutable tables** — `student_responses`, `quiz_session_answers`, `audit_events`: no UPDATE, no DELETE, no soft delete. These are facts.
 - **ACID via RPCs** — any operation touching 2+ tables goes in a single Postgres function. No multi-step application-level calls. Core RPCs: `get_quiz_questions`, `batch_submit_quiz` (all answers + session completion in one atomic transaction), `start_quiz_session`. Deprecated: `submit_quiz_answer`, `complete_quiz_session` (superseded by `batch_submit_quiz`).
 - **Idempotency** — all INSERTs on mutable data use `ON CONFLICT DO NOTHING` or upsert. Safe to retry on network failure.
@@ -536,4 +536,20 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-03-18 — Decision 29 refinement: PKCE pattern for password reset*
+### Decision 30: question_comments hard-delete exception
+
+**Date**: 2026-03-20
+**Context**: Comments on quiz questions have very low audit value — they're discussion threads, not compliance data.
+**Decision**: `question_comments` table uses hard DELETE instead of soft-delete. RLS DELETE policies allow own-row deletion and admin deletion. The `deleted_at` column is retained as a defensive safety net but the primary path is hard DELETE.
+**Rationale**: Avoids accumulating deleted comment rows that serve no audit or compliance purpose. The soft-delete matrix in `docs/database.md` documents this exception.
+
+### Decision 31: org-wide comment visibility
+
+**Date**: 2026-03-20
+**Context**: This is a single-org EASA PPL training product. Comments on questions are a shared discussion feature.
+**Decision**: All authenticated users can see all non-deleted comments on any question. No org-scoping or "questions I've answered" restriction on comment visibility.
+**Rationale**: Simplifies RLS and encourages knowledge sharing across the student cohort. If multi-tenancy is added later, comments will be scoped at that point.
+
+---
+
+*Last updated: 2026-03-20 — Decisions 30-31: hard-delete comments + org-wide comment visibility*

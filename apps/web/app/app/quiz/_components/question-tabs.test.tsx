@@ -9,7 +9,7 @@ describe('QuestionTabs', () => {
     expect(screen.getByRole('tab', { name: 'Question' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Explanation' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Comments' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Statistics' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Stats' })).toBeInTheDocument()
   })
 
   it('marks the active tab with aria-selected', () => {
@@ -37,7 +37,7 @@ describe('QuestionTabs', () => {
     const onTabChange = vi.fn()
     render(<QuestionTabs activeTab="explanation" onTabChange={onTabChange} />)
 
-    await user.click(screen.getByRole('tab', { name: 'Statistics' }))
+    await user.click(screen.getByRole('tab', { name: 'Stats' }))
     expect(onTabChange).toHaveBeenCalledWith('statistics')
   })
 })

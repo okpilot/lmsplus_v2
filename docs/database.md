@@ -1,5 +1,5 @@
 ---
-date: 2026-03-12
+date: 2026-03-23
 status: active
 project: lmsplusv2
 ---
@@ -349,8 +349,25 @@ CREATE INDEX idx_flagged_questions_student ON flagged_questions (student_id)
 ```
 
 RLS policies:
-- Students can only access and modify their own flags via `student_id = auth.uid() AND deleted_at IS NULL`
-- Soft-deletable (unflag via UPDATE with `deleted_at = now()`)
+- SELECT: `student_id = auth.uid()` (app filters `deleted_at IS NULL` in flag.ts)
+- INSERT: `student_id = auth.uid()`
+- UPDATE: `student_id = auth.uid()` (soft-delete via `deleted_at = now()` in app code)
+
+**Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, application code filters deleted records via `.is('deleted_at', null)` in flag.ts. RLS only enforces ownership.
+
+#### View: `active_flagged_questions`
+
+```sql
+CREATE OR REPLACE VIEW active_flagged_questions
+WITH (security_invoker = true) AS
+  SELECT * FROM flagged_questions WHERE deleted_at IS NULL;
+```
+
+This view filters soft-deleted flags and has `security_invoker = true` (migration 051), which means RLS policies on `flagged_questions` are enforced when the view is queried. Use this view instead of querying `flagged_questions` directly to ensure:
+1. Only non-deleted flags are visible
+2. Ownership RLS policies are applied via the view
+
+**Why `security_invoker`?** By default, views run with owner-context permission checks, bypassing caller RLS. Setting `security_invoker = true` switches to invoker-context, so RLS on `flagged_questions` is evaluated as the calling user — ensuring `student_id = auth.uid()` is enforced when querying `active_flagged_questions`.
 
 ### question_comments
 Per-question discussion threads. Students and admins can post comments on any question. Hard-delete table (low audit value).
@@ -411,6 +428,8 @@ CREATE POLICY "tenant_isolation" ON questions
 
 This means deleted records are invisible to all normal queries automatically.
 No `WHERE deleted_at IS NULL` needed in application code — RLS handles it.
+
+**Exception:** `flagged_questions` table filters `deleted_at IS NULL` in application code (flag.ts), not in RLS, to avoid `FORCE ROW LEVEL SECURITY` violations when soft-deleting rows. See the `flagged_questions` table docs (§2) for details.
 
 ### Scoring Soft-Deleted Questions
 
@@ -1362,4 +1381,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-17 (migration 041-042: N+1 fix in batch_submit_quiz + 4 missing indexes) | Companion: docs/security.md*
+*Last updated: 2026-03-23 (migration 050-051: flagged_questions RLS soft-delete fix + active_flagged_questions view security_invoker) | Companion: docs/security.md*

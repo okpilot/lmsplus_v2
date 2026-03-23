@@ -14,7 +14,7 @@
 | SQL score aggregation over full table (not current batch) | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in f53eccf |
 | Array positional pairing instead of Map lookup (FSRS) | 1 | 2026-03-12 | RESOLVED — batch-submit.ts updateFsrsCards; fixed in f53eccf; entire FSRS TS layer removed in b41ffa8 — no active call sites remain |
 | Empty-array guard missing at SQL level | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in f53eccf |
-| New hook/utility file shipped without a test file | 3 | 2026-03-12 | RULE ADDED (9f5a6cc) — still recurring; rule exists but not followed at write time |
+| New hook/utility file shipped without a test file | 3 | 2026-03-12 | RULE ADDED (9f5a6cc) — still recurring; rule exists but not followed at write time. See also row 58. |
 | Top-level await in node16 package test file | 1 | 2026-03-12 | Watch — packages/db/src/server.test.ts; fixed with dynamic import helper |
 | Bare `catch {}` without error-type narrowing | 1 | 2026-03-12 | Watch — packages/db/src/server.ts; suggestion from semantic-reviewer |
 | `finally` clearing loading state during navigation | 1 | 2026-03-12 | Fixed in a269284 — only clear loading in catch/error branch |
@@ -39,7 +39,7 @@
 | Unconditional setState in render body (spurious re-renders) | 1 | 2026-03-13 | Watch — statistics-tab.tsx (53efbdd); `setIsLoading(false)` called unconditionally in a render-path reset block, causing a state update on every render when isLoading was already false; fixed with `if (isLoading) setIsLoading(false)` guard in b555b50; first occurrence |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE — statistics-tab.tsx (53efbdd, f0f8d0e); semantic-reviewer flagged this suggestion twice across two consecutive commits: isPending from useTransition and manual isLoading state tracked in parallel can both be false simultaneously during a question-switch mid-fetch, briefly showing the idle "Load Statistics" button while a fetch is still in-flight; generation counter mitigates stale data but does not close the UI-state race; suggestion-level only (not fixed); second occurrence reached — propose rule clarification in code-style.md when next commit arrives in this component's area; NOT flagged in 8863926 (pure JSX presenter refactor, no state logic touched) — no further action this cycle |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE — first: analytics.ts (53efbdd); `boundParam` silently clamped NaN/±Infinity without console.warn; suggestion-level; second: reports.ts (33c1fa8); `answeredCount` fell back to 0 for completed sessions with no answer rows with no console.warn — fixed in d06c25b; both share same root cause: a fallback that produces a valid-looking result with no server-side signal; the fix pattern is always a console.warn before the fallback value is returned; applies to any numeric computation that falls back to 0 or a minimum when the source data is empty/malformed |
-| test-writer produces TS2532 (unchecked array index) errors | 2 | 2026-03-13 | RULE CANDIDATE — test-writer pattern memory should be updated with a note to always use optional chaining (`arr?.[i]`) when accessing array elements in generated test code; first seen in an earlier cycle (test fixture access), second occurrence confirmed in 99c67d2 where a `formatActivityData` test accessed an array index without `?.` and triggered TS2532; the error was caught and fixed before commit, so no broken test reached git; fix is optional chaining or a non-null assertion with a preceding length check; NOT triggered in 8863926 (test-only edits were a beforeEach reset and a rename — no new index access generated) — gate held |
+| test-writer produces TS2532 (unchecked array index) errors | 3 | 2026-03-23 | RULE IN MEMORY (test-writer/patterns.md §Array index safety, count now 3) — third occurrence in 153a975 (session-table.test.tsx): test-writer accessed array elements without guarding against undefined, triggering TS2532; fixed with non-null assertion after length assertion; test-writer patterns.md already documents this rule at count 2; pattern persists despite documented rule — test-writer generates the wrong form first and requires a fix cycle; the rule is documented but the agent does not always apply it; no additional rule change needed — rule exists; the fix cycle remains a reliable gate |
 | Shared hoisted mock capture without beforeEach reset | 1 | 2026-03-13 | Watch — activity-chart.test.tsx (8863926); capturedBarChartData shared across tests without reset allowed cross-test contamination; fixed with beforeEach reset; first occurrence |
 | Direct SELECT from `questions` bypassing RPC (correct-answer exposure) | 2 | 2026-03-13 | RULE EXISTS (security.md rule 1, CLAUDE.md) — 2nd occurrence: checkAnswer in feat/post-sprint-3-polish directly queried questions table exposing `correct` flag; fixed in f6ba7a0 with check_quiz_answer RPC; rule is clear, compliance gap at authoring time |
 | ON CONFLICT clause with no supporting UNIQUE constraint (dead code) | 1 | 2026-03-13 | Watch — student_responses (a09c6be); ON CONFLICT on (session_id, question_id) silently ignored because UNIQUE constraint was never created; fixed by adding UNIQUE constraint in migration; first occurrence |
@@ -49,13 +49,13 @@
 | Server Action file exceeding 100-line limit after Biome auto-format | 1 | 2026-03-13 | Watch — draft.ts was 166 lines, split to 114+37 (6d274fa); the 114-line file still exceeds the 100-line Server Action limit; root cause: Biome expanded compact code from 97→114 lines during pre-commit format pass; authoring-time count ≠ post-format count; first occurrence of this specific mechanism (Biome expansion pushing over limit) |
 | Biome auto-format expanding compact code past file-size limit | 1 | 2026-03-13 | Watch — draft.ts written at ~97 lines, Biome format expanded to 114 lines on pre-commit (6d274fa); the 100-line Server Action limit check must be done against post-format line count, not authoring-time count; first occurrence |
 | Async fetch in useEffect without stale-result cancellation flag | 1 | 2026-03-13 | Watch — useEffect in draft.ts initiated fetch without cancelled flag; if the component unmounted or deps changed before the fetch resolved, setState was called on stale/unmounted context; fixed with cancelled flag pattern in fe4ffff; distinct from "useEffect data fetching in client component" (that is about banned server-action fetching — this is a permitted client fetch missing a cleanup guard); first occurrence |
-| UPDATE returning zero rows treated as success (silent no-op) | 1 | 2026-03-13 | Watch — draft update in 6d274fa returned no error but updated 0 rows when draft ID did not match student ownership; caller received success response for a no-op write; fix: check rowCount / affected rows after UPDATE before returning success; distinct from "Supabase mutation result not destructured" (that is about missing error destructuring — this is about a successful query that silently did nothing); first occurrence |
+| UPDATE returning zero rows treated as success (silent no-op) | 2 | 2026-03-20 | RULE CANDIDATE — first: draft update (6d274fa, 2026-03-13): draft ID did not match ownership, 0 rows updated, caller got success; second: deleteComment (6520962, 2026-03-20): DELETE with no app-layer ownership filter, wrong commentId or cross-user attempt returned `{ success: true }` silently; both fixed by selecting affected row or checking row count; fix pattern: for any DELETE or UPDATE that is ownership-scoped, add `.select('id')` (or equivalent) and check that at least one row was returned before returning success; code-style.md Section 5 covers error destructuring but not the zero-row no-op sub-case; second occurrence warrants note in code-style.md |
 | Error path in existing function untested (count-error branch) | 3 | 2026-03-14 | RULE CANDIDATE (3rd occurrence) — count-error path in draft.ts (1st, 2026-03-13); users query error path in draft.ts (2nd, d06c25b); 'session not accessible' error branch in batch-submit.ts (3rd, d057128 → 45da072); all caught post-commit by test-writer; distinct from "new file without test" — this is an existing tested file with an uncovered error branch; pattern: when a new error-return path is added to an existing function (e.g., adding a second query with its own error check), the test file is not updated to cover the new branch; 3rd recurrence warrants action in test-writer patterns memory |
 | Async cleanup path untestable in jsdom (cancelled flag branch) | 1 | 2026-03-13 | Watch — test-writer noted that the cancelled flag cleanup path (setState skipped after unmount) is not testable in jsdom because act() flushes effects synchronously before assertions can observe the cancelled state; analogous to the pre-hydration jsdom limitation; first occurrence; do not write tests for this branch — document the constraint in code-style.md jsdom section if it recurs |
 | Stale closure introduced by hook split (scalar captured in closure vs ref) | 1 | 2026-03-13 | Watch — when use-quiz-state was split in 34a9352 to fix the 80-line violation, currentIndex was captured as a scalar in a closure in handleSave instead of being accessed via useRef; fixed in df5d354; the hook split itself introduced the bug; pattern: any value read inside a callback that is defined outside a React.useCallback/useMemo with that value in its deps array is at risk of being stale; when splitting a hook, audit all callbacks in the extracted portion for captured scalar state; first occurrence |
 | SQL string comparison instead of ::uuid cast in duplicate check | 1 | 2026-03-13 | Watch — batch_submit_quiz duplicate-answer check compared option IDs as text rather than casting to ::uuid, which can cause case-sensitivity and format-variation failures; fixed in 34a9352; first occurrence |
 | Type cast bypassing runtime validation (`as unknown as T` hiding missing guard) | 2 | 2026-03-13 | RULE ADDED (22c3d5e) — first: batch_submit_quiz malformed config cast (306f44a); second: check-answer.ts + fetch-explanation.ts (a0d9973); rule added to code-style.md Section 5 + .coderabbit.yaml synced; 274821b applied the rule correctly via isCheckAnswerRpcResult type guard |
-| New hook file extracted without shipping tests in the same commit | 5 | 2026-03-14 | RULE EXISTS (code-style.md Section 7) — use-answer-handler.ts was created in 306f44a without a test file; use-session-state.ts created in 1b38542 without a test file (tests in 9ea234b); fifth recurrence confirms structural compliance gap — rule is clear, authoring habit is not there |
+| New hook/utility file extracted without shipping tests in the same commit | 6 | 2026-03-21 | RULE EXISTS (code-style.md Section 7) — use-answer-handler.ts (306f44a), use-session-state.ts (1b38542), score-color.ts + reports-utils.ts (b104ae4, ca55c3c); sixth recurrence; rule is clear, authoring habit is not there; code-reviewer warnings (not blocking) are caught and fixed post-commit by test-writer |
 | Imperative ref clear in catch block leaving re-entry window | 1 | 2026-03-13 | Watch — use-answer-handler.ts (306f44a): lockedRef.current.delete() in catch block cleared the lock before React state (answers) had settled, creating a brief window where a second call could enter; fixed in a0d9973 with useEffect drain keyed on answers; then partially reverted in 5b2864f (synchronous clear restored for immediate retryability, useEffect kept as safety drain); first occurrence of this specific async-lock re-entry window pattern |
 | Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE — first: SQL score aggregation over full table (not current batch) in batch_submit_quiz (f53eccf), where position-in-array was used as a proxy for "answered"; second: answeredCount derived as currentIndex + 1 in use-session-state.ts (675104e) — correct only because index is incremented at the same moment an answer is submitted, not because it semantically tracks "answers given"; fixed in 4798fdb with dedicated useState counter incremented in handleSubmit; both share root cause: a value that co-varies with the desired metric under normal conditions but diverges on edge cases (non-linear navigation, partial completion, session restore); propose note in code-style.md or agent memory: when a metric (count, score, progress) needs to be tracked, use a dedicated state variable incremented at the domain event, not a proxy derived from a structural position |
 | Unbounded numeric regex permitting int overflow (SQL input validation) | 1 | 2026-03-13 | Watch — batch_submit_quiz RPC (274821b): `^\d+$` matched response_time_ms without an upper bound, permitting integer overflow when cast to INT; fixed in 34c9b36 with `^\d{1,10}$` (10 digits caps at 9,999,999,999, safely below INT_MAX); first occurrence; applies to any SQL regex that validates before casting to a bounded numeric type — the regex digit count must be bounded to match the target type's range |
@@ -98,8 +98,273 @@
 | Supabase `updateUser` returns 422 when new password matches current password | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): E2E reset-password spec tried to reset to the same password the account already had; Supabase auth API returns HTTP 422 with no explicit error message, causing a confusing test failure; fixed by using a distinct password value in E2E tests and by handling 422 in the UI with a user-facing error message; applies to any E2E test covering the password reset flow — always reset to a value different from the current one; also applies to the reset-password UI, which should handle 422 distinctly from other errors; first occurrence |
 | Open redirect via unvalidated `next` param in Route Handler | 1 | 2026-03-18 | Watch — ca5bbd5 (feat/174-login-redesign): /auth/confirm accepted any `next` query param and redirected to it without validation; a crafted link could redirect users to arbitrary internal paths (e.g. `/app/admin`); fixed by validating `next` against an explicit allowlist (only `/auth/reset-password` permitted); applies to any Route Handler or Server Action that reads a redirect target from query params or form input — always validate against an allowlist before redirecting; semantic-reviewer caught this as an ISSUE; first occurrence as a named pattern |
 | Security fix requiring multiple rounds due to incomplete self-defending audit | 1 | 2026-03-16 | Watch — fix/45-remove-answer-keys-from-test (f1f6c32 → 7029f4e → 1f76a7b): branch required 3 semantic-reviewer rounds because each fix addressed the flagged issue but not the adjacent gap it exposed; round 1: correct field in runtime object; round 2: RPC not session-scoped; round 3: p_question_ids not validated against session; root cause: security fixes to SECURITY DEFINER RPCs were applied narrowly (one gap at a time) rather than with a full self-defending audit (ownership check, input validation, output projection, error handling all verified together); first occurrence; when any SECURITY DEFINER RPC is modified, audit all four axes before committing: (1) auth.uid() identity check present, (2) input arrays validated against owned records, (3) output SELECT excludes sensitive fields explicitly, (4) result destructured for error |
+| Pre-existing file size violation surfaced when a new commit adds lines to an already-over-limit file | 1 | 2026-03-20 | Watch — d93f924 (fix: resolve 3 tech-debt issues): lookup.ts exceeded the 100-line Server Action/utility limit before the commit; the new commit added lines that made the violation visible to the code-reviewer; fixed by extracting helpers to lookup-helpers.ts in fix commit 5a68fa3; distinct from "Biome auto-format expanding compact code past file-size limit" (that is Biome pushing an at-limit file over; this is a file already over the limit that accumulates further lines); distinct from "Server Action file exceeding 100-line limit after Biome auto-format" (same distinction); root cause: file was never split when it first exceeded the limit; implication: code-reviewer should be run after any commit to files approaching their limit even if the commit itself is small — a near-miss in one commit becomes a BLOCKING in the next; first occurrence as a named pattern — log and watch |
+| Function exceeding 30-line limit in Server Action file | 2 | 2026-03-20 | RULE CANDIDATE — first: getFilteredCount in lookup.ts (d93f924, 2026-03-20): 58 lines, fixed by extracting buildQuestionQuery helper; second: toggleFlag in flag.ts (6520962, 2026-03-20): 52 lines, fixed by extracting unflagQuestion/flagQuestion helpers; both in Server Action files, both caught post-commit by code-reviewer BLOCKING; root cause: Server Actions with branching logic (toggle/conditional paths) are written as a single function rather than as an orchestrator + focused helpers; pattern: any function with 2+ conditional branches in a Server Action is a candidate to exceed 30 lines — extract each branch as a named helper at authoring time; second occurrence across different commits — RULE CANDIDATE |
+| Read-then-write race on flag/state mutation (UPDATE predicate not atomic) | 1 | 2026-03-20 | Watch — toggleFlag in flag.ts (6520962, 2026-03-20): SELECT to check current flag state followed by UPDATE or UPSERT; rapid toggle-toggle from two tabs could leave flag in wrong state; fixed by adding .is('deleted_at', null) to the UPDATE predicate to make the unflag atomic, plus row-count check; distinct from "TOCTOU race on count-gated INSERT" (that is an INSERT gate — this is a state-change UPDATE that should be conditional on current column state); fix pattern: for any UPDATE that modifies a boolean/state column, include the expected current column value in the WHERE/predicate to make the operation atomic; first occurrence — log and watch |
+| Return discriminant (error field) threaded through hooks but never rendered in UI | 1 | 2026-03-20 | Watch — d93f924 (fix: resolve 3 tech-debt issues): authError was passed as a return value through multiple hook layers but never consumed in the component tree; users received no feedback on auth failures; fixed in 5a68fa3 by adding a session-expired message and disabling the Start Quiz button when authError is set; distinct from "Auth error from getUser() swallowed without logging" (that is an error not destructured at all — this is an error correctly threaded through hooks but dropped at the UI boundary); root cause: when adding a new error discriminant to a hook's return type, there is no mechanical check that the caller actually renders it; first occurrence — log and watch |
+| Node Current release (non-LTS) pinned in CI configuration | 1 | 2026-03-20 | Watch — d93f924 (fix: resolve 3 tech-debt issues): CI was configured with Node 25, which is a Current (odd-numbered) release, not an LTS release; Node Current releases receive fewer months of support and are not production-stable; fixed in 5a68fa3 by reverting CI to Node 22 LTS; applies to any CI matrix or .nvmrc update — always use an even-numbered Node version (LTS); first occurrence — log and watch |
+| Silent error drop on non-critical secondary query | 1 | 2026-03-21 | Watch — 29b441f/4e217d1 (feat/fix quiz results redesign #178): `getEasaSubjects()` error was ignored; the function returned an empty array and the component rendered with no subject labels, with no server-side log; fixed in 4e217d1 by adding `console.error` on the error path; distinct from "Supabase mutation result not destructured" (that is a missing `{ error }` destructure on .insert/.update — this is a SELECT error on a non-critical enrichment query that is destructured but the error branch silently falls through without logging); first occurrence — log and watch |
+| Hardcoded hex colors in SVG component bypassing oklch design token system | 1 | 2026-03-21 | Watch — 29b441f (feat/quiz results redesign #178): `score-ring.tsx` SVG used hardcoded hex values (#3b82f6, #22c55e, #f59e0b, #ef4444) rather than CSS custom properties from the oklch theme; browser cannot retheme or dark-mode override these values; flagged by semantic-reviewer as a SUGGESTION; a threshold comment documenting the hex values as intentional for SVG compatibility was added in 4e217d1 as a mitigation; root cause: SVG stroke/fill do not inherit CSS vars when set as SVG attributes (only when set as CSS properties via `style=`); applies to any SVG component with color-bearing attributes — prefer `style={{ stroke: 'var(--color-...)' }}` or `className` with Tailwind; first occurrence — log and watch |
+| test-writer generates vi.mock factory referencing mock variable not declared via vi.hoisted | 1 | 2026-03-20 | Watch — 7c5b6ca/f846d96 (fix: resolve 4 maintenance issues): test-writer generated subject-row.test.tsx with `mockToastSuccess` and `mockToastError` referenced inside `vi.mock('sonner', ...)` factory but declared as plain `const` above the factory rather than via `vi.hoisted()`; vi.mock factories are hoisted to the top of the file by Vitest at compile time, so any variable referenced inside them must also be hoisted via `vi.hoisted()` — otherwise the variable is `undefined` at factory execution time; the bug was caught by the test run, fixed before commit; distinct from "Shared hoisted mock capture without beforeEach reset" (that is about a hoisted variable not being reset — this is about a non-hoisted variable being used inside a factory); test-writer patterns.md should note: every mock variable referenced inside a vi.mock() factory MUST be declared via vi.hoisted(), not as a plain const; first occurrence — log and watch |
+| E2E helper function copied from sibling loses return value contract | 1 | 2026-03-20 | Watch — 7c5b6ca/f846d96 (fix: resolve 4 maintenance issues / test: add subject-row tests): ensureLoginTestUser was modeled after ensureTestUser but was not updated to return { orgId, userId }; semantic-reviewer flagged the asymmetry as a suggestion; fixed in f846d96 by adding the return value; root cause: when a helper is added by copying a sibling, the copy may omit return values or contracts that the original developed over time but that the new function did not have at the time it was written; first occurrence — log and watch |
+| Semantic-reviewer ISSUE on intentional staged delivery or intentional design decision | 1 | 2026-03-20 | Watch — bc1725a/3aa5a6b/fd40227 (feat/fix quiz: PR #177): two ISSUEs flagged by semantic-reviewer were false positives — (1) flaggedIds empty array flagged as a behavior gap but intentionally staged empty until PR 5 wires the data source; (2) current color on answered-but-not-visited questions flagged as "hides feedback" but intentional per Paper Design spec; both confirmed by orchestrator as intentional design decisions and dismissed; root cause: semantic-reviewer lacks context about multi-PR delivery plans and external design specs; mitigation: document intentional gaps (staged delivery, design-spec-driven choices) in a commit message note or inline code comment so the reviewer has in-diff context; first occurrence — log and watch |
+| Test mock type becoming stale after production type refactor | 1 | 2026-03-20 | Watch — fd40227 (fix/quiz PR #177): a test mock used a stale type shape that no longer matched the production interface after a refactor in an adjacent commit; flagged by semantic-reviewer as a SUGGESTION; fixed in fd40227 before commit; distinct from "test fixture shape mismatch" (that is a wrong field in a fixture object used as test data — this is the type annotation on a mock itself being stale); first occurrence — log and watch |
+| Misleading test name (test name contradicts actual assertion body) | 1 | 2026-03-21 | Watch — ca55c3c (fix/reports #179): a test name described a different behavior than the assertion it contained; semantic-reviewer flagged as an ISSUE (misleading passing tests give false confidence); fixed by aligning the name to the assertion; distinct from "implementation-named test" (that is a style issue — this is an active contradiction between name and assertion); first occurrence — log and watch; if it recurs, add note to test-writer patterns memory: verify each test name accurately describes the assertion's postcondition |
+| Multiple anchor tags per table row pointing to same destination | 1 | 2026-03-21 | Watch — ca55c3c (fix/reports #179): session history table row rendered two <a> tags (text link + icon link) both pointing to the same detail URL; screen readers and keyboard users hit the same destination twice; fixed by consolidating to single link with aria-label; first occurrence — if a second component renders duplicate same-destination links in a repeated row, add accessibility note to code-style.md Section 2 |
+| stopPropagation on nested Link inside row onClick without explanatory comment | 1 | 2026-03-23 | Watch — 281b05f (fix/reports): `<Link onClick={(e) => e.stopPropagation()}>` inside a `<tr onClick={navigate}>` lacked an inline comment explaining the call prevents the row-level navigation from firing twice; semantic-reviewer flagged as SUGGESTION; not fixed in this cycle (comment-only improvement); first occurrence — if a second component ships stopPropagation inside a delegated-click container without a comment, add note to code-style.md Section 2: stopPropagation in nested interactive elements must include a comment explaining which parent handler it blocks and why |
+| Hook file exceeding 80-line limit | 5 | 2026-03-23 | RULE EXISTS — use-quiz-config.ts at 110 lines (57ec870/0bc21e6); 5th occurrence; fixed by extracting calcFilteredAvailable helper to topic-tree-helpers.ts; pattern persists despite 70-line watch threshold; root cause: hooks grow incrementally through feature additions, each addition individually small but cumulatively breaching the limit; no new rule needed — existing rule and watch threshold are correct; the post-commit code-reviewer gate remains the reliable catch |
+| Async callback (refetch) not wrapped in useCallback causing redundant server calls | 1 | 2026-03-23 | Watch — use-quiz-config.ts (57ec870/0bc21e6): `fc.refetch` passed as a useEffect dependency without useCallback wrapping; new function reference on every render triggered unnecessary refetch calls; fixed by wrapping refetch in useCallback with [fc] dependency; semantic-reviewer caught as ISSUE; distinct from "Unstable useEffect dependency (inline function prop)" (that is a prop passed down — this is a hook method reference captured in useEffect deps); first occurrence — log and watch |
 
 ## Lessons Learned
+
+### 2026-03-23 — Dashboard/quiz fix + filter-topic decoupling (commits 57ec870, 0bc21e6)
+
+**Context:** Two-commit sequence. 57ec870 fixed the calendar heatmap, redesigned stat cards, and decoupled filter counts from topic checkbox selection in the quiz config. 0bc21e6 was the fix commit addressing all post-commit agent findings: extracted `calcFilteredAvailable` helper to `topic-tree-helpers.ts`, wrapped `fc.refetch` in `useCallback`, and fixed a stale doc reference in `docs/manual-eval-175-179.md`.
+
+**Code reviewer:** 1 BLOCKING.
+- `use-quiz-config.ts` at 110 lines, exceeding the 80-line hook limit. Fixed in 0bc21e6 by extracting `calcFilteredAvailable` to `topic-tree-helpers.ts`, bringing `use-quiz-config.ts` to 68 lines.
+
+**Doc updater:** No updates needed. Clean.
+
+**Semantic reviewer:** 0 CRITICAL, 1 ISSUE, 3 SUGGESTION.
+1. **fc.refetch not wrapped in useCallback — ISSUE, real, fixed in 0bc21e6.** `fc.refetch` was used as a `useEffect` dependency without being stabilised via `useCallback`. Because the hook method reference is recreated on every render, the effect re-ran on every parent render, generating redundant server calls. Fixed by wrapping in `useCallback` with `[fc]` as the dependency.
+2. **Bail-early comment missing — SUGGESTION, fixed in 0bc21e6.** A bail-early condition in `use-filtered-count.ts` lacked an inline comment explaining the intent. Comment added.
+3. **Stale doc reference — SUGGESTION, fixed in 0bc21e6.** `docs/manual-eval-175-179.md` had a stale reference to a section that no longer exists. Removed.
+4. **Frozen `now` captured at module load — SUGGESTION, accepted without fix.** `Date.now()` captured at module-load time means the value is stale across long-lived sessions. Accepted as a deliberate design choice given the context; the suggestion is valid in principle but the trade-off is acceptable here.
+
+**Test writer:** 22 new tests written, all passing.
+
+**Pattern analysis:**
+
+- **Hook file exceeding 80-line limit (RECURRING — count now 5):** This is the fifth occurrence across different commits (9f5a6cc, 741ae30, 34a9352, and now 57ec870). The pattern is persistent despite the 70-line watch threshold added to code-reviewer memory after the 4th occurrence. Root cause: hooks grow incrementally through feature additions, each step individually small but cumulatively breaching the limit. The current rule and watch threshold are correct — the post-commit code-reviewer BLOCKING gate reliably catches violations before push. No additional rule change warranted. The gate is functioning; the habit gap is at authoring time. This is the right balance between friction and enforcement.
+
+- **Async callback not wrapped in useCallback (NEW — count 1):** `fc.refetch` used as a `useEffect` dependency without `useCallback`. First occurrence as a named pattern. Distinct from "Unstable useEffect dependency (inline function prop)" (that is a prop passed as a callback — this is a hook method reference captured in deps). First occurrence — log and watch. Rule change requires 2+ occurrences.
+
+**Actions taken:**
+- Frequency table: "Hook file exceeding 80-line limit" count updated from 4 to 5, last-seen updated to 2026-03-23.
+- Frequency table: New watch row added for "Async callback not wrapped in useCallback" at count 1.
+
+**No rule changes applied this cycle.** Hook limit violation is a recurring pattern but the existing rule is correct and the gate catches it reliably — no gap in the rule, only in authoring habit. The `useCallback` pattern is a first occurrence. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** None detected. The "frozen now" SUGGESTION was accepted without fix — this is a deliberate trade-off, not a false positive. The semantic reviewer's characterisation of it as a concern is valid; the decision not to fix it is contextual.
+
+**Positive signals:**
+- Fix commit 0bc21e6 addressed all findings cleanly in a single pass — no residual findings after the fix cycle.
+- Test writer produced 22 tests, all passing, covering the new hook split and filter logic.
+- The hook extraction (`calcFilteredAvailable` to `topic-tree-helpers.ts`) was a clean split — the helper is small, named, and testable in isolation.
+- Doc updater reported clean — no documentation drift from a non-trivial refactor touching 5 files.
+
+---
+
+### 2026-03-23 — CodeRabbit + SonarCloud fix commit (commit 281b05f + test commit 153a975)
+
+**Context:** Two-commit sequence. 153a975 added `session-table.test.tsx` (18 tests covering rendering, color logic, keyboard navigation, link behavior). 281b05f addressed CodeRabbit and SonarCloud findings: keyboard a11y on `<tr>` (tabIndex + onKeyDown), focus-visible outline, `Readonly<>` on prop types (SonarCloud S6759), and flipped `!= null` ternaries to `== null` form (SonarCloud S7735).
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean.
+
+**Doc updater:** No changes needed. Clean.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE, 2 SUGGESTION.
+
+1. **stopPropagation without explanatory comment — SUGGESTION, not fixed.** `<Link onClick={(e) => e.stopPropagation()}>` inside a `<tr onClick={navigate}>` lacked an inline comment explaining which parent handler it prevents from firing. Technically correct; the comment would improve future readability. Not acted on (comment-only improvement, under-10-lines threshold not reached — this would be a 1-line inline comment addition that was judged not worth a fix commit). First occurrence of this specific gap.
+
+2. **resetAllMocks concern — SUGGESTION, not acted on.** Reviewer noted that `vi.resetAllMocks()` in beforeEach resets all mock implementations, which requires any mock that returns a non-default value to be set up in each test or in beforeEach. The session-table test file already follows this pattern correctly (router mock setup inside describe block). Suggestion was informational; no change warranted.
+
+**Test writer:** Wrote 18 tests for `session-table.tsx`. Tests had TS2532 errors (unchecked array index access — `rows[0].cells[0]` without guard). Fixed with non-null assertion after length assertion before commit.
+
+**Pattern analysis:**
+
+- **TS2532 unchecked array index (RECURRING — count now 3):** This is the third occurrence of the test-writer generating array index access without undefined guards. The rule is already documented in test-writer/patterns.md (§Array index safety) at "count 2, now a rule." The pattern persists: the test-writer generates the wrong form first, requiring a fix cycle before commit. The rule is documented and the fix is caught by the pre-commit type-check gate before any broken test enters git. The gate is functioning correctly. No additional rule change needed — the existing documented rule is the right response. The fix cycle (generate → type-check fails → fix → commit) is a reliable if slightly inefficient path.
+
+- **stopPropagation without explanatory comment (NEW, count 1):** A `stopPropagation` call in a nested interactive element lacked an inline comment. First occurrence — log and watch. Rule change requires 2+ occurrences.
+
+- **resetAllMocks suggestion (watch item, count 1):** Semantic-reviewer flagged a `vi.resetAllMocks()` usage as potentially problematic (would reset mock implementations). In this file, the setup is correct. This is a context-sensitive suggestion that requires per-file judgment. Log and watch — if test files start failing due to resetAllMocks clearing needed mock implementations, a note in test-writer patterns memory would be warranted.
+
+**Actions taken:**
+- Frequency table: TS2532 count updated to 3, last-seen updated to 2026-03-23.
+- Frequency table: 2 new watch rows added (stopPropagation without comment; resetAllMocks suggestion).
+
+**No rule changes applied this cycle.** TS2532 rule already documented in test-writer/patterns.md. New patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** The resetAllMocks SUGGESTION is borderline — the suggestion is technically correct advice in the general case but the specific usage in this test file is already correct. Logged as a watch item rather than a false positive because the advice is sound in principle.
+
+**Positive signals:**
+- Code reviewer and doc updater both clean — no mechanical drift from a refactor-focused commit touching 5 files.
+- Semantic reviewer produced 0 issues — the a11y and SonarCloud fixes were applied cleanly without introducing new logic gaps.
+- Test writer produced 18 tests covering rendering, color logic, keyboard navigation, and link behavior — meaningful behavioral coverage, not just smoke tests.
+- TS2532 fix cycle was completed before commit — the type-check gate caught the issue and no broken test entered git.
+- The `Readonly<>` prop type pattern (SonarCloud S6759) applied consistently to all 4 affected components in a single fix commit — cross-cutting fix applied completely in one pass.
+
+---
+
+### 2026-03-21 — Quiz results redesign (commits 29b441f, 4e217d1)
+
+**Context:** Two-commit sequence for issue #178 (quiz results page redesign). 29b441f introduced three new components (`score-ring.tsx`, `result-summary.tsx`, `question-breakdown.tsx`), refactored `report-card.tsx` and `report-question-row.tsx`, updated `page.tsx`, and extended `quiz-report.ts`. 4e217d1 was a fix commit addressing semantic-reviewer findings and adding 39 new tests (score-ring: 14, result-summary: 14, question-breakdown: 11).
+
+**Code reviewer:** 0 BLOCKING, 1 WARNING.
+- Dual layout pattern in `result-summary.tsx` (mobile vs. desktop via parallel `hidden`/`flex` divs) flagged as a WARNING. Accepted as a standard responsive Tailwind pattern — not a code-style violation.
+
+**Doc updater:** `docs/plan.md` updated with Sprint 7 section. `MEMORY.md` updated with session entry. Clean.
+
+**Test writer:** 39 new tests across 3 files, all passing. No gaps found after 4e217d1.
+
+**Semantic reviewer:** 0 CRITICAL, 1 ISSUE, 2 SUGGESTION, 6 GOOD.
+
+1. **easa_subjects error silently dropped — ISSUE, real, fixed in 4e217d1.** `getEasaSubjects()` error was destructured but the error branch had no `console.error` call. On failure, the function returned an empty array silently — no server-side signal. Fixed by adding logging on the error path.
+
+2. **Hardcoded hex colors in SVG bypass oklch theme — SUGGESTION.** `score-ring.tsx` used hardcoded hex values (`#3b82f6`, `#22c55e`, etc.) as SVG attribute values. SVG attributes do not inherit CSS custom properties, so the oklch design token system is bypassed. A threshold comment was added in 4e217d1 documenting the hex values as intentional for SVG attribute compatibility; full fix would require switching to `style={{ stroke: 'var(--color-...)' }}` or Tailwind `className`. Deferred — comment mitigation accepted for now.
+
+3. **formatDuration negative guard missing — SUGGESTION, fixed in 4e217d1.** Duration utility did not guard against negative inputs. Guard added.
+
+4. **Direct questions SELECT safety not documented — SUGGESTION, fixed in 4e217d1.** A SELECT from `questions` in the report query lacked an inline comment explaining it is a server-only admin-context read, not a student-facing exposure. Comment added.
+
+**Pattern analysis:**
+
+- **Silent error drop on non-critical secondary query** (NEW, count 1): `getEasaSubjects()` is an enrichment query — its failure degrades the UI but does not break the core report. The error path was silently swallowed (no log). This is distinct from "Supabase mutation result not destructured" (wrong method) and "Auth error from getUser() swallowed" (wrong layer). The pattern: when a non-critical query fails and the code falls back to a default value, there must still be a `console.error` call before the fallback so the failure is observable server-side. First occurrence — log and watch. Rule change requires 2+ occurrences.
+
+- **Hardcoded hex colors in SVG bypassing oklch theme** (NEW, count 1): SVG attribute colors are not inherited from CSS custom properties — only inline `style` or class-based CSS picks up CSS vars. Using hardcoded hex values in SVG attributes is a silent design-system bypass. First occurrence — log and watch. Rule change requires 2+ occurrences.
+
+**Actions taken:**
+- Frequency table: 2 new watch rows added (silent error drop on non-critical secondary query; hardcoded hex in SVG attribute bypassing theme). Both at count 1 — log and watch, no rule changes.
+
+**No rule changes applied this cycle.** Both new patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** none detected. The code-reviewer WARNING on dual layout was correctly characterised as acceptable (standard responsive pattern); it was not a false positive from the reviewer's perspective — it flagged something worth noting — but no action was warranted.
+
+**Positive signals:**
+- Code reviewer produced 0 BLOCKING on a commit adding 3 new components and touching 5 existing files — mechanical style discipline held across a large feature addition.
+- Semantic reviewer's single ISSUE (easa_subjects silent error drop) was real, caught before push, fixed in the same session. Gate functioning correctly.
+- Test writer produced 39 tests across 3 new components in one fix commit, all passing — comprehensive coverage shipped alongside the feature rather than being deferred.
+- 6 GOOD patterns noted by semantic reviewer — positive signal that the new components follow established conventions (Server Component data flow, Tailwind responsive classes, co-located types, early-return guards).
+
+---
+
+### 2026-03-20 — Quiz PR #177 (commits bc1725a, 3aa5a6b, fd40227)
+
+**Context:** Three-commit sequence for issue #177 (quiz session redesign). bc1725a added the `question_comments` table, flag/comment Server Actions, and RLS. 3aa5a6b added the full-screen session layout and color-coded question grid. fd40227 was a fix commit adding a layout comment and 12 unit tests for quiz-main-panel.
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING across all three commits. Clean.
+
+**Doc updater:** `docs/plan.md` updated with PR #177 status. No other drift. Clean.
+
+**Test writer:** 12 new tests written for `quiz-main-panel`. All passing. No gaps found after fd40227.
+
+**Semantic reviewer (on 3aa5a6b):** 0 CRITICAL, 2 ISSUE, 2 SUGGESTION. Both ISSUEs were false positives. Both SUGGESTIONs were fixed in fd40227.
+
+1. **flaggedIds empty array — FALSE POSITIVE ISSUE.** Reviewer flagged `flaggedIds` as always empty, suggesting a behavior gap. This is intentional staged delivery — the data source is wired in PR 5. The empty array is correct for the current PR scope.
+
+2. **Current color hides question feedback — FALSE POSITIVE ISSUE.** Reviewer flagged that the "current" color on an answered-but-not-visited question obscures the answered/unanswered distinction. This is intentional per the Paper Design spec — the color scheme exactly matches the agreed external design document. No code change warranted.
+
+3. **Stale mock type — SUGGESTION, fixed.** A test mock's type annotation no longer matched the production interface after a refactor in an adjacent commit. Fixed in fd40227 before commit.
+
+4. **Layout comment missing — SUGGESTION, fixed.** A non-obvious layout choice lacked an explanatory comment. Added in fd40227.
+
+**Pattern analysis:**
+
+- **Semantic-reviewer ISSUE on intentional staged delivery or design decision** (NEW, count 1): reviewer issued two ISSUEs that were both valid concerns in isolation but were intentional by design — one is a multi-PR staged delivery gap, the other is a deliberate design-spec match. The reviewer has no visibility into multi-PR delivery plans or external design docs. Mitigation without rule change: add a brief inline comment in the code or a commit message note when an apparent gap is intentional — this gives the reviewer in-diff context on the next cycle and may self-resolve the false positive. First occurrence — log and watch. No rule change at count 1.
+
+- **Test mock type becoming stale after production type refactor** (NEW, count 1): test mock type annotation drifted from production type after a refactor. Caught by semantic-reviewer as a SUGGESTION and fixed in the same cycle before commit. Distinct from test fixture shape mismatch (wrong field values vs. wrong type annotation). First occurrence — log and watch.
+
+**Actions taken:**
+- Frequency table: 2 new watch rows added (semantic-reviewer ISSUE on intentional design/staged delivery; stale mock type annotation). Both at count 1 — log and watch, no rule changes.
+
+**No rule changes applied this cycle.** Both patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** 2 detected. Both semantic-reviewer ISSUEs were confirmed false positives — intentional staged delivery (flaggedIds) and intentional design-spec match (color scheme). This is the first cycle where confirmed false positives appeared at ISSUE severity. Worth tracking: if semantic-reviewer false-positive rate at ISSUE level increases, consider adding in-diff comment conventions for intentional gaps.
+
+**Positive signals:**
+- Code reviewer clean across all three commits — no mechanical violations in a large new-feature cycle including a new DB migration, Server Actions, and complex UI layout.
+- Test writer added 12 meaningful tests for quiz-main-panel — coverage added in the same session, not deferred.
+- Both SUGGESTIONs from semantic-reviewer were real and fixed in the same session before any push — suggestion-level gate functioning correctly.
+- The fix commit fd40227 is minimal and focused (layout comment + tests only) — clean separation between feature and polish.
+- False positives were correctly identified and dismissed by the orchestrator without jumping to fix non-existent issues. Validate-before-fixing protocol held.
+
+---
+
+### 2026-03-20 — Maintenance fixes + subject-row tests (commits 7c5b6ca, f846d96)
+
+**Context:** Two-commit session. Commit 1 (7c5b6ca) resolved 4 maintenance issues: aria-labels on expand/collapse buttons (#273), filteredCount branch coverage in topic-row tests (#282), trivially-passing assertion fix in quiz-config-form tests (#280), and org-mismatch handling in ensureLoginTestUser E2E helper (#266). Commit 2 (f846d96) added 15 unit tests for the admin SubjectRow component plus the return value fix to ensureLoginTestUser.
+
+**Commit 1 (7c5b6ca) — fix: resolve 4 maintenance issues**
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean.
+
+**Doc updater:** No updates needed. Clean.
+
+**Test writer:** subject-row.test.tsx was missing (SubjectRow component had no tests). Test writer generated the file. Found a vi.hoisted bug during generation — sonner toast mocks were declared as plain `const` variables above `vi.mock('sonner', ...)` rather than via `vi.hoisted()`; at factory execution time the variables were `undefined`. Bug caught by the test run before commit. Fixed before f846d96 was committed.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE. 2 SUGGESTIONS.
+1. **ensureLoginTestUser missing return value** — SUGGESTION. ensureTestUser returns `{ orgId, userId }` but ensureLoginTestUser did not; callers could not use the helper's resolved identifiers. Fixed in f846d96 by adding the return statement.
+2. **subtopic-row edit mode note** — SUGGESTION about a note-only observation in the diff. No action required.
+
+**Commit 2 (f846d96) — test: add subject-row tests and return value to ensureLoginTestUser**
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean.
+
+**Doc updater:** No updates needed. Clean.
+
+**Test writer:** New test file, no further gaps.
+
+**Semantic reviewer:** No new findings on the test-only commit.
+
+**Pattern analysis:**
+
+- **test-writer generates vi.mock factory referencing non-hoisted variable** (NEW, count 1): test-writer emitted mock variables as plain `const` above `vi.mock()` factory rather than wrapping them in `vi.hoisted()`. This is a known Vitest requirement (factory is hoisted by compiler, non-hoisted variables are undefined at factory time). The existing test-writer patterns.md documents `vi.hoisted()` usage correctly for the success path but the generated code for a new module (sonner) did not apply it. Bug caught by test run, fixed before commit — gate held. First occurrence as a named generation failure — log and watch. If it recurs, update test-writer patterns.md with an explicit "always use vi.hoisted for ANY variable referenced inside a vi.mock factory" callout as the top rule in the vi.hoisted section.
+
+- **E2E helper function copied from sibling loses return value contract** (NEW, count 1): ensureLoginTestUser was modeled after ensureTestUser but did not return `{ orgId, userId }`. When a helper evolves to return a richer value and a sibling helper is written from an earlier snapshot of it, the sibling silently lacks the richer contract. First occurrence — log and watch.
+
+**Actions taken:**
+- Frequency table: 2 new watch rows added (vi.mock factory referencing non-hoisted variable; E2E helper sibling missing return contract). Both at count 1 — log and watch, no rule changes.
+
+**No rule changes applied this cycle.** Both patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer clean on both commits — no style regressions from the maintenance batch.
+- test-writer's own test run caught the vi.hoisted bug before the file was committed. The test execution gate functioned as designed.
+- Semantic reviewer correctly identified the ensureLoginTestUser return-value asymmetry as a suggestion (not an ISSUE) — severity was accurately calibrated.
+- Both commits are minimal, focused, and passed all agent checks without requiring fix commits.
+
+---
+
+### 2026-03-20 — Tech-debt fix + post-commit findings (commits d93f924, 5a68fa3)
+
+**Context:** Tech-debt batch fixing issues #305 (lookup.ts refactor), #304 (authError wiring), and #250 (Node version alignment). The original commit (d93f924) triggered post-commit agents. Three findings required a fix commit (5a68fa3).
+
+**Code reviewer:** 2 BLOCKING.
+1. **lookup.ts exceeded 100-line utility limit** — file was already over-limit before this commit; adding lines triggered the BLOCKING. Fixed by extracting helpers to `lookup-helpers.ts` in 5a68fa3.
+2. **getFilteredCount was 58 lines** — function body exceeded the 30-line function limit. Resolved as part of the helper extraction above.
+
+**Doc updater:** No changes needed. Clean.
+
+**Test writer:** 3 gaps found and filled — `isPending` after auth error, stale auth error guard, `authError` passthrough in `useQuizConfig`. All tests written and passing.
+
+**Semantic reviewer:** 1 ISSUE, 3 SUGGESTIONS.
+1. **authError threaded through hooks but never rendered in UI — ISSUE, real, fixed in 5a68fa3.** `authError` was a return value on `useQuizConfig` but no component consumed it; auth failures were silent to the user. Fixed by adding a session-expired message and disabling Start Quiz when `authError` is set.
+2. **catch swallowing errors silently** — SUGGESTION, deferred. Single occurrence, suggestion-level.
+3. **Node 25 (Current) in CI** — SUGGESTION that became a clear fix: Node 25 is non-LTS; CI reverted to Node 22 LTS in 5a68fa3. Treated as a fix, not a deferral.
+
+**Pattern analysis:**
+
+- **Pre-existing file size violation surfaced by new commit** (NEW, count 1): lookup.ts was already over the limit. New commits that add lines to already-over-limit files expose the violation. Distinct from Biome-expansion mechanism. First occurrence — log and watch.
+- **Return discriminant threaded through hooks, dropped at UI boundary** (NEW, count 1): authError was correctly threaded but never rendered. No mechanical gate exists to catch this. First occurrence — log and watch.
+- **Node Current release pinned in CI** (NEW, count 1): Node 25 is a Current (odd) release, not LTS. Should always use even-numbered LTS. First occurrence — log and watch.
+
+**Actions taken:**
+- Frequency table: 3 new watch rows added (pre-existing file size violation surfaced, return discriminant dropped at UI boundary, Node Current in CI). All at count 1 — log and watch, no rule changes.
+
+**No rule changes applied this cycle.** All three patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer correctly caught 2 BLOCKING findings (file size + function length) in the first pass. Gate functioning correctly.
+- Semantic reviewer caught the authError UI gap as an ISSUE — real, not a false positive. Fix was clean.
+- Test writer found 3 meaningful behavioral gaps (isPending after auth error, stale auth error guard, authError passthrough) — coverage added in the same session.
+- Fix commit 5a68fa3 addressed all agent findings in a single commit. No deferred work.
+
+---
 
 ### 2026-03-18 — feat/174-login-redesign fix cycle (commit 610e358)
 
@@ -2159,5 +2424,166 @@ No edits needed to those files beyond this notation. The entries are accurate hi
 **Positive signals:**
 - All 4 agents fully clean on a pure devDependency bump. Agent scoping is working correctly: code-reviewer applied config relaxation, test-writer correctly produced no output, doc-updater correctly found nothing to update.
 - The semantic reviewer's SUGGESTION (turbo cache) was handled correctly via `--force` at authoring time — no type errors were silently masked in this commit. The SUGGESTION is about future dep-bump commits, not a gap in this one.
+
+---
+
+### 2026-03-20 — Security patch bump (commit 2d1901a)
+
+**Commit:** fix(deps): bump next 16.1.6 → 16.1.7 to resolve 12 security alerts
+**Files changed:** `apps/web/package.json`, `pnpm-lock.yaml`
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean. Lockfile and single package.json version bump; config file relaxation applies.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE, 0 SUGGESTIONS. Clean. Patch bump with no API surface changes; no behavioral analysis needed.
+
+**Doc updater:** no changes needed. Pure runtime dependency patch; no schema, API, or architecture changes.
+
+**Test writer:** no tests needed. No production source files changed.
+
+**Pattern analysis:**
+
+No new patterns. No repeat occurrences triggered.
+
+**Patterns checked from frequency table:**
+
+- "Turbo type-check cache masking new compile errors after dependency bumps" (count 3, RULE APPLIED): CLAUDE.md rule was applied at authoring time — no action needed. This is a Next.js runtime bump, not a type-definition package, so the turbo cache risk is lower. No type errors surfaced. Rule continues to hold.
+
+**Actions taken:** none. All agents clean; no frequency table entries updated; no rule changes.
+
+**False positives:** none.
+
+**Positive signals:**
+- All 4 agents clean on a security patch bump resolving 12 Dependabot alerts. This is the expected behavior for a patch-level runtime dep update with no source file changes.
+- Agent scope boundaries held correctly: code-reviewer applied config relaxation (lockfile + package.json), test-writer correctly produced no output, doc-updater correctly found nothing to update, semantic-reviewer found no behavioral concerns.
+- Clean cycles on dep-only commits are healthy signals that the agent pipeline is not over-flagging. No false positives introduced.
+
+---
+
+### 2026-03-20 — feat(quiz): add question_comments table + flag/comment Server Actions (commits 6520962, b71eb18)
+
+**Context:** New feature commit adding the `question_comments` table migration, `comments.ts` and `flag.ts` Server Actions, regenerated types, and updated database.md. Post-commit agents found 1 BLOCKING and 2 ISSUEs. A fix commit (b71eb18) resolved all findings. test-writer produced 56 tests.
+
+**Code reviewer:** 1 BLOCKING.
+1. `toggleFlag` in flag.ts — 52 lines (limit: 30). Fixed by extracting `unflagQuestion()` and `flagQuestion()` helpers in b71eb18.
+
+**Doc updater:** database.md already updated in the feature commit. No further changes needed. Clean.
+
+**Test writer:** 56 tests written (27 for comments.ts, 29 for flag.ts). All passing.
+
+**Semantic reviewer:** 2 ISSUEs, 3 SUGGESTIONs.
+1. **deleteComment silent no-op — ISSUE.** RLS enforces ownership, but a delete on a wrong `commentId` or a cross-user attempt returns 200 with 0 affected rows, and the caller receives `{ success: true }`. Fixed in b71eb18 by adding `.eq('user_id', user.id)` to the query and checking that at least one row matched.
+2. **toggleFlag read-then-write race — ISSUE.** SELECT to check current flag state followed by UPDATE or UPSERT; two concurrent toggle calls from different tabs could leave the flag in the wrong state. Fixed in b71eb18 by adding `.is('deleted_at', null)` to the UPDATE predicate, making the unflag conditional and atomic at the DB level.
+3. **Suggestion 1:** RLS SELECT subquery should be commented to explain orphaned-user defense intent. Deferred.
+4. **Suggestion 2:** `getComments` returns `{ success: true, comments: [] }` on unauthenticated call instead of `{ success: false, error: 'Not authenticated' }`. Inconsistent with established pattern. Proxy makes the path unreachable in production. Deferred.
+5. **Suggestion 3:** `createComment` uses `.single()` after insert; trigger-suppressed insert would return PGRST116 logged as a generic error. Deferred.
+
+**Patterns detected this cycle:**
+
+1. **[REPEAT — 2nd occurrence] Function exceeding 30-line limit in Server Action file (count 1 → 2)**
+   - First occurrence: `getFilteredCount` in lookup.ts (d93f924) — 58 lines. Fixed by extracting `buildQuestionQuery`.
+   - Second occurrence: `toggleFlag` in flag.ts (6520962) — 52 lines. Fixed by extracting `unflagQuestion`/`flagQuestion`.
+   - Common root cause: Server Action functions with 2+ distinct conditional branches are written as a single function. Each branch alone may look manageable, but the combined function body exceeds 30 lines.
+   - Count in frequency table: 1 → 2. Status: RULE CANDIDATE.
+   - Threshold met. Actionable at authoring time: any Server Action function with 2+ branches (e.g., toggle/flag/unflag) should have each branch extracted as a named helper before writing the orchestrator. This is already implied by code-style.md Section 3 ("Extract steps into named helper functions") but that section does not call out the 2-branch toggle pattern specifically.
+   - No mechanical rule change proposed — the 30-line limit already exists in code-style.md Section 3. The compliance gap is at authoring time, not in the rule text. Logging in code-reviewer memory as a watch pattern for the next toggle/conditional Server Action.
+
+2. **[REPEAT — 2nd occurrence] UPDATE/DELETE returning zero rows treated as success (count 1 → 2)**
+   - First occurrence: draft UPDATE (6d274fa, 2026-03-13) — wrong ownership, 0 rows updated, success returned.
+   - Second occurrence: deleteComment DELETE (6520962) — wrong commentId or cross-user, 0 rows deleted, `{ success: true }` returned.
+   - Both share the same root cause: the caller does not verify that the mutation affected at least one row.
+   - Count in frequency table: 1 → 2. Status: RULE CANDIDATE.
+   - Threshold met. Proposed addition to code-style.md Section 5 (TypeScript Rules / Supabase patterns): for any ownership-scoped DELETE or UPDATE, chain `.select('id')` (or equivalent) and check that at least one row was returned before returning success. This sub-case is not currently covered by the existing "Destructure Supabase Mutation Results" rule, which only covers missing `{ error }` destructuring.
+   - Proposed change: `code-style.md` — add a sub-note under the Supabase mutation section: "For ownership-scoped DELETE and UPDATE calls, verify that at least one row was affected (chain `.select('id')` and check the returned array length) before returning success. A zero-row result is a silent no-op, not an error — it will not surface via `{ error }` destructuring."
+
+3. **[NEW] Read-then-write race on state-change UPDATE (count 1)**
+   - toggleFlag performed a SELECT to read current flag state, then issued UPDATE or UPSERT based on the result. Concurrent calls could both observe the "flagged" state and both issue the unflag UPDATE, leaving the flag in the wrong final state.
+   - Distinct from "TOCTOU race on count-gated INSERT" (that is an INSERT guard — this is a conditional UPDATE on a mutable state column).
+   - Fix pattern: include the expected current column value in the WHERE predicate (`.is('deleted_at', null)` for soft-deleted state) to make the UPDATE conditional and atomic without a separate SELECT.
+   - Count: 1. Status: log and watch. No rule change on first occurrence.
+
+**Patterns checked from frequency table (no count change):**
+
+- "Supabase mutation result not destructured (error silently dropped)" (count 3, RULE EXISTS): both comments.ts and flag.ts correctly destructure `{ error }` throughout. No new violation. Rule holding.
+- "Hook file exceeding 80-line limit" (count 4, RULE EXISTS): not applicable to this commit. No new hooks added.
+- "New hook file extracted without shipping tests in the same commit" (count 5, RULE EXISTS): no new hook files. No violation.
+
+**Recommended changes:**
+
+- [ ] `code-style.md` Section 5 — add sub-note under the Supabase mutation destructuring rule: "For ownership-scoped DELETE and UPDATE calls, verify at least one row was affected by chaining `.select('id')` and checking the returned array length. A zero-row result returns no error — it must be checked explicitly."
+
+**Actions taken:**
+- Frequency table: "UPDATE returning zero rows treated as success" count updated 1 → 2. Status: RULE CANDIDATE.
+- Frequency table: "Function exceeding 30-line limit in Server Action file" added as new row, count 2. Status: RULE CANDIDATE.
+- Frequency table: "Read-then-write race on state-change UPDATE" added as new row, count 1. Status: watching.
+- code-reviewer/patterns.md: "Function > 30 lines in Server Actions" count updated 1 → 2.
+
+**False positives:** none.
+
+**Positive signals:**
+- Semantic reviewer caught both ISSUEs in a single pass on the first post-commit review — no multi-round security fix cycle needed.
+- test-writer produced 56 tests covering both new Server Action files in full. No test gaps reported.
+- Fix commit b71eb18 addressed all 3 findings (1 BLOCKING + 2 ISSUEs) in a single commit. No deferred work.
+- deleteComment and toggleFlag hardening both follow established Supabase patterns from the project (`.select()` + row-count check; atomic predicate on UPDATE). No novel patterns introduced.
+
+---
+### 2026-03-21 — feat(reports): redesign with session table, mode badge, color-coded scores (commits b104ae4, 9258769, ca55c3c)
+
+**Context:** Reports page redesign (issue #179). b104ae4 was the feature commit introducing a session history table, mode badge, and color-coded score utilities (`score-color.ts`, `reports-utils.ts`). Post-commit agents found 2 warnings (missing utility tests) and 1 ISSUE (misleading test name). 9258769 was a first fix attempt; ca55c3c was the final fix commit resolving all findings and adding 13 tests.
+
+**Code reviewer:** 0 BLOCKING, 2 WARNINGS.
+1. `score-color.ts` — new utility file shipped without a co-located test.
+2. `reports-utils.ts` — new utility file shipped without a co-located test.
+Both fixed in ca55c3c.
+
+**Doc updater:** `docs/plan.md` updated with reports redesign progress. Clean.
+
+**Test writer:** `score-color.test.ts` (6 tests) and `reports-utils.test.ts` (7 tests) written and passing. No further gaps after ca55c3c.
+
+**Semantic reviewer:** 0 CRITICAL, 1 ISSUE, 4 SUGGESTIONs.
+1. **Misleading test name — ISSUE, real, fixed in ca55c3c.** A test described the wrong behavior — the name said one thing but the assertion checked a different condition. Test names are the first line of documentation; a misleading name is worse than no test because it actively misdirects. Fixed by aligning the test name to match the actual assertion.
+2. **a11y: multiple `<a>` tags per table row (same destination) — SUGGESTION, fixed in ca55c3c.** Each report row rendered two separate links (session name + detail icon) pointing to the same URL. Screen readers and keyboard users hit the same destination twice, which is noisy and confusing. Fixed by consolidating to a single link per row with appropriate `aria-label` context.
+3. **3 further SUGGESTIONs** — deferred (tests written for a11y fix; other suggestions were minor).
+
+**Pattern analysis:**
+
+1. **[REPEAT — 6th occurrence] New utility file shipped without a co-located test (count 5 → 6)**
+   - Prior occurrences tracked under frequency table rows 17 and 58. This cycle: `score-color.ts` and `reports-utils.ts` both shipped in b104ae4 without tests.
+   - The code-reviewer flagged both as WARNINGs (not BLOCKING under current rules), and the test-writer filled the gap in the fix commit.
+   - The rule has been in `code-style.md` Section 7 since the 2nd occurrence. The compliance gap persists at authoring time — new utility files routinely ship without tests and are caught post-commit.
+   - Note: the code-reviewer treats missing utility tests as WARNING (non-blocking), which means there is no hard gate preventing the commit from landing without tests. The gap is caught post-commit only. This is by design — test-writer is the designated gap-filler. No rule change warranted; compliance gap is structural.
+   - Count updated: frequency table row 58 → 6.
+
+2. **[NEW] Misleading test name — test name contradicts actual assertion (count 1)**
+   - A test name claimed to test one behavior but the assertion body tested a different condition. This is a first-class documentation failure: a test that passes gives false confidence if the name does not accurately describe what it asserts.
+   - Distinct from "test describes implementation instead of behavior" (code-style.md Section 7 rule on naming conventions). This is specifically a contradiction between name and assertion, not just a style preference.
+   - Caught by semantic-reviewer as an ISSUE-level finding — correctly severity-calibrated (a misleading passing test is an active gap, not just a style concern).
+   - First occurrence — log and watch. If a second occurrence surfaces across a different commit, add a note to the test-writer patterns memory: after generating each test, verify the test name accurately describes the assertion's postcondition, not an adjacent behavior.
+
+3. **[NEW] Multiple anchor links per table row pointing to same destination (count 1)**
+   - A session history table row rendered two `<a>` tags (session name text + an icon button) both linking to the same detail URL. Redundant same-destination links in a repeated row pattern cause screen reader and keyboard-navigation noise.
+   - The fix is to use a single link with an `aria-label` that provides full context, or wrap the entire row in a single link.
+   - First occurrence — log and watch. If a second component renders duplicate same-destination links in a repeated row, add a note to code-style.md Section 2 (Component Rules / accessibility): "In repeated row patterns (tables, lists), use a single `<a>` per row per destination. Do not render parallel links to the same URL — consolidate with `aria-label` for screen reader context."
+
+**Patterns checked from frequency table (no count change):**
+
+- **"New hook/utility file shipped without a test file" (count 6, RULE EXISTS):** Count updated 5 → 6 (row 58 updated above). No new rule change — rule already in code-style.md Section 7. Compliance gap at authoring time is the ongoing issue.
+- **"ARIA tab role missing on button-based tab UI" (row 63, count 1, Watch):** The a11y multi-link finding is a different pattern (duplicate destination in repeated rows, not tab role semantics). No count change to row 63.
+- **"Silent error drop on non-critical secondary query" (count 1, Watch):** Not triggered this cycle. No update.
+
+**Recommended changes:** None. Both new patterns are first occurrences; rule change requires 2+ occurrences across different commits.
+
+**Actions taken:**
+- Frequency table row 58 updated: count 5 → 6, date updated to 2026-03-21, description expanded to include b104ae4 + ca55c3c as the 6th occurrence.
+- Frequency table: "Misleading test name (name contradicts actual assertion)" added as new watch row, count 1, 2026-03-21.
+- Frequency table: "Multiple anchor tags per table row pointing to same destination" added as new watch row, count 1, 2026-03-21.
+
+**False positives:** none detected.
+
+**Positive signals:**
+- Code reviewer produced 0 BLOCKING on the reports redesign feature commit. Both warnings were non-blocking and caught in the same post-commit cycle, fixed before push.
+- Semantic reviewer's 1 ISSUE (misleading test name) was real and correctly severity-calibrated — a contradictory test name is an active gap. Fixed in the same session.
+- The a11y multi-link fix improved keyboard navigation quality without any layout changes — minimal, targeted improvement.
+- 13 new tests (6 + 7) written for the two new utilities in the fix commit. All passing. Test-writer gap-filling is functioning as designed.
+- All agents clean on ca55c3c — fix commit resolved all findings on the first pass.
 
 ---

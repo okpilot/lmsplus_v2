@@ -46,6 +46,7 @@ type ControlProps = {
   answeredCount?: number
   submitting?: boolean
   showFinishDialog?: boolean
+  showSubmit?: boolean
   onTogglePin?: () => void
   onToggleFlag?: () => void
   onPrev?: () => void
@@ -65,6 +66,7 @@ function renderControls(overrides: ControlProps = {}) {
     answeredCount: 2,
     submitting: false,
     showFinishDialog: false,
+    showSubmit: false,
     onTogglePin: vi.fn(),
     onToggleFlag: vi.fn(),
     onPrev: vi.fn(),
@@ -115,12 +117,12 @@ describe('QuizControls — Flag button (ActionButton)', () => {
 
   it('applies the active orange class when flagged', () => {
     renderControls({ isFlagged: true })
-    expect(screen.getByTestId('flag-button').className).toContain('border-orange-400')
+    expect(screen.getByTestId('flag-button').className).toContain('bg-orange-500/10')
   })
 
   it('does not apply the orange class when not flagged', () => {
     renderControls({ isFlagged: false })
-    expect(screen.getByTestId('flag-button').className).not.toContain('border-orange-400')
+    expect(screen.getByTestId('flag-button').className).not.toContain('bg-orange-500/10')
   })
 })
 
@@ -158,12 +160,12 @@ describe('QuizControls — Pin button (ActionButton)', () => {
 
   it('applies the active amber class when pinned', () => {
     renderControls({ isPinned: true })
-    expect(screen.getByTestId('pin-button').className).toContain('border-amber-400')
+    expect(screen.getByTestId('pin-button').className).toContain('bg-primary/10')
   })
 
   it('does not apply the amber class when not pinned', () => {
     renderControls({ isPinned: false })
-    expect(screen.getByTestId('pin-button').className).not.toContain('border-amber-400')
+    expect(screen.getByTestId('pin-button').className).not.toContain('bg-primary/10')
   })
 })
 
@@ -208,5 +210,33 @@ describe('QuizControls — FinishQuizDialog integration', () => {
     renderControls({ showFinishDialog: true, onDiscard })
     fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
     expect(onDiscard).toHaveBeenCalledOnce()
+  })
+})
+
+describe('QuizControls — Submit Answer button', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('does not render Submit Answer button when showSubmit is false', () => {
+    renderControls({ showSubmit: false })
+    expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
+  })
+
+  it('calls onSubmit when Submit Answer is clicked', () => {
+    const onSubmit = vi.fn()
+    renderControls({ showSubmit: true, onSubmit })
+    // desktop Submit Answer button (md:block — present in DOM even if CSS-hidden in jsdom)
+    const [firstSubmit] = screen.getAllByRole('button', { name: /submit answer/i })
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    fireEvent.click(firstSubmit!)
+    expect(onSubmit).toHaveBeenCalledOnce()
+  })
+
+  it('disables Submit Answer when submitting', () => {
+    renderControls({ showSubmit: true, submitting: true })
+    for (const btn of screen.getAllByRole('button', { name: /submit answer/i })) {
+      expect(btn).toBeDisabled()
+    }
   })
 })

@@ -1,3 +1,4 @@
+import { Flag, Pin } from 'lucide-react'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 
 type QuizControlsProps = {
@@ -8,6 +9,7 @@ type QuizControlsProps = {
   answeredCount: number
   submitting: boolean
   showFinishDialog: boolean
+  showSubmit: boolean
   onTogglePin: () => void
   onToggleFlag: () => void
   onPrev: () => void
@@ -26,6 +28,7 @@ export function QuizControls({
   answeredCount,
   submitting,
   showFinishDialog,
+  showSubmit,
   onTogglePin,
   onToggleFlag,
   onPrev,
@@ -37,40 +40,68 @@ export function QuizControls({
 }: QuizControlsProps) {
   return (
     <>
-      {/* Action bar: Previous / Flag / Pin / Next */}
-      <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-        <button
-          type="button"
-          onClick={onPrev}
-          disabled={currentIndex === 0}
-          className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-        >
-          &lt; Previous
-        </button>
-        <div className="flex items-center gap-2">
-          <ActionButton
-            active={isFlagged}
-            onClick={onToggleFlag}
-            label={isFlagged ? 'Unflag' : 'Flag'}
-            testId="flag-button"
-            activeClass="border-orange-400 bg-orange-100 text-orange-700 dark:border-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
-          />
-          <ActionButton
-            active={isPinned}
-            onClick={onTogglePin}
-            label={isPinned ? 'Unpin' : 'Pin'}
-            testId="pin-button"
-            activeClass="border-amber-400 bg-amber-100 text-amber-700 dark:border-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
-          />
+      <div className="py-3">
+        {/* Mobile: full-width Submit button on top */}
+        {showSubmit && (
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={submitting}
+            className="mb-3 w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:hidden"
+          >
+            Submit Answer
+          </button>
+        )}
+
+        {/* Nav row */}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onPrev}
+            disabled={currentIndex === 0}
+            className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            &lsaquo; Previous
+          </button>
+
+          <div className="flex items-center gap-2">
+            <ActionButton
+              active={isFlagged}
+              onClick={onToggleFlag}
+              icon={<Flag className="h-4 w-4" />}
+              label={isFlagged ? 'Unflag' : 'Flag'}
+              testId="flag-button"
+              activeClass="border-transparent bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400"
+            />
+            {showSubmit && (
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={submitting}
+                className="hidden rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:block"
+              >
+                Submit Answer
+              </button>
+            )}
+            <ActionButton
+              active={isPinned}
+              onClick={onTogglePin}
+              icon={<Pin className="h-4 w-4" />}
+              label={isPinned ? 'Unpin' : 'Pin'}
+              testId="pin-button"
+              activeClass="border-transparent bg-primary/10 text-primary dark:bg-primary/15"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={currentIndex === totalQuestions - 1}
+            className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            Next &rsaquo;
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={currentIndex === totalQuestions - 1}
-          className="rounded-lg border border-input px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-        >
-          Next &gt;
-        </button>
       </div>
 
       <FinishQuizDialog
@@ -90,12 +121,14 @@ export function QuizControls({
 function ActionButton({
   active,
   onClick,
+  icon,
   label,
   testId,
   activeClass,
 }: {
   active: boolean
   onClick: () => void
+  icon: React.ReactNode
   label: string
   testId: string
   activeClass: string
@@ -108,10 +141,11 @@ function ActionButton({
       aria-pressed={active}
       className={
         active
-          ? `rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${activeClass}`
-          : 'rounded-lg border border-input px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted'
+          ? `flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${activeClass}`
+          : 'flex items-center gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
       }
     >
+      {icon}
       {label}
     </button>
   )
