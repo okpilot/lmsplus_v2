@@ -481,6 +481,10 @@ ORDER BY deleted_at DESC;
 
 > **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE/DELETE to users where `is_admin()` returns `true`. All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature.
 
+> **Admin question management (migrations 052–055):** The `questions` table has admin INSERT and UPDATE policies with org scoping — `is_admin() AND organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())`. No admin DELETE policy exists; questions use soft-delete via UPDATE to `deleted_at`. Students access questions only through the `get_quiz_questions()` RPC, which strips the `correct` field from options.
+
+> **Storage: `question-images` bucket (migrations 053, 055):** Admin INSERT/UPDATE/DELETE policies enforce org-scoped path isolation — images are stored at `{org_id}/{filename}` and policies check `(storage.foldername(name))[1]` matches the admin's org. Authenticated SELECT allows all users to read images (for quiz display). The upload action (`uploadQuestionImage`) resolves the admin's org and prefixes the path automatically.
+
 ---
 
 ## 4. RPC Conventions
@@ -1381,4 +1385,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-23 (migration 050-051: flagged_questions RLS soft-delete fix + active_flagged_questions view security_invoker) | Companion: docs/security.md*
+*Last updated: 2026-03-24 (migrations 052-055: admin question editor RLS + storage policies) | Companion: docs/security.md*
