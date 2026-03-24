@@ -27,7 +27,6 @@ export function FinishQuizDialog({
   const [confirmingSubmit, setConfirmingSubmit] = useState(false)
 
   // Reset confirmation state when dialog closes so stale panels don't persist
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset only when open changes
   useEffect(() => {
     if (!open) {
       setConfirmingDiscard(false)
