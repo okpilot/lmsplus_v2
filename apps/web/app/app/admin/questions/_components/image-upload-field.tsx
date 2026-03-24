@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,12 +16,22 @@ type Props = {
 export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Props) {
   const [preview, setPreview] = useState<string | null>(currentUrl)
   const [isPending, startTransition] = useTransition()
+  const blobUrlRef = useRef<string | null>(null)
+
+  // Revoke blob URL on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+    }
+  }, [])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
     const objectUrl = URL.createObjectURL(file)
+    blobUrlRef.current = objectUrl
     setPreview(objectUrl)
 
     startTransition(async () => {
@@ -31,10 +41,14 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Pr
       try {
         const result = await uploadQuestionImage(formData)
         if (result.success) {
+          if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+          blobUrlRef.current = null
           setPreview(result.url)
           onUploaded(result.url)
           toast.success('Image uploaded')
         } else {
+          if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+          blobUrlRef.current = null
           setPreview(currentUrl)
           toast.error(result.error)
         }

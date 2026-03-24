@@ -23,7 +23,8 @@ export async function uploadQuestionImage(formData: FormData): Promise<UploadRes
 
   const { supabase } = await requireAdmin()
 
-  const ext = file.name.split('.').pop() ?? 'png'
+  const ext =
+    (file.name.split('.').pop() ?? 'png').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png'
   const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
   const { error } = await supabase.storage.from('question-images').upload(path, file, {
