@@ -22,7 +22,7 @@
     "@biomejs/biome": "^2.4.8",
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
-    "knip": "^5.88.1",
+    "knip": "^6.0.4",
     "lefthook": "^2.1.4",
     "turbo": "^2.8.20",
     "typescript": "^5.9.3"
