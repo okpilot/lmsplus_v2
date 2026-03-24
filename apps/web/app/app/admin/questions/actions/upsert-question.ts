@@ -38,7 +38,7 @@ async function updateQuestion(
     return { success: false, error: 'Question not found' }
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('questions')
     .update({
       ...data,
@@ -46,12 +46,16 @@ async function updateQuestion(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .select('id')
 
   if (error) {
     if (error.code === '23505') {
       return { success: false, error: 'A question with this number already exists' }
     }
     return { success: false, error: error.message }
+  }
+  if (!updated?.length) {
+    return { success: false, error: 'Question not found or not accessible' }
   }
   return { success: true }
 }

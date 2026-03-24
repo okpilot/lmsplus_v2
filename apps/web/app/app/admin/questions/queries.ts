@@ -39,7 +39,11 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
     query = query.ilike('question_text', `%${filters.search}%`)
   }
 
-  const { data } = await query
+  const { data, error } = await query
+  if (error) {
+    console.error('[getQuestionsList] query error:', error.message)
+    return []
+  }
 
   return (data ?? []).map((row) => ({
     ...row,

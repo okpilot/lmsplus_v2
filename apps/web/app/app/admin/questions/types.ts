@@ -4,6 +4,8 @@ export type QuestionOption = {
   correct: boolean
 }
 
+// Admin-only type. options[].correct is intentionally included for the edit form.
+// Never use QuestionRow in student-facing queries — use get_quiz_questions() RPC instead.
 export type QuestionRow = {
   id: string
   question_number: string | null

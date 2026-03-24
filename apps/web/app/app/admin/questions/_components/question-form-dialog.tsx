@@ -14,16 +14,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import type { SyllabusTree } from '../../syllabus/types'
+import { useQuestionFormState } from '../_hooks/use-question-form-state'
 import { upsertQuestion } from '../actions/upsert-question'
-import type { QuestionOption, QuestionRow } from '../types'
+import type { QuestionRow } from '../types'
 import { QuestionFormFields } from './question-form-fields'
-
-const EMPTY_OPTIONS: QuestionOption[] = [
-  { id: 'a', text: '', correct: false },
-  { id: 'b', text: '', correct: false },
-  { id: 'c', text: '', correct: false },
-  { id: 'd', text: '', correct: false },
-]
 
 type Props = { tree: SyllabusTree; question?: QuestionRow; trigger: ReactNode }
 
@@ -31,65 +25,25 @@ export function QuestionFormDialog({ tree, question, trigger }: Props) {
   const isEdit = !!question
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-
-  const [subjectId, setSubjectId] = useState(question?.subject_id)
-  const [topicId, setTopicId] = useState(question?.topic_id)
-  const [subtopicId, setSubtopicId] = useState(question?.subtopic_id ?? null)
-  const [questionNumber, setQuestionNumber] = useState(question?.question_number ?? '')
-  const [loReference, setLoReference] = useState(question?.lo_reference ?? '')
-  const [questionText, setQuestionText] = useState(question?.question_text ?? '')
-  const [options, setOptions] = useState<QuestionOption[]>(question?.options ?? EMPTY_OPTIONS)
-  const [explanationText, setExplanationText] = useState(question?.explanation_text ?? '')
-  const [questionImageUrl, setQuestionImageUrl] = useState(question?.question_image_url ?? null)
-  const [explanationImageUrl, setExplanationImageUrl] = useState(
-    question?.explanation_image_url ?? null,
-  )
-  const [difficulty, setDifficulty] = useState(question?.difficulty ?? 'medium')
-  const [status, setStatus] = useState(question?.status ?? 'draft')
-
-  function resetForm() {
-    setSubjectId(question?.subject_id)
-    setTopicId(question?.topic_id)
-    setSubtopicId(question?.subtopic_id ?? null)
-    setQuestionNumber(question?.question_number ?? '')
-    setLoReference(question?.lo_reference ?? '')
-    setQuestionText(question?.question_text ?? '')
-    setOptions(question?.options ?? EMPTY_OPTIONS)
-    setExplanationText(question?.explanation_text ?? '')
-    setQuestionImageUrl(question?.question_image_url ?? null)
-    setExplanationImageUrl(question?.explanation_image_url ?? null)
-    setDifficulty(question?.difficulty ?? 'medium')
-    setStatus(question?.status ?? 'draft')
-  }
-
-  function handleSubjectChange(id: string) {
-    setSubjectId(id)
-    setTopicId(undefined)
-    setSubtopicId(null)
-  }
-
-  function handleTopicChange(id: string) {
-    setTopicId(id)
-    setSubtopicId(null)
-  }
+  const { state: s, handlers: h } = useQuestionFormState(question, open)
 
   function handleSubmit() {
     startTransition(async () => {
       try {
         const result = await upsertQuestion({
           ...(isEdit ? { id: question.id } : {}),
-          subject_id: subjectId,
-          topic_id: topicId,
-          subtopic_id: subtopicId,
-          question_number: questionNumber || null,
-          lo_reference: loReference || null,
-          question_text: questionText,
-          options,
-          explanation_text: explanationText,
-          question_image_url: questionImageUrl || null,
-          explanation_image_url: explanationImageUrl || null,
-          difficulty,
-          status,
+          subject_id: s.subjectId,
+          topic_id: s.topicId,
+          subtopic_id: s.subtopicId,
+          question_number: s.questionNumber || null,
+          lo_reference: s.loReference || null,
+          question_text: s.questionText,
+          options: s.options,
+          explanation_text: s.explanationText,
+          question_image_url: s.questionImageUrl || null,
+          explanation_image_url: s.explanationImageUrl || null,
+          difficulty: s.difficulty,
+          status: s.status,
         })
         if (result.success) {
           toast.success(isEdit ? 'Question updated' : 'Question created')
@@ -104,13 +58,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Props) {
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        setOpen(nextOpen)
-        if (nextOpen) resetForm()
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<>{trigger}</>} />
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -124,31 +72,35 @@ export function QuestionFormDialog({ tree, question, trigger }: Props) {
 
         <QuestionFormFields
           tree={tree}
-          subjectId={subjectId}
-          topicId={topicId}
-          subtopicId={subtopicId}
-          questionNumber={questionNumber}
-          loReference={loReference}
-          questionText={questionText}
-          options={options}
-          explanationText={explanationText}
-          questionImageUrl={questionImageUrl}
-          explanationImageUrl={explanationImageUrl}
-          onQuestionImageChange={(url) => setQuestionImageUrl(url || null)}
-          onExplanationImageChange={(url) => setExplanationImageUrl(url || null)}
-          difficulty={difficulty}
-          status={status}
+          subjectId={s.subjectId}
+          topicId={s.topicId}
+          subtopicId={s.subtopicId}
+          questionNumber={s.questionNumber}
+          loReference={s.loReference}
+          questionText={s.questionText}
+          options={s.options}
+          explanationText={s.explanationText}
+          questionImageUrl={s.questionImageUrl}
+          explanationImageUrl={s.explanationImageUrl}
+          onQuestionImageChange={(url) => h.setQuestionImageUrl(url || null)}
+          onExplanationImageChange={(url) => h.setExplanationImageUrl(url || null)}
+          difficulty={s.difficulty}
+          status={s.status}
           isPending={isPending}
-          onSubjectChange={handleSubjectChange}
-          onTopicChange={handleTopicChange}
-          onSubtopicChange={setSubtopicId}
-          onQuestionNumberChange={setQuestionNumber}
-          onLoReferenceChange={setLoReference}
-          onQuestionTextChange={setQuestionText}
-          onOptionsChange={setOptions}
-          onExplanationTextChange={setExplanationText}
-          onDifficultyChange={(v) => v && setDifficulty(v as 'easy' | 'medium' | 'hard')}
-          onStatusChange={(v) => v && setStatus(v as 'active' | 'draft')}
+          onSubjectChange={h.handleSubjectChange}
+          onTopicChange={h.handleTopicChange}
+          onSubtopicChange={h.setSubtopicId}
+          onQuestionNumberChange={h.setQuestionNumber}
+          onLoReferenceChange={h.setLoReference}
+          onQuestionTextChange={h.setQuestionText}
+          onOptionsChange={h.setOptions}
+          onExplanationTextChange={h.setExplanationText}
+          onDifficultyChange={(v) => {
+            if (v === 'easy' || v === 'medium' || v === 'hard') h.setDifficulty(v)
+          }}
+          onStatusChange={(v) => {
+            if (v === 'active' || v === 'draft') h.setStatus(v)
+          }}
         />
 
         <DialogFooter showCloseButton>

@@ -105,7 +105,12 @@ function buildUpdateChain({
       }),
     }),
     update: vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: updateError }),
+      eq: vi.fn().mockReturnValue({
+        select: vi.fn().mockResolvedValue({
+          data: updateError ? null : [{ id: 'q1' }],
+          error: updateError,
+        }),
+      }),
     }),
   }
 

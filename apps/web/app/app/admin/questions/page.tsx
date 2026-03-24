@@ -14,7 +14,7 @@ function parseFilters(params: Record<string, string | string[] | undefined>): Qu
         : undefined,
     status:
       typeof params.status === 'string' ? (params.status as QuestionFilters['status']) : undefined,
-    search: typeof params.search === 'string' ? params.search : undefined,
+    search: typeof params.search === 'string' ? params.search.trim() || undefined : undefined,
   }
 }
 

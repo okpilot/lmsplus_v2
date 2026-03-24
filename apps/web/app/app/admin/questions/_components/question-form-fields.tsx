@@ -1,16 +1,8 @@
-'use client'
-
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { SyllabusTree } from '../../syllabus/types'
 import type { QuestionOption } from '../types'
+import { DifficultyStatusSelect } from './difficulty-status-select'
 import { ImageUploadField } from './image-upload-field'
 import { OptionEditor } from './option-editor'
 import { SyllabusCascader } from './syllabus-cascader'
@@ -146,33 +138,13 @@ export function QuestionFormFields({
         disabled={isPending}
       />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Difficulty</span>
-          <Select value={difficulty} onValueChange={onDifficultyChange} disabled={isPending}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="easy">Easy</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="hard">Hard</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Status</span>
-          <Select value={status} onValueChange={onStatusChange} disabled={isPending}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <DifficultyStatusSelect
+        difficulty={difficulty}
+        status={status}
+        isPending={isPending}
+        onDifficultyChange={onDifficultyChange}
+        onStatusChange={onStatusChange}
+      />
     </div>
   )
 }
