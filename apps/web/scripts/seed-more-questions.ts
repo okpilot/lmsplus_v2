@@ -9,7 +9,7 @@ import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 
-config({ path: resolve(import.meta.dirname ?? '.', '.env.local') })
+config({ path: resolve(import.meta.dirname ?? '.', '..', '.env.local') })
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
@@ -1046,12 +1046,13 @@ async function seed() {
   if (adminErr || !admin) throw new Error(`No admin user found: ${adminErr?.message}`)
 
   // Get or create question bank
-  const { data: bank } = await db
+  const { data: bank, error: bankErr2 } = await db
     .from('question_banks')
     .select('id')
     .eq('organization_id', admin.organization_id)
     .is('deleted_at', null)
     .single()
+  if (bankErr2) throw new Error(`Question bank lookup failed: ${bankErr2.message}`)
   if (!bank) throw new Error('No question bank found — run seed-admin-eval.ts first')
 
   let totalInserted = 0
@@ -1070,12 +1071,13 @@ async function seed() {
 
     for (const t of subj.topics) {
       // Upsert topic
-      const { data: existingTopic } = await db
+      const { data: existingTopic, error: topicErr } = await db
         .from('easa_topics')
         .select('id')
         .eq('subject_id', subject.id)
         .eq('code', t.code)
         .maybeSingle()
+      if (topicErr) throw new Error(`Topic lookup failed: ${topicErr.message}`)
 
       let topicId: string
       if (existingTopic) {
@@ -1092,12 +1094,13 @@ async function seed() {
 
       for (const st of t.subtopics) {
         // Upsert subtopic
-        const { data: existingSub } = await db
+        const { data: existingSub, error: subErr } = await db
           .from('easa_subtopics')
           .select('id')
           .eq('topic_id', topicId)
           .eq('code', st.code)
           .maybeSingle()
+        if (subErr) throw new Error(`Subtopic lookup failed: ${subErr.message}`)
 
         let subtopicId: string
         if (existingSub) {
