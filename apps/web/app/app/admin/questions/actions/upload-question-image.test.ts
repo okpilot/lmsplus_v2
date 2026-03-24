@@ -14,11 +14,24 @@ import { uploadQuestionImage } from './upload-question-image'
 
 type UploadResult = { error: null } | { error: { message: string } }
 
+const ORG_UUID = '00000000-0000-4000-a000-000000000099'
+
 function buildStorageMock(uploadResult: UploadResult, publicUrl = 'https://cdn.example.com/q.png') {
   const getPublicUrl = vi.fn().mockReturnValue({ data: { publicUrl } })
   const upload = vi.fn().mockResolvedValue(uploadResult)
   const fromBucket = vi.fn().mockReturnValue({ upload, getPublicUrl })
-  return { storage: { from: fromBucket }, upload, getPublicUrl, fromBucket }
+  // Mock supabase.from('users') for org resolution
+  const fromTable = vi.fn().mockReturnValue({
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { organization_id: ORG_UUID },
+          error: null,
+        }),
+      }),
+    }),
+  })
+  return { storage: { from: fromBucket }, from: fromTable, upload, getPublicUrl, fromBucket }
 }
 
 function makeFile(opts: { name?: string; size?: number; type?: string } = {}): File {
@@ -36,7 +49,10 @@ function makeFormData(file: File): FormData {
 
 function mockAdminWithStorage(uploadResult: UploadResult, publicUrl?: string) {
   const mocks = buildStorageMock(uploadResult, publicUrl)
-  mockRequireAdmin.mockResolvedValue({ supabase: { storage: mocks.storage } })
+  mockRequireAdmin.mockResolvedValue({
+    supabase: { storage: mocks.storage, from: mocks.from },
+    userId: 'admin-user-1',
+  })
   return mocks
 }
 

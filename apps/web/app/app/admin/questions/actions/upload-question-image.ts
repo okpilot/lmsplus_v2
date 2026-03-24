@@ -21,11 +21,22 @@ export async function uploadQuestionImage(formData: FormData): Promise<UploadRes
     return { success: false, error: 'Invalid file type (PNG, JPEG, or WebP only)' }
   }
 
-  const { supabase } = await requireAdmin()
+  const { supabase, userId } = await requireAdmin()
+
+  // Resolve org for path-based tenant isolation in storage policies
+  const { data: profile } = await supabase
+    .from('users')
+    .select('organization_id')
+    .eq('id', userId)
+    .single<{ organization_id: string }>()
+
+  if (!profile?.organization_id) {
+    return { success: false, error: 'Could not resolve organization' }
+  }
 
   const ext =
     (file.name.split('.').pop() ?? 'png').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png'
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+  const path = `${profile.organization_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
   const { error } = await supabase.storage.from('question-images').upload(path, file, {
     contentType: file.type,
