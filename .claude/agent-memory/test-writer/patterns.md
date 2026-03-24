@@ -3087,3 +3087,58 @@ renderGrid({ totalQuestions: 40, questionIds: manyIds, flaggedIds: new Set(['q1'
 fireEvent.click(screen.getByTestId('filter-flagged'))
 expect(screen.queryByTestId('grid-toggle')).not.toBeInTheDocument()
 ```
+
+---
+
+### Testing multi-state dialog flows (confirm A, confirm B are independent state slices) (2026-03-24)
+
+When a dialog has two independent confirmation flows (e.g. `confirmingSubmit` and
+`confirmingDiscard`), verify that:
+1. Each flow is entered and exited independently via its own UI.
+2. Entering one flow does NOT automatically clear the other (unless the code explicitly
+   does so — always verify in source before asserting mutual exclusion).
+3. `handleClose` / "Return to Quiz" resets ALL confirmation state at once.
+
+Pattern for testing "submitting" state inside an inline confirmation panel that requires
+prior user interaction to reveal:
+
+```tsx
+// Step 1 — enter the confirmation flow
+const { rerender } = render(<Dialog ... submitting={false} />)
+fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+
+// Step 2 — flip submitting to true
+rerender(<Dialog ... submitting={true} />)
+
+// Step 3 — assert on the now-visible panel buttons
+// Use getAllByRole when multiple elements share the same accessible name
+const btns = screen.getAllByRole('button', { name: /submitting\.\.\./i })
+expect(btns.length).toBeGreaterThanOrEqual(1)
+expect(screen.getByRole('button', { name: /go back/i })).toBeDisabled()
+```
+
+Key: `rerender()` preserves component state (including `confirmingSubmit=true`), so the
+inline panel stays visible after the `submitting` prop is flipped.
+
+### Testing a never-resolving promise for "in-progress" UI state (2026-03-24)
+
+When you need to assert disabled/loading state while an async operation is in flight:
+
+```ts
+let resolveSubmit!: (value: unknown) => void
+mockAction.mockImplementation(
+  () => new Promise((resolve) => { resolveSubmit = resolve }),
+)
+
+// trigger the action, then assert the in-flight UI
+fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+await waitFor(() => {
+  expect(screen.getByRole('button', { name: 'Finish' })).toBeDisabled()
+})
+
+// Always clean up to avoid test teardown warnings
+resolveSubmit({ success: true, ... })
+```
+
+Always clean up by resolving the promise at the end of the test. Leaving it dangling can
+produce act() warnings in subsequent tests.
