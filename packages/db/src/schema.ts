@@ -63,3 +63,42 @@ export const DeleteSyllabusItemSchema = z.object({
   id: z.uuid(),
   table: z.enum(['easa_subjects', 'easa_topics', 'easa_subtopics']),
 })
+
+// --- Admin: Question CRUD schemas ---
+
+const OptionInputSchema = z.object({
+  id: z.enum(['a', 'b', 'c', 'd']),
+  text: z.string().min(1),
+  correct: z.boolean(),
+})
+
+export const UpsertQuestionSchema = z
+  .object({
+    id: z.uuid().optional(),
+    subject_id: z.uuid(),
+    topic_id: z.uuid(),
+    subtopic_id: z.uuid().nullable(),
+    question_number: z.string().max(50).nullable().optional(),
+    lo_reference: z.string().max(100).nullable().optional(),
+    question_text: z.string().min(1).max(10000),
+    question_image_url: z.string().url().nullable().optional(),
+    options: z.array(OptionInputSchema).length(4),
+    explanation_text: z.string().min(1).max(10000),
+    explanation_image_url: z.string().url().nullable().optional(),
+    difficulty: z.enum(['easy', 'medium', 'hard']),
+    status: z.enum(['active', 'draft']),
+  })
+  .refine((q) => q.options.filter((o) => o.correct).length === 1, {
+    message: 'Exactly one option must be marked correct',
+  })
+
+export type UpsertQuestionInput = z.infer<typeof UpsertQuestionSchema>
+
+export const SoftDeleteQuestionSchema = z.object({
+  id: z.uuid(),
+})
+
+export const BulkUpdateStatusSchema = z.object({
+  ids: z.array(z.uuid()).min(1).max(100),
+  status: z.enum(['active', 'draft']),
+})
