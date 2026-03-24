@@ -82,7 +82,7 @@ export function QuizSession(props: QuizSessionProps) {
       </div>
 
       {/* Content — normal flow, scrolls with the page */}
-      <div className="px-4 pt-4 pb-32 md:px-8">
+      <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-4">
           <QuestionGrid
             totalQuestions={props.questions.length}

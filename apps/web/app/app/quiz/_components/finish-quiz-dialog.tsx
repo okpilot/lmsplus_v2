@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type FinishQuizDialogProps = {
   open: boolean
@@ -25,6 +25,15 @@ export function FinishQuizDialog({
 }: FinishQuizDialogProps) {
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const [confirmingSubmit, setConfirmingSubmit] = useState(false)
+
+  // Reset confirmation state when dialog closes so stale panels don't persist
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset only when open changes
+  useEffect(() => {
+    if (!open) {
+      setConfirmingDiscard(false)
+      setConfirmingSubmit(false)
+    }
+  }, [open])
 
   if (!open) return null
 
@@ -56,6 +65,7 @@ export function FinishQuizDialog({
     >
       <div
         role="dialog"
+        aria-modal="true"
         className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
@@ -148,7 +158,10 @@ export function FinishQuizDialog({
           </button>
           <button
             type="button"
-            onClick={() => setConfirmingDiscard(true)}
+            onClick={() => {
+              setConfirmingSubmit(false)
+              setConfirmingDiscard(true)
+            }}
             disabled={submitting}
             className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
           >
