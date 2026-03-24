@@ -11,6 +11,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import type { SyllabusTree } from '../../syllabus/types'
 import type { QuestionOption } from '../types'
+import { ImageUploadField } from './image-upload-field'
 import { OptionEditor } from './option-editor'
 import { SyllabusCascader } from './syllabus-cascader'
 
@@ -24,6 +25,10 @@ type Props = {
   questionText: string
   options: QuestionOption[]
   explanationText: string
+  questionImageUrl: string | null
+  explanationImageUrl: string | null
+  onQuestionImageChange: (url: string) => void
+  onExplanationImageChange: (url: string) => void
   difficulty: string
   status: string
   isPending: boolean
@@ -49,6 +54,10 @@ export function QuestionFormFields({
   questionText,
   options,
   explanationText,
+  questionImageUrl,
+  explanationImageUrl,
+  onQuestionImageChange,
+  onExplanationImageChange,
   difficulty,
   status,
   isPending,
@@ -110,6 +119,13 @@ export function QuestionFormFields({
         />
       </div>
 
+      <ImageUploadField
+        label="Question Image (optional)"
+        currentUrl={questionImageUrl}
+        onUploaded={onQuestionImageChange}
+        disabled={isPending}
+      />
+
       <OptionEditor options={options} onChange={onOptionsChange} disabled={isPending} />
 
       <div>
@@ -122,6 +138,13 @@ export function QuestionFormFields({
           disabled={isPending}
         />
       </div>
+
+      <ImageUploadField
+        label="Explanation Image (optional)"
+        currentUrl={explanationImageUrl}
+        onUploaded={onExplanationImageChange}
+        disabled={isPending}
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <div>

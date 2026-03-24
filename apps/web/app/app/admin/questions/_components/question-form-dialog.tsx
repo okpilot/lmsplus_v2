@@ -40,6 +40,10 @@ export function QuestionFormDialog({ tree, question, trigger }: Props) {
   const [questionText, setQuestionText] = useState(question?.question_text ?? '')
   const [options, setOptions] = useState<QuestionOption[]>(question?.options ?? EMPTY_OPTIONS)
   const [explanationText, setExplanationText] = useState(question?.explanation_text ?? '')
+  const [questionImageUrl, setQuestionImageUrl] = useState(question?.question_image_url ?? null)
+  const [explanationImageUrl, setExplanationImageUrl] = useState(
+    question?.explanation_image_url ?? null,
+  )
   const [difficulty, setDifficulty] = useState(question?.difficulty ?? 'medium')
   const [status, setStatus] = useState(question?.status ?? 'draft')
 
@@ -52,6 +56,8 @@ export function QuestionFormDialog({ tree, question, trigger }: Props) {
     setQuestionText(question?.question_text ?? '')
     setOptions(question?.options ?? EMPTY_OPTIONS)
     setExplanationText(question?.explanation_text ?? '')
+    setQuestionImageUrl(question?.question_image_url ?? null)
+    setExplanationImageUrl(question?.explanation_image_url ?? null)
     setDifficulty(question?.difficulty ?? 'medium')
     setStatus(question?.status ?? 'draft')
   }
@@ -80,6 +86,8 @@ export function QuestionFormDialog({ tree, question, trigger }: Props) {
           question_text: questionText,
           options,
           explanation_text: explanationText,
+          question_image_url: questionImageUrl || null,
+          explanation_image_url: explanationImageUrl || null,
           difficulty,
           status,
         })
@@ -124,6 +132,10 @@ export function QuestionFormDialog({ tree, question, trigger }: Props) {
           questionText={questionText}
           options={options}
           explanationText={explanationText}
+          questionImageUrl={questionImageUrl}
+          explanationImageUrl={explanationImageUrl}
+          onQuestionImageChange={(url) => setQuestionImageUrl(url || null)}
+          onExplanationImageChange={(url) => setExplanationImageUrl(url || null)}
           difficulty={difficulty}
           status={status}
           isPending={isPending}

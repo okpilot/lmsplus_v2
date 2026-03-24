@@ -19,6 +19,9 @@ import { QuestionFormDialog } from './question-form-dialog'
 type Props = {
   questions: QuestionRow[]
   tree: SyllabusTree
+  selectedIds: string[]
+  onToggleSelect: (id: string) => void
+  onToggleAll: () => void
 }
 
 function difficultyVariant(d: string) {
@@ -47,12 +50,28 @@ function formatDate(iso: string) {
   })
 }
 
-export function QuestionTable({ questions, tree }: Props) {
+export function QuestionTable({
+  questions,
+  tree,
+  selectedIds,
+  onToggleSelect,
+  onToggleAll,
+}: Props) {
+  const allSelected = questions.length > 0 && selectedIds.length === questions.length
+
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-10">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={onToggleAll}
+                aria-label="Select all questions"
+              />
+            </TableHead>
             <TableHead className="w-20">#</TableHead>
             <TableHead className="min-w-[300px]">Question</TableHead>
             <TableHead className="w-24">Subject</TableHead>
@@ -65,7 +84,15 @@ export function QuestionTable({ questions, tree }: Props) {
         </TableHeader>
         <TableBody>
           {questions.map((q) => (
-            <TableRow key={q.id}>
+            <TableRow key={q.id} data-selected={selectedIds.includes(q.id) || undefined}>
+              <TableCell>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(q.id)}
+                  onChange={() => onToggleSelect(q.id)}
+                  aria-label={`Select question ${q.question_number ?? q.id}`}
+                />
+              </TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">
                 {q.question_number ?? '\u2014'}
               </TableCell>
