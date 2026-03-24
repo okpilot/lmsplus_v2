@@ -18,52 +18,24 @@ describe('ExplanationTab', () => {
     vi.resetAllMocks()
   })
 
-  it('shows "correctly" message and explanation text when answer is correct', () => {
+  it('shows explanation text', () => {
     render(
       <ExplanationTab
-        isCorrect={true}
         explanationText="The stall speed increases with bank angle."
         explanationImageUrl={null}
       />,
     )
-    expect(screen.getByText('You answered correctly.')).toBeInTheDocument()
     expect(screen.getByText('The stall speed increases with bank angle.')).toBeInTheDocument()
-  })
-
-  it('shows "incorrectly" message and explanation text when answer is wrong', () => {
-    render(
-      <ExplanationTab
-        isCorrect={false}
-        explanationText="The stall speed increases with bank angle."
-        explanationImageUrl={null}
-      />,
-    )
-    expect(screen.getByText('You answered incorrectly.')).toBeInTheDocument()
-    expect(screen.getByText('The stall speed increases with bank angle.')).toBeInTheDocument()
-  })
-
-  it('shows no correctness message when question has not been answered', () => {
-    render(
-      <ExplanationTab
-        isCorrect={null}
-        explanationText="Background explanation."
-        explanationImageUrl={null}
-      />,
-    )
-    expect(screen.queryByText('You answered correctly.')).not.toBeInTheDocument()
-    expect(screen.queryByText('You answered incorrectly.')).not.toBeInTheDocument()
-    expect(screen.getByText('Background explanation.')).toBeInTheDocument()
   })
 
   it('shows fallback message when explanation text is null', () => {
-    render(<ExplanationTab isCorrect={null} explanationText={null} explanationImageUrl={null} />)
+    render(<ExplanationTab explanationText={null} explanationImageUrl={null} />)
     expect(screen.getByText('No explanation available for this question.')).toBeInTheDocument()
   })
 
   it('renders ZoomableImage when an explanation image URL is provided', () => {
     render(
       <ExplanationTab
-        isCorrect={true}
         explanationText={null}
         explanationImageUrl="https://example.com/diagram.png"
       />,
@@ -74,7 +46,6 @@ describe('ExplanationTab', () => {
   it('renders the learning objective box when learningObjective is provided', () => {
     render(
       <ExplanationTab
-        isCorrect={null}
         explanationText="Some explanation."
         explanationImageUrl={null}
         learningObjective="Understand stall characteristics in turns."
@@ -85,20 +56,13 @@ describe('ExplanationTab', () => {
   })
 
   it('does not render the learning objective box when learningObjective is not provided', () => {
-    render(
-      <ExplanationTab
-        isCorrect={null}
-        explanationText="Some explanation."
-        explanationImageUrl={null}
-      />,
-    )
+    render(<ExplanationTab explanationText="Some explanation." explanationImageUrl={null} />)
     expect(screen.queryByText('Learning Objective')).not.toBeInTheDocument()
   })
 
   it('does not render the learning objective box when learningObjective is null', () => {
     render(
       <ExplanationTab
-        isCorrect={null}
         explanationText="Some explanation."
         explanationImageUrl={null}
         learningObjective={null}

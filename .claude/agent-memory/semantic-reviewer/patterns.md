@@ -4,6 +4,20 @@
 
 ## Session Log
 
+### 2026-03-24 — commits a1db6aa + 8f856dd (fix(quiz): improve quiz session UX + remove unused prop)
+- **Files reviewed:** finish-quiz-dialog.tsx, finish-quiz-dialog.test.tsx, quiz-session.tsx, quiz-controls.tsx, quiz-controls.test.tsx, quiz-main-panel.tsx, quiz-tab-content.tsx, explanation-tab.tsx, explanation-tab.test.tsx
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 3 | **GOOD:** 5
+- **Issue:** `finish-quiz-dialog.tsx:26-27` — `confirmingDiscard` and `confirmingSubmit` state is NOT reset when the `open` prop flips to `false`. The component returns null early (line 29) but is never unmounted (it lives unconditionally in quiz-session.tsx). `handleClose` correctly resets both vars, but `onSave` (line 143) and `onDiscard` (line 108) call the prop directly with no state reset. After a save or discard that closes the dialog, both confirmation panels retain their last state. On the next open, stacked confirmation panels appear immediately. Fix: add `useEffect(() => { if (!open) { setConfirmingDiscard(false); setConfirmingSubmit(false) } }, [open])`.
+- **Suggestion 1:** `finish-quiz-dialog.tsx:151` — `setConfirmingDiscard(true)` does not clear `confirmingSubmit`. `handleSubmitClick` clears `confirmingDiscard`, but the inverse is not enforced. Both panels can appear simultaneously. Fix: add `setConfirmingSubmit(false)` alongside `setConfirmingDiscard(true)`.
+- **Suggestion 2:** `finish-quiz-dialog.tsx:57-66` — `<div role="dialog">` is missing `aria-modal="true"`. The replaced `<dialog open>` implied modal semantics natively. The ARIA div needs the explicit attribute for screen readers.
+- **Suggestion 3:** `quiz-session.tsx:85` — `md:pb-8` removed, leaving `pb-32` on all screen sizes. No content hidden (128px > footer height), but desktop now has excess whitespace that may be unintentional.
+- **Positive pattern 1:** Dialog lifted out of fixed footer to viewport-level — correct fix for `inset-0` stacking context (dialog was centering inside the footer, not the viewport).
+- **Positive pattern 2:** Single `QuizControls` instance replaces the dual mobile/desktop split — eliminates the overloaded `onSubmit` dual-purpose prop noted in patterns from commit 5ef6d23.
+- **Positive pattern 3:** `onSubmit` renamed to `onSubmitAnswer` at `QuizControls` boundary — removes prop ambiguity between "submit answer" and "submit quiz" paths.
+- **Positive pattern 4:** `isCorrect` prop removed from `ExplanationTab` — redundant verdict display eliminated; `AnswerOptions` remains the single source of correct/incorrect feedback.
+- **Positive pattern 5:** `handleSubmitClick` two-step confirm logic is correct — `unanswered > 0 && !confirmingSubmit` gate prevents double-confirming.
+- **New recurring pattern — dialog state not reset on programmatic close:** A component that conditionally renders null (early-return guard on `open`) but is never unmounted retains state between open/close cycles. `handleClose` covers user-initiated closes (backdrop, Escape, "Return to Quiz") but prop-driven closes (`onSave`, `onDiscard` calling parent handlers directly) bypass state reset. Pattern: any dialog with internal confirmation state that can be closed via callback props needs a `useEffect` keyed on the `open` prop to reset state whenever the dialog closes, regardless of who closed it.
+
 ### 2026-03-23 — commit e7648f9 (fix: address CodeRabbit, SonarCloud, and Codecov review findings)
 - **Files reviewed:** question-grid.tsx, quiz-config-handlers.ts (new), use-quiz-config.ts, quiz-session.tsx, quiz-main-panel.tsx, info-tooltip.tsx, info-tooltip.test.tsx, question-grid.test.tsx, migration 051
 - **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 3 | **GOOD:** 5

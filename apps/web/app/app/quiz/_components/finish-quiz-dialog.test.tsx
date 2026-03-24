@@ -53,26 +53,52 @@ describe('FinishQuizDialog', () => {
     expect(screen.getByText(/You have answered 4 of 10 questions/i)).toBeInTheDocument()
   })
 
-  it('shows the unanswered warning when some questions are unanswered', () => {
+  it('does not show unanswered warning on initial open', () => {
     renderDialog({ answeredCount: 3, totalQuestions: 5 })
+    expect(screen.queryByText(/unanswered/i)).not.toBeInTheDocument()
+  })
+
+  it('shows unanswered warning after clicking Submit Quiz when questions are unanswered', () => {
+    renderDialog({ answeredCount: 3, totalQuestions: 5 })
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
     expect(screen.getByText(/2 questions are unanswered/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /submit anyway/i })).toBeInTheDocument()
   })
 
   it('uses singular "question is" when exactly one question is unanswered', () => {
     renderDialog({ answeredCount: 4, totalQuestions: 5 })
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
     expect(screen.getByText(/1 question is unanswered/i)).toBeInTheDocument()
   })
 
-  it('does not show the unanswered warning when all questions are answered', () => {
-    renderDialog({ answeredCount: 5, totalQuestions: 5 })
+  it('calls onSubmit after confirming the unanswered warning', () => {
+    const onSubmit = vi.fn()
+    renderDialog({ onSubmit, answeredCount: 3, totalQuestions: 5 })
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+    expect(onSubmit).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /submit anyway/i }))
+    expect(onSubmit).toHaveBeenCalledOnce()
+  })
+
+  it('hides unanswered warning when Go back is clicked', () => {
+    renderDialog({ answeredCount: 3, totalQuestions: 5 })
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+    expect(screen.getByText(/unanswered/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /go back/i }))
     expect(screen.queryByText(/unanswered/i)).not.toBeInTheDocument()
   })
 
-  it('calls onSubmit when Submit Quiz button is clicked', () => {
+  it('calls onSubmit immediately when all questions are answered', () => {
     const onSubmit = vi.fn()
-    renderDialog({ onSubmit })
+    renderDialog({ onSubmit, answeredCount: 5, totalQuestions: 5 })
     fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
     expect(onSubmit).toHaveBeenCalledOnce()
+  })
+
+  it('hides Submit Quiz and shows hint when no questions are answered', () => {
+    renderDialog({ answeredCount: 0, totalQuestions: 5 })
+    expect(screen.queryByRole('button', { name: /submit quiz/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/answer at least one question to submit/i)).toBeInTheDocument()
   })
 
   it('calls onCancel when Return to Quiz button is clicked', () => {
@@ -185,5 +211,103 @@ describe('FinishQuizDialog', () => {
     // Need to click Discard Quiz to show confirmation — it is not disabled itself when not submitting
     // But when submitting=true the discard trigger button is disabled
     expect(screen.getByRole('button', { name: /discard quiz/i })).toBeDisabled()
+  })
+
+  // ---- Cross-flow interactions ---------------------------------------------
+
+  it('clears the unanswered submit confirmation when Discard Quiz is clicked', () => {
+    renderDialog({ answeredCount: 3, totalQuestions: 5 })
+    // First enter the submit confirmation flow
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+    expect(screen.getByText(/unanswered/i)).toBeInTheDocument()
+    // Clicking Discard Quiz clears submit confirmation and shows discard confirmation
+    fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
+    expect(screen.queryByText(/unanswered/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/are you sure\? your progress will be lost/i)).toBeInTheDocument()
+  })
+
+  it('clears the discard confirmation when Return to Quiz is clicked', () => {
+    renderDialog()
+    fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
+    expect(screen.getByText(/are you sure\?/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /return to quiz/i }))
+    expect(screen.queryByText(/are you sure\?/i)).not.toBeInTheDocument()
+  })
+
+  it('clears both confirmations when Return to Quiz is clicked during unanswered flow', () => {
+    renderDialog({ answeredCount: 3, totalQuestions: 5 })
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+    expect(screen.getByText(/unanswered/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /return to quiz/i }))
+    expect(screen.queryByText(/unanswered/i)).not.toBeInTheDocument()
+  })
+
+  // ---- Submit confirmation panel while submitting --------------------------
+
+  it('shows "Submitting..." on the Submit anyway button while submitting', () => {
+    // Render with submitting=true and pre-set confirmingSubmit by rendering with unanswered
+    // then manually trigger the confirmation state
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    // Enter the submit confirmation flow
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+    // Now flip submitting to true
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={true}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    // Both the inline "Submit anyway" and the main "Submit Quiz" button show "Submitting..."
+    const submittingBtns = screen.getAllByRole('button', { name: /submitting\.\.\./i })
+    expect(submittingBtns.length).toBeGreaterThanOrEqual(1)
+    expect(submittingBtns[0]).toBeInTheDocument()
+  })
+
+  it('disables the Go back button while submitting', () => {
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    // Enter the submit confirmation flow
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+    // Flip to submitting
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={true}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /go back/i })).toBeDisabled()
   })
 })

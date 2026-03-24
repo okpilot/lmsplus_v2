@@ -29,9 +29,10 @@
 
 ### Heatmap
 
-- [ ] Single-row layout for current month (March 2026 = 31 squares)
+- [ ] Calendar grid layout with month navigation (left/right arrows)
+- [ ] Weekday headers (Mon–Sun) along left side
 - [ ] Day squares have green intensity tiers based on activity
-- [ ] Day number labels visible below (desktop: 1, 5, 10, 15, 20, 25, 30, 31)
+- [ ] Current day highlighted with ring border
 - [ ] Info tooltip (i icon) explains color meaning
 
 ### Subject Progress Grid
@@ -107,7 +108,6 @@
 ### Layout
 
 - [ ] **Full-screen**: no sidebar or app header visible during quiz
-- [ ] Progress bar across top shows % complete
 
 ### Question Navigator Grid
 
@@ -142,7 +142,8 @@
 ### Action Bar
 
 - [ ] **Desktop**: Previous (left) / Flag + Submit + Pin (center) / Next (right)
-- [ ] **Mobile**: Submit full-width above, Previous / Flag / Pin / Next in bottom bar
+- [ ] **Mobile**: Submit full-width above nav row, Previous / Flag / Pin / Next below
+- [ ] **Both**: action bar is fixed at bottom of viewport (doesn't scroll with content)
 - [ ] Flag button toggles flag state (persists — check DB `flagged_questions` table)
 - [ ] Pin button works (session-ephemeral)
 - [ ] Submit Answer submits and reveals correct/incorrect state
@@ -157,9 +158,11 @@
 - [ ] "Finish Test" button opens dialog
 - [ ] **Desktop**: centered modal with backdrop
 - [ ] **Mobile**: bottom sheet sliding up
-- [ ] Shows: "You have answered X of Y questions" + warning about unanswered
-- [ ] 4 actions: Submit Quiz / Save for Later / Return to Quiz / Discard Quiz
-- [ ] **Submit Quiz**: completes session, navigates to results
+- [ ] Shows: "You have answered X of Y questions"
+- [ ] 4 actions: Submit Quiz / Save for Later / Discard Quiz / Return to Quiz
+- [ ] **Submit Quiz** with unanswered questions: shows orange warning with "Submit anyway" / "Go back"
+- [ ] **Submit Quiz** with 0 answers: button hidden, shows "Answer at least one question to submit"
+- [ ] **Submit Quiz** with all answered: submits immediately, navigates to results
 - [ ] **Save for Later**: saves draft, returns to quiz setup
 - [ ] **Return to Quiz**: closes dialog, resumes
 - [ ] **Discard Quiz**: cancels attempt entirely (no record)

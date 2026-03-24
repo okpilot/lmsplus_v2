@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type FinishQuizDialogProps = {
   open: boolean
@@ -24,6 +24,16 @@ export function FinishQuizDialog({
   onDiscard,
 }: FinishQuizDialogProps) {
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false)
+
+  // Reset confirmation state when dialog closes so stale panels don't persist
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset only when open changes
+  useEffect(() => {
+    if (!open) {
+      setConfirmingDiscard(false)
+      setConfirmingSubmit(false)
+    }
+  }, [open])
 
   if (!open) return null
 
@@ -31,7 +41,17 @@ export function FinishQuizDialog({
 
   function handleClose() {
     setConfirmingDiscard(false)
+    setConfirmingSubmit(false)
     onCancel()
+  }
+
+  function handleSubmitClick() {
+    setConfirmingDiscard(false)
+    if (unanswered > 0 && !confirmingSubmit) {
+      setConfirmingSubmit(true)
+      return
+    }
+    onSubmit()
   }
 
   return (
@@ -43,8 +63,9 @@ export function FinishQuizDialog({
         if (e.key === 'Escape') handleClose()
       }}
     >
-      <dialog
-        open
+      <div
+        role="dialog"
+        aria-modal="true"
         className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
@@ -59,14 +80,34 @@ export function FinishQuizDialog({
           You have answered {answeredCount} of {totalQuestions} questions.
         </p>
 
-        {unanswered > 0 && (
-          <p className="mt-2 text-sm font-medium text-destructive">
-            {unanswered} {unanswered === 1 ? 'question is' : 'questions are'} unanswered and will be
-            skipped.
-          </p>
+        {confirmingSubmit && unanswered > 0 && (
+          <div className="mt-4 rounded-lg border border-orange-400/40 bg-orange-500/10 p-4">
+            <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
+              {unanswered} {unanswered === 1 ? 'question is' : 'questions are'} unanswered and will
+              be skipped.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={submitting}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                {submitting ? 'Submitting...' : 'Submit anyway'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingSubmit(false)}
+                disabled={submitting}
+                className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                Go back
+              </button>
+            </div>
+          </div>
         )}
 
-        {confirmingDiscard ? (
+        {confirmingDiscard && (
           <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 p-4">
             <p className="text-sm font-medium text-destructive">
               Are you sure? Your progress will be lost.
@@ -90,31 +131,23 @@ export function FinishQuizDialog({
               </button>
             </div>
           </div>
-        ) : (
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => setConfirmingDiscard(true)}
-              disabled={submitting}
-              className="text-sm font-medium text-destructive underline-offset-4 transition-colors hover:underline disabled:opacity-50"
-            >
-              Discard Quiz
-            </button>
-          </div>
         )}
 
         <div className="mt-6 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setConfirmingDiscard(false)
-              onSubmit()
-            }}
-            disabled={submitting}
-            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {submitting ? 'Submitting...' : 'Submit Quiz'}
-          </button>
+          {answeredCount > 0 ? (
+            <button
+              type="button"
+              onClick={handleSubmitClick}
+              disabled={submitting}
+              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              {submitting ? 'Submitting...' : 'Submit Quiz'}
+            </button>
+          ) : (
+            <p className="py-2 text-center text-sm text-muted-foreground">
+              Answer at least one question to submit.
+            </p>
+          )}
           <button
             type="button"
             onClick={onSave}
@@ -125,6 +158,17 @@ export function FinishQuizDialog({
           </button>
           <button
             type="button"
+            onClick={() => {
+              setConfirmingSubmit(false)
+              setConfirmingDiscard(true)
+            }}
+            disabled={submitting}
+            className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+          >
+            Discard Quiz
+          </button>
+          <button
+            type="button"
             onClick={handleClose}
             disabled={submitting}
             className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
@@ -132,7 +176,7 @@ export function FinishQuizDialog({
             Return to Quiz
           </button>
         </div>
-      </dialog>
+      </div>
     </div>
   )
 }

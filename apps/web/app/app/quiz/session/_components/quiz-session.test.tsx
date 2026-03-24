@@ -397,11 +397,8 @@ describe('QuizSession', () => {
     expect(screen.getByText(/Question 3 of/)).toBeInTheDocument()
   })
 
-  it('desktop QuizControls always renders with showSubmit=false', () => {
+  it('does not render Submit Answer button when no option is selected', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
-
-    // Desktop QuizControls is hardcoded showSubmit=false — Submit Answer button absent initially
-    // (mobile controls also have showSubmit=false until a pending option is set)
     expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
   })
 
@@ -459,5 +456,39 @@ describe('QuizSession', () => {
   it('does not show Submit Answer button before any option is selected', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
     expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
+  })
+
+  it('disables the Finish Test button while a submission is in progress', async () => {
+    // Use a promise that never resolves so submitting stays true
+    let resolveSubmit!: (value: unknown) => void
+    mockBatchSubmitQuiz.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSubmit = resolve
+        }),
+    )
+
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+
+    // Answer a question so the dialog Submit Quiz button is enabled
+    fireEvent.click(screen.getByTestId('option-a'))
+
+    // Open the finish dialog and click submit
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Quiz' }))
+
+    // While the submission is in flight the Finish Test button must be disabled
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Finish Test' })).toBeDisabled()
+    })
+
+    // Clean up — resolve the dangling promise
+    resolveSubmit({
+      success: true,
+      totalQuestions: 3,
+      correctCount: 1,
+      scorePercentage: 33,
+      results: [],
+    })
   })
 })

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SessionTimer } from '@/app/app/_components/session-timer'
 import { ThemeToggle } from '@/app/app/_components/theme-toggle'
 import type { SessionQuestion } from '@/app/app/_types/session'
+import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
 import type { DraftAnswer } from '../../types'
@@ -80,17 +81,8 @@ export function QuizSession(props: QuizSessionProps) {
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1 w-full bg-muted">
-        <div
-          data-testid="progress-bar"
-          className="h-1 bg-primary transition-all"
-          style={{ width: `${(s.answeredCount / props.questions.length) * 100}%` }}
-        />
-      </div>
-
       {/* Content — normal flow, scrolls with the page */}
-      <div className="px-4 pt-4 pb-32 md:px-8 md:pb-8">
+      <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-4">
           <QuestionGrid
             totalQuestions={props.questions.length}
@@ -127,57 +119,44 @@ export function QuizSession(props: QuizSessionProps) {
             userId={props.userId}
             onSelectionChange={handleSelectionChange}
           />
-
-          {/* Desktop action bar — in content flow */}
-          <div className="hidden md:block">
-            <QuizControls
-              isPinned={s.isPinned}
-              isFlagged={isFlagged(s.questionId)}
-              currentIndex={s.currentIndex}
-              totalQuestions={props.questions.length}
-              answeredCount={s.answeredCount}
-              submitting={s.submitting}
-              showFinishDialog={s.showFinishDialog}
-              showSubmit={false}
-              onTogglePin={s.togglePin}
-              onToggleFlag={() => toggleFlag(s.questionId)}
-              onPrev={() => s.navigate(-1)}
-              onNext={() => s.navigate(1)}
-              onSubmit={s.handleSubmit}
-              onCancel={() => s.setShowFinishDialog(false)}
-              onSave={s.handleSave}
-              onDiscard={s.handleDiscard}
-            />
-          </div>
         </div>
       </div>
 
-      {/* Mobile action bar — fixed at bottom */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background px-4 pb-[env(safe-area-inset-bottom)] md:hidden">
-        <QuizControls
-          isPinned={s.isPinned}
-          isFlagged={isFlagged(s.questionId)}
-          currentIndex={s.currentIndex}
-          totalQuestions={props.questions.length}
-          answeredCount={s.answeredCount}
-          submitting={s.submitting}
-          showFinishDialog={false}
-          showSubmit={canSubmitAnswer}
-          onTogglePin={s.togglePin}
-          onToggleFlag={() => toggleFlag(s.questionId)}
-          onPrev={() => s.navigate(-1)}
-          onNext={() => s.navigate(1)}
-          onSubmit={() => {
-            if (pendingOptionId) {
-              s.handleSelectAnswer(pendingOptionId)
-              setPendingOptionId(null)
-            }
-          }}
-          onCancel={() => s.setShowFinishDialog(false)}
-          onSave={s.handleSave}
-          onDiscard={s.handleDiscard}
-        />
+      {/* Action bar — fixed at bottom on all screen sizes */}
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background px-4 pb-[env(safe-area-inset-bottom)] md:px-8">
+        <div className="mx-auto max-w-3xl">
+          <QuizControls
+            isPinned={s.isPinned}
+            isFlagged={isFlagged(s.questionId)}
+            currentIndex={s.currentIndex}
+            totalQuestions={props.questions.length}
+            submitting={s.submitting}
+            showSubmit={canSubmitAnswer}
+            onTogglePin={s.togglePin}
+            onToggleFlag={() => toggleFlag(s.questionId)}
+            onPrev={() => s.navigate(-1)}
+            onNext={() => s.navigate(1)}
+            onSubmitAnswer={() => {
+              if (pendingOptionId) {
+                s.handleSelectAnswer(pendingOptionId)
+                setPendingOptionId(null)
+              }
+            }}
+          />
+        </div>
       </div>
+
+      {/* Finish dialog — rendered outside fixed footer so it centers on the viewport */}
+      <FinishQuizDialog
+        open={s.showFinishDialog}
+        answeredCount={s.answeredCount}
+        totalQuestions={props.questions.length}
+        submitting={s.submitting}
+        onSubmit={s.handleSubmit}
+        onCancel={() => s.setShowFinishDialog(false)}
+        onSave={s.handleSave}
+        onDiscard={s.handleDiscard}
+      />
     </div>
   )
 }

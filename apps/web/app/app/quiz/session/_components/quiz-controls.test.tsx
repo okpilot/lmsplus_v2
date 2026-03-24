@@ -1,41 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock FinishQuizDialog — it has its own test file and brings internal state
-// that is not under test here. We just need to know when it is open.
-vi.mock('../../_components/finish-quiz-dialog', () => ({
-  FinishQuizDialog: ({
-    open,
-    onSubmit,
-    onCancel,
-    onSave,
-    onDiscard,
-  }: {
-    open: boolean
-    onSubmit: () => void
-    onCancel: () => void
-    onSave: () => void
-    onDiscard: () => void
-  }) =>
-    open ? (
-      <div data-testid="finish-dialog">
-        <button type="button" onClick={onSubmit}>
-          Submit Quiz
-        </button>
-        <button type="button" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" onClick={onSave}>
-          Save for Later
-        </button>
-        <button type="button" onClick={onDiscard}>
-          Discard Quiz
-        </button>
-      </div>
-    ) : null,
-}))
-
-// QuizNavBar is rendered inside QuizControls — import after mock registration
 import { QuizControls } from './quiz-controls'
 
 type ControlProps = {
@@ -43,18 +8,13 @@ type ControlProps = {
   isFlagged?: boolean
   currentIndex?: number
   totalQuestions?: number
-  answeredCount?: number
   submitting?: boolean
-  showFinishDialog?: boolean
   showSubmit?: boolean
   onTogglePin?: () => void
   onToggleFlag?: () => void
   onPrev?: () => void
   onNext?: () => void
-  onSubmit?: () => void
-  onCancel?: () => void
-  onSave?: () => void
-  onDiscard?: () => void
+  onSubmitAnswer?: () => void
 }
 
 function renderControls(overrides: ControlProps = {}) {
@@ -63,18 +23,13 @@ function renderControls(overrides: ControlProps = {}) {
     isFlagged: false,
     currentIndex: 1,
     totalQuestions: 5,
-    answeredCount: 2,
     submitting: false,
-    showFinishDialog: false,
     showSubmit: false,
     onTogglePin: vi.fn(),
     onToggleFlag: vi.fn(),
     onPrev: vi.fn(),
     onNext: vi.fn(),
-    onSubmit: vi.fn(),
-    onCancel: vi.fn(),
-    onSave: vi.fn(),
-    onDiscard: vi.fn(),
+    onSubmitAnswer: vi.fn(),
   }
   const props = { ...defaults, ...overrides }
   render(<QuizControls {...props} />)
@@ -169,50 +124,6 @@ describe('QuizControls — Pin button (ActionButton)', () => {
   })
 })
 
-describe('QuizControls — FinishQuizDialog integration', () => {
-  beforeEach(() => {
-    vi.resetAllMocks()
-  })
-
-  it('does not render the dialog when showFinishDialog is false', () => {
-    renderControls({ showFinishDialog: false })
-    expect(screen.queryByTestId('finish-dialog')).not.toBeInTheDocument()
-  })
-
-  it('renders the dialog when showFinishDialog is true', () => {
-    renderControls({ showFinishDialog: true })
-    expect(screen.getByTestId('finish-dialog')).toBeInTheDocument()
-  })
-
-  it('calls onSubmit when Submit Quiz is clicked in the dialog', () => {
-    const onSubmit = vi.fn()
-    renderControls({ showFinishDialog: true, onSubmit })
-    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
-    expect(onSubmit).toHaveBeenCalledOnce()
-  })
-
-  it('calls onCancel when Cancel is clicked in the dialog', () => {
-    const onCancel = vi.fn()
-    renderControls({ showFinishDialog: true, onCancel })
-    fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }))
-    expect(onCancel).toHaveBeenCalledOnce()
-  })
-
-  it('calls onSave when Save for Later is clicked in the dialog', () => {
-    const onSave = vi.fn()
-    renderControls({ showFinishDialog: true, onSave })
-    fireEvent.click(screen.getByRole('button', { name: /save for later/i }))
-    expect(onSave).toHaveBeenCalledOnce()
-  })
-
-  it('calls onDiscard when Discard Quiz is clicked in the dialog', () => {
-    const onDiscard = vi.fn()
-    renderControls({ showFinishDialog: true, onDiscard })
-    fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
-    expect(onDiscard).toHaveBeenCalledOnce()
-  })
-})
-
 describe('QuizControls — Submit Answer button', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -223,14 +134,12 @@ describe('QuizControls — Submit Answer button', () => {
     expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
   })
 
-  it('calls onSubmit when Submit Answer is clicked', () => {
-    const onSubmit = vi.fn()
-    renderControls({ showSubmit: true, onSubmit })
-    // desktop Submit Answer button (md:block — present in DOM even if CSS-hidden in jsdom)
+  it('calls onSubmitAnswer when Submit Answer is clicked', () => {
+    const onSubmitAnswer = vi.fn()
+    renderControls({ showSubmit: true, onSubmitAnswer })
     const [firstSubmit] = screen.getAllByRole('button', { name: /submit answer/i })
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     fireEvent.click(firstSubmit!)
-    expect(onSubmit).toHaveBeenCalledOnce()
+    expect(onSubmitAnswer).toHaveBeenCalledOnce()
   })
 
   it('disables Submit Answer when submitting', () => {
