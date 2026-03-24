@@ -132,12 +132,11 @@ const SUBJECTS: SubjectSeed[] = [
                 num: 'ALW-006',
                 text: 'EASA stands for:',
                 a: 'European Air Safety Agency',
-                b: 'European Aviation Safety Agency',
+                b: 'European Union Aviation Safety Agency',
                 c: 'European Aviation Standards Authority',
                 d: 'European Air Standards Agency',
                 correct: 'b',
-                explanation:
-                  'EASA is the European Union Aviation Safety Agency (formerly European Aviation Safety Agency).',
+                explanation: 'EASA is the European Union Aviation Safety Agency.',
               },
               {
                 num: 'ALW-007',
@@ -588,7 +587,7 @@ const SUBJECTS: SubjectSeed[] = [
                 text: 'The ISA temperature lapse rate in the troposphere is:',
                 a: '1°C/100m',
                 b: '2°C/1000ft',
-                c: '6.5°C/1000m',
+                c: '6.5°C/1000ft',
                 d: '3°C/1000ft',
                 correct: 'b',
                 explanation:
@@ -1042,6 +1041,7 @@ async function seed() {
     .from('users')
     .select('id, organization_id')
     .eq('role', 'admin')
+    .is('deleted_at', null)
     .single()
   if (adminErr || !admin) throw new Error(`No admin user found: ${adminErr?.message}`)
 
