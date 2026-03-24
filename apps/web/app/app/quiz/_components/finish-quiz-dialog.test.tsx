@@ -53,26 +53,52 @@ describe('FinishQuizDialog', () => {
     expect(screen.getByText(/You have answered 4 of 10 questions/i)).toBeInTheDocument()
   })
 
-  it('shows the unanswered warning when some questions are unanswered', () => {
+  it('does not show unanswered warning on initial open', () => {
     renderDialog({ answeredCount: 3, totalQuestions: 5 })
+    expect(screen.queryByText(/unanswered/i)).not.toBeInTheDocument()
+  })
+
+  it('shows unanswered warning after clicking Submit Quiz when questions are unanswered', () => {
+    renderDialog({ answeredCount: 3, totalQuestions: 5 })
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
     expect(screen.getByText(/2 questions are unanswered/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /submit anyway/i })).toBeInTheDocument()
   })
 
   it('uses singular "question is" when exactly one question is unanswered', () => {
     renderDialog({ answeredCount: 4, totalQuestions: 5 })
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
     expect(screen.getByText(/1 question is unanswered/i)).toBeInTheDocument()
   })
 
-  it('does not show the unanswered warning when all questions are answered', () => {
-    renderDialog({ answeredCount: 5, totalQuestions: 5 })
+  it('calls onSubmit after confirming the unanswered warning', () => {
+    const onSubmit = vi.fn()
+    renderDialog({ onSubmit, answeredCount: 3, totalQuestions: 5 })
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+    expect(onSubmit).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /submit anyway/i }))
+    expect(onSubmit).toHaveBeenCalledOnce()
+  })
+
+  it('hides unanswered warning when Go back is clicked', () => {
+    renderDialog({ answeredCount: 3, totalQuestions: 5 })
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+    expect(screen.getByText(/unanswered/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /go back/i }))
     expect(screen.queryByText(/unanswered/i)).not.toBeInTheDocument()
   })
 
-  it('calls onSubmit when Submit Quiz button is clicked', () => {
+  it('calls onSubmit immediately when all questions are answered', () => {
     const onSubmit = vi.fn()
-    renderDialog({ onSubmit })
+    renderDialog({ onSubmit, answeredCount: 5, totalQuestions: 5 })
     fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
     expect(onSubmit).toHaveBeenCalledOnce()
+  })
+
+  it('hides Submit Quiz and shows hint when no questions are answered', () => {
+    renderDialog({ answeredCount: 0, totalQuestions: 5 })
+    expect(screen.queryByRole('button', { name: /submit quiz/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/answer at least one question to submit/i)).toBeInTheDocument()
   })
 
   it('calls onCancel when Return to Quiz button is clicked', () => {

@@ -397,11 +397,8 @@ describe('QuizSession', () => {
     expect(screen.getByText(/Question 3 of/)).toBeInTheDocument()
   })
 
-  it('desktop QuizControls always renders with showSubmit=false', () => {
+  it('does not render Submit Answer button when no option is selected', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
-
-    // Desktop QuizControls is hardcoded showSubmit=false — Submit Answer button absent initially
-    // (mobile controls also have showSubmit=false until a pending option is set)
     expect(screen.queryByRole('button', { name: /submit answer/i })).not.toBeInTheDocument()
   })
 

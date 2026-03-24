@@ -30,7 +30,6 @@ export function QuizTabContent({
       <ExplanationTab
         explanationText={explanationText}
         explanationImageUrl={explanationImageUrl}
-        isCorrect={currentFeedback?.isCorrect ?? null}
         learningObjective={learningObjective}
       />
     )

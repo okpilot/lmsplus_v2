@@ -4,23 +4,16 @@ import { ZoomableImage } from '../../_components/zoomable-image'
 type ExplanationTabProps = {
   explanationText: string | null
   explanationImageUrl: string | null
-  isCorrect: boolean | null
   learningObjective?: string | null
 }
 
 export function ExplanationTab({
   explanationText,
   explanationImageUrl,
-  isCorrect,
   learningObjective,
 }: ExplanationTabProps) {
   return (
     <div className="space-y-3 py-4">
-      {isCorrect !== null && (
-        <p className={`text-sm font-semibold ${isCorrect ? 'text-green-600' : 'text-destructive'}`}>
-          {isCorrect ? 'You answered correctly.' : 'You answered incorrectly.'}
-        </p>
-      )}
       <ExplanationContent text={explanationText} imageUrl={explanationImageUrl} />
       {learningObjective && (
         <div className="rounded-lg bg-muted/50 p-4">
