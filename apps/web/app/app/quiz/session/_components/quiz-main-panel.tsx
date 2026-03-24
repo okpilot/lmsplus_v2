@@ -25,7 +25,6 @@ export function QuizMainPanel({
         activeTab={activeTab}
         questionId={s.questionId}
         existingAnswer={s.existingAnswer}
-        currentFeedback={s.currentFeedback}
         explanationText={s.question.explanation_text}
         explanationImageUrl={s.question.explanation_image_url}
         userId={userId}
