@@ -57,9 +57,11 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
           <SelectValue placeholder="All subjects" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All subjects</SelectItem>
+          <SelectItem value={ALL} label="All subjects">
+            All subjects
+          </SelectItem>
           {tree.map((s) => (
-            <SelectItem key={s.id} value={s.id}>
+            <SelectItem key={s.id} value={s.id} label={`${s.code} — ${s.name}`}>
               {s.code} — {s.name}
             </SelectItem>
           ))}
@@ -75,9 +77,11 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
           <SelectValue placeholder="All topics" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All topics</SelectItem>
+          <SelectItem value={ALL} label="All topics">
+            All topics
+          </SelectItem>
           {topics.map((t) => (
-            <SelectItem key={t.id} value={t.id}>
+            <SelectItem key={t.id} value={t.id} label={t.code}>
               {t.code}
             </SelectItem>
           ))}
@@ -93,9 +97,11 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
           <SelectValue placeholder="All subtopics" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All subtopics</SelectItem>
+          <SelectItem value={ALL} label="All subtopics">
+            All subtopics
+          </SelectItem>
           {subtopics.map((st) => (
-            <SelectItem key={st.id} value={st.id}>
+            <SelectItem key={st.id} value={st.id} label={st.code}>
               {st.code}
             </SelectItem>
           ))}
@@ -110,10 +116,18 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
           <SelectValue placeholder="Difficulty" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All difficulties</SelectItem>
-          <SelectItem value="easy">Easy</SelectItem>
-          <SelectItem value="medium">Medium</SelectItem>
-          <SelectItem value="hard">Hard</SelectItem>
+          <SelectItem value={ALL} label="All difficulties">
+            All difficulties
+          </SelectItem>
+          <SelectItem value="easy" label="Easy">
+            Easy
+          </SelectItem>
+          <SelectItem value="medium" label="Medium">
+            Medium
+          </SelectItem>
+          <SelectItem value="hard" label="Hard">
+            Hard
+          </SelectItem>
         </SelectContent>
       </Select>
 
@@ -122,9 +136,15 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All statuses</SelectItem>
-          <SelectItem value="active">Active</SelectItem>
-          <SelectItem value="draft">Draft</SelectItem>
+          <SelectItem value={ALL} label="All statuses">
+            All statuses
+          </SelectItem>
+          <SelectItem value="active" label="Active">
+            Active
+          </SelectItem>
+          <SelectItem value="draft" label="Draft">
+            Draft
+          </SelectItem>
         </SelectContent>
       </Select>
 

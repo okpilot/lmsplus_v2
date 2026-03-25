@@ -49,7 +49,7 @@ export function SyllabusCascader({
           </SelectTrigger>
           <SelectContent>
             {tree.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
+              <SelectItem key={s.id} value={s.id} label={`${s.code} — ${s.name}`}>
                 {s.code} — {s.name}
               </SelectItem>
             ))}
@@ -69,7 +69,7 @@ export function SyllabusCascader({
           </SelectTrigger>
           <SelectContent>
             {topics.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
+              <SelectItem key={t.id} value={t.id} label={`${t.code} — ${t.name}`}>
                 {t.code} — {t.name}
               </SelectItem>
             ))}
@@ -88,9 +88,11 @@ export function SyllabusCascader({
             <SelectValue placeholder="None" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">None</SelectItem>
+            <SelectItem value="__none__" label="None">
+              None
+            </SelectItem>
             {subtopics.map((st) => (
-              <SelectItem key={st.id} value={st.id}>
+              <SelectItem key={st.id} value={st.id} label={`${st.code} — ${st.name}`}>
                 {st.code} — {st.name}
               </SelectItem>
             ))}

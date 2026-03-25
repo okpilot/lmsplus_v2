@@ -32,9 +32,15 @@ export function DifficultyStatusSelect({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="easy">Easy</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="hard">Hard</SelectItem>
+            <SelectItem value="easy" label="Easy">
+              Easy
+            </SelectItem>
+            <SelectItem value="medium" label="Medium">
+              Medium
+            </SelectItem>
+            <SelectItem value="hard" label="Hard">
+              Hard
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -45,8 +51,12 @@ export function DifficultyStatusSelect({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="draft" label="Draft">
+              Draft
+            </SelectItem>
+            <SelectItem value="active" label="Active">
+              Active
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
