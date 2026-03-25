@@ -57,6 +57,8 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
     })
   }
 
+  const submitLabel = isEdit ? 'Save Changes' : 'Create Question'
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<>{trigger}</>} />
@@ -105,7 +107,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
 
         <DialogFooter showCloseButton>
           <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Question'}
+            {isPending ? 'Saving...' : submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
