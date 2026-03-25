@@ -40,7 +40,7 @@ function mockAdmin() {
 
 function buildChain({ insertError = null }: { insertError?: { message: string } | null } = {}) {
   mockFrom.mockReturnValue({
-    insert: vi.fn().mockResolvedValue({ error: insertError }),
+    upsert: vi.fn().mockResolvedValue({ error: insertError }),
   })
 }
 

@@ -31,13 +31,15 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to create student' }
   }
 
-  const { error: insertErr } = await adminClient.from('users').insert({
-    id: authData.user.id,
-    email,
-    full_name,
-    role,
-    organization_id: organizationId,
-  })
+  // NOTE: Two coordinated mutations (Auth API + users INSERT) cannot be wrapped
+  // in a single Postgres RPC because Auth API is not callable from SQL.
+  // Orphan cleanup is handled in the insertErr branch below.
+  const { error: insertErr } = await adminClient
+    .from('users')
+    .upsert(
+      { id: authData.user.id, email, full_name, role, organization_id: organizationId },
+      { onConflict: 'id', ignoreDuplicates: true },
+    )
 
   if (insertErr) {
     console.error('[createStudent] Profile insert failed:', insertErr.message)

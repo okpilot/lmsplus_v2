@@ -50,14 +50,15 @@ async function deactivate(id: string, adminId: string, orgId: string): Promise<A
     return { success: false, error: 'Failed to deactivate student' }
   }
 
-  const { error: updateErr } = await adminClient
+  const { data, error: updateErr } = await adminClient
     .from('users')
     .update({ deleted_at: new Date().toISOString(), deleted_by: adminId })
     .eq('id', id)
     .eq('organization_id', orgId)
+    .select('id')
 
-  if (updateErr) {
-    console.error('[toggleStudentStatus] Deactivate error:', updateErr.message)
+  if (updateErr || !data?.length) {
+    if (updateErr) console.error('[toggleStudentStatus] Deactivate error:', updateErr.message)
     const { error: rollbackErr } = await adminClient.auth.admin.updateUserById(id, {
       ban_duration: 'none',
     })
@@ -84,14 +85,15 @@ async function reactivate(id: string, orgId: string): Promise<ActionResult> {
     return { success: false, error: 'Failed to reactivate student' }
   }
 
-  const { error: updateErr } = await adminClient
+  const { data, error: updateErr } = await adminClient
     .from('users')
     .update({ deleted_at: null, deleted_by: null })
     .eq('id', id)
     .eq('organization_id', orgId)
+    .select('id')
 
-  if (updateErr) {
-    console.error('[toggleStudentStatus] Reactivate error:', updateErr.message)
+  if (updateErr || !data?.length) {
+    if (updateErr) console.error('[toggleStudentStatus] Reactivate error:', updateErr.message)
     const { error: rollbackErr } = await adminClient.auth.admin.updateUserById(id, {
       ban_duration: '876600h',
     })
