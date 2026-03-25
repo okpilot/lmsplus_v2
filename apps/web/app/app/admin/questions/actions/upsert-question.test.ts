@@ -100,18 +100,22 @@ function buildUpdateChain({
   const updateChain = {
     select: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: fetchError ? null : { version: currentVersion },
-          error: fetchError,
+        is: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: fetchError ? null : { version: currentVersion },
+            error: fetchError,
+          }),
         }),
       }),
     }),
     update: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          select: vi.fn().mockResolvedValue({
-            data: updateError ? null : updatedRows,
-            error: updateError,
+          is: vi.fn().mockReturnValue({
+            select: vi.fn().mockResolvedValue({
+              data: updateError ? null : updatedRows,
+              error: updateError,
+            }),
           }),
         }),
       }),

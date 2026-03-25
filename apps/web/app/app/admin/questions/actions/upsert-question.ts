@@ -34,6 +34,7 @@ async function updateQuestion(
     .from('questions')
     .select('version')
     .eq('id', id)
+    .is('deleted_at', null)
     .single<{ version: number }>()
 
   if (fetchErr) {
@@ -53,6 +54,7 @@ async function updateQuestion(
     })
     .eq('id', id)
     .eq('version', current.version)
+    .is('deleted_at', null)
     .select('id')
 
   if (error) {
