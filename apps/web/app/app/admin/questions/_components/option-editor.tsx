@@ -41,6 +41,7 @@ export function OptionEditor({ options, onChange, disabled }: Readonly<Props>) {
             <input
               type="radio"
               name="correct-option"
+              aria-label={`Mark option ${letter.toUpperCase()} as correct`}
               checked={options[idx]?.correct ?? false}
               onChange={() => handleCorrectChange(idx)}
               disabled={disabled}

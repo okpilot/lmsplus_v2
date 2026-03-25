@@ -126,7 +126,12 @@ export function QuestionTable({
                     tree={tree}
                     question={q}
                     trigger={
-                      <Button variant="ghost" size="icon-xs" title="Edit question">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Edit question"
+                        aria-label="Edit question"
+                      >
                         <Pencil className="size-3.5 text-muted-foreground" />
                       </Button>
                     }

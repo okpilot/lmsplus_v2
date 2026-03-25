@@ -53,7 +53,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Select value={filters.subjectId ?? ALL} onValueChange={(v) => updateFilter('subjectId', v)}>
-        <SelectTrigger className="w-44">
+        <SelectTrigger className="w-44" aria-label="Subject">
           <SelectValue placeholder="All subjects" />
         </SelectTrigger>
         <SelectContent>
@@ -71,7 +71,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
         onValueChange={(v) => updateFilter('topicId', v)}
         disabled={topics.length === 0}
       >
-        <SelectTrigger className="w-44">
+        <SelectTrigger className="w-44" aria-label="Topic">
           <SelectValue placeholder="All topics" />
         </SelectTrigger>
         <SelectContent>
@@ -89,7 +89,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
         onValueChange={(v) => updateFilter('subtopicId', v)}
         disabled={subtopics.length === 0}
       >
-        <SelectTrigger className="w-44">
+        <SelectTrigger className="w-44" aria-label="Subtopic">
           <SelectValue placeholder="All subtopics" />
         </SelectTrigger>
         <SelectContent>
@@ -106,7 +106,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
         value={filters.difficulty ?? ALL}
         onValueChange={(v) => updateFilter('difficulty', v)}
       >
-        <SelectTrigger className="w-32">
+        <SelectTrigger className="w-32" aria-label="Difficulty">
           <SelectValue placeholder="Difficulty" />
         </SelectTrigger>
         <SelectContent>
@@ -118,7 +118,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
       </Select>
 
       <Select value={filters.status ?? ALL} onValueChange={(v) => updateFilter('status', v)}>
-        <SelectTrigger className="w-28">
+        <SelectTrigger className="w-28" aria-label="Status">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
