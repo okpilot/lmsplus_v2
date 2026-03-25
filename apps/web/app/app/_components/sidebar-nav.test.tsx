@@ -90,4 +90,37 @@ describe('SidebarNav', () => {
     render(<SidebarNav collapsed={true} onToggle={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument()
   })
+
+  it('renders the Admin section divider for admin users', () => {
+    render(<SidebarNav userRole="admin" collapsed={false} onToggle={vi.fn()} />)
+    expect(screen.getByText('Admin')).toBeInTheDocument()
+  })
+
+  it('does not render the Admin section divider for non-admin users', () => {
+    render(<SidebarNav userRole="student" collapsed={false} onToggle={vi.fn()} />)
+    expect(screen.queryByText('Admin')).not.toBeInTheDocument()
+  })
+
+  it('hides the Admin divider label with sr-only when collapsed', () => {
+    render(<SidebarNav userRole="admin" collapsed={true} onToggle={vi.fn()} />)
+    const adminLabel = screen.getByText('Admin')
+    expect(adminLabel.className).toContain('sr-only')
+  })
+
+  it('renders the Students link for admin users with the correct route', () => {
+    render(<SidebarNav userRole="admin" collapsed={false} onToggle={vi.fn()} />)
+    const studentsLink = screen.getByText('Students').closest('a')
+    expect(studentsLink).toHaveAttribute('href', '/app/admin/students')
+  })
+
+  it('renders the Questions link for admin users with the correct route', () => {
+    render(<SidebarNav userRole="admin" collapsed={false} onToggle={vi.fn()} />)
+    const questionsLink = screen.getByText('Questions').closest('a')
+    expect(questionsLink).toHaveAttribute('href', '/app/admin/questions')
+  })
+
+  it('does not render the Students link for non-admin users', () => {
+    render(<SidebarNav userRole="student" collapsed={false} onToggle={vi.fn()} />)
+    expect(screen.queryByText('Students')).not.toBeInTheDocument()
+  })
 })
