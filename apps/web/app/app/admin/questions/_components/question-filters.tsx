@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -23,6 +23,7 @@ const ALL = '__all__'
 export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [searchText, setSearchText] = useState(filters.search ?? '')
 
   const updateFilter = useCallback(
     (key: string, value: string | null | undefined) => {
@@ -130,12 +131,12 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
       <Input
         type="search"
         placeholder="Search question text..."
-        defaultValue={filters.search ?? ''}
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
         className="w-56"
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
-            const value = (e.target as HTMLInputElement).value.trim()
-            updateFilter('search', value || undefined)
+            updateFilter('search', searchText.trim() || undefined)
           }
         }}
       />
