@@ -164,6 +164,27 @@ describe('UpsertQuestionSchema', () => {
     ]
     expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
   })
+
+  it('rejects whitespace-only question_text', () => {
+    expect(UpsertQuestionSchema.safeParse({ ...valid, question_text: '   ' }).success).toBe(false)
+  })
+
+  it('rejects whitespace-only explanation_text', () => {
+    expect(UpsertQuestionSchema.safeParse({ ...valid, explanation_text: '   ' }).success).toBe(
+      false,
+    )
+  })
+
+  it('rejects whitespace-only option text', () => {
+    const options = validOptions.map((o, i) => (i === 0 ? { ...o, text: '  ' } : o))
+    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
+  })
+
+  it('trims leading/trailing whitespace from question_text', () => {
+    const result = UpsertQuestionSchema.safeParse({ ...valid, question_text: '  QNH  ' })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.question_text).toBe('QNH')
+  })
 })
 
 describe('DeleteSyllabusItemSchema', () => {

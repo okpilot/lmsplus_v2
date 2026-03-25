@@ -14,11 +14,11 @@ export async function ensureAdminTestUser() {
     .eq('slug', 'egmont-aviation')
     .single()
 
-  if (orgError) throw new Error(`ensureAdminTestUser org query: ${orgError.message}`)
-  if (!org) {
+  if (orgError || !org) {
     throw new Error(
-      'Egmont Aviation org not found — the E2E database must have seeded question data. ' +
-        'Run: pnpm dlx tsx apps/web/scripts/seed-admin-eval.ts',
+      orgError
+        ? `ensureAdminTestUser org query: ${orgError.message}`
+        : 'Egmont Aviation org not found — run: pnpm dlx tsx apps/web/scripts/seed-admin-eval.ts',
     )
   }
 
@@ -71,8 +71,10 @@ export async function ensureAdminTestUser() {
   })
   if (insertError) {
     // Rollback auth user to avoid orphaned account on next run
-    await admin.auth.admin.deleteUser(userId)
-    throw new Error(`ensureAdminTestUser insert: ${insertError.message}`)
+    const { error: rollbackError } = await admin.auth.admin.deleteUser(userId)
+    throw new Error(
+      `ensureAdminTestUser insert: ${insertError.message}${rollbackError ? ` (rollback also failed: ${rollbackError.message})` : ''}`,
+    )
   }
 
   return { orgId: org.id, userId }
