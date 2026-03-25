@@ -37,7 +37,11 @@ async function updateQuestion(
     .single<{ version: number }>()
 
   if (fetchErr) {
-    return { success: false, error: 'Question not found' }
+    if (fetchErr.code === 'PGRST116') {
+      return { success: false, error: 'Question not found' }
+    }
+    console.error('[updateQuestion] Fetch error:', fetchErr.message)
+    return { success: false, error: 'Failed to load question' }
   }
 
   const { data: updated, error } = await supabase
@@ -48,6 +52,7 @@ async function updateQuestion(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .eq('version', current.version)
     .select('id')
 
   if (error) {
@@ -57,7 +62,7 @@ async function updateQuestion(
     return { success: false, error: error.message }
   }
   if (!updated?.length) {
-    return { success: false, error: 'Question not found or not accessible' }
+    return { success: false, error: 'Question was modified by another user, please refresh' }
   }
   return { success: true }
 }

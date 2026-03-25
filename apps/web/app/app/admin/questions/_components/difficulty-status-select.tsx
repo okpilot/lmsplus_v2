@@ -28,7 +28,7 @@ export function DifficultyStatusSelect({
       <div>
         <span className="mb-1 block text-xs font-medium text-muted-foreground">Difficulty</span>
         <Select value={difficulty} onValueChange={onDifficultyChange} disabled={isPending}>
-          <SelectTrigger>
+          <SelectTrigger aria-label="Difficulty">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -41,7 +41,7 @@ export function DifficultyStatusSelect({
       <div>
         <span className="mb-1 block text-xs font-medium text-muted-foreground">Status</span>
         <Select value={status} onValueChange={onStatusChange} disabled={isPending}>
-          <SelectTrigger>
+          <SelectTrigger aria-label="Status">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

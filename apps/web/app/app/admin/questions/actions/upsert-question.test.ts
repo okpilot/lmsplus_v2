@@ -90,10 +90,12 @@ function buildUpdateChain({
   fetchError = null,
   updateError = null,
   currentVersion = 3,
+  updatedRows = [{ id: 'q1' }],
 }: {
   fetchError?: { message: string; code?: string } | null
   updateError?: { message: string; code?: string } | null
   currentVersion?: number
+  updatedRows?: { id: string }[]
 } = {}) {
   const updateChain = {
     select: vi.fn().mockReturnValue({
@@ -106,9 +108,11 @@ function buildUpdateChain({
     }),
     update: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
-        select: vi.fn().mockResolvedValue({
-          data: updateError ? null : [{ id: 'q1' }],
-          error: updateError,
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockResolvedValue({
+            data: updateError ? null : updatedRows,
+            error: updateError,
+          }),
         }),
       }),
     }),
@@ -262,7 +266,7 @@ describe('upsertQuestion', () => {
 
     it('returns failure when the question to update is not found', async () => {
       mockAdmin()
-      buildUpdateChain({ fetchError: { message: 'no rows returned' } })
+      buildUpdateChain({ fetchError: { message: 'no rows returned', code: 'PGRST116' } })
 
       const result = await upsertQuestion({ ...VALID_INPUT, id: VALID_UUID })
 
@@ -304,6 +308,30 @@ describe('upsertQuestion', () => {
 
       const updateCall = chain.update.mock.calls[0]?.[0] as { version: number }
       expect(updateCall?.version).toBe(6)
+    })
+
+    it('returns conflict error when version has changed (zero rows updated)', async () => {
+      mockAdmin()
+      buildUpdateChain({ updatedRows: [] })
+
+      const result = await upsertQuestion({ ...VALID_INPUT, id: VALID_UUID })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Question was modified by another user, please refresh')
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
+
+    it('returns generic error when fetch fails with non-404 error', async () => {
+      mockAdmin()
+      buildUpdateChain({ fetchError: { message: 'connection reset', code: 'PGRST500' } })
+
+      const result = await upsertQuestion({ ...VALID_INPUT, id: VALID_UUID })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to load question')
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
   })
 

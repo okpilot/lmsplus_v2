@@ -176,7 +176,7 @@ describe('uploadQuestionImage', () => {
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('Bucket quota exceeded')
+      expect(result.error).toBe('Image upload failed')
     })
   })
 

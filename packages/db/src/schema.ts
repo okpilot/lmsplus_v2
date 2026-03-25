@@ -91,6 +91,9 @@ export const UpsertQuestionSchema = z
   .refine((q) => q.options.filter((o) => o.correct).length === 1, {
     message: 'Exactly one option must be marked correct',
   })
+  .refine((q) => new Set(q.options.map((o) => o.id)).size === 4, {
+    message: 'Option IDs must be unique',
+  })
 
 export type UpsertQuestionInput = z.infer<typeof UpsertQuestionSchema>
 

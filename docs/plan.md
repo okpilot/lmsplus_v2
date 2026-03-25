@@ -910,4 +910,4 @@ From setup audit (2026-03-11), updated 2026-03-19:
 
 ---
 
-*Last updated: 2026-03-23 — Sprint 4 complete. Lighthouse CI workflow + DB migration test added to e2e.yml.*
+*Last updated: 2026-03-25 — Sprint 4 complete. Lighthouse CI workflow + DB migration test added to e2e.yml. Question editor review fixes.*

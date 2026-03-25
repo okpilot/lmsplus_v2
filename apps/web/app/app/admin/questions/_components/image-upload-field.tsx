@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { uploadQuestionImage } from '../actions/upload-question-image'
 
+const SUPABASE_STORAGE_ORIGIN = 'https://uepvblipahxizozxvwjn.supabase.co'
+
+function isSafePreviewUrl(url: string): boolean {
+  return url.startsWith('blob:') || url.startsWith(SUPABASE_STORAGE_ORIGIN)
+}
+
 type Props = {
   label: string
   currentUrl: string | null
@@ -53,6 +59,8 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Pr
           toast.error(result.error)
         }
       } catch {
+        if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+        blobUrlRef.current = null
         setPreview(currentUrl)
         toast.error('Upload failed')
       }
@@ -67,7 +75,7 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Pr
   return (
     <div className="space-y-2">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      {preview && (
+      {preview && isSafePreviewUrl(preview) && (
         <div className="relative">
           {/* biome-ignore lint/performance/noImgElement: local blob/URL preview, not optimizable by next/image */}
           <img

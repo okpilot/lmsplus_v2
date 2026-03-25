@@ -44,7 +44,8 @@ export async function uploadQuestionImage(formData: FormData): Promise<UploadRes
   })
 
   if (error) {
-    return { success: false, error: error.message }
+    console.error('[uploadQuestionImage] Storage error:', error.message)
+    return { success: false, error: 'Image upload failed' }
   }
 
   const { data: urlData } = supabase.storage.from('question-images').getPublicUrl(path)
