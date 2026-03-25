@@ -127,4 +127,24 @@ describe('SyllabusCascader', () => {
     )
     expect(screen.getByText('050 01 — The Atmosphere')).toBeInTheDocument()
   })
+
+  it('maps null subtopicId to the __none__ sentinel value and renders "None" option', () => {
+    render(
+      <SyllabusCascader
+        tree={TREE}
+        subjectId="subj-1"
+        topicId="topic-1"
+        subtopicId={null}
+        onSubjectChange={vi.fn()}
+        onTopicChange={vi.fn()}
+        onSubtopicChange={vi.fn()}
+      />,
+    )
+    // The subtopic Select should have value="__none__" when subtopicId is null
+    const selects = screen.getAllByTestId('select')
+    const subtopicSelect = selects[2] // third select = subtopic
+    expect(subtopicSelect).toHaveAttribute('data-value', '__none__')
+    // "None" SelectItem should be rendered (may appear multiple times due to placeholder)
+    expect(screen.getAllByText('None').length).toBeGreaterThanOrEqual(1)
+  })
 })

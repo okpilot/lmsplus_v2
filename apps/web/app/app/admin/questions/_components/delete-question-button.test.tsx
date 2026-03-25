@@ -144,7 +144,7 @@ describe('DeleteQuestionButton', () => {
     expect(mockToastError).toHaveBeenCalledWith('Service error. Please try again.')
   })
 
-  it('does not call softDeleteQuestion when only the trigger area is interacted with', () => {
+  it('does not call softDeleteQuestion on initial render', () => {
     render(<DeleteQuestionButton id="q-1" label="Q001" />)
 
     // softDeleteQuestion must not be called at render time.

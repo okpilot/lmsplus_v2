@@ -109,11 +109,13 @@ describe('BulkActionsBar', () => {
   it('shows a generic error toast when bulkUpdateStatus throws', async () => {
     mockBulkUpdateStatus.mockRejectedValue(new Error('Network error'))
     const user = userEvent.setup()
+    const onClear = vi.fn()
 
-    render(<BulkActionsBar selectedIds={['q-1']} onClear={vi.fn()} />)
+    render(<BulkActionsBar selectedIds={['q-1']} onClear={onClear} />)
     await user.click(screen.getByRole('button', { name: 'Activate' }))
 
     expect(mockToastError).toHaveBeenCalledWith('Bulk update failed')
+    expect(onClear).not.toHaveBeenCalled()
   })
 
   it('calls onClear when the Clear button is clicked', async () => {
