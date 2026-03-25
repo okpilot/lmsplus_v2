@@ -4,6 +4,7 @@ import {
   DeleteSyllabusItemSchema,
   StartQuizSessionSchema,
   SubmitAnswerSchema,
+  UpsertQuestionSchema,
   UpsertSubjectSchema,
   UpsertSubtopicSchema,
   UpsertTopicSchema,
@@ -123,6 +124,45 @@ describe('UpsertSubtopicSchema', () => {
     ['code exceeding 30 chars', { ...valid, code: 'A'.repeat(31) }],
   ])('rejects %s', (_, payload) => {
     expect(UpsertSubtopicSchema.safeParse(payload).success).toBe(false)
+  })
+})
+
+describe('UpsertQuestionSchema', () => {
+  const validOptions = [
+    { id: 'a', text: 'Opt A', correct: true },
+    { id: 'b', text: 'Opt B', correct: false },
+    { id: 'c', text: 'Opt C', correct: false },
+    { id: 'd', text: 'Opt D', correct: false },
+  ]
+
+  const valid = {
+    subject_id: VALID_UUID,
+    topic_id: VALID_UUID,
+    subtopic_id: null,
+    question_text: 'What is QNH?',
+    options: validOptions,
+    explanation_text: 'QNH is the altimeter subscale setting.',
+    difficulty: 'medium',
+    status: 'active',
+  }
+
+  it('accepts a valid question with all required fields', () => {
+    expect(UpsertQuestionSchema.safeParse(valid).success).toBe(true)
+  })
+
+  it('rejects when no option is marked correct', () => {
+    const options = validOptions.map((o) => ({ ...o, correct: false }))
+    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
+  })
+
+  it('rejects when duplicate option IDs are supplied', () => {
+    const options = [
+      { id: 'a', text: 'Opt A', correct: true },
+      { id: 'a', text: 'Opt B', correct: false },
+      { id: 'a', text: 'Opt C', correct: false },
+      { id: 'a', text: 'Opt D', correct: false },
+    ]
+    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
   })
 })
 

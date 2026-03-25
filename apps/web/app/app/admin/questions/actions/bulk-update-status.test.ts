@@ -149,6 +149,17 @@ describe('bulkUpdateStatus', () => {
       expect(result.error).toBe('update failed')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
+
+    it('returns failure when no rows were updated (all IDs filtered by RLS or deleted)', async () => {
+      mockAdminWithResult({ data: [], error: null })
+
+      const result = await bulkUpdateStatus({ ids: [UUID_1, UUID_2], status: 'active' })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('No questions were updated')
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+    })
   })
 
   describe('auth guard', () => {
