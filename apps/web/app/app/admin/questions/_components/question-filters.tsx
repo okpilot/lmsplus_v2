@@ -132,7 +132,11 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
         type="search"
         placeholder="Search question text..."
         value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
+        onChange={(e) => {
+          const val = e.target.value
+          setSearchText(val)
+          if (val === '') updateFilter('search', undefined)
+        }}
         className="w-56"
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
