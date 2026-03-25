@@ -20,7 +20,7 @@ import { StudentFormFields } from './student-form-fields'
 
 type Props = {
   student?: StudentRow
-  trigger: ReactElement
+  trigger?: ReactElement
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }
@@ -84,7 +84,7 @@ export function StudentFormDialog({
         if (!isPending) setOpen(v)
       }}
     >
-      <DialogTrigger render={trigger} />
+      {controlledOpen === undefined && <DialogTrigger render={trigger} />}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Student' : 'New Student'}</DialogTitle>

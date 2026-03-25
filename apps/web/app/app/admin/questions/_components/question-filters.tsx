@@ -20,6 +20,19 @@ type Props = {
 
 const ALL = '__all__'
 
+const DIFFICULTY_ITEMS = [
+  { value: ALL, label: 'All difficulties' },
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+]
+
+const STATUS_ITEMS = [
+  { value: ALL, label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'draft', label: 'Draft' },
+]
+
 export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -50,9 +63,26 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
   const selectedTopic = topics.find((t) => t.id === filters.topicId)
   const subtopics = selectedTopic?.subtopics ?? []
 
+  const subjectItems = [
+    { value: ALL, label: 'All subjects' },
+    ...tree.map((s) => ({ value: s.id, label: `${s.code} — ${s.name}` })),
+  ]
+  const topicItems = [
+    { value: ALL, label: 'All topics' },
+    ...topics.map((t) => ({ value: t.id, label: t.code })),
+  ]
+  const subtopicItems = [
+    { value: ALL, label: 'All subtopics' },
+    ...subtopics.map((st) => ({ value: st.id, label: st.code })),
+  ]
+
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Select value={filters.subjectId ?? ALL} onValueChange={(v) => updateFilter('subjectId', v)}>
+      <Select
+        value={filters.subjectId ?? ALL}
+        onValueChange={(v) => updateFilter('subjectId', v)}
+        items={subjectItems}
+      >
         <SelectTrigger className="w-44" aria-label="Subject">
           <SelectValue placeholder="All subjects" />
         </SelectTrigger>
@@ -72,6 +102,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
         value={filters.topicId ?? ALL}
         onValueChange={(v) => updateFilter('topicId', v)}
         disabled={topics.length === 0}
+        items={topicItems}
       >
         <SelectTrigger className="w-44" aria-label="Topic">
           <SelectValue placeholder="All topics" />
@@ -92,6 +123,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
         value={filters.subtopicId ?? ALL}
         onValueChange={(v) => updateFilter('subtopicId', v)}
         disabled={subtopics.length === 0}
+        items={subtopicItems}
       >
         <SelectTrigger className="w-44" aria-label="Subtopic">
           <SelectValue placeholder="All subtopics" />
@@ -111,6 +143,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
       <Select
         value={filters.difficulty ?? ALL}
         onValueChange={(v) => updateFilter('difficulty', v)}
+        items={DIFFICULTY_ITEMS}
       >
         <SelectTrigger className="w-32" aria-label="Difficulty">
           <SelectValue placeholder="Difficulty" />
@@ -131,7 +164,11 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
         </SelectContent>
       </Select>
 
-      <Select value={filters.status ?? ALL} onValueChange={(v) => updateFilter('status', v)}>
+      <Select
+        value={filters.status ?? ALL}
+        onValueChange={(v) => updateFilter('status', v)}
+        items={STATUS_ITEMS}
+      >
         <SelectTrigger className="w-28" aria-label="Status">
           <SelectValue placeholder="Status" />
         </SelectTrigger>

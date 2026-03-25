@@ -68,6 +68,11 @@ export function StudentFormFields({
             if (v) onRoleChange(v)
           }}
           disabled={isPending}
+          items={[
+            ...(isEdit ? [{ value: 'admin', label: 'Admin' }] : []),
+            { value: 'instructor', label: 'Instructor' },
+            { value: 'student', label: 'Student' },
+          ]}
         >
           <SelectTrigger id="role">
             <SelectValue />

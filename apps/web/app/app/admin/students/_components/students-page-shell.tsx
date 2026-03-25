@@ -55,7 +55,6 @@ export function StudentsPageShell({ students, filters }: Readonly<Props>) {
 
       <StudentFormDialog
         student={editStudent ?? undefined}
-        trigger={<span aria-hidden />}
         open={editStudent !== null}
         onOpenChange={(v) => {
           if (!v) setEditStudent(null)

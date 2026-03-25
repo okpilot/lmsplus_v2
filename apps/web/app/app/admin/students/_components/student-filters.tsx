@@ -19,6 +19,19 @@ type Props = {
 
 const ALL = '__all__'
 
+const STATUS_ITEMS = [
+  { value: ALL, label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+]
+
+const ROLE_ITEMS = [
+  { value: ALL, label: 'All' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'instructor', label: 'Instructor' },
+  { value: 'student', label: 'Student' },
+]
+
 export function StudentFiltersBar({ filters }: Readonly<Props>) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -54,6 +67,7 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
       <Select
         value={filters.status ?? ALL}
         onValueChange={(v) => updateFilter('status', v === ALL || v === null ? undefined : v)}
+        items={STATUS_ITEMS}
       >
         <SelectTrigger className="w-32" aria-label="Status">
           <SelectValue placeholder="All statuses" />
@@ -74,6 +88,7 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
       <Select
         value={filters.role ?? ALL}
         onValueChange={(v) => updateFilter('role', v === ALL || v === null ? undefined : v)}
+        items={ROLE_ITEMS}
       >
         <SelectTrigger className="w-32" aria-label="Role">
           <SelectValue placeholder="All roles" />
