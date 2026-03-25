@@ -22,11 +22,18 @@ export default defineConfig({
   },
   projects: [
     { name: 'setup', testMatch: 'auth.setup.ts' },
+    { name: 'admin-setup', testMatch: 'admin-auth.setup.ts' },
     {
       name: 'e2e',
       testMatch: '**/*.spec.ts',
-      testIgnore: '**/redteam/**',
+      testIgnore: ['**/redteam/**', '**/admin-*.spec.ts'],
       dependencies: ['setup'],
+    },
+    {
+      name: 'admin-e2e',
+      testMatch: '**/admin-*.spec.ts',
+      testIgnore: '**/redteam/**',
+      dependencies: ['admin-setup'],
     },
     {
       name: 'redteam',

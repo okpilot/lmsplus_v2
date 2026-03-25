@@ -25,6 +25,10 @@ export function useTopicTree() {
       (t) => checkedTopics.has(t.id) && t.subtopics.every((st) => checkedSubtopics.has(st.id)),
     )
 
+  function collectSubtopicIds(items: TopicWithSubtopics[]) {
+    return items.flatMap((t) => t.subtopics.map((st) => st.id))
+  }
+
   function loadTopics(subjectId: string) {
     generation.current++
     const gen = generation.current
@@ -33,7 +37,7 @@ export function useTopicTree() {
       if (gen !== generation.current) return
       setTopics(result)
       setCheckedTopics(new Set(result.map((t) => t.id)))
-      setCheckedSubtopics(new Set(result.flatMap((t) => t.subtopics.map((st) => st.id))))
+      setCheckedSubtopics(new Set(collectSubtopicIds(result)))
     })
   }
 

@@ -14,7 +14,7 @@ function ExamButton() {
       disabled
       className="flex flex-1 items-center justify-center gap-1.5 rounded-[8px] px-4 py-2 text-sm font-medium text-muted-foreground opacity-50"
     >
-      Exam
+      Exam{' '}
       <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
         Coming soon
       </span>

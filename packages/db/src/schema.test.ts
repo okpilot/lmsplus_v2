@@ -4,6 +4,7 @@ import {
   DeleteSyllabusItemSchema,
   StartQuizSessionSchema,
   SubmitAnswerSchema,
+  UpsertQuestionSchema,
   UpsertSubjectSchema,
   UpsertSubtopicSchema,
   UpsertTopicSchema,
@@ -123,6 +124,71 @@ describe('UpsertSubtopicSchema', () => {
     ['code exceeding 30 chars', { ...valid, code: 'A'.repeat(31) }],
   ])('rejects %s', (_, payload) => {
     expect(UpsertSubtopicSchema.safeParse(payload).success).toBe(false)
+  })
+})
+
+describe('UpsertQuestionSchema', () => {
+  const validOptions = [
+    { id: 'a', text: 'Opt A', correct: true },
+    { id: 'b', text: 'Opt B', correct: false },
+    { id: 'c', text: 'Opt C', correct: false },
+    { id: 'd', text: 'Opt D', correct: false },
+  ]
+
+  const valid = {
+    subject_id: VALID_UUID,
+    topic_id: VALID_UUID,
+    subtopic_id: null,
+    question_text: 'What is QNH?',
+    options: validOptions,
+    explanation_text: 'QNH is the altimeter subscale setting.',
+    difficulty: 'medium',
+    status: 'active',
+  }
+
+  it('accepts a valid question with all required fields', () => {
+    expect(UpsertQuestionSchema.safeParse(valid).success).toBe(true)
+  })
+
+  it('rejects when no option is marked correct', () => {
+    const options = validOptions.map((o) => ({ ...o, correct: false }))
+    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
+  })
+
+  it('rejects when more than one option is marked correct', () => {
+    const options = validOptions.map((o) => ({ ...o, correct: true }))
+    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
+  })
+
+  it('rejects when duplicate option IDs are supplied', () => {
+    const options = [
+      { id: 'a', text: 'Opt A', correct: true },
+      { id: 'a', text: 'Opt B', correct: false },
+      { id: 'a', text: 'Opt C', correct: false },
+      { id: 'a', text: 'Opt D', correct: false },
+    ]
+    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
+  })
+
+  it('rejects whitespace-only question_text', () => {
+    expect(UpsertQuestionSchema.safeParse({ ...valid, question_text: '   ' }).success).toBe(false)
+  })
+
+  it('rejects whitespace-only explanation_text', () => {
+    expect(UpsertQuestionSchema.safeParse({ ...valid, explanation_text: '   ' }).success).toBe(
+      false,
+    )
+  })
+
+  it('rejects whitespace-only option text', () => {
+    const options = validOptions.map((o, i) => (i === 0 ? { ...o, text: '  ' } : o))
+    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
+  })
+
+  it('trims leading/trailing whitespace from question_text', () => {
+    const result = UpsertQuestionSchema.safeParse({ ...valid, question_text: '  QNH  ' })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.question_text).toBe('QNH')
   })
 })
 
