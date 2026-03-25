@@ -1,5 +1,6 @@
 'use server'
 
+import { randomUUID } from 'node:crypto'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
@@ -36,7 +37,7 @@ export async function uploadQuestionImage(formData: FormData): Promise<UploadRes
 
   const ext =
     (file.name.split('.').pop() ?? 'png').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png'
-  const path = `${profile.organization_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+  const path = `${profile.organization_id}/${randomUUID()}.${ext}`
 
   const { error } = await supabase.storage.from('question-images').upload(path, file, {
     contentType: file.type,
