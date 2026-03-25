@@ -37,6 +37,7 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    e.target.value = ''
 
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
     const objectUrl = URL.createObjectURL(file)

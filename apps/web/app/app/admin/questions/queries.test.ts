@@ -22,7 +22,6 @@ import { getQuestionsList } from './queries'
  */
 function makeQueryChain(data: unknown[]) {
   const chain: Record<string, unknown> = {}
-  const self = () => chain
   chain.select = vi.fn().mockReturnValue(chain)
   chain.is = vi.fn().mockReturnValue(chain)
   chain.order = vi.fn().mockReturnValue(chain)
@@ -37,7 +36,6 @@ function makeQueryChain(data: unknown[]) {
       resolve({ data, error: null })
       return Promise.resolve({ data, error: null })
     })
-  void self
   return chain
 }
 

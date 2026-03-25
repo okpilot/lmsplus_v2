@@ -18,7 +18,7 @@ test.describe('Admin Question Editor', () => {
     await expect(page.locator('tbody tr').first()).toBeVisible()
   })
 
-  test('shows subject code and topic name in table columns', async ({ page }) => {
+  test('shows subject code in table columns', async ({ page }) => {
     // Subject column should show "050" (Meteorology code)
     await expect(page.getByText('050').first()).toBeVisible()
   })
