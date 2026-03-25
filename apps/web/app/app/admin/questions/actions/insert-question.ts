@@ -1,5 +1,3 @@
-'use server'
-
 import type { UpsertQuestionInput } from '@repo/db/schema'
 import type { requireAdmin } from '@/lib/auth/require-admin'
 
@@ -31,6 +29,7 @@ export async function insertQuestion(
     return { success: false, error: 'No question bank found for organization' }
   }
 
+  // Intentionally no ON CONFLICT — duplicate question_number should surface to the admin via 23505
   const { error } = await supabase.from('questions').insert({
     ...data,
     organization_id: profile.organization_id,
