@@ -40,7 +40,9 @@ function buildFetchChain({
 } = {}) {
   const updateChain = {
     update: vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      }),
     }),
     select: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
@@ -155,7 +157,9 @@ describe('toggleStudentStatus', () => {
       const chain = buildFetchChain({ deletedAt: null })
       mockUpdateUserById.mockResolvedValue({ error: null })
       chain.update.mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: { message: 'db error' } }),
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: { message: 'db error' } }),
+        }),
       })
 
       const result = await toggleStudentStatus(VALID_INPUT)
@@ -199,7 +203,9 @@ describe('toggleStudentStatus', () => {
       const chain = buildFetchChain({ deletedAt: '2026-01-01T00:00:00Z' })
       mockUpdateUserById.mockResolvedValue({ error: null })
       chain.update.mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: { message: 'db error' } }),
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: { message: 'db error' } }),
+        }),
       })
 
       const result = await toggleStudentStatus(VALID_INPUT)

@@ -36,12 +36,12 @@ export async function toggleStudentStatus(input: unknown): Promise<ActionResult>
   }
 
   if (target.deleted_at === null) {
-    return await deactivate(id, userId)
+    return await deactivate(id, userId, organizationId)
   }
-  return await reactivate(id)
+  return await reactivate(id, organizationId)
 }
 
-async function deactivate(id: string, adminId: string): Promise<ActionResult> {
+async function deactivate(id: string, adminId: string, orgId: string): Promise<ActionResult> {
   const { error: banErr } = await adminClient.auth.admin.updateUserById(id, {
     ban_duration: '876600h',
   })
@@ -54,10 +54,20 @@ async function deactivate(id: string, adminId: string): Promise<ActionResult> {
     .from('users')
     .update({ deleted_at: new Date().toISOString(), deleted_by: adminId })
     .eq('id', id)
+    .eq('organization_id', orgId)
 
   if (updateErr) {
     console.error('[toggleStudentStatus] Deactivate error:', updateErr.message)
-    await adminClient.auth.admin.updateUserById(id, { ban_duration: 'none' })
+    const { error: rollbackErr } = await adminClient.auth.admin.updateUserById(id, {
+      ban_duration: 'none',
+    })
+    if (rollbackErr) {
+      console.error(
+        '[toggleStudentStatus] Rollback failed — user may be in inconsistent state:',
+        id,
+        rollbackErr.message,
+      )
+    }
     return { success: false, error: 'Failed to deactivate student' }
   }
 
@@ -65,7 +75,7 @@ async function deactivate(id: string, adminId: string): Promise<ActionResult> {
   return { success: true }
 }
 
-async function reactivate(id: string): Promise<ActionResult> {
+async function reactivate(id: string, orgId: string): Promise<ActionResult> {
   const { error: unbanErr } = await adminClient.auth.admin.updateUserById(id, {
     ban_duration: 'none',
   })
@@ -78,10 +88,20 @@ async function reactivate(id: string): Promise<ActionResult> {
     .from('users')
     .update({ deleted_at: null, deleted_by: null })
     .eq('id', id)
+    .eq('organization_id', orgId)
 
   if (updateErr) {
     console.error('[toggleStudentStatus] Reactivate error:', updateErr.message)
-    await adminClient.auth.admin.updateUserById(id, { ban_duration: '876600h' })
+    const { error: rollbackErr } = await adminClient.auth.admin.updateUserById(id, {
+      ban_duration: '876600h',
+    })
+    if (rollbackErr) {
+      console.error(
+        '[toggleStudentStatus] Rollback failed — user may be in inconsistent state:',
+        id,
+        rollbackErr.message,
+      )
+    }
     return { success: false, error: 'Failed to reactivate student' }
   }
 
