@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { ReactElement } from 'react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,7 @@ import { upsertQuestion } from '../actions/upsert-question'
 import type { QuestionRow } from '../types'
 import { QuestionFormFields } from './question-form-fields'
 
-type Props = { tree: SyllabusTree; question?: QuestionRow; trigger: ReactNode }
+type Props = { tree: SyllabusTree; question?: QuestionRow; trigger: ReactElement }
 
 export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>) {
   const isEdit = !!question
@@ -61,7 +61,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<>{trigger}</>} />
+      <DialogTrigger render={trigger} />
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Question' : 'New Question'}</DialogTitle>
