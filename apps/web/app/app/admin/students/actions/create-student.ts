@@ -13,19 +13,8 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Invalid input' }
   }
 
-  const { userId } = await requireAdmin()
+  const { organizationId } = await requireAdmin()
   const { email, full_name, role, temporary_password } = parsed.data
-
-  const { data: adminProfile, error: profileErr } = await adminClient
-    .from('users')
-    .select('organization_id')
-    .eq('id', userId)
-    .single<{ organization_id: string }>()
-
-  if (profileErr) {
-    console.error('[createStudent] Failed to fetch admin org:', profileErr.message)
-    return { success: false, error: 'Failed to create student' }
-  }
 
   const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
     email,
@@ -47,12 +36,19 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
     email,
     full_name,
     role,
-    organization_id: adminProfile.organization_id,
+    organization_id: organizationId,
   })
 
   if (insertErr) {
     console.error('[createStudent] Profile insert failed:', insertErr.message)
-    await adminClient.auth.admin.deleteUser(authData.user.id)
+    const { error: rollbackErr } = await adminClient.auth.admin.deleteUser(authData.user.id)
+    if (rollbackErr) {
+      console.error(
+        '[createStudent] Rollback failed — orphaned auth user:',
+        authData.user.id,
+        rollbackErr.message,
+      )
+    }
     return { success: false, error: 'Failed to create student' }
   }
 

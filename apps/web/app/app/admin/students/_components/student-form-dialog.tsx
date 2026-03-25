@@ -13,18 +13,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { createStudent } from '../actions/create-student'
 import { updateStudent } from '../actions/update-student'
 import type { StudentRow } from '../types'
+import { StudentFormFields } from './student-form-fields'
 
 type Props = {
   student?: StudentRow
@@ -83,8 +75,6 @@ export function StudentFormDialog({
     })
   }
 
-  const submitLabel = isEdit ? 'Save Changes' : 'Create Student'
-
   return (
     <Dialog
       open={open}
@@ -103,69 +93,22 @@ export function StudentFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2">
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isEdit || isPending}
-              required
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="fullName">Full name</Label>
-            <Input
-              id="fullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              disabled={isPending}
-              required
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="role">Role</Label>
-            <Select
-              value={role}
-              onValueChange={(v) => {
-                if (v) setRole(v)
-              }}
-              disabled={isPending}
-            >
-              <SelectTrigger id="role">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {isEdit && <SelectItem value="admin">Admin</SelectItem>}
-                <SelectItem value="instructor">Instructor</SelectItem>
-                <SelectItem value="student">Student</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {!isEdit && (
-            <div className="grid gap-2">
-              <Label htmlFor="tempPassword">Temporary password</Label>
-              <Input
-                id="tempPassword"
-                type="text"
-                value={tempPassword}
-                onChange={(e) => setTempPassword(e.target.value)}
-                disabled={isPending}
-                minLength={6}
-                required
-              />
-            </div>
-          )}
-        </div>
+        <StudentFormFields
+          isEdit={isEdit}
+          isPending={isPending}
+          email={email}
+          fullName={fullName}
+          role={role}
+          tempPassword={tempPassword}
+          onEmailChange={setEmail}
+          onFullNameChange={setFullName}
+          onRoleChange={setRole}
+          onTempPasswordChange={setTempPassword}
+        />
 
         <DialogFooter showCloseButton>
           <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? 'Saving...' : submitLabel}
+            {isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Student'}
           </Button>
         </DialogFooter>
       </DialogContent>

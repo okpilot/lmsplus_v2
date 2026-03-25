@@ -1,11 +1,18 @@
 import { adminClient } from '@repo/db/admin'
-import { createServerSupabaseClient } from '@repo/db/server'
+import { requireAdmin } from '@/lib/auth/require-admin'
 import type { StudentFilters, StudentRow } from './types'
 
+function escapeLike(value: string): string {
+  return value.replace(/[%_\\]/g, '\\$&')
+}
+
 export async function getStudentsList(filters: StudentFilters): Promise<StudentRow[]> {
+  const { organizationId } = await requireAdmin()
+
   let query = adminClient
     .from('users')
     .select('id, email, full_name, role, organization_id, last_active_at, created_at, deleted_at')
+    .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -20,7 +27,8 @@ export async function getStudentsList(filters: StudentFilters): Promise<StudentR
   }
 
   if (filters.search) {
-    query = query.or(`email.ilike.%${filters.search}%,full_name.ilike.%${filters.search}%`)
+    const escaped = escapeLike(filters.search)
+    query = query.or(`email.ilike.%${escaped}%,full_name.ilike.%${escaped}%`)
   }
 
   const { data, error } = await query
@@ -31,29 +39,4 @@ export async function getStudentsList(filters: StudentFilters): Promise<StudentR
   }
 
   return (data ?? []) as StudentRow[]
-}
-
-export async function getAdminOrganizationId(): Promise<string> {
-  const supabase = await createServerSupabaseClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    throw new Error('Not authenticated')
-  }
-
-  const { data, error } = await adminClient
-    .from('users')
-    .select('organization_id')
-    .eq('id', user.id)
-    .single()
-
-  if (error || !data?.organization_id) {
-    console.error('[getAdminOrganizationId] DB error:', error?.message)
-    throw new Error('Failed to fetch organization')
-  }
-
-  return data.organization_id
 }

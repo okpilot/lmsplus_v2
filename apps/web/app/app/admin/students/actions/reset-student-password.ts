@@ -13,13 +13,14 @@ export async function resetStudentPassword(input: unknown): Promise<ActionResult
     return { success: false, error: 'Invalid input' }
   }
 
-  await requireAdmin()
+  const { organizationId } = await requireAdmin()
   const { id, temporary_password } = parsed.data
 
   const { data: target, error: fetchErr } = await adminClient
     .from('users')
     .select('id')
     .eq('id', id)
+    .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .single<{ id: string }>()
 

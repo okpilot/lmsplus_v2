@@ -23,7 +23,9 @@ type Props = {
 }
 
 function generatePassword(): string {
-  return crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(12))
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('')
 }
 
 export function ResetPasswordDialog({ student, open, onOpenChange }: Readonly<Props>) {

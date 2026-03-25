@@ -13,13 +13,14 @@ export async function updateStudent(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Invalid input' }
   }
 
-  await requireAdmin()
+  const { organizationId } = await requireAdmin()
   const { id, full_name, role } = parsed.data
 
   const { data, error } = await adminClient
     .from('users')
     .update({ full_name, role })
     .eq('id', id)
+    .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .select('id')
 

@@ -13,7 +13,7 @@ export async function toggleStudentStatus(input: unknown): Promise<ActionResult>
     return { success: false, error: 'Invalid input' }
   }
 
-  const { userId } = await requireAdmin()
+  const { userId, organizationId } = await requireAdmin()
   const { id } = parsed.data
 
   if (id === userId) {
@@ -24,6 +24,7 @@ export async function toggleStudentStatus(input: unknown): Promise<ActionResult>
     .from('users')
     .select('id, deleted_at')
     .eq('id', id)
+    .eq('organization_id', organizationId)
     .single<{ id: string; deleted_at: string | null }>()
 
   if (fetchErr) {
@@ -35,43 +36,53 @@ export async function toggleStudentStatus(input: unknown): Promise<ActionResult>
   }
 
   if (target.deleted_at === null) {
-    const { error: updateErr } = await adminClient
-      .from('users')
-      .update({ deleted_at: new Date().toISOString(), deleted_by: userId })
-      .eq('id', id)
+    return await deactivate(id, userId)
+  }
+  return await reactivate(id)
+}
 
-    if (updateErr) {
-      console.error('[toggleStudentStatus] Deactivate error:', updateErr.message)
-      return { success: false, error: 'Failed to deactivate student' }
-    }
+async function deactivate(id: string, adminId: string): Promise<ActionResult> {
+  const { error: banErr } = await adminClient.auth.admin.updateUserById(id, {
+    ban_duration: '876600h',
+  })
+  if (banErr) {
+    console.error('[toggleStudentStatus] Ban error:', banErr.message)
+    return { success: false, error: 'Failed to deactivate student' }
+  }
 
-    const { error: banErr } = await adminClient.auth.admin.updateUserById(id, {
-      ban_duration: '876600h',
-    })
+  const { error: updateErr } = await adminClient
+    .from('users')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: adminId })
+    .eq('id', id)
 
-    if (banErr) {
-      console.error('[toggleStudentStatus] Ban error:', banErr.message)
-      return { success: false, error: 'Failed to deactivate student' }
-    }
-  } else {
-    const { error: updateErr } = await adminClient
-      .from('users')
-      .update({ deleted_at: null, deleted_by: null })
-      .eq('id', id)
+  if (updateErr) {
+    console.error('[toggleStudentStatus] Deactivate error:', updateErr.message)
+    await adminClient.auth.admin.updateUserById(id, { ban_duration: 'none' })
+    return { success: false, error: 'Failed to deactivate student' }
+  }
 
-    if (updateErr) {
-      console.error('[toggleStudentStatus] Reactivate error:', updateErr.message)
-      return { success: false, error: 'Failed to reactivate student' }
-    }
+  revalidatePath('/app/admin/students')
+  return { success: true }
+}
 
-    const { error: unbanErr } = await adminClient.auth.admin.updateUserById(id, {
-      ban_duration: 'none',
-    })
+async function reactivate(id: string): Promise<ActionResult> {
+  const { error: unbanErr } = await adminClient.auth.admin.updateUserById(id, {
+    ban_duration: 'none',
+  })
+  if (unbanErr) {
+    console.error('[toggleStudentStatus] Unban error:', unbanErr.message)
+    return { success: false, error: 'Failed to reactivate student' }
+  }
 
-    if (unbanErr) {
-      console.error('[toggleStudentStatus] Unban error:', unbanErr.message)
-      return { success: false, error: 'Failed to reactivate student' }
-    }
+  const { error: updateErr } = await adminClient
+    .from('users')
+    .update({ deleted_at: null, deleted_by: null })
+    .eq('id', id)
+
+  if (updateErr) {
+    console.error('[toggleStudentStatus] Reactivate error:', updateErr.message)
+    await adminClient.auth.admin.updateUserById(id, { ban_duration: '876600h' })
+    return { success: false, error: 'Failed to reactivate student' }
   }
 
   revalidatePath('/app/admin/students')
