@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { uploadQuestionImage } from '../actions/upload-question-image'
 
-const SUPABASE_STORAGE_ORIGIN = 'https://uepvblipahxizozxvwjn.supabase.co'
+const SUPABASE_STORAGE_ORIGIN = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
 
 function isSafePreviewUrl(url: string): boolean {
-  return url.startsWith('blob:') || url.startsWith(SUPABASE_STORAGE_ORIGIN)
+  return (
+    url.startsWith('blob:') ||
+    (SUPABASE_STORAGE_ORIGIN !== '' && url.startsWith(SUPABASE_STORAGE_ORIGIN))
+  )
 }
 
 type Props = {

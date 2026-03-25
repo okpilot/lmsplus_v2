@@ -296,7 +296,7 @@ describe('upsertQuestion', () => {
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('deadlock detected')
+      expect(result.error).toBe('Failed to save question')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 
