@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
 type UploadResult = { success: true; url: string } | { success: false; error: string }
 
@@ -18,7 +18,7 @@ export async function uploadQuestionImage(formData: FormData): Promise<UploadRes
     return { success: false, error: 'File too large (max 2MB)' }
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  if (!ALLOWED_TYPES.has(file.type)) {
     return { success: false, error: 'Invalid file type (PNG, JPEG, or WebP only)' }
   }
 
@@ -36,7 +36,7 @@ export async function uploadQuestionImage(formData: FormData): Promise<UploadRes
   }
 
   const ext =
-    (file.name.split('.').pop() ?? 'png').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png'
+    (file.name.split('.').pop() ?? 'png').replaceAll(/[^a-z0-9]/gi, '').toLowerCase() || 'png'
   const path = `${profile.organization_id}/${randomUUID()}.${ext}`
 
   const { error } = await supabase.storage.from('question-images').upload(path, file, {

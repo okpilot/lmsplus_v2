@@ -20,7 +20,7 @@ type Props = {
 
 const ALL = '__all__'
 
-export function QuestionFiltersBar({ tree, filters }: Props) {
+export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
   const router = useRouter()
   const searchParams = useSearchParams()
 

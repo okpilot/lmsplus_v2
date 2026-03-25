@@ -63,7 +63,7 @@ export function QuestionFormFields({
   onExplanationTextChange,
   onDifficultyChange,
   onStatusChange,
-}: Props) {
+}: Readonly<Props>) {
   return (
     <div className="space-y-4">
       <SyllabusCascader

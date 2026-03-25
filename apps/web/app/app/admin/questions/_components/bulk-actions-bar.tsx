@@ -10,7 +10,7 @@ type Props = {
   onClear: () => void
 }
 
-export function BulkActionsBar({ selectedIds, onClear }: Props) {
+export function BulkActionsBar({ selectedIds, onClear }: Readonly<Props>) {
   const [isPending, startTransition] = useTransition()
   const count = selectedIds.length
 
@@ -19,7 +19,7 @@ export function BulkActionsBar({ selectedIds, onClear }: Props) {
       try {
         const result = await bulkUpdateStatus({ ids: selectedIds, status })
         if (result.success) {
-          toast.success(`${count} question${count !== 1 ? 's' : ''} set to ${status}`)
+          toast.success(`${count} question${count === 1 ? '' : 's'} set to ${status}`)
           onClear()
         } else {
           toast.error(result.error)

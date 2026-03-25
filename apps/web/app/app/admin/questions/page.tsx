@@ -27,7 +27,7 @@ function parseFilters(params: Record<string, string | string[] | undefined>): Qu
 
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
-export default async function QuestionsPage({ searchParams }: PageProps) {
+export default async function QuestionsPage({ searchParams }: Readonly<PageProps>) {
   const filters = parseFilters(await searchParams)
   const [questions, tree] = await Promise.all([getQuestionsList(filters), getSyllabusTree()])
 

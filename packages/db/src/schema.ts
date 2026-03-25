@@ -81,10 +81,10 @@ export const UpsertQuestionSchema = z
     question_number: z.string().max(50).nullable().optional(),
     lo_reference: z.string().max(100).nullable().optional(),
     question_text: z.string().min(1).max(10000),
-    question_image_url: z.string().url().nullable().optional(),
+    question_image_url: z.url().nullable().optional(),
     options: z.array(OptionInputSchema).length(4),
     explanation_text: z.string().min(1).max(10000),
-    explanation_image_url: z.string().url().nullable().optional(),
+    explanation_image_url: z.url().nullable().optional(),
     difficulty: z.enum(['easy', 'medium', 'hard']),
     status: z.enum(['active', 'draft']),
   })

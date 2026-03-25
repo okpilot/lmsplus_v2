@@ -22,7 +22,7 @@ type Props = {
   label: string
 }
 
-export function DeleteQuestionButton({ id, label }: Props) {
+export function DeleteQuestionButton({ id, label }: Readonly<Props>) {
   const [isPending, startTransition] = useTransition()
 
   function handleDelete() {

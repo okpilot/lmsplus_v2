@@ -29,7 +29,7 @@ export function SyllabusCascader({
   onTopicChange,
   onSubtopicChange,
   disabled,
-}: Props) {
+}: Readonly<Props>) {
   const selectedSubject = tree.find((s) => s.id === subjectId)
   const topics = selectedSubject?.topics ?? []
   const selectedTopic = topics.find((t) => t.id === topicId)

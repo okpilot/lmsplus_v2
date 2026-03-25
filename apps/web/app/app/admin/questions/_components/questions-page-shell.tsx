@@ -16,7 +16,7 @@ type Props = {
   filters: QuestionFilters
 }
 
-export function QuestionsPageShell({ questions, tree, filters }: Props) {
+export function QuestionsPageShell({ questions, tree, filters }: Readonly<Props>) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   function handleToggleSelect(id: string) {
@@ -35,7 +35,7 @@ export function QuestionsPageShell({ questions, tree, filters }: Props) {
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {questions.length} question{questions.length !== 1 ? 's' : ''}
+          {questions.length} question{questions.length === 1 ? '' : 's'}
           {questions.length === 100 ? ' (limit reached)' : ''}
         </p>
         <QuestionFormDialog

@@ -21,7 +21,7 @@ import { QuestionFormFields } from './question-form-fields'
 
 type Props = { tree: SyllabusTree; question?: QuestionRow; trigger: ReactNode }
 
-export function QuestionFormDialog({ tree, question, trigger }: Props) {
+export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>) {
   const isEdit = !!question
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()

@@ -11,7 +11,7 @@ type Props = {
 
 const OPTION_IDS = ['a', 'b', 'c', 'd'] as const
 
-export function OptionEditor({ options, onChange, disabled }: Props) {
+export function OptionEditor({ options, onChange, disabled }: Readonly<Props>) {
   function handleTextChange(idx: number, text: string) {
     const updated = options.map((opt, i) => (i === idx ? { ...opt, text } : opt))
     onChange(updated)
@@ -45,7 +45,7 @@ export function OptionEditor({ options, onChange, disabled }: Props) {
               onChange={() => handleCorrectChange(idx)}
               disabled={disabled}
               className="accent-primary"
-            />
+            />{' '}
             Correct
           </label>
         </div>

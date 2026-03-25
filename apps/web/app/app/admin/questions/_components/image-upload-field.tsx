@@ -22,7 +22,7 @@ type Props = {
   disabled?: boolean
 }
 
-export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Props) {
+export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Readonly<Props>) {
   const [preview, setPreview] = useState<string | null>(currentUrl)
   const [isPending, startTransition] = useTransition()
   const blobUrlRef = useRef<string | null>(null)

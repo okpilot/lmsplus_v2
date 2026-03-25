@@ -56,7 +56,7 @@ export function QuestionTable({
   selectedIds,
   onToggleSelect,
   onToggleAll,
-}: Props) {
+}: Readonly<Props>) {
   const allSelected = questions.length > 0 && selectedIds.length === questions.length
 
   return (
