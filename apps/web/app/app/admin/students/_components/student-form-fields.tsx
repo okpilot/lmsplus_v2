@@ -23,6 +23,11 @@ type Props = {
   onTempPasswordChange: (value: string) => void
 }
 
+const BASE_ROLE_ITEMS = [
+  { value: 'instructor', label: 'Instructor' },
+  { value: 'student', label: 'Student' },
+]
+
 export function StudentFormFields({
   isEdit,
   isPending,
@@ -35,6 +40,10 @@ export function StudentFormFields({
   onRoleChange,
   onTempPasswordChange,
 }: Readonly<Props>) {
+  const roleItems = isEdit
+    ? [{ value: 'admin', label: 'Admin' }, ...BASE_ROLE_ITEMS]
+    : BASE_ROLE_ITEMS
+
   return (
     <div className="grid gap-4 py-2">
       <div className="grid gap-2">
@@ -68,19 +77,17 @@ export function StudentFormFields({
             if (v) onRoleChange(v)
           }}
           disabled={isPending}
-          items={[
-            ...(isEdit ? [{ value: 'admin', label: 'Admin' }] : []),
-            { value: 'instructor', label: 'Instructor' },
-            { value: 'student', label: 'Student' },
-          ]}
+          items={roleItems}
         >
           <SelectTrigger id="role">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {isEdit && <SelectItem value="admin">Admin</SelectItem>}
-            <SelectItem value="instructor">Instructor</SelectItem>
-            <SelectItem value="student">Student</SelectItem>
+            {roleItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

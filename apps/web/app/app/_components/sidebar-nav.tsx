@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NavIcon } from './nav-icon'
-import { ADMIN_NAV_ITEMS, NAV_ITEMS } from './nav-items'
+import { ADMIN_NAV_ITEMS, NAV_ITEMS, type NavItem } from './nav-items'
 
 type SidebarNavProps = {
   userRole?: string
@@ -15,7 +15,7 @@ export function SidebarNav({ userRole, collapsed, onToggle }: SidebarNavProps) {
   const pathname = usePathname()
   const isAdmin = userRole === 'admin'
 
-  function renderLink(item: (typeof NAV_ITEMS)[number]) {
+  function renderLink(item: NavItem) {
     const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
     return (
       <Link
