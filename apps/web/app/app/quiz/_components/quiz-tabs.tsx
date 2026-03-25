@@ -86,6 +86,7 @@ export function QuizTabs({ draftCount = null, newQuizContent, savedDraftContent 
         ref={tabListRef}
         role="tablist"
         aria-label="Quiz options"
+        tabIndex={-1}
         onKeyDown={handleKeyDown}
         className="flex border-b border-border"
       >
