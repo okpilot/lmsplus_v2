@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/auth/require-admin'
 import type { StudentFilters, StudentRow } from './types'
 
 function escapeLike(value: string): string {
-  return value.replace(/[%_\\]/g, '\\$&')
+  return value.replaceAll(/[%_\\]/g, String.raw`\$&`)
 }
 
 export async function getStudentsList(filters: StudentFilters): Promise<StudentRow[]> {

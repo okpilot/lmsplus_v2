@@ -24,6 +24,7 @@ export function ToggleStatusDialog({ student, open, onOpenChange }: Readonly<Pro
   const [isPending, startTransition] = useTransition()
   const isActive = student?.deleted_at === null
   const name = student?.full_name ?? student?.email ?? 'this user'
+  const confirmLabel = isActive ? 'Deactivate' : 'Reactivate'
 
   function handleConfirm() {
     if (!student) return
@@ -58,7 +59,7 @@ export function ToggleStatusDialog({ student, open, onOpenChange }: Readonly<Pro
             onClick={handleConfirm}
             disabled={isPending}
           >
-            {isPending ? 'Saving…' : isActive ? 'Deactivate' : 'Reactivate'}
+            {isPending ? 'Saving…' : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

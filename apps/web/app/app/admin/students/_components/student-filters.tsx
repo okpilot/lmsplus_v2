@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -23,6 +23,7 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [searchText, setSearchText] = useState(filters.search ?? '')
+  const isInitialMount = useRef(true)
 
   const updateFilter = useCallback(
     (key: string, value: string | undefined) => {
@@ -38,6 +39,10 @@ export function StudentFiltersBar({ filters }: Readonly<Props>) {
   )
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
     const timer = setTimeout(() => {
       updateFilter('search', searchText.trim() || undefined)
     }, 300)

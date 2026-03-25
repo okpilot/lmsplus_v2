@@ -75,6 +75,8 @@ export function StudentFormDialog({
     })
   }
 
+  const submitLabel = isEdit ? 'Save Changes' : 'Create Student'
+
   return (
     <Dialog
       open={open}
@@ -108,7 +110,7 @@ export function StudentFormDialog({
 
         <DialogFooter showCloseButton>
           <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Student'}
+            {isPending ? 'Saving...' : submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -107,44 +107,44 @@ test.describe('Admin Student Management — Create', () => {
 // ── Section 4: Edit student ───────────────────────────────────────────────────
 
 test.describe('Admin Student Management — Edit', () => {
-  test('opens edit dialog for first student, changes name, saves, verifies update', async ({
-    page,
-  }) => {
+  test.afterEach(async () => {
+    await cleanupE2eStudents()
+  })
+
+  test('creates a student, edits name via dialog, verifies update in table', async ({ page }) => {
     await page.goto('/app/admin/students')
-    await expect(page.locator('tbody tr').first()).toBeVisible()
 
-    // Read the original name from the first row for verification
-    const firstRow = page.locator('tbody tr').first()
-    const originalName = await firstRow.locator('td').first().textContent()
+    const email = uniqueEmail()
+    const originalName = `E2E Edit ${Date.now()}`
 
-    // Click edit button on first row
-    await firstRow.getByRole('button', { name: 'Edit student' }).click()
+    // Create a dedicated student for this test
+    await page.getByRole('button', { name: 'New Student' }).click()
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByText('Edit Student')).toBeVisible()
-    await expect(page.getByText('Update the student details below.')).toBeVisible()
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Full name').fill(originalName)
+    await page.getByLabel('Temporary password').fill('TempPass123!')
+    await page.getByRole('button', { name: 'Create Student' }).click()
+    await expect(page.getByText('Student created')).toBeVisible({ timeout: 10_000 })
+    await page.reload()
 
-    // Change name using the fullName input
+    // Find our student's row and click Edit
+    const studentRow = page.locator('tbody tr').filter({ hasText: originalName })
+    await expect(studentRow).toBeVisible({ timeout: 10_000 })
+    await studentRow.getByRole('button', { name: 'Edit student' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
+
+    // Change name
     const nameInput = page.getByLabel('Full name')
     await nameInput.clear()
-    const updatedName = `${originalName?.trim() ?? 'Student'} (edited)`
+    const updatedName = `${originalName} (edited)`
     await nameInput.fill(updatedName)
 
-    // Save
     await page.getByRole('button', { name: 'Save Changes' }).click()
     await expect(page.getByText('Student updated')).toBeVisible({ timeout: 10_000 })
 
-    // Verify updated name appears in table after reload
+    // Verify updated name after reload
     await page.reload()
     await expect(page.getByText(updatedName)).toBeVisible({ timeout: 10_000 })
-
-    // Restore original name (cleanup)
-    await page.locator('tbody tr').first().getByRole('button', { name: 'Edit student' }).click()
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
-    const nameInputRestore = page.getByLabel('Full name')
-    await nameInputRestore.clear()
-    await nameInputRestore.fill(originalName?.trim() ?? '')
-    await page.getByRole('button', { name: 'Save Changes' }).click()
-    await expect(page.getByText('Student updated')).toBeVisible({ timeout: 10_000 })
   })
 })
 
@@ -258,13 +258,30 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
 // ── Section 7: Reset password ─────────────────────────────────────────────────
 
 test.describe('Admin Student Management — Reset Password', () => {
+  test.afterEach(async () => {
+    await cleanupE2eStudents()
+  })
+
   test('opens reset password dialog and shows generated password field', async ({ page }) => {
     await page.goto('/app/admin/students')
-    await expect(page.locator('tbody tr').first()).toBeVisible()
 
-    // Click reset password on first row
-    const firstRow = page.locator('tbody tr').first()
-    await firstRow.getByRole('button', { name: 'Reset password' }).click()
+    const email = uniqueEmail()
+    const fullName = `E2E ResetPw ${Date.now()}`
+
+    // Create a dedicated student
+    await page.getByRole('button', { name: 'New Student' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Full name').fill(fullName)
+    await page.getByLabel('Temporary password').fill('TempPass123!')
+    await page.getByRole('button', { name: 'Create Student' }).click()
+    await expect(page.getByText('Student created')).toBeVisible({ timeout: 10_000 })
+    await page.reload()
+
+    // Find our student and click reset password
+    const studentRow = page.locator('tbody tr').filter({ hasText: fullName })
+    await expect(studentRow).toBeVisible({ timeout: 10_000 })
+    await studentRow.getByRole('button', { name: 'Reset password' }).click()
 
     // Dialog opens with a pre-filled password field
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
@@ -278,10 +295,9 @@ test.describe('Admin Student Management — Reset Password', () => {
     expect(generatedPassword.length).toBeGreaterThanOrEqual(6)
 
     // Generate button regenerates a different password
-    const originalPassword = generatedPassword
     await page.getByRole('button', { name: 'Generate' }).click()
     const newPassword = await passwordInput.inputValue()
-    expect(newPassword).not.toBe(originalPassword)
+    expect(newPassword).not.toBe(generatedPassword)
 
     // Close without submitting
     await page.getByRole('button', { name: 'Cancel' }).click()
@@ -290,16 +306,29 @@ test.describe('Admin Student Management — Reset Password', () => {
 
   test('submits reset password and shows success toast', async ({ page }) => {
     await page.goto('/app/admin/students')
-    await expect(page.locator('tbody tr').first()).toBeVisible()
 
-    const firstRow = page.locator('tbody tr').first()
-    await firstRow.getByRole('button', { name: 'Reset password' }).click()
+    const email = uniqueEmail()
+    const fullName = `E2E ResetSubmit ${Date.now()}`
+
+    // Create a dedicated student
+    await page.getByRole('button', { name: 'New Student' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Full name').fill(fullName)
+    await page.getByLabel('Temporary password').fill('TempPass123!')
+    await page.getByRole('button', { name: 'Create Student' }).click()
+    await expect(page.getByText('Student created')).toBeVisible({ timeout: 10_000 })
+    await page.reload()
+
+    // Find our student and open reset dialog
+    const studentRow = page.locator('tbody tr').filter({ hasText: fullName })
+    await expect(studentRow).toBeVisible({ timeout: 10_000 })
+    await studentRow.getByRole('button', { name: 'Reset password' }).click()
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
 
-    // Submit with the auto-generated password — scope to dialog to avoid matching row button
+    // Submit
     const dialog = page.getByRole('dialog')
     await dialog.getByRole('button', { name: 'Reset password' }).click()
-
     await expect(page.getByText('Password reset.')).toBeVisible({ timeout: 10_000 })
   })
 })
@@ -360,8 +389,11 @@ test.describe('Admin Student Management — Filters', () => {
     const rows = page.locator('tbody tr')
     const count = await rows.count()
     expect(count).toBeGreaterThan(0)
-    // The admin user should be visible
-    await expect(page.getByText('admin@lmsplus.local')).toBeVisible()
+    // Every visible row should contain "admin" somewhere
+    for (let i = 0; i < count; i++) {
+      const rowText = await rows.nth(i).textContent()
+      expect(rowText?.toLowerCase()).toContain('admin')
+    }
   })
 
   test('Clear button is visible and clickable when filters are applied', async ({ page }) => {
