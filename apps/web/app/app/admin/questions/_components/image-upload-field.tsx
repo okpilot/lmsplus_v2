@@ -9,10 +9,12 @@ import { uploadQuestionImage } from '../actions/upload-question-image'
 const SUPABASE_STORAGE_ORIGIN = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
 
 function isSafePreviewUrl(url: string): boolean {
-  return (
-    url.startsWith('blob:') ||
-    (SUPABASE_STORAGE_ORIGIN !== '' && url.startsWith(SUPABASE_STORAGE_ORIGIN))
-  )
+  if (url.startsWith('blob:')) return true
+  try {
+    return SUPABASE_STORAGE_ORIGIN !== '' && new URL(url).origin === SUPABASE_STORAGE_ORIGIN
+  } catch {
+    return false
+  }
 }
 
 type Props = {

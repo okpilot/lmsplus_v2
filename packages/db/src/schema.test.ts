@@ -155,6 +155,11 @@ describe('UpsertQuestionSchema', () => {
     expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
   })
 
+  it('rejects when more than one option is marked correct', () => {
+    const options = validOptions.map((o) => ({ ...o, correct: true }))
+    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
+  })
+
   it('rejects when duplicate option IDs are supplied', () => {
     const options = [
       { id: 'a', text: 'Opt A', correct: true },
