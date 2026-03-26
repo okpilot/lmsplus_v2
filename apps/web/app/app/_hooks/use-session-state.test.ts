@@ -110,6 +110,7 @@ describe('useSessionState — handleSubmit', () => {
     expect(result.current.error).toBe('Something went wrong. Please try again.')
     expect(result.current.submitting).toBe(false)
     expect(result.current.state).toBe('answering')
+    expect(result.current.selectedOption).toBeNull()
   })
 
   it('sets error and resets submitting when onSubmitAnswer returns failure', async () => {
@@ -125,6 +126,7 @@ describe('useSessionState — handleSubmit', () => {
 
     expect(result.current.error).toBe('Invalid option')
     expect(result.current.submitting).toBe(false)
+    expect(result.current.selectedOption).toBeNull()
   })
 
   it('drops a concurrent second submission while first is in-flight', async () => {

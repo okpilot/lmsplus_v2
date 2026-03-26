@@ -141,6 +141,39 @@ describe('SessionAnswerBlock — AnswerOptions disabled state', () => {
   })
 })
 
+// ---- FeedbackPanel isCorrect value ------------------------------------------
+
+describe('SessionAnswerBlock — FeedbackPanel isCorrect value', () => {
+  it('passes isCorrect=true to FeedbackPanel when feedbackData marks the answer correct', () => {
+    render(
+      <SessionAnswerBlock
+        {...makeProps({ state: 'feedback', feedbackData: FEEDBACK_DATA, selectedOption: 'opt-a' })}
+      />,
+    )
+    expect(screen.getByTestId('feedback-panel').dataset.isCorrect).toBe('true')
+  })
+
+  it('passes isCorrect=false to FeedbackPanel when feedbackData marks the answer incorrect', () => {
+    const incorrectFeedback: Extract<AnswerResult, { success: true }> = {
+      success: true,
+      isCorrect: false,
+      correctOptionId: 'opt-a',
+      explanationText: null,
+      explanationImageUrl: null,
+    }
+    render(
+      <SessionAnswerBlock
+        {...makeProps({
+          state: 'feedback',
+          feedbackData: incorrectFeedback,
+          selectedOption: 'opt-b',
+        })}
+      />,
+    )
+    expect(screen.getByTestId('feedback-panel').dataset.isCorrect).toBe('false')
+  })
+})
+
 // ---- correctOptionId forwarding ---------------------------------------------
 
 describe('SessionAnswerBlock — correctOptionId forwarding', () => {
