@@ -114,8 +114,57 @@
 | stopPropagation on nested Link inside row onClick without explanatory comment | 1 | 2026-03-23 | Watch — 281b05f (fix/reports): `<Link onClick={(e) => e.stopPropagation()}>` inside a `<tr onClick={navigate}>` lacked an inline comment explaining the call prevents the row-level navigation from firing twice; semantic-reviewer flagged as SUGGESTION; not fixed in this cycle (comment-only improvement); first occurrence — if a second component ships stopPropagation inside a delegated-click container without a comment, add note to code-style.md Section 2: stopPropagation in nested interactive elements must include a comment explaining which parent handler it blocks and why |
 | Hook file exceeding 80-line limit | 5 | 2026-03-23 | RULE EXISTS — use-quiz-config.ts at 110 lines (57ec870/0bc21e6); 5th occurrence; fixed by extracting calcFilteredAvailable helper to topic-tree-helpers.ts; pattern persists despite 70-line watch threshold; root cause: hooks grow incrementally through feature additions, each addition individually small but cumulatively breaching the limit; no new rule needed — existing rule and watch threshold are correct; the post-commit code-reviewer gate remains the reliable catch |
 | Async callback (refetch) not wrapped in useCallback causing redundant server calls | 1 | 2026-03-23 | Watch — use-quiz-config.ts (57ec870/0bc21e6): `fc.refetch` passed as a useEffect dependency without useCallback wrapping; new function reference on every render triggered unnecessary refetch calls; fixed by wrapping refetch in useCallback with [fc] dependency; semantic-reviewer caught as ISSUE; distinct from "Unstable useEffect dependency (inline function prop)" (that is a prop passed down — this is a hook method reference captured in useEffect deps); first occurrence — log and watch |
+| ZodError escaping Server Action with typed error return type (parse() without try/catch or safeParse) | 2 | 2026-03-26 | RULE CANDIDATE — first: checkAnswer in 199e927 (2026-03-15): ZodError propagated as unhandled exception instead of returning typed { success: false }; second: settings actions.ts in 552bb2f (2026-03-26): `parse()` used instead of `safeParse()` — unhandled ZodError escapes the return-type contract on invalid input; both fixed by switching to try/catch-wrapped parse or safeParse with explicit error-path return; second occurrence across different commits — RULE CANDIDATE: Server Actions must use `Schema.safeParse()` (or wrap `.parse()` in try/catch) so that invalid input returns a typed error response rather than throwing an unhandled exception that breaks the caller's return-type contract |
+| Sensitive auth operation (password change) implemented as direct client-side Supabase call instead of Server Action | 1 | 2026-03-26 | Watch — 552bb2f (feat/settings PR #368): `change-password-form.tsx` called `supabase.auth.updateUser()` directly from the client component; password changes must flow through Server Actions so the audit trail (audit_events insert) can be recorded server-side before the auth mutation commits; semantic-reviewer caught as CRITICAL; fixed in d9e1d10 by moving the call to a `changePassword` Server Action that inserts an audit event first; distinct from "Server-authoritative ordering value computed client-side" (that is a data value — this is a security-sensitive auth operation); first occurrence — log and watch; if a second auth mutation (email change, MFA toggle) ships as a client-side call, add a rule note: all auth.updateUser/admin calls must live in Server Actions, not client components |
+| Soft-delete guard missing on org lookup in Server Action (SECURITY DEFINER exemption does not apply here) | 1 | 2026-03-26 | Watch — 552bb2f (feat/settings PR #368): profile update Server Action queried the `organizations` table with `.eq('id', orgId)` but no `.is('deleted_at', null)` filter; a deactivated org's data would still resolve, allowing students of a soft-deleted org to update their profiles; semantic-reviewer caught as ISSUE; fixed in d9e1d10 by adding the soft-delete filter; distinct from "RPC missing AND deleted_at IS NULL guard on session fetch" (that is inside a SECURITY DEFINER RPC — this is a direct Supabase client query in a Server Action where RLS is active but the row-level filter on the org's deleted_at is not enforced by the student's own RLS policy); first occurrence — log and watch; if a second Server Action ships an org/user lookup without a soft-delete filter, add a note to code-style.md Section 5: ownership-scoping queries on soft-deletable tables must include `.is('deleted_at', null)` |
 
 ## Lessons Learned
+
+### 2026-03-26 — Student profile & settings page (commits 552bb2f, d9e1d10)
+
+**Context:** Two-commit sequence for issue #368 (student profile and settings page). 552bb2f introduced the settings page at `/app/settings`, profile-card, edit-name-form, change-password-form components, a `profile.ts` query module, a settings `actions.ts`, and an RLS migration (`20260326000056_users_self_update_rls.sql`). d9e1d10 was the fix commit: moved password change to a `changePassword` Server Action, added soft-delete filter on the org lookup, switched from `.parse()` to `.safeParse()`, and added 25 tests (219 lines in `profile.test.ts` + 268 lines in `actions.test.ts`).
+
+**Code reviewer (commit 1 — 552bb2f):** 1 BLOCKING, 2 WARNING.
+- BLOCKING: `profile.test.ts` missing — resolved by test-writer, not by a separate fix commit (test-writer wrote the test file in the same cycle).
+- WARNING 1: Client-side auth pattern in `change-password-form.tsx` — component called `supabase.auth.updateUser()` directly. Flagged correctly, fixed in d9e1d10.
+- WARNING 2: Component approaching size limit (change-password-form.tsx at 109 lines, limit 150). Not blocking; watch item.
+
+**Semantic reviewer (commit 1 — 552bb2f):** 1 CRITICAL, 2 ISSUE, 3 SUGGESTION, 4 GOOD.
+1. **Password change via client-side call — CRITICAL, real, fixed in d9e1d10.** `change-password-form.tsx` called `supabase.auth.updateUser()` directly from the client, bypassing the audit trail. A Server Action is required so the `audit_events` insert can be recorded before the auth mutation. Fixed by extracting `changePassword` Server Action that inserts audit event first.
+2. **Soft-delete guard missing on org lookup — ISSUE, real, fixed in d9e1d10.** Profile update Server Action queried `organizations` with `.eq('id', orgId)` without `.is('deleted_at', null)`. A deactivated org would still resolve. Fixed by adding the soft-delete filter.
+3. **`.parse()` instead of `.safeParse()` — ISSUE, real, fixed in d9e1d10.** `parse()` throws `ZodError` on invalid input, escaping the typed `{ success: false }` return contract. Switched to `safeParse()` with explicit error-path return.
+4. **3 SUGGESTION items:** Minor naming, comment, and early-return style nits. All accepted or addressed.
+5. **4 GOOD patterns:** Server Component data flow, co-located types, early-return guards, RLS migration structure.
+
+**Doc updater:** `docs/database.md` updated with new RLS policy for `users` table self-update. `docs/plan.md` updated with #368 progress. Clean.
+
+**Test writer:** 25 new tests written (profile.test.ts: 14 tests covering query module; actions.test.ts: 11 tests covering Server Actions). All passing.
+
+**Pattern analysis:**
+
+- **ZodError escaping via parse() instead of safeParse() (RECURRING — count now 2):** First occurrence was checkAnswer in 199e927 (2026-03-15); second is settings actions.ts in 552bb2f. Both are Server Actions where `.parse()` was used without a try/catch, allowing `ZodError` to propagate as an unhandled exception instead of returning a typed `{ success: false }`. Both fixed. Pattern is now RULE CANDIDATE. Proposed rule clarification: Server Actions must use `Schema.safeParse()` or wrap `.parse()` in a try/catch to guarantee that invalid input always returns a typed error response rather than throwing. This is a clarification to the existing "Zod validation" rule in security.md (rule 4), not a new rule.
+
+- **Sensitive auth operation performed as direct client-side call (NEW — count 1):** Password change called `supabase.auth.updateUser()` from a client component. CRITICAL severity because it bypasses server-side audit trail. First occurrence of this specific pattern. Log and watch — if a second auth mutation (email change, MFA toggle, session invalidation) ships as a client-side call, propose a rule: all `auth.updateUser` and `admin.auth.*` calls must live in Server Actions.
+
+- **Soft-delete guard missing on org/user lookup in Server Action (NEW — count 1):** Org lookup in profile update Server Action lacked `.is('deleted_at', null)`. First occurrence in a Server Action context (prior occurrences were in SECURITY DEFINER RPCs, which is a separate named pattern). Log and watch — if a second Server Action lookup on a soft-deletable table omits the filter, propose a code-style.md clarification.
+
+**Actions taken:**
+- Frequency table: "ZodError escaping Server Action with typed error return type (parse() without try/catch or safeParse)" updated from count 1 → 2, last-seen 2026-03-26, status RULE CANDIDATE.
+- Frequency table: "Sensitive auth operation performed as direct client-side call" added at count 1, status WATCH.
+- Frequency table: "Soft-delete guard missing on org lookup in Server Action" added at count 1, status WATCH.
+
+**Recommended change (awaiting orchestrator action):**
+- `docs/security.md` rule 4 — add a clarifying sentence: "Server Actions must use `Schema.safeParse()` or wrap `.parse()` in a try/catch; never call `.parse()` bare in a Server Action, as a thrown `ZodError` escapes the typed return contract." This is a clarification to the existing rule, not a new rule. The rule already says "parse input with Zod before using data" — this specifies which parse form to use.
+
+**False positives:** None detected.
+
+**Positive signals:**
+- Both ISSUEs and the CRITICAL were real and fixed in the fix commit d9e1d10 — all findings acted on in the same session.
+- Test writer produced 25 tests covering the query module and Server Actions, all passing, shipped in the same session.
+- Doc updater correctly identified the new RLS policy as a `docs/database.md` update and kept the docs in sync.
+- The fix commit d9e1d10 addressed all 3 non-trivial findings in a single pass with no residual findings.
+
+---
 
 ### 2026-03-23 — Dashboard/quiz fix + filter-topic decoupling (commits 57ec870, 0bc21e6)
 

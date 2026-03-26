@@ -4,6 +4,20 @@
 
 ## Session Log
 
+### 2026-03-26 — commit d9e1d10 (fix(settings): address review findings — Server Action password change, soft-delete guard, tests)
+- **Files reviewed:** actions.ts, change-password-form.tsx, profile.ts, actions.test.ts, profile.test.ts, docs/database.md, docs/plan.md, patterns.md
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 6
+- **Issue:** `actions.ts:61-71` — `changePassword` calls `supabase.auth.updateUser()` with no audit event written. The prior CRITICAL (client-side path) is fixed, but the audit gap carried forward. `docs/security.md §10` lists `user.password_changed` as a required audit event. `record_login()` is the precedent — a SECURITY DEFINER RPC writes the audit event. The Server Action must call an equivalent RPC (or write the audit event via `adminClient`) after a successful password change.
+- **Suggestion 1:** `change-password-form.tsx:47` — On `res.error === 'Session expired. Please sign in again.'`, the form shows the message in the inline error paragraph only. `reset-password-form.tsx` shows the same message AND renders a "Request a new reset link" href to `/auth/forgot-password`. A student hitting a session expiry during a password change has no CTA to recover. Not a security gap but a UX behavioral inconsistency with the established reset flow.
+- **Suggestion 2:** `profile.ts:93-96` — `student_responses` count query uses `.select('*', { count: 'exact', head: true })`. `head: true` issues a HEAD request and omits the body, which is correct. However `select('*')` in a count-only query still passes the column list through PostgREST — `select('id')` or `select('', { count: 'exact', head: true })` is the conventional form in this project and avoids transmitting a wildcard over RLS.
+- **Positive 1:** `actions.ts` — Zod `safeParse` now runs BEFORE `supabase.auth.getUser()` in both `updateDisplayName` and `changePassword`. Correct validation-first order per `docs/security.md §7`.
+- **Positive 2:** `profile.ts:64` — `.is('deleted_at', null)` soft-delete guard added to organizations query. Consistent with `quiz_sessions` filter in `getProfileStats()`.
+- **Positive 3:** `actions.ts` — `changePassword` is a `'use server'` Server Action with Zod validation, auth check, sanitized error messages, and server-side error logging. Correct pattern.
+- **Positive 4:** `actions.test.ts` — Input-validation tests explicitly assert they run WITHOUT auth (no `mockAuthenticatedUser()` call) — this validates that the safeParse-first order is exercised by the tests, not just by the production code.
+- **Positive 5:** `actions.test.ts` — Zero-row check test (`buildUpdateChain({ data: [] })`) correctly asserts that `mockRevalidatePath` is NOT called on no-op. This is exactly the behavioral contract code-style.md §5 requires.
+- **Positive 6:** `profile.test.ts` — Table-switch `buildChain` pattern handles all four tables independently. Stats edge cases cover null scores, empty sessions, and null counts — comprehensive coverage of the `getProfileStats` computation branches.
+- **Fix quality:** All 3 prior findings addressed. CRITICAL fully resolved. Issue 1 (soft-delete) resolved. Issue 2 (Zod order + safeParse) fully resolved. Audit gap (previously noted as part of CRITICAL) not yet addressed — logged as new ISSUE above.
+
 ### 2026-03-26 — commit 552bb2f (feat(settings): add student profile & settings page #368)
 - **Files reviewed:** change-password-form.tsx, edit-name-form.tsx, profile-card.tsx, actions.ts, page.tsx, profile.ts, nav-icon.tsx, nav-items.ts, migration 056
 - **CRITICAL:** 1 | **ISSUE:** 2 | **SUGGESTION:** 3 | **GOOD:** 4

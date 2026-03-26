@@ -390,7 +390,7 @@ export default {
 
 **Rule: Validate at every trust boundary. Trust nothing from the client.**
 
-- All Server Actions must validate input with Zod before touching the database
+- All Server Actions must validate input with Zod before touching the database. Use `safeParse()` or wrap `.parse()` in try/catch — bare `.parse()` throws a `ZodError` that escapes the typed return contract.
 - All API routes must validate request bodies with Zod
 - Never use `as SomeType` to cast unvalidated external data
 - Escape `%` and `_` wildcards before interpolating user input into `.ilike()` / `.like()` calls — use an `escapeLike()` helper. This is not SQL injection (PostgREST parameterizes), but it prevents users from broadening query scope via wildcard characters.
