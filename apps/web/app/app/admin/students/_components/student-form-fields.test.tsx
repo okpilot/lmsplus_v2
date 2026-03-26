@@ -79,8 +79,13 @@ describe('StudentFormFields', () => {
     expect(screen.queryByText('Admin')).not.toBeInTheDocument()
   })
 
-  it('always shows the Instructor and Student role options', () => {
-    render(<StudentFormFields {...BASE_PROPS} isEdit={false} />)
+  it('always shows the Instructor and Student role options in both modes', () => {
+    const { unmount } = render(<StudentFormFields {...BASE_PROPS} isEdit={false} />)
+    expect(screen.getByText('Instructor')).toBeInTheDocument()
+    expect(screen.getByText('Student')).toBeInTheDocument()
+    unmount()
+
+    render(<StudentFormFields {...BASE_PROPS} isEdit={true} />)
     expect(screen.getByText('Instructor')).toBeInTheDocument()
     expect(screen.getByText('Student')).toBeInTheDocument()
   })
