@@ -52,15 +52,16 @@ export function LoginForm({ initialError }: LoginFormProps) {
 
       if (authError) {
         setError(FRIENDLY_AUTH_ERRORS[authError.message] ?? 'Unable to sign in. Please try again.')
+        setLoading(false)
         return
       }
     } catch {
       setError('Unable to sign in. Please try again.')
-      return
-    } finally {
       setLoading(false)
+      return
     }
 
+    // Keep loading state active — the page is navigating away
     window.location.href = '/auth/login-complete'
   }
 
