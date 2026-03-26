@@ -23,8 +23,18 @@ vi.mock('./answer-options', () => ({
 }))
 
 vi.mock('./feedback-panel', () => ({
-  FeedbackPanel: (props: { isCorrect: boolean; onNext: () => void }) => (
-    <div data-testid="feedback-panel" data-is-correct={String(props.isCorrect)} />
+  FeedbackPanel: (props: {
+    isCorrect: boolean
+    explanationText: string | null
+    explanationImageUrl: string | null
+    onNext: () => void
+  }) => (
+    <div
+      data-testid="feedback-panel"
+      data-is-correct={String(props.isCorrect)}
+      data-explanation-text={props.explanationText ?? ''}
+      data-explanation-image-url={props.explanationImageUrl ?? ''}
+    />
   ),
 }))
 
