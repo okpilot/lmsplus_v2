@@ -61,6 +61,7 @@ async function getProfile(supabase: SupabaseClient, userId: string) {
     .from('organizations')
     .select('name')
     .eq('id', data.organization_id)
+    .is('deleted_at', null)
     .single<OrgRow>()
 
   return {

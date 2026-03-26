@@ -107,6 +107,11 @@ CREATE TABLE users (
 );
 ```
 
+**RLS policies (migration 020 + 056):**
+- SELECT: org-scoped via `organizations(id)` — users can see org members' names/roles
+- UPDATE: `id = auth.uid() AND deleted_at IS NULL` — students can edit their own profile (migration 056). Protected by `trg_protect_users_sensitive_columns` trigger (migration 041) which blocks `role`, `organization_id`, and `deleted_at` changes for non-service-role connections.
+- No DELETE policy — soft-delete only via service role
+
 ### easa_subjects / easa_topics / easa_subtopics
 ```sql
 -- Reference data — seeded once, never deleted
@@ -1385,4 +1390,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-24 (migrations 052-055: admin question editor RLS + storage policies) | Companion: docs/security.md*
+*Last updated: 2026-03-26 (migration 056: users UPDATE RLS for student profile editing) | Companion: docs/security.md*

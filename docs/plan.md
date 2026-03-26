@@ -2,7 +2,21 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-25
+> Last updated: 2026-03-26
+
+---
+
+## Student Profile & Settings — 2026-03-26 (issue #368)
+
+Student-facing settings page at `/app/settings`:
+- **Profile view**: displays email, full name (editable inline), quiz statistics (total sessions, average score, questions answered)
+- **Display name edit**: updateDisplayName Server Action with Zod validation, Supabase RLS enforcement, zero-row no-op check
+- **Password change**: placeholder component (not yet implemented; uses native Supabase Auth password reset flow)
+- **RLS**: new UPDATE policy on users (migration 056) `id = auth.uid() AND deleted_at IS NULL`, defended by sensitive-columns trigger (migration 041)
+- **Security**: auth check + RLS + input validation + sanitized error messages
+- **Navigation**: gear icon + Settings link in sidebar + mobile nav
+- No new migrations beyond RLS policy
+- 1549 tests (130 files), all passing
 
 ---
 
@@ -795,6 +809,7 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 │   └── session/            ← active quiz session (immediate feedback + in-session explanation)
 ├── progress/               ← detailed progress per subject/topic/subtopic
 ├── reports/                ← session history with sortable columns, links to quiz reports
+├── settings/               ← student profile & settings: display name edit, password change (#368)
 └── admin/                  ← admin-only (proxy guard + requireAdmin())
     ├── syllabus/           ← CRUD for subjects/topics/subtopics (#171)
     └── questions/          ← question editor: create, edit, list, filter, bulk actions (#271)

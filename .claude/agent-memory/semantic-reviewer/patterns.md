@@ -4,6 +4,22 @@
 
 ## Session Log
 
+### 2026-03-26 — commit 552bb2f (feat(settings): add student profile & settings page #368)
+- **Files reviewed:** change-password-form.tsx, edit-name-form.tsx, profile-card.tsx, actions.ts, page.tsx, profile.ts, nav-icon.tsx, nav-items.ts, migration 056
+- **CRITICAL:** 1 | **ISSUE:** 2 | **SUGGESTION:** 3 | **GOOD:** 4
+- **Critical:** `change-password-form.tsx` — Password change uses direct client-side `supabase.auth.updateUser()` with no Server Action boundary. No audit event is written (`user.password_changed` event is missing). `reset-password-form.tsx` calls `signOut()` after success; this form does not, leaving other sessions active. Behavioral inconsistency with the existing reset flow and an audit log gap. Fix: move to a Server Action that writes an audit event and considers revoking other sessions.
+- **Issue 1:** `profile.ts:64` — Organizations query missing `.is('deleted_at', null)` soft-delete filter. Inconsistent with `getProfileStats()` which correctly filters `quiz_sessions` by `deleted_at`. Any soft-deleted org's name is still returned to the student's profile.
+- **Issue 2:** `actions.ts` — Zod `.parse()` called AFTER `supabase.auth.getUser()` instead of before. Correct order: validate input first, auth check second. Also uses `try/catch` around `.parse()` instead of `.safeParse()`, masking unexpected exceptions.
+- **Suggestion 1:** `change-password-form.tsx` — No `session missing` error handling distinct from generic errors (inconsistent with `reset-password-form.tsx` which shows a "request new link" fallback).
+- **Suggestion 2:** `profile.ts:85-89` — `totalSessions` counts only scored sessions (`completed.length`) while `totalAnswered` is unscoped. Creates a subtle presentation inconsistency. Intentional or not, should be documented.
+- **Suggestion 3:** `migration 056` — No `ENABLE ROW LEVEL SECURITY` safety check in the migration. Earlier migrations cover this, but a comment noting that dependency would clarify the migration's safety assumption.
+- **Positive 1:** New UPDATE RLS policy has both `USING` and `WITH CHECK` — correct per docs/security.md Section 3.
+- **Positive 2:** `actions.ts` zero-row guard on UPDATE via `.select('id')` — follows code-style.md Section 5 pattern.
+- **Positive 3:** Error messages sanitized — raw DB errors logged server-side, generic strings returned to client.
+- **Positive 4:** `getProfileData()` uses `Promise.all` for concurrent DB calls — correct Server Component data-fetching pattern.
+- **New recurring pattern — client-side auth mutations without audit trail:** Security-critical auth operations (password change, account update) done via direct browser Supabase calls bypass the audit event layer. Only operations going through Server Actions can write to `audit_events` via the service role. Template: any mutation that should produce an audit record MUST go through a Server Action, even if Supabase Auth natively supports client-side calls for that operation.
+- **Files needing extra scrutiny:** `apps/web/lib/queries/profile.ts` — multi-query fetch function, easy to miss soft-delete guards on related-table joins. `apps/web/app/app/settings/actions.ts` — fix Zod order before shipping.
+
 ### 2026-03-26 — commit 8b0aa1ae (fix(quiz): clear stale selection on failed submit + add tests)
 - **Files reviewed:** use-session-state.ts, session-answer-block.test.tsx, session-answer-block.tsx, answer-options.tsx, use-session-state.test.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 4

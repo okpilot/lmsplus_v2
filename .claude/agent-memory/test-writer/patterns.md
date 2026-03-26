@@ -3194,3 +3194,27 @@ resolveSubmit({ success: true, ... })
 
 Always clean up by resolving the promise at the end of the test. Leaving it dangling can
 produce act() warnings in subsequent tests.
+
+### Table-switch buildChain for multi-table query functions (2026-03-26)
+When a query function calls `supabase.from()` with multiple different table names (e.g.
+`users`, `organizations`, `quiz_sessions`, `student_responses`), use a table-name switch
+inside `mockFrom.mockImplementation` so each table returns the right shape:
+
+```ts
+mockFrom.mockImplementation((table: string) => {
+  if (table === 'users')              return buildChain({ data: profileRow, error: null })
+  if (table === 'organizations')      return buildChain({ data: orgRow, error: null })
+  if (table === 'quiz_sessions')      return buildChain({ data: sessions, error: null })
+  if (table === 'student_responses')  return buildChain({ count: 42, data: null })
+  return buildChain({ data: null, error: null })
+})
+```
+
+The Proxy-based `buildChain` (see above) auto-forwards all chaining methods, so this
+works regardless of the specific chain the function builds per table.
+
+To test error paths, set the relevant table's `error` field to `{ message: '...' }` and
+`data` to `null`. To test the zero-row / missing-data case, set `data: null` with
+`error: null` — the production code typically guards `if (error || !data)`.
+
+Used in `lib/queries/profile.test.ts` for `getProfileData()`.

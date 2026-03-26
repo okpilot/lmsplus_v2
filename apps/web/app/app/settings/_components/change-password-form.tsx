@@ -1,14 +1,14 @@
 'use client'
 
-import { createClient } from '@repo/db/client'
 import { Eye, EyeOff } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { changePassword } from '../actions'
 
 const PasswordSchema = z
   .object({
@@ -25,9 +25,9 @@ export function ChangePasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
 
@@ -37,24 +37,16 @@ export function ChangePasswordForm() {
       return
     }
 
-    setLoading(true)
-    try {
-      const supabase = createClient()
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: result.data.password,
-      })
-      if (updateError) {
-        setError('Unable to update password. Please try again.')
-        return
+    startTransition(async () => {
+      const res = await changePassword({ password: result.data.password })
+      if (res.success) {
+        toast.success('Password updated')
+        setPassword('')
+        setConfirmPassword('')
+      } else {
+        setError(res.error)
       }
-      toast.success('Password updated')
-      setPassword('')
-      setConfirmPassword('')
-    } catch {
-      setError('Unable to update password. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+    })
   }
 
   return (
@@ -99,8 +91,8 @@ export function ChangePasswordForm() {
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <Button type="submit" disabled={loading || !password}>
-            {loading ? 'Updating...' : 'Update password'}
+          <Button type="submit" disabled={isPending || !password}>
+            {isPending ? 'Updating...' : 'Update password'}
           </Button>
         </form>
       </CardContent>

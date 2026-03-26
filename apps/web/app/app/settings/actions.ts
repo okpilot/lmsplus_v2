@@ -8,9 +8,17 @@ const UpdateNameSchema = z.object({
   fullName: z.string().trim().min(1, 'Name is required').max(200, 'Name is too long'),
 })
 
-type UpdateNameResult = { success: true } | { success: false; error: string }
+const ChangePasswordSchema = z.object({
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+})
 
-export async function updateDisplayName(raw: unknown): Promise<UpdateNameResult> {
+type ActionResult = { success: true } | { success: false; error: string }
+
+export async function updateDisplayName(raw: unknown): Promise<ActionResult> {
+  const parsed = UpdateNameSchema.safeParse(raw)
+  if (!parsed.success)
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
@@ -18,16 +26,9 @@ export async function updateDisplayName(raw: unknown): Promise<UpdateNameResult>
   } = await supabase.auth.getUser()
   if (authError || !user) return { success: false, error: 'Not authenticated' }
 
-  let parsed: z.infer<typeof UpdateNameSchema>
-  try {
-    parsed = UpdateNameSchema.parse(raw)
-  } catch {
-    return { success: false, error: 'Invalid input' }
-  }
-
   const { data, error } = await supabase
     .from('users')
-    .update({ full_name: parsed.fullName })
+    .update({ full_name: parsed.data.fullName })
     .eq('id', user.id)
     .select('id')
 
@@ -42,5 +43,29 @@ export async function updateDisplayName(raw: unknown): Promise<UpdateNameResult>
   }
 
   revalidatePath('/app')
+  return { success: true }
+}
+
+export async function changePassword(raw: unknown): Promise<ActionResult> {
+  const parsed = ChangePasswordSchema.safeParse(raw)
+  if (!parsed.success)
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+  if (authError || !user) return { success: false, error: 'Not authenticated' }
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
+  if (error) {
+    console.error('[changePassword] Auth update error:', error.message)
+    if (error.message?.includes('session')) {
+      return { success: false, error: 'Session expired. Please sign in again.' }
+    }
+    return { success: false, error: 'Unable to update password. Please try again.' }
+  }
+
   return { success: true }
 }
