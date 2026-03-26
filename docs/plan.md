@@ -11,7 +11,7 @@
 Student-facing settings page at `/app/settings`:
 - **Profile view**: displays email, full name (editable inline), quiz statistics (total sessions, average score, questions answered)
 - **Display name edit**: updateDisplayName Server Action with Zod validation, Supabase RLS enforcement, zero-row no-op check
-- **Password change**: placeholder component (not yet implemented; uses native Supabase Auth password reset flow)
+- **Password change**: `changePassword` Server Action via Supabase Auth `updateUser()`, with Zod validation and session-error handling
 - **RLS**: new UPDATE policy on users (migration 056) `id = auth.uid() AND deleted_at IS NULL`, defended by sensitive-columns trigger (migration 041)
 - **Security**: auth check + RLS + input validation + sanitized error messages
 - **Navigation**: gear icon + Settings link in sidebar + mobile nav
@@ -940,4 +940,4 @@ From setup audit (2026-03-11), updated 2026-03-19:
 
 ---
 
-*Last updated: 2026-03-25 — Sprint 4 complete. Lighthouse CI workflow + DB migration test added to e2e.yml. Question editor review fixes.*
+*Last updated: 2026-03-26 — Student Profile & Settings page (#368). Sprint 4 complete.*

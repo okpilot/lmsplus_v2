@@ -19,6 +19,7 @@ type EditNameFormProps = {
 
 export function EditNameForm({ currentName }: EditNameFormProps) {
   const [name, setName] = useState(currentName ?? '')
+  const [savedName, setSavedName] = useState((currentName ?? '').trim())
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -33,16 +34,21 @@ export function EditNameForm({ currentName }: EditNameFormProps) {
     }
 
     startTransition(async () => {
-      const res = await updateDisplayName({ fullName: result.data.fullName })
-      if (res.success) {
-        toast.success('Name updated')
-      } else {
-        setError(res.error)
+      try {
+        const res = await updateDisplayName({ fullName: result.data.fullName })
+        if (res.success) {
+          setSavedName(result.data.fullName)
+          toast.success('Name updated')
+        } else {
+          setError(res.error)
+        }
+      } catch {
+        setError('Failed to update name')
       }
     })
   }
 
-  const hasChanged = name.trim() !== (currentName ?? '')
+  const hasChanged = name.trim() !== savedName
 
   return (
     <Card>

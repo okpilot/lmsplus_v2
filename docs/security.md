@@ -407,8 +407,9 @@ const SubmitAnswerSchema = z.object({
 })
 
 export async function submitAnswer(raw: unknown) {
-  const input = SubmitAnswerSchema.parse(raw)  // throws ZodError if invalid
-  // ... proceed with validated input only
+  const parsed = SubmitAnswerSchema.safeParse(raw)
+  if (!parsed.success) return { success: false, error: 'Invalid input' }
+  // ... proceed with parsed.data only
 }
 ```
 

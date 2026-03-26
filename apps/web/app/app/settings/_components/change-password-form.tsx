@@ -38,13 +38,17 @@ export function ChangePasswordForm() {
     }
 
     startTransition(async () => {
-      const res = await changePassword({ password: result.data.password })
-      if (res.success) {
-        toast.success('Password updated')
-        setPassword('')
-        setConfirmPassword('')
-      } else {
-        setError(res.error)
+      try {
+        const res = await changePassword({ password: result.data.password })
+        if (res.success) {
+          toast.success('Password updated')
+          setPassword('')
+          setConfirmPassword('')
+        } else {
+          setError(res.error)
+        }
+      } catch {
+        setError('Unable to update password. Please try again.')
       }
     })
   }
