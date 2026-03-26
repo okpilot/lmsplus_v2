@@ -12,6 +12,7 @@ import { changePassword } from '../actions'
 
 const PasswordSchema = z
   .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
     confirmPassword: z.string(),
   })
@@ -21,6 +22,7 @@ const PasswordSchema = z
   })
 
 export function ChangePasswordForm() {
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -31,7 +33,7 @@ export function ChangePasswordForm() {
     e.preventDefault()
     setError(null)
 
-    const result = PasswordSchema.safeParse({ password, confirmPassword })
+    const result = PasswordSchema.safeParse({ currentPassword, password, confirmPassword })
     if (!result.success) {
       setError(result.error.issues[0]?.message ?? 'Invalid input')
       return
@@ -39,9 +41,13 @@ export function ChangePasswordForm() {
 
     startTransition(async () => {
       try {
-        const res = await changePassword({ password: result.data.password })
+        const res = await changePassword({
+          currentPassword: result.data.currentPassword,
+          password: result.data.password,
+        })
         if (res.success) {
           toast.success('Password updated')
+          setCurrentPassword('')
           setPassword('')
           setConfirmPassword('')
         } else {
@@ -60,6 +66,17 @@ export function ChangePasswordForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="currentPassword">Current password</Label>
+            <Input
+              id="currentPassword"
+              type={showPassword ? 'text' : 'password'}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="newPassword">New password</Label>
             <div className="relative">
@@ -95,7 +112,7 @@ export function ChangePasswordForm() {
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <Button type="submit" disabled={isPending || !password}>
+          <Button type="submit" disabled={isPending || !currentPassword || !password}>
             {isPending ? 'Updating...' : 'Update password'}
           </Button>
         </form>

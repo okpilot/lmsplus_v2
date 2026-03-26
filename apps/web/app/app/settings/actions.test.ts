@@ -2,16 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockUpdateUser, mockFrom, mockRevalidatePath } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
-  mockUpdateUser: vi.fn(),
-  mockFrom: vi.fn(),
-  mockRevalidatePath: vi.fn(),
-}))
+const { mockGetUser, mockUpdateUser, mockSignIn, mockFrom, mockRevalidatePath } = vi.hoisted(
+  () => ({
+    mockGetUser: vi.fn(),
+    mockUpdateUser: vi.fn(),
+    mockSignIn: vi.fn(),
+    mockFrom: vi.fn(),
+    mockRevalidatePath: vi.fn(),
+  }),
+)
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser, updateUser: mockUpdateUser },
+    auth: { getUser: mockGetUser, updateUser: mockUpdateUser, signInWithPassword: mockSignIn },
     from: mockFrom,
   }),
 }))
@@ -27,7 +30,10 @@ import { changePassword, updateDisplayName } from './actions'
 const USER_ID = 'aaaaaaaa-0000-4000-a000-000000000001'
 
 function mockAuthenticatedUser() {
-  mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null })
+  mockGetUser.mockResolvedValue({
+    data: { user: { id: USER_ID, email: 'test@example.com' } },
+    error: null,
+  })
 }
 
 function buildUpdateChain({
@@ -196,9 +202,11 @@ describe('updateDisplayName', () => {
 })
 
 describe('changePassword', () => {
+  const validInput = { currentPassword: 'oldpass123', password: 'newpass123' }
+
   describe('input validation', () => {
-    it('returns failure when password is missing', async () => {
-      const result = await changePassword({})
+    it('returns failure when currentPassword is missing', async () => {
+      const result = await changePassword({ password: 'newpass123' })
 
       expect(result.success).toBe(false)
       if (result.success) return
@@ -206,7 +214,7 @@ describe('changePassword', () => {
     })
 
     it('returns failure when password is too short', async () => {
-      const result = await changePassword({ password: '12345' })
+      const result = await changePassword({ currentPassword: 'old', password: '12345' })
 
       expect(result.success).toBe(false)
       if (result.success) return
@@ -218,7 +226,7 @@ describe('changePassword', () => {
     it('returns failure when not authenticated', async () => {
       mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
 
-      const result = await changePassword({ password: 'newpass123' })
+      const result = await changePassword(validInput)
 
       expect(result.success).toBe(false)
       if (result.success) return
@@ -226,14 +234,29 @@ describe('changePassword', () => {
     })
   })
 
-  describe('happy path', () => {
-    it('updates the password via Supabase Auth', async () => {
+  describe('current password verification', () => {
+    it('returns failure when current password is wrong', async () => {
       mockAuthenticatedUser()
+      mockSignIn.mockResolvedValue({ error: { message: 'Invalid login credentials' } })
+
+      const result = await changePassword(validInput)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Current password is incorrect')
+    })
+  })
+
+  describe('happy path', () => {
+    it('verifies current password then updates via Supabase Auth', async () => {
+      mockAuthenticatedUser()
+      mockSignIn.mockResolvedValue({ error: null })
       mockUpdateUser.mockResolvedValue({ error: null })
 
-      const result = await changePassword({ password: 'newpass123' })
+      const result = await changePassword(validInput)
 
       expect(result.success).toBe(true)
+      expect(mockSignIn).toHaveBeenCalledWith({ email: 'test@example.com', password: 'oldpass123' })
       expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpass123' })
     })
   })
@@ -241,11 +264,12 @@ describe('changePassword', () => {
   describe('error handling', () => {
     it('returns session-specific message when session error occurs', async () => {
       mockAuthenticatedUser()
+      mockSignIn.mockResolvedValue({ error: null })
       mockUpdateUser.mockResolvedValue({
         error: { message: 'Auth session missing' },
       })
 
-      const result = await changePassword({ password: 'newpass123' })
+      const result = await changePassword(validInput)
 
       expect(result.success).toBe(false)
       if (result.success) return
@@ -254,11 +278,12 @@ describe('changePassword', () => {
 
     it('returns generic message for other auth errors', async () => {
       mockAuthenticatedUser()
+      mockSignIn.mockResolvedValue({ error: null })
       mockUpdateUser.mockResolvedValue({
         error: { message: 'password too weak' },
       })
 
-      const result = await changePassword({ password: 'newpass123' })
+      const result = await changePassword(validInput)
 
       expect(result.success).toBe(false)
       if (result.success) return

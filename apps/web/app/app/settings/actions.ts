@@ -9,6 +9,7 @@ const UpdateNameSchema = z.object({
 })
 
 const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
@@ -57,6 +58,18 @@ export async function changePassword(raw: unknown): Promise<ActionResult> {
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { success: false, error: 'Not authenticated' }
+
+  const email = user.email
+  if (!email) return { success: false, error: 'No email associated with account' }
+
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password: parsed.data.currentPassword,
+  })
+  if (signInError) {
+    console.error('[changePassword] Current password verification failed:', signInError.message)
+    return { success: false, error: 'Current password is incorrect' }
+  }
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
   if (error) {
