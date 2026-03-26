@@ -8,6 +8,8 @@ type ActivityHeatmapProps = {
   data: DailyActivity[]
 }
 
+const MIN_MONTH_OFFSET = -12
+const MAX_MONTH_OFFSET = 0
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const LEGEND_TIERS = [
@@ -42,7 +44,7 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
   const monthStr = String(month).padStart(2, '0')
   const monthName = viewDate.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })
 
-  const isCurrentMonth = offset === 0
+  const isCurrentMonth = offset === MAX_MONTH_OFFSET
   const todayDay = isCurrentMonth ? now.getUTCDate() : -1
 
   const activityByDay = useMemo(() => {
@@ -71,9 +73,8 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
     [offset, now],
   )
 
-  const minOffset = -12
-  const goBack = useCallback(() => setOffset((o) => Math.max(o - 1, minOffset)), [])
-  const goForward = useCallback(() => setOffset((o) => Math.min(o + 1, 0)), [])
+  const goBack = useCallback(() => setOffset((o) => Math.max(o - 1, MIN_MONTH_OFFSET)), [])
+  const goForward = useCallback(() => setOffset((o) => Math.min(o + 1, MAX_MONTH_OFFSET)), [])
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -82,7 +83,7 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
           <button
             type="button"
             onClick={goBack}
-            disabled={offset <= minOffset}
+            disabled={offset <= MIN_MONTH_OFFSET}
             aria-label="Previous month"
             className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
           >

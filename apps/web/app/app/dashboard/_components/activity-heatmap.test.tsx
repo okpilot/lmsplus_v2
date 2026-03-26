@@ -137,4 +137,31 @@ describe('ActivityHeatmap — month navigation', () => {
     const cell = screen.getByTitle('14 February: 8 questions')
     expect(cell.className).toContain('bg-green-500')
   })
+
+  it('disables the back button after navigating 12 months back', () => {
+    render(<ActivityHeatmap data={[]} />)
+    const backButton = screen.getByRole('button', { name: 'Previous month' })
+    for (let i = 0; i < 12; i++) {
+      fireEvent.click(backButton)
+    }
+    expect(backButton).toBeDisabled()
+  })
+
+  it('shows March 2025 after navigating exactly 12 months back from March 2026', () => {
+    render(<ActivityHeatmap data={[]} />)
+    const backButton = screen.getByRole('button', { name: 'Previous month' })
+    for (let i = 0; i < 12; i++) {
+      fireEvent.click(backButton)
+    }
+    expect(screen.getByText('March 2025')).toBeInTheDocument()
+  })
+
+  it('does not navigate past the 12-month limit when back button is clicked again', () => {
+    render(<ActivityHeatmap data={[]} />)
+    const backButton = screen.getByRole('button', { name: 'Previous month' })
+    for (let i = 0; i < 15; i++) {
+      fireEvent.click(backButton)
+    }
+    expect(screen.getByText('March 2025')).toBeInTheDocument()
+  })
 })
