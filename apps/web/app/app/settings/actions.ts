@@ -62,6 +62,7 @@ export async function changePassword(raw: unknown): Promise<ActionResult> {
   const email = user.email
   if (!email) return { success: false, error: 'No email associated with account' }
 
+  // signInWithPassword used for credential verification; side effect: refreshes auth session cookies
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email,
     password: parsed.data.currentPassword,
