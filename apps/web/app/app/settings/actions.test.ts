@@ -234,6 +234,21 @@ describe('changePassword', () => {
     })
   })
 
+  describe('email guard', () => {
+    it('returns failure when user has no email', async () => {
+      mockGetUser.mockResolvedValue({
+        data: { user: { id: USER_ID, email: null } },
+        error: null,
+      })
+
+      const result = await changePassword(validInput)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('No email associated with account')
+    })
+  })
+
   describe('current password verification', () => {
     it('returns failure when current password is wrong', async () => {
       mockAuthenticatedUser()
