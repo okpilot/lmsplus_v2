@@ -393,6 +393,7 @@ export default {
 - All Server Actions must validate input with Zod before touching the database
 - All API routes must validate request bodies with Zod
 - Never use `as SomeType` to cast unvalidated external data
+- Escape `%` and `_` wildcards before interpolating user input into `.ilike()` / `.like()` calls — use an `escapeLike()` helper. This is not SQL injection (PostgREST parameterizes), but it prevents users from broadening query scope via wildcard characters.
 
 ```ts
 // Pattern for every Server Action
@@ -563,6 +564,31 @@ We store student PII: email address, full name, learning history, exam scores.
 - Do not store IP addresses in `student_responses` — only in `audit_events`
 - Do not store device fingerprints
 - `full_name` is optional — require only `email` at signup
+
+---
+
+## 13. Tenant Scoping (Auth ≠ Scope)
+
+**Rule: After `requireAuth()` / `requireAdmin()`, scope every query and mutation to the actor's tenant ID (`student_id` or `organization_id`). Authentication confirms identity; it does not scope the data set.**
+
+This applies to:
+- Student-facing queries: add `.eq('student_id', userId)` or equivalent
+- Admin operations via `adminClient` (service role, RLS bypassed): add `.eq('organization_id', organizationId)`
+- Query functions called from Server Components: add `requireAdmin()` or `requireAuth()` as the first line — the function must be self-defending regardless of where it's called from
+
+```ts
+// ❌ WRONG — authenticated but unscoped
+const { userId } = await requireAdmin()
+const { data } = await adminClient.from('users').select('*').eq('id', targetId)
+
+// ✅ CORRECT — scoped to admin's org
+const { userId, organizationId } = await requireAdmin()
+const { data } = await adminClient.from('users').select('*')
+  .eq('id', targetId)
+  .eq('organization_id', organizationId)
+```
+
+**Why:** `adminClient` bypasses RLS entirely. Without explicit org-scoping, an admin at org A who knows a user UUID from org B can read, update, or deactivate that user. Three occurrences of this gap across different sessions (2026-03-13, 2026-03-14, 2026-03-25) prompted this rule.
 
 ---
 

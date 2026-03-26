@@ -312,6 +312,44 @@ if (!data?.length) return { success: false, error: 'Not found or not owned' }
 return { success: true }
 ```
 
+### Sanitize Error Messages in Server Actions
+Every `if (error)` block in a Server Action must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly — Postgres error strings can expose connection details, schema names, and internal state.
+
+```ts
+// ❌ WRONG — raw DB error leaked to client
+if (error) return { success: false, error: error.message }
+
+// ✅ CORRECT — log server-side, return generic string
+if (error) {
+  console.error('[actionName] DB error:', error.message)
+  return { success: false, error: 'Failed to save question' }
+}
+```
+
+### Log Every Error Path, Including Rollbacks
+Every error path — including compensating (rollback) paths — must emit `console.error` before returning. Secondary error paths are not exempt from observability. If a rollback fails silently, the system enters an inconsistent state with no server-side signal.
+
+```ts
+// ❌ WRONG — rollback failure is invisible
+if (insertErr) {
+  await adminClient.auth.admin.deleteUser(authData.user.id)
+  return { success: false, error: 'Failed to create student' }
+}
+
+// ✅ CORRECT — rollback failure is logged
+if (insertErr) {
+  console.error('[createStudent] Profile insert failed:', insertErr.message)
+  const { error: rollbackErr } = await adminClient.auth.admin.deleteUser(authData.user.id)
+  if (rollbackErr) {
+    console.error('[createStudent] Rollback failed — orphaned auth user:', authData.user.id, rollbackErr.message)
+  }
+  return { success: false, error: 'Failed to create student' }
+}
+```
+
+### No Hardcoded Supabase URLs
+Never hardcode Supabase project-ref URLs (e.g. `https://xxxxx.supabase.co`) in source files. Derive from `process.env.NEXT_PUBLIC_SUPABASE_URL` in client components and from server-only env vars in Server Actions. Hardcoded URLs break local development where Supabase runs at `http://localhost:54321`.
+
 ### Export Types Next to Their Functions
 ```ts
 // actions.ts
