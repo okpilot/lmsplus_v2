@@ -38,6 +38,7 @@ export function useSessionState(opts: UseSessionStateOpts) {
     })
     if (!result.success) {
       setError(result.error)
+      setSelectedOption(null)
     } else {
       setError(null)
       setFeedback(result)

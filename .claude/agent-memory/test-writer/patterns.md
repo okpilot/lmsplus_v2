@@ -1869,7 +1869,59 @@ let resolveQ1: (value: Stats) => void = () => {}
 const staleFetchPromise = new Promise<Stats>((resolve) => { resolveQ1 = resolve })
 mockFetchQuestionStats.mockReturnValueOnce(staleFetchPromise)
 
-const { rerender } = render(<StatisticsTab questionId="q-1" hasAnswered={true} />)
+const { rerender } = render(<StatisticsTab questionId="q-1" hasAnswered={true} />
+
+---
+
+## Files tested in latest commit (selectedOptionId fix in session-answer-block)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/_components/session-answer-block.tsx` | `session-answer-block.test.tsx` | **NEW** — 11 tests across 4 groups: selectedOptionId forwarding, FeedbackPanel visibility, AnswerOptions disabled state, correctOptionId forwarding |
+
+### Testing a pure orchestrator component by mocking its children
+`SessionAnswerBlock` has no logic of its own beyond prop wiring and conditional rendering.
+Test it by mocking both child components (`AnswerOptions` and `FeedbackPanel`) with
+lightweight stubs that expose key props as `data-*` attributes. This lets you assert on
+prop forwarding without rendering child internals:
+
+```tsx
+vi.mock('./answer-options', () => ({
+  AnswerOptions: (props: {
+    disabled: boolean
+    selectedOptionId?: string | null
+    correctOptionId?: string | null
+    // ...
+  }) => (
+    <div
+      data-testid="answer-options"
+      data-disabled={String(props.disabled)}
+      data-selected-option-id={props.selectedOptionId ?? ''}
+      data-correct-option-id={props.correctOptionId ?? ''}
+    />
+  ),
+}))
+```
+
+Then assert with `screen.getByTestId('answer-options').dataset.selectedOptionId`.
+
+Key insight: `selectedOptionId={selectedOption}` (the post-fix version) passes the value
+unconditionally. Before the fix it was `selectedOptionId={feedbackData ? selectedOption : null}`,
+meaning the selection was hidden during the answering state. The test that catches the regression:
+```ts
+it('passes the selected option id to AnswerOptions while answering, before any submission', () => {
+  render(<SessionAnswerBlock {...makeProps({ selectedOption: 'opt-b' })} />)
+  expect(screen.getByTestId('answer-options').dataset.selectedOptionId).toBe('opt-b')
+})
+```
+
+### use-session-state.test.ts — no changes needed
+The existing hook test suite was not affected by the `session-answer-block.tsx` change.
+The hook's `selectedOption` state and its internal transitions are unchanged; only the
+component's prop-passing (the presentational layer) changed.
+
+### Suite state after this commit
+133 test files, 1582 tests — all passing.)
 await user.click(screen.getByRole('button', { name: 'Load Statistics' }))
 
 // Bump generation before stale fetch resolves
