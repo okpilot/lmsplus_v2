@@ -114,9 +114,12 @@ describe('QuestionGrid — desktop', () => {
 })
 
 describe('QuestionGrid — filter row', () => {
-  it('does not show filter row when nothing is flagged or pinned', () => {
+  it('always shows filter row with All pill even when nothing is flagged or pinned', () => {
     renderGrid()
-    expect(screen.queryByTestId('grid-filters')).not.toBeInTheDocument()
+    expect(screen.getByTestId('grid-filters')).toBeInTheDocument()
+    expect(screen.getByText('All')).toBeInTheDocument()
+    expect(screen.queryByTestId('filter-flagged')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('filter-pinned')).not.toBeInTheDocument()
   })
 
   it('shows filter row when questions are flagged', () => {
@@ -274,8 +277,10 @@ describe('QuestionGrid — effectiveFilter fallback', () => {
       />,
     )
 
-    // Filter row hidden (nothing flagged or pinned), meaning effectiveFilter='all' is in effect
-    expect(screen.queryByTestId('grid-filters')).not.toBeInTheDocument()
+    // Filter row still visible with All pill active after fallback
+    expect(screen.getByTestId('grid-filters')).toBeInTheDocument()
+    expect(screen.getByText('All')).toBeInTheDocument()
+    expect(screen.queryByTestId('filter-flagged')).not.toBeInTheDocument()
   })
 })
 
