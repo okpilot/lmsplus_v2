@@ -64,20 +64,20 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
-// ---- selectedOptionId prop --------------------------------------------------
+// ---- selected option visibility ---------------------------------------------
 
-describe('SessionAnswerBlock — selectedOptionId forwarding', () => {
-  it('passes null to AnswerOptions when no option is selected in the answering state', () => {
+describe('SessionAnswerBlock — selected option is preserved across states', () => {
+  it('shows no selection when no option has been chosen', () => {
     render(<SessionAnswerBlock {...makeProps({ selectedOption: null })} />)
     expect(screen.getByTestId('answer-options').dataset.selectedOptionId).toBe('')
   })
 
-  it('passes the selected option id to AnswerOptions while answering, before any submission', () => {
+  it('keeps the selected choice visible before feedback arrives', () => {
     render(<SessionAnswerBlock {...makeProps({ selectedOption: 'opt-b' })} />)
     expect(screen.getByTestId('answer-options').dataset.selectedOptionId).toBe('opt-b')
   })
 
-  it('passes the selected option id to AnswerOptions in the feedback state', () => {
+  it('keeps the selected choice visible after feedback arrives', () => {
     render(
       <SessionAnswerBlock
         {...makeProps({
@@ -91,9 +91,9 @@ describe('SessionAnswerBlock — selectedOptionId forwarding', () => {
   })
 })
 
-// ---- FeedbackPanel visibility -----------------------------------------------
+// ---- feedback display behavior ----------------------------------------------
 
-describe('SessionAnswerBlock — FeedbackPanel visibility', () => {
+describe('SessionAnswerBlock — feedback display behavior', () => {
   it('does not render FeedbackPanel in the answering state', () => {
     render(<SessionAnswerBlock {...makeProps()} />)
     expect(screen.queryByTestId('feedback-panel')).toBeNull()
@@ -118,9 +118,9 @@ describe('SessionAnswerBlock — FeedbackPanel visibility', () => {
   })
 })
 
-// ---- AnswerOptions disabled state -------------------------------------------
+// ---- option selection is disabled during submit and feedback ----------------
 
-describe('SessionAnswerBlock — AnswerOptions disabled state', () => {
+describe('SessionAnswerBlock — disables option selection while submitting or in feedback', () => {
   it('enables AnswerOptions when not submitting and not in feedback state', () => {
     render(<SessionAnswerBlock {...makeProps({ submitting: false, state: 'answering' })} />)
     expect(screen.getByTestId('answer-options').dataset.disabled).toBe('false')
@@ -141,10 +141,10 @@ describe('SessionAnswerBlock — AnswerOptions disabled state', () => {
   })
 })
 
-// ---- FeedbackPanel isCorrect value ------------------------------------------
+// ---- correct/incorrect feedback display -------------------------------------
 
-describe('SessionAnswerBlock — FeedbackPanel isCorrect value', () => {
-  it('passes isCorrect=true to FeedbackPanel when feedbackData marks the answer correct', () => {
+describe('SessionAnswerBlock — displays correct or incorrect in the feedback panel', () => {
+  it('shows correct when the answer is right', () => {
     render(
       <SessionAnswerBlock
         {...makeProps({ state: 'feedback', feedbackData: FEEDBACK_DATA, selectedOption: 'opt-a' })}
@@ -153,7 +153,7 @@ describe('SessionAnswerBlock — FeedbackPanel isCorrect value', () => {
     expect(screen.getByTestId('feedback-panel').dataset.isCorrect).toBe('true')
   })
 
-  it('passes isCorrect=false to FeedbackPanel when feedbackData marks the answer incorrect', () => {
+  it('shows incorrect when the answer is wrong', () => {
     const incorrectFeedback: Extract<AnswerResult, { success: true }> = {
       success: true,
       isCorrect: false,
@@ -174,10 +174,10 @@ describe('SessionAnswerBlock — FeedbackPanel isCorrect value', () => {
   })
 })
 
-// ---- correctOptionId forwarding ---------------------------------------------
+// ---- correct answer highlighting --------------------------------------------
 
-describe('SessionAnswerBlock — correctOptionId forwarding', () => {
-  it('passes correctOptionId from feedbackData to AnswerOptions in feedback state', () => {
+describe('SessionAnswerBlock — highlights the correct option in feedback state', () => {
+  it('reveals the correct answer after feedback arrives', () => {
     render(
       <SessionAnswerBlock
         {...makeProps({ state: 'feedback', feedbackData: FEEDBACK_DATA, selectedOption: 'opt-a' })}
@@ -186,7 +186,7 @@ describe('SessionAnswerBlock — correctOptionId forwarding', () => {
     expect(screen.getByTestId('answer-options').dataset.correctOptionId).toBe('opt-a')
   })
 
-  it('passes no correctOptionId to AnswerOptions in the answering state', () => {
+  it('does not reveal the correct answer while still answering', () => {
     render(<SessionAnswerBlock {...makeProps()} />)
     expect(screen.getByTestId('answer-options').dataset.correctOptionId).toBe('')
   })
