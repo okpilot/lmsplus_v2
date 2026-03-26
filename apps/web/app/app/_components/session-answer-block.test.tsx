@@ -115,6 +115,8 @@ describe('SessionAnswerBlock — feedback display behavior', () => {
       />,
     )
     expect(screen.queryByTestId('feedback-panel')).toBeNull()
+    // Regression guard for #318: selection must stay visible even without feedbackData
+    expect(screen.getByTestId('answer-options').dataset.selectedOptionId).toBe('opt-a')
   })
 })
 
