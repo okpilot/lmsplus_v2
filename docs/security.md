@@ -592,7 +592,7 @@ const { data } = await adminClient.from('users').select('*')
 
 ---
 
-## 13. Dependency Security
+## 14. Dependency Security
 
 Add to Lefthook `pre-push` hook:
 
@@ -609,7 +609,7 @@ Monthly: run `pnpm audit --fix` and review outdated packages with `pnpm outdated
 
 ---
 
-## 14. Database Rules — Companion Document
+## 15. Database Rules — Companion Document
 
 All database design rules (soft delete, immutability, idempotency, RPC conventions, full schema SQL) live in `docs/database.md`. Key security-relevant rules from that document:
 
@@ -619,7 +619,7 @@ All database design rules (soft delete, immutability, idempotency, RPC conventio
 - **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query.
 - All multi-table mutations go through RPCs for atomicity — never multi-step application calls
 
-## 15. What Supabase Handles For Us
+## 16. What Supabase Handles For Us
 
 These are covered by Supabase infrastructure — no additional work needed:
 
