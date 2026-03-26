@@ -105,3 +105,33 @@ export const BulkUpdateStatusSchema = z.object({
   ids: z.array(z.uuid()).min(1).max(100),
   status: z.enum(['active', 'draft']),
 })
+
+// --- Admin: Student Management schemas ---
+
+export const CreateStudentSchema = z.object({
+  email: z.email(),
+  full_name: z.string().trim().min(1).max(200),
+  role: z.enum(['student', 'instructor']),
+  temporary_password: z.string().min(6).max(72),
+})
+
+export type CreateStudentInput = z.infer<typeof CreateStudentSchema>
+
+export const UpdateStudentSchema = z.object({
+  id: z.uuid(),
+  full_name: z.string().trim().min(1).max(200),
+  role: z.enum(['admin', 'instructor', 'student']),
+})
+
+export type UpdateStudentInput = z.infer<typeof UpdateStudentSchema>
+
+export const ResetStudentPasswordSchema = z.object({
+  id: z.uuid(),
+  temporary_password: z.string().min(6).max(72),
+})
+
+export type ResetStudentPasswordInput = z.infer<typeof ResetStudentPasswordSchema>
+
+export const ToggleStudentStatusSchema = z.object({
+  id: z.uuid(),
+})

@@ -32,13 +32,16 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { role: 'admin' }, error: null }),
+          single: vi
+            .fn()
+            .mockResolvedValue({ data: { role: 'admin', organization_id: 'org-1' }, error: null }),
         }),
       }),
     })
 
     const result = await requireAdmin()
     expect(result.userId).toBe('user-1')
+    expect(result.organizationId).toBe('org-1')
     expect(result.supabase).toBeDefined()
   })
 

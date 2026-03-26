@@ -1,7 +1,7 @@
 export type NavItem = {
   href: string
   label: string
-  icon?: 'home' | 'file-question' | 'bar-chart' | 'book-open' | 'list'
+  icon?: 'home' | 'file-question' | 'bar-chart' | 'book-open' | 'list' | 'users'
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -13,4 +13,5 @@ export const NAV_ITEMS: NavItem[] = [
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: '/app/admin/syllabus', label: 'Syllabus', icon: 'book-open' },
   { href: '/app/admin/questions', label: 'Questions', icon: 'list' },
+  { href: '/app/admin/students', label: 'Students', icon: 'users' },
 ]

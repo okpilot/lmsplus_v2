@@ -8,6 +8,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+const DIFFICULTY_ITEMS = [
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+]
+
+const STATUS_ITEMS = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'active', label: 'Active' },
+]
+
 type Props = {
   difficulty: string
   status: string
@@ -27,7 +38,12 @@ export function DifficultyStatusSelect({
     <div className="grid grid-cols-2 gap-3">
       <div>
         <span className="mb-1 block text-xs font-medium text-muted-foreground">Difficulty</span>
-        <Select value={difficulty} onValueChange={onDifficultyChange} disabled={isPending}>
+        <Select
+          value={difficulty}
+          onValueChange={onDifficultyChange}
+          disabled={isPending}
+          items={DIFFICULTY_ITEMS}
+        >
           <SelectTrigger aria-label="Difficulty">
             <SelectValue />
           </SelectTrigger>
@@ -46,7 +62,12 @@ export function DifficultyStatusSelect({
       </div>
       <div>
         <span className="mb-1 block text-xs font-medium text-muted-foreground">Status</span>
-        <Select value={status} onValueChange={onStatusChange} disabled={isPending}>
+        <Select
+          value={status}
+          onValueChange={onStatusChange}
+          disabled={isPending}
+          items={STATUS_ITEMS}
+        >
           <SelectTrigger aria-label="Status">
             <SelectValue />
           </SelectTrigger>

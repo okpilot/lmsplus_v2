@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@repo/db/server'
 type AdminAuth = {
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
   userId: string
+  organizationId: string
 }
 
 export async function requireAdmin(): Promise<AdminAuth> {
@@ -18,9 +19,9 @@ export async function requireAdmin(): Promise<AdminAuth> {
 
   const { data: profile, error: profileError } = await supabase
     .from('users')
-    .select('role')
+    .select('role, organization_id')
     .eq('id', user.id)
-    .single<{ role: string }>()
+    .single<{ role: string; organization_id: string }>()
 
   if (profileError) {
     console.error('[requireAdmin] Profile query error:', profileError.message)
@@ -31,5 +32,5 @@ export async function requireAdmin(): Promise<AdminAuth> {
     throw new Error('Forbidden: admin role required')
   }
 
-  return { supabase, userId: user.id }
+  return { supabase, userId: user.id, organizationId: profile.organization_id }
 }

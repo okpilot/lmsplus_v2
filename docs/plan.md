@@ -2,7 +2,22 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-24
+> Last updated: 2026-03-25
+
+---
+
+## Admin Student Manager — 2026-03-25 (issue #354)
+
+Admin tool for managing students at `/app/admin/students`:
+- **List view**: server-side filtered table (status, role, name/email search via URL searchParams)
+- **Create**: dialog form with email, full name, role (student/instructor), temporary password
+- **Edit**: dialog for name and role changes (admin/instructor/student)
+- **Deactivate/Reactivate**: soft-delete + Supabase Auth ban/unban with rollback on partial failure
+- **Reset password**: generates alphanumeric temp password with must-change-on-first-login flag
+- **Security**: all operations org-scoped via adminClient, requireAdmin() on every action and query, LIKE metacharacter escaping, error message sanitization
+- No new migrations (uses existing users table + soft-delete pattern)
+- Related issues: #368 (student profile page), #369 (instructor role definition), #370 (multi-org support)
+- 1549 tests (130 files), all passing
 
 ---
 

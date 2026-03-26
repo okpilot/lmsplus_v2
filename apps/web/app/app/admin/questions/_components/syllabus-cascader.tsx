@@ -35,6 +35,13 @@ export function SyllabusCascader({
   const selectedTopic = topics.find((t) => t.id === topicId)
   const subtopics = selectedTopic?.subtopics ?? []
 
+  const subjectItems = tree.map((s) => ({ value: s.id, label: `${s.code} — ${s.name}` }))
+  const topicItems = topics.map((t) => ({ value: t.id, label: `${t.code} — ${t.name}` }))
+  const subtopicItems = [
+    { value: '__none__', label: 'None' },
+    ...subtopics.map((st) => ({ value: st.id, label: `${st.code} — ${st.name}` })),
+  ]
+
   return (
     <div className="grid grid-cols-3 gap-3">
       <div>
@@ -43,6 +50,7 @@ export function SyllabusCascader({
           value={subjectId ?? ''}
           onValueChange={(v) => v && onSubjectChange(v)}
           disabled={disabled}
+          items={subjectItems}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select subject" />
@@ -63,6 +71,7 @@ export function SyllabusCascader({
           value={topicId ?? ''}
           onValueChange={(v) => v && onTopicChange(v)}
           disabled={disabled || topics.length === 0}
+          items={topicItems}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select topic" />
@@ -83,6 +92,7 @@ export function SyllabusCascader({
           value={subtopicId ?? '__none__'}
           onValueChange={(v) => onSubtopicChange(v === '__none__' || v === null ? null : v)}
           disabled={disabled || subtopics.length === 0}
+          items={subtopicItems}
         >
           <SelectTrigger>
             <SelectValue placeholder="None" />
