@@ -8,7 +8,7 @@ type ActivityHeatmapProps = {
   data: DailyActivity[]
 }
 
-const MIN_MONTH_OFFSET = -12
+const MIN_MONTH_OFFSET = -11
 const MAX_MONTH_OFFSET = 0
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
