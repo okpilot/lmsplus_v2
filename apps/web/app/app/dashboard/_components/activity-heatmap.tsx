@@ -71,7 +71,8 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
     [offset, now],
   )
 
-  const goBack = useCallback(() => setOffset((o) => o - 1), [])
+  const minOffset = -12
+  const goBack = useCallback(() => setOffset((o) => Math.max(o - 1, minOffset)), [])
   const goForward = useCallback(() => setOffset((o) => Math.min(o + 1, 0)), [])
 
   return (
@@ -81,8 +82,9 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
           <button
             type="button"
             onClick={goBack}
+            disabled={offset <= minOffset}
             aria-label="Previous month"
-            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
           >
             &lsaquo;
           </button>
