@@ -66,7 +66,6 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
 
   const isFutureDay = useCallback(
     (day: number) => {
-      if (offset > 0) return true
       if (offset < 0) return false
       return day > now.getUTCDate()
     },
