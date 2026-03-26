@@ -393,6 +393,7 @@ export default {
 - All Server Actions must validate input with Zod before touching the database
 - All API routes must validate request bodies with Zod
 - Never use `as SomeType` to cast unvalidated external data
+- Escape `%` and `_` wildcards before interpolating user input into `.ilike()` / `.like()` calls — use an `escapeLike()` helper. This is not SQL injection (PostgREST parameterizes), but it prevents users from broadening query scope via wildcard characters.
 
 ```ts
 // Pattern for every Server Action
@@ -566,7 +567,32 @@ We store student PII: email address, full name, learning history, exam scores.
 
 ---
 
-## 13. Dependency Security
+## 13. Tenant Scoping (Auth ≠ Scope)
+
+**Rule: After `requireAuth()` / `requireAdmin()`, scope every query and mutation to the actor's tenant ID (`student_id` or `organization_id`). Authentication confirms identity; it does not scope the data set.**
+
+This applies to:
+- Student-facing queries: add `.eq('student_id', userId)` or equivalent
+- Admin operations via `adminClient` (service role, RLS bypassed): add `.eq('organization_id', organizationId)`
+- Query functions called from Server Components: add `requireAdmin()` or `requireAuth()` as the first line — the function must be self-defending regardless of where it's called from
+
+```ts
+// ❌ WRONG — authenticated but unscoped
+const { userId } = await requireAdmin()
+const { data } = await adminClient.from('users').select('*').eq('id', targetId)
+
+// ✅ CORRECT — scoped to admin's org
+const { userId, organizationId } = await requireAdmin()
+const { data } = await adminClient.from('users').select('*')
+  .eq('id', targetId)
+  .eq('organization_id', organizationId)
+```
+
+**Why:** `adminClient` bypasses RLS entirely. Without explicit org-scoping, an admin at org A who knows a user UUID from org B can read, update, or deactivate that user. Three occurrences of this gap across different sessions (2026-03-13, 2026-03-14, 2026-03-25) prompted this rule.
+
+---
+
+## 14. Dependency Security
 
 Add to Lefthook `pre-push` hook:
 
@@ -583,7 +609,7 @@ Monthly: run `pnpm audit --fix` and review outdated packages with `pnpm outdated
 
 ---
 
-## 14. Database Rules — Companion Document
+## 15. Database Rules — Companion Document
 
 All database design rules (soft delete, immutability, idempotency, RPC conventions, full schema SQL) live in `docs/database.md`. Key security-relevant rules from that document:
 
@@ -593,7 +619,7 @@ All database design rules (soft delete, immutability, idempotency, RPC conventio
 - **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query.
 - All multi-table mutations go through RPCs for atomicity — never multi-step application calls
 
-## 15. What Supabase Handles For Us
+## 16. What Supabase Handles For Us
 
 These are covered by Supabase infrastructure — no additional work needed:
 
