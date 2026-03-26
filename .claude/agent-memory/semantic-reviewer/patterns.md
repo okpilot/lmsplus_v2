@@ -26,6 +26,16 @@
 - **Positive pattern 3:** `handleNext` correctly calls `setSelectedOption(null)` before advancing — per-question scoping of `selectedOption` is correct on the forward path. Confirms the "lifted selection state not reset on navigation" recurring pattern (logged 2026-03-23) is resolved for this flow.
 - **New recurring pattern — fix masks error path via prop gating:** When a prop is gated on a condition (`feedbackData ? value : null`), removing the gate reveals the error path. Before fixing a gated-prop pattern, trace every state the prop's source can be in when the condition is false. In this case, `feedbackData=null` includes both the pre-submit state (selectedOption=null, safe) and the post-failure state (selectedOption=non-null, the hidden regression). The fix correctly unblocked the pre-submit path but re-exposed the post-failure path. Pattern: when removing a prop gate, enumerate ALL states that previously produced the falsy branch — not just the intended one.
 
+### 2026-03-26 — commit 7a7f17e (fix(quiz): keep All filter pill visible when counts hit zero)
+- **Files reviewed:** filter-pill.tsx, question-grid.tsx, question-grid.test.tsx
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 3
+- **All clear.** No security gaps, no logic bugs, no behavioral regressions.
+- **Suggestion:** `filter-pill.tsx:50` — Removing the early return solves the bug but makes FilterRow render a lone "All" pill for every quiz session regardless of whether the student has ever flagged or pinned anything. A more targeted guard (`if (flaggedCount === 0 && pinnedCount === 0 && filter === 'all') return null`) would restore the "no-op row hidden" default while still showing the row when the user is in a filtered state and removes the last item. Non-blocking UX suggestion.
+- **Positive pattern 1:** Fix is surgical — individual Flagged/Pinned pills remain gated on their respective counts. The early return removal doesn't accidentally expose empty filter pills.
+- **Positive pattern 2:** Updated tests assert complete behavioral contracts (row present + All pill present + contextual pills absent) rather than just toggling a single assertion. The fallback test verifies both that the row persists AND that the stale pill disappears.
+- **Positive pattern 3:** The existing `useEffect` fallback in `question-grid.tsx` (lines 101-104) that resets `filter` to 'all' when counts drop to 0 composes correctly with the FilterRow change. By the time counts reach 0, filter state is already 'all', so the All pill is active on render.
+- **Memory correction:** Positive pattern 5 from commit 5ef6d23 ("filter row correctly conditionally renders only when flaggedCount > 0 || pinnedCount > 0 — the filter UI doesn't appear for quizzes with no flags or pins") is superseded. The new correct pattern: the row always renders; individual Flagged/Pinned pills are conditionally rendered based on their respective counts.
+
 ### 2026-03-24 — commits a1db6aa + 8f856dd (fix(quiz): improve quiz session UX + remove unused prop)
 - **Files reviewed:** finish-quiz-dialog.tsx, finish-quiz-dialog.test.tsx, quiz-session.tsx, quiz-controls.tsx, quiz-controls.test.tsx, quiz-main-panel.tsx, quiz-tab-content.tsx, explanation-tab.tsx, explanation-tab.test.tsx
 - **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 3 | **GOOD:** 5
