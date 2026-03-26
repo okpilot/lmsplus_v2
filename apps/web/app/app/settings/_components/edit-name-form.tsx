@@ -67,7 +67,11 @@ export function EditNameForm({ currentName }: EditNameFormProps) {
               maxLength={200}
             />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <Button type="submit" disabled={isPending || !hasChanged}>
             {isPending ? 'Saving...' : 'Save'}
           </Button>
