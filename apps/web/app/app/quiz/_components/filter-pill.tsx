@@ -47,7 +47,6 @@ export function FilterRow({
   flaggedCount: number
   pinnedCount: number
 }>) {
-  if (flaggedCount === 0 && pinnedCount === 0) return null
   return (
     <div className="flex items-center gap-1 text-xs" data-testid="grid-filters">
       <FilterPill active={filter === 'all'} onClick={() => setFilter('all')} label="All" />
