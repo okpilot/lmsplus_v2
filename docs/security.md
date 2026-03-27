@@ -253,46 +253,46 @@ This runs a suite of adversarial tests that exploit cross-tenant access, RLS byp
 All question serving for active sessions must go through a Postgres function that strips the `correct` field:
 
 ```sql
--- packages/db/migrations/xxx_quiz_functions.sql
+-- packages/db/migrations/002_rpc_functions.sql (source of truth)
 
 CREATE OR REPLACE FUNCTION get_quiz_questions(p_question_ids uuid[])
 RETURNS TABLE (
-  id uuid,
-  question_text text,
-  options jsonb,          -- correct field removed
-  subject text,
-  topic text,
-  subtopic text,
-  difficulty text,
-  image_url text
+  id uuid, question_text text, question_image_url text,
+  options jsonb,          -- 'correct' field stripped
+  subject_code text, topic_name text, subtopic_name text,
+  lo_reference text, difficulty text,
+  explanation_text text, explanation_image_url text,
+  question_number text
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
   RETURN QUERY
-  SELECT
-    q.id,
-    q.question_text,
-    -- Strip 'correct' from each option object
+  SELECT q.id, q.question_text, q.question_image_url,
     jsonb_agg(
-      jsonb_build_object(
-        'id',   opt->>'id',
-        'text', opt->>'text'
-        -- 'correct' intentionally excluded
-      )
+      jsonb_build_object('id', opt->>'id', 'text', opt->>'text')
+      -- 'correct' intentionally excluded
       ORDER BY random()
     ) AS options,
-    q.subject,
-    q.topic,
-    q.subtopic,
-    q.difficulty,
-    q.image_url
-  FROM questions q,
-       jsonb_array_elements(q.options) AS opt
+    s.code, t.name, st.name, q.lo_reference, q.difficulty,
+    q.explanation_text, q.explanation_image_url, q.question_number
+  FROM questions q
+  JOIN easa_subjects s ON s.id = q.subject_id
+  JOIN easa_topics t ON t.id = q.topic_id
+  LEFT JOIN easa_subtopics st ON st.id = q.subtopic_id,
+  LATERAL jsonb_array_elements(q.options) AS opt
   WHERE q.id = ANY(p_question_ids)
+    AND q.deleted_at IS NULL
     AND q.status = 'active'
-  GROUP BY q.id;
+  GROUP BY q.id, q.question_text, q.question_image_url,
+           s.code, t.name, st.name, q.lo_reference, q.difficulty,
+           q.explanation_text, q.explanation_image_url, q.question_number;
 END;
 $$;
 ```
