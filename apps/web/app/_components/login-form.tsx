@@ -121,6 +121,16 @@ export function LoginForm({ initialError }: LoginFormProps) {
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account? Contact your administrator.
       </p>
+
+      <p className="text-center text-xs text-muted-foreground">
+        <Link href="/legal/terms" className="hover:text-primary underline">
+          Terms of Service
+        </Link>
+        {' · '}
+        <Link href="/legal/privacy" className="hover:text-primary underline">
+          Privacy Policy
+        </Link>
+      </p>
     </form>
   )
 }

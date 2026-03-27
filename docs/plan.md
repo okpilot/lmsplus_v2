@@ -28,9 +28,10 @@ First-login consent flow with persistent audit trail:
 - **Migration 057**: `user_consents` append-only table (identical pattern to `audit_events`), two SECURITY DEFINER RPCs: `record_consent()` and `check_consent_status()`
 - **Consent gate**: middleware in `proxy.ts` checks cookie `__consent = "tos_version:privacy_version"` — no DB hit per request
 - **Login redirect**: `/auth/login-complete` calls `check_consent_status()` → missing or stale versions → redirect to `/consent`
-- **/consent page**: three checkboxes (TOS required, privacy required, analytics optional), Continue button gated on required acceptance
-- **Server Action**: `recordConsent()` with Zod validation, calls `record_consent()` three times, sets cookie with versions, redirects to `/app/dashboard`
-- **Document versioning**: `lib/consent/versions.ts` (CURRENT_TOS_VERSION, CURRENT_PRIVACY_VERSION, CURRENT_ANALYTICS_VERSION) → bump to trigger re-consent for all users
+- **/consent page**: two checkboxes (TOS required, privacy required), Continue button gated on required acceptance
+- **Server Action**: `recordConsent()` with Zod validation, calls `record_consent()` twice, sets cookie with versions, redirects to `/app/dashboard`
+- **Document versioning**: `lib/consent/versions.ts` (CURRENT_TOS_VERSION, CURRENT_PRIVACY_VERSION) → bump to trigger re-consent for all users
+- **Legal pages**: `/legal/terms` and `/legal/privacy` — plain-language TOS and GDPR privacy policy
 - **E2E coverage**: new `consent.spec.ts` with full flow tests, E2E helpers seed consent for test users
 - **Security**: auth check via RPC, soft-delete guard on users lookup, IP/UA capture, immutable RLS policies
 - Migrations: migration 057 only. Zero-row no-op checks on RPC queries.
