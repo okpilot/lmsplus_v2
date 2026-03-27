@@ -145,7 +145,7 @@ describe('ChangePasswordForm', () => {
     })
   })
 
-  it('shows server error message when changePassword returns a failure', async () => {
+  it('shows the returned error message when the password change fails', async () => {
     vi.mocked(changePassword).mockResolvedValue({ success: false, error: 'Wrong password' })
     const user = userEvent.setup()
     render(<ChangePasswordForm />)
@@ -158,7 +158,7 @@ describe('ChangePasswordForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Wrong password')
   })
 
-  it('shows a fallback error when changePassword throws', async () => {
+  it('shows a fallback error message when the password change request fails unexpectedly', async () => {
     vi.mocked(changePassword).mockRejectedValue(new Error('Network error'))
     const user = userEvent.setup()
     render(<ChangePasswordForm />)

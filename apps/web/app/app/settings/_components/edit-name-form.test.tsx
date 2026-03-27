@@ -86,7 +86,7 @@ describe('EditNameForm', () => {
     })
   })
 
-  it('shows server error message when updateDisplayName returns a failure', async () => {
+  it('shows the returned error message when saving the name fails', async () => {
     vi.mocked(updateDisplayName).mockResolvedValue({ success: false, error: 'Update failed' })
     const user = userEvent.setup()
     render(<EditNameForm currentName="Alice Smith" />)
@@ -99,7 +99,7 @@ describe('EditNameForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Update failed')
   })
 
-  it('shows a fallback error when updateDisplayName throws', async () => {
+  it('shows a fallback error message when the save request fails unexpectedly', async () => {
     vi.mocked(updateDisplayName).mockRejectedValue(new Error('Network error'))
     const user = userEvent.setup()
     render(<EditNameForm currentName="Alice Smith" />)
