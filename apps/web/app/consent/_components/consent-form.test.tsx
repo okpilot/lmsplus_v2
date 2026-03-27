@@ -146,6 +146,7 @@ describe('ConsentForm', () => {
 
       // Second submit — succeeds; wait for transition to settle so button is enabled again
       const continueButton = await screen.findByRole('button', { name: /continue/i })
+      await waitFor(() => expect(continueButton).toBeEnabled())
       await user.click(continueButton)
 
       await waitFor(() => {
