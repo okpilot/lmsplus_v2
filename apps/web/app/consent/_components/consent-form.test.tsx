@@ -31,11 +31,15 @@ describe('ConsentForm', () => {
       expect(screen.getByText('Welcome to LMS Plus')).toBeInTheDocument()
     })
 
-    it('renders all three consent checkboxes unchecked', () => {
+    it('renders TOS and Privacy checkboxes unchecked', () => {
       render(<ConsentForm />)
       expect(screen.getByLabelText('I accept the Terms of Service')).not.toBeChecked()
       expect(screen.getByLabelText('I accept the Privacy Policy')).not.toBeChecked()
-      expect(screen.getByLabelText('I consent to analytics cookies')).not.toBeChecked()
+    })
+
+    it('does not render an analytics checkbox', () => {
+      render(<ConsentForm />)
+      expect(screen.queryByLabelText(/analytics/i)).not.toBeInTheDocument()
     })
 
     it('renders the Continue button disabled when no checkboxes are checked', () => {
@@ -72,17 +76,6 @@ describe('ConsentForm', () => {
 
       expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled()
     })
-
-    it('stays enabled after also checking analytics', async () => {
-      const user = userEvent.setup()
-      render(<ConsentForm />)
-
-      await user.click(screen.getByLabelText('I accept the Terms of Service'))
-      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
-      await user.click(screen.getByLabelText('I consent to analytics cookies'))
-
-      expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled()
-    })
   })
 
   describe('successful submission', () => {
@@ -99,28 +92,8 @@ describe('ConsentForm', () => {
         expect(recordConsent).toHaveBeenCalledWith({
           acceptedTos: true,
           acceptedPrivacy: true,
-          acceptedAnalytics: false,
         })
         expect(mockRouterPush).toHaveBeenCalledWith('/app/dashboard')
-      })
-    })
-
-    it('passes acceptedAnalytics as true when analytics checkbox is checked', async () => {
-      vi.mocked(recordConsent).mockResolvedValue({ success: true })
-      const user = userEvent.setup()
-      render(<ConsentForm />)
-
-      await user.click(screen.getByLabelText('I accept the Terms of Service'))
-      await user.click(screen.getByLabelText('I accept the Privacy Policy'))
-      await user.click(screen.getByLabelText('I consent to analytics cookies'))
-      await user.click(screen.getByRole('button', { name: /continue/i }))
-
-      await waitFor(() => {
-        expect(recordConsent).toHaveBeenCalledWith({
-          acceptedTos: true,
-          acceptedPrivacy: true,
-          acceptedAnalytics: true,
-        })
       })
     })
   })

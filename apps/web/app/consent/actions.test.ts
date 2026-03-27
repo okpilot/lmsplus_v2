@@ -87,7 +87,6 @@ describe('recordConsent', () => {
       const result = await recordConsent({
         acceptedTos: false,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
       })
 
       expect(result.success).toBe(false)
@@ -99,7 +98,6 @@ describe('recordConsent', () => {
       const result = await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: false,
-        acceptedAnalytics: false,
       })
 
       expect(result.success).toBe(false)
@@ -116,7 +114,7 @@ describe('recordConsent', () => {
     })
 
     it('returns failure when acceptedTos field is missing', async () => {
-      const result = await recordConsent({ acceptedPrivacy: true, acceptedAnalytics: false })
+      const result = await recordConsent({ acceptedPrivacy: true })
 
       expect(result.success).toBe(false)
       if (result.success) return
@@ -131,7 +129,6 @@ describe('recordConsent', () => {
       const result = await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
       })
 
       expect(result.success).toBe(false)
@@ -148,7 +145,6 @@ describe('recordConsent', () => {
       const result = await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
       })
 
       expect(result.success).toBe(false)
@@ -157,7 +153,7 @@ describe('recordConsent', () => {
     })
   })
 
-  describe('happy path — TOS and Privacy accepted, analytics declined', () => {
+  describe('happy path — TOS and Privacy accepted', () => {
     it('records TOS and Privacy consent and sets the consent cookie', async () => {
       mockAuthenticatedUser()
       mockRpcSuccess()
@@ -165,7 +161,6 @@ describe('recordConsent', () => {
       const result = await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
       })
 
       expect(result.success).toBe(true)
@@ -198,7 +193,6 @@ describe('recordConsent', () => {
       await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
       })
 
       expect(mockCookiesSet).toHaveBeenCalledWith(
@@ -208,63 +202,20 @@ describe('recordConsent', () => {
       )
     })
 
-    it('does not call record_consent for analytics when analytics is declined', async () => {
+    it('only records TOS and Privacy — no analytics consent', async () => {
       mockAuthenticatedUser()
       mockRpcSuccess()
 
       await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
       })
 
-      const analyticsCalls = mockRpc.mock.calls.filter(
-        (call: unknown[]) =>
-          (call[1] as Record<string, unknown>)?.p_document_type === 'cookie_analytics',
+      expect(mockRpc).toHaveBeenCalledTimes(2)
+      const callTypes = mockRpc.mock.calls.map(
+        (call: unknown[]) => (call[1] as Record<string, unknown>)?.p_document_type,
       )
-      expect(analyticsCalls).toHaveLength(0)
-    })
-  })
-
-  describe('happy path — analytics accepted', () => {
-    it('records TOS, Privacy, and analytics consent when analytics is accepted', async () => {
-      mockAuthenticatedUser()
-      mockRpcSuccess()
-
-      const result = await recordConsent({
-        acceptedTos: true,
-        acceptedPrivacy: true,
-        acceptedAnalytics: true,
-      })
-
-      expect(result.success).toBe(true)
-      expect(mockRpc).toHaveBeenCalledTimes(3)
-      expect(mockRpc).toHaveBeenCalledWith(
-        'record_consent',
-        expect.objectContaining({
-          p_document_type: 'cookie_analytics',
-          p_accepted: true,
-        }),
-      )
-    })
-
-    it('passes the current analytics version constant as p_document_version', async () => {
-      mockAuthenticatedUser()
-      mockRpcSuccess()
-
-      await recordConsent({
-        acceptedTos: true,
-        acceptedPrivacy: true,
-        acceptedAnalytics: true,
-      })
-
-      expect(mockRpc).toHaveBeenCalledWith(
-        'record_consent',
-        expect.objectContaining({
-          p_document_type: 'cookie_analytics',
-          p_document_version: 'v1.0',
-        }),
-      )
+      expect(callTypes).toEqual(['terms_of_service', 'privacy_policy'])
     })
   })
 
@@ -281,7 +232,6 @@ describe('recordConsent', () => {
       await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
       })
 
       expect(mockRpc).toHaveBeenCalledWith(
@@ -293,12 +243,10 @@ describe('recordConsent', () => {
     it('passes null IP and user-agent when headers are absent', async () => {
       mockAuthenticatedUser()
       mockRpcSuccess()
-      // headers mock returns null from beforeEach default
 
       await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
       })
 
       expect(mockRpc).toHaveBeenCalledWith(
@@ -316,7 +264,6 @@ describe('recordConsent', () => {
       const result = await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
       })
 
       expect(result.success).toBe(false)
@@ -335,27 +282,6 @@ describe('recordConsent', () => {
       const result = await recordConsent({
         acceptedTos: true,
         acceptedPrivacy: true,
-        acceptedAnalytics: false,
-      })
-
-      expect(result.success).toBe(false)
-      if (result.success) return
-      expect(result.error).toBe('Failed to record consent')
-      expect(mockCookiesSet).not.toHaveBeenCalled()
-    })
-
-    it('returns a sanitized error when analytics consent recording fails', async () => {
-      mockAuthenticatedUser()
-      // TOS and Privacy succeed, analytics fails
-      mockRpc
-        .mockResolvedValueOnce({ data: null, error: null })
-        .mockResolvedValueOnce({ data: null, error: null })
-        .mockResolvedValueOnce({ data: null, error: { message: 'server error' } })
-
-      const result = await recordConsent({
-        acceptedTos: true,
-        acceptedPrivacy: true,
-        acceptedAnalytics: true,
       })
 
       expect(result.success).toBe(false)
