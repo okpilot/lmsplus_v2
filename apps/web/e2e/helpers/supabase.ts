@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -16,6 +17,59 @@ export function getAdminClient() {
   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
+}
+
+/** Seed consent records so the consent gate doesn't block E2E tests. */
+export async function ensureConsentRecords(
+  admin: ReturnType<typeof getAdminClient>,
+  userId: string,
+) {
+  const { data: tosRows, error: tosError } = await admin
+    .from('user_consents')
+    .select('document_type')
+    .eq('user_id', userId)
+    .eq('accepted', true)
+    .eq('document_type', 'terms_of_service')
+    .eq('document_version', CURRENT_TOS_VERSION)
+  if (tosError) throw new Error(`ensureConsentRecords: TOS query failed: ${tosError.message}`)
+
+  const { data: privacyRows, error: privacyError } = await admin
+    .from('user_consents')
+    .select('document_type')
+    .eq('user_id', userId)
+    .eq('accepted', true)
+    .eq('document_type', 'privacy_policy')
+    .eq('document_version', CURRENT_PRIVACY_VERSION)
+  if (privacyError)
+    throw new Error(`ensureConsentRecords: privacy query failed: ${privacyError.message}`)
+
+  const existingTypes = new Set([
+    ...(tosRows ?? []).map((r: { document_type: string }) => r.document_type),
+    ...(privacyRows ?? []).map((r: { document_type: string }) => r.document_type),
+  ])
+
+  const toInsert = []
+  if (!existingTypes.has('terms_of_service')) {
+    toInsert.push({
+      user_id: userId,
+      document_type: 'terms_of_service',
+      document_version: CURRENT_TOS_VERSION,
+      accepted: true,
+    })
+  }
+  if (!existingTypes.has('privacy_policy')) {
+    toInsert.push({
+      user_id: userId,
+      document_type: 'privacy_policy',
+      document_version: CURRENT_PRIVACY_VERSION,
+      accepted: true,
+    })
+  }
+
+  if (toInsert.length > 0) {
+    const { error } = await admin.from('user_consents').insert(toInsert)
+    if (error) throw new Error(`ensureConsentRecords: ${error.message}`)
+  }
 }
 
 /** Ensure the E2E test user exists in the Egmont Aviation org (which has seeded questions). */
@@ -86,6 +140,7 @@ export async function ensureTestUser() {
     if (updateError) throw new Error(`ensureTestUser update org: ${updateError.message}`)
   }
 
+  await ensureConsentRecords(admin, userId)
   return { orgId, userId }
 }
 
@@ -153,5 +208,6 @@ export async function ensureLoginTestUser() {
     if (updateError) throw new Error(`ensureLoginTestUser update org: ${updateError.message}`)
   }
 
+  await ensureConsentRecords(admin, userId)
   return { orgId, userId }
 }

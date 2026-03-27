@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-03-20
+> Last updated: 2026-03-27
 
 ## Vector-to-Spec Mapping
 
@@ -26,6 +26,21 @@
 | S | toggleFlag called with a foreign student's questionId (IDOR) | MEDIUM | (no spec) | GAP — no spec exists | toggleFlag hard-codes user.id from auth token for student_id filter; RLS WITH CHECK also binds student_id = auth.uid(); low risk but no spec verifies attacker cannot read or corrupt another student's flag state |
 | T | getFlaggedIds called without auth | MEDIUM | server-action-unauthenticated.spec.ts | GAP — spec does not cover flagged_questions table | getFlaggedIds returns success:true+[] when unauthed (line 87 flag.ts); silent success not tested |
 | U | deleteComment hard-delete bypasses soft-delete policy for deleted_at column | MEDIUM | (no spec) | GAP — table has deleted_at column but DELETE policy does not require deleted_at IS NULL; admin could hard-delete a comment that was already soft-deleted, which is consistent, but no spec checks the interplay | Low risk; document gap for completeness |
+| V | Consent gate bypass via forged/missing __consent cookie | HIGH | (no spec) | GAP — proxy.ts consent gate reads cookie value only; no spec verifies that a user with no DB consent record cannot bypass gate by manually crafting a valid-looking cookie value | New vector from migration 057 + proxy.ts change |
+| W | Unauthenticated access to check_consent_status and record_consent RPCs | HIGH | server-action-unauthenticated.spec.ts | GAP — spec does not cover the two new RPCs; both have auth.uid() guards but no spec exercises them without auth | New RPCs from migration 057 |
+| X | Cross-tenant consent record read (user_consents SELECT cross-uid) | HIGH | rpc-cross-tenant.spec.ts | GAP — RLS policy user_consents_select_own uses user_id = auth.uid(); no spec verifies attacker cannot read another user's consent records by probing known UUIDs | New table from migration 057 |
+| Y | Student direct INSERT into user_consents bypassing record_consent RPC | HIGH | audit-event-forgery.spec.ts | GAP — RLS WITH CHECK (false) blocks direct inserts, mirroring audit_events pattern; no spec exercises this — analogous to Vector F which is now passing | New table from migration 057 |
+| Z | Consent cookie injected without completing actual consent flow (login-complete bypass) | HIGH | pkce-state.spec.ts | GAP — an authenticated user who navigates directly to /auth/login-complete (e.g., by replaying the URL) can trigger consent-cookie issuance without going through /consent page if they already have DB consent records; the inverse gap is also untested: a user with a crafted cookie but no DB record who reaches /app/* after the proxy allows them through because cookie matches expected format | New auth flow from login-complete/route.ts change |
+
+## Consent Gate — Seeding Note (added 2026-03-27)
+
+All specs that use `seedRedTeamUsers()` and then exercise RPC calls or browser navigation to `/app/*` routes will now be blocked by the consent gate in proxy.ts. The gate checks the `__consent` cookie against `CURRENT_TOS_VERSION:CURRENT_PRIVACY_VERSION` (currently `v1.0:v1.0`).
+
+**Specs that call RPCs directly via `createAuthenticatedClient` are NOT affected** — they bypass the Next.js proxy entirely and call Supabase directly. These specs (rpc-cross-tenant, rpc-question-membership, session-replay, session-race-condition, audit-event-forgery, server-action-unauthenticated) do not go through the proxy and therefore are unaffected by the cookie gate.
+
+**Specs that use a real browser page (Playwright `page`) ARE affected** — pkce-state.spec.ts navigates to `/app/dashboard` in one test case. If the PKCE-failed user somehow obtains a valid session (which should not happen, but the spec verifies), the consent gate would redirect them to `/consent` rather than staying on `/app/dashboard`. The existing assertion `expect(page).not.toHaveURL(/\/app\/dashboard/)` still passes because `/consent` is also not `/app/dashboard`, so the spec remains valid without modification.
+
+**Seeding consent records for future browser-based specs:** any new spec that logs a user in via the browser (not via `createAuthenticatedClient`) and then navigates to `/app/*` must either (a) seed consent records via admin client and set the cookie, or (b) complete the consent flow as part of test setup. The `seed.ts` helper does not currently seed consent records.
 
 ## Files to Watch
 
@@ -36,6 +51,9 @@ These files contain the attack surface. Changes here should trigger a red-team r
 - `apps/web/app/app/quiz/actions/*.ts` — Server Actions (auth checks, input validation)
 - `apps/web/proxy.ts` — session middleware
 - `apps/web/app/auth/callback/route.ts` — PKCE callback
+- `apps/web/app/auth/login-complete/route.ts` — consent check + cookie issuance
+- `apps/web/lib/consent/versions.ts` — consent version constants (bump triggers re-consent)
+- `apps/web/lib/consent/check-consent.ts` — checkConsentStatus + buildConsentCookieValue
 - `apps/web/lib/queries/quiz-report.ts` — post-session report query (answer key access path)
 
 ## Lessons Learned
@@ -44,6 +62,13 @@ These files contain the attack surface. Changes here should trigger a red-team r
 - The migration sequence (032→033→034) shows iterative hardening: the final RPC correctly derives question IDs from quiz_session_answers rather than accepting them as a parameter, eliminating arbitrary question-ID probing. This is the right pattern.
 - quiz-report.ts performs a direct .select('options') on the questions table (line 88). The `correct` boolean is filtered in TypeScript inside buildReportQuestions, not at the DB layer. A future refactor that changes the mapping logic could silently re-expose answer keys. A red-team spec should assert the report payload never contains `correct` fields.
 - New RPCs require matching unauthenticated and cross-tenant test cases on every addition — these are not covered by default by the existing generic specs.
+
+2026-03-27 — review of GDPR consent gate (migration 057 + proxy.ts + login-complete/route.ts):
+- The consent gate in proxy.ts is cookie-only — it does not re-check the DB on every request. This is intentional (performance) but means a forged cookie with the correct format (`v1.0:v1.0`) bypasses the gate entirely. The DB is only consulted at login-complete time. A spec should confirm that an attacker who knows the cookie format and value cannot gain access to /app/* routes without a valid auth session — the auth session check in proxy.ts (lines 39-43 in the diff) still runs before the consent check, so unauthenticated requests remain blocked. The consent gate only applies to authenticated users.
+- Two new RPCs (record_consent, check_consent_status) follow the correct SECURITY DEFINER + auth.uid() + SET search_path = public pattern. Neither accepts user_id as a parameter — both derive identity from auth.uid(). This is the correct IDOR-prevention pattern, matching the flag.ts precedent.
+- user_consents table correctly mirrors the audit_events append-only pattern: INSERT only via RPC (WITH CHECK false on direct INSERT), no UPDATE policy, no DELETE policy. This is consistent with the immutable table rules.
+- The cookie value is `${TOS_VERSION}:${PRIVACY_VERSION}` — currently `v1.0:v1.0`. This is a predictable format. If an attacker knows the current version strings (which are in client-side JS as they're imported into proxy.ts which runs as middleware), they can forge the cookie. The only protection against this is that the auth session check runs first. A spec should pin this dependency explicitly.
+- pkce-state.spec.ts test "does not leak session after failed PKCE exchange" navigates to /app/dashboard after a failed exchange. With the consent gate active, even a user who somehow obtained a session but has no consent record would be redirected to /consent, not /app/dashboard. The existing assertion `not.toHaveURL(/\/app\/dashboard/)` remains correct either way.
 
 2026-03-20 — review of branch adding migration 049 (question_comments) + comments.ts + flag.ts:
 - Hard-delete on question_comments is an intentional, documented exception to the soft-delete rule. The migration comment names the rationale. The RLS DELETE policy is correctly scoped to user_id = auth.uid(). However, the absence of a spec means the IDOR protection has never been exercised end-to-end.

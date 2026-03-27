@@ -397,6 +397,31 @@ Per-question discussion threads. Students and admins can post comments on any qu
 
 **Note:** This is a hard-delete table — the primary delete path is DELETE, not soft-delete. The deleted_at column exists as a safety net but is not used by application code.
 
+### user_consents
+
+Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of Service, Privacy Policy, and Cookie Analytics documents across versions. Accessed via two SECURITY DEFINER RPCs: `record_consent()` and `check_consent_status()`.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PK, default gen_random_uuid() |
+| user_id | UUID | FK → users(id), NOT NULL |
+| document_type | TEXT | NOT NULL, CHECK value IN ('terms_of_service', 'privacy_policy', 'cookie_analytics') |
+| document_version | TEXT | NOT NULL, CHECK length 1–20 chars (e.g. 'v1.0') |
+| accepted | BOOLEAN | NOT NULL |
+| ip_address | TEXT | nullable, optional request source |
+| user_agent | TEXT | nullable, optional user agent string |
+| created_at | TIMESTAMPTZ | NOT NULL, default now() |
+
+**RLS policies:**
+- SELECT: `user_id = auth.uid()` (users read their own consent records)
+- INSERT: denied (all writes via `record_consent()` RPC only)
+- UPDATE: denied (append-only)
+- DELETE: denied (append-only)
+
+**Index:** (user_id, document_type, document_version) WHERE accepted = true (supports consent status checks)
+
+**Pattern:** Identical to `audit_events` — immutable, no direct client writes, controlled via SECURITY DEFINER RPCs.
+
 ---
 
 ## 3. Soft Delete
@@ -1294,6 +1319,112 @@ BEGIN
     jsonb_build_object('method', 'password'));
 END;
 $$;
+```
+
+#### `record_consent` — GDPR consent audit logging
+
+Records a single consent decision (TOS acceptance, privacy policy acceptance, or cookie analytics opt-in). Called from `/consent` Server Action after user submits the consent form. All writes to `user_consents` must go through this RPC — direct inserts are blocked by RLS.
+
+**Security:**
+- `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
+- Validates `p_document_type` (defense-in-depth: CHECK constraint + RPC validation).
+- Verifies user exists and is not soft-deleted before INSERT.
+- Captures IP address and user agent from request headers (optional).
+
+**Returns:** void. Raises EXCEPTION on auth failure, invalid document_type, or user not found.
+
+```sql
+CREATE FUNCTION record_consent(
+  p_document_type    TEXT,      -- 'terms_of_service', 'privacy_policy', 'cookie_analytics'
+  p_document_version TEXT,      -- e.g. 'v1.0'
+  p_accepted         BOOLEAN,   -- true = accepted, false = rejected
+  p_ip_address       TEXT DEFAULT NULL,
+  p_user_agent       TEXT DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _uid UUID := auth.uid();
+BEGIN
+  IF _uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Validate document_type (defense-in-depth)
+  IF p_document_type NOT IN ('terms_of_service', 'privacy_policy', 'cookie_analytics') THEN
+    RAISE EXCEPTION 'Invalid document_type: %', p_document_type;
+  END IF;
+
+  -- Verify user exists and is not soft-deleted
+  IF NOT EXISTS (SELECT 1 FROM users WHERE id = _uid AND deleted_at IS NULL) THEN
+    RAISE EXCEPTION 'User not found';
+  END IF;
+
+  INSERT INTO user_consents
+    (user_id, document_type, document_version, accepted, ip_address, user_agent)
+  VALUES (_uid, p_document_type, p_document_version, p_accepted, p_ip_address, p_user_agent);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION record_consent(TEXT, TEXT, BOOLEAN, TEXT, TEXT) TO authenticated;
+```
+
+#### `check_consent_status` — check if user has accepted TOS + Privacy Policy
+
+Queries the `user_consents` table to determine whether the authenticated user has accepted specific versions of the Terms of Service and Privacy Policy. Used by `/auth/login-complete` to decide whether to redirect to `/consent`.
+
+**Security:**
+- `SECURITY DEFINER` with manual `auth.uid()` check.
+- Verifies user exists and is not soft-deleted.
+- Returns boolean flags (not documents) — no sensitive data leakage.
+
+**Returns:** TABLE(has_tos BOOLEAN, has_privacy BOOLEAN) — true if the user has an accepted consent record matching the provided versions.
+
+```sql
+CREATE FUNCTION check_consent_status(
+  p_tos_version     TEXT,       -- Current TOS version (e.g. 'v1.0')
+  p_privacy_version TEXT        -- Current Privacy Policy version (e.g. 'v1.0')
+)
+RETURNS TABLE(has_tos BOOLEAN, has_privacy BOOLEAN)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _uid UUID := auth.uid();
+BEGIN
+  IF _uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Verify user exists and is not soft-deleted
+  IF NOT EXISTS (SELECT 1 FROM users WHERE id = _uid AND deleted_at IS NULL) THEN
+    RAISE EXCEPTION 'User not found';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    EXISTS (
+      SELECT 1 FROM user_consents
+      WHERE user_id = _uid
+        AND document_type = 'terms_of_service'
+        AND document_version = p_tos_version
+        AND accepted = true
+    ) AS has_tos,
+    EXISTS (
+      SELECT 1 FROM user_consents
+      WHERE user_id = _uid
+        AND document_type = 'privacy_policy'
+        AND document_version = p_privacy_version
+        AND accepted = true
+    ) AS has_privacy;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION check_consent_status(TEXT, TEXT) TO authenticated;
 ```
 
 ---

@@ -1,6 +1,11 @@
 import { createMiddlewareSupabaseClient } from '@repo/db/middleware'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import {
+  CONSENT_COOKIE,
+  CURRENT_PRIVACY_VERSION,
+  CURRENT_TOS_VERSION,
+} from '@/lib/consent/versions'
 
 export async function proxy(request: NextRequest): Promise<Response> {
   // Cast needed: @playwright/test causes a duplicate next.js install with incompatible internal types
@@ -37,6 +42,15 @@ export async function proxy(request: NextRequest): Promise<Response> {
   // Protect /app/* routes — redirect to login if not authenticated
   if (pathname.startsWith('/app') && !user) {
     return redirectWithCookies(new URL('/', request.url))
+  }
+
+  // Consent gate: authenticated /app/* users without valid consent → /consent
+  if (pathname.startsWith('/app') && user) {
+    const consentCookie = request.cookies.get(CONSENT_COOKIE)?.value
+    const expected = `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`
+    if (consentCookie !== expected) {
+      return redirectWithCookies(new URL('/consent', request.url))
+    }
   }
 
   // Block non-admin users from /app/admin/* routes
@@ -76,5 +90,5 @@ export async function proxy(request: NextRequest): Promise<Response> {
 }
 
 export const config = {
-  matcher: ['/', '/app/:path*', '/auth/login-complete'],
+  matcher: ['/', '/app/:path*', '/auth/login-complete', '/consent'],
 }

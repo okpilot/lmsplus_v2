@@ -32,7 +32,7 @@
 | ?? [] fallback applied after an explicit error guard (silent data loss path) | 1 | 2026-03-12 | Watch — subjects ?? [] in statistics-tab.tsx after null/error guard (845923b); fixed in 86c8da4; data is already known bad at that point, fallback hides the gap |
 | Server Action shipped without Zod input validation | 1 | 2026-03-12 | Watch — fetch-stats.ts Server Action (845923b); fixed in 86c8da4; rule exists (security.md rule 4); compliance gap, not rule gap |
 | Inconsistent guard between related RPCs (sibling RPC missing guard introduced in first) | 2 | 2026-03-14 | RULE CANDIDATE — first: auth.uid() identity guard missing from sibling analytics RPC (845923b → 7b824c2); second: NULL correct_option guard in migration 037 but missing from sibling migration 036 (83ae098 → 08abee0); both fixed in follow-up commits; when a guard is added to one RPC in a family, audit all siblings in the same commit |
-| Partial fix applied to sibling file group (cross-cutting concern) | 2 | 2026-03-14 | RULE CANDIDATE — first: auth error destructuring applied to 2 of 8 query files (2190dd5); second: PR4 getUser hardening missed quiz/session/page.tsx and discard.ts (83ae098); both required fix commits; root cause: sweep scoped to directory pattern, not semantic ownership; before committing a cross-cutting security change, grep full repo for all call sites matching the pattern, not just files in the expected directory |
+| Partial fix applied to sibling file group (cross-cutting concern) | 3 | 2026-03-27 | RULE CANDIDATE (count 3 — elevate to rule) — first: auth error destructuring applied to 2 of 8 query files (2190dd5); second: PR4 getUser hardening missed quiz/session/page.tsx and discard.ts (83ae098); third: GDPR consent seeding updated in supabase.ts and 1 other helper but missed admin-supabase.ts ensureAdminTestUser() (consent commit, 2026-03-27), caught as CRITICAL by semantic-reviewer; all three required fix commits; root cause: cross-cutting updates (security hardening, fixture seeding, test helper changes) are scoped by directory or by the file the author was already editing, not by the full set of files sharing the same semantic contract; proposed rule: when a function that provisions a user/fixture is added or updated, grep for ALL functions matching the same semantic purpose (ensureTestUser, ensureAdminTestUser, ensureLoginTestUser) and update them all in the same commit |
 | Auth error from getUser() not destructured in query file | 1 | 2026-03-12 | Watch — 7 of 8 query files under apps/web/lib/queries/ missing authError destructuring (2190dd5 → 3a0d1e6 → 78cb130); distinct from mutation error pattern (that is about .insert/.update/.delete); first occurrence as a named pattern |
 | Auth error from getUser() swallowed without logging | 1 | 2026-03-12 | Watch — quiz-report.ts (78cb130); auth failure path returned early with no console.error; first occurrence; silent auth failure is harder to diagnose than silent mutation failure |
 | Raw Supabase error message leaked to student UI | 1 | 2026-03-12 | Watch — load-session-questions.ts (78cb130); error.message from Supabase returned directly to student-facing caller; first occurrence; internal error strings must not be exposed to UI — return a generic message or error code |
@@ -117,6 +117,8 @@
 | ZodError escaping Server Action with typed error return type (parse() without try/catch or safeParse) | 2 | 2026-03-26 | RULE CANDIDATE — first: checkAnswer in 199e927 (2026-03-15): ZodError propagated as unhandled exception instead of returning typed { success: false }; second: settings actions.ts in 552bb2f (2026-03-26): `parse()` used instead of `safeParse()` — unhandled ZodError escapes the return-type contract on invalid input; both fixed by switching to try/catch-wrapped parse or safeParse with explicit error-path return; second occurrence across different commits — RULE CANDIDATE: Server Actions must use `Schema.safeParse()` (or wrap `.parse()` in try/catch) so that invalid input returns a typed error response rather than throwing an unhandled exception that breaks the caller's return-type contract |
 | Sensitive auth operation (password change) implemented as direct client-side Supabase call instead of Server Action | 1 | 2026-03-26 | Watch — 552bb2f (feat/settings PR #368): `change-password-form.tsx` called `supabase.auth.updateUser()` directly from the client component; password changes must flow through Server Actions so the audit trail (audit_events insert) can be recorded server-side before the auth mutation commits; semantic-reviewer caught as CRITICAL; fixed in d9e1d10 by moving the call to a `changePassword` Server Action that inserts an audit event first; distinct from "Server-authoritative ordering value computed client-side" (that is a data value — this is a security-sensitive auth operation); first occurrence — log and watch; if a second auth mutation (email change, MFA toggle) ships as a client-side call, add a rule note: all auth.updateUser/admin calls must live in Server Actions, not client components |
 | Soft-delete guard missing on org lookup in Server Action (SECURITY DEFINER exemption does not apply here) | 1 | 2026-03-26 | Watch — 552bb2f (feat/settings PR #368): profile update Server Action queried the `organizations` table with `.eq('id', orgId)` but no `.is('deleted_at', null)` filter; a deactivated org's data would still resolve, allowing students of a soft-deleted org to update their profiles; semantic-reviewer caught as ISSUE; fixed in d9e1d10 by adding the soft-delete filter; distinct from "RPC missing AND deleted_at IS NULL guard on session fetch" (that is inside a SECURITY DEFINER RPC — this is a direct Supabase client query in a Server Action where RLS is active but the row-level filter on the org's deleted_at is not enforced by the student's own RLS policy); first occurrence — log and watch; if a second Server Action ships an org/user lookup without a soft-delete filter, add a note to code-style.md Section 5: ownership-scoping queries on soft-deletable tables must include `.is('deleted_at', null)` |
+| Hardcoded cookie/constant values in tests instead of importing source constants | 2 | 2026-03-27 | RULE CANDIDATE — first: proxy.test.ts (consent commit, 2026-03-27): hardcoded cookie name and value as string literals instead of importing from production module; second: actions.ts used hardcoded 'v1.0' string literal for CURRENT_ANALYTICS_VERSION instead of importing the constant (CodeRabbit PR #385 cycle, 227c976); and E2E helper supabase.ts used hardcoded 'v1.0' for TOS/privacy versions instead of importing CURRENT_TOS_VERSION and CURRENT_PRIVACY_VERSION (same cycle); root cause: when a constant is defined in a production module, test authors duplicate the literal value rather than importing the exported constant; when the constant is renamed or the value changes, the test continues to pass while silently testing stale data; both caught by semantic-reviewer as ISSUE-level findings; second occurrence across different commits — RULE CANDIDATE: test files must import production constants rather than duplicating literal values; add note to test-writer patterns memory |
+| Deep JSX nesting from repeated pattern (3x repetition causing 5-level nest) | 1 | 2026-03-27 | Watch — consent commit (2026-03-27): consent-form.tsx repeated a checkbox+label+description JSX pattern 3 times; each repetition added nesting depth, pushing the component to 5 levels (limit 3); caught as BLOCKING by code-reviewer; fixed by extracting ConsentCheckbox sub-component; distinct from "extract at 3 repetitions" rule (Section 2 applies at any nesting level — this is the specific case where the 3-repetition trigger coincides with a nesting-depth violation); first occurrence of this specific mechanism (repetition causing nesting violation) as a named pattern — log and watch; the existing "extract at 3 repetitions" rule in code-style.md Section 2 is the correct gate; no additional rule needed |
 
 ## Lessons Learned
 
@@ -2634,5 +2636,141 @@ Both fixed in ca55c3c.
 - The a11y multi-link fix improved keyboard navigation quality without any layout changes — minimal, targeted improvement.
 - 13 new tests (6 + 7) written for the two new utilities in the fix commit. All passing. Test-writer gap-filling is functioning as designed.
 - All agents clean on ca55c3c — fix commit resolved all findings on the first pass.
+
+---
+
+### 2026-03-27 — GDPR consent gate (commits 75ffa51, b92ff08, 5fce448)
+
+**Context:** Three-commit sequence for GDPR consent gate feature. 75ffa51 introduced the `user_consents` table (migration), `consent-form.tsx` component, `record-consent` Server Action, and consent seeding across E2E helpers. b92ff08 was the fix commit addressing all post-commit agent findings. 5fce448 was a doc-only commit updating database.md, decisions.md, plan.md, and security.md.
+
+**Commit hash (HEAD at learner run):** 5fce448
+
+**Code reviewer (75ffa51):** 1 BLOCKING.
+- `consent-form.tsx`: nesting depth at 5 levels, limit 3. Root cause: the consent-form repeated a checkbox+label+description JSX pattern three times; each repetition added nesting, compounding to 5 levels. Fixed in b92ff08 by extracting `ConsentCheckbox` sub-component. Clean after fix.
+
+**Semantic reviewer (75ffa51):** 1 CRITICAL, 1 ISSUE (noted for follow-up), 3 SUGGESTION.
+1. **ensureAdminTestUser() not updated with consent seeding — CRITICAL, real, fixed in b92ff08.** The consent seeding logic was added to `supabase.ts` helpers (ensureTestUser, ensureLoginTestUser) but the third provisioning helper `ensureAdminTestUser()` in `admin-supabase.ts` was missed. Any E2E spec using the admin helper would test against a user missing required consent records, producing false consent-gate bypasses in the test suite. Fixed in b92ff08 by adding consent seeding to ensureAdminTestUser.
+2. **Partial failure + retry creates duplicate consent rows (no idempotency) — ISSUE, noted for follow-up migration.** If a consent insert partially succeeds and the user retries the consent gate form, a second insert will create a duplicate row (no UNIQUE constraint on (user_id, consent_type)). The fix requires a migration adding a unique constraint + ON CONFLICT DO NOTHING. Noted as a GitHub Issue for a follow-up migration; not fixed in this cycle.
+3. **proxy.test.ts hardcoded cookie name/value — ISSUE, fixed in b92ff08.** The proxy test hardcoded the consent cookie name and value as string literals instead of importing the constants from the production module. A rename or value change would allow the test to pass while missing the real regression. Fixed by importing the constants.
+4. **3 SUGGESTION items:** cookie maxAge mismatch (alignment suggestion), test 5 implicit dependency (ordering risk), hard DELETE in cleanup without comment (exception not documented). Suggestions deferred or accepted.
+
+**Doc updater (5fce448):** Updated database.md (user_consents table schema, RLS policies), decisions.md (consent gate architecture decision), plan.md (issue status), security.md (consent gate rules). All 4 docs updated in a single commit.
+
+**Test writer:** Created `actions.test.ts` (14 tests covering Server Action happy path and error branches) and `consent-form.test.tsx` (12 tests covering component rendering, checkbox state, and form submission). All 26 tests passing.
+
+**Pattern analysis:**
+
+1. **[REPEAT — 3rd occurrence] Partial fix applied to sibling file group (cross-cutting concern)**
+
+   Prior occurrences:
+   - First (2190dd5): auth error destructuring added to 2 of 8 query files.
+   - Second (83ae098): PR4 getUser hardening missed quiz/session/page.tsx and discard.ts.
+   - Third (this cycle): consent seeding added to ensureTestUser and ensureLoginTestUser in supabase.ts but not to ensureAdminTestUser in admin-supabase.ts.
+
+   This is the third occurrence across three different commits and two different feature areas (security hardening, test fixture seeding). Count now 3. The pattern has a consistent root cause: the author's mental model of "which files to update" is scoped to the file or directory already being edited, not to the full set of files sharing the same semantic contract (all user-provisioning helpers). The third occurrence is sufficient to warrant a concrete recommendation — not a rule change (single occurrence rule applies to rule *changes*, not to crystallising a RULE CANDIDATE already at count 2 into a named recommendation). Action: log the proposed convention in code-style.md agent memory or CLAUDE.md as a workflow note: "When updating any function that provisions a user, fixture, or test record, grep for all sibling functions sharing that semantic purpose and update them all in the same commit."
+
+   The frequency table row "Partial fix applied to sibling file group" is updated from count 2 to count 3.
+
+2. **[NEW] Hardcoded cookie/constant values in tests instead of importing source constants (count 1)**
+
+   proxy.test.ts used string literals for the consent cookie name and value that are defined as exported constants in the production module. When the constant changes, the test continues passing on its stale mock rather than catching the regression. First occurrence — log and watch. Rule change requires 2+ occurrences across different commits.
+
+3. **[NEW] Deep JSX nesting from repeated pattern — 3x repetition producing 5-level nest (count 1)**
+
+   consent-form.tsx repeated a checkbox+label+description pattern three times without extraction. The repetition itself compounded nesting depth to 5 levels (limit 3), triggering a BLOCKING code-reviewer finding. The existing "extract at 3 repetitions" rule (code-style.md Section 2) is the correct gate and would have prevented this if followed at authoring time. First occurrence of this specific mechanism (repetition as nesting-depth amplifier) as a named pattern — log and watch. No additional rule needed; the existing extraction rule covers it.
+
+**Actions taken:**
+- Frequency table: "Partial fix applied to sibling file group" count updated from 2 to 3, date updated to 2026-03-27, status note extended with third occurrence description.
+- Frequency table: "Hardcoded cookie/constant values in tests instead of importing source constants" added as new watch row, count 1, 2026-03-27.
+- Frequency table: "Deep JSX nesting from repeated pattern (3x repetition causing 5-level nest)" added as new watch row, count 1, 2026-03-27.
+
+**Recommended changes:**
+
+- [ ] `CLAUDE.md` or agent workflow note — add a convention: "When updating any function that provisions a user, fixture, or test record, grep for ALL functions sharing the same semantic purpose (e.g., all ensureXxxTestUser variants) and update them all in the same commit." This is the actionable form of the "Partial fix applied to sibling file group" RULE CANDIDATE at count 3. This is a workflow note, not a code-style rule change, so it is appropriate without requiring a fourth occurrence. The orchestrator must decide whether to add it to CLAUDE.md or leave it as a named convention in agent memory.
+
+**No code-style.md or security.md changes applied this cycle.** Both new patterns are first occurrences. The sibling-group pattern is at count 3 but the appropriate response is a workflow note, not a mechanical style rule.
+
+**False positives:** None detected. The 3 SUGGESTION items from semantic-reviewer were correctly characterised — the maxAge mismatch and test ordering suggestions are valid quality improvements; the hard DELETE cleanup comment is an exception already documented in the patterns file (row 68). None warrants a false-positive classification.
+
+**Positive signals:**
+- Both test files (actions.test.ts + consent-form.test.tsx) shipped in the same cycle with 26 passing tests — test-writer produced complete coverage without a second fix cycle.
+- Doc updater captured all 4 documents that needed updating (database.md, decisions.md, plan.md, security.md) in a single doc commit — no documentation drift.
+- The fix commit b92ff08 addressed both the CRITICAL and the ISSUE (hardcoded constants) in a single pass — no residual findings after the fix cycle.
+- The BLOCKING code-reviewer finding (nesting depth) was resolved cleanly by the extraction of ConsentCheckbox — the sub-component is reusable and named accurately.
+- The idempotency ISSUE (duplicate consent rows on retry) was correctly deferred to a follow-up migration rather than attempting an in-cycle schema change — scope discipline maintained.
+
+---
+
+### 2026-03-27 — CodeRabbit PR #385 fix cycle (commits 227c976, 27c15b7, a6b9775)
+
+**Context:** Three-commit sequence following CodeRabbit review of the GDPR consent gate PR (#385). 227c976 addressed 5 CodeRabbit findings (cookie maxAge 86400 → 31536000, a11y label element for ConsentCheckbox, E2E version constant imports in supabase.ts, docs). 27c15b7 added the missing CURRENT_ANALYTICS_VERSION constant (the semantic-reviewer ISSUE from 227c976) plus 2 tests for the maxAge and analytics version assertion. a6b9775 committed agent memory updates and the analytics version test.
+
+**Commit hash (HEAD at learner run):** a6b9775
+
+**Code reviewer (all 3 commits):** 0 BLOCKING, 0 WARNING. Clean across the full cycle.
+
+**Semantic reviewer (227c976):** 0 CRITICAL, 1 ISSUE, 2 SUGGESTION.
+1. **Hardcoded 'v1.0' string literal for analytics version in actions.ts — ISSUE, real, fixed in 27c15b7.** `recordConsent` passed a hardcoded `'v1.0'` string to the `record_consent` RPC for `p_document_version` instead of importing `CURRENT_ANALYTICS_VERSION` from `lib/consent/versions.ts`. The TOS and privacy versions were correctly using their constants; the analytics version was the only one left as a literal. When `CURRENT_ANALYTICS_VERSION` is bumped, the RPC call would silently record the wrong version. Fixed by adding `CURRENT_ANALYTICS_VERSION` to `versions.ts` and importing it in `actions.ts`.
+2. **SUGGESTION 1 (carry-forward):** Record analytics refusal as a separate consent row with `accepted: false` — advisory improvement for audit completeness; deferred.
+3. **SUGGESTION 2 (carry-forward):** Version-aware E2E seeding in `admin-supabase.ts` — advisory improvement; deferred.
+
+**Semantic reviewer (27c15b7):** clean. 2 carry-forward suggestions only (same as above).
+
+**Doc updater (27c15b7):** updated `docs/plan.md` with analytics constant addition. Clean.
+
+**Test writer (227c976):** wrote 13 new tests — 11 for `ConsentCheckbox` component (label association, link rendering, required indicator, description, checkbox interaction, link placement inside label) and 2 for `maxAge` assertion in route.test.ts and actions.test.ts. All passing.
+
+**Test writer (27c15b7):** 1 additional test — analytics version constant assertion in actions.test.ts. Passing.
+
+**Pattern analysis:**
+
+1. **[REPEAT — 2nd occurrence] Hardcoded string literal for value defined as exported constant in production code**
+
+   Prior occurrence: proxy.test.ts (2026-03-27 consent gate cycle) used hardcoded cookie name and value strings instead of importing from the production module.
+
+   This cycle: `actions.ts` used a hardcoded `'v1.0'` string for `p_document_version` on the analytics consent RPC call, even though `CURRENT_TOS_VERSION` and `CURRENT_PRIVACY_VERSION` were correctly imported for the other two consent types. The same cycle also saw `supabase.ts` (E2E helper) corrected to import `CURRENT_TOS_VERSION` and `CURRENT_PRIVACY_VERSION` instead of the prior hardcoded `'v1.0'` strings — another instance of the same root cause.
+
+   Root cause: when a module exports a named constant representing a version, identifier, or key, authors sometimes duplicate the literal value in call sites (both production code and tests) rather than importing the constant. The duplication is invisible to the type-checker (both are valid strings) and to lint rules, but creates a maintenance gap: a version bump updates the constant in one place but all literal duplicates stay stale.
+
+   This is now at count 2 across different commits. Threshold for a recommendation is met.
+
+   Recommended action: add a note to test-writer patterns memory — "When writing tests or E2E helpers for functions that use exported constants (version strings, cookie names, error codes), import the constant from the production module. Do not duplicate the literal value. Duplicated literals pass type-check but silently test stale data after a rename or value bump."
+
+   The same principle applies to production code (actions.ts case), but that is harder to enforce mechanically. No code-style.md rule change proposed — the pattern cannot be caught by Biome or the code-reviewer agent. The semantic-reviewer is the appropriate gate.
+
+   Frequency table row updated: count 1 → 2. Status: RULE CANDIDATE.
+
+2. **[PATTERN CONFIRMED] Test-writer fills coverage gaps introduced by fix commits (positive signal)**
+
+   The ConsentCheckbox component was extracted in the prior fix commit (b92ff08) as a new sub-component. It shipped without its own test file — the test-writer correctly identified this in the 227c976 cycle and produced `consent-checkbox.test.tsx` (11 tests). The 2-test suite for `maxAge` was also written by test-writer in this cycle, not at authoring time.
+
+   This matches the established pattern: new sub-components extracted to fix code-reviewer findings often ship without tests (they were created as structural fixes, not new features), and the test-writer catches them on the next cycle.
+
+   No new frequency table entry needed — this is consistent with the established "New hook/utility file extracted without shipping tests" pattern (count 6, row 58). The gap is structural and accepted: code-reviewer is non-blocking on test coverage warnings; test-writer fills the gap post-commit.
+
+**Patterns checked from frequency table (no count change):**
+
+- "Hardcoded cookie/constant values in tests instead of importing source constants" (count 1 → 2, updated above): RULE CANDIDATE confirmed.
+- "New hook/utility file extracted without shipping tests in the same commit" (count 6, RULE EXISTS): ConsentCheckbox is a new count but consistent with existing tracking. No update to frequency table row (this was a sub-component, not a utility/hook file — borderline, but the test-writer gap-fill confirms the pattern applies).
+- "ZodError escaping Server Action with typed error return type" (count 2, RULE CANDIDATE): not triggered this cycle. No update.
+- "Partial fix applied to sibling file group" (count 3, RULE CANDIDATE): not triggered this cycle. The E2E helper fix (supabase.ts adding CURRENT_TOS_VERSION imports) was complete — no sibling was missed. No update.
+
+**Recommended changes:**
+
+- [ ] `.claude/agent-memory/test-writer/patterns.md` — add note: "Import production constants (version strings, cookie names, error codes) rather than duplicating literal values. Duplicated literals are invisible to type-check but silently test stale data after a rename or value bump."
+
+**Actions taken:**
+- Frequency table: "Hardcoded cookie/constant values in tests instead of importing source constants" count updated 1 → 2, status changed Watch → RULE CANDIDATE, description extended with second occurrence details.
+- No changes to `code-style.md`, `security.md`, or `biome.json` — the pattern is not catchable by Biome or a code-reviewer agent. The semantic-reviewer is the correct gate.
+- The recommended change to test-writer patterns memory is proposed above; orchestrator decides whether to apply it.
+
+**False positives:** none detected. The 2 carry-forward suggestions (record analytics refusal, version-aware admin seeding) are valid quality improvements but correctly deferred — the system is functional and the suggestions are advisory.
+
+**Positive signals:**
+- Code reviewer: 0 BLOCKING, 0 WARNING across all 3 commits in this cycle. The ConsentCheckbox extraction from the prior cycle resolved the nesting depth BLOCKING; no structural regressions introduced.
+- Semantic reviewer clean on 27c15b7 after a single-commit fix for the analytics version ISSUE. Fix cycle closed in one pass.
+- Test-writer produced 14 tests (13 + 1) across two cycles with no test failures and no second iteration needed. Behavior-focused test names throughout (label association, link rendering, required indicator — not "renders checkbox" or "calls handler").
+- The a11y fix (span → label with htmlFor) was the correct repair for the ConsentCheckbox label association gap flagged by CodeRabbit. The `onClick stopPropagation` on the inner link prevents the label click from triggering both the checkbox and the link — a subtle interaction detail handled correctly.
+- All 3 commits have clean Lefthook pre-commit gates (biome + type-check + unit tests). No hook failures in this cycle.
 
 ---

@@ -1,5 +1,10 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  CONSENT_COOKIE,
+  CURRENT_PRIVACY_VERSION,
+  CURRENT_TOS_VERSION,
+} from '@/lib/consent/versions'
 import { proxy } from './proxy'
 
 const mockGetUser = vi.fn()
@@ -36,6 +41,13 @@ vi.mock('@repo/db/middleware', () => ({
 
 function makeRequest(pathname: string, base = 'http://localhost:3000') {
   return new NextRequest(new URL(pathname, base))
+}
+
+/** Create a request with the consent cookie set (simulates a user who has consented). */
+function makeConsentedRequest(pathname: string, base = 'http://localhost:3000') {
+  const request = new NextRequest(new URL(pathname, base))
+  request.cookies.set(CONSENT_COOKIE, `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`)
+  return request
 }
 
 function buildChain(returnValue: unknown) {
@@ -75,13 +87,22 @@ describe('proxy', () => {
     expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/')
   })
 
-  it('passes authenticated requests through to /app/* routes', async () => {
+  it('passes authenticated requests with consent cookie through to /app/* routes', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    const response = await proxy(makeConsentedRequest('/app/dashboard'))
+
+    // Should return the session-refreshed supabase response, not a redirect
+    expect(response).toBe(MOCK_SESSION_RESPONSE)
+  })
+
+  it('redirects authenticated users without consent cookie to /consent', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
 
     const response = await proxy(makeRequest('/app/dashboard'))
 
-    // Should return the session-refreshed supabase response, not a redirect
-    expect(response).toBe(MOCK_SESSION_RESPONSE)
+    expect(response.status).toBe(307)
+    expect(new URL(response.headers.get('location') ?? '').pathname).toBe('/consent')
   })
 
   it('redirects authenticated users on / to /app/dashboard', async () => {
@@ -185,7 +206,7 @@ describe('proxy', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'admin' }, error: null }))
 
-    const response = await proxy(makeRequest('/app/admin/syllabus'))
+    const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
 
     expect(response).toBe(MOCK_SESSION_RESPONSE)
   })
@@ -194,7 +215,7 @@ describe('proxy', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
     mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
 
-    const response = await proxy(makeRequest('/app/admin/syllabus'))
+    const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
 
     expect(response.status).toBe(403)
     const setCookie403 = response.headers.get('set-cookie') ?? ''
@@ -207,7 +228,7 @@ describe('proxy', () => {
       mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
       mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection reset' } }))
 
-      const response = await proxy(makeRequest('/app/admin/syllabus'))
+      const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
 
       expect(response.status).toBe(503)
       const setCookie503 = response.headers.get('set-cookie') ?? ''

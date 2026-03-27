@@ -2,9 +2,10 @@ import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GET } from './route'
 
-const { mockGetUser, mockRpcHelper } = vi.hoisted(() => ({
+const { mockGetUser, mockRpcHelper, mockCheckConsent } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockRpcHelper: vi.fn(),
+  mockCheckConsent: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -20,6 +21,11 @@ vi.mock('@repo/db/server', () => ({
 // what the route handler actually executes.
 vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpcHelper,
+}))
+
+vi.mock('@/lib/consent/check-consent', () => ({
+  checkConsentStatus: mockCheckConsent,
+  buildConsentCookieValue: () => 'v1.0:v1.0',
 }))
 
 function makeRequest(url: string) {
@@ -46,9 +52,10 @@ describe('GET /auth/login-complete', () => {
     expect(mockRpcHelper).not.toHaveBeenCalled()
   })
 
-  it('redirects to /app/dashboard after recording login', async () => {
+  it('redirects to /app/dashboard when consent is satisfied', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     mockRpcHelper.mockResolvedValue({ data: null, error: null })
+    mockCheckConsent.mockResolvedValue('satisfied')
 
     const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
 
@@ -58,16 +65,51 @@ describe('GET /auth/login-complete', () => {
     expect(mockRpcHelper).toHaveBeenCalledWith(expect.anything(), 'record_login', {})
   })
 
-  it('redirects to /app/dashboard even if record_login fails', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('sets consent cookie when consent is satisfied', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    mockRpcHelper.mockResolvedValue({ data: null, error: { message: 'DB connection lost' } })
+    mockRpcHelper.mockResolvedValue({ data: null, error: null })
+    mockCheckConsent.mockResolvedValue('satisfied')
+
+    const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+    const setCookie = response.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('__consent=v1.0%3Av1.0')
+  })
+
+  it('sets consent cookie with a 1-year max-age when consent is satisfied', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockRpcHelper.mockResolvedValue({ data: null, error: null })
+    mockCheckConsent.mockResolvedValue('satisfied')
+
+    const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+    const setCookie = response.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('Max-Age=31536000')
+  })
+
+  it('redirects to /consent when consent is required', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockRpcHelper.mockResolvedValue({ data: null, error: null })
+    mockCheckConsent.mockResolvedValue('required')
 
     const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
 
     expect(response.status).toBe(307)
     const location = new URL(response.headers.get('location') ?? '')
-    expect(location.pathname).toBe('/app/dashboard')
+    expect(location.pathname).toBe('/consent')
+  })
+
+  it('redirects to /consent even if record_login fails and consent is required', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockRpcHelper.mockResolvedValue({ data: null, error: { message: 'DB connection lost' } })
+    mockCheckConsent.mockResolvedValue('required')
+
+    const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+    expect(response.status).toBe(307)
+    const location = new URL(response.headers.get('location') ?? '')
+    expect(location.pathname).toBe('/consent')
     expect(consoleSpy).toHaveBeenCalledWith(
       '[login-complete] record_login RPC failed:',
       'DB connection lost',

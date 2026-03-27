@@ -617,4 +617,95 @@
 
 ---
 
-*Last updated: 2026-03-23*
+## Session 2026-03-27 (Settings page follow-up)
+
+**Commit ee1f7d9**: fix(settings): resolve sonar warnings and coverage gap
+
+- **Files analyzed**: change-password-form.tsx (127L), edit-name-form.tsx (83L), profile-card.tsx (62L) + test files (164L + 114L)
+- **Changes**:
+  1. FormEvent type: `React.FormEvent<HTMLFormElement>` → `React.FormEvent` (removes deprecated generic). Correct fix for TS5.3+ strict typing.
+  2. Readonly props: Added `Readonly<T>` wrapper to EditNameFormProps, ProfileCardProps, StatBlock inline type. Safe TypeScript immutability pattern.
+  3. Test coverage: Added 9 new tests (5 ChangePasswordForm, 4 EditNameForm). Behavior-focused test names, proper mocking of sonner + Server Actions.
+- **Code quality**:
+  - No violations detected
+  - Test naming excellent: "shows an error when new password and confirm password do not match", "calls changePassword and shows success toast on valid submit"
+  - Mocks properly set up with vi.mock() before imports, reset in beforeEach
+  - Error paths covered: validation errors, server errors, thrown exceptions, success paths
+  - Toast notifications tested
+  - All new tests use userEvent.setup() and waitFor() correctly
+  - All form components under 150-line component limit (127L, 83L, 62L)
+- **Pattern preserved**: Test coverage now comprehensive for all form flows (edit name, change password). Clean suite. No regressions.
+- **Status**: CLEAN. No warnings, no blockers.
+
+---
+
+*Last updated: 2026-03-27*
+
+## Session 2026-03-27b (Consent Gate Feature — 75ffa51)
+
+**Commit 75ffa51**: feat(consent): add GDPR consent gate with user_consents table
+
+- **Files analyzed**: 14 files, 1176 lines added, 37 removed
+- **Blocking finding**: 1 — Deep nesting in ConsentForm component
+  - File: apps/web/app/consent/_components/consent-form.tsx (124 lines)
+  - Issue: Max nesting depth = 5 levels (form → outer div → inner div → Checkbox+span → a tag)
+  - Limit: 3 levels per code-style.md Section 3
+  - Affected lines: 54-65 (span containing a tag), repeats 3x for TOS/Privacy/Analytics checkboxes
+  - Fix: Extract ConsentCheckbox sub-component to flatten nesting and reuse pattern
+  - Status: MUST FIX before merge to main
+- **Component structure**:
+  - ConsentForm (124L, 'use client'): manages 4 state vars (acceptedTos, acceptedPrivacy, acceptedAnalytics, error, isPending) + handleSubmit handler. Correct use of React.SubmitEvent<HTMLFormElement> (not deprecated React.FormEvent). Zod validation in Server Action, not component.
+  - ConsentPage (11L): pure composition, uses ConsentForm. Correct pattern.
+- **Actions file**: recordConsent (86L, actions.ts)
+  - Within 100-line limit
+  - 3 RPC calls: record_consent for TOS, Privacy, Analytics (only if accepted)
+  - All error paths logged to console.error with action name prefix
+  - Error messages sanitized (generic string returned to client, not raw DB error)
+  - Zod validation on input: ConsentSchema.safeParse(raw)
+  - Cookie setting: proper flags (httpOnly, secure in prod, sameSite: 'lax', maxAge: 86400, path: '/')
+  - Pattern: Destructure { error } from RPC results ✓
+  - Mutation error handling comprehensive ✓
+- **Utilities**: checkConsentStatus + buildConsentCookieValue (check-consent.ts, 25L)
+  - New file, includes co-located test file
+  - check-consent.ts exported 2 functions: checkConsentStatus (async RPC call) + buildConsentCookieValue (pure function)
+  - check-consent.test.ts exists: 61 lines, 12 test cases covering both functions ✓
+  - Tests cover: happy path, error cases (empty array, RPC error, null data), buildConsentCookieValue
+  - Status: CORRECT — test file co-located, comprehensive coverage
+- **Proxy middleware** (proxy.ts, 94L, updated)
+  - Consent gate check added (lines 47-56 in diff)
+  - Cookie-based validation: compares __consent cookie against expected version string
+  - Redirects to /consent if mismatch (avoids DB hit per request) ✓
+  - Positioned correctly: after auth check, before admin route check
+  - Status: CORRECT — minimal, efficient gate
+- **E2E tests** (consent.spec.ts, 205L, NEW)
+  - Test file exempt from line limits (under 500-line exemption)
+  - Comprehensive test suite: consent gate redirects, form submission, cookie setting, teardown cleanup
+  - Helper function ensureConsentTestUser: creates test user, clears existing consent records (idempotent setup)
+  - Flow: login → consent gate fires → user fills form → consent recorded → redirects to dashboard
+  - Status: GOOD
+- **Unit tests updated**: login-complete/route.test.ts
+  - Added mock for checkConsentStatus (previously not mocked)
+  - Tests updated to verify consent cookie set when satisfied
+  - Added test for "redirects to consent when not satisfied"
+  - All error paths covered
+  - Status: GOOD
+- **Code style compliance**:
+  - ✓ No barrel files
+  - ✓ No useEffect for data fetching (no useEffect at all except state initialization in form)
+  - ✓ No business logic in components (all in Server Actions/utilities)
+  - ✓ Naming correct: ConsentForm (PascalCase), consent-form.tsx (kebab-case), recordConsent (camelCase action)
+  - ✓ Zod validation present on Server Action
+  - ✓ Error messages sanitized
+  - ✓ All errors logged
+  - ✗ Nesting depth violation in ConsentForm (see BLOCKING finding above)
+- **Migration** (20260327000057_user_consents.sql, 127L)
+  - Append-only table: user_id, document_type, document_version, accepted, ip_address, user_agent, created_at
+  - Immutable RLS: no UPDATE, no DELETE (append-only compliance)
+  - SECURITY DEFINER functions: record_consent(), check_consent_status()
+  - All functions include auth.uid() check + SET search_path = public ✓
+  - Soft-delete guards applied: WHERE deleted_at IS NULL in check functions ✓
+  - Status: Within 300-line migration limit ✓
+- **Patterns**:
+  - Repetition of 3 RPC calls (TOS, Privacy, Analytics) with similar error handling. At 3 instances (at threshold). Watch for 4th if consent types expand.
+  - Cookie-based gate pattern is clean and efficient (no DB hit per request after first consent gate pass).
+- **Status**: 1 BLOCKING violation (nesting depth). Must fix ConsentForm before merge.

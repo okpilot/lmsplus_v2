@@ -3218,3 +3218,210 @@ To test error paths, set the relevant table's `error` field to `{ message: '...'
 `error: null` — the production code typically guards `if (error || !data)`.
 
 Used in `lib/queries/profile.test.ts` for `getProfileData()`.
+
+---
+
+## Files tested in consent feature commit (2026-03-27)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/consent/actions.ts` | `actions.test.ts` | Server Action; Zod validation, auth guard, sequential RPC calls (TOS/Privacy/analytics), header forwarding, cookie set, error paths |
+| `apps/web/app/consent/_components/consent-form.tsx` | `consent-form.test.tsx` | Client component; checkbox enablement logic, success navigation, server error display, fallback error, error clear on retry |
+
+### Mocking `next/headers` factories that survive `vi.resetAllMocks()` (2026-03-27)
+
+`next/headers` exports two async factory functions: `cookies()` and `headers()`. Each returns
+an object with methods (`set`, `get`). The problem: if you mock them with
+`vi.fn().mockResolvedValue({ get: mockHeadersGet })`, then `vi.resetAllMocks()` strips
+both the factory implementation AND the `mockHeadersGet` return value, leaving
+`headers()` returning `undefined` and crashing `headerStore.get(...)`.
+
+**Correct pattern:** hoist ALL mocks (including the factories) via `vi.hoisted`, then
+restore each factory's return value inside `beforeEach`:
+
+```ts
+const { mockGetUser, mockRpc, mockCookiesSet, mockCookies, mockHeaders } = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockRpc: vi.fn(),
+  mockCookiesSet: vi.fn(),
+  mockCookies: vi.fn(),
+  mockHeaders: vi.fn(),
+}))
+
+vi.mock('next/headers', () => ({
+  cookies: mockCookies,
+  headers: mockHeaders,
+}))
+
+// Helper to (re)wire headers() with a fresh get mock after resetAllMocks:
+function resetHeadersWithDefaultGet(impl?: (header: string) => string | null) {
+  const get = vi.fn().mockImplementation(impl ?? (() => null))
+  mockHeaders.mockResolvedValue({ get })
+  return get
+}
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  mockCookies.mockResolvedValue({ set: mockCookiesSet })
+  resetHeadersWithDefaultGet()
+})
+```
+
+For tests that need custom header values, call `resetHeadersWithDefaultGet(impl)` inside the test
+body — this overwrites the default from `beforeEach` for that test only:
+
+```ts
+it('forwards IP and user-agent headers', async () => {
+  resetHeadersWithDefaultGet((header) => {
+    if (header === 'x-forwarded-for') return '1.2.3.4'
+    if (header === 'user-agent') return 'TestAgent/1.0'
+    return null
+  })
+  // ...
+})
+```
+
+**Key insight:** `vi.mock()` factories capture the hoisted `vi.fn()` reference permanently.
+`vi.resetAllMocks()` resets the fn's call history and return value but leaves the reference
+intact. Re-calling `mockResolvedValue()` in `beforeEach` restores the implementation for
+every test. This is the only way to make `next/headers` mocks survive `resetAllMocks()`.
+
+### Sequential RPC call tests (multiple `mockRpc.mockResolvedValueOnce` calls)
+
+When a Server Action calls the same RPC function multiple times in sequence (e.g., once for
+TOS, once for Privacy, once for analytics), use `mockResolvedValueOnce` to control each:
+
+```ts
+// TOS succeeds, Privacy fails, analytics never reached:
+mockRpc
+  .mockResolvedValueOnce({ data: null, error: null })                      // TOS — success
+  .mockResolvedValueOnce({ data: null, error: { message: 'db timeout' } }) // Privacy — fail
+
+// Assert cookie was NOT set (execution stopped before cookie write):
+expect(mockCookiesSet).not.toHaveBeenCalled()
+```
+
+To assert that a specific RPC call type was NOT made, filter `mock.calls` by argument:
+```ts
+const analyticsCalls = mockRpc.mock.calls.filter(
+  (call: [string, Record<string, unknown>]) => call[1]?.p_document_type === 'cookie_analytics',
+)
+expect(analyticsCalls).toHaveLength(0)
+```
+
+### ConsentForm: submit button disabled until BOTH required checkboxes are checked
+
+The `canSubmit = acceptedTos && acceptedPrivacy && !isPending` guard means:
+- Only TOS checked → button disabled (test this)
+- Only Privacy checked → button disabled (test this)
+- Both TOS + Privacy → button enabled
+- Analytics is optional; checking/unchecking it does not affect enablement
+
+Testing pattern: render → click one required checkbox → assert disabled; click other → assert enabled.
+
+## Files tested in commit c9caf51 / post-commit for feat/gdpr-consent-gate (2026-03-27)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/consent/_components/consent-checkbox.tsx` | `consent-checkbox.test.tsx` | New file; label htmlFor, link attrs, required indicator, description, checkbox toggle, disabled |
+| `apps/web/app/auth/login-complete/route.ts` | `route.test.ts` | Extended: maxAge=31536000 in set-cookie header |
+| `apps/web/app/consent/actions.ts` | `actions.test.ts` | Extended: maxAge=31536000 in cookieStore.set call |
+
+## Files tested for CURRENT_ANALYTICS_VERSION / post-commit for feat/gdpr-consent-gate (2026-03-27)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/consent/versions.ts` | `apps/web/app/consent/actions.test.ts` | Extended: asserts `p_document_version: 'v1.0'` passed to analytics RPC call |
+
+### Constant value coverage — ensure named constants flow through to RPC calls
+
+When a named constant (e.g. `CURRENT_ANALYTICS_VERSION`) is added and used as a field value
+in an RPC call, add a test that asserts the literal value appears in the RPC payload:
+
+```ts
+it('passes the current analytics version constant as p_document_version', async () => {
+  // ...setup...
+  expect(mockRpc).toHaveBeenCalledWith(
+    'record_consent',
+    expect.objectContaining({
+      p_document_type: 'cookie_analytics',
+      p_document_version: 'v1.0',   // CURRENT_ANALYTICS_VERSION
+    }),
+  )
+})
+```
+
+This catches partial-constant adoption: the commit that introduced `CURRENT_ANALYTICS_VERSION`
+fixed a hardcoded `'v1.0'` literal in `actions.ts` but the existing analytics test only
+asserted `p_document_type` and `p_accepted`, leaving `p_document_version` unchecked. A future
+version bump would have silently written the wrong version to the audit log with no failing test.
+
+### Asserting set-cookie header Max-Age (route handler cookies)
+
+When a route handler sets a cookie via `response.cookies.set(name, value, { maxAge: N })`, the
+header is serialised as `Max-Age=N` (capital M, capital A). Assert with the capitalised form:
+
+```ts
+const setCookie = response.headers.get('set-cookie') ?? ''
+expect(setCookie).toContain('Max-Age=31536000')
+```
+
+Do NOT use lowercase `max-age=...` — the Set-Cookie header uses Pascal-case attribute names.
+
+### Asserting maxAge in Server Action cookie calls (next/headers cookieStore)
+
+When a Server Action calls `cookieStore.set(name, value, options)`, assert the `maxAge` option
+using `expect.objectContaining`:
+
+```ts
+expect(mockCookiesSet).toHaveBeenCalledWith(
+  '__consent',
+  'v1.0:v1.0',
+  expect.objectContaining({ maxAge: 31_536_000 }),
+)
+```
+
+### Testing ConsentCheckbox (Base UI checkbox with label association)
+
+`ConsentCheckbox` renders a Base UI `<Checkbox>` (which internally has a hidden `<input>` with
+the `id` prop) and a `<label htmlFor={id}>`. Useful assertions:
+
+- `htmlFor` association: `label.closest('label').toHaveAttribute('for', id)`
+- Toggle via `getByRole('checkbox')` (Base UI exposes role="checkbox" on the span element)
+- Disabled: clicking `getByRole('checkbox')` does not call `onCheckedChange`
+- Link placement: `expect(label).toContainElement(link)` to verify structural nesting
+
+The `onClick={e => e.stopPropagation()}` on the link inside the label prevents the label click
+from toggling the checkbox in browsers, but this mechanism is NOT accurately modelled in jsdom —
+jsdom follows `htmlFor` association regardless of `stopPropagation`. Do NOT write a test
+asserting that clicking the link does NOT call `onCheckedChange` — it will be flaky/wrong in jsdom.
+Instead, assert structural nesting (`label contains link`) which tests the intent.
+
+### Import production constants — never duplicate literal values (RULE CANDIDATE, 2026-03-27)
+
+When a production module exports a named constant (version string, cookie name, error code, URL
+prefix), test files and E2E helpers MUST import the constant rather than duplicating the literal.
+
+```ts
+// WRONG — duplicates the literal; test passes even after constant is renamed or value changes
+expect(mockRpc).toHaveBeenCalledWith('record_consent',
+  expect.objectContaining({ p_document_version: 'v1.0' }))
+
+// CORRECT — imports the constant so any version bump causes the test to assert the new value
+import { CURRENT_ANALYTICS_VERSION } from '@/lib/consent/versions'
+expect(mockRpc).toHaveBeenCalledWith('record_consent',
+  expect.objectContaining({ p_document_version: CURRENT_ANALYTICS_VERSION }))
+```
+
+The same rule applies to E2E helpers that seed DB fixtures. Use the exported constant, not
+a hardcoded string.
+
+**Why it matters:** duplicated literals are invisible to TypeScript (both are valid strings)
+and to Biome. When the constant is bumped, all duplicated literals stay stale. The test
+continues to pass, providing false assurance. The production code writes the new value to the
+DB; the test is asserting the old value — the regression goes undetected.
+
+**Pattern source:** two occurrences across different commits:
+- proxy.test.ts (2026-03-27 consent gate): hardcoded cookie name + value literals
+- actions.ts + supabase.ts E2E helper (2026-03-27 PR #385 fix): hardcoded `'v1.0'` version strings
+
