@@ -28,7 +28,7 @@ BEGIN
     q.question_image_url,
     jsonb_agg(
       jsonb_build_object('id', opt->>'id', 'text', opt->>'text')
-      ORDER BY opt->>'id'
+      ORDER BY random()
     ) AS options,
     s.code    AS subject_code,
     t.name    AS topic_name,
