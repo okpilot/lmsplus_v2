@@ -150,13 +150,15 @@ test.describe('Settings — Change Password', () => {
       return
     }
     const user = data?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
-    if (user) {
-      const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
-        password: TEST_PASSWORD,
-      })
-      if (updateError) {
-        console.error('[afterAll] updateUserById failed:', updateError.message)
-      }
+    if (!user) {
+      console.warn('[afterAll] Test user not found:', TEST_EMAIL)
+      return
+    }
+    const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
+      password: TEST_PASSWORD,
+    })
+    if (updateError) {
+      console.error('[afterAll] updateUserById failed:', updateError.message)
     }
   })
 })
