@@ -550,6 +550,19 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 **Decision**: All authenticated users can see all non-deleted comments on any question. No org-scoping or "questions I've answered" restriction on comment visibility.
 **Rationale**: Simplifies RLS and encourages knowledge sharing across the student cohort. If multi-tenancy is added later, comments will be scoped at that point.
 
+### Decision 32: GDPR consent gate — append-only user_consents table + version-based re-consent
+
+**Date**: 2026-03-27
+**Context**: Legal compliance (CAA, GDPR) requires tracking when users accept Terms of Service and Privacy Policy. Must support document versioning so that releasing new ToS/Privacy terms triggers re-consent for all users.
+**Decision**:
+- `user_consents` table: immutable append-only (identical pattern to `audit_events`). Stores every consent decision with document type, version, accepted flag, timestamp, IP, and user agent.
+- Two SECURITY DEFINER RPCs: `record_consent()` (append only, called by `/consent` Server Action) and `check_consent_status()` (query acceptances for current versions).
+- Consent gate in `proxy.ts` (middleware): cookie-based check (`__consent = "v1.0:v1.0"`). No DB hit per request. Token format: `tos_version:privacy_version` (both required).
+- First-login redirect: `/auth/login-complete` calls `check_consent_status()` → if missing or versions stale → redirect to `/consent`.
+- `/consent` page: three checkboxes (TOS required, privacy required, cookie optional). Continue button disabled until both required boxes checked. Server Action calls `record_consent()` three times (one per document), sets cookie with current versions, redirects to `/app`.
+- Re-consent trigger: bump version in `lib/consent/versions.ts` (CURRENT_TOS_VERSION, CURRENT_PRIVACY_VERSION) → cookie mismatch → `/consent` redirect on next request.
+**Rationale**: Audit trail for legal compliance. Append-only table prevents accidental history loss. RPCs enforce single path for writes. Middleware cookie check avoids DB load per request. Version strings in cookie allow fast re-consent detection without JOIN.
+
 ---
 
-*Last updated: 2026-03-20 — Decisions 30-31: hard-delete comments + org-wide comment visibility*
+*Last updated: 2026-03-27 — Decision 32: GDPR consent + user_consents table (migration 057, closes #182)*

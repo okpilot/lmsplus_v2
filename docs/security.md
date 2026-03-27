@@ -556,13 +556,23 @@ Any Server Action that operates on a quiz session or its questions must verify *
 
 We store student PII: email address, full name, learning history, exam scores.
 
+### Consent Tracking (GDPR Legal Compliance)
+
+**`user_consents` table (migration 057):**
+- Immutable append-only table. Stores every consent decision: Terms of Service, Privacy Policy, and Cookie Analytics — with version, acceptance flag, timestamp, IP, and user agent.
+- Direct client inserts blocked by RLS. Writes via `record_consent()` SECURITY DEFINER RPC only.
+- First-login: `/auth/login-complete` calls `check_consent_status()` → if user hasn't accepted current TOS/Privacy versions → redirect to `/consent` page.
+- `/consent` page: three checkboxes (TOS required, Privacy required, Analytics optional). Server Action calls `record_consent()` three times, sets cookie with version tokens, redirects to `/app`.
+- Re-consent trigger: bump `CURRENT_TOS_VERSION` or `CURRENT_PRIVACY_VERSION` in `lib/consent/versions.ts` → cookie mismatch on next request → `/consent` redirect (no DB hit in middleware, check is cookie-based).
+- **Rationale:** Audit trail for legal proof of consent. Append-only pattern prevents accidental history loss. Version strings allow fast re-consent detection.
+
 ### Required Capabilities (build before first live student)
 - **Data export:** instructor can export all data for a specific student (`/admin/students/:id/export`)
 - **Data deletion:** instructor can delete a student's account and all associated data (`/admin/students/:id/delete`) — cascades on `users.id`
 - **Retention policy:** student data retained for 3 years after last activity (EASA training record requirement), then auto-deleted via scheduled Supabase function
 
 ### Data Minimisation
-- Do not store IP addresses in `student_responses` — only in `audit_events`
+- Do not store IP addresses in `student_responses` — only in `audit_events` and `user_consents` (for consent proof)
 - Do not store device fingerprints
 - `full_name` is optional — require only `email` at signup
 

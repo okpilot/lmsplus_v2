@@ -3218,3 +3218,104 @@ To test error paths, set the relevant table's `error` field to `{ message: '...'
 `error: null` — the production code typically guards `if (error || !data)`.
 
 Used in `lib/queries/profile.test.ts` for `getProfileData()`.
+
+---
+
+## Files tested in consent feature commit (2026-03-27)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/consent/actions.ts` | `actions.test.ts` | Server Action; Zod validation, auth guard, sequential RPC calls (TOS/Privacy/analytics), header forwarding, cookie set, error paths |
+| `apps/web/app/consent/_components/consent-form.tsx` | `consent-form.test.tsx` | Client component; checkbox enablement logic, success navigation, server error display, fallback error, error clear on retry |
+
+### Mocking `next/headers` factories that survive `vi.resetAllMocks()` (2026-03-27)
+
+`next/headers` exports two async factory functions: `cookies()` and `headers()`. Each returns
+an object with methods (`set`, `get`). The problem: if you mock them with
+`vi.fn().mockResolvedValue({ get: mockHeadersGet })`, then `vi.resetAllMocks()` strips
+both the factory implementation AND the `mockHeadersGet` return value, leaving
+`headers()` returning `undefined` and crashing `headerStore.get(...)`.
+
+**Correct pattern:** hoist ALL mocks (including the factories) via `vi.hoisted`, then
+restore each factory's return value inside `beforeEach`:
+
+```ts
+const { mockGetUser, mockRpc, mockCookiesSet, mockCookies, mockHeaders } = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockRpc: vi.fn(),
+  mockCookiesSet: vi.fn(),
+  mockCookies: vi.fn(),
+  mockHeaders: vi.fn(),
+}))
+
+vi.mock('next/headers', () => ({
+  cookies: mockCookies,
+  headers: mockHeaders,
+}))
+
+// Helper to (re)wire headers() with a fresh get mock after resetAllMocks:
+function resetHeadersWithDefaultGet(impl?: (header: string) => string | null) {
+  const get = vi.fn().mockImplementation(impl ?? (() => null))
+  mockHeaders.mockResolvedValue({ get })
+  return get
+}
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  mockCookies.mockResolvedValue({ set: mockCookiesSet })
+  resetHeadersWithDefaultGet()
+})
+```
+
+For tests that need custom header values, call `resetHeadersWithDefaultGet(impl)` inside the test
+body — this overwrites the default from `beforeEach` for that test only:
+
+```ts
+it('forwards IP and user-agent headers', async () => {
+  resetHeadersWithDefaultGet((header) => {
+    if (header === 'x-forwarded-for') return '1.2.3.4'
+    if (header === 'user-agent') return 'TestAgent/1.0'
+    return null
+  })
+  // ...
+})
+```
+
+**Key insight:** `vi.mock()` factories capture the hoisted `vi.fn()` reference permanently.
+`vi.resetAllMocks()` resets the fn's call history and return value but leaves the reference
+intact. Re-calling `mockResolvedValue()` in `beforeEach` restores the implementation for
+every test. This is the only way to make `next/headers` mocks survive `resetAllMocks()`.
+
+### Sequential RPC call tests (multiple `mockRpc.mockResolvedValueOnce` calls)
+
+When a Server Action calls the same RPC function multiple times in sequence (e.g., once for
+TOS, once for Privacy, once for analytics), use `mockResolvedValueOnce` to control each:
+
+```ts
+// TOS succeeds, Privacy fails, analytics never reached:
+mockRpc
+  .mockResolvedValueOnce({ data: null, error: null })                      // TOS — success
+  .mockResolvedValueOnce({ data: null, error: { message: 'db timeout' } }) // Privacy — fail
+
+// Assert cookie was NOT set (execution stopped before cookie write):
+expect(mockCookiesSet).not.toHaveBeenCalled()
+```
+
+To assert that a specific RPC call type was NOT made, filter `mock.calls` by argument:
+```ts
+const analyticsCalls = mockRpc.mock.calls.filter(
+  (call: [string, Record<string, unknown>]) => call[1]?.p_document_type === 'cookie_analytics',
+)
+expect(analyticsCalls).toHaveLength(0)
+```
+
+### ConsentForm: submit button disabled until BOTH required checkboxes are checked
+
+The `canSubmit = acceptedTos && acceptedPrivacy && !isPending` guard means:
+- Only TOS checked → button disabled (test this)
+- Only Privacy checked → button disabled (test this)
+- Both TOS + Privacy → button enabled
+- Analytics is optional; checking/unchecking it does not affect enablement
+
+Testing pattern: render → click one required checkbox → assert disabled; click other → assert enabled.
+
