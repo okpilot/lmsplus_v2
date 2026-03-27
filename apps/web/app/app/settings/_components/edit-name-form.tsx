@@ -37,6 +37,7 @@ export function EditNameForm({ currentName }: EditNameFormProps) {
       try {
         const res = await updateDisplayName({ fullName: result.data.fullName })
         if (res.success) {
+          setName(result.data.fullName)
           setSavedName(result.data.fullName)
           toast.success('Name updated')
         } else {

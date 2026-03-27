@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -60,6 +60,10 @@ beforeEach(() => {
 
 describe('updateDisplayName', () => {
   describe('input validation (runs before auth)', () => {
+    afterEach(() => {
+      expect(mockGetUser).not.toHaveBeenCalled()
+    })
+
     it('returns failure when fullName is missing', async () => {
       const result = await updateDisplayName({})
 

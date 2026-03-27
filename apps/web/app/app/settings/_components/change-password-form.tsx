@@ -47,6 +47,7 @@ export function ChangePasswordForm() {
         })
         if (res.success) {
           toast.success('Password updated')
+          setShowPassword(false)
           setCurrentPassword('')
           setPassword('')
           setConfirmPassword('')
