@@ -6,7 +6,6 @@ import { z } from 'zod'
 import { buildConsentCookieValue } from '@/lib/consent/check-consent'
 import {
   CONSENT_COOKIE,
-  CURRENT_ANALYTICS_VERSION,
   CURRENT_PRIVACY_VERSION,
   CURRENT_TOS_VERSION,
 } from '@/lib/consent/versions'
@@ -15,7 +14,6 @@ import { rpc } from '@/lib/supabase-rpc'
 const ConsentSchema = z.object({
   acceptedTos: z.literal(true, { message: 'You must accept the Terms of Service' }),
   acceptedPrivacy: z.literal(true, { message: 'You must accept the Privacy Policy' }),
-  acceptedAnalytics: z.boolean(),
 })
 
 type ActionResult = { success: true } | { success: false; error: string }
@@ -58,20 +56,6 @@ export async function recordConsent(raw: unknown): Promise<ActionResult> {
   if (privacyError) {
     console.error('[recordConsent] Privacy record error:', privacyError.message)
     return { success: false, error: 'Failed to record consent' }
-  }
-
-  if (parsed.data.acceptedAnalytics) {
-    const { error: analyticsError } = await rpc(supabase, 'record_consent', {
-      p_document_type: 'cookie_analytics',
-      p_document_version: CURRENT_ANALYTICS_VERSION,
-      p_accepted: true,
-      p_ip_address: ipAddress,
-      p_user_agent: userAgent,
-    })
-    if (analyticsError) {
-      console.error('[recordConsent] Analytics record error:', analyticsError.message)
-      return { success: false, error: 'Failed to record consent' }
-    }
   }
 
   const cookieStore = await cookies()

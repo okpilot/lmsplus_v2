@@ -399,13 +399,13 @@ Per-question discussion threads. Students and admins can post comments on any qu
 
 ### user_consents
 
-Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of Service, Privacy Policy, and Cookie Analytics documents across versions. Accessed via two SECURITY DEFINER RPCs: `record_consent()` and `check_consent_status()`.
+Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of Service and Privacy Policy documents across versions. Accessed via two SECURITY DEFINER RPCs: `record_consent()` and `check_consent_status()`.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PK, default gen_random_uuid() |
 | user_id | UUID | FK → users(id), NOT NULL |
-| document_type | TEXT | NOT NULL, CHECK value IN ('terms_of_service', 'privacy_policy', 'cookie_analytics') |
+| document_type | TEXT | NOT NULL, CHECK value IN ('terms_of_service', 'privacy_policy') |
 | document_version | TEXT | NOT NULL, CHECK length 1–20 chars (e.g. 'v1.0') |
 | accepted | BOOLEAN | NOT NULL |
 | ip_address | TEXT | nullable, optional request source |
@@ -1323,7 +1323,7 @@ $$;
 
 #### `record_consent` — GDPR consent audit logging
 
-Records a single consent decision (TOS acceptance, privacy policy acceptance, or cookie analytics opt-in). Called from `/consent` Server Action after user submits the consent form. All writes to `user_consents` must go through this RPC — direct inserts are blocked by RLS.
+Records a single consent decision (TOS acceptance, privacy policy acceptance). Called from `/consent` Server Action after user submits the consent form. All writes to `user_consents` must go through this RPC — direct inserts are blocked by RLS.
 
 **Security:**
 - `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
@@ -1335,7 +1335,7 @@ Records a single consent decision (TOS acceptance, privacy policy acceptance, or
 
 ```sql
 CREATE FUNCTION record_consent(
-  p_document_type    TEXT,      -- 'terms_of_service', 'privacy_policy', 'cookie_analytics'
+  p_document_type    TEXT,      -- 'terms_of_service', 'privacy_policy'
   p_document_version TEXT,      -- e.g. 'v1.0'
   p_accepted         BOOLEAN,   -- true = accepted, false = rejected
   p_ip_address       TEXT DEFAULT NULL,
@@ -1354,7 +1354,7 @@ BEGIN
   END IF;
 
   -- Validate document_type (defense-in-depth)
-  IF p_document_type NOT IN ('terms_of_service', 'privacy_policy', 'cookie_analytics') THEN
+  IF p_document_type NOT IN ('terms_of_service', 'privacy_policy') THEN
     RAISE EXCEPTION 'Invalid document_type: %', p_document_type;
   END IF;
 
@@ -1521,4 +1521,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-26 (migration 056: users UPDATE RLS for student profile editing) | Companion: docs/security.md*
+*Last updated: 2026-03-27 (migration 058: removed cookie_analytics consent type) | Companion: docs/security.md*

@@ -559,10 +559,11 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Two SECURITY DEFINER RPCs: `record_consent()` (append only, called by `/consent` Server Action) and `check_consent_status()` (query acceptances for current versions).
 - Consent gate in `proxy.ts` (middleware): cookie-based check (`__consent = "v1.0:v1.0"`). No DB hit per request. Token format: `tos_version:privacy_version` (both required).
 - First-login redirect: `/auth/login-complete` calls `check_consent_status()` → if missing or versions stale → redirect to `/consent`.
-- `/consent` page: three checkboxes (TOS required, privacy required, cookie optional). Continue button disabled until both required boxes checked. Server Action calls `record_consent()` three times (one per document), sets cookie with current versions, redirects to `/app`.
+- `/consent` page: two checkboxes (TOS required, privacy required). Continue button disabled until both boxes checked. Server Action calls `record_consent()` twice (one per document), sets cookie with current versions, redirects to `/app/dashboard`.
 - Re-consent trigger: bump version in `lib/consent/versions.ts` (CURRENT_TOS_VERSION, CURRENT_PRIVACY_VERSION) → cookie mismatch → `/consent` redirect on next request.
+- Legal pages: `/legal/terms` (plain-language ToS) and `/legal/privacy` (plain-language GDPR privacy policy) linked from login/consent/forgot-password footers and consent form.
 **Rationale**: Audit trail for legal compliance. Append-only table prevents accidental history loss. RPCs enforce single path for writes. Middleware cookie check avoids DB load per request. Version strings in cookie allow fast re-consent detection without JOIN.
 
 ---
 
-*Last updated: 2026-03-27 — Decision 32: GDPR consent + user_consents table (migration 057, closes #182)*
+*Last updated: 2026-03-27 — Decision 32 refined: removed analytics consent (migration 058, adds legal pages)*

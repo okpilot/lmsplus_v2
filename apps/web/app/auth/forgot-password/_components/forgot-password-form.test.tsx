@@ -92,6 +92,18 @@ describe('ForgotPasswordForm', () => {
     expect(link).toHaveAttribute('href', '/')
   })
 
+  it('renders a "Terms of Service" link to /legal/terms', () => {
+    render(<ForgotPasswordForm />)
+    const link = screen.getByRole('link', { name: /terms of service/i })
+    expect(link).toHaveAttribute('href', '/legal/terms')
+  })
+
+  it('renders a "Privacy Policy" link to /legal/privacy', () => {
+    render(<ForgotPasswordForm />)
+    const link = screen.getByRole('link', { name: /privacy policy/i })
+    expect(link).toHaveAttribute('href', '/legal/privacy')
+  })
+
   it('shows an error when resetPasswordForEmail throws an exception', async () => {
     mockResetPasswordForEmail.mockRejectedValue(new Error('Network failure'))
     const user = userEvent.setup()

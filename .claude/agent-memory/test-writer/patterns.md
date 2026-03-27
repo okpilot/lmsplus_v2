@@ -3425,3 +3425,31 @@ DB; the test is asserting the old value — the regression goes undetected.
 - proxy.test.ts (2026-03-27 consent gate): hardcoded cookie name + value literals
 - actions.ts + supabase.ts E2E helper (2026-03-27 PR #385 fix): hardcoded `'v1.0'` version strings
 
+---
+
+### useTransition pending state — second click needs findByRole not getByRole (2026-03-27)
+
+When a component uses `useTransition` and a button label changes during the transition
+(e.g. `"Continue"` → `"Saving..."`), after the first submission resolves the transition
+may not have fully settled by the time the test asserts. Using `getByRole` on the
+button synchronously fails because the button is still labelled `"Saving..."`. Fix by
+using `findByRole` (which retries via `waitFor`) to await the button returning to its
+idle label before the second interaction:
+
+```tsx
+// Fails — transition may not be settled yet
+await user.click(screen.getByRole('button', { name: /continue/i }))
+
+// Correct — awaits transition settlement before clicking
+const continueButton = await screen.findByRole('button', { name: /continue/i })
+await user.click(continueButton)
+```
+
+This is specifically needed in "retry after error" test patterns where:
+1. First submit triggers a `startTransition` call that sets `isPending = true`
+2. The action resolves with an error, `isPending` returns to `false`
+3. The button re-enables and re-labels — but `act()` may not have flushed this yet
+
+**Pattern source:** consent-form.test.tsx (2026-03-27 analytics removal commit) — the
+"clears a previous error when submitting again" test was broken by this race.
+
