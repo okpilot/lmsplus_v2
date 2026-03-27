@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { recordConsent } from '../actions'
+import { ConsentCheckbox } from './consent-checkbox'
 
 export function ConsentForm() {
   const router = useRouter()
@@ -43,65 +43,36 @@ export function ConsentForm() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id="consent-tos"
-                checked={acceptedTos}
-                onCheckedChange={(c) => setAcceptedTos(c === true)}
-                disabled={isPending}
-                aria-label="I accept the Terms of Service"
-              />
-              <span className="text-sm leading-snug">
-                I accept the{' '}
-                <a
-                  href="/legal/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-4 hover:text-primary"
-                >
-                  Terms of Service
-                </a>{' '}
-                <span className="text-destructive">*</span>
-              </span>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id="consent-privacy"
-                checked={acceptedPrivacy}
-                onCheckedChange={(c) => setAcceptedPrivacy(c === true)}
-                disabled={isPending}
-                aria-label="I accept the Privacy Policy"
-              />
-              <span className="text-sm leading-snug">
-                I accept the{' '}
-                <a
-                  href="/legal/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-4 hover:text-primary"
-                >
-                  Privacy Policy
-                </a>{' '}
-                <span className="text-destructive">*</span>
-              </span>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id="consent-analytics"
-                checked={acceptedAnalytics}
-                onCheckedChange={(c) => setAcceptedAnalytics(c === true)}
-                disabled={isPending}
-                aria-label="I consent to analytics cookies"
-              />
-              <span className="text-sm leading-snug">
-                I consent to analytics cookies
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  Help us improve the platform
-                </span>
-              </span>
-            </div>
+            <ConsentCheckbox
+              id="consent-tos"
+              checked={acceptedTos}
+              onCheckedChange={setAcceptedTos}
+              disabled={isPending}
+              label="I accept the"
+              linkText="Terms of Service"
+              linkHref="/legal/terms"
+              required
+            />
+            <ConsentCheckbox
+              id="consent-privacy"
+              checked={acceptedPrivacy}
+              onCheckedChange={setAcceptedPrivacy}
+              disabled={isPending}
+              label="I accept the"
+              linkText="Privacy Policy"
+              linkHref="/legal/privacy"
+              required
+            />
+            <ConsentCheckbox
+              id="consent-analytics"
+              checked={acceptedAnalytics}
+              onCheckedChange={setAcceptedAnalytics}
+              disabled={isPending}
+              label="I consent to"
+              linkText="analytics cookies"
+              linkHref="/legal/privacy"
+              description="Help us improve the platform"
+            />
           </div>
 
           <p className="text-xs text-muted-foreground">

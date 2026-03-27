@@ -1,4 +1,4 @@
-import { getAdminClient } from './supabase'
+import { ensureConsentRecords, getAdminClient } from './supabase'
 
 export const ADMIN_TEST_EMAIL = 'admin@lmsplus.local'
 export const ADMIN_TEST_PASSWORD = 'admin123!'
@@ -46,6 +46,7 @@ export async function ensureAdminTestUser() {
         throw new Error(`ensureAdminTestUser update role/org: ${updateError.message}`)
     }
 
+    await ensureConsentRecords(admin, userRow.id)
     return { orgId: org.id, userId: userRow.id }
   }
 
@@ -77,5 +78,6 @@ export async function ensureAdminTestUser() {
     )
   }
 
+  await ensureConsentRecords(admin, userId)
   return { orgId: org.id, userId }
 }

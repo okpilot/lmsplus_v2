@@ -1,5 +1,10 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  CONSENT_COOKIE,
+  CURRENT_PRIVACY_VERSION,
+  CURRENT_TOS_VERSION,
+} from '@/lib/consent/versions'
 import { proxy } from './proxy'
 
 const mockGetUser = vi.fn()
@@ -41,7 +46,7 @@ function makeRequest(pathname: string, base = 'http://localhost:3000') {
 /** Create a request with the consent cookie set (simulates a user who has consented). */
 function makeConsentedRequest(pathname: string, base = 'http://localhost:3000') {
   const request = new NextRequest(new URL(pathname, base))
-  request.cookies.set('__consent', 'v1.0:v1.0')
+  request.cookies.set(CONSENT_COOKIE, `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`)
   return request
 }
 

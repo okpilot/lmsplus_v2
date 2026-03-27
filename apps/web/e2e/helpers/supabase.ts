@@ -19,7 +19,10 @@ export function getAdminClient() {
 }
 
 /** Seed consent records so the consent gate doesn't block E2E tests. */
-async function ensureConsentRecords(admin: ReturnType<typeof getAdminClient>, userId: string) {
+export async function ensureConsentRecords(
+  admin: ReturnType<typeof getAdminClient>,
+  userId: string,
+) {
   const { data: existing } = await admin
     .from('user_consents')
     .select('document_type')
