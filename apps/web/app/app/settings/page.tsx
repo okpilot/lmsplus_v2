@@ -1,5 +1,6 @@
 import { getProfileData } from '@/lib/queries/profile'
 import { ChangePasswordForm } from './_components/change-password-form'
+import { DataExportCard } from './_components/data-export-card'
 import { EditNameForm } from './_components/edit-name-form'
 import { ProfileCard } from './_components/profile-card'
 
@@ -17,6 +18,7 @@ export default async function SettingsPage() {
       />
       <EditNameForm currentName={profile.fullName} />
       <ChangePasswordForm />
+      <DataExportCard />
     </div>
   )
 }
