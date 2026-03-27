@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { buildConsentCookieValue } from '@/lib/consent/check-consent'
 import {
   CONSENT_COOKIE,
+  CURRENT_ANALYTICS_VERSION,
   CURRENT_PRIVACY_VERSION,
   CURRENT_TOS_VERSION,
 } from '@/lib/consent/versions'
@@ -62,7 +63,7 @@ export async function recordConsent(raw: unknown): Promise<ActionResult> {
   if (parsed.data.acceptedAnalytics) {
     const { error: analyticsError } = await rpc(supabase, 'record_consent', {
       p_document_type: 'cookie_analytics',
-      p_document_version: 'v1.0',
+      p_document_version: CURRENT_ANALYTICS_VERSION,
       p_accepted: true,
       p_ip_address: ipAddress,
       p_user_agent: userAgent,

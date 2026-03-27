@@ -4,6 +4,17 @@
 
 ## Session Log
 
+### 2026-03-27 — commit 227c976 (fix(consent): address CodeRabbit PR #385 review findings)
+- **Files reviewed:** login-complete/route.ts, consent/actions.ts, consent-checkbox.tsx, e2e/helpers/supabase.ts, docs/plan.md, docs/database.md
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 5
+- **Issue:** `consent/actions.ts:65` — `p_document_version` for `cookie_analytics` is hardcoded as `'v1.0'` literal while TOS and Privacy use named constants from `versions.ts`. No `CURRENT_ANALYTICS_VERSION` constant exists. Inconsistent with the single-source-of-truth pattern established for the other two document types. A future analytics version bump will silently write the wrong version to the audit log.
+- **Suggestion 1:** `consent/actions.ts:62-73` — When `acceptedAnalytics` is `false`, no row is written to `user_consents`. The audit log cannot distinguish "user declined analytics" from "analytics was never presented". GDPR audit completeness requires a `{ accepted: false }` row for explicit rejection. Non-blocking for the gate; blocking for GDPR audit completeness before first live student.
+- **Suggestion 2:** `e2e/helpers/supabase.ts:27-32` — `ensureConsentRecords` checks for existing rows without filtering by `document_version`. A version bump will cause the helper to skip inserting the new version, leaving test users with only old-version consent rows. All non-consent E2E specs will hit the gate on next run after any version bump.
+- **Positive patterns:** Cookie `maxAge` bump applied consistently to both set-sites (login-complete + consent/actions) in the same commit. `<label>` + `stopPropagation` fix is behaviorally correct. All three E2E provisioning helpers now call `ensureConsentRecords` — prior CRITICAL resolved. Named constants now used in E2E seeding for TOS/Privacy versions.
+- **Prior CRITICAL confirmed closed:** `ensureAdminTestUser` (admin-supabase.ts) now calls `ensureConsentRecords`. Verified line 49 and 81.
+- **Recurring pattern — partial constant adoption:** When a named constant is introduced for a multi-instance value (e.g., document version), trace ALL places the literal was previously hardcoded and replace every instance. In this commit, `'v1.0'` was replaced in `supabase.ts` (TOS + Privacy) but NOT in `actions.ts` (analytics). Pattern: after introducing a constant, grep the entire codebase for the literal string it replaces and audit every remaining occurrence.
+- **Files needing extra scrutiny:** `apps/web/app/consent/actions.ts` — multi-RPC sequence without full constant coverage; analytics version is a latent mismatch. `apps/web/e2e/helpers/supabase.ts` — `ensureConsentRecords` version-filtering gap will surface on first version bump.
+
 ### 2026-03-27 — commit 75ffa51 (feat(consent): add GDPR consent gate with user_consents table)
 - **Files reviewed:** proxy.ts, login-complete/route.ts, consent/actions.ts, consent/page.tsx, consent-form.tsx, check-consent.ts, versions.ts, migration 057, proxy.test.ts, consent.spec.ts, e2e/helpers/supabase.ts, e2e/helpers/admin-supabase.ts
 - **CRITICAL:** 1 | **ISSUE:** 2 | **SUGGESTION:** 3 | **GOOD:** 7

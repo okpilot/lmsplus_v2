@@ -191,6 +191,23 @@ describe('recordConsent', () => {
       )
     })
 
+    it('sets the consent cookie with a 1-year max-age', async () => {
+      mockAuthenticatedUser()
+      mockRpcSuccess()
+
+      await recordConsent({
+        acceptedTos: true,
+        acceptedPrivacy: true,
+        acceptedAnalytics: false,
+      })
+
+      expect(mockCookiesSet).toHaveBeenCalledWith(
+        '__consent',
+        'v1.0:v1.0',
+        expect.objectContaining({ maxAge: 31_536_000 }),
+      )
+    })
+
     it('does not call record_consent for analytics when analytics is declined', async () => {
       mockAuthenticatedUser()
       mockRpcSuccess()

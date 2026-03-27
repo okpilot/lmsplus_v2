@@ -76,6 +76,17 @@ describe('GET /auth/login-complete', () => {
     expect(setCookie).toContain('__consent=v1.0%3Av1.0')
   })
 
+  it('sets consent cookie with a 1-year max-age when consent is satisfied', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockRpcHelper.mockResolvedValue({ data: null, error: null })
+    mockCheckConsent.mockResolvedValue('satisfied')
+
+    const response = await GET(makeRequest('http://localhost:3000/auth/login-complete'))
+
+    const setCookie = response.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('Max-Age=31536000')
+  })
+
   it('redirects to /consent when consent is required', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     mockRpcHelper.mockResolvedValue({ data: null, error: null })

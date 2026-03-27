@@ -3319,3 +3319,52 @@ The `canSubmit = acceptedTos && acceptedPrivacy && !isPending` guard means:
 
 Testing pattern: render → click one required checkbox → assert disabled; click other → assert enabled.
 
+## Files tested in commit c9caf51 / post-commit for feat/gdpr-consent-gate (2026-03-27)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/consent/_components/consent-checkbox.tsx` | `consent-checkbox.test.tsx` | New file; label htmlFor, link attrs, required indicator, description, checkbox toggle, disabled |
+| `apps/web/app/auth/login-complete/route.ts` | `route.test.ts` | Extended: maxAge=31536000 in set-cookie header |
+| `apps/web/app/consent/actions.ts` | `actions.test.ts` | Extended: maxAge=31536000 in cookieStore.set call |
+
+### Asserting set-cookie header Max-Age (route handler cookies)
+
+When a route handler sets a cookie via `response.cookies.set(name, value, { maxAge: N })`, the
+header is serialised as `Max-Age=N` (capital M, capital A). Assert with the capitalised form:
+
+```ts
+const setCookie = response.headers.get('set-cookie') ?? ''
+expect(setCookie).toContain('Max-Age=31536000')
+```
+
+Do NOT use lowercase `max-age=...` — the Set-Cookie header uses Pascal-case attribute names.
+
+### Asserting maxAge in Server Action cookie calls (next/headers cookieStore)
+
+When a Server Action calls `cookieStore.set(name, value, options)`, assert the `maxAge` option
+using `expect.objectContaining`:
+
+```ts
+expect(mockCookiesSet).toHaveBeenCalledWith(
+  '__consent',
+  'v1.0:v1.0',
+  expect.objectContaining({ maxAge: 31_536_000 }),
+)
+```
+
+### Testing ConsentCheckbox (Base UI checkbox with label association)
+
+`ConsentCheckbox` renders a Base UI `<Checkbox>` (which internally has a hidden `<input>` with
+the `id` prop) and a `<label htmlFor={id}>`. Useful assertions:
+
+- `htmlFor` association: `label.closest('label').toHaveAttribute('for', id)`
+- Toggle via `getByRole('checkbox')` (Base UI exposes role="checkbox" on the span element)
+- Disabled: clicking `getByRole('checkbox')` does not call `onCheckedChange`
+- Link placement: `expect(label).toContainElement(link)` to verify structural nesting
+
+The `onClick={e => e.stopPropagation()}` on the link inside the label prevents the label click
+from toggling the checkbox in browsers, but this mechanism is NOT accurately modelled in jsdom —
+jsdom follows `htmlFor` association regardless of `stopPropagation`. Do NOT write a test
+asserting that clicking the link does NOT call `onCheckedChange` — it will be flaky/wrong in jsdom.
+Instead, assert structural nesting (`label contains link`) which tests the intent.
+
