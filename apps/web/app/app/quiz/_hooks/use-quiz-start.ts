@@ -2,6 +2,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz'
 import { startQuizSession } from '../actions/start'
+import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
 import type { QuestionFilterValue } from '../types'
 
 type UseQuizStartOpts = {
@@ -24,6 +25,12 @@ export function useQuizStart(opts: UseQuizStartOpts) {
 
   async function handleStart() {
     if (!subjectId) return
+    const existing = readActiveSession()
+    if (existing) {
+      const msg = `You have an unfinished quiz${existing.subjectName ? ` (${existing.subjectName})` : ''}. Starting a new quiz will lose it. Continue?`
+      if (!window.confirm(msg)) return
+      clearActiveSession()
+    }
     setLoading(true)
     setError(null)
     try {

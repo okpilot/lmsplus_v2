@@ -25,6 +25,10 @@ vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
+vi.mock('../_utils/quiz-session-storage', () => ({
+  clearActiveSession: vi.fn(),
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import {

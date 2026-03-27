@@ -1,7 +1,8 @@
 import { useRouter } from 'next/navigation'
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { DraftAnswer, QuizStateOpts } from '../../types'
+import { buildActiveSession, writeActiveSession } from '../_utils/quiz-session-storage'
 import { useAnswerHandler } from './use-answer-handler'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
@@ -27,16 +28,24 @@ export function useQuizState(opts: QuizStateOpts) {
   const question = questions[nav.currentIndex]
   const questionId = question?.id ?? ''
 
+  const checkpoint = useCallback(
+    (a: Map<string, DraftAnswer>, idx: number) =>
+      writeActiveSession(buildActiveSession(opts, a, idx)),
+    [opts],
+  )
+
   const {
     feedback,
     error: answerError,
     handleSelectAnswer,
+    clearError: clearAnswerError,
   } = useAnswerHandler({
     sessionId,
     getQuestionId: () => questionId,
     getAnswerStartTime: () => nav.answerStartTime.current,
     answers,
     setAnswers,
+    onAnswerRecorded: (a) => checkpoint(a, currentIndexRef.current),
   })
 
   const {
@@ -53,6 +62,13 @@ export function useQuizState(opts: QuizStateOpts) {
     subjectName: opts.subjectName,
     subjectCode: opts.subjectCode,
   })
+  const wrappedNavigateTo = (index: number) => {
+    clearAnswerError()
+    nav.navigateTo(index)
+    checkpoint(answersRef.current, index)
+  }
+  const wrappedNavigate = (d: number) => wrappedNavigateTo(nav.currentIndex + d)
+
   // Frozen at mount — loader guarantees initialAnswers is resolved before render
   const initialSize = useRef(initialAnswers ? Object.keys(initialAnswers).length : 0)
   useNavigationGuard(answers.size > initialSize.current && !submitted.current)
@@ -73,10 +89,10 @@ export function useQuizState(opts: QuizStateOpts) {
     pinnedQuestions,
     isPinned: pinnedQuestions.has(questionId),
     handleSelectAnswer,
-    navigateTo: nav.navigateTo,
-    navigate: nav.navigate,
+    navigateTo: wrappedNavigateTo,
+    navigate: wrappedNavigate,
     togglePin: () => togglePinById(questionId),
-    error: answerError ?? submitError,
+    error: submitError ?? answerError,
     ...submit,
   }
 }

@@ -4,6 +4,7 @@ import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
 import { deleteDraft } from '../../actions/draft-delete'
 import type { DraftAnswer } from '../../types'
+import { clearActiveSession } from '../_utils/quiz-session-storage'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
 
@@ -23,6 +24,7 @@ export async function submitQuizSession(
   try {
     const result = await batchSubmitQuiz({ sessionId, answers: answerArray })
     if (!result.success) return { success: false as const, error: result.error }
+    clearActiveSession()
     if (draftId) {
       deleteDraft({ draftId }).catch((e) =>
         console.error('[submitQuizSession] Draft cleanup failed:', e),
@@ -39,6 +41,7 @@ export async function discardQuizSession(
   router: AppRouterInstance,
   draftId?: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
+  clearActiveSession() // Always clear — respect discard intent even if Server Action fails
   try {
     const result = await discardQuiz({ sessionId, draftId })
     if (!result.success) return result
@@ -70,6 +73,7 @@ export async function saveQuizDraft(opts: {
     subjectCode: opts.subjectCode,
   })
   if (result.success) {
+    clearActiveSession()
     opts.router.push('/app/quiz')
     return { success: true as const }
   }

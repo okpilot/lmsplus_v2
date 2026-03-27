@@ -8,17 +8,19 @@ type AnswerHandlerOpts = {
   getAnswerStartTime: () => number
   answers: Map<string, DraftAnswer>
   setAnswers: React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>
+  onAnswerRecorded?: (answers: Map<string, DraftAnswer>) => void
 }
 
 export function useAnswerHandler(opts: AnswerHandlerOpts) {
-  const { sessionId, getQuestionId, getAnswerStartTime, answers, setAnswers } = opts
+  const { sessionId, getQuestionId, getAnswerStartTime, answers, setAnswers, onAnswerRecorded } =
+    opts
   const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
   const [error, setError] = useState<string | null>(null)
   const lockedRef = useRef<Set<string>>(new Set())
 
-  async function handleSelectAnswer(optionId: string) {
+  async function handleSelectAnswer(optionId: string): Promise<boolean> {
     const questionId = getQuestionId()
-    if (lockedRef.current.has(questionId) || answers.has(questionId)) return
+    if (lockedRef.current.has(questionId) || answers.has(questionId)) return false
     lockedRef.current.add(questionId)
     const elapsed = Date.now() - getAnswerStartTime()
     setAnswers((p) =>
@@ -36,6 +38,10 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
         }),
       )
       setError(null)
+      onAnswerRecorded?.(
+        new Map(answers).set(questionId, { selectedOptionId: optionId, responseTimeMs: elapsed }),
+      )
+      return true
     } catch {
       lockedRef.current.delete(questionId)
       setAnswers((p) => {
@@ -44,6 +50,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
         return m
       })
       setError('Failed to check answer. Please try again.')
+      return false
     }
   }
 
@@ -54,5 +61,5 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     }
   }, [answers])
 
-  return { feedback, error, handleSelectAnswer }
+  return { feedback, error, handleSelectAnswer, clearError: () => setError(null) }
 }

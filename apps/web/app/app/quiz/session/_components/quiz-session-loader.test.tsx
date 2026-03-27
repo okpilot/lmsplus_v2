@@ -17,6 +17,23 @@ vi.mock('@/lib/queries/load-session-questions', () => ({
   loadSessionQuestions: mockLoadSessionQuestions,
 }))
 
+vi.mock('../_utils/quiz-session-storage', () => ({
+  readActiveSession: () => null,
+  clearActiveSession: vi.fn(),
+}))
+
+vi.mock('../../actions/discard', () => ({
+  discardQuiz: vi.fn().mockResolvedValue({ success: true }),
+}))
+
+vi.mock('../../actions/draft', () => ({
+  saveDraft: vi.fn().mockResolvedValue({ success: true }),
+}))
+
+vi.mock('./session-recovery-prompt', () => ({
+  SessionRecoveryPrompt: () => <div data-testid="recovery-prompt" />,
+}))
+
 vi.mock('./quiz-session', () => ({
   QuizSession: ({
     sessionId,

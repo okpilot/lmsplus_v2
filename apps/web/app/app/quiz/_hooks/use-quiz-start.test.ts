@@ -17,6 +17,11 @@ vi.mock('../actions/start', () => ({
   startQuizSession: (...args: unknown[]) => mockStartQuizSession(...args),
 }))
 
+vi.mock('../session/_utils/quiz-session-storage', () => ({
+  readActiveSession: () => null,
+  clearActiveSession: vi.fn(),
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import type { QuestionFilterValue } from '../types'

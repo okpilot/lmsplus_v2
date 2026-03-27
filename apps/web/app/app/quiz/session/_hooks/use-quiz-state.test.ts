@@ -45,6 +45,11 @@ vi.mock('../../actions/check-answer', () => ({
   checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
 }))
 
+vi.mock('../_utils/quiz-session-storage', () => ({
+  writeActiveSession: vi.fn(),
+  buildActiveSession: vi.fn().mockReturnValue({}),
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'

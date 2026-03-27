@@ -136,10 +136,10 @@ export function QuizSession(props: QuizSessionProps) {
             onToggleFlag={() => toggleFlag(s.questionId)}
             onPrev={() => s.navigate(-1)}
             onNext={() => s.navigate(1)}
-            onSubmitAnswer={() => {
+            onSubmitAnswer={async () => {
               if (pendingOptionId) {
-                s.handleSelectAnswer(pendingOptionId)
-                setPendingOptionId(null)
+                const ok = await s.handleSelectAnswer(pendingOptionId)
+                if (ok) setPendingOptionId(null)
               }
             }}
           />
@@ -152,6 +152,7 @@ export function QuizSession(props: QuizSessionProps) {
         answeredCount={s.answeredCount}
         totalQuestions={props.questions.length}
         submitting={s.submitting}
+        error={s.error}
         onSubmit={s.handleSubmit}
         onCancel={() => s.setShowFinishDialog(false)}
         onSave={s.handleSave}

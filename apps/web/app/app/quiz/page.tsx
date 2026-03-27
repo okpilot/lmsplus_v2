@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
 import { QuizTabs } from './_components/quiz-tabs'
 import { SavedDraftCard } from './_components/saved-draft-card'
 import { SubjectsSection } from './_components/subjects-section'
@@ -17,6 +18,8 @@ export default async function QuizPage() {
           Configure and start a practice session.
         </p>
       </div>
+
+      <QuizRecoveryBanner />
 
       <div className="mx-auto max-w-xl">
         <QuizTabs
