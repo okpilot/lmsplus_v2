@@ -96,7 +96,7 @@ describe('ConsentCheckbox', () => {
       const user = userEvent.setup()
       await user.click(screen.getByRole('checkbox'))
 
-      expect(onCheckedChange).toHaveBeenCalledTimes(1)
+      expect(onCheckedChange).toHaveBeenCalledWith(true)
     })
 
     it('does not call onCheckedChange when the checkbox is disabled', async () => {

@@ -18,7 +18,7 @@ First-login consent flow with persistent audit trail:
 - **E2E coverage**: new `consent.spec.ts` with full flow tests, E2E helpers seed consent for test users
 - **Security**: auth check via RPC, soft-delete guard on users lookup, IP/UA capture, immutable RLS policies
 - Migrations: migration 057 only. Zero-row no-op checks on RPC queries.
-- 8 new unit tests, 3 new E2E specs
+- 26+ new unit tests, 5 new E2E specs
 
 ---
 

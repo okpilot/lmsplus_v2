@@ -24,16 +24,26 @@ export async function ensureConsentRecords(
   admin: ReturnType<typeof getAdminClient>,
   userId: string,
 ) {
-  const { data: existing } = await admin
+  const { data: tosRows } = await admin
     .from('user_consents')
     .select('document_type')
     .eq('user_id', userId)
     .eq('accepted', true)
-    .in('document_type', ['terms_of_service', 'privacy_policy'])
+    .eq('document_type', 'terms_of_service')
+    .eq('document_version', CURRENT_TOS_VERSION)
 
-  const existingTypes = new Set(
-    (existing ?? []).map((r: { document_type: string }) => r.document_type),
-  )
+  const { data: privacyRows } = await admin
+    .from('user_consents')
+    .select('document_type')
+    .eq('user_id', userId)
+    .eq('accepted', true)
+    .eq('document_type', 'privacy_policy')
+    .eq('document_version', CURRENT_PRIVACY_VERSION)
+
+  const existingTypes = new Set([
+    ...(tosRows ?? []).map((r: { document_type: string }) => r.document_type),
+    ...(privacyRows ?? []).map((r: { document_type: string }) => r.document_type),
+  ])
 
   const toInsert = []
   if (!existingTypes.has('terms_of_service')) {
