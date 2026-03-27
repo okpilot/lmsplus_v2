@@ -5,7 +5,14 @@ vi.hoisted(() => {
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
 })
 
-import { ensureTestUser, getAdminClient, TEST_EMAIL, TEST_PASSWORD } from './supabase'
+import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
+import {
+  ensureConsentRecords,
+  ensureTestUser,
+  getAdminClient,
+  TEST_EMAIL,
+  TEST_PASSWORD,
+} from './supabase'
 
 // ---------------------------------------------------------------------------
 // Helpers to build a chainable Supabase mock
@@ -244,5 +251,143 @@ describe('ensureTestUser', () => {
     await expect(ensureTestUser()).rejects.toThrow(
       'ensureTestUser update org: foreign key violation',
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// ensureConsentRecords
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds a client for ensureConsentRecords tests.
+ *
+ * The production code issues two SELECT queries (one per document type, each
+ * filtered by document_version) and then conditionally issues one INSERT.
+ * We can't distinguish SELECT from INSERT by table name alone, so we expose
+ * separate `select` and `insert` methods on the `user_consents` mock, and
+ * track select call order to return type-specific rows.
+ */
+function buildConsentMockClientWithInsert(opts: {
+  consentTosRows?: Array<{ document_type: string }>
+  consentPrivacyRows?: Array<{ document_type: string }>
+  insertError?: { message: string } | null
+}) {
+  const { consentTosRows = [], consentPrivacyRows = [], insertError = null } = opts
+
+  const insertMock = vi.fn().mockReturnValue(buildChain({ error: insertError }))
+
+  let selectCallCount = 0
+
+  return {
+    client: {
+      from: (table: string) => {
+        if (table === 'user_consents') {
+          return {
+            select: () => {
+              selectCallCount++
+              const callIndex = selectCallCount
+              return buildChain(
+                callIndex === 1
+                  ? { data: consentTosRows, error: null }
+                  : { data: consentPrivacyRows, error: null },
+              )
+            },
+            insert: insertMock,
+          }
+        }
+        return buildChain({ data: null, error: null })
+      },
+      auth: { admin: {} },
+    },
+    insertMock,
+  }
+}
+
+describe('ensureConsentRecords', () => {
+  it('does not insert when current-version TOS and privacy records already exist', async () => {
+    const { client, insertMock } = buildConsentMockClientWithInsert({
+      consentTosRows: [{ document_type: 'terms_of_service' }],
+      consentPrivacyRows: [{ document_type: 'privacy_policy' }],
+    })
+
+    await ensureConsentRecords(client as ReturnType<typeof getAdminClient>, 'user-abc')
+    expect(insertMock).not.toHaveBeenCalled()
+  })
+
+  it('inserts both records when neither exists for the current versions', async () => {
+    const { client, insertMock } = buildConsentMockClientWithInsert({
+      consentTosRows: [],
+      consentPrivacyRows: [],
+    })
+
+    await ensureConsentRecords(client as ReturnType<typeof getAdminClient>, 'user-abc')
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          document_type: 'terms_of_service',
+          document_version: CURRENT_TOS_VERSION,
+          accepted: true,
+        }),
+        expect.objectContaining({
+          document_type: 'privacy_policy',
+          document_version: CURRENT_PRIVACY_VERSION,
+          accepted: true,
+        }),
+      ]),
+    )
+  })
+
+  it('inserts only the privacy record when only TOS already exists at current version', async () => {
+    const { client, insertMock } = buildConsentMockClientWithInsert({
+      consentTosRows: [{ document_type: 'terms_of_service' }],
+      consentPrivacyRows: [],
+    })
+
+    await ensureConsentRecords(client as ReturnType<typeof getAdminClient>, 'user-abc')
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ document_type: 'privacy_policy' })]),
+    )
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.not.arrayContaining([expect.objectContaining({ document_type: 'terms_of_service' })]),
+    )
+  })
+
+  it('inserts only the TOS record when only privacy already exists at current version', async () => {
+    const { client, insertMock } = buildConsentMockClientWithInsert({
+      consentTosRows: [],
+      consentPrivacyRows: [{ document_type: 'privacy_policy' }],
+    })
+
+    await ensureConsentRecords(client as ReturnType<typeof getAdminClient>, 'user-abc')
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ document_type: 'terms_of_service' })]),
+    )
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.not.arrayContaining([expect.objectContaining({ document_type: 'privacy_policy' })]),
+    )
+  })
+
+  it('includes the userId in each inserted record', async () => {
+    const { client, insertMock } = buildConsentMockClientWithInsert({
+      consentTosRows: [],
+      consentPrivacyRows: [],
+    })
+
+    await ensureConsentRecords(client as ReturnType<typeof getAdminClient>, 'user-xyz')
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ user_id: 'user-xyz' })]),
+    )
+  })
+
+  it('throws when the insert fails', async () => {
+    const { client } = buildConsentMockClientWithInsert({
+      consentTosRows: [],
+      consentPrivacyRows: [],
+      insertError: { message: 'unique violation' },
+    })
+
+    await expect(
+      ensureConsentRecords(client as ReturnType<typeof getAdminClient>, 'user-abc'),
+    ).rejects.toThrow('ensureConsentRecords: unique violation')
   })
 })
