@@ -26,6 +26,7 @@ const mockReport: QuizReportData = {
         { id: 'opt-b', text: 'Downward force' },
       ],
       explanationText: 'Lift acts perpendicular to the relative wind.',
+      explanationImageUrl: null,
       responseTimeMs: 3000,
     },
     {
@@ -40,6 +41,7 @@ const mockReport: QuizReportData = {
         { id: 'opt-d', text: 'Opposing force' },
       ],
       explanationText: null,
+      explanationImageUrl: null,
       responseTimeMs: 5000,
     },
     {
@@ -54,6 +56,7 @@ const mockReport: QuizReportData = {
         { id: 'opt-f', text: 'Ailerons' },
       ],
       explanationText: null,
+      explanationImageUrl: null,
       responseTimeMs: 2500,
     },
   ],
