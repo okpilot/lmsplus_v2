@@ -117,7 +117,7 @@
 | ZodError escaping Server Action with typed error return type (parse() without try/catch or safeParse) | 2 | 2026-03-26 | RULE CANDIDATE — first: checkAnswer in 199e927 (2026-03-15): ZodError propagated as unhandled exception instead of returning typed { success: false }; second: settings actions.ts in 552bb2f (2026-03-26): `parse()` used instead of `safeParse()` — unhandled ZodError escapes the return-type contract on invalid input; both fixed by switching to try/catch-wrapped parse or safeParse with explicit error-path return; second occurrence across different commits — RULE CANDIDATE: Server Actions must use `Schema.safeParse()` (or wrap `.parse()` in try/catch) so that invalid input returns a typed error response rather than throwing an unhandled exception that breaks the caller's return-type contract |
 | Sensitive auth operation (password change) implemented as direct client-side Supabase call instead of Server Action | 1 | 2026-03-26 | Watch — 552bb2f (feat/settings PR #368): `change-password-form.tsx` called `supabase.auth.updateUser()` directly from the client component; password changes must flow through Server Actions so the audit trail (audit_events insert) can be recorded server-side before the auth mutation commits; semantic-reviewer caught as CRITICAL; fixed in d9e1d10 by moving the call to a `changePassword` Server Action that inserts an audit event first; distinct from "Server-authoritative ordering value computed client-side" (that is a data value — this is a security-sensitive auth operation); first occurrence — log and watch; if a second auth mutation (email change, MFA toggle) ships as a client-side call, add a rule note: all auth.updateUser/admin calls must live in Server Actions, not client components |
 | Soft-delete guard missing on org lookup in Server Action (SECURITY DEFINER exemption does not apply here) | 1 | 2026-03-26 | Watch — 552bb2f (feat/settings PR #368): profile update Server Action queried the `organizations` table with `.eq('id', orgId)` but no `.is('deleted_at', null)` filter; a deactivated org's data would still resolve, allowing students of a soft-deleted org to update their profiles; semantic-reviewer caught as ISSUE; fixed in d9e1d10 by adding the soft-delete filter; distinct from "RPC missing AND deleted_at IS NULL guard on session fetch" (that is inside a SECURITY DEFINER RPC — this is a direct Supabase client query in a Server Action where RLS is active but the row-level filter on the org's deleted_at is not enforced by the student's own RLS policy); first occurrence — log and watch; if a second Server Action ships an org/user lookup without a soft-delete filter, add a note to code-style.md Section 5: ownership-scoping queries on soft-deletable tables must include `.is('deleted_at', null)` |
-| Hardcoded cookie/constant values in tests instead of importing source constants | 1 | 2026-03-27 | Watch — consent commit (2026-03-27): proxy.test.ts hardcoded the cookie name and value as string literals rather than importing the constants from the production module; when the constant is renamed or the value changes, the test continues to pass on its own mock rather than catching the regression; caught by semantic-reviewer as ISSUE; fixed before push; first occurrence — log and watch; if a second test file ships with hardcoded string literals for values that are defined as exported constants in the production code, add a note to test-writer patterns memory: always import production constants into test files rather than duplicating the literal value |
+| Hardcoded cookie/constant values in tests instead of importing source constants | 2 | 2026-03-27 | RULE CANDIDATE — first: proxy.test.ts (consent commit, 2026-03-27): hardcoded cookie name and value as string literals instead of importing from production module; second: actions.ts used hardcoded 'v1.0' string literal for CURRENT_ANALYTICS_VERSION instead of importing the constant (CodeRabbit PR #385 cycle, 227c976); and E2E helper supabase.ts used hardcoded 'v1.0' for TOS/privacy versions instead of importing CURRENT_TOS_VERSION and CURRENT_PRIVACY_VERSION (same cycle); root cause: when a constant is defined in a production module, test authors duplicate the literal value rather than importing the exported constant; when the constant is renamed or the value changes, the test continues to pass while silently testing stale data; both caught by semantic-reviewer as ISSUE-level findings; second occurrence across different commits — RULE CANDIDATE: test files must import production constants rather than duplicating literal values; add note to test-writer patterns memory |
 | Deep JSX nesting from repeated pattern (3x repetition causing 5-level nest) | 1 | 2026-03-27 | Watch — consent commit (2026-03-27): consent-form.tsx repeated a checkbox+label+description JSX pattern 3 times; each repetition added nesting depth, pushing the component to 5 levels (limit 3); caught as BLOCKING by code-reviewer; fixed by extracting ConsentCheckbox sub-component; distinct from "extract at 3 repetitions" rule (Section 2 applies at any nesting level — this is the specific case where the 3-repetition trigger coincides with a nesting-depth violation); first occurrence of this specific mechanism (repetition causing nesting violation) as a named pattern — log and watch; the existing "extract at 3 repetitions" rule in code-style.md Section 2 is the correct gate; no additional rule needed |
 
 ## Lessons Learned
@@ -2698,5 +2698,79 @@ Both fixed in ca55c3c.
 - The fix commit b92ff08 addressed both the CRITICAL and the ISSUE (hardcoded constants) in a single pass — no residual findings after the fix cycle.
 - The BLOCKING code-reviewer finding (nesting depth) was resolved cleanly by the extraction of ConsentCheckbox — the sub-component is reusable and named accurately.
 - The idempotency ISSUE (duplicate consent rows on retry) was correctly deferred to a follow-up migration rather than attempting an in-cycle schema change — scope discipline maintained.
+
+---
+
+### 2026-03-27 — CodeRabbit PR #385 fix cycle (commits 227c976, 27c15b7, a6b9775)
+
+**Context:** Three-commit sequence following CodeRabbit review of the GDPR consent gate PR (#385). 227c976 addressed 5 CodeRabbit findings (cookie maxAge 86400 → 31536000, a11y label element for ConsentCheckbox, E2E version constant imports in supabase.ts, docs). 27c15b7 added the missing CURRENT_ANALYTICS_VERSION constant (the semantic-reviewer ISSUE from 227c976) plus 2 tests for the maxAge and analytics version assertion. a6b9775 committed agent memory updates and the analytics version test.
+
+**Commit hash (HEAD at learner run):** a6b9775
+
+**Code reviewer (all 3 commits):** 0 BLOCKING, 0 WARNING. Clean across the full cycle.
+
+**Semantic reviewer (227c976):** 0 CRITICAL, 1 ISSUE, 2 SUGGESTION.
+1. **Hardcoded 'v1.0' string literal for analytics version in actions.ts — ISSUE, real, fixed in 27c15b7.** `recordConsent` passed a hardcoded `'v1.0'` string to the `record_consent` RPC for `p_document_version` instead of importing `CURRENT_ANALYTICS_VERSION` from `lib/consent/versions.ts`. The TOS and privacy versions were correctly using their constants; the analytics version was the only one left as a literal. When `CURRENT_ANALYTICS_VERSION` is bumped, the RPC call would silently record the wrong version. Fixed by adding `CURRENT_ANALYTICS_VERSION` to `versions.ts` and importing it in `actions.ts`.
+2. **SUGGESTION 1 (carry-forward):** Record analytics refusal as a separate consent row with `accepted: false` — advisory improvement for audit completeness; deferred.
+3. **SUGGESTION 2 (carry-forward):** Version-aware E2E seeding in `admin-supabase.ts` — advisory improvement; deferred.
+
+**Semantic reviewer (27c15b7):** clean. 2 carry-forward suggestions only (same as above).
+
+**Doc updater (27c15b7):** updated `docs/plan.md` with analytics constant addition. Clean.
+
+**Test writer (227c976):** wrote 13 new tests — 11 for `ConsentCheckbox` component (label association, link rendering, required indicator, description, checkbox interaction, link placement inside label) and 2 for `maxAge` assertion in route.test.ts and actions.test.ts. All passing.
+
+**Test writer (27c15b7):** 1 additional test — analytics version constant assertion in actions.test.ts. Passing.
+
+**Pattern analysis:**
+
+1. **[REPEAT — 2nd occurrence] Hardcoded string literal for value defined as exported constant in production code**
+
+   Prior occurrence: proxy.test.ts (2026-03-27 consent gate cycle) used hardcoded cookie name and value strings instead of importing from the production module.
+
+   This cycle: `actions.ts` used a hardcoded `'v1.0'` string for `p_document_version` on the analytics consent RPC call, even though `CURRENT_TOS_VERSION` and `CURRENT_PRIVACY_VERSION` were correctly imported for the other two consent types. The same cycle also saw `supabase.ts` (E2E helper) corrected to import `CURRENT_TOS_VERSION` and `CURRENT_PRIVACY_VERSION` instead of the prior hardcoded `'v1.0'` strings — another instance of the same root cause.
+
+   Root cause: when a module exports a named constant representing a version, identifier, or key, authors sometimes duplicate the literal value in call sites (both production code and tests) rather than importing the constant. The duplication is invisible to the type-checker (both are valid strings) and to lint rules, but creates a maintenance gap: a version bump updates the constant in one place but all literal duplicates stay stale.
+
+   This is now at count 2 across different commits. Threshold for a recommendation is met.
+
+   Recommended action: add a note to test-writer patterns memory — "When writing tests or E2E helpers for functions that use exported constants (version strings, cookie names, error codes), import the constant from the production module. Do not duplicate the literal value. Duplicated literals pass type-check but silently test stale data after a rename or value bump."
+
+   The same principle applies to production code (actions.ts case), but that is harder to enforce mechanically. No code-style.md rule change proposed — the pattern cannot be caught by Biome or the code-reviewer agent. The semantic-reviewer is the appropriate gate.
+
+   Frequency table row updated: count 1 → 2. Status: RULE CANDIDATE.
+
+2. **[PATTERN CONFIRMED] Test-writer fills coverage gaps introduced by fix commits (positive signal)**
+
+   The ConsentCheckbox component was extracted in the prior fix commit (b92ff08) as a new sub-component. It shipped without its own test file — the test-writer correctly identified this in the 227c976 cycle and produced `consent-checkbox.test.tsx` (11 tests). The 2-test suite for `maxAge` was also written by test-writer in this cycle, not at authoring time.
+
+   This matches the established pattern: new sub-components extracted to fix code-reviewer findings often ship without tests (they were created as structural fixes, not new features), and the test-writer catches them on the next cycle.
+
+   No new frequency table entry needed — this is consistent with the established "New hook/utility file extracted without shipping tests" pattern (count 6, row 58). The gap is structural and accepted: code-reviewer is non-blocking on test coverage warnings; test-writer fills the gap post-commit.
+
+**Patterns checked from frequency table (no count change):**
+
+- "Hardcoded cookie/constant values in tests instead of importing source constants" (count 1 → 2, updated above): RULE CANDIDATE confirmed.
+- "New hook/utility file extracted without shipping tests in the same commit" (count 6, RULE EXISTS): ConsentCheckbox is a new count but consistent with existing tracking. No update to frequency table row (this was a sub-component, not a utility/hook file — borderline, but the test-writer gap-fill confirms the pattern applies).
+- "ZodError escaping Server Action with typed error return type" (count 2, RULE CANDIDATE): not triggered this cycle. No update.
+- "Partial fix applied to sibling file group" (count 3, RULE CANDIDATE): not triggered this cycle. The E2E helper fix (supabase.ts adding CURRENT_TOS_VERSION imports) was complete — no sibling was missed. No update.
+
+**Recommended changes:**
+
+- [ ] `.claude/agent-memory/test-writer/patterns.md` — add note: "Import production constants (version strings, cookie names, error codes) rather than duplicating literal values. Duplicated literals are invisible to type-check but silently test stale data after a rename or value bump."
+
+**Actions taken:**
+- Frequency table: "Hardcoded cookie/constant values in tests instead of importing source constants" count updated 1 → 2, status changed Watch → RULE CANDIDATE, description extended with second occurrence details.
+- No changes to `code-style.md`, `security.md`, or `biome.json` — the pattern is not catchable by Biome or a code-reviewer agent. The semantic-reviewer is the correct gate.
+- The recommended change to test-writer patterns memory is proposed above; orchestrator decides whether to apply it.
+
+**False positives:** none detected. The 2 carry-forward suggestions (record analytics refusal, version-aware admin seeding) are valid quality improvements but correctly deferred — the system is functional and the suggestions are advisory.
+
+**Positive signals:**
+- Code reviewer: 0 BLOCKING, 0 WARNING across all 3 commits in this cycle. The ConsentCheckbox extraction from the prior cycle resolved the nesting depth BLOCKING; no structural regressions introduced.
+- Semantic reviewer clean on 27c15b7 after a single-commit fix for the analytics version ISSUE. Fix cycle closed in one pass.
+- Test-writer produced 14 tests (13 + 1) across two cycles with no test failures and no second iteration needed. Behavior-focused test names throughout (label association, link rendering, required indicator — not "renders checkbox" or "calls handler").
+- The a11y fix (span → label with htmlFor) was the correct repair for the ConsentCheckbox label association gap flagged by CodeRabbit. The `onClick stopPropagation` on the inner link prevents the label click from triggering both the checkbox and the link — a subtle interaction detail handled correctly.
+- All 3 commits have clean Lefthook pre-commit gates (biome + type-check + unit tests). No hook failures in this cycle.
 
 ---

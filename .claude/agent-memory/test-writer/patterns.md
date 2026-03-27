@@ -3397,3 +3397,31 @@ jsdom follows `htmlFor` association regardless of `stopPropagation`. Do NOT writ
 asserting that clicking the link does NOT call `onCheckedChange` — it will be flaky/wrong in jsdom.
 Instead, assert structural nesting (`label contains link`) which tests the intent.
 
+### Import production constants — never duplicate literal values (RULE CANDIDATE, 2026-03-27)
+
+When a production module exports a named constant (version string, cookie name, error code, URL
+prefix), test files and E2E helpers MUST import the constant rather than duplicating the literal.
+
+```ts
+// WRONG — duplicates the literal; test passes even after constant is renamed or value changes
+expect(mockRpc).toHaveBeenCalledWith('record_consent',
+  expect.objectContaining({ p_document_version: 'v1.0' }))
+
+// CORRECT — imports the constant so any version bump causes the test to assert the new value
+import { CURRENT_ANALYTICS_VERSION } from '@/lib/consent/versions'
+expect(mockRpc).toHaveBeenCalledWith('record_consent',
+  expect.objectContaining({ p_document_version: CURRENT_ANALYTICS_VERSION }))
+```
+
+The same rule applies to E2E helpers that seed DB fixtures. Use the exported constant, not
+a hardcoded string.
+
+**Why it matters:** duplicated literals are invisible to TypeScript (both are valid strings)
+and to Biome. When the constant is bumped, all duplicated literals stay stale. The test
+continues to pass, providing false assurance. The production code writes the new value to the
+DB; the test is asserting the old value — the regression goes undetected.
+
+**Pattern source:** two occurrences across different commits:
+- proxy.test.ts (2026-03-27 consent gate): hardcoded cookie name + value literals
+- actions.ts + supabase.ts E2E helper (2026-03-27 PR #385 fix): hardcoded `'v1.0'` version strings
+
