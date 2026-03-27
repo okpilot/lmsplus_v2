@@ -144,8 +144,9 @@ describe('ConsentForm', () => {
       await user.click(screen.getByRole('button', { name: /continue/i }))
       expect(await screen.findByRole('alert')).toBeInTheDocument()
 
-      // Second submit — succeeds
-      await user.click(screen.getByRole('button', { name: /continue/i }))
+      // Second submit — succeeds; wait for transition to settle so button is enabled again
+      const continueButton = await screen.findByRole('button', { name: /continue/i })
+      await user.click(continueButton)
 
       await waitFor(() => {
         expect(screen.queryByRole('alert')).not.toBeInTheDocument()

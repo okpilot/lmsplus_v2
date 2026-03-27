@@ -1323,7 +1323,7 @@ $$;
 
 #### `record_consent` — GDPR consent audit logging
 
-Records a single consent decision (TOS acceptance, privacy policy acceptance, or cookie analytics opt-in). Called from `/consent` Server Action after user submits the consent form. All writes to `user_consents` must go through this RPC — direct inserts are blocked by RLS.
+Records a single consent decision (TOS acceptance, privacy policy acceptance). Called from `/consent` Server Action after user submits the consent form. All writes to `user_consents` must go through this RPC — direct inserts are blocked by RLS.
 
 **Security:**
 - `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
@@ -1521,4 +1521,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-26 (migration 056: users UPDATE RLS for student profile editing) | Companion: docs/security.md*
+*Last updated: 2026-03-27 (migration 058: removed cookie_analytics consent type) | Companion: docs/security.md*

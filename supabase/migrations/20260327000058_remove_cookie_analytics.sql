@@ -1,6 +1,9 @@
 -- Migration 058: Remove cookie_analytics consent type (never used, no analytics cookies)
 
 -- ── Cleanup: delete any existing cookie_analytics rows ───────────────────────
+-- Safe to hard-delete here: migration runs as superuser (bypasses user_consents RLS).
+-- In practice this type was never inserted (analytics checkbox removed before any user
+-- accepted it). This is a one-time schema correction, not a pattern for application code.
 
 DELETE FROM user_consents WHERE document_type = 'cookie_analytics';
 
@@ -62,3 +65,5 @@ BEGIN
   VALUES (_uid, p_document_type, p_document_version, p_accepted, p_ip_address, p_user_agent);
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION record_consent(TEXT, TEXT, BOOLEAN, TEXT, TEXT) TO authenticated;
