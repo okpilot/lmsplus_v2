@@ -231,6 +231,18 @@ import { QuestionCard } from '@repo/ui/question-card'
 
 ## 5. TypeScript Rules
 
+### No Deprecated React Event Types
+`React.FormEvent` is deprecated in React 19. Use `React.SubmitEvent<HTMLFormElement>` for form submit handlers.
+
+```tsx
+// ❌ WRONG — deprecated in React 19
+function handleSubmit(e: React.FormEvent) { ... }
+function handleSubmit(e: React.FormEvent<HTMLFormElement>) { ... }
+
+// ✅ CORRECT
+function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) { ... }
+```
+
 ### No `any`
 Use `unknown` with narrowing, or define the correct type.
 
