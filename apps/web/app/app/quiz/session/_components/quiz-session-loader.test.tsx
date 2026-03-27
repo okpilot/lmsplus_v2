@@ -17,9 +17,14 @@ vi.mock('@/lib/queries/load-session-questions', () => ({
   loadSessionQuestions: mockLoadSessionQuestions,
 }))
 
+const { mockReadActiveSession, mockClearActiveSession } = vi.hoisted(() => ({
+  mockReadActiveSession: vi.fn(),
+  mockClearActiveSession: vi.fn(),
+}))
+
 vi.mock('../_utils/quiz-session-storage', () => ({
-  readActiveSession: () => null,
-  clearActiveSession: vi.fn(),
+  readActiveSession: () => mockReadActiveSession(),
+  clearActiveSession: mockClearActiveSession,
 }))
 
 vi.mock('../../actions/discard', () => ({
@@ -28,6 +33,15 @@ vi.mock('../../actions/discard', () => ({
 
 vi.mock('../../actions/draft', () => ({
   saveDraft: vi.fn().mockResolvedValue({ success: true }),
+}))
+
+vi.mock('../_hooks/use-session-recovery', () => ({
+  useSessionRecovery: () => ({
+    loading: false,
+    error: null,
+    handleSave: vi.fn(),
+    handleDiscard: vi.fn(),
+  }),
 }))
 
 vi.mock('./session-recovery-prompt', () => ({
@@ -69,9 +83,20 @@ const QUESTIONS = [
 
 // ---- Tests ----------------------------------------------------------------
 
+const RECOVERY_SESSION = {
+  sessionId: 'recovery-sess',
+  questionIds: ['q1', 'q2'],
+  answers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 1000 } },
+  currentIndex: 1,
+  subjectName: 'Meteorology',
+  subjectCode: 'MET',
+  savedAt: Date.now(),
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   sessionStorage.clear()
+  mockReadActiveSession.mockReturnValue(null)
 })
 
 describe('QuizSessionLoader', () => {
@@ -83,6 +108,21 @@ describe('QuizSessionLoader', () => {
     await waitFor(() => {
       expect(mockRouterReplace).toHaveBeenCalledWith('/app/quiz')
     })
+  })
+
+  it('shows the recovery prompt when no sessionStorage data but localStorage has a session', async () => {
+    // sessionStorage is empty, but localStorage has a recoverable session.
+    // This test must run before any test that populates cachedSession (module-level cache),
+    // otherwise the loader will use the cached value instead of entering the recovery path.
+    mockReadActiveSession.mockReturnValue(RECOVERY_SESSION)
+
+    render(<QuizSessionLoader userId="test-user-id" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recovery-prompt')).toBeInTheDocument()
+    })
+    // Must NOT redirect to /app/quiz
+    expect(mockRouterReplace).not.toHaveBeenCalled()
   })
 
   it('shows loading skeletons while questions are being fetched', () => {
@@ -175,6 +215,19 @@ describe('QuizSessionLoader', () => {
     const el = screen.getByTestId('quiz-session')
     // No draft index → attribute should be absent (undefined → not rendered)
     expect(el.getAttribute('data-initial-index')).toBeNull()
+  })
+
+  it('clears localStorage after sessionStorage handoff succeeds', async () => {
+    sessionStorage.setItem('quiz-session', JSON.stringify(SESSION_DATA))
+    mockLoadSessionQuestions.mockResolvedValue({ success: true, questions: QUESTIONS })
+
+    render(<QuizSessionLoader userId="test-user-id" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quiz-session')).toBeInTheDocument()
+    })
+    // clearActiveSession is called once during this test's component mount
+    expect(mockClearActiveSession).toHaveBeenCalled()
   })
 
   it('strips stale answer keys that are not present in the loaded questions', async () => {

@@ -262,6 +262,169 @@ describe('useAnswerHandler — error recovery on checkAnswer failure', () => {
   })
 })
 
+// ---- onAnswerRecorded callback --------------------------------------------
+
+describe('useAnswerHandler — onAnswerRecorded callback', () => {
+  it('calls onAnswerRecorded with the updated answers map after a successful check', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const onAnswerRecorded = vi.fn()
+
+    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      answers = updater(answers)
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        onAnswerRecorded,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(onAnswerRecorded).toHaveBeenCalledTimes(1)
+    const calledWith = onAnswerRecorded.mock.calls[0]?.[0] as Map<string, unknown>
+    expect(calledWith).toBeInstanceOf(Map)
+    expect((calledWith.get(Q1_ID) as { selectedOptionId: string })?.selectedOptionId).toBe(OPT_A)
+  })
+
+  it('does not call onAnswerRecorded when checkAnswer fails', async () => {
+    mockCheckAnswer.mockRejectedValue(new Error('network error'))
+    const onAnswerRecorded = vi.fn()
+
+    const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) =>
+      updater(answers),
+    )
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        onAnswerRecorded,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(onAnswerRecorded).not.toHaveBeenCalled()
+  })
+
+  it('works correctly when onAnswerRecorded is not provided', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const { result } = renderAnswerHandler()
+
+    // Must not throw when the optional callback is absent
+    await expect(
+      act(async () => {
+        await result.current.handleSelectAnswer(OPT_A)
+      }),
+    ).resolves.not.toThrow()
+  })
+})
+
+// ---- clearError -----------------------------------------------------------
+
+describe('useAnswerHandler — clearError', () => {
+  it('clears the error state when clearError is called', async () => {
+    mockCheckAnswer.mockRejectedValue(new Error('network error'))
+    const { result } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+    expect(result.current.error).toBe('Failed to check answer. Please try again.')
+
+    act(() => {
+      result.current.clearError()
+    })
+
+    expect(result.current.error).toBeNull()
+  })
+
+  it('is safe to call clearError when no error is set', () => {
+    const { result } = renderAnswerHandler()
+
+    // No error has been set — calling clearError must not throw
+    expect(() => act(() => result.current.clearError())).not.toThrow()
+    expect(result.current.error).toBeNull()
+  })
+})
+
+// ---- handleSelectAnswer return value -------------------------------------
+
+describe('useAnswerHandler — handleSelectAnswer return value', () => {
+  it('returns true after a successful answer', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const { result } = renderAnswerHandler()
+
+    let returnValue: boolean | undefined
+    await act(async () => {
+      returnValue = await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(returnValue).toBe(true)
+  })
+
+  it('returns false when the question is already answered', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const { result, getAnswers } = renderAnswerHandler()
+
+    // Answer first time
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    // Re-render with updated answers so the hook sees the answered state
+    const answeredAnswers = getAnswers()
+    let returnValue: boolean | undefined
+    const { result: result2 } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers: answeredAnswers,
+        setAnswers: vi.fn() as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+      }),
+    )
+    await act(async () => {
+      returnValue = await result2.current.handleSelectAnswer(OPT_B)
+    })
+
+    expect(returnValue).toBe(false)
+  })
+
+  it('returns false when checkAnswer fails', async () => {
+    mockCheckAnswer.mockRejectedValue(new Error('network error'))
+    const { result } = renderAnswerHandler()
+
+    let returnValue: boolean | undefined
+    await act(async () => {
+      returnValue = await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(returnValue).toBe(false)
+  })
+})
+
 // ---- Multiple questions ----------------------------------------------------
 
 describe('useAnswerHandler — multiple questions', () => {

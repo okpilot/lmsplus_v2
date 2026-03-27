@@ -4,9 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
-import { discardQuiz } from '../../actions/discard'
-import { saveDraft } from '../../actions/draft'
 import type { DraftAnswer } from '../../types'
+import { useSessionRecovery } from '../_hooks/use-session-recovery'
 import { clampIndex } from '../_utils/clamp-index'
 import {
   type ActiveSession,
@@ -45,8 +44,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
   const [questions, setQuestions] = useState<Question[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recovery, setRecovery] = useState<ActiveSession | null>(null)
-  const [recoveryLoading, setRecoveryLoading] = useState(false)
-  const [recoveryError, setRecoveryError] = useState<string | null>(null)
+  const rv = useSessionRecovery(recovery)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('quiz-session')
@@ -63,7 +61,6 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
     }
 
     if (!data) {
-      // Check localStorage for a recoverable session before redirecting
       const stored = readActiveSession()
       if (stored) {
         setRecovery(stored)
@@ -73,7 +70,6 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
       return
     }
 
-    // Normal boot — clear localStorage since sessionStorage handoff succeeded
     clearActiveSession()
     cachedSession = data
     sessionStorage.removeItem('quiz-session')
@@ -90,8 +86,8 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
 
   function handleRecoveryResume() {
     if (!recovery) return
-    setRecoveryLoading(true)
-    const sessionData: SessionData = {
+    clearActiveSession()
+    setSession({
       sessionId: recovery.sessionId,
       questionIds: recovery.questionIds,
       draftAnswers: recovery.answers,
@@ -99,8 +95,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
       draftId: recovery.draftId,
       subjectName: recovery.subjectName,
       subjectCode: recovery.subjectCode,
-    }
-    setSession(sessionData)
+    })
     setRecovery(null)
     loadSessionQuestions(recovery.questionIds).then((result) => {
       if (result.success) {
@@ -108,45 +103,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
       } else {
         setError(result.error)
       }
-      setRecoveryLoading(false)
     })
-  }
-
-  async function handleRecoverySave() {
-    if (!recovery) return
-    setRecoveryLoading(true)
-    setRecoveryError(null)
-    try {
-      const result = await saveDraft({
-        sessionId: recovery.sessionId,
-        questionIds: recovery.questionIds,
-        answers: recovery.answers,
-        currentIndex: recovery.currentIndex,
-        subjectName: recovery.subjectName,
-        subjectCode: recovery.subjectCode,
-      })
-      if (result.success) {
-        clearActiveSession()
-        router.replace('/app/quiz')
-      } else {
-        setRecoveryError(result.error ?? 'Failed to save. Please try again.')
-        setRecoveryLoading(false)
-      }
-    } catch {
-      setRecoveryError('Server unavailable. Please try again later.')
-      setRecoveryLoading(false)
-    }
-  }
-
-  function handleRecoveryDiscard() {
-    const captured = recovery
-    clearActiveSession()
-    setRecovery(null)
-    router.replace('/app/quiz')
-    // Best-effort server cleanup
-    if (captured) {
-      discardQuiz({ sessionId: captured.sessionId }).catch(() => {})
-    }
   }
 
   if (recovery) {
@@ -156,10 +113,13 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
         answeredCount={Object.keys(recovery.answers).length}
         totalCount={recovery.questionIds.length}
         onResume={handleRecoveryResume}
-        onSave={handleRecoverySave}
-        onDiscard={handleRecoveryDiscard}
-        loading={recoveryLoading}
-        error={recoveryError}
+        onSave={rv.handleSave}
+        onDiscard={() => {
+          setRecovery(null)
+          rv.handleDiscard()
+        }}
+        loading={rv.loading}
+        error={rv.error}
       />
     )
   }

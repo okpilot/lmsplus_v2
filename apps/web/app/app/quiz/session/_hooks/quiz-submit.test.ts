@@ -25,8 +25,12 @@ vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
+const { mockClearActiveSession } = vi.hoisted(() => ({
+  mockClearActiveSession: vi.fn(),
+}))
+
 vi.mock('../_utils/quiz-session-storage', () => ({
-  clearActiveSession: vi.fn(),
+  clearActiveSession: mockClearActiveSession,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -166,6 +170,22 @@ describe('submitQuizSession', () => {
     expect(result.success).toBe(false)
   })
 
+  it('clears active session from localStorage after successful submission', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS)
+
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not clear active session when submission fails', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session not found' })
+
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS)
+
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
+
   it('logs error when draft cleanup fails after successful submit', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const cleanupError = new Error('draft cleanup network failure')
@@ -230,6 +250,34 @@ describe('saveQuizDraft', () => {
 
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz')
     expect(result.success).toBe(true)
+  })
+
+  it('clears active session from localStorage after a successful save', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+
+    await saveQuizDraft({
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not clear active session when save fails', async () => {
+    mockSaveDraft.mockResolvedValue({ success: false, error: 'Failed to save draft' })
+
+    await saveQuizDraft({
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
   it('stays on page when save fails', async () => {
@@ -465,5 +513,32 @@ describe('handleDiscardSession', () => {
     const opts = makeOpts({ draftId: DRAFT_ID })
     await handleDiscardSession(opts)
     expect(mockDiscardQuiz).toHaveBeenCalledWith(expect.objectContaining({ draftId: DRAFT_ID }))
+  })
+})
+
+// ---- discardQuizSession — clearActiveSession calls -----------------------
+
+describe('discardQuizSession', () => {
+  it('clears active session before calling the discard Server Action', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const mockRouter = { push: mockRouterPush }
+
+    await import('./quiz-submit').then(({ discardQuizSession }) =>
+      discardQuizSession(SESSION_ID, mockRouter as never),
+    )
+
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears active session even when the discard Server Action fails', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: 'already discarded' })
+    const mockRouter = { push: mockRouterPush }
+
+    await import('./quiz-submit').then(({ discardQuizSession }) =>
+      discardQuizSession(SESSION_ID, mockRouter as never),
+    )
+
+    // clearActiveSession is called before the Server Action — discard intent is respected
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 })

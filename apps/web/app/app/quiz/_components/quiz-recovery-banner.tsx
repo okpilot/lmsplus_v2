@@ -49,6 +49,7 @@ export function QuizRecoveryBanner() {
     setError(null)
     try {
       const result = await saveDraft({
+        draftId: session.draftId,
         sessionId: session.sessionId,
         questionIds: session.questionIds,
         answers: session.answers,
