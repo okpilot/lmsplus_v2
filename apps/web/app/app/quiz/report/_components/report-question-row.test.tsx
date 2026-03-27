@@ -1,7 +1,23 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { ReportQuestionRow } from './report-question-row'
+
+// ---- Mocks ------------------------------------------------------------------
+
+vi.mock('@/app/app/_components/markdown-text', () => ({
+  MarkdownText: ({ children, className }: { children: string; className?: string }) => (
+    <div data-testid="markdown-text" className={className}>
+      {children}
+    </div>
+  ),
+}))
+
+vi.mock('@/app/app/_components/zoomable-image', () => ({
+  ZoomableImage: ({ src, alt }: { src: string; alt: string }) => (
+    <span data-testid="zoomable-image" data-src={src} role="img" aria-label={alt} />
+  ),
+}))
 
 // ---- Fixtures ----------------------------------------------------------------
 
@@ -18,6 +34,7 @@ function makeQuestion(overrides: Partial<QuizReportQuestion> = {}): QuizReportQu
       { id: 'opt-b', text: 'Downward force' },
     ],
     explanationText: null,
+    explanationImageUrl: null,
     responseTimeMs: 3000,
     ...overrides,
   }
@@ -135,21 +152,100 @@ describe('ReportQuestionRow', () => {
     })
   })
 
-  describe('explanation', () => {
-    it('shows explanation text when provided', () => {
+  describe('explanation toggle', () => {
+    it('does not show toggle when there is no explanation', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({ explanationText: null, explanationImageUrl: null })}
+          index={0}
+        />,
+      )
+      expect(screen.queryByText('Show explanation')).not.toBeInTheDocument()
+    })
+
+    it('shows toggle button when explanationText is present', () => {
       render(
         <ReportQuestionRow
           question={makeQuestion({ explanationText: 'Lift acts perpendicular to relative wind.' })}
           index={0}
         />,
       )
-      expect(screen.getByText('Lift acts perpendicular to relative wind.')).toBeInTheDocument()
+      expect(screen.getByText('Show explanation')).toBeInTheDocument()
     })
 
-    it('does not show explanation when explanationText is null', () => {
-      render(<ReportQuestionRow question={makeQuestion({ explanationText: null })} index={0} />)
-      // Only 3 text elements in the answer section (label, question text, your answer)
-      expect(screen.queryByText(/perpendicular/)).not.toBeInTheDocument()
+    it('shows toggle button when only explanationImageUrl is present', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({ explanationImageUrl: 'https://example.com/img.png' })}
+          index={0}
+        />,
+      )
+      expect(screen.getByText('Show explanation')).toBeInTheDocument()
+    })
+
+    it('does not render explanation content before toggle is clicked', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({ explanationText: 'Lift acts perpendicular to relative wind.' })}
+          index={0}
+        />,
+      )
+      expect(screen.queryByTestId('markdown-text')).not.toBeInTheDocument()
+    })
+
+    it('renders markdown explanation after clicking toggle', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({ explanationText: 'Lift acts perpendicular to relative wind.' })}
+          index={0}
+        />,
+      )
+      fireEvent.click(screen.getByText('Show explanation'))
+      expect(screen.getByTestId('markdown-text')).toHaveTextContent(
+        'Lift acts perpendicular to relative wind.',
+      )
+    })
+
+    it('renders explanation image after clicking toggle', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({
+            explanationText: 'Some text',
+            explanationImageUrl: 'https://example.com/diagram.png',
+          })}
+          index={0}
+        />,
+      )
+      fireEvent.click(screen.getByText('Show explanation'))
+      const img = screen.getByTestId('zoomable-image')
+      expect(img).toHaveAttribute('data-src', 'https://example.com/diagram.png')
+    })
+
+    it('hides explanation when toggle is clicked again', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({ explanationText: 'Some explanation text' })}
+          index={0}
+        />,
+      )
+      fireEvent.click(screen.getByText('Show explanation'))
+      expect(screen.getByTestId('markdown-text')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('Hide explanation'))
+      expect(screen.queryByTestId('markdown-text')).not.toBeInTheDocument()
+    })
+
+    it('changes button text between Show and Hide', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({ explanationText: 'Some explanation text' })}
+          index={0}
+        />,
+      )
+      expect(screen.getByText('Show explanation')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('Show explanation'))
+      expect(screen.getByText('Hide explanation')).toBeInTheDocument()
     })
   })
 
@@ -170,28 +266,11 @@ describe('ReportQuestionRow', () => {
     })
   })
 
-  describe('question text truncation', () => {
-    it('renders short question text in full', () => {
-      render(
-        <ReportQuestionRow
-          question={makeQuestion({ questionText: 'Short question?' })}
-          index={0}
-        />,
-      )
-      expect(screen.getByText('Short question?')).toBeInTheDocument()
-    })
-
-    it('truncates question text longer than 80 characters with an ellipsis', () => {
-      const longText = 'A'.repeat(90)
+  describe('question text display', () => {
+    it('renders full question text without truncation', () => {
+      const longText = 'A'.repeat(120)
       render(<ReportQuestionRow question={makeQuestion({ questionText: longText })} index={0} />)
-      const expected = `${'A'.repeat(80)}...`
-      expect(screen.getByText(expected)).toBeInTheDocument()
-    })
-
-    it('does not truncate text that is exactly 80 characters', () => {
-      const exactText = 'A'.repeat(80)
-      render(<ReportQuestionRow question={makeQuestion({ questionText: exactText })} index={0} />)
-      expect(screen.getByText(exactText)).toBeInTheDocument()
+      expect(screen.getByText(longText)).toBeInTheDocument()
     })
   })
 })

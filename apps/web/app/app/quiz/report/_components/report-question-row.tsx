@@ -1,9 +1,10 @@
-import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
+'use client'
 
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text
-  return `${text.slice(0, maxLength)}...`
-}
+import { Check, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { useState } from 'react'
+import { MarkdownText } from '@/app/app/_components/markdown-text'
+import { ZoomableImage } from '@/app/app/_components/zoomable-image'
+import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 
 function formatResponseTime(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`
@@ -22,6 +23,8 @@ export function ReportQuestionRow({
   question: QuizReportQuestion
   index: number
 }) {
+  const [expanded, setExpanded] = useState(false)
+
   const selectedOption = question.options.find((o) => o.id === question.selectedOptionId)
   const correctOption = question.options.find((o) => o.id === question.correctOptionId)
   const label = question.questionNumber ?? `Q${index + 1}`
@@ -31,6 +34,8 @@ export function ReportQuestionRow({
   const correctLetter = question.correctOptionId
     ? optionLetter(question.options, question.correctOptionId)
     : ''
+
+  const hasExplanation = Boolean(question.explanationText || question.explanationImageUrl)
 
   return (
     <div className={`px-4 py-3 ${question.isCorrect ? '' : 'bg-red-50 dark:bg-red-950/20'}`}>
@@ -42,7 +47,7 @@ export function ReportQuestionRow({
               aria-label="Correct"
               className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30"
             >
-              <CheckIcon />
+              <Check size={14} strokeWidth={2.5} aria-hidden />
             </span>
           ) : (
             <span
@@ -50,7 +55,7 @@ export function ReportQuestionRow({
               aria-label="Incorrect"
               className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-destructive dark:bg-red-900/30"
             >
-              <XIcon />
+              <X size={14} strokeWidth={2.5} aria-hidden />
             </span>
           )}
         </div>
@@ -58,7 +63,7 @@ export function ReportQuestionRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="text-xs font-medium text-muted-foreground">{label}</span>
-            <span className="text-sm">{truncate(question.questionText, 80)}</span>
+            <span className="text-sm">{question.questionText}</span>
             <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
               {formatResponseTime(question.responseTimeMs)}
             </span>
@@ -74,51 +79,39 @@ export function ReportQuestionRow({
                 Correct answer: {correctLetter} — {correctOption.text}
               </p>
             )}
-            {question.explanationText && (
-              <p className="mt-1 text-muted-foreground">{question.explanationText}</p>
-            )}
           </div>
+
+          {hasExplanation && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setExpanded((prev) => !prev)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                {expanded ? 'Hide explanation' : 'Show explanation'}
+                {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {expanded && (
+                <div className="mt-2 space-y-2 rounded-lg bg-muted/50 p-3">
+                  {question.explanationImageUrl && (
+                    <ZoomableImage
+                      src={question.explanationImageUrl}
+                      alt="Explanation illustration"
+                      className="max-h-48"
+                    />
+                  )}
+                  {question.explanationText && (
+                    <MarkdownText className="text-sm text-muted-foreground">
+                      {question.explanationText}
+                    </MarkdownText>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  )
-}
-
-function XIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
   )
 }
