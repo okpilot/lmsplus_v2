@@ -134,7 +134,11 @@ export function FinishQuizDialog({
           </div>
         )}
 
-        {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         <div className="mt-6 flex flex-col gap-2">
           {answeredCount > 0 ? (

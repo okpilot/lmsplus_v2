@@ -30,7 +30,11 @@ export function SessionRecoveryPrompt({
       <p className="mt-1 text-sm text-muted-foreground">
         {answeredCount} of {totalCount} questions answered
       </p>
-      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
       <div className="mt-4 flex gap-2">
         <button
           type="button"

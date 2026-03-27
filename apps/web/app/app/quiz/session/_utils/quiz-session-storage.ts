@@ -23,35 +23,47 @@ export function writeActiveSession(data: ActiveSession): void {
   }
 }
 
+function safeRemove(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Swallow — best effort
+  }
+}
+
 export function readActiveSession(): ActiveSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const data = JSON.parse(raw) as ActiveSession
     // Validate required fields
-    if (!data.sessionId || !Array.isArray(data.questionIds) || typeof data.savedAt !== 'number') {
-      localStorage.removeItem(STORAGE_KEY)
+    if (
+      !data.sessionId ||
+      !Array.isArray(data.questionIds) ||
+      typeof data.savedAt !== 'number' ||
+      typeof data.currentIndex !== 'number' ||
+      typeof data.answers !== 'object' ||
+      data.answers === null ||
+      Array.isArray(data.answers)
+    ) {
+      safeRemove()
       return null
     }
     // 7-day staleness check
     if (Date.now() - data.savedAt > SEVEN_DAYS_MS) {
-      localStorage.removeItem(STORAGE_KEY)
+      safeRemove()
       return null
     }
     return data
   } catch {
     // Malformed JSON or other error
-    localStorage.removeItem(STORAGE_KEY)
+    safeRemove()
     return null
   }
 }
 
 export function clearActiveSession(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // Swallow — best effort
-  }
+  safeRemove()
 }
 
 type BuildOpts = {

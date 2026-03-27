@@ -90,7 +90,11 @@ export function QuizRecoveryBanner() {
         {session.subjectName ? `${session.subjectName} — ` : ''}
         {answeredCount} of {totalCount} questions answered
       </p>
-      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-xs text-destructive">
+          {error}
+        </p>
+      )}
       <div className="mt-3 flex gap-2">
         <button
           type="button"

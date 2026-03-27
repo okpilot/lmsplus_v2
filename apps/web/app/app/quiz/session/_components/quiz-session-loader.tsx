@@ -44,6 +44,8 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
   const [questions, setQuestions] = useState<Question[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recovery, setRecovery] = useState<ActiveSession | null>(null)
+  const [resumeLoading, setResumeLoading] = useState(false)
+  const [resumeError, setResumeError] = useState<string | null>(null)
   const rv = useSessionRecovery(recovery)
 
   useEffect(() => {
@@ -86,22 +88,25 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
 
   function handleRecoveryResume() {
     if (!recovery) return
-    clearActiveSession()
-    setSession({
-      sessionId: recovery.sessionId,
-      questionIds: recovery.questionIds,
-      draftAnswers: recovery.answers,
-      draftCurrentIndex: recovery.currentIndex,
-      draftId: recovery.draftId,
-      subjectName: recovery.subjectName,
-      subjectCode: recovery.subjectCode,
-    })
-    setRecovery(null)
+    setResumeLoading(true)
+    setResumeError(null)
     loadSessionQuestions(recovery.questionIds).then((result) => {
       if (result.success) {
+        clearActiveSession()
+        setSession({
+          sessionId: recovery.sessionId,
+          questionIds: recovery.questionIds,
+          draftAnswers: recovery.answers,
+          draftCurrentIndex: recovery.currentIndex,
+          draftId: recovery.draftId,
+          subjectName: recovery.subjectName,
+          subjectCode: recovery.subjectCode,
+        })
         setQuestions(result.questions)
+        setRecovery(null)
       } else {
-        setError(result.error)
+        setResumeError(result.error ?? 'Failed to load questions. Try again.')
+        setResumeLoading(false)
       }
     })
   }
@@ -118,8 +123,8 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
           setRecovery(null)
           rv.handleDiscard()
         }}
-        loading={rv.loading}
-        error={rv.error}
+        loading={rv.loading || resumeLoading}
+        error={resumeError ?? rv.error}
       />
     )
   }

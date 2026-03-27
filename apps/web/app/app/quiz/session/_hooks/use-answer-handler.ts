@@ -17,6 +17,8 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
   const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
   const [error, setError] = useState<string | null>(null)
   const lockedRef = useRef<Set<string>>(new Set())
+  const answersRef = useRef(answers)
+  answersRef.current = answers
 
   async function handleSelectAnswer(optionId: string): Promise<boolean> {
     const questionId = getQuestionId()
@@ -39,7 +41,10 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       )
       setError(null)
       onAnswerRecorded?.(
-        new Map(answers).set(questionId, { selectedOptionId: optionId, responseTimeMs: elapsed }),
+        new Map(answersRef.current).set(questionId, {
+          selectedOptionId: optionId,
+          responseTimeMs: elapsed,
+        }),
       )
       return true
     } catch {
