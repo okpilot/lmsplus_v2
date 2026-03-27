@@ -297,7 +297,7 @@ END;
 $$;
 ```
 
-**Randomization:** Options are returned in random order via `ORDER BY random()`. This prevents students from memorising positional patterns. Each call returns a different option arrangement.
+**Randomization:** Options are returned in random order via `ORDER BY random()`. This prevents students from memorising positional patterns. Each call produces an independent random arrangement.
 
 **Rule:** Any Server Action or API route that serves questions **during an active session** must use `get_quiz_questions()` — never a raw `SELECT * FROM questions`.
 
