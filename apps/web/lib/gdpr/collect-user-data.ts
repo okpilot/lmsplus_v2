@@ -71,6 +71,22 @@ export async function collectUserData(
     throw new Error('User not found')
   }
 
+  // Log query errors — GDPR export must be complete, not silently partial
+  const queryResults = [
+    ['quiz_sessions', sessionsResult],
+    ['student_responses', responsesResult],
+    ['fsrs_cards', fsrsResult],
+    ['flagged_questions', flagsResult],
+    ['question_comments', commentsResult],
+    ['user_consents', consentsResult],
+    ['audit_events', auditResult],
+  ] as const
+  for (const [table, result] of queryResults) {
+    if ('error' in result && result.error) {
+      console.error(`[collectUserData] ${table} query failed:`, result.error.message)
+    }
+  }
+
   // Phase 2: fetch quiz answers using session IDs from phase 1
   const sessionIds = (sessionsResult.data ?? []).map((s) => s.id)
   const answersResult =
@@ -82,7 +98,14 @@ export async function collectUserData(
           )
           .in('session_id', sessionIds)
           .order('answered_at', { ascending: false })
-      : { data: [] }
+      : { data: [] as never[] }
+
+  if ('error' in answersResult && answersResult.error) {
+    console.error(
+      '[collectUserData] quiz_session_answers query failed:',
+      answersResult.error.message,
+    )
+  }
 
   return {
     exported_at: new Date().toISOString(),

@@ -39,7 +39,8 @@ export function ExportStudentDialog({ student, open, onOpenChange }: Readonly<Pr
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `student-export-${student.email.split('@')[0]}-${new Date().toISOString().slice(0, 10)}.json`
+      const safePrefix = (student.email.split('@')[0] ?? 'student').replace(/[^a-zA-Z0-9._-]/g, '_')
+      link.download = `student-export-${safePrefix}-${new Date().toISOString().slice(0, 10)}.json`
       link.click()
       URL.revokeObjectURL(url)
 

@@ -3453,3 +3453,109 @@ This is specifically needed in "retry after error" test patterns where:
 **Pattern source:** consent-form.test.tsx (2026-03-27 analytics removal commit) — the
 "clears a previous error when submitting again" test was broken by this race.
 
+---
+
+## Files tested in GDPR PR3 commit (feat/gdpr-pr3-data-rights)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/gdpr/collect-user-data.ts` | `lib/gdpr/collect-user-data.test.ts` | New — 11 tests: happy path, session answers phase-2, ip_address normalisation, user-not-found error paths |
+| `apps/web/app/app/settings/gdpr-actions.ts` | `gdpr-actions.test.ts` | New — 8 tests: auth guard (error + null user), happy path, collectUserData delegation, catch (Error + non-Error thrown) |
+| `apps/web/app/app/admin/students/actions/export-student-data.ts` | `actions/export-student-data.test.ts` | New — 10 tests: Zod validation (missing/invalid/non-object), org-scoped lookup (PGRST116/null/generic error), happy path, requireAdmin throw, collectUserData throw |
+| `apps/web/app/app/settings/_components/data-export-card.tsx` | `_components/data-export-card.test.tsx` | New — 6 tests: render (heading/button/description), happy path toast, error toast, pending state |
+| `apps/web/app/app/admin/students/_components/export-student-dialog.tsx` | `_components/export-student-dialog.test.tsx` | New — 10 tests: render (title/name/email fallback/buttons), happy path (toast + close), error path (toast + no close), cancel, null student guard, pending state |
+
+### Testing functions that accept a Supabase client and fan out Promise.all across 8 tables
+
+When a function runs `Promise.all([supabase.from(t1)..., supabase.from(t2)..., ...])`,
+use a Proxy-based chain helper keyed by table name so each awaited chain resolves to the
+pre-configured result for that table, without manually chaining `.select()`, `.eq()`, etc.:
+
+```ts
+function buildSupabaseClient(tableData: Record<string, { data: unknown; error: unknown }>) {
+  function makeChain(result: { data: unknown; error: unknown }) {
+    const handler: ProxyHandler<Record<string, unknown>> = {
+      get(target, prop) {
+        if (prop === 'then') return (resolve: (v: unknown) => void) => resolve(result)
+        if (prop === 'single') return vi.fn().mockResolvedValue(result)
+        return () => new Proxy(target, handler)
+      },
+    }
+    return new Proxy({} as Record<string, unknown>, handler)
+  }
+  return {
+    from: (table: string) => makeChain(tableData[table] ?? { data: [], error: null }),
+  } as unknown as SupabaseClient<Database>
+}
+```
+
+- Cast `as unknown as SupabaseClient<Database>` to satisfy TypeScript without any being used.
+- For `.single()` calls (user lookup), the Proxy exposes a dedicated `vi.fn()` mock.
+- The Proxy's `then` trap makes the chain itself awaitable, covering `.order()`, `.is()`, `.in()`, etc.
+- For the phase-2 query (quiz_session_answers via `.in()`), provide a separate table key.
+
+### Testing the phase-2 "skip when no sessions" branch
+
+`collectUserData` only queries `quiz_session_answers` when sessions exist. Test the skip path
+by passing `sessionsData: []` and asserting `result.quiz_answers.length === 0`.
+
+### Mocking anchor element click() to prevent jsdom "navigation" errors
+
+When a component calls `link.click()` on a dynamically created `<a>` to trigger a file download,
+jsdom logs "Not implemented: navigation to another Document". Suppress by spying on
+`document.createElement` and replacing `.click` on `<a>` elements:
+
+```ts
+const originalCreateElement = document.createElement.bind(document)
+vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+  const el = originalCreateElement(tag)
+  if (tag === 'a') {
+    Object.defineProperty(el, 'click', { value: vi.fn(), writable: true })
+  }
+  return el
+})
+// ...
+vi.restoreAllMocks()
+```
+
+Call `vi.restoreAllMocks()` after the assertion to clean up for the next test.
+Do NOT use `vi.stubGlobal('URL', ...)` pattern alone — the jsdom warning comes from
+`link.click()`, not from `URL.createObjectURL`.
+
+### Mocking URL.createObjectURL / revokeObjectURL globally
+
+jsdom does not implement `URL.createObjectURL`. Stub both at module scope:
+
+```ts
+vi.stubGlobal('URL', {
+  createObjectURL: vi.fn().mockReturnValue('blob:mock'),
+  revokeObjectURL: vi.fn(),
+})
+```
+
+This must be at module scope (not inside `beforeEach`), as `vi.stubGlobal` replaces the
+global and stays in place for the entire test file.
+
+### Admin export action: org-scoped lookup chain mock
+
+The `exportStudentData` action chains `.select().eq().eq().single()` for the org-scoped
+student lookup. Mock with an explicit nested chain (not a Proxy) since the shape is known:
+
+```ts
+function buildStudentLookupChain({ data, error }) {
+  mockFrom.mockReturnValue({
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data, error }),
+        }),
+      }),
+    }),
+  })
+}
+```
+
+The outer `eq` is for `userId`, the inner `eq` is for `organizationId`. PGRST116 is the
+"no row returned" error code from PostgREST — test it explicitly since the action has a
+dedicated branch for it.
+
