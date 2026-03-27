@@ -3327,6 +3327,35 @@ Testing pattern: render → click one required checkbox → assert disabled; cli
 | `apps/web/app/auth/login-complete/route.ts` | `route.test.ts` | Extended: maxAge=31536000 in set-cookie header |
 | `apps/web/app/consent/actions.ts` | `actions.test.ts` | Extended: maxAge=31536000 in cookieStore.set call |
 
+## Files tested for CURRENT_ANALYTICS_VERSION / post-commit for feat/gdpr-consent-gate (2026-03-27)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/lib/consent/versions.ts` | `apps/web/app/consent/actions.test.ts` | Extended: asserts `p_document_version: 'v1.0'` passed to analytics RPC call |
+
+### Constant value coverage — ensure named constants flow through to RPC calls
+
+When a named constant (e.g. `CURRENT_ANALYTICS_VERSION`) is added and used as a field value
+in an RPC call, add a test that asserts the literal value appears in the RPC payload:
+
+```ts
+it('passes the current analytics version constant as p_document_version', async () => {
+  // ...setup...
+  expect(mockRpc).toHaveBeenCalledWith(
+    'record_consent',
+    expect.objectContaining({
+      p_document_type: 'cookie_analytics',
+      p_document_version: 'v1.0',   // CURRENT_ANALYTICS_VERSION
+    }),
+  )
+})
+```
+
+This catches partial-constant adoption: the commit that introduced `CURRENT_ANALYTICS_VERSION`
+fixed a hardcoded `'v1.0'` literal in `actions.ts` but the existing analytics test only
+asserted `p_document_type` and `p_accepted`, leaving `p_document_version` unchecked. A future
+version bump would have silently written the wrong version to the audit log with no failing test.
+
 ### Asserting set-cookie header Max-Age (route handler cookies)
 
 When a route handler sets a cookie via `response.cookies.set(name, value, { maxAge: N })`, the

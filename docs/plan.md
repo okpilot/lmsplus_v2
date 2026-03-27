@@ -14,7 +14,7 @@ First-login consent flow with persistent audit trail:
 - **Login redirect**: `/auth/login-complete` calls `check_consent_status()` → missing or stale versions → redirect to `/consent`
 - **/consent page**: three checkboxes (TOS required, privacy required, analytics optional), Continue button gated on required acceptance
 - **Server Action**: `recordConsent()` with Zod validation, calls `record_consent()` three times, sets cookie with versions, redirects to `/app/dashboard`
-- **Document versioning**: `lib/consent/versions.ts` (CURRENT_TOS_VERSION, CURRENT_PRIVACY_VERSION) → bump to trigger re-consent for all users
+- **Document versioning**: `lib/consent/versions.ts` (CURRENT_TOS_VERSION, CURRENT_PRIVACY_VERSION, CURRENT_ANALYTICS_VERSION) → bump to trigger re-consent for all users
 - **E2E coverage**: new `consent.spec.ts` with full flow tests, E2E helpers seed consent for test users
 - **Security**: auth check via RPC, soft-delete guard on users lookup, IP/UA capture, immutable RLS policies
 - Migrations: migration 057 only. Zero-row no-op checks on RPC queries.

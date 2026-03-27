@@ -247,6 +247,25 @@ describe('recordConsent', () => {
         }),
       )
     })
+
+    it('passes the current analytics version constant as p_document_version', async () => {
+      mockAuthenticatedUser()
+      mockRpcSuccess()
+
+      await recordConsent({
+        acceptedTos: true,
+        acceptedPrivacy: true,
+        acceptedAnalytics: true,
+      })
+
+      expect(mockRpc).toHaveBeenCalledWith(
+        'record_consent',
+        expect.objectContaining({
+          p_document_type: 'cookie_analytics',
+          p_document_version: 'v1.0',
+        }),
+      )
+    })
   })
 
   describe('IP and user-agent forwarding', () => {

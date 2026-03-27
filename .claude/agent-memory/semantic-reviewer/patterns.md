@@ -4,6 +4,21 @@
 
 ## Session Log
 
+### 2026-03-27 — commit 27c15b7 (fix(consent): add CURRENT_ANALYTICS_VERSION constant + tests)
+- **Files reviewed:** versions.ts, consent/actions.ts, consent/actions.test.ts, login-complete/route.test.ts, consent/_components/consent-checkbox.test.tsx, agent-memory files
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 6
+- **Suggestion 1:** `apps/web/app/consent/actions.test.ts:194-209` — The new `maxAge` test uses `acceptedAnalytics: false`, which is the correct path. However the assertion hardcodes the cookie value as `'v1.0:v1.0'` (the mock return value). This is fine today but the test does not verify that `CURRENT_TOS_VERSION` and `CURRENT_PRIVACY_VERSION` are what compose the cookie value — it asserts the mocked string. The real behavioral gap this test should protect (wrong version in cookie on a version bump) is caught upstream in `check-consent.test.ts`. Non-blocking.
+- **Suggestion 2 (carry-forward — 3rd time):** `apps/web/e2e/helpers/supabase.ts:27-32` — `ensureConsentRecords` still does not filter by `document_version`. Logged in prior sessions (227c976). Not addressed in this commit. Will silently fail to re-seed test users after a version bump.
+- **Prior ISSUE confirmed closed:** `consent/actions.ts:65` — `p_document_version` for `cookie_analytics` was hardcoded `'v1.0'`. Now uses `CURRENT_ANALYTICS_VERSION`. ISSUE from commit 227c976 is fully resolved. grep confirms no remaining `'v1.0'` literals for analytics path.
+- **Positive 1:** `CURRENT_ANALYTICS_VERSION` added to `versions.ts` alongside TOS and Privacy constants — single source of truth now covers all three document types. Full constant parity achieved.
+- **Positive 2:** `CURRENT_ANALYTICS_VERSION` imported and used immediately in `actions.ts` — no intermediate step where the constant existed but wasn't wired in.
+- **Positive 3:** New `maxAge` test in `actions.test.ts` uses `expect.objectContaining({ maxAge: 31_536_000 })` — non-brittle assertion that won't break if other cookie options change.
+- **Positive 4:** New `maxAge` test in `route.test.ts` uses `toContain('Max-Age=31536000')` — correctly uses Pascal-case form matching actual Set-Cookie header serialization. Pattern documented in test-writer memory.
+- **Positive 5:** `consent-checkbox.test.tsx` correctly avoids testing `stopPropagation` behavior in jsdom (documented as untestable in test-writer memory). Structural assertion `label.toContainElement(link)` correctly verifies intent without relying on browser event semantics.
+- **Positive 6:** `vi.resetAllMocks()` in `beforeEach` present in `consent-checkbox.test.tsx` — correct isolation pattern.
+- **Recurring pattern confirmed resolved:** Partial constant adoption (logged 227c976) — after introducing TOS/Privacy constants, analytics was missed. Now fixed. Pattern remains in memory for future vigilance.
+- **Files still needing extra scrutiny:** `apps/web/e2e/helpers/supabase.ts` — `ensureConsentRecords` version-filtering gap (3 sessions, not yet addressed).
+
 ### 2026-03-27 — commit 227c976 (fix(consent): address CodeRabbit PR #385 review findings)
 - **Files reviewed:** login-complete/route.ts, consent/actions.ts, consent-checkbox.tsx, e2e/helpers/supabase.ts, docs/plan.md, docs/database.md
 - **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 5
