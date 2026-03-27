@@ -147,7 +147,6 @@ test.describe
 
       await expect(page.getByRole('checkbox', { name: /terms of service/i })).toBeVisible()
       await expect(page.getByRole('checkbox', { name: /privacy policy/i })).toBeVisible()
-      await expect(page.getByRole('checkbox', { name: /analytics/i })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
     })
 

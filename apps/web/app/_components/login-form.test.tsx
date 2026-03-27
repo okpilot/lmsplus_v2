@@ -178,6 +178,18 @@ describe('LoginForm', () => {
     expect(link).toHaveAttribute('href', '/auth/forgot-password')
   })
 
+  it('renders a "Terms of Service" link to /legal/terms', () => {
+    render(<LoginForm />)
+    const link = screen.getByRole('link', { name: /terms of service/i })
+    expect(link).toHaveAttribute('href', '/legal/terms')
+  })
+
+  it('renders a "Privacy Policy" link to /legal/privacy', () => {
+    render(<LoginForm />)
+    const link = screen.getByRole('link', { name: /privacy policy/i })
+    expect(link).toHaveAttribute('href', '/legal/privacy')
+  })
+
   it('maps "Email rate limit exceeded" to a friendly error', async () => {
     mockSignInWithPassword.mockResolvedValue({
       error: { message: 'Email rate limit exceeded' },

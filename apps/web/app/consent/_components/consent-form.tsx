@@ -11,7 +11,6 @@ export function ConsentForm() {
   const router = useRouter()
   const [acceptedTos, setAcceptedTos] = useState(false)
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
-  const [acceptedAnalytics, setAcceptedAnalytics] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -20,7 +19,7 @@ export function ConsentForm() {
     setError(null)
     startTransition(async () => {
       try {
-        const res = await recordConsent({ acceptedTos, acceptedPrivacy, acceptedAnalytics })
+        const res = await recordConsent({ acceptedTos, acceptedPrivacy })
         if (res.success) {
           router.push('/app/dashboard')
         } else {
@@ -63,20 +62,11 @@ export function ConsentForm() {
               linkHref="/legal/privacy"
               required
             />
-            <ConsentCheckbox
-              id="consent-analytics"
-              checked={acceptedAnalytics}
-              onCheckedChange={setAcceptedAnalytics}
-              disabled={isPending}
-              label="I consent to"
-              linkText="analytics cookies"
-              linkHref="/legal/privacy"
-              description="Help us improve the platform"
-            />
           </div>
 
           <p className="text-xs text-muted-foreground">
-            We use essential cookies only to keep you signed in. No consent is needed for these.
+            We use essential cookies only to keep you signed in. No tracking or analytics cookies
+            are used.
           </p>
 
           {error && (
