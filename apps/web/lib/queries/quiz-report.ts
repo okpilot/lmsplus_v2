@@ -9,6 +9,7 @@ export type QuizReportQuestion = {
   correctOptionId: string
   options: { id: string; text: string }[]
   explanationText: string | null
+  explanationImageUrl: string | null
   responseTimeMs: number
 }
 
@@ -49,6 +50,7 @@ type QuestionRow = {
   question_number: string | null
   options: { id: string; text: string }[]
   explanation_text: string | null
+  explanation_image_url: string | null
 }
 
 export async function getQuizReport(sessionId: string): Promise<QuizReportData | null> {
@@ -107,7 +109,7 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
   // and buildReportQuestions strips options[].correct before returning.
   const { data: questionsData } = await supabase
     .from('questions')
-    .select('id, question_text, question_number, options, explanation_text')
+    .select('id, question_text, question_number, options, explanation_text, explanation_image_url')
     .in('id', questionIds)
 
   const questions = (questionsData ?? []) as QuestionRow[]
@@ -162,6 +164,7 @@ function buildReportQuestions(
       correctOptionId: correctMap.get(answer.question_id) ?? '',
       options: options.map((o) => ({ id: o.id, text: o.text })),
       explanationText: question?.explanation_text ?? null,
+      explanationImageUrl: question?.explanation_image_url ?? null,
       responseTimeMs: answer.response_time_ms,
     }
   })
