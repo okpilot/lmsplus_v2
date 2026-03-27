@@ -547,11 +547,12 @@ verb_noun pattern:
 ```sql
 -- SECURITY INVOKER (default): RPC runs as the calling user, RLS applies
 -- Use for: most reads and writes — RLS is your safety net
-CREATE FUNCTION get_quiz_questions(...)
+CREATE FUNCTION get_student_progress(...)
 LANGUAGE plpgsql
 AS $$ ... $$;
 
 -- SECURITY DEFINER: RPC runs as the function owner (bypasses RLS)
+-- get_quiz_questions and submit_quiz_answer are both SECURITY DEFINER
 -- Use ONLY when: legitimate cross-table access that RLS would block
 -- Mandatory: re-implement the security check manually inside the function
 CREATE FUNCTION submit_quiz_answer(...)
@@ -590,8 +591,14 @@ RETURNS TABLE (
   question_number       text      -- external ID from source QDB (e.g. '688864')
 )
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
   RETURN QUERY
   SELECT
     q.id,
@@ -599,15 +606,15 @@ BEGIN
     q.question_image_url,
     jsonb_agg(
       jsonb_build_object('id', opt->>'id', 'text', opt->>'text')
-      ORDER BY opt->>'id'
+      ORDER BY random()
     ) AS options,
     s.code    AS subject_code,
     t.name    AS topic_name,
     st.name   AS subtopic_name,
     q.lo_reference,
     q.difficulty,
-    NULL::text AS explanation_text,        -- not returned here
-    NULL::text AS explanation_image_url,   -- returned by get_question_explanation after submit
+    q.explanation_text,
+    q.explanation_image_url,
     q.question_number
   FROM questions q
   JOIN easa_subjects  s  ON s.id = q.subject_id
@@ -617,10 +624,15 @@ BEGIN
   WHERE q.id = ANY(p_question_ids)
     AND q.deleted_at IS NULL
     AND q.status = 'active'
-  GROUP BY q.id, q.question_text, q.question_image_url, s.code, t.name, st.name, q.lo_reference, q.difficulty, q.question_number;
+  GROUP BY q.id, q.question_text, q.question_image_url,
+           s.code, t.name, st.name, q.lo_reference, q.difficulty,
+           q.explanation_text, q.explanation_image_url,
+           q.question_number;
 END;
 $$;
 ```
+
+**Randomization (migration 59):** Options are returned in random order via `ORDER BY random()` (not sorted by ID). This prevents students from memorising positional patterns and ensures fair assessment across attempts.
 
 #### `submit_quiz_answer` — atomic answer submission (deprecated: use `batch_submit_quiz`)
 

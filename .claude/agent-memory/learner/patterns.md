@@ -121,6 +121,9 @@
 | GRANT EXECUTE missing after CREATE OR REPLACE on SECURITY DEFINER RPC in migration | 1 | 2026-03-27 | Watch — migration 058 (44e305f/d0e5aed): `record_consent()` RPC was replaced with CREATE OR REPLACE but GRANT EXECUTE to authenticated was not re-stated; Postgres revokes execute rights when a function's owner changes via CREATE OR REPLACE; any authenticated call to the RPC would fail with permission denied; caught as ISSUE by semantic-reviewer post-commit; fixed in d0e5aed by appending GRANT EXECUTE after CREATE OR REPLACE; first occurrence — log and watch; if a second migration ships CREATE OR REPLACE on a SECURITY DEFINER function without a GRANT EXECUTE statement, add a rule note to security.md: "Every CREATE OR REPLACE of a SECURITY DEFINER function must be followed by GRANT EXECUTE ON FUNCTION ... TO authenticated" |
 | E2E seed helper missing version filter (stale consent rows survive version bump) | 1 | 2026-03-27 | Watch (carry-forward suggestion — 4th consecutive cycle) — `ensureConsentRecords` in `apps/web/e2e/helpers/supabase.ts` checks for the existence of consent rows without filtering by `document_version`; after a version bump, the helper skips re-seeding because old-version rows are already present, leaving test users with stale consent records that fail the gate; flagged by semantic-reviewer as a SUGGESTION in cycles 227c976, b35a7c1, 44e305f (now 3 suggestion cycles + this 4th); not yet addressed; semantic-reviewer has flagged this 4 consecutive cycles; first entry into learner frequency table; this pattern crosses the "watch and log" threshold due to repetition frequency — GitHub issue should be created to track |
 | Deep JSX nesting from repeated pattern (3x repetition causing 5-level nest) | 1 | 2026-03-27 | Watch — consent commit (2026-03-27): consent-form.tsx repeated a checkbox+label+description JSX pattern 3 times; each repetition added nesting depth, pushing the component to 5 levels (limit 3); caught as BLOCKING by code-reviewer; fixed by extracting ConsentCheckbox sub-component; distinct from "extract at 3 repetitions" rule (Section 2 applies at any nesting level — this is the specific case where the 3-repetition trigger coincides with a nesting-depth violation); first occurrence of this specific mechanism (repetition causing nesting violation) as a named pattern — log and watch; the existing "extract at 3 repetitions" rule in code-style.md Section 2 is the correct gate; no additional rule needed |
+| Decorative icon in interactive element missing aria-hidden | 1 | 2026-03-27 | Watch — report-question-row.tsx (539222e/10263b3): ChevronUp/ChevronDown lucide icons inside a button lacked aria-hidden; screen readers would announce "chevron up" alongside "Hide explanation" button text, creating redundant noise; caught by semantic-reviewer as a SUGGESTION; fixed in 10263b3 by adding aria-hidden to both icons; distinct from "ARIA tab role missing on button-based tab UI" (that is about missing structural ARIA roles — this is about decorative icons polluting the accessible name of their interactive parent); first occurrence — log and watch; if a second component ships decorative icons without aria-hidden inside buttons or links, add a note to code-style.md Section 2: decorative icons (lucide or SVG) inside interactive elements must always have aria-hidden |
+| Generic alt text for contextual image (alt="Explanation illustration") | 1 | 2026-03-27 | Watch — report-question-row.tsx (539222e): ZoomableImage for explanation diagrams used alt="Explanation illustration" regardless of question content; the alt text should describe the specific diagram or be derived from the question context; caught by semantic-reviewer as a SUGGESTION; not fixed in this cycle (context-specific alt text would require passing description data through the data layer); first occurrence — log and watch; the fix path would be: add an explanation_image_alt column to the questions schema and propagate it through the quiz-report query |
+| New test file shipped without vi.resetAllMocks() in beforeEach | 2 | 2026-03-27 | Watch — first: report-question-row.test.tsx (539222e/10263b3): test file written with mocks but missing beforeEach(() => { vi.resetAllMocks() }), allowing mock state to bleed between tests; caught by semantic-reviewer as a SUGGESTION; fixed in 10263b3 by adding beforeEach with the call; second occurrence — the rule exists in test-writer/patterns.md (§ Mock patterns) and the agent-test-writer.md rule file mandates vi.resetAllMocks() in beforeEach; the pattern persists at authoring time; the semantic-reviewer catch is the reliable gate; no additional rule change needed — rule is documented, compliance gap at generation time; distinct from "Shared hoisted mock capture without beforeEach reset" (that is a specific hoisted variable needing its own reset — this is the absence of the global vi.resetAllMocks() call entirely) |
 
 ## Lessons Learned
 
@@ -167,6 +170,49 @@
 - Test writer produced 25 tests covering the query module and Server Actions, all passing, shipped in the same session.
 - Doc updater correctly identified the new RLS policy as a `docs/database.md` update and kept the docs in sync.
 - The fix commit d9e1d10 addressed all 3 non-trivial findings in a single pass with no residual findings.
+
+---
+
+### 2026-03-27 — Quiz result page improvement: collapsible explanations (commits 539222e, 10263b3, 7cf92ee)
+
+**Context:** Three-commit sequence for issue #390 (collapsible explanations in quiz report). 539222e introduced the feature: added `explanationImageUrl` to the quiz-report query and type, replaced plain text explanation with a collapsible toggle per question row, rendered explanation content via `MarkdownText` and `ZoomableImage`, replaced inline SVG icons with lucide-react (Check, X, ChevronDown/Up), and updated 23 unit tests. 10263b3 was the fix commit: added `aria-hidden` to chevron icons, added `beforeEach(() => { vi.resetAllMocks() })` to the test file, and added 3 unit tests for the `explanationImageUrl` mapping. 7cf92ee added an E2E test for the explanation toggle to `quiz-flow.spec.ts`.
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean.
+
+**Doc updater:** No changes needed. Clean.
+
+**Semantic reviewer (commit 539222e):** 0 CRITICAL, 0 ISSUE, 3 SUGGESTION.
+1. **Chevron icons missing aria-hidden — SUGGESTION, real, fixed in 10263b3.** ChevronUp/ChevronDown inside the toggle button lacked `aria-hidden`. Screen readers would announce the icon glyph name alongside the visible button text, producing redundant output ("Show explanation chevron down"). Fixed by adding `aria-hidden` to both icon renders.
+2. **Missing `vi.resetAllMocks()` in beforeEach — SUGGESTION, real, fixed in 10263b3.** `report-question-row.test.tsx` had Supabase/component mocks set up at module scope but no `beforeEach(() => { vi.resetAllMocks() })` call. Mock state could bleed between test cases. Fixed by adding the beforeEach block (and importing `beforeEach` from vitest).
+3. **Generic alt text on explanation image — SUGGESTION, not fixed.** `alt="Explanation illustration"` is static regardless of question content. A meaningful alt text would describe the specific diagram. Not fixed because the fix path requires a schema addition (explanation_image_alt column) and data pipeline work. Deferred.
+
+**Test writer (commit 10263b3):** Added 3 tests to `quiz-report.test.ts` covering `explanationImageUrl` mapping: (1) maps URL when present, (2) sets null when field is null, (3) sets null when question not found in result. All passing.
+
+**E2E (commit 7cf92ee):** Added explanation toggle section to quiz-flow.spec.ts (steps 9–9.c): verify toggle button visible, click to expand, verify panel visible, collapse again.
+
+**Pattern analysis:**
+
+- **Decorative icon in interactive element missing aria-hidden (NEW — count 1):** Lucide icon placed inside a button without `aria-hidden`. Caught as SUGGESTION by semantic-reviewer, fixed in the same session. First occurrence — log and watch. Rule change requires 2+ occurrences across different commits. The fix is always mechanical: add `aria-hidden` to the icon element.
+
+- **Generic alt text for contextual image (NEW — count 1):** `alt="Explanation illustration"` is non-descriptive. Caught as SUGGESTION. Not fixed because the fix requires a schema change. First occurrence — log and watch. The path to fix is adding an `explanation_image_alt` column to the questions schema and propagating it through the quiz-report query.
+
+- **New test file shipped without vi.resetAllMocks() in beforeEach (RECURRING — count now 2):** First occurrence was tracked as "Shared hoisted mock capture without beforeEach reset" (a different mechanism, same root: missing beforeEach reset). This is now named distinctly as the absence of the global `vi.resetAllMocks()` call. The rule exists in test-writer/patterns.md but is not consistently applied at generation time. The semantic-reviewer catch is the reliable gate. No rule change needed — rule is documented; compliance gap is at authoring time only.
+
+**Actions taken:**
+- Frequency table: Added "Decorative icon in interactive element missing aria-hidden" at count 1, status WATCH.
+- Frequency table: Added "Generic alt text for contextual image" at count 1, status WATCH.
+- Frequency table: Added "New test file shipped without vi.resetAllMocks() in beforeEach" at count 2 (this cycle + prior occurrence), status WATCH.
+
+**No rule changes applied this cycle.** All three suggestions are first (or near-first) occurrences. The aria-hidden and alt-text patterns are first occurrences — rule change threshold requires 2+. The resetAllMocks absence has a documented rule in test-writer/patterns.md already; adding another rule would duplicate existing enforcement.
+
+**False positives:** None detected. All three SUGGESTION findings were real and correctly classified.
+
+**Positive signals:**
+- Code reviewer produced 0 findings on a commit touching 4 files including a new component feature — mechanical discipline held.
+- Doc updater clean — no documentation drift despite adding a new field to the quiz-report query and type.
+- Test writer filled 3 gaps in `explanationImageUrl` mapping coverage in the fix commit — the query function's new field is now fully covered (present, null, missing).
+- E2E test for the explanation toggle was added in the same PR cycle as the feature — not deferred to a later commit.
+- All 3 SUGGESTION-level findings (two fixed, one deferred with clear rationale) were handled in a single fix commit — the review cycle was clean.
 
 ---
 

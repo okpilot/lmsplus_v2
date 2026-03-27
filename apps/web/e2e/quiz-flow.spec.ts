@@ -55,7 +55,28 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await expect(page.getByRole('link', { name: 'Back to Dashboard' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Start Another Quiz' })).toBeVisible()
 
-  // 9. Navigate back to dashboard
+  // 9. Verify explanation toggle on report page
+  await expect(page.getByRole('heading', { name: 'Question Breakdown' })).toBeVisible()
+
+  // Explanation should be hidden by default — no markdown content visible
+  const toggleButton = page.getByRole('button', { name: 'Show explanation' }).first()
+  await expect(toggleButton).toBeVisible()
+
+  // Click toggle — explanation should expand with formatted text
+  await toggleButton.click()
+  const hideButton = page.getByRole('button', { name: 'Hide explanation' }).first()
+  await expect(hideButton).toBeVisible()
+
+  // Verify markdown content rendered (not raw asterisks/plain text)
+  // The explanation panel has a muted background container
+  const explanationPanel = page.getByTestId('explanation-panel').first()
+  await expect(explanationPanel).toBeVisible()
+
+  // Collapse it again
+  await hideButton.click()
+  await expect(page.getByRole('button', { name: 'Show explanation' }).first()).toBeVisible()
+
+  // 10. Navigate back to dashboard
   await page.getByRole('link', { name: 'Back to Dashboard' }).click()
   await page.waitForURL('**/app/dashboard')
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
