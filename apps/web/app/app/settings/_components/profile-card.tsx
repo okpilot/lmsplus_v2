@@ -8,7 +8,12 @@ type ProfileCardProps = {
   stats: ProfileStats
 }
 
-export function ProfileCard({ email, organizationName, memberSince, stats }: ProfileCardProps) {
+export function ProfileCard({
+  email,
+  organizationName,
+  memberSince,
+  stats,
+}: Readonly<ProfileCardProps>) {
   const joinDate = new Date(memberSince).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
@@ -47,7 +52,7 @@ export function ProfileCard({ email, organizationName, memberSince, stats }: Pro
   )
 }
 
-function StatBlock({ label, value }: { label: string; value: string | number }) {
+function StatBlock({ label, value }: Readonly<{ label: string; value: string | number }>) {
   return (
     <div>
       <p className="text-2xl font-bold">{value}</p>

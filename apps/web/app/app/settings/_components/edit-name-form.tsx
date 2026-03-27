@@ -17,13 +17,13 @@ type EditNameFormProps = {
   currentName: string | null
 }
 
-export function EditNameForm({ currentName }: EditNameFormProps) {
+export function EditNameForm({ currentName }: Readonly<EditNameFormProps>) {
   const [name, setName] = useState(currentName ?? '')
   const [savedName, setSavedName] = useState((currentName ?? '').trim())
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
 
