@@ -37,6 +37,14 @@ vi.mock('../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
+const { mockClearDeploymentPin } = vi.hoisted(() => ({
+  mockClearDeploymentPin: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('../actions/clear-deployment-pin', () => ({
+  clearDeploymentPin: mockClearDeploymentPin,
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import { QuizRecoveryBanner } from './quiz-recovery-banner'
@@ -65,6 +73,7 @@ beforeEach(() => {
   mockReadActiveSession.mockReturnValue(null)
   mockDiscardQuiz.mockResolvedValue({ success: true })
   mockSaveDraft.mockResolvedValue({ success: true })
+  mockClearDeploymentPin.mockResolvedValue(undefined)
 })
 
 // ---- Rendering ------------------------------------------------------------

@@ -1,5 +1,6 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
 import { type ActiveSession, clearActiveSession } from '../_utils/quiz-session-storage'
@@ -25,6 +26,7 @@ export function useSessionRecovery(recovery: ActiveSession | null) {
       })
       if (result.success) {
         clearActiveSession()
+        clearDeploymentPin().catch(() => {})
         router.replace('/app/quiz')
       } else {
         setError(result.error ?? 'Failed to save. Please try again.')
@@ -39,6 +41,7 @@ export function useSessionRecovery(recovery: ActiveSession | null) {
   function handleDiscard() {
     const captured = recovery
     clearActiveSession()
+    clearDeploymentPin().catch(() => {})
     router.replace('/app/quiz')
     if (captured) {
       discardQuiz({ sessionId: captured.sessionId }).catch(() => {})

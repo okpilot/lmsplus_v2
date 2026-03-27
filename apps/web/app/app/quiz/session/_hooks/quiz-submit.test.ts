@@ -25,6 +25,14 @@ vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
+const { mockClearDeploymentPin } = vi.hoisted(() => ({
+  mockClearDeploymentPin: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('../../actions/clear-deployment-pin', () => ({
+  clearDeploymentPin: mockClearDeploymentPin,
+}))
+
 const { mockClearActiveSession } = vi.hoisted(() => ({
   mockClearActiveSession: vi.fn(),
 }))
@@ -78,6 +86,7 @@ function makeRouter() {
 beforeEach(() => {
   vi.resetAllMocks()
   mockDeleteDraft.mockResolvedValue({ success: true })
+  mockClearDeploymentPin.mockResolvedValue(undefined)
 })
 
 // ---- submitQuizSession ---------------------------------------------------

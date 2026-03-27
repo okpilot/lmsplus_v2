@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { clearDeploymentPin } from '../actions/clear-deployment-pin'
 import { discardQuiz } from '../actions/discard'
 import { saveDraft } from '../actions/draft'
 import {
@@ -59,6 +60,7 @@ export function QuizRecoveryBanner() {
       })
       if (result.success) {
         clearActiveSession()
+        clearDeploymentPin().catch(() => {})
         router.refresh()
         setSession(null)
       } else {
@@ -74,6 +76,7 @@ export function QuizRecoveryBanner() {
   function handleDiscard() {
     const captured = session
     clearActiveSession()
+    clearDeploymentPin().catch(() => {})
     setSession(null)
     if (captured) {
       discardQuiz({ sessionId: captured.sessionId }).catch(() => {})

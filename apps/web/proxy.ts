@@ -80,6 +80,18 @@ export async function proxy(request: NextRequest): Promise<Response> {
     }
   }
 
+  // Pin quiz session to current deployment so mid-quiz deploys don't break Server Actions
+  if (pathname.startsWith('/app/quiz/session') && user) {
+    const deploymentId = process.env.VERCEL_DEPLOYMENT_ID
+    if (deploymentId && !request.cookies.get('__vdpl')) {
+      response.cookies.set('__vdpl', deploymentId, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'strict',
+      })
+    }
+  }
+
   // Redirect authenticated users away from login page to dashboard
   // But preserve error messages (e.g. expired recovery links)
   if (pathname === '/' && user && !request.nextUrl.searchParams.has('error')) {

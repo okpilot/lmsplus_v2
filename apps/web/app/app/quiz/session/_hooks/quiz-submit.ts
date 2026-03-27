@@ -1,5 +1,6 @@
 import type { useRouter } from 'next/navigation'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
+import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
 import { deleteDraft } from '../../actions/draft-delete'
@@ -25,6 +26,7 @@ export async function submitQuizSession(
     const result = await batchSubmitQuiz({ sessionId, answers: answerArray })
     if (!result.success) return { success: false as const, error: result.error }
     clearActiveSession()
+    clearDeploymentPin().catch(() => {})
     if (draftId) {
       deleteDraft({ draftId }).catch((e) =>
         console.error('[submitQuizSession] Draft cleanup failed:', e),
@@ -42,6 +44,7 @@ export async function discardQuizSession(
   draftId?: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
   clearActiveSession() // Always clear — respect discard intent even if Server Action fails
+  clearDeploymentPin().catch(() => {})
   try {
     const result = await discardQuiz({ sessionId, draftId })
     if (!result.success) return result
@@ -74,6 +77,7 @@ export async function saveQuizDraft(opts: {
   })
   if (result.success) {
     clearActiveSession()
+    clearDeploymentPin().catch(() => {})
     opts.router.push('/app/quiz')
     return { success: true as const }
   }
