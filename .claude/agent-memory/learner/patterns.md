@@ -118,6 +118,8 @@
 | Sensitive auth operation (password change) implemented as direct client-side Supabase call instead of Server Action | 1 | 2026-03-26 | Watch — 552bb2f (feat/settings PR #368): `change-password-form.tsx` called `supabase.auth.updateUser()` directly from the client component; password changes must flow through Server Actions so the audit trail (audit_events insert) can be recorded server-side before the auth mutation commits; semantic-reviewer caught as CRITICAL; fixed in d9e1d10 by moving the call to a `changePassword` Server Action that inserts an audit event first; distinct from "Server-authoritative ordering value computed client-side" (that is a data value — this is a security-sensitive auth operation); first occurrence — log and watch; if a second auth mutation (email change, MFA toggle) ships as a client-side call, add a rule note: all auth.updateUser/admin calls must live in Server Actions, not client components |
 | Soft-delete guard missing on org lookup in Server Action (SECURITY DEFINER exemption does not apply here) | 1 | 2026-03-26 | Watch — 552bb2f (feat/settings PR #368): profile update Server Action queried the `organizations` table with `.eq('id', orgId)` but no `.is('deleted_at', null)` filter; a deactivated org's data would still resolve, allowing students of a soft-deleted org to update their profiles; semantic-reviewer caught as ISSUE; fixed in d9e1d10 by adding the soft-delete filter; distinct from "RPC missing AND deleted_at IS NULL guard on session fetch" (that is inside a SECURITY DEFINER RPC — this is a direct Supabase client query in a Server Action where RLS is active but the row-level filter on the org's deleted_at is not enforced by the student's own RLS policy); first occurrence — log and watch; if a second Server Action ships an org/user lookup without a soft-delete filter, add a note to code-style.md Section 5: ownership-scoping queries on soft-deletable tables must include `.is('deleted_at', null)` |
 | Hardcoded cookie/constant values in tests instead of importing source constants | 2 | 2026-03-27 | RULE CANDIDATE — first: proxy.test.ts (consent commit, 2026-03-27): hardcoded cookie name and value as string literals instead of importing from production module; second: actions.ts used hardcoded 'v1.0' string literal for CURRENT_ANALYTICS_VERSION instead of importing the constant (CodeRabbit PR #385 cycle, 227c976); and E2E helper supabase.ts used hardcoded 'v1.0' for TOS/privacy versions instead of importing CURRENT_TOS_VERSION and CURRENT_PRIVACY_VERSION (same cycle); root cause: when a constant is defined in a production module, test authors duplicate the literal value rather than importing the exported constant; when the constant is renamed or the value changes, the test continues to pass while silently testing stale data; both caught by semantic-reviewer as ISSUE-level findings; second occurrence across different commits — RULE CANDIDATE: test files must import production constants rather than duplicating literal values; add note to test-writer patterns memory |
+| GRANT EXECUTE missing after CREATE OR REPLACE on SECURITY DEFINER RPC in migration | 1 | 2026-03-27 | Watch — migration 058 (44e305f/d0e5aed): `record_consent()` RPC was replaced with CREATE OR REPLACE but GRANT EXECUTE to authenticated was not re-stated; Postgres revokes execute rights when a function's owner changes via CREATE OR REPLACE; any authenticated call to the RPC would fail with permission denied; caught as ISSUE by semantic-reviewer post-commit; fixed in d0e5aed by appending GRANT EXECUTE after CREATE OR REPLACE; first occurrence — log and watch; if a second migration ships CREATE OR REPLACE on a SECURITY DEFINER function without a GRANT EXECUTE statement, add a rule note to security.md: "Every CREATE OR REPLACE of a SECURITY DEFINER function must be followed by GRANT EXECUTE ON FUNCTION ... TO authenticated" |
+| E2E seed helper missing version filter (stale consent rows survive version bump) | 1 | 2026-03-27 | Watch (carry-forward suggestion — 4th consecutive cycle) — `ensureConsentRecords` in `apps/web/e2e/helpers/supabase.ts` checks for the existence of consent rows without filtering by `document_version`; after a version bump, the helper skips re-seeding because old-version rows are already present, leaving test users with stale consent records that fail the gate; flagged by semantic-reviewer as a SUGGESTION in cycles 227c976, b35a7c1, 44e305f (now 3 suggestion cycles + this 4th); not yet addressed; semantic-reviewer has flagged this 4 consecutive cycles; first entry into learner frequency table; this pattern crosses the "watch and log" threshold due to repetition frequency — GitHub issue should be created to track |
 | Deep JSX nesting from repeated pattern (3x repetition causing 5-level nest) | 1 | 2026-03-27 | Watch — consent commit (2026-03-27): consent-form.tsx repeated a checkbox+label+description JSX pattern 3 times; each repetition added nesting depth, pushing the component to 5 levels (limit 3); caught as BLOCKING by code-reviewer; fixed by extracting ConsentCheckbox sub-component; distinct from "extract at 3 repetitions" rule (Section 2 applies at any nesting level — this is the specific case where the 3-repetition trigger coincides with a nesting-depth violation); first occurrence of this specific mechanism (repetition causing nesting violation) as a named pattern — log and watch; the existing "extract at 3 repetitions" rule in code-style.md Section 2 is the correct gate; no additional rule needed |
 
 ## Lessons Learned
@@ -2772,5 +2774,63 @@ Both fixed in ca55c3c.
 - Test-writer produced 14 tests (13 + 1) across two cycles with no test failures and no second iteration needed. Behavior-focused test names throughout (label association, link rendering, required indicator — not "renders checkbox" or "calls handler").
 - The a11y fix (span → label with htmlFor) was the correct repair for the ConsentCheckbox label association gap flagged by CodeRabbit. The `onClick stopPropagation` on the inner link prevents the label click from triggering both the checkbox and the link — a subtle interaction detail handled correctly.
 - All 3 commits have clean Lefthook pre-commit gates (biome + type-check + unit tests). No hook failures in this cycle.
+
+---
+
+### 2026-03-27 — Legal pages + analytics removal + footer links (commits 44e305f, d0e5aed)
+
+**Context:** Two-commit sequence. 44e305f removed the `cookie_analytics` consent type entirely via migration 058 (hard DELETE of existing rows, updated CHECK constraint, CREATE OR REPLACE on `record_consent()` RPC), added `/legal/terms` and `/legal/privacy` pages, added Terms/Privacy footer links to login and forgot-password forms, and removed the analytics checkbox from the consent form. d0e5aed was the fix commit: added the missing GRANT EXECUTE after CREATE OR REPLACE in migration 058, added a clarifying comment on the hard DELETE, added 4 tests for footer links, and fixed a useTransition race in the consent-form retry test.
+
+**Commit hash (HEAD at learner run):** d0e5aed
+
+**Code reviewer (44e305f):** 0 BLOCKING, 0 WARNING. Clean.
+
+**Semantic reviewer (44e305f):** 0 CRITICAL, 1 ISSUE, 2 SUGGESTION.
+1. **GRANT EXECUTE missing after CREATE OR REPLACE on record_consent() — ISSUE, real, fixed in d0e5aed.** Migration 058 used `CREATE OR REPLACE FUNCTION record_consent(...)` to update the RPC signature (removing the analytics consent type), but did not re-state the `GRANT EXECUTE ON FUNCTION record_consent TO authenticated` that the original creation migration included. In Postgres, `CREATE OR REPLACE` can revoke execute rights when the function's ownership or security context changes. Any authenticated user calling `record_consent()` after migration 058 would receive a permission-denied error. Fixed in d0e5aed by appending `GRANT EXECUTE ON FUNCTION record_consent(uuid, text, text, text) TO authenticated` after the CREATE OR REPLACE statement.
+2. **SUGGESTION 1 — clarifying comment on hard DELETE in migration.** Migration 058 contained a hard DELETE (`DELETE FROM user_consents WHERE consent_type = 'cookie_analytics'`). The hard DELETE exception for one-time schema corrections is documented in the patterns file (row 68) but no inline comment explained the exception in the migration file itself. Comment added in d0e5aed.
+3. **SUGGESTION 2 (carry-forward — 4th occurrence) — ensureConsentRecords version-filtering gap.** `apps/web/e2e/helpers/supabase.ts` — `ensureConsentRecords` checks for the existence of consent rows without filtering by `document_version`. After a version bump, the helper will skip re-seeding because old-version rows are present, leaving test users with stale consent records that fail the gate. This suggestion has been raised in 4 consecutive semantic-reviewer cycles (227c976, b35a7c1, 44e305f, now formally tracked). Not fixed in this cycle — deferred to a GitHub issue.
+
+**Doc updater (d0e5aed):** Updated `docs/database.md` (analytics consent type removed from schema description) and `docs/decisions.md` (decision note on analytics cookie removal). Clean.
+
+**Test writer (d0e5aed):** Added 4 footer link tests (login-form: 2 tests asserting Terms and Privacy links render with correct href; forgot-password-form: 2 equivalent tests). Fixed a test race in `consent-form.test.tsx` — the retry path used `getByRole` synchronously on a button that reappears after a state transition; fixed to `findByRole` (async). All tests passing.
+
+**Pattern analysis:**
+
+1. **[NEW] GRANT EXECUTE missing after CREATE OR REPLACE on SECURITY DEFINER RPC (count 1)**
+
+   Migration 058 updated the `record_consent()` SECURITY DEFINER function via `CREATE OR REPLACE` but did not include a corresponding `GRANT EXECUTE`. The original migration that created the function did include the grant. When the function is replaced, Postgres re-evaluates ownership and may drop or not inherit execute grants from the replaced version.
+
+   This is a first occurrence as a named pattern. Distinct from "SECURITY DEFINER RPC missing auth.uid() check" (that is about the RPC body — this is about the migration DDL sequence). The failure mode is silent at migration apply time and only surfaces at runtime when an authenticated user calls the function.
+
+   Root cause: authors include `GRANT EXECUTE` in initial-creation migrations because it is obviously required, but omit it from update migrations (CREATE OR REPLACE) where it is equally required. The omission is invisible to type-check, Biome, and the pre-commit hook.
+
+   No rule change proposed at count 1. Log and watch. If a second migration ships CREATE OR REPLACE on a SECURITY DEFINER function without `GRANT EXECUTE`, add a rule note to `security.md`: "Every CREATE OR REPLACE on a SECURITY DEFINER function must be followed by `GRANT EXECUTE ON FUNCTION ... TO authenticated` in the same migration file."
+
+2. **[WATCH — carry-forward escalation] ensureConsentRecords version-filtering gap (count 1 in learner table — 4th semantic-reviewer suggestion cycle)**
+
+   The semantic-reviewer has flagged the `ensureConsentRecords` version-filtering gap as a SUGGESTION in 4 consecutive commit cycles (first flagged in 227c976 cycle). The function does not filter by `document_version` when checking whether consent rows exist, which means a version bump will cause it to silently skip re-seeding. This is a deferred suggestion (not a blocking issue), but 4 consecutive cycles without resolution indicates it has become a persistent low-grade risk.
+
+   This is the first time this pattern is being entered into the learner frequency table. The semantic-reviewer has been tracking it in its own memory. The correct resolution is a GitHub issue that tracks the fix rather than continuing to carry it forward in reviewer memory.
+
+   No rule change proposed — this is a specific code gap, not a pattern requiring a rule. Action: create a GitHub issue.
+
+**Actions taken:**
+- Frequency table: "GRANT EXECUTE missing after CREATE OR REPLACE on SECURITY DEFINER RPC in migration" added as new watch row, count 1, 2026-03-27. First occurrence — no rule change.
+- Frequency table: "E2E seed helper missing version filter (stale consent rows survive version bump)" added as new watch row, count 1, 2026-03-27. Carry-forward from 4 semantic-reviewer suggestion cycles — first entry into learner table.
+
+**No changes to `code-style.md`, `security.md`, or `biome.json` this cycle.** Both new patterns are first occurrences in the learner table. Rule changes require 2+ occurrences across different commits (GRANT EXECUTE gap) or are not mechanically enforceable (ensureConsentRecords gap).
+
+**Recommended changes:**
+
+- [ ] Create a GitHub issue for the `ensureConsentRecords` version-filtering gap. The fix is straightforward: add `AND document_version = CURRENT_VERSION` to the EXISTS check in the helper. This has been deferred for 4 cycles and should be tracked formally.
+
+**False positives:** None detected. The GRANT EXECUTE ISSUE was real (silent runtime permission denial). The two SUGGESTION items were correctly categorised — the GRANT EXECUTE comment is a genuine improvement; the ensureConsentRecords gap is a genuine risk deferred by scope discipline.
+
+**Positive signals:**
+- Code reviewer: 0 BLOCKING, 0 WARNING on the feature commit (44e305f). A commit removing a consent type, adding two new pages, adding footer links, and updating the RPC produced zero style violations.
+- Semantic reviewer ISSUE (GRANT EXECUTE) was real, caught in the first post-commit cycle, and fixed in a single commit. The fix gate worked as designed.
+- Test writer added 4 meaningful behavioral tests (footer link rendering and hrefs) and fixed a pre-existing race in the retry test. No test failures on d0e5aed.
+- Doc updater correctly updated database.md and decisions.md to reflect the analytics consent type removal — no documentation drift from a schema change.
+- Fix commit d0e5aed was minimal and targeted: GRANT EXECUTE addition, comment, 4 tests, 1 test race fix. Clean separation of concerns.
 
 ---
