@@ -16,11 +16,18 @@ RETURNS TABLE (
   lo_reference          text,
   difficulty            text,
   explanation_text      text,
-  explanation_image_url text
+  explanation_image_url text,
+  question_number       text
 )
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
   RETURN QUERY
   SELECT
     q.id,
@@ -35,8 +42,9 @@ BEGIN
     st.name   AS subtopic_name,
     q.lo_reference,
     q.difficulty,
-    NULL::text AS explanation_text,
-    NULL::text AS explanation_image_url
+    q.explanation_text,
+    q.explanation_image_url,
+    q.question_number
   FROM questions q
   JOIN easa_subjects  s  ON s.id = q.subject_id
   JOIN easa_topics    t  ON t.id = q.topic_id
@@ -46,7 +54,9 @@ BEGIN
     AND q.deleted_at IS NULL
     AND q.status = 'active'
   GROUP BY q.id, q.question_text, q.question_image_url,
-           s.code, t.name, st.name, q.lo_reference, q.difficulty;
+           s.code, t.name, st.name, q.lo_reference, q.difficulty,
+           q.explanation_text, q.explanation_image_url,
+           q.question_number;
 END;
 $$;
 

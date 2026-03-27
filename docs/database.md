@@ -599,7 +599,7 @@ BEGIN
     q.question_image_url,
     jsonb_agg(
       jsonb_build_object('id', opt->>'id', 'text', opt->>'text')
-      ORDER BY opt->>'id'
+      ORDER BY random()
     ) AS options,
     s.code    AS subject_code,
     t.name    AS topic_name,
@@ -621,6 +621,8 @@ BEGIN
 END;
 $$;
 ```
+
+**Randomization (migration 59):** Options are returned in random order via `ORDER BY random()` (not sorted by ID). This prevents students from memorising positional patterns and ensures fair assessment across attempts.
 
 #### `submit_quiz_answer` — atomic answer submission (deprecated: use `batch_submit_quiz`)
 

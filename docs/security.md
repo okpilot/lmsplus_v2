@@ -281,7 +281,7 @@ BEGIN
         'text', opt->>'text'
         -- 'correct' intentionally excluded
       )
-      ORDER BY opt->>'id'
+      ORDER BY random()
     ) AS options,
     q.subject,
     q.topic,
@@ -296,6 +296,8 @@ BEGIN
 END;
 $$;
 ```
+
+**Randomization:** Options are returned in random order via `ORDER BY random()`. This prevents students from memorising positional patterns. Each call returns a different option arrangement.
 
 **Rule:** Any Server Action or API route that serves questions **during an active session** must use `get_quiz_questions()` — never a raw `SELECT * FROM questions`.
 
