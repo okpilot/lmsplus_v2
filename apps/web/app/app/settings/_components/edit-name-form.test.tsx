@@ -70,7 +70,7 @@ describe('EditNameForm', () => {
     expect(updateDisplayName).not.toHaveBeenCalled()
   })
 
-  it('calls updateDisplayName and shows success toast on valid submit', async () => {
+  it('saves the updated name and shows a success toast when the form is valid', async () => {
     vi.mocked(updateDisplayName).mockResolvedValue({ success: true })
     const user = userEvent.setup()
     render(<EditNameForm currentName="Alice Smith" />)

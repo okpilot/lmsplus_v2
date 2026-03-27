@@ -88,6 +88,7 @@ export function ChangePasswordForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
                 className="pr-10"
+                autoComplete="new-password"
               />
               <button
                 type="button"
@@ -108,6 +109,7 @@ export function ChangePasswordForm() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Repeat your password"
+              autoComplete="new-password"
             />
           </div>
 

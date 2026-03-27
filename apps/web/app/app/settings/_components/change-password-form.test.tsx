@@ -126,7 +126,7 @@ describe('ChangePasswordForm', () => {
     expect(changePassword).not.toHaveBeenCalled()
   })
 
-  it('calls changePassword and shows success toast on valid submit', async () => {
+  it('updates password successfully when form is valid and all fields are filled', async () => {
     vi.mocked(changePassword).mockResolvedValue({ success: true })
     const user = userEvent.setup()
     render(<ChangePasswordForm />)
