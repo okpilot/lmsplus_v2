@@ -18,6 +18,43 @@ export function getAdminClient() {
   })
 }
 
+/** Seed consent records so the consent gate doesn't block E2E tests. */
+async function ensureConsentRecords(admin: ReturnType<typeof getAdminClient>, userId: string) {
+  const { data: existing } = await admin
+    .from('user_consents')
+    .select('document_type')
+    .eq('user_id', userId)
+    .eq('accepted', true)
+    .in('document_type', ['terms_of_service', 'privacy_policy'])
+
+  const existingTypes = new Set(
+    (existing ?? []).map((r: { document_type: string }) => r.document_type),
+  )
+
+  const toInsert = []
+  if (!existingTypes.has('terms_of_service')) {
+    toInsert.push({
+      user_id: userId,
+      document_type: 'terms_of_service',
+      document_version: 'v1.0',
+      accepted: true,
+    })
+  }
+  if (!existingTypes.has('privacy_policy')) {
+    toInsert.push({
+      user_id: userId,
+      document_type: 'privacy_policy',
+      document_version: 'v1.0',
+      accepted: true,
+    })
+  }
+
+  if (toInsert.length > 0) {
+    const { error } = await admin.from('user_consents').insert(toInsert)
+    if (error) throw new Error(`ensureConsentRecords: ${error.message}`)
+  }
+}
+
 /** Ensure the E2E test user exists in the Egmont Aviation org (which has seeded questions). */
 export async function ensureTestUser() {
   const admin = getAdminClient()
@@ -86,6 +123,7 @@ export async function ensureTestUser() {
     if (updateError) throw new Error(`ensureTestUser update org: ${updateError.message}`)
   }
 
+  await ensureConsentRecords(admin, userId)
   return { orgId, userId }
 }
 
@@ -153,5 +191,6 @@ export async function ensureLoginTestUser() {
     if (updateError) throw new Error(`ensureLoginTestUser update org: ${updateError.message}`)
   }
 
+  await ensureConsentRecords(admin, userId)
   return { orgId, userId }
 }

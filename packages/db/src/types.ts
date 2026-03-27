@@ -925,6 +925,47 @@ export type Database = {
           },
         ]
       }
+      user_consents: {
+        Row: {
+          accepted: boolean
+          created_at: string
+          document_type: string
+          document_version: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          accepted: boolean
+          created_at?: string
+          document_type: string
+          document_version: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          accepted?: boolean
+          created_at?: string
+          document_type?: string
+          document_version?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_consents_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -978,12 +1019,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      active_flagged_questions: {
+        Row: {
+          deleted_at: string | null
+          flagged_at: string | null
+          question_id: string | null
+          student_id: string | null
+        }
+        Insert: {
+          deleted_at?: string | null
+          flagged_at?: string | null
+          question_id?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          deleted_at?: string | null
+          flagged_at?: string | null
+          question_id?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'flagged_questions_question_id_fkey'
+            columns: ['question_id']
+            isOneToOne: false
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'flagged_questions_student_id_fkey'
+            columns: ['student_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Functions: {
       batch_submit_quiz: {
         Args: { p_answers: Json; p_session_id: string }
         Returns: Json
+      }
+      check_consent_status: {
+        Args: { p_privacy_version: string; p_tos_version: string }
+        Returns: {
+          has_privacy: boolean
+          has_tos: boolean
+        }[]
       }
       check_quiz_answer: {
         Args: {
@@ -1045,6 +1128,16 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      record_consent: {
+        Args: {
+          p_accepted: boolean
+          p_document_type: string
+          p_document_version: string
+          p_ip_address?: string
+          p_user_agent?: string
+        }
+        Returns: undefined
+      }
       record_login: { Args: never; Returns: undefined }
       start_quiz_session: {
         Args: {
