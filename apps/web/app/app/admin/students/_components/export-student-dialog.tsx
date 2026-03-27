@@ -27,25 +27,32 @@ export function ExportStudentDialog({ student, open, onOpenChange }: Readonly<Pr
   function handleExport() {
     if (!student) return
     startTransition(async () => {
-      const result = await exportStudentData({ userId: student.id })
-      if (!result.success) {
-        toast.error(result.error)
-        return
+      try {
+        const result = await exportStudentData({ userId: student.id })
+        if (!result.success) {
+          toast.error(result.error)
+          return
+        }
+
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+          type: 'application/json',
+        })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        const safePrefix = (student.email.split('@')[0] ?? 'student').replace(
+          /[^a-zA-Z0-9._-]/g,
+          '_',
+        )
+        link.download = `student-export-${safePrefix}-${new Date().toISOString().slice(0, 10)}.json`
+        link.click()
+        URL.revokeObjectURL(url)
+
+        toast.success('Student data exported')
+        onOpenChange(false)
+      } catch {
+        toast.error('Failed to export student data')
       }
-
-      const blob = new Blob([JSON.stringify(result.data, null, 2)], {
-        type: 'application/json',
-      })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      const safePrefix = (student.email.split('@')[0] ?? 'student').replace(/[^a-zA-Z0-9._-]/g, '_')
-      link.download = `student-export-${safePrefix}-${new Date().toISOString().slice(0, 10)}.json`
-      link.click()
-      URL.revokeObjectURL(url)
-
-      toast.success('Student data exported')
-      onOpenChange(false)
     })
   }
 

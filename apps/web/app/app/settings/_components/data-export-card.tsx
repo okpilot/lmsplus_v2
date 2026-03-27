@@ -12,23 +12,27 @@ export function DataExportCard() {
 
   function handleExport() {
     startTransition(async () => {
-      const result = await exportMyData()
-      if (!result.success) {
-        toast.error(result.error)
-        return
+      try {
+        const result = await exportMyData()
+        if (!result.success) {
+          toast.error(result.error)
+          return
+        }
+
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+          type: 'application/json',
+        })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `lmsplus-data-export-${new Date().toISOString().slice(0, 10)}.json`
+        link.click()
+        URL.revokeObjectURL(url)
+
+        toast.success('Data exported successfully')
+      } catch {
+        toast.error('Failed to export data')
       }
-
-      const blob = new Blob([JSON.stringify(result.data, null, 2)], {
-        type: 'application/json',
-      })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `lmsplus-data-export-${new Date().toISOString().slice(0, 10)}.json`
-      link.click()
-      URL.revokeObjectURL(url)
-
-      toast.success('Data exported successfully')
     })
   }
 
