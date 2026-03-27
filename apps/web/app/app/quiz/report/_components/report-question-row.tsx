@@ -86,6 +86,7 @@ export function ReportQuestionRow({
               <button
                 type="button"
                 onClick={() => setExpanded((prev) => !prev)}
+                aria-expanded={expanded}
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               >
                 {expanded ? 'Hide explanation' : 'Show explanation'}
@@ -97,7 +98,10 @@ export function ReportQuestionRow({
               </button>
 
               {expanded && (
-                <div className="mt-2 space-y-2 rounded-lg bg-muted/50 p-3">
+                <div
+                  data-testid="explanation-panel"
+                  className="mt-2 space-y-2 rounded-lg bg-muted/50 p-3"
+                >
                   {question.explanationImageUrl && (
                     <ZoomableImage
                       src={question.explanationImageUrl}

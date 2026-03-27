@@ -69,7 +69,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
 
   // Verify markdown content rendered (not raw asterisks/plain text)
   // The explanation panel has a muted background container
-  const explanationPanel = page.locator('.rounded-lg.bg-muted\\/50').first()
+  const explanationPanel = page.getByTestId('explanation-panel').first()
   await expect(explanationPanel).toBeVisible()
 
   // Collapse it again
