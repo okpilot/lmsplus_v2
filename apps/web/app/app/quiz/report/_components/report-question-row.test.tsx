@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { ReportQuestionRow } from './report-question-row'
 
@@ -18,6 +18,10 @@ vi.mock('@/app/app/_components/zoomable-image', () => ({
     <span data-testid="zoomable-image" data-src={src} role="img" aria-label={alt} />
   ),
 }))
+
+beforeEach(() => {
+  vi.resetAllMocks()
+})
 
 // ---- Fixtures ----------------------------------------------------------------
 

@@ -89,7 +89,11 @@ export function ReportQuestionRow({
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               >
                 {expanded ? 'Hide explanation' : 'Show explanation'}
-                {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                {expanded ? (
+                  <ChevronUp size={14} aria-hidden />
+                ) : (
+                  <ChevronDown size={14} aria-hidden />
+                )}
               </button>
 
               {expanded && (

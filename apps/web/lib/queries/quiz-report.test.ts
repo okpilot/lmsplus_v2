@@ -331,6 +331,52 @@ describe('getQuizReport', () => {
     })
   })
 
+  it('maps explanationImageUrl when present on the question row', async () => {
+    const questionsWithImage = [
+      {
+        id: 'q1',
+        question_text: 'What is lift?',
+        question_number: '050-01-001',
+        options: [{ id: 'opt-a', text: 'Upward force' }],
+        explanation_text: 'Lift is perpendicular to relative wind.',
+        explanation_image_url: 'https://cdn.example.com/lift-diagram.png',
+      },
+    ]
+    mockFromSequence({ data: sessionRow }, { data: [answersData[0]] }, { data: questionsWithImage })
+    mockRpc.mockResolvedValueOnce({ data: [correctOptionsData[0]] })
+
+    const report = await getQuizReport('sess-1')
+    expect(report!.questions[0]!.explanationImageUrl).toBe(
+      'https://cdn.example.com/lift-diagram.png',
+    )
+  })
+
+  it('sets explanationImageUrl to null when explanation_image_url is null on the question row', async () => {
+    const questionsNoImage = [
+      {
+        id: 'q1',
+        question_text: 'What is lift?',
+        question_number: '050-01-001',
+        options: [{ id: 'opt-a', text: 'Upward force' }],
+        explanation_text: 'Some explanation',
+        explanation_image_url: null,
+      },
+    ]
+    mockFromSequence({ data: sessionRow }, { data: [answersData[0]] }, { data: questionsNoImage })
+    mockRpc.mockResolvedValueOnce({ data: [correctOptionsData[0]] })
+
+    const report = await getQuizReport('sess-1')
+    expect(report!.questions[0]!.explanationImageUrl).toBeNull()
+  })
+
+  it('sets explanationImageUrl to null when question is missing from the questions result', async () => {
+    mockFromSequence({ data: sessionRow }, { data: [answersData[0]] }, { data: [] })
+    mockRpc.mockResolvedValueOnce({ data: [] })
+
+    const report = await getQuizReport('sess-1')
+    expect(report!.questions[0]!.explanationImageUrl).toBeNull()
+  })
+
   it('strips the correct field from options so it is never exposed in the report', async () => {
     const questionsWithCorrectField = [
       {
