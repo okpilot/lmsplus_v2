@@ -24,21 +24,24 @@ export async function ensureConsentRecords(
   admin: ReturnType<typeof getAdminClient>,
   userId: string,
 ) {
-  const { data: tosRows } = await admin
+  const { data: tosRows, error: tosError } = await admin
     .from('user_consents')
     .select('document_type')
     .eq('user_id', userId)
     .eq('accepted', true)
     .eq('document_type', 'terms_of_service')
     .eq('document_version', CURRENT_TOS_VERSION)
+  if (tosError) throw new Error(`ensureConsentRecords: TOS query failed: ${tosError.message}`)
 
-  const { data: privacyRows } = await admin
+  const { data: privacyRows, error: privacyError } = await admin
     .from('user_consents')
     .select('document_type')
     .eq('user_id', userId)
     .eq('accepted', true)
     .eq('document_type', 'privacy_policy')
     .eq('document_version', CURRENT_PRIVACY_VERSION)
+  if (privacyError)
+    throw new Error(`ensureConsentRecords: privacy query failed: ${privacyError.message}`)
 
   const existingTypes = new Set([
     ...(tosRows ?? []).map((r: { document_type: string }) => r.document_type),
