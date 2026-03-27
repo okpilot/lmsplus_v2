@@ -144,10 +144,19 @@ test.describe('Settings — Change Password', () => {
   test.afterAll(async () => {
     // Safety net: reset password via admin API in case the change-back test failed
     const admin = getAdminClient()
-    const { data } = await admin.auth.admin.listUsers()
+    const { data, error: listError } = await admin.auth.admin.listUsers()
+    if (listError) {
+      console.error('[afterAll] listUsers failed:', listError.message)
+      return
+    }
     const user = data?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
     if (user) {
-      await admin.auth.admin.updateUserById(user.id, { password: TEST_PASSWORD })
+      const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
+        password: TEST_PASSWORD,
+      })
+      if (updateError) {
+        console.error('[afterAll] updateUserById failed:', updateError.message)
+      }
     }
   })
 })

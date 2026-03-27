@@ -91,7 +91,7 @@ describe('ChangePasswordForm', () => {
     const user = userEvent.setup()
     render(<ChangePasswordForm />)
 
-    await user.click(screen.getByRole('button', { name: /show password/i }))
+    await user.click(screen.getByRole('button', { name: /show passwords/i }))
 
     expect(screen.getByLabelText(/current password/i)).toHaveAttribute('type', 'text')
     expect(screen.getByLabelText(/new password/i)).toHaveAttribute('type', 'text')
