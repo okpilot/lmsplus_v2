@@ -45,8 +45,10 @@ export function ExportStudentDialog({ student, open, onOpenChange }: Readonly<Pr
           '_',
         )
         link.download = `student-export-${safePrefix}-${new Date().toISOString().slice(0, 10)}.json`
+        document.body.appendChild(link)
         link.click()
-        URL.revokeObjectURL(url)
+        link.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 0)
 
         toast.success('Student data exported')
         onOpenChange(false)
@@ -70,7 +72,7 @@ export function ExportStudentDialog({ student, open, onOpenChange }: Readonly<Pr
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleExport} disabled={isPending}>
+          <Button onClick={handleExport} disabled={isPending || !student}>
             <Download className="mr-2 size-4" />
             {isPending ? 'Exporting…' : 'Export'}
           </Button>
