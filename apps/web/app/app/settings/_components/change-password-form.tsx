@@ -117,7 +117,10 @@ export function ChangePasswordForm() {
             </p>
           )}
 
-          <Button type="submit" disabled={isPending || !currentPassword || !password}>
+          <Button
+            type="submit"
+            disabled={isPending || !currentPassword || !password || !confirmPassword}
+          >
             {isPending ? 'Updating...' : 'Update password'}
           </Button>
         </form>

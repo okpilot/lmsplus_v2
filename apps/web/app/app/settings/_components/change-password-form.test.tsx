@@ -59,12 +59,23 @@ describe('ChangePasswordForm', () => {
     expect(screen.getByRole('button', { name: /update password/i })).toBeDisabled()
   })
 
-  it('enables the submit button when current and new password are both filled', async () => {
+  it('keeps the submit button disabled when confirm password is empty', async () => {
     const user = userEvent.setup()
     render(<ChangePasswordForm />)
 
     await user.type(screen.getByLabelText(/current password/i), 'secret123')
     await user.type(screen.getByLabelText(/new password/i), 'newpass456')
+
+    expect(screen.getByRole('button', { name: /update password/i })).toBeDisabled()
+  })
+
+  it('enables the submit button when all three fields are filled', async () => {
+    const user = userEvent.setup()
+    render(<ChangePasswordForm />)
+
+    await user.type(screen.getByLabelText(/current password/i), 'secret123')
+    await user.type(screen.getByLabelText(/new password/i), 'newpass456')
+    await user.type(screen.getByLabelText(/confirm password/i), 'newpass456')
 
     expect(screen.getByRole('button', { name: /update password/i })).not.toBeDisabled()
   })

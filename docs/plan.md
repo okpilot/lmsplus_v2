@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-26
+> Last updated: 2026-03-27
 
 ---
 
@@ -16,7 +16,7 @@ Student-facing settings page at `/app/settings`:
 - **Security**: auth check + RLS + input validation + sanitized error messages
 - **Navigation**: gear icon + Settings link in sidebar + mobile nav
 - No new migrations beyond RLS policy
-- 1549 tests (130 files), all passing
+- 1667 tests (139 files), all passing
 
 ---
 
@@ -31,7 +31,7 @@ Admin tool for managing students at `/app/admin/students`:
 - **Security**: all operations org-scoped via adminClient, requireAdmin() on every action and query, LIKE metacharacter escaping, error message sanitization
 - No new migrations (uses existing users table + soft-delete pattern)
 - Related issues: #368 (student profile page), #369 (instructor role definition), #370 (multi-org support)
-- 1549 tests (130 files), all passing
+- 1667 tests (139 files), all passing
 
 ---
 
@@ -940,4 +940,4 @@ From setup audit (2026-03-11), updated 2026-03-19:
 
 ---
 
-*Last updated: 2026-03-26 — Student Profile & Settings page (#368). Sprint 4 complete.*
+*Last updated: 2026-03-27 — Student Profile & Settings page (#368). Sprint 4 complete.*
