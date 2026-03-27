@@ -32,13 +32,14 @@ export function ConsentCheckbox({
         disabled={disabled}
         aria-label={`${label} ${linkText}`}
       />
-      <span className="text-sm leading-snug">
+      <label htmlFor={id} className="text-sm leading-snug cursor-pointer">
         {label}{' '}
         <a
           href={linkHref}
           target="_blank"
           rel="noopener noreferrer"
           className="underline underline-offset-4 hover:text-primary"
+          onClick={(e) => e.stopPropagation()}
         >
           {linkText}
         </a>
@@ -46,7 +47,7 @@ export function ConsentCheckbox({
         {description && (
           <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
         )}
-      </span>
+      </label>
     </div>
   )
 }

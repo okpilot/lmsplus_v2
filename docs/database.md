@@ -398,6 +398,7 @@ Per-question discussion threads. Students and admins can post comments on any qu
 **Note:** This is a hard-delete table — the primary delete path is DELETE, not soft-delete. The deleted_at column exists as a safety net but is not used by application code.
 
 ### user_consents
+
 Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of Service, Privacy Policy, and Cookie Analytics documents across versions. Accessed via two SECURITY DEFINER RPCs: `record_consent()` and `check_consent_status()`.
 
 | Column | Type | Constraints |

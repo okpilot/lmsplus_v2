@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 86400, // 24 hours
+    maxAge: 31_536_000, // 1 year — cookie is a cache; version bump invalidates
     path: '/',
   })
   return redirectResponse

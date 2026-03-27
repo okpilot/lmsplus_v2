@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -39,7 +40,7 @@ export async function ensureConsentRecords(
     toInsert.push({
       user_id: userId,
       document_type: 'terms_of_service',
-      document_version: 'v1.0',
+      document_version: CURRENT_TOS_VERSION,
       accepted: true,
     })
   }
@@ -47,7 +48,7 @@ export async function ensureConsentRecords(
     toInsert.push({
       user_id: userId,
       document_type: 'privacy_policy',
-      document_version: 'v1.0',
+      document_version: CURRENT_PRIVACY_VERSION,
       accepted: true,
     })
   }
