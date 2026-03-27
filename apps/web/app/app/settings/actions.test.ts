@@ -209,6 +209,10 @@ describe('changePassword', () => {
   const validInput = { currentPassword: 'oldpass123', password: 'newpass123' }
 
   describe('input validation', () => {
+    afterEach(() => {
+      expect(mockGetUser).not.toHaveBeenCalled()
+    })
+
     it('returns failure when currentPassword is missing', async () => {
       const result = await changePassword({ password: 'newpass123' })
 
