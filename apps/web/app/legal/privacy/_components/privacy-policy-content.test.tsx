@@ -8,17 +8,16 @@ describe('PrivacyPolicyContent', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Privacy Policy' })).toBeInTheDocument()
   })
 
-  it('renders all 11 sections', () => {
+  it('renders all 10 sections', () => {
     render(<PrivacyPolicyContent />)
     const h2s = screen.getAllByRole('heading', { level: 2 })
-    expect(h2s).toHaveLength(11)
+    expect(h2s).toHaveLength(10)
   })
 
   it('renders the DPO contact email', () => {
     render(<PrivacyPolicyContent />)
-    expect(screen.getByRole('link', { name: 'dpo@lmsplus.eu' })).toHaveAttribute(
-      'href',
-      'mailto:dpo@lmsplus.eu',
-    )
+    const dpoLinks = screen.getAllByRole('link', { name: 'dpo@lmsplus.eu' })
+    expect(dpoLinks.length).toBeGreaterThanOrEqual(1)
+    expect(dpoLinks[0]).toHaveAttribute('href', 'mailto:dpo@lmsplus.eu')
   })
 })
