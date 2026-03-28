@@ -1,21 +1,24 @@
-import { getProfileData } from '@/lib/queries/profile'
+import { Suspense } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ChangePasswordForm } from './_components/change-password-form'
-import { EditNameForm } from './_components/edit-name-form'
-import { ProfileCard } from './_components/profile-card'
+import { SettingsProfileContent } from './_components/settings-profile-content'
 
-export default async function SettingsPage() {
-  const profile = await getProfileData()
+function ProfileContentSkeleton() {
+  return (
+    <>
+      <Skeleton className="h-48 w-full rounded-lg" />
+      <Skeleton className="h-20 w-full rounded-lg" />
+    </>
+  )
+}
 
+export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
       <h1 className="text-2xl font-bold">Settings</h1>
-      <ProfileCard
-        email={profile.email}
-        organizationName={profile.organizationName}
-        memberSince={profile.memberSince}
-        stats={profile.stats}
-      />
-      <EditNameForm currentName={profile.fullName} />
+      <Suspense fallback={<ProfileContentSkeleton />}>
+        <SettingsProfileContent />
+      </Suspense>
       <ChangePasswordForm />
     </div>
   )

@@ -1,9 +1,20 @@
-import { SyllabusManager } from './_components/syllabus-manager'
-import { getSyllabusTree } from './queries'
+import { Suspense } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { SyllabusContent } from './_components/syllabus-content'
 
-export default async function SyllabusPage() {
-  const tree = await getSyllabusTree()
+function SyllabusContentSkeleton() {
+  return (
+    <div className="space-y-3">
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-12 w-full" />
+    </div>
+  )
+}
 
+export default function SyllabusPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -12,7 +23,9 @@ export default async function SyllabusPage() {
           Manage the EASA PPL subject hierarchy. Add subjects, topics, and subtopics.
         </p>
       </div>
-      <SyllabusManager initialTree={tree} />
+      <Suspense fallback={<SyllabusContentSkeleton />}>
+        <SyllabusContent />
+      </Suspense>
     </div>
   )
 }
