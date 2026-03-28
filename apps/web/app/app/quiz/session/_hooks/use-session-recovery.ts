@@ -39,12 +39,14 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
   }
 
   function handleDiscard() {
+    if (loading) return
+    setLoading(true)
     const captured = recovery
     clearActiveSession(userId)
     clearDeploymentPin().catch(() => {})
     router.replace('/app/quiz')
     if (captured) {
-      discardQuiz({ sessionId: captured.sessionId }).catch(() => {})
+      discardQuiz({ sessionId: captured.sessionId, draftId: captured.draftId }).catch(() => {})
     }
   }
 

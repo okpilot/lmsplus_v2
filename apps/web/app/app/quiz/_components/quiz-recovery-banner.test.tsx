@@ -222,7 +222,9 @@ describe('QuizRecoveryBanner — Discard', () => {
     render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /discard/i }))
 
-    await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-001' }))
+    await waitFor(() =>
+      expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-001', draftId: 'draft-001' }),
+    )
   })
 
   it('does not block the UI when discardQuiz fails', async () => {

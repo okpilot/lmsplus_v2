@@ -126,16 +126,26 @@ describe('QuizSessionLoader', () => {
     expect(mockRouterReplace).not.toHaveBeenCalled()
   })
 
-  it('shows loading skeletons while questions are being fetched', () => {
+  it('shows loading skeletons while questions are being fetched', async () => {
     sessionStorage.setItem('quiz-session', JSON.stringify(SESSION_DATA))
-    // Return a promise that never resolves so we can observe the loading state
-    mockLoadSessionQuestions.mockReturnValue(new Promise(() => {}))
+    // Return a deferred promise so we can observe the loading state, then resolve to prevent worker hang
+    let resolve: (v: unknown) => void
+    mockLoadSessionQuestions.mockReturnValue(
+      new Promise((r) => {
+        resolve = r
+      }),
+    )
 
-    const { container } = render(<QuizSessionLoader userId="test-user-id" />)
+    const { container, unmount } = render(<QuizSessionLoader userId="test-user-id" />)
 
     // Skeleton elements have the animate-pulse class
     const skeletons = container.querySelectorAll('.animate-pulse')
     expect(skeletons.length).toBeGreaterThan(0)
+
+    // Resolve the pending promise and unmount to prevent forks worker timeout
+    resolve!({ success: true, questions: [] })
+    await waitFor(() => {})
+    unmount()
   })
 
   it('shows an error message when loadSessionQuestions fails', async () => {

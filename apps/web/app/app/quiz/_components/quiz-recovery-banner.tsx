@@ -79,7 +79,7 @@ export function QuizRecoveryBanner({ userId }: { userId: string }) {
     clearDeploymentPin().catch(() => {})
     setSession(null)
     if (captured) {
-      discardQuiz({ sessionId: captured.sessionId }).catch(() => {})
+      discardQuiz({ sessionId: captured.sessionId, draftId: captured.draftId }).catch(() => {})
     }
   }
 

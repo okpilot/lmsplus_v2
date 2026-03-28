@@ -35,8 +35,8 @@ type SessionData = {
   subjectCode?: string
 }
 
-// Cache parsed session to survive React Strict Mode double-mount
-let cachedSession: SessionData | null = null
+// Cache parsed session to survive React Strict Mode double-mount, scoped by userId
+let cachedSession: { userId: string; session: SessionData } | null = null
 
 export function QuizSessionLoader({ userId }: { userId: string }) {
   const router = useRouter()
@@ -59,7 +59,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
         sessionStorage.removeItem('quiz-session')
       }
     } else {
-      data = cachedSession
+      data = cachedSession?.userId === userId ? cachedSession.session : null
     }
 
     if (!data) {
@@ -72,7 +72,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
       return
     }
 
-    cachedSession = data
+    cachedSession = { userId, session: data }
     setSession(data)
 
     loadSessionQuestions(data.questionIds).then((result) => {
