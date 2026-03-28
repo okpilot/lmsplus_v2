@@ -24,7 +24,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       `img-src 'self' data: blob: https://*.supabase.co${allowLocal ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
       "font-src 'self'",
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.de.sentry.io${allowLocal ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.de.sentry.io${allowLocal ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
+      "worker-src 'self' blob:",
       "frame-ancestors 'none'",
     ].join('; '),
   },
@@ -37,13 +38,17 @@ const nextConfig: NextConfig = {
 }
 
 export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG ?? 'just-me-pe',
-  project: process.env.SENTRY_PROJECT ?? 'lmsplus-web',
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
   silent: !process.env.CI,
   widenClientFileUpload: true,
   tunnelRoute: '/monitoring',
   sourcemaps: {
     filesToDeleteAfterUpload: ['.next/static/**/*.map'],
   },
-  disableLogger: true,
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    excludeReplayIframe: true,
+    excludeReplayShadowDom: true,
+  },
 })

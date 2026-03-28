@@ -8,6 +8,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+// Mock @sentry/nextjs so withSentryConfig is a passthrough — avoids Sentry
+// side effects (webpack plugin init, deprecation warnings) polluting the test pool.
+vi.mock('@sentry/nextjs', () => ({
+  withSentryConfig: (config: unknown) => config,
+}))
+
 // Helper: load next.config.ts fresh after NODE_ENV and optional env vars have been set.
 async function loadConfig(nodeEnv: string, extraEnv: Record<string, string> = {}) {
   vi.stubEnv('NODE_ENV', nodeEnv)
