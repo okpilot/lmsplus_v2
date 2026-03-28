@@ -1,8 +1,9 @@
 import { getProfileData } from '@/lib/queries/profile'
+import { ChangePasswordForm } from './change-password-form'
 import { EditNameForm } from './edit-name-form'
 import { ProfileCard } from './profile-card'
 
-export async function SettingsProfileContent() {
+export async function SettingsContent() {
   const profile = await getProfileData()
 
   return (
@@ -14,6 +15,7 @@ export async function SettingsProfileContent() {
         stats={profile.stats}
       />
       <EditNameForm currentName={profile.fullName} />
+      <ChangePasswordForm />
     </>
   )
 }
