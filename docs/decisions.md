@@ -564,6 +564,18 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Legal pages: `/legal/terms` (plain-language ToS) and `/legal/privacy` (plain-language GDPR privacy policy) linked from login/consent/forgot-password footers and consent form.
 **Rationale**: Audit trail for legal compliance. Append-only table prevents accidental history loss. RPCs enforce single path for writes. Middleware cookie check avoids DB load per request. Version strings in cookie allow fast re-consent detection without JOIN.
 
+### Decision 33: GDPR data subject rights — export only, no deletion (EASA Part ORA)
+
+**Date**: 2026-03-27
+**Context**: GDPR Articles 15/17/20 require data export and right to erasure. However, EASA Part ORA mandates retention of identified training records for regulatory auditing. Anonymising or deleting training records would break the audit trail required by aviation authorities.
+**Decision**:
+- **Right of access / data portability** (Art. 15 & 20): Self-service JSON export from `/app/settings`. Admin can also export any student's data from the students management page. Export includes all user-related tables (profile, sessions, answers, responses, FSRS state, flags, comments, consents, audit events).
+- **Right to rectification** (Art. 16): Already implemented — edit profile on `/app/settings`.
+- **Right to restrict processing** (Art. 18): Already implemented — account deactivation via `toggle-student-status` (soft-delete + auth ban).
+- **Right to erasure** (Art. 17): **Declined** under Article 17(3)(b) — processing is necessary for compliance with a legal obligation (EASA Part ORA). No deletion, no anonymisation of training records. Documented in the privacy policy.
+- No migration required — pure application-layer change.
+**Rationale**: EASA Part ORA is a binding aviation regulation that requires identified training records for regulatory auditing. GDPR Article 17(3)(b) explicitly exempts erasure when processing is necessary for compliance with a legal obligation. Anonymisation would defeat the audit purpose. The privacy policy documents this exemption transparently.
+
 ---
 
-*Last updated: 2026-03-27 — Decision 32 refined: removed analytics consent (migration 058, adds legal pages)*
+*Last updated: 2026-03-27 — Decision 33: EASA Part ORA exemption for GDPR erasure*

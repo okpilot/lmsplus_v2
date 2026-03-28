@@ -709,3 +709,44 @@
   - Repetition of 3 RPC calls (TOS, Privacy, Analytics) with similar error handling. At 3 instances (at threshold). Watch for 4th if consent types expand.
   - Cookie-based gate pattern is clean and efficient (no DB hit per request after first consent gate pass).
 - **Status**: 1 BLOCKING violation (nesting depth). Must fix ConsentForm before merge.
+
+---
+
+## Session 2026-03-28 (Test coverage boost for GDPR collect-user-data)
+
+**Commit d99a13b**: test(gdpr): boost collect-user-data coverage with error and null-data tests
+
+- **Files analyzed**: 3 files, 200 lines added, 2 removed
+  - `apps/web/lib/gdpr/collect-user-data.test.ts`: 378 lines (test file, exempt from 500-line limit)
+  - `.claude/agent-memory/learner/patterns.md`: Frequency table + session summary updated
+  - `.claude/agent-memory/red-team/attack-surface.md`: Vector AA + AB + migration 059 assessment added
+- **Changes**:
+  1. Test helper `buildSupabaseClientWithErrors()`: 46 lines. Injects errors for specific tables while keeping other data valid. Proxy handler with memoized table data map. Tests error logging on individual table failures.
+  2. Test helper `buildSupabaseClientWithNulls()`: 44 lines. Returns null data for all non-user tables to exercise `?? []` null fallback branches. Same Proxy pattern.
+  3. Three test suites added:
+     - `table query error logging`: 2 tests. Verifies console.error logging for failed tables + empty array fallback. Tests quiz_sessions, flagged_questions, quiz_session_answers error paths.
+     - `null data fallbacks`: 1 test. Exercises all `?? []` fallbacks when Supabase returns null data instead of empty arrays.
+- **File line counts**:
+  - Test file 378 lines (exempt, under 500-line ceiling) ✓
+  - Agent memory files within expectations ✓
+- **Code quality**:
+  - Test helpers follow established Proxy mocking pattern (no new patterns introduced)
+  - Test names behavior-focused: "logs errors for failing non-user table queries", "falls back to empty arrays when table data is null"
+  - Mock setup: vi.spyOn(console, 'error').mockImplementation(() => {}), restored via spy.mockRestore()
+  - Assertions verify both error logging (console.error called with correct args) and fallback behavior (returned empty arrays)
+  - Coverage: error paths + null data paths previously untested (coverage jumped from 38% to ~90% on the patch)
+- **Patterns preserved**:
+  - Test file co-located with source utility (correct pattern from code-style.md § 7)
+  - No new utilities created in this commit (only test file extended)
+  - Mock patterns consistent with existing test fixtures in the file (buildSupabaseClient original variant still used for happy path)
+- **Agent memory updates**:
+  - learner/patterns.md row 58 updated: "New hook/utility file extracted without shipping tests" count 6→7, last-seen 2026-03-27, reference added for collect-user-data.ts
+  - Two new watch patterns added (RLS SELECT policy missing, semantic reviewer false positive), both count 1, 2026-03-27
+  - 2026-03-27 session summary (49 lines) added documenting GDPR PR 3 findings, false positive validation process, pattern analysis
+  - red-team/attack-surface.md: Vectors AA + AB added (student cross-user audit read + data sensitivity assessment), migration 059 comprehensive review added (1400 chars of rationale + gap identification + spec compliance)
+- **Status**: CLEAN. No code style violations.
+  - ✓ Test file under 500-line limit
+  - ✓ Test names behavior-focused
+  - ✓ No new utility files without tests (test file only)
+  - ✓ Mock patterns standard (vi.spyOn, mockImplementation, mockRestore)
+  - ✓ Agent memory updates comprehensive and factual

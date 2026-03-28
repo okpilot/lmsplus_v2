@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-03-27
+> Last updated: 2026-03-27 (migration 059 review)
 
 ## Vector-to-Spec Mapping
 
@@ -31,6 +31,8 @@
 | X | Cross-tenant consent record read (user_consents SELECT cross-uid) | HIGH | rpc-cross-tenant.spec.ts | GAP — RLS policy user_consents_select_own uses user_id = auth.uid(); no spec verifies attacker cannot read another user's consent records by probing known UUIDs | New table from migration 057 |
 | Y | Student direct INSERT into user_consents bypassing record_consent RPC | HIGH | audit-event-forgery.spec.ts | GAP — RLS WITH CHECK (false) blocks direct inserts, mirroring audit_events pattern; no spec exercises this — analogous to Vector F which is now passing | New table from migration 057 |
 | Z | Consent cookie injected without completing actual consent flow (login-complete bypass) | HIGH | pkce-state.spec.ts | GAP — an authenticated user who navigates directly to /auth/login-complete (e.g., by replaying the URL) can trigger consent-cookie issuance without going through /consent page if they already have DB consent records; the inverse gap is also untested: a user with a crafted cookie but no DB record who reaches /app/* after the proxy allows them through because cookie matches expected format | New auth flow from login-complete/route.ts change |
+| AA | Student reads another student's audit events via audit_read_own policy (cross-user SELECT) | HIGH | audit-event-forgery.spec.ts | GAP — the new policy USING (actor_id = auth.uid()) is correctly scoped and does NOT enable cross-user reads; however no spec verifies a student cannot SELECT audit events belonging to a different student_id. Existing spec only tests INSERT/UPDATE/DELETE forgery, not cross-user SELECT. | New SELECT surface from migration 059 |
+| AB | Student probes audit_events for events where actor_id = their uid but metadata contains sensitive data about other users | MEDIUM | audit-event-forgery.spec.ts | ASSESSED LOW RISK — all event types written with student actor_id (quiz_session.started, quiz_session.completed, quiz_session.batch_submitted, student.login) contain only the student's own session/score data in metadata. No cross-user data in student-authored events confirmed by grep of all RPC inserts. No spec change required; document here for completeness. | Migration 059 impact analysis |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
@@ -62,6 +64,15 @@ These files contain the attack surface. Changes here should trigger a red-team r
 - The migration sequence (032→033→034) shows iterative hardening: the final RPC correctly derives question IDs from quiz_session_answers rather than accepting them as a parameter, eliminating arbitrary question-ID probing. This is the right pattern.
 - quiz-report.ts performs a direct .select('options') on the questions table (line 88). The `correct` boolean is filtered in TypeScript inside buildReportQuestions, not at the DB layer. A future refactor that changes the mapping logic could silently re-expose answer keys. A red-team spec should assert the report payload never contains `correct` fields.
 - New RPCs require matching unauthenticated and cross-tenant test cases on every addition — these are not covered by default by the existing generic specs.
+
+2026-03-27 — review of migration 059 (audit_read_own policy — GDPR Article 15 student self-read):
+- The new SELECT policy `audit_read_own` uses `USING (actor_id = auth.uid())`. This is correctly scoped — a student can only see rows where they are the actor. They cannot enumerate other students' events by probing UUIDs.
+- No event type in the system writes to audit_events with a student's actor_id AND contains data about a different user in metadata. All student-authored events (quiz_session.started, quiz_session.completed, quiz_session.batch_submitted, student.login) contain only session/score data for the student themselves. Admin-authored events (question.created, question.edited, question.deleted) use the admin's actor_id and are not reachable by the new policy.
+- The policy does NOT conflict with audit_read_instructors. Postgres evaluates permissive policies with OR — instructors now match BOTH policies (their own events via audit_read_own PLUS all org events via audit_read_instructors). This is correct and additive; instructors do not lose access.
+- The immutability policies (audit_no_update, audit_no_delete, audit_no_direct_insert) are unchanged and unaffected. Adding a SELECT policy cannot widen INSERT/UPDATE/DELETE surface.
+- GAP IDENTIFIED: audit-event-forgery.spec.ts tests INSERT/UPDATE/DELETE forgery (Vector F) but has no test case for cross-user SELECT after the new policy is added. A student should attempt to SELECT with a filter against a known other user's actor_id and get 0 rows. This is now Vector AA.
+- The server-action-unauthenticated.spec.ts test at line 136 ("unauthenticated client sees 0 rows from audit_events") remains valid and still passes — the new policy requires auth.uid() IS NOT NULL implicitly (auth.uid() returns null for unauthed clients, and null = null is false in SQL USING clauses).
+- collect-user-data.ts audit_events query at line 63-67 now correctly returns data when called via the RLS-scoped client (exportMyData path), resolving the GDPR Article 15 compliance gap flagged as Issue 1 in the semantic-reviewer session log from 2026-03-27.
 
 2026-03-27 — review of GDPR consent gate (migration 057 + proxy.ts + login-complete/route.ts):
 - The consent gate in proxy.ts is cookie-only — it does not re-check the DB on every request. This is intentional (performance) but means a forged cookie with the correct format (`v1.0:v1.0`) bypasses the gate entirely. The DB is only consulted at login-complete time. A spec should confirm that an attacker who knows the cookie format and value cannot gain access to /app/* routes without a valid auth session — the auth session check in proxy.ts (lines 39-43 in the diff) still runs before the consent check, so unauthenticated requests remain blocked. The consent gate only applies to authenticated users.

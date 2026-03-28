@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { StudentFilters, StudentRow } from '../types'
+import { ExportStudentDialog } from './export-student-dialog'
 import { ResetPasswordDialog } from './reset-password-dialog'
 import { StudentFiltersBar } from './student-filters'
 import { StudentFormDialog } from './student-form-dialog'
@@ -19,6 +20,7 @@ export function StudentsPageShell({ students, filters }: Readonly<Props>) {
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null)
   const [resetStudent, setResetStudent] = useState<StudentRow | null>(null)
   const [toggleStudent, setToggleStudent] = useState<StudentRow | null>(null)
+  const [exportStudent, setExportStudent] = useState<StudentRow | null>(null)
 
   return (
     <div className="space-y-4">
@@ -50,6 +52,7 @@ export function StudentsPageShell({ students, filters }: Readonly<Props>) {
           onEdit={setEditStudent}
           onToggleStatus={setToggleStudent}
           onResetPassword={setResetStudent}
+          onExport={setExportStudent}
         />
       )}
 
@@ -74,6 +77,14 @@ export function StudentsPageShell({ students, filters }: Readonly<Props>) {
         open={toggleStudent !== null}
         onOpenChange={(v) => {
           if (!v) setToggleStudent(null)
+        }}
+      />
+
+      <ExportStudentDialog
+        student={exportStudent}
+        open={exportStudent !== null}
+        onOpenChange={(v) => {
+          if (!v) setExportStudent(null)
         }}
       />
     </div>
