@@ -16,7 +16,7 @@ export async function QuizTabsContent({ userId }: { userId: string }) {
             <SubjectsSection userId={userId} />
           </Suspense>
         }
-        savedDraftContent={<SavedDraftCard drafts={drafts} />}
+        savedDraftContent={<SavedDraftCard drafts={drafts} userId={userId} />}
       />
     </div>
   )

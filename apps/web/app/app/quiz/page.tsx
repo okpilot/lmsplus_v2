@@ -37,7 +37,7 @@ export default async function QuizPage() {
               <SubjectsSection userId={user.id} />
             </Suspense>
           }
-          savedDraftContent={<SavedDraftCard drafts={drafts} />}
+          savedDraftContent={<SavedDraftCard drafts={drafts} userId={user.id} />}
         />
       </div>
     </main>

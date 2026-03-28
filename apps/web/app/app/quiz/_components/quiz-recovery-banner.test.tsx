@@ -23,6 +23,7 @@ const {
 vi.mock('../session/_utils/quiz-session-storage', () => ({
   readActiveSession: () => mockReadActiveSession(),
   clearActiveSession: mockClearActiveSession,
+  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -130,7 +131,10 @@ describe('QuizRecoveryBanner — Resume', () => {
     render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /resume/i }))
 
-    expect(mockSetItem).toHaveBeenCalledWith('quiz-session', expect.stringContaining('sess-001'))
+    expect(mockSetItem).toHaveBeenCalledWith(
+      'quiz-session:test-user-id',
+      expect.stringContaining('sess-001'),
+    )
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
   })

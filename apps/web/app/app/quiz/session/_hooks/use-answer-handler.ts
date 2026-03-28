@@ -25,9 +25,14 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     if (lockedRef.current.has(questionId) || answers.has(questionId)) return false
     lockedRef.current.add(questionId)
     const elapsed = Date.now() - getAnswerStartTime()
-    setAnswers((p) =>
-      new Map(p).set(questionId, { selectedOptionId: optionId, responseTimeMs: elapsed }),
-    )
+    setAnswers((p) => {
+      const next = new Map(p).set(questionId, {
+        selectedOptionId: optionId,
+        responseTimeMs: elapsed,
+      })
+      answersRef.current = next
+      return next
+    })
     try {
       const result = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
       if (!result.success) throw new Error(result.error)

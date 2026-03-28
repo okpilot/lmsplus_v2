@@ -25,6 +25,7 @@ const { mockReadActiveSession, mockClearActiveSession } = vi.hoisted(() => ({
 vi.mock('../session/_utils/quiz-session-storage', () => ({
   readActiveSession: () => mockReadActiveSession(),
   clearActiveSession: mockClearActiveSession,
+  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -188,7 +189,7 @@ describe('useQuizStart — handleStart happy path', () => {
     await act(async () => result.current.handleStart())
 
     expect(mockSessionStorageSetItem).toHaveBeenCalledWith(
-      'quiz-session',
+      'quiz-session:test-user-id',
       expect.stringContaining(SESSION_ID),
     )
   })

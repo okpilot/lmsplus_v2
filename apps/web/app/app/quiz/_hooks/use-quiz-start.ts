@@ -2,7 +2,11 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz'
 import { startQuizSession } from '../actions/start'
-import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-session-storage'
+import {
+  clearActiveSession,
+  readActiveSession,
+  sessionHandoffKey,
+} from '../session/_utils/quiz-session-storage'
 import type { QuestionFilterValue } from '../types'
 
 type UseQuizStartOpts = {
@@ -49,8 +53,9 @@ export function useQuizStart(opts: UseQuizStartOpts) {
       if (result.success) {
         const selectedSubject = subjects.find((s) => s.id === subjectId)
         sessionStorage.setItem(
-          'quiz-session',
+          sessionHandoffKey(userId),
           JSON.stringify({
+            userId,
             sessionId: result.sessionId,
             questionIds: result.questionIds,
             subjectName: selectedSubject?.name,

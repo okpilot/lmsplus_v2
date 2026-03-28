@@ -64,6 +64,7 @@ export function useQuizSubmit(opts: {
     setShowFinishDialog,
     submitting,
     error,
+    clearError: () => setError(null),
     handleSubmit,
     handleSave,
     handleDiscard,

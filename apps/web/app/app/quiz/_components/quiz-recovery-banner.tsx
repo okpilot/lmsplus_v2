@@ -9,6 +9,7 @@ import {
   type ActiveSession,
   clearActiveSession,
   readActiveSession,
+  sessionHandoffKey,
 } from '../session/_utils/quiz-session-storage'
 
 export function QuizRecoveryBanner({ userId }: { userId: string }) {
@@ -29,8 +30,9 @@ export function QuizRecoveryBanner({ userId }: { userId: string }) {
   function handleResume() {
     if (!session) return
     sessionStorage.setItem(
-      'quiz-session',
+      sessionHandoffKey(userId),
       JSON.stringify({
+        userId,
         sessionId: session.sessionId,
         questionIds: session.questionIds,
         draftAnswers: session.answers,

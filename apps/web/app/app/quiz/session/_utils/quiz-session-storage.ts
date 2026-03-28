@@ -1,6 +1,9 @@
 import type { DraftAnswer } from '../../types'
 
 const storageKey = (userId: string) => `quiz-active-session:${userId}`
+
+/** User-scoped key for the tab-scoped session handoff via sessionStorage. */
+export const sessionHandoffKey = (userId: string) => `quiz-session:${userId}`
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 
 export type ActiveSession = {

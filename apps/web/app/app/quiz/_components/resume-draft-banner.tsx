@@ -3,11 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { deleteDraft } from '../actions/draft-delete'
+import { sessionHandoffKey } from '../session/_utils/quiz-session-storage'
 import type { DraftData } from '../types'
 
-type ResumeDraftBannerProps = { draft: DraftData }
+type ResumeDraftBannerProps = { draft: DraftData; userId: string }
 
-export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
+export function ResumeDraftBanner({ draft, userId }: ResumeDraftBannerProps) {
   const router = useRouter()
   const [visible, setVisible] = useState(true)
   const [discarding, setDiscarding] = useState(false)
@@ -20,8 +21,9 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
 
   function handleResume() {
     sessionStorage.setItem(
-      'quiz-session',
+      sessionHandoffKey(userId),
       JSON.stringify({
+        userId,
         sessionId: draft.sessionId,
         questionIds: draft.questionIds,
         draftAnswers: draft.answers,

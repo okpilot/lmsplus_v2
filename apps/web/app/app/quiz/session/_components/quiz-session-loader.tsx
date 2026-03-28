@@ -11,6 +11,7 @@ import {
   type ActiveSession,
   clearActiveSession,
   readActiveSession,
+  sessionHandoffKey,
 } from '../_utils/quiz-session-storage'
 import { QuizSession } from './quiz-session'
 import { SessionRecoveryPrompt } from './session-recovery-prompt'
@@ -35,6 +36,16 @@ type SessionData = {
   subjectCode?: string
 }
 
+function isValidSessionData(data: unknown, expectedUserId: string): data is SessionData {
+  if (typeof data !== 'object' || data === null) return false
+  const d = data as Record<string, unknown>
+  if (typeof d.sessionId !== 'string' || !d.sessionId) return false
+  if (!Array.isArray(d.questionIds) || d.questionIds.length === 0) return false
+  // Reject cross-user payloads (userId is embedded since the key was scoped)
+  if ('userId' in d && d.userId !== expectedUserId) return false
+  return true
+}
+
 // Cache parsed session to survive React Strict Mode double-mount, scoped by userId
 let cachedSession: { userId: string; session: SessionData } | null = null
 
@@ -54,14 +65,21 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
   }, [questions, userId])
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('quiz-session')
+    const key = sessionHandoffKey(userId)
+    const raw = sessionStorage.getItem(key)
     let data: SessionData | null = null
     if (raw) {
       try {
-        data = JSON.parse(raw) as SessionData
+        const parsed: unknown = JSON.parse(raw)
+        if (isValidSessionData(parsed, userId)) {
+          data = parsed
+        } else {
+          console.error('[QuizSessionLoader] Invalid or mismatched session data — discarding')
+          sessionStorage.removeItem(key)
+        }
       } catch {
         console.error('[QuizSessionLoader] Malformed session data in sessionStorage')
-        sessionStorage.removeItem('quiz-session')
+        sessionStorage.removeItem(key)
       }
     } else {
       data = cachedSession?.userId === userId ? cachedSession.session : null
@@ -84,7 +102,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
       .then((result) => {
         if (result.success) {
           clearActiveSession(userId)
-          sessionStorage.removeItem('quiz-session')
+          sessionStorage.removeItem(key)
           setQuestions(result.questions)
         } else {
           setError(result.error)

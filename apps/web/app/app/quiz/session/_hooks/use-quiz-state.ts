@@ -47,6 +47,7 @@ export function useQuizState(opts: QuizStateOpts) {
   const {
     submitted,
     error: submitError,
+    clearError: clearSubmitError,
     ...submit
   } = useQuizSubmit({
     userId: opts.userId,
@@ -61,6 +62,7 @@ export function useQuizState(opts: QuizStateOpts) {
   })
   const wrappedNavigateTo = (index: number) => {
     clearAnswerError()
+    clearSubmitError()
     nav.navigateTo(index)
     checkpoint(answersRef.current, index)
   }
