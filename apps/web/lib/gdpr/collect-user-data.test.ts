@@ -137,16 +137,25 @@ function buildSupabaseClientWithErrors(
   const tableData: Record<string, { data: unknown; error: unknown }> = {
     users: { data: MOCK_USER, error: null },
     quiz_sessions: {
-      data: errors.sessionsError ? [] : [MOCK_SESSION],
+      data: errors.sessionsError ? null : [MOCK_SESSION],
       error: errors.sessionsError ?? null,
     },
-    student_responses: { data: [], error: errors.responsesError ?? null },
-    fsrs_cards: { data: [], error: errors.fsrsError ?? null },
-    flagged_questions: { data: [], error: errors.flagsError ?? null },
-    question_comments: { data: [], error: errors.commentsError ?? null },
-    user_consents: { data: [], error: errors.consentsError ?? null },
-    audit_events: { data: [], error: errors.auditError ?? null },
-    quiz_session_answers: { data: [], error: errors.answersError ?? null },
+    student_responses: {
+      data: errors.responsesError ? null : [],
+      error: errors.responsesError ?? null,
+    },
+    fsrs_cards: { data: errors.fsrsError ? null : [], error: errors.fsrsError ?? null },
+    flagged_questions: { data: errors.flagsError ? null : [], error: errors.flagsError ?? null },
+    question_comments: {
+      data: errors.commentsError ? null : [],
+      error: errors.commentsError ?? null,
+    },
+    user_consents: { data: errors.consentsError ? null : [], error: errors.consentsError ?? null },
+    audit_events: { data: errors.auditError ? null : [], error: errors.auditError ?? null },
+    quiz_session_answers: {
+      data: errors.answersError ? null : [],
+      error: errors.answersError ?? null,
+    },
   }
 
   return {
@@ -373,6 +382,18 @@ describe('collectUserData', () => {
       expect(result.user_consents).toEqual([])
       expect(result.audit_events).toEqual([])
       expect(result.quiz_answers).toEqual([])
+    })
+
+    it('falls back to empty quiz_answers when phase-2 query returns null data', async () => {
+      // Sessions exist (so phase-2 fires), but answers query returns null data
+      const supabase = buildSupabaseClientWithErrors({ answersError: { message: 'timeout' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const result = await collectUserData(supabase, USER_ID)
+
+      // answersResult.data is null, so ?? [] fallback is exercised
+      expect(result.quiz_answers).toEqual([])
+      expect(result.quiz_sessions).toHaveLength(1) // sessions exist, phase-2 fired
+      consoleSpy.mockRestore()
     })
   })
 })
