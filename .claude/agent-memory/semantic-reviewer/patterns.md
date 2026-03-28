@@ -3500,3 +3500,29 @@ the session requirement visible and consistent with the `/app/*` pattern.
 **Watch for:** Any new `/auth/*` page whose functionality requires a valid session should
 either add a server-side `getUser()` check in the page or expand the proxy matcher.
 **Status:** SUGGESTION — 1st occurrence, not a security gap. Watch for repeat pattern.
+
+---
+
+### 2026-03-28 — commit d99a13b (test(gdpr): boost collect-user-data coverage with error and null-data tests)
+- **Files reviewed:** `apps/web/lib/gdpr/collect-user-data.test.ts`, `.claude/agent-memory/learner/patterns.md`, `.claude/agent-memory/red-team/attack-surface.md`
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 4
+
+**Suggestion 1 — `collect-user-data.test.ts` line 364 — null-data test does not exercise `quiz_answers ?? []` fallback**
+`buildSupabaseClientWithNulls` sets `quiz_sessions.data = null`. Production code at line 91 derives `sessionIds` as `(sessionsResult.data ?? []).map(...)` — with null data this gives `[]`, so the phase-2 `quiz_session_answers` query is short-circuited entirely (`sessionIds.length > 0` is false). The `answersResult` is set to `{ data: [] as never[] }` (line 101), not via a Supabase call. The `??` fallback at line 114 (`answersResult.data ?? []`) is never triggered because `data` is already `[]` from the short-circuit path. The test asserts `result.quiz_answers.toEqual([])` — passes — but does NOT cover the production path where the phase-2 query fires, returns `data: null`, and falls back to `[]`. To exercise that branch, a null-data test for `quiz_answers` would need `quiz_sessions.data = [MOCK_SESSION]` (non-null, non-empty) and `quiz_session_answers.data = null`. Non-blocking — the existing tests pass and the fallback is still covered incidentally by `buildSupabaseClientWithErrors` (where `answers.data = []` from the mock). But the null-data test's stated goal of covering `?? []` fallbacks does not fully deliver on `quiz_answers`.
+
+**Suggestion 2 — `buildSupabaseClientWithErrors` mock diverges from real Supabase error shape**
+When a Supabase query errors, the real client returns `{ data: null, error: <PostgrestError> }`. `buildSupabaseClientWithErrors` returns `{ data: [], error: errors.sessionsError }` for erroring tables — `data` is `[]`, not `null`. The production `?? []` fallback at line 113 is therefore not exercised for the error path (the fallback fires on `null`, not `[]`). Both paths produce the same output (`[]`), so tests pass. But the mock inaccuracy means the test does not actually verify that the `?? []` guard handles `null` data on an error response — it only verifies the empty-array-pass-through. This is a low-severity gap: all 14 tests pass, and the null case IS exercised by `buildSupabaseClientWithNulls`. But a future developer adding a table to the error-path test might not realize the mock shape is wrong. Non-blocking.
+
+**Good 1 — `quiz_session_answers` error path is correctly separated into its own test**
+The phase-2 answers query has a distinct code path (not in the `queryResults` loop at lines 75-88, but in a separate `if` block at lines 103-108). The test at line 347 correctly targets this path with its own dedicated `answersError` injection. If the two paths were merged into a single test, a regression in one would mask the other. Clean test isolation.
+
+**Good 2 — `consoleSpy.mockRestore()` called correctly in every test that spies on console.error**
+Both error-logging tests (lines 324 and 347) call `consoleSpy.mockRestore()` at the end — not just `mockClear()`. `mockRestore()` removes the spy entirely, preventing console suppression from leaking into subsequent tests. Correct cleanup pattern.
+
+**Good 3 — agent memory updates are accurate and consistent with the code**
+The learner patterns.md update correctly increments the "utility without test" counter to 7, documents the false positive (quiz_sessions deleted_at), and adds the new RLS SELECT policy gap pattern. All three entries are accurate against the actual commits. The red-team attack-surface.md correctly identifies Vector AA (cross-user SELECT after the new RLS policy) as a gap and correctly assesses Vector AB as low risk (admin-authored events don't reach students via the new policy). The security analysis of the OR-combination of `audit_read_own` and `audit_read_instructors` is correct — additive, not conflicting.
+
+**Good 4 — `beforeEach(() => { vi.resetAllMocks() })` applies to the new tests**
+The global `beforeEach` at line 193 covers all new `describe` blocks added in this commit. The new tests do not need their own `beforeEach`. The `consoleSpy` is created and restored within each test — correct pattern. No mock state can leak between tests.
+
+**No new security patterns found. No production code changed.**

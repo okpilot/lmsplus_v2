@@ -123,8 +123,44 @@
 | Deep JSX nesting from repeated pattern (3x repetition causing 5-level nest) | 1 | 2026-03-27 | Watch — consent commit (2026-03-27): consent-form.tsx repeated a checkbox+label+description JSX pattern 3 times; each repetition added nesting depth, pushing the component to 5 levels (limit 3); caught as BLOCKING by code-reviewer; fixed by extracting ConsentCheckbox sub-component; distinct from "extract at 3 repetitions" rule (Section 2 applies at any nesting level — this is the specific case where the 3-repetition trigger coincides with a nesting-depth violation); first occurrence of this specific mechanism (repetition causing nesting violation) as a named pattern — log and watch; the existing "extract at 3 repetitions" rule in code-style.md Section 2 is the correct gate; no additional rule needed |
 | RLS SELECT policy missing for student role on table read via RLS-scoped client in multi-client feature | 1 | 2026-03-27 | Watch — GDPR data export (7eeff14/0bad818): collect-user-data.ts used the anon/authenticated Supabase client to fetch audit_events for a student's own export; audit_events had no SELECT RLS policy for the authenticated role (admin-only by design), so the query silently returned empty data; caught as a valid ISSUE by semantic-reviewer post-commit; fixed in 0bad818 by adding a SELECT RLS policy scoped to auth.uid(); root cause: when a feature adds a code path that reads a table via the RLS-scoped client (not adminClient), each table in that path must be audited for an appropriate SELECT policy for the authenticated role — the fact that another path in the same feature uses adminClient does not guarantee the student-client path is covered; distinct from "Query missing student_id scope" (that is a missing WHERE clause — this is a missing RLS policy); distinct from "GRANT EXECUTE missing on SECURITY DEFINER RPC" (that is a function permission — this is a table row-level policy); Supabase returns 200 OK with empty data when RLS blocks a SELECT, making the gap silent at runtime (no error to destructure); first occurrence — log and watch |
 | Semantic reviewer false positive due to wrong schema assumption (column existence) | 1 | 2026-03-27 | Watch — GDPR data export (7eeff14): semantic reviewer claimed quiz_sessions has no deleted_at column and flagged a `.is('deleted_at', null)` filter as dead code; the column was added in migration 023 and is present in the schema; the reviewer's scan missed an earlier migration file; confirmed false positive — no code change warranted; validated by checking migration 023 against the claim before acting; distinct from "Red-team spec written against wrong schema column" (that is spec authoring error — this is a reviewer making a wrong inference about the live schema); mitigation: before acting on any semantic-reviewer finding that claims a column or table does not exist, verify against the migration files directly; first occurrence as a named false positive type — log and watch |
+| Supabase error mock shape wrong: `{data: [], error}` instead of `{data: null, error}` | 1 | 2026-03-28 | Watch — GDPR collect-user-data.test.ts (09e1be1): test mock helper returned `{ data: [], error: someError }` when simulating a Supabase query failure; real Supabase client always returns `{ data: null, error }` on failure — never `{ data: [], error }`; the wrong shape meant error-path tests were exercising code with a non-production input shape, making fallback assertions like `?? []` pass for the wrong reason; fixed in 09e1be1 by changing all error-path mock entries to `data: errors.xError ? null : actualData`; root cause: test authors write `data: []` as an intuitive "empty" value without checking the actual Supabase contract; the correct rule: a Supabase mock that returns a non-null error MUST set data to null, not to an empty array; first occurrence — log and watch; if a second test file ships with this pattern, update test-writer patterns.md with an explicit rule under the mock shape section |
 
 ## Lessons Learned
+
+### 2026-03-28 — GDPR data export fix commit (commit 09e1be1)
+
+**Context:** Single-commit fix. 09e1be1 corrected Supabase error mock shapes in `collect-user-data.test.ts` and added a new test covering the `?? []` fallback for `quiz_answers` when phase-2 fires but the answers query returns null data. The fix was prompted by two semantic-reviewer SUGGESTIONs on earlier commits in this GDPR PR 3/3 cycle: (1) error mocks returned `{ data: [], error }` instead of the real Supabase shape `{ data: null, error }`; (2) the `?? []` null-fallback branch for `quiz_answers` was only exercised via the all-errors path, not via a targeted phase-2 scenario. Both suggestions were fixed and the fix commit was clean.
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean.
+
+**Doc updater:** No changes needed. Clean.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE, 2 SUGGESTION (both fixed in 09e1be1).
+1. **Error mocks returning `{ data: [], error }` — SUGGESTION, real, fixed.** `buildSupabaseClientWithErrors` returned `data: []` on error paths. Real Supabase always returns `data: null` when `error` is non-null. The wrong shape meant fallback logic was tested against a non-production input.
+2. **`?? []` null fallback for quiz_answers not covered when phase-2 fires — SUGGESTION, real, fixed.** A dedicated test was added: sessions exist (phase-2 fires), answers query returns null data, result falls back to `[]`.
+
+**Test writer:** Full coverage, no gaps.
+
+**Pattern analysis:**
+
+- **Supabase error mock shape wrong: `{data: [], error}` instead of `{data: null, error}` (NEW — count 1):** First occurrence of this pattern as a named entry. The correct Supabase client contract is: when `error` is non-null, `data` is always `null`. Test authors commonly write `data: []` as an intuitive "empty result" without checking the actual client contract. The wrong shape allows fallback logic like `?? []` to be exercised via a path that would never occur in production (real errors always produce null data, not empty arrays). Caught as a semantic-reviewer SUGGESTION and fixed in 09e1be1. First occurrence — log and watch. If a second test file ships with this pattern, update test-writer patterns.md with an explicit mock shape rule.
+
+- **`?? []` fallback untested for the specific conditional code path that produces null data (adjacent to above, count 1):** The `quiz_answers` fallback was indirectly covered by the all-errors path but not by a targeted phase-2 scenario (sessions present, answers query fails). The fix added a dedicated test that exercises exactly this branch. This is a coverage precision issue: a fallback operator needs a test where the operand is null in the exact control-flow context where it appears. First occurrence — log and watch.
+
+**Actions taken:**
+- Frequency table: New watch row added for "Supabase error mock shape wrong: `{data: [], error}` instead of `{data: null, error}`" at count 1.
+
+**No rule changes applied this cycle.** Both patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** None detected. Both suggestions were real gaps — the mock shape was wrong per the Supabase client contract and the fallback branch had a genuine coverage gap in the phase-2 scenario.
+
+**Positive signals:**
+- All agents clean on a test-only commit — gate is functioning correctly as a correction mechanism.
+- Semantic-reviewer correctly identified a contract violation in test mocks (not just style) — demonstrating that review of test-only commits catches real correctness issues.
+- Both suggestions were fixed in a single targeted commit with no residual findings.
+- The mock-shape correction was systematic — all 8 table entries in the error helper were updated consistently in one pass.
+
+---
 
 ### 2026-03-26 — Student profile & settings page (commits 552bb2f, d9e1d10)
 
