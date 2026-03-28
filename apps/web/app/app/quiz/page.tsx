@@ -1,14 +1,9 @@
 import { Suspense } from 'react'
-import { QuizTabs } from './_components/quiz-tabs'
-import { SavedDraftCard } from './_components/saved-draft-card'
-import { SubjectsSection } from './_components/subjects-section'
-import { loadDrafts } from './actions/load-draft'
+import { QuizTabsContent } from './_components/quiz-tabs-content'
 
 export const dynamic = 'force-dynamic'
 
-export default async function QuizPage() {
-  const { drafts } = await loadDrafts()
-
+export default function QuizPage() {
   return (
     <main className="space-y-6">
       <div>
@@ -18,17 +13,11 @@ export default async function QuizPage() {
         </p>
       </div>
 
-      <div className="mx-auto max-w-xl">
-        <QuizTabs
-          draftCount={drafts.length}
-          newQuizContent={
-            <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
-              <SubjectsSection />
-            </Suspense>
-          }
-          savedDraftContent={<SavedDraftCard drafts={drafts} />}
-        />
-      </div>
+      <Suspense
+        fallback={<div className="h-64 rounded-lg bg-muted animate-pulse max-w-xl mx-auto" />}
+      >
+        <QuizTabsContent />
+      </Suspense>
     </main>
   )
 }
