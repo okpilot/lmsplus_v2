@@ -106,6 +106,88 @@ function buildSupabaseClient(
   } as unknown as SupabaseClient<Database>
 }
 
+/**
+ * Variant that injects errors for specific tables while keeping user data valid.
+ */
+function buildSupabaseClientWithErrors(
+  errors: {
+    sessionsError?: { message: string }
+    responsesError?: { message: string }
+    fsrsError?: { message: string }
+    flagsError?: { message: string }
+    commentsError?: { message: string }
+    consentsError?: { message: string }
+    auditError?: { message: string }
+    answersError?: { message: string }
+  } = {},
+): SupabaseClient<Database> {
+  function makeChain(result: { data: unknown; error: unknown }) {
+    const chain: Record<string, unknown> = {}
+    const terminal = vi.fn().mockResolvedValue(result)
+    const handler: ProxyHandler<Record<string, unknown>> = {
+      get(target, prop) {
+        if (prop === 'then') return (resolve: (v: unknown) => void) => resolve(result)
+        if (prop === 'single') return terminal
+        return () => new Proxy(target, handler)
+      },
+    }
+    return new Proxy(chain, handler)
+  }
+
+  const tableData: Record<string, { data: unknown; error: unknown }> = {
+    users: { data: MOCK_USER, error: null },
+    quiz_sessions: {
+      data: errors.sessionsError ? [] : [MOCK_SESSION],
+      error: errors.sessionsError ?? null,
+    },
+    student_responses: { data: [], error: errors.responsesError ?? null },
+    fsrs_cards: { data: [], error: errors.fsrsError ?? null },
+    flagged_questions: { data: [], error: errors.flagsError ?? null },
+    question_comments: { data: [], error: errors.commentsError ?? null },
+    user_consents: { data: [], error: errors.consentsError ?? null },
+    audit_events: { data: [], error: errors.auditError ?? null },
+    quiz_session_answers: { data: [], error: errors.answersError ?? null },
+  }
+
+  return {
+    from: (table: string) => makeChain(tableData[table] ?? { data: [], error: null }),
+  } as unknown as SupabaseClient<Database>
+}
+
+/**
+ * Variant that returns null data for all non-user tables to exercise ?? [] fallbacks.
+ */
+function buildSupabaseClientWithNulls(): SupabaseClient<Database> {
+  function makeChain(result: { data: unknown; error: unknown }) {
+    const chain: Record<string, unknown> = {}
+    const terminal = vi.fn().mockResolvedValue(result)
+    const handler: ProxyHandler<Record<string, unknown>> = {
+      get(target, prop) {
+        if (prop === 'then') return (resolve: (v: unknown) => void) => resolve(result)
+        if (prop === 'single') return terminal
+        return () => new Proxy(target, handler)
+      },
+    }
+    return new Proxy(chain, handler)
+  }
+
+  const tableData: Record<string, { data: unknown; error: unknown }> = {
+    users: { data: MOCK_USER, error: null },
+    quiz_sessions: { data: null, error: null },
+    student_responses: { data: null, error: null },
+    fsrs_cards: { data: null, error: null },
+    flagged_questions: { data: null, error: null },
+    question_comments: { data: null, error: null },
+    user_consents: { data: null, error: null },
+    audit_events: { data: null, error: null },
+    quiz_session_answers: { data: null, error: null },
+  }
+
+  return {
+    from: (table: string) => makeChain(tableData[table] ?? { data: [], error: null }),
+  } as unknown as SupabaseClient<Database>
+}
+
 // ---- Tests ----------------------------------------------------------------
 
 beforeEach(() => {
@@ -234,6 +316,63 @@ describe('collectUserData', () => {
       const supabase = buildSupabaseClient({ userData: null, userError: null })
 
       await expect(collectUserData(supabase, USER_ID)).rejects.toThrow('User not found')
+    })
+  })
+
+  describe('table query error logging', () => {
+    it('logs errors for failing non-user table queries but still returns data', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const supabase = buildSupabaseClientWithErrors({
+        sessionsError: { message: 'timeout' },
+        flagsError: { message: 'connection lost' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[collectUserData] quiz_sessions query failed:',
+        'timeout',
+      )
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[collectUserData] flagged_questions query failed:',
+        'connection lost',
+      )
+      // Returns empty arrays for failed tables
+      expect(result.quiz_sessions).toHaveLength(0)
+      expect(result.flagged_questions).toHaveLength(0)
+      // Non-failed tables still return data
+      expect(result.user.id).toBe(USER_ID)
+      consoleSpy.mockRestore()
+    })
+
+    it('logs error when quiz_session_answers query fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const supabase = buildSupabaseClientWithErrors({
+        answersError: { message: 'answers timeout' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[collectUserData] quiz_session_answers query failed:',
+        'answers timeout',
+      )
+      expect(result.quiz_answers).toHaveLength(0)
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('null data fallbacks', () => {
+    it('falls back to empty arrays when table data is null', async () => {
+      const supabase = buildSupabaseClientWithNulls()
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.quiz_sessions).toEqual([])
+      expect(result.student_responses).toEqual([])
+      expect(result.fsrs_cards).toEqual([])
+      expect(result.flagged_questions).toEqual([])
+      expect(result.question_comments).toEqual([])
+      expect(result.user_consents).toEqual([])
+      expect(result.audit_events).toEqual([])
+      expect(result.quiz_answers).toEqual([])
     })
   })
 })
