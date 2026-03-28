@@ -1,6 +1,6 @@
 'use client'
 
-import { Key, Pencil, UserCheck, UserX } from 'lucide-react'
+import { Download, Key, Pencil, UserCheck, UserX } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,6 +18,7 @@ type Props = {
   onEdit: (student: StudentRow) => void
   onToggleStatus: (student: StudentRow) => void
   onResetPassword: (student: StudentRow) => void
+  onExport: (student: StudentRow) => void
 }
 
 function roleVariant(role: StudentRow['role']) {
@@ -44,6 +45,7 @@ export function StudentTable({
   onEdit,
   onToggleStatus,
   onResetPassword,
+  onExport,
 }: Readonly<Props>) {
   return (
     <div className="rounded-md border">
@@ -118,6 +120,15 @@ export function StudentTable({
                     onClick={() => onResetPassword(s)}
                   >
                     <Key className="size-3.5 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    title="Export data"
+                    aria-label="Export data"
+                    onClick={() => onExport(s)}
+                  >
+                    <Download className="size-3.5 text-muted-foreground" />
                   </Button>
                 </div>
               </TableCell>

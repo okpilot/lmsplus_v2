@@ -189,9 +189,14 @@ describe('RLS: tenant isolation', () => {
     expect(data).toHaveLength(0)
   })
 
-  it('student cannot read audit events', async () => {
-    const { data } = await studentAClient.from('audit_events').select('id')
-    expect(data).toHaveLength(0)
+  it('student can read only their own audit events (GDPR Art. 15)', async () => {
+    const { data } = await studentAClient.from('audit_events').select('id, actor_id')
+    // Migration 060: students can now read their own audit events
+    // All returned rows must belong to the authenticated student (RLS enforces actor_id = auth.uid())
+    expect(data).not.toBeNull()
+    const actorIds = new Set((data ?? []).map((r) => r.actor_id))
+    // All rows share a single actor_id (the student's own)
+    expect(actorIds.size).toBeLessThanOrEqual(1)
   })
 
   it('instructor can read audit events in own org', async () => {

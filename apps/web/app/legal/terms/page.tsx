@@ -5,15 +5,8 @@ export const metadata: Metadata = { title: 'Terms of Service — LMS Plus' }
 export default function TermsPage() {
   return (
     <>
-      <p className="text-xs text-muted-foreground">
-        Last updated: March 2026 &mdash;{' '}
-        <em>
-          This document is provided for informational purposes and should be reviewed by qualified
-          legal counsel before relying on it.
-        </em>
-      </p>
-
       <h1>Terms of Service</h1>
+      <p className="text-sm text-muted-foreground">Last updated: March 2026</p>
 
       <h2>1. Acceptance</h2>
       <p>
@@ -22,23 +15,32 @@ export default function TermsPage() {
       </p>
 
       <h2>2. Service Description</h2>
-      <p>
-        LMS Plus is an online study aid for EASA PPL theoretical knowledge exams. It is not a
-        substitute for training delivered by an approved training organisation (ATO) and does not
-        confer any official certification.
-      </p>
+      <p>LMS Plus is an online study aid for EASA PPL theoretical knowledge exams.</p>
+      <ul>
+        <li>
+          It is <strong>not</strong> a substitute for training delivered by an approved training
+          organisation (ATO)
+        </li>
+        <li>It does not confer any official certification or licence</li>
+      </ul>
 
       <h2>3. Accounts</h2>
-      <p>
-        Accounts are provisioned by your flight school administrator — one account per student. You
-        are responsible for keeping your credentials secure. Do not share your account with anyone.
-      </p>
+      <ul>
+        <li>
+          Accounts are provisioned by your flight school administrator — one account per student
+        </li>
+        <li>You are responsible for keeping your credentials secure</li>
+        <li>Do not share your account with anyone</li>
+      </ul>
 
       <h2>4. Acceptable Use</h2>
-      <p>
-        You may use LMS Plus for personal study only. You must not share accounts, scrape content
-        programmatically, or redistribute question bank material in any form.
-      </p>
+      <p>You may use LMS Plus for personal study only. You must not:</p>
+      <ul>
+        <li>Share your account credentials with others</li>
+        <li>Scrape content programmatically or use automated tools to access the platform</li>
+        <li>Reproduce, redistribute, or sell question bank material in any form</li>
+        <li>Attempt to access other students&apos; data or administrative functions</li>
+      </ul>
 
       <h2>5. Intellectual Property</h2>
       <p>
@@ -48,10 +50,14 @@ export default function TermsPage() {
       </p>
 
       <h2>6. Limitation of Liability</h2>
-      <p>
-        LMS Plus is a study aid and does not guarantee exam success. We accept no liability for exam
-        outcomes, scheduling decisions, or any loss arising from your use of the platform.
-      </p>
+      <p>LMS Plus is a study aid and:</p>
+      <ul>
+        <li>Does not guarantee exam success</li>
+        <li>
+          We accept no liability for exam outcomes, scheduling decisions, or any loss arising from
+          your use of the platform
+        </li>
+      </ul>
 
       <h2>7. Changes to These Terms</h2>
       <p>

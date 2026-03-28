@@ -1,5 +1,5 @@
-import { StudentsPageShell } from './_components/students-page-shell'
-import { getStudentsList } from './queries'
+import { Suspense } from 'react'
+import { StudentsContent } from './_components/students-content'
 import type { StudentFilters } from './types'
 
 const STATUS_VALUES = ['active', 'inactive'] as const
@@ -24,7 +24,6 @@ type PageProps = { searchParams: Promise<Record<string, string | string[] | unde
 
 export default async function StudentsPage({ searchParams }: Readonly<PageProps>) {
   const filters = parseFilters(await searchParams)
-  const students = await getStudentsList(filters)
 
   return (
     <div className="space-y-6">
@@ -34,7 +33,9 @@ export default async function StudentsPage({ searchParams }: Readonly<PageProps>
           Register and manage students on the platform.
         </p>
       </div>
-      <StudentsPageShell students={students} filters={filters} />
+      <Suspense fallback={<div className="h-96 animate-pulse rounded-md bg-muted" />}>
+        <StudentsContent filters={filters} />
+      </Suspense>
     </div>
   )
 }

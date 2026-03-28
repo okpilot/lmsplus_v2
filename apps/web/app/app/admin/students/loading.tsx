@@ -5,7 +5,6 @@ export default function StudentsLoading() {
         <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
         <div className="mt-2 h-4 w-64 animate-pulse rounded-md bg-muted" />
       </div>
-      <div className="h-96 animate-pulse rounded-md bg-muted" />
     </div>
   )
 }

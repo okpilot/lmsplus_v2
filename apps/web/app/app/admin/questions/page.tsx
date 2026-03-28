@@ -1,6 +1,6 @@
-import { getSyllabusTree } from '../syllabus/queries'
-import { QuestionsPageShell } from './_components/questions-page-shell'
-import { getQuestionsList } from './queries'
+import { Suspense } from 'react'
+import { QuestionsContent } from './_components/questions-content'
+import { QuestionsContentFallback } from './_components/questions-content-fallback'
 import type { QuestionFilters } from './types'
 
 const DIFFICULTY_VALUES = ['easy', 'medium', 'hard'] as const
@@ -29,7 +29,6 @@ type PageProps = { searchParams: Promise<Record<string, string | string[] | unde
 
 export default async function QuestionsPage({ searchParams }: Readonly<PageProps>) {
   const filters = parseFilters(await searchParams)
-  const [questions, tree] = await Promise.all([getQuestionsList(filters), getSyllabusTree()])
 
   return (
     <div className="space-y-6">
@@ -39,7 +38,9 @@ export default async function QuestionsPage({ searchParams }: Readonly<PageProps
           Manage questions in the EASA PPL question bank.
         </p>
       </div>
-      <QuestionsPageShell questions={questions} tree={tree} filters={filters} />
+      <Suspense fallback={<QuestionsContentFallback />}>
+        <QuestionsContent filters={filters} />
+      </Suspense>
     </div>
   )
 }

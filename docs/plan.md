@@ -37,6 +37,15 @@ First-login consent flow with persistent audit trail:
 - Migrations: migration 057 only. Zero-row no-op checks on RPC queries.
 - 26+ new unit tests, 5 new E2E specs
 
+## GDPR Data Subject Rights — 2026-03-27 (issue #182, PR 3 of 3)
+
+Data export and EASA retention documentation:
+- **Data export** (GDPR Articles 15 & 20): Self-service JSON download from `/app/settings` via `exportMyData()` Server Action. Shared `collectUserData()` queries all user tables in parallel.
+- **Admin export**: `exportStudentData()` Server Action with org-scope guard, accessible from admin students page via export dialog.
+- **EASA Part ORA**: Training records (sessions, answers, responses) retained with full identity — no deletion, no anonymisation. GDPR Article 17(3)(b) exemption documented in privacy policy.
+- **Privacy policy update**: Section 6 (Data Retention & EASA Compliance) and Section 8 (Your GDPR Rights) updated with specific article references and EASA exemption.
+- No migration required — pure application-layer feature.
+
 ---
 
 ## Student Profile & Settings — 2026-03-26 (issue #368)
