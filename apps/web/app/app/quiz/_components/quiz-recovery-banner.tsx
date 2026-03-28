@@ -74,6 +74,7 @@ export function QuizRecoveryBanner({ userId }: { userId: string }) {
   }
 
   function handleDiscard() {
+    if (loading) return
     const captured = session
     clearActiveSession(userId)
     clearDeploymentPin().catch(() => {})
