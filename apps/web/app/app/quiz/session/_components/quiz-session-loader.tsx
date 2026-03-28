@@ -75,40 +75,49 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
     cachedSession = { userId, session: data }
     setSession(data)
 
-    loadSessionQuestions(data.questionIds).then((result) => {
-      if (result.success) {
-        clearActiveSession(userId)
-        sessionStorage.removeItem('quiz-session')
-        setQuestions(result.questions)
-      } else {
-        setError(result.error)
-      }
-    })
+    loadSessionQuestions(data.questionIds)
+      .then((result) => {
+        if (result.success) {
+          clearActiveSession(userId)
+          sessionStorage.removeItem('quiz-session')
+          setQuestions(result.questions)
+        } else {
+          setError(result.error)
+        }
+      })
+      .catch(() => {
+        setError('Failed to load questions. Please try again.')
+      })
   }, [router, userId])
 
   function handleRecoveryResume() {
     if (!recovery) return
     setResumeLoading(true)
     setResumeError(null)
-    loadSessionQuestions(recovery.questionIds).then((result) => {
-      if (result.success) {
-        clearActiveSession(userId)
-        setSession({
-          sessionId: recovery.sessionId,
-          questionIds: recovery.questionIds,
-          draftAnswers: recovery.answers,
-          draftCurrentIndex: recovery.currentIndex,
-          draftId: recovery.draftId,
-          subjectName: recovery.subjectName,
-          subjectCode: recovery.subjectCode,
-        })
-        setQuestions(result.questions)
-        setRecovery(null)
-      } else {
-        setResumeError(result.error ?? 'Failed to load questions. Try again.')
+    loadSessionQuestions(recovery.questionIds)
+      .then((result) => {
+        if (result.success) {
+          clearActiveSession(userId)
+          setSession({
+            sessionId: recovery.sessionId,
+            questionIds: recovery.questionIds,
+            draftAnswers: recovery.answers,
+            draftCurrentIndex: recovery.currentIndex,
+            draftId: recovery.draftId,
+            subjectName: recovery.subjectName,
+            subjectCode: recovery.subjectCode,
+          })
+          setQuestions(result.questions)
+          setRecovery(null)
+        } else {
+          setResumeError(result.error ?? 'Failed to load questions. Try again.')
+          setResumeLoading(false)
+        }
+      })
+      .catch(() => {
+        setResumeError('Failed to load questions. Please try again.')
         setResumeLoading(false)
-      }
-    })
+      })
   }
 
   if (recovery) {

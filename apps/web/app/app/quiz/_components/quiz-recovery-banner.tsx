@@ -45,7 +45,7 @@ export function QuizRecoveryBanner({ userId }: { userId: string }) {
   }
 
   async function handleSave() {
-    if (!session) return
+    if (loading || !session) return
     setLoading(true)
     setError(null)
     try {

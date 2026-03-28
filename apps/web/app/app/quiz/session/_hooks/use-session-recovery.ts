@@ -11,7 +11,7 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
   const [error, setError] = useState<string | null>(null)
 
   async function handleSave() {
-    if (!recovery) return
+    if (loading || !recovery) return
     setLoading(true)
     setError(null)
     try {
