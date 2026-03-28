@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { cache } from 'react'
 import {
   applyLastPracticed,
   computeExamReadiness,
@@ -27,7 +28,7 @@ export type SubjectProgress = {
   lastPracticedAt: string | null
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
@@ -61,7 +62,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     bestStreak: streakData.bestStreak,
     examReadiness,
   }
-}
+})
 
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
