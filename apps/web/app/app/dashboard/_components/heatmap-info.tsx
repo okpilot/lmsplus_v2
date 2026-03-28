@@ -4,8 +4,9 @@ export function HeatmapInfo() {
   return (
     <InfoTooltip
       label="What does this chart show?"
-      title="Daily Activity"
-      description="Each square shows how many questions you answered that day. The stronger the green, the more questions you practiced."
+      title="Daily Progress"
+      description="Each cell shows three numbers: total questions answered (blue, top), correct answers (green, middle), and wrong answers (red, bottom). Use the arrows to switch months."
+      align="left"
     />
   )
 }
