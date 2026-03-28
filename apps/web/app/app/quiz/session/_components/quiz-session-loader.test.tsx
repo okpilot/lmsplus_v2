@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
@@ -142,9 +142,10 @@ describe('QuizSessionLoader', () => {
     const skeletons = container.querySelectorAll('.animate-pulse')
     expect(skeletons.length).toBeGreaterThan(0)
 
-    // Resolve the pending promise and unmount to prevent forks worker timeout
-    resolve!({ success: true, questions: [] })
-    await waitFor(() => {})
+    // Resolve the pending promise inside act() to flush React state updates, then unmount
+    await act(async () => {
+      resolve!({ success: true, questions: [] })
+    })
     unmount()
   })
 
