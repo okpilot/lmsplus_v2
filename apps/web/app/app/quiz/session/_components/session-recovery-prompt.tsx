@@ -1,6 +1,6 @@
 'use client'
 
-type SessionRecoveryPromptProps = {
+type SessionRecoveryPromptProps = Readonly<{
   subjectName?: string
   answeredCount: number
   totalCount: number
@@ -9,7 +9,7 @@ type SessionRecoveryPromptProps = {
   onDiscard: () => void
   loading: boolean
   error: string | null
-}
+}>
 
 export function SessionRecoveryPrompt({
   subjectName,

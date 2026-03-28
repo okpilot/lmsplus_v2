@@ -1,9 +1,10 @@
 import type { DraftAnswer } from '../../types'
 
-const STORAGE_KEY = 'quiz-active-session'
+const storageKey = (userId: string) => `quiz-active-session:${userId}`
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 
 export type ActiveSession = {
+  userId: string
   sessionId: string
   questionIds: string[]
   answers: Record<string, DraftAnswer>
@@ -16,24 +17,24 @@ export type ActiveSession = {
 
 export function writeActiveSession(data: ActiveSession): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    localStorage.setItem(storageKey(data.userId), JSON.stringify(data))
   } catch (err) {
     // Private browsing SecurityError or QuotaExceededError — never block quiz
     console.warn('[quiz-session-storage] Write failed:', err)
   }
 }
 
-function safeRemove(): void {
+function safeRemove(userId: string): void {
   try {
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(storageKey(userId))
   } catch {
     // Swallow — best effort
   }
 }
 
-export function readActiveSession(): ActiveSession | null {
+export function readActiveSession(userId: string): ActiveSession | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey(userId))
     if (!raw) return null
     const data = JSON.parse(raw) as ActiveSession
     // Validate required fields
@@ -46,27 +47,33 @@ export function readActiveSession(): ActiveSession | null {
       data.answers === null ||
       Array.isArray(data.answers)
     ) {
-      safeRemove()
+      safeRemove(userId)
+      return null
+    }
+    // Cross-user contamination guard
+    if (data.userId !== userId) {
+      safeRemove(userId)
       return null
     }
     // 7-day staleness check
     if (Date.now() - data.savedAt > SEVEN_DAYS_MS) {
-      safeRemove()
+      safeRemove(userId)
       return null
     }
     return data
   } catch {
     // Malformed JSON or other error
-    safeRemove()
+    safeRemove(userId)
     return null
   }
 }
 
-export function clearActiveSession(): void {
-  safeRemove()
+export function clearActiveSession(userId: string): void {
+  safeRemove(userId)
 }
 
 type BuildOpts = {
+  userId: string
   sessionId: string
   questions: Array<{ id: string }>
   subjectName?: string
@@ -80,6 +87,7 @@ export function buildActiveSession(
   currentIndex: number,
 ): ActiveSession {
   return {
+    userId: opts.userId,
     sessionId: opts.sessionId,
     questionIds: opts.questions.map((q) => q.id),
     answers: Object.fromEntries(answers),

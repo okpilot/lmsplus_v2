@@ -84,6 +84,7 @@ const QUESTIONS = [
 // ---- Tests ----------------------------------------------------------------
 
 const RECOVERY_SESSION = {
+  userId: 'test-user-id',
   sessionId: 'recovery-sess',
   questionIds: ['q1', 'q2'],
   answers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 1000 } },

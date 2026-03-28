@@ -45,9 +45,8 @@ vi.mock('../../actions/check-answer', () => ({
   checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
 }))
 
-vi.mock('../_utils/quiz-session-storage', () => ({
-  writeActiveSession: vi.fn(),
-  buildActiveSession: vi.fn().mockReturnValue({}),
+vi.mock('./use-quiz-persistence', () => ({
+  useQuizPersistence: () => ({ checkpoint: vi.fn() }),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -114,35 +113,55 @@ beforeEach(() => {
 describe('useQuizState — initial index clamping', () => {
   it('defaults to index 0 when no initialIndex is provided', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     expect(result.current.currentIndex).toBe(0)
   })
 
   it('accepts a valid initialIndex within range', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 2 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 2,
+      }),
     )
     expect(result.current.currentIndex).toBe(2)
   })
 
   it('clamps initialIndex to the last valid index when it exceeds questions.length - 1', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 99 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 99,
+      }),
     )
     expect(result.current.currentIndex).toBe(2)
   })
 
   it('clamps negative initialIndex to 0', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: -5 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: -5,
+      }),
     )
     expect(result.current.currentIndex).toBe(0)
   })
 
   it('clamps to 0 when questions array is empty', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: [], initialIndex: 3 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: [],
+        initialIndex: 3,
+      }),
     )
     expect(result.current.currentIndex).toBe(0)
   })
@@ -153,7 +172,7 @@ describe('useQuizState — initial index clamping', () => {
 describe('useQuizState — navigation', () => {
   it('navigates to a valid index', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     act(() => result.current.navigateTo(1))
     expect(result.current.currentIndex).toBe(1)
@@ -161,7 +180,7 @@ describe('useQuizState — navigation', () => {
 
   it('does not navigate below index 0', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     act(() => result.current.navigate(-1))
     expect(result.current.currentIndex).toBe(0)
@@ -169,7 +188,12 @@ describe('useQuizState — navigation', () => {
 
   it('does not navigate beyond the last question', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 2 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 2,
+      }),
     )
     act(() => result.current.navigate(1))
     expect(result.current.currentIndex).toBe(2)
@@ -177,7 +201,12 @@ describe('useQuizState — navigation', () => {
 
   it('navigate(+1) advances to the next question', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 0 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 0,
+      }),
     )
     act(() => result.current.navigate(1))
     expect(result.current.currentIndex).toBe(1)
@@ -189,7 +218,7 @@ describe('useQuizState — navigation', () => {
 describe('useQuizState — answer selection', () => {
   it('records an answer for the current question', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSelectAnswer('opt-a'))
     expect(result.current.answeredCount).toBe(1)
@@ -198,7 +227,7 @@ describe('useQuizState — answer selection', () => {
 
   it('ignores a second answer for an already-answered question', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSelectAnswer('opt-a'))
     await act(async () => result.current.handleSelectAnswer('opt-b'))
@@ -234,7 +263,7 @@ describe('useQuizState — answer selection', () => {
     )
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
 
     // Fire both calls without awaiting between them — simulating a rapid double-click.
@@ -256,6 +285,7 @@ describe('useQuizState — answer selection', () => {
   it('restores previously saved answers on mount', () => {
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: {
@@ -280,7 +310,7 @@ describe('useQuizState — handleSubmit empty-answers guard', () => {
     )
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSubmit())
 
@@ -304,6 +334,7 @@ describe('useQuizState — handleSubmit', () => {
 
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 } },
@@ -324,6 +355,7 @@ describe('useQuizState — handleSubmit', () => {
 
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 } },
@@ -341,7 +373,12 @@ describe('useQuizState — handleSubmit', () => {
 describe('useQuizState — handleSave', () => {
   it('saves current progress with correct quiz data', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 1 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 1,
+      }),
     )
     await act(async () => result.current.handleSave())
 
@@ -363,7 +400,7 @@ describe('useQuizState — handleSave', () => {
     )
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSave())
 
@@ -374,6 +411,7 @@ describe('useQuizState — handleSave', () => {
     const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         draftId: DRAFT_ID,
@@ -389,6 +427,7 @@ describe('useQuizState — handleSave', () => {
   it('includes subject metadata when saving', async () => {
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         subjectName: 'Air Law',
@@ -411,7 +450,7 @@ describe('useQuizState — handleSave', () => {
 describe('useQuizState — handleDiscard', () => {
   it('discards the current quiz session', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleDiscard())
 
@@ -424,6 +463,7 @@ describe('useQuizState — handleDiscard', () => {
     const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         draftId: DRAFT_ID,
@@ -445,7 +485,7 @@ describe('useQuizState — handleDiscard', () => {
     )
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleDiscard())
 
@@ -458,14 +498,14 @@ describe('useQuizState — handleDiscard', () => {
 describe('useQuizState — showFinishDialog', () => {
   it('finish dialog is hidden by default', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     expect(result.current.showFinishDialog).toBe(false)
   })
 
   it('opens the finish dialog', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     act(() => result.current.setShowFinishDialog(true))
     expect(result.current.showFinishDialog).toBe(true)
@@ -473,7 +513,7 @@ describe('useQuizState — showFinishDialog', () => {
 
   it('closes the finish dialog', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     act(() => result.current.setShowFinishDialog(true))
     act(() => result.current.setShowFinishDialog(false))
@@ -493,7 +533,9 @@ describe('useQuizState — navigation guard condition', () => {
   })
 
   it('does not activate the guard when no answers exist', () => {
-    renderHook(() => useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }))
+    renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
     // The last call reflects the final render — guard should be inactive.
     const lastCall = navGuardMock.mock.calls[navGuardMock.mock.calls.length - 1]
     expect(lastCall?.[0]).toBe(false)
@@ -501,7 +543,7 @@ describe('useQuizState — navigation guard condition', () => {
 
   it('activates the guard after a new answer is recorded', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSelectAnswer('opt-a'))
 
@@ -514,6 +556,7 @@ describe('useQuizState — navigation guard condition', () => {
     // so the condition (answers.size > initialSize) is false — guard must remain inactive.
     renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: {
@@ -530,6 +573,7 @@ describe('useQuizState — navigation guard condition', () => {
     // makes answers.size (2) > initialSize (1), so the guard activates.
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: {

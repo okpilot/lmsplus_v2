@@ -11,15 +11,15 @@ import {
   readActiveSession,
 } from '../session/_utils/quiz-session-storage'
 
-export function QuizRecoveryBanner() {
+export function QuizRecoveryBanner({ userId }: { userId: string }) {
   const router = useRouter()
   const [session, setSession] = useState<ActiveSession | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setSession(readActiveSession())
-  }, [])
+    setSession(readActiveSession(userId))
+  }, [userId])
 
   if (session === null) return null
 
@@ -40,7 +40,7 @@ export function QuizRecoveryBanner() {
         subjectCode: session.subjectCode,
       }),
     )
-    clearActiveSession()
+    clearActiveSession(userId)
     router.push('/app/quiz/session')
   }
 
@@ -59,7 +59,7 @@ export function QuizRecoveryBanner() {
         subjectCode: session.subjectCode,
       })
       if (result.success) {
-        clearActiveSession()
+        clearActiveSession(userId)
         clearDeploymentPin().catch(() => {})
         router.refresh()
         setSession(null)
@@ -75,7 +75,7 @@ export function QuizRecoveryBanner() {
 
   function handleDiscard() {
     const captured = session
-    clearActiveSession()
+    clearActiveSession(userId)
     clearDeploymentPin().catch(() => {})
     setSession(null)
     if (captured) {

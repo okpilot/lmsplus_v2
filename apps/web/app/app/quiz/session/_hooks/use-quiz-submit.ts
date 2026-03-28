@@ -5,6 +5,7 @@ import type { DraftAnswer } from '../../types'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
 
 export function useQuizSubmit(opts: {
+  userId: string
   sessionId: string
   questions: SessionQuestion[]
   answersRef: React.RefObject<Map<string, DraftAnswer>>
@@ -22,6 +23,7 @@ export function useQuizSubmit(opts: {
 
   function handleSubmit() {
     return handleSubmitSession({
+      userId: opts.userId,
       sessionId: opts.sessionId,
       answers: opts.answersRef.current,
       draftId: opts.draftId,
@@ -35,6 +37,7 @@ export function useQuizSubmit(opts: {
 
   function handleSave() {
     return handleSaveSession({
+      userId: opts.userId,
       sessionId: opts.sessionId,
       questions: opts.questions,
       answers: opts.answersRef.current,
@@ -47,7 +50,12 @@ export function useQuizSubmit(opts: {
   }
 
   function handleDiscard() {
-    return handleDiscardSession({ sessionId: opts.sessionId, draftId: opts.draftId, ...shared })
+    return handleDiscardSession({
+      userId: opts.userId,
+      sessionId: opts.sessionId,
+      draftId: opts.draftId,
+      ...shared,
+    })
   }
 
   return {

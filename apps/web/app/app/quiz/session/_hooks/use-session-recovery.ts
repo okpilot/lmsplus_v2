@@ -5,7 +5,7 @@ import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
 import { type ActiveSession, clearActiveSession } from '../_utils/quiz-session-storage'
 
-export function useSessionRecovery(recovery: ActiveSession | null) {
+export function useSessionRecovery(recovery: ActiveSession | null, userId: string) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +25,7 @@ export function useSessionRecovery(recovery: ActiveSession | null) {
         subjectCode: recovery.subjectCode,
       })
       if (result.success) {
-        clearActiveSession()
+        clearActiveSession(userId)
         clearDeploymentPin().catch(() => {})
         router.replace('/app/quiz')
       } else {
@@ -40,7 +40,7 @@ export function useSessionRecovery(recovery: ActiveSession | null) {
 
   function handleDiscard() {
     const captured = recovery
-    clearActiveSession()
+    clearActiveSession(userId)
     clearDeploymentPin().catch(() => {})
     router.replace('/app/quiz')
     if (captured) {

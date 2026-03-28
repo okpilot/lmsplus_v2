@@ -49,6 +49,7 @@ const mockTopicTree = {
 }
 
 const DEFAULT_OPTS = {
+  userId: 'test-user-id',
   subjectId: SUBJECT_ID,
   subjects: SUBJECTS,
   count: 10,
@@ -223,7 +224,7 @@ describe('useQuizStart — existing session guard', () => {
 
   it('prompts the user when an active session exists before starting', async () => {
     mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
 
     const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
@@ -236,7 +237,7 @@ describe('useQuizStart — existing session guard', () => {
   it('includes subject name in the confirmation message when it is set', async () => {
     mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
     let capturedMsg = ''
-    const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation((msg) => {
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockImplementation((msg) => {
       capturedMsg = msg as string
       return true
     })
@@ -250,7 +251,7 @@ describe('useQuizStart — existing session guard', () => {
 
   it('aborts the start when the user cancels the confirmation', async () => {
     mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false)
 
     const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
@@ -262,7 +263,7 @@ describe('useQuizStart — existing session guard', () => {
 
   it('clears the existing session and continues start when user confirms', async () => {
     mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
 
     const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
@@ -274,7 +275,7 @@ describe('useQuizStart — existing session guard', () => {
 
   it('does not show a confirmation when no existing session is present', async () => {
     mockReadActiveSession.mockReturnValue(null)
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
 
     const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())

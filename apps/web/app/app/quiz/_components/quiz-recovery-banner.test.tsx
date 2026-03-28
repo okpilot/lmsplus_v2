@@ -81,26 +81,26 @@ beforeEach(() => {
 describe('QuizRecoveryBanner — rendering', () => {
   it('renders nothing when no active session exists', () => {
     mockReadActiveSession.mockReturnValue(null)
-    const { container } = render(<QuizRecoveryBanner />)
+    const { container } = render(<QuizRecoveryBanner userId="test-user-id" />)
     expect(container).toBeEmptyDOMElement()
   })
 
   it('renders the banner when an active session is found', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     expect(screen.getByText(/unfinished quiz found/i)).toBeInTheDocument()
   })
 
   it('shows subject name, answered count, and total count', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     expect(screen.getByText(/meteorology/i)).toBeInTheDocument()
     expect(screen.getByText(/2 of 5 questions answered/i)).toBeInTheDocument()
   })
 
   it('omits subject name prefix when subjectName is absent', () => {
     mockReadActiveSession.mockReturnValue({ ...ACTIVE_SESSION, subjectName: undefined })
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     // Subject name text is absent but answered count is still shown
     expect(screen.queryByText(/meteorology/i)).not.toBeInTheDocument()
     expect(screen.getByText(/2 of 5 questions answered/i)).toBeInTheDocument()
@@ -108,7 +108,7 @@ describe('QuizRecoveryBanner — rendering', () => {
 
   it('renders Resume, Save for Later, and Discard buttons', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     expect(screen.getByRole('button', { name: /resume/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /save for later/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /discard/i })).toBeInTheDocument()
@@ -127,7 +127,7 @@ describe('QuizRecoveryBanner — Resume', () => {
       configurable: true,
     })
 
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /resume/i }))
 
     expect(mockSetItem).toHaveBeenCalledWith('quiz-session', expect.stringContaining('sess-001'))
@@ -143,7 +143,7 @@ describe('QuizRecoveryBanner — Save for Later', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     mockSaveDraft.mockResolvedValue({ success: true })
 
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /save for later/i }))
 
     await waitFor(() => expect(mockClearActiveSession).toHaveBeenCalledTimes(1))
@@ -163,7 +163,7 @@ describe('QuizRecoveryBanner — Save for Later', () => {
       }),
     )
 
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /save for later/i }))
 
     expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled()
@@ -174,7 +174,7 @@ describe('QuizRecoveryBanner — Save for Later', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     mockSaveDraft.mockResolvedValue({ success: false, error: 'Draft limit reached' })
 
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /save for later/i }))
 
     await waitFor(() => expect(screen.getByText('Draft limit reached')).toBeInTheDocument())
@@ -186,7 +186,7 @@ describe('QuizRecoveryBanner — Save for Later', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     mockSaveDraft.mockRejectedValue(new Error('network failure'))
 
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /save for later/i }))
 
     await waitFor(() => expect(screen.getByText(/server unavailable/i)).toBeInTheDocument())
@@ -196,7 +196,7 @@ describe('QuizRecoveryBanner — Save for Later', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     mockSaveDraft.mockResolvedValue({ success: false })
 
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /save for later/i }))
 
     await waitFor(() => expect(screen.getByText(/failed to save/i)).toBeInTheDocument())
@@ -209,7 +209,7 @@ describe('QuizRecoveryBanner — Discard', () => {
   it('clears the session and hides the banner immediately on discard', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
 
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /discard/i }))
 
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
@@ -219,7 +219,7 @@ describe('QuizRecoveryBanner — Discard', () => {
   it('calls discardQuiz in the background with the session id', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
 
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /discard/i }))
 
     await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-001' }))
@@ -229,7 +229,7 @@ describe('QuizRecoveryBanner — Discard', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     mockDiscardQuiz.mockRejectedValue(new Error('server error'))
 
-    render(<QuizRecoveryBanner />)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
     await userEvent.click(screen.getByRole('button', { name: /discard/i }))
 
     // Banner already hidden — discard failure is silently swallowed

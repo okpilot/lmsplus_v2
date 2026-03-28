@@ -6,6 +6,7 @@ import { clearActiveSession, readActiveSession } from '../session/_utils/quiz-se
 import type { QuestionFilterValue } from '../types'
 
 type UseQuizStartOpts = {
+  userId: string
   subjectId: string
   subjects: SubjectOption[]
   count: number
@@ -18,18 +19,19 @@ type UseQuizStartOpts = {
 }
 
 export function useQuizStart(opts: UseQuizStartOpts) {
-  const { subjectId, subjects, count, maxQuestions, filters, topicTree } = opts
+  const { userId, subjectId, subjects, count, maxQuestions, filters, topicTree } = opts
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleStart() {
     if (!subjectId) return
-    const existing = readActiveSession()
+    const existing = readActiveSession(userId)
     if (existing) {
-      const msg = `You have an unfinished quiz${existing.subjectName ? ` (${existing.subjectName})` : ''}. Starting a new quiz will lose it. Continue?`
-      if (!window.confirm(msg)) return
-      clearActiveSession()
+      const suffix = existing.subjectName ? ` (${existing.subjectName})` : ''
+      const msg = `You have an unfinished quiz${suffix}. Starting a new quiz will lose it. Continue?`
+      if (!globalThis.confirm(msg)) return
+      clearActiveSession(userId)
     }
     setLoading(true)
     setError(null)

@@ -7,7 +7,8 @@ import {
   writeActiveSession,
 } from './quiz-session-storage'
 
-const STORAGE_KEY = 'quiz-active-session'
+const USER_ID = 'test-user-id'
+const STORAGE_KEY = `quiz-active-session:${USER_ID}`
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 
 // ---- localStorage mock -------------------------------------------------------
@@ -32,6 +33,7 @@ function makeLocalStorageMock() {
 // ---- Fixtures ----------------------------------------------------------------
 
 const makeSession = (overrides?: Partial<ActiveSession>): ActiveSession => ({
+  userId: USER_ID,
   sessionId: 'sess-123',
   questionIds: ['q1', 'q2', 'q3'],
   answers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 1200 } },
@@ -61,19 +63,19 @@ describe('writeActiveSession + readActiveSession', () => {
   it('round-trips a session correctly', () => {
     const session = makeSession()
     writeActiveSession(session)
-    const result = readActiveSession()
+    const result = readActiveSession(USER_ID)
     expect(result).toEqual(session)
   })
 
   it('returns null when key is missing', () => {
-    const result = readActiveSession()
+    const result = readActiveSession(USER_ID)
     expect(result).toBeNull()
   })
 
   it('returns null and removes key when JSON is malformed', () => {
     mockStorage._store.set(STORAGE_KEY, '{{not valid json}}')
 
-    const result = readActiveSession()
+    const result = readActiveSession(USER_ID)
 
     expect(result).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
@@ -86,7 +88,7 @@ describe('writeActiveSession + readActiveSession', () => {
     const staleSession = makeSession({ savedAt: now - SEVEN_DAYS_MS - 1 })
     mockStorage._store.set(STORAGE_KEY, JSON.stringify(staleSession))
 
-    const result = readActiveSession()
+    const result = readActiveSession(USER_ID)
 
     expect(result).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
@@ -99,16 +101,22 @@ describe('writeActiveSession + readActiveSession', () => {
     const freshSession = makeSession({ savedAt: now - SEVEN_DAYS_MS + 1000 })
     mockStorage._store.set(STORAGE_KEY, JSON.stringify(freshSession))
 
-    const result = readActiveSession()
+    const result = readActiveSession(USER_ID)
 
     expect(result).toEqual(freshSession)
   })
 
   it('returns null and removes key when required field sessionId is missing', () => {
-    const broken = { questionIds: ['q1'], savedAt: Date.now(), currentIndex: 0, answers: {} }
+    const broken = {
+      userId: USER_ID,
+      questionIds: ['q1'],
+      savedAt: Date.now(),
+      currentIndex: 0,
+      answers: {},
+    }
     mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
 
-    const result = readActiveSession()
+    const result = readActiveSession(USER_ID)
 
     expect(result).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
@@ -116,6 +124,7 @@ describe('writeActiveSession + readActiveSession', () => {
 
   it('returns null and removes key when questionIds is not an array', () => {
     const broken = {
+      userId: USER_ID,
       sessionId: 'sess-1',
       questionIds: 'not-an-array',
       savedAt: Date.now(),
@@ -124,7 +133,17 @@ describe('writeActiveSession + readActiveSession', () => {
     }
     mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
 
-    const result = readActiveSession()
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('returns null and removes key when userId does not match', () => {
+    const otherUserSession = makeSession({ userId: 'other-user-id' })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(otherUserSession))
+
+    const result = readActiveSession(USER_ID)
 
     expect(result).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
@@ -150,14 +169,14 @@ describe('clearActiveSession', () => {
     const session = makeSession()
     writeActiveSession(session)
 
-    clearActiveSession()
+    clearActiveSession(USER_ID)
 
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
     expect(mockStorage._store.has(STORAGE_KEY)).toBe(false)
   })
 
   it('is safe when the key does not exist', () => {
-    expect(() => clearActiveSession()).not.toThrow()
+    expect(() => clearActiveSession(USER_ID)).not.toThrow()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 })
@@ -205,6 +224,7 @@ describe('buildActiveSession', () => {
     vi.spyOn(Date, 'now').mockReturnValue(fixedNow)
 
     const opts = {
+      userId: USER_ID,
       sessionId: 'sess-xyz',
       questions: [{ id: 'q1' }, { id: 'q2' }],
       subjectName: 'Navigation',
@@ -216,6 +236,7 @@ describe('buildActiveSession', () => {
     const result = buildActiveSession(opts, answers, 1)
 
     expect(result).toEqual({
+      userId: USER_ID,
       sessionId: 'sess-xyz',
       questionIds: ['q1', 'q2'],
       answers: { q1: { selectedOptionId: 'opt-b', responseTimeMs: 800 } },
@@ -231,6 +252,7 @@ describe('buildActiveSession', () => {
     vi.spyOn(Date, 'now').mockReturnValue(0)
 
     const opts = {
+      userId: USER_ID,
       sessionId: 'sess-min',
       questions: [{ id: 'q1' }],
     }

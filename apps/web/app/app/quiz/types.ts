@@ -99,6 +99,7 @@ export type LoadDraftResult = { draft: DraftData | null }
 export type LoadDraftsResult = { drafts: DraftData[] }
 
 export type QuizStateOpts = {
+  userId: string
   sessionId: string
   questions: import('@/app/app/_types/session').SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>

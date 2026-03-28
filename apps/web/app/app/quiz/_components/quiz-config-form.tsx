@@ -9,11 +9,12 @@ import { SubjectSelect } from './subject-select'
 import { TopicTree } from './topic-tree'
 
 type QuizConfigFormProps = {
+  userId: string
   subjects: SubjectOption[]
 }
 
-export function QuizConfigForm({ subjects }: QuizConfigFormProps) {
-  const config = useQuizConfig({ subjects })
+export function QuizConfigForm({ userId, subjects }: QuizConfigFormProps) {
+  const config = useQuizConfig({ userId, subjects })
 
   return (
     <div className="space-y-4">

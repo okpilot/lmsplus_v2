@@ -46,7 +46,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
   const [recovery, setRecovery] = useState<ActiveSession | null>(null)
   const [resumeLoading, setResumeLoading] = useState(false)
   const [resumeError, setResumeError] = useState<string | null>(null)
-  const rv = useSessionRecovery(recovery)
+  const rv = useSessionRecovery(recovery, userId)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('quiz-session')
@@ -63,7 +63,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
     }
 
     if (!data) {
-      const stored = readActiveSession()
+      const stored = readActiveSession(userId)
       if (stored) {
         setRecovery(stored)
         return
@@ -72,19 +72,19 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
       return
     }
 
-    clearActiveSession()
     cachedSession = data
-    sessionStorage.removeItem('quiz-session')
     setSession(data)
 
     loadSessionQuestions(data.questionIds).then((result) => {
       if (result.success) {
+        clearActiveSession(userId)
+        sessionStorage.removeItem('quiz-session')
         setQuestions(result.questions)
       } else {
         setError(result.error)
       }
     })
-  }, [router])
+  }, [router, userId])
 
   function handleRecoveryResume() {
     if (!recovery) return
@@ -92,7 +92,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
     setResumeError(null)
     loadSessionQuestions(recovery.questionIds).then((result) => {
       if (result.success) {
-        clearActiveSession()
+        clearActiveSession(userId)
         setSession({
           sessionId: recovery.sessionId,
           questionIds: recovery.questionIds,

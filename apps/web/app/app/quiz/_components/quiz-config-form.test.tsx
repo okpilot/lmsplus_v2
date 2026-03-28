@@ -114,32 +114,32 @@ describe('QuizConfigForm', () => {
   })
 
   it('renders without crashing', () => {
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByTestId('subject-select')).toBeInTheDocument()
   })
 
   it('renders SubjectSelect and ModeToggle regardless of subject selection', () => {
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByTestId('subject-select')).toBeInTheDocument()
     expect(screen.getByTestId('mode-toggle')).toBeInTheDocument()
   })
 
   it('hides QuestionFilters and QuestionCount when no subject is selected', () => {
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.queryByTestId('question-filters')).not.toBeInTheDocument()
     expect(screen.queryByTestId('question-count')).not.toBeInTheDocument()
   })
 
   it('shows QuestionFilters and QuestionCount when a subject is selected', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1' }))
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByTestId('question-filters')).toBeInTheDocument()
     expect(screen.getByTestId('question-count')).toBeInTheDocument()
   })
 
   it('hides TopicTree when topics array is empty', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1' }))
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.queryByTestId('topic-tree')).not.toBeInTheDocument()
   })
 
@@ -163,24 +163,24 @@ describe('QuizConfigForm', () => {
         },
       }),
     )
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByTestId('topic-tree')).toBeInTheDocument()
   })
 
   it('disables Start Quiz button when no subject is selected', () => {
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeDisabled()
   })
 
   it('enables Start Quiz button when a subject is selected and not loading', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1' }))
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByRole('button', { name: 'Start Quiz' })).not.toBeDisabled()
   })
 
   it('shows "Starting..." text and disables button while loading', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', loading: true }))
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByRole('button', { name: 'Starting...' })).toBeDisabled()
   })
 
@@ -188,26 +188,26 @@ describe('QuizConfigForm', () => {
     mockUseQuizConfig.mockReturnValue(
       makeDefaultConfig({ subjectId: 'sub-1', error: 'Not enough questions' }),
     )
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByText('Not enough questions')).toBeInTheDocument()
   })
 
   it('does not show error text when error is null', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', error: null }))
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.queryByText(/not enough/i)).not.toBeInTheDocument()
   })
 
   it('shows session expired message and disables button when authError is true', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', authError: true }))
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByText('Session expired. Please refresh the page.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeDisabled()
   })
 
   it('does not show session expired message when authError is falsy', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', authError: false }))
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.queryByText('Session expired. Please refresh the page.')).not.toBeInTheDocument()
   })
 
@@ -215,14 +215,14 @@ describe('QuizConfigForm', () => {
     const handleStart = vi.fn()
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', handleStart }))
     const user = userEvent.setup()
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     await user.click(screen.getByRole('button', { name: 'Start Quiz' }))
     expect(handleStart).toHaveBeenCalledOnce()
   })
 
   it('disables Start Quiz button while a transition is pending', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', isPending: true }))
-    render(<QuizConfigForm subjects={SUBJECTS} />)
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} />)
     expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeDisabled()
   })
 })

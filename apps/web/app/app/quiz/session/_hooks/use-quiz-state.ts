@@ -1,11 +1,11 @@
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { DraftAnswer, QuizStateOpts } from '../../types'
-import { buildActiveSession, writeActiveSession } from '../_utils/quiz-session-storage'
 import { useAnswerHandler } from './use-answer-handler'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
+import { useQuizPersistence } from './use-quiz-persistence'
 import { useQuizSubmit } from './use-quiz-submit'
 
 export type QuizState = ReturnType<typeof useQuizState>
@@ -28,11 +28,7 @@ export function useQuizState(opts: QuizStateOpts) {
   const question = questions[nav.currentIndex]
   const questionId = question?.id ?? ''
 
-  const checkpoint = useCallback(
-    (a: Map<string, DraftAnswer>, idx: number) =>
-      writeActiveSession(buildActiveSession(opts, a, idx)),
-    [opts],
-  )
+  const { checkpoint } = useQuizPersistence(opts)
 
   const {
     feedback,
@@ -53,6 +49,7 @@ export function useQuizState(opts: QuizStateOpts) {
     error: submitError,
     ...submit
   } = useQuizSubmit({
+    userId: opts.userId,
     sessionId,
     questions,
     answersRef,
