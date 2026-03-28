@@ -48,6 +48,11 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
   const [resumeError, setResumeError] = useState<string | null>(null)
   const rv = useSessionRecovery(recovery, userId)
 
+  // Expire the Strict Mode cache once questions hydrate — it only needs to survive the double-mount
+  useEffect(() => {
+    if (questions && cachedSession?.userId === userId) cachedSession = null
+  }, [questions, userId])
+
   useEffect(() => {
     const raw = sessionStorage.getItem('quiz-session')
     let data: SessionData | null = null
