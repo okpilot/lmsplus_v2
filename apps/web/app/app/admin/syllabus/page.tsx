@@ -1,18 +1,6 @@
 import { Suspense } from 'react'
-import { Skeleton } from '@/components/ui/skeleton'
 import { SyllabusContent } from './_components/syllabus-content'
-
-function SyllabusContentSkeleton() {
-  return (
-    <div className="space-y-3">
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-12 w-full" />
-    </div>
-  )
-}
+import { SyllabusContentSkeleton } from './_components/syllabus-content-skeleton'
 
 export default function SyllabusPage() {
   return (

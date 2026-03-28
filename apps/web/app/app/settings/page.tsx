@@ -1,16 +1,6 @@
 import { Suspense } from 'react'
-import { Skeleton } from '@/components/ui/skeleton'
 import { SettingsContent } from './_components/settings-content'
-
-function SettingsContentSkeleton() {
-  return (
-    <>
-      <Skeleton className="h-48 w-full rounded-lg" />
-      <Skeleton className="h-20 w-full rounded-lg" />
-      <Skeleton className="h-48 w-full rounded-lg" />
-    </>
-  )
-}
+import { SettingsContentSkeleton } from './_components/settings-content-skeleton'
 
 export default function SettingsPage() {
   return (

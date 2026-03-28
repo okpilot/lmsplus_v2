@@ -1,23 +1,8 @@
 import { Suspense } from 'react'
-import { Skeleton } from '@/components/ui/skeleton'
 import { ProgressContent } from './_components/progress-content'
+import { ProgressContentSkeleton } from './_components/progress-content-skeleton'
 
 export const dynamic = 'force-dynamic'
-
-function ProgressContentSkeleton() {
-  return (
-    <>
-      <Skeleton className="h-24 w-full rounded-lg" />
-      <div className="space-y-3">
-        <Skeleton className="h-16 rounded-md" />
-        <Skeleton className="h-16 rounded-md" />
-        <Skeleton className="h-16 rounded-md" />
-        <Skeleton className="h-16 rounded-md" />
-        <Skeleton className="h-16 rounded-md" />
-      </div>
-    </>
-  )
-}
 
 export default function ProgressPage() {
   return (

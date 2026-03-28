@@ -1,38 +1,15 @@
 import { Suspense } from 'react'
-import { Skeleton } from '@/components/ui/skeleton'
 import { DashboardHeader } from './_components/dashboard-header'
+import {
+  HeatmapSkeleton,
+  StatCardsSkeleton,
+  SubjectGridSkeleton,
+} from './_components/dashboard-skeletons'
 import { DashboardStatsContent } from './_components/dashboard-stats-content'
 import { HeatmapContent } from './_components/heatmap-content'
 import { SubjectGridContent } from './_components/subject-grid-content'
 
 export const dynamic = 'force-dynamic'
-
-function HeatmapSkeleton() {
-  return <Skeleton className="h-[220px] w-full rounded-xl" />
-}
-
-function StatCardsSkeleton() {
-  return (
-    <div className="grid grid-cols-3 gap-2 md:grid-cols-1 md:gap-3">
-      <Skeleton className="h-24 rounded-xl" />
-      <Skeleton className="h-24 rounded-xl" />
-      <Skeleton className="h-24 rounded-xl" />
-    </div>
-  )
-}
-
-function SubjectGridSkeleton() {
-  return (
-    <div>
-      <Skeleton className="mb-3 h-6 w-40" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Skeleton className="h-24 rounded-xl" />
-        <Skeleton className="h-24 rounded-xl" />
-        <Skeleton className="h-24 rounded-xl" />
-      </div>
-    </div>
-  )
-}
 
 export default function DashboardPage() {
   return (

@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
-import { Skeleton } from '@/components/ui/skeleton'
 import { QuestionsContent } from './_components/questions-content'
+import { QuestionsContentFallback } from './_components/questions-content-fallback'
 import type { QuestionFilters } from './types'
 
 const DIFFICULTY_VALUES = ['easy', 'medium', 'hard'] as const
@@ -23,27 +23,6 @@ function parseFilters(params: Record<string, string | string[] | undefined>): Qu
         : undefined,
     search: typeof params.search === 'string' ? params.search.trim() || undefined : undefined,
   }
-}
-
-function QuestionsContentFallback() {
-  return (
-    <>
-      <div className="flex gap-3">
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-9 w-32" />
-      </div>
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-      </div>
-    </>
-  )
 }
 
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
