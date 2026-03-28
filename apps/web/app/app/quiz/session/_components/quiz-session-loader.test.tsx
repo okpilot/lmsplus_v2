@@ -48,6 +48,12 @@ vi.mock('./session-recovery-prompt', () => ({
   SessionRecoveryPrompt: () => <div data-testid="recovery-prompt" />,
 }))
 
+vi.mock('@/components/ui/skeleton', () => ({
+  Skeleton: ({ className }: { className?: string }) => (
+    <div className={`animate-pulse ${className ?? ''}`} data-testid="skeleton" />
+  ),
+}))
+
 vi.mock('./quiz-session', () => ({
   QuizSession: ({
     sessionId,
