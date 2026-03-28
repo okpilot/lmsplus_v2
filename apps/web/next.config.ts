@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs'
 import type { NextConfig } from 'next'
 
 const isDev = process.env.NODE_ENV !== 'production'
@@ -23,7 +24,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       `img-src 'self' data: blob: https://*.supabase.co${allowLocal ? ' http://localhost:* http://127.0.0.1:*' : ''}`,
       "font-src 'self'",
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co${allowLocal ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.de.sentry.io${allowLocal ? ' http://localhost:* http://127.0.0.1:* ws://localhost:*' : ''}`,
       "frame-ancestors 'none'",
     ].join('; '),
   },
@@ -35,4 +36,14 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG ?? 'just-me-pe',
+  project: process.env.SENTRY_PROJECT ?? 'lmsplus-web',
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  tunnelRoute: '/monitoring',
+  sourcemaps: {
+    filesToDeleteAfterUpload: ['.next/static/**/*.map'],
+  },
+  disableLogger: true,
+})
