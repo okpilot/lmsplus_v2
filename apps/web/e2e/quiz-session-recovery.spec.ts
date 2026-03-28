@@ -31,9 +31,13 @@ async function startAndAbandonQuiz(
   // Use "All" button (never disabled, works regardless of question count)
   await page.getByRole('button', { name: 'All' }).click()
 
-  // Read total from "of N selected" text
+  // Read total from "of N selected" text and verify enough questions exist
   const selectedText = await page.getByText(/of \d+ selected/).textContent()
   const totalQuestions = Number(selectedText?.match(/of (\d+) selected/)?.[1] ?? 0)
+  expect(totalQuestions).toBeGreaterThanOrEqual(
+    answerCount + 1,
+    `Need at least ${answerCount + 1} questions (found ${totalQuestions}) for this test`,
+  )
 
   await page.getByRole('button', { name: 'Start Quiz' }).click()
 

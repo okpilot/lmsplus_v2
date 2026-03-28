@@ -11,7 +11,7 @@
 Persist quiz progress to localStorage and recover on page refresh or deployment:
 - **New utility**: `quiz-session-storage.ts` with `ActiveSession` type, `write/read/clearActiveSession()` functions, 7-day staleness check, private-mode error handling
 - **Auto-persist**: write checkpoint to localStorage on every answer + navigation (via `checkpoint()` callback in useQuizState)
-- **Recovery prompt**: `/app/quiz/session` shows `SessionRecoveryPrompt` when stale session detected — resume or discard options
+- **Recovery prompt**: `/app/quiz/session` shows `SessionRecoveryPrompt` when recoverable session detected — resume or discard options
 - **Recovery banner**: `/app/quiz` home page shows `QuizRecoveryBanner` for returning students — quick resume button with progress summary
 - **Warn on new quiz**: `use-quiz-start` warns before starting new quiz if unfinished session exists in localStorage
 - **Clear on completion**: localStorage cleared on successful submit, discard, or save-to-draft

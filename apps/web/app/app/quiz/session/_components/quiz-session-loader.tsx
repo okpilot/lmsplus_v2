@@ -150,7 +150,10 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
         answeredCount={Object.keys(recovery.answers).length}
         totalCount={recovery.questionIds.length}
         onResume={handleRecoveryResume}
-        onSave={rv.handleSave}
+        onSave={() => {
+          setResumeError(null)
+          rv.handleSave()
+        }}
         onDiscard={() => {
           setRecovery(null)
           rv.handleDiscard()
