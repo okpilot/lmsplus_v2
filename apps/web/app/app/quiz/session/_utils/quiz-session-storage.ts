@@ -88,6 +88,50 @@ export function clearActiveSession(userId: string): void {
   safeRemove(userId)
 }
 
+export type SessionData = {
+  sessionId: string
+  questionIds: string[]
+  draftAnswers?: Record<string, DraftAnswer>
+  draftCurrentIndex?: number
+  draftId?: string
+  subjectName?: string
+  subjectCode?: string
+}
+
+export function isValidSessionData(data: unknown, expectedUserId: string): data is SessionData {
+  if (typeof data !== 'object' || data === null) return false
+  const d = data as Record<string, unknown>
+  if (typeof d.sessionId !== 'string' || !d.sessionId) return false
+  if (!Array.isArray(d.questionIds) || d.questionIds.length === 0) return false
+  if (d.questionIds.some((id) => typeof id !== 'string' || !id)) return false
+  // Reject cross-user payloads (userId is embedded since the key was scoped)
+  if ('userId' in d && d.userId !== expectedUserId) return false
+  return true
+}
+
+/** Read and validate the tab-scoped session handoff from sessionStorage. */
+export function readSessionHandoff(userId: string): SessionData | null {
+  const key = sessionHandoffKey(userId)
+  const raw = sessionStorage.getItem(key)
+  if (!raw) return null
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (isValidSessionData(parsed, userId)) return parsed
+    console.error('[readSessionHandoff] Invalid or mismatched session data — discarding')
+    sessionStorage.removeItem(key)
+    return null
+  } catch {
+    console.error('[readSessionHandoff] Malformed session data in sessionStorage')
+    sessionStorage.removeItem(key)
+    return null
+  }
+}
+
+/** Remove the session handoff key from sessionStorage. */
+export function clearSessionHandoff(userId: string): void {
+  sessionStorage.removeItem(sessionHandoffKey(userId))
+}
+
 type BuildOpts = {
   userId: string
   sessionId: string

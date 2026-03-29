@@ -117,7 +117,7 @@ describe('loadSessionQuestions', () => {
     const result = await loadSessionQuestions(['q1'])
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('RPC failed')
+    expect(result.error).toBe('Failed to load questions. Please try again.')
   })
 
   it('returns failure when RPC returns empty data', async () => {

@@ -43,7 +43,8 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
   })
 
   if (error) {
-    return { success: false, error: error.message }
+    console.error('[loadSessionQuestions] RPC error:', error.message)
+    return { success: false, error: 'Failed to load questions. Please try again.' }
   }
 
   if (!data?.length) {

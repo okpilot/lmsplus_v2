@@ -1,12 +1,13 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
-import type { DraftAnswer } from '../../types'
 import {
   type ActiveSession,
   clearActiveSession,
+  clearSessionHandoff,
   readActiveSession,
-  sessionHandoffKey,
+  readSessionHandoff,
+  type SessionData,
 } from '../_utils/quiz-session-storage'
 import { useSessionRecovery } from './use-session-recovery'
 
@@ -20,26 +21,6 @@ type Question = {
   options: { id: string; text: string }[]
 }
 
-export type SessionData = {
-  sessionId: string
-  questionIds: string[]
-  draftAnswers?: Record<string, DraftAnswer>
-  draftCurrentIndex?: number
-  draftId?: string
-  subjectName?: string
-  subjectCode?: string
-}
-
-export function isValidSessionData(data: unknown, expectedUserId: string): data is SessionData {
-  if (typeof data !== 'object' || data === null) return false
-  const d = data as Record<string, unknown>
-  if (typeof d.sessionId !== 'string' || !d.sessionId) return false
-  if (!Array.isArray(d.questionIds) || d.questionIds.length === 0) return false
-  // Reject cross-user payloads (userId is embedded since the key was scoped)
-  if ('userId' in d && d.userId !== expectedUserId) return false
-  return true
-}
-
 // Cache parsed session to survive React Strict Mode double-mount, scoped by userId
 let cachedSession: { userId: string; session: SessionData } | null = null
 
@@ -48,20 +29,9 @@ export function _resetCachedSession() {
   cachedSession = null
 }
 
-export type BootstrapState = {
-  session: SessionData | null
-  questions: Question[] | null
-  error: string | null
-  recovery: ActiveSession | null
-  resumeLoading: boolean
-  resumeError: string | null
-  recoveryActions: ReturnType<typeof useSessionRecovery>
-  handleRecoveryResume: () => void
-  clearRecovery: () => void
-  clearResumeError: () => void
-}
+export type BootstrapState = ReturnType<typeof useSessionBootstrap>
 
-export function useSessionBootstrap(userId: string): BootstrapState {
+export function useSessionBootstrap(userId: string) {
   const router = useRouter()
   const [session, setSession] = useState<SessionData | null>(null)
   const [questions, setQuestions] = useState<Question[] | null>(null)
@@ -71,31 +41,15 @@ export function useSessionBootstrap(userId: string): BootstrapState {
   const [resumeError, setResumeError] = useState<string | null>(null)
   const recoveryActions = useSessionRecovery(recovery, userId)
 
-  // Expire the Strict Mode cache once questions hydrate — it only needs to survive the double-mount
+  // Expire the Strict Mode cache once questions hydrate
   useEffect(() => {
     if (questions && cachedSession?.userId === userId) cachedSession = null
   }, [questions, userId])
 
   useEffect(() => {
-    const key = sessionHandoffKey(userId)
-    const raw = sessionStorage.getItem(key)
-    let data: SessionData | null = null
-    if (raw) {
-      try {
-        const parsed: unknown = JSON.parse(raw)
-        if (isValidSessionData(parsed, userId)) {
-          data = parsed
-        } else {
-          console.error('[QuizSessionLoader] Invalid or mismatched session data — discarding')
-          sessionStorage.removeItem(key)
-        }
-      } catch {
-        console.error('[QuizSessionLoader] Malformed session data in sessionStorage')
-        sessionStorage.removeItem(key)
-      }
-    } else {
-      data = cachedSession?.userId === userId ? cachedSession.session : null
-    }
+    const data =
+      readSessionHandoff(userId) ??
+      (cachedSession?.userId === userId ? cachedSession.session : null)
 
     if (!data) {
       const stored = readActiveSession(userId)
@@ -114,7 +68,7 @@ export function useSessionBootstrap(userId: string): BootstrapState {
       .then((result) => {
         if (result.success) {
           clearActiveSession(userId)
-          sessionStorage.removeItem(key)
+          clearSessionHandoff(userId)
           setQuestions(result.questions)
         } else {
           setError(result.error)
