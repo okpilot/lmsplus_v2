@@ -59,6 +59,8 @@ describe('useDragScroll', () => {
     expect(events).toContain('pointerdown')
     expect(events).toContain('pointermove')
     expect(events).toContain('pointerup')
+    expect(events).toContain('pointerleave')
+    expect(events).toContain('pointercancel')
     expect(events).toContain('wheel')
   })
 
