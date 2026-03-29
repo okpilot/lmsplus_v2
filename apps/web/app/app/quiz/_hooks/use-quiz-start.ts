@@ -62,7 +62,8 @@ export function useQuizStart(opts: UseQuizStartOpts) {
               subjectCode: selectedSubject?.short,
             }),
           )
-        } catch {
+        } catch (err) {
+          console.warn('[use-quiz-start] sessionStorage handoff failed:', err)
           setError('Unable to start quiz right now. Please try again.')
           setLoading(false)
           return
