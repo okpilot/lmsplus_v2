@@ -3559,3 +3559,69 @@ The outer `eq` is for `userId`, the inner `eq` is for `organizationId`. PGRST116
 "no row returned" error code from PostgREST — test it explicitly since the action has a
 dedicated branch for it.
 
+---
+
+## Files tested in commit e38ef8c (heatmap refactor + Daily Progress strip)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/dashboard/_components/use-drag-scroll.ts` | `use-drag-scroll.test.ts` | New hook; 11 tests: listener attach/remove, null-ref safety, drag scroll, pointer-up stop, wheel translate, clamp min/max, no-overflow guard |
+| `apps/web/app/app/dashboard/_components/heatmap-header.tsx` | `heatmap-header.test.tsx` | New presenter with conditional disable logic; 8 tests: heading, month name (long+short), back/forward callbacks, disabled states at limits, both enabled |
+| `apps/web/app/app/dashboard/_components/stat-cards.tsx` | `stat-cards.test.tsx` | Extended: 2 new tests for singular/plural streak ("1 day" vs "0 days") |
+
+### Testing DOM event-listener hooks (useDragScroll pattern)
+
+When a hook attaches/removes raw DOM event listeners via `useEffect`, test it by
+creating a real `HTMLDivElement`, appending it to `document.body`, and asserting on
+`addEventListener`/`removeEventListener` spy calls:
+
+```ts
+let el: HTMLDivElement
+
+beforeEach(() => {
+  el = document.createElement('div')
+  Object.defineProperties(el, {
+    scrollWidth: { value: 500, configurable: true },
+    clientWidth: { value: 200, configurable: true },
+    offsetLeft: { value: 0, configurable: true },
+    scrollLeft: { value: 0, writable: true, configurable: true },
+  })
+  document.body.appendChild(el)
+})
+
+afterEach(() => { document.body.removeChild(el) })
+```
+
+Key points:
+- `scrollLeft` needs `writable: true` so assertions can read mutations
+- `scrollWidth`/`clientWidth` need to differ to simulate scroll overflow; set equal to test the no-overflow guard
+- Redefine `scrollWidth` inside the specific test that needs it via another `Object.defineProperty` call (configurable: true enables this)
+- Pass the element as `{ current: el }` cast to `RefObject<T>` — do NOT use `createRef()` which starts with `current: null`
+- For "null ref" test, use `createRef<HTMLDivElement>()` which starts null — just assert `.not.toThrow()`
+
+### Dispatching PointerEvents in jsdom
+
+jsdom supports `PointerEvent` but requires `pointerId` in the init dict for `setPointerCapture` to not throw:
+```ts
+el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pageX: 100, pointerId: 1 }))
+el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pageX: 80, pointerId: 1 }))
+```
+The `bubbles: true` flag is needed for events dispatched on a child to reach parent handlers.
+
+### Singular/plural tests for streak-style counters
+
+Always test exactly `1` (singular) and `0` (plural) separately — they are different
+code paths: `count === 1 ? 'day' : 'days'`. A test using `currentStreak: 12` only covers
+the plural branch; `currentStreak: 1` covers the singular branch.
+
+```ts
+it('displays "1 day" (singular) when currentStreak is exactly 1', () => {
+  render(<StatCards {...BASE_PROPS} currentStreak={1} />)
+  expect(screen.getByText('1 day')).toBeInTheDocument()
+})
+it('displays "0 days" (plural) when currentStreak is 0', () => {
+  render(<StatCards {...BASE_PROPS} currentStreak={0} />)
+  expect(screen.getByText('0 days')).toBeInTheDocument()
+})
+```
+
