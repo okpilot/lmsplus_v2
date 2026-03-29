@@ -2,6 +2,7 @@ import { type RefObject, useEffect } from 'react'
 
 /** Adds drag-to-scroll and wheel-to-scroll on a horizontally scrollable container. */
 export function useDragScroll(ref: RefObject<HTMLElement | null>) {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ref is a stable RefObject — effect intentionally runs once
   useEffect(() => {
     const el = ref.current
     if (!el) return
