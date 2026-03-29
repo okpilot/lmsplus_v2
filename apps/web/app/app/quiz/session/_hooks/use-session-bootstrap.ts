@@ -78,6 +78,7 @@ export function useSessionBootstrap(userId: string) {
         clearActiveSession(userId)
         setSession(toSessionData(recovery))
         setQuestions(r.questions)
+        setResumeLoading(false)
         setRecovery(null)
       })
       .catch(() => {
