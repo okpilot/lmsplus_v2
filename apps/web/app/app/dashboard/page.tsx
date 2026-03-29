@@ -15,18 +15,12 @@ export default function DashboardPage() {
   return (
     <main className="space-y-8">
       <DashboardHeader />
-      <div className="grid gap-8 md:grid-cols-2">
-        <div className="order-2 md:order-1">
-          <Suspense fallback={<HeatmapSkeleton />}>
-            <HeatmapContent />
-          </Suspense>
-        </div>
-        <div className="order-1 md:order-2">
-          <Suspense fallback={<StatCardsSkeleton />}>
-            <DashboardStatsContent />
-          </Suspense>
-        </div>
-      </div>
+      <Suspense fallback={<StatCardsSkeleton />}>
+        <DashboardStatsContent />
+      </Suspense>
+      <Suspense fallback={<HeatmapSkeleton />}>
+        <HeatmapContent />
+      </Suspense>
       <Suspense fallback={<SubjectGridSkeleton />}>
         <SubjectGridContent />
       </Suspense>
