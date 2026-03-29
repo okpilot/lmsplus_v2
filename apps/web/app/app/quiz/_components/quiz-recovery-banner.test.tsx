@@ -172,6 +172,9 @@ describe('QuizRecoveryBanner — Save for Later', () => {
 
     expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled()
     resolve({ success: true })
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /saving/i })).not.toBeInTheDocument(),
+    )
   })
 
   it('shows error message when saveDraft returns failure', async () => {

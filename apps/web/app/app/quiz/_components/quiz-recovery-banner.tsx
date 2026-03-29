@@ -29,19 +29,24 @@ export function QuizRecoveryBanner({ userId }: { userId: string }) {
 
   function handleResume() {
     if (!session) return
-    sessionStorage.setItem(
-      sessionHandoffKey(userId),
-      JSON.stringify({
-        userId,
-        sessionId: session.sessionId,
-        questionIds: session.questionIds,
-        draftAnswers: session.answers,
-        draftCurrentIndex: session.currentIndex,
-        draftId: session.draftId,
-        subjectName: session.subjectName,
-        subjectCode: session.subjectCode,
-      }),
-    )
+    try {
+      sessionStorage.setItem(
+        sessionHandoffKey(userId),
+        JSON.stringify({
+          userId,
+          sessionId: session.sessionId,
+          questionIds: session.questionIds,
+          draftAnswers: session.answers,
+          draftCurrentIndex: session.currentIndex,
+          draftId: session.draftId,
+          subjectName: session.subjectName,
+          subjectCode: session.subjectCode,
+        }),
+      )
+    } catch {
+      setError('Unable to resume right now. Please try again.')
+      return
+    }
     clearActiveSession(userId)
     router.push('/app/quiz/session')
   }

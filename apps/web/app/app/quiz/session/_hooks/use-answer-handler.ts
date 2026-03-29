@@ -33,25 +33,16 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       answersRef.current = next
       return next
     })
+    let result: {
+      isCorrect: boolean
+      correctOptionId: string
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
     try {
-      const result = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
-      if (!result.success) throw new Error(result.error)
-      setFeedback((p) =>
-        new Map(p).set(questionId, {
-          isCorrect: result.isCorrect,
-          correctOptionId: result.correctOptionId,
-          explanationText: result.explanationText,
-          explanationImageUrl: result.explanationImageUrl,
-        }),
-      )
-      setError(null)
-      onAnswerRecorded?.(
-        new Map(answersRef.current).set(questionId, {
-          selectedOptionId: optionId,
-          responseTimeMs: elapsed,
-        }),
-      )
-      return true
+      const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
+      if (!r.success) throw new Error(r.error)
+      result = r
     } catch {
       lockedRef.current.delete(questionId)
       setAnswers((p) => {
@@ -62,6 +53,26 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       setError('Failed to check answer. Please try again.')
       return false
     }
+    setFeedback((p) =>
+      new Map(p).set(questionId, {
+        isCorrect: result.isCorrect,
+        correctOptionId: result.correctOptionId,
+        explanationText: result.explanationText,
+        explanationImageUrl: result.explanationImageUrl,
+      }),
+    )
+    setError(null)
+    try {
+      onAnswerRecorded?.(
+        new Map(answersRef.current).set(questionId, {
+          selectedOptionId: optionId,
+          responseTimeMs: elapsed,
+        }),
+      )
+    } catch {
+      // Checkpoint persistence is best-effort — don't roll back a confirmed answer
+    }
+    return true
   }
 
   // Clear ref lock reactively after state update propagates — not data fetching

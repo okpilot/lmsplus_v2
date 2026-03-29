@@ -35,7 +35,6 @@ export function useQuizStart(opts: UseQuizStartOpts) {
       const suffix = existing.subjectName ? ` (${existing.subjectName})` : ''
       const msg = `You have an unfinished quiz${suffix}. Starting a new quiz will lose it. Continue?`
       if (!globalThis.confirm(msg)) return
-      clearActiveSession(userId)
     }
     setLoading(true)
     setError(null)
@@ -51,6 +50,7 @@ export function useQuizStart(opts: UseQuizStartOpts) {
         filters,
       })
       if (result.success) {
+        if (existing) clearActiveSession(userId)
         const selectedSubject = subjects.find((s) => s.id === subjectId)
         sessionStorage.setItem(
           sessionHandoffKey(userId),
