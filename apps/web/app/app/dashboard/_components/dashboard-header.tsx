@@ -15,7 +15,7 @@ export function DashboardHeader() {
       </div>
       <Link
         href="/app/quiz"
-        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-base font-medium text-primary-foreground hover:bg-primary/90 md:px-4 md:py-2 md:text-sm"
       >
         + Start Quiz
       </Link>

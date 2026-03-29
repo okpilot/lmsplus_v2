@@ -1,12 +1,12 @@
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function HeatmapSkeleton() {
-  return <Skeleton className="h-[220px] w-full rounded-xl" />
+  return <Skeleton className="h-[120px] w-full rounded-xl" />
 }
 
 export function StatCardsSkeleton() {
   return (
-    <div className="grid grid-cols-3 gap-2 md:grid-cols-1 md:gap-3">
+    <div className="grid grid-cols-3 gap-2 md:gap-4">
       <Skeleton className="h-24 rounded-xl" />
       <Skeleton className="h-24 rounded-xl" />
       <Skeleton className="h-24 rounded-xl" />

@@ -32,7 +32,7 @@
 | ?? [] fallback applied after an explicit error guard (silent data loss path) | 1 | 2026-03-12 | Watch — subjects ?? [] in statistics-tab.tsx after null/error guard (845923b); fixed in 86c8da4; data is already known bad at that point, fallback hides the gap |
 | Server Action shipped without Zod input validation | 1 | 2026-03-12 | Watch — fetch-stats.ts Server Action (845923b); fixed in 86c8da4; rule exists (security.md rule 4); compliance gap, not rule gap |
 | Inconsistent guard between related RPCs (sibling RPC missing guard introduced in first) | 2 | 2026-03-14 | RULE CANDIDATE — first: auth.uid() identity guard missing from sibling analytics RPC (845923b → 7b824c2); second: NULL correct_option guard in migration 037 but missing from sibling migration 036 (83ae098 → 08abee0); both fixed in follow-up commits; when a guard is added to one RPC in a family, audit all siblings in the same commit |
-| Partial fix applied to sibling file group (cross-cutting concern) | 3 | 2026-03-27 | RULE CANDIDATE (count 3 — elevate to rule) — first: auth error destructuring applied to 2 of 8 query files (2190dd5); second: PR4 getUser hardening missed quiz/session/page.tsx and discard.ts (83ae098); third: GDPR consent seeding updated in supabase.ts and 1 other helper but missed admin-supabase.ts ensureAdminTestUser() (consent commit, 2026-03-27), caught as CRITICAL by semantic-reviewer; all three required fix commits; root cause: cross-cutting updates (security hardening, fixture seeding, test helper changes) are scoped by directory or by the file the author was already editing, not by the full set of files sharing the same semantic contract; proposed rule: when a function that provisions a user/fixture is added or updated, grep for ALL functions matching the same semantic purpose (ensureTestUser, ensureAdminTestUser, ensureLoginTestUser) and update them all in the same commit |
+| Partial fix applied to sibling file group (cross-cutting concern) | 4 | 2026-03-29 | RULE CANDIDATE (count 4 — action required) — first: auth error destructuring applied to 2 of 8 query files (2190dd5); second: PR4 getUser hardening missed quiz/session/page.tsx and discard.ts (83ae098); third: GDPR consent seeding updated in supabase.ts and 1 other helper but missed admin-supabase.ts ensureAdminTestUser() (consent commit, 2026-03-27), caught as CRITICAL by semantic-reviewer; fourth: e38ef8c fixed currentStreak "1 days" → "1 day" in stat-cards.tsx but left bestStreak with the same bug (same component, same line pattern) — caught as ISSUE by semantic-reviewer; fixed in ca09f34; all four required fix commits; root cause: the fix is scoped to the specific instance the author saw rather than to all instances of the same pattern in the file/component; the grep approach is required: when fixing a string formatting or grammatical pattern (singular/plural, casing, label text), grep the same file for all instances of the same pattern before committing; see Lessons entry 2026-03-29 |
 | Auth error from getUser() not destructured in query file | 1 | 2026-03-12 | Watch — 7 of 8 query files under apps/web/lib/queries/ missing authError destructuring (2190dd5 → 3a0d1e6 → 78cb130); distinct from mutation error pattern (that is about .insert/.update/.delete); first occurrence as a named pattern |
 | Auth error from getUser() swallowed without logging | 1 | 2026-03-12 | Watch — quiz-report.ts (78cb130); auth failure path returned early with no console.error; first occurrence; silent auth failure is harder to diagnose than silent mutation failure |
 | Raw Supabase error message leaked to student UI | 1 | 2026-03-12 | Watch — load-session-questions.ts (78cb130); error.message from Supabase returned directly to student-facing caller; first occurrence; internal error strings must not be exposed to UI — return a generic message or error code |
@@ -127,6 +127,8 @@
 | Generic alt text for contextual image (alt="Explanation illustration") | 1 | 2026-03-27 | Watch — report-question-row.tsx (539222e): ZoomableImage for explanation diagrams used alt="Explanation illustration" regardless of question content; the alt text should describe the specific diagram or be derived from the question context; caught by semantic-reviewer as a SUGGESTION; not fixed in this cycle (context-specific alt text would require passing description data through the data layer); first occurrence — log and watch; the fix path would be: add an explanation_image_alt column to the questions schema and propagate it through the quiz-report query |
 | New test file shipped without vi.resetAllMocks() in beforeEach | 2 | 2026-03-27 | Watch — first: report-question-row.test.tsx (539222e/10263b3): test file written with mocks but missing beforeEach(() => { vi.resetAllMocks() }), allowing mock state to bleed between tests; caught by semantic-reviewer as a SUGGESTION; fixed in 10263b3 by adding beforeEach with the call; second occurrence — the rule exists in test-writer/patterns.md (§ Mock patterns) and the agent-test-writer.md rule file mandates vi.resetAllMocks() in beforeEach; the pattern persists at authoring time; the semantic-reviewer catch is the reliable gate; no additional rule change needed — rule is documented, compliance gap at generation time; distinct from "Shared hoisted mock capture without beforeEach reset" (that is a specific hoisted variable needing its own reset — this is the absence of the global vi.resetAllMocks() call entirely) |
 | Supabase error mock shape wrong: `{data: [], error}` instead of `{data: null, error}` | 1 | 2026-03-28 | Watch — GDPR collect-user-data.test.ts (09e1be1): test mock helper returned `{ data: [], error: someError }` when simulating a Supabase query failure; real Supabase client always returns `{ data: null, error }` on failure — never `{ data: [], error }`; the wrong shape meant error-path tests were exercising code with a non-production input shape, making fallback assertions like `?? []` pass for the wrong reason; fixed in 09e1be1 by changing all error-path mock entries to `data: errors.xError ? null : actualData`; root cause: test authors write `data: []` as an intuitive "empty" value without checking the actual Supabase contract; the correct rule: a Supabase mock that returns a non-null error MUST set data to null, not to an empty array; first occurrence — log and watch; if a second test file ships with this pattern, update test-writer patterns.md with an explicit rule under the mock shape section |
+| jsdom PointerEvent gaps (setPointerCapture not implemented, pageX not in PointerEventInit) | 1 | 2026-03-29 | Watch — use-drag-scroll.test.ts (ca09f34): test-writer initially generated PointerEvent dispatches without `pointerId` in the init dict, causing `setPointerCapture` to throw "not implemented"; and used `pageX` directly in `new PointerEvent(...)` init without `Object.defineProperty` (jsdom does not map pageX from init dict); fixed by: (1) always including `pointerId: 1` in PointerEvent init, (2) setting `pageX` via `Object.defineProperty(event, 'pageX', { value: N })` after construction; rule now in test-writer/patterns.md (§ Dispatching PointerEvents in jsdom); first occurrence in learner table — log and watch; if a second test file ships with the same jsdom PointerEvent gaps, no additional rule change needed (test-writer memory already updated) |
+| test-writer generates tests requiring jsdom compatibility fixes before they pass | 3 | 2026-03-29 | RULE IN MEMORY (test-writer/patterns.md) — first (153a975): TS2532 unchecked array index; second (various): deprecated vi.fn generic syntax; third (ca09f34): PointerEvent jsdom gaps (setPointerCapture, pageX); all required a fix cycle before tests could be committed; the pattern is consistent: test-writer generates logically correct tests but hits jsdom API limitations or TypeScript strictness constraints that are not obvious at generation time; the fix cycle remains the reliable gate; test-writer/patterns.md is the correct place to document these constraints (already updated for each occurrence); no code-style.md rule change needed |
 
 ## Lessons Learned
 
@@ -2962,5 +2964,87 @@ Both fixed in ca55c3c.
 - Test writer produced 43 tests in 5 files in a single fix commit — comprehensive coverage of all data-aggregation paths.
 - The false positive was correctly dismissed by the orchestrator after validating against the migration files. Validate-before-fixing protocol held.
 - Fix commit 0bad818 addressed all findings cleanly: BLOCKING (test file added), real ISSUE (RLS policy added), accepted suggestions (error logging, doc comment). No deferred work.
+
+---
+
+### 2026-03-29 — Dashboard heatmap → Daily Progress strip, CodeRabbit fixes (commits e38ef8c, ca09f34)
+
+**Context:** Two-commit sequence on PR #412 (feat(dashboard): replace calendar heatmap with Daily Progress strip, commit 4f46f32). e38ef8c addressed 7 CodeRabbit review findings: extracted HeatmapHeader component (activity-heatmap.tsx 161→95 lines), fixed scroll-reset offset dependency, fixed onWheel vertical-scroll trap, added pointercancel handler, fixed currentStreak "1 days" → "1 day", fixed scrollIntoView mock leak in tests, scoped activity test assertions to target day cell. ca09f34 fixed bestStreak "1 days" (missed in e38ef8c) and added 20 tests across 3 new test files.
+
+**Commit hashes:** e38ef8c, ca09f34
+
+**Code reviewer (e38ef8c):** 0 BLOCKING, 1 WARNING.
+- WARNING: `use-drag-scroll.ts` non-null assertion (`containerRef.current!`) missing a justifying comment. First occurrence. Watch.
+
+**Semantic reviewer (e38ef8c):** 1 ISSUE, 1 SUGGESTION.
+1. **bestStreak "1 days" not fixed alongside currentStreak — ISSUE, real, fixed in ca09f34.** e38ef8c fixed `currentStreak === 1 ? 'day' : 'days'` in stat-cards.tsx but left the adjacent `bestStreak` conditional using the same pattern with "days" hardcoded (no ternary). Both were in the same component at adjacent lines. Fixed in ca09f34 by adding the same singular/plural ternary for bestStreak.
+2. **Fragile DOM traversal in test — SUGGESTION.** activity-heatmap.test.tsx used `container.querySelector` with a CSS class selector to find a specific cell; brittle against className refactors. Suggestion to use `getByRole` or `data-testid` for test resilience. Not fixed in this cycle — deferred.
+
+**Doc updater:** No changes needed. Clean.
+
+**Test writer (e38ef8c):** 3 gaps found.
+1. `use-drag-scroll.ts` — new hook shipped without a co-located test file (BLOCKING per code-style.md Section 7).
+2. `heatmap-header.tsx` — extracted component shipped without tests.
+3. `stat-cards.tsx` — singular/plural logic for `currentStreak` and `bestStreak` lacked dedicated branch tests.
+
+All 3 gaps addressed in ca09f34: 10 tests in use-drag-scroll.test.ts, 8 tests in heatmap-header.test.tsx, 2 tests in stat-cards.test.tsx.
+
+**jsdom fix required in ca09f34:** test-writer's initial use-drag-scroll.test.ts hit two jsdom API gaps:
+- `setPointerCapture` not implemented — fixed by including `pointerId: 1` in PointerEvent init dict.
+- `pageX` not mapped from PointerEventInit in jsdom — fixed by using `Object.defineProperty(event, 'pageX', { value: N })` after event construction.
+Both fixes documented in test-writer/patterns.md (§ Dispatching PointerEvents in jsdom).
+
+**Pattern analysis:**
+
+1. **[REPEAT — 4th occurrence] Partial fix applied to sibling file group (cross-cutting concern)**
+
+   Prior occurrences:
+   - First (2190dd5): auth error destructuring applied to 2 of 8 query files.
+   - Second (83ae098): PR4 getUser hardening missed quiz/session/page.tsx and discard.ts.
+   - Third (consent commit, 2026-03-27): consent seeding updated for ensureTestUser and ensureLoginTestUser but not ensureAdminTestUser.
+   - Fourth (e38ef8c, this cycle): `currentStreak` singular/plural fixed but `bestStreak` — immediately adjacent in the same component, same pattern, same file — was not. Caught as semantic-reviewer ISSUE, fixed in ca09f34.
+
+   This is now the 4th occurrence across 4 different commits and 3 different feature areas (query file hardening, auth callback hardening, test fixture seeding, UI string formatting). The root cause is consistent across all four: the fix is scoped to the specific instance the author saw, not to all instances of the same pattern in the surrounding scope (file, component, function).
+
+   This pattern is broad enough to span any type of change — not just user-provisioning helpers (the prior framing). The generalized form: **when fixing any pattern (error handling, string formatting, guard conditions, mock cleanup) in one location, grep the same file and adjacent files for all instances of that exact pattern before committing.**
+
+   Count 4 warrants a CLAUDE.md workflow note that covers the full generalized scope. Prior recommendation (2026-03-27) proposed a narrow note about user-provisioning helpers; this cycle broadens it. See Recommended Changes below.
+
+2. **[NEW — count 1] jsdom PointerEvent gaps (setPointerCapture not implemented, pageX not in PointerEventInit)**
+
+   `use-drag-scroll.test.ts` hit two jsdom constraints not obvious from the web API documentation:
+   - jsdom's `setPointerCapture` throws "not implemented" unless `pointerId` is present in the PointerEvent init dict.
+   - jsdom does not map `pageX`/`pageY` from the PointerEventInit dict; they must be set via `Object.defineProperty` after construction.
+
+   First occurrence as a named learner pattern. Already documented in test-writer/patterns.md (§ Dispatching PointerEvents in jsdom). No additional rule change needed. First occurrence — log and watch.
+
+3. **[RECURRING — count 3] test-writer generates tests requiring jsdom compatibility fixes before they pass**
+
+   The test-writer continues to produce correct-intent tests that hit runtime constraints (TS2532 unchecked index, deprecated vi.fn syntax, now jsdom PointerEvent gaps). Each occurrence requires a fix cycle before the tests can be committed. The pattern is documented in test-writer/patterns.md each time. The fix cycle remains the reliable gate. Count 3 — no additional rule change; the documented constraint library in test-writer/patterns.md is the correct mechanism.
+
+4. **[NEW — count 1] Non-null assertion in hook missing justifying comment (WARNING)**
+
+   `use-drag-scroll.ts` used `containerRef.current!` without a comment explaining why the ref is guaranteed non-null at that point. This is a WARNING per code-style.md Section 5. First occurrence in a newly written hook. Log and watch — not a rule change (rule already exists).
+
+**Actions taken:**
+- Frequency table row 35: count updated from 3 to 4, last-seen updated to 2026-03-29, status note extended with fourth occurrence and generalized root cause.
+- Frequency table: "jsdom PointerEvent gaps" added as new watch row, count 1, 2026-03-29.
+- Frequency table: "test-writer generates tests requiring jsdom compatibility fixes" updated to count 3, last-seen 2026-03-29.
+
+**Recommended changes:**
+
+- [ ] `CLAUDE.md` — Add or extend the sibling-file workflow note. Current note (if added after 2026-03-27 cycle) covers user-provisioning helpers. Expand to the general form: "When fixing any repeated pattern in a file (string formatting, error handling, guard conditions, mock cleanup), grep the same file for all instances of that pattern before committing. The fix must be complete — not just the instance you noticed."
+
+- [ ] `agent-workflow.md` — Under Plan Validation, add to the "Sibling file audit" row or as a new bullet: "Before committing a fix for a pattern (string format, guard, error path), grep the file being changed for all occurrences of the same pattern. A partial fix that leaves identical adjacent instances is caught post-commit and requires a second fix commit."
+
+**No code-style.md or security.md changes this cycle.** All new patterns are first occurrences (jsdom PointerEvent gaps, non-null assertion warning). The sibling-file pattern at count 4 warrants a CLAUDE.md/agent-workflow.md workflow note but not a mechanical style rule.
+
+**False positives:** None detected. The semantic-reviewer ISSUE on bestStreak was a real gap — identical line pattern one function below the fixed one.
+
+**Positive signals:**
+- Code reviewer was clean except for a single WARNING (non-null comment) on a new hook — 7 CodeRabbit findings addressed in a single commit with zero BLOCKING violations.
+- Test writer correctly identified 3 coverage gaps (new hook, extracted component, singular/plural branches) — all gaps filled in the same cycle.
+- jsdom PointerEvent constraints were diagnosed and fixed quickly; the fix pattern is now documented in test-writer/patterns.md so future hook tests with pointer events will have a reference.
+- The bestStreak ISSUE was caught post-commit (not post-push) — the gate worked at the right layer.
 
 ---

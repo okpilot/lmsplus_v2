@@ -27,8 +27,25 @@ export function StatCards({
     ? `Est. ready by ${examReadiness.projectedDate}`
     : 'Keep practicing'
 
+  const readinessColor =
+    readinessPct >= 71 ? 'text-green-500' : readinessPct >= 31 ? 'text-amber-500' : 'text-red-500'
+  const todayColor =
+    questionsToday >= DAILY_GOAL
+      ? 'text-green-500'
+      : questionsToday > 0
+        ? 'text-amber-500'
+        : 'text-red-500'
+  const todayBarColor =
+    questionsToday >= DAILY_GOAL
+      ? 'bg-green-500'
+      : questionsToday > 0
+        ? 'bg-amber-500'
+        : 'bg-red-500'
+  const streakColor =
+    currentStreak >= 7 ? 'text-green-500' : currentStreak > 0 ? 'text-amber-500' : 'text-red-500'
+
   return (
-    <div className="grid grid-cols-3 gap-2 md:grid-cols-1 md:gap-3">
+    <div className="grid grid-cols-3 gap-2 md:gap-4">
       {/* Exam Readiness */}
       <div className="relative rounded-xl border border-border bg-card p-2 text-center md:p-4">
         <div className="flex items-center justify-center gap-1">
@@ -39,11 +56,11 @@ export function StatCards({
           <InfoTooltip
             label="What is Exam Readiness?"
             title="Exam Readiness"
-            description="Percentage of subjects where your mastery is 90% or above. Reach 90%+ in all subjects to be exam-ready."
+            description="Percentage of subjects where your mastery is 90% or above. Red: below 31%, amber: 31–70%, green: 71%+."
             align="left"
           />
         </div>
-        <p className="mt-0.5 text-xl font-bold text-amber-500 md:mt-1 md:text-3xl">
+        <p className={`mt-0.5 text-xl font-bold md:mt-1 md:text-3xl ${readinessColor}`}>
           {readinessPct}%
         </p>
         <p className="mt-1 hidden text-xs text-muted-foreground md:block">
@@ -62,20 +79,16 @@ export function StatCards({
           <InfoTooltip
             label="What is Questions Today?"
             title="Questions Today"
-            description="How many questions you've answered today towards your daily goal of 50. Consistent daily practice builds long-term retention."
+            description="Questions answered today towards your daily goal of 50. Red: none yet, amber: in progress, green: goal reached."
             align="center"
           />
         </div>
-        <p className="mt-0.5 text-xl font-bold text-amber-500 md:mt-1 md:text-3xl">
-          <span className="md:hidden">{questionsToday}</span>
-          <span className="hidden md:inline">
-            {questionsToday} / {DAILY_GOAL}
-          </span>
+        <p className={`mt-0.5 text-xl font-bold md:mt-1 md:text-3xl ${todayColor}`}>
+          {questionsToday} / {DAILY_GOAL}
         </p>
-        <p className="text-[10px] text-muted-foreground md:hidden">/ {DAILY_GOAL}</p>
         <div className="mx-auto mt-2 hidden h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-muted md:block">
           <div
-            className="h-full rounded-full bg-amber-500 transition-all"
+            className={`h-full rounded-full transition-all ${todayBarColor}`}
             style={{ width: `${todayProgress}%` }}
           />
         </div>
@@ -94,16 +107,14 @@ export function StatCards({
           <InfoTooltip
             label="What is Study Streak?"
             title="Study Streak"
-            description="The number of consecutive days you've answered at least one question. Missing a day resets the streak to zero."
+            description="Consecutive days with at least one question answered. Red: streak broken, amber: 1–6 days, green: 7+ days."
           />
         </div>
-        <p className="mt-0.5 text-xl font-bold text-amber-500 md:mt-1 md:text-3xl">
-          <span className="md:hidden">{currentStreak}</span>
-          <span className="hidden md:inline">{currentStreak} days</span>
+        <p className={`mt-0.5 text-xl font-bold md:mt-1 md:text-3xl ${streakColor}`}>
+          {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
         </p>
-        <p className="text-[10px] text-muted-foreground md:hidden">days</p>
         <p className="mt-1 hidden text-xs text-muted-foreground md:block">
-          Best: {bestStreak} days — keep going!
+          Best: {bestStreak} {bestStreak === 1 ? 'day' : 'days'} — keep going!
         </p>
       </div>
     </div>
