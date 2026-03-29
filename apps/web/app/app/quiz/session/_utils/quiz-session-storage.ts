@@ -128,6 +128,19 @@ export function readSessionHandoff(userId: string): SessionData | null {
 }
 
 /** Remove the session handoff key from sessionStorage. */
+/** Convert an ActiveSession (localStorage recovery) to SessionData (hook state). */
+export function toSessionData(r: ActiveSession): SessionData {
+  return {
+    sessionId: r.sessionId,
+    questionIds: r.questionIds,
+    draftAnswers: r.answers,
+    draftCurrentIndex: r.currentIndex,
+    draftId: r.draftId,
+    subjectName: r.subjectName,
+    subjectCode: r.subjectCode,
+  }
+}
+
 export function clearSessionHandoff(userId: string): void {
   sessionStorage.removeItem(sessionHandoffKey(userId))
 }

@@ -3,7 +3,10 @@ import type { ActiveSession } from './quiz-session-storage'
 import {
   buildActiveSession,
   clearActiveSession,
+  clearSessionHandoff,
   readActiveSession,
+  readSessionHandoff,
+  sessionHandoffKey,
   writeActiveSession,
 } from './quiz-session-storage'
 
@@ -329,5 +332,167 @@ describe('buildActiveSession', () => {
     expect(result.subjectName).toBeUndefined()
     expect(result.subjectCode).toBeUndefined()
     expect(result.draftId).toBeUndefined()
+  })
+})
+
+// ---- sessionHandoffKey -------------------------------------------------------
+
+describe('sessionHandoffKey', () => {
+  it('produces a user-scoped key', () => {
+    expect(sessionHandoffKey('user-1')).toBe('quiz-session:user-1')
+  })
+
+  it('produces different keys for different users', () => {
+    expect(sessionHandoffKey('user-a')).not.toBe(sessionHandoffKey('user-b'))
+  })
+})
+
+// ---- readSessionHandoff ------------------------------------------------------
+
+function makeSessionStorageMock() {
+  const store = new Map<string, string>()
+  return {
+    getItem: vi.fn((k: string) => store.get(k) ?? null),
+    setItem: vi.fn((k: string, v: string) => {
+      store.set(k, v)
+    }),
+    removeItem: vi.fn((k: string) => {
+      store.delete(k)
+    }),
+    _store: store,
+    _reset: () => store.clear(),
+  }
+}
+
+describe('readSessionHandoff', () => {
+  let mockSession: ReturnType<typeof makeSessionStorageMock>
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mockSession = makeSessionStorageMock()
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: mockSession,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('returns null when the key is absent', () => {
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
+
+  it('returns valid session data for a minimal payload', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1'] }
+    mockSession._store.set(sessionHandoffKey(USER_ID), JSON.stringify(data))
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).toEqual(data)
+  })
+
+  it('returns valid session data including optional fields', () => {
+    const data = {
+      sessionId: 'sess-2',
+      questionIds: ['q1', 'q2'],
+      draftAnswers: { q1: { selectedOptionId: 'opt-a', responseTimeMs: 500 } },
+      draftCurrentIndex: 1,
+      draftId: 'draft-7',
+      subjectName: 'Meteorology',
+      subjectCode: 'MET',
+    }
+    mockSession._store.set(sessionHandoffKey(USER_ID), JSON.stringify(data))
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).toEqual(data)
+  })
+
+  it('returns null and removes the key when JSON is malformed', () => {
+    const key = sessionHandoffKey(USER_ID)
+    mockSession._store.set(key, '{{not valid json}}')
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
+    expect(errorSpy).toHaveBeenCalled()
+  })
+
+  it('returns null and removes the key when the payload fails validation (missing sessionId)', () => {
+    const key = sessionHandoffKey(USER_ID)
+    mockSession._store.set(key, JSON.stringify({ questionIds: ['q1'] }))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
+    expect(errorSpy).toHaveBeenCalled()
+  })
+
+  it('returns null and removes the key when userId is present but does not match', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], userId: 'other-user' }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
+  })
+
+  it('returns null and removes the key when questionIds is empty', () => {
+    const key = sessionHandoffKey(USER_ID)
+    mockSession._store.set(key, JSON.stringify({ sessionId: 'sess-1', questionIds: [] }))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
+  })
+
+  it('does not read a different user key', () => {
+    mockSession._store.set(
+      sessionHandoffKey('other-user'),
+      JSON.stringify({ sessionId: 's', questionIds: ['q1'] }),
+    )
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).toBeNull()
+  })
+})
+
+// ---- clearSessionHandoff -----------------------------------------------------
+
+describe('clearSessionHandoff', () => {
+  let mockSession: ReturnType<typeof makeSessionStorageMock>
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mockSession = makeSessionStorageMock()
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: mockSession,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('removes the user-scoped handoff key', () => {
+    const key = sessionHandoffKey(USER_ID)
+    mockSession._store.set(key, JSON.stringify({ sessionId: 's', questionIds: ['q1'] }))
+
+    clearSessionHandoff(USER_ID)
+
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
+    expect(mockSession._store.has(key)).toBe(false)
+  })
+
+  it('is safe when the key does not exist', () => {
+    expect(() => clearSessionHandoff(USER_ID)).not.toThrow()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(sessionHandoffKey(USER_ID))
   })
 })
