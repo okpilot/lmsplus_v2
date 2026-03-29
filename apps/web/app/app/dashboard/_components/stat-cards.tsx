@@ -114,7 +114,7 @@ export function StatCards({
           {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
         </p>
         <p className="mt-1 hidden text-xs text-muted-foreground md:block">
-          Best: {bestStreak} days — keep going!
+          Best: {bestStreak} {bestStreak === 1 ? 'day' : 'days'} — keep going!
         </p>
       </div>
     </div>

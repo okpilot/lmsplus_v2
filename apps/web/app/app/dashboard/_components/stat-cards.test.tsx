@@ -82,4 +82,14 @@ describe('StatCards', () => {
     )
     expect(screen.getByText('0%')).toBeInTheDocument()
   })
+
+  it('displays "1 day" (singular) when currentStreak is exactly 1', () => {
+    render(<StatCards {...BASE_PROPS} currentStreak={1} />)
+    expect(screen.getByText('1 day')).toBeInTheDocument()
+  })
+
+  it('displays "0 days" (plural) when currentStreak is 0', () => {
+    render(<StatCards {...BASE_PROPS} currentStreak={0} />)
+    expect(screen.getByText('0 days')).toBeInTheDocument()
+  })
 })
