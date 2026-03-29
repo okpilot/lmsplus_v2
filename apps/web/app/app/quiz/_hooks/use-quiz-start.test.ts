@@ -378,4 +378,29 @@ describe('useQuizStart — handleStart failure path', () => {
     expect(mockClearActiveSession).not.toHaveBeenCalled()
     confirmSpy.mockRestore()
   })
+
+  it('preserves the existing session when sessionStorage throws after a successful start', async () => {
+    const EXISTING_SESSION = {
+      sessionId: 'old-sess',
+      questionIds: ['q9'],
+      answers: {},
+      currentIndex: 0,
+      subjectName: 'Meteorology',
+      savedAt: Date.now(),
+    }
+    mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
+    mockStartQuizSession.mockResolvedValue(SUCCESS_RESULT)
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+
+    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(result.current.error).toMatch(/unable to start/i)
+    confirmSpy.mockRestore()
+  })
 })
