@@ -138,6 +138,29 @@ describe('QuizRecoveryBanner — Resume', () => {
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
   })
+
+  it('shows an error and does not navigate when sessionStorage.setItem throws', async () => {
+    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        setItem: vi.fn(() => {
+          throw new DOMException('QuotaExceededError')
+        }),
+        getItem: vi.fn(),
+        removeItem: vi.fn(),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    render(<QuizRecoveryBanner userId="test-user-id" />)
+    await userEvent.click(screen.getByRole('button', { name: /resume/i }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/unable to resume/i)
+    // Navigation and session clear must both be skipped
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
 })
 
 // ---- Save for Later -------------------------------------------------------

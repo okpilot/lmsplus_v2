@@ -50,18 +50,24 @@ export function useQuizStart(opts: UseQuizStartOpts) {
         filters,
       })
       if (result.success) {
-        if (existing) clearActiveSession(userId)
         const selectedSubject = subjects.find((s) => s.id === subjectId)
-        sessionStorage.setItem(
-          sessionHandoffKey(userId),
-          JSON.stringify({
-            userId,
-            sessionId: result.sessionId,
-            questionIds: result.questionIds,
-            subjectName: selectedSubject?.name,
-            subjectCode: selectedSubject?.short,
-          }),
-        )
+        try {
+          sessionStorage.setItem(
+            sessionHandoffKey(userId),
+            JSON.stringify({
+              userId,
+              sessionId: result.sessionId,
+              questionIds: result.questionIds,
+              subjectName: selectedSubject?.name,
+              subjectCode: selectedSubject?.short,
+            }),
+          )
+        } catch {
+          setError('Unable to start quiz right now. Please try again.')
+          setLoading(false)
+          return
+        }
+        if (existing) clearActiveSession(userId)
         router.push('/app/quiz/session')
         return
       }

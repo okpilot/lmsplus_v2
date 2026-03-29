@@ -337,6 +337,46 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
       }),
     ).resolves.not.toThrow()
   })
+
+  it('keeps the confirmed answer when the checkpoint callback throws', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const throwingCallback = vi.fn(() => {
+      throw new Error('sessionStorage quota exceeded')
+    })
+
+    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      answers = updater(answers)
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        onAnswerRecorded: throwingCallback,
+      }),
+    )
+
+    let returnValue: boolean | undefined
+    await act(async () => {
+      returnValue = await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    // Checkpoint failure must not roll back the confirmed answer
+    expect(answers.has(Q1_ID)).toBe(true)
+    expect(answers.get(Q1_ID)?.selectedOptionId).toBe(OPT_A)
+    // The answer was confirmed by the server, so the return value must still be true
+    expect(returnValue).toBe(true)
+    // Feedback must still be set — the answer was correct
+    expect(result.current.feedback.get(Q1_ID)?.isCorrect).toBe(true)
+    // No error surfaced to the user — checkpoint failure is silent
+    expect(result.current.error).toBeNull()
+  })
 })
 
 // ---- clearError -----------------------------------------------------------

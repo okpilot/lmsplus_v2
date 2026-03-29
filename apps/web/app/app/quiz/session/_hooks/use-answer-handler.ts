@@ -69,8 +69,8 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
           responseTimeMs: elapsed,
         }),
       )
-    } catch {
-      // Checkpoint persistence is best-effort — don't roll back a confirmed answer
+    } catch (err) {
+      console.warn('[use-answer-handler] Checkpoint write failed (best-effort):', err)
     }
     return true
   }
