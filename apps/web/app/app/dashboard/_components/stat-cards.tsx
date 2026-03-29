@@ -111,7 +111,7 @@ export function StatCards({
           />
         </div>
         <p className={`mt-0.5 text-xl font-bold md:mt-1 md:text-3xl ${streakColor}`}>
-          {currentStreak} days
+          {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
         </p>
         <p className="mt-1 hidden text-xs text-muted-foreground md:block">
           Best: {bestStreak} days — keep going!

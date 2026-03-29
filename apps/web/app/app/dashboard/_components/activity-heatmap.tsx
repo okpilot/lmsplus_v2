@@ -3,68 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DailyActivity } from '@/lib/queries/analytics'
 import { HeatmapCell } from './heatmap-cell'
-import { HeatmapInfo } from './heatmap-info'
+import { HeatmapHeader } from './heatmap-header'
 import { useDragScroll } from './use-drag-scroll'
 
 type ActivityHeatmapProps = {
   data: DailyActivity[]
-}
-
-type HeaderProps = {
-  monthName: string
-  monthNameShort: string
-  year: number
-  isCurrentMonth: boolean
-  atMinOffset: boolean
-  onBack: () => void
-  onForward: () => void
-}
-
-function HeatmapHeader({
-  monthName,
-  monthNameShort,
-  year,
-  isCurrentMonth,
-  atMinOffset,
-  onBack,
-  onForward,
-}: HeaderProps) {
-  const navBtnBase =
-    'flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30'
-  return (
-    <div className="mb-2 flex items-center justify-between md:mb-3">
-      <div className="flex items-center gap-1.5">
-        <h3 className="text-sm font-semibold">Daily Progress</h3>
-        <HeatmapInfo />
-      </div>
-      <div className="flex items-center gap-1.5 md:gap-2">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={atMinOffset}
-          aria-label="Previous month"
-          className={`h-5 w-5 md:h-6 md:w-6 transition-colors hover:bg-muted disabled:pointer-events-none ${navBtnBase}`}
-        >
-          ‹
-        </button>
-        <span className="min-w-[70px] text-center text-xs font-medium md:hidden">
-          {monthNameShort} {year}
-        </span>
-        <span className="hidden min-w-[120px] text-center text-sm font-medium md:inline">
-          {monthName} {year}
-        </span>
-        <button
-          type="button"
-          onClick={onForward}
-          disabled={isCurrentMonth}
-          aria-label="Next month"
-          className={`h-5 w-5 md:h-6 md:w-6 transition-colors hover:bg-muted disabled:pointer-events-none ${navBtnBase}`}
-        >
-          ›
-        </button>
-      </div>
-    </div>
-  )
 }
 
 const MIN_MONTH_OFFSET = -11
@@ -111,6 +54,7 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
   const goForward = useCallback(() => setOffset((o) => Math.min(o + 1, MAX_MONTH_OFFSET)), [])
 
   // Auto-scroll to today, or to start when month changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: offset triggers scroll reset on month navigation
   useEffect(() => {
     const container = scrollRef.current
     if (!container) return
@@ -120,7 +64,7 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
     } else {
       container.scrollLeft = 0
     }
-  }, [todayDay])
+  }, [todayDay, offset])
 
   useDragScroll(scrollRef)
 

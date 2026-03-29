@@ -26,21 +26,28 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>) {
 
     // Translate vertical wheel into horizontal scroll
     const onWheel = (e: WheelEvent) => {
-      if (el.scrollWidth <= el.clientWidth) return
+      const maxScrollLeft = el.scrollWidth - el.clientWidth
+      if (maxScrollLeft <= 0) return
+
+      const nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, el.scrollLeft + e.deltaY))
+      if (nextScrollLeft === el.scrollLeft) return
+
       e.preventDefault()
-      el.scrollLeft += e.deltaY
+      el.scrollLeft = nextScrollLeft
     }
 
     el.addEventListener('pointerdown', onDown)
     el.addEventListener('pointermove', onMove)
     el.addEventListener('pointerup', onUp)
     el.addEventListener('pointerleave', onUp)
+    el.addEventListener('pointercancel', onUp)
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => {
       el.removeEventListener('pointerdown', onDown)
       el.removeEventListener('pointermove', onMove)
       el.removeEventListener('pointerup', onUp)
       el.removeEventListener('pointerleave', onUp)
+      el.removeEventListener('pointercancel', onUp)
       el.removeEventListener('wheel', onWheel)
     }
   }, [ref])

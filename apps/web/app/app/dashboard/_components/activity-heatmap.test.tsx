@@ -8,16 +8,18 @@ function makeDay(day: string, total: number, correct = total, incorrect = 0): Da
 }
 
 // jsdom doesn't implement scrollIntoView
-Element.prototype.scrollIntoView = vi.fn()
+const originalScrollIntoView = Element.prototype.scrollIntoView
 
 describe('ActivityHeatmap', () => {
   beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn()
     vi.resetAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-18T12:00:00Z'))
   })
 
   afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView
     vi.useRealTimers()
   })
 
@@ -42,13 +44,12 @@ describe('ActivityHeatmap', () => {
 
   it('shows total/correct/incorrect numbers for a day with activity', () => {
     render(<ActivityHeatmap data={[makeDay('2026-03-10', 8, 6, 2)]} />)
-    // Blue total, green correct, red incorrect should all be present
-    const blueNumbers = document.querySelectorAll('.text-blue-500')
-    const greenNumbers = document.querySelectorAll('.text-green-500')
-    const redNumbers = document.querySelectorAll('.text-red-500')
-    expect(blueNumbers.length).toBeGreaterThan(0)
-    expect(greenNumbers.length).toBeGreaterThan(0)
-    expect(redNumbers.length).toBeGreaterThan(0)
+    // Find the cell for day 10 and verify its specific values
+    const dayLabel = screen.getByText('10')
+    const cell = dayLabel.closest('div')!.querySelector('div')!
+    expect(cell.querySelector('.text-blue-500')?.textContent).toBe('8')
+    expect(cell.querySelector('.text-green-500')?.textContent).toBe('6')
+    expect(cell.querySelector('.text-red-500')?.textContent).toBe('2')
   })
 
   it('marks today with ring-2 ring-primary', () => {
@@ -66,12 +67,14 @@ describe('ActivityHeatmap', () => {
 
 describe('ActivityHeatmap — month navigation', () => {
   beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn()
     vi.resetAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-18T12:00:00Z'))
   })
 
   afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView
     vi.useRealTimers()
   })
 
