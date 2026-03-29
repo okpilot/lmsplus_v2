@@ -53,6 +53,19 @@ export function readActiveSession(userId: string): ActiveSession | null {
       safeRemove(userId)
       return null
     }
+    // Validate questionIds items are non-empty strings
+    if (data.questionIds.some((id) => typeof id !== 'string' || !id)) {
+      safeRemove(userId)
+      return null
+    }
+    // Validate answers values have required DraftAnswer shape
+    for (const val of Object.values(data.answers)) {
+      const v = val as Record<string, unknown>
+      if (typeof v?.selectedOptionId !== 'string' || typeof v?.responseTimeMs !== 'number') {
+        safeRemove(userId)
+        return null
+      }
+    }
     // Cross-user contamination guard
     if (data.userId !== userId) {
       safeRemove(userId)

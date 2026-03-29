@@ -148,6 +148,74 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(result).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
+
+  it('returns null when questionIds contains non-string items', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1', 42, 'q3'],
+      savedAt: Date.now(),
+      currentIndex: 0,
+      answers: {},
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('returns null when questionIds contains empty strings', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1', '', 'q3'],
+      savedAt: Date.now(),
+      currentIndex: 0,
+      answers: {},
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('returns null when an answer value has wrong shape', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      savedAt: Date.now(),
+      currentIndex: 0,
+      answers: { q1: { selectedOptionId: 123, responseTimeMs: 'not-a-number' } },
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('returns null when an answer value is missing selectedOptionId', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      savedAt: Date.now(),
+      currentIndex: 0,
+      answers: { q1: { responseTimeMs: 500 } },
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
 })
 
 // ---- clearActiveSession ------------------------------------------------------
