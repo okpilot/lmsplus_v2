@@ -106,23 +106,43 @@ export function isValidSessionData(data: unknown, expectedUserId: string): data 
   if (d.questionIds.some((id) => typeof id !== 'string' || !id)) return false
   // Reject cross-user payloads (userId is embedded since the key was scoped)
   if ('userId' in d && d.userId !== expectedUserId) return false
+  // Validate optional fields when present
+  if ('draftAnswers' in d && d.draftAnswers !== undefined) {
+    if (
+      typeof d.draftAnswers !== 'object' ||
+      d.draftAnswers === null ||
+      Array.isArray(d.draftAnswers)
+    )
+      return false
+  }
+  if ('draftCurrentIndex' in d && d.draftCurrentIndex !== undefined) {
+    if (typeof d.draftCurrentIndex !== 'number') return false
+  }
+  if ('draftId' in d && d.draftId !== undefined) {
+    if (typeof d.draftId !== 'string' || !d.draftId) return false
+  }
+  if ('subjectName' in d && d.subjectName !== undefined) {
+    if (typeof d.subjectName !== 'string') return false
+  }
+  if ('subjectCode' in d && d.subjectCode !== undefined) {
+    if (typeof d.subjectCode !== 'string') return false
+  }
   return true
 }
 
 /** Read and validate the tab-scoped session handoff from sessionStorage. */
 export function readSessionHandoff(userId: string): SessionData | null {
   const key = sessionHandoffKey(userId)
-  const raw = sessionStorage.getItem(key)
-  if (!raw) return null
   try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
     const parsed: unknown = JSON.parse(raw)
     if (isValidSessionData(parsed, userId)) return parsed
     console.error('[readSessionHandoff] Invalid or mismatched session data — discarding')
     sessionStorage.removeItem(key)
     return null
   } catch {
-    console.error('[readSessionHandoff] Malformed session data in sessionStorage')
-    sessionStorage.removeItem(key)
+    // SecurityError (private mode), malformed JSON, or other storage exception
     return null
   }
 }
@@ -142,7 +162,11 @@ export function toSessionData(r: ActiveSession): SessionData {
 }
 
 export function clearSessionHandoff(userId: string): void {
-  sessionStorage.removeItem(sessionHandoffKey(userId))
+  try {
+    sessionStorage.removeItem(sessionHandoffKey(userId))
+  } catch {
+    // Swallow — best effort (SecurityError in private mode)
+  }
 }
 
 type BuildOpts = {

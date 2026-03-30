@@ -407,16 +407,13 @@ describe('readSessionHandoff', () => {
     expect(result).toEqual(data)
   })
 
-  it('returns null and removes the key when JSON is malformed', () => {
+  it('returns null when JSON is malformed', () => {
     const key = sessionHandoffKey(USER_ID)
     mockSession._store.set(key, '{{not valid json}}')
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     const result = readSessionHandoff(USER_ID)
 
     expect(result).toBeNull()
-    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
-    expect(errorSpy).toHaveBeenCalled()
   })
 
   it('returns null and removes the key when the payload fails validation (missing sessionId)', () => {
@@ -452,6 +449,49 @@ describe('readSessionHandoff', () => {
 
     expect(result).toBeNull()
     expect(mockSession.removeItem).toHaveBeenCalledWith(key)
+  })
+
+  it('returns null when sessionStorage.getItem throws SecurityError', () => {
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        getItem: vi.fn(() => {
+          throw new DOMException('The operation is insecure', 'SecurityError')
+        }),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
+
+  it('rejects payload when draftAnswers is an array instead of a record', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftAnswers: ['bad'] }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
+
+  it('rejects payload when draftCurrentIndex is a string', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftCurrentIndex: 'not-a-number' }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
+
+  it('rejects payload when draftId is an empty string', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftId: '' }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
   })
 
   it('does not read a different user key', () => {
@@ -494,5 +534,21 @@ describe('clearSessionHandoff', () => {
   it('is safe when the key does not exist', () => {
     expect(() => clearSessionHandoff(USER_ID)).not.toThrow()
     expect(mockSession.removeItem).toHaveBeenCalledWith(sessionHandoffKey(USER_ID))
+  })
+
+  it('does not throw when sessionStorage.removeItem throws SecurityError', () => {
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(() => {
+          throw new DOMException('The operation is insecure', 'SecurityError')
+        }),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    expect(() => clearSessionHandoff(USER_ID)).not.toThrow()
   })
 })

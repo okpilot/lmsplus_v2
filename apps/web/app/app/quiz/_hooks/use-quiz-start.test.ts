@@ -65,6 +65,15 @@ const SUCCESS_RESULT = {
   questionIds: [Q1_ID, Q2_ID],
 }
 
+const EXISTING_SESSION = {
+  sessionId: 'old-sess',
+  questionIds: ['q9'],
+  answers: {},
+  currentIndex: 0,
+  subjectName: 'Meteorology',
+  savedAt: Date.now(),
+}
+
 // ---- Lifecycle ------------------------------------------------------------
 
 beforeEach(() => {
@@ -214,15 +223,6 @@ describe('useQuizStart — handleStart happy path', () => {
 // ---- handleStart — existing session guard --------------------------------
 
 describe('useQuizStart — existing session guard', () => {
-  const EXISTING_SESSION = {
-    sessionId: 'old-sess',
-    questionIds: ['q9'],
-    answers: {},
-    currentIndex: 0,
-    subjectName: 'Meteorology',
-    savedAt: Date.now(),
-  }
-
   it('prompts the user when an active session exists before starting', async () => {
     mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
     const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
@@ -335,14 +335,6 @@ describe('useQuizStart — handleStart failure path', () => {
   })
 
   it('preserves the existing session when startQuizSession returns a failure result', async () => {
-    const EXISTING_SESSION = {
-      sessionId: 'old-sess',
-      questionIds: ['q9'],
-      answers: {},
-      currentIndex: 0,
-      subjectName: 'Meteorology',
-      savedAt: Date.now(),
-    }
     mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
     const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
     mockStartQuizSession.mockResolvedValue({
@@ -360,14 +352,6 @@ describe('useQuizStart — handleStart failure path', () => {
   })
 
   it('preserves the existing session when startQuizSession throws', async () => {
-    const EXISTING_SESSION = {
-      sessionId: 'old-sess',
-      questionIds: ['q9'],
-      answers: {},
-      currentIndex: 0,
-      subjectName: 'Meteorology',
-      savedAt: Date.now(),
-    }
     mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
     const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
     mockStartQuizSession.mockRejectedValue(new Error('network timeout'))
@@ -380,14 +364,6 @@ describe('useQuizStart — handleStart failure path', () => {
   })
 
   it('preserves the existing session when sessionStorage throws after a successful start', async () => {
-    const EXISTING_SESSION = {
-      sessionId: 'old-sess',
-      questionIds: ['q9'],
-      answers: {},
-      currentIndex: 0,
-      subjectName: 'Meteorology',
-      savedAt: Date.now(),
-    }
     mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
     const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
     mockStartQuizSession.mockResolvedValue(SUCCESS_RESULT)

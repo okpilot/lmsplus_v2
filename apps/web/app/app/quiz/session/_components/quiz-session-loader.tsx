@@ -31,7 +31,11 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
   }
 
   if (bs.error) {
-    return <p className="text-sm text-destructive">{bs.error}</p>
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {bs.error}
+      </p>
+    )
   }
 
   if (!bs.session || !bs.questions) {

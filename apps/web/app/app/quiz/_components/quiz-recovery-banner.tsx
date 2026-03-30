@@ -43,7 +43,8 @@ export function QuizRecoveryBanner({ userId }: { userId: string }) {
           subjectCode: session.subjectCode,
         }),
       )
-    } catch {
+    } catch (err) {
+      console.warn('[quiz-recovery-banner] Resume handoff failed:', err)
       setError('Unable to resume right now. Please try again.')
       return
     }

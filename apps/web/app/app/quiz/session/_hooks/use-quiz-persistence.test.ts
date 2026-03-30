@@ -28,7 +28,7 @@ describe('useQuizPersistence', () => {
     mockBuildActiveSession.mockReturnValue({ mock: 'session' })
   })
 
-  it('calls writeActiveSession with the result of buildActiveSession', () => {
+  it('persists a checkpoint snapshot for the current quiz session', () => {
     const opts = makeOpts()
     const { result } = renderHook(() => useQuizPersistence(opts))
     const answers = makeAnswers()
