@@ -43,7 +43,7 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@repo/typescript-config": "workspace:*",
-    "@supabase/supabase-js": "^2.100.0",
+    "@supabase/supabase-js": "^2.101.0",
     "@tailwindcss/postcss": "^4.2.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -52,13 +52,13 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "@vitest/coverage-v8": "^4.1.1",
+    "@vitest/coverage-v8": "^4.1.2",
     "dotenv": "^17.3.1",
     "jsdom": "^29.0.1",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.2"
   }
 }
