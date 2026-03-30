@@ -407,13 +407,14 @@ describe('readSessionHandoff', () => {
     expect(result).toEqual(data)
   })
 
-  it('returns null when JSON is malformed', () => {
+  it('returns null and removes the key when JSON is malformed', () => {
     const key = sessionHandoffKey(USER_ID)
     mockSession._store.set(key, '{{not valid json}}')
 
     const result = readSessionHandoff(USER_ID)
 
     expect(result).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('returns null and removes the key when the payload fails validation (missing sessionId)', () => {
@@ -488,6 +489,24 @@ describe('readSessionHandoff', () => {
   it('rejects payload when draftId is an empty string', () => {
     const key = sessionHandoffKey(USER_ID)
     const data = { sessionId: 'sess-1', questionIds: ['q1'], draftId: '' }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
+
+  it('rejects payload when subjectName is a number', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], subjectName: 42 }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
+
+  it('rejects payload when subjectCode is a boolean', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], subjectCode: true }
     mockSession._store.set(key, JSON.stringify(data))
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 

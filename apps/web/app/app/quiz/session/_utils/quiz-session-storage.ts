@@ -136,18 +136,28 @@ export function readSessionHandoff(userId: string): SessionData | null {
   try {
     const raw = sessionStorage.getItem(key)
     if (!raw) return null
-    const parsed: unknown = JSON.parse(raw)
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      // Malformed JSON — remove the corrupt entry so it doesn't persist
+      try {
+        sessionStorage.removeItem(key)
+      } catch {
+        /* SecurityError */
+      }
+      return null
+    }
     if (isValidSessionData(parsed, userId)) return parsed
     console.error('[readSessionHandoff] Invalid or mismatched session data — discarding')
     sessionStorage.removeItem(key)
     return null
   } catch {
-    // SecurityError (private mode), malformed JSON, or other storage exception
+    // SecurityError from getItem — nothing to clean up
     return null
   }
 }
 
-/** Remove the session handoff key from sessionStorage. */
 /** Convert an ActiveSession (localStorage recovery) to SessionData (hook state). */
 export function toSessionData(r: ActiveSession): SessionData {
   return {
