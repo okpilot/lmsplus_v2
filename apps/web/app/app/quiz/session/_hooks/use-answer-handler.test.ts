@@ -330,12 +330,10 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
     mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
     const { result } = renderAnswerHandler()
 
-    // Must not throw when the optional callback is absent
-    await expect(
-      act(async () => {
-        await result.current.handleSelectAnswer(OPT_A)
-      }),
-    ).resolves.not.toThrow()
+    // Must not reject when the optional callback is absent
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
   })
 
   it('keeps the confirmed answer when the checkpoint callback throws', async () => {
@@ -448,11 +446,9 @@ describe('useAnswerHandler — onAnswerReverted callback', () => {
     mockCheckAnswer.mockRejectedValue(new Error('network error'))
     const { result } = renderAnswerHandler()
 
-    await expect(
-      act(async () => {
-        await result.current.handleSelectAnswer(OPT_A)
-      }),
-    ).resolves.not.toThrow()
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
   })
 
   it('keeps the error message and does not rethrow when the revert callback throws', async () => {
