@@ -165,26 +165,29 @@ describe('QuizRecoveryBanner — Resume', () => {
   it('logs a warning when the resume handoff throws', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    Object.defineProperty(globalThis, 'sessionStorage', {
-      value: {
-        setItem: vi.fn(() => {
-          throw new DOMException('QuotaExceededError')
-        }),
-        getItem: vi.fn(),
-        removeItem: vi.fn(),
-      },
-      writable: true,
-      configurable: true,
-    })
+    try {
+      Object.defineProperty(globalThis, 'sessionStorage', {
+        value: {
+          setItem: vi.fn(() => {
+            throw new DOMException('QuotaExceededError')
+          }),
+          getItem: vi.fn(),
+          removeItem: vi.fn(),
+        },
+        writable: true,
+        configurable: true,
+      })
 
-    render(<QuizRecoveryBanner userId="test-user-id" />)
-    await userEvent.click(screen.getByRole('button', { name: /resume/i }))
+      render(<QuizRecoveryBanner userId="test-user-id" />)
+      await userEvent.click(screen.getByRole('button', { name: /resume/i }))
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      '[quiz-recovery-banner] Resume handoff failed:',
-      expect.any(DOMException),
-    )
-    warnSpy.mockRestore()
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[quiz-recovery-banner] Resume handoff failed:',
+        expect.any(DOMException),
+      )
+    } finally {
+      warnSpy.mockRestore()
+    }
   })
 })
 

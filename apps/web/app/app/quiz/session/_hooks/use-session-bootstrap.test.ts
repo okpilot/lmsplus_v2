@@ -531,6 +531,16 @@ describe('isValidSessionData', () => {
     expect(isValidSessionData(data, VALID_USER)).toBe(false)
   })
 
+  it('returns false when draftCurrentIndex equals questionIds length (off-by-one)', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftCurrentIndex: 1 }
+    expect(isValidSessionData(data, VALID_USER)).toBe(false)
+  })
+
+  it('returns true when draftCurrentIndex is the last valid index', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1', 'q2'], draftCurrentIndex: 1 }
+    expect(isValidSessionData(data, VALID_USER)).toBe(true)
+  })
+
   it('returns false when draftAnswers is an array', () => {
     const data = { sessionId: 'sess-1', questionIds: ['q1'], draftAnswers: ['not-object'] }
     expect(isValidSessionData(data, VALID_USER)).toBe(false)

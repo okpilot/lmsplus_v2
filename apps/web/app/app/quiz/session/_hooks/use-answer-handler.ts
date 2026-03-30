@@ -53,19 +53,16 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       result = r
     } catch {
       lockedRef.current.delete(questionId)
-      let reverted: Map<string, DraftAnswer> | undefined
       setAnswers((p) => {
         const m = new Map(p)
         m.delete(questionId)
-        reverted = m
+        answersRef.current = m
         return m
       })
-      if (reverted) {
-        try {
-          onAnswerReverted?.(reverted)
-        } catch (err) {
-          console.warn('[use-answer-handler] Revert checkpoint failed (best-effort):', err)
-        }
+      try {
+        onAnswerReverted?.(answersRef.current)
+      } catch (err) {
+        console.warn('[use-answer-handler] Revert checkpoint failed (best-effort):', err)
       }
       setError('Failed to check answer. Please try again.')
       return false

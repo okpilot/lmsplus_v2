@@ -270,6 +270,23 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(result).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
+
+  it('returns null when currentIndex is a float', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1', 'q2'],
+      savedAt: Date.now(),
+      currentIndex: 1.5,
+      answers: {},
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
 })
 
 // ---- clearActiveSession ------------------------------------------------------
