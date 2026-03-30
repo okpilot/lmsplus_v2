@@ -102,15 +102,11 @@ export type SessionData = {
   subjectCode?: string
 }
 
-export function isValidSessionData(data: unknown, expectedUserId: string): data is SessionData {
-  if (typeof data !== 'object' || data === null) return false
-  const d = data as Record<string, unknown>
-  if (typeof d.sessionId !== 'string' || !d.sessionId) return false
-  if (!Array.isArray(d.questionIds) || d.questionIds.length === 0) return false
-  if (d.questionIds.some((id) => typeof id !== 'string' || !id)) return false
-  // Reject cross-user payloads (userId is embedded since the key was scoped)
-  if ('userId' in d && d.userId !== expectedUserId) return false
-  // Validate optional fields when present
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0
+}
+
+function hasValidOptionalFields(d: Record<string, unknown>, questionCount: number): boolean {
   if ('draftAnswers' in d && d.draftAnswers !== undefined) {
     if (
       typeof d.draftAnswers !== 'object' ||
@@ -123,12 +119,12 @@ export function isValidSessionData(data: unknown, expectedUserId: string): data 
     if (
       !Number.isInteger(d.draftCurrentIndex) ||
       (d.draftCurrentIndex as number) < 0 ||
-      (d.draftCurrentIndex as number) >= (d.questionIds as string[]).length
+      (d.draftCurrentIndex as number) >= questionCount
     )
       return false
   }
   if ('draftId' in d && d.draftId !== undefined) {
-    if (typeof d.draftId !== 'string' || !d.draftId) return false
+    if (!isNonEmptyString(d.draftId)) return false
   }
   if ('subjectName' in d && d.subjectName !== undefined) {
     if (typeof d.subjectName !== 'string') return false
@@ -137,6 +133,16 @@ export function isValidSessionData(data: unknown, expectedUserId: string): data 
     if (typeof d.subjectCode !== 'string') return false
   }
   return true
+}
+
+export function isValidSessionData(data: unknown, expectedUserId: string): data is SessionData {
+  if (typeof data !== 'object' || data === null) return false
+  const d = data as Record<string, unknown>
+  if (!isNonEmptyString(d.sessionId)) return false
+  if (!Array.isArray(d.questionIds) || d.questionIds.length === 0) return false
+  if (d.questionIds.some((id) => !isNonEmptyString(id))) return false
+  if ('userId' in d && d.userId !== expectedUserId) return false
+  return hasValidOptionalFields(d, d.questionIds.length)
 }
 
 /** Read and validate the tab-scoped session handoff from sessionStorage. */

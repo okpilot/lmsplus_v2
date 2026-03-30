@@ -173,7 +173,11 @@ test.describe('Quiz Session Recovery', () => {
     const { totalQuestions } = await startAndAbandonQuiz(page, 2)
 
     // Clear sessionStorage to simulate closed tab / new tab
-    await page.evaluate(() => sessionStorage.clear())
+    await page.evaluate(() => {
+      for (const key of Object.keys(sessionStorage)) {
+        if (key.startsWith('quiz-session:')) sessionStorage.removeItem(key)
+      }
+    })
 
     // Navigate directly to session page
     await page.goto('/app/quiz/session')
@@ -200,7 +204,11 @@ test.describe('Quiz Session Recovery', () => {
   test('session page recovery discard redirects to quiz config', async ({ page }) => {
     await startAndAbandonQuiz(page, 2)
 
-    await page.evaluate(() => sessionStorage.clear())
+    await page.evaluate(() => {
+      for (const key of Object.keys(sessionStorage)) {
+        if (key.startsWith('quiz-session:')) sessionStorage.removeItem(key)
+      }
+    })
     await page.goto('/app/quiz/session')
 
     await expect(page.getByRole('heading', { name: 'Resume your quiz?' })).toBeVisible({
