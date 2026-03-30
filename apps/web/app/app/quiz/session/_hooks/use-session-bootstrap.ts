@@ -4,7 +4,6 @@ import type { SessionQuestion } from '@/app/app/_types/session'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import {
   type ActiveSession,
-  clearActiveSession,
   clearSessionHandoff,
   readActiveSession,
   readSessionHandoff,
@@ -54,7 +53,6 @@ export function useSessionBootstrap(userId: string) {
     loadSessionQuestions(data.questionIds)
       .then((r) => {
         if (r.success) {
-          clearActiveSession(userId)
           clearSessionHandoff(userId)
           setQuestions(r.questions)
         } else {
@@ -75,7 +73,6 @@ export function useSessionBootstrap(userId: string) {
           setResumeLoading(false)
           return
         }
-        clearActiveSession(userId)
         setSession(toSessionData(recovery))
         setQuestions(r.questions)
         setResumeLoading(false)

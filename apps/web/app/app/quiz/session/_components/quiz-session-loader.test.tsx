@@ -179,6 +179,16 @@ describe('QuizSessionLoader — error state', () => {
     expect(screen.getByText(/failed to load questions/i)).toBeInTheDocument()
   })
 
+  it('renders the error inside a role="alert" element', () => {
+    mockUseSessionBootstrap.mockReturnValue({
+      ...makeBootstrapBase(),
+      error: 'Something went wrong.',
+    })
+    render(<QuizSessionLoader userId="user-1" />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong.')
+  })
+
   it('does not render skeleton or QuizSession when there is an error', () => {
     mockUseSessionBootstrap.mockReturnValue({
       ...makeBootstrapBase(),
