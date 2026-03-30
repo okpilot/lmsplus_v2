@@ -510,4 +510,39 @@ describe('isValidSessionData', () => {
       expect(data.sessionId).toBe('sess-1')
     }
   })
+
+  it('returns false when draftCurrentIndex is a string', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftCurrentIndex: '0' }
+    expect(isValidSessionData(data, VALID_USER)).toBe(false)
+  })
+
+  it('returns false when draftCurrentIndex is negative', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftCurrentIndex: -1 }
+    expect(isValidSessionData(data, VALID_USER)).toBe(false)
+  })
+
+  it('returns false when draftCurrentIndex is a float', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftCurrentIndex: 1.5 }
+    expect(isValidSessionData(data, VALID_USER)).toBe(false)
+  })
+
+  it('returns false when draftCurrentIndex exceeds questionIds length', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftCurrentIndex: 99 }
+    expect(isValidSessionData(data, VALID_USER)).toBe(false)
+  })
+
+  it('returns false when draftAnswers is an array', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftAnswers: ['not-object'] }
+    expect(isValidSessionData(data, VALID_USER)).toBe(false)
+  })
+
+  it('returns false when subjectName is a number', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], subjectName: 123 }
+    expect(isValidSessionData(data, VALID_USER)).toBe(false)
+  })
+
+  it('returns false when subjectCode is a number', () => {
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], subjectCode: 123 }
+    expect(isValidSessionData(data, VALID_USER)).toBe(false)
+  })
 })

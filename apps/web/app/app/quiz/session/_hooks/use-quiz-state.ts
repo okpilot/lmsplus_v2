@@ -42,6 +42,7 @@ export function useQuizState(opts: QuizStateOpts) {
     answers,
     setAnswers,
     onAnswerRecorded: (a) => checkpoint(a, currentIndexRef.current),
+    onAnswerReverted: (a) => checkpoint(a, currentIndexRef.current),
   })
 
   const {

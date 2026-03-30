@@ -9,11 +9,19 @@ type AnswerHandlerOpts = {
   answers: Map<string, DraftAnswer>
   setAnswers: React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>
   onAnswerRecorded?: (answers: Map<string, DraftAnswer>) => void
+  onAnswerReverted?: (answers: Map<string, DraftAnswer>) => void
 }
 
 export function useAnswerHandler(opts: AnswerHandlerOpts) {
-  const { sessionId, getQuestionId, getAnswerStartTime, answers, setAnswers, onAnswerRecorded } =
-    opts
+  const {
+    sessionId,
+    getQuestionId,
+    getAnswerStartTime,
+    answers,
+    setAnswers,
+    onAnswerRecorded,
+    onAnswerReverted,
+  } = opts
   const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
   const [error, setError] = useState<string | null>(null)
   const lockedRef = useRef<Set<string>>(new Set())
@@ -45,11 +53,20 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       result = r
     } catch {
       lockedRef.current.delete(questionId)
+      let reverted: Map<string, DraftAnswer> | undefined
       setAnswers((p) => {
         const m = new Map(p)
         m.delete(questionId)
+        reverted = m
         return m
       })
+      if (reverted) {
+        try {
+          onAnswerReverted?.(reverted)
+        } catch (err) {
+          console.warn('[use-answer-handler] Revert checkpoint failed (best-effort):', err)
+        }
+      }
       setError('Failed to check answer. Please try again.')
       return false
     }

@@ -184,6 +184,7 @@ describe('QuizRecoveryBanner — Resume', () => {
       '[quiz-recovery-banner] Resume handoff failed:',
       expect.any(DOMException),
     )
+    warnSpy.mockRestore()
   })
 })
 

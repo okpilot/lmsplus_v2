@@ -44,8 +44,12 @@ export function readActiveSession(userId: string): ActiveSession | null {
     if (
       !data.sessionId ||
       !Array.isArray(data.questionIds) ||
+      data.questionIds.length === 0 ||
       typeof data.savedAt !== 'number' ||
       typeof data.currentIndex !== 'number' ||
+      !Number.isInteger(data.currentIndex) ||
+      data.currentIndex < 0 ||
+      data.currentIndex >= data.questionIds.length ||
       typeof data.answers !== 'object' ||
       data.answers === null ||
       Array.isArray(data.answers)
@@ -116,7 +120,12 @@ export function isValidSessionData(data: unknown, expectedUserId: string): data 
       return false
   }
   if ('draftCurrentIndex' in d && d.draftCurrentIndex !== undefined) {
-    if (typeof d.draftCurrentIndex !== 'number') return false
+    if (
+      !Number.isInteger(d.draftCurrentIndex) ||
+      (d.draftCurrentIndex as number) < 0 ||
+      (d.draftCurrentIndex as number) >= (d.questionIds as string[]).length
+    )
+      return false
   }
   if ('draftId' in d && d.draftId !== undefined) {
     if (typeof d.draftId !== 'string' || !d.draftId) return false

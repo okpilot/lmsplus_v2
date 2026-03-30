@@ -219,6 +219,57 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(result).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
+
+  it('returns null when questionIds is an empty array', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: [],
+      savedAt: Date.now(),
+      currentIndex: 0,
+      answers: {},
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('returns null when currentIndex is negative', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      savedAt: Date.now(),
+      currentIndex: -1,
+      answers: {},
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('returns null when currentIndex exceeds questionIds length', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      savedAt: Date.now(),
+      currentIndex: 5,
+      answers: {},
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
 })
 
 // ---- clearActiveSession ------------------------------------------------------
