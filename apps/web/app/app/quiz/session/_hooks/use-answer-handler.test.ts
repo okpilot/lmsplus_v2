@@ -379,6 +379,125 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
   })
 })
 
+// ---- onAnswerReverted callback --------------------------------------------
+
+describe('useAnswerHandler — onAnswerReverted callback', () => {
+  it('calls onAnswerReverted with the reverted answers map when checkAnswer fails', async () => {
+    mockCheckAnswer.mockRejectedValue(new Error('network error'))
+    const onAnswerReverted = vi.fn()
+
+    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      answers = updater(answers)
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        onAnswerReverted,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(onAnswerReverted).toHaveBeenCalledTimes(1)
+    const calledWith = onAnswerReverted.mock.calls[0]?.[0] as Map<string, unknown>
+    expect(calledWith).toBeInstanceOf(Map)
+    // The reverted map must NOT contain the failed answer
+    expect(calledWith.has(Q1_ID)).toBe(false)
+  })
+
+  it('does not call onAnswerReverted when checkAnswer succeeds', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const onAnswerReverted = vi.fn()
+
+    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      answers = updater(answers)
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        onAnswerReverted,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(onAnswerReverted).not.toHaveBeenCalled()
+  })
+
+  it('does not throw when onAnswerReverted is not provided and checkAnswer fails', async () => {
+    mockCheckAnswer.mockRejectedValue(new Error('network error'))
+    const { result } = renderAnswerHandler()
+
+    await expect(
+      act(async () => {
+        await result.current.handleSelectAnswer(OPT_A)
+      }),
+    ).resolves.not.toThrow()
+  })
+
+  it('keeps the error message and does not rethrow when the revert callback throws', async () => {
+    mockCheckAnswer.mockRejectedValue(new Error('network error'))
+    const throwingRevertCallback = vi.fn(() => {
+      throw new Error('sessionStorage quota exceeded')
+    })
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      answers = updater(answers)
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        onAnswerReverted: throwingRevertCallback,
+      }),
+    )
+
+    let returnValue: boolean | undefined
+    await act(async () => {
+      returnValue = await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    // Return value still false — the server rejected the answer
+    expect(returnValue).toBe(false)
+    // User-facing error is still set
+    expect(result.current.error).toBe('Failed to check answer. Please try again.')
+    // Callback failure is warned, not rethrown
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[use-answer-handler] Revert checkpoint failed (best-effort):',
+      expect.any(Error),
+    )
+    warnSpy.mockRestore()
+  })
+})
+
 // ---- clearError -----------------------------------------------------------
 
 describe('useAnswerHandler — clearError', () => {
