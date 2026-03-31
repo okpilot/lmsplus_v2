@@ -35,6 +35,7 @@ export function useQuizState(opts: QuizStateOpts) {
     error: answerError,
     handleSelectAnswer,
     clearError: clearAnswerError,
+    pendingQuestionIdRef,
   } = useAnswerHandler({
     sessionId,
     getQuestionId: () => questionId,
@@ -65,7 +66,14 @@ export function useQuizState(opts: QuizStateOpts) {
     clearAnswerError()
     clearSubmitError()
     nav.navigateTo(index)
-    checkpoint(answersRef.current, index)
+    const pending = pendingQuestionIdRef.current
+    if (pending) {
+      const safe = new Map(answersRef.current)
+      safe.delete(pending)
+      checkpoint(safe, index)
+    } else {
+      checkpoint(answersRef.current, index)
+    }
   }
   const wrappedNavigate = (d: number) => wrappedNavigateTo(nav.currentIndex + d)
 

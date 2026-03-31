@@ -25,6 +25,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
   const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
   const [error, setError] = useState<string | null>(null)
   const lockedRef = useRef<Set<string>>(new Set())
+  const pendingQuestionIdRef = useRef<string | null>(null)
   const answersRef = useRef(answers)
   answersRef.current = answers
 
@@ -41,6 +42,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       answersRef.current = next
       return next
     })
+    pendingQuestionIdRef.current = questionId
     let result: {
       isCorrect: boolean
       correctOptionId: string
@@ -52,6 +54,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       if (!r.success) throw new Error(r.error)
       result = r
     } catch {
+      pendingQuestionIdRef.current = null
       lockedRef.current.delete(questionId)
       setAnswers((p) => {
         const m = new Map(p)
@@ -86,6 +89,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     } catch (err) {
       console.warn('[use-answer-handler] Checkpoint write failed (best-effort):', err)
     }
+    pendingQuestionIdRef.current = null
     return true
   }
 
@@ -96,5 +100,11 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     }
   }, [answers])
 
-  return { feedback, error, handleSelectAnswer, clearError: () => setError(null) }
+  return {
+    feedback,
+    error,
+    handleSelectAnswer,
+    clearError: () => setError(null),
+    pendingQuestionIdRef,
+  }
 }
