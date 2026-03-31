@@ -67,9 +67,9 @@ export function useQuizState(opts: QuizStateOpts) {
     clearSubmitError()
     nav.navigateTo(index)
     const pending = pendingQuestionIdRef.current
-    if (pending) {
+    if (pending.size > 0) {
       const safe = new Map(answersRef.current)
-      safe.delete(pending)
+      for (const qId of pending) safe.delete(qId)
       checkpoint(safe, index)
     } else {
       checkpoint(answersRef.current, index)

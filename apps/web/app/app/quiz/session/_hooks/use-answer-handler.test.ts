@@ -626,3 +626,60 @@ describe('useAnswerHandler — multiple questions', () => {
     expect(result.current.feedback.get(Q2_ID)?.isCorrect).toBe(false)
   })
 })
+
+// ---- pendingQuestionIdRef lifecycle ------------------------------------------
+
+describe('useAnswerHandler — pendingQuestionIdRef lifecycle', () => {
+  it('starts as an empty set before any answer is selected', () => {
+    const { result } = renderAnswerHandler()
+    expect(result.current.pendingQuestionIdRef.current.size).toBe(0)
+  })
+
+  it('holds the questionId while checkAnswer is in-flight', async () => {
+    // Deferred promise — checkAnswer never resolves until we say so
+    let resolveCheckAnswer!: (v: typeof SUCCESS_RESULT) => void
+    mockCheckAnswer.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCheckAnswer = resolve
+        }),
+    )
+
+    const { result } = renderAnswerHandler()
+
+    // Start answering — do NOT await; the ref should be set before checkAnswer resolves
+    act(() => {
+      result.current.handleSelectAnswer(OPT_A)
+    })
+
+    // At this point checkAnswer is in-flight — ref must contain the questionId
+    expect(result.current.pendingQuestionIdRef.current.has(Q1_ID)).toBe(true)
+
+    // Resolve so the hook can clean up
+    await act(async () => {
+      resolveCheckAnswer(SUCCESS_RESULT)
+    })
+  })
+
+  it('is cleared after a successful checkAnswer', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const { result } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(result.current.pendingQuestionIdRef.current.size).toBe(0)
+  })
+
+  it('is cleared after a failed checkAnswer', async () => {
+    mockCheckAnswer.mockRejectedValue(new Error('network error'))
+    const { result } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(result.current.pendingQuestionIdRef.current.size).toBe(0)
+  })
+})

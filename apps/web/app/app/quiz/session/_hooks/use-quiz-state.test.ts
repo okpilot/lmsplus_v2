@@ -9,12 +9,14 @@ const {
   mockHandleSaveSession,
   mockHandleDiscardSession,
   mockCheckAnswer,
+  mockCheckpoint,
 } = vi.hoisted(() => ({
   mockRouterPush: vi.fn(),
   mockHandleSubmitSession: vi.fn(),
   mockHandleSaveSession: vi.fn(),
   mockHandleDiscardSession: vi.fn(),
   mockCheckAnswer: vi.fn(),
+  mockCheckpoint: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -46,7 +48,7 @@ vi.mock('../../actions/check-answer', () => ({
 }))
 
 vi.mock('./use-quiz-persistence', () => ({
-  useQuizPersistence: () => ({ checkpoint: vi.fn() }),
+  useQuizPersistence: () => ({ checkpoint: mockCheckpoint }),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -586,5 +588,115 @@ describe('useQuizState — navigation guard condition', () => {
 
     const lastCall = navGuardMock.mock.calls[navGuardMock.mock.calls.length - 1]
     expect(lastCall?.[0]).toBe(true)
+  })
+})
+
+// ---- wrappedNavigateTo checkpoint behaviour -----------------------------------
+
+describe('useQuizState — navigateTo checkpoint excludes pending answer', () => {
+  it('passes the full answers map to checkpoint when no checkAnswer is in-flight', async () => {
+    mockCheckAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: null,
+      explanationImageUrl: null,
+    })
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Answer Q1 fully so it is confirmed in the map
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-a')
+    })
+
+    // Navigate — no in-flight checkAnswer; checkpoint should receive the full map
+    mockCheckpoint.mockClear()
+    act(() => result.current.navigateTo(1))
+
+    expect(mockCheckpoint).toHaveBeenCalledTimes(1)
+    const [passedAnswers] = mockCheckpoint.mock.calls[0] as [Map<string, unknown>, number]
+    expect(passedAnswers).toBeInstanceOf(Map)
+    expect(passedAnswers.has(Q1_ID)).toBe(true)
+  })
+
+  it('passes a map without the pending question to checkpoint while checkAnswer is in-flight', async () => {
+    // Create a deferred promise so we can navigate while checkAnswer is still awaiting
+    let resolveCheckAnswer!: (v: {
+      success: true
+      isCorrect: boolean
+      correctOptionId: string
+      explanationText: null
+      explanationImageUrl: null
+    }) => void
+    mockCheckAnswer.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCheckAnswer = resolve
+        }),
+    )
+
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Start answering Q1 but do NOT await — leave checkAnswer in-flight
+    let answerPromise: Promise<boolean>
+    act(() => {
+      answerPromise = result.current.handleSelectAnswer('opt-a')
+    })
+
+    // Navigate while the answer is still pending (checkAnswer has not resolved)
+    mockCheckpoint.mockClear()
+    act(() => result.current.navigateTo(1))
+
+    // Checkpoint must have been called with a map that does NOT include the pending Q1 answer
+    expect(mockCheckpoint).toHaveBeenCalledTimes(1)
+    const [passedAnswers, passedIndex] = mockCheckpoint.mock.calls[0] as [
+      Map<string, unknown>,
+      number,
+    ]
+    expect(passedAnswers).toBeInstanceOf(Map)
+    expect(passedAnswers.has(Q1_ID)).toBe(false)
+    expect(passedIndex).toBe(1)
+
+    // Resolve the in-flight call so the hook cleans up properly
+    await act(async () => {
+      resolveCheckAnswer({
+        success: true,
+        isCorrect: true,
+        correctOptionId: 'opt-a',
+        explanationText: null,
+        explanationImageUrl: null,
+      })
+      await answerPromise
+    })
+  })
+
+  it('passes the full answers map to checkpoint after the in-flight checkAnswer resolves', async () => {
+    mockCheckAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: null,
+      explanationImageUrl: null,
+    })
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Complete the answer so pendingQuestionIdRef is cleared
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-a')
+    })
+
+    // Navigate — pendingQuestionIdRef is null now; checkpoint receives full map
+    mockCheckpoint.mockClear()
+    act(() => result.current.navigateTo(1))
+
+    expect(mockCheckpoint).toHaveBeenCalledTimes(1)
+    const [passedAnswers] = mockCheckpoint.mock.calls[0] as [Map<string, unknown>, number]
+    expect(passedAnswers.has(Q1_ID)).toBe(true)
   })
 })
