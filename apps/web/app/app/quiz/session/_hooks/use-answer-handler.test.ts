@@ -682,4 +682,78 @@ describe('useAnswerHandler — pendingQuestionIdRef lifecycle', () => {
 
     expect(result.current.pendingQuestionIdRef.current.size).toBe(0)
   })
+
+  it('keeps Q2 pending when Q1 fails while both are in-flight', async () => {
+    // Two deferred promises: Q1 will reject, Q2 stays unresolved throughout the assertion
+    let rejectQ1!: (err: Error) => void
+    let resolveQ2!: (v: typeof SUCCESS_RESULT) => void
+
+    mockCheckAnswer
+      .mockImplementationOnce(
+        () =>
+          new Promise<typeof SUCCESS_RESULT>((_, reject) => {
+            rejectQ1 = reject
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<typeof SUCCESS_RESULT>((resolve) => {
+            resolveQ2 = resolve
+          }),
+      )
+
+    // Hook with a mutable question-ID getter so we can switch from Q1 to Q2
+    let currentQuestion = Q1_ID
+    const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      const next = updater(answers)
+      for (const [k, v] of next) answers.set(k, v)
+      // Reflect deletions too
+      for (const k of answers.keys()) {
+        if (!next.has(k)) answers.delete(k)
+      }
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => currentQuestion,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+      }),
+    )
+
+    // Fire Q1 — leaves checkAnswer in-flight
+    act(() => {
+      result.current.handleSelectAnswer(OPT_A)
+    })
+
+    // Switch to Q2 and fire its answer — also in-flight
+    currentQuestion = Q2_ID
+    act(() => {
+      result.current.handleSelectAnswer(OPT_B)
+    })
+
+    // Both answers are now pending
+    expect(result.current.pendingQuestionIdRef.current.has(Q1_ID)).toBe(true)
+    expect(result.current.pendingQuestionIdRef.current.has(Q2_ID)).toBe(true)
+
+    // Reject Q1 — only Q1 should leave the set
+    await act(async () => {
+      rejectQ1(new Error('network error'))
+    })
+
+    expect(result.current.pendingQuestionIdRef.current.has(Q1_ID)).toBe(false)
+    expect(result.current.pendingQuestionIdRef.current.has(Q2_ID)).toBe(true)
+
+    // Resolve Q2 so the hook cleans up
+    await act(async () => {
+      resolveQ2(SUCCESS_RESULT)
+    })
+
+    expect(result.current.pendingQuestionIdRef.current.size).toBe(0)
+  })
 })

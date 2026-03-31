@@ -686,12 +686,12 @@ describe('useQuizState — navigateTo checkpoint excludes pending answer', () =>
       useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
 
-    // Complete the answer so pendingQuestionIdRef is cleared
+    // Complete the answer so pendingQuestionIdRef is empty
     await act(async () => {
       await result.current.handleSelectAnswer('opt-a')
     })
 
-    // Navigate — pendingQuestionIdRef is null now; checkpoint receives full map
+    // Navigate — pendingQuestionIdRef is empty; checkpoint receives full map
     mockCheckpoint.mockClear()
     act(() => result.current.navigateTo(1))
 
