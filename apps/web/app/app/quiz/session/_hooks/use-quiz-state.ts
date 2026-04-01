@@ -29,6 +29,7 @@ export function useQuizState(opts: QuizStateOpts) {
   const questionId = question?.id ?? ''
 
   const { checkpoint } = useQuizPersistence(opts)
+  const feedbackRef = useRef<Map<string, AnswerFeedback>>(initialFeedback ?? new Map())
 
   const {
     feedback,
@@ -46,7 +47,6 @@ export function useQuizState(opts: QuizStateOpts) {
     onAnswerRecorded: (a, fb) => checkpoint(a, currentIndexRef.current, fb),
     onAnswerReverted: (a) => checkpoint(a, currentIndexRef.current, feedbackRef.current),
   })
-  const feedbackRef = useRef<Map<string, AnswerFeedback>>(feedback)
   feedbackRef.current = feedback
 
   const {

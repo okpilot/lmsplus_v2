@@ -139,6 +139,8 @@ export function QuizSession(props: QuizSessionProps) {
             onNext={() => s.navigate(1)}
             onSubmitAnswer={async () => {
               if (pendingOptionId) {
+                // pendingOptionId is NOT cleared here — on success, existingAnswer
+                // hides the submit button; on failure, keeping it lets the user retry
                 await s.handleSelectAnswer(pendingOptionId)
               }
             }}
