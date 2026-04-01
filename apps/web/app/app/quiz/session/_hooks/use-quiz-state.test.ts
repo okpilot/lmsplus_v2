@@ -750,16 +750,9 @@ describe('useQuizState — navigateTo checkpoint excludes pending answer', () =>
       ],
     ])
 
-    // First call succeeds (Q1), second call fails (Q2)
-    mockCheckAnswer
-      .mockResolvedValueOnce({
-        success: true,
-        isCorrect: true,
-        correctOptionId: 'opt-a',
-        explanationText: null,
-        explanationImageUrl: null,
-      })
-      .mockRejectedValueOnce(new Error('network error'))
+    // Q1 is seeded via initialAnswers — no checkAnswer call.
+    // The first runtime checkAnswer is Q2, which must reject.
+    mockCheckAnswer.mockRejectedValueOnce(new Error('network error'))
 
     const { result } = renderHook(() =>
       useQuizState({

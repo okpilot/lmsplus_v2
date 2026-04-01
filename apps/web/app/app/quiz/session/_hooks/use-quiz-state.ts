@@ -44,7 +44,10 @@ export function useQuizState(opts: QuizStateOpts) {
     answers,
     setAnswers,
     initialFeedback,
-    onAnswerRecorded: (a, fb) => checkpoint(a, currentIndexRef.current, fb),
+    onAnswerRecorded: (a, fb) => {
+      feedbackRef.current = fb
+      checkpoint(a, currentIndexRef.current, fb)
+    },
     onAnswerReverted: (a) => checkpoint(a, currentIndexRef.current, feedbackRef.current),
   })
   feedbackRef.current = feedback
@@ -74,9 +77,9 @@ export function useQuizState(opts: QuizStateOpts) {
     if (pending.size > 0) {
       const safe = new Map(answersRef.current)
       for (const qId of pending) safe.delete(qId)
-      checkpoint(safe, index, feedback)
+      checkpoint(safe, index, feedbackRef.current)
     } else {
-      checkpoint(answersRef.current, index, feedback)
+      checkpoint(answersRef.current, index, feedbackRef.current)
     }
   }
   const wrappedNavigate = (d: number) => wrappedNavigateTo(nav.currentIndex + d)
