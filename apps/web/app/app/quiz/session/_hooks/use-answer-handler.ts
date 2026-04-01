@@ -35,6 +35,8 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
   const pendingQuestionIdRef = useRef<Set<string>>(new Set())
   const answersRef = useRef(answers)
   answersRef.current = answers
+  const feedbackRef = useRef(feedback)
+  feedbackRef.current = feedback
 
   async function handleSelectAnswer(optionId: string): Promise<boolean> {
     const questionId = getQuestionId()
@@ -77,7 +79,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       setError('Failed to check answer. Please try again.')
       return false
     }
-    const nextFeedback = new Map(feedback).set(questionId, {
+    const nextFeedback = new Map(feedbackRef.current).set(questionId, {
       isCorrect: result.isCorrect,
       correctOptionId: result.correctOptionId,
       explanationText: result.explanationText,
