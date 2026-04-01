@@ -39,6 +39,27 @@ describe('useQuizPersistence', () => {
     expect(mockWriteActiveSession).toHaveBeenCalledWith({ mock: 'session' })
   })
 
+  it('forwards the feedback Map as the fourth argument to buildActiveSession', () => {
+    const opts = makeOpts()
+    const { result } = renderHook(() => useQuizPersistence(opts))
+    const answers = makeAnswers()
+    const feedback = new Map([
+      [
+        'q1',
+        {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    result.current.checkpoint(answers, 1, feedback)
+
+    expect(mockBuildActiveSession).toHaveBeenCalledWith(opts, answers, 1, feedback)
+  })
+
   it('returns the same checkpoint reference across re-renders when opts do not change', () => {
     const opts = makeOpts()
     const { result, rerender } = renderHook(() => useQuizPersistence(opts))

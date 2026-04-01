@@ -297,6 +297,36 @@ describe('useQuizState — answer selection', () => {
     )
     expect(result.current.answeredCount).toBe(1)
   })
+
+  it('surfaces initialFeedback through currentFeedback for the recovered question', () => {
+    const initialFeedback = new Map([
+      [
+        Q1_ID,
+        {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: 'Recovered explanation',
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    const { result } = renderHook(() =>
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 800 } },
+        initialFeedback,
+        initialIndex: 0,
+      }),
+    )
+
+    // currentFeedback is feedback.get(questionId) for the current question (Q1 at index 0)
+    expect(result.current.currentFeedback?.isCorrect).toBe(true)
+    expect(result.current.currentFeedback?.correctOptionId).toBe('opt-a')
+    expect(result.current.currentFeedback?.explanationText).toBe('Recovered explanation')
+  })
 })
 
 // ---- Submit ---------------------------------------------------------------
@@ -619,6 +649,36 @@ describe('useQuizState — navigateTo checkpoint excludes pending answer', () =>
     const [passedAnswers] = mockCheckpoint.mock.calls[0] as [Map<string, unknown>, number]
     expect(passedAnswers).toBeInstanceOf(Map)
     expect(passedAnswers.has(Q1_ID)).toBe(true)
+  })
+
+  it('passes the current feedback map as the third argument to checkpoint on navigation', async () => {
+    mockCheckAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: null,
+      explanationImageUrl: null,
+    })
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Answer Q1 so feedback is populated
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-a')
+    })
+
+    mockCheckpoint.mockClear()
+    act(() => result.current.navigateTo(1))
+
+    expect(mockCheckpoint).toHaveBeenCalledTimes(1)
+    const [, , passedFeedback] = mockCheckpoint.mock.calls[0] as [
+      Map<string, unknown>,
+      number,
+      Map<string, unknown>,
+    ]
+    expect(passedFeedback).toBeInstanceOf(Map)
+    expect(passedFeedback.has(Q1_ID)).toBe(true)
   })
 
   it('passes a map without the pending question to checkpoint while checkAnswer is in-flight', async () => {

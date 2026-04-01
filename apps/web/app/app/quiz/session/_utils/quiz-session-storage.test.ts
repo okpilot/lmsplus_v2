@@ -401,6 +401,67 @@ describe('buildActiveSession', () => {
     expect(result.subjectCode).toBeUndefined()
     expect(result.draftId).toBeUndefined()
   })
+
+  it('serialises the feedback Map into a plain Record on the returned session', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(0)
+
+    const opts = {
+      userId: USER_ID,
+      sessionId: 'sess-fb',
+      questions: [{ id: 'q1' }, { id: 'q2' }],
+    }
+    const feedbackMap = new Map([
+      [
+        'q1',
+        {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: 'Because lift.',
+          explanationImageUrl: null,
+        },
+      ],
+      [
+        'q2',
+        {
+          isCorrect: false,
+          correctOptionId: 'opt-b',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    const result = buildActiveSession(opts, new Map(), 0, feedbackMap)
+
+    expect(result.feedback).toEqual({
+      q1: {
+        isCorrect: true,
+        correctOptionId: 'opt-a',
+        explanationText: 'Because lift.',
+        explanationImageUrl: null,
+      },
+      q2: {
+        isCorrect: false,
+        correctOptionId: 'opt-b',
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    })
+  })
+
+  it('omits the feedback field entirely when no feedback Map is provided', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(0)
+
+    const opts = {
+      userId: USER_ID,
+      sessionId: 'sess-no-fb',
+      questions: [{ id: 'q1' }],
+    }
+
+    const result = buildActiveSession(opts, new Map(), 0)
+
+    expect(result.feedback).toBeUndefined()
+  })
 })
 
 // ---- sessionHandoffKey -------------------------------------------------------

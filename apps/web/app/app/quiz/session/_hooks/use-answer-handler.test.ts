@@ -297,6 +297,43 @@ describe('useAnswerHandler — onAnswerRecorded callback', () => {
     expect((calledWith.get(Q1_ID) as { selectedOptionId: string })?.selectedOptionId).toBe(OPT_A)
   })
 
+  it('passes the updated feedback map as the second argument to onAnswerRecorded', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const onAnswerRecorded = vi.fn()
+
+    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      answers = updater(answers)
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        onAnswerRecorded,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(onAnswerRecorded).toHaveBeenCalledTimes(1)
+    const feedbackArg = onAnswerRecorded.mock.calls[0]?.[1] as Map<string, unknown>
+    expect(feedbackArg).toBeInstanceOf(Map)
+    const entry = feedbackArg.get(Q1_ID) as {
+      isCorrect: boolean
+      correctOptionId: string
+    }
+    expect(entry?.isCorrect).toBe(true)
+    expect(entry?.correctOptionId).toBe(OPT_A)
+  })
+
   it('does not call onAnswerRecorded when checkAnswer fails', async () => {
     mockCheckAnswer.mockRejectedValue(new Error('network error'))
     const onAnswerRecorded = vi.fn()
@@ -577,6 +614,93 @@ describe('useAnswerHandler — handleSelectAnswer return value', () => {
     })
 
     expect(returnValue).toBe(false)
+  })
+})
+
+// ---- initialFeedback seeding ------------------------------------------------
+
+describe('useAnswerHandler — initialFeedback', () => {
+  it('pre-populates the feedback map from initialFeedback on mount', () => {
+    const seedFeedback = new Map([
+      [
+        Q1_ID,
+        {
+          isCorrect: true,
+          correctOptionId: OPT_A,
+          explanationText: 'Seed explanation',
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>([
+      [Q1_ID, { selectedOptionId: OPT_A, responseTimeMs: 800 }],
+    ])
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      answers = updater(answers)
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        initialFeedback: seedFeedback,
+      }),
+    )
+
+    const fb = result.current.feedback.get(Q1_ID)
+    expect(fb?.isCorrect).toBe(true)
+    expect(fb?.correctOptionId).toBe(OPT_A)
+    expect(fb?.explanationText).toBe('Seed explanation')
+  })
+
+  it('returns pre-seeded feedback immediately without a new answer submission', () => {
+    const seedFeedback = new Map([
+      [
+        Q2_ID,
+        {
+          isCorrect: false,
+          correctOptionId: OPT_B,
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>([
+      [Q2_ID, { selectedOptionId: OPT_A, responseTimeMs: 600 }],
+    ])
+    const setAnswers = vi.fn()
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q2_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        initialFeedback: seedFeedback,
+      }),
+    )
+
+    // No handleSelectAnswer call — feedback comes purely from initialFeedback
+    expect(mockCheckAnswer).not.toHaveBeenCalled()
+    const fb = result.current.feedback.get(Q2_ID)
+    expect(fb?.isCorrect).toBe(false)
+    expect(fb?.correctOptionId).toBe(OPT_B)
+  })
+
+  it('starts with an empty feedback map when initialFeedback is not provided', () => {
+    const { result } = renderAnswerHandler()
+
+    expect(result.current.feedback.size).toBe(0)
   })
 })
 
