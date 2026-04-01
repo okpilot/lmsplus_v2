@@ -383,7 +383,7 @@ describe('saveDraft', () => {
     const result = await saveDraft(VALID_DRAFT_INPUT)
 
     expect(result).toEqual({ success: true })
-    expect(capturedInsertArg!.feedback).toBeUndefined()
+    expect(capturedInsertArg).not.toHaveProperty('feedback')
   })
 
   it('rejects a feedback entry where isCorrect is not a boolean', async () => {
@@ -562,7 +562,7 @@ describe('saveDraft — update path', () => {
     const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
 
     expect(result).toEqual({ success: true })
-    expect(capturedUpdateArg!.feedback).toBeUndefined()
+    expect(capturedUpdateArg).not.toHaveProperty('feedback')
   })
 
   it('returns generic failure when the update helper throws an unexpected error', async () => {

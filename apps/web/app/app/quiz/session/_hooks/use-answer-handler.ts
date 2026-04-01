@@ -85,6 +85,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       explanationText: result.explanationText,
       explanationImageUrl: result.explanationImageUrl,
     })
+    feedbackRef.current = nextFeedback
     setFeedback(nextFeedback)
     setError(null)
     try {

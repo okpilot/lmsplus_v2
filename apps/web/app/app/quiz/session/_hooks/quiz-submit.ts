@@ -71,23 +71,27 @@ export async function saveQuizDraft(opts: {
 }) {
   const answerObj = Object.fromEntries(opts.answers)
   const feedbackObj = opts.feedback ? Object.fromEntries(opts.feedback) : undefined
-  const result = await saveDraft({
-    draftId: opts.draftId,
-    sessionId: opts.sessionId,
-    questionIds: opts.questionIds,
-    answers: answerObj,
-    feedback: feedbackObj,
-    currentIndex: opts.currentIndex,
-    subjectName: opts.subjectName,
-    subjectCode: opts.subjectCode,
-  })
-  if (result.success) {
-    clearActiveSession(opts.userId)
-    clearDeploymentPin().catch(() => {})
-    opts.router.push('/app/quiz')
-    return { success: true as const }
+  try {
+    const result = await saveDraft({
+      draftId: opts.draftId,
+      sessionId: opts.sessionId,
+      questionIds: opts.questionIds,
+      answers: answerObj,
+      feedback: feedbackObj,
+      currentIndex: opts.currentIndex,
+      subjectName: opts.subjectName,
+      subjectCode: opts.subjectCode,
+    })
+    if (result.success) {
+      clearActiveSession(opts.userId)
+      clearDeploymentPin().catch(() => {})
+      opts.router.push('/app/quiz')
+      return { success: true as const }
+    }
+    return { success: false as const, error: result.error }
+  } catch {
+    return { success: false as const, error: 'Something went wrong. Please try again.' }
   }
-  return { success: false as const, error: result.error }
 }
 
 export async function handleSubmitSession(opts: {

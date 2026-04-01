@@ -44,7 +44,7 @@ export function useQuizState(opts: QuizStateOpts) {
     setAnswers,
     initialFeedback,
     onAnswerRecorded: (a, fb) => checkpoint(a, currentIndexRef.current, fb),
-    onAnswerReverted: (a) => checkpoint(a, currentIndexRef.current),
+    onAnswerReverted: (a) => checkpoint(a, currentIndexRef.current, feedbackRef.current),
   })
   const feedbackRef = useRef<Map<string, AnswerFeedback>>(feedback)
   feedbackRef.current = feedback

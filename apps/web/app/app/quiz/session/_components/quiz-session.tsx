@@ -139,8 +139,7 @@ export function QuizSession(props: QuizSessionProps) {
             onNext={() => s.navigate(1)}
             onSubmitAnswer={async () => {
               if (pendingOptionId) {
-                const ok = await s.handleSelectAnswer(pendingOptionId)
-                if (ok) setPendingOptionId(null)
+                await s.handleSelectAnswer(pendingOptionId)
               }
             }}
           />
