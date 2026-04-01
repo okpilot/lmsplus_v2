@@ -1,7 +1,7 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import { useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
-import type { DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
 
 export function useQuizSubmit(opts: {
@@ -9,6 +9,7 @@ export function useQuizSubmit(opts: {
   sessionId: string
   questions: SessionQuestion[]
   answersRef: React.RefObject<Map<string, DraftAnswer>>
+  feedbackRef: React.RefObject<Map<string, AnswerFeedback>>
   currentIndexRef: React.RefObject<number>
   router: AppRouterInstance
   draftId?: string
@@ -41,6 +42,7 @@ export function useQuizSubmit(opts: {
       sessionId: opts.sessionId,
       questions: opts.questions,
       answers: opts.answersRef.current,
+      feedback: opts.feedbackRef.current,
       currentIndex: opts.currentIndexRef.current,
       draftId: opts.draftId,
       subjectName: opts.subjectName,

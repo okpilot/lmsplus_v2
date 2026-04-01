@@ -1,7 +1,7 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
-import type { DraftAnswer, QuizStateOpts } from '../../types'
+import type { AnswerFeedback, DraftAnswer, QuizStateOpts } from '../../types'
 import { useAnswerHandler } from './use-answer-handler'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
@@ -46,6 +46,8 @@ export function useQuizState(opts: QuizStateOpts) {
     onAnswerRecorded: (a, fb) => checkpoint(a, currentIndexRef.current, fb),
     onAnswerReverted: (a) => checkpoint(a, currentIndexRef.current),
   })
+  const feedbackRef = useRef<Map<string, AnswerFeedback>>(feedback)
+  feedbackRef.current = feedback
 
   const {
     submitted,
@@ -57,6 +59,7 @@ export function useQuizState(opts: QuizStateOpts) {
     sessionId,
     questions,
     answersRef,
+    feedbackRef,
     currentIndexRef,
     router,
     draftId: opts.draftId,

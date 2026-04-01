@@ -4,7 +4,7 @@ import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
 import { deleteDraft } from '../../actions/draft-delete'
-import type { DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { clearActiveSession } from '../_utils/quiz-session-storage'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
@@ -62,6 +62,7 @@ export async function saveQuizDraft(opts: {
   sessionId: string
   questionIds: string[]
   answers: Map<string, DraftAnswer>
+  feedback?: Map<string, AnswerFeedback>
   currentIndex: number
   router: AppRouterInstance
   draftId?: string
@@ -69,11 +70,13 @@ export async function saveQuizDraft(opts: {
   subjectCode?: string
 }) {
   const answerObj = Object.fromEntries(opts.answers)
+  const feedbackObj = opts.feedback ? Object.fromEntries(opts.feedback) : undefined
   const result = await saveDraft({
     draftId: opts.draftId,
     sessionId: opts.sessionId,
     questionIds: opts.questionIds,
     answers: answerObj,
+    feedback: feedbackObj,
     currentIndex: opts.currentIndex,
     subjectName: opts.subjectName,
     subjectCode: opts.subjectCode,
@@ -118,6 +121,7 @@ export async function handleSaveSession(opts: {
   sessionId: string
   questions: Array<{ id: string }>
   answers: Map<string, DraftAnswer>
+  feedback?: Map<string, AnswerFeedback>
   currentIndex: number
   router: AppRouterInstance
   draftId: string | undefined
@@ -133,6 +137,7 @@ export async function handleSaveSession(opts: {
     sessionId: opts.sessionId,
     questionIds: opts.questions.map((q) => q.id),
     answers: opts.answers,
+    feedback: opts.feedback,
     currentIndex: opts.currentIndex,
     router: opts.router,
     draftId: opts.draftId,

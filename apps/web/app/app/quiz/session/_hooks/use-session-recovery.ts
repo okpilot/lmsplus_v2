@@ -20,6 +20,7 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
         sessionId: recovery.sessionId,
         questionIds: recovery.questionIds,
         answers: recovery.answers,
+        feedback: recovery.feedback,
         currentIndex: recovery.currentIndex,
         subjectName: recovery.subjectName,
         subjectCode: recovery.subjectCode,
