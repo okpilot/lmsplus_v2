@@ -810,4 +810,65 @@ describe('useQuizState — navigateTo checkpoint excludes pending answer', () =>
     const [passedAnswers] = mockCheckpoint.mock.calls[0] as [Map<string, unknown>, number]
     expect(passedAnswers.has(Q1_ID)).toBe(true)
   })
+
+  it('passes fresh feedback to the navigation checkpoint when navigate fires before the React re-render', async () => {
+    // This test exercises the feedbackRef fix:
+    //   onAnswerRecorded now does feedbackRef.current = fb BEFORE calling checkpoint.
+    //   wrappedNavigateTo reads feedbackRef.current, not the closure-captured feedback state.
+    //
+    // Race: checkAnswer resolves → onAnswerRecorded fires (sets feedbackRef.current, calls
+    //   checkpoint once for the answer) → navigation fires in the same synchronous turn →
+    //   wrappedNavigateTo calls checkpoint a second time.
+    //
+    // At the moment wrappedNavigateTo runs, React has NOT re-rendered yet, so the
+    // closure-captured `feedback` state variable is still the old empty Map. The fixed code
+    // reads feedbackRef.current instead, which was already updated in onAnswerRecorded.
+    //
+    // Implementation: inject navigation via the first mockCheckpoint call (the onAnswerRecorded
+    // checkpoint). This fires inside useAnswerHandler, before the React render — making the
+    // race observable.
+
+    let navigateFn: ((index: number) => void) | null = null
+    let navigationCheckpointCallCount = 0
+
+    // First checkpoint call = onAnswerRecorded. Trigger navigation synchronously here.
+    // Second checkpoint call = wrappedNavigateTo. Capture its feedback argument.
+    const capturedFeedbacks: Array<Map<string, unknown>> = []
+
+    mockCheckpoint.mockImplementation(
+      (_answers: Map<string, unknown>, _index: number, feedback: Map<string, unknown>) => {
+        navigationCheckpointCallCount++
+        capturedFeedbacks.push(feedback)
+        if (navigationCheckpointCallCount === 1 && navigateFn) {
+          // Navigate synchronously while React has not re-rendered yet.
+          // At this point the closure-captured `feedback` state is still empty;
+          // feedbackRef.current was set by onAnswerRecorded moments before this call.
+          navigateFn(1)
+        }
+      },
+    )
+
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Capture the navigate function from the rendered hook.
+    navigateFn = result.current.navigateTo
+
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-a')
+    })
+
+    // Two checkpoint calls must have occurred:
+    //   1. onAnswerRecorded checkpoint (answer confirmed)
+    //   2. wrappedNavigateTo checkpoint (triggered from within checkpoint #1)
+    expect(capturedFeedbacks.length).toBeGreaterThanOrEqual(2)
+
+    // The SECOND checkpoint call (navigation) must carry the Q1 feedback that was
+    // written to feedbackRef.current by onAnswerRecorded — not an empty Map.
+    // Length >= 2 asserted above
+    const navigationFeedback = capturedFeedbacks[1]!
+    expect(navigationFeedback).toBeInstanceOf(Map)
+    expect(navigationFeedback.has(Q1_ID)).toBe(true)
+  })
 })

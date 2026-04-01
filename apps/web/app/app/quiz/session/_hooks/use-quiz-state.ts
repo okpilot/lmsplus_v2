@@ -45,6 +45,7 @@ export function useQuizState(opts: QuizStateOpts) {
     setAnswers,
     initialFeedback,
     onAnswerRecorded: (a, fb) => {
+      // Eager sync so feedbackRef is current before React commits setFeedback
       feedbackRef.current = fb
       checkpoint(a, currentIndexRef.current, fb)
     },
