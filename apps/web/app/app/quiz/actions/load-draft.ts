@@ -15,13 +15,21 @@ function isSessionConfig(v: unknown): v is SessionConfig {
   )
 }
 
+function isFeedbackRecord(v: unknown): v is Record<string, AnswerFeedback> {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false
+  return Object.values(v).every(
+    (e) =>
+      typeof e === 'object' &&
+      e !== null &&
+      typeof (e as Record<string, unknown>).isCorrect === 'boolean' &&
+      typeof (e as Record<string, unknown>).correctOptionId === 'string',
+  )
+}
+
 function rowToDraftData(row: QuizDraftRow): DraftData {
   const raw = row.session_config
-  // `feedback` was added in migration 061 — cast via unknown until types are regenerated
-  const feedback = (row as unknown as { feedback?: unknown }).feedback as
-    | Record<string, AnswerFeedback>
-    | null
-    | undefined
+  const rawFeedback = (row as unknown as { feedback?: unknown }).feedback
+  const feedback = isFeedbackRecord(rawFeedback) ? rawFeedback : undefined
   if (!isSessionConfig(raw)) {
     console.error('[rowToDraftData] Malformed session_config on draft', row.id)
     return {

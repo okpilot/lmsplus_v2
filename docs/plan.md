@@ -16,7 +16,7 @@ Persist quiz progress to localStorage and recover on page refresh or deployment:
 - **Warn on new quiz**: `use-quiz-start` warns before starting new quiz if unfinished session exists in localStorage
 - **Clear on completion**: localStorage cleared on successful submit, discard, or save-to-draft
 - **Error handling improvements**: `handleSelectAnswer` returns boolean (error state preserved on error), error cleared on question navigation (no stale errors), submit error takes priority in UI, FinishQuizDialog displays errors inline
-- No new migrations or DB changes (client-side only)
+- **Feedback persistence**: answer feedback (isCorrect, correctOptionId, explanation) now persisted in both localStorage checkpoints and quiz_drafts DB table (migration 061: `feedback JSONB NULL`). Resumed sessions and drafts restore full feedback state.
 - 14 new test files (component + utility), extensive coverage of recovery paths, error scenarios, staleness limits
 - E2E: recovery flow tested in quiz flow spec
 

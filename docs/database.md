@@ -329,6 +329,7 @@ CREATE TABLE quiz_drafts (
   session_config  JSONB NOT NULL DEFAULT '{}',  -- { sessionId, subjectName?, subjectCode? }
   question_ids    UUID[] NOT NULL,
   answers         JSONB NOT NULL DEFAULT '{}',   -- Record<questionId, { selectedOptionId, responseTimeMs }>
+  feedback        JSONB NULL,                    -- Record<questionId, { isCorrect, correctOptionId, explanationText, explanationImageUrl }>
   current_index   INT NOT NULL DEFAULT 0,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()

@@ -25,7 +25,7 @@ const SaveDraftInput = z
         z.string(),
         z.object({
           isCorrect: z.boolean(),
-          correctOptionId: z.string(),
+          correctOptionId: z.string().min(1),
           explanationText: z.string().nullable(),
           explanationImageUrl: z.string().nullable(),
         }),
