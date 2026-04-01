@@ -56,11 +56,19 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
     )
   }
 
+  const questionIdSet = new Set(bs.questions.map((q) => q.id))
+
   const filteredAnswers = (() => {
     if (!bs.session.draftAnswers) return bs.session.draftAnswers
-    const questionIdSet = new Set(bs.questions.map((q) => q.id))
     return Object.fromEntries(
       Object.entries(bs.session.draftAnswers).filter(([key]) => questionIdSet.has(key)),
+    )
+  })()
+
+  const filteredFeedback = (() => {
+    if (!bs.session.draftFeedback) return undefined
+    return new Map(
+      Object.entries(bs.session.draftFeedback).filter(([key]) => questionIdSet.has(key)),
     )
   })()
 
@@ -75,6 +83,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
       sessionId={bs.session.sessionId}
       questions={bs.questions}
       initialAnswers={filteredAnswers}
+      initialFeedback={filteredFeedback}
       initialIndex={clampedIndex}
       draftId={bs.session.draftId}
       subjectName={bs.session.subjectName}

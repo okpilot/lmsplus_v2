@@ -11,7 +11,7 @@ import { useQuizSubmit } from './use-quiz-submit'
 export type QuizState = ReturnType<typeof useQuizState>
 
 export function useQuizState(opts: QuizStateOpts) {
-  const { sessionId, questions, initialAnswers } = opts
+  const { sessionId, questions, initialAnswers, initialFeedback } = opts
   const router = useRouter()
   const nav = useQuizNavigation({
     totalQuestions: questions.length,
@@ -42,7 +42,8 @@ export function useQuizState(opts: QuizStateOpts) {
     getAnswerStartTime: () => nav.answerStartTime.current,
     answers,
     setAnswers,
-    onAnswerRecorded: (a) => checkpoint(a, currentIndexRef.current),
+    initialFeedback,
+    onAnswerRecorded: (a, fb) => checkpoint(a, currentIndexRef.current, fb),
     onAnswerReverted: (a) => checkpoint(a, currentIndexRef.current),
   })
 
@@ -70,9 +71,9 @@ export function useQuizState(opts: QuizStateOpts) {
     if (pending.size > 0) {
       const safe = new Map(answersRef.current)
       for (const qId of pending) safe.delete(qId)
-      checkpoint(safe, index)
+      checkpoint(safe, index, feedback)
     } else {
-      checkpoint(answersRef.current, index)
+      checkpoint(answersRef.current, index, feedback)
     }
   }
   const wrappedNavigate = (d: number) => wrappedNavigateTo(nav.currentIndex + d)

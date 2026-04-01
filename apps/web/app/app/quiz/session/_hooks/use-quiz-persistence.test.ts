@@ -35,7 +35,7 @@ describe('useQuizPersistence', () => {
 
     result.current.checkpoint(answers, 2)
 
-    expect(mockBuildActiveSession).toHaveBeenCalledWith(opts, answers, 2)
+    expect(mockBuildActiveSession).toHaveBeenCalledWith(opts, answers, 2, undefined)
     expect(mockWriteActiveSession).toHaveBeenCalledWith({ mock: 'session' })
   })
 

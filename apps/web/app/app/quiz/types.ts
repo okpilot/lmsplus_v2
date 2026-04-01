@@ -103,6 +103,7 @@ export type QuizStateOpts = {
   sessionId: string
   questions: import('@/app/app/_types/session').SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
+  initialFeedback?: Map<string, AnswerFeedback>
   initialIndex?: number
   draftId?: string
   subjectName?: string

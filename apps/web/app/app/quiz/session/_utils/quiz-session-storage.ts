@@ -1,4 +1,4 @@
-import type { DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
 
 const storageKey = (userId: string) => `quiz-active-session:${userId}`
 
@@ -11,6 +11,7 @@ export type ActiveSession = {
   sessionId: string
   questionIds: string[]
   answers: Record<string, DraftAnswer>
+  feedback?: Record<string, AnswerFeedback>
   currentIndex: number
   subjectName?: string
   subjectCode?: string
@@ -96,6 +97,7 @@ export type SessionData = {
   sessionId: string
   questionIds: string[]
   draftAnswers?: Record<string, DraftAnswer>
+  draftFeedback?: Record<string, AnswerFeedback>
   draftCurrentIndex?: number
   draftId?: string
   subjectName?: string
@@ -179,6 +181,7 @@ export function toSessionData(r: ActiveSession): SessionData {
     sessionId: r.sessionId,
     questionIds: r.questionIds,
     draftAnswers: r.answers,
+    draftFeedback: r.feedback,
     draftCurrentIndex: r.currentIndex,
     draftId: r.draftId,
     subjectName: r.subjectName,
@@ -207,12 +210,14 @@ export function buildActiveSession(
   opts: BuildOpts,
   answers: Map<string, DraftAnswer>,
   currentIndex: number,
+  feedback?: Map<string, AnswerFeedback>,
 ): ActiveSession {
   return {
     userId: opts.userId,
     sessionId: opts.sessionId,
     questionIds: opts.questions.map((q) => q.id),
     answers: Object.fromEntries(answers),
+    feedback: feedback ? Object.fromEntries(feedback) : undefined,
     currentIndex,
     subjectName: opts.subjectName,
     subjectCode: opts.subjectCode,

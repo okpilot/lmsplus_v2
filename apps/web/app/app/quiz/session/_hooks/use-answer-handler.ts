@@ -8,7 +8,11 @@ type AnswerHandlerOpts = {
   getAnswerStartTime: () => number
   answers: Map<string, DraftAnswer>
   setAnswers: React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>
-  onAnswerRecorded?: (answers: Map<string, DraftAnswer>) => void
+  initialFeedback?: Map<string, AnswerFeedback>
+  onAnswerRecorded?: (
+    answers: Map<string, DraftAnswer>,
+    feedback: Map<string, AnswerFeedback>,
+  ) => void
   onAnswerReverted?: (answers: Map<string, DraftAnswer>) => void
 }
 
@@ -19,10 +23,13 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     getAnswerStartTime,
     answers,
     setAnswers,
+    initialFeedback,
     onAnswerRecorded,
     onAnswerReverted,
   } = opts
-  const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
+  const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(
+    () => initialFeedback ?? new Map(),
+  )
   const [error, setError] = useState<string | null>(null)
   const lockedRef = useRef<Set<string>>(new Set())
   const pendingQuestionIdRef = useRef<Set<string>>(new Set())
@@ -70,14 +77,13 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       setError('Failed to check answer. Please try again.')
       return false
     }
-    setFeedback((p) =>
-      new Map(p).set(questionId, {
-        isCorrect: result.isCorrect,
-        correctOptionId: result.correctOptionId,
-        explanationText: result.explanationText,
-        explanationImageUrl: result.explanationImageUrl,
-      }),
-    )
+    const nextFeedback = new Map(feedback).set(questionId, {
+      isCorrect: result.isCorrect,
+      correctOptionId: result.correctOptionId,
+      explanationText: result.explanationText,
+      explanationImageUrl: result.explanationImageUrl,
+    })
+    setFeedback(nextFeedback)
     setError(null)
     try {
       onAnswerRecorded?.(
@@ -85,6 +91,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
           selectedOptionId: optionId,
           responseTimeMs: elapsed,
         }),
+        nextFeedback,
       )
     } catch (err) {
       console.warn('[use-answer-handler] Checkpoint write failed (best-effort):', err)
