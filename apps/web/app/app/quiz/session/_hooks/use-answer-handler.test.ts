@@ -704,6 +704,52 @@ describe('useAnswerHandler — initialFeedback', () => {
   })
 })
 
+// ---- feedbackRef eager update ------------------------------------------------
+
+describe('useAnswerHandler — feedbackRef is updated eagerly before setFeedback', () => {
+  it('passes up-to-date feedback to onAnswerRecorded even when called inside the same tick as setFeedback', async () => {
+    // The bug this guards against: if feedbackRef was only updated via the state-driven
+    // useEffect, a callback fired synchronously after setFeedback could see stale feedback.
+    // The fix sets feedbackRef.current = nextFeedback before calling setFeedback.
+    //
+    // Observable behaviour: onAnswerRecorded receives the full nextFeedback map (including
+    // the entry for this question) as its second argument. If feedbackRef was stale,
+    // it would receive an empty or old map.
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const capturedFeedback: Map<string, unknown>[] = []
+    const onAnswerRecorded = vi.fn((_answers: unknown, feedback: Map<string, unknown>) => {
+      capturedFeedback.push(new Map(feedback))
+    })
+
+    let answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      answers = updater(answers)
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => Q1_ID,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+        onAnswerRecorded,
+      }),
+    )
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(capturedFeedback).toHaveLength(1)
+    const fb = capturedFeedback[0]
+    expect(fb?.has(Q1_ID)).toBe(true)
+    expect((fb?.get(Q1_ID) as { isCorrect: boolean } | undefined)?.isCorrect).toBe(true)
+  })
+})
+
 // ---- Multiple questions ----------------------------------------------------
 
 describe('useAnswerHandler — multiple questions', () => {

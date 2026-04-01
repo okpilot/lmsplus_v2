@@ -367,6 +367,88 @@ describe('saveQuizDraft', () => {
     expect(called.subjectName).toBeUndefined()
     expect(called.subjectCode).toBeUndefined()
   })
+
+  it('returns generic failure when saveDraft throws unexpectedly', async () => {
+    mockSaveDraft.mockRejectedValue(new Error('network error'))
+
+    const result = await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
+  })
+
+  it('does not navigate or clear session when saveDraft throws', async () => {
+    mockSaveDraft.mockRejectedValue(new Error('network error'))
+
+    await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
+
+  it('serialises feedback map to a plain object when provided', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+    const feedbackMap = new Map([
+      [
+        Q1_ID,
+        {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: 'Because lift.',
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+      feedback: feedbackMap,
+    })
+
+    const [called] = mockSaveDraft.mock.calls[0]!
+    expect(called.feedback).not.toBeInstanceOf(Map)
+    expect(called.feedback[Q1_ID]).toEqual({
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: 'Because lift.',
+      explanationImageUrl: null,
+    })
+  })
+
+  it('passes feedback as undefined when no feedback map is provided', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+
+    await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    const [called] = mockSaveDraft.mock.calls[0]!
+    expect(called.feedback).toBeUndefined()
+  })
 })
 
 // ---- handleSubmitSession -------------------------------------------------

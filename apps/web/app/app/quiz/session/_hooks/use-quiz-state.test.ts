@@ -734,6 +734,64 @@ describe('useQuizState — navigateTo checkpoint excludes pending answer', () =>
     })
   })
 
+  it('passes current feedback to checkpoint via onAnswerReverted when checkAnswer fails', async () => {
+    // Arrange: Q1 is already answered with known feedback in the initial state.
+    // When a second question's checkAnswer fails, the revert checkpoint must include
+    // the previously-recorded feedback (not an empty map).
+    const initialFeedback = new Map([
+      [
+        Q1_ID,
+        {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    // First call succeeds (Q1), second call fails (Q2)
+    mockCheckAnswer
+      .mockResolvedValueOnce({
+        success: true,
+        isCorrect: true,
+        correctOptionId: 'opt-a',
+        explanationText: null,
+        explanationImageUrl: null,
+      })
+      .mockRejectedValueOnce(new Error('network error'))
+
+    const { result } = renderHook(() =>
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 800 } },
+        initialFeedback,
+        initialIndex: 1,
+      }),
+    )
+
+    // Answer Q2 — this will fail and trigger onAnswerReverted
+    mockCheckpoint.mockClear()
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-b')
+    })
+
+    // checkpoint must have been called (for the revert), and the third argument
+    // (feedbackRef.current) must contain the Q1 feedback recorded before the failure.
+    const revertCalls = mockCheckpoint.mock.calls
+    expect(revertCalls.length).toBeGreaterThan(0)
+    const lastCall = revertCalls[revertCalls.length - 1] as [
+      Map<string, unknown>,
+      number,
+      Map<string, unknown>,
+    ]
+    const passedFeedback = lastCall[2]
+    expect(passedFeedback).toBeInstanceOf(Map)
+    expect(passedFeedback.has(Q1_ID)).toBe(true)
+  })
+
   it('passes the full answers map to checkpoint after the in-flight checkAnswer resolves', async () => {
     mockCheckAnswer.mockResolvedValue({
       success: true,
