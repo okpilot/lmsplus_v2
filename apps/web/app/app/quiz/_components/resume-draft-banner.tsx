@@ -20,20 +20,26 @@ export function ResumeDraftBanner({ draft, userId }: ResumeDraftBannerProps) {
   const totalCount = draft.questionIds.length
 
   function handleResume() {
-    sessionStorage.setItem(
-      sessionHandoffKey(userId),
-      JSON.stringify({
-        userId,
-        sessionId: draft.sessionId,
-        questionIds: draft.questionIds,
-        draftAnswers: draft.answers,
-        draftFeedback: draft.feedback,
-        draftCurrentIndex: draft.currentIndex,
-        draftId: draft.id,
-        subjectName: draft.subjectName,
-        subjectCode: draft.subjectCode,
-      }),
-    )
+    try {
+      sessionStorage.setItem(
+        sessionHandoffKey(userId),
+        JSON.stringify({
+          userId,
+          sessionId: draft.sessionId,
+          questionIds: draft.questionIds,
+          draftAnswers: draft.answers,
+          draftFeedback: draft.feedback,
+          draftCurrentIndex: draft.currentIndex,
+          draftId: draft.id,
+          subjectName: draft.subjectName,
+          subjectCode: draft.subjectCode,
+        }),
+      )
+    } catch (err) {
+      console.warn('[resume-draft-banner] sessionStorage handoff failed:', err)
+      setDiscardError('Unable to resume right now. Please try again.')
+      return
+    }
     router.push('/app/quiz/session')
   }
 

@@ -28,6 +28,7 @@ export function useSessionRecovery(recovery: ActiveSession | null, userId: strin
       if (result.success) {
         clearActiveSession(userId)
         clearDeploymentPin().catch(() => {})
+        setLoading(false)
         router.replace('/app/quiz')
       } else {
         setError(result.error ?? 'Failed to save. Please try again.')

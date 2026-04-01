@@ -33,20 +33,26 @@ export function DraftCard({ draft, userId }: { draft: DraftData; userId: string 
     : ''
 
   function handleResume() {
-    sessionStorage.setItem(
-      sessionHandoffKey(userId),
-      JSON.stringify({
-        userId,
-        sessionId: draft.sessionId,
-        questionIds: draft.questionIds,
-        draftAnswers: draft.answers,
-        draftFeedback: draft.feedback,
-        draftCurrentIndex: draft.currentIndex,
-        draftId: draft.id,
-        subjectName: draft.subjectName,
-        subjectCode: draft.subjectCode,
-      }),
-    )
+    try {
+      sessionStorage.setItem(
+        sessionHandoffKey(userId),
+        JSON.stringify({
+          userId,
+          sessionId: draft.sessionId,
+          questionIds: draft.questionIds,
+          draftAnswers: draft.answers,
+          draftFeedback: draft.feedback,
+          draftCurrentIndex: draft.currentIndex,
+          draftId: draft.id,
+          subjectName: draft.subjectName,
+          subjectCode: draft.subjectCode,
+        }),
+      )
+    } catch (err) {
+      console.warn('[draft-card] sessionStorage handoff failed:', err)
+      setError('Unable to resume right now. Please try again.')
+      return
+    }
     router.push('/app/quiz/session')
   }
 
