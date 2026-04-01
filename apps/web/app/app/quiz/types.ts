@@ -86,6 +86,7 @@ export type DraftData = {
   sessionId: string
   questionIds: string[]
   answers: Record<string, DraftAnswer>
+  feedback?: Record<string, AnswerFeedback>
   currentIndex: number
   subjectName?: string
   subjectCode?: string

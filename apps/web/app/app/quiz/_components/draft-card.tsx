@@ -40,6 +40,7 @@ export function DraftCard({ draft, userId }: { draft: DraftData; userId: string 
         sessionId: draft.sessionId,
         questionIds: draft.questionIds,
         draftAnswers: draft.answers,
+        draftFeedback: draft.feedback,
         draftCurrentIndex: draft.currentIndex,
         draftId: draft.id,
         subjectName: draft.subjectName,

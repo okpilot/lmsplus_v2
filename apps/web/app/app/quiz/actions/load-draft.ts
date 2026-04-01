@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { Database } from '@repo/db/types'
-import type { DraftData, LoadDraftsResult } from '../types'
+import type { AnswerFeedback, DraftData, LoadDraftsResult } from '../types'
 
 type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
 type SessionConfig = { sessionId: string; subjectName?: string; subjectCode?: string }
@@ -17,6 +17,11 @@ function isSessionConfig(v: unknown): v is SessionConfig {
 
 function rowToDraftData(row: QuizDraftRow): DraftData {
   const raw = row.session_config
+  // `feedback` was added in migration 061 — cast via unknown until types are regenerated
+  const feedback = (row as unknown as { feedback?: unknown }).feedback as
+    | Record<string, AnswerFeedback>
+    | null
+    | undefined
   if (!isSessionConfig(raw)) {
     console.error('[rowToDraftData] Malformed session_config on draft', row.id)
     return {
@@ -24,6 +29,7 @@ function rowToDraftData(row: QuizDraftRow): DraftData {
       sessionId: '',
       questionIds: row.question_ids,
       answers: row.answers as Record<string, { selectedOptionId: string; responseTimeMs: number }>,
+      feedback: feedback ?? undefined,
       currentIndex: row.current_index,
       subjectName: undefined,
       subjectCode: undefined,
@@ -36,6 +42,7 @@ function rowToDraftData(row: QuizDraftRow): DraftData {
     sessionId: config.sessionId,
     questionIds: row.question_ids,
     answers: row.answers as Record<string, { selectedOptionId: string; responseTimeMs: number }>,
+    feedback: feedback ?? undefined,
     currentIndex: row.current_index,
     subjectName: config.subjectName,
     subjectCode: config.subjectCode,
