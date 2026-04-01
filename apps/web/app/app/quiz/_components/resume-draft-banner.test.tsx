@@ -33,6 +33,18 @@ const DRAFT = {
   currentIndex: 1,
 }
 
+const DRAFT_WITH_FEEDBACK = {
+  ...DRAFT,
+  feedback: {
+    q1: {
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: 'Correct — lift equals weight in level flight.',
+      explanationImageUrl: null,
+    },
+  },
+}
+
 // ---- Tests ----------------------------------------------------------------
 
 beforeEach(() => {
@@ -63,6 +75,23 @@ describe('ResumeDraftBanner', () => {
     expect(stored.questionIds).toEqual(['q1', 'q2', 'q3'])
     expect(stored.draftAnswers).toEqual(DRAFT.answers)
     expect(stored.draftCurrentIndex).toBe(1)
+  })
+
+  it('includes draftFeedback in sessionStorage handoff when draft has feedback', () => {
+    render(<ResumeDraftBanner draft={DRAFT_WITH_FEEDBACK} userId="test-user-id" />)
+    fireEvent.click(screen.getByText('Resume'))
+
+    const stored = JSON.parse(sessionStorage.getItem('quiz-session:test-user-id') ?? '{}')
+    expect(stored.draftFeedback).toEqual(DRAFT_WITH_FEEDBACK.feedback)
+  })
+
+  it('writes draftFeedback as undefined when draft has no feedback', () => {
+    render(<ResumeDraftBanner draft={DRAFT} userId="test-user-id" />)
+    fireEvent.click(screen.getByText('Resume'))
+
+    const stored = JSON.parse(sessionStorage.getItem('quiz-session:test-user-id') ?? '{}')
+    // JSON.stringify(undefined) → key omitted; JSON.parse returns no key
+    expect(stored.draftFeedback).toBeUndefined()
   })
 
   it('hides the banner and calls deleteDraft with draftId on Discard click', async () => {

@@ -66,6 +66,24 @@ const ACTIVE_SESSION = {
   savedAt: Date.now(),
 }
 
+const ACTIVE_SESSION_WITH_FEEDBACK = {
+  ...ACTIVE_SESSION,
+  feedback: {
+    q1: {
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: 'Dew point rises as humidity increases.',
+      explanationImageUrl: null,
+    },
+    q2: {
+      isCorrect: false,
+      correctOptionId: 'opt-c',
+      explanationText: null,
+      explanationImageUrl: null,
+    },
+  },
+}
+
 // ---- Lifecycle ------------------------------------------------------------
 
 const originalSessionStorage = globalThis.sessionStorage
@@ -172,6 +190,50 @@ describe('QuizRecoveryBanner — Resume', () => {
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
+  it('includes draftFeedback in sessionStorage handoff when the session has feedback', async () => {
+    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION_WITH_FEEDBACK)
+    const storage: Record<string, string> = {}
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        setItem: (key: string, value: string) => {
+          storage[key] = value
+        },
+        getItem: (key: string) => storage[key] ?? null,
+        removeItem: vi.fn(),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    render(<QuizRecoveryBanner userId="test-user-id" />)
+    await userEvent.click(screen.getByRole('button', { name: /resume/i }))
+
+    const stored = JSON.parse(storage['quiz-session:test-user-id'] ?? '{}')
+    expect(stored.draftFeedback).toEqual(ACTIVE_SESSION_WITH_FEEDBACK.feedback)
+  })
+
+  it('writes draftFeedback as undefined in sessionStorage when the session has no feedback', async () => {
+    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
+    const storage: Record<string, string> = {}
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        setItem: (key: string, value: string) => {
+          storage[key] = value
+        },
+        getItem: (key: string) => storage[key] ?? null,
+        removeItem: vi.fn(),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    render(<QuizRecoveryBanner userId="test-user-id" />)
+    await userEvent.click(screen.getByRole('button', { name: /resume/i }))
+
+    const stored = JSON.parse(storage['quiz-session:test-user-id'] ?? '{}')
+    expect(stored.draftFeedback).toBeUndefined()
+  })
+
   it('logs a warning when the resume handoff throws', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
@@ -217,6 +279,32 @@ describe('QuizRecoveryBanner — Save for Later', () => {
     await waitFor(() =>
       expect(screen.queryByText(/unfinished quiz found/i)).not.toBeInTheDocument(),
     )
+  })
+
+  it('passes feedback to saveDraft when the session has feedback', async () => {
+    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION_WITH_FEEDBACK)
+    mockSaveDraft.mockResolvedValue({ success: true })
+
+    render(<QuizRecoveryBanner userId="test-user-id" />)
+    await userEvent.click(screen.getByRole('button', { name: /save for later/i }))
+
+    await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledTimes(1))
+    expect(mockSaveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ feedback: ACTIVE_SESSION_WITH_FEEDBACK.feedback }),
+    )
+  })
+
+  it('calls saveDraft without feedback when the session has no feedback', async () => {
+    mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
+    mockSaveDraft.mockResolvedValue({ success: true })
+
+    render(<QuizRecoveryBanner userId="test-user-id" />)
+    await userEvent.click(screen.getByRole('button', { name: /save for later/i }))
+
+    await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledTimes(1))
+    // feedback key should be undefined (not present in the session)
+    const callArg = mockSaveDraft.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(callArg.feedback).toBeUndefined()
   })
 
   it('shows Save for Later button as loading while save is in progress', async () => {
