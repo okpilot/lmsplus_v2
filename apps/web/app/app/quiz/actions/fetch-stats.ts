@@ -19,6 +19,7 @@ export async function fetchQuestionStats(questionId: string): Promise<QuestionSt
   try {
     ;({ questionId: id } = FetchStatsSchema.parse({ questionId }))
   } catch {
+    console.error('[fetchQuestionStats] Invalid input')
     throw new Error('Invalid input')
   }
 

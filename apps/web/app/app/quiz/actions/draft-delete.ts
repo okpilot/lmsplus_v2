@@ -20,6 +20,7 @@ export async function deleteDraft(raw: unknown): Promise<{ success: boolean }> {
     try {
       ;({ draftId } = DeleteDraftInput.parse(raw))
     } catch {
+      console.error('[deleteDraft] Invalid input')
       return { success: false }
     }
 
