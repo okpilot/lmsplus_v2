@@ -27,12 +27,13 @@ export async function discardQuiz(
     }
 
     // Soft-delete the session — only if it belongs to this user and is still active
-    const { error: sessionError } = await supabase
+    const { data: sessionData, error: sessionError } = await supabase
       .from('quiz_sessions')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', input.sessionId)
       .eq('student_id', user.id)
       .is('ended_at', null)
+      .select('id')
 
     if (sessionError) {
       console.error(
@@ -42,6 +43,9 @@ export async function discardQuiz(
         sessionError.details,
       )
       return { success: false, error: 'Failed to discard quiz' }
+    }
+    if (!sessionData?.length) {
+      return { success: false, error: 'Session not found or already discarded' }
     }
     console.log(
       '[discardQuiz] Success — session',

@@ -78,7 +78,9 @@ describe('discardQuiz', () => {
   // ---- session soft-delete -------------------------------------------------
 
   it('soft-deletes the session and returns success when no draftId is provided', async () => {
-    mockFrom.mockReturnValue(buildChain({ error: null }))
+    mockFrom.mockReturnValue(
+      buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null }),
+    )
 
     const result = await discardQuiz({
       sessionId: '00000000-0000-4000-a000-000000000001',
@@ -86,6 +88,16 @@ describe('discardQuiz', () => {
 
     expect(result).toEqual({ success: true })
     expect(mockFrom).toHaveBeenCalledWith('quiz_sessions')
+  })
+
+  it('returns failure when session not found or not owned (zero rows affected)', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+
+    const result = await discardQuiz({
+      sessionId: '00000000-0000-4000-a000-000000000001',
+    })
+
+    expect(result).toEqual({ success: false, error: 'Session not found or already discarded' })
   })
 
   it('returns failure when the session soft-delete query errors', async () => {
@@ -106,7 +118,8 @@ describe('discardQuiz', () => {
 
   it('deletes the draft and returns success when draftId is provided', async () => {
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'quiz_sessions') return buildChain({ error: null })
+      if (table === 'quiz_sessions')
+        return buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null })
       if (table === 'quiz_drafts') return buildChain({ error: null })
       throw new Error(`Unexpected table: ${table}`)
     })
@@ -122,7 +135,8 @@ describe('discardQuiz', () => {
 
   it('still returns success when draft deletion fails (non-fatal)', async () => {
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'quiz_sessions') return buildChain({ error: null })
+      if (table === 'quiz_sessions')
+        return buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null })
       if (table === 'quiz_drafts') return buildChain({ error: { message: 'draft not found' } })
       throw new Error(`Unexpected table: ${table}`)
     })
@@ -137,7 +151,9 @@ describe('discardQuiz', () => {
   })
 
   it('does not query quiz_drafts when no draftId is provided', async () => {
-    mockFrom.mockReturnValue(buildChain({ error: null }))
+    mockFrom.mockReturnValue(
+      buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null }),
+    )
 
     await discardQuiz({
       sessionId: '00000000-0000-4000-a000-000000000001',
@@ -152,7 +168,8 @@ describe('discardQuiz', () => {
     const draftChainMethods: string[] = []
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'quiz_sessions') return buildChain({ error: null })
+      if (table === 'quiz_sessions')
+        return buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null })
       if (table === 'quiz_drafts') {
         // Build a spy chain that records method names before forwarding
         const spyChain = (returnValue: unknown): unknown => {
