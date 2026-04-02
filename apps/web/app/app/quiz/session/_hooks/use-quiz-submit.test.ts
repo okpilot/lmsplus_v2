@@ -201,6 +201,38 @@ describe('useQuizSubmit — handleSave', () => {
     expect(call.userId).toBe(USER_ID)
     expect(call.sessionId).toBe(SESSION_ID)
   })
+
+  it('excludes pending answers from the saved map', async () => {
+    const answers = new Map<string, DraftAnswer>([
+      [Q1, SAMPLE_ANSWER],
+      [Q2, { selectedOptionId: 'opt-b', responseTimeMs: 300 }],
+    ])
+    const { result } = renderHook(() =>
+      useQuizSubmit(
+        makeDefaultOpts({
+          answersRef: { current: answers },
+          pendingQuestionIdRef: makePendingRef([Q2]),
+        }),
+      ),
+    )
+    await act(async () => result.current.handleSave())
+
+    const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
+    const saved = call.answers as Map<string, DraftAnswer>
+    expect(saved.size).toBe(1)
+    expect(saved.has(Q1)).toBe(true)
+    expect(saved.has(Q2)).toBe(false)
+  })
+
+  it('passes all answers when pending set is empty', async () => {
+    const answers = new Map<string, DraftAnswer>([[Q1, SAMPLE_ANSWER]])
+    const ref = { current: answers }
+    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts({ answersRef: ref })))
+    await act(async () => result.current.handleSave())
+
+    const call = mockHandleSaveSession.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call.answers).toBe(answers)
+  })
 })
 
 // ---- handleDiscard -------------------------------------------------------

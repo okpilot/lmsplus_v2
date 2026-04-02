@@ -122,6 +122,10 @@ describe('isValidFeedbackEntry', () => {
     expect(isValidFeedbackEntry({ ...validEntry, correctOptionId: 1 })).toBe(false)
   })
 
+  it('returns false when correctOptionId is an empty string', () => {
+    expect(isValidFeedbackEntry({ ...validEntry, correctOptionId: '' })).toBe(false)
+  })
+
   it('returns false when explanationText is a number', () => {
     expect(isValidFeedbackEntry({ ...validEntry, explanationText: 42 })).toBe(false)
   })

@@ -13,7 +13,7 @@ export function isValidFeedbackEntry(v: unknown): boolean {
   const r = v as Record<string, unknown>
   return (
     typeof r.isCorrect === 'boolean' &&
-    typeof r.correctOptionId === 'string' &&
+    isNonEmptyString(r.correctOptionId) &&
     (r.explanationText === null || typeof r.explanationText === 'string') &&
     (r.explanationImageUrl === null || typeof r.explanationImageUrl === 'string')
   )
