@@ -1,6 +1,5 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SessionTimer } from '@/app/app/_components/session-timer'
 import { ThemeToggle } from '@/app/app/_components/theme-toggle'
 import type { SessionQuestion } from '@/app/app/_types/session'
@@ -11,6 +10,7 @@ import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizState } from '../_hooks/use-quiz-state'
+import { useQuizUI } from '../_hooks/use-quiz-ui'
 import { QuizControls } from './quiz-controls'
 import { QuizMainPanel } from './quiz-main-panel'
 
@@ -30,30 +30,14 @@ export function QuizSession(props: QuizSessionProps) {
   const s = useQuizState(props)
   const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
   const { flaggedIds, isFlagged, toggleFlag } = useFlaggedQuestions(s.questionIds)
-
-  const feedbackMap = useMemo(() => {
-    const map = new Map<string, { isCorrect: boolean }>()
-    for (const [qId, fb] of s.feedback) {
-      map.set(qId, { isCorrect: fb.isCorrect })
-    }
-    return map
-  }, [s.feedback])
-
-  // Track selected option for mobile footer submit button
-  const [pendingOptionId, setPendingOptionId] = useState<string | null>(null)
-  const handleSelectionChange = useCallback((id: string | null) => setPendingOptionId(id), [])
-
-  // Clear pending selection when navigating to a different question
-  const currentIndex = s.currentIndex
-  // biome-ignore lint/correctness/useExhaustiveDependencies: currentIndex triggers reset on navigation
-  useEffect(() => {
-    setPendingOptionId(null)
-  }, [currentIndex])
+  const { feedbackMap, pendingOptionId, handleSelectionChange, canSubmitAnswer } = useQuizUI({
+    feedback: s.feedback,
+    currentIndex: s.currentIndex,
+    activeTab,
+    existingAnswer: s.existingAnswer,
+  })
 
   if (!s.question) return null
-
-  const isQuestionTab = activeTab === 'question'
-  const canSubmitAnswer = isQuestionTab && !s.existingAnswer && !!pendingOptionId
 
   return (
     <div className="flex flex-1 flex-col">

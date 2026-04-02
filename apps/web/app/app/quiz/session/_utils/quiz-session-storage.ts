@@ -1,4 +1,5 @@
 import type { AnswerFeedback, DraftAnswer } from '../../types'
+import { hasValidOptionalFields, isNonEmptyString } from './quiz-session-validators'
 
 const storageKey = (userId: string) => `quiz-active-session:${userId}`
 
@@ -102,39 +103,6 @@ export type SessionData = {
   draftId?: string
   subjectName?: string
   subjectCode?: string
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0
-}
-
-function hasValidOptionalFields(d: Record<string, unknown>, questionCount: number): boolean {
-  if ('draftAnswers' in d && d.draftAnswers !== undefined) {
-    if (
-      typeof d.draftAnswers !== 'object' ||
-      d.draftAnswers === null ||
-      Array.isArray(d.draftAnswers)
-    )
-      return false
-  }
-  if ('draftCurrentIndex' in d && d.draftCurrentIndex !== undefined) {
-    if (
-      !Number.isInteger(d.draftCurrentIndex) ||
-      (d.draftCurrentIndex as number) < 0 ||
-      (d.draftCurrentIndex as number) >= questionCount
-    )
-      return false
-  }
-  if ('draftId' in d && d.draftId !== undefined) {
-    if (!isNonEmptyString(d.draftId)) return false
-  }
-  if ('subjectName' in d && d.subjectName !== undefined) {
-    if (typeof d.subjectName !== 'string') return false
-  }
-  if ('subjectCode' in d && d.subjectCode !== undefined) {
-    if (typeof d.subjectCode !== 'string') return false
-  }
-  return true
 }
 
 export function isValidSessionData(data: unknown, expectedUserId: string): data is SessionData {

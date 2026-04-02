@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { checkAnswer } from '../../actions/check-answer'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
+import { type CheckResult, handleAnswerError, recordAnswerFeedback } from './answer-handler-helpers'
 
 type AnswerHandlerOpts = {
   sessionId: string
@@ -52,41 +53,24 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       return next
     })
     pendingQuestionIdRef.current.add(questionId)
-    let result: {
-      isCorrect: boolean
-      correctOptionId: string
-      explanationText: string | null
-      explanationImageUrl: string | null
-    }
+    let result: CheckResult
     try {
       const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
       if (!r.success) throw new Error(r.error)
       result = r
     } catch {
-      pendingQuestionIdRef.current.delete(questionId)
-      lockedRef.current.delete(questionId)
-      setAnswers((p) => {
-        const m = new Map(p)
-        m.delete(questionId)
-        answersRef.current = m
-        return m
-      })
-      try {
-        onAnswerReverted?.(answersRef.current)
-      } catch (err) {
-        console.warn('[use-answer-handler] Revert checkpoint failed (best-effort):', err)
-      }
-      setError('Failed to check answer. Please try again.')
+      handleAnswerError(
+        questionId,
+        lockedRef,
+        pendingQuestionIdRef,
+        answersRef,
+        setAnswers,
+        setError,
+        onAnswerReverted,
+      )
       return false
     }
-    const nextFeedback = new Map(feedbackRef.current).set(questionId, {
-      isCorrect: result.isCorrect,
-      correctOptionId: result.correctOptionId,
-      explanationText: result.explanationText,
-      explanationImageUrl: result.explanationImageUrl,
-    })
-    feedbackRef.current = nextFeedback
-    setFeedback(nextFeedback)
+    const nextFeedback = recordAnswerFeedback(questionId, result, feedbackRef, setFeedback)
     setError(null)
     try {
       onAnswerRecorded?.(
