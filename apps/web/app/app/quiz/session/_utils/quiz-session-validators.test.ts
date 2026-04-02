@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { hasValidOptionalFields, isNonEmptyString } from './quiz-session-validators'
 
-// ---- isNonEmptyString -------------------------------------------------------
-
 describe('isNonEmptyString', () => {
   it('returns true for a non-empty string', () => {
     expect(isNonEmptyString('hello')).toBe(true)
@@ -33,17 +31,11 @@ describe('isNonEmptyString', () => {
   })
 
   it('returns true for a string containing only whitespace', () => {
-    // Whitespace is non-empty (length > 0) — callers decide if they want to trim
     expect(isNonEmptyString('  ')).toBe(true)
   })
 })
-
-// ---- hasValidOptionalFields -------------------------------------------------
-
 describe('hasValidOptionalFields', () => {
   const QUESTION_COUNT = 5
-
-  // ---- happy path: absent or undefined fields are always valid ----------------
 
   it('returns true when no optional fields are present', () => {
     expect(hasValidOptionalFields({}, QUESTION_COUNT)).toBe(true)
@@ -63,8 +55,6 @@ describe('hasValidOptionalFields', () => {
       ),
     ).toBe(true)
   })
-
-  // ---- draftAnswers -----------------------------------------------------------
 
   it('returns true when draftAnswers is a plain object', () => {
     expect(
@@ -88,15 +78,12 @@ describe('hasValidOptionalFields', () => {
   })
 
   it('returns false when draftAnswers is null', () => {
-    // null is typeof 'object' but fails the !== null guard
     expect(hasValidOptionalFields({ draftAnswers: null }, QUESTION_COUNT)).toBe(false)
   })
 
   it('returns false when draftAnswers is a number', () => {
     expect(hasValidOptionalFields({ draftAnswers: 42 }, QUESTION_COUNT)).toBe(false)
   })
-
-  // ---- draftCurrentIndex ------------------------------------------------------
 
   it('returns true when draftCurrentIndex is 0 (lower boundary)', () => {
     expect(hasValidOptionalFields({ draftCurrentIndex: 0 }, QUESTION_COUNT)).toBe(true)
@@ -128,8 +115,6 @@ describe('hasValidOptionalFields', () => {
     )
   })
 
-  // ---- draftId ----------------------------------------------------------------
-
   it('returns true when draftId is a non-empty string', () => {
     expect(hasValidOptionalFields({ draftId: 'draft-abc' }, QUESTION_COUNT)).toBe(true)
   })
@@ -142,14 +127,11 @@ describe('hasValidOptionalFields', () => {
     expect(hasValidOptionalFields({ draftId: 123 }, QUESTION_COUNT)).toBe(false)
   })
 
-  // ---- subjectName ------------------------------------------------------------
-
   it('returns true when subjectName is a non-empty string', () => {
     expect(hasValidOptionalFields({ subjectName: 'Meteorology' }, QUESTION_COUNT)).toBe(true)
   })
 
   it('returns true when subjectName is an empty string (any string is valid)', () => {
-    // The type is `typeof value === 'string'` — empty string is still a string
     expect(hasValidOptionalFields({ subjectName: '' }, QUESTION_COUNT)).toBe(true)
   })
 
@@ -160,8 +142,6 @@ describe('hasValidOptionalFields', () => {
   it('returns false when subjectName is a boolean', () => {
     expect(hasValidOptionalFields({ subjectName: true }, QUESTION_COUNT)).toBe(false)
   })
-
-  // ---- subjectCode ------------------------------------------------------------
 
   it('returns true when subjectCode is a non-empty string', () => {
     expect(hasValidOptionalFields({ subjectCode: 'MET' }, QUESTION_COUNT)).toBe(true)

@@ -302,7 +302,6 @@ describe('QuizRecoveryBanner — Save for Later', () => {
     await userEvent.click(screen.getByRole('button', { name: /save for later/i }))
 
     await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledTimes(1))
-    // feedback key should be undefined (not present in the session)
     const callArg = mockSaveDraft.mock.calls[0]?.[0] as Record<string, unknown>
     expect(callArg.feedback).toBeUndefined()
   })
