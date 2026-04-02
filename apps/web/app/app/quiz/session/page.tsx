@@ -1,16 +1,10 @@
-import { createServerSupabaseClient } from '@repo/db/server'
-import { redirect } from 'next/navigation'
+import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import { QuizSessionLoader } from './_components/quiz-session-loader'
 
 export const dynamic = 'force-dynamic'
 
 export default async function QuizSessionPage() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) redirect('/')
+  const user = await requireAuthUser()
 
   return (
     <main>

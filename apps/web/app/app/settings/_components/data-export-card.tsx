@@ -5,6 +5,7 @@ import { useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { downloadJsonFile } from '@/lib/gdpr/download-json'
 import { exportMyData } from '../gdpr-actions'
 
 export function DataExportCard() {
@@ -19,17 +20,10 @@ export function DataExportCard() {
           return
         }
 
-        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
-          type: 'application/json',
-        })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `lmsplus-data-export-${new Date().toISOString().slice(0, 10)}.json`
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        setTimeout(() => URL.revokeObjectURL(url), 0)
+        downloadJsonFile(
+          result.data,
+          `lmsplus-data-export-${new Date().toISOString().slice(0, 10)}.json`,
+        )
 
         toast.success('Data exported successfully')
       } catch {

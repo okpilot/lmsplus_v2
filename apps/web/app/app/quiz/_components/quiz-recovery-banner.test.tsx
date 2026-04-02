@@ -20,11 +20,15 @@ const {
   mockDiscardQuiz: vi.fn(),
 }))
 
-vi.mock('../session/_utils/quiz-session-storage', () => ({
-  readActiveSession: () => mockReadActiveSession(),
-  clearActiveSession: mockClearActiveSession,
-  sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
-}))
+vi.mock('../session/_utils/quiz-session-storage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../session/_utils/quiz-session-storage')>()
+  return {
+    ...actual,
+    readActiveSession: () => mockReadActiveSession(),
+    clearActiveSession: mockClearActiveSession,
+    sessionHandoffKey: (userId: string) => `quiz-session:${userId}`,
+  }
+})
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush, refresh: mockRouterRefresh }),
