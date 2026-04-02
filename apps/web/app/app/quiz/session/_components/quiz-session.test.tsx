@@ -329,8 +329,9 @@ describe('QuizSession', () => {
 
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
-    // Answer a question
+    // Answer a question and wait for checkAnswer to resolve (clears pending ref)
     fireEvent.click(screen.getByTestId('option-a'))
+    await waitFor(() => expect(mockCheckAnswer).toHaveBeenCalled())
 
     // Open dialog and submit
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
@@ -361,7 +362,10 @@ describe('QuizSession', () => {
 
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
+    // Answer a question and wait for checkAnswer to resolve (clears pending ref)
     fireEvent.click(screen.getByTestId('option-a'))
+    await waitFor(() => expect(mockCheckAnswer).toHaveBeenCalled())
+
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
     fireEvent.click(screen.getByRole('button', { name: 'Submit Quiz' }))
 
@@ -470,8 +474,9 @@ describe('QuizSession', () => {
 
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
 
-    // Answer a question so the dialog Submit Quiz button is enabled
+    // Answer a question and wait for checkAnswer to resolve (clears pending ref)
     fireEvent.click(screen.getByTestId('option-a'))
+    await waitFor(() => expect(mockCheckAnswer).toHaveBeenCalled())
 
     // Open the finish dialog and click submit
     fireEvent.click(screen.getByRole('button', { name: 'Finish Test' }))
