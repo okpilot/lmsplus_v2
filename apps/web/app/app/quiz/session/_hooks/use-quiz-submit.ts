@@ -43,11 +43,16 @@ export function useQuizSubmit(opts: {
   }
 
   function handleSave() {
+    const pending = opts.pendingQuestionIdRef.current
+    const safeAnswers =
+      pending.size > 0
+        ? new Map([...opts.answersRef.current].filter(([qId]) => !pending.has(qId)))
+        : opts.answersRef.current
     return handleSaveSession({
       userId: opts.userId,
       sessionId: opts.sessionId,
       questions: opts.questions,
-      answers: opts.answersRef.current,
+      answers: safeAnswers,
       feedback: opts.feedbackRef.current,
       currentIndex: opts.currentIndexRef.current,
       draftId: opts.draftId,

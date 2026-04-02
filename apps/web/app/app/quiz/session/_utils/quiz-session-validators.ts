@@ -5,7 +5,7 @@ export function isNonEmptyString(value: unknown): value is string {
 export function isValidDraftAnswer(v: unknown): boolean {
   if (typeof v !== 'object' || v === null) return false
   const r = v as Record<string, unknown>
-  return typeof r.selectedOptionId === 'string' && typeof r.responseTimeMs === 'number'
+  return isNonEmptyString(r.selectedOptionId) && typeof r.responseTimeMs === 'number'
 }
 
 export function isValidFeedbackEntry(v: unknown): boolean {
