@@ -2,9 +2,15 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz'
 import { startQuizSession } from '../actions/start'
+import {
+  clearActiveSession,
+  readActiveSession,
+  sessionHandoffKey,
+} from '../session/_utils/quiz-session-storage'
 import type { QuestionFilterValue } from '../types'
 
 type UseQuizStartOpts = {
+  userId: string
   subjectId: string
   subjects: SubjectOption[]
   count: number
@@ -17,13 +23,19 @@ type UseQuizStartOpts = {
 }
 
 export function useQuizStart(opts: UseQuizStartOpts) {
-  const { subjectId, subjects, count, maxQuestions, filters, topicTree } = opts
+  const { userId, subjectId, subjects, count, maxQuestions, filters, topicTree } = opts
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleStart() {
     if (!subjectId) return
+    const existing = readActiveSession(userId)
+    if (existing) {
+      const suffix = existing.subjectName ? ` (${existing.subjectName})` : ''
+      const msg = `You have an unfinished quiz${suffix}. Starting a new quiz will lose it. Continue?`
+      if (!globalThis.confirm(msg)) return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -39,15 +51,24 @@ export function useQuizStart(opts: UseQuizStartOpts) {
       })
       if (result.success) {
         const selectedSubject = subjects.find((s) => s.id === subjectId)
-        sessionStorage.setItem(
-          'quiz-session',
-          JSON.stringify({
-            sessionId: result.sessionId,
-            questionIds: result.questionIds,
-            subjectName: selectedSubject?.name,
-            subjectCode: selectedSubject?.short,
-          }),
-        )
+        try {
+          sessionStorage.setItem(
+            sessionHandoffKey(userId),
+            JSON.stringify({
+              userId,
+              sessionId: result.sessionId,
+              questionIds: result.questionIds,
+              subjectName: selectedSubject?.name,
+              subjectCode: selectedSubject?.short,
+            }),
+          )
+        } catch (err) {
+          console.warn('[use-quiz-start] sessionStorage handoff failed:', err)
+          setError('Unable to start quiz right now. Please try again.')
+          setLoading(false)
+          return
+        }
+        if (existing) clearActiveSession(userId)
         router.push('/app/quiz/session')
         return
       }

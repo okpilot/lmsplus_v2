@@ -9,6 +9,7 @@ type DialogProps = {
   answeredCount?: number
   totalQuestions?: number
   submitting?: boolean
+  error?: string | null
   onSubmit?: () => void
   onCancel?: () => void
   onSave?: () => void
@@ -309,5 +310,32 @@ describe('FinishQuizDialog', () => {
       />,
     )
     expect(screen.getByRole('button', { name: /go back/i })).toBeDisabled()
+  })
+
+  // ---- Error prop ----------------------------------------------------------
+
+  it('shows the error message when the error prop has a value', () => {
+    renderDialog({ error: 'Session expired. Please try again.' })
+    expect(screen.getByText('Session expired. Please try again.')).toBeInTheDocument()
+  })
+
+  it('does not render an error paragraph when error prop is null', () => {
+    renderDialog({ error: null })
+    // No extra paragraph beyond the answered-count line
+    expect(screen.queryByText(/session expired/i)).not.toBeInTheDocument()
+  })
+
+  it('does not render an error paragraph when error prop is undefined', () => {
+    // renderDialog defaults don't include error, so the prop is absent
+    renderDialog()
+    // Confirm no stray error text leaked into the DOM
+    expect(screen.queryByText(/error/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the error text inside a paragraph with destructive styling class', () => {
+    renderDialog({ error: 'Something went wrong' })
+    const errorEl = screen.getByText('Something went wrong')
+    expect(errorEl.tagName.toLowerCase()).toBe('p')
+    expect(errorEl.className).toMatch(/destructive/)
   })
 })

@@ -320,6 +320,89 @@ describe('saveDraft', () => {
     expect(result).toEqual({ success: false, error: 'Current index out of range' })
   })
 
+  it('accepts a valid feedback record and passes it through to the insert row', async () => {
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+
+    const feedbackPayload = {
+      [Q1_ID]: {
+        isCorrect: true,
+        correctOptionId: 'opt-a',
+        explanationText: 'Lift equals weight in level flight.',
+        explanationImageUrl: null,
+      },
+    }
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, feedback: feedbackPayload })
+
+    expect(result).toEqual({ success: true })
+    expect(capturedInsertArg).toBeDefined()
+    expect(capturedInsertArg!.feedback).toEqual(feedbackPayload)
+  })
+
+  it('does not include feedback key in insert row when feedback is omitted', async () => {
+    setupAuthenticatedUser()
+    let capturedInsertArg: Record<string, unknown> | undefined
+    let callIndex = 0
+    mockFrom.mockImplementation(() => {
+      callIndex++
+      if (callIndex === 1) return mockChain()
+      if (callIndex === 2) {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ count: 0, error: null }),
+          }),
+        }
+      }
+      return {
+        insert: vi.fn().mockImplementation((row: Record<string, unknown>) => {
+          capturedInsertArg = row
+          return { error: null }
+        }),
+      }
+    })
+
+    const result = await saveDraft(VALID_DRAFT_INPUT)
+
+    expect(result).toEqual({ success: true })
+    expect(capturedInsertArg).not.toHaveProperty('feedback')
+  })
+
+  it('rejects a feedback entry where isCorrect is not a boolean', async () => {
+    setupAuthenticatedUser()
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      feedback: {
+        [Q1_ID]: {
+          isCorrect: 'yes', // invalid — must be boolean
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(typeof result.error).toBe('string')
+  })
+
   it('rejects answers whose keys are not present in questionIds', async () => {
     setupAuthenticatedUser()
     const staleQuestionId = '00000000-0000-4000-a000-000000000099'
@@ -427,6 +510,59 @@ describe('saveDraft — update path', () => {
     const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
 
     expect(result).toEqual({ success: true })
+  })
+
+  it('passes feedback through to the update payload when provided', async () => {
+    setupAuthenticatedUser()
+
+    let capturedUpdateArg: Record<string, unknown> | undefined
+    const selectFn = vi.fn().mockReturnValue({ data: [{ id: DRAFT_ID }], error: null })
+    const updateEq2 = vi.fn().mockReturnValue({ select: selectFn })
+    const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
+    const updateFn = vi.fn().mockImplementation((payload: Record<string, unknown>) => {
+      capturedUpdateArg = payload
+      return { eq: updateEq1 }
+    })
+
+    mockFrom.mockReturnValue({ update: updateFn })
+
+    const feedbackPayload = {
+      [Q1_ID]: {
+        isCorrect: false,
+        correctOptionId: 'opt-b',
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+
+    const result = await saveDraft({
+      ...VALID_DRAFT_INPUT,
+      draftId: DRAFT_ID,
+      feedback: feedbackPayload,
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(capturedUpdateArg!.feedback).toEqual(feedbackPayload)
+  })
+
+  it('omits feedback key from update payload when feedback is not provided', async () => {
+    setupAuthenticatedUser()
+
+    let capturedUpdateArg: Record<string, unknown> | undefined
+    const selectFn = vi.fn().mockReturnValue({ data: [{ id: DRAFT_ID }], error: null })
+    const updateEq2 = vi.fn().mockReturnValue({ select: selectFn })
+    const updateEq1 = vi.fn().mockReturnValue({ eq: updateEq2 })
+    const updateFn = vi.fn().mockImplementation((payload: Record<string, unknown>) => {
+      capturedUpdateArg = payload
+      return { eq: updateEq1 }
+    })
+
+    mockFrom.mockReturnValue({ update: updateFn })
+
+    const result = await saveDraft({ ...VALID_DRAFT_INPUT, draftId: DRAFT_ID })
+
+    expect(result).toEqual({ success: true })
+    expect(capturedUpdateArg).not.toHaveProperty('feedback')
   })
 
   it('returns generic failure when the update helper throws an unexpected error', async () => {

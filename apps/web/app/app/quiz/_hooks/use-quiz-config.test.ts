@@ -88,7 +88,9 @@ beforeEach(() => {
 
 describe('useQuizConfig — initial state', () => {
   it('starts with no subject, study mode, filters=[all], count=10', () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.subjectId).toBe('')
     expect(result.current.mode).toBe('study')
     expect(result.current.filters).toEqual(['all'])
@@ -96,7 +98,9 @@ describe('useQuizConfig — initial state', () => {
   })
 
   it('starts with no loading or error', () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.loading).toBe(false)
     expect(result.current.error).toBeNull()
   })
@@ -104,7 +108,9 @@ describe('useQuizConfig — initial state', () => {
   it('exposes topicTree from useTopicTree', () => {
     const mockTree = buildMockTopicTree({ selectedQuestionCount: 42 })
     ;(useTopicTree as Mock).mockReturnValue(mockTree)
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.topicTree).toBe(mockTree)
   })
 })
@@ -113,7 +119,9 @@ describe('useQuizConfig — initial state', () => {
 
 describe('useQuizConfig — handleSubjectChange', () => {
   it('updates subjectId to the new value', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
     })
@@ -121,7 +129,9 @@ describe('useQuizConfig — handleSubjectChange', () => {
   })
 
   it('resets filters to [all] and count to 10 when subject changes', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
     })
@@ -139,7 +149,9 @@ describe('useQuizConfig — handleSubjectChange', () => {
   })
 
   it('calls topicTree.loadTopics with the new subjectId when non-empty', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
     })
@@ -149,7 +161,9 @@ describe('useQuizConfig — handleSubjectChange', () => {
   it('calls topicTree.reset when subject is cleared', async () => {
     const mockTree = buildMockTopicTree()
     ;(useTopicTree as Mock).mockReturnValue(mockTree)
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.handleSubjectChange('')
     })
@@ -157,7 +171,9 @@ describe('useQuizConfig — handleSubjectChange', () => {
   })
 
   it('calls fc.reset when subject changes', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
     })
@@ -169,7 +185,9 @@ describe('useQuizConfig — handleSubjectChange', () => {
 
 describe('useQuizConfig — setFilters', () => {
   it('updates the filters array immediately', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.setFilters(['unseen'] as QuestionFilterValue[])
     })
@@ -177,7 +195,9 @@ describe('useQuizConfig — setFilters', () => {
   })
 
   it('resets filtered counts when clearing all filters', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.setFilters(['unseen'] as QuestionFilterValue[])
     })
@@ -189,7 +209,9 @@ describe('useQuizConfig — setFilters', () => {
   })
 
   it('preserves filtered counts when applying a specific filter', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     mockFcReset.mockClear()
     await act(async () => {
       result.current.setFilters(['incorrect'] as QuestionFilterValue[])
@@ -221,7 +243,9 @@ describe('useQuizConfig — setFilters', () => {
     })
     ;(useTopicTree as Mock).mockReturnValue(mockTree)
 
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
     })
@@ -258,7 +282,9 @@ describe('useQuizConfig — setFilters', () => {
     })
     ;(useTopicTree as Mock).mockReturnValue(mockTree)
 
-    const { result, rerender } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result, rerender } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.handleSubjectChange(SUBJECT_ID)
     })
@@ -290,7 +316,9 @@ describe('useQuizConfig — setFilters', () => {
 
 describe('useQuizConfig — setMode', () => {
   it('updates mode from study to exam', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.setMode('exam')
     })
@@ -298,7 +326,9 @@ describe('useQuizConfig — setMode', () => {
   })
 
   it('can switch back from exam to study', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.setMode('exam')
     })
@@ -314,7 +344,9 @@ describe('useQuizConfig — setMode', () => {
 describe('useQuizConfig — availableCount', () => {
   it('uses topicTree.selectedQuestionCount when filters is [all]', () => {
     ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ selectedQuestionCount: 42 }))
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.availableCount).toBe(42)
   })
 
@@ -345,7 +377,9 @@ describe('useQuizConfig — availableCount', () => {
         filteredBySubtopic: { s1: 7, s2: 8 },
       }),
     )
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.setFilters(['unseen'] as QuestionFilterValue[])
     })
@@ -356,7 +390,9 @@ describe('useQuizConfig — availableCount', () => {
   it('falls back to topicTree.selectedQuestionCount when filteredCount is null (fetch pending)', async () => {
     ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ selectedQuestionCount: 20 }))
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ filteredCount: null }))
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.setFilters(['flagged'] as QuestionFilterValue[])
     })
@@ -373,7 +409,9 @@ describe('useQuizConfig — filteredByTopic / filteredBySubtopic gating', () => 
     ;(useFilteredCount as Mock).mockReturnValue(
       buildMockFilteredCount({ filteredCount: 5, filteredByTopic: byTopic }),
     )
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.setFilters(['unseen'] as QuestionFilterValue[])
     })
@@ -384,7 +422,9 @@ describe('useQuizConfig — filteredByTopic / filteredBySubtopic gating', () => 
     ;(useFilteredCount as Mock).mockReturnValue(
       buildMockFilteredCount({ filteredByTopic: { 'topic-1': 5 } }),
     )
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     // filters is still ['all'] by default
     expect(result.current.filteredByTopic).toBeNull()
   })
@@ -394,7 +434,9 @@ describe('useQuizConfig — filteredByTopic / filteredBySubtopic gating', () => 
     ;(useFilteredCount as Mock).mockReturnValue(
       buildMockFilteredCount({ filteredCount: 2, filteredBySubtopic: bySubtopic }),
     )
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       result.current.setFilters(['unseen'] as QuestionFilterValue[])
     })
@@ -408,7 +450,9 @@ describe('useQuizConfig — isPending from fc.isFilterPending', () => {
   it('is true when fc.isFilterPending is true even if topicTree.isPending is false', () => {
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ isFilterPending: true }))
     ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ isPending: false }))
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.isPending).toBe(true)
   })
 })
@@ -417,7 +461,9 @@ describe('useQuizConfig — isPending from fc.isFilterPending', () => {
 
 describe('useQuizConfig — handleStart', () => {
   it('delegates to the handleStart returned by useQuizStart', async () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     await act(async () => {
       await result.current.handleStart()
     })
@@ -430,7 +476,9 @@ describe('useQuizConfig — handleStart', () => {
       error: 'Something went wrong. Please try again.',
       handleStart: mockHandleStart,
     })
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.loading).toBe(true)
     expect(result.current.error).toBe('Something went wrong. Please try again.')
   })
@@ -441,7 +489,9 @@ describe('useQuizConfig — handleStart', () => {
 describe('useQuizConfig — isPending', () => {
   it('reflects topicTree.isPending', () => {
     ;(useTopicTree as Mock).mockReturnValue(buildMockTopicTree({ isPending: true }))
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.isPending).toBe(true)
   })
 })
@@ -450,20 +500,26 @@ describe('useQuizConfig — isPending', () => {
 
 describe('useQuizConfig — authError', () => {
   it('is false by default when useFilteredCount reports no auth error', () => {
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.authError).toBe(false)
   })
 
   it('is true when useFilteredCount reports an auth error', () => {
     ;(useFilteredCount as Mock).mockReturnValue(buildMockFilteredCount({ authError: true }))
-    const { result } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.authError).toBe(true)
   })
 
   it('returns to false after useFilteredCount clears the auth error', () => {
     const mock = buildMockFilteredCount({ authError: true })
     ;(useFilteredCount as Mock).mockReturnValue(mock)
-    const { result, rerender } = renderHook(() => useQuizConfig({ subjects: SUBJECTS }))
+    const { result, rerender } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
     expect(result.current.authError).toBe(true)
 
     // Simulate auth error cleared (e.g. user re-authenticated)

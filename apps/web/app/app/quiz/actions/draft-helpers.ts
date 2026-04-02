@@ -10,6 +10,15 @@ type SaveDraftParsed = {
   sessionId: string
   questionIds: string[]
   answers: Record<string, { selectedOptionId: string; responseTimeMs: number }>
+  feedback?: Record<
+    string,
+    {
+      isCorrect: boolean
+      correctOptionId: string
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
+  >
   currentIndex: number
   subjectName?: string
   subjectCode?: string
@@ -36,6 +45,7 @@ export async function updateExistingDraft(
     answers: input.answers as Json,
     current_index: input.currentIndex,
     session_config: sessionConfig(input) as Json,
+    ...(input.feedback !== undefined ? { feedback: input.feedback as Json } : {}),
   }
   const { data, error } = await supabase
     .from('quiz_drafts')
@@ -77,6 +87,7 @@ export async function insertNewDraft(
     question_ids: input.questionIds,
     answers: input.answers as Json,
     current_index: input.currentIndex,
+    ...(input.feedback !== undefined ? { feedback: input.feedback as Json } : {}),
   }
   const { error } = await supabase.from('quiz_drafts').insert(row)
   if (error) {

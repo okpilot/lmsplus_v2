@@ -20,6 +20,17 @@ const SaveDraftInput = z
     currentIndex: z.number().int().nonnegative(),
     subjectName: z.string().max(100).optional(),
     subjectCode: z.string().max(10).optional(),
+    feedback: z
+      .record(
+        z.string(),
+        z.object({
+          isCorrect: z.boolean(),
+          correctOptionId: z.string().min(1),
+          explanationText: z.string().nullable(),
+          explanationImageUrl: z.string().nullable(),
+        }),
+      )
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.currentIndex >= data.questionIds.length) {

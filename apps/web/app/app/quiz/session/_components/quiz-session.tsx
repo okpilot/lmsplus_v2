@@ -7,7 +7,7 @@ import type { SessionQuestion } from '@/app/app/_types/session'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
-import type { DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizState } from '../_hooks/use-quiz-state'
@@ -19,6 +19,7 @@ type QuizSessionProps = {
   sessionId: string
   questions: SessionQuestion[]
   initialAnswers?: Record<string, DraftAnswer>
+  initialFeedback?: Map<string, AnswerFeedback>
   initialIndex?: number
   draftId?: string
   subjectName?: string
@@ -136,10 +137,11 @@ export function QuizSession(props: QuizSessionProps) {
             onToggleFlag={() => toggleFlag(s.questionId)}
             onPrev={() => s.navigate(-1)}
             onNext={() => s.navigate(1)}
-            onSubmitAnswer={() => {
+            onSubmitAnswer={async () => {
               if (pendingOptionId) {
-                s.handleSelectAnswer(pendingOptionId)
-                setPendingOptionId(null)
+                // pendingOptionId is NOT cleared here — on success, existingAnswer
+                // hides the submit button; on failure, keeping it lets the user retry
+                await s.handleSelectAnswer(pendingOptionId)
               }
             }}
           />
@@ -152,6 +154,7 @@ export function QuizSession(props: QuizSessionProps) {
         answeredCount={s.answeredCount}
         totalQuestions={props.questions.length}
         submitting={s.submitting}
+        error={s.error}
         onSubmit={s.handleSubmit}
         onCancel={() => s.setShowFinishDialog(false)}
         onSave={s.handleSave}
