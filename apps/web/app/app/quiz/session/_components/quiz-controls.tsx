@@ -61,16 +61,6 @@ export function QuizControls({
             testId="flag-button"
             activeClass="border-transparent bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400"
           />
-          {showSubmit && (
-            <button
-              type="button"
-              onClick={onSubmitAnswer}
-              disabled={submitting}
-              className="hidden rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:block"
-            >
-              Submit Answer
-            </button>
-          )}
           <ActionButton
             active={isPinned}
             onClick={onTogglePin}
