@@ -27,10 +27,9 @@ export async function discardQuiz(
     }
 
     // Soft-delete the session — only if it belongs to this user and is still active
-    // Cast: quiz_sessions.deleted_at exists in DB (migration 023) but not in remote-generated types yet
     const { error: sessionError } = await supabase
-      .from('quiz_sessions' as 'users')
-      .update({ deleted_at: new Date().toISOString() } as never)
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', input.sessionId)
       .eq('student_id', user.id)
       .is('ended_at', null)
