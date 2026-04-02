@@ -29,6 +29,7 @@ export function useQuizStart(opts: UseQuizStartOpts) {
   const [error, setError] = useState<string | null>(null)
 
   async function handleStart() {
+    if (loading) return
     if (!subjectId) return
     const existing = readActiveSession(userId)
     if (existing) {

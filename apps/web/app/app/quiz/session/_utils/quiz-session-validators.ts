@@ -2,13 +2,36 @@ export function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
+export function isValidDraftAnswer(v: unknown): boolean {
+  if (typeof v !== 'object' || v === null) return false
+  const r = v as Record<string, unknown>
+  return isNonEmptyString(r.selectedOptionId) && typeof r.responseTimeMs === 'number'
+}
+
+export function isValidFeedbackEntry(v: unknown): boolean {
+  if (typeof v !== 'object' || v === null) return false
+  const r = v as Record<string, unknown>
+  return (
+    typeof r.isCorrect === 'boolean' &&
+    isNonEmptyString(r.correctOptionId) &&
+    (r.explanationText === null || typeof r.explanationText === 'string') &&
+    (r.explanationImageUrl === null || typeof r.explanationImageUrl === 'string')
+  )
+}
+
+export function isValidRecordOf(val: unknown, check: (v: unknown) => boolean): boolean {
+  if (typeof val !== 'object' || val === null || Array.isArray(val)) return false
+  return Object.values(val).every(check)
+}
+
 export function hasValidOptionalFields(d: Record<string, unknown>, questionCount: number): boolean {
   return (
     (!('draftAnswers' in d) ||
       d.draftAnswers === undefined ||
-      (typeof d.draftAnswers === 'object' &&
-        d.draftAnswers !== null &&
-        !Array.isArray(d.draftAnswers))) &&
+      isValidRecordOf(d.draftAnswers, isValidDraftAnswer)) &&
+    (!('draftFeedback' in d) ||
+      d.draftFeedback === undefined ||
+      isValidRecordOf(d.draftFeedback, isValidFeedbackEntry)) &&
     (!('draftCurrentIndex' in d) ||
       d.draftCurrentIndex === undefined ||
       (Number.isInteger(d.draftCurrentIndex) &&

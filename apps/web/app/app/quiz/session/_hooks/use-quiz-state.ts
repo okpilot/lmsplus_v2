@@ -66,6 +66,7 @@ export function useQuizState(opts: QuizStateOpts) {
     answersRef,
     feedbackRef,
     currentIndexRef,
+    pendingQuestionIdRef,
     router,
     draftId: opts.draftId,
     subjectName: opts.subjectName,

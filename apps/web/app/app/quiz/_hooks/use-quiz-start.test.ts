@@ -108,6 +108,34 @@ describe('useQuizStart — handleStart guard', () => {
     expect(mockStartQuizSession).not.toHaveBeenCalled()
     expect(result.current.loading).toBe(false)
   })
+
+  it('blocks concurrent double-click before first response settles', async () => {
+    // Make startQuizSession hang so loading stays true across the second call
+    let resolveFirst!: (v: typeof SUCCESS_RESULT) => void
+    mockStartQuizSession.mockReturnValueOnce(
+      new Promise<typeof SUCCESS_RESULT>((res) => {
+        resolveFirst = res
+      }),
+    )
+
+    const { result } = renderHook(() => useQuizStart(DEFAULT_OPTS))
+
+    // Fire the first call — loading becomes true, promise is pending
+    act(() => {
+      void result.current.handleStart()
+    })
+
+    // Fire the second call while the first is still in flight
+    await act(async () => result.current.handleStart())
+
+    // The second call must have been swallowed — action called exactly once
+    expect(mockStartQuizSession).toHaveBeenCalledTimes(1)
+
+    // Resolve the first call so the hook can clean up its state
+    await act(async () => {
+      resolveFirst(SUCCESS_RESULT)
+    })
+  })
 })
 
 // ---- handleStart — happy path --------------------------------------------

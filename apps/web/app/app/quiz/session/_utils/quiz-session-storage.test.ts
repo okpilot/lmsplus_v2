@@ -287,6 +287,109 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(result).toBeNull()
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
+
+  it('accepts valid feedback entries and returns the session', () => {
+    const session = makeSession({
+      feedback: {
+        q1: {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: 'Because lift.',
+          explanationImageUrl: null,
+        },
+      },
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(session))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.feedback?.q1?.isCorrect).toBe(true)
+  })
+
+  it('returns null and removes key when a feedback entry is missing isCorrect', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      savedAt: Date.now(),
+      currentIndex: 0,
+      answers: {},
+      feedback: {
+        q1: {
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+          // isCorrect omitted
+        },
+      },
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('returns null and removes key when a feedback entry has wrong type for isCorrect', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      savedAt: Date.now(),
+      currentIndex: 0,
+      answers: {},
+      feedback: {
+        q1: {
+          isCorrect: 'yes', // should be boolean
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('returns null and removes key when a feedback entry has explanationText as a number', () => {
+    const broken = {
+      userId: USER_ID,
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      savedAt: Date.now(),
+      currentIndex: 0,
+      answers: {},
+      feedback: {
+        q1: {
+          isCorrect: false,
+          correctOptionId: 'opt-b',
+          explanationText: 42, // should be string or null
+          explanationImageUrl: null,
+        },
+      },
+    }
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('accepts sessions with an empty feedback object', () => {
+    const session = makeSession({ feedback: {} })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(session))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+  })
 })
 
 // ---- clearActiveSession ------------------------------------------------------
@@ -636,6 +739,73 @@ describe('readSessionHandoff', () => {
   it('rejects payload when subjectCode is a boolean', () => {
     const key = sessionHandoffKey(USER_ID)
     const data = { sessionId: 'sess-1', questionIds: ['q1'], subjectCode: true }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
+
+  it('accepts payload with valid draftFeedback entries', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = {
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      draftFeedback: {
+        q1: {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: 'Correct!',
+          explanationImageUrl: null,
+        },
+      },
+    }
+    mockSession._store.set(key, JSON.stringify(data))
+
+    expect(readSessionHandoff(USER_ID)).toEqual(data)
+  })
+
+  it('rejects payload when draftFeedback entry is missing isCorrect', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = {
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      draftFeedback: {
+        q1: {
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
+
+  it('rejects payload when draftFeedback is an array', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { sessionId: 'sess-1', questionIds: ['q1'], draftFeedback: ['bad'] }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
+
+  it('rejects payload when a draftFeedback entry has isCorrect as a string', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = {
+      sessionId: 'sess-1',
+      questionIds: ['q1'],
+      draftFeedback: {
+        q1: {
+          isCorrect: 'true', // should be boolean
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      },
+    }
     mockSession._store.set(key, JSON.stringify(data))
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
