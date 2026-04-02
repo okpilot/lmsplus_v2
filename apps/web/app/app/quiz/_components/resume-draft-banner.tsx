@@ -3,11 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { deleteDraft } from '../actions/draft-delete'
+import { sessionHandoffKey } from '../session/_utils/quiz-session-storage'
 import type { DraftData } from '../types'
 
-type ResumeDraftBannerProps = { draft: DraftData }
+type ResumeDraftBannerProps = { draft: DraftData; userId: string }
 
-export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
+export function ResumeDraftBanner({ draft, userId }: ResumeDraftBannerProps) {
   const router = useRouter()
   const [visible, setVisible] = useState(true)
   const [discarding, setDiscarding] = useState(false)
@@ -19,18 +20,26 @@ export function ResumeDraftBanner({ draft }: ResumeDraftBannerProps) {
   const totalCount = draft.questionIds.length
 
   function handleResume() {
-    sessionStorage.setItem(
-      'quiz-session',
-      JSON.stringify({
-        sessionId: draft.sessionId,
-        questionIds: draft.questionIds,
-        draftAnswers: draft.answers,
-        draftCurrentIndex: draft.currentIndex,
-        draftId: draft.id,
-        subjectName: draft.subjectName,
-        subjectCode: draft.subjectCode,
-      }),
-    )
+    try {
+      sessionStorage.setItem(
+        sessionHandoffKey(userId),
+        JSON.stringify({
+          userId,
+          sessionId: draft.sessionId,
+          questionIds: draft.questionIds,
+          draftAnswers: draft.answers,
+          draftFeedback: draft.feedback,
+          draftCurrentIndex: draft.currentIndex,
+          draftId: draft.id,
+          subjectName: draft.subjectName,
+          subjectCode: draft.subjectCode,
+        }),
+      )
+    } catch (err) {
+      console.warn('[resume-draft-banner] sessionStorage handoff failed:', err)
+      setDiscardError('Unable to resume right now. Please try again.')
+      return
+    }
     router.push('/app/quiz/session')
   }
 

@@ -1,9 +1,23 @@
+import { createServerSupabaseClient } from '@repo/db/server'
+import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
-import { QuizTabsContent } from './_components/quiz-tabs-content'
+import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
+import { QuizTabs } from './_components/quiz-tabs'
+import { SavedDraftCard } from './_components/saved-draft-card'
+import { SubjectsSection } from './_components/subjects-section'
+import { loadDrafts } from './actions/load-draft'
 
 export const dynamic = 'force-dynamic'
 
-export default function QuizPage() {
+export default async function QuizPage() {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/auth/login')
+
+  const { drafts } = await loadDrafts()
+
   return (
     <main className="space-y-6">
       <div>
@@ -13,11 +27,19 @@ export default function QuizPage() {
         </p>
       </div>
 
-      <Suspense
-        fallback={<div className="h-64 rounded-lg bg-muted animate-pulse max-w-xl mx-auto" />}
-      >
-        <QuizTabsContent />
-      </Suspense>
+      <QuizRecoveryBanner userId={user.id} />
+
+      <div className="mx-auto max-w-xl">
+        <QuizTabs
+          draftCount={drafts.length}
+          newQuizContent={
+            <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-muted" />}>
+              <SubjectsSection userId={user.id} />
+            </Suspense>
+          }
+          savedDraftContent={<SavedDraftCard drafts={drafts} userId={user.id} />}
+        />
+      </div>
     </main>
   )
 }

@@ -25,6 +25,22 @@ vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
 }))
 
+const { mockClearDeploymentPin } = vi.hoisted(() => ({
+  mockClearDeploymentPin: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('../../actions/clear-deployment-pin', () => ({
+  clearDeploymentPin: mockClearDeploymentPin,
+}))
+
+const { mockClearActiveSession } = vi.hoisted(() => ({
+  mockClearActiveSession: vi.fn(),
+}))
+
+vi.mock('../_utils/quiz-session-storage', () => ({
+  clearActiveSession: mockClearActiveSession,
+}))
+
 // ---- Subject under test ---------------------------------------------------
 
 import {
@@ -40,6 +56,8 @@ import {
 const SESSION_ID = '00000000-0000-4000-a000-000000000001'
 const Q1_ID = '00000000-0000-4000-a000-000000000011'
 const Q2_ID = '00000000-0000-4000-a000-000000000022'
+const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
+const USER_ID = 'test-user-id'
 
 function makeAnswers(
   entries: Array<[string, { selectedOptionId: string; responseTimeMs: number }]>,
@@ -70,6 +88,7 @@ function makeRouter() {
 beforeEach(() => {
   vi.resetAllMocks()
   mockDeleteDraft.mockResolvedValue({ success: true })
+  mockClearDeploymentPin.mockResolvedValue(undefined)
 })
 
 // ---- submitQuizSession ---------------------------------------------------
@@ -78,7 +97,7 @@ describe('submitQuizSession', () => {
   it('returns success after submitting all answers', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
 
-    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS)
+    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
 
     expect(result.success).toBe(true)
     if (result.success) {
@@ -91,7 +110,7 @@ describe('submitQuizSession', () => {
   it('formats answers as the expected array shape', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
 
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS)
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
 
     expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
       sessionId: SESSION_ID,
@@ -104,9 +123,8 @@ describe('submitQuizSession', () => {
 
   it('cleans up saved draft after successful submission', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
-    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
 
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID, DRAFT_ID)
 
     expect(mockDeleteDraft).toHaveBeenCalledWith({ draftId: DRAFT_ID })
     expect(mockDeleteDraft).toHaveBeenCalledTimes(1)
@@ -115,7 +133,7 @@ describe('submitQuizSession', () => {
   it('skips draft cleanup when no draft exists', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
 
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS)
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
 
     expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
@@ -126,7 +144,7 @@ describe('submitQuizSession', () => {
       error: 'session not found',
     })
 
-    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS)
+    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
 
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('session not found')
@@ -134,9 +152,8 @@ describe('submitQuizSession', () => {
 
   it('preserves saved draft when submission fails', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session not found' })
-    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
 
-    await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID, DRAFT_ID)
 
     expect(mockDeleteDraft).not.toHaveBeenCalled()
   })
@@ -144,7 +161,7 @@ describe('submitQuizSession', () => {
   it('returns generic failure when submission throws unexpectedly', async () => {
     mockBatchSubmitQuiz.mockRejectedValue(new Error('network error'))
 
-    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS)
+    const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
 
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
@@ -153,7 +170,7 @@ describe('submitQuizSession', () => {
   it('submits an empty answers list when no answers recorded', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'No answers' })
 
-    const result = await submitQuizSession(SESSION_ID, new Map())
+    const result = await submitQuizSession(SESSION_ID, new Map(), USER_ID)
 
     expect(mockBatchSubmitQuiz).toHaveBeenCalledWith({
       sessionId: SESSION_ID,
@@ -162,15 +179,31 @@ describe('submitQuizSession', () => {
     expect(result.success).toBe(false)
   })
 
+  it('clears active session from localStorage after successful submission', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
+
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not clear active session when submission fails', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session not found' })
+
+    await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID)
+
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
+
   it('logs error when draft cleanup fails after successful submit', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const cleanupError = new Error('draft cleanup network failure')
     mockDeleteDraft.mockRejectedValue(cleanupError)
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
 
     try {
-      const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, DRAFT_ID)
+      const result = await submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID, DRAFT_ID)
 
       // Submit still succeeds despite cleanup failure
       expect(result.success).toBe(true)
@@ -195,6 +228,7 @@ describe('saveQuizDraft', () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     await saveQuizDraft({
+      userId: USER_ID,
       sessionId: SESSION_ID,
       questionIds: [Q1_ID, Q2_ID],
       answers: TWO_ANSWERS,
@@ -217,6 +251,7 @@ describe('saveQuizDraft', () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     const result = await saveQuizDraft({
+      userId: USER_ID,
       sessionId: SESSION_ID,
       questionIds: [Q1_ID],
       answers: TWO_ANSWERS,
@@ -228,10 +263,42 @@ describe('saveQuizDraft', () => {
     expect(result.success).toBe(true)
   })
 
+  it('clears active session from localStorage after a successful save', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+
+    await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not clear active session when save fails', async () => {
+    mockSaveDraft.mockResolvedValue({ success: false, error: 'Failed to save draft' })
+
+    await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
+
   it('stays on page when save fails', async () => {
     mockSaveDraft.mockResolvedValue({ success: false, error: 'Failed to save draft' })
 
     const result = await saveQuizDraft({
+      userId: USER_ID,
       sessionId: SESSION_ID,
       questionIds: [Q1_ID],
       answers: TWO_ANSWERS,
@@ -248,6 +315,7 @@ describe('saveQuizDraft', () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     await saveQuizDraft({
+      userId: USER_ID,
       sessionId: SESSION_ID,
       questionIds: [Q1_ID],
       answers: makeAnswers([[Q1_ID, { selectedOptionId: 'opt-b', responseTimeMs: 800 }]]),
@@ -265,6 +333,7 @@ describe('saveQuizDraft', () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     await saveQuizDraft({
+      userId: USER_ID,
       sessionId: SESSION_ID,
       questionIds: [Q1_ID],
       answers: TWO_ANSWERS,
@@ -286,6 +355,7 @@ describe('saveQuizDraft', () => {
     mockSaveDraft.mockResolvedValue({ success: true })
 
     await saveQuizDraft({
+      userId: USER_ID,
       sessionId: SESSION_ID,
       questionIds: [Q1_ID],
       answers: TWO_ANSWERS,
@@ -297,6 +367,88 @@ describe('saveQuizDraft', () => {
     expect(called.subjectName).toBeUndefined()
     expect(called.subjectCode).toBeUndefined()
   })
+
+  it('returns generic failure when saveDraft throws unexpectedly', async () => {
+    mockSaveDraft.mockRejectedValue(new Error('network error'))
+
+    const result = await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Something went wrong. Please try again.')
+  })
+
+  it('does not navigate or clear session when saveDraft throws', async () => {
+    mockSaveDraft.mockRejectedValue(new Error('network error'))
+
+    await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
+
+  it('serialises feedback map to a plain object when provided', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+    const feedbackMap = new Map([
+      [
+        Q1_ID,
+        {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: 'Because lift.',
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+      feedback: feedbackMap,
+    })
+
+    const [called] = mockSaveDraft.mock.calls[0]!
+    expect(called.feedback).not.toBeInstanceOf(Map)
+    expect(called.feedback[Q1_ID]).toEqual({
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: 'Because lift.',
+      explanationImageUrl: null,
+    })
+  })
+
+  it('passes feedback as undefined when no feedback map is provided', async () => {
+    mockSaveDraft.mockResolvedValue({ success: true })
+
+    await saveQuizDraft({
+      userId: USER_ID,
+      sessionId: SESSION_ID,
+      questionIds: [Q1_ID],
+      answers: TWO_ANSWERS,
+      currentIndex: 0,
+      router: makeRouter() as never,
+    })
+
+    const [called] = mockSaveDraft.mock.calls[0]!
+    expect(called.feedback).toBeUndefined()
+  })
 })
 
 // ---- handleSubmitSession -------------------------------------------------
@@ -304,6 +456,7 @@ describe('saveQuizDraft', () => {
 describe('handleSubmitSession', () => {
   function makeOpts(overrides?: Partial<Parameters<typeof handleSubmitSession>[0]>) {
     return {
+      userId: USER_ID,
       sessionId: SESSION_ID,
       answers: TWO_ANSWERS,
       draftId: undefined,
@@ -361,6 +514,7 @@ describe('handleSubmitSession', () => {
 describe('handleSaveSession', () => {
   function makeOpts(overrides?: Partial<Parameters<typeof handleSaveSession>[0]>) {
     return {
+      userId: USER_ID,
       sessionId: SESSION_ID,
       questions: [{ id: Q1_ID }, { id: Q2_ID }],
       answers: TWO_ANSWERS,
@@ -415,6 +569,7 @@ describe('handleSaveSession', () => {
 describe('handleDiscardSession', () => {
   function makeOpts(overrides?: Partial<Parameters<typeof handleDiscardSession>[0]>) {
     return {
+      userId: USER_ID,
       sessionId: SESSION_ID,
       router: makeRouter() as never,
       draftId: undefined,
@@ -456,10 +611,38 @@ describe('handleDiscardSession', () => {
   })
 
   it('includes draft id when discarding', async () => {
-    const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ draftId: DRAFT_ID })
     await handleDiscardSession(opts)
     expect(mockDiscardQuiz).toHaveBeenCalledWith(expect.objectContaining({ draftId: DRAFT_ID }))
+  })
+})
+
+// ---- discardQuizSession — clearActiveSession calls -----------------------
+
+describe('discardQuizSession', () => {
+  it('clears active session before calling the discard Server Action', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const mockRouter = { push: mockRouterPush }
+
+    await import('./quiz-submit').then(({ discardQuizSession }) =>
+      discardQuizSession(SESSION_ID, mockRouter as never, USER_ID),
+    )
+
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears active session even when the discard Server Action fails', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: 'already discarded' })
+    const mockRouter = { push: mockRouterPush }
+
+    await import('./quiz-submit').then(({ discardQuizSession }) =>
+      discardQuizSession(SESSION_ID, mockRouter as never, USER_ID),
+    )
+
+    // clearActiveSession is called before the Server Action — discard intent is respected
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
   })
 })

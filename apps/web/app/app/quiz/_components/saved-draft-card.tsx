@@ -3,9 +3,9 @@
 import type { DraftData } from '../types'
 import { DraftCard } from './draft-card'
 
-type SavedDraftCardProps = { drafts: DraftData[] }
+type SavedDraftCardProps = { drafts: DraftData[]; userId: string }
 
-export function SavedDraftCard({ drafts }: SavedDraftCardProps) {
+export function SavedDraftCard({ drafts, userId }: SavedDraftCardProps) {
   if (drafts.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-6 text-center">
@@ -19,7 +19,7 @@ export function SavedDraftCard({ drafts }: SavedDraftCardProps) {
   return (
     <div className="space-y-3">
       {drafts.map((draft) => (
-        <DraftCard key={draft.id} draft={draft} />
+        <DraftCard key={draft.id} draft={draft} userId={userId} />
       ))}
     </div>
   )

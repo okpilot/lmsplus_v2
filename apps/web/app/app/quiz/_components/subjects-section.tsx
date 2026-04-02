@@ -1,7 +1,7 @@
 import { getSubjectsWithCounts } from '@/lib/queries/quiz'
 import { QuizConfigForm } from './quiz-config-form'
 
-export async function SubjectsSection() {
+export async function SubjectsSection({ userId }: { userId: string }) {
   const subjects = await getSubjectsWithCounts()
-  return <QuizConfigForm subjects={subjects} />
+  return <QuizConfigForm userId={userId} subjects={subjects} />
 }

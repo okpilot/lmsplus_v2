@@ -6,6 +6,22 @@
 
 ---
 
+## Quiz Session Recovery — 2026-03-27 (issue #391)
+
+Persist quiz progress to localStorage and recover on page refresh or deployment:
+- **New utility**: `quiz-session-storage.ts` with `ActiveSession` type, `write/read/clearActiveSession()` functions, 7-day staleness check, private-mode error handling
+- **Auto-persist**: write checkpoint to localStorage on every answer + navigation (via `checkpoint()` callback in useQuizState)
+- **Recovery prompt**: `/app/quiz/session` shows `SessionRecoveryPrompt` when recoverable session detected — resume or discard options
+- **Recovery banner**: `/app/quiz` home page shows `QuizRecoveryBanner` for returning students — quick resume button with progress summary
+- **Warn on new quiz**: `use-quiz-start` warns before starting new quiz if unfinished session exists in localStorage
+- **Clear on completion**: localStorage cleared on successful submit, discard, or save-to-draft
+- **Error handling improvements**: `handleSelectAnswer` returns boolean (error state preserved on error), error cleared on question navigation (no stale errors), submit error takes priority in UI, FinishQuizDialog displays errors inline
+- **Feedback persistence**: answer feedback (isCorrect, correctOptionId, explanation) now persisted in both localStorage checkpoints and quiz_drafts DB table (migration 061: `feedback JSONB NULL`). Resumed sessions and drafts restore full feedback state.
+- 14 new test files (component + utility), extensive coverage of recovery paths, error scenarios, staleness limits
+- E2E: recovery flow tested in quiz flow spec
+
+---
+
 ## GDPR Consent Gate — 2026-03-27 (issue #182)
 
 First-login consent flow with persistent audit trail:

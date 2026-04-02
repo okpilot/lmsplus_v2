@@ -8,43 +8,99 @@ type AnswerHandlerOpts = {
   getAnswerStartTime: () => number
   answers: Map<string, DraftAnswer>
   setAnswers: React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>
+  initialFeedback?: Map<string, AnswerFeedback>
+  onAnswerRecorded?: (
+    answers: Map<string, DraftAnswer>,
+    feedback: Map<string, AnswerFeedback>,
+  ) => void
+  onAnswerReverted?: (answers: Map<string, DraftAnswer>) => void
 }
 
 export function useAnswerHandler(opts: AnswerHandlerOpts) {
-  const { sessionId, getQuestionId, getAnswerStartTime, answers, setAnswers } = opts
-  const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(new Map())
+  const {
+    sessionId,
+    getQuestionId,
+    getAnswerStartTime,
+    answers,
+    setAnswers,
+    initialFeedback,
+    onAnswerRecorded,
+    onAnswerReverted,
+  } = opts
+  const [feedback, setFeedback] = useState<Map<string, AnswerFeedback>>(
+    () => initialFeedback ?? new Map(),
+  )
   const [error, setError] = useState<string | null>(null)
   const lockedRef = useRef<Set<string>>(new Set())
+  const pendingQuestionIdRef = useRef<Set<string>>(new Set())
+  const answersRef = useRef(answers)
+  answersRef.current = answers
+  const feedbackRef = useRef(feedback)
+  feedbackRef.current = feedback
 
-  async function handleSelectAnswer(optionId: string) {
+  async function handleSelectAnswer(optionId: string): Promise<boolean> {
     const questionId = getQuestionId()
-    if (lockedRef.current.has(questionId) || answers.has(questionId)) return
+    if (lockedRef.current.has(questionId) || answers.has(questionId)) return false
     lockedRef.current.add(questionId)
     const elapsed = Date.now() - getAnswerStartTime()
-    setAnswers((p) =>
-      new Map(p).set(questionId, { selectedOptionId: optionId, responseTimeMs: elapsed }),
-    )
+    setAnswers((p) => {
+      const next = new Map(p).set(questionId, {
+        selectedOptionId: optionId,
+        responseTimeMs: elapsed,
+      })
+      answersRef.current = next
+      return next
+    })
+    pendingQuestionIdRef.current.add(questionId)
+    let result: {
+      isCorrect: boolean
+      correctOptionId: string
+      explanationText: string | null
+      explanationImageUrl: string | null
+    }
     try {
-      const result = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
-      if (!result.success) throw new Error(result.error)
-      setFeedback((p) =>
-        new Map(p).set(questionId, {
-          isCorrect: result.isCorrect,
-          correctOptionId: result.correctOptionId,
-          explanationText: result.explanationText,
-          explanationImageUrl: result.explanationImageUrl,
-        }),
-      )
-      setError(null)
+      const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
+      if (!r.success) throw new Error(r.error)
+      result = r
     } catch {
+      pendingQuestionIdRef.current.delete(questionId)
       lockedRef.current.delete(questionId)
       setAnswers((p) => {
         const m = new Map(p)
         m.delete(questionId)
+        answersRef.current = m
         return m
       })
+      try {
+        onAnswerReverted?.(answersRef.current)
+      } catch (err) {
+        console.warn('[use-answer-handler] Revert checkpoint failed (best-effort):', err)
+      }
       setError('Failed to check answer. Please try again.')
+      return false
     }
+    const nextFeedback = new Map(feedbackRef.current).set(questionId, {
+      isCorrect: result.isCorrect,
+      correctOptionId: result.correctOptionId,
+      explanationText: result.explanationText,
+      explanationImageUrl: result.explanationImageUrl,
+    })
+    feedbackRef.current = nextFeedback
+    setFeedback(nextFeedback)
+    setError(null)
+    try {
+      onAnswerRecorded?.(
+        new Map(answersRef.current).set(questionId, {
+          selectedOptionId: optionId,
+          responseTimeMs: elapsed,
+        }),
+        nextFeedback,
+      )
+    } catch (err) {
+      console.warn('[use-answer-handler] Checkpoint write failed (best-effort):', err)
+    }
+    pendingQuestionIdRef.current.delete(questionId)
+    return true
   }
 
   // Clear ref lock reactively after state update propagates — not data fetching
@@ -54,5 +110,11 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     }
   }, [answers])
 
-  return { feedback, error, handleSelectAnswer }
+  return {
+    feedback,
+    error,
+    handleSelectAnswer,
+    clearError: () => setError(null),
+    pendingQuestionIdRef,
+  }
 }

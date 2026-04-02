@@ -1,13 +1,15 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import { useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
-import type { DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
 
 export function useQuizSubmit(opts: {
+  userId: string
   sessionId: string
   questions: SessionQuestion[]
   answersRef: React.RefObject<Map<string, DraftAnswer>>
+  feedbackRef: React.RefObject<Map<string, AnswerFeedback>>
   currentIndexRef: React.RefObject<number>
   router: AppRouterInstance
   draftId?: string
@@ -22,6 +24,7 @@ export function useQuizSubmit(opts: {
 
   function handleSubmit() {
     return handleSubmitSession({
+      userId: opts.userId,
       sessionId: opts.sessionId,
       answers: opts.answersRef.current,
       draftId: opts.draftId,
@@ -35,9 +38,11 @@ export function useQuizSubmit(opts: {
 
   function handleSave() {
     return handleSaveSession({
+      userId: opts.userId,
       sessionId: opts.sessionId,
       questions: opts.questions,
       answers: opts.answersRef.current,
+      feedback: opts.feedbackRef.current,
       currentIndex: opts.currentIndexRef.current,
       draftId: opts.draftId,
       subjectName: opts.subjectName,
@@ -47,7 +52,12 @@ export function useQuizSubmit(opts: {
   }
 
   function handleDiscard() {
-    return handleDiscardSession({ sessionId: opts.sessionId, draftId: opts.draftId, ...shared })
+    return handleDiscardSession({
+      userId: opts.userId,
+      sessionId: opts.sessionId,
+      draftId: opts.draftId,
+      ...shared,
+    })
   }
 
   return {
@@ -56,6 +66,7 @@ export function useQuizSubmit(opts: {
     setShowFinishDialog,
     submitting,
     error,
+    clearError: () => setError(null),
     handleSubmit,
     handleSave,
     handleDiscard,

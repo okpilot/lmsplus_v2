@@ -1,88 +1,44 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
-import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
-import type { DraftAnswer } from '../../types'
+import { useSessionBootstrap } from '../_hooks/use-session-bootstrap'
 import { clampIndex } from '../_utils/clamp-index'
 import { QuizSession } from './quiz-session'
-
-type Question = {
-  id: string
-  question_text: string
-  question_image_url: string | null
-  question_number: string | null
-  explanation_text: string | null
-  explanation_image_url: string | null
-  options: { id: string; text: string }[]
-}
-
-type SessionData = {
-  sessionId: string
-  questionIds: string[]
-  draftAnswers?: Record<string, DraftAnswer>
-  draftCurrentIndex?: number
-  draftId?: string
-  subjectName?: string
-  subjectCode?: string
-}
-
-// Cache parsed session to survive React Strict Mode double-mount
-let cachedSession: SessionData | null = null
+import { SessionRecoveryPrompt } from './session-recovery-prompt'
 
 export function QuizSessionLoader({ userId }: { userId: string }) {
-  const router = useRouter()
-  const [session, setSession] = useState<SessionData | null>(null)
-  const [questions, setQuestions] = useState<Question[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const bs = useSessionBootstrap(userId)
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem('quiz-session')
-    let data: SessionData | null = null
-    if (raw) {
-      try {
-        data = JSON.parse(raw) as SessionData
-      } catch {
-        console.error('[QuizSessionLoader] Malformed session data in sessionStorage')
-        sessionStorage.removeItem('quiz-session')
-      }
-    } else {
-      data = cachedSession
-    }
-
-    if (!data) {
-      router.replace('/app/quiz')
-      return
-    }
-
-    // Cache before removing so double-mount still works
-    cachedSession = data
-    sessionStorage.removeItem('quiz-session')
-    setSession(data)
-
-    loadSessionQuestions(data.questionIds).then((result) => {
-      if (result.success) {
-        setQuestions(result.questions)
-      } else {
-        setError(result.error)
-      }
-    })
-  }, [router])
-
-  const filteredAnswers = (() => {
-    if (!session?.draftAnswers || !questions) return session?.draftAnswers
-    const questionIdSet = new Set(questions.map((q) => q.id))
-    return Object.fromEntries(
-      Object.entries(session.draftAnswers).filter(([key]) => questionIdSet.has(key)),
+  if (bs.recovery) {
+    return (
+      <SessionRecoveryPrompt
+        subjectName={bs.recovery.subjectName}
+        answeredCount={Object.keys(bs.recovery.answers).length}
+        totalCount={bs.recovery.questionIds.length}
+        onResume={bs.handleRecoveryResume}
+        onSave={() => {
+          bs.clearResumeError()
+          bs.recoveryActions.handleSave()
+        }}
+        onDiscard={() => {
+          bs.clearRecovery()
+          bs.recoveryActions.handleDiscard()
+        }}
+        loading={bs.recoveryActions.loading || bs.resumeLoading}
+        error={bs.resumeError ?? bs.recoveryActions.error}
+      />
     )
-  })()
-
-  if (error) {
-    return <p className="text-sm text-destructive">{error}</p>
   }
 
-  if (!session || !questions) {
+  if (bs.error) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {bs.error}
+      </p>
+    )
+  }
+
+  if (!bs.session || !bs.questions) {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
         <Skeleton className="h-1.5 w-full rounded-full" />
@@ -100,21 +56,38 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
     )
   }
 
+  const questionIdSet = new Set(bs.questions.map((q) => q.id))
+
+  const filteredAnswers = (() => {
+    if (!bs.session.draftAnswers) return bs.session.draftAnswers
+    return Object.fromEntries(
+      Object.entries(bs.session.draftAnswers).filter(([key]) => questionIdSet.has(key)),
+    )
+  })()
+
+  const filteredFeedback = (() => {
+    if (!bs.session.draftFeedback) return undefined
+    return new Map(
+      Object.entries(bs.session.draftFeedback).filter(([key]) => questionIdSet.has(key)),
+    )
+  })()
+
   const clampedIndex =
-    session.draftCurrentIndex != null
-      ? clampIndex(session.draftCurrentIndex, questions.length)
+    bs.session.draftCurrentIndex != null
+      ? clampIndex(bs.session.draftCurrentIndex, bs.questions.length)
       : undefined
 
   return (
     <QuizSession
       userId={userId}
-      sessionId={session.sessionId}
-      questions={questions}
+      sessionId={bs.session.sessionId}
+      questions={bs.questions}
       initialAnswers={filteredAnswers}
+      initialFeedback={filteredFeedback}
       initialIndex={clampedIndex}
-      draftId={session.draftId}
-      subjectName={session.subjectName}
-      subjectCode={session.subjectCode}
+      draftId={bs.session.draftId}
+      subjectName={bs.session.subjectName}
+      subjectCode={bs.session.subjectCode}
     />
   )
 }
