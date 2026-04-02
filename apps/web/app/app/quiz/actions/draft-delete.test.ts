@@ -68,10 +68,20 @@ describe('deleteDraft', () => {
 
   it('returns failure when draftId is not a valid UUID', async () => {
     setupAuthenticatedUser()
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await deleteDraft({ draftId: 'not-a-uuid' })
     expect(result).toEqual({ success: false })
-    consoleSpy.mockRestore()
+  })
+
+  it('returns failure when raw input is null (missing draftId)', async () => {
+    setupAuthenticatedUser()
+    const result = await deleteDraft(null)
+    expect(result).toEqual({ success: false })
+  })
+
+  it('returns failure when raw input is missing draftId key', async () => {
+    setupAuthenticatedUser()
+    const result = await deleteDraft({})
+    expect(result).toEqual({ success: false })
   })
 
   it('returns success on happy path', async () => {

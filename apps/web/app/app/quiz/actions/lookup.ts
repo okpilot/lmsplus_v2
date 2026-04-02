@@ -62,6 +62,14 @@ export type FilteredCountResult = {
 
 export async function getFilteredCount(input: unknown): Promise<FilteredCountResult> {
   const empty: FilteredCountResult = { count: 0, byTopic: {}, bySubtopic: {} }
+  const supabase = await createServerSupabaseClient()
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+  if (authError || !user) return { ...empty, error: 'auth' }
+
   let parsed: z.infer<typeof FilteredCountSchema>
   try {
     parsed = FilteredCountSchema.parse(input)
@@ -70,13 +78,6 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     return empty
   }
   const { subjectId, topicIds, subtopicIds, filters } = parsed
-  const supabase = await createServerSupabaseClient()
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) return { ...empty, error: 'auth' }
 
   // undefined = no scoping restriction (query all); [] = explicitly nothing selected.
   // Only bail when BOTH arrays are explicitly empty — no topics AND no subtopics.

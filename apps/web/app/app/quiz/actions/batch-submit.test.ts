@@ -95,18 +95,21 @@ describe('batchSubmitQuiz', () => {
   })
 
   it('returns failure when answers array is empty (Zod min(1))', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await batchSubmitQuiz({ sessionId: SESSION_ID, answers: [] })
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure when sessionId is not a valid UUID', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await batchSubmitQuiz({ sessionId: 'not-a-uuid', answers: VALID_ANSWERS })
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure when an answer questionId is not a valid UUID', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await batchSubmitQuiz({
       sessionId: SESSION_ID,
       answers: [{ questionId: 'bad-id', selectedOptionId: 'a', responseTimeMs: 1000 }],
@@ -116,6 +119,7 @@ describe('batchSubmitQuiz', () => {
   })
 
   it('returns failure when responseTimeMs is not a positive integer', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await batchSubmitQuiz({
       sessionId: SESSION_ID,
       answers: [{ questionId: Q1_ID, selectedOptionId: 'a', responseTimeMs: -100 }],
