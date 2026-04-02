@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ZodError } from 'zod'
 
 const { mockGetQuestionStats, mockGetUser } = vi.hoisted(() => ({
   mockGetQuestionStats: vi.fn(),
@@ -48,11 +47,11 @@ describe('fetchQuestionStats', () => {
   })
 
   it('rejects a non-UUID question id', async () => {
-    await expect(fetchQuestionStats('not-a-uuid')).rejects.toThrow(ZodError)
+    await expect(fetchQuestionStats('not-a-uuid')).rejects.toThrow('Invalid input')
   })
 
   it('rejects an empty question id', async () => {
-    await expect(fetchQuestionStats('')).rejects.toThrow(ZodError)
+    await expect(fetchQuestionStats('')).rejects.toThrow('Invalid input')
   })
 
   it('short-circuits before querying when the id is invalid', async () => {

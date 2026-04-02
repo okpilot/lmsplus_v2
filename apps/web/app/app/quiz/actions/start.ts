@@ -1,7 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import { ZodError, z } from 'zod'
+import { z } from 'zod'
 import { getRandomQuestionIds } from '@/lib/queries/quiz'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartQuizResult } from '../types'
@@ -22,7 +22,14 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
       error: authError,
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false, error: 'Not authenticated' }
-    const input = StartQuizInput.parse(raw)
+
+    let input: z.infer<typeof StartQuizInput>
+    try {
+      input = StartQuizInput.parse(raw)
+    } catch {
+      console.error('[startQuizSession] Invalid input')
+      return { success: false, error: 'Invalid input' }
+    }
 
     const questionIds = await getRandomQuestionIds({
       subjectId: input.subjectId,
@@ -51,9 +58,6 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
 
     return { success: true, sessionId, questionIds }
   } catch (err) {
-    if (err instanceof ZodError) {
-      return { success: false, error: err.issues[0]?.message ?? 'Invalid input' }
-    }
     console.error('[startQuizSession] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }
   }

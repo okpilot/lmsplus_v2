@@ -88,6 +88,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
         path: '/',
         httpOnly: true,
         sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production',
       })
     }
   }

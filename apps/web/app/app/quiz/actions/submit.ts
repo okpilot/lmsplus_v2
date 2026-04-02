@@ -2,6 +2,7 @@
 
 import { SubmitAnswerSchema } from '@repo/db/schema'
 import { createServerSupabaseClient } from '@repo/db/server'
+import type { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
 import type { SubmitQuizAnswerResult, SubmitRpcResult } from '../types'
 
@@ -12,7 +13,14 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) return { success: false, error: 'Not authenticated' }
-  const input = SubmitAnswerSchema.parse(raw)
+
+  let input: z.infer<typeof SubmitAnswerSchema>
+  try {
+    input = SubmitAnswerSchema.parse(raw)
+  } catch {
+    console.error('[submitQuizAnswer] Invalid input')
+    return { success: false, error: 'Invalid input' }
+  }
 
   const { data, error } = await rpc<SubmitRpcResult>(supabase, 'submit_quiz_answer', {
     p_session_id: input.sessionId,

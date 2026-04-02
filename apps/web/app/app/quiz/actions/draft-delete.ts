@@ -16,7 +16,13 @@ export async function deleteDraft(raw: unknown): Promise<{ success: boolean }> {
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false }
 
-    const { draftId } = DeleteDraftInput.parse(raw)
+    let draftId: string
+    try {
+      ;({ draftId } = DeleteDraftInput.parse(raw))
+    } catch {
+      console.error('[deleteDraft] Invalid input')
+      return { success: false }
+    }
 
     // quiz_drafts uses real DELETE (not soft delete) — approved exception for temp storage
     // Delete by id AND student_id to prevent one student deleting another's draft

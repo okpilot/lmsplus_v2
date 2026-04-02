@@ -113,11 +113,11 @@ describe('saveDraft', () => {
     expect(result).toEqual({ success: false, error: 'Not authenticated' })
   })
 
-  it('returns failure with Zod message when input fails validation', async () => {
+  it('returns failure when input fails validation', async () => {
     setupAuthenticatedUser()
     const result = await saveDraft({ sessionId: 'not-a-uuid' })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid UUID')
+    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure when organization_id is not found', async () => {
@@ -282,7 +282,7 @@ describe('saveDraft', () => {
       questionIds: ['not-a-uuid'],
     })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid UUID')
+    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('validates that answers have non-negative responseTimeMs', async () => {
@@ -297,27 +297,23 @@ describe('saveDraft', () => {
 
   it('returns failure when currentIndex equals questionIds.length (out of range)', async () => {
     setupAuthenticatedUser()
-    const chain = mockChain()
-    mockFrom.mockReturnValue(chain)
 
     // questionIds has 2 items (indices 0-1), currentIndex 2 is out of range
     const result = await saveDraft({
       ...VALID_DRAFT_INPUT,
       currentIndex: 2,
     })
-    expect(result).toEqual({ success: false, error: 'Current index out of range' })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
   it('returns failure when currentIndex exceeds questionIds.length', async () => {
     setupAuthenticatedUser()
-    const chain = mockChain()
-    mockFrom.mockReturnValue(chain)
 
     const result = await saveDraft({
       ...VALID_DRAFT_INPUT,
       currentIndex: 99,
     })
-    expect(result).toEqual({ success: false, error: 'Current index out of range' })
+    expect(result).toEqual({ success: false, error: 'Invalid input' })
   })
 
   it('accepts a valid feedback record and passes it through to the insert row', async () => {
@@ -414,8 +410,7 @@ describe('saveDraft', () => {
       },
     })
     expect(result.success).toBe(false)
-    if (!result.success)
-      expect(result.error).toBe(`Answer key "${staleQuestionId}" is not in questionIds`)
+    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 })
 

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -100,12 +99,20 @@ describe('fetchTopicsForSubject', () => {
     expect(result).toEqual([])
   })
 
-  it('throws (Zod) when the id is not a valid UUID', async () => {
-    await expect(fetchTopicsForSubject('not-a-uuid')).rejects.toThrow(ZodError)
+  it('returns empty array and logs when the id is not a valid UUID', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await fetchTopicsForSubject('not-a-uuid')
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith('[fetchTopicsForSubject] Invalid input')
+    consoleSpy.mockRestore()
   })
 
-  it('throws (Zod) when the id is null', async () => {
-    await expect(fetchTopicsForSubject(null)).rejects.toThrow(ZodError)
+  it('returns empty array and logs when the id is null', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await fetchTopicsForSubject(null)
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith('[fetchTopicsForSubject] Invalid input')
+    consoleSpy.mockRestore()
   })
 })
 
@@ -125,12 +132,20 @@ describe('fetchSubtopicsForTopic', () => {
     expect(result).toEqual([])
   })
 
-  it('throws (Zod) when the id is not a valid UUID', async () => {
-    await expect(fetchSubtopicsForTopic('not-a-uuid')).rejects.toThrow(ZodError)
+  it('returns empty array and logs when the id is not a valid UUID', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await fetchSubtopicsForTopic('not-a-uuid')
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith('[fetchSubtopicsForTopic] Invalid input')
+    consoleSpy.mockRestore()
   })
 
-  it('throws (Zod) when the id is null', async () => {
-    await expect(fetchSubtopicsForTopic(null)).rejects.toThrow(ZodError)
+  it('returns empty array and logs when the id is null', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await fetchSubtopicsForTopic(null)
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith('[fetchSubtopicsForTopic] Invalid input')
+    consoleSpy.mockRestore()
   })
 })
 
@@ -152,22 +167,35 @@ describe('getFilteredCount — auth and validation', () => {
     expect(result).toMatchObject({ count: 0, error: 'auth' })
   })
 
-  it('throws (Zod) when subjectId is not a valid UUID', async () => {
-    await expect(getFilteredCount({ subjectId: 'not-a-uuid', filters: ['all'] })).rejects.toThrow(
-      ZodError,
-    )
+  it('returns empty count and logs when subjectId is not a valid UUID', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getFilteredCount({ subjectId: 'not-a-uuid', filters: ['all'] })
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
+    expect(consoleSpy).toHaveBeenCalledWith('[getFilteredCount] Invalid input')
+    consoleSpy.mockRestore()
   })
 
-  it('throws (Zod) when filters contains an unknown value', async () => {
-    await expect(getFilteredCount({ subjectId: SUBJECT_ID, filters: ['random'] })).rejects.toThrow(
-      ZodError,
-    )
+  it('returns empty count and logs when filters contains an unknown value', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['random'] })
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
+    expect(consoleSpy).toHaveBeenCalledWith('[getFilteredCount] Invalid input')
+    consoleSpy.mockRestore()
   })
 
-  it('throws (Zod) when topicIds contains a non-UUID', async () => {
-    await expect(
-      getFilteredCount({ subjectId: SUBJECT_ID, topicIds: ['bad-id'], filters: ['all'] }),
-    ).rejects.toThrow(ZodError)
+  it('returns empty count and logs when topicIds contains a non-UUID', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      topicIds: ['bad-id'],
+      filters: ['all'],
+    })
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
+    expect(consoleSpy).toHaveBeenCalledWith('[getFilteredCount] Invalid input')
+    consoleSpy.mockRestore()
   })
 })
 
@@ -519,11 +547,19 @@ describe('fetchTopicsWithSubtopics', () => {
     expect(result).toEqual([])
   })
 
-  it('throws (Zod) when the id is not a valid UUID', async () => {
-    await expect(fetchTopicsWithSubtopics('not-a-uuid')).rejects.toThrow(ZodError)
+  it('returns empty array and logs when the id is not a valid UUID', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await fetchTopicsWithSubtopics('not-a-uuid')
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith('[fetchTopicsWithSubtopics] Invalid input')
+    consoleSpy.mockRestore()
   })
 
-  it('throws (Zod) when the id is null', async () => {
-    await expect(fetchTopicsWithSubtopics(null)).rejects.toThrow(ZodError)
+  it('returns empty array and logs when the id is null', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await fetchTopicsWithSubtopics(null)
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith('[fetchTopicsWithSubtopics] Invalid input')
+    consoleSpy.mockRestore()
   })
 })

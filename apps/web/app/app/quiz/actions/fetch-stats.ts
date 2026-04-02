@@ -1,7 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
-import { ZodError, z } from 'zod'
+import { z } from 'zod'
 import { getQuestionStats, type QuestionStats } from '@/lib/queries/question-stats'
 
 const FetchStatsSchema = z.object({ questionId: z.uuid() })
@@ -15,13 +15,18 @@ export async function fetchQuestionStats(questionId: string): Promise<QuestionSt
   if (authError) throw new Error('Auth error. Please refresh.')
   if (!user) throw new Error('Not authenticated')
 
+  let id: string
   try {
-    const { questionId: id } = FetchStatsSchema.parse({ questionId })
+    ;({ questionId: id } = FetchStatsSchema.parse({ questionId }))
+  } catch {
+    console.error('[fetchQuestionStats] Invalid input')
+    throw new Error('Invalid input')
+  }
+
+  try {
     return await getQuestionStats(id)
   } catch (err) {
-    if (!(err instanceof ZodError)) {
-      console.error('[fetchQuestionStats] Error:', err)
-    }
+    console.error('[fetchQuestionStats] Error:', err)
     throw err
   }
 }
