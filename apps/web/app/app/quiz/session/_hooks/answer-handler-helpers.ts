@@ -24,6 +24,12 @@ export function recordAnswerFeedback(
   return next
 }
 
+/**
+ * Rolls back optimistic answer state when checkAnswer fails.
+ * Infrastructure helper coordinating multiple React state refs and setters.
+ * @param answersRef Must be the same ref whose .current the setAnswers updater
+ *   writes back to — these two parameters are coupled, not independent.
+ */
 export function handleAnswerError(
   questionId: string,
   lockedRef: React.MutableRefObject<Set<string>>,

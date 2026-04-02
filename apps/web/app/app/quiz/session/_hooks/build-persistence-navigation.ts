@@ -18,7 +18,7 @@ type Opts = {
   pendingQuestionIdRef: MutableRefObject<Set<string>>
 }
 
-export function useQuizPersistenceNavigation({
+export function buildPersistenceNavigation({
   checkpoint,
   navigateTo,
   getCurrentIndex,
