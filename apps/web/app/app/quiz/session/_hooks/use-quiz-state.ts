@@ -1,16 +1,17 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
-import type { DraftAnswer, QuizStateOpts } from '../../types'
+import type { AnswerFeedback, DraftAnswer, QuizStateOpts } from '../../types'
 import { useAnswerHandler } from './use-answer-handler'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
+import { useQuizPersistence } from './use-quiz-persistence'
 import { useQuizSubmit } from './use-quiz-submit'
 
 export type QuizState = ReturnType<typeof useQuizState>
 
 export function useQuizState(opts: QuizStateOpts) {
-  const { sessionId, questions, initialAnswers } = opts
+  const { sessionId, questions, initialAnswers, initialFeedback } = opts
   const router = useRouter()
   const nav = useQuizNavigation({
     totalQuestions: questions.length,
@@ -27,32 +28,63 @@ export function useQuizState(opts: QuizStateOpts) {
   const question = questions[nav.currentIndex]
   const questionId = question?.id ?? ''
 
+  const { checkpoint } = useQuizPersistence(opts)
+  const feedbackRef = useRef<Map<string, AnswerFeedback>>(initialFeedback ?? new Map())
+
   const {
     feedback,
     error: answerError,
     handleSelectAnswer,
+    clearError: clearAnswerError,
+    pendingQuestionIdRef,
   } = useAnswerHandler({
     sessionId,
     getQuestionId: () => questionId,
     getAnswerStartTime: () => nav.answerStartTime.current,
     answers,
     setAnswers,
+    initialFeedback,
+    onAnswerRecorded: (a, fb) => {
+      // Eager sync so feedbackRef is current before React commits setFeedback
+      feedbackRef.current = fb
+      checkpoint(a, currentIndexRef.current, fb)
+    },
+    onAnswerReverted: (a) => checkpoint(a, currentIndexRef.current, feedbackRef.current),
   })
+  feedbackRef.current = feedback
 
   const {
     submitted,
     error: submitError,
+    clearError: clearSubmitError,
     ...submit
   } = useQuizSubmit({
+    userId: opts.userId,
     sessionId,
     questions,
     answersRef,
+    feedbackRef,
     currentIndexRef,
     router,
     draftId: opts.draftId,
     subjectName: opts.subjectName,
     subjectCode: opts.subjectCode,
   })
+  const wrappedNavigateTo = (index: number) => {
+    clearAnswerError()
+    clearSubmitError()
+    nav.navigateTo(index)
+    const pending = pendingQuestionIdRef.current
+    if (pending.size > 0) {
+      const safe = new Map(answersRef.current)
+      for (const qId of pending) safe.delete(qId)
+      checkpoint(safe, index, feedbackRef.current)
+    } else {
+      checkpoint(answersRef.current, index, feedbackRef.current)
+    }
+  }
+  const wrappedNavigate = (d: number) => wrappedNavigateTo(nav.currentIndex + d)
+
   // Frozen at mount — loader guarantees initialAnswers is resolved before render
   const initialSize = useRef(initialAnswers ? Object.keys(initialAnswers).length : 0)
   useNavigationGuard(answers.size > initialSize.current && !submitted.current)
@@ -73,10 +105,10 @@ export function useQuizState(opts: QuizStateOpts) {
     pinnedQuestions,
     isPinned: pinnedQuestions.has(questionId),
     handleSelectAnswer,
-    navigateTo: nav.navigateTo,
-    navigate: nav.navigate,
+    navigateTo: wrappedNavigateTo,
+    navigate: wrappedNavigate,
     togglePin: () => togglePinById(questionId),
-    error: answerError ?? submitError,
+    error: submitError ?? answerError,
     ...submit,
   }
 }

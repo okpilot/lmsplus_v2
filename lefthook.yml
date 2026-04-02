@@ -21,8 +21,9 @@ pre-commit:
       stage_fixed: true
     type-check:
       run: pnpm check-types
-    test:
-      run: pnpm test
+    # Full test suite runs in CI (ci.yml). Pre-commit runs fast gates only.
+    # test:
+    #   run: pnpm test
 
 commit-msg:
   commands:

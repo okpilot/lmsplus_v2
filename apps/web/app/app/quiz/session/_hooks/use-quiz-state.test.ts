@@ -9,12 +9,14 @@ const {
   mockHandleSaveSession,
   mockHandleDiscardSession,
   mockCheckAnswer,
+  mockCheckpoint,
 } = vi.hoisted(() => ({
   mockRouterPush: vi.fn(),
   mockHandleSubmitSession: vi.fn(),
   mockHandleSaveSession: vi.fn(),
   mockHandleDiscardSession: vi.fn(),
   mockCheckAnswer: vi.fn(),
+  mockCheckpoint: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -43,6 +45,10 @@ vi.mock('../../_hooks/use-navigation-guard', () => ({
 
 vi.mock('../../actions/check-answer', () => ({
   checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
+}))
+
+vi.mock('./use-quiz-persistence', () => ({
+  useQuizPersistence: () => ({ checkpoint: mockCheckpoint }),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -109,35 +115,55 @@ beforeEach(() => {
 describe('useQuizState — initial index clamping', () => {
   it('defaults to index 0 when no initialIndex is provided', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     expect(result.current.currentIndex).toBe(0)
   })
 
   it('accepts a valid initialIndex within range', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 2 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 2,
+      }),
     )
     expect(result.current.currentIndex).toBe(2)
   })
 
   it('clamps initialIndex to the last valid index when it exceeds questions.length - 1', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 99 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 99,
+      }),
     )
     expect(result.current.currentIndex).toBe(2)
   })
 
   it('clamps negative initialIndex to 0', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: -5 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: -5,
+      }),
     )
     expect(result.current.currentIndex).toBe(0)
   })
 
   it('clamps to 0 when questions array is empty', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: [], initialIndex: 3 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: [],
+        initialIndex: 3,
+      }),
     )
     expect(result.current.currentIndex).toBe(0)
   })
@@ -148,7 +174,7 @@ describe('useQuizState — initial index clamping', () => {
 describe('useQuizState — navigation', () => {
   it('navigates to a valid index', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     act(() => result.current.navigateTo(1))
     expect(result.current.currentIndex).toBe(1)
@@ -156,7 +182,7 @@ describe('useQuizState — navigation', () => {
 
   it('does not navigate below index 0', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     act(() => result.current.navigate(-1))
     expect(result.current.currentIndex).toBe(0)
@@ -164,7 +190,12 @@ describe('useQuizState — navigation', () => {
 
   it('does not navigate beyond the last question', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 2 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 2,
+      }),
     )
     act(() => result.current.navigate(1))
     expect(result.current.currentIndex).toBe(2)
@@ -172,7 +203,12 @@ describe('useQuizState — navigation', () => {
 
   it('navigate(+1) advances to the next question', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 0 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 0,
+      }),
     )
     act(() => result.current.navigate(1))
     expect(result.current.currentIndex).toBe(1)
@@ -184,7 +220,7 @@ describe('useQuizState — navigation', () => {
 describe('useQuizState — answer selection', () => {
   it('records an answer for the current question', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSelectAnswer('opt-a'))
     expect(result.current.answeredCount).toBe(1)
@@ -193,7 +229,7 @@ describe('useQuizState — answer selection', () => {
 
   it('ignores a second answer for an already-answered question', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSelectAnswer('opt-a'))
     await act(async () => result.current.handleSelectAnswer('opt-b'))
@@ -229,7 +265,7 @@ describe('useQuizState — answer selection', () => {
     )
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
 
     // Fire both calls without awaiting between them — simulating a rapid double-click.
@@ -251,6 +287,7 @@ describe('useQuizState — answer selection', () => {
   it('restores previously saved answers on mount', () => {
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: {
@@ -259,6 +296,36 @@ describe('useQuizState — answer selection', () => {
       }),
     )
     expect(result.current.answeredCount).toBe(1)
+  })
+
+  it('surfaces initialFeedback through currentFeedback for the recovered question', () => {
+    const initialFeedback = new Map([
+      [
+        Q1_ID,
+        {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: 'Recovered explanation',
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    const { result } = renderHook(() =>
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 800 } },
+        initialFeedback,
+        initialIndex: 0,
+      }),
+    )
+
+    // currentFeedback is feedback.get(questionId) for the current question (Q1 at index 0)
+    expect(result.current.currentFeedback?.isCorrect).toBe(true)
+    expect(result.current.currentFeedback?.correctOptionId).toBe('opt-a')
+    expect(result.current.currentFeedback?.explanationText).toBe('Recovered explanation')
   })
 })
 
@@ -275,7 +342,7 @@ describe('useQuizState — handleSubmit empty-answers guard', () => {
     )
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSubmit())
 
@@ -299,6 +366,7 @@ describe('useQuizState — handleSubmit', () => {
 
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 } },
@@ -319,6 +387,7 @@ describe('useQuizState — handleSubmit', () => {
 
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 1000 } },
@@ -336,7 +405,12 @@ describe('useQuizState — handleSubmit', () => {
 describe('useQuizState — handleSave', () => {
   it('saves current progress with correct quiz data', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS, initialIndex: 1 }),
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialIndex: 1,
+      }),
     )
     await act(async () => result.current.handleSave())
 
@@ -358,7 +432,7 @@ describe('useQuizState — handleSave', () => {
     )
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSave())
 
@@ -369,6 +443,7 @@ describe('useQuizState — handleSave', () => {
     const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         draftId: DRAFT_ID,
@@ -384,6 +459,7 @@ describe('useQuizState — handleSave', () => {
   it('includes subject metadata when saving', async () => {
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         subjectName: 'Air Law',
@@ -406,7 +482,7 @@ describe('useQuizState — handleSave', () => {
 describe('useQuizState — handleDiscard', () => {
   it('discards the current quiz session', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleDiscard())
 
@@ -419,6 +495,7 @@ describe('useQuizState — handleDiscard', () => {
     const DRAFT_ID = '00000000-0000-4000-a000-000000000050'
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         draftId: DRAFT_ID,
@@ -440,7 +517,7 @@ describe('useQuizState — handleDiscard', () => {
     )
 
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleDiscard())
 
@@ -453,14 +530,14 @@ describe('useQuizState — handleDiscard', () => {
 describe('useQuizState — showFinishDialog', () => {
   it('finish dialog is hidden by default', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     expect(result.current.showFinishDialog).toBe(false)
   })
 
   it('opens the finish dialog', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     act(() => result.current.setShowFinishDialog(true))
     expect(result.current.showFinishDialog).toBe(true)
@@ -468,7 +545,7 @@ describe('useQuizState — showFinishDialog', () => {
 
   it('closes the finish dialog', () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     act(() => result.current.setShowFinishDialog(true))
     act(() => result.current.setShowFinishDialog(false))
@@ -488,7 +565,9 @@ describe('useQuizState — navigation guard condition', () => {
   })
 
   it('does not activate the guard when no answers exist', () => {
-    renderHook(() => useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }))
+    renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
     // The last call reflects the final render — guard should be inactive.
     const lastCall = navGuardMock.mock.calls[navGuardMock.mock.calls.length - 1]
     expect(lastCall?.[0]).toBe(false)
@@ -496,7 +575,7 @@ describe('useQuizState — navigation guard condition', () => {
 
   it('activates the guard after a new answer is recorded', async () => {
     const { result } = renderHook(() =>
-      useQuizState({ sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
     await act(async () => result.current.handleSelectAnswer('opt-a'))
 
@@ -509,6 +588,7 @@ describe('useQuizState — navigation guard condition', () => {
     // so the condition (answers.size > initialSize) is false — guard must remain inactive.
     renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: {
@@ -525,6 +605,7 @@ describe('useQuizState — navigation guard condition', () => {
     // makes answers.size (2) > initialSize (1), so the guard activates.
     const { result } = renderHook(() =>
       useQuizState({
+        userId: 'test-user-id',
         sessionId: SESSION_ID,
         questions: THREE_QUESTIONS,
         initialAnswers: {
@@ -537,5 +618,257 @@ describe('useQuizState — navigation guard condition', () => {
 
     const lastCall = navGuardMock.mock.calls[navGuardMock.mock.calls.length - 1]
     expect(lastCall?.[0]).toBe(true)
+  })
+})
+
+// ---- wrappedNavigateTo checkpoint behaviour -----------------------------------
+
+describe('useQuizState — navigateTo checkpoint excludes pending answer', () => {
+  it('passes the full answers map to checkpoint when no checkAnswer is in-flight', async () => {
+    mockCheckAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: null,
+      explanationImageUrl: null,
+    })
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Answer Q1 fully so it is confirmed in the map
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-a')
+    })
+
+    // Navigate — no in-flight checkAnswer; checkpoint should receive the full map
+    mockCheckpoint.mockClear()
+    act(() => result.current.navigateTo(1))
+
+    expect(mockCheckpoint).toHaveBeenCalledTimes(1)
+    const [passedAnswers] = mockCheckpoint.mock.calls[0] as [Map<string, unknown>, number]
+    expect(passedAnswers).toBeInstanceOf(Map)
+    expect(passedAnswers.has(Q1_ID)).toBe(true)
+  })
+
+  it('passes the current feedback map as the third argument to checkpoint on navigation', async () => {
+    mockCheckAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: null,
+      explanationImageUrl: null,
+    })
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Answer Q1 so feedback is populated
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-a')
+    })
+
+    mockCheckpoint.mockClear()
+    act(() => result.current.navigateTo(1))
+
+    expect(mockCheckpoint).toHaveBeenCalledTimes(1)
+    const [, , passedFeedback] = mockCheckpoint.mock.calls[0] as [
+      Map<string, unknown>,
+      number,
+      Map<string, unknown>,
+    ]
+    expect(passedFeedback).toBeInstanceOf(Map)
+    expect(passedFeedback.has(Q1_ID)).toBe(true)
+  })
+
+  it('passes a map without the pending question to checkpoint while checkAnswer is in-flight', async () => {
+    // Create a deferred promise so we can navigate while checkAnswer is still awaiting
+    let resolveCheckAnswer!: (v: {
+      success: true
+      isCorrect: boolean
+      correctOptionId: string
+      explanationText: null
+      explanationImageUrl: null
+    }) => void
+    mockCheckAnswer.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCheckAnswer = resolve
+        }),
+    )
+
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Start answering Q1 but do NOT await — leave checkAnswer in-flight
+    let answerPromise: Promise<boolean>
+    act(() => {
+      answerPromise = result.current.handleSelectAnswer('opt-a')
+    })
+
+    // Navigate while the answer is still pending (checkAnswer has not resolved)
+    mockCheckpoint.mockClear()
+    act(() => result.current.navigateTo(1))
+
+    // Checkpoint must have been called with a map that does NOT include the pending Q1 answer
+    expect(mockCheckpoint).toHaveBeenCalledTimes(1)
+    const [passedAnswers, passedIndex] = mockCheckpoint.mock.calls[0] as [
+      Map<string, unknown>,
+      number,
+    ]
+    expect(passedAnswers).toBeInstanceOf(Map)
+    expect(passedAnswers.has(Q1_ID)).toBe(false)
+    expect(passedIndex).toBe(1)
+
+    // Resolve the in-flight call so the hook cleans up properly
+    await act(async () => {
+      resolveCheckAnswer({
+        success: true,
+        isCorrect: true,
+        correctOptionId: 'opt-a',
+        explanationText: null,
+        explanationImageUrl: null,
+      })
+      await answerPromise
+    })
+  })
+
+  it('passes current feedback to checkpoint via onAnswerReverted when checkAnswer fails', async () => {
+    // Arrange: Q1 is already answered with known feedback in the initial state.
+    // When a second question's checkAnswer fails, the revert checkpoint must include
+    // the previously-recorded feedback (not an empty map).
+    const initialFeedback = new Map([
+      [
+        Q1_ID,
+        {
+          isCorrect: true,
+          correctOptionId: 'opt-a',
+          explanationText: null,
+          explanationImageUrl: null,
+        },
+      ],
+    ])
+
+    // Q1 is seeded via initialAnswers — no checkAnswer call.
+    // The first runtime checkAnswer is Q2, which must reject.
+    mockCheckAnswer.mockRejectedValueOnce(new Error('network error'))
+
+    const { result } = renderHook(() =>
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        initialAnswers: { [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 800 } },
+        initialFeedback,
+        initialIndex: 1,
+      }),
+    )
+
+    // Answer Q2 — this will fail and trigger onAnswerReverted
+    mockCheckpoint.mockClear()
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-b')
+    })
+
+    // checkpoint must have been called (for the revert), and the third argument
+    // (feedbackRef.current) must contain the Q1 feedback recorded before the failure.
+    const revertCalls = mockCheckpoint.mock.calls
+    expect(revertCalls.length).toBeGreaterThan(0)
+    const lastCall = revertCalls[revertCalls.length - 1] as [
+      Map<string, unknown>,
+      number,
+      Map<string, unknown>,
+    ]
+    const passedFeedback = lastCall[2]
+    expect(passedFeedback).toBeInstanceOf(Map)
+    expect(passedFeedback.has(Q1_ID)).toBe(true)
+  })
+
+  it('passes the full answers map to checkpoint after the in-flight checkAnswer resolves', async () => {
+    mockCheckAnswer.mockResolvedValue({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'opt-a',
+      explanationText: null,
+      explanationImageUrl: null,
+    })
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Complete the answer so pendingQuestionIdRef is empty
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-a')
+    })
+
+    // Navigate — pendingQuestionIdRef is empty; checkpoint receives full map
+    mockCheckpoint.mockClear()
+    act(() => result.current.navigateTo(1))
+
+    expect(mockCheckpoint).toHaveBeenCalledTimes(1)
+    const [passedAnswers] = mockCheckpoint.mock.calls[0] as [Map<string, unknown>, number]
+    expect(passedAnswers.has(Q1_ID)).toBe(true)
+  })
+
+  it('passes fresh feedback to the navigation checkpoint when navigate fires before the React re-render', async () => {
+    // This test exercises the feedbackRef fix:
+    //   onAnswerRecorded now does feedbackRef.current = fb BEFORE calling checkpoint.
+    //   wrappedNavigateTo reads feedbackRef.current, not the closure-captured feedback state.
+    //
+    // Race: checkAnswer resolves → onAnswerRecorded fires (sets feedbackRef.current, calls
+    //   checkpoint once for the answer) → navigation fires in the same synchronous turn →
+    //   wrappedNavigateTo calls checkpoint a second time.
+    //
+    // At the moment wrappedNavigateTo runs, React has NOT re-rendered yet, so the
+    // closure-captured `feedback` state variable is still the old empty Map. The fixed code
+    // reads feedbackRef.current instead, which was already updated in onAnswerRecorded.
+    //
+    // Implementation: inject navigation via the first mockCheckpoint call (the onAnswerRecorded
+    // checkpoint). This fires inside useAnswerHandler, before the React render — making the
+    // race observable.
+
+    let navigateFn: ((index: number) => void) | null = null
+    let navigationCheckpointCallCount = 0
+
+    // First checkpoint call = onAnswerRecorded. Trigger navigation synchronously here.
+    // Second checkpoint call = wrappedNavigateTo. Capture its feedback argument.
+    const capturedFeedbacks: Array<Map<string, unknown>> = []
+
+    mockCheckpoint.mockImplementation(
+      (_answers: Map<string, unknown>, _index: number, feedback: Map<string, unknown>) => {
+        navigationCheckpointCallCount++
+        capturedFeedbacks.push(feedback)
+        if (navigationCheckpointCallCount === 1 && navigateFn) {
+          // Navigate synchronously while React has not re-rendered yet.
+          // At this point the closure-captured `feedback` state is still empty;
+          // feedbackRef.current was set by onAnswerRecorded moments before this call.
+          navigateFn(1)
+        }
+      },
+    )
+
+    const { result } = renderHook(() =>
+      useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
+    )
+
+    // Capture the navigate function from the rendered hook.
+    navigateFn = result.current.navigateTo
+
+    await act(async () => {
+      await result.current.handleSelectAnswer('opt-a')
+    })
+
+    // Two checkpoint calls must have occurred:
+    //   1. onAnswerRecorded checkpoint (answer confirmed)
+    //   2. wrappedNavigateTo checkpoint (triggered from within checkpoint #1)
+    expect(capturedFeedbacks.length).toBeGreaterThanOrEqual(2)
+
+    // The SECOND checkpoint call (navigation) must carry the Q1 feedback that was
+    // written to feedbackRef.current by onAnswerRecorded — not an empty Map.
+    // Length >= 2 asserted above
+    const navigationFeedback = capturedFeedbacks[1]!
+    expect(navigationFeedback).toBeInstanceOf(Map)
+    expect(navigationFeedback.has(Q1_ID)).toBe(true)
   })
 })

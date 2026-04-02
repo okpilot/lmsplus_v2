@@ -110,6 +110,70 @@ describe('loadDrafts', () => {
     })
   })
 
+  it('maps feedback column to DraftData.feedback when present', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    const feedbackData = {
+      q1: {
+        isCorrect: true,
+        correctOptionId: 'opt-a',
+        explanationText: 'Pressure altitude ignores temperature.',
+        explanationImageUrl: null,
+      },
+    }
+    mockFrom.mockReturnValue(
+      buildSelectChain({ data: [buildDraftRow({ feedback: feedbackData })], error: null }),
+    )
+
+    const result = await loadDrafts()
+
+    expect(result.drafts[0]!.feedback).toEqual(feedbackData)
+  })
+
+  it('returns feedback as undefined when the feedback column is null', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    mockFrom.mockReturnValue(
+      buildSelectChain({ data: [buildDraftRow({ feedback: null })], error: null }),
+    )
+
+    const result = await loadDrafts()
+
+    expect(result.drafts[0]!.feedback).toBeUndefined()
+  })
+
+  it('returns feedback as undefined when the feedback column is absent from the row', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    // buildDraftRow does not include feedback by default
+    mockFrom.mockReturnValue(buildSelectChain({ data: [buildDraftRow()], error: null }))
+
+    const result = await loadDrafts()
+
+    expect(result.drafts[0]!.feedback).toBeUndefined()
+  })
+
+  it('includes feedback even when session_config is malformed', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    const feedbackData = {
+      q1: {
+        isCorrect: false,
+        correctOptionId: 'opt-b',
+        explanationText: null,
+        explanationImageUrl: null,
+      },
+    }
+    mockFrom.mockReturnValue(
+      buildSelectChain({
+        data: [buildDraftRow({ session_config: null, feedback: feedbackData })],
+        error: null,
+      }),
+    )
+
+    const result = await loadDrafts()
+
+    expect(result.drafts[0]!.feedback).toEqual(feedbackData)
+    consoleSpy.mockRestore()
+  })
+
   it('maps a valid draft row with no optional subject fields', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
     mockFrom.mockReturnValue(

@@ -7,7 +7,7 @@ import { useFilteredCount } from './use-filtered-count'
 import { useQuizStart } from './use-quiz-start'
 import { useTopicTree } from './use-topic-tree'
 
-export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
+export function useQuizConfig({ userId, subjects }: { userId: string; subjects: SubjectOption[] }) {
   const [subjectId, setSubjectId] = useState('')
   const [mode, setMode] = useState<QuizMode>('study')
   const [filters, setFilters] = useState<QuestionFilterValue[]>(['all'])
@@ -42,6 +42,7 @@ export function useQuizConfig({ subjects }: { subjects: SubjectOption[] }) {
     topicTree.checkedSubtopics,
   ])
   const { loading, error, handleStart } = useQuizStart({
+    userId,
     subjectId,
     subjects,
     count,

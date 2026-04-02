@@ -1,9 +1,11 @@
 import type { useRouter } from 'next/navigation'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
+import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
 import { deleteDraft } from '../../actions/draft-delete'
-import type { DraftAnswer } from '../../types'
+import type { AnswerFeedback, DraftAnswer } from '../../types'
+import { clearActiveSession } from '../_utils/quiz-session-storage'
 
 type AppRouterInstance = ReturnType<typeof useRouter>
 
@@ -13,6 +15,7 @@ type SetSubmitting = (v: boolean) => void
 export async function submitQuizSession(
   sessionId: string,
   answers: Map<string, DraftAnswer>,
+  userId: string,
   draftId?: string,
 ) {
   const answerArray = Array.from(answers.entries()).map(([qId, a]) => ({
@@ -23,6 +26,8 @@ export async function submitQuizSession(
   try {
     const result = await batchSubmitQuiz({ sessionId, answers: answerArray })
     if (!result.success) return { success: false as const, error: result.error }
+    clearActiveSession(userId)
+    clearDeploymentPin().catch(() => {})
     if (draftId) {
       deleteDraft({ draftId }).catch((e) =>
         console.error('[submitQuizSession] Draft cleanup failed:', e),
@@ -37,8 +42,11 @@ export async function submitQuizSession(
 export async function discardQuizSession(
   sessionId: string,
   router: AppRouterInstance,
+  userId: string,
   draftId?: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
+  clearActiveSession(userId) // Always clear — respect discard intent even if Server Action fails
+  clearDeploymentPin().catch(() => {})
   try {
     const result = await discardQuiz({ sessionId, draftId })
     if (!result.success) return result
@@ -50,9 +58,11 @@ export async function discardQuizSession(
 }
 
 export async function saveQuizDraft(opts: {
+  userId: string
   sessionId: string
   questionIds: string[]
   answers: Map<string, DraftAnswer>
+  feedback?: Map<string, AnswerFeedback>
   currentIndex: number
   router: AppRouterInstance
   draftId?: string
@@ -60,23 +70,32 @@ export async function saveQuizDraft(opts: {
   subjectCode?: string
 }) {
   const answerObj = Object.fromEntries(opts.answers)
-  const result = await saveDraft({
-    draftId: opts.draftId,
-    sessionId: opts.sessionId,
-    questionIds: opts.questionIds,
-    answers: answerObj,
-    currentIndex: opts.currentIndex,
-    subjectName: opts.subjectName,
-    subjectCode: opts.subjectCode,
-  })
-  if (result.success) {
-    opts.router.push('/app/quiz')
-    return { success: true as const }
+  const feedbackObj = opts.feedback ? Object.fromEntries(opts.feedback) : undefined
+  try {
+    const result = await saveDraft({
+      draftId: opts.draftId,
+      sessionId: opts.sessionId,
+      questionIds: opts.questionIds,
+      answers: answerObj,
+      feedback: feedbackObj,
+      currentIndex: opts.currentIndex,
+      subjectName: opts.subjectName,
+      subjectCode: opts.subjectCode,
+    })
+    if (result.success) {
+      clearActiveSession(opts.userId)
+      clearDeploymentPin().catch(() => {})
+      opts.router.push('/app/quiz')
+      return { success: true as const }
+    }
+    return { success: false as const, error: result.error }
+  } catch {
+    return { success: false as const, error: 'Something went wrong. Please try again.' }
   }
-  return { success: false as const, error: result.error }
 }
 
 export async function handleSubmitSession(opts: {
+  userId: string
   sessionId: string
   answers: Map<string, DraftAnswer>
   draftId: string | undefined
@@ -91,7 +110,7 @@ export async function handleSubmitSession(opts: {
   }
   opts.setSubmitting(true)
   opts.setError(null)
-  const r = await submitQuizSession(opts.sessionId, opts.answers, opts.draftId)
+  const r = await submitQuizSession(opts.sessionId, opts.answers, opts.userId, opts.draftId)
   if (r.success) {
     opts.onSuccess()
     opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
@@ -102,9 +121,11 @@ export async function handleSubmitSession(opts: {
 }
 
 export async function handleSaveSession(opts: {
+  userId: string
   sessionId: string
   questions: Array<{ id: string }>
   answers: Map<string, DraftAnswer>
+  feedback?: Map<string, AnswerFeedback>
   currentIndex: number
   router: AppRouterInstance
   draftId: string | undefined
@@ -116,9 +137,11 @@ export async function handleSaveSession(opts: {
   opts.setSubmitting(true)
   opts.setError(null)
   const r = await saveQuizDraft({
+    userId: opts.userId,
     sessionId: opts.sessionId,
     questionIds: opts.questions.map((q) => q.id),
     answers: opts.answers,
+    feedback: opts.feedback,
     currentIndex: opts.currentIndex,
     router: opts.router,
     draftId: opts.draftId,
@@ -132,6 +155,7 @@ export async function handleSaveSession(opts: {
 }
 
 export async function handleDiscardSession(opts: {
+  userId: string
   sessionId: string
   router: AppRouterInstance
   draftId: string | undefined
@@ -140,7 +164,7 @@ export async function handleDiscardSession(opts: {
 }) {
   opts.setSubmitting(true)
   opts.setError(null)
-  const r = await discardQuizSession(opts.sessionId, opts.router, opts.draftId)
+  const r = await discardQuizSession(opts.sessionId, opts.router, opts.userId, opts.draftId)
   if (!r.success) {
     opts.setError(r.error)
     opts.setSubmitting(false)

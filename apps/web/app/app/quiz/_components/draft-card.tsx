@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { deleteDraft } from '../actions/draft-delete'
+import { sessionHandoffKey } from '../session/_utils/quiz-session-storage'
 import type { DraftData } from '../types'
 
 export function progressColor(pct: number): string {
@@ -11,7 +12,7 @@ export function progressColor(pct: number): string {
   return 'text-primary'
 }
 
-export function DraftCard({ draft }: { draft: DraftData }) {
+export function DraftCard({ draft, userId }: { draft: DraftData; userId: string }) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,18 +33,26 @@ export function DraftCard({ draft }: { draft: DraftData }) {
     : ''
 
   function handleResume() {
-    sessionStorage.setItem(
-      'quiz-session',
-      JSON.stringify({
-        sessionId: draft.sessionId,
-        questionIds: draft.questionIds,
-        draftAnswers: draft.answers,
-        draftCurrentIndex: draft.currentIndex,
-        draftId: draft.id,
-        subjectName: draft.subjectName,
-        subjectCode: draft.subjectCode,
-      }),
-    )
+    try {
+      sessionStorage.setItem(
+        sessionHandoffKey(userId),
+        JSON.stringify({
+          userId,
+          sessionId: draft.sessionId,
+          questionIds: draft.questionIds,
+          draftAnswers: draft.answers,
+          draftFeedback: draft.feedback,
+          draftCurrentIndex: draft.currentIndex,
+          draftId: draft.id,
+          subjectName: draft.subjectName,
+          subjectCode: draft.subjectCode,
+        }),
+      )
+    } catch (err) {
+      console.warn('[draft-card] sessionStorage handoff failed:', err)
+      setError('Unable to resume right now. Please try again.')
+      return
+    }
     router.push('/app/quiz/session')
   }
 

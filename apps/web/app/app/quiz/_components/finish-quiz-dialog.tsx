@@ -7,6 +7,7 @@ type FinishQuizDialogProps = {
   answeredCount: number
   totalQuestions: number
   submitting: boolean
+  error?: string | null
   onSubmit: () => void
   onCancel: () => void
   onSave: () => void
@@ -18,6 +19,7 @@ export function FinishQuizDialog({
   answeredCount,
   totalQuestions,
   submitting,
+  error,
   onSubmit,
   onCancel,
   onSave,
@@ -130,6 +132,12 @@ export function FinishQuizDialog({
               </button>
             </div>
           </div>
+        )}
+
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-destructive">
+            {error}
+          </p>
         )}
 
         <div className="mt-6 flex flex-col gap-2">

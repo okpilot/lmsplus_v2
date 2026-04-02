@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { Database } from '@repo/db/types'
-import type { DraftData, LoadDraftsResult } from '../types'
+import type { AnswerFeedback, DraftData, LoadDraftsResult } from '../types'
 
 type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
 type SessionConfig = { sessionId: string; subjectName?: string; subjectCode?: string }
@@ -15,8 +15,21 @@ function isSessionConfig(v: unknown): v is SessionConfig {
   )
 }
 
+function isFeedbackRecord(v: unknown): v is Record<string, AnswerFeedback> {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false
+  return Object.values(v).every(
+    (e) =>
+      typeof e === 'object' &&
+      e !== null &&
+      typeof (e as Record<string, unknown>).isCorrect === 'boolean' &&
+      typeof (e as Record<string, unknown>).correctOptionId === 'string',
+  )
+}
+
 function rowToDraftData(row: QuizDraftRow): DraftData {
   const raw = row.session_config
+  const rawFeedback = (row as unknown as { feedback?: unknown }).feedback
+  const feedback = isFeedbackRecord(rawFeedback) ? rawFeedback : undefined
   if (!isSessionConfig(raw)) {
     console.error('[rowToDraftData] Malformed session_config on draft', row.id)
     return {
@@ -24,6 +37,7 @@ function rowToDraftData(row: QuizDraftRow): DraftData {
       sessionId: '',
       questionIds: row.question_ids,
       answers: row.answers as Record<string, { selectedOptionId: string; responseTimeMs: number }>,
+      feedback: feedback ?? undefined,
       currentIndex: row.current_index,
       subjectName: undefined,
       subjectCode: undefined,
@@ -36,6 +50,7 @@ function rowToDraftData(row: QuizDraftRow): DraftData {
     sessionId: config.sessionId,
     questionIds: row.question_ids,
     answers: row.answers as Record<string, { selectedOptionId: string; responseTimeMs: number }>,
+    feedback: feedback ?? undefined,
     currentIndex: row.current_index,
     subjectName: config.subjectName,
     subjectCode: config.subjectCode,
