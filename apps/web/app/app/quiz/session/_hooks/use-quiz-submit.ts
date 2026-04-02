@@ -11,6 +11,7 @@ export function useQuizSubmit(opts: {
   answersRef: React.RefObject<Map<string, DraftAnswer>>
   feedbackRef: React.RefObject<Map<string, AnswerFeedback>>
   currentIndexRef: React.RefObject<number>
+  pendingQuestionIdRef: React.RefObject<Set<string>>
   router: AppRouterInstance
   draftId?: string
   subjectName?: string
@@ -23,10 +24,15 @@ export function useQuizSubmit(opts: {
   const shared = { router: opts.router, setSubmitting, setError }
 
   function handleSubmit() {
+    const pending = opts.pendingQuestionIdRef.current
+    const safeAnswers =
+      pending.size > 0
+        ? new Map([...opts.answersRef.current].filter(([qId]) => !pending.has(qId)))
+        : opts.answersRef.current
     return handleSubmitSession({
       userId: opts.userId,
       sessionId: opts.sessionId,
-      answers: opts.answersRef.current,
+      answers: safeAnswers,
       draftId: opts.draftId,
       onSuccess: () => {
         submitted.current = true
