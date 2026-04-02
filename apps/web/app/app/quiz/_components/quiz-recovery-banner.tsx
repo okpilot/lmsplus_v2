@@ -1,98 +1,15 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { clearDeploymentPin } from '../actions/clear-deployment-pin'
-import { discardQuiz } from '../actions/discard'
-import { saveDraft } from '../actions/draft'
-import {
-  type ActiveSession,
-  clearActiveSession,
-  readActiveSession,
-  sessionHandoffKey,
-} from '../session/_utils/quiz-session-storage'
+import { useQuizRecovery } from '../_hooks/use-quiz-recovery'
 
 export function QuizRecoveryBanner({ userId }: { userId: string }) {
-  const router = useRouter()
-  const [session, setSession] = useState<ActiveSession | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    setSession(readActiveSession(userId))
-  }, [userId])
+  const { session, loading, error, handleResume, handleSave, handleDiscard } =
+    useQuizRecovery(userId)
 
   if (session === null) return null
 
   const answeredCount = Object.keys(session.answers).length
   const totalCount = session.questionIds.length
-
-  function handleResume() {
-    if (!session) return
-    try {
-      sessionStorage.setItem(
-        sessionHandoffKey(userId),
-        JSON.stringify({
-          userId,
-          sessionId: session.sessionId,
-          questionIds: session.questionIds,
-          draftAnswers: session.answers,
-          draftFeedback: session.feedback,
-          draftCurrentIndex: session.currentIndex,
-          draftId: session.draftId,
-          subjectName: session.subjectName,
-          subjectCode: session.subjectCode,
-        }),
-      )
-    } catch (err) {
-      console.warn('[quiz-recovery-banner] Resume handoff failed:', err)
-      setError('Unable to resume right now. Please try again.')
-      return
-    }
-    clearActiveSession(userId)
-    router.push('/app/quiz/session')
-  }
-
-  async function handleSave() {
-    if (loading || !session) return
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await saveDraft({
-        draftId: session.draftId,
-        sessionId: session.sessionId,
-        questionIds: session.questionIds,
-        answers: session.answers,
-        feedback: session.feedback,
-        currentIndex: session.currentIndex,
-        subjectName: session.subjectName,
-        subjectCode: session.subjectCode,
-      })
-      if (result.success) {
-        clearActiveSession(userId)
-        clearDeploymentPin().catch(() => {})
-        router.refresh()
-        setSession(null)
-      } else {
-        setError(result.error ?? 'Failed to save. Please try again.')
-      }
-    } catch {
-      setError('Server unavailable. Please try again later.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function handleDiscard() {
-    if (loading) return
-    const captured = session
-    clearActiveSession(userId)
-    clearDeploymentPin().catch(() => {})
-    setSession(null)
-    if (captured) {
-      discardQuiz({ sessionId: captured.sessionId, draftId: captured.draftId }).catch(() => {})
-    }
-  }
 
   return (
     <div className="mx-auto max-w-md rounded-lg border border-primary/30 bg-primary/5 p-4 mb-4">

@@ -111,6 +111,18 @@ export type QuizStateOpts = {
   subjectCode?: string
 }
 
+export type AnswerPipelineOpts = QuizStateOpts & {
+  getQuestionId: () => string
+  getAnswerStartTime: () => number
+  getCurrentIndex: () => number
+  answers: Map<string, DraftAnswer>
+  setAnswers: React.Dispatch<React.SetStateAction<Map<string, DraftAnswer>>>
+  answersRef: React.RefObject<Map<string, DraftAnswer>>
+  currentIndexRef: React.RefObject<number>
+  navigateTo: (idx: number) => void
+  router: import('next/dist/shared/lib/app-router-context.shared-runtime').AppRouterInstance
+}
+
 export type QuizMode = 'study' | 'exam'
 
 export type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'

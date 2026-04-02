@@ -24,21 +24,25 @@ export function isValidRecordOf(val: unknown, check: (v: unknown) => boolean): b
   return Object.values(val).every(check)
 }
 
+function isOptionalFieldValid(
+  d: Record<string, unknown>,
+  key: string,
+  check: (v: unknown) => boolean,
+): boolean {
+  return !(key in d) || d[key] === undefined || check(d[key])
+}
+
 export function hasValidOptionalFields(d: Record<string, unknown>, questionCount: number): boolean {
   return (
-    (!('draftAnswers' in d) ||
-      d.draftAnswers === undefined ||
-      isValidRecordOf(d.draftAnswers, isValidDraftAnswer)) &&
-    (!('draftFeedback' in d) ||
-      d.draftFeedback === undefined ||
-      isValidRecordOf(d.draftFeedback, isValidFeedbackEntry)) &&
-    (!('draftCurrentIndex' in d) ||
-      d.draftCurrentIndex === undefined ||
-      (Number.isInteger(d.draftCurrentIndex) &&
-        (d.draftCurrentIndex as number) >= 0 &&
-        (d.draftCurrentIndex as number) < questionCount)) &&
-    (!('draftId' in d) || d.draftId === undefined || isNonEmptyString(d.draftId)) &&
-    (!('subjectName' in d) || d.subjectName === undefined || typeof d.subjectName === 'string') &&
-    (!('subjectCode' in d) || d.subjectCode === undefined || typeof d.subjectCode === 'string')
+    isOptionalFieldValid(d, 'draftAnswers', (v) => isValidRecordOf(v, isValidDraftAnswer)) &&
+    isOptionalFieldValid(d, 'draftFeedback', (v) => isValidRecordOf(v, isValidFeedbackEntry)) &&
+    isOptionalFieldValid(
+      d,
+      'draftCurrentIndex',
+      (v) => Number.isInteger(v) && (v as number) >= 0 && (v as number) < questionCount,
+    ) &&
+    isOptionalFieldValid(d, 'draftId', (v) => isNonEmptyString(v)) &&
+    isOptionalFieldValid(d, 'subjectName', (v) => typeof v === 'string') &&
+    isOptionalFieldValid(d, 'subjectCode', (v) => typeof v === 'string')
   )
 }

@@ -26,6 +26,21 @@ export type ActiveSession = {
   savedAt: number // Date.now()
 }
 
+/** Build the sessionStorage handoff payload for resuming a session. */
+export function buildHandoffPayload(userId: string, s: ActiveSession) {
+  return {
+    userId,
+    sessionId: s.sessionId,
+    questionIds: s.questionIds,
+    draftAnswers: s.answers,
+    draftFeedback: s.feedback,
+    draftCurrentIndex: s.currentIndex,
+    draftId: s.draftId,
+    subjectName: s.subjectName,
+    subjectCode: s.subjectCode,
+  }
+}
+
 export function writeActiveSession(data: ActiveSession): void {
   try {
     localStorage.setItem(storageKey(data.userId), JSON.stringify(data))

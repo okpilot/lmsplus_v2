@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { downloadJsonFile } from '@/lib/gdpr/download-json'
 import { exportStudentData } from '../actions/export-student-data'
 import type { StudentRow } from '../types'
 
@@ -34,21 +35,14 @@ export function ExportStudentDialog({ student, open, onOpenChange }: Readonly<Pr
           return
         }
 
-        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
-          type: 'application/json',
-        })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
         const safePrefix = (student.email.split('@')[0] ?? 'student').replace(
           /[^a-zA-Z0-9._-]/g,
           '_',
         )
-        link.download = `student-export-${safePrefix}-${new Date().toISOString().slice(0, 10)}.json`
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        setTimeout(() => URL.revokeObjectURL(url), 0)
+        downloadJsonFile(
+          result.data,
+          `student-export-${safePrefix}-${new Date().toISOString().slice(0, 10)}.json`,
+        )
 
         toast.success('Student data exported')
         onOpenChange(false)
