@@ -18,6 +18,7 @@ export async function submitQuizAnswer(raw: unknown): Promise<SubmitQuizAnswerRe
   try {
     input = SubmitAnswerSchema.parse(raw)
   } catch {
+    console.error('[submitQuizAnswer] Invalid input')
     return { success: false, error: 'Invalid input' }
   }
 

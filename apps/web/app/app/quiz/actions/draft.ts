@@ -66,6 +66,7 @@ export async function saveDraft(raw: unknown): Promise<DraftResult> {
     try {
       input = SaveDraftInput.parse(raw)
     } catch {
+      console.error('[saveDraft] Invalid input')
       return { success: false, error: 'Invalid input' }
     }
     if (input.draftId) return await updateExistingDraft(supabase, input, user.id)

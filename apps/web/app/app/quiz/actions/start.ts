@@ -27,6 +27,7 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
     try {
       input = StartQuizInput.parse(raw)
     } catch {
+      console.error('[startQuizSession] Invalid input')
       return { success: false, error: 'Invalid input' }
     }
 

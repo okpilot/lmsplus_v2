@@ -31,6 +31,7 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
     try {
       input = BatchSubmitInput.parse(raw)
     } catch {
+      console.error('[batchSubmitQuiz] Invalid input')
       return { success: false, error: 'Invalid input' }
     }
 
