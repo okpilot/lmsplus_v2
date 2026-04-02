@@ -266,7 +266,7 @@ describe('QuizRecoveryBanner — Resume', () => {
 // ---- Save for Later -------------------------------------------------------
 
 describe('QuizRecoveryBanner — Save for Later', () => {
-  it('calls saveDraft with session data and clears the banner on success', async () => {
+  it('saves draft and hides banner when save succeeds', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     mockSaveDraft.mockResolvedValue({ success: true })
 
@@ -281,7 +281,7 @@ describe('QuizRecoveryBanner — Save for Later', () => {
     )
   })
 
-  it('passes feedback to saveDraft when the session has feedback', async () => {
+  it('includes session feedback in the save payload when feedback is present', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION_WITH_FEEDBACK)
     mockSaveDraft.mockResolvedValue({ success: true })
 
@@ -294,7 +294,7 @@ describe('QuizRecoveryBanner — Save for Later', () => {
     )
   })
 
-  it('calls saveDraft without feedback when the session has no feedback', async () => {
+  it('omits feedback from the save payload when the session has no feedback', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     mockSaveDraft.mockResolvedValue({ success: true })
 
@@ -302,7 +302,6 @@ describe('QuizRecoveryBanner — Save for Later', () => {
     await userEvent.click(screen.getByRole('button', { name: /save for later/i }))
 
     await waitFor(() => expect(mockSaveDraft).toHaveBeenCalledTimes(1))
-    // feedback key should be undefined (not present in the session)
     const callArg = mockSaveDraft.mock.calls[0]?.[0] as Record<string, unknown>
     expect(callArg.feedback).toBeUndefined()
   })
@@ -372,7 +371,7 @@ describe('QuizRecoveryBanner — Discard', () => {
     expect(screen.queryByText(/unfinished quiz found/i)).not.toBeInTheDocument()
   })
 
-  it('calls discardQuiz in the background with the session id', async () => {
+  it('fires a background cleanup for the session after discarding', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
 
     render(<QuizRecoveryBanner userId="test-user-id" />)

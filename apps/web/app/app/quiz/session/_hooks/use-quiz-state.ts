@@ -2,6 +2,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { AnswerFeedback, DraftAnswer, QuizStateOpts } from '../../types'
+import { buildPersistenceNavigation } from './build-persistence-navigation'
 import { useAnswerHandler } from './use-answer-handler'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
@@ -70,20 +71,16 @@ export function useQuizState(opts: QuizStateOpts) {
     subjectName: opts.subjectName,
     subjectCode: opts.subjectCode,
   })
-  const wrappedNavigateTo = (index: number) => {
-    clearAnswerError()
-    clearSubmitError()
-    nav.navigateTo(index)
-    const pending = pendingQuestionIdRef.current
-    if (pending.size > 0) {
-      const safe = new Map(answersRef.current)
-      for (const qId of pending) safe.delete(qId)
-      checkpoint(safe, index, feedbackRef.current)
-    } else {
-      checkpoint(answersRef.current, index, feedbackRef.current)
-    }
-  }
-  const wrappedNavigate = (d: number) => wrappedNavigateTo(nav.currentIndex + d)
+  const { navigateTo: wrappedNavigateTo, navigate: wrappedNavigate } = buildPersistenceNavigation({
+    checkpoint,
+    navigateTo: nav.navigateTo,
+    getCurrentIndex: () => nav.currentIndex,
+    clearAnswerError,
+    clearSubmitError,
+    answersRef,
+    feedbackRef,
+    pendingQuestionIdRef,
+  })
 
   // Frozen at mount — loader guarantees initialAnswers is resolved before render
   const initialSize = useRef(initialAnswers ? Object.keys(initialAnswers).length : 0)
