@@ -19,6 +19,13 @@ const BatchSubmitInput = z.object({
 })
 
 export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> {
+  let input: z.infer<typeof BatchSubmitInput>
+  try {
+    input = BatchSubmitInput.parse(raw)
+  } catch {
+    return { success: false, error: 'Invalid input' }
+  }
+
   try {
     const supabase = await createServerSupabaseClient()
     const {
@@ -26,7 +33,6 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
       error: authError,
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false, error: 'Not authenticated' }
-    const input = BatchSubmitInput.parse(raw)
 
     const p_answers = input.answers.map((a) => ({
       question_id: a.questionId,

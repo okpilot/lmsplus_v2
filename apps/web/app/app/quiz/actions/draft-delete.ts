@@ -8,6 +8,13 @@ const DeleteDraftInput = z.object({
 })
 
 export async function deleteDraft(raw: unknown): Promise<{ success: boolean }> {
+  let draftId: string
+  try {
+    ;({ draftId } = DeleteDraftInput.parse(raw))
+  } catch {
+    return { success: false }
+  }
+
   try {
     const supabase = await createServerSupabaseClient()
     const {
@@ -15,8 +22,6 @@ export async function deleteDraft(raw: unknown): Promise<{ success: boolean }> {
       error: authError,
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false }
-
-    const { draftId } = DeleteDraftInput.parse(raw)
 
     // quiz_drafts uses real DELETE (not soft delete) — approved exception for temp storage
     // Delete by id AND student_id to prevent one student deleting another's draft

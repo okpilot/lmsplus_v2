@@ -165,15 +165,14 @@ describe('startQuizSession', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await startQuizSession({})
     expect(result.success).toBe(false)
-    if (!result.success)
-      expect(result.error).toBe('Invalid input: expected string, received undefined')
+    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure for a non-UUID subject ID', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     const result = await startQuizSession({ subjectId: 'not-a-uuid', count: 5 })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid UUID')
+    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure when topicIds contains a non-UUID', async () => {
@@ -184,7 +183,7 @@ describe('startQuizSession', () => {
       count: 5,
     })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid UUID')
+    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure when subtopicIds contains a non-UUID', async () => {
@@ -195,7 +194,7 @@ describe('startQuizSession', () => {
       count: 5,
     })
     expect(result.success).toBe(false)
-    if (!result.success) expect(result.error).toBe('Invalid UUID')
+    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure when filters contains an unknown value', async () => {

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ZodError } from 'zod'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -100,12 +99,14 @@ describe('fetchTopicsForSubject', () => {
     expect(result).toEqual([])
   })
 
-  it('throws (Zod) when the id is not a valid UUID', async () => {
-    await expect(fetchTopicsForSubject('not-a-uuid')).rejects.toThrow(ZodError)
+  it('returns empty array when the id is not a valid UUID', async () => {
+    const result = await fetchTopicsForSubject('not-a-uuid')
+    expect(result).toEqual([])
   })
 
-  it('throws (Zod) when the id is null', async () => {
-    await expect(fetchTopicsForSubject(null)).rejects.toThrow(ZodError)
+  it('returns empty array when the id is null', async () => {
+    const result = await fetchTopicsForSubject(null)
+    expect(result).toEqual([])
   })
 })
 
@@ -125,12 +126,14 @@ describe('fetchSubtopicsForTopic', () => {
     expect(result).toEqual([])
   })
 
-  it('throws (Zod) when the id is not a valid UUID', async () => {
-    await expect(fetchSubtopicsForTopic('not-a-uuid')).rejects.toThrow(ZodError)
+  it('returns empty array when the id is not a valid UUID', async () => {
+    const result = await fetchSubtopicsForTopic('not-a-uuid')
+    expect(result).toEqual([])
   })
 
-  it('throws (Zod) when the id is null', async () => {
-    await expect(fetchSubtopicsForTopic(null)).rejects.toThrow(ZodError)
+  it('returns empty array when the id is null', async () => {
+    const result = await fetchSubtopicsForTopic(null)
+    expect(result).toEqual([])
   })
 })
 
@@ -152,22 +155,23 @@ describe('getFilteredCount — auth and validation', () => {
     expect(result).toMatchObject({ count: 0, error: 'auth' })
   })
 
-  it('throws (Zod) when subjectId is not a valid UUID', async () => {
-    await expect(getFilteredCount({ subjectId: 'not-a-uuid', filters: ['all'] })).rejects.toThrow(
-      ZodError,
-    )
+  it('returns empty count when subjectId is not a valid UUID', async () => {
+    const result = await getFilteredCount({ subjectId: 'not-a-uuid', filters: ['all'] })
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
   })
 
-  it('throws (Zod) when filters contains an unknown value', async () => {
-    await expect(getFilteredCount({ subjectId: SUBJECT_ID, filters: ['random'] })).rejects.toThrow(
-      ZodError,
-    )
+  it('returns empty count when filters contains an unknown value', async () => {
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['random'] })
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
   })
 
-  it('throws (Zod) when topicIds contains a non-UUID', async () => {
-    await expect(
-      getFilteredCount({ subjectId: SUBJECT_ID, topicIds: ['bad-id'], filters: ['all'] }),
-    ).rejects.toThrow(ZodError)
+  it('returns empty count when topicIds contains a non-UUID', async () => {
+    const result = await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      topicIds: ['bad-id'],
+      filters: ['all'],
+    })
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
   })
 })
 
@@ -519,11 +523,13 @@ describe('fetchTopicsWithSubtopics', () => {
     expect(result).toEqual([])
   })
 
-  it('throws (Zod) when the id is not a valid UUID', async () => {
-    await expect(fetchTopicsWithSubtopics('not-a-uuid')).rejects.toThrow(ZodError)
+  it('returns empty array when the id is not a valid UUID', async () => {
+    const result = await fetchTopicsWithSubtopics('not-a-uuid')
+    expect(result).toEqual([])
   })
 
-  it('throws (Zod) when the id is null', async () => {
-    await expect(fetchTopicsWithSubtopics(null)).rejects.toThrow(ZodError)
+  it('returns empty array when the id is null', async () => {
+    const result = await fetchTopicsWithSubtopics(null)
+    expect(result).toEqual([])
   })
 })

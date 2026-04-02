@@ -14,15 +14,36 @@ import { buildQuestionQuery, groupCounts } from './lookup-helpers'
 const IdSchema = z.uuid()
 
 export async function fetchTopicsForSubject(raw: unknown): Promise<TopicOption[]> {
-  return getTopicsForSubject(IdSchema.parse(raw))
+  let id: string
+  try {
+    id = IdSchema.parse(raw)
+  } catch {
+    console.error('[fetchTopicsForSubject] Invalid input')
+    return []
+  }
+  return getTopicsForSubject(id)
 }
 
 export async function fetchSubtopicsForTopic(raw: unknown): Promise<SubtopicOption[]> {
-  return getSubtopicsForTopic(IdSchema.parse(raw))
+  let id: string
+  try {
+    id = IdSchema.parse(raw)
+  } catch {
+    console.error('[fetchSubtopicsForTopic] Invalid input')
+    return []
+  }
+  return getSubtopicsForTopic(id)
 }
 
 export async function fetchTopicsWithSubtopics(raw: unknown): Promise<TopicWithSubtopics[]> {
-  return getTopicsWithSubtopics(IdSchema.parse(raw))
+  let id: string
+  try {
+    id = IdSchema.parse(raw)
+  } catch {
+    console.error('[fetchTopicsWithSubtopics] Invalid input')
+    return []
+  }
+  return getTopicsWithSubtopics(id)
 }
 
 const FilteredCountSchema = z.object({
@@ -41,7 +62,14 @@ export type FilteredCountResult = {
 
 export async function getFilteredCount(input: unknown): Promise<FilteredCountResult> {
   const empty: FilteredCountResult = { count: 0, byTopic: {}, bySubtopic: {} }
-  const { subjectId, topicIds, subtopicIds, filters } = FilteredCountSchema.parse(input)
+  let parsed: z.infer<typeof FilteredCountSchema>
+  try {
+    parsed = FilteredCountSchema.parse(input)
+  } catch {
+    console.error('[getFilteredCount] Invalid input')
+    return empty
+  }
+  const { subjectId, topicIds, subtopicIds, filters } = parsed
   const supabase = await createServerSupabaseClient()
 
   const {
