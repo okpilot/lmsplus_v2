@@ -4,6 +4,7 @@ import {
   isNonEmptyString,
   isValidDraftAnswer,
   isValidFeedbackEntry,
+  isValidRecordOf,
 } from './quiz-session-validators'
 
 const storageKey = (userId: string) => `quiz-active-session:${userId}`
@@ -70,20 +71,14 @@ export function readActiveSession(userId: string): ActiveSession | null {
       return null
     }
     // Validate answers values have required DraftAnswer shape
-    for (const val of Object.values(data.answers)) {
-      if (!isValidDraftAnswer(val)) {
-        safeRemove(userId)
-        return null
-      }
+    if (!isValidRecordOf(data.answers, isValidDraftAnswer)) {
+      safeRemove(userId)
+      return null
     }
     // Validate feedback values have required AnswerFeedback shape
-    if (data.feedback) {
-      for (const val of Object.values(data.feedback)) {
-        if (!isValidFeedbackEntry(val)) {
-          safeRemove(userId)
-          return null
-        }
-      }
+    if (data.feedback && !isValidRecordOf(data.feedback, isValidFeedbackEntry)) {
+      safeRemove(userId)
+      return null
     }
     // Cross-user contamination guard
     if (data.userId !== userId) {
