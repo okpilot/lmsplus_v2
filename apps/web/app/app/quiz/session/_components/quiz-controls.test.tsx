@@ -137,15 +137,12 @@ describe('QuizControls — Submit Answer button', () => {
   it('calls onSubmitAnswer when Submit Answer is clicked', () => {
     const onSubmitAnswer = vi.fn()
     renderControls({ showSubmit: true, onSubmitAnswer })
-    const [firstSubmit] = screen.getAllByRole('button', { name: /submit answer/i })
-    fireEvent.click(firstSubmit!)
+    fireEvent.click(screen.getByRole('button', { name: /submit answer/i }))
     expect(onSubmitAnswer).toHaveBeenCalledOnce()
   })
 
   it('disables Submit Answer when submitting', () => {
     renderControls({ showSubmit: true, submitting: true })
-    for (const btn of screen.getAllByRole('button', { name: /submit answer/i })) {
-      expect(btn).toBeDisabled()
-    }
+    expect(screen.getByRole('button', { name: /submit answer/i })).toBeDisabled()
   })
 })
