@@ -20,7 +20,7 @@ Admin tooling must support the full ECQB question bank (5000+ questions). Withou
 2. WHEN admin clicks a page number (e.g. page 3) THEN system SHALL navigate to `?page=3` and display questions 51-75
 3. WHEN admin is on page 1 THEN Prev button SHALL be disabled
 4. WHEN admin is on the last page THEN Next button SHALL be disabled
-5. WHEN `page` param is invalid (negative, zero, non-integer, non-numeric) THEN system SHALL default to page 1
+5. WHEN `page` param is invalid (negative, zero, non-numeric) THEN system SHALL default to page 1. WHEN `page` is a numeric string with a decimal part (e.g. `2.7`) THEN system SHALL truncate to its integer part
 
 ### R2: Total count display
 

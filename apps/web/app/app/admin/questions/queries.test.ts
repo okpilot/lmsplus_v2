@@ -201,6 +201,14 @@ describe('getQuestionsList', () => {
     expect(chain.ilike).toHaveBeenCalledWith('question_text', '%QNH%')
   })
 
+  it('escapes LIKE wildcards in search input', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: '100%_pass' })
+
+    expect(chain.ilike).toHaveBeenCalledWith('question_text', '%100\\%\\_pass%')
+  })
+
   it('does not apply ilike filter when search is omitted', async () => {
     const chain = mockSupabaseWith([])
 

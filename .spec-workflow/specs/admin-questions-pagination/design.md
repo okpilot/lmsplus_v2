@@ -6,7 +6,7 @@ Replace the `LIMIT+1` overfetch pattern with Supabase offset pagination (`.range
 
 ## Data Flow
 
-```
+```text
 URL ?page=2&subjectId=...
       |
 page.tsx: parseFilters() -> { page: 2, subjectId: '...' }
@@ -75,5 +75,5 @@ type QuestionsListResult =
 ### Manual Testing
 - Visit with 100+ questions, navigate pages
 - Change filters mid-pagination — verify reset to page 1
-- Visit `?page=999` — shows empty state
+- Visit `?page=999` — redirects to last valid page
 - Visit `?page=-1` or `?page=abc` — defaults to page 1

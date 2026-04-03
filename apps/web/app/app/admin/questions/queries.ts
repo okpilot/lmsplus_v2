@@ -45,7 +45,8 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
     query = query.eq('status', filters.status)
   }
   if (filters.search) {
-    query = query.ilike('question_text', `%${filters.search}%`)
+    const escaped = filters.search.replace(/[%_\\]/g, '\\$&')
+    query = query.ilike('question_text', `%${escaped}%`)
   }
 
   const { data, count, error } = await query
