@@ -109,8 +109,13 @@ test.describe('Quiz Session Recovery', () => {
 
     await expect(page.getByText('Unfinished quiz found')).toBeVisible()
 
-    // Click Discard
-    await page.getByRole('button', { name: 'Discard' }).click()
+    // Click Discard — opens confirmation dialog, then confirm
+    await page.getByRole('button', { name: /^Discard$/i }).click()
+    await expect(page.getByRole('alertdialog')).toBeVisible()
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: /^Discard$/i })
+      .click()
 
     // Banner should disappear
     await expect(page.getByText('Unfinished quiz found')).not.toBeVisible()
@@ -215,8 +220,13 @@ test.describe('Quiz Session Recovery', () => {
       timeout: 10_000,
     })
 
-    // Click Discard — should redirect to quiz config page
-    await page.getByRole('button', { name: 'Discard' }).click()
+    // Click Discard — opens confirmation dialog, then confirm
+    await page.getByRole('button', { name: /^Discard$/i }).click()
+    await expect(page.getByRole('alertdialog')).toBeVisible()
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: /^Discard$/i })
+      .click()
     await page.waitForURL('**/app/quiz', { timeout: 10_000 })
 
     // No recovery banner (data was cleared)

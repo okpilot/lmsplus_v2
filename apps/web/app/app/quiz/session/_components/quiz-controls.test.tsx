@@ -10,6 +10,7 @@ type ControlProps = {
   totalQuestions?: number
   submitting?: boolean
   showSubmit?: boolean
+  flagLoading?: boolean
   onTogglePin?: () => void
   onToggleFlag?: () => void
   onPrev?: () => void
@@ -25,6 +26,7 @@ function renderControls(overrides: ControlProps = {}) {
     totalQuestions: 5,
     submitting: false,
     showSubmit: false,
+    flagLoading: false,
     onTogglePin: vi.fn(),
     onToggleFlag: vi.fn(),
     onPrev: vi.fn(),
@@ -121,6 +123,68 @@ describe('QuizControls — Pin button (ActionButton)', () => {
   it('does not apply the amber class when not pinned', () => {
     renderControls({ isPinned: false })
     expect(screen.getByTestId('pin-button').className).not.toContain('bg-primary/10')
+  })
+})
+
+describe('QuizControls — Flag button loading state', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('flag button is enabled by default when flagLoading is not provided', () => {
+    renderControls()
+    expect(screen.getByTestId('flag-button')).not.toBeDisabled()
+  })
+
+  it('disables the flag button when flagLoading is true', () => {
+    renderControls({ flagLoading: true })
+    expect(screen.getByTestId('flag-button')).toBeDisabled()
+  })
+
+  it('does not call onToggleFlag when flag button is disabled via flagLoading', () => {
+    const onToggleFlag = vi.fn()
+    renderControls({ flagLoading: true, onToggleFlag })
+    const btn = screen.getByTestId('flag-button')
+    expect(btn).toBeDisabled()
+    fireEvent.click(btn)
+    expect(onToggleFlag).not.toHaveBeenCalled()
+  })
+
+  it('re-enables flag button when flagLoading returns to false', () => {
+    const { rerender } = render(
+      <QuizControls
+        isPinned={false}
+        isFlagged={false}
+        currentIndex={1}
+        totalQuestions={5}
+        submitting={false}
+        showSubmit={false}
+        flagLoading={true}
+        onTogglePin={vi.fn()}
+        onToggleFlag={vi.fn()}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onSubmitAnswer={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('flag-button')).toBeDisabled()
+    rerender(
+      <QuizControls
+        isPinned={false}
+        isFlagged={false}
+        currentIndex={1}
+        totalQuestions={5}
+        submitting={false}
+        showSubmit={false}
+        flagLoading={false}
+        onTogglePin={vi.fn()}
+        onToggleFlag={vi.fn()}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onSubmitAnswer={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('flag-button')).not.toBeDisabled()
   })
 })
 

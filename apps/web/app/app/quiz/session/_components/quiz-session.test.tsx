@@ -187,6 +187,7 @@ vi.mock('../_hooks/use-flagged-questions', () => ({
     flaggedIds: new Set<string>(),
     isFlagged: () => false,
     toggleFlag: mockToggleFlag,
+    isToggling: () => false,
   }),
 }))
 

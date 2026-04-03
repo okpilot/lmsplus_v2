@@ -29,7 +29,7 @@ type QuizSessionProps = {
 export function QuizSession(props: QuizSessionProps) {
   const s = useQuizState(props)
   const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
-  const { flaggedIds, isFlagged, toggleFlag } = useFlaggedQuestions(s.questionIds)
+  const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(s.questionIds)
   const { feedbackMap, pendingOptionId, handleSelectionChange, canSubmitAnswer } = useQuizUI({
     feedback: s.feedback,
     currentIndex: s.currentIndex,
@@ -117,6 +117,7 @@ export function QuizSession(props: QuizSessionProps) {
             totalQuestions={props.questions.length}
             submitting={s.submitting}
             showSubmit={canSubmitAnswer}
+            flagLoading={isToggling(s.questionId)}
             onTogglePin={s.togglePin}
             onToggleFlag={() => toggleFlag(s.questionId)}
             onPrev={() => s.navigate(-1)}

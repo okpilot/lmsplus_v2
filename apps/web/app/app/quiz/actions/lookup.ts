@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import type { SubtopicOption, TopicOption, TopicWithSubtopics } from '@/lib/queries/quiz'
 import {
   getSubtopicsForTopic,
@@ -14,6 +15,7 @@ import { buildQuestionQuery, groupCounts } from './lookup-helpers'
 const IdSchema = z.uuid()
 
 export async function fetchTopicsForSubject(raw: unknown): Promise<TopicOption[]> {
+  await requireAuthUser()
   let id: string
   try {
     id = IdSchema.parse(raw)
@@ -25,6 +27,7 @@ export async function fetchTopicsForSubject(raw: unknown): Promise<TopicOption[]
 }
 
 export async function fetchSubtopicsForTopic(raw: unknown): Promise<SubtopicOption[]> {
+  await requireAuthUser()
   let id: string
   try {
     id = IdSchema.parse(raw)
@@ -36,6 +39,7 @@ export async function fetchSubtopicsForTopic(raw: unknown): Promise<SubtopicOpti
 }
 
 export async function fetchTopicsWithSubtopics(raw: unknown): Promise<TopicWithSubtopics[]> {
+  await requireAuthUser()
   let id: string
   try {
     id = IdSchema.parse(raw)
