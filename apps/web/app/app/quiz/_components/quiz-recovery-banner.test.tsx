@@ -144,7 +144,7 @@ describe('QuizRecoveryBanner — rendering', () => {
     render(<QuizRecoveryBanner userId="test-user-id" />)
     expect(screen.getByRole('button', { name: /resume/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /save for later/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /discard/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
   })
 })
 
@@ -365,33 +365,36 @@ describe('QuizRecoveryBanner — Save for Later', () => {
 // ---- Discard --------------------------------------------------------------
 
 describe('QuizRecoveryBanner — Discard', () => {
-  it('clears the session and hides the banner immediately on discard', async () => {
+  it('clears the session and hides the banner after confirming the discard dialog', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
 
     render(<QuizRecoveryBanner userId="test-user-id" />)
-    await userEvent.click(screen.getByRole('button', { name: /discard/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
     expect(screen.queryByText(/unfinished quiz found/i)).not.toBeInTheDocument()
   })
 
-  it('fires a background cleanup for the session after discarding', async () => {
+  it('fires a background cleanup for the session after confirming discard', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
 
     render(<QuizRecoveryBanner userId="test-user-id" />)
-    await userEvent.click(screen.getByRole('button', { name: /discard/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
     await waitFor(() =>
       expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-001', draftId: 'draft-001' }),
     )
   })
 
-  it('does not block the UI when discardQuiz fails', async () => {
+  it('does not block the UI when discardQuiz fails after confirming discard', async () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     mockDiscardQuiz.mockRejectedValue(new Error('server error'))
 
     render(<QuizRecoveryBanner userId="test-user-id" />)
-    await userEvent.click(screen.getByRole('button', { name: /discard/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
 
     // Banner already hidden — discard failure is silently swallowed
     await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledTimes(1))

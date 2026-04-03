@@ -18,9 +18,9 @@ export default async function QuizReportPage({
     <main className="space-y-6">
       <div className="flex items-center gap-3">
         <Link
-          href="/app/dashboard"
+          href="/app/quiz"
           className="md:hidden text-muted-foreground hover:text-foreground"
-          aria-label="Back to dashboard"
+          aria-label="Back to quiz"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

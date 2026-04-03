@@ -7,6 +7,7 @@ type QuizControlsProps = {
   totalQuestions: number
   submitting: boolean
   showSubmit: boolean
+  flagLoading?: boolean
   onTogglePin: () => void
   onToggleFlag: () => void
   onPrev: () => void
@@ -21,6 +22,7 @@ export function QuizControls({
   totalQuestions,
   submitting,
   showSubmit,
+  flagLoading,
   onTogglePin,
   onToggleFlag,
   onPrev,
@@ -60,6 +62,7 @@ export function QuizControls({
             label={isFlagged ? 'Unflag' : 'Flag'}
             testId="flag-button"
             activeClass="border-transparent bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400"
+            disabled={flagLoading}
           />
           <ActionButton
             active={isPinned}
@@ -91,6 +94,7 @@ function ActionButton({
   label,
   testId,
   activeClass,
+  disabled,
 }: {
   active: boolean
   onClick: () => void
@@ -98,6 +102,7 @@ function ActionButton({
   label: string
   testId: string
   activeClass: string
+  disabled?: boolean
 }) {
   return (
     <button
@@ -105,10 +110,11 @@ function ActionButton({
       data-testid={testId}
       onClick={onClick}
       aria-pressed={active}
+      disabled={disabled}
       className={
         active
-          ? `flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${activeClass}`
-          : 'flex items-center gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+          ? `flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none ${activeClass}`
+          : 'flex items-center gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:pointer-events-none'
       }
     >
       {icon}

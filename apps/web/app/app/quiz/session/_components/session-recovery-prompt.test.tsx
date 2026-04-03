@@ -42,11 +42,11 @@ describe('SessionRecoveryPrompt — rendering', () => {
     expect(screen.queryByText(/you were answering/i)).not.toBeInTheDocument()
   })
 
-  it('renders all three action buttons', () => {
+  it('renders Resume, Save for Later, and Discard buttons', () => {
     render(<SessionRecoveryPrompt {...makeProps()} />)
     expect(screen.getByRole('button', { name: /resume/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /save for later/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /discard/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
   })
 
   it('shows error message when error prop is provided', () => {
@@ -95,10 +95,11 @@ describe('SessionRecoveryPrompt — button callbacks', () => {
     expect(onSave).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onDiscard when Discard is clicked', async () => {
+  it('calls onDiscard after confirming the discard dialog', async () => {
     const onDiscard = vi.fn()
     render(<SessionRecoveryPrompt {...makeProps({ onDiscard })} />)
-    await userEvent.click(screen.getByRole('button', { name: /discard/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
     expect(onDiscard).toHaveBeenCalledTimes(1)
   })
 

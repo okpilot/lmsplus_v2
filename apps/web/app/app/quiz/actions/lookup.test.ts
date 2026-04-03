@@ -22,6 +22,12 @@ const { mockGetTopicsWithSubtopics } = vi.hoisted(() => ({
   mockGetTopicsWithSubtopics: vi.fn(),
 }))
 
+const mockRequireAuthUser = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/auth/require-auth-user', () => ({
+  requireAuthUser: mockRequireAuthUser,
+}))
+
 vi.mock('@/lib/queries/quiz', () => ({
   getTopicsForSubject: (...args: unknown[]) => mockGetTopicsForSubject(...args),
   getSubtopicsForTopic: (...args: unknown[]) => mockGetSubtopicsForTopic(...args),
@@ -81,6 +87,7 @@ function buildQueryChain(terminalData: unknown[], terminalError: unknown = null)
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockRequireAuthUser.mockResolvedValue({ id: USER_ID })
 })
 
 // ---- fetchTopicsForSubject ------------------------------------------------
@@ -114,6 +121,11 @@ describe('fetchTopicsForSubject', () => {
     expect(consoleSpy).toHaveBeenCalledWith('[fetchTopicsForSubject] Invalid input')
     consoleSpy.mockRestore()
   })
+
+  it('redirects to login when unauthenticated', async () => {
+    mockRequireAuthUser.mockRejectedValue(new Error('NEXT_REDIRECT:/auth/login'))
+    await expect(fetchTopicsForSubject(SUBJECT_ID)).rejects.toThrow('NEXT_REDIRECT')
+  })
 })
 
 // ---- fetchSubtopicsForTopic -----------------------------------------------
@@ -146,6 +158,11 @@ describe('fetchSubtopicsForTopic', () => {
     expect(result).toEqual([])
     expect(consoleSpy).toHaveBeenCalledWith('[fetchSubtopicsForTopic] Invalid input')
     consoleSpy.mockRestore()
+  })
+
+  it('redirects to login when unauthenticated', async () => {
+    mockRequireAuthUser.mockRejectedValue(new Error('NEXT_REDIRECT:/auth/login'))
+    await expect(fetchSubtopicsForTopic(TOPIC_ID)).rejects.toThrow('NEXT_REDIRECT')
   })
 })
 
@@ -561,5 +578,10 @@ describe('fetchTopicsWithSubtopics', () => {
     expect(result).toEqual([])
     expect(consoleSpy).toHaveBeenCalledWith('[fetchTopicsWithSubtopics] Invalid input')
     consoleSpy.mockRestore()
+  })
+
+  it('redirects to login when unauthenticated', async () => {
+    mockRequireAuthUser.mockRejectedValue(new Error('NEXT_REDIRECT:/auth/login'))
+    await expect(fetchTopicsWithSubtopics(SUBJECT_ID)).rejects.toThrow('NEXT_REDIRECT')
   })
 })

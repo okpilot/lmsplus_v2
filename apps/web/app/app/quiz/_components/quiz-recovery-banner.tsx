@@ -1,5 +1,16 @@
 'use client'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { useQuizRecovery } from '../_hooks/use-quiz-recovery'
 
 export function QuizRecoveryBanner({ userId }: { userId: string }) {
@@ -40,14 +51,33 @@ export function QuizRecoveryBanner({ userId }: { userId: string }) {
         >
           {loading ? 'Saving...' : 'Save for Later'}
         </button>
-        <button
-          type="button"
-          onClick={handleDiscard}
-          disabled={loading}
-          className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-        >
-          Discard
-        </button>
+        <AlertDialog>
+          <AlertDialogTrigger
+            render={
+              <button
+                type="button"
+                disabled={loading}
+                className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+              />
+            }
+          >
+            Discard
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Discard quiz session?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently discard your progress. You cannot undo this action.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={handleDiscard}>
+                Discard
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   )

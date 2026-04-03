@@ -1,5 +1,17 @@
 'use client'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+
 type SessionRecoveryPromptProps = Readonly<{
   subjectName?: string
   answeredCount: number
@@ -52,14 +64,33 @@ export function SessionRecoveryPrompt({
         >
           Save for Later
         </button>
-        <button
-          type="button"
-          onClick={onDiscard}
-          disabled={loading}
-          className="rounded-lg border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-        >
-          Discard
-        </button>
+        <AlertDialog>
+          <AlertDialogTrigger
+            render={
+              <button
+                type="button"
+                disabled={loading}
+                className="rounded-lg border border-destructive/30 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+              />
+            }
+          >
+            Discard
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Discard quiz session?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently discard your progress. You cannot undo this action.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={onDiscard}>
+                Discard
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   )
