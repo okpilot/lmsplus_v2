@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import type { SyllabusTree } from '../../syllabus/types'
 import type { QuestionFilters, QuestionRow } from '../types'
 import { BulkActionsBar } from './bulk-actions-bar'
+import { PaginationBar } from './pagination-bar'
 import { QuestionFiltersBar } from './question-filters'
 import { QuestionFormDialog } from './question-form-dialog'
 import { QuestionTable } from './question-table'
@@ -14,10 +15,19 @@ type Props = {
   questions: QuestionRow[]
   tree: SyllabusTree
   filters: QuestionFilters
-  hasMore: boolean
+  page: number
+  totalCount: number
+  pageSize: number
 }
 
-export function QuestionsPageShell({ questions, tree, filters, hasMore }: Readonly<Props>) {
+export function QuestionsPageShell({
+  questions,
+  tree,
+  filters,
+  page,
+  totalCount,
+  pageSize,
+}: Readonly<Props>) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   function handleToggleSelect(id: string) {
@@ -36,8 +46,7 @@ export function QuestionsPageShell({ questions, tree, filters, hasMore }: Readon
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {questions.length} question{questions.length === 1 ? '' : 's'}
-          {hasMore ? ' (limit reached)' : ''}
+          {totalCount} question{totalCount === 1 ? '' : 's'}
         </p>
         <QuestionFormDialog
           tree={tree}
@@ -65,6 +74,8 @@ export function QuestionsPageShell({ questions, tree, filters, hasMore }: Readon
           onToggleAll={handleToggleAll}
         />
       )}
+
+      <PaginationBar page={page} totalCount={totalCount} pageSize={pageSize} />
     </div>
   )
 }

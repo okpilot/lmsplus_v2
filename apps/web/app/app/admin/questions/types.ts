@@ -34,8 +34,9 @@ export type QuestionFilters = {
   difficulty?: 'easy' | 'medium' | 'hard'
   status?: 'active' | 'draft'
   search?: string
+  page?: number
 }
 
 export type QuestionsListResult =
-  | { ok: true; questions: QuestionRow[]; hasMore: boolean }
+  | { ok: true; questions: QuestionRow[]; totalCount: number }
   | { ok: false; error: string }

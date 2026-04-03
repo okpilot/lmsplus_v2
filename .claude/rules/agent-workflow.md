@@ -199,6 +199,11 @@ git commit
                               ┌──────┴──────┐
                               │coderabbit-  │  (haiku) — sync .coderabbit.yaml
                               │   sync      │
+                              └──────┬──────┘
+                                     │
+                              ┌──────┴──────┐
+                              │ update spec │  tasks.md: [ ] → [x]
+                              │  (if spec)  │
                               └─────────────┘
 ```
 
@@ -274,6 +279,7 @@ Only then fix. This is a closed loop: `finding → validate → fix → re-valid
 - Report ALL severity levels — not just criticals.
 - Re-run agents on fix commits if production code changed.
 - Create tasks via TaskCreate for features with 5+ steps.
+- After all agents report clean, update `tasks.md` in the active spec (`[ ]` → `[x]`) for every completed task. This is the last step before moving on.
 
 ### NEVER
 - Skip implementation-critic, even for small changes.
@@ -287,6 +293,7 @@ Only then fix. This is a closed loop: `finding → validate → fix → re-valid
 - Push with failing tests.
 - Characterize findings as "latent", "safe today", or "forward-looking" to justify skipping them.
 - Start a new session on in-progress work without checking TaskList first.
+- Finish a task without updating `tasks.md` in the spec — the dashboard shows 0% for completed work otherwise.
 
 ---
 

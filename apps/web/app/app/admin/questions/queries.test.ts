@@ -11,31 +11,33 @@ vi.mock('@repo/db/server', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { getQuestionsList, QUESTION_LIMIT } from './queries'
+import { getQuestionsList, PAGE_SIZE } from './queries'
 
 // ---- Helpers ---------------------------------------------------------------
 
 /**
- * Builds a fully chainable mock query that resolves with { data, error: null }
+ * Builds a fully chainable mock query that resolves with { data, count, error: null }
  * when awaited. Every Supabase query builder method returns `this`, so all
- * chained calls (select, is, order, limit, eq, ilike) return the same object.
+ * chained calls (select, is, order, range, eq, ilike) return the same object.
  */
-function makeQueryChain(data: unknown[]) {
+function makeQueryChain(data: unknown[], count = data.length) {
   const chain: Record<string, unknown> = {}
   chain.select = vi.fn().mockReturnValue(chain)
   chain.is = vi.fn().mockReturnValue(chain)
   chain.order = vi.fn().mockReturnValue(chain)
-  chain.limit = vi.fn().mockReturnValue(chain)
+  chain.range = vi.fn().mockReturnValue(chain)
   chain.eq = vi.fn().mockReturnValue(chain)
   chain.ilike = vi.fn().mockReturnValue(chain)
   // Make the chain thenable so `await query` resolves correctly
   // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
   chain.then = vi
     .fn()
-    .mockImplementation((resolve: (value: { data: unknown[]; error: null }) => void) => {
-      resolve({ data, error: null })
-      return Promise.resolve({ data, error: null })
-    })
+    .mockImplementation(
+      (resolve: (value: { data: unknown[]; count: number; error: null }) => void) => {
+        resolve({ data, count, error: null })
+        return Promise.resolve({ data, count, error: null })
+      },
+    )
   return chain
 }
 
@@ -63,8 +65,8 @@ function makeRow(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function mockSupabaseWith(data: unknown[]) {
-  const chain = makeQueryChain(data)
+function mockSupabaseWith(data: unknown[], count = data.length) {
+  const chain = makeQueryChain(data, count)
   mockFrom.mockReturnValue(chain)
   mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
   return chain
@@ -77,17 +79,17 @@ beforeEach(() => {
 })
 
 describe('getQuestionsList', () => {
-  it('returns ok with empty questions and hasMore false when DB returns no rows', async () => {
-    mockSupabaseWith([])
+  it('returns ok with empty questions and totalCount 0 when DB returns no rows', async () => {
+    mockSupabaseWith([], 0)
 
     const result = await getQuestionsList({})
 
-    expect(result).toEqual({ ok: true, questions: [], hasMore: false })
+    expect(result).toEqual({ ok: true, questions: [], totalCount: 0 })
   })
 
   it('maps easa_subjects, easa_topics, easa_subtopics to subject, topic, subtopic', async () => {
     const row = makeRow()
-    mockSupabaseWith([row])
+    mockSupabaseWith([row], 1)
 
     const result = await getQuestionsList({})
 
@@ -105,7 +107,7 @@ describe('getQuestionsList', () => {
       easa_topics: null,
       easa_subtopics: null,
     })
-    mockSupabaseWith([row])
+    mockSupabaseWith([row], 1)
 
     const result = await getQuestionsList({})
 
@@ -117,21 +119,28 @@ describe('getQuestionsList', () => {
   })
 
   it('returns ok with empty questions when data is null (RLS filters all rows)', async () => {
-    const chain = makeQueryChain([])
-    // Override then to return null data
+    const chain: Record<string, unknown> = {}
+    chain.select = vi.fn().mockReturnValue(chain)
+    chain.is = vi.fn().mockReturnValue(chain)
+    chain.order = vi.fn().mockReturnValue(chain)
+    chain.range = vi.fn().mockReturnValue(chain)
+    chain.eq = vi.fn().mockReturnValue(chain)
+    chain.ilike = vi.fn().mockReturnValue(chain)
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
     chain.then = vi
       .fn()
-      .mockImplementation((resolve: (value: { data: null; error: null }) => void) => {
-        resolve({ data: null, error: null })
-        return Promise.resolve({ data: null, error: null })
-      })
+      .mockImplementation(
+        (resolve: (value: { data: null; count: number; error: null }) => void) => {
+          resolve({ data: null, count: 0, error: null })
+          return Promise.resolve({ data: null, count: 0, error: null })
+        },
+      )
     mockFrom.mockReturnValue(chain)
     mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
 
     const result = await getQuestionsList({})
 
-    expect(result).toEqual({ ok: true, questions: [], hasMore: false })
+    expect(result).toEqual({ ok: true, questions: [], totalCount: 0 })
   })
 
   it('applies subjectId filter when provided', async () => {
@@ -192,6 +201,46 @@ describe('getQuestionsList', () => {
     expect(chain.ilike).toHaveBeenCalledWith('question_text', '%QNH%')
   })
 
+  it('escapes LIKE wildcards in search input', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: '100%_pass' })
+
+    expect(chain.ilike).toHaveBeenCalledWith('question_text', '%100\\%\\_pass%')
+  })
+
+  it('escapes backslash characters in search input', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: 'C:\\path' })
+
+    expect(chain.ilike).toHaveBeenCalledWith('question_text', '%C:\\\\path%')
+  })
+
+  it('escapes all three special characters together in search input', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: 'C:\\50%_done' })
+
+    expect(chain.ilike).toHaveBeenCalledWith('question_text', '%C:\\\\50\\%\\_done%')
+  })
+
+  it('does not apply ilike filter when search is whitespace-only', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: '   ' })
+
+    expect(chain.ilike).not.toHaveBeenCalled()
+  })
+
+  it('does not apply ilike filter when search is an empty string', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: '' })
+
+    expect(chain.ilike).not.toHaveBeenCalled()
+  })
+
   it('does not apply ilike filter when search is omitted', async () => {
     const chain = mockSupabaseWith([])
 
@@ -238,12 +287,81 @@ describe('getQuestionsList', () => {
     })
   })
 
-  it('overfetches by one row to detect truncation', async () => {
+  it('passes count exact option to select', async () => {
     const chain = mockSupabaseWith([])
 
     await getQuestionsList({})
 
-    expect(chain.limit).toHaveBeenCalledWith(QUESTION_LIMIT + 1)
+    expect(chain.select).toHaveBeenCalledWith(expect.any(String), { count: 'exact' })
+  })
+
+  it('uses range for page 1 with correct offsets', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({})
+
+    expect(chain.range).toHaveBeenCalledWith(0, PAGE_SIZE - 1)
+  })
+
+  it('uses range for page 2 with correct offsets', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ page: 2 })
+
+    expect(chain.range).toHaveBeenCalledWith(PAGE_SIZE, PAGE_SIZE * 2 - 1)
+  })
+
+  it('uses range for page 3 with correct offsets', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ page: 3 })
+
+    expect(chain.range).toHaveBeenCalledWith(PAGE_SIZE * 2, PAGE_SIZE * 3 - 1)
+  })
+
+  it('defaults to page 1 when page is not provided', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({})
+
+    expect(chain.range).toHaveBeenCalledWith(0, PAGE_SIZE - 1)
+  })
+
+  it('returns totalCount from Supabase count', async () => {
+    const rows = [makeRow({ id: 'q1' }), makeRow({ id: 'q2' })]
+    mockSupabaseWith(rows, 150)
+
+    const result = await getQuestionsList({})
+
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.totalCount).toBe(150)
+    expect(result.questions).toHaveLength(2)
+  })
+
+  it('returns totalCount 0 when count is null', async () => {
+    const chain: Record<string, unknown> = {}
+    chain.select = vi.fn().mockReturnValue(chain)
+    chain.is = vi.fn().mockReturnValue(chain)
+    chain.order = vi.fn().mockReturnValue(chain)
+    chain.range = vi.fn().mockReturnValue(chain)
+    chain.eq = vi.fn().mockReturnValue(chain)
+    chain.ilike = vi.fn().mockReturnValue(chain)
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
+    chain.then = vi
+      .fn()
+      .mockImplementation(
+        (resolve: (value: { data: unknown[]; count: null; error: null }) => void) => {
+          resolve({ data: [], count: null, error: null })
+          return Promise.resolve({ data: [], count: null, error: null })
+        },
+      )
+    mockFrom.mockReturnValue(chain)
+    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+
+    const result = await getQuestionsList({})
+
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.totalCount).toBe(0)
   })
 
   it('returns multiple rows with correctly mapped relations', async () => {
@@ -256,7 +374,7 @@ describe('getQuestionsList', () => {
         subtopic_id: null,
       }),
     ]
-    mockSupabaseWith(rows)
+    mockSupabaseWith(rows, 2)
 
     const result = await getQuestionsList({})
 
@@ -267,45 +385,25 @@ describe('getQuestionsList', () => {
     expect(result.questions[1]!.subtopic).toBeNull()
   })
 
-  it('returns hasMore true when DB returns more than QUESTION_LIMIT rows', async () => {
-    const rows = Array.from({ length: QUESTION_LIMIT + 1 }, (_, i) => makeRow({ id: `q${i}` }))
-    mockSupabaseWith(rows)
-
-    const result = await getQuestionsList({})
-
-    expect(result).toMatchObject({ ok: true, hasMore: true })
-    if (result.ok) {
-      expect(result.questions).toHaveLength(QUESTION_LIMIT)
-    }
-  })
-
-  it('returns hasMore false when DB returns exactly QUESTION_LIMIT rows', async () => {
-    const rows = Array.from({ length: QUESTION_LIMIT }, (_, i) => makeRow({ id: `q${i}` }))
-    mockSupabaseWith(rows)
-
-    const result = await getQuestionsList({})
-
-    expect(result).toMatchObject({ ok: true, hasMore: false })
-    if (result.ok) {
-      expect(result.questions).toHaveLength(QUESTION_LIMIT)
-    }
-  })
-
   it('returns ok false with error message when query fails', async () => {
     const chain: Record<string, unknown> = {}
     chain.select = vi.fn().mockReturnValue(chain)
     chain.is = vi.fn().mockReturnValue(chain)
     chain.order = vi.fn().mockReturnValue(chain)
-    chain.limit = vi.fn().mockReturnValue(chain)
+    chain.range = vi.fn().mockReturnValue(chain)
     chain.eq = vi.fn().mockReturnValue(chain)
     chain.ilike = vi.fn().mockReturnValue(chain)
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
     chain.then = vi
       .fn()
       .mockImplementation(
-        (resolve: (value: { data: null; error: { message: string } }) => void) => {
-          resolve({ data: null, error: { message: 'connection refused' } })
-          return Promise.resolve({ data: null, error: { message: 'connection refused' } })
+        (resolve: (value: { data: null; count: null; error: { message: string } }) => void) => {
+          resolve({ data: null, count: null, error: { message: 'connection refused' } })
+          return Promise.resolve({
+            data: null,
+            count: null,
+            error: { message: 'connection refused' },
+          })
         },
       )
     mockFrom.mockReturnValue(chain)
