@@ -45,4 +45,4 @@ app/
 ```
 
 ## Middleware
-`middleware.ts` at root of `apps/web/` — protects `/app/*` routes.
+`proxy.ts` at root of `apps/web/` — protects `/app/*` routes (renamed from middleware.ts — project convention, not a Next.js requirement).
