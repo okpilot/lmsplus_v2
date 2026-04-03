@@ -13,6 +13,8 @@ Weekly self-review: analyse project health, audit agent system, and update memor
    - `.claude/agent-memory/semantic-reviewer/patterns.md`
    - `.claude/agent-memory/red-team/attack-surface.md`
    - `.claude/agent-memory/learner/patterns.md`
+   - `.claude/agent-memory/plan-critic/patterns.md`
+   - `.claude/agent-memory/implementation-critic/patterns.md`
 7. Cross-reference agent health:
    - **Red-team**: list spec files in `apps/web/e2e/redteam/` vs mentions in attack-surface.md — flag orphans and stale mappings
    - **Learner**: scan frequency table for entries with count >= 2 still at "Watch" — these should be "Rule Candidate"
