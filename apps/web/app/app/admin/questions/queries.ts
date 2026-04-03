@@ -44,8 +44,9 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
   if (filters.status) {
     query = query.eq('status', filters.status)
   }
-  if (filters.search) {
-    const escaped = filters.search.replace(/[%_\\]/g, '\\$&')
+  const searchTerm = filters.search?.trim()
+  if (searchTerm) {
+    const escaped = searchTerm.replace(/[%_\\]/g, '\\$&')
     query = query.ilike('question_text', `%${escaped}%`)
   }
 

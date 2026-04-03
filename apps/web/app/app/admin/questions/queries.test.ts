@@ -209,6 +209,38 @@ describe('getQuestionsList', () => {
     expect(chain.ilike).toHaveBeenCalledWith('question_text', '%100\\%\\_pass%')
   })
 
+  it('escapes backslash characters in search input', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: 'C:\\path' })
+
+    expect(chain.ilike).toHaveBeenCalledWith('question_text', '%C:\\\\path%')
+  })
+
+  it('escapes all three special characters together in search input', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: 'C:\\50%_done' })
+
+    expect(chain.ilike).toHaveBeenCalledWith('question_text', '%C:\\\\50\\%\\_done%')
+  })
+
+  it('does not apply ilike filter when search is whitespace-only', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: '   ' })
+
+    expect(chain.ilike).not.toHaveBeenCalled()
+  })
+
+  it('does not apply ilike filter when search is an empty string', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ search: '' })
+
+    expect(chain.ilike).not.toHaveBeenCalled()
+  })
+
   it('does not apply ilike filter when search is omitted', async () => {
     const chain = mockSupabaseWith([])
 
