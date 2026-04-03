@@ -19,7 +19,7 @@ export async function QuestionsContent({ filters }: Readonly<Props>) {
 
   const page = filters.page ?? 1
   const totalPages = Math.max(1, Math.ceil(result.totalCount / PAGE_SIZE))
-  if (page > totalPages && result.totalCount > 0) {
+  if (page > totalPages) {
     // KEEP IN SYNC WITH QuestionFilters — add new fields here to preserve them on redirect
     const params = new URLSearchParams()
     if (filters.subjectId) params.set('subjectId', filters.subjectId)

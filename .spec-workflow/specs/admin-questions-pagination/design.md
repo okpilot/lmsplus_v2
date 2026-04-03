@@ -39,6 +39,7 @@ QuestionsPageShell (client) -> count text + PaginationBar
 - **Destructure**: `const { data, count, error } = await query`
 
 ### `PaginationBar` — New Component
+
 - **Purpose**: Renders page numbers, Prev/Next buttons, "Showing X-Y of Z" text
 - **Props**: `{ page: number; totalCount: number; pageSize: number }`
 - **Navigation**: Uses `router.replace()` with `?page=N` (same pattern as filter selects)

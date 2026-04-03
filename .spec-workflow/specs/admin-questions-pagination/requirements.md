@@ -42,13 +42,16 @@ Admin tooling must support the full ECQB question bank (5000+ questions). Withou
 ## Non-Functional Requirements
 
 ### Performance
+
 - Total count uses Supabase `{ count: 'exact' }` on `.select()` — single query returns both data and count
 - Page size of 25 keeps payload small
 
 ### Security
+
 - Admin-only page — no student data exposure risk
 - No new RLS policies or RPCs needed
 
 ### Code Architecture
+
 - Extract pagination UI into a `PaginationBar` sub-component to keep shell under 150 lines
 - Page size as exported constant (`PAGE_SIZE = 25`)
