@@ -81,4 +81,32 @@ describe('parseFilters', () => {
   it('returns undefined for array search param', () => {
     expect(parseFilters({ search: ['a', 'b'] }).search).toBeUndefined()
   })
+
+  it('defaults page to 1 when param is missing', () => {
+    expect(parseFilters({}).page).toBe(1)
+  })
+
+  it('parses a valid positive integer page param', () => {
+    expect(parseFilters({ page: '3' }).page).toBe(3)
+  })
+
+  it('defaults page to 1 for zero', () => {
+    expect(parseFilters({ page: '0' }).page).toBe(1)
+  })
+
+  it('defaults page to 1 for negative numbers', () => {
+    expect(parseFilters({ page: '-5' }).page).toBe(1)
+  })
+
+  it('defaults page to 1 for non-numeric strings', () => {
+    expect(parseFilters({ page: 'abc' }).page).toBe(1)
+  })
+
+  it('truncates float page param to integer', () => {
+    expect(parseFilters({ page: '2.7' }).page).toBe(2)
+  })
+
+  it('defaults page to 1 for array values', () => {
+    expect(parseFilters({ page: ['1', '2'] }).page).toBe(1)
+  })
 })

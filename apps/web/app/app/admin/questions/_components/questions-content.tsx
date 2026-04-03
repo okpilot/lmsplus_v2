@@ -1,5 +1,5 @@
 import { getSyllabusTree } from '../../syllabus/queries'
-import { getQuestionsList } from '../queries'
+import { getQuestionsList, PAGE_SIZE } from '../queries'
 import type { QuestionFilters } from '../types'
 import { QuestionsPageShell } from './questions-page-shell'
 
@@ -21,7 +21,9 @@ export async function QuestionsContent({ filters }: Readonly<Props>) {
       questions={result.questions}
       tree={tree}
       filters={filters}
-      hasMore={result.hasMore}
+      page={filters.page ?? 1}
+      totalCount={result.totalCount}
+      pageSize={PAGE_SIZE}
     />
   )
 }

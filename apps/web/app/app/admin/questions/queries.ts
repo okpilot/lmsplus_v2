@@ -1,14 +1,19 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { QuestionFilters, QuestionRow, QuestionsListResult } from './types'
 
-export const QUESTION_LIMIT = 100
+export const PAGE_SIZE = 25
 
 export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
   const supabase = await createServerSupabaseClient()
 
+  const page = filters.page ?? 1
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
   let query = supabase
     .from('questions')
-    .select(`
+    .select(
+      `
       id, question_number, question_text, difficulty, status,
       subject_id, topic_id, subtopic_id,
       options, explanation_text,
@@ -17,10 +22,12 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
       easa_subjects(code, name),
       easa_topics(name),
       easa_subtopics(name)
-    `)
+    `,
+      { count: 'exact' },
+    )
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
-    .limit(QUESTION_LIMIT + 1)
+    .range(from, to)
 
   if (filters.subjectId) {
     query = query.eq('subject_id', filters.subjectId)
@@ -41,7 +48,7 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
     query = query.ilike('question_text', `%${filters.search}%`)
   }
 
-  const { data, error } = await query
+  const { data, count, error } = await query
   if (error) {
     console.error('[getQuestionsList] query error:', error.message)
     return { ok: false, error: 'Failed to load questions' }
@@ -56,10 +63,9 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
       subtopic: easa_subtopics ?? null,
     }
   })
-  const hasMore = rows.length > QUESTION_LIMIT
   return {
     ok: true as const,
-    questions: rows.slice(0, QUESTION_LIMIT) as QuestionRow[],
-    hasMore,
+    questions: rows as QuestionRow[],
+    totalCount: count ?? 0,
   }
 }

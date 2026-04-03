@@ -22,6 +22,7 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
   const updateFilter = useCallback(
     (key: string, value: string | null | undefined) => {
       const params = new URLSearchParams(searchParams.toString())
+      params.delete('page')
       if (!value || value === ALL) {
         params.delete(key)
       } else {

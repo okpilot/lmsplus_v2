@@ -7,6 +7,12 @@ import type { QuestionFilters } from './types'
 const DIFFICULTY_VALUES = ['easy', 'medium', 'hard'] as const
 const STATUS_VALUES = ['active', 'draft'] as const
 
+function parsePageParam(value: string | string[] | undefined): number {
+  if (typeof value !== 'string') return 1
+  const n = Number.parseInt(value, 10)
+  return Number.isFinite(n) && n >= 1 ? n : 1
+}
+
 export function parseFilters(
   params: Record<string, string | string[] | undefined>,
 ): QuestionFilters {
@@ -37,6 +43,7 @@ export function parseFilters(
       typeof params.search === 'string'
         ? params.search.trim().slice(0, 200) || undefined
         : undefined,
+    page: parsePageParam(params.page),
   }
 }
 

@@ -19,6 +19,10 @@
       "command": "npx.cmd",
       "args": ["-y", "shadcn@4.1.0", "mcp"]
     },
+    "spec-workflow": {
+      "command": "npx.cmd",
+      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "."]
+    },
     "sonarqube": {
       "command": "docker",
       "args": [
