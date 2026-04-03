@@ -8,8 +8,9 @@ export function useFlaggedQuestions(questionIds: string[]) {
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
   const [, startTransition] = useTransition()
   const prevIdsRef = useRef<string[]>([])
+  // Ref for synchronous guard — avoids stale-closure window in concurrent toggle calls
+  const pendingRef = useRef<Set<string>>(new Set())
 
-  // Fetch flagged status when questionIds change (ref-equality skip first to prevent loops)
   useEffect(() => {
     if (prevIdsRef.current === questionIds) return
     prevIdsRef.current = questionIds
@@ -28,31 +29,30 @@ export function useFlaggedQuestions(questionIds: string[]) {
     })
   }, [questionIds])
 
-  const toggle = useCallback(
-    async (questionId: string) => {
-      if (pendingIds.has(questionId)) return false
-      setPendingIds((prev) => new Set(prev).add(questionId))
-      try {
-        const result = await toggleFlag({ questionId })
-        if (result.success) {
-          setFlaggedIds((prev) => {
-            const next = new Set(prev)
-            if (result.flagged) next.add(questionId)
-            else next.delete(questionId)
-            return next
-          })
-        }
-        return result.success
-      } finally {
-        setPendingIds((prev) => {
+  const toggle = useCallback(async (questionId: string) => {
+    if (pendingRef.current.has(questionId)) return false
+    pendingRef.current.add(questionId)
+    setPendingIds((prev) => new Set(prev).add(questionId))
+    try {
+      const result = await toggleFlag({ questionId })
+      if (result.success) {
+        setFlaggedIds((prev) => {
           const next = new Set(prev)
-          next.delete(questionId)
+          if (result.flagged) next.add(questionId)
+          else next.delete(questionId)
           return next
         })
       }
-    },
-    [pendingIds],
-  )
+      return result.success
+    } finally {
+      pendingRef.current.delete(questionId)
+      setPendingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(questionId)
+        return next
+      })
+    }
+  }, [])
 
   const isFlagged = useCallback((questionId: string) => flaggedIds.has(questionId), [flaggedIds])
   const isToggling = useCallback((questionId: string) => pendingIds.has(questionId), [pendingIds])

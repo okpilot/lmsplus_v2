@@ -198,5 +198,116 @@ describe('useFlaggedQuestions', () => {
       expect(result.current.isFlagged(Q2)).toBe(false)
       expect(result.current.isFlagged(Q3)).toBe(true)
     })
+
+    it('returns false and skips the server call when re-called while a toggle is in-flight', async () => {
+      mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+
+      // Hold the first server call open so the hook stays in pending state
+      let resolveFirst!: (v: { success: boolean; flagged: boolean }) => void
+      mockToggleFlag.mockImplementationOnce(
+        () =>
+          new Promise<{ success: boolean; flagged: boolean }>((res) => {
+            resolveFirst = res
+          }),
+      )
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1))
+
+      await waitFor(() => {
+        expect(mockGetFlaggedIds).toHaveBeenCalledOnce()
+      })
+
+      // Fire the first toggle and let it settle until it is awaiting the server
+      // (setPendingIds has been called, re-render has occurred)
+      const firstPromise = result.current.toggleFlag(Q1)
+
+      // Wait for the re-render that adds Q1 to pendingIds
+      await waitFor(() => {
+        expect(result.current.isToggling(Q1)).toBe(true)
+      })
+
+      // Now fire the duplicate — the hook closure has the updated pendingIds
+      let secondResult: boolean | undefined
+      await act(async () => {
+        secondResult = await result.current.toggleFlag(Q1)
+      })
+
+      // The duplicate must be short-circuited — only one server call
+      expect(secondResult).toBe(false)
+      expect(mockToggleFlag).toHaveBeenCalledOnce()
+
+      // Resolve the first call so the hook settles cleanly (avoids act() leaks)
+      await act(async () => {
+        resolveFirst({ success: true, flagged: true })
+        await firstPromise
+      })
+    })
+  })
+
+  describe('isToggling', () => {
+    beforeEach(() => {
+      vi.resetAllMocks()
+    })
+
+    it('returns false for a question that has no pending toggle', () => {
+      const { result } = renderHook(() => useFlaggedQuestions(EMPTY_IDS))
+      expect(result.current.isToggling(Q1)).toBe(false)
+    })
+
+    it('returns false after a toggle has completed', async () => {
+      mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+      mockToggleFlag.mockResolvedValue({ success: true, flagged: true })
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1))
+
+      await waitFor(() => {
+        expect(mockGetFlaggedIds).toHaveBeenCalledOnce()
+      })
+
+      await act(async () => {
+        await result.current.toggleFlag(Q1)
+      })
+
+      expect(result.current.isToggling(Q1)).toBe(false)
+    })
+
+    it('returns false after a failed toggle has settled', async () => {
+      mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+      mockToggleFlag.mockResolvedValue({ success: false, error: 'server error' })
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1))
+
+      await waitFor(() => {
+        expect(mockGetFlaggedIds).toHaveBeenCalledOnce()
+      })
+
+      await act(async () => {
+        await result.current.toggleFlag(Q1)
+      })
+
+      expect(result.current.isToggling(Q1)).toBe(false)
+    })
+
+    it('clears the pending state even when the server call throws', async () => {
+      mockGetFlaggedIds.mockResolvedValue({ success: true, flaggedIds: [] })
+      mockToggleFlag.mockRejectedValue(new Error('network error'))
+
+      const { result } = renderHook(() => useFlaggedQuestions(IDS_Q1))
+
+      await waitFor(() => {
+        expect(mockGetFlaggedIds).toHaveBeenCalledOnce()
+      })
+
+      await act(async () => {
+        // The toggle throws — pending state must still be cleared via finally
+        try {
+          await result.current.toggleFlag(Q1)
+        } catch {
+          // expected
+        }
+      })
+
+      expect(result.current.isToggling(Q1)).toBe(false)
+    })
   })
 })
