@@ -76,8 +76,8 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await hideButton.click()
   await expect(page.getByRole('button', { name: 'Show explanation' }).first()).toBeVisible()
 
-  // 10. Navigate back to dashboard
-  await page.getByRole('link', { name: 'Back to Dashboard' }).click()
-  await page.waitForURL('**/app/dashboard')
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  // 10. Navigate back to quiz setup
+  await page.getByRole('link', { name: 'Back to Quiz' }).click()
+  await page.waitForURL('**/app/quiz')
+  await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
 })
