@@ -314,7 +314,7 @@ describe('getQuestionsList', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await getQuestionsList({})
 
-    expect(result).toEqual({ ok: false, error: 'connection refused' })
+    expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
     expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] query error:', 'connection refused')
     consoleSpy.mockRestore()
   })

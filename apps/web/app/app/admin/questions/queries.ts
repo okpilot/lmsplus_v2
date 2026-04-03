@@ -44,7 +44,7 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
   const { data, error } = await query
   if (error) {
     console.error('[getQuestionsList] query error:', error.message)
-    return { ok: false, error: error.message }
+    return { ok: false, error: 'Failed to load questions' }
   }
 
   const rows = (data ?? []).map((row) => {
