@@ -36,7 +36,8 @@ Validated plan (includes: affected files, test updates, doc updates, risks)
     ▼
 Plan-critic review (skip for single-file < 10 lines)
     │
-    ├─► ISSUE/CRITICAL ─► Revise plan (1 round max, then orchestrator resolves)
+    ├─► CRITICAL ─► Orchestrator resolves directly (no revision round)
+    ├─► ISSUE ─► Revise plan (1 round max, then orchestrator resolves)
     └─► Clean / SUGGESTION only
     │
     ▼
@@ -101,11 +102,11 @@ After the plan is validated but before presenting it to the user, run the plan-c
 
 **Inputs:** The validated plan text, plus the source files listed in the plan's "Files to change" and "Files affected" sections.
 
-**Revision loop:** 1 round maximum. If the plan-critic flags ISSUE or CRITICAL findings, revise the plan and re-submit. If the revised plan still has ISSUE/CRITICAL findings after one revision, the orchestrator resolves directly — no further critic rounds.
+**Revision loop:** CRITICAL findings are resolved directly by the orchestrator — no revision round. ISSUE findings trigger 1 revision round maximum. If the revised plan still has ISSUE findings after one revision, the orchestrator resolves directly — no further critic rounds.
 
 **Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
 
-**Timeout:** Proceed with a warning if the plan-critic takes over 60 seconds for plans affecting under 500 lines of source, or over 120 seconds for plans affecting 500+ lines. Post-commit agents remain as the safety net.
+**Timeout:** Proceed with a warning if the plan-critic takes over 60 seconds for plans covering up to 10 files, or over 120 seconds for plans covering more than 10 files. Post-commit agents remain as the safety net.
 
 ### DO
 - Run validation for EVERY multi-file change. No shortcuts.
