@@ -16,6 +16,12 @@ User request
 Explore (subagents map relevant code)
     │
     ▼
+Root cause check (is the described fix the RIGHT fix?)
+    │
+    ▼
+Requirement interview (if multi-file — skip conditions below)
+    │
+    ▼
 Draft plan (files to change, approach, risks)
     │
     ├─► Impact analysis    ─ who calls/imports each file being changed?
@@ -28,8 +34,33 @@ Draft plan (files to change, approach, risks)
 Validated plan (includes: affected files, test updates, doc updates, risks)
     │
     ▼
+Plan-critic review (skip for single-file < 10 lines)
+    │
+    ├─► ISSUE/CRITICAL ─► Revise plan (1 round max, then orchestrator resolves)
+    └─► Clean / SUGGESTION only
+    │
+    ▼
 User approves → Execute
 ```
+
+### Requirement Interview (runs AFTER root cause check, BEFORE drafting the plan)
+
+After the orchestrator has explored the code and checked root cause, but before drafting the plan, surface any requirement ambiguities as explicit questions.
+
+**Interview template** (3-5 questions covering):
+
+1. **Scope boundaries** — "Is X in scope or out of scope for this change?"
+2. **Behavioral ambiguities** — "When Y happens, should the system do A or B?"
+3. **Priority trade-offs** — "The full solution involves X, Y, Z. Are all must-have, or can Z be deferred?"
+
+**Auto-skip conditions** (interview is skipped when ANY of these apply):
+- Single-file bug fix with clear reproduction path and single root cause
+- User explicitly says "skip interview" or "no questions needed"
+- Orchestrator identifies zero ambiguities after root cause analysis (must state "No ambiguities identified" and proceed)
+
+**Answer incorporation:** Answers feed into the plan draft. If a spec exists (see Spec Artifact Rules), answers are recorded in the spec's requirements section.
+
+**Default behavior:** The interview is on by default for multi-file changes. Skippable but never skipped silently — the orchestrator either asks questions or explicitly states no ambiguities.
 
 ### What each validation step does:
 
@@ -64,23 +95,83 @@ Validation:
   ✓ Security: [not applicable / checked against rule N]
 ```
 
+### Plan-Critic Review (runs AFTER plan validation, BEFORE user approval)
+
+After the plan is validated but before presenting it to the user, run the plan-critic agent (sonnet) via the Agent tool.
+
+**Inputs:** The validated plan text, plus the source files listed in the plan's "Files to change" and "Files affected" sections.
+
+**Revision loop:** 1 round maximum. If the plan-critic flags ISSUE or CRITICAL findings, revise the plan and re-submit. If the revised plan still has ISSUE/CRITICAL findings after one revision, the orchestrator resolves directly — no further critic rounds.
+
+**Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
+
+**Timeout:** Proceed with a warning if the plan-critic takes over 60 seconds for plans with 10 or fewer files, or over 120 seconds for plans with more than 10 files. Post-commit agents remain as the safety net.
+
 ### DO
 - Run validation for EVERY multi-file change. No shortcuts.
+- Run the interview for every multi-file change unless auto-skip conditions apply.
+- Run plan-critic on every multi-file plan before user approval.
 - Include test updates in the plan, not as an afterthought.
 - Use Explore agents for impact analysis — don't guess who calls a function.
 - Block execution if a validation step reveals a conflict. Revise the plan first.
 
 ### NEVER
 - Skip validation because the change "seems simple." Simple changes with wrong assumptions cause the biggest review cycles.
+- Skip the interview silently — always state "No ambiguities identified" or present questions.
+- Skip plan-critic for multi-file changes.
+- Proceed to execution with unresolved plan-critic ISSUE/CRITICAL findings.
 - Implement first and fix tests/docs later — plan them together.
 - Guess at existing behavior — read the code and tests to verify.
 - Proceed to execution with unresolved validation conflicts.
 
 ---
 
+## Spec Artifact Rules
+
+Structured specs persist plans beyond chat history and provide session resume context.
+
+### When to create a spec
+Features spanning **3+ files** OR introducing a **new architectural pattern**. Create via spec-workflow MCP tools (`mcp__spec-workflow__*`).
+
+### When NOT to create a spec
+Bug fixes, single-file refactors, and changes touching fewer than 3 files. The plan validation pipeline above is sufficient for these.
+
+### Spec lifecycle
+1. **Created** during planning — captures requirements, approach, and file list.
+2. **Updated** during implementation — deviations, decisions, and task progress recorded.
+3. **Committed** with the feature branch — lives in `.spec-workflow/specs/<name>/`.
+4. **Session resume context** — on session restart, the spec is the starting point, not chat history.
+
+### Spec-as-context rule
+When a spec exists for the current work, the orchestrator references it (not chat history) as the source of truth for requirements and plan.
+
+### Deviation rule
+After a spec reaches "approved" status, material changes to the approach require updating the spec and noting the deviation before implementing.
+
+### MCP fallback
+If the spec-workflow MCP is unavailable, write spec files manually to `.spec-workflow/specs/<name>/` using the existing template structure in `.spec-workflow/templates/`.
+
+### DO
+- Create a spec for any feature spanning 3+ files or introducing a new pattern.
+
+### NEVER
+- Make material changes to an approved spec's approach without updating the spec.
+
+---
+
 ## Post-Implementation Pipeline Order
 
 ```
+Execute (subagents implement)
+    │
+    ▼
+Implementation-critic review (always runs)
+    │
+    ├─► ISSUE ─► Implementer revises (max 2 rounds, then orchestrator takes over)
+    ├─► CRITICAL ─► Orchestrator intervenes directly
+    └─► Clean / SUGGESTION only
+    │
+    ▼
 git commit
     │
     ├─► code-reviewer   (haiku)   ─┐
@@ -109,6 +200,21 @@ git commit
                               │   sync      │
                               └─────────────┘
 ```
+
+### Pre-Commit Implementation Review (runs AFTER execution, BEFORE git commit)
+
+After subagents complete implementation but before committing, run the implementation-critic agent (sonnet) via the Agent tool.
+
+**Inputs:** `git diff --staged`, the validated plan, and the requirements (from the spec if one exists, or from the plan output).
+
+**Revision flow:**
+- **ISSUE** — the implementing agent revises. Maximum 2 revision rounds between critic and implementer.
+- **CRITICAL** — the orchestrator intervenes directly (no implementer revision).
+- After 2 unsuccessful revision rounds, the orchestrator takes over resolution to prevent infinite loops.
+
+**No skip condition.** Even single-file changes get implementation review. The plan-critic is what gets skipped for small changes, not the implementation-critic.
+
+**Timeout:** Proceed with a warning if the implementation-critic takes over 90 seconds for diffs under 500 lines. Post-commit agents remain as the safety net.
 
 ### Red-Team Agent Trigger (conditional)
 
@@ -159,14 +265,18 @@ Only then fix. This is a closed loop: `finding → validate → fix → re-valid
 - Repeat until all agents report clean.
 
 ### DO
+- Run implementation-critic on staged changes before every commit.
 - Launch all 4 post-commit agents in parallel immediately after every commit.
 - Read all results before starting any fixes.
 - Validate every ISSUE/CRITICAL finding before fixing — analyze the claim, check implications.
 - Report findings to the user in a summary table: agent / severity / count / status.
 - Report ALL severity levels — not just criticals.
 - Re-run agents on fix commits if production code changed.
+- Create tasks via TaskCreate for features with 5+ steps.
 
 ### NEVER
+- Skip implementation-critic, even for small changes.
+- Allow more than 2 revision rounds between critic and implementer.
 - Skip post-commit agents. Ever. Not even for "trivial" commits.
 - Start fixing after only one agent reports — wait for all 4.
 - Fire-and-forget agents without reading results.
@@ -175,6 +285,39 @@ Only then fix. This is a closed loop: `finding → validate → fix → re-valid
 - Push with any unresolved CRITICAL, BLOCKING, or ISSUE finding.
 - Push with failing tests.
 - Characterize findings as "latent", "safe today", or "forward-looking" to justify skipping them.
+- Start a new session on in-progress work without checking TaskList first.
+
+---
+
+## Task Persistence
+
+Track multi-step work across session restarts using persistent tasks.
+
+### When to create tasks
+Features with **5+ discrete implementation steps**. Use `TaskCreate` for each step with a clear title and description.
+
+### Task lifecycle
+1. **`pending`** — created during planning, before execution begins.
+2. **`in_progress`** — set via `TaskUpdate` when work on that step begins.
+3. **`completed`** — set via `TaskUpdate` when the step passes review.
+
+### Session resume protocol
+When a new session begins and the developer asks to resume work, run `TaskList` before exploring the codebase. Outstanding tasks provide the starting context — no need to re-read chat history.
+
+### Completion reporting
+When all tasks for a feature are `completed`, report a summary to the developer covering what was done, what was deferred, and any outstanding concerns.
+
+### Threshold
+Below 5 steps, task creation is optional (orchestrator's discretion). Simple changes tracked via the plan are sufficient.
+
+### Fallback
+If `TaskCreate`/`TaskUpdate` are unavailable, fall back to tracking tasks in the session summary text.
+
+### DO
+- Create tasks via TaskCreate for features with 5+ steps.
+
+### NEVER
+- Start a new session on in-progress work without checking TaskList first.
 
 ---
 
@@ -206,6 +349,48 @@ The user is learning software engineering. Claude must proactively flag non-obvi
 
 ---
 
-*Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`*
+## Delegation Protocol
 
-*Last updated: 2026-03-19 (proactive guidance + dep migration rules added)*
+Every subagent prompt must be self-contained and unambiguous. Use this template for all subagent dispatches.
+
+### Template
+
+```
+TASK: [action verb + scope]
+OBJECTIVE: [why it matters, connects to user's goal]
+DONE WHEN: [measurable exit criteria]
+CONSTRAINTS: [what NOT to do, file boundaries, limits, security rules]
+CONTEXT: [file paths, type signatures, patterns to follow, related tests]
+```
+
+### Litmus test
+Before dispatching any subagent, ask: **"Could this agent execute end-to-end without a follow-up question?"** If no, add the missing context to the prompt.
+
+### Parallel dispatch rule
+When multiple subagents launch in parallel, each prompt must be self-contained. No prompt may depend on a sibling agent's output from the same batch.
+
+### Failure logging
+If a subagent returns a result indicating it lacked context (e.g., "file not found", "unclear which pattern"), log it as a delegation failure and improve future prompts:
+
+```
+DELEGATION FAILURE — [agent type] — [timestamp]
+Missing: [what the agent needed but didn't have]
+Fix: [what to include next time]
+```
+
+### Post-commit agent integration
+For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writer), the existing agent definition files (`.claude/agents/*.md`) serve as the CONSTRAINTS and CONTEXT sections. The delegation template supplements with TASK, OBJECTIVE, and DONE WHEN — it does not duplicate the definitions.
+
+### DO
+- Use the 5-section delegation template for every subagent prompt.
+- Log delegation failures and improve future prompts.
+
+### NEVER
+- Dispatch a subagent without all 5 template sections.
+- Duplicate agent definition content in delegation prompts.
+
+---
+
+*Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-critic.md`*
+
+*Last updated: 2026-04-03 (critic integration, spec artifacts, interview phase, task persistence, delegation protocol)*

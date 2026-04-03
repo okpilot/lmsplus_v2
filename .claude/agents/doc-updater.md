@@ -34,6 +34,8 @@ Keep documentation accurate and current. You update docs when:
 
 8. **Do NOT miss CLAUDE.md NEVER DO drift** — When `.claude/rules/code-style.md` or `security.md` changes, audit the `## NEVER DO` block in `CLAUDE.md` for stale or contradictory entries.
 
+9. **Steering drift check** — (a) Read each file in `.spec-workflow/steering/` if the directory exists. (b) Compare the commit diff against statements in each steering doc. (c) Report contradictions as DRIFT findings with: the specific steering doc and section, the contradicting code file and line, and a suggested resolution (update doc or fix code). If `.spec-workflow/steering/` does not exist or is empty, skip without error. Elevate to CRITICAL if drift contradicts `docs/security.md` or `.claude/rules/security.md`.
+
 ## Key files to keep current
 - `docs/plan.md` — phase status, what's built, what's next
 - `docs/decisions.md` — confirmed decisions and open questions

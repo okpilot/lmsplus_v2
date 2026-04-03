@@ -20,18 +20,24 @@ EASA PPL Training Platform. Monorepo: Turborepo + pnpm.
 
 ### Your workflow for any non-trivial task:
 ```
-1. Explore    → subagents map the relevant code
-2. Plan       → you design the approach
-3. Validate   → verify plan against codebase (see Plan Validation below)
-4. Approve    → user approves the validated plan
-5. Execute    → subagents implement (parallel when possible)
-6. Review     → you read results, verify correctness
-7. Commit     → you create the commit
-8. Audit      → post-commit agents review (parallel)
-9. Fix        → address findings, repeat 7-8 until clean
+1. Explore       → subagents map the relevant code
+2. Root cause    → verify the described fix is the RIGHT fix
+3. Interview     → surface ambiguities (skip for clear bug fixes)
+4. Spec          → create spec if 3+ files (via spec-workflow MCP)
+5. Plan          → you design the approach
+6. Validate      → verify plan against codebase (see Plan Validation below)
+7. Plan-critic   → independent agent reviews plan (skip for single-file <10 lines)
+8. Approve       → user approves the validated plan
+9. Execute       → subagents implement (parallel when possible)
+10. Impl-critic  → review staged changes before commit (always runs)
+11. Commit       → you create the commit
+12. Audit        → post-commit agents review (parallel)
+13. Fix          → address findings, repeat 11-12 until clean
+14. Tasks        → update task status if using TaskCreate
+15. Learn        → learner synthesizes patterns
 ```
 
-### Plan Validation (step 3 — MANDATORY before execution)
+### Plan Validation (step 6 — MANDATORY before execution)
 
 Before writing any code, validate the plan against the actual codebase. This is where most bugs are cheapest to fix — 100x cheaper than catching them in review.
 
@@ -53,13 +59,14 @@ Before writing any code, validate the plan against the actual codebase. This is 
 - Known risks or edge cases
 - Test updates needed alongside code changes
 
-**Gate:** Do not proceed to step 5 (Execute) until validation is complete and the user approves. A validated plan that takes 10 minutes prevents a 24-hour review cycle.
+**Gate:** Do not proceed to step 9 (Execute) until validation is complete and the user approves. A validated plan that takes 10 minutes prevents a 24-hour review cycle.
 
 ### When NOT to use subagents:
 - Reading a single known file (use Read directly)
 - Simple glob/grep for a specific symbol (use Glob/Grep directly)
 - Single-file edits under 10 lines (do it yourself — post-commit agents still run after the commit)
 - Git operations (do them yourself)
+- Plan-critic and implementation-critic — these are invoked as part of the pipeline, not as ad-hoc subagents
 
 ### Why this matters:
 - Your context window is expensive — don't waste it on exploration
@@ -76,6 +83,7 @@ Before writing any code, validate the plan against the actual codebase. This is 
 - `docs/security.md` — security rules (binding)
 - `.claude/rules/code-style.md` — file size limits, component rules (binding)
 - `.claude/rules/agent-workflow.md` — pipeline order, orchestrator DO/NEVER (binding)
+- `.claude/rules/agent-critic.md` — plan-critic and implementation-critic rules (binding)
 - `.claude/rules/agent-*.md` — per-agent handling rules with DO/NEVER (binding)
 
 ## Stack
@@ -159,6 +167,8 @@ If diff touches security files (migrations, db/src, quiz/actions, auth, proxy.ts
 
 If rules changed (code-style.md, security.md, biome.json), also run:
 7. **coderabbit-sync** (haiku) — ensures .coderabbit.yaml stays aligned with our rules
+
+Pre-commit critics (plan-critic, implementation-critic) run BEFORE commit and do not replace post-commit agents. They are additive — catching issues earlier, not removing later review.
 
 Never push without all agents reporting clean.
 
