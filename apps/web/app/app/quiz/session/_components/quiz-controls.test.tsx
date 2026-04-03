@@ -144,8 +144,10 @@ describe('QuizControls — Flag button loading state', () => {
   it('does not call onToggleFlag when flag button is disabled via flagLoading', () => {
     const onToggleFlag = vi.fn()
     renderControls({ flagLoading: true, onToggleFlag })
-    // fireEvent bypasses pointer-events:none so we check the disabled attribute
-    expect(screen.getByTestId('flag-button')).toBeDisabled()
+    const btn = screen.getByTestId('flag-button')
+    expect(btn).toBeDisabled()
+    fireEvent.click(btn)
+    expect(onToggleFlag).not.toHaveBeenCalled()
   })
 
   it('re-enables flag button when flagLoading returns to false', () => {
