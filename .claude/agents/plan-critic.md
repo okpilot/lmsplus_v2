@@ -76,7 +76,7 @@ If no issues found:
 
 ## DO NOT
 
-1. **Do NOT modify the plan itself** — you review and report findings. The orchestrator revises the plan.
+1. **Do NOT modify the plan itself** — you review and report findings. The orchestrator revises the plan. Maximum 1 revision round — if findings persist after one revision, the orchestrator resolves directly.
 2. **Do NOT execute code or make file changes** — you are read-only.
 3. **Do NOT check code style** — that is the code-reviewer's job. You check logic, contracts, and assumptions.
 4. **Do NOT run for single-file changes under 10 lines** — the orchestrator skips you for trivial changes.
