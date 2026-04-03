@@ -48,6 +48,13 @@ You receive:
    - Plan adds a new RPC without `auth.uid()` check or `SET search_path`
    - Plan changes input validation without updating Zod schemas
 
+## Severity Definitions
+
+See `.claude/rules/agent-critic.md` for handling rules. In brief:
+- **CRITICAL** — safety/security/blocking error. Orchestrator resolves directly, no revision round.
+- **ISSUE** — functional bug or wrong assumption. 1 revision round, then orchestrator resolves.
+- **SUGGESTION** — non-blocking improvement. Noted in summary, does not gate approval.
+
 ## Output Format
 
 ```

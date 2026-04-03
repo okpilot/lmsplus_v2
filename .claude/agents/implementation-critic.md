@@ -67,6 +67,13 @@ You receive:
    - A more idiomatic approach that doesn't affect correctness
    - Opportunities to reduce duplication (under 3 instances — not blocking per code-style.md)
 
+## Severity Definitions
+
+See `.claude/rules/agent-critic.md` for handling rules. In brief:
+- **CRITICAL** — security regression or data loss risk. Orchestrator intervenes directly, no implementer revision.
+- **ISSUE** — plan deviation, logic error, or missed requirement. Implementer revises, max 2 rounds.
+- **SUGGESTION** — minor improvement. Noted in summary, does not block commit.
+
 ## Output Format
 
 ```
