@@ -19,7 +19,7 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 - Treat SUGGESTION findings as non-blocking — note them in the summary but do not gate on them.
 - Validate critic findings before acting on them, same as with semantic-reviewer (see Finding Validation in `agent-workflow.md`).
 - For plan-critic CRITICAL findings, the orchestrator resolves directly — do not send back for a revision round.
-- Log critic findings in the session summary table alongside post-commit agent results.
+- Report critic findings to the user in the agent findings summary (agent / severity / count / status) alongside post-commit agent results.
 - Run implementation-critic on staged changes even for small single-file edits — only plan-critic is skipped for trivial changes.
 
 ### NEVER
