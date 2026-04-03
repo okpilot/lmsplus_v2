@@ -52,7 +52,7 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await expect(page.getByRole('heading', { name: 'Quiz Results' })).toBeVisible()
   await expect(page.getByText('Quiz Complete')).toBeVisible()
   await expect(page.getByText(/\d+%/).first()).toBeVisible() // score percentage in ring
-  await expect(page.getByRole('link', { name: 'Back to Dashboard' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Back to Quiz' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Start Another Quiz' })).toBeVisible()
 
   // 9. Verify explanation toggle on report page
