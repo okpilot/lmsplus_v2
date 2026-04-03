@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { z } from 'zod'
 import { QuestionsContent } from './_components/questions-content'
 import { QuestionsContentFallback } from './_components/questions-content-fallback'
 import type { QuestionFilters } from './types'
@@ -8,9 +9,18 @@ const STATUS_VALUES = ['active', 'draft'] as const
 
 function parseFilters(params: Record<string, string | string[] | undefined>): QuestionFilters {
   return {
-    subjectId: typeof params.subjectId === 'string' ? params.subjectId : undefined,
-    topicId: typeof params.topicId === 'string' ? params.topicId : undefined,
-    subtopicId: typeof params.subtopicId === 'string' ? params.subtopicId : undefined,
+    subjectId:
+      typeof params.subjectId === 'string' && z.uuid().safeParse(params.subjectId).success
+        ? params.subjectId
+        : undefined,
+    topicId:
+      typeof params.topicId === 'string' && z.uuid().safeParse(params.topicId).success
+        ? params.topicId
+        : undefined,
+    subtopicId:
+      typeof params.subtopicId === 'string' && z.uuid().safeParse(params.subtopicId).success
+        ? params.subtopicId
+        : undefined,
     difficulty:
       typeof params.difficulty === 'string' &&
       (DIFFICULTY_VALUES as readonly string[]).includes(params.difficulty)

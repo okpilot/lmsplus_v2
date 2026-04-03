@@ -35,3 +35,7 @@ export type QuestionFilters = {
   status?: 'active' | 'draft'
   search?: string
 }
+
+export type QuestionsListResult =
+  | { ok: true; questions: QuestionRow[]; hasMore: boolean }
+  | { ok: false; error: string }
