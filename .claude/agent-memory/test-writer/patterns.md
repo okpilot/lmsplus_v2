@@ -275,6 +275,46 @@ vi.mock('@/lib/supabase-rpc', () => ({
 }))
 ```
 
+### Mocking next/navigation with useSearchParams (2026-04-03)
+When testing components that use both `useRouter` and `useSearchParams`, mock both together.
+`useSearchParams()` returns a URLSearchParams-like object — mock its `.toString()` method to
+control the current param string, and reset it in `beforeEach`:
+```ts
+const mockRouterReplace = vi.fn()
+const mockSearchParamsToString = vi.fn().mockReturnValue('')
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: mockRouterReplace }),
+  useSearchParams: () => ({ toString: mockSearchParamsToString }),
+}))
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  mockSearchParamsToString.mockReturnValue('')
+})
+```
+Use `mockRouterReplace` (not `push`) when the component calls `router.replace()`.
+
+When asserting URL navigation calls, remember that `page=1` is omitted from the URL
+(the component deletes the param) — navigating to page 1 produces `?` or `?otherParam=x`,
+not `?page=1`.
+
+### Extending .test.ts to .test.tsx for JSX
+When an existing `.test.ts` file needs RTL component tests added, replace it with a
+`.test.tsx` file containing the original logic plus the new RTL tests. Delete the old
+`.test.ts` to avoid duplicate test file conflicts. The vitest config `include` glob
+covers both extensions.
+
+### Mocking lucide-react icons in RTL tests
+SVG transforms can fail in jsdom. Stub icon components with simple span elements:
+```tsx
+vi.mock('lucide-react', () => ({
+  ChevronLeft: () => <span data-testid="icon-chevron-left" />,
+  ChevronRight: () => <span data-testid="icon-chevron-right" />,
+}))
+```
+Add only the icons actually imported by the component under test.
+
 ### Testing 'use server' actions with .select().eq().order() chain (2026-03-13)
 For actions that end the chain with `.order()` (not `.returns()`), mock with a plain object
 where `order` is an async mock (not `.mockReturnThis()`):

@@ -31,10 +31,9 @@ export function PaginationBar({ page, totalCount, pageSize }: Readonly<Props>) {
 
   if (totalCount === 0 || totalPages <= 1) return null
 
-  const clampedPage = Math.min(page, totalPages)
-  const items = buildPageItems(clampedPage, totalPages)
-  const from = (clampedPage - 1) * pageSize + 1
-  const to = Math.min(clampedPage * pageSize, totalCount)
+  const items = buildPageItems(page, totalPages)
+  const from = (page - 1) * pageSize + 1
+  const to = Math.min(page * pageSize, totalCount)
 
   return (
     <div className="flex items-center justify-between pt-4">
@@ -46,8 +45,8 @@ export function PaginationBar({ page, totalCount, pageSize }: Readonly<Props>) {
           variant="outline"
           size="icon-sm"
           aria-label="Previous page"
-          disabled={clampedPage <= 1}
-          onClick={() => goToPage(clampedPage - 1)}
+          disabled={page <= 1}
+          onClick={() => goToPage(page - 1)}
         >
           <ChevronLeft className="size-4" />
         </Button>
@@ -59,7 +58,7 @@ export function PaginationBar({ page, totalCount, pageSize }: Readonly<Props>) {
           ) : (
             <Button
               key={item.page}
-              variant={item.page === clampedPage ? 'default' : 'outline'}
+              variant={item.page === page ? 'default' : 'outline'}
               size="sm"
               className="min-w-8"
               onClick={() => goToPage(item.page)}
@@ -72,8 +71,8 @@ export function PaginationBar({ page, totalCount, pageSize }: Readonly<Props>) {
           variant="outline"
           size="icon-sm"
           aria-label="Next page"
-          disabled={clampedPage >= totalPages}
-          onClick={() => goToPage(clampedPage + 1)}
+          disabled={page >= totalPages}
+          onClick={() => goToPage(page + 1)}
         >
           <ChevronRight className="size-4" />
         </Button>
