@@ -169,7 +169,7 @@ lmsplusv2/
 
 ## Known Limitations
 
-- **No pagination on admin question list**: Current implementation returns up to 100 questions with a `hasMore` flag. Cursor-based pagination planned but not yet implemented.
+- **Page-based pagination on admin question list**: Implemented with 25 items/page, exact count via Supabase `{ count: 'exact' }`, `PaginationBar` component with page numbers/Prev/Next, URL-driven `?page=N`. Redirects to last valid page on out-of-bounds navigation (PR #463).
 - **No real-time features**: No WebSocket/Realtime subscriptions. All data fetching is request-response via Server Components or Server Actions.
 - **Single-org assumption**: Comment visibility and some RLS policies assume single-org deployment. Multi-tenancy scoping deferred.
 - **No offline mode**: Quiz progress persists to localStorage for recovery, but the app requires an internet connection.
