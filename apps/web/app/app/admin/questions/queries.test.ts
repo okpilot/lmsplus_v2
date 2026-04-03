@@ -11,7 +11,7 @@ vi.mock('@repo/db/server', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import { getQuestionsList } from './queries'
+import { getQuestionsList, QUESTION_LIMIT } from './queries'
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -77,12 +77,12 @@ beforeEach(() => {
 })
 
 describe('getQuestionsList', () => {
-  it('returns an empty array when the DB returns no rows', async () => {
+  it('returns ok with empty questions and hasMore false when DB returns no rows', async () => {
     mockSupabaseWith([])
 
     const result = await getQuestionsList({})
 
-    expect(result).toEqual([])
+    expect(result).toEqual({ ok: true, questions: [], hasMore: false })
   })
 
   it('maps easa_subjects, easa_topics, easa_subtopics to subject, topic, subtopic', async () => {
@@ -91,8 +91,9 @@ describe('getQuestionsList', () => {
 
     const result = await getQuestionsList({})
 
-    expect(result).toHaveLength(1)
-    const item = result[0]!
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.questions).toHaveLength(1)
+    const item = result.questions[0]!
     expect(item.subject).toEqual({ code: '050', name: 'Meteorology' })
     expect(item.topic).toEqual({ name: 'Pressure' })
     expect(item.subtopic).toEqual({ name: 'Altimeter Settings' })
@@ -108,13 +109,14 @@ describe('getQuestionsList', () => {
 
     const result = await getQuestionsList({})
 
-    const item = result[0]!
+    if (!result.ok) throw new Error('Expected ok result')
+    const item = result.questions[0]!
     expect(item.subject).toBeNull()
     expect(item.topic).toBeNull()
     expect(item.subtopic).toBeNull()
   })
 
-  it('returns an empty array when data is null (RLS filters all rows)', async () => {
+  it('returns ok with empty questions when data is null (RLS filters all rows)', async () => {
     const chain = makeQueryChain([])
     // Override then to return null data
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
@@ -129,7 +131,7 @@ describe('getQuestionsList', () => {
 
     const result = await getQuestionsList({})
 
-    expect(result).toEqual([])
+    expect(result).toEqual({ ok: true, questions: [], hasMore: false })
   })
 
   it('applies subjectId filter when provided', async () => {
@@ -236,12 +238,12 @@ describe('getQuestionsList', () => {
     })
   })
 
-  it('always limits results to 100 rows', async () => {
+  it('overfetches by one row to detect truncation', async () => {
     const chain = mockSupabaseWith([])
 
     await getQuestionsList({})
 
-    expect(chain.limit).toHaveBeenCalledWith(100)
+    expect(chain.limit).toHaveBeenCalledWith(QUESTION_LIMIT + 1)
   })
 
   it('returns multiple rows with correctly mapped relations', async () => {
@@ -258,9 +260,62 @@ describe('getQuestionsList', () => {
 
     const result = await getQuestionsList({})
 
-    expect(result).toHaveLength(2)
-    expect(result[0]!.id).toBe('q1')
-    expect(result[1]!.id).toBe('q2')
-    expect(result[1]!.subtopic).toBeNull()
+    if (!result.ok) throw new Error('Expected ok result')
+    expect(result.questions).toHaveLength(2)
+    expect(result.questions[0]!.id).toBe('q1')
+    expect(result.questions[1]!.id).toBe('q2')
+    expect(result.questions[1]!.subtopic).toBeNull()
+  })
+
+  it('returns hasMore true when DB returns more than QUESTION_LIMIT rows', async () => {
+    const rows = Array.from({ length: QUESTION_LIMIT + 1 }, (_, i) => makeRow({ id: `q${i}` }))
+    mockSupabaseWith(rows)
+
+    const result = await getQuestionsList({})
+
+    expect(result).toMatchObject({ ok: true, hasMore: true })
+    if (result.ok) {
+      expect(result.questions).toHaveLength(QUESTION_LIMIT)
+    }
+  })
+
+  it('returns hasMore false when DB returns exactly QUESTION_LIMIT rows', async () => {
+    const rows = Array.from({ length: QUESTION_LIMIT }, (_, i) => makeRow({ id: `q${i}` }))
+    mockSupabaseWith(rows)
+
+    const result = await getQuestionsList({})
+
+    expect(result).toMatchObject({ ok: true, hasMore: false })
+    if (result.ok) {
+      expect(result.questions).toHaveLength(QUESTION_LIMIT)
+    }
+  })
+
+  it('returns ok false with error message when query fails', async () => {
+    const chain: Record<string, unknown> = {}
+    chain.select = vi.fn().mockReturnValue(chain)
+    chain.is = vi.fn().mockReturnValue(chain)
+    chain.order = vi.fn().mockReturnValue(chain)
+    chain.limit = vi.fn().mockReturnValue(chain)
+    chain.eq = vi.fn().mockReturnValue(chain)
+    chain.ilike = vi.fn().mockReturnValue(chain)
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
+    chain.then = vi
+      .fn()
+      .mockImplementation(
+        (resolve: (value: { data: null; error: { message: string } }) => void) => {
+          resolve({ data: null, error: { message: 'connection refused' } })
+          return Promise.resolve({ data: null, error: { message: 'connection refused' } })
+        },
+      )
+    mockFrom.mockReturnValue(chain)
+    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getQuestionsList({})
+
+    expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
+    expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] query error:', 'connection refused')
+    consoleSpy.mockRestore()
   })
 })

@@ -14,9 +14,10 @@ type Props = {
   questions: QuestionRow[]
   tree: SyllabusTree
   filters: QuestionFilters
+  hasMore: boolean
 }
 
-export function QuestionsPageShell({ questions, tree, filters }: Readonly<Props>) {
+export function QuestionsPageShell({ questions, tree, filters, hasMore }: Readonly<Props>) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   function handleToggleSelect(id: string) {
@@ -36,7 +37,7 @@ export function QuestionsPageShell({ questions, tree, filters }: Readonly<Props>
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
           {questions.length} question{questions.length === 1 ? '' : 's'}
-          {questions.length === 100 ? ' (limit reached)' : ''}
+          {hasMore ? ' (limit reached)' : ''}
         </p>
         <QuestionFormDialog
           tree={tree}

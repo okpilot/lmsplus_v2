@@ -1,7 +1,9 @@
 import { createServerSupabaseClient } from '@repo/db/server'
-import type { QuestionFilters, QuestionRow } from './types'
+import type { QuestionFilters, QuestionRow, QuestionsListResult } from './types'
 
-export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionRow[]> {
+export const QUESTION_LIMIT = 100
+
+export async function getQuestionsList(filters: QuestionFilters): Promise<QuestionsListResult> {
   const supabase = await createServerSupabaseClient()
 
   let query = supabase
@@ -18,7 +20,7 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
     `)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
-    .limit(100)
+    .limit(QUESTION_LIMIT + 1)
 
   if (filters.subjectId) {
     query = query.eq('subject_id', filters.subjectId)
@@ -42,13 +44,22 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
   const { data, error } = await query
   if (error) {
     console.error('[getQuestionsList] query error:', error.message)
-    return []
+    return { ok: false, error: 'Failed to load questions' }
   }
 
-  return (data ?? []).map((row) => ({
-    ...row,
-    subject: row.easa_subjects ?? null,
-    topic: row.easa_topics ?? null,
-    subtopic: row.easa_subtopics ?? null,
-  })) as unknown as QuestionRow[]
+  const rows = (data ?? []).map((row) => {
+    const { easa_subjects, easa_topics, easa_subtopics, ...rest } = row
+    return {
+      ...rest,
+      subject: easa_subjects ?? null,
+      topic: easa_topics ?? null,
+      subtopic: easa_subtopics ?? null,
+    }
+  })
+  const hasMore = rows.length > QUESTION_LIMIT
+  return {
+    ok: true as const,
+    questions: rows.slice(0, QUESTION_LIMIT) as QuestionRow[],
+    hasMore,
+  }
 }

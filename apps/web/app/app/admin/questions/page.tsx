@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { z } from 'zod'
 import { QuestionsContent } from './_components/questions-content'
 import { QuestionsContentFallback } from './_components/questions-content-fallback'
 import type { QuestionFilters } from './types'
@@ -6,11 +7,22 @@ import type { QuestionFilters } from './types'
 const DIFFICULTY_VALUES = ['easy', 'medium', 'hard'] as const
 const STATUS_VALUES = ['active', 'draft'] as const
 
-function parseFilters(params: Record<string, string | string[] | undefined>): QuestionFilters {
+export function parseFilters(
+  params: Record<string, string | string[] | undefined>,
+): QuestionFilters {
   return {
-    subjectId: typeof params.subjectId === 'string' ? params.subjectId : undefined,
-    topicId: typeof params.topicId === 'string' ? params.topicId : undefined,
-    subtopicId: typeof params.subtopicId === 'string' ? params.subtopicId : undefined,
+    subjectId:
+      typeof params.subjectId === 'string' && z.uuid().safeParse(params.subjectId).success
+        ? params.subjectId
+        : undefined,
+    topicId:
+      typeof params.topicId === 'string' && z.uuid().safeParse(params.topicId).success
+        ? params.topicId
+        : undefined,
+    subtopicId:
+      typeof params.subtopicId === 'string' && z.uuid().safeParse(params.subtopicId).success
+        ? params.subtopicId
+        : undefined,
     difficulty:
       typeof params.difficulty === 'string' &&
       (DIFFICULTY_VALUES as readonly string[]).includes(params.difficulty)
@@ -21,7 +33,10 @@ function parseFilters(params: Record<string, string | string[] | undefined>): Qu
       (STATUS_VALUES as readonly string[]).includes(params.status)
         ? (params.status as QuestionFilters['status'])
         : undefined,
-    search: typeof params.search === 'string' ? params.search.trim() || undefined : undefined,
+    search:
+      typeof params.search === 'string'
+        ? params.search.trim().slice(0, 200) || undefined
+        : undefined,
   }
 }
 
