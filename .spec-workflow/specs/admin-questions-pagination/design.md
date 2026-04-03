@@ -62,7 +62,7 @@ type QuestionsListResult =
 ## Error Handling
 
 1. **Invalid page param**: Silently defaults to page 1 (same pattern as invalid UUID filters)
-2. **Page beyond results**: Shows empty table with "No questions found" — pagination shows correct total
+2. **Page beyond results**: Server-side `redirect()` in QuestionsContent to last valid page, preserving all filter params
 3. **Count returns null**: Fallback to `count ?? 0`
 
 ## Testing Strategy
