@@ -12,7 +12,7 @@ const mockRedirect = vi.hoisted(() => vi.fn())
 
 vi.mock('../queries', () => ({
   getQuestionsList: mockGetQuestionsList,
-  PAGE_SIZE: 25,
+  PAGE_SIZE: 25, // SYNC WITH queries.ts PAGE_SIZE if value changes
 }))
 
 vi.mock('../../syllabus/queries', () => ({
