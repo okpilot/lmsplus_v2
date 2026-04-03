@@ -4,6 +4,25 @@
 
 ## Session Log
 
+### 2026-04-03 — commit 0ac66ce (feat(workflow): add pre-commit critics, spec artifacts, and 4 workflow improvements)
+- **Files reviewed:** plan-critic.md, implementation-critic.md, agent-critic.md, agent-workflow.md, agent-doc-updater.md, doc-updater.md, CLAUDE.md, steering docs (product/tech/structure), spec artifacts (design/requirements/tasks), plan-critic/patterns.md
+- **CRITICAL:** 0 | **ISSUE:** 3 | **SUGGESTION:** 4 | **GOOD:** 5
+- **Issue 1:** `.claude/agent-memory/implementation-critic/patterns.md` missing — agent definition references this path for memory writes but the file/directory was never created. plan-critic got a bootstrapped scaffold; implementation-critic did not. Symmetry gap breaks the memory feedback loop on first run.
+- **Issue 2:** `CLAUDE.md` NEVER DO block not updated — "NEVER skip implementation-critic" and "NEVER skip plan-critic for multi-file plans" are documented in agent-critic.md and agent-workflow.md but absent from the top-level NEVER DO summary in CLAUDE.md. The NEVER DO block is the quick-reference orchestrator constraint list; gaps there reduce visibility of hard rules.
+- **Issue 3:** `agent-workflow.md` Task Persistence section — fallback rule covers TaskCreate/TaskUpdate unavailability but has no fallback for TaskList (needed on session resume). If the task tool set is down, the NEVER rule "never start without checking TaskList" cannot be satisfied and no recovery path is documented. Natural fix: point to spec's `tasks.md` as the TaskList fallback.
+- **Suggestion 1:** Plan-critic timeout uses file count as scaling metric; implementation-critic uses diff line count. Inconsistent. Line count is a better complexity proxy for both.
+- **Suggestion 2:** agent-critic.md severity reference is incomplete — plan-critic CRITICAL escalation path (orchestrator direct vs revision loop) not stated in the handling rules file.
+- **Suggestion 3:** DRIFT severity definition is ambiguous — "non-blocking" stated in the header but escalation to CRITICAL on security contradictions creates a blocking path not reflected in the top-level definition.
+- **Suggestion 4:** Interview "zero ambiguities" auto-skip relies on undifferentiated orchestrator self-assessment. Requiring the orchestrator to state which three categories were checked makes the skip auditable.
+- **Positive 1:** Revision caps (1-round plan-critic, 2-round implementation-critic) stated consistently across all 3 files. No cross-file drift.
+- **Positive 2:** Steering drift CRITICAL escalation for security contradictions consistent in both agent-doc-updater.md and doc-updater.md agent definition.
+- **Positive 3:** Implementation-critic revision cap includes "prevent infinite loops" rationale — auditable intent.
+- **Positive 4:** Delegation Protocol litmus test ("Could this agent execute end-to-end without a follow-up question?") is binary and actionable. Failure logging creates the same learning record as agent memory files.
+- **Positive 5:** CLAUDE.md workflow expansion from 9 to 15 steps preserved all original steps in correct positions. No existing step was silently collapsed.
+- **New pattern — agent memory files must be bootstrapped at agent creation time:** When a new agent definition is created that references a memory file path, the bootstrapped (empty scaffold) memory file must be created in the same commit. plan-critic got `.claude/agent-memory/plan-critic/patterns.md`; implementation-critic did not. Pattern: for every new agent definition that calls for memory writes, create the memory file scaffold in the same commit.
+- **New pattern — NEVER DO blocks need to mirror all always-runs pipeline gates:** When a new "always runs, never skip" pipeline step is added (like implementation-critic), it must appear in CLAUDE.md NEVER DO "Workflow — hard stops" in the same commit. agent-workflow.md and agent-critic.md are detailed references; CLAUDE.md NEVER DO is the quick-reference — both must stay in sync.
+- **Recurring check to add:** When reviewing workflow/rule markdown commits, verify that every new agent created in the diff has a corresponding memory directory + scaffold file.
+
 ### 2026-03-29 — commit e38ef8c (fix(dashboard): address all 7 CodeRabbit review findings #412)
 - **Files reviewed:** activity-heatmap.tsx, activity-heatmap.test.tsx, heatmap-header.tsx (new), heatmap-cell.tsx, stat-cards.tsx, use-drag-scroll.ts
 - **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 1 | **GOOD:** 5
