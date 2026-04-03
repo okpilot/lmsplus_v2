@@ -41,7 +41,7 @@ When the agent detects a renamed file (e.g., `middleware.ts` → `proxy.ts`), it
 
 ## Steering Document Drift Detection
 
-New finding type: **DRIFT** — non-blocking, reported to orchestrator for decision.
+New finding type: **DRIFT** — non-blocking by default; escalates to CRITICAL when it contradicts security rules (treat as semantic-reviewer CRITICAL in that case).
 
 **Severity escalation:** If drift contradicts `docs/security.md` or `.claude/rules/security.md`, elevate to CRITICAL.
 

@@ -137,6 +137,8 @@ After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache)
 - **NEVER** skip post-commit agent review — launch all 4 agents immediately after every commit
 - **NEVER** push with unresolved BLOCKING or CRITICAL findings from agents
 - **NEVER** amend a commit after a pre-commit hook failure — create a NEW commit instead
+- **NEVER** skip implementation-critic before any commit — run on staged changes even for single-file changes
+- **NEVER** skip plan-critic for multi-file plans — run after validation, before user approval
 
 ### Agent behavior — hard stops
 - **NEVER** let agents make changes outside their scope (test-writer writes tests, not production code)

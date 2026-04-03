@@ -39,7 +39,18 @@ Run through each item. Report pass/fail with brief notes.
 - **Post-commit pipeline completeness** — did every commit get all 4 agents? Did we run the learner after?
 - **Fix-commit re-review** — when production code was fixed from agent findings, did we re-run agents on the fix commit?
 - **Pre-push PR sweep** — for branches with 2+ commits, did we run `git diff master...HEAD` semantic review before pushing?
+- **Pre-commit critics** — did plan-critic and implementation-critic run before each commit? Any skipped without justification? (Plan-critic can skip for single-file <10 lines; implementation-critic never skips)
+- **Critic revision caps** — any plan-critic findings that took more than 1 revision round? Any implementation-critic findings that took more than 2 rounds?
 - **Agent scope violations** — did any agent act outside its scope? (test-writer editing prod code, doc-updater making arch decisions)
+
+**Spec workflow:**
+- **Spec artifacts** — if a spec was created this session, is it up-to-date with what was actually implemented? Any deviations not recorded?
+- **Steering drift** — did doc-updater report any DRIFT findings? Were they resolved (steering doc updated or code fixed)?
+- **Interview phase** — for multi-file changes, was the requirement interview run or explicitly skipped with "No ambiguities identified"?
+
+**Task tracking:**
+- **Task persistence** — if TaskCreate was used, are all tasks marked completed or properly noted as in-progress for next session?
+- **Delegation protocol** — any delegation failures logged this session? Were they addressed in future prompts?
 
 **Process compliance:**
 - **Context7 compliance** — list any instance where training data or web search was used for external tools before checking Context7. Note consequences.

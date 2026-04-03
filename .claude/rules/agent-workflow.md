@@ -56,7 +56,7 @@ After the orchestrator has explored the code and checked root cause, but before 
 **Auto-skip conditions** (interview is skipped when ANY of these apply):
 - Single-file bug fix with clear reproduction path and single root cause
 - User explicitly says "skip interview" or "no questions needed"
-- Orchestrator identifies zero ambiguities after root cause analysis (must state "No ambiguities identified" and proceed)
+- Orchestrator identifies zero ambiguities after root cause analysis (must state which of the three interview categories — scope boundaries, behavioral ambiguities, priority trade-offs — were checked and found unambiguous)
 
 **Answer incorporation:** Answers feed into the plan draft. If a spec exists (see Spec Artifact Rules), answers are recorded in the spec's requirements section.
 
@@ -105,7 +105,7 @@ After the plan is validated but before presenting it to the user, run the plan-c
 
 **Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
 
-**Timeout:** Proceed with a warning if the plan-critic takes over 60 seconds for plans with 10 or fewer files, or over 120 seconds for plans with more than 10 files. Post-commit agents remain as the safety net.
+**Timeout:** Proceed with a warning if the plan-critic takes over 60 seconds for plans affecting under 500 lines of source, or over 120 seconds for plans affecting 500+ lines. Post-commit agents remain as the safety net.
 
 ### DO
 - Run validation for EVERY multi-file change. No shortcuts.
@@ -311,7 +311,7 @@ When all tasks for a feature are `completed`, report a summary to the developer 
 Below 5 steps, task creation is optional (orchestrator's discretion). Simple changes tracked via the plan are sufficient.
 
 ### Fallback
-If `TaskCreate`/`TaskUpdate` are unavailable, fall back to tracking tasks in the session summary text.
+If `TaskCreate`/`TaskUpdate`/`TaskList` are unavailable, track tasks in session summary text and use the spec's `.spec-workflow/specs/<name>/tasks.md` as the resume starting point instead of `TaskList`.
 
 ### DO
 - Create tasks via TaskCreate for features with 5+ steps.
