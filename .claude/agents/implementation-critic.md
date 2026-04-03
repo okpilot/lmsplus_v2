@@ -58,7 +58,7 @@ You receive:
 6. **Pattern violations**
    - Diverges from how similar code is written elsewhere in the codebase
    - Uses a different error handling pattern than sibling functions
-   - Inconsistent naming compared to related files
+   - Diverges from established runtime or data contracts used by related files
 
 ### SUGGESTION (noted, does not block)
 

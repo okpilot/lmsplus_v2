@@ -51,7 +51,7 @@ After normal doc sync, compare the commit diff against each file in `.spec-workf
 - New patterns not documented in steering docs
 
 ### What the agent does NOT do
-Edit steering docs. Steering document changes require developer approval via the spec-workflow MCP approval flow.
+Do not edit steering docs. Steering document changes require developer approval via the spec-workflow MCP approval flow.
 
 ### Orchestrator decision tree
 - **Intentional drift** (code correct, doc outdated) — update steering doc via spec-workflow MCP approval flow.

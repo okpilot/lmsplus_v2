@@ -59,7 +59,7 @@ Before writing any code, validate the plan against the actual codebase. This is 
 - Known risks or edge cases
 - Test updates needed alongside code changes
 
-**Gate:** Do not proceed to step 9 (Execute) until validation is complete and the user approves. A validated plan that takes 10 minutes prevents a 24-hour review cycle.
+**Gate:** Do not proceed to step 9 (Execute) until steps 6-8 are complete (validation done, plan-critic run, and user approval). A validated plan that takes 10 minutes prevents a 24-hour review cycle.
 
 ### When NOT to use subagents:
 - Reading a single known file (use Read directly)

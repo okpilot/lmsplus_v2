@@ -7,7 +7,7 @@ Pre-commit quality gates that catch plan-level and implementation-level errors b
 
 ## Severity Levels
 
-Uses the same severity levels as semantic-reviewer (see `agent-semantic-reviewer.md`): CRITICAL, ISSUE, SUGGESTION, GOOD. No new levels introduced.
+Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels are introduced for critic handling.
 
 ## Handling Results
 

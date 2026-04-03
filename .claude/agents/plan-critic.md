@@ -41,7 +41,7 @@ You receive:
 4. **Pattern violations vs codebase conventions**
    - Plan introduces a new pattern when 3+ existing files use a different one
    - Plan uses a different error return shape than sibling functions
-   - Plan creates a barrel file, uses `useEffect` for data fetching, or violates other code-style rules
+   - Plan introduces a non-standard runtime or error contract without justification
 
 5. **Security surface gaps**
    - Plan touches auth, RLS, or answer data without referencing `docs/security.md`
