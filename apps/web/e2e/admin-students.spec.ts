@@ -113,6 +113,7 @@ test.describe('Admin Student Management — Edit', () => {
 
   test('creates a student, edits name via dialog, verifies update in table', async ({ page }) => {
     await page.goto('/app/admin/students')
+    await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
     const email = uniqueEmail()
     const originalName = `E2E Edit ${Date.now()}`
@@ -157,6 +158,7 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
 
   test('deactivates a student and verifies Inactive badge', async ({ page }) => {
     await page.goto('/app/admin/students')
+    await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
     const email = uniqueEmail()
     const fullName = `E2E Deactivate ${Date.now()}`
@@ -194,6 +196,7 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
 
   test('reactivates an inactive student and verifies Active badge', async ({ page }) => {
     await page.goto('/app/admin/students')
+    await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
     const email = uniqueEmail()
     const fullName = `E2E Reactivate ${Date.now()}`
@@ -264,6 +267,7 @@ test.describe('Admin Student Management — Reset Password', () => {
 
   test('opens reset password dialog and shows generated password field', async ({ page }) => {
     await page.goto('/app/admin/students')
+    await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
     const email = uniqueEmail()
     const fullName = `E2E ResetPw ${Date.now()}`
@@ -306,6 +310,7 @@ test.describe('Admin Student Management — Reset Password', () => {
 
   test('submits reset password and shows success toast', async ({ page }) => {
     await page.goto('/app/admin/students')
+    await expect(page.getByRole('heading', { name: 'Student Management' })).toBeVisible()
 
     const email = uniqueEmail()
     const fullName = `E2E ResetSubmit ${Date.now()}`
