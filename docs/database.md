@@ -369,11 +369,15 @@ WITH (security_invoker = true) AS
   SELECT * FROM flagged_questions WHERE deleted_at IS NULL;
 ```
 
-This view filters soft-deleted flags and has `security_invoker = true` (migration 051), which means RLS policies on `flagged_questions` are enforced when the view is queried. Use this view instead of querying `flagged_questions` directly to ensure:
-1. Only non-deleted flags are visible
-2. Ownership RLS policies are applied via the view
+Created in migration 051. **This view is not currently used by any application code.** All read-path callsites query `flagged_questions` directly with `.is('deleted_at', null)`:
 
-**Why `security_invoker`?** By default, views run with owner-context permission checks, bypassing caller RLS. Setting `security_invoker = true` switches to invoker-context, so RLS on `flagged_questions` is evaluated as the calling user — ensuring `student_id = auth.uid()` is enforced when querying `active_flagged_questions`.
+- `apps/web/app/app/quiz/actions/flag.ts` — ownership check in `toggleFlag`, ID list in `getFlaggedIds`
+- `apps/web/app/app/quiz/actions/filter-helpers.ts` — quiz setup `filterFlagged`
+- `apps/web/lib/queries/quiz.ts` — `filterFlagged`
+
+Migrating callsites to use this view is tracked in issue #467.
+
+**Why `security_invoker`?** By default, views run with owner-context permission checks, bypassing caller RLS. Setting `security_invoker = true` switches to invoker-context, so RLS on `flagged_questions` is evaluated as the calling user — ensuring `student_id = auth.uid()` is enforced when querying through the view.
 
 ### question_comments
 Per-question discussion threads. Students and admins can post comments on any question. Hard-delete table (low audit value).

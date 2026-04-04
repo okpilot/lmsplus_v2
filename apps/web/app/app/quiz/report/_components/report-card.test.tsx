@@ -87,14 +87,14 @@ describe('ReportCard', () => {
 
   it('shows navigation links', () => {
     render(<ReportCard report={mockReport} />)
-    expect(screen.getByText('Back to Quiz')).toBeDefined()
+    expect(screen.getByText('Quiz Reports')).toBeDefined()
     expect(screen.getByText('Start Another Quiz')).toBeDefined()
   })
 
-  it('links Back to Quiz button to /app/quiz', () => {
+  it('links Quiz Reports button to /app/reports', () => {
     render(<ReportCard report={mockReport} />)
-    const link = screen.getByText('Back to Quiz').closest('a')
-    expect(link).toHaveAttribute('href', '/app/quiz')
+    const link = screen.getByText('Quiz Reports').closest('a')
+    expect(link).toHaveAttribute('href', '/app/reports')
   })
 
   it('shows "Mixed" when subjectName is null', () => {

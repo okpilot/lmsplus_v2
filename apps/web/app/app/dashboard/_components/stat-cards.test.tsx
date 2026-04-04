@@ -73,6 +73,11 @@ describe('StatCards', () => {
     expect(screen.getByText(/Best: 21 days/)).toBeInTheDocument()
   })
 
+  it('displays "1 day" (singular) when bestStreak is exactly 1', () => {
+    render(<StatCards {...BASE_PROPS} bestStreak={1} />)
+    expect(screen.getByText(/Best: 1 day —/)).toBeInTheDocument()
+  })
+
   it('renders 0% exam readiness when totalCount is 0', () => {
     render(
       <StatCards
