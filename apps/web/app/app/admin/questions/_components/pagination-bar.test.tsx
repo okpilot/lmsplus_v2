@@ -64,25 +64,39 @@ describe('buildPageNumbers', () => {
     expect(pages).toEqual([1, '...', 7, 8, 9, 10])
   })
 
+  it('does not show leading ellipsis when current is exactly at threshold (4)', () => {
+    // current=4 → current > 4 is false, so no leading ellipsis
+    const pages = buildPageNumbers(4, 10)
+    expect(pages).toEqual([1, 2, 3, 4, 5, 6, '...', 10])
+  })
+
+  it('shows leading ellipsis when current is one past the threshold (5)', () => {
+    // current=5 → current > 4 is true, so leading ellipsis appears
+    const pages = buildPageNumbers(5, 10)
+    expect(pages).toEqual([1, '...', 3, 4, 5, 6, 7, '...', 10])
+  })
+
+  it('does not show trailing ellipsis when current is exactly at threshold (total - 3)', () => {
+    // current=7, total=10 → current < total-3 = 7 is false, so no trailing ellipsis
+    const pages = buildPageNumbers(7, 10)
+    expect(pages).toEqual([1, '...', 5, 6, 7, 8, 9, 10])
+  })
+
   it('shows both ellipses when current is in the middle of a large set', () => {
     const pages = buildPageNumbers(10, 20)
     expect(pages).toEqual([1, '...', 8, 9, 10, 11, 12, '...', 20])
   })
 
   it('handles current at page 1 of a large set', () => {
+    // current=1, no leading ellipsis; window starts at 1, end=3; trailing ellipsis appears
     const pages = buildPageNumbers(1, 20)
-    expect(pages[0]).toBe(1)
-    expect(pages[1]).toBe(2)
-    expect(pages).toContain('...')
-    expect(pages[pages.length - 1]).toBe(20)
+    expect(pages).toEqual([1, 2, 3, '...', 20])
   })
 
   it('handles current at last page of a large set', () => {
+    // current=20, leading ellipsis appears; window ends at 19; no trailing ellipsis
     const pages = buildPageNumbers(20, 20)
-    expect(pages[0]).toBe(1)
-    expect(pages).toContain('...')
-    expect(pages[pages.length - 1]).toBe(20)
-    expect(pages[pages.length - 2]).toBe(19)
+    expect(pages).toEqual([1, '...', 18, 19, 20])
   })
 })
 
