@@ -16,13 +16,14 @@ export default async function QuizReportPage({
   if (!summary) redirect('/app/quiz')
 
   const page = parsePageParam(pageParam)
-  const totalPages = Math.max(1, Math.ceil(summary.totalQuestions / PAGE_SIZE))
+  const questionsResult = await getQuizReportQuestions({ sessionId, page })
+  if (!questionsResult.ok) redirect('/app/quiz')
+
+  // Use live answer count (not summary.totalQuestions) — partial submissions mean answered < total
+  const totalPages = Math.max(1, Math.ceil(questionsResult.totalCount / PAGE_SIZE))
   if (page > totalPages) {
     redirect(`/app/quiz/report?session=${sessionId}&page=${totalPages}`)
   }
-
-  const questionsResult = await getQuizReportQuestions({ sessionId, page })
-  if (!questionsResult.ok) redirect('/app/quiz')
 
   return (
     <main className="space-y-6">

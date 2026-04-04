@@ -107,6 +107,8 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
         ? supabase.from('easa_subjects').select('id, name').in('id', subjectIds)
         : Promise.resolve({ data: [] as SubjectNameRow[], error: null })
     })(),
+    // Fetch answer rows to count per-session (can't use total_questions — partial submissions allowed).
+    // Transfers up to pageSize * 500 rows of session_id only. Optimize to RPC if this becomes slow.
     supabase.from('quiz_session_answers').select('session_id').in('session_id', sessionIds),
   ])
 

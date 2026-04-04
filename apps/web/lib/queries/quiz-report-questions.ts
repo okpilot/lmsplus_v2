@@ -78,6 +78,8 @@ export async function getQuizReportQuestions(opts: {
 
   // Direct SELECT is safe: ended_at guard above blocks mid-session access,
   // and buildReportQuestions strips options[].correct before returning.
+  // Intentionally omits deleted_at — questions answered in a completed session
+  // are shown even if subsequently soft-deleted (historical record).
   const { data: questionsData } = await supabase
     .from('questions')
     .select('id, question_text, question_number, options, explanation_text, explanation_image_url')
