@@ -45,10 +45,9 @@ export async function collectUserData(
       .select('question_id, state, due, stability, difficulty, reps, lapses, last_review')
       .eq('student_id', userId),
     supabase
-      .from('flagged_questions')
+      .from('active_flagged_questions')
       .select('question_id, flagged_at')
-      .eq('student_id', userId)
-      .is('deleted_at', null),
+      .eq('student_id', userId),
     supabase
       .from('question_comments')
       .select('id, question_id, body, created_at')
@@ -114,7 +113,8 @@ export async function collectUserData(
     quiz_answers: answersResult.data ?? [],
     student_responses: responsesResult.data ?? [],
     fsrs_cards: fsrsResult.data ?? [],
-    flagged_questions: flagsResult.data ?? [],
+    // View columns typed nullable (Postgres artifact); safe to cast — underlying table has NOT NULL constraints.
+    flagged_questions: (flagsResult.data ?? []) as { question_id: string; flagged_at: string }[],
     question_comments: commentsResult.data ?? [],
     user_consents: consentsResult.data ?? [],
     audit_events: (auditResult.data ?? []).map((e) => ({

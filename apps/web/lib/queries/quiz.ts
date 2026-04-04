@@ -341,13 +341,12 @@ async function filterFlagged(
 ): Promise<QuestionIdRow[]> {
   if (!questions.length) return []
   const questionIds = questions.map((q) => q.id)
-  // flagged_questions is not yet in the generated DB types — cast via unknown
+  // active_flagged_questions view is not yet in the generated DB types — cast via unknown
   const client = supabase as unknown as UntypedClient
   const { data: flaggedData, error } = await client
-    .from('flagged_questions')
+    .from('active_flagged_questions')
     .select('question_id')
     .eq('student_id', userId)
-    .is('deleted_at', null)
     .in('question_id', questionIds)
   if (error) {
     console.error('[filterFlagged] flagged_questions query error:', error.message)

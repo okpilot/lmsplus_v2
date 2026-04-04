@@ -13,7 +13,7 @@ export type QuizReportQuestion = {
   responseTimeMs: number
 }
 
-export type QuizReportData = {
+export type QuizReportSummary = {
   sessionId: string
   mode: string
   subjectName: string | null
@@ -23,8 +23,13 @@ export type QuizReportData = {
   scorePercentage: number
   startedAt: string
   endedAt: string | null
-  questions: QuizReportQuestion[]
 }
+
+export type QuizReportQuestionsResult =
+  | { ok: true; questions: QuizReportQuestion[]; totalCount: number }
+  | { ok: false; error: string }
+
+export const PAGE_SIZE = 10
 
 type SessionRow = {
   id: string
@@ -37,23 +42,7 @@ type SessionRow = {
   score_percentage: number | null
 }
 
-type AnswerRow = {
-  question_id: string
-  selected_option_id: string
-  is_correct: boolean
-  response_time_ms: number
-}
-
-type QuestionRow = {
-  id: string
-  question_text: string
-  question_number: string | null
-  options: { id: string; text: string }[]
-  explanation_text: string | null
-  explanation_image_url: string | null
-}
-
-export async function getQuizReport(sessionId: string): Promise<QuizReportData | null> {
+export async function getQuizReportSummary(sessionId: string): Promise<QuizReportSummary | null> {
   const supabase = await createServerSupabaseClient()
 
   const {
@@ -61,7 +50,7 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
     error: authError,
   } = await supabase.auth.getUser()
   if (authError) {
-    console.error('[getQuizReport] Auth error:', authError.message)
+    console.error('[getQuizReportSummary] Auth error:', authError.message)
     return null
   }
   if (!user) return null
@@ -81,6 +70,12 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
   // Only serve reports for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return null
 
+  // Fetch total answered count from quiz_session_answers
+  const { count: answeredCount } = await supabase
+    .from('quiz_session_answers')
+    .select('question_id', { count: 'exact', head: true })
+    .eq('session_id', sessionId)
+
   // Resolve subject name if available (display-only — don't abort report on failure)
   let subjectName: string | null = null
   if (session.subject_id) {
@@ -90,82 +85,20 @@ export async function getQuizReport(sessionId: string): Promise<QuizReportData |
       .eq('id', session.subject_id)
       .maybeSingle()
     if (subjectError) {
-      console.error('[getQuizReport] Subject lookup error:', subjectError.message)
+      console.error('[getQuizReportSummary] Subject lookup error:', subjectError.message)
     }
     subjectName = (subjectData as { name: string } | null)?.name ?? null
   }
-
-  const { data: answersData } = await supabase
-    .from('quiz_session_answers')
-    .select('question_id, selected_option_id, is_correct, response_time_ms')
-    .eq('session_id', sessionId)
-
-  const answers = (answersData ?? []) as AnswerRow[]
-  if (!answers.length) return null
-
-  const questionIds = answers.map((a) => a.question_id)
-
-  // Direct SELECT is safe: ended_at guard above blocks mid-session access,
-  // and buildReportQuestions strips options[].correct before returning.
-  const { data: questionsData } = await supabase
-    .from('questions')
-    .select('id, question_text, question_number, options, explanation_text, explanation_image_url')
-    .in('id', questionIds)
-
-  const questions = (questionsData ?? []) as QuestionRow[]
-  const questionMap = new Map<string, QuestionRow>()
-  for (const q of questions) {
-    questionMap.set(q.id, q)
-  }
-
-  const { data: correctData, error: rpcError } = await supabase.rpc('get_report_correct_options', {
-    p_session_id: sessionId,
-  })
-  if (rpcError) {
-    console.error('[getQuizReport] RPC error:', rpcError.message)
-    return null
-  }
-  const correctMap = new Map<string, string>()
-  for (const row of correctData ?? []) {
-    correctMap.set(row.question_id, row.correct_option_id)
-  }
-
-  const reportQuestions = buildReportQuestions(answers, questionMap, correctMap)
 
   return {
     sessionId: session.id,
     mode: session.mode,
     subjectName,
     totalQuestions: session.total_questions,
-    answeredCount: answers.length,
+    answeredCount: answeredCount ?? 0,
     correctCount: session.correct_count,
     scorePercentage: session.score_percentage ?? 0,
     startedAt: session.started_at,
     endedAt: session.ended_at,
-    questions: reportQuestions,
   }
-}
-
-function buildReportQuestions(
-  answers: AnswerRow[],
-  questionMap: Map<string, QuestionRow>,
-  correctMap: Map<string, string>,
-): QuizReportQuestion[] {
-  return answers.map((answer) => {
-    const question = questionMap.get(answer.question_id)
-    const options = question?.options ?? []
-
-    return {
-      questionId: answer.question_id,
-      questionText: question?.question_text ?? '',
-      questionNumber: question?.question_number ?? null,
-      isCorrect: answer.is_correct,
-      selectedOptionId: answer.selected_option_id,
-      correctOptionId: correctMap.get(answer.question_id) ?? '',
-      options: options.map((o) => ({ id: o.id, text: o.text })),
-      explanationText: question?.explanation_text ?? null,
-      explanationImageUrl: question?.explanation_image_url ?? null,
-      responseTimeMs: answer.response_time_ms,
-    }
-  })
 }

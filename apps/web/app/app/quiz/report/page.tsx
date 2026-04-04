@@ -1,22 +1,39 @@
 import { redirect } from 'next/navigation'
-import { getQuizReport } from '@/lib/queries/quiz-report'
+import { getQuizReportSummary, PAGE_SIZE } from '@/lib/queries/quiz-report'
+import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
+import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { ReportCard } from './_components/report-card'
 
 export default async function QuizReportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ session?: string }>
+  searchParams: Promise<{ session?: string; page?: string }>
 }) {
-  const { session: sessionId } = await searchParams
+  const { session: sessionId, page: pageParam } = await searchParams
   if (!sessionId) redirect('/app/quiz')
 
-  const report = await getQuizReport(sessionId)
-  if (!report) redirect('/app/quiz')
+  const summary = await getQuizReportSummary(sessionId)
+  if (!summary) redirect('/app/quiz')
+
+  const page = parsePageParam(pageParam)
+  const totalPages = Math.max(1, Math.ceil(summary.totalQuestions / PAGE_SIZE))
+  if (page > totalPages) {
+    redirect(`/app/quiz/report?session=${sessionId}&page=${totalPages}`)
+  }
+
+  const questionsResult = await getQuizReportQuestions({ sessionId, page })
+  if (!questionsResult.ok) redirect('/app/quiz')
 
   return (
     <main className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Quiz Results</h1>
-      <ReportCard report={report} />
+      <ReportCard
+        summary={summary}
+        questions={questionsResult.questions}
+        page={page}
+        totalCount={questionsResult.totalCount}
+        pageSize={PAGE_SIZE}
+      />
     </main>
   )
 }

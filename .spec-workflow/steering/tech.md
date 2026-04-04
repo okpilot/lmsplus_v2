@@ -167,9 +167,9 @@ lmsplusv2/
 
 13. **Red-team adversarial security testing** (Decision 27): 9 Playwright attack specs in `e2e/redteam/`. Separate CI workflow on security-sensitive paths. Red-team agent maps diffs to affected specs.
 
-## Known Limitations
+14. **Server-side pagination with server-side sort/filter** (Decision 34): All paginated lists use Supabase `.range()` with `{ count: 'exact' }`, URL-driven `?page=N&sort=field&dir=asc|desc`, and the shared `PaginationBar` component. Sorting and filtering MUST be server-side when combined with pagination — client-side sort on a paginated subset returns incorrect results. Page sizes: 10 for student-facing pages, 25 for admin pages. Out-of-range pages redirect to the last valid page. First established in admin questions (PR #463), now standardized app-wide.
 
-- **Page-based pagination on admin question list**: Implemented with 25 items/page, exact count via Supabase `{ count: 'exact' }`, `PaginationBar` component with page numbers/Prev/Next, URL-driven `?page=N`. Redirects to last valid page on out-of-bounds navigation (PR #463).
+## Known Limitations
 - **No real-time features**: No WebSocket/Realtime subscriptions. All data fetching is request-response via Server Components or Server Actions.
 - **Single-org assumption**: Comment visibility and some RLS policies assume single-org deployment. Multi-tenancy scoping deferred.
 - **No offline mode**: Quiz progress persists to localStorage for recovery, but the app requires an internet connection.

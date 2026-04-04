@@ -576,6 +576,21 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - No migration required — pure application-layer change.
 **Rationale**: EASA Part ORA is a binding aviation regulation that requires identified training records for regulatory auditing. GDPR Article 17(3)(b) explicitly exempts erasure when processing is necessary for compliance with a legal obligation. Anonymisation would defeat the audit purpose. The privacy policy documents this exemption transparently.
 
+### Decision 34: Server-side pagination with server-side sort/filter
+
+**Date**: 2026-04-04
+**Context**: Adding pagination to the reports listing and quiz report pages. The reports page had client-side sorting (date/score/subject) on all sessions loaded at once. With server-side pagination (only 10 rows per page), client-side sorting would only sort the current page's rows — not the full dataset. For example, sorting page 1's 10 rows by score would not surface the student's actual top scores.
+**Decision**:
+- All paginated lists use Supabase `.range(from, to)` with `{ count: 'exact' }` for server-side offset/limit pagination.
+- URL-driven state: `?page=N&sort=field&dir=asc|desc`. Sort/filter state is bookmarkable and shareable.
+- **Sorting and filtering MUST be server-side** when combined with server-side pagination. Client-side sort/filter on a paginated subset returns incorrect results.
+- Changing sort or filter resets pagination to page 1 and re-fetches from the server.
+- Shared `PaginationBar` component with `buildPageNumbers` algorithm (compact with ellipsis for large page counts).
+- Page sizes: 10 for student-facing pages, 25 for admin pages.
+- Out-of-range page numbers redirect to the last valid page.
+- This applies to all current and future paginated pages in the application.
+**Rationale**: Server-side pagination is necessary for performance (quiz sessions can have up to 500 questions, reports list grows unbounded). Once pagination is server-side, sort/filter must also be server-side for correctness — sorting a subset gives misleading results. The pattern was first established in the admin question list (PR #463) and is now standardized across the app.
+
 ---
 
-*Last updated: 2026-03-27 — Decision 33: EASA Part ORA exemption for GDPR erasure*
+*Last updated: 2026-04-04 — Decision 34: Server-side pagination with server-side sort/filter*

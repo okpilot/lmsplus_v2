@@ -1,17 +1,12 @@
 import { Suspense } from 'react'
 import { z } from 'zod'
+import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { QuestionsContent } from './_components/questions-content'
 import { QuestionsContentFallback } from './_components/questions-content-fallback'
 import type { QuestionFilters } from './types'
 
 const DIFFICULTY_VALUES = ['easy', 'medium', 'hard'] as const
 const STATUS_VALUES = ['active', 'draft'] as const
-
-function parsePageParam(value: string | string[] | undefined): number {
-  if (typeof value !== 'string') return 1
-  const n = Number.parseInt(value, 10)
-  return Number.isFinite(n) && n >= 1 ? n : 1
-}
 
 export function parseFilters(
   params: Record<string, string | string[] | undefined>,

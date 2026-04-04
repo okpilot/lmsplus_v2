@@ -51,13 +51,12 @@ export async function applyFilters(opts: {
         return questions.filter((q) => ids.has(q.id))
       }
       if (f === 'flagged') {
-        // flagged_questions is not yet in the generated DB types — cast via unknown
+        // active_flagged_questions view is not yet in the generated DB types — cast via unknown
         const client = supabase as unknown as UntypedClient
         const { data, error } = await client
-          .from('flagged_questions')
+          .from('active_flagged_questions')
           .select('question_id')
           .eq('student_id', userId)
-          .is('deleted_at', null)
           .in('question_id', questionIds)
         if (error) {
           console.error('[applyFilters] flagged_questions query error:', error.message)

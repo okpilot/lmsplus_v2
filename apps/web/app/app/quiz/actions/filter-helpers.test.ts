@@ -167,7 +167,7 @@ describe('applyFilters — incorrect filter', () => {
 describe('applyFilters — flagged filter', () => {
   it('returns questions flagged by the student', async () => {
     const supabase = makeClient({
-      flagged_questions: { data: [{ question_id: 'q2' }], error: null },
+      active_flagged_questions: { data: [{ question_id: 'q2' }], error: null },
     }) as unknown as UntypedClient
 
     const result = await applyFilters({
@@ -182,7 +182,7 @@ describe('applyFilters — flagged filter', () => {
 
   it('returns empty array when no flagged questions exist', async () => {
     const supabase = makeClient({
-      flagged_questions: { data: [], error: null },
+      active_flagged_questions: { data: [], error: null },
     }) as unknown as UntypedClient
 
     const result = await applyFilters({
@@ -198,7 +198,7 @@ describe('applyFilters — flagged filter', () => {
   it('returns empty array and logs error when query fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const supabase = makeClient({
-      flagged_questions: { data: null, error: { message: 'rls policy blocked' } },
+      active_flagged_questions: { data: null, error: { message: 'rls policy blocked' } },
     }) as unknown as UntypedClient
 
     const result = await applyFilters({

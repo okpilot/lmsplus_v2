@@ -9,9 +9,15 @@ type Props = {
   page: number
   totalCount: number
   pageSize: number
+  entityLabel?: string
 }
 
-export function PaginationBar({ page, totalCount, pageSize }: Readonly<Props>) {
+export function PaginationBar({
+  page,
+  totalCount,
+  pageSize,
+  entityLabel = 'questions',
+}: Readonly<Props>) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -38,7 +44,7 @@ export function PaginationBar({ page, totalCount, pageSize }: Readonly<Props>) {
   return (
     <div className="flex items-center justify-between pt-4">
       <p className="text-xs text-muted-foreground">
-        Showing {from}–{to} of {totalCount} questions
+        Showing {from}–{to} of {totalCount} {entityLabel}
       </p>
       <div className="flex items-center gap-1">
         <Button
