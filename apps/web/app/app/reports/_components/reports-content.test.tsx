@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionReport } from '@/lib/queries/reports'
 import { ReportsContent } from './reports-content'
 
-const { mockGetSessionReports } = vi.hoisted(() => ({
+const { mockGetSessionReports, mockRedirect } = vi.hoisted(() => ({
   mockGetSessionReports: vi.fn(),
+  mockRedirect: vi.fn(),
 }))
 
 vi.mock('@/lib/queries/reports', () => ({
@@ -13,7 +14,7 @@ vi.mock('@/lib/queries/reports', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  redirect: vi.fn(),
+  redirect: (...args: unknown[]) => mockRedirect(...args),
 }))
 
 // ReportsList is a client component — render a minimal stand-in
@@ -97,5 +98,48 @@ describe('ReportsContent', () => {
     render(jsx)
 
     expect(screen.getByText(/failed to load reports/i)).toBeInTheDocument()
+  })
+
+  it('passes totalCount through to ReportsList', async () => {
+    mockGetSessionReports.mockResolvedValue({
+      ok: true,
+      sessions: [makeSession('s-1')],
+      totalCount: 42,
+    })
+
+    const jsx = await ReportsContent(DEFAULT_PROPS)
+    render(jsx)
+
+    expect(screen.getByTestId('reports-list')).toHaveAttribute('data-total', '42')
+  })
+
+  it('redirects to last valid page when requested page exceeds total pages', async () => {
+    // totalCount=5, PAGE_SIZE=10 → totalPages=1; page=3 exceeds it
+    mockGetSessionReports.mockResolvedValue({
+      ok: true,
+      sessions: [makeSession('s-1')],
+      totalCount: 5,
+    })
+
+    await ReportsContent({ page: 3, sort: 'date', dir: 'desc' })
+
+    // totalPages=1 → redirect to /app/reports (no query string needed for defaults)
+    expect(mockRedirect).toHaveBeenCalledWith('/app/reports')
+  })
+
+  it('redirects and preserves non-default sort params when page is out of range', async () => {
+    // totalCount=25, PAGE_SIZE=10 → totalPages=3; page=5 exceeds it
+    mockGetSessionReports.mockResolvedValue({
+      ok: true,
+      sessions: [makeSession('s-1')],
+      totalCount: 25,
+    })
+
+    await ReportsContent({ page: 5, sort: 'score', dir: 'asc' })
+
+    // totalPages=3 → redirect to page=3 with non-default sort/dir params preserved
+    expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining('sort=score'))
+    expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining('dir=asc'))
+    expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining('page=3'))
   })
 })
