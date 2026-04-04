@@ -369,7 +369,7 @@ WITH (security_invoker = true) AS
   SELECT * FROM flagged_questions WHERE deleted_at IS NULL;
 ```
 
-Created in migration 051. **This view is not currently used by any application code.** All read-path callsites query `flagged_questions` directly with `.is('deleted_at', null)`:
+Created in migration 051 to centralize the soft-delete filter and provide RLS enforcement via `security_invoker`, removing the per-callsite `.is('deleted_at', null)` requirement. **This view is not currently used by any application code.** All read-path callsites query `flagged_questions` directly with `.is('deleted_at', null)`:
 
 - `apps/web/app/app/quiz/actions/flag.ts` — ownership check in `toggleFlag`, ID list in `getFlaggedIds`
 - `apps/web/app/app/quiz/actions/filter-helpers.ts` — quiz setup `filterFlagged`
