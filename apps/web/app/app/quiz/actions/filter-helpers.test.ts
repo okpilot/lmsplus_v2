@@ -210,7 +210,7 @@ describe('applyFilters — flagged filter', () => {
 
     expect(result).toEqual([])
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[applyFilters] flagged_questions query error:',
+      '[applyFilters] active_flagged_questions query error:',
       'rls policy blocked',
     )
   })

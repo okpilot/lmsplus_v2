@@ -59,7 +59,7 @@ export async function applyFilters(opts: {
           .eq('student_id', userId)
           .in('question_id', questionIds)
         if (error) {
-          console.error('[applyFilters] flagged_questions query error:', error.message)
+          console.error('[applyFilters] active_flagged_questions query error:', error.message)
           return []
         }
         const ids = new Set(((data ?? []) as QuestionFilterRef[]).map((r) => r.question_id))

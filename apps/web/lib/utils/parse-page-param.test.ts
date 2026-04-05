@@ -14,7 +14,7 @@ describe('parsePageParam', () => {
     expect(parsePageParam('-1')).toBe(1)
   })
 
-  it('returns 1 for a float string (non-integer)', () => {
+  it('truncates a float string to its integer part', () => {
     // parseInt("2.5") === 2 which is valid, so this actually returns 2 —
     // the function uses parseInt, not Number(), so "2.5" → 2
     expect(parsePageParam('2.5')).toBe(2)

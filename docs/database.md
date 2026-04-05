@@ -358,11 +358,11 @@ CREATE INDEX idx_flagged_questions_student ON flagged_questions (student_id)
 ```
 
 RLS policies:
-- SELECT: `student_id = auth.uid()` (app filters `deleted_at IS NULL` in flag.ts)
+- SELECT: `student_id = auth.uid()` (reads use active_flagged_questions view)
 - INSERT: `student_id = auth.uid()`
 - UPDATE: `student_id = auth.uid()` (soft-delete via `deleted_at = now()` in app code)
 
-**Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, application code filters deleted records via `.is('deleted_at', null)` in flag.ts. RLS only enforces ownership.
+**Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, read queries use the `active_flagged_questions` view (which includes `WHERE deleted_at IS NULL`). Write operations in flag.ts filter explicitly. RLS only enforces ownership.
 
 #### View: `active_flagged_questions`
 

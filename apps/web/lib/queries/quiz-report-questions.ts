@@ -60,6 +60,7 @@ export async function getQuizReportQuestions(opts: {
     .from('quiz_session_answers')
     .select('question_id, selected_option_id, is_correct, response_time_ms', { count: 'exact' })
     .eq('session_id', sessionId)
+    .order('answered_at', { ascending: true })
     .range(from, to)
 
   if (answersError) {
@@ -80,10 +81,15 @@ export async function getQuizReportQuestions(opts: {
   // and buildReportQuestions strips options[].correct before returning.
   // Intentionally omits deleted_at — questions answered in a completed session
   // are shown even if subsequently soft-deleted (historical record).
-  const { data: questionsData } = await supabase
+  const { data: questionsData, error: questionsError } = await supabase
     .from('questions')
     .select('id, question_text, question_number, options, explanation_text, explanation_image_url')
     .in('id', questionIds)
+
+  if (questionsError) {
+    console.error('[getQuizReportQuestions] Questions query error:', questionsError.message)
+    return { ok: false, error: 'Failed to load questions' }
+  }
 
   const questions = (questionsData ?? []) as QuestionRow[]
   const questionMap = new Map<string, QuestionRow>()

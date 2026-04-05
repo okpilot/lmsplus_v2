@@ -14,7 +14,9 @@ export function QuestionBreakdown({ questions, page, totalCount, pageSize }: Pro
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Question Breakdown</h2>
-        <span className="text-sm text-muted-foreground">{totalCount} questions</span>
+        <span className="text-sm text-muted-foreground">
+          {totalCount} question{totalCount === 1 ? '' : 's'}
+        </span>
       </div>
 
       <div className="rounded-xl border border-border bg-card">

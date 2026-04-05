@@ -349,7 +349,7 @@ async function filterFlagged(
     .eq('student_id', userId)
     .in('question_id', questionIds)
   if (error) {
-    console.error('[filterFlagged] flagged_questions query error:', error.message)
+    console.error('[filterFlagged] active_flagged_questions query error:', error.message)
     return []
   }
   const flaggedIds = new Set(((flaggedData ?? []) as QuestionFilterRef[]).map((r) => r.question_id))
