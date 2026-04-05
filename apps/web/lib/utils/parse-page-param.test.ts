@@ -24,7 +24,7 @@ describe('parsePageParam', () => {
     expect(parsePageParam(undefined)).toBe(1)
   })
 
-  it('returns the parsed integer from the first element of a string array', () => {
+  it('returns 1 for string array input', () => {
     // Arrays are not strings, so the guard short-circuits → 1
     expect(parsePageParam(['2'])).toBe(1)
   })

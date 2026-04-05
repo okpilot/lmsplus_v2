@@ -55,9 +55,7 @@ export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }:
         <button type="button" onClick={() => setSort('score')} className="hover:text-foreground">
           Score{sort === 'score' ? arrow : ''}
         </button>
-        <button type="button" onClick={() => setSort('subject')} className="hover:text-foreground">
-          Subject{sort === 'subject' ? arrow : ''}
-        </button>
+        <span>Subject</span>
       </div>
 
       <div className="hidden rounded-lg border border-border md:block">

@@ -1542,4 +1542,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-27 (migration 058: removed cookie_analytics consent type) | Companion: docs/security.md*
+*Last updated: 2026-04-05 (migration 062: question_banks unique org constraint) | Companion: docs/security.md*

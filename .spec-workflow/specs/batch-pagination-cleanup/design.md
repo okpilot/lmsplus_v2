@@ -13,12 +13,14 @@ Plus closing 3 already-resolved issues (#365, #364, #363).
 ## Steering Document Alignment
 
 ### Technical Standards (tech.md)
+
 - **Decision 34**: Server-side pagination with server-side sort/filter. All paginated lists use Supabase `.range()` + `{ count: 'exact' }`, URL `?page=N&sort=field&dir=asc|desc`, shared `PaginationBar`. Page size: 10 for student pages, 25 for admin.
 - **Soft-delete**: All queries respect `deleted_at IS NULL`. The flagged view migration centralizes this for flagged_questions reads.
 - **ACID via RPCs**: No new RPCs needed. Quiz report continues using `get_report_correct_options()`.
 - **Immutable migrations**: New migration for unique constraint. No existing migration modifications.
 
 ### Project Structure (structure.md)
+
 - Feature-based organization: each page's `_components/` stays self-contained
 - Shared `PaginationBar` moves to `apps/web/app/app/_components/` (protected-area shared components)
 - Co-located tests for all new/changed files
@@ -27,12 +29,14 @@ Plus closing 3 already-resolved issues (#365, #364, #363).
 ## Code Reuse Analysis
 
 ### Existing Components to Leverage
+
 - **`PaginationBar`** (`admin/questions/_components/pagination-bar.tsx`, 113 lines): Contains `buildPageNumbers()` and `buildPageItems()` algorithms plus the UI. Will be moved to shared location and imported by all paginated pages.
 - **`PaginationBar` tests** (`pagination-bar.test.tsx`, 263 lines): Move alongside component. Tests cover all edge cases including ellipsis, boundary pages, single page.
 - **Admin questions query pattern** (`queries.ts`): The `.range(from, to)` + `{ count: 'exact' }` + discriminated union return pattern is the template for reports and quiz report queries.
 - **`parsePageParam()`** (`admin/questions/page.tsx`): URL page param parsing logic. Will be extracted to a shared utility.
 
 ### Integration Points
+
 - **Supabase queries**: Reports query (`lib/queries/reports.ts`) and quiz report query (`lib/queries/quiz-report.ts`) gain pagination params
 - **URL state**: `?page=N&sort=field&dir=asc|desc` params parsed in Server Component page files
 - **`active_flagged_questions` view**: Already exists in DB (migration 051) with `security_invoker = true`. Types already in `packages/db/src/types.ts`.
@@ -86,6 +90,7 @@ Parses `?page=N` from searchParams, validates as positive integer, defaults to 1
 ## Components and Interfaces
 
 ### 1. PaginationBar (shared, moved + modified)
+
 - **Purpose:** Renders page navigation controls with prev/next, page numbers, ellipsis, and "Showing X-Y of Z [entity]" summary
 - **Interfaces:** `{ page: number, totalCount: number, pageSize: number, entityLabel?: string }` — `entityLabel` defaults to `"questions"` for backward compatibility. Reports page passes `"sessions"`, quiz report omits it.
 - **Dependencies:** `useRouter`, `useSearchParams` from Next.js — preserves all other URL params when changing page
@@ -93,6 +98,7 @@ Parses `?page=N` from searchParams, validates as positive integer, defaults to 1
 - **Location:** `apps/web/app/app/_components/pagination-bar.tsx`
 
 ### 2. Reports Query (modified)
+
 - **Purpose:** Fetch paginated, sorted session reports for the current student
 - **File:** `apps/web/lib/queries/reports.ts`
 - **Current:** `getAllSessions()` returns all sessions, no pagination
@@ -105,16 +111,19 @@ Parses `?page=N` from searchParams, validates as positive integer, defaults to 1
   - Keep answer count aggregation (scoped to the 10 session IDs on the page)
 
 ### 3. Reports Page (modified)
+
 - **Purpose:** Parse URL params, compose content + pagination
 - **File:** `apps/web/app/app/reports/page.tsx`
 - **Changes:** Parse `?page`, `?sort`, `?dir` from searchParams. Pass to content component.
 
 ### 4. ReportsContent (modified)
+
 - **Purpose:** Fetch data, handle out-of-range redirect, compose shell
 - **File:** `apps/web/app/app/reports/_components/reports-content.tsx`
 - **Changes:** Call `getSessionReports(opts)`, calculate totalPages, redirect if page > totalPages, pass data + pagination props to shell
 
 ### 5. ReportsList → ReportsShell (modified)
+
 - **Purpose:** Render sorted table/cards + pagination bar
 - **File:** `apps/web/app/app/reports/_components/reports-list.tsx`
 - **Changes:**
@@ -125,6 +134,7 @@ Parses `?page=N` from searchParams, validates as positive integer, defaults to 1
   - Props gain: `page`, `totalCount`, `pageSize`, `sort`, `dir`
 
 ### 6. Quiz Report Query (modified)
+
 - **Purpose:** Fetch paginated question breakdown for a completed session
 - **File:** `apps/web/lib/queries/quiz-report.ts`
 - **Current:** `getQuizReport(sessionId)` returns all questions in one shot
@@ -138,26 +148,31 @@ Parses `?page=N` from searchParams, validates as positive integer, defaults to 1
   - PAGE_SIZE = 10
 
 ### 7. Quiz Report Page (modified)
+
 - **File:** `apps/web/app/app/quiz/report/page.tsx`
 - **Changes:** Parse `?page` alongside `?session`. Pass both to content.
 
 ### 8. ReportCard (modified)
+
 - **File:** `apps/web/app/app/quiz/report/_components/report-card.tsx`
 - **Current:** Takes single `QuizReportData` prop (which includes `questions` array), passes `report.questions` to `QuestionBreakdown` and full `report` to `ResultSummary`.
 - **Changes:** Accept `summary: QuizReportSummary` + `questions: QuizReportQuestion[]` + pagination props (`page`, `totalCount`, `pageSize`) as separate props instead of a single `QuizReportData`. Pass summary to `ResultSummary`, questions + pagination to `QuestionBreakdown`.
 - **Type change:** `QuizReportData` is replaced by `QuizReportSummary` (no `questions` field) + separate `QuizReportQuestion[]`. The old `QuizReportData` type is deleted.
 
 ### 9. ResultSummary (modified)
+
 - **File:** `apps/web/app/app/quiz/report/_components/result-summary.tsx`
 - **Changes:** Update prop type from `QuizReportData` to `QuizReportSummary`. No functional change — it only uses summary fields.
 - **Test:** `result-summary.test.tsx` — update `makeReport` fixture type to `QuizReportSummary`, remove `questions: []` from fixture.
 
 ### 10. QuestionBreakdown (modified)
+
 - **File:** `apps/web/app/app/quiz/report/_components/question-breakdown.tsx`
 - **Changes:** Remove client-side `PAGE_SIZE = 5` / `showAll` toggle. Accept paginated data + pagination props. Render `PaginationBar`.
 - **Test:** `report-card.test.tsx` — update fixture to split summary + questions, remove `QuizReportData` import.
 
 ### 11. Flagged View Migration (4 source files + 3 test files modified)
+
 - **Files:**
   - `apps/web/app/app/quiz/actions/flag.ts` — `toggleFlag()` and `getFlaggedIds()` read paths
   - `apps/web/lib/queries/quiz.ts` — `filterFlagged()`
@@ -177,6 +192,7 @@ Parses `?page=N` from searchParams, validates as positive integer, defaults to 1
   - `apps/web/lib/gdpr/collect-user-data.test.ts` — rename `flagged_questions` mock key to `active_flagged_questions` in mock setup
 
 ### 12. Unique Constraint Migration
+
 - **File:** `supabase/migrations/YYYYMMDDHHMMSS_unique_bank_per_org.sql` (new)
 - **SQL:** `ALTER TABLE question_banks ADD CONSTRAINT question_banks_organization_id_key UNIQUE (organization_id);`
 - **Safe:** Current data already satisfies 1:1. The `.limit(1).single()` query in `insertQuestion` remains unchanged — the constraint makes it deterministic by definition.
@@ -184,6 +200,7 @@ Parses `?page=N` from searchParams, validates as positive integer, defaults to 1
 ## Data Models
 
 ### SessionReportsResult (new discriminated union)
+
 ```ts
 type SortKey = 'date' | 'score' | 'subject'
 type SortDir = 'asc' | 'desc'
@@ -194,6 +211,7 @@ type SessionReportsResult =
 ```
 
 ### QuizReportSummary (extracted from QuizReportData)
+
 ```ts
 type QuizReportSummary = {
   sessionId: string
@@ -209,6 +227,7 @@ type QuizReportSummary = {
 ```
 
 ### QuizReportQuestionsResult (new)
+
 ```ts
 type QuizReportQuestionsResult =
   | { ok: true; questions: QuizReportQuestion[]; totalCount: number }
@@ -238,6 +257,7 @@ type QuizReportQuestionsResult =
 ## Testing Strategy
 
 ### Unit Testing
+
 - **PaginationBar**: Already has 263 lines of tests. No changes needed — just move alongside component.
 - **`getSessionReports()`**: Test pagination math (range calculation), sort column mapping, error handling, discriminated union returns. Pattern: mock Supabase client chain. **Note:** Current `getAllSessions` uses `throw new Error()` on failure — existing `reports.test.ts` asserts `.rejects.toThrow()`. New function returns `{ ok: false, error }` instead. All `rejects.toThrow` tests must be rewritten as `{ ok: false }` assertions.
 - **`getQuizReportSummary()` / `getQuizReportQuestions()`**: Test split behavior, pagination, correct option mapping. Ensure summary doesn't include questions.
@@ -245,9 +265,11 @@ type QuizReportQuestionsResult =
 - **`parsePageParam()`**: Test valid, invalid, missing, negative, zero, float inputs.
 
 ### Integration Testing
+
 - Reports pagination: verify `.range()` is called with correct bounds for different pages.
 - Quiz report split: verify summary and questions can be fetched independently.
 
 ### End-to-End Testing
+
 - No new E2E specs needed — existing reports and quiz flow E2E tests cover the pages. Pagination is a UX enhancement, not a new flow.
 - If test-writer agent identifies gaps, tests will be added post-commit.
