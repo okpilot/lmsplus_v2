@@ -9,7 +9,7 @@ import type {
   WeakTopic,
 } from './types'
 
-const PAGE_SIZE = 25
+import { PAGE_SIZE } from './types'
 
 // RPC calls use the authenticated client (not adminClient) so auth.uid() is set in Postgres.
 // adminClient (service role) sets auth.uid() = NULL, which would fail the RPCs' auth check.

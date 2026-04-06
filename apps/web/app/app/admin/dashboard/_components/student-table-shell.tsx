@@ -12,9 +12,8 @@ import {
 } from '@/components/ui/select'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { DashboardFilters, DashboardStudent } from '../types'
+import { PAGE_SIZE } from '../types'
 import { SortableHead, type SortField, StudentRow } from './student-table-helpers'
-
-const PAGE_SIZE = 25
 
 const SORTABLE_COLUMNS: { field: SortField; label: string }[] = [
   { field: 'name', label: 'Name' },

@@ -48,7 +48,15 @@ export function StudentRow({ student, onClick }: StudentRowProps) {
   return (
     <TableRow className="cursor-pointer" onClick={onClick}>
       <TableCell>
-        <div className="font-medium">{student.fullName ?? '\u2014'}</div>
+        <div className="flex items-center gap-1.5">
+          {student.hasRecentActivity && (
+            <span
+              className="size-2 shrink-0 rounded-full bg-green-500"
+              title="Active in last 7 days"
+            />
+          )}
+          <span className="font-medium">{student.fullName ?? '\u2014'}</span>
+        </div>
         <div className="text-xs text-muted-foreground">{student.email}</div>
       </TableCell>
       <TableCell>{formatRelativeTime(student.lastActiveAt)}</TableCell>

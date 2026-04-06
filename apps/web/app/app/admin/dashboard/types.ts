@@ -1,3 +1,5 @@
+export const PAGE_SIZE = 25
+
 export type TimeRange = '7d' | '30d' | '90d' | 'all'
 
 export type DashboardKpis = {
