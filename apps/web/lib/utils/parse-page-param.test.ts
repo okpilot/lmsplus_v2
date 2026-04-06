@@ -15,8 +15,6 @@ describe('parsePageParam', () => {
   })
 
   it('truncates a float string to its integer part', () => {
-    // parseInt("2.5") === 2 which is valid, so this actually returns 2 —
-    // the function uses parseInt, not Number(), so "2.5" → 2
     expect(parsePageParam('2.5')).toBe(2)
   })
 
@@ -25,7 +23,6 @@ describe('parsePageParam', () => {
   })
 
   it('returns 1 for string array input', () => {
-    // Arrays are not strings, so the guard short-circuits → 1
     expect(parsePageParam(['2'])).toBe(1)
   })
 
