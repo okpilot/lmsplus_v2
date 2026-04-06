@@ -76,6 +76,7 @@ export async function getQuizReportQuestions(opts: {
     .select('question_id, selected_option_id, is_correct, response_time_ms')
     .eq('session_id', sessionId)
     .order('answered_at', { ascending: true })
+    .order('id')
     .range(from, to)
 
   if (answersError) {

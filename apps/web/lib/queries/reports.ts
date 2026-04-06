@@ -101,6 +101,7 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
     .not('ended_at', 'is', null)
     .is('deleted_at', null)
     .order(sortColumn, { ascending })
+    .order('id')
     .range(from, to)
 
   if (sessionsError) {
