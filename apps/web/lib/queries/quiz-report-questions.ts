@@ -49,16 +49,30 @@ export async function getQuizReportQuestions(opts: {
   // Only serve questions for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return { ok: false, error: 'Failed to load questions' }
 
+  // Count first — PostgREST returns 416 (and null count) for out-of-range .range() requests.
+  const { count: totalCount, error: countError } = await supabase
+    .from('quiz_session_answers')
+    .select('question_id', { count: 'exact', head: true })
+    .eq('session_id', sessionId)
+
+  if (countError) {
+    console.error('[getQuizReportQuestions] Count query error:', countError.message)
+    return { ok: false, error: 'Failed to load questions' }
+  }
+
+  const total = totalCount ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  if (total === 0 || page > totalPages) {
+    return { ok: true, questions: [], totalCount: total }
+  }
+
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
-  const {
-    data: answersData,
-    count,
-    error: answersError,
-  } = await supabase
+  const { data: answersData, error: answersError } = await supabase
     .from('quiz_session_answers')
-    .select('question_id, selected_option_id, is_correct, response_time_ms', { count: 'exact' })
+    .select('question_id, selected_option_id, is_correct, response_time_ms')
     .eq('session_id', sessionId)
     .order('answered_at', { ascending: true })
     .range(from, to)
@@ -69,10 +83,9 @@ export async function getQuizReportQuestions(opts: {
   }
 
   const answers = (answersData ?? []) as AnswerRow[]
-  const totalCount = count ?? 0
 
   if (!answers.length) {
-    return { ok: true, questions: [], totalCount }
+    return { ok: true, questions: [], totalCount: total }
   }
 
   const questionIds = answers.map((a) => a.question_id)
@@ -111,7 +124,7 @@ export async function getQuizReportQuestions(opts: {
 
   const reportQuestions = buildReportQuestions(answers, questionMap, correctMap)
 
-  return { ok: true, questions: reportQuestions, totalCount }
+  return { ok: true, questions: reportQuestions, totalCount: total }
 }
 
 function buildReportQuestions(

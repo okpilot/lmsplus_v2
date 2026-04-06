@@ -257,10 +257,11 @@ describe('getQuizReportQuestions', () => {
   })
 
   it('returns paginated questions with totalCount', async () => {
-    // session row, answers (with count), questions
+    // session row, count query, answers, questions
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: answersData, count: 2 },
+      { count: 2 },
+      { data: answersData },
       { data: questionsData },
     )
     mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
@@ -275,7 +276,8 @@ describe('getQuizReportQuestions', () => {
   it('maps question details correctly', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: answersData, count: 2 },
+      { count: 2 },
+      { data: answersData },
       { data: questionsData },
     )
     mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
@@ -298,7 +300,8 @@ describe('getQuizReportQuestions', () => {
   it('identifies incorrect answers and correct option', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: answersData, count: 2 },
+      { count: 2 },
+      { data: answersData },
       { data: questionsData },
     )
     mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
@@ -313,10 +316,7 @@ describe('getQuizReportQuestions', () => {
   })
 
   it('returns ok:true with empty questions array when no answers on page', async () => {
-    mockFromSequence(
-      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: [], count: 0 },
-    )
+    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } }, { count: 0 })
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(result.ok).toBe(true)
@@ -325,10 +325,10 @@ describe('getQuizReportQuestions', () => {
     expect(result.totalCount).toBe(0)
   })
 
-  it('returns error when answers query fails', async () => {
+  it('returns error when count query fails', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: null, count: null, error: { message: 'db error' } },
+      { count: null, error: { message: 'db error' } },
     )
 
     const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
@@ -338,7 +338,8 @@ describe('getQuizReportQuestions', () => {
   it('returns error when correct-options RPC returns an error', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: answersData, count: 2 },
+      { count: 2 },
+      { data: answersData },
       { data: questionsData },
     )
     mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc failed' } })
@@ -348,10 +349,7 @@ describe('getQuizReportQuestions', () => {
   })
 
   it('does not call the correct-options RPC when answers array is empty', async () => {
-    mockFromSequence(
-      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: [], count: 0 },
-    )
+    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } }, { count: 0 })
     await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
     expect(mockRpc).not.toHaveBeenCalled()
   })
@@ -359,7 +357,8 @@ describe('getQuizReportQuestions', () => {
   it('forwards sessionId as p_session_id when calling the correct-options RPC', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: answersData, count: 2 },
+      { count: 2 },
+      { data: answersData },
       { data: questionsData },
     )
     mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
@@ -374,7 +373,8 @@ describe('getQuizReportQuestions', () => {
   it('falls back to empty correctOptionId when RPC returns no match', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: [answersData[0]], count: 1 },
+      { count: 1 },
+      { data: [answersData[0]] },
       {
         data: [
           {
@@ -398,7 +398,8 @@ describe('getQuizReportQuestions', () => {
   it('handles missing question data gracefully with fallback values', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: [answersData[0]], count: 1 },
+      { count: 1 },
+      { data: [answersData[0]] },
       { data: [] }, // no questions found
     )
     mockRpc.mockResolvedValueOnce({ data: [] })
@@ -416,7 +417,8 @@ describe('getQuizReportQuestions', () => {
   it('passes response time through to the result', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: answersData, count: 2 },
+      { count: 2 },
+      { data: answersData },
       { data: questionsData },
     )
     mockRpc.mockResolvedValueOnce({ data: correctOptionsData })
@@ -443,7 +445,8 @@ describe('getQuizReportQuestions', () => {
     ]
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: [answersData[0]], count: 1 },
+      { count: 1 },
+      { data: [answersData[0]] },
       { data: questionsWithCorrectField },
     )
     mockRpc.mockResolvedValueOnce({ data: [correctOptionsData[0]] })
@@ -472,7 +475,8 @@ describe('getQuizReportQuestions', () => {
     ]
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: [answersData[0]], count: 1 },
+      { count: 1 },
+      { data: [answersData[0]] },
       { data: questionsWithImage },
     )
     mockRpc.mockResolvedValueOnce({ data: [correctOptionsData[0]] })
@@ -498,7 +502,8 @@ describe('getQuizReportQuestions', () => {
     ]
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
-      { data: [answersData[0]], count: 1 },
+      { count: 1 },
+      { data: [answersData[0]] },
       { data: questionsNoImage },
     )
     mockRpc.mockResolvedValueOnce({ data: [correctOptionsData[0]] })

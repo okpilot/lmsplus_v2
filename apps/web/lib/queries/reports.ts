@@ -65,20 +65,37 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
   }
 
   const { page, sort, dir } = opts
-  const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
   const sortColumn = SORT_COLUMN_MAP[sort]
   const ascending = dir === 'asc'
 
-  const {
-    data: sessionsData,
-    error: sessionsError,
-    count,
-  } = await supabase
+  // Count first — PostgREST returns 416 (and null count) for out-of-range .range() requests,
+  // so we need the total before applying pagination to handle out-of-range pages gracefully.
+  const { count: totalCount, error: countError } = await supabase
+    .from('quiz_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('student_id', user.id)
+    .not('ended_at', 'is', null)
+    .is('deleted_at', null)
+
+  if (countError) {
+    console.error('[getSessionReports] Count query error:', countError.message)
+    return { ok: false, error: 'Failed to load reports' }
+  }
+
+  const total = totalCount ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  if (total === 0 || page > totalPages) {
+    return { ok: true, sessions: [], totalCount: total }
+  }
+
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
+  const { data: sessionsData, error: sessionsError } = await supabase
     .from('quiz_sessions')
     .select(
       'id, mode, total_questions, correct_count, score_percentage, started_at, ended_at, subject_id',
-      { count: 'exact' },
     )
     .eq('student_id', user.id)
     .not('ended_at', 'is', null)
@@ -92,10 +109,9 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
   }
 
   const sessions = (sessionsData ?? []) as SessionRow[]
-  const totalCount = count ?? 0
 
   if (!sessions.length) {
-    return { ok: true, sessions: [], totalCount }
+    return { ok: true, sessions: [], totalCount: total }
   }
 
   const sessionIds = sessions.map((s) => s.id)
@@ -153,5 +169,5 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
     }
   })
 
-  return { ok: true, sessions: mapped, totalCount }
+  return { ok: true, sessions: mapped, totalCount: total }
 }
