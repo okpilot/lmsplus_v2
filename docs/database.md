@@ -1467,7 +1467,7 @@ Returns all admin dashboard KPI values in a single JSON response. Used by the ad
 - `weakestSubject` — `{ name, short, avgMastery }` for the subject with the lowest average mastery
 - `examReadyStudents` — count of students with mastery ≥ 90% across all subjects (all-time)
 
-**Clamping:** `p_range_days = 0` means all-time; valid range 1–1095; values outside that default to 30. Range applies only to `activeStudents` and `sessionsThisPeriod` — mastery KPIs are always all-time.
+**Clamping:** `p_range_days = 0` means all-time; values < 0 or NULL default to 30; values > 1095 are clamped to 1095. Range applies only to `activeStudents` and `sessionsThisPeriod` — mastery KPIs are always all-time.
 
 **Filters:** `deleted_at IS NULL` on `users` and `quiz_sessions`; `status = 'active'` on `questions`.
 
@@ -1483,7 +1483,7 @@ Returns the N weakest topics by average correct rate across all students in the 
 
 **Returns:** `TABLE(topic_id UUID, topic_name TEXT, subject_name TEXT, subject_short TEXT, avg_score NUMERIC, student_count BIGINT)`
 
-**Formula:** `avg_score = AVG(is_correct::int) * 100` — per-response accuracy across all `quiz_session_answers` rows for that topic, not mastery percentage.
+**Formula:** `avg_score = AVG(is_correct::int) * 100` — per-response accuracy across all `student_responses` rows for that topic, not mastery percentage.
 
 **Clamping:** `p_limit` clamped to 1–100; default 10.
 
