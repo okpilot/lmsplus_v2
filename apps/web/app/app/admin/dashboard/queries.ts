@@ -63,6 +63,7 @@ export async function getDashboardStudents(
 ): Promise<{ students: DashboardStudent[]; totalCount: number }> {
   const { organizationId } = await requireAdmin()
 
+  // RPC derives org from auth.uid() internally — no org param needed
   const { data: statsData, error: statsError } = await adminRpc('get_admin_student_stats')
   if (statsError) {
     console.error('[getDashboardStudents] Stats RPC error:', statsError.message)
@@ -75,10 +76,12 @@ export async function getDashboardStudents(
     .eq('organization_id', organizationId)
     .eq('role', 'student')
 
-  if (filters.status === 'active') {
-    query = query.is('deleted_at', null)
-  } else if (filters.status === 'inactive') {
+  // Default: show active students. RPC only returns stats for non-deleted students,
+  // so deleted students would show zeroed metrics — filter them out unless explicitly requested.
+  if (filters.status === 'inactive') {
     query = query.not('deleted_at', 'is', null)
+  } else {
+    query = query.is('deleted_at', null)
   }
 
   const { data: usersData, error: usersError } = await query
@@ -121,8 +124,12 @@ export async function getDashboardStudents(
     switch (filters.sort) {
       case 'name':
         return dir * (a.fullName ?? '').localeCompare(b.fullName ?? '')
-      case 'lastActive':
-        return dir * (a.lastActiveAt ?? '').localeCompare(b.lastActiveAt ?? '')
+      case 'lastActive': {
+        if (a.lastActiveAt === null && b.lastActiveAt === null) return 0
+        if (a.lastActiveAt === null) return 1
+        if (b.lastActiveAt === null) return -1
+        return dir * a.lastActiveAt.localeCompare(b.lastActiveAt)
+      }
       case 'sessions':
         return dir * (a.sessionCount - b.sessionCount)
       case 'avgScore':
