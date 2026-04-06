@@ -70,7 +70,7 @@ export type StudentSession = {
   endedAt: string | null
 }
 
-export type SessionSort = 'date' | 'subject' | 'topic' | 'mode' | 'score' | 'questions'
+export type SessionSort = 'date' | 'mode' | 'score' | 'questions'
 
 export type StudentSessionFilters = {
   range: TimeRange

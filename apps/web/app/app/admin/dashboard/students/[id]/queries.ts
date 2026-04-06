@@ -42,8 +42,6 @@ export async function getStudentDetail(studentId: string): Promise<StudentDetail
 
 const SESSION_SORT_MAP: Record<SessionSort, string> = {
   date: 'ended_at',
-  subject: 'subject_id',
-  topic: 'topic_id',
   mode: 'mode',
   score: 'score_percentage',
   questions: 'total_questions',

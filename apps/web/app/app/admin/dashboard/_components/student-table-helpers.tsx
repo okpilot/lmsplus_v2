@@ -45,8 +45,12 @@ type StudentRowProps = Readonly<{
 }>
 
 export function StudentRow({ student, onClick }: StudentRowProps) {
+  const isClickable = student.isActive
   return (
-    <TableRow className="cursor-pointer" onClick={onClick}>
+    <TableRow
+      className={isClickable ? 'cursor-pointer' : 'opacity-60'}
+      onClick={isClickable ? onClick : undefined}
+    >
       <TableCell>
         <div className="flex items-center gap-1.5">
           {student.hasRecentActivity && (

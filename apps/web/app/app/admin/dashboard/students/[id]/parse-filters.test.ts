@@ -70,7 +70,7 @@ describe('parseSessionFilters', () => {
   // -- sort --
 
   it('accepts all valid sort values', () => {
-    const sortValues = ['date', 'subject', 'topic', 'mode', 'score', 'questions'] as const
+    const sortValues = ['date', 'mode', 'score', 'questions'] as const
     for (const sort of sortValues) {
       expect(parseSessionFilters({ sort }).sort).toBe(sort)
     }

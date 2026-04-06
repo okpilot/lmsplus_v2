@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import type { SessionSort, StudentSession, StudentSessionFilters } from '../../../types'
 import { PAGE_SIZE } from '../../../types'
-import { formatDate, formatDuration, SORTABLE_COLUMNS } from './session-table-helpers'
+import { formatDate, formatDuration } from './session-table-helpers'
 
 const TIME_RANGE_OPTIONS = [
   { value: '7d', label: 'Last 7 days' },
@@ -82,6 +82,20 @@ export function SessionHistoryTable({ sessions, totalCount, filters }: Props) {
     </Select>
   )
 
+  const renderSortHead = (field: SessionSort, label: string) => {
+    const arrow = filters.sort === field ? (filters.dir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
+    return (
+      <TableHead
+        key={field}
+        className="cursor-pointer select-none"
+        onClick={() => handleSort(field)}
+      >
+        {label}
+        {arrow}
+      </TableHead>
+    )
+  }
+
   const header = (
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Session History</h2>
@@ -107,20 +121,12 @@ export function SessionHistoryTable({ sessions, totalCount, filters }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              {SORTABLE_COLUMNS.map((col) => {
-                const arrow =
-                  filters.sort === col.field ? (filters.dir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
-                return (
-                  <TableHead
-                    key={col.field}
-                    className="cursor-pointer select-none"
-                    onClick={() => handleSort(col.field)}
-                  >
-                    {col.label}
-                    {arrow}
-                  </TableHead>
-                )
-              })}
+              {renderSortHead('date', 'Date')}
+              <TableHead>Subject</TableHead>
+              <TableHead>Topic</TableHead>
+              {renderSortHead('mode', 'Mode')}
+              {renderSortHead('score', 'Score')}
+              {renderSortHead('questions', 'Questions')}
               <TableHead>Duration</TableHead>
             </TableRow>
           </TableHeader>

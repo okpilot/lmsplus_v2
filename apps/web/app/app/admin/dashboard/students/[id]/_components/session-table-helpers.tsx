@@ -2,8 +2,6 @@ import type { SessionSort } from '../../../types'
 
 export const SORTABLE_COLUMNS: { field: SessionSort; label: string }[] = [
   { field: 'date', label: 'Date' },
-  { field: 'subject', label: 'Subject' },
-  { field: 'topic', label: 'Topic' },
   { field: 'mode', label: 'Mode' },
   { field: 'score', label: 'Score' },
   { field: 'questions', label: 'Questions' },

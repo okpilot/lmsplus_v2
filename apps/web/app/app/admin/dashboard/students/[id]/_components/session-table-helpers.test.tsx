@@ -80,13 +80,13 @@ describe('formatDate', () => {
 // ---- COLUMNS -----------------------------------------------------------------
 
 describe('SORTABLE_COLUMNS', () => {
-  it('contains exactly 6 sortable column definitions (duration is display-only)', () => {
-    expect(SORTABLE_COLUMNS).toHaveLength(6)
+  it('contains exactly 4 sortable column definitions (subject, topic, duration are display-only)', () => {
+    expect(SORTABLE_COLUMNS).toHaveLength(4)
   })
 
   it('includes all expected fields', () => {
     const fields = SORTABLE_COLUMNS.map((c: { field: string }) => c.field)
-    expect(fields).toEqual(['date', 'subject', 'topic', 'mode', 'score', 'questions'])
+    expect(fields).toEqual(['date', 'mode', 'score', 'questions'])
   })
 
   it('has a non-empty label for every column', () => {
