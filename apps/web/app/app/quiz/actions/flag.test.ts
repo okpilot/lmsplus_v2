@@ -328,13 +328,13 @@ describe('getFlaggedIds', () => {
     expect(result).toEqual({ success: true, flaggedIds: [] })
   })
 
-  it('queries the flagged_questions table', async () => {
+  it('queries the active_flagged_questions view', async () => {
     setupAuthenticatedUser()
     mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
 
     await getFlaggedIds({ questionIds: [QUESTION_ID_A] })
 
-    expect(mockFrom).toHaveBeenCalledWith('flagged_questions')
+    expect(mockFrom).toHaveBeenCalledWith('active_flagged_questions')
   })
 
   // ---- error handling ------------------------------------------------------

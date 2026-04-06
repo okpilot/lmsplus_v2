@@ -278,7 +278,7 @@ describe('getQuestionsList', () => {
   })
 
   it('always orders results by created_at descending', async () => {
-    const chain = mockSupabaseWith([])
+    const chain = mockSupabaseWith([makeRow()], 1)
 
     await getQuestionsList({})
 
@@ -287,16 +287,16 @@ describe('getQuestionsList', () => {
     })
   })
 
-  it('passes count exact option to select', async () => {
-    const chain = mockSupabaseWith([])
+  it('computes pagination totals from a separate count query', async () => {
+    const chain = mockSupabaseWith([], 0)
 
     await getQuestionsList({})
 
-    expect(chain.select).toHaveBeenCalledWith(expect.any(String), { count: 'exact' })
+    expect(chain.select).toHaveBeenCalledWith('id', { count: 'exact', head: true })
   })
 
   it('uses range for page 1 with correct offsets', async () => {
-    const chain = mockSupabaseWith([])
+    const chain = mockSupabaseWith([makeRow()], 1)
 
     await getQuestionsList({})
 
@@ -304,7 +304,7 @@ describe('getQuestionsList', () => {
   })
 
   it('uses range for page 2 with correct offsets', async () => {
-    const chain = mockSupabaseWith([])
+    const chain = mockSupabaseWith([], PAGE_SIZE + 1)
 
     await getQuestionsList({ page: 2 })
 
@@ -312,7 +312,7 @@ describe('getQuestionsList', () => {
   })
 
   it('uses range for page 3 with correct offsets', async () => {
-    const chain = mockSupabaseWith([])
+    const chain = mockSupabaseWith([], PAGE_SIZE * 2 + 1)
 
     await getQuestionsList({ page: 3 })
 
@@ -320,11 +320,19 @@ describe('getQuestionsList', () => {
   })
 
   it('defaults to page 1 when page is not provided', async () => {
-    const chain = mockSupabaseWith([])
+    const chain = mockSupabaseWith([makeRow()], 1)
 
     await getQuestionsList({})
 
     expect(chain.range).toHaveBeenCalledWith(0, PAGE_SIZE - 1)
+  })
+
+  it('returns empty questions when page exceeds total pages', async () => {
+    mockSupabaseWith([], 5)
+
+    const result = await getQuestionsList({ page: 99 })
+
+    expect(result).toEqual({ ok: true, questions: [], totalCount: 5 })
   })
 
   it('returns totalCount from Supabase count', async () => {
@@ -413,7 +421,7 @@ describe('getQuestionsList', () => {
     const result = await getQuestionsList({})
 
     expect(result).toEqual({ ok: false, error: 'Failed to load questions' })
-    expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] query error:', 'connection refused')
+    expect(consoleSpy).toHaveBeenCalledWith('[getQuestionsList] count error:', 'connection refused')
     consoleSpy.mockRestore()
   })
 })

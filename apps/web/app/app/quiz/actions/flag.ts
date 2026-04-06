@@ -26,11 +26,10 @@ export async function toggleFlag(raw: unknown): Promise<FlagResult> {
   const { questionId } = parsed
 
   const { data: existing, error: lookupError } = await supabase
-    .from('flagged_questions')
+    .from('active_flagged_questions')
     .select('student_id')
     .eq('student_id', user.id)
     .eq('question_id', questionId)
-    .is('deleted_at', null)
     .maybeSingle()
 
   if (lookupError) {
@@ -102,10 +101,9 @@ export async function getFlaggedIds(raw: unknown): Promise<GetFlaggedResult> {
   }
 
   const { data, error } = await supabase
-    .from('flagged_questions')
+    .from('active_flagged_questions')
     .select('question_id')
     .eq('student_id', user.id)
-    .is('deleted_at', null)
     .in('question_id', parsed.questionIds)
 
   if (error) {
@@ -113,6 +111,7 @@ export async function getFlaggedIds(raw: unknown): Promise<GetFlaggedResult> {
     return { success: false, error: 'Failed to fetch flags' }
   }
 
-  const flaggedIds = data.map((r) => r.question_id)
+  // View columns typed nullable (Postgres artifact); safe to cast — underlying table has NOT NULL constraints.
+  const flaggedIds = data.map((r) => r.question_id as string)
   return { success: true, flaggedIds }
 }

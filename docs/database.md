@@ -152,9 +152,12 @@ CREATE TABLE question_banks (
   created_by      UUID NOT NULL REFERENCES users(id),
   deleted_at      TIMESTAMPTZ NULL,
   deleted_by      UUID REFERENCES users(id) NULL,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT question_banks_organization_id_key UNIQUE (organization_id)
 );
 ```
+
+**Constraints**: PK(id), FK(organization_id → organizations), FK(created_by → users). Unique constraint on `organization_id` (migration 062) — enforces 1:1 org:bank invariant at DB level, making `insertQuestion`'s `.limit(1).single()` deterministic.
 
 ### questions
 ```sql
@@ -355,11 +358,11 @@ CREATE INDEX idx_flagged_questions_student ON flagged_questions (student_id)
 ```
 
 RLS policies:
-- SELECT: `student_id = auth.uid()` (app filters `deleted_at IS NULL` in flag.ts)
+- SELECT: `student_id = auth.uid()` (reads use active_flagged_questions view)
 - INSERT: `student_id = auth.uid()`
 - UPDATE: `student_id = auth.uid()` (soft-delete via `deleted_at = now()` in app code)
 
-**Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, application code filters deleted records via `.is('deleted_at', null)` in flag.ts. RLS only enforces ownership.
+**Why `deleted_at` is not in RLS:** With `FORCE ROW LEVEL SECURITY`, Postgres checks SELECT visibility of the NEW row after UPDATE. Filtering `deleted_at IS NULL` in the policy would prevent soft-deletes from succeeding. Instead, read queries use the `active_flagged_questions` view (which includes `WHERE deleted_at IS NULL`). Write operations in flag.ts filter explicitly. RLS only enforces ownership.
 
 #### View: `active_flagged_questions`
 
@@ -369,13 +372,14 @@ WITH (security_invoker = true) AS
   SELECT * FROM flagged_questions WHERE deleted_at IS NULL;
 ```
 
-Created in migration 051 to centralize the soft-delete filter and provide RLS enforcement via `security_invoker`, removing the per-callsite `.is('deleted_at', null)` requirement. **This view is not currently used by any application code.** All read-path callsites query `flagged_questions` directly with `.is('deleted_at', null)`:
+Created in migration 051 to centralize the soft-delete filter and provide RLS enforcement via `security_invoker`, removing the per-callsite `.is('deleted_at', null)` requirement. **All read-path callsites now query this view** (migrated in issue #467):
 
 - `apps/web/app/app/quiz/actions/flag.ts` — ownership check in `toggleFlag`, ID list in `getFlaggedIds`
-- `apps/web/app/app/quiz/actions/filter-helpers.ts` — quiz setup `filterFlagged`
+- `apps/web/app/app/quiz/actions/filter-helpers.ts` — quiz setup flagged filter
 - `apps/web/lib/queries/quiz.ts` — `filterFlagged`
+- `apps/web/lib/gdpr/collect-user-data.ts` — GDPR data export
 
-Migrating callsites to use this view is tracked in issue #467.
+Write operations (`flagQuestion`, `unflagQuestion`) continue to use the `flagged_questions` base table directly.
 
 **Why `security_invoker`?** By default, views run with owner-context permission checks, bypassing caller RLS. Setting `security_invoker = true` switches to invoker-context, so RLS on `flagged_questions` is evaluated as the calling user — ensuring `student_id = auth.uid()` is enforced when querying through the view.
 
@@ -1538,4 +1542,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-03-27 (migration 058: removed cookie_analytics consent type) | Companion: docs/security.md*
+*Last updated: 2026-04-05 (migration 062: question_banks unique org constraint) | Companion: docs/security.md*

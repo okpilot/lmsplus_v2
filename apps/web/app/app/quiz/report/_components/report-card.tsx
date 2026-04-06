@@ -1,14 +1,27 @@
 import Link from 'next/link'
-import type { QuizReportData } from '@/lib/queries/quiz-report'
+import type { QuizReportQuestion, QuizReportSummary } from '@/lib/queries/quiz-report'
 import { QuestionBreakdown } from './question-breakdown'
 import { ResultSummary } from './result-summary'
 
-export function ReportCard({ report }: { report: QuizReportData }) {
+type Props = {
+  summary: QuizReportSummary
+  questions: QuizReportQuestion[]
+  page: number
+  totalCount: number
+  pageSize: number
+}
+
+export function ReportCard({ summary, questions, page, totalCount, pageSize }: Readonly<Props>) {
   return (
     <div className="space-y-6">
-      <ResultSummary report={report} />
+      <ResultSummary summary={summary} />
 
-      <QuestionBreakdown questions={report.questions} />
+      <QuestionBreakdown
+        questions={questions}
+        page={page}
+        totalCount={totalCount}
+        pageSize={pageSize}
+      />
 
       <div className="flex justify-center gap-3">
         <Link

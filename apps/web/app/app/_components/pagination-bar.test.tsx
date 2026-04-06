@@ -171,7 +171,7 @@ describe('PaginationBar', () => {
     expect(screen.getByLabelText('Next page')).toBeInTheDocument()
   })
 
-  it('shows "Showing X–Y of Z questions" text for page 1', () => {
+  it('shows "Showing X–Y of Z questions" text for page 1 (default entityLabel)', () => {
     render(<PaginationBar page={1} totalCount={50} pageSize={25} />)
     expect(screen.getByText('Showing 1–25 of 50 questions')).toBeInTheDocument()
   })
@@ -184,6 +184,11 @@ describe('PaginationBar', () => {
   it('caps "to" value at totalCount on the last partial page', () => {
     render(<PaginationBar page={2} totalCount={40} pageSize={25} />)
     expect(screen.getByText('Showing 26–40 of 40 questions')).toBeInTheDocument()
+  })
+
+  it('uses custom entityLabel when provided', () => {
+    render(<PaginationBar page={1} totalCount={50} pageSize={25} entityLabel="students" />)
+    expect(screen.getByText('Showing 1–25 of 50 students')).toBeInTheDocument()
   })
 
   it('disables the Previous button on page 1', () => {

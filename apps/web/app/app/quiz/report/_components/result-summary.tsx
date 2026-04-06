@@ -1,4 +1,4 @@
-import type { QuizReportData } from '@/lib/queries/quiz-report'
+import type { QuizReportSummary } from '@/lib/queries/quiz-report'
 import { ScoreRing } from './score-ring'
 
 function formatDuration(startedAt: string, endedAt: string | null): string {
@@ -20,11 +20,11 @@ function formatDate(dateStr: string): string {
   })
 }
 
-type Props = Readonly<{ report: QuizReportData }>
+type Props = Readonly<{ summary: QuizReportSummary }>
 
-export function ResultSummary({ report }: Props) {
-  const dateStr = report.endedAt ?? report.startedAt
-  const skipped = report.totalQuestions - report.answeredCount
+export function ResultSummary({ summary }: Props) {
+  const dateStr = summary.endedAt ?? summary.startedAt
+  const skipped = summary.totalQuestions - summary.answeredCount
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
@@ -33,12 +33,12 @@ export function ResultSummary({ report }: Props) {
       {/* Desktop layout */}
       <div className="hidden md:flex flex-row gap-6 items-center">
         <div className="shrink-0">
-          <ScoreRing percentage={report.scorePercentage} size={120} />
+          <ScoreRing percentage={summary.scorePercentage} size={120} />
         </div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 flex-1">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Subject</p>
-            <p className="font-medium text-sm">{report.subjectName ?? 'Mixed'}</p>
+            <p className="font-medium text-sm">{summary.subjectName ?? 'Mixed'}</p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Date</p>
@@ -47,13 +47,13 @@ export function ResultSummary({ report }: Props) {
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Correct</p>
             <p className="font-medium text-sm text-green-600">
-              {report.correctCount} / {report.answeredCount}
+              {summary.correctCount} / {summary.answeredCount}
             </p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Time</p>
             <p className="font-medium text-sm">
-              {formatDuration(report.startedAt, report.endedAt)}
+              {formatDuration(summary.startedAt, summary.endedAt)}
             </p>
           </div>
           <div>
@@ -65,22 +65,22 @@ export function ResultSummary({ report }: Props) {
 
       {/* Mobile layout */}
       <div className="flex flex-col items-center gap-4 md:hidden">
-        <ScoreRing percentage={report.scorePercentage} size={90} />
+        <ScoreRing percentage={summary.scorePercentage} size={90} />
         <div className="grid grid-cols-3 gap-4 w-full text-center">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Subject</p>
-            <p className="font-medium text-sm">{report.subjectName ?? 'Mixed'}</p>
+            <p className="font-medium text-sm">{summary.subjectName ?? 'Mixed'}</p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Correct</p>
             <p className="font-medium text-sm text-green-600">
-              {report.correctCount} / {report.answeredCount}
+              {summary.correctCount} / {summary.answeredCount}
             </p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Time</p>
             <p className="font-medium text-sm">
-              {formatDuration(report.startedAt, report.endedAt)}
+              {formatDuration(summary.startedAt, summary.endedAt)}
             </p>
           </div>
         </div>

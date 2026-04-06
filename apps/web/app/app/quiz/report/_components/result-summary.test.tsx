@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { QuizReportData } from '@/lib/queries/quiz-report'
+import type { QuizReportSummary } from '@/lib/queries/quiz-report'
 import { ResultSummary } from './result-summary'
 
 beforeEach(() => {
   vi.resetAllMocks()
 })
 
-function makeReport(overrides: Partial<QuizReportData> = {}): QuizReportData {
+function makeSummary(overrides: Partial<QuizReportSummary> = {}): QuizReportSummary {
   return {
     sessionId: 'sess-1',
     mode: 'quick_quiz',
@@ -18,7 +18,6 @@ function makeReport(overrides: Partial<QuizReportData> = {}): QuizReportData {
     scorePercentage: 70,
     startedAt: '2026-03-12T10:00:00Z',
     endedAt: '2026-03-12T10:03:30Z',
-    questions: [],
     ...overrides,
   }
 }
@@ -26,45 +25,45 @@ function makeReport(overrides: Partial<QuizReportData> = {}): QuizReportData {
 describe('ResultSummary', () => {
   describe('score ring', () => {
     it('renders the score ring with the rounded percentage', () => {
-      render(<ResultSummary report={makeReport({ scorePercentage: 66.67 })} />)
+      render(<ResultSummary summary={makeSummary({ scorePercentage: 66.67 })} />)
       // Math.round(66.67) = 67
       expect(screen.getAllByText('67%').length).toBeGreaterThan(0)
     })
 
     it('renders the score as 100% when perfect score', () => {
-      render(<ResultSummary report={makeReport({ scorePercentage: 100 })} />)
+      render(<ResultSummary summary={makeSummary({ scorePercentage: 100 })} />)
       expect(screen.getAllByText('100%').length).toBeGreaterThan(0)
     })
   })
 
   describe('subject name', () => {
     it('displays the subject name when provided', () => {
-      render(<ResultSummary report={makeReport({ subjectName: '050 — Meteorology' })} />)
+      render(<ResultSummary summary={makeSummary({ subjectName: '050 — Meteorology' })} />)
       expect(screen.getAllByText('050 — Meteorology').length).toBeGreaterThan(0)
     })
 
     it('shows "Mixed" when subjectName is null', () => {
-      render(<ResultSummary report={makeReport({ subjectName: null })} />)
+      render(<ResultSummary summary={makeSummary({ subjectName: null })} />)
       expect(screen.getAllByText('Mixed').length).toBeGreaterThan(0)
     })
   })
 
   describe('correct count', () => {
     it('displays correct / answered in the stats', () => {
-      render(<ResultSummary report={makeReport({ correctCount: 7, answeredCount: 10 })} />)
+      render(<ResultSummary summary={makeSummary({ correctCount: 7, answeredCount: 10 })} />)
       expect(screen.getAllByText('7 / 10').length).toBeGreaterThan(0)
     })
   })
 
   describe('skipped questions', () => {
     it('shows zero skipped when all questions were answered', () => {
-      render(<ResultSummary report={makeReport({ totalQuestions: 10, answeredCount: 10 })} />)
+      render(<ResultSummary summary={makeSummary({ totalQuestions: 10, answeredCount: 10 })} />)
       // skipped = 10 - 10 = 0
       expect(screen.getByText('0')).toBeInTheDocument()
     })
 
     it('shows the number of unanswered questions as skipped', () => {
-      render(<ResultSummary report={makeReport({ totalQuestions: 10, answeredCount: 7 })} />)
+      render(<ResultSummary summary={makeSummary({ totalQuestions: 10, answeredCount: 7 })} />)
       // skipped = 10 - 7 = 3
       expect(screen.getByText('3')).toBeInTheDocument()
     })
@@ -75,7 +74,7 @@ describe('ResultSummary', () => {
       // 3 min 30 s
       render(
         <ResultSummary
-          report={makeReport({
+          summary={makeSummary({
             startedAt: '2026-03-12T10:00:00Z',
             endedAt: '2026-03-12T10:03:30Z',
           })}
@@ -87,7 +86,7 @@ describe('ResultSummary', () => {
     it('shows only seconds when duration is under one minute', () => {
       render(
         <ResultSummary
-          report={makeReport({
+          summary={makeSummary({
             startedAt: '2026-03-12T10:00:00Z',
             endedAt: '2026-03-12T10:00:45Z',
           })}
@@ -97,7 +96,7 @@ describe('ResultSummary', () => {
     })
 
     it('shows an em dash when endedAt is null', () => {
-      render(<ResultSummary report={makeReport({ endedAt: null })} />)
+      render(<ResultSummary summary={makeSummary({ endedAt: null })} />)
       expect(screen.getAllByText('—').length).toBeGreaterThan(0)
     })
   })
@@ -106,7 +105,7 @@ describe('ResultSummary', () => {
     it('uses endedAt for the date label when available', () => {
       render(
         <ResultSummary
-          report={makeReport({
+          summary={makeSummary({
             startedAt: '2026-01-01T00:00:00Z',
             endedAt: '2026-03-12T10:03:30Z',
           })}
@@ -120,7 +119,7 @@ describe('ResultSummary', () => {
     it('falls back to startedAt for the date when endedAt is null', () => {
       render(
         <ResultSummary
-          report={makeReport({
+          summary={makeSummary({
             startedAt: '2026-01-15T08:00:00Z',
             endedAt: null,
           })}
@@ -133,7 +132,7 @@ describe('ResultSummary', () => {
 
   describe('section heading', () => {
     it('renders the "Quiz Complete" heading', () => {
-      render(<ResultSummary report={makeReport()} />)
+      render(<ResultSummary summary={makeSummary()} />)
       expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
     })
   })

@@ -13,6 +13,19 @@ export type SessionReport = {
   durationMinutes: number
 }
 
+export type SortKey = 'date' | 'score' | 'subject'
+export type SortDir = 'asc' | 'desc'
+
+type SessionReportsOpts = {
+  page: number
+  sort: SortKey
+  dir: SortDir
+}
+
+type SessionReportsResult =
+  | { ok: true; sessions: SessionReport[]; totalCount: number }
+  | { ok: false; error: string }
+
 type SessionRow = {
   id: string
   mode: string
@@ -28,14 +41,56 @@ type SubjectNameRow = { id: string; name: string }
 
 type AnswerCountRow = { session_id: string }
 
-export async function getAllSessions(): Promise<SessionReport[]> {
+export const PAGE_SIZE = 10
+
+const SORT_COLUMN_MAP: Record<SortKey, string> = {
+  date: 'started_at',
+  score: 'score_percentage',
+  // subject_id is deterministic (not alphabetical) — PostgREST cannot join-sort in .from() queries
+  subject: 'subject_id',
+}
+
+export async function getSessionReports(opts: SessionReportsOpts): Promise<SessionReportsResult> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError) throw new Error(`Auth error: ${authError.message}`)
-  if (!user) throw new Error('Not authenticated')
+  if (authError) {
+    console.error('[getSessionReports] Auth error:', authError.message)
+    return { ok: false, error: 'Authentication failed' }
+  }
+  if (!user) {
+    return { ok: false, error: 'Not authenticated' }
+  }
+
+  const { page, sort, dir } = opts
+  const sortColumn = SORT_COLUMN_MAP[sort]
+  const ascending = dir === 'asc'
+
+  // Count first — PostgREST returns 416 (and null count) for out-of-range .range() requests,
+  // so we need the total before applying pagination to handle out-of-range pages gracefully.
+  const { count: totalCount, error: countError } = await supabase
+    .from('quiz_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('student_id', user.id)
+    .not('ended_at', 'is', null)
+    .is('deleted_at', null)
+
+  if (countError) {
+    console.error('[getSessionReports] Count query error:', countError.message)
+    return { ok: false, error: 'Failed to load reports' }
+  }
+
+  const total = totalCount ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  if (total === 0 || page > totalPages) {
+    return { ok: true, sessions: [], totalCount: total }
+  }
+
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
 
   const { data: sessionsData, error: sessionsError } = await supabase
     .from('quiz_sessions')
@@ -45,11 +100,20 @@ export async function getAllSessions(): Promise<SessionReport[]> {
     .eq('student_id', user.id)
     .not('ended_at', 'is', null)
     .is('deleted_at', null)
-    .order('started_at', { ascending: false })
+    .order(sortColumn, { ascending })
+    .order('id')
+    .range(from, to)
 
-  if (sessionsError) throw new Error(`Failed to fetch sessions: ${sessionsError.message}`)
+  if (sessionsError) {
+    console.error('[getSessionReports] Sessions query error:', sessionsError.message)
+    return { ok: false, error: 'Failed to load reports' }
+  }
+
   const sessions = (sessionsData ?? []) as SessionRow[]
-  if (!sessions.length) return []
+
+  if (!sessions.length) {
+    return { ok: true, sessions: [], totalCount: total }
+  }
 
   const sessionIds = sessions.map((s) => s.id)
 
@@ -60,16 +124,21 @@ export async function getAllSessions(): Promise<SessionReport[]> {
         ? supabase.from('easa_subjects').select('id, name').in('id', subjectIds)
         : Promise.resolve({ data: [] as SubjectNameRow[], error: null })
     })(),
+    // Fetch answer rows to count per-session (can't use total_questions — partial submissions allowed).
+    // Transfers up to pageSize * 500 rows of session_id only. Optimize to RPC if this becomes slow.
     supabase.from('quiz_session_answers').select('session_id').in('session_id', sessionIds),
   ])
 
-  if (subjectsResult.error)
-    throw new Error(`Failed to fetch subjects: ${subjectsResult.error.message}`)
-  if (!subjectsResult.data) throw new Error('Failed to fetch subjects: unexpected null response')
-  if (answersResult.error)
-    throw new Error(`Failed to fetch answer counts: ${answersResult.error.message}`)
+  if (subjectsResult.error) {
+    console.error('[getSessionReports] Subjects query error:', subjectsResult.error.message)
+    return { ok: false, error: 'Failed to load reports' }
+  }
+  if (answersResult.error) {
+    console.error('[getSessionReports] Answers query error:', answersResult.error.message)
+    return { ok: false, error: 'Failed to load reports' }
+  }
 
-  const subjectData = subjectsResult.data as SubjectNameRow[]
+  const subjectData = (subjectsResult.data ?? []) as SubjectNameRow[]
   const subjectMap = new Map(subjectData.map((s) => [s.id, s.name]))
 
   const answerData = (answersResult.data ?? []) as AnswerCountRow[]
@@ -78,13 +147,13 @@ export async function getAllSessions(): Promise<SessionReport[]> {
     answeredCountMap.set(row.session_id, (answeredCountMap.get(row.session_id) ?? 0) + 1)
   }
 
-  return sessions.map((s) => {
+  const mapped = sessions.map((s) => {
     const start = new Date(s.started_at).getTime()
     const end = new Date(s.ended_at).getTime()
     const durationMinutes = Math.max(0, Math.round((end - start) / 60000))
     const answered = answeredCountMap.get(s.id)
     if (answered === undefined) {
-      console.warn('[getAllSessions] No answer rows for completed session:', s.id)
+      console.warn('[getSessionReports] No answer rows for completed session:', s.id)
     }
 
     return {
@@ -100,4 +169,6 @@ export async function getAllSessions(): Promise<SessionReport[]> {
       durationMinutes,
     }
   })
+
+  return { ok: true, sessions: mapped, totalCount: total }
 }
