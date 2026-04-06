@@ -287,7 +287,7 @@ describe('getQuestionsList', () => {
     })
   })
 
-  it('passes count exact with head:true to the count query', async () => {
+  it('computes pagination totals from a separate count query', async () => {
     const chain = mockSupabaseWith([], 0)
 
     await getQuestionsList({})
