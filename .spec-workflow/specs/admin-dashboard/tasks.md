@@ -1,0 +1,114 @@
+# Tasks Document — Admin Dashboard
+
+- [x] 1. Design all views in Paper Design (desktop + mobile)
+  - Files: Paper Design frames (external tool)
+  - Create desktop and mobile frames for:
+    - Admin dashboard main page (KPI cards, student table, weak topics, recent activity)
+    - Student detail page (header, session history table)
+    - Empty states (no students, no sessions, no quiz data)
+    - Loading skeletons
+  - Time range selector and filter controls must be visible in frames
+  - Purpose: Visual alignment before any code is written. User approves the look before implementation begins.
+  - _Leverage: Existing Paper Design frames (14 desktop + 13 mobile), student dashboard layout for reference_
+  - _Requirements: R1, R2, R3, R4, R5, R6_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: UI/UX Designer specializing in dashboard interfaces and data visualization | Task: Design all admin dashboard views in Paper Design — desktop and mobile frames for the main dashboard (5 KPI cards, sortable student table, weak topics panel, recent activity feed, time range filter) and student detail page (student header with breadcrumb, paginated session history table). Include empty states and loading skeletons. Reference existing Paper Design frames for visual consistency. | Restrictions: Do not write any code. This is design-only. Follow the existing design language (Blue theme, neutral base, oklch colors). Ensure mobile-responsive layouts (cards stack, table scrolls). | _Leverage: Existing Paper Design frames, student dashboard stat-cards pattern, admin questions/students page patterns | _Requirements: R1, R2, R3, R4, R5, R6 | Success: All frames created in Paper Design, desktop + mobile variants for both pages, empty states and skeletons included, user has approved the visual design. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
+
+- [x] 2. Add dashboard nav item and route scaffolding
+  - Files: `apps/web/app/app/_components/nav-items.ts`, `apps/web/app/app/admin/dashboard/page.tsx`, `apps/web/app/app/admin/dashboard/loading.tsx`, `apps/web/app/app/admin/dashboard/types.ts`
+  - Add `{ href: '/app/admin/dashboard', label: 'Dashboard', icon: 'bar-chart' }` to `ADMIN_NAV_ITEMS`
+  - Create dashboard page.tsx with searchParams parsing (range, page, sort, dir, status)
+  - Create loading.tsx skeleton
+  - Create types.ts with all type definitions from design doc
+  - Purpose: Route exists and is navigable, types are defined, page shell is ready for content components.
+  - _Leverage: `apps/web/app/app/admin/questions/page.tsx` (pattern), `lib/utils/parse-page-param.ts`, `nav-items.ts`_
+  - _Requirements: R5 (time range URL params)_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Next.js Developer specializing in App Router patterns | Task: Add admin dashboard nav entry and create route scaffolding at `apps/web/app/app/admin/dashboard/`. Add `{ href: '/app/admin/dashboard', label: 'Dashboard', icon: 'bar-chart' }` to ADMIN_NAV_ITEMS in nav-items.ts. Create page.tsx that parses searchParams (range: 7d|30d|90d|all, page, sort, dir, status) with validation and sensible defaults (range=30d, page=1). Create loading.tsx with skeleton layout. Create types.ts with all types from the design doc (TimeRange, DashboardKpis, DashboardStudent, DashboardFilters, WeakTopic, RecentSession, StudentDetail, StudentSession). | Restrictions: page.tsx must be under 80 lines, composition only. Use existing `parsePageParam` from `lib/utils/parse-page-param.ts`. searchParams is `Promise<...>` — must await it. Do not create content components yet (task 4). Do not modify nav-icon.tsx — 'bar-chart' already has an SVG. | _Leverage: `apps/web/app/app/admin/questions/page.tsx` for pattern, `lib/utils/parse-page-param.ts` | _Requirements: R5 | Success: Dashboard appears in admin sidebar nav. Route loads with skeleton. URL params parsed correctly. Types compile. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
+
+- [x] 3. Create database RPCs for admin analytics
+  - Files: `supabase/migrations/YYYYMMDDHHMMSS_admin_dashboard_kpis_rpc.sql`, `supabase/migrations/YYYYMMDDHHMMSS_admin_weak_topics_rpc.sql`, `supabase/migrations/YYYYMMDDHHMMSS_admin_student_stats_rpc.sql`
+  - Create `get_admin_dashboard_kpis(p_org_id UUID, p_range_days INT)` — returns all 5 KPI values
+  - Create `get_admin_weak_topics(p_org_id UUID, p_limit INT DEFAULT 10)` — returns weakest topics
+  - Create `get_admin_student_stats(p_org_id UUID)` — returns per-student session count, avg score, mastery
+  - All: SECURITY DEFINER, SET search_path = public, auth.uid() check, admin role check, soft-delete filters, questions status='active' filter for mastery
+  - Purpose: Server-side aggregation in Postgres. No client-side computation.
+  - _Leverage: Existing RPCs (get_daily_activity, get_subject_scores) for pattern. `lib/queries/dashboard.ts` mastery formula._
+  - _Requirements: R1, R2, R3_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: PostgreSQL Developer specializing in SECURITY DEFINER RPCs and analytics queries | Task: Create 3 migration files with admin analytics RPCs. (1) `get_admin_dashboard_kpis(p_org_id UUID, p_range_days INT)` — returns JSON with: active_students (last_active_at within range), total_students, avg_mastery, sessions_this_period, weakest_subject (name, short, avg_mastery), exam_ready_students (90%+ all subjects). Mastery formula MUST match `lib/queries/dashboard.ts` `getSubjectProgressWithMap`: denominator = COUNT(DISTINCT q.id) WHERE q.status='active' AND q.deleted_at IS NULL, numerator = COUNT(DISTINCT sr.question_id) WHERE sr.is_correct=true joined to active questions. (2) `get_admin_weak_topics(p_org_id UUID, p_limit INT DEFAULT 10)` — returns topic_id, topic_name, subject_name, subject_short, avg_score, student_count ordered by avg_score ASC. (3) `get_admin_student_stats(p_org_id UUID)` — returns per-student: user_id, session_count, avg_score, mastery. All RPCs: SECURITY DEFINER, STABLE, SET search_path = public, RAISE EXCEPTION if auth.uid() IS NULL, verify caller is admin in same org via users table, filter deleted_at IS NULL on all soft-deletable tables, p_range_days clamped to [1, 1095] with 0 meaning all-time. | Restrictions: Never expose correct answer data. Follow existing RPC patterns from get_daily_activity. Each migration under 300 lines. Use plpgsql not sql. | _Leverage: `supabase/migrations/20260312000016_*.sql` for RPC pattern, `lib/queries/dashboard.ts` for mastery formula | _Requirements: R1, R2, R3 | Success: All 3 RPCs created, each with auth check + admin check + org scope + soft-delete filters + active questions filter. EXPLAIN ANALYZE shows reasonable plans. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
+
+- [ ] 4. Create query functions and dashboard header
+  - Files: `apps/web/app/app/admin/dashboard/queries.ts`, `apps/web/app/app/admin/dashboard/_components/dashboard-header.tsx`
+  - Implement all query functions from design doc: getDashboardKpis, getDashboardStudents, getWeakTopics, getRecentSessions
+  - Each calls requireAdmin() internally, uses adminClient with org scoping
+  - getDashboardStudents uses get_admin_student_stats RPC joined with users table for sort/pagination
+  - Create DashboardHeader client component with time range Select
+  - Purpose: Data layer ready for content components. Header provides time range control.
+  - _Leverage: `apps/web/app/app/admin/students/queries.ts` for adminClient pattern, `requireAdmin()`, `parsePageParam()`_
+  - _Requirements: R1, R2, R3, R4, R5_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Next.js/Supabase Developer specializing in server-side data fetching | Task: Create queries.ts with all dashboard query functions and dashboard-header.tsx client component. (1) getDashboardKpis(range) — calls requireAdmin(), then adminClient RPC get_admin_dashboard_kpis. (2) getDashboardStudents(filters) — calls requireAdmin(), then adminClient query on users table joined with get_admin_student_stats RPC data, with server-side sort (.order), pagination (.range with count:'exact'), status filter (deleted_at). Page size 25. (3) getWeakTopics() — calls requireAdmin(), then adminClient RPC get_admin_weak_topics. (4) getRecentSessions(range) — calls requireAdmin(), then adminClient query on quiz_sessions joined with users + easa_subjects, filtered by ended_at range, ordered by ended_at DESC, LIMIT 10. (5) DashboardHeader — 'use client' component with shadcn Select for time range (7d/30d/90d/all), uses useRouter to push URL params on change. | Restrictions: queries.ts under 200 lines. Each query calls requireAdmin() internally (not in content component). Log errors with console.error, throw generic errors. DashboardHeader under 80 lines. | _Leverage: `apps/web/app/app/admin/students/queries.ts`, `requireAdmin()`, existing RPC call patterns in `lib/queries/analytics.ts` | _Requirements: R1, R2, R3, R4, R5 | Success: All query functions return correctly typed data. DashboardHeader renders time range select and updates URL. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
+
+- [ ] 5. Build KPI cards section
+  - Files: `apps/web/app/app/admin/dashboard/_components/kpi-cards-content.tsx`, `apps/web/app/app/admin/dashboard/_components/kpi-cards.tsx`
+  - KpiCardsContent: async server component, calls getDashboardKpis, passes to KpiCards
+  - KpiCards: presentational, renders 5 cards in responsive grid (1 col mobile, 3 col md, 5 col xl)
+  - Cards: Active Students, Avg Mastery, Sessions This Period, Weakest Subject, Exam Readiness
+  - Empty state when no students
+  - Purpose: First visible section of the dashboard — immediate cohort health snapshot.
+  - _Leverage: `apps/web/app/app/dashboard/_components/stat-cards.tsx` for layout pattern, shadcn Card_
+  - _Requirements: R1_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: React/Next.js Developer specializing in Server Components | Task: Build 2 components for the KPI cards section. (1) KpiCardsContent — async server component that calls getDashboardKpis(range) from queries.ts and passes data to KpiCards. (2) KpiCards — presentational component rendering 5 cards in a responsive grid: Active Students (X/Y, with 'in last N days' subtext), Avg Mastery (% with colour threshold: red under 50, amber 50-79, green 80+), Sessions This Period (count), Weakest Subject (name + %), Exam Readiness (X/Y students at 90%+). Use shadcn Card. When totalStudents is 0, show empty state. Grid: 1 col on mobile, 3 on md, 5 on xl. | Restrictions: No 'use client'. Each file under 150 lines. Follow stat-cards.tsx pattern from student dashboard. No chart library. | _Leverage: `apps/web/app/app/dashboard/_components/stat-cards.tsx` for layout, shadcn Card | _Requirements: R1 | Success: 5 KPI cards render with correct data, responsive grid, colour thresholds, empty state. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
+
+- [ ] 6. Build student table section
+  - Files: `apps/web/app/app/admin/dashboard/_components/student-table-content.tsx`, `apps/web/app/app/admin/dashboard/_components/student-table-shell.tsx`
+  - StudentTableContent: async server component, calls getDashboardStudents, passes to shell
+  - StudentTableShell: client component, manages sort/filter URL state via useRouter
+  - Columns: Name, Last Active, Sessions, Avg Score, Mastery, Status (badge)
+  - Clickable rows → /app/admin/dashboard/students/[id]
+  - Sortable headers, status filter dropdown, PaginationBar
+  - Purpose: Main interactive section — ranked student list with drill-down.
+  - _Leverage: `apps/web/app/app/admin/students/_components/student-table.tsx` for table pattern, PaginationBar, shadcn Table/Badge_
+  - _Requirements: R2_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: React/Next.js Developer specializing in interactive data tables | Task: Build 2 components for the student table. (1) StudentTableContent — async server component calling getDashboardStudents(filters) and passing data + pagination info to shell. (2) StudentTableShell — 'use client' component rendering: status filter Select (All/Active/Inactive — maps to deleted_at, not engagement), sortable column headers (click toggles asc/desc, pushes URL params via useRouter), shadcn Table with columns [Name, Last Active (relative time), Sessions (count), Avg Score (%), Mastery (%), Status (Badge: green 'Active'/red 'Inactive')], clickable rows navigating to /app/admin/dashboard/students/${id}, PaginationBar at bottom (page size 25). Show '—' for null scores. Show 0% for zero mastery. Empty state: 'No students yet.' | Restrictions: Shell under 150 lines. Table under 150 lines. All sort/filter/pagination is server-side via URL params. Never load full dataset client-side. | _Leverage: PaginationBar, `apps/web/app/app/admin/students/_components/student-table.tsx`, shadcn Table/Badge | _Requirements: R2 | Success: Table renders, sorts by any column, filters by status, paginates, rows are clickable. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
+
+- [ ] 7. Build weak topics and recent activity sections
+  - Files: `apps/web/app/app/admin/dashboard/_components/weak-topics-content.tsx`, `apps/web/app/app/admin/dashboard/_components/weak-topics-list.tsx`, `apps/web/app/app/admin/dashboard/_components/recent-activity-content.tsx`, `apps/web/app/app/admin/dashboard/_components/recent-activity-list.tsx`
+  - Weak topics: ranked list of 10 worst topics with subject name, avg score, student count, Tailwind progress bar
+  - Recent activity: last 10 sessions with student name, subject, mode, score, relative time
+  - Both with empty states
+  - Purpose: Actionable insights — what to re-teach, who's been studying.
+  - _Leverage: Tailwind bar pattern from `subject-grid.tsx`, shadcn Table_
+  - _Requirements: R3, R4_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: React/Next.js Developer specializing in Server Components and data visualization | Task: Build 4 components for weak topics and recent activity. (1) WeakTopicsContent — async server component calling getWeakTopics(). (2) WeakTopicsList — presentational, renders ranked list: topic name, parent subject (short code + name), avg score %, student count, Tailwind progress bar (red under 50%, amber 50-79%, green 80%+) using the raw div bar pattern from subject-grid.tsx (NOT shadcn Progress). (3) RecentActivityContent — async server component calling getRecentSessions(range). (4) RecentActivityList — presentational, renders last 10 sessions as a card list or compact table: student name, subject, quiz mode badge, score %, relative time (e.g. '2h ago'). Both sections: show empty state when no data. Section titles: 'Weakest Topics' and 'Recent Activity'. | Restrictions: Each file under 150 lines. No chart library. Use Tailwind div bars, not shadcn Progress. | _Leverage: `apps/web/app/app/dashboard/_components/subject-grid.tsx` for bar pattern | _Requirements: R3, R4 | Success: Weak topics shows ranked list with score bars. Recent activity shows timestamped sessions. Empty states work. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
+
+- [ ] 8. Wire dashboard page and compose all sections
+  - Files: `apps/web/app/app/admin/dashboard/page.tsx` (update)
+  - Wire all content components into page.tsx with Suspense boundaries
+  - Each section gets its own Suspense + skeleton fallback
+  - Layout: header → KPI cards → student table → two-column grid (weak topics + recent activity)
+  - Pass parsed searchParams to content components
+  - Purpose: Complete, functioning dashboard page with streaming sections.
+  - _Leverage: Existing page.tsx scaffold from task 2, all content components from tasks 5-7_
+  - _Requirements: R1, R2, R3, R4, R5_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Next.js Developer specializing in App Router composition | Task: Update page.tsx to compose all dashboard sections with Suspense boundaries. Layout: (1) DashboardHeader with currentRange prop, (2) Suspense → KpiCardsContent with range prop, (3) Suspense → StudentTableContent with all filter props, (4) Two-column grid (lg:grid-cols-2): Suspense → WeakTopicsContent, Suspense → RecentActivityContent with range prop. Each Suspense gets a matching skeleton fallback. Page must remain under 80 lines — it's composition only. | Restrictions: No data fetching in page.tsx. No business logic. Under 80 lines. Each section streams independently. | _Leverage: Task 2 scaffold, content components from tasks 5-7 | _Requirements: R1, R2, R3, R4, R5 | Success: Dashboard page loads with all 4 sections streaming independently. Time range filter updates relevant sections. Page is under 80 lines. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
+
+- [ ] 9. Build student detail page
+  - Files: `apps/web/app/app/admin/dashboard/students/[id]/page.tsx`, `apps/web/app/app/admin/dashboard/students/[id]/loading.tsx`, `apps/web/app/app/admin/dashboard/students/[id]/_components/student-header.tsx`, `apps/web/app/app/admin/dashboard/students/[id]/_components/session-history-content.tsx`, `apps/web/app/app/admin/dashboard/students/[id]/_components/session-history-table.tsx`
+  - Add getStudentDetail and getStudentSessions to queries.ts
+  - page.tsx: fetch student detail, call notFound() if null, compose header + session history
+  - StudentHeader: name, email, role, status badge, last active, breadcrumb (Dashboard > Student Name)
+  - SessionHistoryContent + SessionHistoryTable: paginated, sortable session list with time range filter
+  - Columns: Date, Subject, Topic, Mode, Score, Questions, Duration
+  - Purpose: Per-student drilldown with full quiz history.
+  - _Leverage: queries.ts (extend), PaginationBar, shadcn Table/Badge, breadcrumb pattern_
+  - _Requirements: R6_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Next.js Developer specializing in dynamic routes and server-side data fetching | Task: Build the student detail page at /app/admin/dashboard/students/[id]/. (1) Add getStudentDetail(studentId) and getStudentSessions(studentId, filters) to queries.ts. getStudentDetail queries users WHERE id=studentId AND organization_id=orgId AND deleted_at IS NULL, returns null if not found. getStudentSessions queries quiz_sessions with student_id + org_id scope, LEFT JOIN easa_subjects + easa_topics, time range filter, server-side sort, pagination (page size 25, count:'exact'). (2) page.tsx — parse params (id from route, page/sort/dir/range from searchParams), call getStudentDetail, notFound() if null, compose StudentHeader + Suspense → SessionHistoryContent. Under 80 lines. (3) loading.tsx — skeleton. (4) StudentHeader — student name, email, role badge, status badge, last active date, breadcrumb: 'Dashboard > {name}' with link back to /app/admin/dashboard preserving previous URL params. (5) SessionHistoryContent → SessionHistoryTable — async fetch → client shell with sortable columns [Date, Subject, Topic, Mode, Score (%), Questions (correct/total), Duration], PaginationBar, time range filter. | Restrictions: Return 404 (notFound()) for cross-org student IDs — never 403. No correct answer data exposed. Each component under 150 lines. | _Leverage: queries.ts, PaginationBar, shadcn Table/Badge, `apps/web/app/app/admin/students/_components/` for patterns | _Requirements: R6 | Success: Student detail page loads for valid student ID, 404 for invalid/cross-org, session table sorts/paginates/filters by range, breadcrumb navigates back. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
+
+- [ ] 10. Regenerate Supabase types and integration test
+  - Files: `packages/db/src/types.ts`
+  - Run `npx supabase gen types typescript --linked > packages/db/src/types.ts` to pick up new RPCs
+  - Run `pnpm check-types` to verify all types compile
+  - Run `pnpm build` to verify production build
+  - Manual smoke test: navigate dashboard as admin, verify all sections load
+  - Purpose: Ensure new RPCs are typed and everything compiles end-to-end.
+  - _Leverage: Supabase CLI, existing type generation workflow_
+  - _Requirements: All_
+  - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: DevOps/Integration Engineer | Task: Regenerate Supabase TypeScript types to pick up the 3 new RPCs, then verify the full build. (1) Run `npx supabase gen types typescript --linked > packages/db/src/types.ts`. (2) Run `pnpm check-types` — fix any type errors. (3) Run `pnpm build` — fix any build errors. (4) Run `pnpm test` — ensure no regressions. Report any issues found. | Restrictions: Do not modify RPC signatures to fix type issues — fix the TypeScript consumers instead. Do not skip type-check or build steps. | _Leverage: Supabase CLI, `packages/db/src/types.ts` | _Requirements: All | Success: Types regenerated, type-check passes, build succeeds, all tests pass. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."

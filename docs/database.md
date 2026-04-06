@@ -1448,6 +1448,61 @@ $$;
 GRANT EXECUTE ON FUNCTION check_consent_status(TEXT, TEXT) TO authenticated;
 ```
 
+#### `get_admin_dashboard_kpis` — admin dashboard KPI summary
+
+Returns all admin dashboard KPI values in a single JSON response. Used by the admin dashboard to display top-level metrics without multiple round trips.
+
+**Security:**
+- `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
+- Calls `is_admin()` to verify caller is an admin; raises exception if not.
+- Organisation is derived from the caller's `users` row — never passed as a parameter.
+
+**Parameters:** `p_range_days INT DEFAULT 30`
+
+**Returns:** `JSON` with keys:
+- `activeStudents` — distinct students with a session in the range window
+- `totalStudents` — all non-deleted students in the org
+- `avgMastery` — average mastery percentage across all students (all-time)
+- `sessionsThisPeriod` — completed sessions within the range window
+- `weakestSubject` — `{ name, short, avgMastery }` for the subject with the lowest average mastery
+- `examReadyStudents` — count of students with mastery ≥ 75% across all subjects (all-time)
+
+**Clamping:** `p_range_days = 0` means all-time; valid range 1–1095; values outside that default to 30. Range applies only to `activeStudents` and `sessionsThisPeriod` — mastery KPIs are always all-time.
+
+**Filters:** `deleted_at IS NULL` on `users` and `quiz_sessions`; `status = 'active'` on `questions`.
+
+---
+
+#### `get_admin_weak_topics` — weakest topics by correct rate
+
+Returns the N weakest topics by average correct rate across all students in the admin's organisation. Used by the admin dashboard weak-topics table.
+
+**Security:** Same as `get_admin_dashboard_kpis` (`SECURITY DEFINER`, `auth.uid()` check, `is_admin()` check, org-scoped).
+
+**Parameters:** `p_limit INT DEFAULT 10`
+
+**Returns:** `TABLE(topic_id UUID, topic_name TEXT, subject_name TEXT, subject_short TEXT, avg_score NUMERIC, student_count BIGINT)`
+
+**Formula:** `avg_score = AVG(is_correct::int) * 100` — per-response accuracy across all `quiz_session_answers` rows for that topic, not mastery percentage.
+
+**Clamping:** `p_limit` clamped to 1–100; default 10.
+
+---
+
+#### `get_admin_student_stats` — per-student session and mastery summary
+
+Returns one row per student in the admin's organisation with their session count, average score, and mastery percentage. Used by the admin dashboard student table.
+
+**Security:** Same as `get_admin_dashboard_kpis` (`SECURITY DEFINER`, `auth.uid()` check, `is_admin()` check, org-scoped).
+
+**Parameters:** none
+
+**Returns:** `TABLE(user_id UUID, session_count BIGINT, avg_score NUMERIC, mastery NUMERIC)`
+
+**Mastery formula:** Matches `lib/queries/dashboard.ts` — `COUNT(DISTINCT correct active questions) / COUNT(DISTINCT active questions) * 100`, where "active" means `status = 'active' AND deleted_at IS NULL`.
+
+**avg_score:** `NULL` for students with no completed sessions (not 0).
+
 ---
 
 ## 4b. Triggers & Defensive Constraints
