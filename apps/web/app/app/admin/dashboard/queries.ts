@@ -11,12 +11,17 @@ import type {
 
 const PAGE_SIZE = 25
 
-// Cast through unknown: RPC names not yet in generated types resolve to `never` — same pattern as lib/supabase-rpc.ts.
+// RPC calls use the authenticated client (not adminClient) so auth.uid() is set in Postgres.
+// adminClient (service role) sets auth.uid() = NULL, which would fail the RPCs' auth check.
+// Cast needed: RPC names not yet in generated types resolve to `never`.
 type RpcFn = (
   fn: string,
   args?: Record<string, unknown>,
 ) => Promise<{ data: unknown; error: { message: string } | null }>
-const adminRpc = (adminClient as unknown as { rpc: RpcFn }).rpc.bind(adminClient)
+
+function authRpc(supabase: { rpc: unknown }): RpcFn {
+  return (supabase as unknown as { rpc: RpcFn }).rpc.bind(supabase)
+}
 
 function rangeToDays(range: TimeRange): number {
   const map: Record<TimeRange, number> = { '7d': 7, '30d': 30, '90d': 90, all: 0 }
@@ -32,9 +37,9 @@ function rangeToCutoff(range: TimeRange): string | null {
 }
 
 export async function getDashboardKpis(range: TimeRange): Promise<DashboardKpis> {
-  await requireAdmin()
+  const { supabase } = await requireAdmin()
 
-  const { data, error } = await adminRpc('get_admin_dashboard_kpis', {
+  const { data, error } = await authRpc(supabase)('get_admin_dashboard_kpis', {
     p_range_days: rangeToDays(range),
   })
 
@@ -61,10 +66,10 @@ export async function getDashboardKpis(range: TimeRange): Promise<DashboardKpis>
 export async function getDashboardStudents(
   filters: DashboardFilters,
 ): Promise<{ students: DashboardStudent[]; totalCount: number }> {
-  const { organizationId } = await requireAdmin()
+  const { supabase, organizationId } = await requireAdmin()
 
   // RPC derives org from auth.uid() internally — no org param needed
-  const { data: statsData, error: statsError } = await adminRpc('get_admin_student_stats')
+  const { data: statsData, error: statsError } = await authRpc(supabase)('get_admin_student_stats')
   if (statsError) {
     console.error('[getDashboardStudents] Stats RPC error:', statsError.message)
     throw new Error('Failed to fetch student stats')
@@ -149,9 +154,9 @@ export async function getDashboardStudents(
 }
 
 export async function getWeakTopics(): Promise<WeakTopic[]> {
-  await requireAdmin()
+  const { supabase } = await requireAdmin()
 
-  const { data, error } = await adminRpc('get_admin_weak_topics', { p_limit: 10 })
+  const { data, error } = await authRpc(supabase)('get_admin_weak_topics', { p_limit: 10 })
   if (error) {
     console.error('[getWeakTopics] RPC error:', error.message)
     throw new Error('Failed to fetch weak topics')

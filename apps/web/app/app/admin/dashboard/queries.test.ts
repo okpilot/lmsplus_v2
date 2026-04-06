@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Mocks ----------------------------------------------------------------
 
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
-const mockAdminRpc = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/auth/require-admin', () => ({
@@ -15,7 +14,6 @@ vi.mock('@/lib/auth/require-admin', () => ({
 vi.mock('@repo/db/admin', () => ({
   adminClient: {
     from: mockFrom,
-    rpc: mockAdminRpc,
   },
 }))
 
@@ -27,9 +25,11 @@ import { getDashboardKpis, getDashboardStudents, getRecentSessions, getWeakTopic
 
 const DEFAULT_ORG_ID = 'org-1'
 
+const mockAuthRpc = vi.hoisted(() => vi.fn())
+
 function makeAdminContext(overrides: Partial<{ organizationId: string }> = {}) {
   return {
-    supabase: {} as unknown,
+    supabase: { rpc: mockAuthRpc } as unknown,
     userId: 'admin-1',
     organizationId: DEFAULT_ORG_ID,
     ...overrides,
@@ -96,7 +96,7 @@ function mockStudents(opts: {
   const usersData = opts.usersData ?? []
   const usersError = opts.usersError ?? null
 
-  mockAdminRpc.mockResolvedValue({ data: statsData, error: statsError })
+  mockAuthRpc.mockResolvedValue({ data: statsData, error: statsError })
   const chain = makeFromChain(usersData, usersError)
   mockFrom.mockReturnValue(chain)
   return chain
@@ -401,7 +401,7 @@ describe('getDashboardStudents', () => {
   // -- error paths --
 
   it('throws when the stats RPC fails', async () => {
-    mockAdminRpc.mockResolvedValue({ data: null, error: { message: 'rpc failed' } })
+    mockAuthRpc.mockResolvedValue({ data: null, error: { message: 'rpc failed' } })
     mockFrom.mockReturnValue(makeFromChain([]))
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -413,7 +413,7 @@ describe('getDashboardStudents', () => {
   })
 
   it('throws when the users query fails', async () => {
-    mockAdminRpc.mockResolvedValue({ data: [], error: null })
+    mockAuthRpc.mockResolvedValue({ data: [], error: null })
     mockFrom.mockReturnValue(makeFromChain([], { message: 'connection refused' }))
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -437,7 +437,7 @@ describe('getDashboardKpis', () => {
   })
 
   it('returns mapped KPI fields from RPC response', async () => {
-    mockAdminRpc.mockResolvedValue({
+    mockAuthRpc.mockResolvedValue({
       data: {
         activeStudents: 10,
         totalStudents: 20,
@@ -462,7 +462,7 @@ describe('getDashboardKpis', () => {
   })
 
   it('defaults numeric fields to 0 and weakestSubject to null when RPC returns empty object', async () => {
-    mockAdminRpc.mockResolvedValue({ data: {}, error: null })
+    mockAuthRpc.mockResolvedValue({ data: {}, error: null })
 
     const result = await getDashboardKpis('30d')
 
@@ -475,7 +475,7 @@ describe('getDashboardKpis', () => {
   })
 
   it('throws when RPC fails', async () => {
-    mockAdminRpc.mockResolvedValue({ data: null, error: { message: 'timeout' } })
+    mockAuthRpc.mockResolvedValue({ data: null, error: { message: 'timeout' } })
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await expect(getDashboardKpis('7d')).rejects.toThrow('Failed to fetch dashboard KPIs')
@@ -493,7 +493,7 @@ describe('getWeakTopics', () => {
   })
 
   it('returns mapped weak topics from RPC response', async () => {
-    mockAdminRpc.mockResolvedValue({
+    mockAuthRpc.mockResolvedValue({
       data: [
         {
           topic_id: 't1',
@@ -522,7 +522,7 @@ describe('getWeakTopics', () => {
   })
 
   it('returns empty array when RPC returns no rows', async () => {
-    mockAdminRpc.mockResolvedValue({ data: [], error: null })
+    mockAuthRpc.mockResolvedValue({ data: [], error: null })
 
     const result = await getWeakTopics()
 
@@ -530,7 +530,7 @@ describe('getWeakTopics', () => {
   })
 
   it('throws when RPC fails', async () => {
-    mockAdminRpc.mockResolvedValue({ data: null, error: { message: 'rpc error' } })
+    mockAuthRpc.mockResolvedValue({ data: null, error: { message: 'rpc error' } })
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await expect(getWeakTopics()).rejects.toThrow('Failed to fetch weak topics')
