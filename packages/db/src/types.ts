@@ -689,6 +689,7 @@ export type Database = {
           answers: Json
           created_at: string
           current_index: number
+          feedback: Json | null
           id: string
           organization_id: string
           question_ids: string[]
@@ -700,6 +701,7 @@ export type Database = {
           answers?: Json
           created_at?: string
           current_index?: number
+          feedback?: Json | null
           id?: string
           organization_id: string
           question_ids?: string[]
@@ -711,6 +713,7 @@ export type Database = {
           answers?: Json
           created_at?: string
           current_index?: number
+          feedback?: Json | null
           id?: string
           organization_id?: string
           question_ids?: string[]
