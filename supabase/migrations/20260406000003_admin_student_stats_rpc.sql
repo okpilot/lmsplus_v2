@@ -33,8 +33,8 @@ BEGIN
     RAISE EXCEPTION 'user not found';
   END IF;
 
-  -- Total active questions in org (shared denominator for all students)
-  -- Equivalent to SUM of per-subject counts — matches lib/queries/dashboard.ts formula
+  -- Overall mastery: total distinct correct active questions / total active questions in org.
+  -- Not per-subject — see lib/queries/dashboard.ts for the per-subject student dashboard view.
   SELECT COUNT(DISTINCT id) INTO v_total_questions
   FROM questions
   WHERE organization_id = v_org_id AND status = 'active' AND deleted_at IS NULL;

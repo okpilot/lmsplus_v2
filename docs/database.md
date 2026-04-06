@@ -1460,12 +1460,12 @@ Returns all admin dashboard KPI values in a single JSON response. Used by the ad
 **Parameters:** `p_range_days INT DEFAULT 30`
 
 **Returns:** `JSON` with keys:
-- `activeStudents` — distinct students with a session in the range window
+- `activeStudents` — students whose `last_active_at` falls within the range window
 - `totalStudents` — all non-deleted students in the org
 - `avgMastery` — average mastery percentage across all students (all-time)
 - `sessionsThisPeriod` — completed sessions within the range window
 - `weakestSubject` — `{ name, short, avgMastery }` for the subject with the lowest average mastery
-- `examReadyStudents` — count of students with mastery ≥ 75% across all subjects (all-time)
+- `examReadyStudents` — count of students with mastery ≥ 90% across all subjects (all-time)
 
 **Clamping:** `p_range_days = 0` means all-time; valid range 1–1095; values outside that default to 30. Range applies only to `activeStudents` and `sessionsThisPeriod` — mastery KPIs are always all-time.
 
