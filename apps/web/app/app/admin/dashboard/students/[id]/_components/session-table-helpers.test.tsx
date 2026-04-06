@@ -65,7 +65,8 @@ describe('formatDate', () => {
   })
 
   it('formats the first day of the year correctly', () => {
-    const result = formatDate('2026-01-01T00:00:00Z')
+    // Use midday UTC to avoid timezone rollover to Dec 31 in UTC+ environments
+    const result = formatDate('2026-01-01T12:00:00Z')
     expect(result).toBe('01 Jan 2026')
   })
 
