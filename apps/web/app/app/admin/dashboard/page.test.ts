@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseFilters } from './page'
+import { parseFilters } from './parse-filters'
 
 describe('parseFilters', () => {
   // range

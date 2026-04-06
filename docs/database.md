@@ -542,9 +542,9 @@ verb_noun pattern:
   get_report_correct_options ← read, returns correct option IDs for completed-session reports
   check_quiz_answer          ← read, verify answer + return explanation (immediate feedback)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
-  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (deferred writes pattern)
+  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit + last_active_at stamp (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
-  complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz)
+  complete_quiz_session      ← write, atomic: session end + score + audit + last_active_at stamp (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
