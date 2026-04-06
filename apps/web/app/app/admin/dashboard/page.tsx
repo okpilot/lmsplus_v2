@@ -1,6 +1,8 @@
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import type { DashboardFilters, TimeRange } from './types'
 
+type SortKey = DashboardFilters['sort']
+
 const TIME_RANGE_VALUES = ['7d', '30d', '90d', 'all'] as const
 const SORT_VALUES = ['name', 'lastActive', 'sessions', 'avgScore', 'mastery'] as const
 const DIR_VALUES = ['asc', 'desc'] as const
@@ -18,7 +20,7 @@ export function parseFilters(
     page: parsePageParam(params.page),
     sort:
       typeof params.sort === 'string' && (SORT_VALUES as readonly string[]).includes(params.sort)
-        ? params.sort
+        ? (params.sort as SortKey)
         : 'name',
     dir:
       typeof params.dir === 'string' && (DIR_VALUES as readonly string[]).includes(params.dir)

@@ -24,7 +24,7 @@ export type DashboardStudent = {
 export type DashboardFilters = {
   range: TimeRange
   page: number
-  sort: string
+  sort: 'name' | 'lastActive' | 'sessions' | 'avgScore' | 'mastery'
   dir: 'asc' | 'desc'
   status: 'active' | 'inactive' | undefined
 }
