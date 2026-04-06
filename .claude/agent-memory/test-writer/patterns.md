@@ -24,6 +24,43 @@
 
 ---
 
+## Rules
+
+### Mocking adminClient singleton from @repo/db/admin (2026-04-06)
+`adminClient` is a module-level singleton created at import time (calls `createClient` immediately).
+Mock the entire `@repo/db/admin` module to prevent real Supabase client creation. The mock object
+must expose every method the queries file calls (`.from`, `.rpc`).
+
+```ts
+const mockAdminRpc = vi.hoisted(() => vi.fn())
+const mockFrom = vi.hoisted(() => vi.fn())
+
+vi.mock('@repo/db/admin', () => ({
+  adminClient: {
+    from: mockFrom,
+    rpc: mockAdminRpc,
+  },
+}))
+```
+
+The `adminRpc` wrapper in `queries.ts` casts `adminClient as { rpc: RpcFn }` — mocking `.rpc`
+directly on the mock object satisfies this cast. Use `mockAdminRpc.mockResolvedValue({ data, error })`.
+
+### parseFilters-style param validation tests (2026-04-06)
+When a page.tsx exports a `parseFilters(params)` helper that validates URL search params,
+the test file follows this structure (see `admin/dashboard/page.test.ts`):
+- One `it` per field per case: valid value, invalid value → default, array → default, undefined → default
+- A final `it` asserting all defaults together via `toEqual` on the full return object
+- No mocks needed — pure function, no external deps
+- Vitest run command: `cd apps/web && pnpm exec vitest run <path/to/page.test.ts>`
+
+---
+
+### Test name must match assertion postcondition (2026-04-05, count 2)
+After writing a test, re-read the test name against the assertion body. The name must match the assertion's postcondition exactly, not the original intent. When the assertion body changes, update the name in the same commit. A passing test with a contradicting name gives false confidence and will be flagged by reviewers.
+
+---
+
 ## Patterns established
 
 ### Testing async module initialisation with next/headers (packages/db, 2026-03-12)
@@ -203,6 +240,34 @@ mockFrom.mockReturnValue({
   }),
 })
 ```
+
+### Testing table-row components in jsdom (2026-04-06)
+Render `<TableHead>`, `<TableRow>`, and `<TableCell>` components inside a minimal
+`<table><thead><tr>` / `<table><tbody>` wrapper so jsdom does not strip the elements:
+```tsx
+render(
+  <table>
+    <thead>
+      <tr>
+        <SortableHead {...props} />
+      </tr>
+    </thead>
+  </table>,
+)
+```
+Without the wrapper, browsers (and jsdom) silently drop orphan `<th>` / `<tr>` nodes.
+Use `screen.getByRole('columnheader')` for `<th>` and `screen.getByRole('row')` for `<tr>`.
+
+### Testing colour threshold logic through rendered CSS classes (2026-04-06)
+When a component applies a colour class based on a numeric threshold (e.g. mastery, score),
+verify the className attribute of the value element at each boundary rather than checking
+an internal function:
+```tsx
+render(<KpiCards data={buildKpis({ avgMastery: 50 })} range="30d" />)
+expect(screen.getByText('50%').className).toContain('text-amber-500')
+```
+Boundary cases to cover: below-low (< 50), at-low-boundary (= 50), mid (50–79),
+at-high-boundary (= 80), above-high (> 80).
 
 ---
 
@@ -3664,4 +3729,60 @@ it('displays "0 days" (plural) when currentStreak is 0', () => {
   expect(screen.getByText('0 days')).toBeInTheDocument()
 })
 ```
+
+---
+
+## Files extended in commit d20f02d (batch pagination + sort cleanup, 2026-04-04)
+
+All commit-touched files already shipped tests. Three gaps identified and filled post-review:
+
+| Source file | Test file | Tests added |
+|---|---|---|
+| `apps/web/app/app/reports/_components/reports-content.tsx` | `reports-content.test.tsx` | +3 tests: redirect path when page > totalPages; redirect preserves non-default sort/dir params; totalCount forwarded to ReportsList |
+
+### Gaps that were already covered
+- `lib/queries/reports.ts` — `getSessionReports` pagination, sort, all error paths: covered
+- `lib/queries/quiz-report.ts` — `getQuizReportSummary` summary split, answeredCount from count query: covered
+- `lib/queries/quiz-report-questions.ts` — `getQuizReportQuestions` pagination, auth, session ownership, RPC, fallbacks: covered
+- `lib/utils/parse-page-param.ts` — all branches including boundary values: covered
+- `app/app/_components/pagination-bar.tsx` — `buildPageNumbers`, `buildPageItems`, `PaginationBar` rendering, navigation, entityLabel: covered
+- `app/app/reports/_components/reports-list.tsx` — sort toggles, URL-driven sort, reset to page 1 on sort change: covered
+- `app/app/quiz/report/_components/question-breakdown.tsx` — server-side pagination props, page-offset global indexing: covered
+- `app/app/quiz/report/_components/report-card.tsx` — prop shape change (summary + questions split): covered
+- `app/app/quiz/report/_components/result-summary.tsx` — prop rename (report → summary): covered
+- `app/app/quiz/actions/filter-helpers.ts` — `active_flagged_questions` view rename: covered
+- `app/app/quiz/actions/flag.ts` — `active_flagged_questions` view rename: covered
+- `lib/gdpr/collect-user-data.ts` — `active_flagged_questions` view rename: covered
+
+### Testing next/navigation redirect in server components
+`redirect()` from `next/navigation` is a Next.js internal that throws a special object
+normally. In tests, mock it with `vi.hoisted` and assert it was called:
+
+```ts
+const { mockRedirect } = vi.hoisted(() => ({
+  mockRedirect: vi.fn(),
+}))
+
+vi.mock('next/navigation', () => ({
+  redirect: (...args: unknown[]) => mockRedirect(...args),
+}))
+
+// In the test:
+await ReportsContent({ page: 5, sort: 'date', dir: 'desc' })
+expect(mockRedirect).toHaveBeenCalledWith('/app/reports')
+```
+
+The `redirect()` mock must be wired via `vi.hoisted` (not inline `vi.fn()`) so the reference
+is capturable for assertions. An inline `vi.mock(() => ({ redirect: vi.fn() }))` creates a
+mock you cannot reference outside the factory.
+
+### ReportsContent redirect URL construction
+The redirect URL omits `sort` and `dir` when they are the default values (`sort='date'`, `dir='desc'`).
+`page` is also omitted when `totalPages <= 1`. Test these omissions explicitly:
+
+- `page=3`, `sort='date'`, `dir='desc'`, `totalCount=5` → redirect to `/app/reports` (no params)
+- `page=5`, `sort='score'`, `dir='asc'`, `totalCount=25` → redirect contains `sort=score`, `dir=asc`, `page=3`
+
+### Suite state after this commit
+184 tests across 11 commit-touched test files — all passing (+3 new tests).
 
