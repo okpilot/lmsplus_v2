@@ -11,8 +11,12 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default async function StudentDetailPage({ params, searchParams }: Readonly<PageProps>) {
   const [{ id }, rawParams] = await Promise.all([params, searchParams])
+  if (!UUID_RE.test(id)) notFound()
+
   const filters = parseSessionFilters(rawParams)
 
   const student = await getStudentDetail(id)

@@ -1,13 +1,12 @@
 import type { SessionSort } from '../../../types'
 
-export const COLUMNS: { field: SessionSort; label: string }[] = [
+export const SORTABLE_COLUMNS: { field: SessionSort; label: string }[] = [
   { field: 'date', label: 'Date' },
   { field: 'subject', label: 'Subject' },
   { field: 'topic', label: 'Topic' },
   { field: 'mode', label: 'Mode' },
   { field: 'score', label: 'Score' },
   { field: 'questions', label: 'Questions' },
-  { field: 'duration', label: 'Duration' },
 ]
 
 export function formatDuration(startedAt: string, endedAt: string | null): string {

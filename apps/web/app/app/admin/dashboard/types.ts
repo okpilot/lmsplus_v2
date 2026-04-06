@@ -56,7 +56,6 @@ export type StudentDetail = {
   role: string
   lastActiveAt: string | null
   createdAt: string
-  isActive: boolean
 }
 
 export type StudentSession = {
@@ -71,7 +70,7 @@ export type StudentSession = {
   endedAt: string | null
 }
 
-export type SessionSort = 'date' | 'subject' | 'topic' | 'mode' | 'score' | 'questions' | 'duration'
+export type SessionSort = 'date' | 'subject' | 'topic' | 'mode' | 'score' | 'questions'
 
 export type StudentSessionFilters = {
   range: TimeRange

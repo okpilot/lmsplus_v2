@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import type { SessionSort, StudentSession, StudentSessionFilters } from '../../../types'
 import { PAGE_SIZE } from '../../../types'
-import { COLUMNS, formatDate, formatDuration } from './session-table-helpers'
+import { formatDate, formatDuration, SORTABLE_COLUMNS } from './session-table-helpers'
 
 const TIME_RANGE_OPTIONS = [
   { value: '7d', label: 'Last 7 days' },
@@ -107,7 +107,7 @@ export function SessionHistoryTable({ sessions, totalCount, filters }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              {COLUMNS.map((col) => {
+              {SORTABLE_COLUMNS.map((col) => {
                 const arrow =
                   filters.sort === col.field ? (filters.dir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
                 return (
@@ -121,6 +121,7 @@ export function SessionHistoryTable({ sessions, totalCount, filters }: Props) {
                   </TableHead>
                 )
               })}
+              <TableHead>Duration</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

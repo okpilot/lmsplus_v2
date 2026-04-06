@@ -17,7 +17,7 @@ export async function getStudentDetail(studentId: string): Promise<StudentDetail
 
   const { data, error } = await adminClient
     .from('users')
-    .select('id, full_name, email, role, last_active_at, created_at, deleted_at')
+    .select('id, full_name, email, role, last_active_at, created_at')
     .eq('id', studentId)
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
@@ -37,7 +37,6 @@ export async function getStudentDetail(studentId: string): Promise<StudentDetail
     role: data.role,
     lastActiveAt: data.last_active_at,
     createdAt: data.created_at,
-    isActive: data.deleted_at === null,
   }
 }
 
@@ -48,7 +47,6 @@ const SESSION_SORT_MAP: Record<SessionSort, string> = {
   mode: 'mode',
   score: 'score_percentage',
   questions: 'total_questions',
-  duration: 'started_at',
 }
 
 export async function getStudentSessions(
