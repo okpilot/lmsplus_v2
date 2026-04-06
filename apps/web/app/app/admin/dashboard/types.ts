@@ -70,3 +70,12 @@ export type StudentSession = {
   startedAt: string
   endedAt: string | null
 }
+
+export type SessionSort = 'date' | 'subject' | 'topic' | 'mode' | 'score' | 'questions' | 'duration'
+
+export type StudentSessionFilters = {
+  range: TimeRange
+  page: number
+  sort: SessionSort
+  dir: 'asc' | 'desc'
+}
