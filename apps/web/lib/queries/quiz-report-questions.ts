@@ -23,6 +23,7 @@ export async function getQuizReportQuestions(opts: {
   page: number
 }): Promise<QuizReportQuestionsResult> {
   const { sessionId, page } = opts
+  if (!sessionId) return { ok: false, error: 'Failed to load questions' }
   const supabase = await createServerSupabaseClient()
 
   const {

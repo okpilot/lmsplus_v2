@@ -217,6 +217,12 @@ describe('getSessionReports', () => {
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 15 })
   })
 
+  it('returns empty sessions with correct totalCount when page exceeds total pages', async () => {
+    mockFrom.mockImplementation(() => buildChain({ data: [], count: 5, error: null }))
+    const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 5 })
+  })
+
   it('respects sort direction — score ascending', async () => {
     const sessions = [
       {

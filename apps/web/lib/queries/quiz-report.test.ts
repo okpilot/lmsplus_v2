@@ -514,6 +514,16 @@ describe('getQuizReportQuestions', () => {
     expect(result.questions[0]!.explanationImageUrl).toBeNull()
   })
 
+  it('returns empty questions with correct totalCount when page exceeds total pages', async () => {
+    mockFromSequence({ data: { id: 'sess-1', ended_at: sessionRow.ended_at } }, { count: 5 })
+
+    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 99 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.questions).toHaveLength(0)
+    expect(result.totalCount).toBe(5)
+  })
+
   it('uses PAGE_SIZE = 10', () => {
     expect(PAGE_SIZE).toBe(10)
   })
