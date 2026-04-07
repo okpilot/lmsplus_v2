@@ -3,16 +3,10 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { DashboardFilters, DashboardStudent } from '../types'
 import { PAGE_SIZE } from '../types'
+import { StudentStatusFilter } from './student-status-filter'
 import { SortableHead, type SortField, StudentRow } from './student-table-helpers'
 
 const SORTABLE_COLUMNS: { field: SortField; label: string }[] = [
@@ -21,12 +15,6 @@ const SORTABLE_COLUMNS: { field: SortField; label: string }[] = [
   { field: 'sessions', label: 'Sessions' },
   { field: 'avgScore', label: 'Avg Score' },
   { field: 'mastery', label: 'Mastery' },
-]
-
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Students' },
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
 ]
 
 type Props = Readonly<{
@@ -65,24 +53,8 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
     [router, searchParams, filters.sort, filters.dir],
   )
 
-  const statusValue = filters.status ?? 'all'
-
   const statusFilter = (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">Filter:</span>
-      <Select value={statusValue} onValueChange={handleStatusChange} items={STATUS_OPTIONS}>
-        <SelectTrigger className="w-40" aria-label="Student status filter">
-          <SelectValue placeholder="All Students" />
-        </SelectTrigger>
-        <SelectContent>
-          {STATUS_OPTIONS.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value} label={opt.label}>
-              {opt.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <StudentStatusFilter value={filters.status ?? 'all'} onChange={handleStatusChange} />
   )
 
   if (totalCount === 0) {
@@ -92,6 +64,23 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
         <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
           No students found.
         </p>
+      </div>
+    )
+  }
+
+  if (students.length === 0) {
+    return (
+      <div className="space-y-3">
+        {statusFilter}
+        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
+          No students on this page. Try going back to page 1.
+        </p>
+        <PaginationBar
+          page={filters.page}
+          totalCount={totalCount}
+          pageSize={PAGE_SIZE}
+          entityLabel="students"
+        />
       </div>
     )
   }

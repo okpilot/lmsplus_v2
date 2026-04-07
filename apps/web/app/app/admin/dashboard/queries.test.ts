@@ -426,6 +426,70 @@ describe('getDashboardStudents', () => {
     )
     consoleSpy.mockRestore()
   })
+
+  // -- status filter --
+
+  it('applies no deleted_at filter when status is undefined (shows all students)', async () => {
+    const chain = mockStudents({ usersData: [makeUserRow()] })
+
+    await getDashboardStudents({
+      range: '30d',
+      page: 1,
+      sort: 'name',
+      dir: 'asc',
+      status: undefined,
+    })
+
+    // Neither .is() nor .not() should be called with 'deleted_at' filtering
+    const isCall = (chain.is as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c: unknown[]) => c[0] === 'deleted_at',
+    )
+    const notCall = (chain.not as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c: unknown[]) => c[0] === 'deleted_at',
+    )
+    expect(isCall).toBeUndefined()
+    expect(notCall).toBeUndefined()
+  })
+
+  it('filters to non-deleted students when status is "active"', async () => {
+    const chain = mockStudents({ usersData: [makeUserRow()] })
+
+    await getDashboardStudents({
+      range: '30d',
+      page: 1,
+      sort: 'name',
+      dir: 'asc',
+      status: 'active',
+    })
+
+    // .is('deleted_at', null) must be called
+    expect(chain.is).toHaveBeenCalledWith('deleted_at', null)
+    // .not() must NOT be called with deleted_at
+    const notCall = (chain.not as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c: unknown[]) => c[0] === 'deleted_at',
+    )
+    expect(notCall).toBeUndefined()
+  })
+
+  it('filters to soft-deleted students only when status is "inactive"', async () => {
+    const chain = mockStudents({ usersData: [] })
+
+    await getDashboardStudents({
+      range: '30d',
+      page: 1,
+      sort: 'name',
+      dir: 'asc',
+      status: 'inactive',
+    })
+
+    // .not('deleted_at', 'is', null) must be called
+    expect(chain.not).toHaveBeenCalledWith('deleted_at', 'is', null)
+    // .is() must NOT be called with deleted_at
+    const isCall = (chain.is as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c: unknown[]) => c[0] === 'deleted_at',
+    )
+    expect(isCall).toBeUndefined()
+  })
 })
 
 // ---- getDashboardKpis -----------------------------------------------------

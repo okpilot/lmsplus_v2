@@ -1,3 +1,5 @@
+'use client'
+
 import { TableHead } from '@/components/ui/table'
 import type { SessionSort } from '../../../types'
 
