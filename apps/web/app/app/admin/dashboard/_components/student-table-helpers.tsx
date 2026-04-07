@@ -30,11 +30,18 @@ type SortableHeadProps = {
 }
 
 export function SortableHead({ field, label, activeSort, activeDir, onSort }: SortableHeadProps) {
-  const indicator = activeSort === field ? (activeDir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
+  const isActive = activeSort === field
+  const indicator = isActive ? (activeDir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
   return (
-    <TableHead className="cursor-pointer select-none" onClick={() => onSort(field)}>
-      {label}
-      {indicator}
+    <TableHead aria-sort={isActive ? (activeDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button
+        type="button"
+        className="flex w-full cursor-pointer items-center text-left select-none"
+        onClick={() => onSort(field)}
+      >
+        {label}
+        {indicator}
+      </button>
     </TableHead>
   )
 }
@@ -48,8 +55,23 @@ export function StudentRow({ student, onClick }: StudentRowProps) {
   const isClickable = student.isActive
   return (
     <TableRow
-      className={isClickable ? 'cursor-pointer' : 'opacity-60'}
+      className={
+        isClickable
+          ? 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring'
+          : 'opacity-60'
+      }
+      tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? onClick : undefined}
+      onKeyDown={
+        isClickable
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
     >
       <TableCell>
         <div className="flex items-center gap-1.5">

@@ -149,9 +149,35 @@ describe('SortableHead', () => {
         </thead>
       </table>,
     )
-    fireEvent.click(screen.getByRole('columnheader'))
+    fireEvent.click(screen.getByRole('button', { name: /name/i }))
     expect(onSort).toHaveBeenCalledWith('name')
     expect(onSort).toHaveBeenCalledTimes(1)
+  })
+
+  it('sets aria-sort on the column header', () => {
+    render(
+      <table>
+        <thead>
+          <tr>
+            <SortableHead {...baseProps} activeDir="desc" />
+          </tr>
+        </thead>
+      </table>,
+    )
+    expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('sets aria-sort to none when field is not active', () => {
+    render(
+      <table>
+        <thead>
+          <tr>
+            <SortableHead {...baseProps} activeSort="mastery" />
+          </tr>
+        </thead>
+      </table>,
+    )
+    expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'none')
   })
 })
 
@@ -265,6 +291,60 @@ describe('StudentRow', () => {
     )
     fireEvent.click(screen.getByRole('row'))
     expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onClick when Enter is pressed on a focused row', () => {
+    const onClick = vi.fn()
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent()} onClick={onClick} />
+        </tbody>
+      </table>,
+    )
+    const row = screen.getByRole('row')
+    fireEvent.keyDown(row, { key: 'Enter' })
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onClick when Space is pressed on a focused row', () => {
+    const onClick = vi.fn()
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent()} onClick={onClick} />
+        </tbody>
+      </table>,
+    )
+    const row = screen.getByRole('row')
+    fireEvent.keyDown(row, { key: ' ' })
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not respond to Enter key when inactive', () => {
+    const onClick = vi.fn()
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent({ isActive: false })} onClick={onClick} />
+        </tbody>
+      </table>,
+    )
+    fireEvent.keyDown(screen.getByRole('row'), { key: 'Enter' })
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('does not respond to Space key when inactive', () => {
+    const onClick = vi.fn()
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent({ isActive: false })} onClick={onClick} />
+        </tbody>
+      </table>,
+    )
+    fireEvent.keyDown(screen.getByRole('row'), { key: ' ' })
+    expect(onClick).not.toHaveBeenCalled()
   })
 
   it('applies a green mastery colour class when mastery is 80 or above', () => {

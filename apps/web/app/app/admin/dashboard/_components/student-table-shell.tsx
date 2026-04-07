@@ -85,7 +85,7 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
     </div>
   )
 
-  if (students.length === 0) {
+  if (totalCount === 0) {
     return (
       <div className="space-y-3">
         {statusFilter}

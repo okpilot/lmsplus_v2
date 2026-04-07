@@ -81,12 +81,12 @@ export async function getDashboardStudents(
     .eq('organization_id', organizationId)
     .eq('role', 'student')
 
-  // Default: show active students. RPC only returns stats for non-deleted students,
-  // so deleted students would show zeroed metrics — filter them out unless explicitly requested.
-  if (filters.status === 'inactive') {
-    query = query.not('deleted_at', 'is', null)
-  } else {
+  // "All" (status undefined) shows both active and inactive students.
+  // "active" filters to non-deleted; "inactive" filters to soft-deleted only.
+  if (filters.status === 'active') {
     query = query.is('deleted_at', null)
+  } else if (filters.status === 'inactive') {
+    query = query.not('deleted_at', 'is', null)
   }
 
   const { data: usersData, error: usersError } = await query

@@ -4,13 +4,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -20,14 +13,9 @@ import {
 } from '@/components/ui/table'
 import type { SessionSort, StudentSession, StudentSessionFilters } from '../../../types'
 import { PAGE_SIZE } from '../../../types'
+import { SessionRangeHeader } from './session-range-header'
 import { formatDate, formatDuration } from './session-table-helpers'
-
-const TIME_RANGE_OPTIONS = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-  { value: 'all', label: 'All time' },
-]
+import { SortableSessionHead } from './sortable-session-head'
 
 type Props = Readonly<{
   sessions: StudentSession[]
@@ -67,41 +55,7 @@ export function SessionHistoryTable({ sessions, totalCount, filters }: Props) {
     [router, searchParams],
   )
 
-  const rangeFilter = (
-    <Select value={filters.range} onValueChange={handleRangeChange} items={TIME_RANGE_OPTIONS}>
-      <SelectTrigger className="w-40" aria-label="Time range">
-        <SelectValue placeholder="Select range" />
-      </SelectTrigger>
-      <SelectContent>
-        {TIME_RANGE_OPTIONS.map((opt) => (
-          <SelectItem key={opt.value} value={opt.value} label={opt.label}>
-            {opt.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-
-  const renderSortHead = (field: SessionSort, label: string) => {
-    const arrow = filters.sort === field ? (filters.dir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
-    return (
-      <TableHead
-        key={field}
-        className="cursor-pointer select-none"
-        onClick={() => handleSort(field)}
-      >
-        {label}
-        {arrow}
-      </TableHead>
-    )
-  }
-
-  const header = (
-    <div className="flex items-center justify-between">
-      <h2 className="text-lg font-semibold">Session History</h2>
-      {rangeFilter}
-    </div>
-  )
+  const header = <SessionRangeHeader range={filters.range} onRangeChange={handleRangeChange} />
 
   if (sessions.length === 0) {
     return (
@@ -121,12 +75,36 @@ export function SessionHistoryTable({ sessions, totalCount, filters }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              {renderSortHead('date', 'Date')}
+              <SortableSessionHead
+                field="date"
+                label="Date"
+                activeSort={filters.sort}
+                activeDir={filters.dir}
+                onSort={handleSort}
+              />
               <TableHead>Subject</TableHead>
               <TableHead>Topic</TableHead>
-              {renderSortHead('mode', 'Mode')}
-              {renderSortHead('score', 'Score')}
-              {renderSortHead('questions', 'Questions')}
+              <SortableSessionHead
+                field="mode"
+                label="Mode"
+                activeSort={filters.sort}
+                activeDir={filters.dir}
+                onSort={handleSort}
+              />
+              <SortableSessionHead
+                field="score"
+                label="Score"
+                activeSort={filters.sort}
+                activeDir={filters.dir}
+                onSort={handleSort}
+              />
+              <SortableSessionHead
+                field="questions"
+                label="Questions"
+                activeSort={filters.sort}
+                activeDir={filters.dir}
+                onSort={handleSort}
+              />
               <TableHead>Duration</TableHead>
             </TableRow>
           </TableHeader>
