@@ -1,3 +1,4 @@
+import { ContentErrorFallback } from '../../../_components/content-error-fallback'
 import type { StudentSessionFilters } from '../../../types'
 import { getStudentSessions } from '../queries'
 import { SessionHistoryTable } from './session-history-table'
@@ -10,9 +11,7 @@ export async function SessionHistoryContent({ studentId, filters }: Props) {
     return <SessionHistoryTable sessions={sessions} totalCount={totalCount} filters={filters} />
   } catch {
     return (
-      <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-        Failed to load session history. Please refresh the page.
-      </div>
+      <ContentErrorFallback message="Failed to load session history. Please refresh the page." />
     )
   }
 }

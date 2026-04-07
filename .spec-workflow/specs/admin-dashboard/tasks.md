@@ -26,9 +26,9 @@
 
 - [x] 3. Create database RPCs for admin analytics
   - Files: `supabase/migrations/YYYYMMDDHHMMSS_admin_dashboard_kpis_rpc.sql`, `supabase/migrations/YYYYMMDDHHMMSS_admin_weak_topics_rpc.sql`, `supabase/migrations/YYYYMMDDHHMMSS_admin_student_stats_rpc.sql`
-  - Create `get_admin_dashboard_kpis(p_org_id UUID, p_range_days INT)` — returns all 5 KPI values
-  - Create `get_admin_weak_topics(p_org_id UUID, p_limit INT DEFAULT 10)` — returns weakest topics
-  - Create `get_admin_student_stats(p_org_id UUID)` — returns per-student session count, avg score, mastery
+  - Create `get_admin_dashboard_kpis(p_range_days INT DEFAULT 30)` — returns all 5 KPI values (org resolved from auth.uid())
+  - Create `get_admin_weak_topics(p_limit INT DEFAULT 10)` — returns weakest topics (org resolved from auth.uid())
+  - Create `get_admin_student_stats()` — returns per-student session count, avg score, mastery (org resolved from auth.uid())
   - All: SECURITY DEFINER, SET search_path = public, auth.uid() check, admin role check, soft-delete filters, questions status='active' filter for mastery
   - Purpose: Server-side aggregation in Postgres. No client-side computation.
   - _Leverage: Existing RPCs (get_daily_activity, get_subject_scores) for pattern. `lib/queries/dashboard.ts` mastery formula._

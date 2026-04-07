@@ -1,31 +1,14 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import type {
-  QuizReportQuestion,
-  QuizReportQuestionsResult,
-  QuizReportSummary,
-} from './quiz-report'
+import type { QuizReportQuestionsResult, QuizReportSummary } from './quiz-report'
 import { PAGE_SIZE } from './quiz-report'
+import { type AnswerRow, buildReportQuestions, type QuestionRow } from './report-question-builder'
 
 export type AdminQuizReportSummary = QuizReportSummary & {
   studentId: string
   studentName: string | null
 }
 
-type AnswerRow = {
-  question_id: string
-  selected_option_id: string
-  is_correct: boolean
-  response_time_ms: number
-}
-type QuestionRow = {
-  id: string
-  question_text: string
-  question_number: string | null
-  options: { id: string; text: string }[]
-  explanation_text: string | null
-  explanation_image_url: string | null
-}
 type AdminSessionRow = {
   id: string
   mode: string
@@ -165,7 +148,7 @@ export async function getAdminQuizReportQuestions(opts: {
     return { ok: false, error: 'Failed to load questions' }
   }
 
-  const answers = (answersData ?? []) as AnswerRow[]
+  const answers = Array.isArray(answersData) ? (answersData as AnswerRow[]) : []
 
   if (!answers.length) {
     return { ok: true, questions: [], totalCount: total }
@@ -187,7 +170,7 @@ export async function getAdminQuizReportQuestions(opts: {
     return { ok: false, error: 'Failed to load questions' }
   }
 
-  const questions = (questionsData ?? []) as QuestionRow[]
+  const questions = Array.isArray(questionsData) ? (questionsData as QuestionRow[]) : []
   const questionMap = new Map<string, QuestionRow>()
   for (const q of questions) {
     questionMap.set(q.id, q)
@@ -212,28 +195,4 @@ export async function getAdminQuizReportQuestions(opts: {
     questions: buildReportQuestions(answers, questionMap, correctMap),
     totalCount: total,
   }
-}
-
-function buildReportQuestions(
-  answers: AnswerRow[],
-  questionMap: Map<string, QuestionRow>,
-  correctMap: Map<string, string>,
-): QuizReportQuestion[] {
-  return answers.map((answer) => {
-    const question = questionMap.get(answer.question_id)
-    const options = question?.options ?? []
-
-    return {
-      questionId: answer.question_id,
-      questionText: question?.question_text ?? '',
-      questionNumber: question?.question_number ?? null,
-      isCorrect: answer.is_correct,
-      selectedOptionId: answer.selected_option_id,
-      correctOptionId: correctMap.get(answer.question_id) ?? '',
-      options: options.map((o) => ({ id: o.id, text: o.text })),
-      explanationText: question?.explanation_text ?? null,
-      explanationImageUrl: question?.explanation_image_url ?? null,
-      responseTimeMs: answer.response_time_ms,
-    }
-  })
 }

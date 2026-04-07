@@ -1,5 +1,6 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { rangeToCutoff, rangeToDays } from './_lib/range-cutoff'
 import type {
   DashboardFilters,
   DashboardKpis,
@@ -8,7 +9,6 @@ import type {
   TimeRange,
   WeakTopic,
 } from './types'
-
 import { STUDENTS_PAGE_SIZE } from './types'
 
 // RPC calls use the authenticated client (not adminClient) so auth.uid() is set in Postgres.
@@ -21,19 +21,6 @@ type RpcFn = (
 
 function authRpc(supabase: { rpc: unknown }): RpcFn {
   return (supabase as unknown as { rpc: RpcFn }).rpc.bind(supabase)
-}
-
-function rangeToDays(range: TimeRange): number {
-  const map: Record<TimeRange, number> = { '7d': 7, '30d': 30, '90d': 90, all: 0 }
-  return map[range]
-}
-
-function rangeToCutoff(range: TimeRange): string | null {
-  if (range === 'all') return null
-  const days = rangeToDays(range)
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - days)
-  return cutoff.toISOString()
 }
 
 export async function getDashboardKpis(range: TimeRange): Promise<DashboardKpis> {

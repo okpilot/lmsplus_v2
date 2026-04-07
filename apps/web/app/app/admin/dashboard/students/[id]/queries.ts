@@ -1,16 +1,8 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { rangeToCutoff } from '../../_lib/range-cutoff'
 import type { SessionSort, StudentDetail, StudentSession, StudentSessionFilters } from '../../types'
 import { SESSIONS_PAGE_SIZE } from '../../types'
-
-function rangeToCutoff(range: string): string | null {
-  const map: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90 }
-  const days = map[range]
-  if (!days) return null
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - days)
-  return cutoff.toISOString()
-}
 
 export async function getStudentDetail(studentId: string): Promise<StudentDetail | null> {
   const { organizationId } = await requireAdmin()

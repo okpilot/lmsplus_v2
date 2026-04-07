@@ -259,7 +259,10 @@ async function seed() {
 
       const correctCount = Math.round(qSlice.length * sess.correctRate)
       const scorePct = Math.round((correctCount / qSlice.length) * 100)
-      const endedAt = new Date(Date.now() - sess.daysAgo * 24 * 60 * 60 * 1000).toISOString()
+      const durationMs = (Math.floor(Math.random() * 20) + 20) * 60 * 1000
+      const endedAtDate = new Date(Date.now() - sess.daysAgo * 24 * 60 * 60 * 1000)
+      const startedAt = new Date(endedAtDate.getTime() - durationMs).toISOString()
+      const endedAt = endedAtDate.toISOString()
 
       const { data: session, error: sessErr } = await db
         .from('quiz_sessions')
@@ -271,6 +274,7 @@ async function seed() {
           total_questions: qSlice.length,
           correct_count: correctCount,
           score_percentage: scorePct,
+          started_at: startedAt,
           ended_at: endedAt,
         })
         .select('id')
@@ -287,12 +291,14 @@ async function seed() {
         const selected = isCorrect ? opts.find((o) => o.correct) : opts.find((o) => !o.correct)
         if (!selected) continue
 
+        const responseTimeMs = Math.floor(Math.random() * 25000) + 5000
+
         await db.from('quiz_session_answers').insert({
           session_id: session.id,
           question_id: q.id,
           selected_option_id: selected.id,
           is_correct: isCorrect,
-          response_time_ms: Math.floor(Math.random() * 25000) + 5000,
+          response_time_ms: responseTimeMs,
         })
 
         await db.from('student_responses').insert({
@@ -302,7 +308,7 @@ async function seed() {
           session_id: session?.id ?? null,
           selected_option_id: selected.id,
           is_correct: isCorrect,
-          response_time_ms: Math.floor(Math.random() * 25000) + 5000,
+          response_time_ms: responseTimeMs,
         })
         totalResponses++
       }
