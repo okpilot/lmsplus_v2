@@ -546,6 +546,19 @@ describe('getDashboardKpis', () => {
     expect(consoleSpy).toHaveBeenCalledWith('[getDashboardKpis] RPC error:', 'timeout')
     consoleSpy.mockRestore()
   })
+
+  it('returns all-zero defaults when RPC returns null data', async () => {
+    mockAuthRpc.mockResolvedValue({ data: null, error: null })
+    const result = await getDashboardKpis('30d')
+    expect(result).toEqual({
+      activeStudents: 0,
+      totalStudents: 0,
+      avgMastery: 0,
+      sessionsThisPeriod: 0,
+      weakestSubject: null,
+      examReadyStudents: 0,
+    })
+  })
 })
 
 // ---- getWeakTopics --------------------------------------------------------

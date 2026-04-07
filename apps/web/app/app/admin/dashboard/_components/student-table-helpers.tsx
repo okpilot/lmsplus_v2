@@ -6,7 +6,9 @@ export type SortField = DashboardFilters['sort']
 
 export function formatRelativeTime(iso: string | null): string {
   if (!iso) return 'Never'
-  const diff = Date.now() - new Date(iso).getTime()
+  const ts = new Date(iso).getTime()
+  if (Number.isNaN(ts)) return 'Never'
+  const diff = Math.max(0, Date.now() - ts)
   const mins = Math.floor(diff / 60_000)
   if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)

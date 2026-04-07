@@ -62,6 +62,15 @@ describe('formatRelativeTime', () => {
     const iso = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString()
     expect(formatRelativeTime(iso)).toBe('1mo ago')
   })
+
+  it('returns "Never" for invalid ISO strings', () => {
+    expect(formatRelativeTime('not-a-date')).toBe('Never')
+  })
+
+  it('clamps future timestamps to "0m ago"', () => {
+    const future = new Date(Date.now() + 60_000).toISOString()
+    expect(formatRelativeTime(future)).toBe('0m ago')
+  })
 })
 
 // ---------------------------------------------------------------------------

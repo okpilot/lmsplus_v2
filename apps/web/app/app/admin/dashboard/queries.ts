@@ -48,7 +48,7 @@ export async function getDashboardKpis(range: TimeRange): Promise<DashboardKpis>
     throw new Error('Failed to fetch dashboard KPIs')
   }
 
-  const json = data as Record<string, unknown>
+  const json = (data ?? {}) as Record<string, unknown>
   return {
     activeStudents: (json.activeStudents as number) ?? 0,
     totalStudents: (json.totalStudents as number) ?? 0,
