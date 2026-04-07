@@ -35,4 +35,14 @@ describe('rangeToCutoff', () => {
     expect(resultDate.getMonth()).toBe(2) // March = 2
     expect(resultDate.getDate()).toBe(8)
   })
+
+  it('returns ISO string 90 days ago for "90d"', () => {
+    const result = rangeToCutoff('90d')
+    expect(result).not.toBeNull()
+    const resultDate = new Date(result!)
+    // 2026-04-07 minus 90 days = 2026-01-07
+    expect(resultDate.getFullYear()).toBe(2026)
+    expect(resultDate.getMonth()).toBe(0) // January = 0
+    expect(resultDate.getDate()).toBe(7)
+  })
 })

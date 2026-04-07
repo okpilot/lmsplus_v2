@@ -69,7 +69,7 @@ export async function getQuizReportQuestions(opts: {
     return { ok: false, error: 'Failed to load questions' }
   }
 
-  const answers = (answersData ?? []) as AnswerRow[]
+  const answers = Array.isArray(answersData) ? (answersData as AnswerRow[]) : []
 
   if (!answers.length) {
     return { ok: true, questions: [], totalCount: total }
@@ -91,7 +91,7 @@ export async function getQuizReportQuestions(opts: {
     return { ok: false, error: 'Failed to load questions' }
   }
 
-  const questions = (questionsData ?? []) as QuestionRow[]
+  const questions = Array.isArray(questionsData) ? (questionsData as QuestionRow[]) : []
   const questionMap = new Map<string, QuestionRow>()
   for (const q of questions) {
     questionMap.set(q.id, q)
