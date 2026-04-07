@@ -49,15 +49,18 @@ export async function getDashboardKpis(range: TimeRange): Promise<DashboardKpis>
   }
 
   const json = (data ?? {}) as Record<string, unknown>
+  const ws = json.weakestSubject
+  const weakestSubject =
+    ws !== null && typeof ws === 'object' && 'name' in ws && 'short' in ws && 'avgMastery' in ws
+      ? (ws as { name: string; short: string; avgMastery: number })
+      : null
   return {
-    activeStudents: (json.activeStudents as number) ?? 0,
-    totalStudents: (json.totalStudents as number) ?? 0,
-    avgMastery: (json.avgMastery as number) ?? 0,
-    sessionsThisPeriod: (json.sessionsThisPeriod as number) ?? 0,
-    weakestSubject: json.weakestSubject
-      ? (json.weakestSubject as { name: string; short: string; avgMastery: number })
-      : null,
-    examReadyStudents: (json.examReadyStudents as number) ?? 0,
+    activeStudents: Number(json.activeStudents) || 0,
+    totalStudents: Number(json.totalStudents) || 0,
+    avgMastery: Number(json.avgMastery) || 0,
+    sessionsThisPeriod: Number(json.sessionsThisPeriod) || 0,
+    weakestSubject,
+    examReadyStudents: Number(json.examReadyStudents) || 0,
   }
 }
 
@@ -130,21 +133,21 @@ export async function getDashboardStudents(
   merged.sort((a, b) => {
     switch (filters.sort) {
       case 'name':
-        return dir * (a.fullName ?? '').localeCompare(b.fullName ?? '')
+        return dir * (a.fullName ?? '').localeCompare(b.fullName ?? '') || a.id.localeCompare(b.id)
       case 'lastActive': {
-        if (a.lastActiveAt === null && b.lastActiveAt === null) return 0
+        if (a.lastActiveAt === null && b.lastActiveAt === null) return a.id.localeCompare(b.id)
         if (a.lastActiveAt === null) return 1
         if (b.lastActiveAt === null) return -1
-        return dir * a.lastActiveAt.localeCompare(b.lastActiveAt)
+        return dir * a.lastActiveAt.localeCompare(b.lastActiveAt) || a.id.localeCompare(b.id)
       }
       case 'sessions':
-        return dir * (a.sessionCount - b.sessionCount)
+        return dir * (a.sessionCount - b.sessionCount) || a.id.localeCompare(b.id)
       case 'avgScore':
-        return dir * ((a.avgScore ?? -1) - (b.avgScore ?? -1))
+        return dir * ((a.avgScore ?? -1) - (b.avgScore ?? -1)) || a.id.localeCompare(b.id)
       case 'mastery':
-        return dir * (a.mastery - b.mastery)
+        return dir * (a.mastery - b.mastery) || a.id.localeCompare(b.id)
       default:
-        return 0
+        return a.id.localeCompare(b.id)
     }
   })
 
