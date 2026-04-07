@@ -22,7 +22,7 @@ export async function getQuizReportQuestions(opts: {
   if (!user) return { ok: false, error: 'Failed to load questions' }
 
   // Verify session ownership and completion guard
-  const { data: sessionData } = await supabase
+  const { data: sessionData, error: sessionError } = await supabase
     .from('quiz_sessions')
     .select('id, ended_at')
     .eq('id', sessionId)
@@ -30,6 +30,10 @@ export async function getQuizReportQuestions(opts: {
     .is('deleted_at', null)
     .maybeSingle()
 
+  if (sessionError) {
+    console.error('[getQuizReportQuestions] Session query error:', sessionError.message)
+    return { ok: false, error: 'Failed to load questions' }
+  }
   const session = sessionData as { id: string; ended_at: string | null } | null
   if (!session) return { ok: false, error: 'Failed to load questions' }
   // Only serve questions for completed sessions — prevents mid-session answer exposure

@@ -55,7 +55,7 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
   }
   if (!user) return null
 
-  const { data: sessionData } = await supabase
+  const { data: sessionData, error: sessionError } = await supabase
     .from('quiz_sessions')
     .select(
       'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage',
@@ -65,16 +65,24 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
     .is('deleted_at', null)
     .maybeSingle()
 
+  if (sessionError) {
+    console.error('[getQuizReportSummary] Session query error:', sessionError.message)
+    return null
+  }
   const session = sessionData as SessionRow | null
   if (!session) return null
   // Only serve reports for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return null
 
   // Fetch total answered count from quiz_session_answers
-  const { count: answeredCount } = await supabase
+  const { count: answeredCount, error: countError } = await supabase
     .from('quiz_session_answers')
     .select('question_id', { count: 'exact', head: true })
     .eq('session_id', sessionId)
+  if (countError) {
+    console.error('[getQuizReportSummary] Count query error:', countError.message)
+    return null
+  }
 
   // Resolve subject name if available (display-only — don't abort report on failure)
   let subjectName: string | null = null
