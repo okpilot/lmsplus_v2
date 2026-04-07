@@ -17,19 +17,16 @@ import { SessionRangeHeader } from './session-range-header'
 import { formatDate, formatDuration } from './session-table-helpers'
 import { SortableSessionHead } from './sortable-session-head'
 
-type Props = Readonly<{
-  sessions: StudentSession[]
-  totalCount: number
-  filters: StudentSessionFilters
-}>
-
-export function SessionHistoryTable({ sessions, totalCount, filters }: Props) {
+export function SessionHistoryTable({
+  sessions,
+  totalCount,
+  filters,
+}: Readonly<{ sessions: StudentSession[]; totalCount: number; filters: StudentSessionFilters }>) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const handleSort = useCallback(
     (field: SessionSort) => {
-      // Default to desc (newest-first) — intentionally differs from student table (alpha asc)
       const nextDir = filters.sort === field && filters.dir === 'desc' ? 'asc' : 'desc'
       const params = new URLSearchParams(searchParams.toString())
       params.set('sort', field)
@@ -44,11 +41,8 @@ export function SessionHistoryTable({ sessions, totalCount, filters }: Props) {
     (value: string | null) => {
       if (!value) return
       const params = new URLSearchParams(searchParams.toString())
-      if (value === '30d') {
-        params.delete('range')
-      } else {
-        params.set('range', value)
-      }
+      if (value === '30d') params.delete('range')
+      else params.set('range', value)
       params.delete('page')
       router.replace(`?${params.toString()}`)
     },
@@ -57,13 +51,30 @@ export function SessionHistoryTable({ sessions, totalCount, filters }: Props) {
 
   const header = <SessionRangeHeader range={filters.range} onRangeChange={handleRangeChange} />
 
-  if (sessions.length === 0) {
+  if (totalCount === 0) {
     return (
       <div className="space-y-3">
         {header}
         <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
           No sessions found.
         </p>
+      </div>
+    )
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <div className="space-y-3">
+        {header}
+        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">
+          No sessions on this page. Try going back to page 1.
+        </p>
+        <PaginationBar
+          page={filters.page}
+          totalCount={totalCount}
+          pageSize={PAGE_SIZE}
+          entityLabel="sessions"
+        />
       </div>
     )
   }
