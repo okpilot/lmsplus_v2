@@ -260,6 +260,15 @@ describe('getAdminQuizReportQuestions', () => {
     expect(result.ok).toBe(false)
   })
 
+  it('returns error when session verification query fails', async () => {
+    mockFromSequence({ data: null, error: { message: 'db connection lost' } })
+    const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error).toBe('Failed to load questions')
+    expect(mockAdminFrom).toHaveBeenCalledTimes(1)
+  })
+
   it('returns error when session is still active to prevent mid-session answer exposure', async () => {
     mockFromSequence({ data: { id: 'sess-1', ended_at: null } })
     const result = await getAdminQuizReportQuestions({ sessionId: 'sess-1', page: 1 })

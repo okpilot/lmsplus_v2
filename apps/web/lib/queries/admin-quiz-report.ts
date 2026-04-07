@@ -45,7 +45,7 @@ export async function getAdminQuizReportSummary(
   // Only serve reports for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return null
 
-  // Session org-membership verified on lines 50-58 above — sessionId is safe to use unscoped
+  // Session org-membership verified above — sessionId is safe to use unscoped
   const { count: answeredCount, error: countError } = await adminClient
     .from('quiz_session_answers')
     .select('question_id', { count: 'exact', head: true })
@@ -103,7 +103,7 @@ export async function getAdminQuizReportQuestions(opts: {
   const { supabase, organizationId } = await requireAdmin()
 
   // Verify session belongs to org and is completed — prevents mid-session answer exposure
-  const { data: sessionData } = await adminClient
+  const { data: sessionData, error: sessionError } = await adminClient
     .from('quiz_sessions')
     .select('id, ended_at')
     .eq('id', sessionId)
@@ -111,6 +111,10 @@ export async function getAdminQuizReportQuestions(opts: {
     .is('deleted_at', null)
     .maybeSingle()
 
+  if (sessionError) {
+    console.error('[getAdminQuizReportQuestions] Session query error:', sessionError.message)
+    return { ok: false, error: 'Failed to load questions' }
+  }
   const session = sessionData as { id: string; ended_at: string | null } | null
   if (!session) return { ok: false, error: 'Failed to load questions' }
   if (!session.ended_at) return { ok: false, error: 'Failed to load questions' }
@@ -185,8 +189,11 @@ export async function getAdminQuizReportQuestions(opts: {
     console.error('[getAdminQuizReportQuestions] RPC error:', rpcError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
+  const correctRows = Array.isArray(correctData)
+    ? (correctData as { question_id: string; correct_option_id: string }[])
+    : []
   const correctMap = new Map<string, string>()
-  for (const row of correctData ?? []) {
+  for (const row of correctRows) {
     correctMap.set(row.question_id, row.correct_option_id)
   }
 

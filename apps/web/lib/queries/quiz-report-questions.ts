@@ -104,8 +104,11 @@ export async function getQuizReportQuestions(opts: {
     console.error('[getQuizReportQuestions] RPC error:', rpcError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
+  const correctRows = Array.isArray(correctData)
+    ? (correctData as { question_id: string; correct_option_id: string }[])
+    : []
   const correctMap = new Map<string, string>()
-  for (const row of correctData ?? []) {
+  for (const row of correctRows) {
     correctMap.set(row.question_id, row.correct_option_id)
   }
 

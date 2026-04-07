@@ -62,7 +62,7 @@ export async function getStudentSessions(
   }
 
   const sortCol = SESSION_SORT_MAP[filters.sort] ?? 'ended_at'
-  query = query.order(sortCol, { ascending: filters.dir === 'asc' })
+  query = query.order(sortCol, { ascending: filters.dir === 'asc' }).order('id')
 
   const from = (filters.page - 1) * SESSIONS_PAGE_SIZE
   query = query.range(from, from + SESSIONS_PAGE_SIZE - 1)
