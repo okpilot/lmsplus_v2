@@ -62,6 +62,7 @@ export async function getStudentSessions(
   }
 
   const sortCol = SESSION_SORT_MAP[filters.sort] ?? 'ended_at'
+  // Secondary sort by immutable PK for stable pagination — direction intentionally always ASC
   query = query.order(sortCol, { ascending: filters.dir === 'asc' }).order('id')
 
   const from = (filters.page - 1) * SESSIONS_PAGE_SIZE
