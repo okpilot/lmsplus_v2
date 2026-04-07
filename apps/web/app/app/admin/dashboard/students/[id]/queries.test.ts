@@ -284,7 +284,7 @@ describe('getStudentSessions', () => {
       dir: 'desc',
     })
 
-    // PAGE_SIZE = 25, page 2 → from=25, to=49
+    // SESSIONS_PAGE_SIZE = 25, page 2 → from=25, to=49
     expect((chain.range as ReturnType<typeof vi.fn>).mock.calls[0]).toEqual([25, 49])
   })
 
@@ -299,7 +299,7 @@ describe('getStudentSessions', () => {
       dir: 'desc',
     })
 
-    // PAGE_SIZE = 25, page 1 → from=0, to=24
+    // SESSIONS_PAGE_SIZE = 25, page 1 → from=0, to=24
     expect((chain.range as ReturnType<typeof vi.fn>).mock.calls[0]).toEqual([0, 24])
   })
 

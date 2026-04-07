@@ -1,4 +1,5 @@
-export const PAGE_SIZE = 25
+export const STUDENTS_PAGE_SIZE = 10
+export const SESSIONS_PAGE_SIZE = 25
 
 export type TimeRange = '7d' | '30d' | '90d' | 'all'
 

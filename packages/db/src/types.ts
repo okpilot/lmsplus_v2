@@ -1,11 +1,6 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: '14.1'
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -281,7 +276,7 @@ export type Database = {
           id: string
           lapses: number
           last_review: string | null
-          last_was_correct: boolean
+          last_was_correct: boolean | null
           question_id: string
           reps: number
           scheduled_days: number
@@ -298,7 +293,7 @@ export type Database = {
           id?: string
           lapses?: number
           last_review?: string | null
-          last_was_correct?: boolean
+          last_was_correct?: boolean | null
           question_id: string
           reps?: number
           scheduled_days?: number
@@ -315,7 +310,7 @@ export type Database = {
           id?: string
           lapses?: number
           last_review?: string | null
-          last_was_correct?: boolean
+          last_was_correct?: boolean | null
           question_id?: string
           reps?: number
           scheduled_days?: number
@@ -514,7 +509,7 @@ export type Database = {
           {
             foreignKeyName: 'question_banks_organization_id_fkey'
             columns: ['organization_id']
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: 'organizations'
             referencedColumns: ['id']
           },
@@ -1085,6 +1080,37 @@ export type Database = {
           correct_count: number
           score_percentage: number
           total_questions: number
+        }[]
+      }
+      get_admin_dashboard_kpis: {
+        Args: { p_range_days?: number }
+        Returns: Json
+      }
+      get_admin_report_correct_options: {
+        Args: { p_session_id: string }
+        Returns: {
+          correct_option_id: string
+          question_id: string
+        }[]
+      }
+      get_admin_student_stats: {
+        Args: never
+        Returns: {
+          avg_score: number
+          mastery: number
+          session_count: number
+          user_id: string
+        }[]
+      }
+      get_admin_weak_topics: {
+        Args: { p_limit?: number }
+        Returns: {
+          avg_score: number
+          student_count: number
+          subject_name: string
+          subject_short: string
+          topic_id: string
+          topic_name: string
         }[]
       }
       get_daily_activity: {

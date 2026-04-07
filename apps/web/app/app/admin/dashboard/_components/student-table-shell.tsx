@@ -5,7 +5,7 @@ import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { DashboardFilters, DashboardStudent } from '../types'
-import { PAGE_SIZE } from '../types'
+import { STUDENTS_PAGE_SIZE } from '../types'
 import { StudentStatusFilter } from './student-status-filter'
 import { SortableHead, type SortField, StudentRow } from './student-table-helpers'
 
@@ -78,7 +78,7 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
         <PaginationBar
           page={filters.page}
           totalCount={totalCount}
-          pageSize={PAGE_SIZE}
+          pageSize={STUDENTS_PAGE_SIZE}
           entityLabel="students"
         />
       </div>
@@ -119,7 +119,7 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
       <PaginationBar
         page={filters.page}
         totalCount={totalCount}
-        pageSize={PAGE_SIZE}
+        pageSize={STUDENTS_PAGE_SIZE}
         entityLabel="students"
       />
     </div>

@@ -3,18 +3,11 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { SessionSort, StudentSession, StudentSessionFilters } from '../../../types'
-import { PAGE_SIZE } from '../../../types'
+import { SESSIONS_PAGE_SIZE } from '../../../types'
+import { ClickableSessionRow } from './clickable-session-row'
 import { SessionRangeHeader } from './session-range-header'
-import { formatDate, formatDuration } from './session-table-helpers'
 import { SortableSessionHead } from './sortable-session-head'
 
 export function SessionHistoryTable({
@@ -72,7 +65,7 @@ export function SessionHistoryTable({
         <PaginationBar
           page={filters.page}
           totalCount={totalCount}
-          pageSize={PAGE_SIZE}
+          pageSize={SESSIONS_PAGE_SIZE}
           entityLabel="sessions"
         />
       </div>
@@ -121,19 +114,7 @@ export function SessionHistoryTable({
           </TableHeader>
           <TableBody>
             {sessions.map((s) => (
-              <TableRow key={s.sessionId}>
-                <TableCell>{formatDate(s.endedAt)}</TableCell>
-                <TableCell>{s.subjectName ?? '\u2014'}</TableCell>
-                <TableCell>{s.topicName ?? '\u2014'}</TableCell>
-                <TableCell className="capitalize">{s.mode}</TableCell>
-                <TableCell>
-                  {s.scorePercentage !== null ? `${s.scorePercentage}%` : '\u2014'}
-                </TableCell>
-                <TableCell>
-                  {s.correctCount}/{s.totalQuestions}
-                </TableCell>
-                <TableCell>{formatDuration(s.startedAt, s.endedAt)}</TableCell>
-              </TableRow>
+              <ClickableSessionRow key={s.sessionId} session={s} />
             ))}
           </TableBody>
         </Table>
@@ -141,7 +122,7 @@ export function SessionHistoryTable({
       <PaginationBar
         page={filters.page}
         totalCount={totalCount}
-        pageSize={PAGE_SIZE}
+        pageSize={SESSIONS_PAGE_SIZE}
         entityLabel="sessions"
       />
     </div>

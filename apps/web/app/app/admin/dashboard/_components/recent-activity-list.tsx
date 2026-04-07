@@ -1,3 +1,6 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import type { RecentSession } from '../types'
 import { formatRelativeTime } from './student-table-helpers'
@@ -11,6 +14,8 @@ function getScoreColor(score: number): string {
 }
 
 export function RecentActivityList({ sessions }: Props) {
+  const router = useRouter()
+
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-4">
       <h2 className="text-lg font-semibold">Recent Activity</h2>
@@ -18,9 +23,14 @@ export function RecentActivityList({ sessions }: Props) {
       {sessions.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">No sessions yet.</p>
       ) : (
-        <ul className="space-y-3">
+        <div className="space-y-3">
           {sessions.map((session) => (
-            <li key={session.sessionId} className="flex items-center justify-between gap-3 text-sm">
+            <button
+              type="button"
+              key={session.sessionId}
+              className="flex w-full items-center justify-between gap-3 text-sm text-left cursor-pointer rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              onClick={() => router.push(`/app/admin/dashboard/sessions/${session.sessionId}`)}
+            >
               <div className="min-w-0 flex-1">
                 <p className="font-medium truncate">{session.studentName ?? 'Unknown student'}</p>
                 <p className="text-xs text-muted-foreground truncate">
@@ -44,9 +54,9 @@ export function RecentActivityList({ sessions }: Props) {
                   {formatRelativeTime(session.endedAt)}
                 </span>
               </div>
-            </li>
+            </button>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   )

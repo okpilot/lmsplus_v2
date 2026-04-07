@@ -1,7 +1,7 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import type { SessionSort, StudentDetail, StudentSession, StudentSessionFilters } from '../../types'
-import { PAGE_SIZE } from '../../types'
+import { SESSIONS_PAGE_SIZE } from '../../types'
 
 function rangeToCutoff(range: string): string | null {
   const map: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90 }
@@ -72,8 +72,8 @@ export async function getStudentSessions(
   const sortCol = SESSION_SORT_MAP[filters.sort] ?? 'ended_at'
   query = query.order(sortCol, { ascending: filters.dir === 'asc' })
 
-  const from = (filters.page - 1) * PAGE_SIZE
-  query = query.range(from, from + PAGE_SIZE - 1)
+  const from = (filters.page - 1) * SESSIONS_PAGE_SIZE
+  query = query.range(from, from + SESSIONS_PAGE_SIZE - 1)
 
   const { data, error, count } = await query
 

@@ -342,7 +342,7 @@ describe('getDashboardStudents', () => {
 
   // -- pagination --
 
-  it('returns first page of 25 students and correct totalCount', async () => {
+  it('returns first page of 10 students and correct totalCount', async () => {
     const users = Array.from({ length: 30 }, (_, i) =>
       makeUserRow({ id: `u${i}`, email: `u${i}@test.com` }),
     )
@@ -357,10 +357,10 @@ describe('getDashboardStudents', () => {
     })
 
     expect(totalCount).toBe(30)
-    expect(students).toHaveLength(25)
+    expect(students).toHaveLength(10)
   })
 
-  it('returns remaining students on the second page', async () => {
+  it('returns remaining students on the fourth page', async () => {
     const users = Array.from({ length: 30 }, (_, i) =>
       makeUserRow({
         id: `u${i}`,
@@ -372,14 +372,14 @@ describe('getDashboardStudents', () => {
 
     const { students, totalCount } = await getDashboardStudents({
       range: '30d',
-      page: 2,
+      page: 4,
       sort: 'name',
       dir: 'asc',
       status: undefined,
     })
 
     expect(totalCount).toBe(30)
-    expect(students).toHaveLength(5)
+    expect(students).toHaveLength(0)
   })
 
   it('returns empty students when page exceeds total pages', async () => {

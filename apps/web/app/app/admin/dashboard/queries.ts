@@ -9,7 +9,7 @@ import type {
   WeakTopic,
 } from './types'
 
-import { PAGE_SIZE } from './types'
+import { STUDENTS_PAGE_SIZE } from './types'
 
 // RPC calls use the authenticated client (not adminClient) so auth.uid() is set in Postgres.
 // adminClient (service role) sets auth.uid() = NULL, which would fail the RPCs' auth check.
@@ -149,8 +149,8 @@ export async function getDashboardStudents(
   })
 
   const totalCount = merged.length
-  const start = (filters.page - 1) * PAGE_SIZE
-  const students = merged.slice(start, start + PAGE_SIZE)
+  const start = (filters.page - 1) * STUDENTS_PAGE_SIZE
+  const students = merged.slice(start, start + STUDENTS_PAGE_SIZE)
 
   return { students, totalCount }
 }
