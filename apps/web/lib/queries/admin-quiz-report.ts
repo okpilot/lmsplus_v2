@@ -43,7 +43,7 @@ export async function getAdminQuizReportSummary(
 ): Promise<AdminQuizReportSummary | null> {
   const { organizationId } = await requireAdmin()
 
-  const { data: sessionData } = await adminClient
+  const { data: sessionData, error: sessionError } = await adminClient
     .from('quiz_sessions')
     .select(
       'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage, student_id',
@@ -53,6 +53,10 @@ export async function getAdminQuizReportSummary(
     .is('deleted_at', null)
     .maybeSingle()
 
+  if (sessionError) {
+    console.error('[getAdminQuizReportSummary] Session query error:', sessionError.message)
+    return null
+  }
   const session = sessionData as AdminSessionRow | null
   if (!session) return null
   // Only serve reports for completed sessions — prevents mid-session answer exposure
