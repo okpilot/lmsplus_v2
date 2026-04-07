@@ -103,7 +103,7 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
     mode: session.mode,
     subjectName,
     totalQuestions: session.total_questions,
-    answeredCount: answeredCount ?? 0,
+    answeredCount: answeredCount ?? session.total_questions,
     correctCount: session.correct_count,
     scorePercentage: session.score_percentage ?? 0,
     startedAt: session.started_at,

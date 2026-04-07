@@ -220,10 +220,10 @@ describe('getAdminQuizReportSummary', () => {
     expect(result!.scorePercentage).toBe(0)
   })
 
-  it('falls back to 0 answeredCount when count is null', async () => {
+  it('falls back to total_questions answeredCount when count is null', async () => {
     mockFromSequence({ data: completedSession }, { count: null, data: null }, { data: null })
     const result = await getAdminQuizReportSummary('sess-1')
-    expect(result!.answeredCount).toBe(0)
+    expect(result!.answeredCount).toBe(completedSession.total_questions)
   })
 
   it('returns null when the answered-count query returns an error', async () => {

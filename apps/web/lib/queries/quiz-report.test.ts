@@ -208,11 +208,11 @@ describe('getQuizReportSummary', () => {
     expect(summary!.scorePercentage).toBe(0)
   })
 
-  it('falls back to zero answeredCount when count is null', async () => {
+  it('falls back to total_questions answeredCount when count is null', async () => {
     mockFromSequence({ data: sessionRow }, { count: null, data: null })
     const summary = await getQuizReportSummary('sess-1')
     expect(summary).not.toBeNull()
-    expect(summary!.answeredCount).toBe(0)
+    expect(summary!.answeredCount).toBe(sessionRow.total_questions)
   })
 })
 
