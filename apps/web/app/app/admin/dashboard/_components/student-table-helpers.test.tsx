@@ -356,6 +356,19 @@ describe('StudentRow', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
+  it('does not respond to mouse click when inactive', () => {
+    const onClick = vi.fn()
+    render(
+      <table>
+        <tbody>
+          <StudentRow student={buildStudent({ isActive: false })} onClick={onClick} />
+        </tbody>
+      </table>,
+    )
+    fireEvent.click(screen.getByRole('row'))
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
   it('applies a green mastery colour class when mastery is 80 or above', () => {
     render(
       <table>

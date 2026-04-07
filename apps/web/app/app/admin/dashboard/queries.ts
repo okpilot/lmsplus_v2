@@ -101,8 +101,9 @@ export async function getDashboardStudents(
     avg_score: number | null
     mastery: number
   } // prettier-ignore
+  const statsRows = Array.isArray(statsData) ? (statsData as StatRow[]) : []
   const statsMap = new Map<string, StatRow>()
-  for (const s of (statsData ?? []) as StatRow[]) {
+  for (const s of statsRows) {
     statsMap.set(s.user_id, s)
   }
 
@@ -162,16 +163,18 @@ export async function getWeakTopics(): Promise<WeakTopic[]> {
     throw new Error('Failed to fetch weak topics')
   }
 
-  return (
-    (data ?? []) as Array<{
-      topic_id: string
-      topic_name: string
-      subject_name: string
-      subject_short: string
-      avg_score: number
-      student_count: number
-    }>
-  ).map((row) => ({
+  const rows = Array.isArray(data)
+    ? (data as Array<{
+        topic_id: string
+        topic_name: string
+        subject_name: string
+        subject_short: string
+        avg_score: number
+        student_count: number
+      }>)
+    : []
+
+  return rows.map((row) => ({
     topicId: row.topic_id,
     topicName: row.topic_name,
     subjectName: row.subject_name,
@@ -204,16 +207,18 @@ export async function getRecentSessions(range: TimeRange): Promise<RecentSession
     throw new Error('Failed to fetch recent sessions')
   }
 
-  return (
-    (data ?? []) as Array<{
-      id: string
-      mode: string
-      score_percentage: number | null
-      ended_at: string
-      users: { full_name: string | null } | null
-      easa_subjects: { name: string } | null
-    }>
-  ).map((row) => ({
+  const sessionRows = Array.isArray(data)
+    ? (data as Array<{
+        id: string
+        mode: string
+        score_percentage: number | null
+        ended_at: string
+        users: { full_name: string | null } | null
+        easa_subjects: { name: string } | null
+      }>)
+    : []
+
+  return sessionRows.map((row) => ({
     sessionId: row.id,
     studentName: row.users?.full_name ?? null,
     subjectName: row.easa_subjects?.name ?? null,
