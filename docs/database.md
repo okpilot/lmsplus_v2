@@ -539,8 +539,9 @@ Use Postgres functions (RPCs) for:
 ```
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
-  get_report_correct_options ← read, returns correct option IDs for completed-session reports
-  check_quiz_answer          ← read, verify answer + return explanation (immediate feedback)
+  get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped)
+  get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin())
+  check_quiz_answer                ← read, verify answer + return explanation (immediate feedback)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit + last_active_at stamp (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
@@ -1088,6 +1089,14 @@ BEGIN
 END;
 $$;
 ```
+
+#### `get_admin_report_correct_options` — admin variant (org-scoped)
+
+Same return shape as `get_report_correct_options` but scoped by organization instead of student. Allows admins to view correct answers for any completed session in their org.
+
+**Security:** Validates `auth.uid()`, `is_admin()`, org membership, session completion (`ended_at IS NOT NULL`), and soft-delete status. Added in migration `20260406000005` + `20260406000006`.
+
+**Used by:** `lib/queries/admin-quiz-report.ts` → admin session report page at `/app/admin/dashboard/sessions/[id]`.
 
 #### `check_quiz_answer` — verify answer + return explanation
 

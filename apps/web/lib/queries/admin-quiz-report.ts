@@ -62,6 +62,7 @@ export async function getAdminQuizReportSummary(
   // Only serve reports for completed sessions — prevents mid-session answer exposure
   if (!session.ended_at) return null
 
+  // Session org-membership verified on lines 50-58 above — sessionId is safe to use unscoped
   const { count: answeredCount } = await adminClient
     .from('quiz_session_answers')
     .select('question_id', { count: 'exact', head: true })
@@ -168,7 +169,9 @@ export async function getAdminQuizReportQuestions(opts: {
 
   const questionIds = answers.map((a) => a.question_id)
 
-  // Direct SELECT safe: ended_at guard blocks mid-session access; buildReportQuestions strips correct.
+  // Direct SELECT on questions.options includes the raw `correct` boolean in the DB response,
+  // but this is admin-only code (requireAdmin + is_admin RPC), the session is verified complete
+  // (ended_at guard), and buildReportQuestions strips `correct` — only `correctOptionId` is returned.
   // Omits deleted_at intentionally — historical record for completed sessions.
   const { data: questionsData, error: questionsError } = await adminClient
     .from('questions')

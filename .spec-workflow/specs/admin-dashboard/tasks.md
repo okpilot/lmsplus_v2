@@ -102,6 +102,15 @@
   - _Requirements: R6_
   - _Prompt: "Implement the task for spec admin-dashboard, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Next.js Developer specializing in dynamic routes and server-side data fetching | Task: Build the student detail page at /app/admin/dashboard/students/[id]/. (1) Add getStudentDetail(studentId) and getStudentSessions(studentId, filters) to queries.ts. getStudentDetail queries users WHERE id=studentId AND organization_id=orgId AND deleted_at IS NULL, returns null if not found. getStudentSessions queries quiz_sessions with student_id + org_id scope, LEFT JOIN easa_subjects + easa_topics, time range filter, server-side sort, pagination (page size 25, count:'exact'). (2) page.tsx — parse params (id from route, page/sort/dir/range from searchParams), call getStudentDetail, notFound() if null, compose StudentHeader + Suspense → SessionHistoryContent. Under 80 lines. (3) loading.tsx — skeleton. (4) StudentHeader — student name, email, role badge, status badge, last active date, breadcrumb: 'Dashboard > {name}' with link back to /app/admin/dashboard preserving previous URL params. (5) SessionHistoryContent → SessionHistoryTable — async fetch → client shell with sortable columns [Date, Subject, Topic, Mode, Score (%), Questions (correct/total), Duration], PaginationBar, time range filter. | Restrictions: Return 404 (notFound()) for cross-org student IDs — never 403. No correct answer data exposed. Each component under 150 lines. | _Leverage: queries.ts, PaginationBar, shadcn Table/Badge, `apps/web/app/app/admin/students/_components/` for patterns | _Requirements: R6 | Success: Student detail page loads for valid student ID, 404 for invalid/cross-org, session table sorts/paginates/filters by range, breadcrumb navigates back. | After completing, mark task as [-] in tasks.md, log implementation with log-implementation tool, then mark as [x]."
 
+- [x] 11. Admin session report page with clickable session rows
+  - Files: `apps/web/app/app/admin/dashboard/sessions/[id]/page.tsx`, `apps/web/lib/queries/admin-quiz-report.ts`, `supabase/migrations/20260406000005_*.sql`, `supabase/migrations/20260406000006_*.sql`
+  - New route `/app/admin/dashboard/sessions/[id]` — admin can view full quiz report for any org session
+  - New SECURITY DEFINER RPC `get_admin_report_correct_options` (org-scoped, is_admin() check)
+  - Clickable rows in session history table and recent activity list
+  - Student table page size changed from 25 to 10
+  - 40 tests added for admin queries + clickable row
+  - Purpose: Complete admin drill-down from dashboard → student → session → question-level report.
+
 - [x] 10. Regenerate Supabase types and integration test
   - Files: `packages/db/src/types.ts`
   - Run `npx supabase gen types typescript --linked > packages/db/src/types.ts` to pick up new RPCs
