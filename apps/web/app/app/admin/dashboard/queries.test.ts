@@ -427,6 +427,25 @@ describe('getDashboardStudents', () => {
     consoleSpy.mockRestore()
   })
 
+  it('treats stats as empty when RPC returns a non-array value with no error', async () => {
+    // Supabase RPC can return a scalar (e.g. null, object) instead of an array
+    // when the function signature changes. The Array.isArray guard must fall back to [].
+    mockAuthRpc.mockResolvedValue({ data: null, error: null })
+    mockFrom.mockReturnValue(makeFromChain([makeUserRow({ id: 'u1' })]))
+
+    const { students } = await getDashboardStudents({
+      range: '30d',
+      page: 1,
+      sort: 'name',
+      dir: 'asc',
+      status: undefined,
+    })
+
+    // No stat row found → defaults applied
+    expect(students).toHaveLength(1)
+    expect(students[0]).toMatchObject({ sessionCount: 0, avgScore: null, mastery: 0 })
+  })
+
   // -- status filter --
 
   it('applies no deleted_at filter when status is undefined (shows all students)', async () => {
@@ -613,6 +632,15 @@ describe('getWeakTopics', () => {
     await expect(getWeakTopics()).rejects.toThrow('Failed to fetch weak topics')
     consoleSpy.mockRestore()
   })
+
+  it('returns empty array when RPC returns a non-array value with no error', async () => {
+    // Guards against scalar RPC responses (e.g. object instead of array)
+    mockAuthRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
+
+    const result = await getWeakTopics()
+
+    expect(result).toEqual([])
+  })
 })
 
 // ---- getRecentSessions ----------------------------------------------------
@@ -682,5 +710,25 @@ describe('getRecentSessions', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await expect(getRecentSessions('30d')).rejects.toThrow('Failed to fetch recent sessions')
     consoleSpy.mockRestore()
+  })
+
+  it('returns empty array when query returns a non-array value with no error', async () => {
+    // Guards against scalar responses from the Supabase query builder
+    const chain: Record<string, unknown> = {}
+    for (const method of ['select', 'eq', 'is', 'not', 'order', 'limit', 'gte']) {
+      chain[method] = vi.fn().mockReturnValue(chain)
+    }
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for Supabase query builder
+    chain.then = vi
+      .fn()
+      .mockImplementation((resolve: (value: { data: unknown; error: null }) => void) => {
+        resolve({ data: null, error: null })
+        return Promise.resolve({ data: null, error: null })
+      })
+    mockFrom.mockReturnValue(chain)
+
+    const result = await getRecentSessions('7d')
+
+    expect(result).toEqual([])
   })
 })

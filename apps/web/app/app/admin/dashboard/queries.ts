@@ -108,7 +108,8 @@ export async function getDashboardStudents(
   }
 
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-  const merged: DashboardStudent[] = (usersData ?? []).map((u) => {
+  const userRows = Array.isArray(usersData) ? usersData : []
+  const merged: DashboardStudent[] = userRows.map((u) => {
     const stats = statsMap.get(u.id)
     return {
       id: u.id,
