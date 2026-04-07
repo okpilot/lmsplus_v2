@@ -112,6 +112,7 @@ After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache)
 - All mutations via Server Actions (no API routes for mutations)
 - Correct answers stripped server-side via `get_quiz_questions()` RPC — never SELECT * for students
 - Service role key: `packages/db/src/admin.ts` only, never NEXT_PUBLIC_
+- When applying any defensive pattern (cast guard, null check, error destructuring) to one location in a file, grep the same file for all other instances of the same pattern before committing
 
 ## NEVER DO (top-level negative constraints)
 
