@@ -288,7 +288,7 @@ async function seed() {
         if (!selected) continue
 
         await db.from('quiz_session_answers').insert({
-          session_id: session?.id ?? '',
+          session_id: session.id,
           question_id: q.id,
           selected_option_id: selected.id,
           is_correct: isCorrect,

@@ -225,6 +225,15 @@ describe('getAdminQuizReportSummary', () => {
     const result = await getAdminQuizReportSummary('sess-1')
     expect(result!.answeredCount).toBe(0)
   })
+
+  it('returns null when the answered-count query returns an error', async () => {
+    mockFromSequence(
+      { data: completedSession },
+      { count: null, data: null, error: { message: 'count query failed' } },
+    )
+    const result = await getAdminQuizReportSummary('sess-1')
+    expect(result).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
