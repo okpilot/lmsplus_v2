@@ -524,6 +524,33 @@ describe('getQuizReportQuestions', () => {
     expect(result.totalCount).toBe(5)
   })
 
+  it('treats all correctOptionIds as empty string when RPC returns null instead of an array', async () => {
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
+      { count: 1 },
+      { data: [answersData[0]] },
+      {
+        data: [
+          {
+            id: 'q1',
+            question_text: 'What is lift?',
+            question_number: '050-01-001',
+            options: [{ id: 'opt-a', text: 'Upward force' }],
+            explanation_text: null,
+            explanation_image_url: null,
+          },
+        ],
+      },
+    )
+    // RPC returns null (non-array) — the Array.isArray guard must treat this as []
+    mockRpc.mockResolvedValueOnce({ data: null, error: null })
+
+    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.questions[0]!.correctOptionId).toBe('')
+  })
+
   it('uses PAGE_SIZE = 10', () => {
     expect(PAGE_SIZE).toBe(10)
   })

@@ -335,6 +335,23 @@ describe('getStudentSessions', () => {
     })
   })
 
+  it('applies a secondary id tiebreak order to prevent row duplication on tied sort columns', async () => {
+    const chain = makeSessionChain([], 1)
+    mockFrom.mockReturnValue(chain)
+
+    await getStudentSessions(STUDENT_ID, {
+      range: 'all',
+      page: 1,
+      sort: 'date',
+      dir: 'desc',
+    })
+
+    const orderCalls = (chain.order as ReturnType<typeof vi.fn>).mock.calls
+    // First call: primary sort column; second call: tiebreak by id
+    expect(orderCalls).toHaveLength(2)
+    expect(orderCalls[1]?.[0]).toBe('id')
+  })
+
   it('throws when the query returns an error', async () => {
     mockFrom.mockReturnValue(makeSessionChain([], null, { message: 'timeout' }))
 
