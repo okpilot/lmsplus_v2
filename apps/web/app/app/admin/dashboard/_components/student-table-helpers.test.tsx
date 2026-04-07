@@ -1,8 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DashboardStudent } from '../types'
-import type { SortField } from './student-table-helpers'
-import { formatRelativeTime, masteryColor, SortableHead, StudentRow } from './student-table-helpers'
+import { formatRelativeTime, StudentRow } from './student-table-helpers'
 
 afterEach(cleanup)
 beforeEach(() => {
@@ -70,123 +69,6 @@ describe('formatRelativeTime', () => {
   it('clamps future timestamps to "0m ago"', () => {
     const future = new Date(Date.now() + 60_000).toISOString()
     expect(formatRelativeTime(future)).toBe('0m ago')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// masteryColor
-// ---------------------------------------------------------------------------
-
-describe('masteryColor', () => {
-  it('returns green class when mastery is 80 or above', () => {
-    expect(masteryColor(80)).toBe('text-green-600')
-    expect(masteryColor(100)).toBe('text-green-600')
-  })
-
-  it('returns amber class when mastery is 50–79', () => {
-    expect(masteryColor(50)).toBe('text-amber-600')
-    expect(masteryColor(79)).toBe('text-amber-600')
-  })
-
-  it('returns red class when mastery is below 50', () => {
-    expect(masteryColor(0)).toBe('text-red-600')
-    expect(masteryColor(49)).toBe('text-red-600')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// SortableHead
-// ---------------------------------------------------------------------------
-
-describe('SortableHead', () => {
-  const baseProps = {
-    field: 'name' as SortField,
-    label: 'Name',
-    activeSort: 'name' as SortField,
-    activeDir: 'asc' as const,
-    onSort: vi.fn(),
-  }
-
-  it('shows an ascending indicator when field is the active sort and direction is asc', () => {
-    render(
-      <table>
-        <thead>
-          <tr>
-            <SortableHead {...baseProps} />
-          </tr>
-        </thead>
-      </table>,
-    )
-    expect(screen.getByRole('columnheader')).toHaveTextContent('Name ▲')
-  })
-
-  it('shows a descending indicator when field is the active sort and direction is desc', () => {
-    render(
-      <table>
-        <thead>
-          <tr>
-            <SortableHead {...baseProps} activeDir="desc" />
-          </tr>
-        </thead>
-      </table>,
-    )
-    expect(screen.getByRole('columnheader')).toHaveTextContent('Name ▼')
-  })
-
-  it('shows no indicator when field is not the active sort', () => {
-    render(
-      <table>
-        <thead>
-          <tr>
-            <SortableHead {...baseProps} activeSort="mastery" />
-          </tr>
-        </thead>
-      </table>,
-    )
-    // Exact text — no trailing indicator character
-    expect(screen.getByRole('columnheader').textContent).toBe('Name')
-  })
-
-  it('calls onSort with the field when clicked', () => {
-    const onSort = vi.fn()
-    render(
-      <table>
-        <thead>
-          <tr>
-            <SortableHead {...baseProps} onSort={onSort} />
-          </tr>
-        </thead>
-      </table>,
-    )
-    fireEvent.click(screen.getByRole('button', { name: /name/i }))
-    expect(onSort).toHaveBeenCalledWith('name')
-    expect(onSort).toHaveBeenCalledTimes(1)
-  })
-
-  it('sets aria-sort on the column header', () => {
-    render(
-      <table>
-        <thead>
-          <tr>
-            <SortableHead {...baseProps} activeDir="desc" />
-          </tr>
-        </thead>
-      </table>,
-    )
-    expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'descending')
-  })
-
-  it('sets aria-sort to none when field is not active', () => {
-    render(
-      <table>
-        <thead>
-          <tr>
-            <SortableHead {...baseProps} activeSort="mastery" />
-          </tr>
-        </thead>
-      </table>,
-    )
-    expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'none')
   })
 })
 

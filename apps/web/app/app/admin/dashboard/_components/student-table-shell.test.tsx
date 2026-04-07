@@ -42,9 +42,9 @@ vi.mock('./student-status-filter', () => ({
   ),
 }))
 
-// Stub table sub-components — SortableHead and StudentRow are tested separately.
-vi.mock('./student-table-helpers', () => ({
-  SortableHead: ({
+// Stub SortableTableHead — tested separately in _lib/sortable-head.test.tsx.
+vi.mock('../_lib/sortable-head', () => ({
+  SortableTableHead: ({
     field,
     label,
     onSort,
@@ -61,6 +61,10 @@ vi.mock('./student-table-helpers', () => ({
       </button>
     </th>
   ),
+}))
+
+// Stub StudentRow — tested separately in student-table-helpers.test.tsx.
+vi.mock('./student-table-helpers', () => ({
   StudentRow: ({ student }: { student: DashboardStudent; onClick: () => void }) => (
     <tr data-testid={`student-row-${student.id}`}>
       <td>{student.fullName}</td>

@@ -1,12 +1,7 @@
+import { getMasteryColor } from '../_lib/constants'
 import type { DashboardKpis, TimeRange } from '../types'
 
 type Props = Readonly<{ data: DashboardKpis; range: TimeRange }>
-
-function getMasteryColor(pct: number): string {
-  if (pct < 50) return 'text-red-500'
-  if (pct < 80) return 'text-amber-500'
-  return 'text-green-500'
-}
 
 function rangeLabel(range: TimeRange): string {
   const labels: Record<TimeRange, string> = {

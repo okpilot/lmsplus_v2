@@ -63,10 +63,14 @@ export async function getAdminQuizReportSummary(
   if (!session.ended_at) return null
 
   // Session org-membership verified on lines 50-58 above — sessionId is safe to use unscoped
-  const { count: answeredCount } = await adminClient
+  const { count: answeredCount, error: countError } = await adminClient
     .from('quiz_session_answers')
     .select('question_id', { count: 'exact', head: true })
     .eq('session_id', sessionId)
+  if (countError) {
+    console.error('[getAdminQuizReportSummary] Count query error:', countError.message)
+    return null
+  }
 
   let subjectName: string | null = null
   if (session.subject_id) {

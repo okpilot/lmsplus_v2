@@ -4,12 +4,13 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { SortableTableHead } from '../_lib/sortable-head'
 import type { DashboardFilters, DashboardStudent } from '../types'
 import { STUDENTS_PAGE_SIZE } from '../types'
 import { StudentStatusFilter } from './student-status-filter'
-import { SortableHead, type SortField, StudentRow } from './student-table-helpers'
+import { StudentRow } from './student-table-helpers'
 
-const SORTABLE_COLUMNS: { field: SortField; label: string }[] = [
+const SORTABLE_COLUMNS: { field: DashboardFilters['sort']; label: string }[] = [
   { field: 'name', label: 'Name' },
   { field: 'lastActive', label: 'Last Active' },
   { field: 'sessions', label: 'Sessions' },
@@ -42,7 +43,7 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
   )
 
   const handleSort = useCallback(
-    (field: SortField) => {
+    (field: DashboardFilters['sort']) => {
       const nextDir = filters.sort === field && filters.dir === 'asc' ? 'desc' : 'asc'
       const params = new URLSearchParams(searchParams.toString())
       params.set('sort', field)
@@ -93,7 +94,7 @@ export function StudentTableShell({ students, totalCount, filters }: Props) {
           <TableHeader>
             <TableRow>
               {SORTABLE_COLUMNS.map((col) => (
-                <SortableHead
+                <SortableTableHead
                   key={col.field}
                   field={col.field}
                   label={col.label}

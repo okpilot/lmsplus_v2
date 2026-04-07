@@ -4,11 +4,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { SortableTableHead } from '../../../_lib/sortable-head'
 import type { SessionSort, StudentSession, StudentSessionFilters } from '../../../types'
 import { SESSIONS_PAGE_SIZE } from '../../../types'
 import { ClickableSessionRow } from './clickable-session-row'
 import { SessionRangeHeader } from './session-range-header'
-import { SortableSessionHead } from './sortable-session-head'
 
 export function SessionHistoryTable({
   sessions,
@@ -79,7 +79,7 @@ export function SessionHistoryTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableSessionHead
+              <SortableTableHead
                 field="date"
                 label="Date"
                 activeSort={filters.sort}
@@ -88,21 +88,21 @@ export function SessionHistoryTable({
               />
               <TableHead>Subject</TableHead>
               <TableHead>Topic</TableHead>
-              <SortableSessionHead
+              <SortableTableHead
                 field="mode"
                 label="Mode"
                 activeSort={filters.sort}
                 activeDir={filters.dir}
                 onSort={handleSort}
               />
-              <SortableSessionHead
+              <SortableTableHead
                 field="score"
                 label="Score"
                 activeSort={filters.sort}
                 activeDir={filters.dir}
                 onSort={handleSort}
               />
-              <SortableSessionHead
+              <SortableTableHead
                 field="questions"
                 label="Questions"
                 activeSort={filters.sort}

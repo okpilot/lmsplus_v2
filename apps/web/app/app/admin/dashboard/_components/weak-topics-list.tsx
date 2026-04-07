@@ -1,3 +1,4 @@
+import { getMasteryColor } from '../_lib/constants'
 import type { WeakTopic } from '../types'
 
 type Props = Readonly<{ topics: WeakTopic[] }>
@@ -6,12 +7,6 @@ function getBarColor(score: number): string {
   if (score < 50) return 'bg-red-500'
   if (score < 80) return 'bg-amber-500'
   return 'bg-green-500'
-}
-
-function getScoreColor(score: number): string {
-  if (score < 50) return 'text-red-600'
-  if (score < 80) return 'text-amber-600'
-  return 'text-green-600'
 }
 
 export function WeakTopicsList({ topics }: Props) {
@@ -34,7 +29,7 @@ export function WeakTopicsList({ topics }: Props) {
                 </div>
                 <div className="shrink-0 text-right">
                   <p
-                    className={`text-sm font-semibold tabular-nums ${getScoreColor(topic.avgScore)}`}
+                    className={`text-sm font-semibold tabular-nums ${getMasteryColor(topic.avgScore)}`}
                   >
                     {Math.round(topic.avgScore)}%
                   </p>

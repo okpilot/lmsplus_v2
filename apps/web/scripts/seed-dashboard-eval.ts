@@ -296,8 +296,11 @@ async function seed() {
         })
 
         await db.from('student_responses').insert({
+          organization_id: org.id,
           student_id: sid,
           question_id: q.id,
+          session_id: session?.id ?? null,
+          selected_option_id: selected.id,
           is_correct: isCorrect,
           response_time_ms: Math.floor(Math.random() * 25000) + 5000,
         })

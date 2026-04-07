@@ -9,14 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { TIME_RANGE_OPTIONS } from '../_lib/constants'
 import type { TimeRange } from '../types'
-
-const TIME_RANGE_OPTIONS = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-  { value: 'all', label: 'All time' },
-]
 
 type Props = {
   currentRange: TimeRange

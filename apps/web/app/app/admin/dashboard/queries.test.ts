@@ -360,7 +360,7 @@ describe('getDashboardStudents', () => {
     expect(students).toHaveLength(10)
   })
 
-  it('returns remaining students on the fourth page', async () => {
+  it('returns empty array for page past the last page', async () => {
     const users = Array.from({ length: 30 }, (_, i) =>
       makeUserRow({
         id: `u${i}`,
