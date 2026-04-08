@@ -131,7 +131,8 @@ describe('getStudentDetail', () => {
 
   it('returns mapped student detail when student is found', async () => {
     const row = makeUserDetailRow()
-    mockFrom.mockReturnValue(makeDetailChain(row))
+    const chain = makeDetailChain(row)
+    mockFrom.mockReturnValue(chain)
 
     const result = await getStudentDetail(STUDENT_ID)
 
@@ -144,6 +145,19 @@ describe('getStudentDetail', () => {
       createdAt: '2026-01-01T00:00:00Z',
       deletedAt: null,
     })
+  })
+
+  it('scopes query by student id, organization, and role', async () => {
+    const chain = makeDetailChain(makeUserDetailRow())
+    mockFrom.mockReturnValue(chain)
+
+    await getStudentDetail(STUDENT_ID)
+
+    expect(mockFrom).toHaveBeenCalledWith('users')
+    const eqCalls = (chain.eq as ReturnType<typeof vi.fn>).mock.calls
+    expect(eqCalls).toContainEqual(['id', STUDENT_ID])
+    expect(eqCalls).toContainEqual(['organization_id', DEFAULT_ORG_ID])
+    expect(eqCalls).toContainEqual(['role', 'student'])
   })
 
   it('returns null when no student matches the id and org', async () => {
