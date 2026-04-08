@@ -9,7 +9,6 @@ const mockReplace = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
   usePathname: () => '/app/reports',
-  useSearchParams: () => new URLSearchParams('sort=date&dir=desc'),
 }))
 
 /** Return only <a> links (excludes <tr role="link"> which has no href) */
@@ -138,6 +137,10 @@ describe('ReportsList', () => {
 describe('ReportsList sort toggles', () => {
   beforeEach(() => {
     mockReplace.mockReset()
+    Object.defineProperty(window, 'location', {
+      value: { search: '?sort=date&dir=desc' },
+      writable: true,
+    })
   })
 
   it('shows the active sort arrow on the current sort key', () => {
@@ -181,7 +184,10 @@ describe('ReportsList sort toggles', () => {
       />,
     )
     await user.click(screen.getByRole('button', { name: /date/i }))
-    expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining('dir=asc'))
+    const url = mockReplace.mock.calls[0]?.[0] as string
+    const params = new URL(url, 'http://x').searchParams
+    expect(params.get('dir')).toBe('asc')
+    expect(params.get('sort')).toBe('date')
   })
 
   it('calls router.replace without page param when sort changes (resets to page 1)', async () => {
@@ -197,9 +203,11 @@ describe('ReportsList sort toggles', () => {
       />,
     )
     await user.click(screen.getByRole('button', { name: /score/i }))
-    const call = mockReplace.mock.calls[0]?.[0] as string
-    expect(call).toContain('sort=score')
-    expect(call).not.toContain('page=')
+    const url = mockReplace.mock.calls[0]?.[0] as string
+    const params = new URL(url, 'http://x').searchParams
+    expect(params.get('sort')).toBe('score')
+    expect(params.get('dir')).toBe('asc')
+    expect(params.has('page')).toBe(false)
   })
 
   it('does not show arrow on inactive sort keys', () => {
