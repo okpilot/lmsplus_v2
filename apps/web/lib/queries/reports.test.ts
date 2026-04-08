@@ -26,6 +26,25 @@ function buildChain(returnValue: unknown) {
   })
 }
 
+type ChainCall = { method: string; args: unknown[] }
+
+function buildCapturingChain(returnValue: unknown, calls: ChainCall[]) {
+  const awaitable = {
+    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+      Promise.resolve(returnValue).then(resolve, reject),
+  }
+  return new Proxy(awaitable as Record<string, unknown>, {
+    get(target, prop) {
+      if (prop === 'then') return target.then
+      return (...args: unknown[]) => {
+        calls.push({ method: String(prop), args })
+        return buildCapturingChain(returnValue, calls)
+      }
+    },
+  })
+}
+
 import { getSessionReports } from './reports'
 
 const DEFAULT_OPTS = { page: 1, sort: 'date' as const, dir: 'desc' as const }
@@ -212,9 +231,28 @@ describe('getSessionReports', () => {
 
   it('calculates correct range for page 2', async () => {
     // page=2, PAGE_SIZE=10 → range(10, 19)
-    mockFrom.mockImplementation(() => buildChain({ data: [], count: 15, error: null }))
+    // The count query and data query both hit quiz_sessions; we capture calls only on the
+    // second invocation (the paginated SELECT) where .range() and .order() are called.
+    const dataCalls: ChainCall[] = []
+    let quizSessionsCallCount = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') {
+        quizSessionsCallCount++
+        // First call is the COUNT HEAD query — no .range(), use plain chain
+        if (quizSessionsCallCount === 1) return buildChain({ count: 15, error: null })
+        // Second call is the paginated data query — capture calls
+        return buildCapturingChain({ data: [], count: 15, error: null }, dataCalls)
+      }
+      return buildChain({ data: [], count: 0, error: null })
+    })
+
     const result = await getSessionReports({ page: 2, sort: 'date', dir: 'desc' })
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 15 })
+
+    const rangeCall = dataCalls.find((c) => c.method === 'range')
+    expect(rangeCall, '.range() must be called on the paginated query').toBeDefined()
+    // page=2, PAGE_SIZE=10 → from=10, to=19
+    expect(rangeCall!.args).toEqual([10, 19])
   })
 
   it('returns empty sessions with correct totalCount when page exceeds total pages', async () => {
@@ -236,8 +274,14 @@ describe('getSessionReports', () => {
         subject_id: null,
       },
     ]
+    const dataCalls: ChainCall[] = []
+    let quizSessionsCallCount = 0
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'quiz_sessions') return buildChain({ data: sessions, count: 1, error: null })
+      if (table === 'quiz_sessions') {
+        quizSessionsCallCount++
+        if (quizSessionsCallCount === 1) return buildChain({ count: 1, error: null })
+        return buildCapturingChain({ data: sessions, count: 1, error: null }, dataCalls)
+      }
       if (table === 'quiz_session_answers') return buildChain({ data: [], error: null })
       throw new Error(`Unexpected table: ${table}`)
     })
@@ -246,5 +290,50 @@ describe('getSessionReports', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.sessions).toHaveLength(1)
+
+    // sort='score' maps to column 'score_percentage', dir='asc' → ascending: true
+    const orderCalls = dataCalls.filter((c) => c.method === 'order')
+    expect(orderCalls.length).toBeGreaterThanOrEqual(1)
+    const primaryOrder = orderCalls[0]!
+    expect(primaryOrder.args[0]).toBe('score_percentage')
+    expect(primaryOrder.args[1]).toEqual({ ascending: true })
+  })
+
+  it('respects sort direction — date descending', async () => {
+    const sessions = [
+      {
+        id: 'sess-2',
+        mode: 'quick_quiz',
+        total_questions: 5,
+        correct_count: 4,
+        score_percentage: 80,
+        started_at: '2026-03-12T10:00:00Z',
+        ended_at: '2026-03-12T10:10:00Z',
+        subject_id: null,
+      },
+    ]
+    const dataCalls: ChainCall[] = []
+    let quizSessionsCallCount = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'quiz_sessions') {
+        quizSessionsCallCount++
+        if (quizSessionsCallCount === 1) return buildChain({ count: 1, error: null })
+        return buildCapturingChain({ data: sessions, count: 1, error: null }, dataCalls)
+      }
+      if (table === 'quiz_session_answers') return buildChain({ data: [], error: null })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getSessionReports({ page: 1, sort: 'date', dir: 'desc' })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.sessions).toHaveLength(1)
+
+    // sort='date' maps to column 'started_at', dir='desc' → ascending: false
+    const orderCalls = dataCalls.filter((c) => c.method === 'order')
+    expect(orderCalls.length).toBeGreaterThanOrEqual(1)
+    const primaryOrder = orderCalls[0]!
+    expect(primaryOrder.args[0]).toBe('started_at')
+    expect(primaryOrder.args[1]).toEqual({ ascending: false })
   })
 })

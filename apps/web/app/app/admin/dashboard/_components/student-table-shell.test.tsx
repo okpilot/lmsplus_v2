@@ -65,8 +65,8 @@ vi.mock('../_lib/sortable-head', () => ({
 
 // Stub StudentRow — tested separately in student-table-helpers.test.tsx.
 vi.mock('./student-table-helpers', () => ({
-  StudentRow: ({ student }: { student: DashboardStudent; onClick: () => void }) => (
-    <tr data-testid={`student-row-${student.id}`}>
+  StudentRow: ({ student, onClick }: { student: DashboardStudent; onClick: () => void }) => (
+    <tr data-testid={`student-row-${student.id}`} onClick={onClick}>
       <td>{student.fullName}</td>
     </tr>
   ),
@@ -284,5 +284,20 @@ describe('StudentTableShell — handleSort', () => {
     const result = new URLSearchParams(url.replace('?', ''))
     expect(result.get('sort')).toBe('name')
     expect(result.get('dir')).toBe('asc')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Row navigation
+// ---------------------------------------------------------------------------
+
+describe('StudentTableShell — row navigation', () => {
+  it('navigates to the student detail page when a row is clicked', () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams())
+    const student = makeStudent({ id: 'student-42' })
+    render(<StudentTableShell students={[student]} totalCount={1} filters={BASE_FILTERS} />)
+    fireEvent.click(screen.getByTestId('student-row-student-42'))
+    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/app/admin/dashboard/students/student-42')
   })
 })
