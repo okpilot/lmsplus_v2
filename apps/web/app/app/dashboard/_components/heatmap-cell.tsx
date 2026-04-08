@@ -31,7 +31,10 @@ export function HeatmapCell({
       : 'text-muted-foreground'
 
   return (
-    <div className="flex min-w-[30px] flex-col items-center gap-0.5 md:min-w-[38px] md:flex-1">
+    <div
+      data-testid={`heatmap-cell-${day}`}
+      className="flex min-w-[30px] flex-col items-center gap-0.5 md:min-w-[38px] md:flex-1"
+    >
       <div
         className={`flex h-[38px] w-full flex-col items-center justify-center gap-0.5 rounded-md md:h-[46px] ${cellBg}${ring} p-1`}
       >
