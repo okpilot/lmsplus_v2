@@ -35,6 +35,16 @@ describe('useUpdateSearchParams', () => {
     expect(mockReplace).toHaveBeenCalledWith('/app/admin/dashboard?sort=name')
   })
 
+  it('omits trailing ? when all params are deleted', () => {
+    Object.defineProperty(window, 'location', {
+      value: { search: '?page=2' },
+      writable: true,
+    })
+    const { result } = renderHook(() => useUpdateSearchParams())
+    act(() => result.current({ page: null }))
+    expect(mockReplace).toHaveBeenCalledWith('/app/admin/dashboard')
+  })
+
   it('reads from window.location.search at call time, not render time', () => {
     Object.defineProperty(window, 'location', {
       value: { search: '' },

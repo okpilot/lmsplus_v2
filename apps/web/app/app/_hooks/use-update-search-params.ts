@@ -18,6 +18,7 @@ export function useUpdateSearchParams() {
 
   return useCallback(
     (updates: Record<string, string | null>) => {
+      // Safe: callback only runs in browser event handlers, never during SSR
       const params = new URLSearchParams(window.location.search)
       for (const [key, value] of Object.entries(updates)) {
         if (value === null) {
@@ -26,7 +27,8 @@ export function useUpdateSearchParams() {
           params.set(key, value)
         }
       }
-      router.replace(`${pathname}?${params.toString()}`)
+      const qs = params.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname)
     },
     [router, pathname],
   )

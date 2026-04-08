@@ -245,8 +245,8 @@ describe('PaginationBar', () => {
 
     await user.click(screen.getByLabelText('Previous page'))
 
-    // page=1 is represented by no ?page param
-    expect(mockRouterReplace).toHaveBeenCalledWith('/test?')
+    // page=1 is represented by no ?page param — clean path without trailing ?
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test')
   })
 
   it('preserves existing search params when navigating', async () => {
