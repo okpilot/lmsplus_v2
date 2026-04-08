@@ -29,6 +29,7 @@ Checks every commit diff against `.claude/rules/code-style.md`. Catches mechanic
 - Suppress the reviewer by adding ignore comments to source code.
 - Duplicate the reviewer's work — don't manually check style if the reviewer is running.
 - Let the reviewer check files outside the commit diff (it's scoped to the diff only).
+- Flag file size violations where all over-limit lines are pre-existing (no `+` lines in the diff hunk). Only flag size violations introduced or worsened by the commit.
 
 ## Known Suppressions
 The agent definition (`.claude/agents/code-reviewer.md`) has 7 built-in suppressions. These are intentional — do not flag them:
