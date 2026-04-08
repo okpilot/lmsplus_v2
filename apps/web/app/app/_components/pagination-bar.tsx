@@ -1,9 +1,9 @@
 'use client'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { Button } from '@/components/ui/button'
+import { useUpdateSearchParams } from '../_hooks/use-update-search-params'
 
 type Props = {
   page: number
@@ -18,21 +18,14 @@ export function PaginationBar({
   pageSize,
   entityLabel = 'questions',
 }: Readonly<Props>) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
+  const updateParams = useUpdateSearchParams()
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
   const goToPage = useCallback(
     (p: number) => {
-      const params = new URLSearchParams(searchParams.toString())
-      if (p <= 1) {
-        params.delete('page')
-      } else {
-        params.set('page', String(p))
-      }
-      router.replace(`?${params.toString()}`)
+      updateParams({ page: p <= 1 ? null : String(p) })
     },
-    [router, searchParams],
+    [updateParams],
   )
 
   if (totalCount === 0 || totalPages <= 1) return null

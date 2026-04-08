@@ -1,7 +1,7 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
+import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import {
   Select,
   SelectContent,
@@ -17,22 +17,17 @@ type Props = {
 }
 
 export function DashboardHeader({ currentRange }: Props) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
+  const updateParams = useUpdateSearchParams()
 
   const handleRangeChange = useCallback(
     (value: string | null) => {
       if (!value) return
-      const params = new URLSearchParams(searchParams.toString())
-      if (value === '30d') {
-        params.delete('range')
-      } else {
-        params.set('range', value)
-      }
-      params.delete('page')
-      router.replace(`?${params.toString()}`)
+      updateParams({
+        range: value === '30d' ? null : value,
+        page: null,
+      })
     },
-    [router, searchParams],
+    [updateParams],
   )
 
   return (

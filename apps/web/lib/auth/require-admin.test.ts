@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockGetUser = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
+const mockRedirect = vi.hoisted(() => vi.fn())
 const mockCreateServerSupabaseClient = vi.hoisted(() =>
   vi.fn().mockResolvedValue({
     auth: { getUser: mockGetUser },
@@ -13,6 +14,10 @@ vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: mockCreateServerSupabaseClient,
 }))
 
+vi.mock('next/navigation', () => ({
+  redirect: mockRedirect,
+}))
+
 import { requireAdmin } from './require-admin'
 
 describe('requireAdmin', () => {
@@ -21,6 +26,9 @@ describe('requireAdmin', () => {
     mockCreateServerSupabaseClient.mockResolvedValue({
       auth: { getUser: mockGetUser },
       from: mockFrom,
+    })
+    mockRedirect.mockImplementation((path: string) => {
+      throw new Error(`NEXT_REDIRECT:${path}`)
     })
   })
 
@@ -43,27 +51,30 @@ describe('requireAdmin', () => {
     expect(result.userId).toBe('user-1')
     expect(result.organizationId).toBe('org-1')
     expect(result.supabase).toBeDefined()
+    expect(mockRedirect).not.toHaveBeenCalled()
   })
 
-  it('throws when not authenticated', async () => {
+  it('redirects to /auth/login when not authenticated', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'No session' },
     })
 
-    await expect(requireAdmin()).rejects.toThrow('Not authenticated')
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth/login')
+    expect(mockRedirect).toHaveBeenCalledWith('/auth/login')
   })
 
-  it('throws when user has no session', async () => {
+  it('redirects to /auth/login when user has no session', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
       error: null,
     })
 
-    await expect(requireAdmin()).rejects.toThrow('Not authenticated')
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth/login')
+    expect(mockRedirect).toHaveBeenCalledWith('/auth/login')
   })
 
-  it('throws when user is not admin', async () => {
+  it('redirects to /app when user is not admin', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: 'user-2' } },
       error: null,
@@ -76,7 +87,8 @@ describe('requireAdmin', () => {
       }),
     })
 
-    await expect(requireAdmin()).rejects.toThrow('Forbidden: admin role required')
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/app')
+    expect(mockRedirect).toHaveBeenCalledWith('/app')
   })
 
   it('throws a service error when the profile query fails', async () => {
@@ -93,5 +105,6 @@ describe('requireAdmin', () => {
     })
 
     await expect(requireAdmin()).rejects.toThrow('Service error: could not verify admin role')
+    expect(mockRedirect).not.toHaveBeenCalled()
   })
 })

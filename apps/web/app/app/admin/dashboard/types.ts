@@ -57,6 +57,7 @@ export type StudentDetail = {
   role: string
   lastActiveAt: string | null
   createdAt: string
+  deletedAt: string | null
 }
 
 export type StudentSession = {

@@ -6,15 +6,14 @@ import type { DashboardFilters, DashboardStudent } from '../types'
 // Mocks — must be hoisted before any import that references them.
 // ---------------------------------------------------------------------------
 
-const { mockReplace, mockPush, mockUseSearchParams } = vi.hoisted(() => ({
+const { mockReplace, mockPush } = vi.hoisted(() => ({
   mockReplace: vi.fn(),
   mockPush: vi.fn(),
-  mockUseSearchParams: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: mockPush }),
-  useSearchParams: mockUseSearchParams,
+  usePathname: () => '/app/admin/dashboard',
 }))
 
 // Stub PaginationBar — it's a presenter, not under test here.
@@ -103,7 +102,10 @@ function makeStudent(overrides: Partial<DashboardStudent> = {}): DashboardStuden
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockUseSearchParams.mockReturnValue(new URLSearchParams())
+  Object.defineProperty(window, 'location', {
+    value: { search: '' },
+    writable: true,
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -196,34 +198,42 @@ describe('StudentTableShell — handleStatusChange', () => {
   const students = [makeStudent()]
 
   it('removes the status param and resets page when "all" is selected', () => {
-    const params = new URLSearchParams('page=2&status=active')
-    mockUseSearchParams.mockReturnValue(params)
+    Object.defineProperty(window, 'location', {
+      value: { search: '?page=2&status=active' },
+      writable: true,
+    })
     render(<StudentTableShell students={students} totalCount={1} filters={BASE_FILTERS} />)
     fireEvent.change(screen.getByTestId('status-filter'), { target: { value: 'all' } })
     expect(mockReplace).toHaveBeenCalledTimes(1)
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('?', ''))
+    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
     expect(result.has('status')).toBe(false)
     expect(result.has('page')).toBe(false)
   })
 
   it('sets the status param and removes page when a non-all value is selected', () => {
-    mockUseSearchParams.mockReturnValue(new URLSearchParams('page=3'))
+    Object.defineProperty(window, 'location', {
+      value: { search: '?page=3' },
+      writable: true,
+    })
     render(<StudentTableShell students={students} totalCount={1} filters={BASE_FILTERS} />)
     fireEvent.change(screen.getByTestId('status-filter'), { target: { value: 'inactive' } })
     expect(mockReplace).toHaveBeenCalledTimes(1)
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('?', ''))
+    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
     expect(result.get('status')).toBe('inactive')
     expect(result.has('page')).toBe(false)
   })
 
   it('preserves unrelated search params when changing status', () => {
-    mockUseSearchParams.mockReturnValue(new URLSearchParams('sort=name&dir=asc'))
+    Object.defineProperty(window, 'location', {
+      value: { search: '?sort=name&dir=asc' },
+      writable: true,
+    })
     render(<StudentTableShell students={students} totalCount={1} filters={BASE_FILTERS} />)
     fireEvent.change(screen.getByTestId('status-filter'), { target: { value: 'active' } })
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('?', ''))
+    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
     expect(result.get('sort')).toBe('name')
     expect(result.get('dir')).toBe('asc')
   })
@@ -237,7 +247,10 @@ describe('StudentTableShell — handleSort', () => {
   const students = [makeStudent()]
 
   it('sets sort and dir params and removes page when a column is clicked', () => {
-    mockUseSearchParams.mockReturnValue(new URLSearchParams('page=2'))
+    Object.defineProperty(window, 'location', {
+      value: { search: '?page=2' },
+      writable: true,
+    })
     render(
       <StudentTableShell
         students={students}
@@ -248,14 +261,13 @@ describe('StudentTableShell — handleSort', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Name' }))
     expect(mockReplace).toHaveBeenCalledTimes(1)
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('?', ''))
+    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
     expect(result.get('sort')).toBe('name')
     expect(result.get('dir')).toBe('asc')
     expect(result.has('page')).toBe(false)
   })
 
   it('toggles direction to desc when clicking the currently active sort column in asc order', () => {
-    mockUseSearchParams.mockReturnValue(new URLSearchParams())
     render(
       <StudentTableShell
         students={students}
@@ -265,13 +277,12 @@ describe('StudentTableShell — handleSort', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Name' }))
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('?', ''))
+    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
     expect(result.get('sort')).toBe('name')
     expect(result.get('dir')).toBe('desc')
   })
 
   it('toggles direction back to asc when clicking the currently active sort column in desc order', () => {
-    mockUseSearchParams.mockReturnValue(new URLSearchParams())
     render(
       <StudentTableShell
         students={students}
@@ -281,7 +292,7 @@ describe('StudentTableShell — handleSort', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Name' }))
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('?', ''))
+    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
     expect(result.get('sort')).toBe('name')
     expect(result.get('dir')).toBe('asc')
   })
@@ -293,7 +304,6 @@ describe('StudentTableShell — handleSort', () => {
 
 describe('StudentTableShell — row navigation', () => {
   it('navigates to the student detail page when a row is clicked', () => {
-    mockUseSearchParams.mockReturnValue(new URLSearchParams())
     const student = makeStudent({ id: 'student-42' })
     render(<StudentTableShell students={[student]} totalCount={1} filters={BASE_FILTERS} />)
     fireEvent.click(screen.getByTestId('student-row-student-42'))

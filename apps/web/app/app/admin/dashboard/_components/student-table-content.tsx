@@ -1,3 +1,4 @@
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { getDashboardStudents } from '../queries'
 import type { DashboardFilters } from '../types'
 import { ContentErrorFallback } from './content-error-fallback'
@@ -9,7 +10,8 @@ export async function StudentTableContent({ filters }: Props) {
   try {
     const { students, totalCount } = await getDashboardStudents(filters)
     return <StudentTableShell students={students} totalCount={totalCount} filters={filters} />
-  } catch {
+  } catch (error) {
+    if (isRedirectError(error)) throw error
     return <ContentErrorFallback message="Failed to load students. Please refresh the page." />
   }
 }

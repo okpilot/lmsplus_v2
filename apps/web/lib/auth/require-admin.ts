@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { redirect } from 'next/navigation'
 
 type AdminAuth = {
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
@@ -14,7 +15,7 @@ export async function requireAdmin(): Promise<AdminAuth> {
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    throw new Error('Not authenticated')
+    redirect('/auth/login')
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -29,7 +30,7 @@ export async function requireAdmin(): Promise<AdminAuth> {
   }
 
   if (profile?.role !== 'admin') {
-    throw new Error('Forbidden: admin role required')
+    redirect('/app')
   }
 
   return { supabase, userId: user.id, organizationId: profile.organization_id }

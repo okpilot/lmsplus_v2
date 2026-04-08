@@ -23,9 +23,12 @@ export function StudentHeader({ student }: Props) {
           </h1>
           <p className="text-sm text-muted-foreground">{student.email}</p>
         </div>
-        <Badge variant="outline" className="capitalize">
-          {student.role}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {student.deletedAt && <Badge variant="destructive">Inactive</Badge>}
+          <Badge variant="outline" className="capitalize">
+            {student.role}
+          </Badge>
+        </div>
       </div>
 
       <p className="text-xs text-muted-foreground">
