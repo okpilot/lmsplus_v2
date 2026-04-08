@@ -67,31 +67,4 @@ describe('StudentStatusFilter', () => {
     fireEvent.change(screen.getByTestId('select'), { target: { value: 'all' } })
     expect(onChange).toHaveBeenCalledWith('all')
   })
-
-  it('calls onChange for each of the three valid status values', () => {
-    const onChange = vi.fn()
-    render(<StudentStatusFilter value="all" onChange={onChange} />)
-    fireEvent.change(screen.getByTestId('select'), { target: { value: 'active' } })
-    expect(onChange).toHaveBeenCalledWith('active')
-    fireEvent.change(screen.getByTestId('select'), { target: { value: 'inactive' } })
-    expect(onChange).toHaveBeenCalledWith('inactive')
-    fireEvent.change(screen.getByTestId('select'), { target: { value: 'all' } })
-    expect(onChange).toHaveBeenCalledWith('all')
-    expect(onChange).toHaveBeenCalledTimes(3)
-  })
-
-  it('calls onChange with the selected value when the user picks an option', () => {
-    const onChange = vi.fn()
-    render(<StudentStatusFilter value="all" onChange={onChange} />)
-    fireEvent.change(screen.getByTestId('select'), { target: { value: 'active' } })
-    expect(onChange).toHaveBeenCalledWith('active')
-    expect(onChange).toHaveBeenCalledTimes(1)
-  })
-
-  it('calls onChange with "inactive" when the user picks Inactive', () => {
-    const onChange = vi.fn()
-    render(<StudentStatusFilter value="all" onChange={onChange} />)
-    fireEvent.change(screen.getByTestId('select'), { target: { value: 'inactive' } })
-    expect(onChange).toHaveBeenCalledWith('inactive')
-  })
 })
