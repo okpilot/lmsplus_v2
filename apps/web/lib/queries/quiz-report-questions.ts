@@ -1,22 +1,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
-import type { QuizReportQuestion, QuizReportQuestionsResult } from './quiz-report'
+import type { QuizReportQuestionsResult } from './quiz-report'
 import { PAGE_SIZE } from './quiz-report'
-
-type AnswerRow = {
-  question_id: string
-  selected_option_id: string
-  is_correct: boolean
-  response_time_ms: number
-}
-
-type QuestionRow = {
-  id: string
-  question_text: string
-  question_number: string | null
-  options: { id: string; text: string }[]
-  explanation_text: string | null
-  explanation_image_url: string | null
-}
+import { type AnswerRow, buildReportQuestions, type QuestionRow } from './report-question-builder'
 
 export async function getQuizReportQuestions(opts: {
   sessionId: string
@@ -37,7 +22,7 @@ export async function getQuizReportQuestions(opts: {
   if (!user) return { ok: false, error: 'Failed to load questions' }
 
   // Verify session ownership and completion guard
-  const { data: sessionData } = await supabase
+  const { data: sessionData, error: sessionError } = await supabase
     .from('quiz_sessions')
     .select('id, ended_at')
     .eq('id', sessionId)
@@ -45,6 +30,10 @@ export async function getQuizReportQuestions(opts: {
     .is('deleted_at', null)
     .maybeSingle()
 
+  if (sessionError) {
+    console.error('[getQuizReportQuestions] Session query error:', sessionError.message)
+    return { ok: false, error: 'Failed to load questions' }
+  }
   const session = sessionData as { id: string; ended_at: string | null } | null
   if (!session) return { ok: false, error: 'Failed to load questions' }
   // Only serve questions for completed sessions — prevents mid-session answer exposure
@@ -84,7 +73,7 @@ export async function getQuizReportQuestions(opts: {
     return { ok: false, error: 'Failed to load questions' }
   }
 
-  const answers = (answersData ?? []) as AnswerRow[]
+  const answers = Array.isArray(answersData) ? (answersData as AnswerRow[]) : []
 
   if (!answers.length) {
     return { ok: true, questions: [], totalCount: total }
@@ -106,7 +95,7 @@ export async function getQuizReportQuestions(opts: {
     return { ok: false, error: 'Failed to load questions' }
   }
 
-  const questions = (questionsData ?? []) as QuestionRow[]
+  const questions = Array.isArray(questionsData) ? (questionsData as QuestionRow[]) : []
   const questionMap = new Map<string, QuestionRow>()
   for (const q of questions) {
     questionMap.set(q.id, q)
@@ -119,36 +108,15 @@ export async function getQuizReportQuestions(opts: {
     console.error('[getQuizReportQuestions] RPC error:', rpcError.message)
     return { ok: false, error: 'Failed to load questions' }
   }
+  const correctRows = Array.isArray(correctData)
+    ? (correctData as { question_id: string; correct_option_id: string }[])
+    : []
   const correctMap = new Map<string, string>()
-  for (const row of correctData ?? []) {
+  for (const row of correctRows) {
     correctMap.set(row.question_id, row.correct_option_id)
   }
 
   const reportQuestions = buildReportQuestions(answers, questionMap, correctMap)
 
   return { ok: true, questions: reportQuestions, totalCount: total }
-}
-
-function buildReportQuestions(
-  answers: AnswerRow[],
-  questionMap: Map<string, QuestionRow>,
-  correctMap: Map<string, string>,
-): QuizReportQuestion[] {
-  return answers.map((answer) => {
-    const question = questionMap.get(answer.question_id)
-    const options = question?.options ?? []
-
-    return {
-      questionId: answer.question_id,
-      questionText: question?.question_text ?? '',
-      questionNumber: question?.question_number ?? null,
-      isCorrect: answer.is_correct,
-      selectedOptionId: answer.selected_option_id,
-      correctOptionId: correctMap.get(answer.question_id) ?? '',
-      options: options.map((o) => ({ id: o.id, text: o.text })),
-      explanationText: question?.explanation_text ?? null,
-      explanationImageUrl: question?.explanation_image_url ?? null,
-      responseTimeMs: answer.response_time_ms,
-    }
-  })
 }

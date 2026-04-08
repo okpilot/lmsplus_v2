@@ -208,11 +208,11 @@ describe('getQuizReportSummary', () => {
     expect(summary!.scorePercentage).toBe(0)
   })
 
-  it('falls back to zero answeredCount when count is null', async () => {
+  it('falls back to total_questions answeredCount when count is null', async () => {
     mockFromSequence({ data: sessionRow }, { count: null, data: null })
     const summary = await getQuizReportSummary('sess-1')
     expect(summary).not.toBeNull()
-    expect(summary!.answeredCount).toBe(0)
+    expect(summary!.answeredCount).toBe(sessionRow.total_questions)
   })
 })
 
@@ -522,6 +522,33 @@ describe('getQuizReportQuestions', () => {
     if (!result.ok) return
     expect(result.questions).toHaveLength(0)
     expect(result.totalCount).toBe(5)
+  })
+
+  it('treats all correctOptionIds as empty string when RPC returns null instead of an array', async () => {
+    mockFromSequence(
+      { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
+      { count: 1 },
+      { data: [answersData[0]] },
+      {
+        data: [
+          {
+            id: 'q1',
+            question_text: 'What is lift?',
+            question_number: '050-01-001',
+            options: [{ id: 'opt-a', text: 'Upward force' }],
+            explanation_text: null,
+            explanation_image_url: null,
+          },
+        ],
+      },
+    )
+    // RPC returns null (non-array) — the Array.isArray guard must treat this as []
+    mockRpc.mockResolvedValueOnce({ data: null, error: null })
+
+    const result = await getQuizReportQuestions({ sessionId: 'sess-1', page: 1 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.questions[0]!.correctOptionId).toBe('')
   })
 
   it('uses PAGE_SIZE = 10', () => {

@@ -539,12 +539,13 @@ Use Postgres functions (RPCs) for:
 ```
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
-  get_report_correct_options ← read, returns correct option IDs for completed-session reports
-  check_quiz_answer          ← read, verify answer + return explanation (immediate feedback)
+  get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped)
+  get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin())
+  check_quiz_answer                ← read, verify answer + return explanation (immediate feedback)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
-  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (deferred writes pattern)
+  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit + last_active_at stamp (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
-  complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz)
+  complete_quiz_session      ← write, atomic: session end + score + audit + last_active_at stamp (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
@@ -1089,6 +1090,14 @@ END;
 $$;
 ```
 
+#### `get_admin_report_correct_options` — admin variant (org-scoped)
+
+Same return shape as `get_report_correct_options` but scoped by organization instead of student. Allows admins to view correct answers for any completed session in their org.
+
+**Security:** Validates `auth.uid()`, `is_admin()`, org membership, session completion (`ended_at IS NOT NULL`), and soft-delete status. Added in migration `20260406000005` + `20260406000006`.
+
+**Used by:** `lib/queries/admin-quiz-report.ts` → admin session report page at `/app/admin/dashboard/sessions/[id]`.
+
 #### `check_quiz_answer` — verify answer + return explanation
 
 Verifies a student's answer for a question during an active quiz session. Returns correctness, correct option ID, and explanation. Requires session ownership.
@@ -1447,6 +1456,61 @@ $$;
 
 GRANT EXECUTE ON FUNCTION check_consent_status(TEXT, TEXT) TO authenticated;
 ```
+
+#### `get_admin_dashboard_kpis` — admin dashboard KPI summary
+
+Returns all admin dashboard KPI values in a single JSON response. Used by the admin dashboard to display top-level metrics without multiple round trips.
+
+**Security:**
+- `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
+- Calls `is_admin()` to verify caller is an admin; raises exception if not.
+- Organisation is derived from the caller's `users` row — never passed as a parameter.
+
+**Parameters:** `p_range_days INT DEFAULT 30`
+
+**Returns:** `JSON` with keys:
+- `activeStudents` — students whose `last_active_at` falls within the range window
+- `totalStudents` — all non-deleted students in the org
+- `avgMastery` — average mastery percentage across all students (all-time)
+- `sessionsThisPeriod` — completed sessions within the range window
+- `weakestSubject` — `{ name, short, avgMastery }` for the subject with the lowest average mastery
+- `examReadyStudents` — count of students with mastery ≥ 90% across all subjects (all-time)
+
+**Clamping:** `p_range_days = 0` means all-time; values < 0 or NULL default to 30; values > 1095 are clamped to 1095. Range applies only to `activeStudents` and `sessionsThisPeriod` — mastery KPIs are always all-time.
+
+**Filters:** `deleted_at IS NULL` on `users` and `quiz_sessions`; `status = 'active'` on `questions`.
+
+---
+
+#### `get_admin_weak_topics` — weakest topics by correct rate
+
+Returns the N weakest topics by average correct rate across all students in the admin's organisation. Used by the admin dashboard weak-topics table.
+
+**Security:** Same as `get_admin_dashboard_kpis` (`SECURITY DEFINER`, `auth.uid()` check, `is_admin()` check, org-scoped).
+
+**Parameters:** `p_limit INT DEFAULT 10`
+
+**Returns:** `TABLE(topic_id UUID, topic_name TEXT, subject_name TEXT, subject_short TEXT, avg_score NUMERIC, student_count BIGINT)`
+
+**Formula:** `avg_score = AVG(is_correct::int) * 100` — per-response accuracy across all `student_responses` rows for that topic, not mastery percentage.
+
+**Clamping:** `p_limit` clamped to 1–100; default 10.
+
+---
+
+#### `get_admin_student_stats` — per-student session and mastery summary
+
+Returns one row per student in the admin's organisation with their session count, average score, and mastery percentage. Used by the admin dashboard student table.
+
+**Security:** Same as `get_admin_dashboard_kpis` (`SECURITY DEFINER`, `auth.uid()` check, `is_admin()` check, org-scoped).
+
+**Parameters:** none
+
+**Returns:** `TABLE(user_id UUID, session_count BIGINT, avg_score NUMERIC, mastery NUMERIC)`
+
+**Mastery formula:** Matches `lib/queries/dashboard.ts` — `COUNT(DISTINCT correct active questions) / COUNT(DISTINCT active questions) * 100`, where "active" means `status = 'active' AND deleted_at IS NULL`.
+
+**avg_score:** `NULL` for students with no completed sessions (not 0).
 
 ---
 

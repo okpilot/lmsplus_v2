@@ -12,6 +12,7 @@ export const NAV_ITEMS: NavItem[] = [
 ]
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
+  { href: '/app/admin/dashboard', label: 'Dashboard', icon: 'bar-chart' },
   { href: '/app/admin/syllabus', label: 'Syllabus', icon: 'book-open' },
   { href: '/app/admin/questions', label: 'Questions', icon: 'list' },
   { href: '/app/admin/students', label: 'Students', icon: 'users' },
