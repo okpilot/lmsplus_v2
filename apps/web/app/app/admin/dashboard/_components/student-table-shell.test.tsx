@@ -206,7 +206,7 @@ describe('StudentTableShell — handleStatusChange', () => {
     fireEvent.change(screen.getByTestId('status-filter'), { target: { value: 'all' } })
     expect(mockReplace).toHaveBeenCalledTimes(1)
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
+    const result = new URL(url, 'http://x').searchParams
     expect(result.has('status')).toBe(false)
     expect(result.has('page')).toBe(false)
   })
@@ -220,7 +220,7 @@ describe('StudentTableShell — handleStatusChange', () => {
     fireEvent.change(screen.getByTestId('status-filter'), { target: { value: 'inactive' } })
     expect(mockReplace).toHaveBeenCalledTimes(1)
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
+    const result = new URL(url, 'http://x').searchParams
     expect(result.get('status')).toBe('inactive')
     expect(result.has('page')).toBe(false)
   })
@@ -233,7 +233,7 @@ describe('StudentTableShell — handleStatusChange', () => {
     render(<StudentTableShell students={students} totalCount={1} filters={BASE_FILTERS} />)
     fireEvent.change(screen.getByTestId('status-filter'), { target: { value: 'active' } })
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
+    const result = new URL(url, 'http://x').searchParams
     expect(result.get('sort')).toBe('name')
     expect(result.get('dir')).toBe('asc')
   })
@@ -261,7 +261,7 @@ describe('StudentTableShell — handleSort', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Name' }))
     expect(mockReplace).toHaveBeenCalledTimes(1)
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
+    const result = new URL(url, 'http://x').searchParams
     expect(result.get('sort')).toBe('name')
     expect(result.get('dir')).toBe('asc')
     expect(result.has('page')).toBe(false)
@@ -277,7 +277,7 @@ describe('StudentTableShell — handleSort', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Name' }))
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
+    const result = new URL(url, 'http://x').searchParams
     expect(result.get('sort')).toBe('name')
     expect(result.get('dir')).toBe('desc')
   })
@@ -292,7 +292,7 @@ describe('StudentTableShell — handleSort', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Name' }))
     const [url] = mockReplace.mock.calls[0] as [string]
-    const result = new URLSearchParams(url.replace('/app/admin/dashboard?', ''))
+    const result = new URL(url, 'http://x').searchParams
     expect(result.get('sort')).toBe('name')
     expect(result.get('dir')).toBe('asc')
   })
