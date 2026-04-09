@@ -16,7 +16,7 @@
 | Empty-array guard missing at SQL level | 1 | 2026-03-12 | Watch — batch_submit_quiz RPC; fixed in f53eccf |
 | New hook/utility file shipped without a test file | 3 | 2026-03-12 | RULE ADDED (9f5a6cc) — still recurring; rule exists but not followed at write time. See also row 58. |
 | Top-level await in node16 package test file | 1 | 2026-03-12 | Watch — packages/db/src/server.test.ts; fixed with dynamic import helper |
-| Bare `catch {}` without error-type narrowing | 1 | 2026-03-12 | Watch — packages/db/src/server.ts; suggestion from semantic-reviewer |
+| Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE — first: packages/db/src/server.ts (2026-03-12, suggestion); second: Server Component content wrapper (344ec89/a49cd88, 2026-04-08): bare catch{} swallowed redirect() exceptions from requireAdmin(), causing 500 instead of redirect; distinct from style nit — this is a functional correctness gap when auth uses throw-based control flow (Next.js redirect()); second occurrence across different commits; propose note in code-style.md Section 6 or security.md: catch blocks in Server Components must re-throw isRedirectError() before handling |
 | `finally` clearing loading state during navigation | 1 | 2026-03-12 | Fixed in a269284 — only clear loading in catch/error branch |
 | Supabase mutation result not destructured (error silently dropped) | 3 | 2026-03-12 | RULE EXISTS (code-style.md Section 5) — 5 new call sites found in Sprint 3 analytics cycle (db5d8ea); compliance gap, rule is clear |
 | Unstable useEffect dependency (inline function prop) | 1 | 2026-03-12 | Watch — onTabChange in question-tabs.tsx; suggestion only, first occurrence |
@@ -98,6 +98,7 @@
 | Supabase `updateUser` returns 422 when new password matches current password | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): E2E reset-password spec tried to reset to the same password the account already had; Supabase auth API returns HTTP 422 with no explicit error message, causing a confusing test failure; fixed by using a distinct password value in E2E tests and by handling 422 in the UI with a user-facing error message; applies to any E2E test covering the password reset flow — always reset to a value different from the current one; also applies to the reset-password UI, which should handle 422 distinctly from other errors; first occurrence |
 | Open redirect via unvalidated `next` param in Route Handler | 1 | 2026-03-18 | Watch — ca5bbd5 (feat/174-login-redesign): /auth/confirm accepted any `next` query param and redirected to it without validation; a crafted link could redirect users to arbitrary internal paths (e.g. `/app/admin`); fixed by validating `next` against an explicit allowlist (only `/auth/reset-password` permitted); applies to any Route Handler or Server Action that reads a redirect target from query params or form input — always validate against an allowlist before redirecting; semantic-reviewer caught this as an ISSUE; first occurrence as a named pattern |
 | Security fix requiring multiple rounds due to incomplete self-defending audit | 1 | 2026-03-16 | Watch — fix/45-remove-answer-keys-from-test (f1f6c32 → 7029f4e → 1f76a7b): branch required 3 semantic-reviewer rounds because each fix addressed the flagged issue but not the adjacent gap it exposed; round 1: correct field in runtime object; round 2: RPC not session-scoped; round 3: p_question_ids not validated against session; root cause: security fixes to SECURITY DEFINER RPCs were applied narrowly (one gap at a time) rather than with a full self-defending audit (ownership check, input validation, output projection, error handling all verified together); first occurrence; when any SECURITY DEFINER RPC is modified, audit all four axes before committing: (1) auth.uid() identity check present, (2) input arrays validated against owned records, (3) output SELECT excludes sensitive fields explicitly, (4) result destructured for error |
+| Code-reviewer flags file outside the commit diff scope | 2 | 2026-04-08 | RULE CANDIDATE — first: prior cycle (exact commit not recorded, watch); second: 344ec89/a49cd88 (2026-04-08): code-reviewer flagged getStudentSessions at 61 lines — function was pre-existing, not in the diff; orchestrator correctly dismissed; root cause: code-reviewer scans changed files' full content rather than only the diff hunks; this causes false BLOCKING on pre-existing violations in files touched by an unrelated commit; confirmed false positive; suppression already exists in agent-code-reviewer.md for this case but the agent does not reliably apply it; at 2 occurrences, agent-code-reviewer.md rule should be checked and if it does not already cover this, add explicit note: "Only flag violations introduced or worsened by lines in the diff — do not flag pre-existing violations on lines not touched by this commit" |
 | Pre-existing file size violation surfaced when a new commit adds lines to an already-over-limit file | 1 | 2026-03-20 | Watch — d93f924 (fix: resolve 3 tech-debt issues): lookup.ts exceeded the 100-line Server Action/utility limit before the commit; the new commit added lines that made the violation visible to the code-reviewer; fixed by extracting helpers to lookup-helpers.ts in fix commit 5a68fa3; distinct from "Biome auto-format expanding compact code past file-size limit" (that is Biome pushing an at-limit file over; this is a file already over the limit that accumulates further lines); distinct from "Server Action file exceeding 100-line limit after Biome auto-format" (same distinction); root cause: file was never split when it first exceeded the limit; implication: code-reviewer should be run after any commit to files approaching their limit even if the commit itself is small — a near-miss in one commit becomes a BLOCKING in the next; first occurrence as a named pattern — log and watch |
 | Function exceeding 30-line limit in Server Action file | 2 | 2026-03-20 | RULE CANDIDATE — first: getFilteredCount in lookup.ts (d93f924, 2026-03-20): 58 lines, fixed by extracting buildQuestionQuery helper; second: toggleFlag in flag.ts (6520962, 2026-03-20): 52 lines, fixed by extracting unflagQuestion/flagQuestion helpers; both in Server Action files, both caught post-commit by code-reviewer BLOCKING; root cause: Server Actions with branching logic (toggle/conditional paths) are written as a single function rather than as an orchestrator + focused helpers; pattern: any function with 2+ conditional branches in a Server Action is a candidate to exceed 30 lines — extract each branch as a named helper at authoring time; second occurrence across different commits — RULE CANDIDATE |
 | Read-then-write race on flag/state mutation (UPDATE predicate not atomic) | 1 | 2026-03-20 | Watch — toggleFlag in flag.ts (6520962, 2026-03-20): SELECT to check current flag state followed by UPDATE or UPSERT; rapid toggle-toggle from two tabs could leave flag in wrong state; fixed by adding .is('deleted_at', null) to the UPDATE predicate to make the unflag atomic, plus row-count check; distinct from "TOCTOU race on count-gated INSERT" (that is an INSERT gate — this is a state-change UPDATE that should be conditional on current column state); fix pattern: for any UPDATE that modifies a boolean/state column, include the expected current column value in the WHERE/predicate to make the operation atomic; first occurrence — log and watch |
@@ -129,6 +130,10 @@
 | Supabase error mock shape wrong: `{data: [], error}` instead of `{data: null, error}` | 1 | 2026-03-28 | Watch — GDPR collect-user-data.test.ts (09e1be1): test mock helper returned `{ data: [], error: someError }` when simulating a Supabase query failure; real Supabase client always returns `{ data: null, error }` on failure — never `{ data: [], error }`; the wrong shape meant error-path tests were exercising code with a non-production input shape, making fallback assertions like `?? []` pass for the wrong reason; fixed in 09e1be1 by changing all error-path mock entries to `data: errors.xError ? null : actualData`; root cause: test authors write `data: []` as an intuitive "empty" value without checking the actual Supabase contract; the correct rule: a Supabase mock that returns a non-null error MUST set data to null, not to an empty array; first occurrence — log and watch; if a second test file ships with this pattern, update test-writer patterns.md with an explicit rule under the mock shape section |
 | jsdom PointerEvent gaps (setPointerCapture not implemented, pageX not in PointerEventInit) | 1 | 2026-03-29 | Watch — use-drag-scroll.test.ts (ca09f34): test-writer initially generated PointerEvent dispatches without `pointerId` in the init dict, causing `setPointerCapture` to throw "not implemented"; and used `pageX` directly in `new PointerEvent(...)` init without `Object.defineProperty` (jsdom does not map pageX from init dict); fixed by: (1) always including `pointerId: 1` in PointerEvent init, (2) setting `pageX` via `Object.defineProperty(event, 'pageX', { value: N })` after construction; rule now in test-writer/patterns.md (§ Dispatching PointerEvents in jsdom); first occurrence in learner table — log and watch; if a second test file ships with the same jsdom PointerEvent gaps, no additional rule change needed (test-writer memory already updated) |
 | test-writer generates tests requiring jsdom compatibility fixes before they pass | 3 | 2026-03-29 | RULE IN MEMORY (test-writer/patterns.md) — first (153a975): TS2532 unchecked array index; second (various): deprecated vi.fn generic syntax; third (ca09f34): PointerEvent jsdom gaps (setPointerCapture, pageX); all required a fix cycle before tests could be committed; the pattern is consistent: test-writer generates logically correct tests but hits jsdom API limitations or TypeScript strictness constraints that are not obvious at generation time; the fix cycle remains the reliable gate; test-writer/patterns.md is the correct place to document these constraints (already updated for each occurrence); no code-style.md rule change needed |
+| Redundant `afterEach(cleanup)` in test files (stale boilerplate copy-paste) | 1 | 2026-04-08 | Watch — c84a079: 6 admin test files contained `afterEach(cleanup)` from `@testing-library/react`; Testing Library v13+ registers cleanup automatically via a globally registered afterEach hook; the explicit call is idempotent but dead code that inflates boilerplate; root cause: copy-paste propagation of a stale snippet from an older test-writer pattern; first occurrence — log and watch; if it recurs in test-writer output, add note to test-writer/patterns.md: "Do not add afterEach(cleanup) — v13+ cleanup is automatic" |
+| Base UI component inline `style` prop conflicting with internal style injection | 1 | 2026-04-09 | Watch — 995de26: CollapsibleContent received an inline `style={{ height: ... }}` prop to drive the collapse animation; Base UI injects its own `--collapsible-panel-height` CSS variable via the same style attribute, so the inline prop overrode it and broke the open/close animation; caught as ISSUE by semantic-reviewer and implementation-critic; fixed in 4459a5d by removing the inline style and using only Tailwind `data-[state=open]:*` classes; first occurrence — log and watch; applies to any Base UI component that drives state-dependent animation via CSS variable injection (Collapsible, Accordion, Dialog) — prefer Tailwind variants over inline styles on these components |
+| Test assumes component renders children unconditionally but real component starts collapsed | 1 | 2026-04-09 | Watch — 995de26/4459a5d: test clicked a row inside CollapsibleContent without first clicking the trigger to open the panel; the panel starts closed and children are not rendered until it is opened; assertion on the row content silently passed in the mock (which always rendered children) but would fail against the real component; caught as ISSUE by semantic-reviewer; fixed in 4459a5d by adding a trigger click before the row interaction; first occurrence — log and watch; applies to any test of a component that contains interactive children inside a conditionally-rendered container (Collapsible, Accordion, Dialog, Select) — always open the container before asserting on or interacting with its contents |
+| `require()` inside `vi.hoisted()` factory producing unresolvable type namespace (`R.ReactNode`) | 1 | 2026-04-09 | Watch — 4459a5d: test-writer used `require('react')` inside a `vi.hoisted()` factory to access React types, producing `R.ReactNode` reference errors (TypeScript cannot resolve the namespace from a runtime require() call); fixed by replacing with a top-level import and using `React.ReactNode` directly; distinct from "vi.mock factory referencing non-hoisted variable" (that is a variable undefined at hoist time — this is a module required inside the factory producing an unresolvable type namespace at compile time); first occurrence — log and watch; if recurs, update test-writer patterns.md: "Do not use require() inside vi.hoisted() factories — use top-level import and reference the type directly" |
 
 ## Lessons Learned
 
@@ -3046,5 +3051,202 @@ Both fixes documented in test-writer/patterns.md (§ Dispatching PointerEvents i
 - Test writer correctly identified 3 coverage gaps (new hook, extracted component, singular/plural branches) — all gaps filled in the same cycle.
 - jsdom PointerEvent constraints were diagnosed and fixed quickly; the fix pattern is now documented in test-writer/patterns.md so future hook tests with pointer events will have a reference.
 - The bestStreak ISSUE was caught post-commit (not post-push) — the gate worked at the right layer.
+
+---
+
+### 2026-04-08 — Batch admin hardening PR (commits 344ec89, cc7ea03, a49cd88)
+
+**Context:** Three-commit sequence for the batch admin hardening PR closing issues #494, #492, #487, #383. 344ec89 was the feature commit: requireAdmin() elevated to the single admin auth authority, trailing-`?` URL cleanup, and SSR safety annotation on window.location.search. cc7ea03 was a rapid follow-up: fixed the trailing-`?` edge case properly and updated database.md RPC description. a49cd88 was the test commit: 7 new test files, 31 tests for admin error boundary, student header Inactive badge, and 5 content wrapper isRedirectError re-throw behaviors.
+
+**Commit hashes (HEAD at learner run):** a49cd88 (latest), cc7ea03, 344ec89
+
+**Code reviewer (344ec89):** 1 BLOCKING, 0 WARNING.
+- BLOCKING: getStudentSessions flagged at 61 lines. **FALSE POSITIVE** — function is pre-existing and not in the diff; dismissed correctly by orchestrator.
+
+**Semantic reviewer (344ec89):** 0 CRITICAL, 1 ISSUE, 2 SUGGESTION (both fixed in cc7ea03), 8 GOOD.
+1. **Soft-deleted admin gets "Service error" instead of redirect — ISSUE, pre-existing.** requireAdmin() became the single auth authority in this commit. The gap: if an admin is soft-deleted, requireAdmin() throws a generic error rather than redirecting to a "deactivated account" page. The commit elevated the function's scope without auditing all soft-delete outcome paths. Pre-existing gap, not introduced by this commit, but now more visible as the sole gatekeeper.
+2. **Trailing `?` in URL when all params deleted — SUGGESTION, real, fixed in cc7ea03.** URL param deletion left a dangling `?` when all params were removed. Fixed by trimming the trailing `?` from the constructed URL string.
+3. **SSR safety on window.location.search — SUGGESTION, real, fixed in cc7ea03.** Inline comment added to document why window.location.search is safe at that call site.
+
+**Doc updater (344ec89):** 1 update.
+- database.md RPC description for get_admin_students updated to note it returns all students (active + soft-deleted). Applied in cc7ea03.
+
+**Test writer (a49cd88):** 7 new test files, 31 tests. Coverage across:
+- admin-error-boundary.test.tsx (error boundary rendering, rethrows non-redirect errors)
+- student-header.test.tsx (Inactive badge for soft-deleted students, active badge absence)
+- 5 x content wrapper tests asserting isRedirectError re-throw behavior
+
+All tests passing before commit.
+
+**Pattern analysis:**
+
+1. **[REPEAT — count 2] Code-reviewer flags file outside the diff scope**
+
+   Prior occurrence: watch entry recorded but specific commit not referenced.
+   This occurrence (344ec89): code-reviewer flagged getStudentSessions at 61 lines; the function is pre-existing and entirely outside the diff. Dismissed as a false positive.
+
+   The reviewer is scoped to the diff (per agent-code-reviewer.md "it's scoped to the diff only") but in practice flags pre-existing violations when it reads full file content of changed files. This is the second occurrence across different commits. The pattern results in a false BLOCKING that the orchestrator must manually dismiss.
+
+   No change to code-style.md or biome.json — this is an agent scope enforcement issue, not a style rule gap. The DO NOT section in agent-code-reviewer.md already states "Let the reviewer check files outside the commit diff" — but the agent definition needs to make the constraint more concrete at the per-finding level.
+
+   Action: propose addition to agent-code-reviewer.md (orchestrator decides). Specifically: "When flagging a file size violation, verify the violation appears in a diff hunk (lines marked `+`). If the over-limit lines are all pre-existing (no `+` lines), dismiss the finding as out-of-scope."
+
+2. **[NEW — count 1] next/navigation mock incomplete when useUpdateSearchParams hook is introduced**
+
+   question-breakdown.test.tsx and report-card.test.tsx were broken by the introduction of useUpdateSearchParams because their existing next/navigation mocks did not include usePathname. The test files had to be updated to add usePathname to their mock return shape.
+
+   Root cause: when a shared hook (useUpdateSearchParams) is introduced that pulls in a new next/navigation API (usePathname), all test files that mock next/navigation must be audited for the new dependency. This is a variant of the "partial fix applied to sibling file group" pattern but in the test layer specifically: a new mock dependency propagates across many test files that share the same vi.mock('next/navigation') factory, and each file must be updated independently.
+
+   First occurrence as a named pattern — log and watch. If a second next/navigation API is added to a shared hook and breaks existing mocks, add a note to test-writer/patterns.md: "When a shared hook adds a new import from next/navigation, grep all test files for vi.mock('next/navigation') and verify the new export is present in each mock factory."
+
+3. **[REPEAT — count 2] Bare catch{} swallowing throw-based control flow (isRedirectError gap)**
+
+   Prior occurrence: packages/db/src/server.ts (2026-03-12) — bare `catch {}` in the db adapter swallowed errors without narrowing. Count 1 — watch.
+
+   This occurrence (344ec89/a49cd88): Server Component content wrappers used bare `catch {}` that swallowed redirect() exceptions thrown by requireAdmin(). Next.js uses throw-based control flow for redirect() — isRedirectError() must be called inside any catch block that wraps Server Component auth calls, and the redirect error must be re-thrown if present. Five content wrappers required identical fixes. The test commit (a49cd88) added 5 test files specifically asserting this re-throw behavior.
+
+   The two occurrences are mechanically distinct (db adapter vs. Server Component auth wrapper) but share the same root cause: a bare catch block that silences error types it does not understand, including framework control-flow exceptions.
+
+   Count 2 across different commits and different code areas. The gap is common enough to warrant a code-style.md note. Proposed addition to code-style.md Section 6 (Next.js App Router Patterns):
+
+   ```
+   ### catch blocks wrapping Server Component auth calls must re-throw redirect errors
+   Next.js uses throw-based control flow for redirect() and notFound(). Any catch block
+   wrapping a call that may invoke redirect() or notFound() must re-throw the error if
+   isRedirectError(error) is true:
+
+   // ❌ WRONG — swallows redirect, user gets 500 or stale page
+   try {
+     await requireAdmin()
+   } catch (error) {
+     return <ErrorFallback />
+   }
+
+   // ✅ CORRECT — preserves redirect control flow
+   import { isRedirectError } from 'next/dist/client/components/redirect-error'
+   try {
+     await requireAdmin()
+   } catch (error) {
+     if (isRedirectError(error)) throw error
+     return <ErrorFallback />
+   }
+   ```
+
+**Actions taken:**
+- Frequency table: "Bare `catch {}` without error-type narrowing" count updated 1 → 2, last-seen updated to 2026-04-08, status changed Watch → RULE CANDIDATE, description extended with second occurrence details and functional severity note.
+- Frequency table: "Code-reviewer flags file outside the commit diff scope" added as a new row, count 2 (first named occurrence this cycle + one prior unnamed watch), last-seen 2026-04-08, status RULE CANDIDATE. Note: the agent-code-reviewer.md DO NOT section already states the rule in general terms — this count indicates the constraint needs to be operationalized at the per-finding level.
+- Frequency table: "next/navigation mock incomplete when shared hook adds new API" added as new watch row, count 1, 2026-04-08.
+
+**Recommended changes:**
+
+- [ ] `code-style.md` Section 6 — Add "catch blocks wrapping Server Component auth calls must re-throw redirect errors" with the code example above. This rule is not covered by Biome (it is a semantic/behavioral pattern), is not a duplicate of any existing rule, and the second occurrence across different commits meets the threshold.
+
+- [ ] `agent-code-reviewer.md` — Propose (orchestrator to apply) adding to the NEVER section or the Known Suppressions section: "When flagging a file size violation, confirm the violation is in a diff hunk (lines with `+` prefix). If over-limit lines are all pre-existing, the finding is out-of-scope — dismiss it."
+
+- [ ] `test-writer/patterns.md` — Propose (test-writer agent to apply) adding a note: "When a shared hook adds a new import from next/navigation, grep all existing vi.mock('next/navigation') factories for the new export. Each factory must include the new mock value or tests that mock next/navigation will break when the hook is imported."
+
+**No changes to security.md or biome.json this cycle.** The bare-catch rule belongs in code-style.md Section 6 (Next.js patterns), not security.md. The code-reviewer scope issue belongs in agent-code-reviewer.md, not a lint rule.
+
+**False positives:**
+- 1 confirmed: code-reviewer BLOCKING on getStudentSessions (61 lines, pre-existing, not in diff). Dismissed correctly before any fix was attempted.
+
+**Positive signals:**
+- Semantic reviewer found 1 real ISSUE (soft-deleted admin gap) and 2 real SUGGESTIONs that were both fixed in a single follow-up commit. Fix cycle closed in one pass.
+- Test writer produced 31 tests in 7 files, including 5 files specifically testing isRedirectError re-throw behavior — directly addressing the bare-catch gap that was the core ISSUE in this cycle.
+- Doc updater correctly identified the RPC description drift in database.md. Update was applied in cc7ea03 alongside the code fix.
+- All 3 commits passed Lefthook pre-commit gates (biome + type-check) without failures.
+- The pre-existing soft-deleted admin gap was identified proactively by the semantic reviewer when requireAdmin() was elevated to single auth authority — a case of the reviewer correctly escalating concern based on increased scope even though the code was not strictly introduced in the diff.
+
+---
+
+### 2026-04-08 — CodeRabbit triage cleanup, admin test fixes (commit c84a079)
+
+**Context:** Single test-only commit on PR #503 (branch fix/batch-admin-hardening). Fixed two categories of CodeRabbit findings across 7 admin test files: (1) brittle URL parsing replaced with `new URL()` sentinel pattern, (2) redundant `afterEach(cleanup)` removed from 6 files where `@testing-library/react` already calls cleanup automatically.
+
+**Commit hash:** c84a079
+
+**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING. Clean.
+
+**Semantic reviewer (sonnet):** 0 CRITICAL, 0 ISSUE, 1 SUGGESTION, 3 GOOD. Clean.
+- SUGGESTION: the sentinel URL `'http://x'` could be `'http://localhost'` to read more clearly. Cosmetic — no behavior difference. Accepted as valid but non-blocking.
+
+**Doc updater (haiku):** No doc updates needed. Clean.
+
+**Test writer (sonnet):** No coverage gaps. Clean.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] Redundant `afterEach(cleanup)` copied across test files from stale boilerplate**
+
+   Six test files contained `afterEach(cleanup)` from `@testing-library/react`. Since Testing Library v13 (the version in use), cleanup is automatic after each test via a globally registered `afterEach` hook. The explicit call is redundant — it runs cleanup twice but does not cause test failures (idempotent). It is nonetheless dead code that inflates test boilerplate and confuses readers who wonder if there is a reason for the explicit call.
+
+   The root cause is copy-paste propagation of a stale snippet. The test-writer agent's patterns.md does not currently warn against this. Since test-writer generated several of the original test files for the admin dashboard, the boilerplate originated from an older pattern.
+
+   First occurrence as a named learner pattern — log and watch. If redundant `afterEach(cleanup)` appears again in a future test-writer output, add a note to test-writer/patterns.md: "Do not add `afterEach(cleanup)` — `@testing-library/react` v13+ registers cleanup automatically. Explicit cleanup is redundant and should be omitted."
+
+2. **[POSITIVE SIGNAL] Implementation-critic caught a missing blank line issue pre-commit**
+
+   The implementation-critic flagged a missing blank line before the first test file edit, which would have failed the Biome format check in the Lefthook pre-commit gate. The issue was fixed in the same commit construction pass — zero failed hook cycles this commit. This is the pre-commit critic working as designed: a Biome gate failure would have required a new commit to fix, adding noise to the PR.
+
+**Actions taken:**
+- Frequency table: "Redundant `afterEach(cleanup)` in test files (stale boilerplate copy-paste)" added as new watch row, count 1, 2026-04-08. First occurrence — no rule change. Watch for recurrence in test-writer output.
+
+**No changes to `code-style.md`, `security.md`, or `biome.json` this cycle.** The only new pattern is a first occurrence. The redundant cleanup call is not a style rule violation (it is dead code, not incorrect code); a note belongs in test-writer/patterns.md if it recurs, not in code-style.md.
+
+**Recommended changes:** None this cycle. No pattern meets the 2+ occurrence threshold.
+
+**False positives:** None. The semantic-reviewer SUGGESTION on `'http://x'` vs `'http://localhost'` is cosmetic and correctly classified as non-blocking.
+
+**Positive signals:**
+- All 4 post-commit agents reported clean on a test-only commit — no mechanical violations, no logic gaps, no doc drift, no coverage holes introduced.
+- Implementation-critic prevented a Biome format failure from reaching the pre-commit hook, avoiding a wasted hook cycle.
+- CodeRabbit findings (brittle URL parsing, redundant cleanup) were correctly addressed without overcorrection — the `new URL()` sentinel pattern is idiomatic and readable.
+- The cycle closed with zero fix commits needed — first clean cycle after the 3-commit batch admin hardening sequence.
+
+---
+
+### 2026-04-09 — Collapsible subject panel feature (commits 995de26, 4459a5d)
+
+**Context:** Two-commit sequence for issue #414. 995de26 introduced a new inline collapsible panel replacing the subject dropdown in the quiz config screen: new `CollapsibleSubjectPanel` component, Base UI `Collapsible` root, CSS variable-driven height animation. 4459a5d was the fix commit: removed inline `style` prop from CollapsibleContent, switched to Tailwind `data-[state=open]:*` classes, fixed `R.ReactNode` type error in test mock factory, added trigger click before row interaction in test.
+
+**Commit hashes:** 995de26 (feature), 4459a5d (fix)
+
+**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING. Clean on both commits.
+
+**Doc updater (haiku):** No changes needed. Clean.
+
+**Semantic reviewer (sonnet):** 2 ISSUE on 995de26, both fixed in 4459a5d. Re-review after fix: CLEAN (0 ISSUE, 1 SUGGESTION on mock fidelity — non-blocking).
+1. **Inline `style` prop on CollapsibleContent conflicting with Base UI internal style injection — ISSUE, real, fixed.** Base UI uses `--collapsible-panel-height` CSS variable injected via the same style attribute; the inline height prop overrode it and broke open/close animation.
+2. **Test clicked row inside CollapsibleContent without first opening the panel — ISSUE, real, fixed.** Panel starts collapsed; test assertion silently passed only because the mock always rendered children regardless of open state.
+
+**Implementation-critic:** 1 ISSUE on 995de26 (missing `height: var(--collapsible-panel-height)` on CollapsibleContent). Superseded by the semantic-reviewer's finding that inline styles on CollapsibleContent should be removed entirely rather than augmented.
+
+**Test writer (sonnet):** Added 6 new tests (11 total). Fixed `R.ReactNode` → `React.ReactNode` type error in hoisted vi.mock factory during generation.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] Base UI component inline `style` prop conflicting with internal style injection:**
+   CollapsibleContent's animation relies on a CSS variable that Base UI injects via the element's style attribute. Adding an inline `style` prop on the same element overwrites that injection. First occurrence — log and watch. The fix pattern is: use Tailwind `data-[state=*]:*` variant classes rather than inline styles for Base UI state-driven components.
+
+2. **[NEW — count 1] Test assumes component renders children unconditionally but real component starts collapsed:**
+   Collapsible panels start closed; their children are only rendered after the trigger is activated. A test that skips the trigger click will pass against a mock that always renders children but will fail against the real component or a more faithful mock. First occurrence — log and watch. The fix is: always activate the container (click the trigger) before asserting on or interacting with its contents.
+
+3. **[NEW — count 1] `require()` inside `vi.hoisted()` factory producing unresolvable type namespace:**
+   Using `require('react')` inside a `vi.hoisted()` call produces a runtime module but TypeScript cannot resolve the namespace, causing `R.ReactNode` reference errors. First occurrence — log and watch. The fix is: import at the top level, reference the type directly.
+
+**Actions taken:**
+- Frequency table: Added 3 new watch rows for this cycle (Base UI inline style conflict; test assumes unconditional children render; require() in vi.hoisted factory).
+- Frequency table: Also added the previously un-tabled `afterEach(cleanup)` row from c84a079 (noted in that session's narrative as "added" but missing from the table).
+
+**No rule changes applied this cycle.** All 3 patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits. The `afterEach(cleanup)` row backfill is also at count 1.
+
+**False positives:** None. The semantic-reviewer's 2 ISSUEs were both real and correctly classified. The implementation-critic ISSUE was superseded (not wrong — the inline style was indeed the problem; the semantic-reviewer's fix was more complete than the critic's suggestion).
+
+**Positive signals:**
+- Both ISSUEs caught by semantic-reviewer were real behavioral gaps, not style nits — the reviewer is correctly distinguishing functional correctness from cosmetic concerns.
+- The fix commit 4459a5d closed all findings in a single pass with no residual issues on re-review.
+- Test writer caught and self-corrected the `require()` / `R.ReactNode` type error during generation — the test run gate caught it before the commit.
+- Implementation-critic and semantic-reviewer flagged the same root file (CollapsibleContent), providing convergent evidence before the fix was written.
+- Code reviewer was clean on both commits, confirming no mechanical style regressions were introduced alongside the behavioral fixes.
 
 ---
