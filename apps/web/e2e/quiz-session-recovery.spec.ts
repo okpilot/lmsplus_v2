@@ -156,6 +156,7 @@ test.describe('Quiz Session Recovery', () => {
 
     // Configure a new quiz
     const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
+    await subjectTrigger.waitFor({ state: 'visible' })
     await subjectTrigger.click()
     await page.locator('[data-testid="subject-option"]').first().click()
     await page.getByRole('button', { name: 'All' }).click()
