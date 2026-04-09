@@ -110,13 +110,6 @@ describe('SubjectSelect', () => {
     render(<SubjectSelect subjects={SUBJECTS} value="sub-1" onValueChange={vi.fn()} />)
     const trigger = screen.getByTestId('collapsible-trigger')
     expect(trigger).toHaveTextContent('Air Law')
-    expect(trigger).toHaveTextContent('40 questions')
-  })
-
-  it('shows question count for each subject in the list', () => {
-    render(<SubjectSelect subjects={SUBJECTS} value="" onValueChange={vi.fn()} />)
-    expect(screen.getByText('40')).toBeInTheDocument()
-    expect(screen.getByText('80')).toBeInTheDocument()
   })
 
   it('opens the panel when the trigger is clicked', async () => {

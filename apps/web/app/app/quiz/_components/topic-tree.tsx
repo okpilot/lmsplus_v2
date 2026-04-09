@@ -80,7 +80,7 @@ function TopicList({
   filteredBySubtopic,
 }: Readonly<TopicListProps>) {
   return (
-    <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
+    <div className="rounded-lg border border-border">
       {topics.map((topic) => (
         <div key={topic.id} className="border-b border-border last:border-b-0">
           <TopicRow

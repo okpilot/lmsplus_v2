@@ -34,8 +34,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: SubjectSelectP
           ) : (
             <span className="text-muted-foreground">Select a subject</span>
           )}
-          <span className="flex items-center gap-2 text-muted-foreground">
-            {selected && <span className="text-xs">{selected.questionCount} questions</span>}
+          <span className="text-muted-foreground">
             <ChevronDown
               className={`h-4 w-4 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
             />
@@ -71,7 +70,6 @@ export function SubjectSelect({ subjects, value, onValueChange }: SubjectSelectP
                 >
                   {s.name}
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground/50">{s.questionCount}</span>
               </button>
             ))}
           </div>
