@@ -41,10 +41,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: SubjectSelectP
             />
           </span>
         </CollapsibleTrigger>
-        <CollapsibleContent
-          className="overflow-hidden data-[ending-style]:h-0 data-[starting-style]:h-0"
-          style={{ height: 'var(--collapsible-panel-height)', transition: 'height 150ms ease-out' }}
-        >
+        <CollapsibleContent className="overflow-hidden transition-[height] duration-150 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0">
           <div className="divide-y divide-border rounded-b-[10px] border border-t-0 border-border">
             {subjects.map((s) => (
               <button
