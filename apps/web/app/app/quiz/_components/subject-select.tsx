@@ -49,7 +49,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: SubjectSelectP
                 type="button"
                 data-testid="subject-option"
                 onClick={() => {
-                  onValueChange(s.id)
+                  if (s.id !== value) onValueChange(s.id)
                   setOpen(false)
                 }}
                 className={`flex w-full items-center gap-2.5 border-l-2 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 ${

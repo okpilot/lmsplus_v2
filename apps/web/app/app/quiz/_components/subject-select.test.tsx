@@ -163,6 +163,18 @@ describe('SubjectSelect', () => {
     expect(metRow.className).toContain('border-l-transparent')
   })
 
+  it('does not call onValueChange when clicking the already-selected subject', async () => {
+    const onValueChange = vi.fn()
+    const user = userEvent.setup()
+    render(<SubjectSelect subjects={SUBJECTS} value="sub-1" onValueChange={onValueChange} />)
+    await user.click(screen.getByTestId('collapsible-trigger'))
+    const options = screen.getAllByTestId('subject-option')
+    await user.click(options[0]!) // Air Law row (already selected)
+    expect(onValueChange).not.toHaveBeenCalled()
+    // Panel should still close
+    expect(screen.getByTestId('collapsible')).toHaveAttribute('data-open', 'false')
+  })
+
   it('shows placeholder text in the trigger when no subject is selected', () => {
     render(<SubjectSelect subjects={SUBJECTS} value="" onValueChange={vi.fn()} />)
     expect(screen.getByTestId('collapsible-trigger')).toHaveTextContent('Select a subject')

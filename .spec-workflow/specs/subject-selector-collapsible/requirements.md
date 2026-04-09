@@ -11,7 +11,7 @@ The current `Select` dropdown overlays other UI elements when opened, creating a
 
 ## Solution
 An inline collapsible panel using Base UI's `Collapsible` primitive (already installed as shadcn component). The panel:
-- **Collapsed**: Shows a single bar with the selected subject (code badge + name + question count) and a chevron
+- **Collapsed**: Shows a single bar with the selected subject (code badge + name) and a chevron
 - **Expanded**: Opens inline, pushing Mode/Filter/Topics sections down, showing all subjects as a list
 - **Selection**: Clicking a subject selects it and collapses the panel
 - **Animation**: Smooth height transition using `--collapsible-panel-height` CSS var
@@ -20,7 +20,7 @@ An inline collapsible panel using Base UI's `Collapsible` primitive (already ins
 1. Clicking the collapsed bar toggles the panel open
 2. Clicking a subject row selects it and closes the panel
 3. Selected subject shows with blue highlight (left border accent + tinted background)
-4. Each row displays: code badge, subject name, question count (right-aligned)
+4. Each row displays: code badge and subject name
 5. The chevron rotates between down (collapsed) and up (expanded)
 6. When no subject is selected, the bar shows "Select a subject" placeholder text
 7. The `onValueChange` callback interface remains identical to the current `SubjectSelect`
