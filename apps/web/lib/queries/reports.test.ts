@@ -148,4 +148,10 @@ describe('getSessionReports', () => {
     const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
   })
+
+  it('treats non-array RPC data as empty result', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
+  })
 })

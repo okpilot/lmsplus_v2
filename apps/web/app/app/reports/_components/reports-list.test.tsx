@@ -224,4 +224,38 @@ describe('ReportsList sort toggles', () => {
     expect(screen.getByRole('button', { name: /score/i }).textContent).not.toContain('\u2191')
     expect(screen.getByRole('button', { name: /score/i }).textContent).not.toContain('\u2193')
   })
+
+  it('shows the active sort arrow on the subject sort key', () => {
+    render(
+      <ReportsList
+        sessions={[makeSession()]}
+        page={1}
+        totalCount={1}
+        pageSize={10}
+        sort="subject"
+        dir="asc"
+      />,
+    )
+    expect(screen.getByRole('button', { name: /subject/i }).textContent).toContain('\u2191')
+  })
+
+  it('calls router.replace with subject sort when subject button is clicked', async () => {
+    const user = userEvent.setup()
+    render(
+      <ReportsList
+        sessions={[makeSession()]}
+        page={1}
+        totalCount={1}
+        pageSize={10}
+        sort="date"
+        dir="desc"
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /subject/i }))
+    const url = mockReplace.mock.calls[0]?.[0] as string
+    const params = new URL(url, 'http://x').searchParams
+    expect(params.get('sort')).toBe('subject')
+    expect(params.get('dir')).toBe('asc')
+    expect(params.has('page')).toBe(false)
+  })
 })

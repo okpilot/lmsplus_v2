@@ -91,24 +91,22 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
   // total_count comes from the window function — same on every row
   const totalCount = rows[0]?.total_count ?? 0
 
-  const sessions: SessionReport[] = rows.map((r) => {
-    const start = new Date(r.started_at).getTime()
-    const end = new Date(r.ended_at).getTime()
-    const durationMinutes = Math.max(0, Math.round((end - start) / 60000))
+  return { ok: true, sessions: rows.map(mapRpcRow), totalCount }
+}
 
-    return {
-      id: r.id,
-      mode: r.mode,
-      subjectName: r.subject_name ?? null,
-      totalQuestions: r.total_questions,
-      answeredCount: r.answered_count,
-      correctCount: r.correct_count,
-      scorePercentage: r.score_percentage,
-      startedAt: r.started_at,
-      endedAt: r.ended_at,
-      durationMinutes,
-    }
-  })
-
-  return { ok: true, sessions, totalCount }
+function mapRpcRow(r: RpcRow): SessionReport {
+  const start = new Date(r.started_at).getTime()
+  const end = new Date(r.ended_at).getTime()
+  return {
+    id: r.id,
+    mode: r.mode,
+    subjectName: r.subject_name ?? null,
+    totalQuestions: r.total_questions,
+    answeredCount: r.answered_count,
+    correctCount: r.correct_count,
+    scorePercentage: r.score_percentage,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    durationMinutes: Math.max(0, Math.round((end - start) / 60000)),
+  }
 }
