@@ -22,14 +22,14 @@ export async function requireAdmin(): Promise<AdminAuth> {
     .from('users')
     .select('role, organization_id')
     .eq('id', user.id)
-    .single<{ role: string; organization_id: string }>()
+    .maybeSingle<{ role: string; organization_id: string }>()
 
   if (profileError) {
     console.error('[requireAdmin] Profile query error:', profileError.message)
     throw new Error('Service error: could not verify admin role')
   }
 
-  if (profile?.role !== 'admin') {
+  if (!profile || profile.role !== 'admin') {
     redirect('/app')
   }
 
