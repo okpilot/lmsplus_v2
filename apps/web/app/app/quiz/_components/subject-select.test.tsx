@@ -4,30 +4,32 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ------------------------------------------------------------------
 
-// Mock shadcn Select so tests are not tied to Radix Portal internals.
-vi.mock('@/components/ui/select', () => ({
-  Select: ({
-    value,
-    onValueChange,
-    children,
-  }: {
-    value: string
-    onValueChange: (v: string) => void
-    children: React.ReactNode
-  }) => (
-    <div data-testid="select" data-value={value}>
-      <button type="button" onClick={() => onValueChange('sub-2')}>
-        trigger
-      </button>
+// Mock Collapsible as pass-through elements so tests exercise component logic
+// without depending on Base UI internals.
+vi.mock('@/components/ui/collapsible', () => ({
+  Collapsible: ({ children, ...props }: { children: React.ReactNode; open?: boolean }) => (
+    <div data-testid="collapsible" data-open={props.open}>
       {children}
     </div>
   ),
-  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectValue: ({ placeholder }: { placeholder: string }) => <span>{placeholder}</span>,
-  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
-    <div data-value={value}>{children}</div>
+  CollapsibleTrigger: ({
+    children,
+    ...props
+  }: {
+    children: React.ReactNode
+    className?: string
+  }) => (
+    <button type="button" data-testid="collapsible-trigger" {...props}>
+      {children}
+    </button>
   ),
+  CollapsibleContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="collapsible-content">{children}</div>
+  ),
+}))
+
+vi.mock('lucide-react', () => ({
+  ChevronDown: () => <span data-testid="chevron" />,
 }))
 
 // ---- Subject under test -----------------------------------------------------
@@ -48,27 +50,37 @@ describe('SubjectSelect', () => {
     vi.resetAllMocks()
   })
 
-  it('renders subject items with code and name', () => {
+  it('renders all subject rows with code and name', () => {
     render(<SubjectSelect subjects={SUBJECTS} value="" onValueChange={vi.fn()} />)
-    expect(screen.getByText('010 — Air Law')).toBeInTheDocument()
-    expect(screen.getByText('050 — Meteorology')).toBeInTheDocument()
+    expect(screen.getByText('Air Law')).toBeInTheDocument()
+    expect(screen.getByText('Meteorology')).toBeInTheDocument()
+    expect(screen.getByText('010')).toBeInTheDocument()
+    expect(screen.getByText('050')).toBeInTheDocument()
   })
 
-  it('calls onValueChange when the select value changes', async () => {
+  it('calls onValueChange when a subject row is clicked', async () => {
     const onValueChange = vi.fn()
     const user = userEvent.setup()
     render(<SubjectSelect subjects={SUBJECTS} value="" onValueChange={onValueChange} />)
-    await user.click(screen.getByRole('button', { name: 'trigger' }))
+    await user.click(screen.getByText('Meteorology'))
     expect(onValueChange).toHaveBeenCalledWith('sub-2')
   })
 
   it('renders with an empty subjects list without crashing', () => {
     render(<SubjectSelect subjects={[]} value="" onValueChange={vi.fn()} />)
-    expect(screen.getByTestId('select')).toBeInTheDocument()
+    expect(screen.getByText('Select a subject')).toBeInTheDocument()
   })
 
-  it('passes the current value to the Select component', () => {
+  it('shows the selected subject name in the trigger', () => {
     render(<SubjectSelect subjects={SUBJECTS} value="sub-1" onValueChange={vi.fn()} />)
-    expect(screen.getByTestId('select')).toHaveAttribute('data-value', 'sub-1')
+    const trigger = screen.getByTestId('collapsible-trigger')
+    expect(trigger).toHaveTextContent('Air Law')
+    expect(trigger).toHaveTextContent('40 questions')
+  })
+
+  it('shows question count for each subject in the list', () => {
+    render(<SubjectSelect subjects={SUBJECTS} value="" onValueChange={vi.fn()} />)
+    expect(screen.getByText('40')).toBeInTheDocument()
+    expect(screen.getByText('80')).toBeInTheDocument()
   })
 })
