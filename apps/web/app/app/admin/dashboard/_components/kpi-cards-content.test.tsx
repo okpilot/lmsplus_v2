@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Hoisted mocks ----------------------------------------------------------
 
 const mockGetDashboardKpis = vi.hoisted(() => vi.fn())
-const mockIsRedirectError = vi.hoisted(() => vi.fn())
+const mockRethrowRedirect = vi.hoisted(() => vi.fn())
 
 // ---- Module mocks -----------------------------------------------------------
 
@@ -12,11 +12,8 @@ vi.mock('../queries', () => ({
   getDashboardKpis: mockGetDashboardKpis,
 }))
 
-// Simulate Next.js redirect-error detection — real redirects have a special
-// NEXT_REDIRECT digest. Mock lets us control when an error is classified as a
-// redirect versus a regular failure.
-vi.mock('next/dist/client/components/redirect-error', () => ({
-  isRedirectError: mockIsRedirectError,
+vi.mock('@/lib/next/rethrow-redirect', () => ({
+  rethrowRedirect: mockRethrowRedirect,
 }))
 
 // Stub KpiCards — content tests focus on error-handling logic, not card rendering.
@@ -35,7 +32,6 @@ import { KpiCardsContent } from './kpi-cards-content'
 describe('KpiCardsContent', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockIsRedirectError.mockReturnValue(false)
   })
 
   it('renders kpi cards when data loads successfully', async () => {
@@ -59,7 +55,9 @@ describe('KpiCardsContent', () => {
   it('re-throws redirect errors instead of showing the fallback', async () => {
     const redirectError = new Error('NEXT_REDIRECT:/auth/login')
     mockGetDashboardKpis.mockRejectedValue(redirectError)
-    mockIsRedirectError.mockReturnValue(true)
+    mockRethrowRedirect.mockImplementation((err: unknown) => {
+      throw err
+    })
 
     await expect(KpiCardsContent({ range: '30d' })).rejects.toThrow('NEXT_REDIRECT:/auth/login')
   })

@@ -1,4 +1,4 @@
-import { isRedirectError } from 'next/dist/client/components/redirect-error'
+import { rethrowRedirect } from '@/lib/next/rethrow-redirect'
 import { ContentErrorFallback } from '../../../_components/content-error-fallback'
 import type { StudentSessionFilters } from '../../../types'
 import { getStudentSessions } from '../queries'
@@ -11,7 +11,7 @@ export async function SessionHistoryContent({ studentId, filters }: Props) {
     const { sessions, totalCount } = await getStudentSessions(studentId, filters)
     return <SessionHistoryTable sessions={sessions} totalCount={totalCount} filters={filters} />
   } catch (error) {
-    if (isRedirectError(error)) throw error
+    rethrowRedirect(error)
     return (
       <ContentErrorFallback message="Failed to load session history. Please refresh the page." />
     )

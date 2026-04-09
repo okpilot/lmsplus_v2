@@ -1,4 +1,4 @@
-import { isRedirectError } from 'next/dist/client/components/redirect-error'
+import { rethrowRedirect } from '@/lib/next/rethrow-redirect'
 import { getDashboardKpis } from '../queries'
 import type { TimeRange } from '../types'
 import { ContentErrorFallback } from './content-error-fallback'
@@ -11,7 +11,7 @@ export async function KpiCardsContent({ range }: Props) {
     const kpis = await getDashboardKpis(range)
     return <KpiCards data={kpis} range={range} />
   } catch (error) {
-    if (isRedirectError(error)) throw error
+    rethrowRedirect(error)
     return <ContentErrorFallback message="Failed to load KPIs. Please refresh the page." />
   }
 }
