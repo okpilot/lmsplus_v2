@@ -23,10 +23,10 @@ async function startAndAbandonQuiz(
   await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
 
   // Configure: select first subject, all available questions
-  const subjectTrigger = page.locator('[data-slot="select-trigger"]')
+  const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
   await subjectTrigger.waitFor({ state: 'visible' })
   await subjectTrigger.click()
-  await page.locator('[data-slot="select-item"]').first().click()
+  await page.locator('[data-testid="subject-option"]').first().click()
 
   // Use "All" button (never disabled, works regardless of question count)
   await page.getByRole('button', { name: 'All' }).click()
@@ -155,9 +155,9 @@ test.describe('Quiz Session Recovery', () => {
     await expect(page.getByText('Unfinished quiz found')).toBeVisible()
 
     // Configure a new quiz
-    const subjectTrigger = page.locator('[data-slot="select-trigger"]')
+    const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
     await subjectTrigger.click()
-    await page.locator('[data-slot="select-item"]').first().click()
+    await page.locator('[data-testid="subject-option"]').first().click()
     await page.getByRole('button', { name: 'All' }).click()
 
     // First attempt: Playwright auto-dismisses confirm (returns false) → stays on page

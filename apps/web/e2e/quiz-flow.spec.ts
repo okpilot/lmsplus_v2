@@ -8,11 +8,11 @@ test('quiz flow: configure → answer questions → view results → dashboard',
   await page.goto('/app/quiz')
   await expect(page.getByRole('heading', { name: 'Quiz' })).toBeVisible()
 
-  // 2. Select the first subject from the shadcn Select dropdown
-  const subjectTrigger = page.locator('[data-slot="select-trigger"]')
+  // 2. Select the first subject from the collapsible panel
+  const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
   await subjectTrigger.waitFor({ state: 'visible' })
   await subjectTrigger.click()
-  await page.locator('[data-slot="select-item"]').first().click()
+  await page.locator('[data-testid="subject-option"]').first().click()
 
   // 3. Use the "10" preset button for a reliable question count
   await page.getByRole('button', { name: '10' }).click()
