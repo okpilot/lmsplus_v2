@@ -151,10 +151,10 @@ describe('SubjectSelect', () => {
     expect(trigger.className).toContain('border-b-transparent')
   })
 
-  it('highlights the selected row with a primary left border', () => {
+  it('highlights the selected row with a primary left border', async () => {
+    const user = userEvent.setup()
     render(<SubjectSelect subjects={SUBJECTS} value="sub-1" onValueChange={vi.fn()} />)
-    // Query within the content panel to avoid ambiguity with the trigger, which
-    // also shows the selected subject name when a value is set.
+    await user.click(screen.getByTestId('collapsible-trigger'))
     const content = screen.getByTestId('collapsible-content')
     const rowButtons = content.querySelectorAll('button')
     const airLawRow = rowButtons[0] as HTMLButtonElement
