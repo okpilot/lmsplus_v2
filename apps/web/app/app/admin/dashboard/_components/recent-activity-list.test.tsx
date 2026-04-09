@@ -1,9 +1,8 @@
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RecentSession } from '../types'
 import { RecentActivityList } from './recent-activity-list'
 
-afterEach(cleanup)
 beforeEach(() => {
   vi.resetAllMocks()
 })

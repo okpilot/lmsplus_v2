@@ -1,3 +1,4 @@
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { getRecentSessions } from '../queries'
 import type { TimeRange } from '../types'
 import { ContentErrorFallback } from './content-error-fallback'
@@ -9,7 +10,8 @@ export async function RecentActivityContent({ range }: Props) {
   try {
     const sessions = await getRecentSessions(range)
     return <RecentActivityList sessions={sessions} />
-  } catch {
+  } catch (error) {
+    if (isRedirectError(error)) throw error
     return (
       <ContentErrorFallback message="Failed to load recent activity. Please refresh the page." />
     )

@@ -1,9 +1,8 @@
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DashboardKpis } from '../types'
 import { KpiCards } from './kpi-cards'
 
-afterEach(cleanup)
 beforeEach(() => {
   vi.resetAllMocks()
 })

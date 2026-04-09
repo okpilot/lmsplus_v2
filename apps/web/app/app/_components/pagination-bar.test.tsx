@@ -5,11 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Mocks -----------------------------------------------------------------
 
 const mockRouterReplace = vi.fn()
-const mockSearchParamsToString = vi.fn().mockReturnValue('')
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockRouterReplace }),
-  useSearchParams: () => ({ toString: mockSearchParamsToString }),
+  usePathname: () => '/test',
 }))
 
 // lucide-react icons are SVG — stub them to avoid SVG transform issues in jsdom
@@ -65,19 +64,16 @@ describe('buildPageNumbers', () => {
   })
 
   it('does not show leading ellipsis when current is exactly at threshold (4)', () => {
-    // current=4 → current > 4 is false, so no leading ellipsis
     const pages = buildPageNumbers(4, 10)
     expect(pages).toEqual([1, 2, 3, 4, 5, 6, '...', 10])
   })
 
   it('shows leading ellipsis when current is one past the threshold (5)', () => {
-    // current=5 → current > 4 is true, so leading ellipsis appears
     const pages = buildPageNumbers(5, 10)
     expect(pages).toEqual([1, '...', 3, 4, 5, 6, 7, '...', 10])
   })
 
   it('does not show trailing ellipsis when current is exactly at threshold (total - 3)', () => {
-    // current=7, total=10 → current < total-3 = 7 is false, so no trailing ellipsis
     const pages = buildPageNumbers(7, 10)
     expect(pages).toEqual([1, '...', 5, 6, 7, 8, 9, 10])
   })
@@ -88,13 +84,11 @@ describe('buildPageNumbers', () => {
   })
 
   it('handles current at page 1 of a large set', () => {
-    // current=1, no leading ellipsis; window starts at 1, end=3; trailing ellipsis appears
     const pages = buildPageNumbers(1, 20)
     expect(pages).toEqual([1, 2, 3, '...', 20])
   })
 
   it('handles current at last page of a large set', () => {
-    // current=20, leading ellipsis appears; window ends at 19; no trailing ellipsis
     const pages = buildPageNumbers(20, 20)
     expect(pages).toEqual([1, '...', 18, 19, 20])
   })
@@ -147,7 +141,10 @@ describe('buildPageItems', () => {
 describe('PaginationBar', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockSearchParamsToString.mockReturnValue('')
+    Object.defineProperty(window, 'location', {
+      value: { search: '' },
+      writable: true,
+    })
   })
 
   it('renders null when totalCount is 0', () => {
@@ -217,7 +214,7 @@ describe('PaginationBar', () => {
 
     await user.click(screen.getByLabelText('Next page'))
 
-    expect(mockRouterReplace).toHaveBeenCalledWith('?page=2')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test?page=2')
   })
 
   it('navigates to previous page when Previous button is clicked', async () => {
@@ -226,7 +223,7 @@ describe('PaginationBar', () => {
 
     await user.click(screen.getByLabelText('Previous page'))
 
-    expect(mockRouterReplace).toHaveBeenCalledWith('?page=2')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test?page=2')
   })
 
   it('navigates to a specific page when a numbered button is clicked', async () => {
@@ -235,35 +232,38 @@ describe('PaginationBar', () => {
 
     await user.click(screen.getByRole('button', { name: '2' }))
 
-    expect(mockRouterReplace).toHaveBeenCalledWith('?page=2')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test?page=2')
   })
 
   it('removes the page param from the URL when navigating to page 1', async () => {
     const user = userEvent.setup()
-    mockSearchParamsToString.mockReturnValue('page=2')
+    Object.defineProperty(window, 'location', {
+      value: { search: '?page=2' },
+      writable: true,
+    })
     render(<PaginationBar page={2} totalCount={75} pageSize={25} />)
 
     await user.click(screen.getByLabelText('Previous page'))
 
-    // page=1 is represented by no ?page param
-    expect(mockRouterReplace).toHaveBeenCalledWith('?')
+    // page=1 is represented by no ?page param — clean path without trailing ?
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test')
   })
 
   it('preserves existing search params when navigating', async () => {
     const user = userEvent.setup()
-    mockSearchParamsToString.mockReturnValue('subjectId=abc')
+    Object.defineProperty(window, 'location', {
+      value: { search: '?subjectId=abc' },
+      writable: true,
+    })
     render(<PaginationBar page={1} totalCount={75} pageSize={25} />)
 
     await user.click(screen.getByLabelText('Next page'))
 
-    expect(mockRouterReplace).toHaveBeenCalledWith('?subjectId=abc&page=2')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/test?subjectId=abc&page=2')
   })
 
   it('renders with out-of-range page (server redirects in practice)', () => {
-    // In production, QuestionsContent redirects out-of-range pages server-side.
-    // If the component receives page > totalPages, it renders based on raw page.
     render(<PaginationBar page={99} totalCount={50} pageSize={25} />)
-    // Component still renders — server redirect prevents this in practice
     expect(screen.getByLabelText('Previous page')).toBeInTheDocument()
   })
 
@@ -275,7 +275,6 @@ describe('PaginationBar', () => {
   })
 
   it('renders ellipsis spans when total pages exceeds 9', () => {
-    // 11 pages → ellipsis should appear
     render(<PaginationBar page={4} totalCount={275} pageSize={25} />)
     const ellipses = screen.getAllByText('...')
     expect(ellipses.length).toBeGreaterThan(0)

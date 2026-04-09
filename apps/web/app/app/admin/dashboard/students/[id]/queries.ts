@@ -9,10 +9,10 @@ export async function getStudentDetail(studentId: string): Promise<StudentDetail
 
   const { data, error } = await adminClient
     .from('users')
-    .select('id, full_name, email, role, last_active_at, created_at')
+    .select('id, full_name, email, role, last_active_at, created_at, deleted_at')
     .eq('id', studentId)
     .eq('organization_id', organizationId)
-    .is('deleted_at', null)
+    .eq('role', 'student')
     .maybeSingle()
 
   if (error) {
@@ -29,6 +29,7 @@ export async function getStudentDetail(studentId: string): Promise<StudentDetail
     role: data.role,
     lastActiveAt: data.last_active_at,
     createdAt: data.created_at,
+    deletedAt: data.deleted_at,
   }
 }
 

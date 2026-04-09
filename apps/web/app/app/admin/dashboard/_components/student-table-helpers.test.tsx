@@ -1,9 +1,8 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DashboardStudent } from '../types'
 import { formatRelativeTime, StudentRow } from './student-table-helpers'
 
-afterEach(cleanup)
 beforeEach(() => {
   vi.resetAllMocks()
 })
@@ -212,7 +211,7 @@ describe('StudentRow', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
-  it('does not respond to Enter key when inactive', () => {
+  it('responds to Enter key when inactive (allows viewing historical stats)', () => {
     const onClick = vi.fn()
     render(
       <table>
@@ -222,10 +221,10 @@ describe('StudentRow', () => {
       </table>,
     )
     fireEvent.keyDown(screen.getByRole('row'), { key: 'Enter' })
-    expect(onClick).not.toHaveBeenCalled()
+    expect(onClick).toHaveBeenCalledTimes(1)
   })
 
-  it('does not respond to Space key when inactive', () => {
+  it('responds to Space key when inactive (allows viewing historical stats)', () => {
     const onClick = vi.fn()
     render(
       <table>
@@ -235,10 +234,10 @@ describe('StudentRow', () => {
       </table>,
     )
     fireEvent.keyDown(screen.getByRole('row'), { key: ' ' })
-    expect(onClick).not.toHaveBeenCalled()
+    expect(onClick).toHaveBeenCalledTimes(1)
   })
 
-  it('does not respond to mouse click when inactive', () => {
+  it('responds to mouse click when inactive (allows viewing historical stats)', () => {
     const onClick = vi.fn()
     render(
       <table>
@@ -248,7 +247,7 @@ describe('StudentRow', () => {
       </table>,
     )
     fireEvent.click(screen.getByRole('row'))
-    expect(onClick).not.toHaveBeenCalled()
+    expect(onClick).toHaveBeenCalledTimes(1)
   })
 
   it('applies a green mastery colour class when mastery is 80 or above', () => {

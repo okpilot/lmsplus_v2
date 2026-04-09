@@ -1,8 +1,8 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
+import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { SessionCard } from './session-card'
 import { SessionTable } from './session-table'
@@ -17,23 +17,17 @@ type Props = {
 }
 
 export function ReportsList({ sessions, page, totalCount, pageSize, sort, dir }: Readonly<Props>) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
+  const updateParams = useUpdateSearchParams()
 
   const setSort = useCallback(
     (key: SortKey) => {
-      const params = new URLSearchParams(searchParams.toString())
       if (sort === key) {
-        params.set('dir', dir === 'asc' ? 'desc' : 'asc')
+        updateParams({ dir: dir === 'asc' ? 'desc' : 'asc', page: null })
       } else {
-        params.set('sort', key)
-        params.set('dir', key === 'date' ? 'desc' : 'asc')
+        updateParams({ sort: key, dir: key === 'date' ? 'desc' : 'asc', page: null })
       }
-      // Reset to page 1 on sort change
-      params.delete('page')
-      router.replace(`?${params.toString()}`)
     },
-    [router, searchParams, sort, dir],
+    [updateParams, sort, dir],
   )
 
   if (sessions.length === 0 && totalCount === 0) {

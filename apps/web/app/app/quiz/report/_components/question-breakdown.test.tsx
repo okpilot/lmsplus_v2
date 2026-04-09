@@ -11,6 +11,7 @@ const mockSearchParamsToString = vi.fn().mockReturnValue('')
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockRouterReplace }),
   useSearchParams: () => ({ toString: mockSearchParamsToString }),
+  usePathname: () => '/app/quiz/report',
 }))
 
 vi.mock('lucide-react', () => ({

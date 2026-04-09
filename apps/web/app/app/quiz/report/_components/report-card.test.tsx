@@ -8,6 +8,7 @@ import { ReportCard } from './report-card'
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn() }),
   useSearchParams: () => ({ toString: () => '' }),
+  usePathname: () => '/app/quiz/report',
 }))
 
 // ---- Fixtures ---------------------------------------------------------------

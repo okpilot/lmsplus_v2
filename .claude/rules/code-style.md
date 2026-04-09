@@ -411,6 +411,30 @@ if (!hydrated) return <Skeleton />
 
 Use this pattern when a component's initial render differs between server and client (e.g., reading `localStorage`, `window`, or client-only browser APIs).
 
+### Re-throw Redirect Errors in Server Component Catch Blocks
+Next.js uses throw-based control flow for `redirect()` and `notFound()`. Any `catch` block wrapping a call that may invoke these must check `isRedirectError(error)` and re-throw if true. A bare `catch {}` that does not check turns a redirect into a 500 or stale render.
+
+```tsx
+// ❌ WRONG — swallows redirect, shows fallback instead of redirecting
+try {
+  const data = await getProtectedData()
+  return <DataView data={data} />
+} catch {
+  return <ErrorFallback />
+}
+
+// ✅ CORRECT — redirect propagates, only real errors show fallback
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
+
+try {
+  const data = await getProtectedData()
+  return <DataView data={data} />
+} catch (error) {
+  if (isRedirectError(error)) throw error
+  return <ErrorFallback />
+}
+```
+
 ---
 
 ## 7. Testing Rules

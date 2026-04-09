@@ -1,8 +1,9 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useCallback } from 'react'
 import { PaginationBar } from '@/app/app/_components/pagination-bar'
+import { useUpdateSearchParams } from '@/app/app/_hooks/use-update-search-params'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { SortableTableHead } from '../_lib/sortable-head'
 import type { DashboardFilters, DashboardStudent } from '../types'
@@ -26,32 +27,24 @@ type Props = Readonly<{
 
 export function StudentTableShell({ students, totalCount, filters }: Props) {
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const updateParams = useUpdateSearchParams()
 
   const handleStatusChange = useCallback(
     (value: string | null) => {
-      const params = new URLSearchParams(searchParams.toString())
-      params.delete('page')
-      if (!value || value === 'all') {
-        params.delete('status')
-      } else {
-        params.set('status', value)
-      }
-      router.replace(`?${params.toString()}`)
+      updateParams({
+        status: !value || value === 'all' ? null : value,
+        page: null,
+      })
     },
-    [router, searchParams],
+    [updateParams],
   )
 
   const handleSort = useCallback(
     (field: DashboardFilters['sort']) => {
       const nextDir = filters.sort === field && filters.dir === 'asc' ? 'desc' : 'asc'
-      const params = new URLSearchParams(searchParams.toString())
-      params.set('sort', field)
-      params.set('dir', nextDir)
-      params.delete('page')
-      router.replace(`?${params.toString()}`)
+      updateParams({ sort: field, dir: nextDir, page: null })
     },
-    [router, searchParams, filters.sort, filters.dir],
+    [updateParams, filters.sort, filters.dir],
   )
 
   const statusFilter = (

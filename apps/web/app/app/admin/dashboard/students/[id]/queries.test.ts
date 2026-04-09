@@ -34,14 +34,14 @@ function makeAdminContext(overrides: Partial<{ organizationId: string }> = {}) {
 
 /**
  * Builds a chainable mock for getStudentDetail's query chain.
- * Chain: .select().eq().eq().is().maybeSingle() → { data, error }
+ * Chain: .select().eq().eq().eq().maybeSingle() → { data, error }
  */
 function makeDetailChain(
   data: Record<string, unknown> | null,
   error: { message: string } | null = null,
 ) {
   const chain: Record<string, unknown> = {}
-  for (const method of ['select', 'eq', 'is']) {
+  for (const method of ['select', 'eq']) {
     chain[method] = vi.fn().mockReturnValue(chain)
   }
   chain.maybeSingle = vi.fn().mockResolvedValue({ data, error })
@@ -78,6 +78,7 @@ type UserDetailRow = {
   role: string
   last_active_at: string | null
   created_at: string
+  deleted_at: string | null
 }
 
 function makeUserDetailRow(overrides: Partial<UserDetailRow> = {}): UserDetailRow {
@@ -88,6 +89,7 @@ function makeUserDetailRow(overrides: Partial<UserDetailRow> = {}): UserDetailRo
     role: 'student',
     last_active_at: null,
     created_at: '2026-01-01T00:00:00Z',
+    deleted_at: null,
     ...overrides,
   }
 }
@@ -129,7 +131,8 @@ describe('getStudentDetail', () => {
 
   it('returns mapped student detail when student is found', async () => {
     const row = makeUserDetailRow()
-    mockFrom.mockReturnValue(makeDetailChain(row))
+    const chain = makeDetailChain(row)
+    mockFrom.mockReturnValue(chain)
 
     const result = await getStudentDetail(STUDENT_ID)
 
@@ -140,7 +143,21 @@ describe('getStudentDetail', () => {
       role: 'student',
       lastActiveAt: null,
       createdAt: '2026-01-01T00:00:00Z',
+      deletedAt: null,
     })
+  })
+
+  it('scopes query by student id, organization, and role', async () => {
+    const chain = makeDetailChain(makeUserDetailRow())
+    mockFrom.mockReturnValue(chain)
+
+    await getStudentDetail(STUDENT_ID)
+
+    expect(mockFrom).toHaveBeenCalledWith('users')
+    const eqCalls = (chain.eq as ReturnType<typeof vi.fn>).mock.calls
+    expect(eqCalls).toContainEqual(['id', STUDENT_ID])
+    expect(eqCalls).toContainEqual(['organization_id', DEFAULT_ORG_ID])
+    expect(eqCalls).toContainEqual(['role', 'student'])
   })
 
   it('returns null when no student matches the id and org', async () => {
@@ -157,6 +174,15 @@ describe('getStudentDetail', () => {
     const result = await getStudentDetail(STUDENT_ID)
 
     expect(result?.fullName).toBeNull()
+  })
+
+  it('returns inactive student with deletedAt populated', async () => {
+    const row = makeUserDetailRow({ deleted_at: '2026-03-15T12:00:00Z' })
+    mockFrom.mockReturnValue(makeDetailChain(row))
+
+    const result = await getStudentDetail(STUDENT_ID)
+
+    expect(result?.deletedAt).toBe('2026-03-15T12:00:00Z')
   })
 
   it('throws when the query returns an error', async () => {

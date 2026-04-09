@@ -1508,7 +1508,7 @@ Returns one row per student in the admin's organisation with their session count
 
 **Returns:** `TABLE(user_id UUID, session_count BIGINT, avg_score NUMERIC, mastery NUMERIC)`
 
-**Mastery formula:** Matches `lib/queries/dashboard.ts` — `COUNT(DISTINCT correct active questions) / COUNT(DISTINCT active questions) * 100`, where "active" means `status = 'active' AND deleted_at IS NULL`.
+**Mastery formula:** Matches `lib/queries/dashboard.ts` — `COUNT(DISTINCT correct active questions) / COUNT(DISTINCT active questions) * 100`, where "active" means `status = 'active' AND deleted_at IS NULL`. Returns stats for all students in the org (both active and soft-deleted) so the admin dashboard can show historical stats for inactive users.
 
 **avg_score:** `NULL` for students with no completed sessions (not 0).
 
