@@ -749,4 +749,20 @@
   - ✓ Test names behavior-focused
   - ✓ No new utility files without tests (test file only)
   - ✓ Mock patterns standard (vi.spyOn, mockImplementation, mockRestore)
+
+### 2026-04-08: Commit ce11f77 (test: fix stale useSearchParams mock in reports-list tests)
+- **Files changed**: 1 (test file only)
+- **Lines added**: 14 | **Removed**: 5
+- **Findings**: 0 BLOCKING, 0 WARNINGS
+- **Status**: CLEAN
+- **Changes**:
+  1. `apps/web/app/app/reports/_components/reports-list.test.tsx`: Removed stale `useSearchParams` mock from `next/navigation` mock factory. Added `window.location.search` setup in `beforeEach` to feed the real implementation. Replaced two `stringContaining` assertions with exact `URLSearchParams` key–value checks using `new URL(url, 'http://x').searchParams`.
+- **Code quality**:
+  - `as string` casts on `mockReplace.mock.calls[0]?.[0]` are correct test-side narrowing — Vitest types `mock.calls` as `unknown[][]`. Not an unvalidated external data cast.
+  - `Object.defineProperty(window, 'location', ...)` inside `beforeEach` is a standard jsdom technique for injecting `window.location.search`. Correct pattern; `writable: true` allows teardown.
+  - `new URL(url, 'http://x')` is a well-known test idiom for parsing relative URLs into `URLSearchParams`. No lint concerns.
+  - Optional chaining `?.[0]` used consistently — no non-null assertions.
+  - Tighter assertions (exact param values) are better than `stringContaining` — reduces false-pass risk if param order changes.
+- **Positive pattern**: `new URL(url, base).searchParams` for asserting URL params is now established in test suite. Prefer this over `stringContaining` in future URL assertion tests.
+- **Notes**: No production code touched. Test file is 14 net lines larger — still well within 500-line test file ceiling.
   - ✓ Agent memory updates comprehensive and factual

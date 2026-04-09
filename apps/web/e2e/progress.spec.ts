@@ -21,10 +21,10 @@ test('progress page updates after completing a quiz', async ({ page }) => {
 
   // 2. Complete a quiz with 10 questions (smallest preset)
   await page.goto('/app/quiz')
-  const subjectTrigger = page.locator('[data-slot="select-trigger"]')
+  const subjectTrigger = page.locator('[data-testid="subject-trigger"]')
   await subjectTrigger.waitFor({ state: 'visible' })
   await subjectTrigger.click()
-  await page.locator('[data-slot="select-item"]').first().click()
+  await page.locator('[data-testid="subject-option"]').first().click()
 
   // Use the "10" preset button for reliable count
   await page.getByRole('button', { name: '10' }).click()

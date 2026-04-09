@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-03-27 (migration 059 review)
+> Last updated: 2026-04-08 (admin hardening batch review — migration 060007, require-admin.ts redirect, getStudentDetail role guard)
 
 ## Vector-to-Spec Mapping
 
@@ -33,6 +33,10 @@
 | Z | Consent cookie injected without completing actual consent flow (login-complete bypass) | HIGH | pkce-state.spec.ts | GAP — an authenticated user who navigates directly to /auth/login-complete (e.g., by replaying the URL) can trigger consent-cookie issuance without going through /consent page if they already have DB consent records; the inverse gap is also untested: a user with a crafted cookie but no DB record who reaches /app/* after the proxy allows them through because cookie matches expected format | New auth flow from login-complete/route.ts change |
 | AA | Student reads another student's audit events via audit_read_own policy (cross-user SELECT) | HIGH | audit-event-forgery.spec.ts | GAP — the new policy USING (actor_id = auth.uid()) is correctly scoped and does NOT enable cross-user reads; however no spec verifies a student cannot SELECT audit events belonging to a different student_id. Existing spec only tests INSERT/UPDATE/DELETE forgery, not cross-user SELECT. | New SELECT surface from migration 059 |
 | AB | Student probes audit_events for events where actor_id = their uid but metadata contains sensitive data about other users | MEDIUM | audit-event-forgery.spec.ts | ASSESSED LOW RISK — all event types written with student actor_id (quiz_session.started, quiz_session.completed, quiz_session.batch_submitted, student.login) contain only the student's own session/score data in metadata. No cross-user data in student-authored events confirmed by grep of all RPC inserts. No spec change required; document here for completeness. | Migration 059 impact analysis |
+| AC | get_admin_student_stats called by an authenticated non-admin student (privilege escalation) | HIGH | server-action-unauthenticated.spec.ts | GAP — spec does not test this RPC at all; RPC has auth.uid() + is_admin() guard but no spec exercises the "authenticated but not admin" path; migration 060007 made the RPC more permissive (removed deleted_at filter on final user join) — the auth guards remain correct but have never been exercised in the red-team suite | Migration 20260408000007 |
+| AD | get_admin_student_stats returns rows for soft-deleted users — SECURITY DEFINER soft-delete rule exception | MEDIUM | server-action-unauthenticated.spec.ts | INTENTIONAL — migration 060007 explicitly removes AND u.deleted_at IS NULL from the final WHERE; admin dashboard must show inactive students. The admin caller's own profile still requires deleted_at IS NULL (line 33 of new RPC), the questions/sessions sub-queries all retain deleted_at IS NULL filters. Only the final user JOIN is intentionally unpinned. No spec change needed for the intentional omission but the exception must be documented here. | Migration 20260408000007 |
+| AE | Student who knows an admin's user-ID probes getStudentDetail (IDOR) using a non-student UUID | MEDIUM | (no spec) | GAP — getStudentDetail now uses .eq('role', 'student') instead of .is('deleted_at', null); this is an improvement because it gates on role type, but no spec verifies that querying with an admin UUID returns null rather than the admin's record. The adminClient (service role) is used so RLS does not apply — only the explicit .eq('organization_id') + .eq('role', 'student') guards prevent cross-role data access. | queries.ts change in apps/web/app/app/admin/dashboard/students/[id]/ |
+| AF | requireAdmin redirect pattern — Server Action caller catches and re-raises NEXT_REDIRECT (bypass via error interception) | LOW | (no spec) | ASSESSED LOW RISK — Next.js redirect() throws a special error that is designed to propagate up the call stack and is caught by the framework, not by user code. Any caller that catches it must explicitly check isRedirectError() and re-throw. All current callers (queries.ts files) do not wrap requireAdmin in try/catch — the redirect propagates correctly. Low risk; no new spec required but pattern documented. | require-admin.ts change |
 
 ## Consent Gate — Seeding Note (added 2026-03-27)
 
@@ -80,6 +84,25 @@ These files contain the attack surface. Changes here should trigger a red-team r
 - user_consents table correctly mirrors the audit_events append-only pattern: INSERT only via RPC (WITH CHECK false on direct INSERT), no UPDATE policy, no DELETE policy. This is consistent with the immutable table rules.
 - The cookie value is `${TOS_VERSION}:${PRIVACY_VERSION}` — currently `v1.0:v1.0`. This is a predictable format. If an attacker knows the current version strings (which are in client-side JS as they're imported into proxy.ts which runs as middleware), they can forge the cookie. The only protection against this is that the auth session check runs first. A spec should pin this dependency explicitly.
 - pkce-state.spec.ts test "does not leak session after failed PKCE exchange" navigates to /app/dashboard after a failed exchange. With the consent gate active, even a user who somehow obtained a session but has no consent record would be redirected to /consent, not /app/dashboard. The existing assertion `not.toHaveURL(/\/app\/dashboard/)` remains correct either way.
+
+2026-04-08 — review of admin hardening batch (migration 20260408000007, require-admin.ts, getStudentDetail):
+
+**Migration 20260408000007 (get_admin_student_stats — include inactive students):**
+- The change removes `AND u.deleted_at IS NULL` from the final `FROM users` JOIN in the RPC. This is intentional: the admin dashboard must show stats for inactive (soft-deleted) students.
+- The security-relevant guards are all intact: (a) auth.uid() IS NULL check, (b) is_admin() check, (c) the admin's own profile still requires `deleted_at IS NULL` for org resolution (line 33), (d) questions/sessions sub-queries all retain `AND deleted_at IS NULL`.
+- The `docs/security.md` SECURITY DEFINER soft-delete rule states "every SELECT inside a SECURITY DEFINER function must explicitly filter deleted_at IS NULL on all soft-deletable tables." The new RPC intentionally violates this rule on the final user JOIN. This is the correct business decision — the rule was written for student-facing RPCs that should not see deleted data. Admin RPCs may deliberately include it. The rule in docs/security.md should be annotated with this admin exception to prevent the auditor from flagging future intentional occurrences.
+- The RPC `get_admin_student_stats` has never been tested in any red-team spec. Given migration 060007 widened the result set, this is a new gap (Vector AC).
+
+**require-admin.ts (redirect pattern):**
+- Changed from `throw new Error('Not authenticated')` / `throw new Error('Forbidden: admin role required')` to `redirect('/auth/login')` / `redirect('/app')`.
+- `redirect()` in Next.js throws a NEXT_REDIRECT error that propagates through the framework. This is the standard Next.js Server Action/Server Component pattern — it is not a bypass risk.
+- The existing unit tests (`require-admin.test.ts`) now assert the redirect error shape, confirming the framework will catch and handle it correctly.
+- No bypass potential identified. The auth check (supabase.auth.getUser()) and role check (profile.role !== 'admin') still run in the correct order before any redirect.
+
+**getStudentDetail role guard (.eq('role', 'student') replacing .is('deleted_at', null)):**
+- The old filter excluded soft-deleted students from the detail page. The new filter replaces it with a role check, allowing soft-deleted students to be fetched (their `deletedAt` field is now returned and displayed in the UI).
+- The `adminClient` (service role) is used — RLS does not apply. The three explicit guards are: (a) requireAdmin() call for auth+admin check, (b) .eq('organization_id', organizationId) for org scope, (c) .eq('role', 'student') to prevent cross-role access.
+- Gap: no spec verifies that probing with an admin UUID returns null (Vector AE).
 
 2026-03-20 — review of branch adding migration 049 (question_comments) + comments.ts + flag.ts:
 - Hard-delete on question_comments is an intentional, documented exception to the soft-delete rule. The migration comment names the rationale. The RLS DELETE policy is correctly scoped to user_id = auth.uid(). However, the absence of a spec means the IDOR protection has never been exercised end-to-end.

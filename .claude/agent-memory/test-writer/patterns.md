@@ -61,6 +61,58 @@ After writing a test, re-read the test name against the assertion body. The name
 
 ---
 
+### Testing isRedirectError re-throw in async Server Component content wrappers (2026-04-08)
+Content components (e.g. `KpiCardsContent`) wrap an async query in try/catch and show
+an error fallback on failure. After adding `isRedirectError` re-throw, tests must verify:
+1. Happy path: query succeeds → child component rendered
+2. Regular error: query rejects → fallback message rendered
+3. Redirect error: query rejects with a redirect → error is re-thrown, NOT swallowed
+
+Mock `next/dist/client/components/redirect-error` directly via vi.hoisted:
+
+```ts
+const mockIsRedirectError = vi.hoisted(() => vi.fn())
+
+vi.mock('next/dist/client/components/redirect-error', () => ({
+  isRedirectError: mockIsRedirectError,
+}))
+```
+
+In tests, set `mockIsRedirectError.mockReturnValue(false)` in `beforeEach`, and
+`mockIsRedirectError.mockReturnValue(true)` in the redirect-specific test.
+
+Invoke the async Server Component directly as a function (no render needed for the throw test):
+```ts
+const redirectError = new Error('NEXT_REDIRECT:/auth/login')
+mockQuery.mockRejectedValue(redirectError)
+mockIsRedirectError.mockReturnValue(true)
+await expect(MyContent({ props })).rejects.toThrow('NEXT_REDIRECT:/auth/login')
+```
+
+For happy-path and fallback tests, `await Component(props)` and then `render(element)`.
+
+### Testing Next.js error boundary components with Sentry (2026-04-08)
+Error boundaries (Next.js `error.tsx`) are `'use client'` components that call
+`Sentry.captureException(error)` in a `useEffect`. Since `act()` flushes effects,
+Sentry is called synchronously in the test — no need to wait or flush manually.
+
+```ts
+const mockCaptureException = vi.hoisted(() => vi.fn())
+vi.mock('@sentry/nextjs', () => ({ captureException: mockCaptureException }))
+```
+
+After `render(<ErrorPage error={err} reset={vi.fn()} />)`:
+- `expect(mockCaptureException).toHaveBeenCalledWith(err)` — passes immediately
+- Use `rerender()` to verify Sentry is called again when error prop changes
+
+### Vitest run command for bracket paths on Windows (2026-04-08)
+The shell expands `[id]` as a glob on Windows. Use a simple string pattern that
+matches part of the file path instead of the full glob:
+```bash
+pnpm exec vitest run "student-header"
+# NOT: pnpm exec vitest run "app/app/admin/.../[id]/_components/student-header.test.tsx"
+```
+
 ## Patterns established
 
 ### Testing async module initialisation with next/headers (packages/db, 2026-03-12)
@@ -318,6 +370,57 @@ it('returns a failure result when the callback rejects', async () => {
 })
 ```
 Always confirm the exact fallback error string from the production source before asserting.
+
+### Mocking Base UI Collapsible with context-forwarded open state (2026-04-09)
+
+When a component wraps Base UI `Collapsible` + `CollapsibleTrigger` with controlled open/close
+state via `onOpenChange`, the mock must forward `onOpenChange` from `Collapsible` to
+`CollapsibleTrigger` so that clicking the trigger actually toggles the open state in tests.
+
+Use a React context created **inside** the `vi.mock()` factory, obtained via `require('react')`
+(not the ES module import, which is not available at factory execution time):
+
+```ts
+vi.mock('@/components/ui/collapsible', () => {
+  const R = require('react') as typeof React
+  type Ctx = { open: boolean; onOpenChange: (v: boolean) => void }
+  const CollapsibleCtx = R.createContext<Ctx>({ open: false, onOpenChange: () => {} })
+
+  function Collapsible({ children, open = false, onOpenChange = () => {} }: { ... }) {
+    return (
+      <CollapsibleCtx.Provider value={{ open, onOpenChange }}>
+        <div data-testid="collapsible" data-open={open}>{children}</div>
+      </CollapsibleCtx.Provider>
+    )
+  }
+
+  function CollapsibleTrigger({ children, className }: { ... }) {
+    const { open, onOpenChange } = R.useContext(CollapsibleCtx)
+    return (
+      <button type="button" data-testid="collapsible-trigger" className={className}
+              onClick={() => onOpenChange(!open)}>
+        {children}
+      </button>
+    )
+  }
+
+  function CollapsibleContent({ children }: { children: R.ReactNode }) {
+    return <div data-testid="collapsible-content">{children}</div>
+  }
+
+  return { Collapsible, CollapsibleTrigger, CollapsibleContent }
+})
+```
+
+Key points:
+- `require('react')` is needed because ES imports are not available inside hoisted mock factories.
+- The context is created once per mock module evaluation, shared between all three mock components.
+- `data-open={open}` on the `Collapsible` div lets tests assert open/closed state.
+- `CollapsibleContent` always renders children (no conditional gate) — we test the component's
+  state logic, not Base UI's animation.
+- When querying list-row buttons that share text with the trigger (selected state), query within
+  `screen.getByTestId('collapsible-content')` to avoid `getByRole` ambiguity errors.
+
 
 ### Testing formatTimeAgo (text split across DOM nodes)
 When a time string appears inside a paragraph alongside other text nodes, use a function
