@@ -559,6 +559,43 @@ vi.mock('@/lib/queries/quiz', () => ({
 }))
 ```
 
+### Testing RPC-based query functions (2026-04-10)
+When a query function switches from chained `.from()` calls to `supabase.rpc()`, replace
+`mockFrom` with `mockRpc` in the Supabase client mock:
+
+```ts
+const { mockGetUser, mockRpc } = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockRpc: vi.fn(),
+}))
+
+vi.mock('@repo/db/server', () => ({
+  createServerSupabaseClient: async () => ({
+    auth: { getUser: mockGetUser },
+    rpc: mockRpc,
+  }),
+}))
+```
+
+Use `mockRpc.mockResolvedValue({ data: [...], error: null })` directly — no proxy chain needed.
+Assert RPC parameter mapping by checking `mockRpc` call args:
+```ts
+expect(mockRpc).toHaveBeenCalledWith('rpc_name', {
+  p_sort: 'started_at',
+  p_dir: 'desc',
+  p_limit: 10,
+  p_offset: 0,
+})
+```
+
+Always include a test that `data: null` (non-array) is treated as an empty result when the
+production code has `Array.isArray(data) ? data : []`.
+
+### Defensive branch for non-array RPC data (2026-04-10)
+When production code has `Array.isArray(data) ? (data as T[]) : []`, the non-array branch
+needs a dedicated test — `mockRpc.mockResolvedValue({ data: null, error: null })` covers it.
+Without this test, the defensive cast silently goes untested and reviewers flag it as dead code.
+
 ---
 
 ## Files tested in Phase 4
