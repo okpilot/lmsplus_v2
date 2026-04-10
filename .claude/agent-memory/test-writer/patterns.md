@@ -371,6 +371,46 @@ it('returns a failure result when the callback rejects', async () => {
 ```
 Always confirm the exact fallback error string from the production source before asserting.
 
+### Mocking Base UI Select for value-change tests (2026-04-10)
+Base UI Select uses portals and complex internal state — not testable via userEvent in jsdom.
+Mock `@/components/ui/select` as a plain `<select>` element and use `fireEvent.change` to
+simulate value selection. Pattern (see `reports-list.test.tsx`, `student-status-filter.test.tsx`):
+
+```tsx
+vi.mock('@/components/ui/select', () => ({
+  Select: ({
+    value,
+    onValueChange,
+    children,
+  }: {
+    value?: string
+    onValueChange?: (v: string) => void
+    children: React.ReactNode
+    items?: { value: string; label: string }[]
+  }) => (
+    <select
+      data-testid="my-select"
+      value={value}
+      onChange={(e) => onValueChange?.(e.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <option value={value}>{children}</option>
+  ),
+}))
+```
+
+Then assert: `expect(screen.getByTestId('my-select')).toHaveValue('expected-value')`
+And trigger: `fireEvent.change(screen.getByTestId('my-select'), { target: { value: 'new-val' } })`
+
+Key: `items` prop must be in the type but ignored in the mock body (Base UI uses it for value
+label display, the native select handles its own rendering).
+
 ### Mocking Base UI Collapsible with context-forwarded open state (2026-04-09)
 
 When a component wraps Base UI `Collapsible` + `CollapsibleTrigger` with controlled open/close
@@ -558,6 +598,43 @@ vi.mock('@/lib/queries/quiz', () => ({
   getRandomQuestionIds: mockGetRandomQuestionIds,
 }))
 ```
+
+### Testing RPC-based query functions (2026-04-10)
+When a query function switches from chained `.from()` calls to `supabase.rpc()`, replace
+`mockFrom` with `mockRpc` in the Supabase client mock:
+
+```ts
+const { mockGetUser, mockRpc } = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockRpc: vi.fn(),
+}))
+
+vi.mock('@repo/db/server', () => ({
+  createServerSupabaseClient: async () => ({
+    auth: { getUser: mockGetUser },
+    rpc: mockRpc,
+  }),
+}))
+```
+
+Use `mockRpc.mockResolvedValue({ data: [...], error: null })` directly — no proxy chain needed.
+Assert RPC parameter mapping by checking `mockRpc` call args:
+```ts
+expect(mockRpc).toHaveBeenCalledWith('rpc_name', {
+  p_sort: 'started_at',
+  p_dir: 'desc',
+  p_limit: 10,
+  p_offset: 0,
+})
+```
+
+Always include a test that `data: null` (non-array) is treated as an empty result when the
+production code has `Array.isArray(data) ? data : []`.
+
+### Defensive branch for non-array RPC data (2026-04-10)
+When production code has `Array.isArray(data) ? (data as T[]) : []`, the non-array branch
+needs a dedicated test — `mockRpc.mockResolvedValue({ data: null, error: null })` covers it.
+Without this test, the defensive cast silently goes untested and reviewers flag it as dead code.
 
 ---
 

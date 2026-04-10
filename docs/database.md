@@ -522,7 +522,7 @@ ORDER BY deleted_at DESC;
 
 > **Admin question management (migrations 052–055):** The `questions` table has admin INSERT and UPDATE policies with org scoping — `is_admin() AND organization_id = (SELECT organization_id FROM users WHERE id = auth.uid())`. No admin DELETE policy exists; questions use soft-delete via UPDATE to `deleted_at`. Students access questions only through the `get_quiz_questions()` RPC, which strips the `correct` field from options.
 
-> **Storage: `question-images` bucket (migrations 053, 055):** Admin INSERT/UPDATE/DELETE policies enforce org-scoped path isolation — images are stored at `{org_id}/{filename}` and policies check `(storage.foldername(name))[1]` matches the admin's org. Authenticated SELECT allows all users to read images (for quiz display). The upload action (`uploadQuestionImage`) resolves the admin's org and prefixes the path automatically.
+> **Storage: `question-images` bucket (migrations 053, 055, 20260410000009):** Admin INSERT/UPDATE/DELETE policies enforce org-scoped path isolation — images are stored at `{org_id}/{filename}` and policies check `(storage.foldername(name))[1]` matches the admin's org. Authenticated SELECT allows all users to read images (for quiz display). The upload action (`uploadQuestionImage`) resolves the admin's org and prefixes the path automatically.
 
 ---
 
@@ -1514,6 +1514,24 @@ Returns one row per student in the admin's organisation with their session count
 
 ---
 
+#### `get_session_reports` — paginated, sorted session reports
+
+Returns paginated session reports for the authenticated student with subject name join. Used by the progress/session history page.
+
+**Security:** `SECURITY DEFINER` + `auth.uid()` check + `SET search_path = public`.
+
+**Parameters:** `p_sort TEXT DEFAULT 'started_at'`, `p_dir TEXT DEFAULT 'desc'`, `p_limit INT DEFAULT 10`, `p_offset INT DEFAULT 0`
+
+**Sort keys:** `started_at`, `score_percentage`, `subject_name` (whitelisted — invalid keys fall back to `started_at`).
+
+**Filters:** `ended_at IS NOT NULL`, `deleted_at IS NULL`, `student_id = auth.uid()`.
+
+**Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, answered_count BIGINT, total_count BIGINT)`
+
+**Migration:** `20260410000010_get_session_reports_rpc.sql`
+
+---
+
 ## 4b. Triggers & Defensive Constraints
 
 ### Column-level protection on `users`
@@ -1553,6 +1571,7 @@ CREATE INDEX idx_lessons_org         ON lessons(organization_id) WHERE deleted_a
 CREATE INDEX idx_quiz_sessions_org   ON quiz_sessions(organization_id);
 CREATE INDEX idx_student_responses_org ON student_responses(organization_id);
 CREATE INDEX idx_users_org           ON users(organization_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_users_org_role      ON users(organization_id, role);  -- Non-partial: serves queries including soft-deleted users (20260410000008)
 CREATE INDEX idx_courses_org         ON courses(organization_id) WHERE deleted_at IS NULL;
 
 -- fsrs_cards lookup (for filtering by last_was_correct)

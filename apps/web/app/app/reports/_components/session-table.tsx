@@ -2,21 +2,51 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import type { SessionReport } from '@/lib/queries/reports'
+import { SortableTableHead } from '@/app/app/admin/dashboard/_lib/sortable-head'
+import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { scoreColor } from '@/lib/utils/score-color'
 import { formatDate, MODE_LABELS } from './reports-utils'
 
-export function SessionTable({ sessions }: Readonly<{ sessions: SessionReport[] }>) {
+type Props = Readonly<{
+  sessions: SessionReport[]
+  sort: SortKey
+  dir: SortDir
+  onSort: (field: SortKey) => void
+}>
+
+export function SessionTable({ sessions, sort, dir, onSort }: Props) {
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border text-xs text-muted-foreground">
-          <th className="px-4 py-3 text-left font-medium">Date</th>
-          <th className="px-4 py-3 text-left font-medium">Subject</th>
+          <SortableTableHead
+            field="date"
+            label="Date"
+            activeSort={sort}
+            activeDir={dir}
+            onSort={onSort}
+            className="px-4 py-3 text-xs"
+          />
+          <SortableTableHead
+            field="subject"
+            label="Subject"
+            activeSort={sort}
+            activeDir={dir}
+            onSort={onSort}
+            className="px-4 py-3 text-xs"
+          />
           <th className="px-4 py-3 text-left font-medium">Mode</th>
           <th className="px-4 py-3 text-left font-medium">Correct</th>
           <th className="px-4 py-3 text-left font-medium">Time</th>
-          <th className="px-4 py-3 text-right font-medium">Score</th>
+          <SortableTableHead
+            field="score"
+            label="Score"
+            activeSort={sort}
+            activeDir={dir}
+            onSort={onSort}
+            className="px-4 py-3 text-xs"
+            align="right"
+          />
         </tr>
       </thead>
       <tbody>

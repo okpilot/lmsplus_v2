@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Hoisted mocks ----------------------------------------------------------
 
 const mockGetRecentSessions = vi.hoisted(() => vi.fn())
-const mockIsRedirectError = vi.hoisted(() => vi.fn())
+const mockRethrowRedirect = vi.hoisted(() => vi.fn())
 
 // ---- Module mocks -----------------------------------------------------------
 
@@ -12,8 +12,8 @@ vi.mock('../queries', () => ({
   getRecentSessions: mockGetRecentSessions,
 }))
 
-vi.mock('next/dist/client/components/redirect-error', () => ({
-  isRedirectError: mockIsRedirectError,
+vi.mock('@/lib/next/rethrow-redirect', () => ({
+  rethrowRedirect: mockRethrowRedirect,
 }))
 
 vi.mock('./recent-activity-list', () => ({
@@ -29,7 +29,6 @@ import { RecentActivityContent } from './recent-activity-content'
 describe('RecentActivityContent', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockIsRedirectError.mockReturnValue(false)
   })
 
   it('renders the activity list when data loads successfully', async () => {
@@ -55,7 +54,9 @@ describe('RecentActivityContent', () => {
   it('re-throws redirect errors instead of showing the fallback', async () => {
     const redirectError = new Error('NEXT_REDIRECT:/auth/login')
     mockGetRecentSessions.mockRejectedValue(redirectError)
-    mockIsRedirectError.mockReturnValue(true)
+    mockRethrowRedirect.mockImplementation((err: unknown) => {
+      throw err
+    })
 
     await expect(RecentActivityContent({ range: '30d' })).rejects.toThrow(
       'NEXT_REDIRECT:/auth/login',

@@ -5,7 +5,7 @@ import type { DashboardFilters } from '../types'
 // ---- Hoisted mocks ----------------------------------------------------------
 
 const mockGetDashboardStudents = vi.hoisted(() => vi.fn())
-const mockIsRedirectError = vi.hoisted(() => vi.fn())
+const mockRethrowRedirect = vi.hoisted(() => vi.fn())
 
 // ---- Module mocks -----------------------------------------------------------
 
@@ -13,8 +13,8 @@ vi.mock('../queries', () => ({
   getDashboardStudents: mockGetDashboardStudents,
 }))
 
-vi.mock('next/dist/client/components/redirect-error', () => ({
-  isRedirectError: mockIsRedirectError,
+vi.mock('@/lib/next/rethrow-redirect', () => ({
+  rethrowRedirect: mockRethrowRedirect,
 }))
 
 vi.mock('./student-table-shell', () => ({
@@ -40,7 +40,6 @@ const BASE_FILTERS: DashboardFilters = {
 describe('StudentTableContent', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockIsRedirectError.mockReturnValue(false)
   })
 
   it('renders the table shell when data loads successfully', async () => {
@@ -66,7 +65,9 @@ describe('StudentTableContent', () => {
   it('re-throws redirect errors instead of showing the fallback', async () => {
     const redirectError = new Error('NEXT_REDIRECT:/auth/login')
     mockGetDashboardStudents.mockRejectedValue(redirectError)
-    mockIsRedirectError.mockReturnValue(true)
+    mockRethrowRedirect.mockImplementation((err: unknown) => {
+      throw err
+    })
 
     await expect(StudentTableContent({ filters: BASE_FILTERS })).rejects.toThrow(
       'NEXT_REDIRECT:/auth/login',

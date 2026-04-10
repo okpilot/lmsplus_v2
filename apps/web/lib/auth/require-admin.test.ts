@@ -40,7 +40,7 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi
+          maybeSingle: vi
             .fn()
             .mockResolvedValue({ data: { role: 'admin', organization_id: 'org-1' }, error: null }),
         }),
@@ -82,7 +82,24 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { role: 'student' }, error: null }),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'student' }, error: null }),
+        }),
+      }),
+    })
+
+    await expect(requireAdmin()).rejects.toThrow('NEXT_REDIRECT:/app')
+    expect(mockRedirect).toHaveBeenCalledWith('/app')
+  })
+
+  it('redirects to /app when profile is null (soft-deleted user)', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'user-deleted' } },
+      error: null,
+    })
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
         }),
       }),
     })
@@ -99,7 +116,9 @@ describe('requireAdmin', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: null, error: { message: 'connection lost' } }),
+          maybeSingle: vi
+            .fn()
+            .mockResolvedValue({ data: null, error: { message: 'connection lost' } }),
         }),
       }),
     })

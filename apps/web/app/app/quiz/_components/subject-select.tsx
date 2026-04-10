@@ -20,6 +20,7 @@ export function SubjectSelect({ subjects, value, onValueChange }: SubjectSelectP
       <span className="text-[13px] font-medium">Subject</span>
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger
+          aria-label="Select a subject"
           data-testid="subject-trigger"
           className={`flex w-full items-center justify-between rounded-[10px] border border-border bg-card px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 ${
             open ? 'rounded-b-none border-b-transparent' : ''

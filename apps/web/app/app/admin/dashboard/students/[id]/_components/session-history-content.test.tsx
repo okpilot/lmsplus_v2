@@ -5,7 +5,7 @@ import type { StudentSessionFilters } from '../../../types'
 // ---- Hoisted mocks ----------------------------------------------------------
 
 const mockGetStudentSessions = vi.hoisted(() => vi.fn())
-const mockIsRedirectError = vi.hoisted(() => vi.fn())
+const mockRethrowRedirect = vi.hoisted(() => vi.fn())
 
 // ---- Module mocks -----------------------------------------------------------
 
@@ -13,8 +13,8 @@ vi.mock('../queries', () => ({
   getStudentSessions: mockGetStudentSessions,
 }))
 
-vi.mock('next/dist/client/components/redirect-error', () => ({
-  isRedirectError: mockIsRedirectError,
+vi.mock('@/lib/next/rethrow-redirect', () => ({
+  rethrowRedirect: mockRethrowRedirect,
 }))
 
 vi.mock('./session-history-table', () => ({
@@ -39,7 +39,6 @@ const BASE_FILTERS: StudentSessionFilters = {
 describe('SessionHistoryContent', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mockIsRedirectError.mockReturnValue(false)
   })
 
   it('renders the session history table when data loads successfully', async () => {
@@ -65,7 +64,9 @@ describe('SessionHistoryContent', () => {
   it('re-throws redirect errors instead of showing the fallback', async () => {
     const redirectError = new Error('NEXT_REDIRECT:/auth/login')
     mockGetStudentSessions.mockRejectedValue(redirectError)
-    mockIsRedirectError.mockReturnValue(true)
+    mockRethrowRedirect.mockImplementation((err: unknown) => {
+      throw err
+    })
 
     await expect(
       SessionHistoryContent({ studentId: 'stu-1', filters: BASE_FILTERS }),
