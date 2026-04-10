@@ -135,7 +135,11 @@
 | Test assumes component renders children unconditionally but real component starts collapsed | 1 | 2026-04-09 | Watch — 995de26/4459a5d: test clicked a row inside CollapsibleContent without first clicking the trigger to open the panel; the panel starts closed and children are not rendered until it is opened; assertion on the row content silently passed in the mock (which always rendered children) but would fail against the real component; caught as ISSUE by semantic-reviewer; fixed in 4459a5d by adding a trigger click before the row interaction; first occurrence — log and watch; applies to any test of a component that contains interactive children inside a conditionally-rendered container (Collapsible, Accordion, Dialog, Select) — always open the container before asserting on or interacting with its contents |
 | `require()` inside `vi.hoisted()` factory producing unresolvable type namespace (`R.ReactNode`) | 1 | 2026-04-09 | Watch — 4459a5d: test-writer used `require('react')` inside a `vi.hoisted()` factory to access React types, producing `R.ReactNode` reference errors (TypeScript cannot resolve the namespace from a runtime require() call); fixed by replacing with a top-level import and using `React.ReactNode` directly; distinct from "vi.mock factory referencing non-hoisted variable" (that is a variable undefined at hoist time — this is a module required inside the factory producing an unresolvable type namespace at compile time); first occurrence — log and watch; if recurs, update test-writer patterns.md: "Do not use require() inside vi.hoisted() factories — use top-level import and reference the type directly" |
 | Unreachable SQL aggregate fallback (`?? value` applied to COUNT(*) which never returns NULL) | 1 | 2026-04-10 | Watch — 9370e7d/9711338: `?? r.total_questions` fallback applied to a COUNT(*) alias in an RPC result row; SQL COUNT(*) aggregates always return an integer (0 for empty sets), never NULL — the fallback was therefore dead code that could never execute; caught as ISSUE by implementation-critic pre-commit; fixed in 9711338 by removing the fallback; distinct from "Silent numeric fallback without observability logging" (that is a fallback that runs silently — this is a fallback that cannot run at all); first occurrence — log and watch; applies to any TS fallback applied to a SQL COUNT(*), COUNT(x), SUM(x) COALESCE-wrapped, or other aggregate that is guaranteed non-null by the SQL spec or explicit COALESCE in the query |
-| UI interactive element changed without a corresponding test update | 1 | 2026-04-10 | Watch — 9370e7d: a sort button was added to the subject selector UI but no test covered the new sort interaction; test-writer caught the gap post-commit and added 3 tests (sort button presence, initial state, re-sort behavior); distinct from "New hook/utility file extracted without shipping tests" (that is a new file — this is an existing component gaining a new interactive element with no test update); root cause: the component had existing tests, so the author assumed coverage was sufficient; the correct rule: whenever a new interactive element (button, toggle, input) is added to a component that has a test file, the test file must be updated in the same commit; first occurrence — log and watch |
+| UI interactive element changed without a corresponding test update | 2 | 2026-04-10 | RULE CANDIDATE — first: 9370e7d (2026-04-10): sort button added to subject selector UI with no test update; test-writer added 3 tests in 9711338; second: 2f31c09 (2026-04-10): mobile sort Select and sortable table heads added with no tests; test-writer added 10 tests in afa5004; both cases: existing component with a test file gained a new interactive element without a same-commit test update; proposed rule for code-style.md Section 7: "When an interactive element (button, toggle, dropdown, sortable header) is added to a component that already has a co-located test file, the test file must be updated in the same commit" |
+| String-split unvalidated cast for composite Select values | 1 | 2026-04-10 | Watch — 2f31c09: `value.split('-') as [SortKey, SortDir]` in `handleMobileSort`; the `!value` null guard covers null/empty-string but not a single-segment string (no dash); in practice values are always from SORT_OPTIONS so the cast is safe, but no `parts.length === 2` guard at the parse site; first occurrence — log and watch; if a second composite-string destructure appears without a length guard, propose note in code-style.md Section 5 |
+| Mixed shadcn TableHead and plain `<th>` in the same `<tr>` | 1 | 2026-04-10 | Watch — 2f31c09: SortableTableHead (renders shadcn TableHead with h-10/align-middle/whitespace-nowrap/text-foreground defaults) alongside plain `<th>` siblings (Mode, Correct, Time); creates header row height and color inconsistency; semantic-reviewer SUGGESTION; first occurrence — log and watch; fix: use the same wrapper element (TableHead or plain th) for all cells in a row; if a second component ships mixed table cell types in the same header row, propose note in code-style.md Section 2 |
+| Implementation-focused test title not caught by post-commit agents (caught by CodeRabbit) | 1 | 2026-04-10 | Watch — 42e815f: 4 test titles in reports-list.test.tsx written by test-writer agent using implementation language ("calls router.replace...") rather than behavior language ("resets to page 1..."); post-commit agents did not flag the naming; CodeRabbit flagged at PR #508 review; distinct from "misleading test name" (row 113, contradiction between name and assertion) — this is a style-convention violation where name uses the wrong register; code-style.md Section 7 rule exists; post-commit agents do not consistently enforce it on verb-style implementation names; first occurrence — log and watch |
+| Negative mock.calls assertion trivially passing when mock never called (missing toHaveBeenCalled guard) | 1 | 2026-04-10 | Watch — 437f2d0: `reports-list.test.tsx` page-reset test accessed `mockReplace.mock.calls[0]?.[0]` and asserted `params.has('page') === false`; because `mockReplace` was never invoked, `mock.calls[0]` was undefined, `new URL('undefined', 'http://x')` produced a valid URL with no page param, and the assertion passed trivially with no behavioral signal; fixed by adding `expect(mockReplace).toHaveBeenCalledTimes(1)` immediately before the `mock.calls` access; sibling fix 1784239 applied the same guard to the remaining 5 `mock.calls` access sites for pattern consistency; root cause: negative URL-param assertions (`expect(params.has('x')).toBe(false)`) do not verify the mock was called at all — a test with no invocation produces the same result as a test with a correct invocation; fix pattern: always assert `expect(mock).toHaveBeenCalledTimes(N)` immediately before accessing `mock.mock.calls`; first occurrence — log and watch; if a second test file ships a `mock.calls` access without a prior call-count guard, add this to test-writer/patterns.md |
 
 ## Lessons Learned
 
@@ -3309,5 +3313,162 @@ All tests passing before commit.
 - Implementation-critic caught the dead fallback pre-commit, preventing a fix commit cycle and keeping the PR history clean.
 - Doc updater correctly identified all three documentation updates (RPC, index, bucket) in a single pass. Applied in the same fix commit.
 - The fix cycle closed in one pass (9370e7d → 9711338) with zero residual findings on re-review.
+
+---
+
+### 2026-04-10 — Reports sort controls refactor + tests (commits 2f31c09, afa5004)
+
+**Context:** Two-commit sequence. 2f31c09 refactored sort controls from floating buttons to clickable `SortableTableHead` column headers (desktop) and a Base UI Select dropdown (mobile). 5 files changed — sortable-head.tsx extended with `className`/`align` props, session-table.tsx wired to receive sort state, reports-list.tsx replaced 3 floating buttons with a `Select`. afa5004 added 10 tests covering the mobile sort dropdown and the new `SortableTableHead` prop passthrough.
+
+**Commit hashes:** 2f31c09 (refactor), afa5004 (tests)
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING — clean.
+
+**Semantic reviewer:** 0 CRITICAL, 0 ISSUE, 2 SUGGESTION, 6 GOOD.
+- SUGGESTION 1: `reports-list.tsx:52` — `value.split('-') as [SortKey, SortDir]` unvalidated cast. The `!value` null guard only covers empty/null; a single-part string (no dash) would destructure to `[string, undefined]`. Values are controlled via `SORT_OPTIONS` so safe in practice, but no Zod/length guard at the parse site.
+- SUGGESTION 2: `session-table.tsx:22-49` — `SortableTableHead` (which renders shadcn `TableHead`) used alongside plain `<th>` siblings (Mode, Correct, Time). `TableHead` adds default `h-10 align-middle whitespace-nowrap text-foreground` classes that plain `<th>` elements do not receive, creating a potential height/color inconsistency across the header row.
+- 6 GOOD: handleSort toggle logic preserved, all 6 sort-dir combinations covered by SORT_OPTIONS, mobile test coverage thorough, SortableTableHead reuse clean (no copy-paste), aria-sort correctly applied only to sortable columns, responsive hidden/block exclusivity correct.
+
+**Implementation-critic:** 0 CRITICAL, 0 ISSUE, 1 SUGGESTION (mobile sort test coverage) — addressed by test-writer in afa5004.
+
+**Doc updater:** No docs needed — no schema or RPC changes, no new architectural pattern requiring documentation.
+
+**Test writer:** 10 tests added in afa5004 — 5 for mobile Select sort (initial value binding, score-asc reflection, router.replace params, page reset, subject-desc edge case) and 5 for `SortableTableHead` className/align prop passthrough.
+
+**Pattern analysis:**
+
+1. **[REPEAT — count 2] UI interactive element added to existing component without test update in same commit**
+
+   First occurrence: 9370e7d (2026-04-10) — sort button added to the UI with no test for the new interaction. Test-writer found and added 3 tests in the fix commit (9711338).
+   Second occurrence: 2f31c09 (2026-04-10) — mobile sort Select and sortable table heads added with no tests in the same commit. Test-writer added 10 tests in afa5004.
+
+   The gap is identical both times: a new interactive element (button, Select) is added to an already-tested component, but the same commit does not update the co-located test file. The test-writer is reliably catching and closing the gap in the next commit, but the gap itself is a persistent authoring habit.
+
+   Count 2 across different commits meets the rule-change threshold. The candidate rule for `code-style.md` Section 7: "When an interactive element (button, toggle, dropdown, sortable header) is added to a component that already has a co-located test file, the test file must be updated in the same commit." This is actionable and mechanically checkable by the code-reviewer (new interactive element in component file + no corresponding diff in `.test.tsx`).
+
+   Rule not applied yet — proposing for orchestrator review before applying.
+
+2. **[NEW — count 1] String-split unvalidated cast for composite Select values**
+
+   `value.split('-') as [SortKey, SortDir]` in `handleMobileSort`. The `!value` guard before the destructure only protects against null/empty-string; it does not protect against a value that has no dash (e.g. `'date'` → `['date', undefined]`). In practice the values are always from `SORT_OPTIONS` so the cast is safe, but the cast bypasses TypeScript's ability to verify the tuple shape.
+
+   First occurrence — log and watch. If a second instance of a composite-string destructure without a `parts.length === 2` guard appears, add a note to `code-style.md` Section 5: "When parsing composite Select values via `split()`, verify `parts.length` before destructuring. The null guard only covers null/empty-string, not single-segment strings."
+
+3. **[NEW — count 1] Mixed shadcn `TableHead` and plain `<th>` in the same `<tr>`**
+
+   `SortableTableHead` renders a shadcn `TableHead`, which carries default height/alignment/color classes. Non-sortable sibling `<th>` elements (plain HTML) do not receive these defaults. In a single `<tr>` this creates inconsistent styling on the header row — sortable columns have `h-10 text-foreground` applied, non-sortable columns do not.
+
+   First occurrence — log and watch. The fix is straightforward: either use shadcn `TableHead` for all header cells (with or without sort behavior) or stay with plain `<th>` throughout. If a second mixed-cell header row appears in a new component, propose adding a note to `code-style.md` Section 2 or 6: "Within a single table header row, use the same wrapper element (`TableHead` or `<th>`) for all cells. Do not mix shadcn table primitives with plain HTML in the same row."
+
+**Actions taken:**
+- Frequency table: "UI interactive element changed without a corresponding test update" count updated 1 → 2, last-seen updated to 2026-04-10, status changed Watch → RULE CANDIDATE.
+- Frequency table: "String-split unvalidated cast for composite Select values" added as new watch row, count 1, 2026-04-10. First occurrence — no rule change.
+- Frequency table: "Mixed shadcn TableHead and plain th in same tr" added as new watch row, count 1, 2026-04-10. First occurrence — no rule change.
+
+**Recommended changes:** One rule candidate proposed (not applied). "UI interactive element in existing tested component requires same-commit test update" has reached count 2 and is ready for orchestrator review. Proposed target: `code-style.md` Section 7. The two new patterns (string-split cast, mixed table cells) are first occurrences — logged and watching, no rule change.
+
+**False positives:** None.
+
+**Positive signals:**
+- Code reviewer clean on both commits — no mechanical style regressions from the refactor or the added props.
+- SortableTableHead reuse from admin dashboard (not copy-paste) is the correct pattern for shared UI primitives. The `className`/`align` props were added with optional defaults — zero breaking changes to existing admin dashboard usage.
+- Semantic reviewer confirmed 6 positives: behavioral parity, a11y correctness (aria-sort), responsive exclusivity, and test coverage quality. All core refactor correctness signals green.
+- Both cycles (9370e7d/9711338 and 2f31c09/afa5004) closed cleanly in two commits with zero residual findings. The test-writer gate is functioning as the reliable catch for missing interactive element tests.
+
+---
+
+### 2026-04-10 — Test title rename: implementation-focused to behavior-first (commit 42e815f)
+
+**Context:** Single test-only commit on branch `fix/batch-quick-wins-apr10`. Renamed 4 test titles in `reports-list.test.tsx` from implementation-focused phrasing (e.g., "calls router.replace...") to behavior-first phrasing (e.g., "resets to page 1 when sort changes"). The rename was driven by a CodeRabbit finding on PR #508, not by any of our own post-commit agents.
+
+**Commit hash:** 42e815f
+
+**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING — clean.
+
+**Semantic reviewer (sonnet):** 0 CRITICAL, 0 ISSUE, 4 GOOD (confirmed the renamed titles accurately describe the asserted behavior). Clean.
+
+**Doc updater (haiku):** No changes needed. Clean.
+
+**Test writer (sonnet):** No new tests needed. Clean.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] Implementation-focused test title written by author at commit time, not caught by post-commit agents, caught by CodeRabbit at PR review**
+
+   The 4 test titles in `afa5004` used implementation language ("calls router.replace with page=1", "calls router.replace with correct sort params") rather than behavior language ("resets to page 1 when sort changes", "updates URL with correct sort params when mobile sort changes"). The titles were written by the test-writer agent in the prior commit (`afa5004`), but the code-reviewer, semantic-reviewer, and test-writer agents did not flag the naming on the post-commit pass for that commit. CodeRabbit flagged them at PR review.
+
+   This reveals a narrow gap: our agents do not reliably enforce the behavior-first test naming rule from code-style.md Section 7 on test titles that describe internal mechanics (which function was called, which prop was passed) rather than user-observable behavior (what changed in the system). The rule exists but the post-commit agents do not consistently catch violations at review time.
+
+   First occurrence as a standalone named pattern (distinct from "misleading test name" at row 113, which is a contradiction between name and assertion body — this is a style convention violation where the name is internally consistent with the assertion but uses wrong register). Log and watch. If a second commit requires test title renames for this reason, add a note to `.claude/agent-memory/test-writer/patterns.md`: "After generating test titles, audit each title — if the title starts with a verb describing a function call ('calls X', 'invokes Y', 'triggers Z') rather than a system outcome ('updates', 'resets', 'navigates', 'renders'), rename it to describe what the user or system observes."
+
+2. **[SYSTEM OBSERVATION] CodeRabbit catching test naming issues that post-commit agents do not**
+
+   This is the second time CodeRabbit has caught a test quality issue that post-commit agents missed at commit time: the first was the `beforeEach` reset finding (8863926, 2026-03-13), noted in the lessons section. Both cases involve test convention violations that are stylistic rather than functional — agents focus on behavioral correctness gaps, CodeRabbit has broader stylistic coverage.
+
+   No action needed — this is expected behavior. Post-commit agents are not the only gate; CodeRabbit provides complementary coverage on the PR. The system is working as designed.
+
+**Actions taken:**
+- Frequency table: "Implementation-focused test title not caught by post-commit agents (caught by CodeRabbit)" added as new watch row, count 1, 2026-04-10. First occurrence — no rule change.
+- No changes to `code-style.md`, `security.md`, `biome.json`, or agent memory files. Single occurrence — log and watch.
+
+**Recommended changes:** None this cycle. All agents clean. New pattern is first occurrence. No rule change threshold met.
+
+**False positives:** None. The 4 GOOD findings from the semantic reviewer confirm the renamed titles accurately describe the asserted behavior — the rename was correct.
+
+**Positive signals:**
+- All 4 post-commit agents reported clean on a test-only commit. No mechanical violations, no logic gaps, no doc drift, no coverage holes.
+- The semantic-reviewer's 4 GOOD signals confirm that behavior-first test naming is recognizably correct when applied — the agent can validate good naming, even if it does not always flag bad naming as a standalone issue.
+- The CodeRabbit + our agents pipeline is catching issues at different layers: CodeRabbit at PR level for convention violations, our agents at commit level for logic and structure. Complementary, not redundant.
+
+---
+
+### 2026-04-10 — Trivially-passing test fix: mock call guard (commits 437f2d0, 1784239)
+
+**Context:** Two-commit sequence on branch `fix/batch-quick-wins-apr10`. 437f2d0 fixed one site in `reports-list.test.tsx` where a page-reset assertion trivially passed because `mockReplace` was never invoked — CodeRabbit had flagged this at PR #508 review. 1784239 extended the same `toHaveBeenCalledTimes(1)` guard to the remaining 5 `mockReplace.mock.calls` access sites for consistency, driven by the semantic-reviewer ISSUE on 437f2d0.
+
+**Commit 437f2d0 — agent findings:**
+
+**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING. Clean.
+
+**Semantic reviewer (sonnet):** 0 CRITICAL, 1 ISSUE, 0 SUGGESTION. The reviewer identified that the fix was applied to only one of six `mockReplace.mock.calls` access sites in the same file. While the other five sites had positive assertions (e.g., `expect(params.get('sort')).toBe('score')`) that would fail if the mock was not called, the fix pattern was inconsistent — a reader or future editor could not rely on a uniform contract. The reviewer classified this as an ISSUE (not a SUGGESTION) because inconsistent defensive patterns within the same test file create a maintenance trap: the defensive guard is visible in one test but absent in the others, making the pattern look optional when it is required.
+
+**Doc updater (haiku):** No changes needed. Clean.
+
+**Test writer (sonnet):** No new tests needed (test-only commit). Clean.
+
+**Commit 1784239 — agent findings:**
+
+All four post-commit agents reported clean. The semantic-reviewer confirmed the fix was complete and uniform.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] Negative URL-param assertion trivially passing when mock is never called**
+
+   The page-reset test used `mockReplace.mock.calls[0]?.[0]` and asserted `params.has('page') === false`. Because `mockReplace` was never invoked, `mock.calls[0]` was `undefined`, and `new URL('undefined', 'http://x')` produced a syntactically valid URL with no query params at all — making the negative assertion trivially true with zero behavioral signal. The test passed whether or not the router was ever called.
+
+   Root cause: negative URL-param assertions (`has('x') === false`) do not distinguish between "the router was called and the param is absent" and "the router was never called". Only positive assertions (e.g., `params.get('sort') === 'score'`) fail when the mock is not called, because they require a non-null string to be present.
+
+   Fix pattern: always place `expect(mock).toHaveBeenCalledTimes(N)` immediately before any `mock.mock.calls[N]` access. This converts an implicit assumption (the mock was called) into an explicit assertion that fails loudly if it is not.
+
+   Discovered by CodeRabbit at PR review, not by our post-commit agents at commit time. First occurrence as a named pattern — log and watch. If a second test file ships a `mock.mock.calls` access without a prior call-count assertion, add this rule to `.claude/agent-memory/test-writer/patterns.md`.
+
+2. **[SYSTEM OBSERVATION] Consistency ISSUE triggered sibling-site fix pass**
+
+   The semantic-reviewer correctly identified that applying a defensive pattern to one of six structurally identical sites in the same test file creates an inconsistent contract. The ISSUE classification (not SUGGESTION) was appropriate: partial application of a defensive pattern is a maintenance trap, not a style nit. This is consistent with the "partial fix applied to sibling file group" pattern (row 35) but operating at the intra-file level rather than across sibling files.
+
+   The two-commit sequence (fix one site, then fix all) is a documented anti-pattern: when a defensive guard is identified as necessary, it should be applied to all structurally identical sites in the same commit. The sibling-site audit step in the plan validation pipeline (`agent-workflow.md § Sibling file audit`) covers cross-file siblings; the same principle applies within a single file.
+
+**Actions taken:**
+- Frequency table: "Negative mock.calls assertion trivially passing when mock never called (missing toHaveBeenCalled guard)" added as new watch row, count 1, 2026-04-10. First occurrence — no rule change.
+- No changes to `code-style.md`, `security.md`, `biome.json`, or other agent rule files. Single occurrence — log and watch.
+
+**Recommended changes:** None this cycle. First occurrence — rule change threshold requires 2+ occurrences across different commits. If the pattern recurs, add a note to `.claude/agent-memory/test-writer/patterns.md`: "When accessing `mock.mock.calls[N]`, always assert `expect(mock).toHaveBeenCalledTimes(N+1)` or `toHaveBeenCalled()` on the immediately preceding line. Negative URL-param assertions (`params.has('x') === false`) do not implicitly verify the mock was invoked."
+
+**False positives:** None. The semantic-reviewer ISSUE on 437f2d0 was real — the fix was correctly scoped to one site while five structurally identical sites remained unguarded.
+
+**Positive signals:**
+- The two-commit sequence was short: the semantic-reviewer ISSUE on 437f2d0 was acted on immediately, and 1784239 closed the gap in the same session with all agents clean.
+- The fix was correctly applied uniformly to all 6 sites in the file — no further review cycles needed.
+- CodeRabbit and the semantic-reviewer both identified the same class of issue (incomplete guard application) at different scopes (PR level vs. intra-file consistency), demonstrating that the multi-layer review pipeline catches the same class of problem from different angles.
 
 ---
