@@ -1,6 +1,11 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: '14.1'
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -231,6 +236,106 @@ export type Database = {
           },
         ]
       }
+      exam_config_distributions: {
+        Row: {
+          exam_config_id: string
+          id: string
+          question_count: number
+          subtopic_id: string | null
+          topic_id: string
+        }
+        Insert: {
+          exam_config_id: string
+          id?: string
+          question_count: number
+          subtopic_id?: string | null
+          topic_id: string
+        }
+        Update: {
+          exam_config_id?: string
+          id?: string
+          question_count?: number
+          subtopic_id?: string | null
+          topic_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'exam_config_distributions_exam_config_id_fkey'
+            columns: ['exam_config_id']
+            isOneToOne: false
+            referencedRelation: 'exam_configs'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_config_distributions_subtopic_id_fkey'
+            columns: ['subtopic_id']
+            isOneToOne: false
+            referencedRelation: 'easa_subtopics'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_config_distributions_topic_id_fkey'
+            columns: ['topic_id']
+            isOneToOne: false
+            referencedRelation: 'easa_topics'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      exam_configs: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          enabled: boolean
+          id: string
+          organization_id: string
+          pass_mark: number
+          subject_id: string
+          time_limit_seconds: number
+          total_questions: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          enabled?: boolean
+          id?: string
+          organization_id: string
+          pass_mark: number
+          subject_id: string
+          time_limit_seconds: number
+          total_questions: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          enabled?: boolean
+          id?: string
+          organization_id?: string
+          pass_mark?: number
+          subject_id?: string
+          time_limit_seconds?: number
+          total_questions?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'exam_configs_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'exam_configs_subject_id_fkey'
+            columns: ['subject_id']
+            isOneToOne: false
+            referencedRelation: 'easa_subjects'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       flagged_questions: {
         Row: {
           deleted_at: string | null
@@ -276,7 +381,7 @@ export type Database = {
           id: string
           lapses: number
           last_review: string | null
-          last_was_correct: boolean | null
+          last_was_correct: boolean
           question_id: string
           reps: number
           scheduled_days: number
@@ -293,7 +398,7 @@ export type Database = {
           id?: string
           lapses?: number
           last_review?: string | null
-          last_was_correct?: boolean | null
+          last_was_correct?: boolean
           question_id: string
           reps?: number
           scheduled_days?: number
@@ -310,7 +415,7 @@ export type Database = {
           id?: string
           lapses?: number
           last_review?: string | null
-          last_was_correct?: boolean | null
+          last_was_correct?: boolean
           question_id?: string
           reps?: number
           scheduled_days?: number
@@ -788,10 +893,12 @@ export type Database = {
           id: string
           mode: string
           organization_id: string
+          passed: boolean | null
           score_percentage: number | null
           started_at: string
           student_id: string
           subject_id: string | null
+          time_limit_seconds: number | null
           topic_id: string | null
           total_questions: number
         }
@@ -804,10 +911,12 @@ export type Database = {
           id?: string
           mode: string
           organization_id: string
+          passed?: boolean | null
           score_percentage?: number | null
           started_at?: string
           student_id: string
           subject_id?: string | null
+          time_limit_seconds?: number | null
           topic_id?: string | null
           total_questions?: number
         }
@@ -820,10 +929,12 @@ export type Database = {
           id?: string
           mode?: string
           organization_id?: string
+          passed?: boolean | null
           score_percentage?: number | null
           started_at?: string
           student_id?: string
           subject_id?: string | null
+          time_limit_seconds?: number | null
           topic_id?: string | null
           total_questions?: number
         }
@@ -1146,6 +1257,27 @@ export type Database = {
           question_id: string
         }[]
       }
+      get_session_reports: {
+        Args: {
+          p_dir?: string
+          p_limit?: number
+          p_offset?: number
+          p_sort?: string
+        }
+        Returns: {
+          answered_count: number
+          correct_count: number
+          ended_at: string
+          id: string
+          mode: string
+          score_percentage: number
+          started_at: string
+          subject_id: string
+          subject_name: string
+          total_count: number
+          total_questions: number
+        }[]
+      }
       get_subject_scores: {
         Args: { p_limit?: number; p_student_id: string }
         Returns: {
@@ -1168,6 +1300,7 @@ export type Database = {
         Returns: undefined
       }
       record_login: { Args: never; Returns: undefined }
+      start_exam_session: { Args: { p_subject_id: string }; Returns: Json }
       start_quiz_session: {
         Args: {
           p_mode: string

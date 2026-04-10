@@ -135,3 +135,37 @@ export type ResetStudentPasswordInput = z.infer<typeof ResetStudentPasswordSchem
 export const ToggleStudentStatusSchema = z.object({
   id: z.uuid(),
 })
+
+// --- Admin: Exam Config schemas ---
+
+const ExamConfigDistributionSchema = z.object({
+  topicId: z.uuid(),
+  subtopicId: z.uuid().nullable().optional(),
+  questionCount: z.number().int().positive(),
+})
+
+export type ExamConfigDistributionInput = z.infer<typeof ExamConfigDistributionSchema>
+
+export const UpsertExamConfigSchema = z
+  .object({
+    subjectId: z.uuid(),
+    enabled: z.boolean(),
+    totalQuestions: z.number().int().positive().max(200),
+    timeLimitSeconds: z.number().int().positive().max(14400), // max 4 hours
+    passMark: z.number().int().positive().max(100),
+    distributions: z.array(ExamConfigDistributionSchema).min(1),
+  })
+  .refine(
+    (c) => {
+      const sum = c.distributions.reduce((acc, d) => acc + d.questionCount, 0)
+      return sum === c.totalQuestions
+    },
+    { message: 'Distribution question counts must sum to total questions' },
+  )
+
+export type UpsertExamConfigInput = z.infer<typeof UpsertExamConfigSchema>
+
+export const ToggleExamConfigSchema = z.object({
+  subjectId: z.uuid(),
+  enabled: z.boolean(),
+})

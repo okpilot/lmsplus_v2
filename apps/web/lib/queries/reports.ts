@@ -73,8 +73,6 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
   const sortColumn = SORT_COLUMN_MAP[sort]
   const offset = (page - 1) * PAGE_SIZE
 
-  // RPC not yet in generated types — remove cast after running `supabase gen types`
-  // @ts-expect-error -- get_session_reports not in generated types until migration is applied
   const { data, error: rpcError } = (await supabase.rpc('get_session_reports', {
     p_sort: sortColumn,
     p_dir: dir,

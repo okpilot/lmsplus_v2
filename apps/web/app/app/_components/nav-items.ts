@@ -1,7 +1,15 @@
 export type NavItem = {
   href: string
   label: string
-  icon?: 'home' | 'file-question' | 'bar-chart' | 'book-open' | 'list' | 'users' | 'settings'
+  icon?:
+    | 'home'
+    | 'file-question'
+    | 'bar-chart'
+    | 'book-open'
+    | 'list'
+    | 'users'
+    | 'settings'
+    | 'clipboard-check'
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -16,4 +24,5 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: '/app/admin/syllabus', label: 'Syllabus', icon: 'book-open' },
   { href: '/app/admin/questions', label: 'Questions', icon: 'list' },
   { href: '/app/admin/students', label: 'Students', icon: 'users' },
+  { href: '/app/admin/exam-config', label: 'Exam Config', icon: 'clipboard-check' },
 ]
