@@ -212,6 +212,7 @@ describe('ReportsList sort via table headers', () => {
       />,
     )
     await user.click(screen.getByRole('button', { name: /date/i }))
+    expect(mockReplace).toHaveBeenCalledTimes(1)
     const url = mockReplace.mock.calls[0]?.[0] as string
     const params = new URL(url, 'http://x').searchParams
     expect(params.get('dir')).toBe('asc')
@@ -231,6 +232,7 @@ describe('ReportsList sort via table headers', () => {
       />,
     )
     await user.click(screen.getByRole('button', { name: /score/i }))
+    expect(mockReplace).toHaveBeenCalledTimes(1)
     const url = mockReplace.mock.calls[0]?.[0] as string
     const params = new URL(url, 'http://x').searchParams
     expect(params.get('sort')).toBe('score')
@@ -280,6 +282,7 @@ describe('ReportsList sort via table headers', () => {
       />,
     )
     await user.click(screen.getByRole('button', { name: /subject/i }))
+    expect(mockReplace).toHaveBeenCalledTimes(1)
     const url = mockReplace.mock.calls[0]?.[0] as string
     const params = new URL(url, 'http://x').searchParams
     expect(params.get('sort')).toBe('subject')
@@ -343,6 +346,7 @@ describe('ReportsList mobile sort dropdown', () => {
     fireEvent.change(screen.getByTestId('mobile-sort-select'), {
       target: { value: 'score-asc' },
     })
+    expect(mockReplace).toHaveBeenCalledTimes(1)
     const url = mockReplace.mock.calls[0]?.[0] as string
     const params = new URL(url, 'http://x').searchParams
     expect(params.get('sort')).toBe('score')
@@ -391,6 +395,7 @@ describe('ReportsList mobile sort dropdown', () => {
     fireEvent.change(screen.getByTestId('mobile-sort-select'), {
       target: { value: 'subject-desc' },
     })
+    expect(mockReplace).toHaveBeenCalledTimes(1)
     const url = mockReplace.mock.calls[0]?.[0] as string
     const params = new URL(url, 'http://x').searchParams
     expect(params.get('sort')).toBe('subject')
