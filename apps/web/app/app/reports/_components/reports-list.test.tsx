@@ -367,6 +367,7 @@ describe('ReportsList mobile sort dropdown', () => {
     fireEvent.change(screen.getByTestId('mobile-sort-select'), {
       target: { value: 'subject-asc' },
     })
+    expect(mockReplace).toHaveBeenCalledTimes(1)
     const url = mockReplace.mock.calls[0]?.[0] as string
     const params = new URL(url, 'http://x').searchParams
     expect(params.has('page')).toBe(false)
