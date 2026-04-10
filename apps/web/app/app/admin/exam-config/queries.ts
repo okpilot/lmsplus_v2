@@ -32,10 +32,23 @@ export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
         .is('deleted_at', null),
     ])
 
+  // Throw on any query error so the Suspense error boundary catches it
+  for (const res of [
+    subjectsRes,
+    topicsRes,
+    subtopicsRes,
+    configsRes,
+    distributionsRes,
+    questionsRes,
+  ]) {
+    if (res.error) throw new Error(`[getExamConfigData] ${res.error.message}`)
+  }
+
   const subjects = subjectsRes.data ?? []
   const topics = topicsRes.data ?? []
   const subtopics = subtopicsRes.data ?? []
   const configs = configsRes.data ?? []
+  // Distributions are org-scoped via RLS on parent exam_configs
   const distributions = distributionsRes.data ?? []
   const questions = questionsRes.data ?? []
 

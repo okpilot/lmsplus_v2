@@ -4,6 +4,8 @@ import {
   DeleteSyllabusItemSchema,
   StartQuizSessionSchema,
   SubmitAnswerSchema,
+  ToggleExamConfigSchema,
+  UpsertExamConfigSchema,
   UpsertQuestionSchema,
   UpsertSubjectSchema,
   UpsertSubtopicSchema,
@@ -206,5 +208,173 @@ describe('DeleteSyllabusItemSchema', () => {
     ['unrecognised table', { id: VALID_UUID, table: 'easa_questions' }],
   ])('rejects %s', (_, payload) => {
     expect(DeleteSyllabusItemSchema.safeParse(payload).success).toBe(false)
+  })
+})
+
+const VALID_UUID_2 = '00000000-0000-4000-a000-000000000002'
+
+describe('UpsertExamConfigSchema', () => {
+  const validDistributions = [
+    { topicId: VALID_UUID, subtopicId: null, questionCount: 10 },
+    { topicId: VALID_UUID_2, subtopicId: null, questionCount: 10 },
+  ]
+
+  const valid = {
+    subjectId: VALID_UUID,
+    enabled: true,
+    totalQuestions: 20,
+    timeLimitSeconds: 3600,
+    passMark: 75,
+    distributions: validDistributions,
+  }
+
+  it('accepts a valid exam config where distribution sums equal totalQuestions', () => {
+    expect(UpsertExamConfigSchema.safeParse(valid).success).toBe(true)
+  })
+
+  it('accepts a single-distribution config where its count equals totalQuestions', () => {
+    const payload = {
+      ...valid,
+      totalQuestions: 15,
+      distributions: [{ topicId: VALID_UUID, subtopicId: null, questionCount: 15 }],
+    }
+    expect(UpsertExamConfigSchema.safeParse(payload).success).toBe(true)
+  })
+
+  it('accepts a distribution entry without subtopicId (optional field)', () => {
+    const payload = {
+      ...valid,
+      totalQuestions: 5,
+      distributions: [{ topicId: VALID_UUID, questionCount: 5 }],
+    }
+    expect(UpsertExamConfigSchema.safeParse(payload).success).toBe(true)
+  })
+
+  it('accepts enabled set to false', () => {
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, enabled: false }).success).toBe(true)
+  })
+
+  it('accepts totalQuestions at the boundary value of 200', () => {
+    const distributions = [{ topicId: VALID_UUID, subtopicId: null, questionCount: 200 }]
+    expect(
+      UpsertExamConfigSchema.safeParse({ ...valid, totalQuestions: 200, distributions }).success,
+    ).toBe(true)
+  })
+
+  it('accepts timeLimitSeconds at the boundary value of 14400', () => {
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, timeLimitSeconds: 14400 }).success).toBe(
+      true,
+    )
+  })
+
+  it('accepts passMark at the boundary value of 100', () => {
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, passMark: 100 }).success).toBe(true)
+  })
+
+  it('rejects when distribution counts sum to less than totalQuestions', () => {
+    const distributions = [{ topicId: VALID_UUID, subtopicId: null, questionCount: 5 }]
+    const result = UpsertExamConfigSchema.safeParse({ ...valid, totalQuestions: 10, distributions })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects when distribution counts sum to more than totalQuestions', () => {
+    const distributions = [{ topicId: VALID_UUID, subtopicId: null, questionCount: 25 }]
+    const result = UpsertExamConfigSchema.safeParse({ ...valid, totalQuestions: 20, distributions })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects an empty distributions array', () => {
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, distributions: [] }).success).toBe(false)
+  })
+
+  it('rejects totalQuestions above 200', () => {
+    const distributions = [{ topicId: VALID_UUID, subtopicId: null, questionCount: 201 }]
+    expect(
+      UpsertExamConfigSchema.safeParse({ ...valid, totalQuestions: 201, distributions }).success,
+    ).toBe(false)
+  })
+
+  it('rejects totalQuestions of zero', () => {
+    const distributions = [{ topicId: VALID_UUID, subtopicId: null, questionCount: 0 }]
+    expect(
+      UpsertExamConfigSchema.safeParse({ ...valid, totalQuestions: 0, distributions }).success,
+    ).toBe(false)
+  })
+
+  it('rejects timeLimitSeconds above 14400', () => {
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, timeLimitSeconds: 14401 }).success).toBe(
+      false,
+    )
+  })
+
+  it('rejects timeLimitSeconds of zero', () => {
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, timeLimitSeconds: 0 }).success).toBe(false)
+  })
+
+  it('rejects passMark above 100', () => {
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, passMark: 101 }).success).toBe(false)
+  })
+
+  it('rejects passMark of zero', () => {
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, passMark: 0 }).success).toBe(false)
+  })
+
+  it('rejects a non-integer questionCount in a distribution entry', () => {
+    const distributions = [{ topicId: VALID_UUID, subtopicId: null, questionCount: 10.5 }]
+    expect(
+      UpsertExamConfigSchema.safeParse({ ...valid, totalQuestions: 10, distributions }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a distribution entry with a non-UUID topicId', () => {
+    const distributions = [{ topicId: INVALID_UUID, subtopicId: null, questionCount: 20 }]
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, distributions }).success).toBe(false)
+  })
+
+  it('rejects a non-UUID subjectId', () => {
+    expect(UpsertExamConfigSchema.safeParse({ ...valid, subjectId: INVALID_UUID }).success).toBe(
+      false,
+    )
+  })
+
+  it('rejects when totalQuestions is a fractional number', () => {
+    const distributions = [{ topicId: VALID_UUID, subtopicId: null, questionCount: 10 }]
+    expect(
+      UpsertExamConfigSchema.safeParse({ ...valid, totalQuestions: 10.5, distributions }).success,
+    ).toBe(false)
+  })
+})
+
+describe('ToggleExamConfigSchema', () => {
+  it('accepts a valid subjectId with enabled true', () => {
+    expect(ToggleExamConfigSchema.safeParse({ subjectId: VALID_UUID, enabled: true }).success).toBe(
+      true,
+    )
+  })
+
+  it('accepts a valid subjectId with enabled false', () => {
+    expect(
+      ToggleExamConfigSchema.safeParse({ subjectId: VALID_UUID, enabled: false }).success,
+    ).toBe(true)
+  })
+
+  it('rejects a non-UUID subjectId', () => {
+    expect(
+      ToggleExamConfigSchema.safeParse({ subjectId: INVALID_UUID, enabled: true }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a missing subjectId', () => {
+    expect(ToggleExamConfigSchema.safeParse({ enabled: true }).success).toBe(false)
+  })
+
+  it('rejects a missing enabled field', () => {
+    expect(ToggleExamConfigSchema.safeParse({ subjectId: VALID_UUID }).success).toBe(false)
+  })
+
+  it('rejects a non-boolean enabled value', () => {
+    expect(ToggleExamConfigSchema.safeParse({ subjectId: VALID_UUID, enabled: 1 }).success).toBe(
+      false,
+    )
   })
 })
