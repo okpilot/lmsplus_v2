@@ -1520,9 +1520,9 @@ Returns paginated session reports for the authenticated student with subject nam
 
 **Security:** `SECURITY DEFINER` + `auth.uid()` check + `SET search_path = public`.
 
-**Parameters:** `p_sort TEXT DEFAULT 'started_at'`, `p_dir TEXT DEFAULT 'desc'`, `p_limit INT DEFAULT 20`, `p_offset INT DEFAULT 0`
+**Parameters:** `p_sort TEXT DEFAULT 'started_at'`, `p_dir TEXT DEFAULT 'desc'`, `p_limit INT DEFAULT 10`, `p_offset INT DEFAULT 0`
 
-**Sort keys:** `started_at`, `score_percentage`, `subject_name` (whitelisted — invalid keys raise exception).
+**Sort keys:** `started_at`, `score_percentage`, `subject_name` (whitelisted — invalid keys fall back to `started_at`).
 
 **Filters:** `ended_at IS NOT NULL`, `deleted_at IS NULL`, `student_id = auth.uid()`.
 
