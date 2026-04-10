@@ -134,7 +134,7 @@ describe('ReportsList', () => {
   })
 })
 
-describe('ReportsList sort toggles', () => {
+describe('ReportsList sort via table headers', () => {
   beforeEach(() => {
     mockReplace.mockReset()
     Object.defineProperty(window, 'location', {
@@ -143,7 +143,7 @@ describe('ReportsList sort toggles', () => {
     })
   })
 
-  it('shows the active sort arrow on the current sort key', () => {
+  it('shows descending indicator on the active sort column header', () => {
     render(
       <ReportsList
         sessions={[makeSession()]}
@@ -154,10 +154,10 @@ describe('ReportsList sort toggles', () => {
         dir="desc"
       />,
     )
-    expect(screen.getByRole('button', { name: /date/i }).textContent).toContain('\u2193')
+    expect(screen.getByRole('button', { name: /date/i }).textContent).toContain('▼')
   })
 
-  it('shows ascending arrow when dir is asc', () => {
+  it('shows ascending indicator when dir is asc', () => {
     render(
       <ReportsList
         sessions={[makeSession()]}
@@ -168,10 +168,10 @@ describe('ReportsList sort toggles', () => {
         dir="asc"
       />,
     )
-    expect(screen.getByRole('button', { name: /date/i }).textContent).toContain('\u2191')
+    expect(screen.getByRole('button', { name: /date/i }).textContent).toContain('▲')
   })
 
-  it('calls router.replace with toggled dir when active sort key is clicked', async () => {
+  it('calls router.replace with toggled dir when active column header is clicked', async () => {
     const user = userEvent.setup()
     render(
       <ReportsList
@@ -190,7 +190,7 @@ describe('ReportsList sort toggles', () => {
     expect(params.get('sort')).toBe('date')
   })
 
-  it('calls router.replace without page param when sort changes (resets to page 1)', async () => {
+  it('resets to page 1 when sort changes via column header', async () => {
     const user = userEvent.setup()
     render(
       <ReportsList
@@ -210,7 +210,7 @@ describe('ReportsList sort toggles', () => {
     expect(params.has('page')).toBe(false)
   })
 
-  it('does not show arrow on inactive sort keys', () => {
+  it('does not show indicator on inactive column headers', () => {
     render(
       <ReportsList
         sessions={[makeSession()]}
@@ -221,11 +221,11 @@ describe('ReportsList sort toggles', () => {
         dir="desc"
       />,
     )
-    expect(screen.getByRole('button', { name: /score/i }).textContent).not.toContain('\u2191')
-    expect(screen.getByRole('button', { name: /score/i }).textContent).not.toContain('\u2193')
+    expect(screen.getByRole('button', { name: /score/i }).textContent).not.toContain('▲')
+    expect(screen.getByRole('button', { name: /score/i }).textContent).not.toContain('▼')
   })
 
-  it('shows the active sort arrow on the subject sort key', () => {
+  it('shows ascending indicator on subject column when sorted by subject asc', () => {
     render(
       <ReportsList
         sessions={[makeSession()]}
@@ -236,10 +236,10 @@ describe('ReportsList sort toggles', () => {
         dir="asc"
       />,
     )
-    expect(screen.getByRole('button', { name: /subject/i }).textContent).toContain('\u2191')
+    expect(screen.getByRole('button', { name: /subject/i }).textContent).toContain('▲')
   })
 
-  it('calls router.replace with subject sort when subject button is clicked', async () => {
+  it('calls router.replace with subject sort when subject header is clicked', async () => {
     const user = userEvent.setup()
     render(
       <ReportsList
