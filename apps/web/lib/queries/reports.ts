@@ -48,6 +48,13 @@ const SORT_COLUMN_MAP: Record<SortKey, string> = {
   subject: 'subject_name',
 }
 
+/**
+ * Fetch paginated session reports for the current user via `get_session_reports` RPC.
+ *
+ * **Note:** When `sessions` is empty, `totalCount` is `0` regardless of whether
+ * sessions exist on other pages. Callers must treat `totalCount: 0` as "unknown
+ * total for this page" and handle out-of-range pages independently (e.g. redirect).
+ */
 export async function getSessionReports(opts: SessionReportsOpts): Promise<SessionReportsResult> {
   const supabase = await createServerSupabaseClient()
   const {
