@@ -199,7 +199,7 @@ describe('ReportsList sort via table headers', () => {
     expect(screen.getByRole('button', { name: /date/i }).textContent).toContain('▲')
   })
 
-  it('calls router.replace with toggled dir when active column header is clicked', async () => {
+  it('toggles sort direction when active column header is clicked', async () => {
     const user = userEvent.setup()
     render(
       <ReportsList
@@ -267,7 +267,7 @@ describe('ReportsList sort via table headers', () => {
     expect(screen.getByRole('button', { name: /subject/i }).textContent).toContain('▲')
   })
 
-  it('calls router.replace with subject sort when subject header is clicked', async () => {
+  it('switches to subject sort when subject header is clicked', async () => {
     const user = userEvent.setup()
     render(
       <ReportsList
@@ -325,7 +325,7 @@ describe('ReportsList mobile sort dropdown', () => {
     expect(screen.getByTestId('mobile-sort-select')).toHaveValue('score-asc')
   })
 
-  it('calls router.replace with correct params when a mobile sort option is selected', () => {
+  it('applies selected sort option from mobile dropdown', () => {
     Object.defineProperty(window, 'location', {
       value: { search: '' },
       writable: true,
@@ -372,7 +372,7 @@ describe('ReportsList mobile sort dropdown', () => {
     expect(params.has('page')).toBe(false)
   })
 
-  it('calls router.replace with subject-desc params when subject-desc is selected', () => {
+  it('sorts by subject descending when subject-desc is selected from mobile dropdown', () => {
     Object.defineProperty(window, 'location', {
       value: { search: '' },
       writable: true,
