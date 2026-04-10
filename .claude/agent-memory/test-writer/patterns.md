@@ -371,6 +371,46 @@ it('returns a failure result when the callback rejects', async () => {
 ```
 Always confirm the exact fallback error string from the production source before asserting.
 
+### Mocking Base UI Select for value-change tests (2026-04-10)
+Base UI Select uses portals and complex internal state — not testable via userEvent in jsdom.
+Mock `@/components/ui/select` as a plain `<select>` element and use `fireEvent.change` to
+simulate value selection. Pattern (see `reports-list.test.tsx`, `student-status-filter.test.tsx`):
+
+```tsx
+vi.mock('@/components/ui/select', () => ({
+  Select: ({
+    value,
+    onValueChange,
+    children,
+  }: {
+    value?: string
+    onValueChange?: (v: string) => void
+    children: React.ReactNode
+    items?: { value: string; label: string }[]
+  }) => (
+    <select
+      data-testid="my-select"
+      value={value}
+      onChange={(e) => onValueChange?.(e.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <option value={value}>{children}</option>
+  ),
+}))
+```
+
+Then assert: `expect(screen.getByTestId('my-select')).toHaveValue('expected-value')`
+And trigger: `fireEvent.change(screen.getByTestId('my-select'), { target: { value: 'new-val' } })`
+
+Key: `items` prop must be in the type but ignored in the mock body (Base UI uses it for value
+label display, the native select handles its own rendering).
+
 ### Mocking Base UI Collapsible with context-forwarded open state (2026-04-09)
 
 When a component wraps Base UI `Collapsible` + `CollapsibleTrigger` with controlled open/close

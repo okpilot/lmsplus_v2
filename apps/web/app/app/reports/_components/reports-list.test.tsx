@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionReport } from '@/lib/queries/reports'
@@ -9,6 +9,34 @@ const mockReplace = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
   usePathname: () => '/app/reports',
+}))
+
+// Mock Base UI Select to avoid portal complexity in jsdom.
+vi.mock('@/components/ui/select', () => ({
+  Select: ({
+    value,
+    onValueChange,
+    children,
+  }: {
+    value?: string
+    onValueChange?: (v: string) => void
+    children: React.ReactNode
+    items?: { value: string; label: string }[]
+  }) => (
+    <select
+      data-testid="mobile-sort-select"
+      value={value}
+      onChange={(e) => onValueChange?.(e.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <option value={value}>{children}</option>
+  ),
 }))
 
 /** Return only <a> links (excludes <tr role="link"> which has no href) */
@@ -257,5 +285,114 @@ describe('ReportsList sort via table headers', () => {
     expect(params.get('sort')).toBe('subject')
     expect(params.get('dir')).toBe('asc')
     expect(params.has('page')).toBe(false)
+  })
+})
+
+describe('ReportsList mobile sort dropdown', () => {
+  beforeEach(() => {
+    mockReplace.mockReset()
+    Object.defineProperty(window, 'location', {
+      value: { search: '?sort=date&dir=desc' },
+      writable: true,
+    })
+  })
+
+  it('renders the mobile sort select with the current sort value as the selected option', () => {
+    render(
+      <ReportsList
+        sessions={[makeSession()]}
+        page={1}
+        totalCount={1}
+        pageSize={10}
+        sort="date"
+        dir="desc"
+      />,
+    )
+    expect(screen.getByTestId('mobile-sort-select')).toHaveValue('date-desc')
+  })
+
+  it('reflects score-asc as the current value when sort=score and dir=asc', () => {
+    render(
+      <ReportsList
+        sessions={[makeSession()]}
+        page={1}
+        totalCount={1}
+        pageSize={10}
+        sort="score"
+        dir="asc"
+      />,
+    )
+    expect(screen.getByTestId('mobile-sort-select')).toHaveValue('score-asc')
+  })
+
+  it('calls router.replace with correct params when a mobile sort option is selected', () => {
+    Object.defineProperty(window, 'location', {
+      value: { search: '' },
+      writable: true,
+    })
+    render(
+      <ReportsList
+        sessions={[makeSession()]}
+        page={1}
+        totalCount={1}
+        pageSize={10}
+        sort="date"
+        dir="desc"
+      />,
+    )
+    fireEvent.change(screen.getByTestId('mobile-sort-select'), {
+      target: { value: 'score-asc' },
+    })
+    const url = mockReplace.mock.calls[0]?.[0] as string
+    const params = new URL(url, 'http://x').searchParams
+    expect(params.get('sort')).toBe('score')
+    expect(params.get('dir')).toBe('asc')
+  })
+
+  it('resets to page 1 when a mobile sort option is selected', () => {
+    Object.defineProperty(window, 'location', {
+      value: { search: '?page=3' },
+      writable: true,
+    })
+    render(
+      <ReportsList
+        sessions={[makeSession()]}
+        page={3}
+        totalCount={30}
+        pageSize={10}
+        sort="date"
+        dir="desc"
+      />,
+    )
+    fireEvent.change(screen.getByTestId('mobile-sort-select'), {
+      target: { value: 'subject-asc' },
+    })
+    const url = mockReplace.mock.calls[0]?.[0] as string
+    const params = new URL(url, 'http://x').searchParams
+    expect(params.has('page')).toBe(false)
+  })
+
+  it('calls router.replace with subject-desc params when subject-desc is selected', () => {
+    Object.defineProperty(window, 'location', {
+      value: { search: '' },
+      writable: true,
+    })
+    render(
+      <ReportsList
+        sessions={[makeSession()]}
+        page={1}
+        totalCount={1}
+        pageSize={10}
+        sort="date"
+        dir="desc"
+      />,
+    )
+    fireEvent.change(screen.getByTestId('mobile-sort-select'), {
+      target: { value: 'subject-desc' },
+    })
+    const url = mockReplace.mock.calls[0]?.[0] as string
+    const params = new URL(url, 'http://x').searchParams
+    expect(params.get('sort')).toBe('subject')
+    expect(params.get('dir')).toBe('desc')
   })
 })

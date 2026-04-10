@@ -123,4 +123,56 @@ describe('SortableTableHead', () => {
     )
     expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'none')
   })
+
+  it('passes className to the column header element', () => {
+    render(
+      <table>
+        <thead>
+          <tr>
+            <SortableTableHead {...baseProps} className="px-4 py-3 text-xs" />
+          </tr>
+        </thead>
+      </table>,
+    )
+    expect(screen.getByRole('columnheader')).toHaveClass('px-4', 'py-3', 'text-xs')
+  })
+
+  it('applies justify-end to the button when align is right', () => {
+    render(
+      <table>
+        <thead>
+          <tr>
+            <SortableTableHead {...baseProps} align="right" />
+          </tr>
+        </thead>
+      </table>,
+    )
+    expect(screen.getByRole('button')).toHaveClass('justify-end')
+  })
+
+  it('applies justify-start to the button when align is left', () => {
+    render(
+      <table>
+        <thead>
+          <tr>
+            <SortableTableHead {...baseProps} align="left" />
+          </tr>
+        </thead>
+      </table>,
+    )
+    expect(screen.getByRole('button')).toHaveClass('justify-start')
+  })
+
+  it('defaults to justify-start when align prop is omitted', () => {
+    render(
+      <table>
+        <thead>
+          <tr>
+            <SortableTableHead {...baseProps} />
+          </tr>
+        </thead>
+      </table>,
+    )
+    expect(screen.getByRole('button')).toHaveClass('justify-start')
+  })
 })
