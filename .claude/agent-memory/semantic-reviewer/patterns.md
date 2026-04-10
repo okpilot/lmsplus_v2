@@ -4,6 +4,26 @@
 
 ## Session Log
 
+### 2026-04-10 — PR-level sweep master...HEAD (fix/batch-quick-wins-apr10, 15 commits, 30 files)
+- **Scope:** Full PR diff — cross-commit consistency, behavioral gaps, security checklist
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 3 | **GOOD:** 10
+- **Issue:** `apps/web/lib/queries/reports.ts:85-88` — `getSessionReports` returns `{ totalCount: 0 }` when rows is empty, regardless of whether it's truly 0 sessions or an out-of-range page with unknown total. The production caller (ReportsContent) handles this correctly by coincidence (`max(1, ceil(0/10)) = 1`, so page > 1 redirects to page 1). But the exported function's type contract (`totalCount: number`) does not distinguish "true zero" from "unknown". Any future caller cannot tell the two apart. Fix: add JSDoc documenting that `totalCount` is 0 when `sessions` is empty (not necessarily the true total).
+- **Suggestion 1:** `get_session_reports_rpc.sql:65` — correlated subquery for `answered_count` runs N times (once per session row). Moving to a LEFT JOIN aggregate would be more idiomatic for PostgreSQL, though at page size 10 this is not a performance concern.
+- **Suggestion 2:** `reports.ts:70` — `@ts-expect-error` will become a build-breaking error after the next `supabase gen types` run, because TypeScript treats "suppressor with no error to suppress" as an error itself. Track the removal or document it.
+- **Suggestion 3:** `reports-list.tsx:52` — `value.split('-') as [SortKey, SortDir]` cast is unvalidated for values without a dash. `if (!value) return` only catches null/empty. A `parts.length !== 2` guard would close the edge case. Recurring suggestion (also logged in 2f31c09 session).
+- **Pattern — window-function totalCount with empty-page ambiguity:** When using `count(*) OVER()` for pagination, if the page is empty the window function produces no rows and the totalCount is unknowable. Callers must handle `totalCount: 0` + `sessions: []` as either "truly empty" or "out of range". Document this contract on the exported type.
+- **Pattern — @ts-expect-error lifetime:** `@ts-expect-error` suppressors for "not yet in generated types" will flip to errors once types are regenerated. Track these in TODOs or issues so they're removed proactively.
+
+### 2026-04-10 — commit 437f2d0 (test(reports): assert mockReplace called before negative page-param check)
+- **Files reviewed:** reports-list.test.tsx (single test file, no production code)
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 0 | **GOOD:** 2
+- **Issue:** Five other `mockReplace.mock.calls[0]?.[0]` access sites (lines 215, 234, 283, 346, 394) lack a preceding `toHaveBeenCalledTimes(1)` guard. However, analysis shows only two of these are structurally at risk of trivial pass: lines 234 and 283 both end with `expect(params.has('page')).toBe(false)` as their final assertion — but both also assert `params.get('sort')` and `params.get('dir')` equal non-null values earlier in the same test, which would fail with `null` if the mock was never called. The `has('page').toBe(false)` tail assertion is redundant-but-harmless in those tests. No silent-pass risk remains after this fix. The only test that had solely a negative presence assertion (`params.has('page').toBe(false)`) with no self-protecting positive assertion upstream was the one fixed in this commit.
+- **Positive 1:** The fix is exactly scoped — adding the guard only where the vulnerability existed, not as a blanket change to all 6 sites.
+- **Positive 2:** Commit message accurately describes the root cause (`new URL('undefined', ...)` has no page param either), demonstrating the author understood the failure mode, not just the symptom.
+- **Pattern — negative-presence URL assertion silent-pass risk:** `expect(params.has('key')).toBe(false)` is a negative assertion. If the URL construction fails silently (e.g., via optional chain returning `undefined`), an empty URL also returns `false` for `has('key')` — the test trivially passes. Always guard with `expect(mock).toHaveBeenCalledTimes(N)` before accessing `mock.calls[0]` when the downstream assertions are purely negative (absence checks). When assertions include at least one positive check (`params.get('x').toBe('value')`), the positive assertion provides implicit protection.
+- **Pattern — partial self-protection in URL param tests:** Tests that assert both `params.get('sort').toBe('value')` AND `params.has('page').toBe(false)` are self-protecting against the uncalled-mock scenario via the positive assertion. Only tests with exclusively negative assertions need the explicit `toHaveBeenCalledTimes` guard.
+
+
 ### 2026-04-10 — PR diff master...HEAD (feat/subject-selector-collapsible, batch quick-wins: #507, #505, #502, #504, #382, #474)
 - **Files reviewed:** require-admin.ts, rethrow-redirect.ts + 5 callers, reports.ts, 3 migrations (idx, bucket, RPC), subject-select.tsx
 - **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 7
