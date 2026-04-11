@@ -120,7 +120,7 @@ describe('SubjectConfigCard', () => {
   })
 
   describe('toggle button — no config path', () => {
-    it('calls onEdit instead of toggleExamConfig when there is no config', async () => {
+    it('opens edit flow when clicking an unconfigured subject card', async () => {
       const onEdit = vi.fn()
       // With no config, there is no toggle button — clicking the card invokes onEdit
       render(<SubjectConfigCard subject={baseSubject} onEdit={onEdit} />)
@@ -131,7 +131,7 @@ describe('SubjectConfigCard', () => {
   })
 
   describe('toggle button — with config', () => {
-    it('calls toggleExamConfig and not onEdit when the toggle button is clicked', async () => {
+    it('toggles exam mode when clicking the status button', async () => {
       const onEdit = vi.fn()
       vi.mocked(toggleExamConfig).mockResolvedValue({ success: true })
 

@@ -85,7 +85,7 @@ describe('ExamConfigPageShell', () => {
       expect(dialog.getAttribute('data-subject-id')).toBe('subj-2')
     })
 
-    it('closes the dialog when onOpenChange(false) is called', async () => {
+    it('closes the dialog when the close button is clicked', async () => {
       render(<ExamConfigPageShell subjects={[SUBJECT_1]} />)
 
       await userEvent.click(screen.getByTestId('card-subj-1'))
