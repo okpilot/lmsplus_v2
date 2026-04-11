@@ -7,7 +7,7 @@
 --   p_total_questions:    number of questions in the exam
 --   p_time_limit_seconds: exam duration in seconds
 --   p_pass_mark:          pass percentage (1-100)
---   p_distributions:      JSONB array of {topicId, subtopicId, questionCount}
+--   p_distributions:      JSONB array of {topic_id, subtopic_id, question_count}
 --
 -- Returns: UUID of the upserted exam_configs row
 --
