@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NumField } from './num-field'
@@ -43,29 +43,26 @@ describe('NumField', () => {
       expect(onChange).toHaveBeenLastCalledWith(5)
     })
 
-    it('clamps the value to max when typed number exceeds max', async () => {
+    it('clamps the value to max when typed number exceeds max', () => {
       const onChange = vi.fn()
       render(<NumField label="Total" value={10} min={1} max={100} onChange={onChange} />)
       const input = screen.getByRole('spinbutton')
 
-      await userEvent.clear(input)
-      await userEvent.type(input, '150')
+      // Use fireEvent.change to bypass controlled-component re-render cycle
+      // (userEvent.clear + type appends to the controlled value, not replaces it)
+      fireEvent.change(input, { target: { value: '150' } })
 
-      const lastCall = onChange.mock.calls.at(-1)?.[0] as number
-      expect(lastCall).toBeLessThanOrEqual(100)
+      expect(onChange).toHaveBeenLastCalledWith(100)
     })
 
-    it('clamps the value to min when typed number is below min', async () => {
+    it('clamps the value to min when typed number is below min', () => {
       const onChange = vi.fn()
       render(<NumField label="Total" value={10} min={5} max={100} onChange={onChange} />)
       const input = screen.getByRole('spinbutton')
 
-      await userEvent.clear(input)
-      await userEvent.type(input, '1')
+      fireEvent.change(input, { target: { value: '1' } })
 
-      // The clamped value must be at least min=5
-      const lastCall = onChange.mock.calls.at(-1)?.[0] as number
-      expect(lastCall).toBeGreaterThanOrEqual(5)
+      expect(onChange).toHaveBeenLastCalledWith(5)
     })
 
     it('does not call onChange when the field is cleared (NaN guard)', async () => {
