@@ -68,8 +68,12 @@ export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
       .select('id')
       .single()
 
-    if (error || !data) {
-      console.error('[upsertExamConfig] Insert error:', error?.message)
+    if (error) {
+      console.error('[upsertExamConfig] Insert error:', error.message)
+      return { success: false, error: 'Failed to create exam configuration' }
+    }
+    if (!data) {
+      console.error('[upsertExamConfig] Insert returned no data (possible RLS block)')
       return { success: false, error: 'Failed to create exam configuration' }
     }
     configId = data.id
