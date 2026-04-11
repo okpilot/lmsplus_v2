@@ -22,9 +22,9 @@ export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
     p_time_limit_seconds: timeLimitSeconds,
     p_pass_mark: passMark,
     p_distributions: distributions.map((d) => ({
-      topicId: d.topicId,
-      subtopicId: d.subtopicId ?? null,
-      questionCount: d.questionCount,
+      topic_id: d.topicId,
+      subtopic_id: d.subtopicId ?? null,
+      question_count: d.questionCount,
     })),
   })
 

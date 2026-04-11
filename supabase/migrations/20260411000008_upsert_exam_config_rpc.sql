@@ -86,9 +86,9 @@ BEGIN
       exam_config_id, topic_id, subtopic_id, question_count
     ) VALUES (
       v_config_id,
-      (v_dist->>'topicId')::uuid,
-      NULLIF(v_dist->>'subtopicId', '')::uuid,
-      (v_dist->>'questionCount')::int
+      (v_dist->>'topic_id')::uuid,
+      NULLIF(v_dist->>'subtopic_id', '')::uuid,
+      (v_dist->>'question_count')::int
     );
   END LOOP;
 

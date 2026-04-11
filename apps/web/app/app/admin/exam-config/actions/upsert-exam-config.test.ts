@@ -83,7 +83,11 @@ describe('upsertExamConfig', () => {
         p_time_limit_seconds: 3600,
         p_pass_mark: 75,
         p_distributions: [
-          { topicId: '00000000-0000-4000-a000-000000000002', subtopicId: null, questionCount: 10 },
+          {
+            topic_id: '00000000-0000-4000-a000-000000000002',
+            subtopic_id: null,
+            question_count: 10,
+          },
         ],
       })
     })
@@ -134,7 +138,7 @@ describe('upsertExamConfig', () => {
 
       const callArgs = mockRpc.mock.calls[0]?.[2] as Record<string, unknown>
       const dists = callArgs.p_distributions as Array<Record<string, unknown>>
-      expect(dists[0]?.subtopicId).toBeNull()
+      expect(dists[0]?.subtopic_id).toBeNull()
     })
   })
 
