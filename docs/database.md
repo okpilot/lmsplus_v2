@@ -555,6 +555,8 @@ ORDER BY deleted_at DESC;
 | `easa_subjects/topics/subtopics` | No | Reference data, never deleted |
 | `quiz_drafts` | Hard DELETE (approved exception) | Disposable temp storage; no recovery value |
 | `flagged_questions` | Yes (soft) | Unflag = set deleted_at; flags referenced in quiz filter queries |
+| `exam_configs` | Yes | Per-subject exam configuration; soft-deleted when org removes exam mode |
+| `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE` |
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
 
 > **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE/DELETE to users where `is_admin()` returns `true`. All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature.
