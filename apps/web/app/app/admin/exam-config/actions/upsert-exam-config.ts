@@ -3,7 +3,7 @@
 import { UpsertExamConfigSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import { replaceDistributions } from './replace-distributions'
+import { rpc } from '@/lib/supabase-rpc'
 
 type ActionResult = { success: true } | { success: false; error: string }
 
@@ -11,76 +11,31 @@ export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
   const parsed = UpsertExamConfigSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Invalid input' }
 
-  const { supabase, organizationId } = await requireAdmin()
+  const { supabase } = await requireAdmin()
   const { subjectId, enabled, totalQuestions, timeLimitSeconds, passMark, distributions } =
     parsed.data
 
-  // Check if config exists
-  const { data: existing, error: lookupErr } = await supabase
-    .from('exam_configs')
-    .select('id')
-    .eq('organization_id', organizationId)
-    .eq('subject_id', subjectId)
-    .is('deleted_at', null)
-    .maybeSingle()
+  const { data, error } = await rpc<string>(supabase, 'upsert_exam_config', {
+    p_subject_id: subjectId,
+    p_enabled: enabled,
+    p_total_questions: totalQuestions,
+    p_time_limit_seconds: timeLimitSeconds,
+    p_pass_mark: passMark,
+    p_distributions: distributions.map((d) => ({
+      topicId: d.topicId,
+      subtopicId: d.subtopicId ?? null,
+      questionCount: d.questionCount,
+    })),
+  })
 
-  if (lookupErr) {
-    console.error('[upsertExamConfig] Lookup error:', lookupErr.message)
-    return { success: false, error: 'Failed to check existing configuration' }
+  if (error) {
+    console.error('[upsertExamConfig] RPC error:', error.message)
+    return { success: false, error: 'Failed to save exam configuration' }
   }
-
-  let configId: string
-
-  if (existing) {
-    // Update existing config
-    configId = existing.id
-    const { data: updated, error } = await supabase
-      .from('exam_configs')
-      .update({
-        enabled,
-        total_questions: totalQuestions,
-        time_limit_seconds: timeLimitSeconds,
-        pass_mark: passMark,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', configId)
-      .select('id')
-
-    if (error) {
-      console.error('[upsertExamConfig] Update error:', error.message)
-      return { success: false, error: 'Failed to update exam configuration' }
-    }
-    if (!updated?.length) {
-      return { success: false, error: 'Config was modified concurrently — please refresh' }
-    }
-  } else {
-    // Insert new config
-    const { data, error } = await supabase
-      .from('exam_configs')
-      .insert({
-        organization_id: organizationId,
-        subject_id: subjectId,
-        enabled,
-        total_questions: totalQuestions,
-        time_limit_seconds: timeLimitSeconds,
-        pass_mark: passMark,
-      })
-      .select('id')
-      .single()
-
-    if (error) {
-      console.error('[upsertExamConfig] Insert error:', error.message)
-      return { success: false, error: 'Failed to create exam configuration' }
-    }
-    if (!data) {
-      console.error('[upsertExamConfig] Insert returned no data (possible RLS block)')
-      return { success: false, error: 'Failed to create exam configuration' }
-    }
-    configId = data.id
+  if (!data) {
+    console.error('[upsertExamConfig] RPC returned no config_id')
+    return { success: false, error: 'Failed to save exam configuration' }
   }
-
-  const distResult = await replaceDistributions(supabase, configId, distributions)
-  if (!distResult.success) return distResult
 
   revalidatePath('/app/admin/exam-config')
   return { success: true }
