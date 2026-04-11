@@ -65,14 +65,14 @@ describe('NumField', () => {
       expect(onChange).toHaveBeenLastCalledWith(5)
     })
 
-    it('does not call onChange when the field is cleared (NaN guard)', async () => {
+    it('does not call onChange when the field is cleared (NaN guard)', () => {
       const onChange = vi.fn()
       render(<NumField label="Total" value={10} min={1} max={200} onChange={onChange} />)
       const input = screen.getByRole('spinbutton')
 
-      await userEvent.clear(input)
+      // Empty string produces NaN via valueAsNumber — onChange must not fire
+      fireEvent.change(input, { target: { value: '' } })
 
-      // Clearing produces NaN — onChange must not be called
       expect(onChange).not.toHaveBeenCalled()
     })
   })
