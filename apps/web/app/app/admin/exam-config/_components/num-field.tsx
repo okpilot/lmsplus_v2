@@ -25,7 +25,11 @@ export function NumField({
           min={min}
           max={max}
           value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => {
+            const v = e.target.valueAsNumber
+            if (Number.isNaN(v)) return
+            onChange(Math.max(min, Math.min(max, v)))
+          }}
           className={inputCls}
         />
       </label>

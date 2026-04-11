@@ -2,6 +2,17 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { upsertExamConfig } from '../actions/upsert-exam-config'
 import type { SubjectWithConfig } from '../types'
 import { DistributionEditor } from './distribution-editor'
@@ -54,34 +65,25 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Props) {
     })
   }
 
-  if (!open) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-card p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
             Configure Exam &mdash; {subject.code} {subject.name}
-          </h2>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            &times;
-          </button>
-        </div>
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Set exam parameters and question distribution for this subject.
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="space-y-4">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
-              className="h-4 w-4 rounded border-border"
-            />
-            <span className="text-sm font-medium">Enable exam mode for this subject</span>
-          </label>
+          <div className="flex items-center gap-2">
+            <Switch id="enabled" checked={enabled} onCheckedChange={setEnabled} />
+            <Label htmlFor="enabled" className="text-sm font-medium">
+              Enable exam mode for this subject
+            </Label>
+          </div>
 
           <div className="grid grid-cols-3 gap-4">
             <NumField
@@ -123,24 +125,15 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Props) {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="rounded px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
-          >
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isPending || !isValid}
-            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={isPending || !isValid}>
             {isPending ? 'Saving...' : 'Save Config'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

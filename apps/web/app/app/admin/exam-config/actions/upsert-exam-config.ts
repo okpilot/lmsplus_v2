@@ -3,6 +3,7 @@
 import { UpsertExamConfigSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { replaceDistributions } from './replace-distributions'
 
 type ActionResult = { success: true } | { success: false; error: string }
 
@@ -15,13 +16,18 @@ export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
     parsed.data
 
   // Check if config exists
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupErr } = await supabase
     .from('exam_configs')
     .select('id')
     .eq('organization_id', organizationId)
     .eq('subject_id', subjectId)
     .is('deleted_at', null)
     .maybeSingle()
+
+  if (lookupErr) {
+    console.error('[upsertExamConfig] Lookup error:', lookupErr.message)
+    return { success: false, error: 'Failed to check existing configuration' }
+  }
 
   let configId: string
 
@@ -69,32 +75,8 @@ export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
     configId = data.id
   }
 
-  // Replace distributions: delete all existing, then insert new ones
-  const { error: deleteError } = await supabase
-    .from('exam_config_distributions')
-    .delete()
-    .eq('exam_config_id', configId)
-
-  if (deleteError) {
-    console.error('[upsertExamConfig] Delete distributions error:', deleteError.message)
-    return { success: false, error: 'Failed to update question distribution' }
-  }
-
-  if (distributions.length > 0) {
-    const rows = distributions.map((d) => ({
-      exam_config_id: configId,
-      topic_id: d.topicId,
-      subtopic_id: d.subtopicId ?? null,
-      question_count: d.questionCount,
-    }))
-
-    const { error: insertError } = await supabase.from('exam_config_distributions').insert(rows)
-
-    if (insertError) {
-      console.error('[upsertExamConfig] Insert distributions error:', insertError.message)
-      return { success: false, error: 'Failed to save question distribution' }
-    }
-  }
+  const distResult = await replaceDistributions(supabase, configId, distributions)
+  if (!distResult.success) return distResult
 
   revalidatePath('/app/admin/exam-config')
   return { success: true }

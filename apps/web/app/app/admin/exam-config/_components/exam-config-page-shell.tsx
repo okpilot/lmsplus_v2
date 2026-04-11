@@ -24,8 +24,9 @@ export function ExamConfigPageShell({ subjects }: Props) {
 
       {editingSubject && (
         <ConfigFormDialog
+          key={editingSubject.id}
           subject={editingSubject}
-          open={!!editingSubject}
+          open={true}
           onOpenChange={(open) => {
             if (!open) setEditingSubject(null)
           }}

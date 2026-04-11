@@ -15,7 +15,7 @@ export async function toggleExamConfig(input: unknown): Promise<ActionResult> {
 
   // If enabling, verify config + distributions exist
   if (enabled) {
-    const { data: config } = await supabase
+    const { data: config, error: configErr } = await supabase
       .from('exam_configs')
       .select('id, total_questions')
       .eq('organization_id', organizationId)
@@ -23,14 +23,23 @@ export async function toggleExamConfig(input: unknown): Promise<ActionResult> {
       .is('deleted_at', null)
       .maybeSingle()
 
+    if (configErr) {
+      console.error('[toggleExamConfig] Config read error:', configErr.message)
+      return { success: false, error: 'Failed to check exam configuration' }
+    }
     if (!config) {
       return { success: false, error: 'Configure exam parameters before enabling' }
     }
 
-    const { data: distributions } = await supabase
+    const { data: distributions, error: distErr } = await supabase
       .from('exam_config_distributions')
       .select('question_count')
       .eq('exam_config_id', config.id)
+
+    if (distErr) {
+      console.error('[toggleExamConfig] Distribution read error:', distErr.message)
+      return { success: false, error: 'Failed to check question distribution' }
+    }
 
     const totalDistributed = (distributions ?? []).reduce((sum, d) => sum + d.question_count, 0)
 

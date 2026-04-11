@@ -264,15 +264,18 @@ CREATE TABLE exam_configs (
   pass_mark         INT NOT NULL CHECK (pass_mark > 0 AND pass_mark <= 100),
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at        TIMESTAMPTZ NULL,
-  UNIQUE (organization_id, subject_id)
+  deleted_at        TIMESTAMPTZ NULL
 );
+-- Partial unique index: one active config per org+subject (soft-deleted rows excluded)
+-- CREATE UNIQUE INDEX uq_exam_configs_org_subject_active ON exam_configs (organization_id, subject_id) WHERE deleted_at IS NULL;
 -- RLS: admin full CRUD, students read-only (enabled + non-deleted only)
 ```
 
 ### exam_config_distributions
 ```sql
 -- Question count per topic/subtopic for exam random selection.
+-- Ephemeral: hard DELETE is intentional (same precedent as quiz_drafts).
+-- Distributions are replaced atomically on each config save.
 CREATE TABLE exam_config_distributions (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   exam_config_id    UUID NOT NULL REFERENCES exam_configs(id) ON DELETE CASCADE,
