@@ -266,8 +266,9 @@ CREATE TABLE exam_configs (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at        TIMESTAMPTZ NULL
 );
--- Partial unique index: one active config per org+subject (soft-deleted rows excluded)
--- CREATE UNIQUE INDEX uq_exam_configs_org_subject_active ON exam_configs (organization_id, subject_id) WHERE deleted_at IS NULL;
+-- Partial unique index (replaces full UNIQUE constraint; soft-deleted rows excluded):
+CREATE UNIQUE INDEX uq_exam_configs_org_subject_active
+  ON exam_configs (organization_id, subject_id) WHERE deleted_at IS NULL;
 -- RLS: admin full CRUD, students read-only (enabled + non-deleted only)
 ```
 
