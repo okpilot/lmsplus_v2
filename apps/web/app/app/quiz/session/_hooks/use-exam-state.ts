@@ -42,8 +42,8 @@ export function useExamPipeline(opts: {
 
   return {
     answers,
-    feedback: new Map<string, AnswerFeedback>(),
-    handleSelectAnswer: confirmAnswer,
+    feedback: emptyFeedbackRef.current,
+    handleSelectAnswer: (id: string) => Promise.resolve(confirmAnswer(id)),
     navigateTo: opts.navigateTo,
     navigate: opts.navigate,
     submitted: submit.submitted,

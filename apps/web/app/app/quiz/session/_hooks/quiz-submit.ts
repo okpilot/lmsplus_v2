@@ -109,6 +109,7 @@ export async function handleSubmitSession(opts: {
     if (opts.isExam) {
       // Exam timed out with no answers — discard and redirect
       clearActiveSession(opts.userId)
+      clearDeploymentPin().catch(() => {})
       opts.router.push('/app/quiz')
       return
     }

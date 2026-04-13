@@ -11,7 +11,7 @@ export function useExamAnswerBuffer(opts: UseExamAnswerBufferOpts) {
   const answersRef = useRef(answers)
 
   const confirmAnswer = useCallback(
-    async (optionId: string): Promise<boolean> => {
+    (optionId: string): boolean => {
       const questionId = opts.getQuestionId()
       if (answersRef.current.has(questionId)) return false // already locked
       const elapsed = Date.now() - opts.getAnswerStartTime()
