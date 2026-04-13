@@ -96,10 +96,10 @@ describe('FinishQuizDialog', () => {
     expect(onSubmit).toHaveBeenCalledOnce()
   })
 
-  it('hides Submit Quiz and shows hint when no questions are answered', () => {
+  it('disables submit and shows hint when no questions are answered', () => {
     renderDialog({ answeredCount: 0, totalQuestions: 5 })
-    expect(screen.queryByRole('button', { name: /submit quiz/i })).not.toBeInTheDocument()
-    expect(screen.getByText(/answer at least one question to submit/i)).toBeInTheDocument()
+    const btn = screen.getByRole('button', { name: /answer at least one question/i })
+    expect(btn).toBeDisabled()
   })
 
   it('calls onCancel when Return to Quiz button is clicked', () => {

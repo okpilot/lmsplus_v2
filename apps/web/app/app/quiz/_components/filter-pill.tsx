@@ -1,8 +1,13 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export function getSquareClass(opts: { isCurrent: boolean; isCorrect: boolean | null }) {
+export function getSquareClass(opts: {
+  isCurrent: boolean
+  isCorrect: boolean | null
+  isAnsweredInExam?: boolean
+}) {
   if (opts.isCurrent) return 'bg-primary text-primary-foreground'
+  if (opts.isAnsweredInExam) return 'bg-green-700/70 text-white'
   if (opts.isCorrect === true) return 'bg-green-500 text-white'
   if (opts.isCorrect === false) return 'bg-red-500 text-white'
   return 'border border-border text-muted-foreground'

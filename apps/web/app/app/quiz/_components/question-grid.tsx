@@ -14,6 +14,8 @@ type QuestionGridProps = {
   questionIds: string[]
   feedbackMap: Map<string, { isCorrect: boolean }>
   onNavigate: (index: number) => void
+  isExamMode?: boolean
+  answeredIds?: Set<string>
 }
 
 const MIN_SQUARE = 36
@@ -40,6 +42,8 @@ function buildSquares(opts: QuestionGridProps & { filter: GridFilter }) {
     pinnedIds,
     feedbackMap,
     onNavigate,
+    isExamMode,
+    answeredIds,
   } = opts
   return Array.from({ length: totalQuestions }, (_, i) => {
     const qId = questionIds[i] ?? ''
@@ -48,6 +52,7 @@ function buildSquares(opts: QuestionGridProps & { filter: GridFilter }) {
     const isCorrect = feedback ? feedback.isCorrect : null
     const isFlagged = flaggedIds.has(qId)
     const isPinned = pinnedIds.has(qId)
+    const isAnsweredInExam = isExamMode && !isCurrent && (answeredIds?.has(qId) ?? false)
     if ((filter === 'flagged' && !isFlagged) || (filter === 'pinned' && !isPinned)) return null
     return (
       <button
@@ -57,7 +62,7 @@ function buildSquares(opts: QuestionGridProps & { filter: GridFilter }) {
         onClick={() => onNavigate(i)}
         className={cn(
           'flex aspect-square items-center justify-center rounded-lg text-xs font-medium transition-all',
-          getSquareClass({ isCurrent, isCorrect }),
+          getSquareClass({ isCurrent, isCorrect, isAnsweredInExam }),
         )}
         aria-current={isCurrent ? 'step' : undefined}
         aria-label={`Question ${i + 1}${isFlagged ? ', flagged' : ''}${isPinned ? ', pinned' : ''}`}
@@ -76,6 +81,8 @@ export function QuestionGrid({
   questionIds,
   feedbackMap,
   onNavigate,
+  isExamMode,
+  answeredIds,
 }: QuestionGridProps) {
   const [filter, setFilter] = useState<GridFilter>('all')
   const [expanded, setExpanded] = useState(false)
@@ -116,6 +123,8 @@ export function QuestionGrid({
     pinnedIds,
     feedbackMap,
     onNavigate,
+    isExamMode,
+    answeredIds,
   })
 
   return (

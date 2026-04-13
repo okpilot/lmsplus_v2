@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type FinishQuizDialogProps = {
   open: boolean
@@ -12,6 +12,8 @@ type FinishQuizDialogProps = {
   onCancel: () => void
   onSave: () => void
   onDiscard: () => void
+  isExam?: boolean
+  timeExpired?: boolean
 }
 
 export function FinishQuizDialog({
@@ -24,23 +26,52 @@ export function FinishQuizDialog({
   onCancel,
   onSave,
   onDiscard,
+  isExam,
+  timeExpired,
 }: FinishQuizDialogProps) {
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const [confirmingSubmit, setConfirmingSubmit] = useState(false)
+  const [autoSubmitCountdown, setAutoSubmitCountdown] = useState(10)
+  const autoSubmitFiredRef = useRef(false)
 
-  // Reset confirmation state when dialog closes so stale panels don't persist
+  // Reset confirmation state when dialog closes
   useEffect(() => {
     if (!open) {
       setConfirmingDiscard(false)
       setConfirmingSubmit(false)
+      setAutoSubmitCountdown(10)
+      autoSubmitFiredRef.current = false
     }
   }, [open])
+
+  // Auto-submit countdown for time-expired exam
+  useEffect(() => {
+    if (!open || !timeExpired || !isExam || submitting) return
+    if (autoSubmitFiredRef.current) return
+    const id = setInterval(() => {
+      setAutoSubmitCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(id)
+          if (!autoSubmitFiredRef.current) {
+            autoSubmitFiredRef.current = true
+            onSubmit()
+          }
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [open, timeExpired, isExam, submitting, onSubmit])
 
   if (!open) return null
 
   const unanswered = totalQuestions - answeredCount
+  const title = isExam ? 'Finish Exam' : 'Finish Quiz'
+  const returnLabel = isExam ? 'Return to Exam' : 'Return to Quiz'
 
   function handleClose() {
+    if (timeExpired && isExam) return // Can't dismiss time-expired dialog
     setConfirmingDiscard(false)
     setConfirmingSubmit(false)
     onCancel()
@@ -48,7 +79,7 @@ export function FinishQuizDialog({
 
   function handleSubmitClick() {
     setConfirmingDiscard(false)
-    if (unanswered > 0 && !confirmingSubmit) {
+    if (unanswered > 0 && !confirmingSubmit && !timeExpired) {
       setConfirmingSubmit(true)
       return
     }
@@ -73,19 +104,32 @@ export function FinishQuizDialog({
           e.stopPropagation()
           if (e.key === 'Escape') handleClose()
         }}
-        aria-label="Finish quiz"
+        aria-label={title}
       >
-        <h2 className="text-lg font-semibold text-foreground">Finish Quiz</h2>
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
 
-        <p className="mt-3 text-sm text-muted-foreground">
-          You have answered {answeredCount} of {totalQuestions} questions.
-        </p>
+        {timeExpired && isExam ? (
+          <div className="mt-3 rounded-lg border border-red-400/40 bg-red-500/10 p-4">
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              Time expired! Your answers will be submitted automatically.
+            </p>
+            {!submitting && autoSubmitCountdown > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Auto-submitting in {autoSubmitCountdown}s...
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">
+            You have answered {answeredCount} of {totalQuestions} questions.
+          </p>
+        )}
 
-        {confirmingSubmit && unanswered > 0 && (
+        {confirmingSubmit && unanswered > 0 && !timeExpired && (
           <div className="mt-4 rounded-lg border border-orange-400/40 bg-orange-500/10 p-4">
             <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
-              {unanswered} {unanswered === 1 ? 'question is' : 'questions are'} unanswered and will
-              be skipped.
+              {unanswered} {unanswered === 1 ? 'question is' : 'questions are'} unanswered
+              {isExam ? ' and will be marked wrong.' : ' and will be skipped.'}
             </p>
             <div className="mt-3 flex gap-2">
               <button
@@ -108,7 +152,7 @@ export function FinishQuizDialog({
           </div>
         )}
 
-        {confirmingDiscard && (
+        {!isExam && confirmingDiscard && (
           <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 p-4">
             <p className="text-sm font-medium text-destructive">
               Are you sure? Your progress will be lost.
@@ -141,47 +185,57 @@ export function FinishQuizDialog({
         )}
 
         <div className="mt-6 flex flex-col gap-2">
-          {answeredCount > 0 ? (
+          <button
+            type="button"
+            onClick={handleSubmitClick}
+            disabled={submitting || (answeredCount === 0 && !timeExpired)}
+            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            {submitting
+              ? 'Submitting...'
+              : isExam
+                ? 'Submit Exam'
+                : answeredCount > 0
+                  ? 'Submit Quiz'
+                  : 'Answer at least one question'}
+          </button>
+
+          {/* Save and Discard — hidden in exam mode */}
+          {!isExam && (
+            <>
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={submitting}
+                className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                Save for Later
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmingSubmit(false)
+                  setConfirmingDiscard(true)
+                }}
+                disabled={submitting}
+                className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+              >
+                Discard Quiz
+              </button>
+            </>
+          )}
+
+          {/* Return button — hidden when time expired in exam */}
+          {!(timeExpired && isExam) && (
             <button
               type="button"
-              onClick={handleSubmitClick}
+              onClick={handleClose}
               disabled={submitting}
-              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
             >
-              {submitting ? 'Submitting...' : 'Submit Quiz'}
+              {returnLabel}
             </button>
-          ) : (
-            <p className="py-2 text-center text-sm text-muted-foreground">
-              Answer at least one question to submit.
-            </p>
           )}
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={submitting}
-            className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-          >
-            Save for Later
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setConfirmingSubmit(false)
-              setConfirmingDiscard(true)
-            }}
-            disabled={submitting}
-            className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-          >
-            Discard Quiz
-          </button>
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={submitting}
-            className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-          >
-            Return to Quiz
-          </button>
         </div>
       </div>
     </div>
