@@ -144,7 +144,7 @@ describe('SubjectConfigCard', () => {
           enabled: false,
         })
       })
-      // onEdit must NOT have been called — stopPropagation prevents card click
+      // onEdit must NOT have been called — toggle is a sibling button, not nested inside the card button
       expect(onEdit).not.toHaveBeenCalled()
     })
 
