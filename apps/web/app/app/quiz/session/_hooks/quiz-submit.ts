@@ -103,8 +103,15 @@ export async function handleSubmitSession(opts: {
   setSubmitting: SetSubmitting
   setError: SetError
   onSuccess: () => void
+  isExam?: boolean
 }) {
   if (opts.answers.size === 0) {
+    if (opts.isExam) {
+      // Exam timed out with no answers — discard and redirect
+      clearActiveSession(opts.userId)
+      opts.router.push('/app/quiz')
+      return
+    }
     opts.setError('No answers to submit.')
     return
   }

@@ -16,6 +16,7 @@ export function useQuizSubmit(opts: {
   draftId?: string
   subjectName?: string
   subjectCode?: string
+  isExam?: boolean
 }) {
   const submitted = useRef(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
@@ -34,6 +35,7 @@ export function useQuizSubmit(opts: {
       sessionId: opts.sessionId,
       answers: safeAnswers,
       draftId: opts.draftId,
+      isExam: opts.isExam,
       onSuccess: () => {
         submitted.current = true
         setShowFinishDialog(false)

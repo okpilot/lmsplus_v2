@@ -37,6 +37,7 @@ export function useExamPipeline(opts: {
     draftId: opts.quizOpts.draftId,
     subjectName: opts.quizOpts.subjectName,
     subjectCode: opts.quizOpts.subjectCode,
+    isExam: true,
   })
 
   return {
