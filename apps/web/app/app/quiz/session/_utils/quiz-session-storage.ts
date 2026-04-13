@@ -24,6 +24,7 @@ export type ActiveSession = {
   subjectCode?: string
   draftId?: string
   savedAt: number // Date.now()
+  mode?: 'study' | 'exam'
 }
 
 /** Build the sessionStorage handoff payload for resuming a session. */
@@ -126,6 +127,9 @@ export type SessionData = {
   draftId?: string
   subjectName?: string
   subjectCode?: string
+  mode?: 'study' | 'exam'
+  timeLimitSeconds?: number
+  passMark?: number
 }
 
 export function isValidSessionData(data: unknown, expectedUserId: string): data is SessionData {
@@ -177,6 +181,7 @@ export function toSessionData(r: ActiveSession): SessionData {
     draftId: r.draftId,
     subjectName: r.subjectName,
     subjectCode: r.subjectCode,
+    mode: r.mode,
   }
 }
 
