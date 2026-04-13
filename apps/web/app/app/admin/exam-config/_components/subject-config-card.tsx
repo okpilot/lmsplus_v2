@@ -21,14 +21,18 @@ export function SubjectConfigCard({ subject, onEdit }: Props) {
     }
 
     startTransition(async () => {
-      const result = await toggleExamConfig({
-        subjectId: subject.id,
-        enabled: !config.enabled,
-      })
-      if (!result.success) {
-        toast.error(result.error)
-      } else {
-        toast.success(config.enabled ? 'Exam mode disabled' : 'Exam mode enabled')
+      try {
+        const result = await toggleExamConfig({
+          subjectId: subject.id,
+          enabled: !config.enabled,
+        })
+        if (!result.success) {
+          toast.error(result.error)
+        } else {
+          toast.success(config.enabled ? 'Exam mode disabled' : 'Exam mode enabled')
+        }
+      } catch {
+        toast.error('Failed to update exam status')
       }
     })
   }

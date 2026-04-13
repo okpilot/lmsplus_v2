@@ -48,19 +48,23 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Props) {
 
   function handleSubmit() {
     startTransition(async () => {
-      const result = await upsertExamConfig({
-        subjectId: subject.id,
-        enabled,
-        totalQuestions,
-        timeLimitSeconds: timeLimitMinutes * 60,
-        passMark,
-        distributions: distributions.filter((d) => d.questionCount > 0),
-      })
-      if (result.success) {
-        toast.success('Exam configuration saved')
-        onOpenChange(false)
-      } else {
-        toast.error(result.error)
+      try {
+        const result = await upsertExamConfig({
+          subjectId: subject.id,
+          enabled,
+          totalQuestions,
+          timeLimitSeconds: timeLimitMinutes * 60,
+          passMark,
+          distributions: distributions.filter((d) => d.questionCount > 0),
+        })
+        if (result.success) {
+          toast.success('Exam configuration saved')
+          onOpenChange(false)
+        } else {
+          toast.error(result.error)
+        }
+      } catch {
+        toast.error('Failed to save exam configuration')
       }
     })
   }
