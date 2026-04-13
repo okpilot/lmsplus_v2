@@ -90,13 +90,13 @@
 
 ---
 
-## PR2: Student Exam Mode (#514) — DEFERRED
+## PR2: Student Exam Mode (#514)
 
-- [ ] C1. Enable exam mode toggle + subject filtering
-- [ ] C2. Exam setup UI (parameters display + start)
-- [ ] C3. Countdown timer component
-- [ ] C4. Exam session behavior (no feedback, confirm answer, auto-submit)
-- [ ] C5. Exam results (pass/fail)
+- [x] C1. Enable exam mode toggle + subject filtering
+- [x] C2. Exam setup UI (parameters display + start)
+- [x] C3. Countdown timer component
+- [x] C4. Exam session behavior (no feedback, confirm answer, auto-submit)
+- [x] C5. Exam results (pass/fail)
 
 ---
 
