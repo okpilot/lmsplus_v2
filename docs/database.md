@@ -823,9 +823,10 @@ $$;
 Submits all quiz answers in a single transaction. Replaces the per-answer `submit_quiz_answer` loop + separate `complete_quiz_session` call. Calculates scores and completes the session atomically — if any answer fails, the entire batch rolls back.
 
 **Key behavior:**
-- Allows partial submissions (students may skip questions; score = `correct / answered`, not `correct / total`)
+- Allows partial submissions. Study mode: score = `correct / answered`. Exam mode (migration 047): score = `correct / total` (unanswered = wrong); incomplete exams auto-fail regardless of score.
+- Enforces server-side time limit with 30-second grace period (migration 047); beyond grace period, auto-ends session with zero score and returns `expired: true`
 - Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction
-- Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
+- Returns `answered_count`, `correct_count`, `score_percentage`, `passed` (boolean, exam mode only), and `expired` (boolean, if submission past grace period)
 - Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
 - Hardens field validation (migration 026): validates `jsonb_typeof(v_config->'question_ids')` = 'array' BEFORE extraction (fixes eval-before-guard issue); validates `selected_option` and `response_time_ms` per answer AFTER extraction
 - Uses case-insensitive UUID regex (migration 028): validates question_id with `!~*` instead of `!~` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth hardening

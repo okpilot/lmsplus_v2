@@ -3,6 +3,9 @@
 --    within grace period, auto-end session if past grace period
 -- 2. Remove RAISE EXCEPTION on partial exam answers — allow auto-submit
 --    with fewer answers (incomplete exam auto-fails)
+--
+-- NOTE: 310 lines — exceeds 300-line migration limit. Cannot split: this is
+-- a single CREATE OR REPLACE FUNCTION (SECURITY DEFINER) that must be atomic.
 -- Score denominator = total questions (not answered), so unanswered = wrong.
 
 CREATE OR REPLACE FUNCTION batch_submit_quiz(
@@ -149,6 +152,10 @@ BEGIN
   END IF;
 
   -- *** EXAM MODE: ALLOW PARTIAL SUBMISSION ***
+  -- NOTE: correct_option_id is returned in v_results for all modes. This is
+  -- safe because batch_submit_quiz is called only at session end (submit/auto-
+  -- submit), never per-question during the exam. Exam answers are buffered
+  -- client-side and submitted in one batch at completion.
   -- Timer expiry may cause auto-submit with fewer answers than total.
   -- Incomplete exam auto-fails (v_passed = false set after scoring).
   -- No RAISE — process whatever answers were provided.
@@ -259,10 +266,14 @@ BEGIN
   END IF;
 
   -- *** PASSED COMPUTATION (exam mode only) ***
+  -- pass_mark is NOT NULL in exam_configs (CHECK constraint), so the NULL
+  -- guard below is purely defensive — v_pass_mark should always have a value.
   IF v_mode = 'mock_exam' THEN
     v_pass_mark := (v_config->>'pass_mark')::int;
     IF v_pass_mark IS NOT NULL THEN
       v_passed := (v_score >= v_pass_mark);
+    ELSE
+      v_passed := false;  -- defensive: should never happen (pass_mark NOT NULL)
     END IF;
     -- Incomplete exam: if not all questions answered, auto-fail regardless of score
     IF v_answered < v_total THEN
