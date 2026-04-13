@@ -24,6 +24,9 @@ type QuizSessionProps = {
   draftId?: string
   subjectName?: string
   subjectCode?: string
+  mode?: 'study' | 'exam'
+  timeLimitSeconds?: number
+  passMark?: number
 }
 
 export function QuizSession(props: QuizSessionProps) {
