@@ -13,6 +13,7 @@ import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizUI } from '../_hooks/use-quiz-ui'
+import { ExamBadge } from './exam-session-header'
 import { QuizControls } from './quiz-controls'
 import { QuizMainPanel } from './quiz-main-panel'
 
@@ -35,17 +36,16 @@ export function QuizSession(props: QuizSessionProps) {
   const s = useQuizState(props)
   const { activeTab, setActiveTab } = useQuizActiveTab(s.currentIndex)
   const { flaggedIds, isFlagged, toggleFlag, isToggling } = useFlaggedQuestions(s.questionIds)
+  const effectiveTab = s.isExam ? 'question' : activeTab
   const { feedbackMap, pendingOptionId, handleSelectionChange, canSubmitAnswer } = useQuizUI({
     feedback: s.feedback,
     currentIndex: s.currentIndex,
-    activeTab: s.isExam ? 'question' : activeTab,
+    activeTab: effectiveTab,
     existingAnswer: s.existingAnswer,
   })
 
   const timerStartRef = useRef(Date.now())
   const autoSubmitFiredRef = useRef(false)
-
-  // Auto-submit: show finish dialog with timeout flag
   const handleTimeExpired = useCallback(() => {
     if (autoSubmitFiredRef.current || s.submitting) return
     autoSubmitFiredRef.current = true
@@ -56,7 +56,6 @@ export function QuizSession(props: QuizSessionProps) {
 
   return (
     <div className="flex flex-1 flex-col">
-      {/* Top bar */}
       <div className="relative flex items-center justify-between border-b border-border px-4 py-2">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium md:hidden">
@@ -64,9 +63,7 @@ export function QuizSession(props: QuizSessionProps) {
           </span>
           {s.isExam ? (
             <>
-              <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">
-                EXAM
-              </span>
+              <ExamBadge />
               {props.timeLimitSeconds && (
                 <ExamCountdownTimer
                   timeLimitSeconds={props.timeLimitSeconds}
@@ -80,8 +77,6 @@ export function QuizSession(props: QuizSessionProps) {
             <SessionTimer className="text-sm text-muted-foreground md:hidden" />
           )}
         </div>
-
-        {/* Desktop tabs — hidden in exam mode */}
         {!s.isExam && (
           <div className="pointer-events-none absolute inset-0 hidden items-center justify-center md:flex">
             <div className="pointer-events-auto">
@@ -89,7 +84,6 @@ export function QuizSession(props: QuizSessionProps) {
             </div>
           </div>
         )}
-
         <div className="hidden md:block" />
         <div className="z-10 flex items-center gap-2">
           <ThemeToggle />
@@ -104,7 +98,6 @@ export function QuizSession(props: QuizSessionProps) {
         </div>
       </div>
 
-      {/* Content */}
       <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-4">
           <QuestionGrid
@@ -118,15 +111,11 @@ export function QuizSession(props: QuizSessionProps) {
             isExamMode={s.isExam}
             onNavigate={s.navigateTo}
           />
-
-          {/* Mobile tabs — hidden in exam mode */}
           {!s.isExam && (
             <div className="md:hidden">
               <QuestionTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
           )}
-
-          {/* Info bar */}
           <div className="flex items-center justify-between text-sm">
             <span className="hidden font-medium md:inline">
               Question {s.currentIndex + 1} of {props.questions.length}
@@ -149,18 +138,15 @@ export function QuizSession(props: QuizSessionProps) {
               {s.question.question_number ? `No. ${s.question.question_number}` : '\u00A0'}
             </span>
           </div>
-
-          {/* Tab content — exam forces question tab */}
           <QuizMainPanel
             s={s}
-            activeTab={s.isExam ? 'question' : activeTab}
+            activeTab={effectiveTab}
             userId={props.userId}
             onSelectionChange={handleSelectionChange}
           />
         </div>
       </div>
 
-      {/* Action bar */}
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background px-4 pb-[env(safe-area-inset-bottom)] md:px-8">
         <div className="mx-auto max-w-3xl">
           <QuizControls
@@ -176,16 +162,13 @@ export function QuizSession(props: QuizSessionProps) {
             onPrev={() => s.navigate(-1)}
             onNext={() => s.navigate(1)}
             onSubmitAnswer={async () => {
-              if (pendingOptionId) {
-                await s.handleSelectAnswer(pendingOptionId)
-              }
+              if (pendingOptionId) await s.handleSelectAnswer(pendingOptionId)
             }}
             isExam={s.isExam}
           />
         </div>
       </div>
 
-      {/* Finish dialog */}
       <FinishQuizDialog
         open={s.showFinishDialog}
         answeredCount={s.answeredCount}
