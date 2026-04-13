@@ -171,7 +171,8 @@ BEGIN
     q.explanation_image_url,
     q.options
   FROM questions q
-  WHERE q.id = ANY(v_session_question_ids);
+  WHERE q.id = ANY(v_session_question_ids)
+    AND q.deleted_at IS NULL;
 
   -- Process each provided answer
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
