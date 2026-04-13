@@ -288,6 +288,22 @@ describe('ConfigFormDialog', () => {
       expect(onOpenChange).not.toHaveBeenCalledWith(false)
       expect(toast.success).not.toHaveBeenCalled()
     })
+
+    it('shows toast.error with fallback message and does not close dialog when upsertExamConfig throws', async () => {
+      const onOpenChange = vi.fn()
+      vi.mocked(upsertExamConfig).mockRejectedValue(new Error('Network failure'))
+
+      render(
+        <ConfigFormDialog subject={subjectWithConfig} open={true} onOpenChange={onOpenChange} />,
+      )
+      await userEvent.click(screen.getByRole('button', { name: 'Save Config' }))
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith('Failed to save exam configuration')
+      })
+      expect(onOpenChange).not.toHaveBeenCalledWith(false)
+      expect(toast.success).not.toHaveBeenCalled()
+    })
   })
 
   describe('Cancel button', () => {

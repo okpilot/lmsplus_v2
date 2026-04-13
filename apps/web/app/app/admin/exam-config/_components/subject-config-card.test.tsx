@@ -199,5 +199,17 @@ describe('SubjectConfigCard', () => {
       })
       expect(toast.success).not.toHaveBeenCalled()
     })
+
+    it('shows toast.error with fallback message when toggleExamConfig throws', async () => {
+      vi.mocked(toggleExamConfig).mockRejectedValue(new Error('Network failure'))
+
+      render(<SubjectConfigCard subject={subjectWithConfig} onEdit={vi.fn()} />)
+      await userEvent.click(screen.getByRole('button', { name: 'Enabled' }))
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith('Failed to update exam status')
+      })
+      expect(toast.success).not.toHaveBeenCalled()
+    })
   })
 })
