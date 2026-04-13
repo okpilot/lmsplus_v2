@@ -18,6 +18,8 @@ function makeSummary(overrides: Partial<QuizReportSummary> = {}): QuizReportSumm
     scorePercentage: 70,
     startedAt: '2026-03-12T10:00:00Z',
     endedAt: '2026-03-12T10:03:30Z',
+    passed: null,
+    timeLimitSeconds: null,
     ...overrides,
   }
 }

@@ -20,15 +20,43 @@ function formatDate(dateStr: string): string {
   })
 }
 
+function PassFailBadge({ passed }: { passed: boolean }) {
+  return passed ? (
+    <span className="rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-sm font-semibold text-green-600 dark:text-green-400">
+      PASSED
+    </span>
+  ) : (
+    <span className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-sm font-semibold text-red-600 dark:text-red-400">
+      FAILED
+    </span>
+  )
+}
+
 type Props = Readonly<{ summary: QuizReportSummary }>
 
 export function ResultSummary({ summary }: Props) {
   const dateStr = summary.endedAt ?? summary.startedAt
   const skipped = summary.totalQuestions - summary.answeredCount
+  const isExam = summary.mode === 'mock_exam'
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <p className="text-center font-semibold text-lg mb-4">Quiz Complete</p>
+      <div className="mb-4 flex items-center justify-center gap-2">
+        {isExam && (
+          <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">
+            EXAM
+          </span>
+        )}
+        <p className="text-center font-semibold text-lg">
+          {isExam ? 'Exam Complete' : 'Quiz Complete'}
+        </p>
+      </div>
+
+      {isExam && summary.passed !== null && (
+        <div className="mb-4 flex justify-center">
+          <PassFailBadge passed={summary.passed} />
+        </div>
+      )}
 
       {/* Desktop layout */}
       <div className="hidden md:flex flex-row gap-6 items-center">
@@ -47,7 +75,7 @@ export function ResultSummary({ summary }: Props) {
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Correct</p>
             <p className="font-medium text-sm text-green-600">
-              {summary.correctCount} / {summary.answeredCount}
+              {summary.correctCount} / {isExam ? summary.totalQuestions : summary.answeredCount}
             </p>
           </div>
           <div>
@@ -56,10 +84,12 @@ export function ResultSummary({ summary }: Props) {
               {formatDuration(summary.startedAt, summary.endedAt)}
             </p>
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Skipped</p>
-            <p className="font-medium text-sm">{skipped}</p>
-          </div>
+          {!isExam && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Skipped</p>
+              <p className="font-medium text-sm">{skipped}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -74,7 +104,7 @@ export function ResultSummary({ summary }: Props) {
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Correct</p>
             <p className="font-medium text-sm text-green-600">
-              {summary.correctCount} / {summary.answeredCount}
+              {summary.correctCount} / {isExam ? summary.totalQuestions : summary.answeredCount}
             </p>
           </div>
           <div>

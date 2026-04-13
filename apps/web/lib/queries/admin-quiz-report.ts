@@ -19,6 +19,8 @@ type AdminSessionRow = {
   correct_count: number
   score_percentage: number | null
   student_id: string
+  passed: boolean | null
+  time_limit_seconds: number | null
 }
 
 export async function getAdminQuizReportSummary(
@@ -29,7 +31,7 @@ export async function getAdminQuizReportSummary(
   const { data: sessionData, error: sessionError } = await adminClient
     .from('quiz_sessions')
     .select(
-      'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage, student_id',
+      'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage, student_id, passed, time_limit_seconds',
     )
     .eq('id', sessionId)
     .eq('organization_id', organizationId)
@@ -88,6 +90,8 @@ export async function getAdminQuizReportSummary(
     scorePercentage: session.score_percentage ?? 0,
     startedAt: session.started_at,
     endedAt: session.ended_at,
+    passed: session.passed,
+    timeLimitSeconds: session.time_limit_seconds,
     studentId: session.student_id,
     studentName,
   }
