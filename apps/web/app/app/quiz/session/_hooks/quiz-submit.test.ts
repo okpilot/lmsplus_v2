@@ -507,6 +507,32 @@ describe('handleSubmitSession', () => {
     expect(setSubmittingOrder[0]).toBe(true)
     expect(setErrorOrder[0]).toBeNull()
   })
+
+  it('redirects to quiz page when exam times out with no answers', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('clears active session when exam times out with no answers', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('fires clearDeploymentPin when exam times out with no answers', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not show an error message when exam times out with no answers', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(opts.setError).not.toHaveBeenCalled()
+    expect(opts.setSubmitting).not.toHaveBeenCalled()
+  })
 })
 
 // ---- handleSaveSession ---------------------------------------------------
