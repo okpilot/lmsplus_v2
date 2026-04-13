@@ -243,10 +243,49 @@ CREATE TABLE quiz_sessions (
   total_questions  INT NOT NULL DEFAULT 0,
   correct_count    INT NOT NULL DEFAULT 0,
   score_percentage NUMERIC(5,2) NULL,
+  time_limit_seconds INT NULL,          -- exam countdown duration (NULL for study mode)
+  passed           BOOLEAN NULL,        -- score >= pass_mark (NULL for study/incomplete)
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at       TIMESTAMPTZ NULL     -- added in migration 023 for discarded sessions
   -- No updated_at: only ended_at is set once, on completion
 );
+```
+
+### exam_configs
+```sql
+-- Per-subject exam configuration. One config per org+subject.
+CREATE TABLE exam_configs (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id   UUID NOT NULL REFERENCES organizations(id),
+  subject_id        UUID NOT NULL REFERENCES easa_subjects(id),
+  enabled           BOOLEAN NOT NULL DEFAULT false,
+  total_questions   INT NOT NULL CHECK (total_questions > 0),
+  time_limit_seconds INT NOT NULL CHECK (time_limit_seconds > 0),
+  pass_mark         INT NOT NULL CHECK (pass_mark > 0 AND pass_mark <= 100),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at        TIMESTAMPTZ NULL
+);
+-- Partial unique index (replaces full UNIQUE constraint; soft-deleted rows excluded):
+CREATE UNIQUE INDEX uq_exam_configs_org_subject_active
+  ON exam_configs (organization_id, subject_id) WHERE deleted_at IS NULL;
+-- RLS: admin full CRUD, students read-only (enabled + non-deleted only)
+```
+
+### exam_config_distributions
+```sql
+-- Question count per topic/subtopic for exam random selection.
+-- Ephemeral: hard DELETE is intentional (same precedent as quiz_drafts).
+-- Distributions are replaced atomically on each config save.
+CREATE TABLE exam_config_distributions (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  exam_config_id    UUID NOT NULL REFERENCES exam_configs(id) ON DELETE CASCADE,
+  topic_id          UUID NOT NULL REFERENCES easa_topics(id),
+  subtopic_id       UUID REFERENCES easa_subtopics(id) NULL,
+  question_count    INT NOT NULL CHECK (question_count > 0),
+  UNIQUE (exam_config_id, topic_id, subtopic_id)
+);
+-- RLS: admin-only (students cannot read distributions)
 ```
 
 ### quiz_session_answers
@@ -516,6 +555,8 @@ ORDER BY deleted_at DESC;
 | `easa_subjects/topics/subtopics` | No | Reference data, never deleted |
 | `quiz_drafts` | Hard DELETE (approved exception) | Disposable temp storage; no recovery value |
 | `flagged_questions` | Yes (soft) | Unflag = set deleted_at; flags referenced in quiz filter queries |
+| `exam_configs` | Yes | Per-subject exam configuration; soft-deleted when org removes exam mode |
+| `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE` |
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
 
 > **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE/DELETE to users where `is_admin()` returns `true`. All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature.
@@ -545,6 +586,8 @@ verb_noun pattern:
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit + last_active_at stamp (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
+  start_exam_session         ← write, atomic: read exam config + random question selection per distribution + session creation (mock_exam mode)
+  upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
   complete_quiz_session      ← write, atomic: session end + score + audit + last_active_at stamp (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view

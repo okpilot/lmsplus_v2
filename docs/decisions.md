@@ -215,7 +215,7 @@ lmsplusv2/
 10. Saved quiz drafts (up to 20 per student for resume-interrupted-session workflow)
 
 ### Fast-Follow (NOT MVP 2)
-- Mock Exam mode
+- ~~Mock Exam mode~~ → **ACTIVE** (PR1: admin config merged, PR2: student exam #514)
 - Improvement trend charts
 - AI tutor ("Explain this question" via Claude API)
 - Weak area recommendations
