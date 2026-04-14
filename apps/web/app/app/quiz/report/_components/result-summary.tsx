@@ -41,14 +41,9 @@ export function ResultSummary({ summary }: Props) {
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
-      <div className="mb-4 flex items-center justify-center gap-2">
-        {isExam && (
-          <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">
-            EXAM
-          </span>
-        )}
+      <div className="mb-4">
         <p className="text-center font-semibold text-lg">
-          {isExam ? 'Exam Complete' : 'Quiz Complete'}
+          {isExam ? 'Practice Exam Complete' : 'Quiz Complete'}
         </p>
       </div>
 

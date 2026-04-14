@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
 import type { SubjectOption } from '@/lib/queries/quiz'
+import { useExamStart } from '../_hooks/use-exam-start'
 import { useQuizConfig } from '../_hooks/use-quiz-config'
 import { ExamConfigForm } from './exam-config-form'
 import { ModeToggle } from './mode-toggle'
@@ -20,6 +22,9 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
   const config = useQuizConfig({ userId, subjects })
   const isExam = config.mode === 'exam'
 
+  const [examSubjectId, setExamSubjectId] = useState('')
+  const exam = useExamStart({ userId, subjectId: examSubjectId, examSubjects })
+
   return (
     <div className="space-y-4">
       {/* Card 1: Quiz Configuration */}
@@ -31,7 +36,11 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
         />
 
         {isExam ? (
-          <ExamConfigForm userId={userId} examSubjects={examSubjects} />
+          <ExamConfigForm
+            examSubjects={examSubjects}
+            subjectId={examSubjectId}
+            onSubjectChange={setExamSubjectId}
+          />
         ) : (
           <>
             <SubjectSelect
@@ -46,7 +55,7 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
         )}
       </div>
 
-      {/* Study mode only: Topics + Count + Start button */}
+      {/* Study mode: Topics + Count */}
       {!isExam && (
         <>
           {config.topicTree.topics.length > 0 && (
@@ -75,27 +84,41 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
               />
             </div>
           )}
-
-          {config.error && <p className="text-sm text-destructive">{config.error}</p>}
-          {config.authError && (
-            <p className="text-sm text-destructive">Session expired. Please refresh the page.</p>
-          )}
-
-          <button
-            type="button"
-            disabled={
-              !config.subjectId ||
-              config.availableCount === 0 ||
-              config.loading ||
-              config.isPending ||
-              config.authError
-            }
-            onClick={config.handleStart}
-            className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {config.loading ? 'Starting...' : 'Start Quiz'}
-          </button>
         </>
+      )}
+
+      {/* Error messages — both modes */}
+      {isExam && exam.error && <p className="text-sm text-destructive">{exam.error}</p>}
+      {!isExam && config.error && <p className="text-sm text-destructive">{config.error}</p>}
+      {!isExam && config.authError && (
+        <p className="text-sm text-destructive">Session expired. Please refresh the page.</p>
+      )}
+
+      {/* Start button — same position for both modes */}
+      {isExam ? (
+        <button
+          type="button"
+          disabled={!examSubjectId || exam.loading}
+          onClick={exam.handleStart}
+          className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          {exam.loading ? 'Starting...' : 'Start Exam'}
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={
+            !config.subjectId ||
+            config.availableCount === 0 ||
+            config.loading ||
+            config.isPending ||
+            config.authError
+          }
+          onClick={config.handleStart}
+          className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          {config.loading ? 'Starting...' : 'Start Quiz'}
+        </button>
       )}
     </div>
   )

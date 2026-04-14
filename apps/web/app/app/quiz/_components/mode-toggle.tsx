@@ -38,7 +38,7 @@ export function ModeToggle({ value, onValueChange, examAvailable = false }: Mode
                 : 'text-muted-foreground opacity-50 cursor-not-allowed'
           }`}
         >
-          Exam
+          Practice Exam
         </button>
       </div>
       <p className="text-xs text-muted-foreground">

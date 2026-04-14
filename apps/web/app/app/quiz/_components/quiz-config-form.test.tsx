@@ -5,12 +5,17 @@ import type { QuestionFilterValue } from '../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockUseQuizConfig } = vi.hoisted(() => ({
+const { mockUseQuizConfig, mockUseExamStart } = vi.hoisted(() => ({
   mockUseQuizConfig: vi.fn(),
+  mockUseExamStart: vi.fn(),
 }))
 
 vi.mock('../_hooks/use-quiz-config', () => ({
   useQuizConfig: () => mockUseQuizConfig(),
+}))
+
+vi.mock('../_hooks/use-exam-start', () => ({
+  useExamStart: () => mockUseExamStart(),
 }))
 
 // Sub-components are rendered by the real component — mock them with
@@ -48,6 +53,10 @@ vi.mock('./question-count', () => ({
 
 vi.mock('./topic-tree', () => ({
   TopicTree: () => <div data-testid="topic-tree">TopicTree</div>,
+}))
+
+vi.mock('./exam-config-form', () => ({
+  ExamConfigForm: () => <div data-testid="exam-config-form">ExamConfigForm</div>,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -111,6 +120,7 @@ describe('QuizConfigForm', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     mockUseQuizConfig.mockReturnValue(buildDefaultConfig())
+    mockUseExamStart.mockReturnValue({ loading: false, error: null, handleStart: vi.fn() })
   })
 
   it('renders without crashing', () => {

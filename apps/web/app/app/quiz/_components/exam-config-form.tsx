@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
-import { useExamStart } from '../_hooks/use-exam-start'
 import { SubjectSelect } from './subject-select'
 
 type ExamConfigFormProps = {
-  userId: string
   examSubjects: ExamSubjectOption[]
+  subjectId: string
+  onSubjectChange: (id: string) => void
 }
 
 function formatTime(seconds: number): string {
@@ -17,8 +16,7 @@ function formatTime(seconds: number): string {
   return `${m} min`
 }
 
-export function ExamConfigForm({ userId, examSubjects }: ExamConfigFormProps) {
-  const [subjectId, setSubjectId] = useState('')
+export function ExamConfigForm({ examSubjects, subjectId, onSubjectChange }: ExamConfigFormProps) {
   const selected = examSubjects.find((s) => s.id === subjectId)
 
   const subjectOptions = examSubjects.map((s) => ({
@@ -29,46 +27,29 @@ export function ExamConfigForm({ userId, examSubjects }: ExamConfigFormProps) {
     questionCount: s.totalQuestions,
   }))
 
-  const { loading, error, handleStart } = useExamStart({
-    userId,
-    subjectId,
-    examSubjects,
-  })
-
   return (
-    <div className="space-y-4">
-      <SubjectSelect subjects={subjectOptions} value={subjectId} onValueChange={setSubjectId} />
+    <>
+      <SubjectSelect subjects={subjectOptions} value={subjectId} onValueChange={onSubjectChange} />
 
       {selected && (
         <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
           <h3 className="text-sm font-semibold">Exam Parameters</h3>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
-              <div className="text-2xl font-bold">{selected.totalQuestions}</div>
+              <div className="text-lg font-semibold">{selected.totalQuestions}</div>
               <div className="text-xs text-muted-foreground">Questions</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{formatTime(selected.timeLimitSeconds)}</div>
+              <div className="text-lg font-semibold">{formatTime(selected.timeLimitSeconds)}</div>
               <div className="text-xs text-muted-foreground">Time Limit</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{selected.passMark}%</div>
+              <div className="text-lg font-semibold">{selected.passMark}%</div>
               <div className="text-xs text-muted-foreground">Pass Mark</div>
             </div>
           </div>
         </div>
       )}
-
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      <button
-        type="button"
-        disabled={!subjectId || loading}
-        onClick={handleStart}
-        className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-      >
-        {loading ? 'Starting...' : 'Start Exam'}
-      </button>
-    </div>
+    </>
   )
 }
