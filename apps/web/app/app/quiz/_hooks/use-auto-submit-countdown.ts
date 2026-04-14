@@ -12,6 +12,8 @@ export function useAutoSubmitCountdown(opts: {
 }) {
   const [countdown, setCountdown] = useState(opts.seconds)
   const firedRef = useRef(false)
+  const onSubmitRef = useRef(opts.onSubmit)
+  onSubmitRef.current = opts.onSubmit
 
   useEffect(() => {
     if (!opts.active || opts.submitting) return
@@ -23,7 +25,7 @@ export function useAutoSubmitCountdown(opts: {
           clearInterval(id)
           if (!firedRef.current) {
             firedRef.current = true
-            opts.onSubmit()
+            onSubmitRef.current()
           }
           return 0
         }
@@ -31,7 +33,7 @@ export function useAutoSubmitCountdown(opts: {
       })
     }, 1000)
     return () => clearInterval(id)
-  }, [opts.active, opts.submitting, opts.seconds, opts.onSubmit])
+  }, [opts.active, opts.submitting, opts.seconds])
 
   useEffect(() => {
     if (!opts.active) {
