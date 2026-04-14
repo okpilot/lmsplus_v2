@@ -35,6 +35,8 @@ export function useAutoSubmitCountdown(opts: {
     return () => clearInterval(id)
   }, [opts.active, opts.submitting, opts.seconds])
 
+  // Reset fire-guard and display when the countdown is deactivated (dialog closed).
+  // Separate from Effect 1 so interval cleanup runs independently of reset logic.
   useEffect(() => {
     if (!opts.active) {
       firedRef.current = false
