@@ -561,6 +561,34 @@ describe('handleSubmitSession', () => {
     expect(opts.setError).not.toHaveBeenCalled()
     expect(opts.setSubmitting).not.toHaveBeenCalled()
   })
+
+  it('logs console.error when discardQuiz throws on zero-answer exam timeout', async () => {
+    const networkError = new Error('network')
+    mockDiscardQuiz.mockRejectedValue(networkError)
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      const opts = makeOpts({ answers: new Map(), isExam: true })
+      await handleSubmitSession(opts)
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[handleSubmitSession] discardQuiz failed:',
+        networkError,
+      )
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
+  it('forwards draftId to discardQuiz on zero-answer exam timeout', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const opts = makeOpts({ answers: new Map(), isExam: true, draftId: DRAFT_ID })
+    await handleSubmitSession(opts)
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      draftId: DRAFT_ID,
+    })
+  })
 })
 
 // ---- handleSaveSession ---------------------------------------------------
