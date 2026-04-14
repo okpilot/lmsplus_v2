@@ -92,7 +92,7 @@ describe('getExamEnabledSubjects', () => {
     )
 
     const result = await getExamEnabledSubjects()
-    // Test data guarantees exactly one result
+    expect(result).toHaveLength(1)
     const subject = result[0]!
 
     expect(subject.id).toBe('sub-agk')
