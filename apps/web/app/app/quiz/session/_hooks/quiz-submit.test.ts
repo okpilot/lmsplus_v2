@@ -508,13 +508,18 @@ describe('handleSubmitSession', () => {
     expect(setErrorOrder[0]).toBeNull()
   })
 
-  it('redirects to quiz page when exam times out with no answers', async () => {
+  it('soft-deletes DB session when exam times out with no answers', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
-    expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      draftId: undefined,
+    })
   })
 
   it('clears active session when exam times out with no answers', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
     expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
@@ -522,12 +527,28 @@ describe('handleSubmitSession', () => {
   })
 
   it('fires clearDeploymentPin when exam times out with no answers', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
     expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
   })
 
+  it('redirects to quiz page when exam times out with no answers', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('always redirects even when discardQuiz fails', async () => {
+    mockDiscardQuiz.mockRejectedValue(new Error('network'))
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+  })
+
   it('does not show an error message when exam times out with no answers', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: true })
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
     expect(opts.setError).not.toHaveBeenCalled()
