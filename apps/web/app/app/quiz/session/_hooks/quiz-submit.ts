@@ -107,13 +107,15 @@ export async function handleSubmitSession(opts: {
 }) {
   if (opts.answers.size === 0) {
     if (opts.isExam) {
-      // Exam timed out with no answers — clean up and always redirect.
-      // Call discardQuiz to soft-delete the DB session (prevents orphaned rows
-      // that would block future exam starts), but redirect unconditionally:
-      // even if the Server Action fails, the student must leave the empty exam screen.
+      // Exam timed out with no answers — soft-delete the DB session (prevents
+      // orphaned rows that block future exam starts), then always redirect.
+      // Await discardQuiz to avoid a race where start_exam_session still sees
+      // the old row. Redirect unconditionally regardless of action outcome.
       clearActiveSession(opts.userId)
       clearDeploymentPin().catch(() => {})
-      discardQuiz({ sessionId: opts.sessionId, draftId: opts.draftId }).catch(() => {})
+      await discardQuiz({ sessionId: opts.sessionId, draftId: opts.draftId }).catch((err) =>
+        console.error('[handleSubmitSession] discardQuiz failed:', err),
+      )
       opts.router.push('/app/quiz')
       return
     }

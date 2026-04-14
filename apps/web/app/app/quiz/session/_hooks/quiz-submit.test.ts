@@ -540,8 +540,15 @@ describe('handleSubmitSession', () => {
     expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
   })
 
-  it('always redirects even when discardQuiz fails', async () => {
+  it('always redirects even when discardQuiz throws', async () => {
     mockDiscardQuiz.mockRejectedValue(new Error('network'))
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('always redirects even when discardQuiz returns failure', async () => {
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: 'already discarded' })
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
     expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
