@@ -59,7 +59,7 @@ describe('getExamEnabledSubjects', () => {
     const result = await getExamEnabledSubjects()
 
     expect(result).toHaveLength(1)
-    expect(result[0]).toEqual<ExamSubjectOption>({
+    expect(result[0]).toEqual({
       id: 'sub-1',
       code: 'MET',
       name: 'Meteorology',
@@ -67,7 +67,7 @@ describe('getExamEnabledSubjects', () => {
       totalQuestions: 30,
       timeLimitSeconds: 1800,
       passMark: 75,
-    })
+    } satisfies ExamSubjectOption)
   })
 
   it('correctly maps all fields from the DB row', async () => {
@@ -193,7 +193,7 @@ describe('getExamEnabledSubjects', () => {
     expect(result).toEqual([])
   })
 
-  it('passes enabled=true filter to the query', async () => {
+  it('queries the exam_configs table', async () => {
     mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
 
     await getExamEnabledSubjects()
