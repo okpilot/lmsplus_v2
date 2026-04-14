@@ -125,11 +125,11 @@ describe('useAutoSubmitCountdown', () => {
     })
     expect(onSubmit).toHaveBeenCalledTimes(1)
 
-    // Re-render with a prop change that would normally re-trigger the effect
-    rerender({ seconds: 2 })
+    // Re-render with an actual prop change that re-triggers the effect
+    rerender({ seconds: 3 })
 
     act(() => {
-      vi.advanceTimersByTime(2000)
+      vi.advanceTimersByTime(3000)
     })
 
     // firedRef guard should prevent a second call
