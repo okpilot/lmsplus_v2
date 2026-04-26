@@ -179,12 +179,13 @@ describe('startExamSession — RPC payload validation', () => {
       if (result.success) return
       expect(result.error).toBe('Failed to start Practice Exam.')
 
-      // Generic log only — no PII / payload contents leaked
-      expect(consoleSpy).toHaveBeenCalledWith('[startExamSession] Invalid RPC payload')
+      // Logs failed field path for diagnostics — no PII / payload contents leaked
+      expect(consoleSpy).toHaveBeenCalledWith('[startExamSession] Invalid RPC payload, fields:', [
+        'session_id',
+      ])
       const allLoggedArgs = consoleSpy.mock.calls.flat().map((arg) => JSON.stringify(arg))
       for (const logged of allLoggedArgs) {
         expect(logged).not.toContain('should-not-be-logged')
-        expect(logged).not.toContain('question_ids')
       }
     } finally {
       consoleSpy.mockRestore()

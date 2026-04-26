@@ -64,7 +64,8 @@ export async function startExamSession(raw: unknown): Promise<StartExamResult> {
 
     const parsed = StartExamRpcResultSchema.safeParse(data)
     if (!parsed.success) {
-      console.error('[startExamSession] Invalid RPC payload')
+      const failedFields = parsed.error.issues.map((i) => i.path.join('.'))
+      console.error('[startExamSession] Invalid RPC payload, fields:', failedFields)
       return { success: false, error: 'Failed to start Practice Exam.' }
     }
 

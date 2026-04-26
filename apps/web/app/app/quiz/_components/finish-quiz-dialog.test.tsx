@@ -521,4 +521,15 @@ describe('FinishQuizDialog', () => {
     expect(errorEl.tagName.toLowerCase()).toBe('p')
     expect(errorEl.className).toMatch(/destructive/)
   })
+
+  it('renders the error paragraph with role="alert" so screen readers announce it', () => {
+    renderDialog({ error: 'Something went wrong' })
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong')
+  })
+
+  it('does not render a role="alert" element when there is no error', () => {
+    renderDialog({ error: null })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })

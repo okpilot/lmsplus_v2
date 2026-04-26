@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { QuestionFilterValue } from '../types'
+import type { QuestionFilterValue, QuizMode } from '../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -84,7 +84,7 @@ type TopicItem = {
 function buildDefaultConfig() {
   return {
     subjectId: '',
-    mode: 'study' as const,
+    mode: 'study' as QuizMode,
     setMode: vi.fn(),
     filters: ['all'] as QuestionFilterValue[],
     setFilters: vi.fn(),
@@ -234,5 +234,86 @@ describe('QuizConfigForm', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', isPending: true }))
     render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
     expect(screen.getByRole('button', { name: 'Start Quiz' })).toBeDisabled()
+  })
+
+  // ---- role="alert" accessibility attribute --------------------------------
+
+  it('renders the study-mode error paragraph with role="alert"', () => {
+    mockUseQuizConfig.mockReturnValue(
+      makeDefaultConfig({ subjectId: 'sub-1', error: 'Not enough questions' }),
+    )
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeInTheDocument()
+    expect(alert).toHaveTextContent('Not enough questions')
+  })
+
+  it('renders the authError paragraph with role="alert"', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', authError: true }))
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeInTheDocument()
+    expect(alert).toHaveTextContent('Session expired. Please refresh the page.')
+  })
+
+  it('does not render a role="alert" element when there are no errors in study mode', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1' }))
+    render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  // ---- Exam mode -----------------------------------------------------------
+
+  const EXAM_SUBJECTS = [
+    {
+      id: 'sub-1',
+      code: '050',
+      name: 'Meteorology',
+      short: 'MET',
+      totalQuestions: 40,
+      timeLimitSeconds: 3600,
+      passMark: 75,
+    },
+  ]
+
+  it('renders the Start Practice Exam button in exam mode', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
+    render(
+      <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={EXAM_SUBJECTS} />,
+    )
+    expect(screen.getByRole('button', { name: 'Start Practice Exam' })).toBeInTheDocument()
+  })
+
+  it('renders the exam-mode error paragraph with role="alert"', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
+    mockUseExamStart.mockReturnValue({
+      loading: false,
+      error: 'No exam config found for this subject',
+      handleStart: vi.fn(),
+    })
+    render(
+      <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={EXAM_SUBJECTS} />,
+    )
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeInTheDocument()
+    expect(alert).toHaveTextContent('No exam config found for this subject')
+  })
+
+  it('does not render a role="alert" element when there are no errors in exam mode', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
+    mockUseExamStart.mockReturnValue({ loading: false, error: null, handleStart: vi.fn() })
+    render(
+      <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={EXAM_SUBJECTS} />,
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('disables Start Practice Exam button when no exam subject is selected', () => {
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
+    render(
+      <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={EXAM_SUBJECTS} />,
+    )
+    // examSubjectId starts as '' (empty state) so button is disabled
+    expect(screen.getByRole('button', { name: 'Start Practice Exam' })).toBeDisabled()
   })
 })
