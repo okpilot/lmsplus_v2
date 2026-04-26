@@ -291,13 +291,13 @@ describe('useExamStart — handleStart failure paths', () => {
   it('sets error state when startExamSession returns a failure result', async () => {
     mockStartExamSession.mockResolvedValue({
       success: false as const,
-      error: 'Exam mode is not configured for this subject.',
+      error: 'Practice Exam is not configured for this subject.',
     })
 
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
 
-    expect(result.current.error).toBe('Exam mode is not configured for this subject.')
+    expect(result.current.error).toBe('Practice Exam is not configured for this subject.')
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 

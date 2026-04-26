@@ -340,6 +340,58 @@ describe('FinishQuizDialog', () => {
     expect(screen.queryByText(/are you sure\?/i)).not.toBeInTheDocument()
   })
 
+  it('clears confirmingSubmit state when timeExpired flips so the submit panel does not re-surface', () => {
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    // Enter the submit confirmation flow (2 unanswered → shows ConfirmPanel)
+    fireEvent.click(screen.getByRole('button', { name: /submit practice exam/i }))
+    expect(screen.getByRole('button', { name: /submit anyway/i })).toBeInTheDocument()
+    // Flip to expired — panel hides via the !timeExpired render guard AND state is reset
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={true}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /submit anyway/i })).not.toBeInTheDocument()
+    // If timeExpired hypothetically flips back, stale confirmingSubmit must NOT re-surface the panel
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /submit anyway/i })).not.toBeInTheDocument()
+  })
+
   it('hides the discard confirmation if timeExpired flips to true while it is open', () => {
     const { rerender } = render(
       <FinishQuizDialog
