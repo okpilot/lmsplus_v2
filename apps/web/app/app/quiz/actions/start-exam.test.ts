@@ -183,9 +183,11 @@ describe('startExamSession — RPC payload validation', () => {
       expect(consoleSpy).toHaveBeenCalledWith('[startExamSession] Invalid RPC payload, fields:', [
         'session_id',
       ])
+      // Catch any future change that logs full issues (would expose `input` field with payload values)
       const allLoggedArgs = consoleSpy.mock.calls.flat().map((arg) => JSON.stringify(arg))
       for (const logged of allLoggedArgs) {
         expect(logged).not.toContain('should-not-be-logged')
+        expect(logged).not.toContain('00000000-0000-4000-a000-000000000010')
       }
     } finally {
       consoleSpy.mockRestore()
