@@ -40,11 +40,11 @@ export function FinishQuizDialog({
   })
 
   useEffect(() => {
-    if (!open) {
+    if (!open || (timeExpired && isExam)) {
       setConfirmingDiscard(false)
       setConfirmingSubmit(false)
     }
-  }, [open])
+  }, [open, timeExpired, isExam])
 
   if (!open) return null
 

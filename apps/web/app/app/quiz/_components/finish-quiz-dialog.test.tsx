@@ -289,6 +289,57 @@ describe('FinishQuizDialog', () => {
     expect(screen.getByRole('button', { name: /discard exam/i })).toBeDisabled()
   })
 
+  it('clears the discard confirmation state when timeExpired flips, so it does not re-surface', () => {
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /discard exam/i }))
+    expect(screen.getByText(/are you sure\?/i)).toBeInTheDocument()
+    // Flip to expired — panel hides via the canDismiss guard AND state resets
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={true}
+      />,
+    )
+    expect(screen.queryByText(/are you sure\?/i)).not.toBeInTheDocument()
+    // If timeExpired hypothetically flips back, stale state must NOT re-surface the panel
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    expect(screen.queryByText(/are you sure\?/i)).not.toBeInTheDocument()
+  })
+
   it('hides the discard confirmation if timeExpired flips to true while it is open', () => {
     const { rerender } = render(
       <FinishQuizDialog
