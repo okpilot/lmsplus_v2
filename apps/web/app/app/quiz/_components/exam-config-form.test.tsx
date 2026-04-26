@@ -98,9 +98,9 @@ describe('ExamConfigForm', () => {
   })
 
   describe('parameters card when no subject is selected', () => {
-    it('hides the exam parameters card when subjectId does not match any subject', () => {
+    it('hides the Practice Exam parameters card when subjectId does not match any subject', () => {
       render(<ExamConfigForm {...buildProps({ subjectId: '' })} />)
-      expect(screen.queryByText('Exam Parameters')).not.toBeInTheDocument()
+      expect(screen.queryByText('Practice Exam Parameters')).not.toBeInTheDocument()
     })
 
     it('hides question count before a subject is selected', () => {
@@ -110,9 +110,9 @@ describe('ExamConfigForm', () => {
   })
 
   describe('parameters card when a subject is selected', () => {
-    it('shows the Exam Parameters heading when a matching subject is provided', () => {
+    it('shows the Practice Exam Parameters heading when a matching subject is provided', () => {
       render(<ExamConfigForm {...buildProps({ subjectId: 'sub-1' })} />)
-      expect(screen.getByText('Exam Parameters')).toBeInTheDocument()
+      expect(screen.getByText('Practice Exam Parameters')).toBeInTheDocument()
     })
 
     it('displays the correct question count', () => {

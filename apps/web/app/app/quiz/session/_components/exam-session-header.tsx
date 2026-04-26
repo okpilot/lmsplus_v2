@@ -11,8 +11,8 @@ type ExamSessionHeaderProps = {
 
 export function ExamBadge() {
   return (
-    <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">
-      EXAM
+    <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+      PRACTICE EXAM
     </span>
   )
 }

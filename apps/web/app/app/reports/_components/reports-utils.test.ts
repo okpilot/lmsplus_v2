@@ -26,8 +26,8 @@ describe('MODE_LABELS', () => {
     expect(MODE_LABELS.quick_quiz).toBe('Study')
   })
 
-  it('maps mock_exam to "Exam"', () => {
-    expect(MODE_LABELS.mock_exam).toBe('Exam')
+  it('maps mock_exam to "Practice Exam"', () => {
+    expect(MODE_LABELS.mock_exam).toBe('Practice Exam')
   })
 
   it('returns undefined for unknown mode keys', () => {

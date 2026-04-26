@@ -33,7 +33,7 @@ export function ExamConfigForm({ examSubjects, subjectId, onSubjectChange }: Exa
 
       {selected && (
         <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-          <h3 className="text-sm font-semibold">Exam Parameters</h3>
+          <h3 className="text-sm font-semibold">Practice Exam Parameters</h3>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
               <div className="text-lg font-semibold">{selected.totalQuestions}</div>

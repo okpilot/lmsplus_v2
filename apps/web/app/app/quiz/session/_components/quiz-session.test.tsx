@@ -482,7 +482,7 @@ describe('QuizSession', () => {
     render(
       <QuizSession sessionId="sess-exam" questions={QUESTIONS} userId="test-user-id" mode="exam" />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Finish Exam' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
     expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-is-exam', 'true')
   })
 
@@ -490,7 +490,7 @@ describe('QuizSession', () => {
     render(
       <QuizSession sessionId="sess-exam" questions={QUESTIONS} userId="test-user-id" mode="exam" />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Finish Exam' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
     fireEvent.click(screen.getByRole('button', { name: 'Discard Session' }))
     await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledOnce())
   })

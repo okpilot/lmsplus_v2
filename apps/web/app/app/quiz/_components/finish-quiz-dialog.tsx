@@ -49,7 +49,7 @@ export function FinishQuizDialog({
   if (!open) return null
 
   const unanswered = totalQuestions - answeredCount
-  const title = isExam ? 'Finish Exam' : 'Finish Quiz'
+  const title = isExam ? 'Finish Practice Exam' : 'Finish Quiz'
   const canDismiss = !(timeExpired && isExam)
 
   function handleClose() {
@@ -149,7 +149,7 @@ export function FinishQuizDialog({
             {submitting
               ? 'Submitting...'
               : isExam
-                ? 'Submit Exam'
+                ? 'Submit Practice Exam'
                 : answeredCount > 0
                   ? 'Submit Quiz'
                   : 'Answer at least one question'}
@@ -174,7 +174,7 @@ export function FinishQuizDialog({
               disabled={submitting}
               className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
             >
-              {isExam ? 'Discard Exam' : 'Discard Quiz'}
+              {isExam ? 'Discard Practice Exam' : 'Discard Quiz'}
             </button>
           )}
           {canDismiss && (
@@ -184,7 +184,7 @@ export function FinishQuizDialog({
               disabled={submitting}
               className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
             >
-              {isExam ? 'Return to Exam' : 'Return to Quiz'}
+              {isExam ? 'Return to Practice Exam' : 'Return to Quiz'}
             </button>
           )}
         </div>

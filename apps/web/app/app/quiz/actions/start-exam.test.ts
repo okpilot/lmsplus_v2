@@ -100,12 +100,12 @@ describe('startExamSession — RPC error messages', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
   })
 
-  it('returns a domain-specific error when an exam session is already in progress', async () => {
+  it('returns a domain-specific error when a Practice Exam is already in progress', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'already in progress for subject' } })
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('An exam session is already in progress for this subject.')
+    expect(result.error).toBe('A Practice Exam is already in progress for this subject.')
   })
 
   it('returns a domain-specific error when no exam configuration exists', async () => {
@@ -113,7 +113,7 @@ describe('startExamSession — RPC error messages', () => {
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Exam mode is not configured for this subject.')
+    expect(result.error).toBe('Practice Exam is not configured for this subject.')
   })
 
   it('returns a domain-specific error when there are not enough active questions', async () => {
@@ -124,7 +124,7 @@ describe('startExamSession — RPC error messages', () => {
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Not enough questions available to start this exam.')
+    expect(result.error).toBe('Not enough questions available to start this Practice Exam.')
   })
 
   it('returns a generic failure for an unknown RPC error', async () => {
@@ -132,7 +132,7 @@ describe('startExamSession — RPC error messages', () => {
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Failed to start exam session.')
+    expect(result.error).toBe('Failed to start Practice Exam.')
   })
 
   it('returns a generic failure when RPC returns null data without an error', async () => {
@@ -140,7 +140,7 @@ describe('startExamSession — RPC error messages', () => {
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error).toBe('Failed to start exam session.')
+    expect(result.error).toBe('Failed to start Practice Exam.')
   })
 })
 

@@ -1,7 +1,7 @@
 export const MODE_LABELS: Record<string, string> = {
   smart_review: 'Study',
   quick_quiz: 'Study',
-  mock_exam: 'Exam',
+  mock_exam: 'Practice Exam',
 }
 
 export function formatDate(iso: string) {

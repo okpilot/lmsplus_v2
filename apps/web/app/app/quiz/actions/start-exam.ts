@@ -43,15 +43,21 @@ export async function startExamSession(raw: unknown): Promise<StartExamResult> {
       console.error('[startExamSession] RPC error:', rpcMessage)
 
       if (rpcMessage.includes('already in progress')) {
-        return { success: false, error: 'An exam session is already in progress for this subject.' }
+        return {
+          success: false,
+          error: 'A Practice Exam is already in progress for this subject.',
+        }
       }
       if (rpcMessage.includes('no exam configuration')) {
-        return { success: false, error: 'Exam mode is not configured for this subject.' }
+        return { success: false, error: 'Practice Exam is not configured for this subject.' }
       }
       if (rpcMessage.includes('not enough active questions')) {
-        return { success: false, error: 'Not enough questions available to start this exam.' }
+        return {
+          success: false,
+          error: 'Not enough questions available to start this Practice Exam.',
+        }
       }
-      return { success: false, error: 'Failed to start exam session.' }
+      return { success: false, error: 'Failed to start Practice Exam.' }
     }
 
     return {

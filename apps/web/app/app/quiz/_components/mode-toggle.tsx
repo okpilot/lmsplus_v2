@@ -43,7 +43,7 @@ export function ModeToggle({ value, onValueChange, examAvailable = false }: Mode
       </div>
       <p className="text-xs text-muted-foreground">
         {value === 'exam'
-          ? 'Exam mode is timed with no hints or feedback until submission.'
+          ? 'Practice Exam mode is timed with no hints or feedback until submission.'
           : 'Study mode shows explanations after each answer.'}
       </p>
     </div>

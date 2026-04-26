@@ -102,7 +102,7 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
           onClick={exam.handleStart}
           className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {exam.loading ? 'Starting...' : 'Start Exam'}
+          {exam.loading ? 'Starting...' : 'Start Practice Exam'}
         </button>
       ) : (
         <button

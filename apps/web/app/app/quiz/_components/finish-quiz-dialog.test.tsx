@@ -247,9 +247,9 @@ describe('FinishQuizDialog', () => {
 
   // ---- Discard flow — exam mode -------------------------------------------
 
-  it('shows the Discard Exam button when isExam is true and time has not expired', () => {
+  it('shows the Discard Practice Exam button when isExam is true and time has not expired', () => {
     renderDialog({ isExam: true })
-    expect(screen.getByRole('button', { name: /discard exam/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /discard practice exam/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^discard quiz$/i })).not.toBeInTheDocument()
   })
 
@@ -258,15 +258,15 @@ describe('FinishQuizDialog', () => {
     expect(screen.queryByRole('button', { name: /save for later/i })).not.toBeInTheDocument()
   })
 
-  it('hides the Discard Exam button when time has expired in exam mode', () => {
+  it('hides the Discard Practice Exam button when time has expired in exam mode', () => {
     renderDialog({ isExam: true, timeExpired: true })
-    expect(screen.queryByRole('button', { name: /discard exam/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /discard practice exam/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^discard quiz$/i })).not.toBeInTheDocument()
   })
 
   it('appends the "won\'t count" reassurance to the discard confirmation in exam mode', () => {
     renderDialog({ isExam: true })
-    fireEvent.click(screen.getByRole('button', { name: /discard exam/i }))
+    fireEvent.click(screen.getByRole('button', { name: /discard practice exam/i }))
     expect(screen.getByText(/this attempt won't count/i)).toBeInTheDocument()
   })
 
@@ -279,14 +279,14 @@ describe('FinishQuizDialog', () => {
   it('calls onDiscard after confirming the exam-mode discard', () => {
     const onDiscard = vi.fn()
     renderDialog({ isExam: true, onDiscard })
-    fireEvent.click(screen.getByRole('button', { name: /discard exam/i }))
+    fireEvent.click(screen.getByRole('button', { name: /discard practice exam/i }))
     fireEvent.click(screen.getByRole('button', { name: /yes, discard/i }))
     expect(onDiscard).toHaveBeenCalledOnce()
   })
 
-  it('disables the Discard Exam button while submitting', () => {
+  it('disables the Discard Practice Exam button while submitting', () => {
     renderDialog({ isExam: true, submitting: true })
-    expect(screen.getByRole('button', { name: /discard exam/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /discard practice exam/i })).toBeDisabled()
   })
 
   it('clears the discard confirmation state when timeExpired flips, so it does not re-surface', () => {
@@ -304,7 +304,7 @@ describe('FinishQuizDialog', () => {
         timeExpired={false}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /discard exam/i }))
+    fireEvent.click(screen.getByRole('button', { name: /discard practice exam/i }))
     expect(screen.getByText(/are you sure\?/i)).toBeInTheDocument()
     // Flip to expired — panel hides via the canDismiss guard AND state resets
     rerender(
@@ -355,7 +355,7 @@ describe('FinishQuizDialog', () => {
         timeExpired={false}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /discard exam/i }))
+    fireEvent.click(screen.getByRole('button', { name: /discard practice exam/i }))
     expect(screen.getByText(/are you sure\?/i)).toBeInTheDocument()
     rerender(
       <FinishQuizDialog

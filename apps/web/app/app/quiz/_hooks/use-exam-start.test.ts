@@ -321,7 +321,7 @@ describe('useExamStart — handleStart failure paths', () => {
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
 
-    expect(result.current.error).toBe('Unable to start exam right now. Please try again.')
+    expect(result.current.error).toBe('Unable to start Practice Exam right now. Please try again.')
     expect(result.current.loading).toBe(false)
   })
 
@@ -374,7 +374,7 @@ describe('useExamStart — handleStart failure paths', () => {
     const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
     mockStartExamSession.mockResolvedValue({
       success: false as const,
-      error: 'An exam session is already in progress for this subject.',
+      error: 'A Practice Exam is already in progress for this subject.',
     })
 
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))

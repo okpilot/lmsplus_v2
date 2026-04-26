@@ -104,10 +104,10 @@ describe('ReportsList', () => {
     expect(screen.getAllByText('Study').length).toBeGreaterThan(0)
   })
 
-  it('renders EXAM badge for mock_exam mode', () => {
+  it('renders Practice Exam badge for mock_exam mode', () => {
     render(<ReportsList sessions={[makeSession({ mode: 'mock_exam' })]} {...DEFAULT_PROPS} />)
-    expect(screen.getAllByText('Exam').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('EXAM').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Practice Exam').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('PRACTICE EXAM').length).toBeGreaterThan(0)
   })
 
   it('falls back to raw mode string for unknown modes', () => {

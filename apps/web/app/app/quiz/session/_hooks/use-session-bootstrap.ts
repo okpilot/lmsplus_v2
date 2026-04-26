@@ -45,7 +45,7 @@ export function useSessionBootstrap(userId: string) {
       if (stored) {
         if (stored.mode === 'exam') {
           clearActiveSession(userId)
-          toast.info('Your exam session has expired.')
+          toast.info('Your Practice Exam has expired.')
           router.replace('/app/quiz')
           return
         }

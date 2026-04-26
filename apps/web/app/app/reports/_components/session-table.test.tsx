@@ -90,9 +90,9 @@ describe('SessionTable', () => {
     expect(screen.getByText('\u2014')).toBeInTheDocument()
   })
 
-  it('renders an Exam badge for mock_exam mode', () => {
+  it('renders a Practice Exam badge for mock_exam mode', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'mock_exam' })]} />)
-    expect(screen.getByText('Exam')).toBeInTheDocument()
+    expect(screen.getByText('Practice Exam')).toBeInTheDocument()
   })
 
   it('renders mode label for non-exam modes', () => {

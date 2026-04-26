@@ -53,7 +53,7 @@ export function useExamStart(opts: UseExamStartOpts) {
           )
         } catch (err) {
           console.warn('[use-exam-start] sessionStorage handoff failed:', err)
-          setError('Unable to start exam right now. Please try again.')
+          setError('Unable to start Practice Exam right now. Please try again.')
           setLoading(false)
           return
         }
