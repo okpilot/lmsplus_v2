@@ -47,10 +47,10 @@ export function QuizSession(props: QuizSessionProps) {
   const timerStartRef = useRef(Date.now())
   const autoSubmitFiredRef = useRef(false)
   const handleTimeExpired = useCallback(() => {
-    if (autoSubmitFiredRef.current || s.submitting) return
+    if (autoSubmitFiredRef.current) return
     autoSubmitFiredRef.current = true
     s.setShowFinishDialog(true)
-  }, [s.submitting, s.setShowFinishDialog])
+  }, [s.setShowFinishDialog])
 
   if (!s.question) return null
 
@@ -69,7 +69,7 @@ export function QuizSession(props: QuizSessionProps) {
                   timeLimitSeconds={props.timeLimitSeconds}
                   startedAt={timerStartRef.current}
                   onExpired={handleTimeExpired}
-                  className="text-sm"
+                  className="text-sm md:hidden"
                 />
               )}
             </>

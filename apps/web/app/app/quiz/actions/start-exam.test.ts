@@ -25,10 +25,17 @@ import { startExamSession } from './start-exam'
 
 const VALID_SUBJECT_ID = '00000000-0000-4000-a000-000000000001'
 
+const VALID_SESSION_ID = '00000000-0000-4000-a000-000000000010'
+const VALID_QUESTION_IDS = [
+  '00000000-0000-4000-a000-000000000020',
+  '00000000-0000-4000-a000-000000000021',
+  '00000000-0000-4000-a000-000000000022',
+]
+
 const RPC_SUCCESS = {
   data: {
-    session_id: 'sess-exam-001',
-    question_ids: ['q1', 'q2', 'q3'],
+    session_id: VALID_SESSION_ID,
+    question_ids: VALID_QUESTION_IDS,
     time_limit_seconds: 3600,
     total_questions: 3,
     pass_mark: 75,
@@ -144,6 +151,47 @@ describe('startExamSession — RPC error messages', () => {
   })
 })
 
+// ---- RPC payload validation ----------------------------------------------
+
+describe('startExamSession — RPC payload validation', () => {
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+  })
+
+  it('returns a generic failure when the RPC payload is missing session_id', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockRpc.mockResolvedValue({
+        data: {
+          // session_id missing
+          question_ids: ['00000000-0000-4000-a000-000000000010'],
+          time_limit_seconds: 3600,
+          total_questions: 1,
+          pass_mark: 75,
+          internal_secret: 'should-not-be-logged',
+        },
+        error: null,
+      })
+
+      const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to start Practice Exam.')
+
+      // Generic log only — no PII / payload contents leaked
+      expect(consoleSpy).toHaveBeenCalledWith('[startExamSession] Invalid RPC payload')
+      const allLoggedArgs = consoleSpy.mock.calls.flat().map((arg) => JSON.stringify(arg))
+      for (const logged of allLoggedArgs) {
+        expect(logged).not.toContain('should-not-be-logged')
+        expect(logged).not.toContain('question_ids')
+      }
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+})
+
 // ---- Happy path -----------------------------------------------------------
 
 describe('startExamSession — happy path', () => {
@@ -154,8 +202,8 @@ describe('startExamSession — happy path', () => {
     const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(true)
     if (!result.success) return
-    expect(result.sessionId).toBe('sess-exam-001')
-    expect(result.questionIds).toEqual(['q1', 'q2', 'q3'])
+    expect(result.sessionId).toBe(VALID_SESSION_ID)
+    expect(result.questionIds).toEqual(VALID_QUESTION_IDS)
     expect(result.timeLimitSeconds).toBe(3600)
     expect(result.passMark).toBe(75)
   })

@@ -91,16 +91,7 @@ export function FinishQuizDialog({
         <h2 className="text-lg font-semibold text-foreground">{title}</h2>
 
         {timeExpired && isExam ? (
-          <div className="mt-3 rounded-lg border border-red-400/40 bg-red-500/10 p-4">
-            <p className="text-sm font-medium text-red-600 dark:text-red-400">
-              Time expired! Your answers will be submitted automatically.
-            </p>
-            {!submitting && countdown > 0 && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Auto-submitting in {countdown}s...
-              </p>
-            )}
-          </div>
+          <ExpiredNotice submitting={submitting} countdown={countdown} />
         ) : (
           <p className="mt-3 text-sm text-muted-foreground">
             You have answered {answeredCount} of {totalQuestions} questions.
@@ -139,56 +130,105 @@ export function FinishQuizDialog({
           </p>
         )}
 
-        <div className="mt-6 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={handleSubmitClick}
-            disabled={submitting || (answeredCount === 0 && !timeExpired)}
-            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {submitting
-              ? 'Submitting...'
-              : isExam
-                ? 'Submit Practice Exam'
-                : answeredCount > 0
-                  ? 'Submit Quiz'
-                  : 'Answer at least one question'}
-          </button>
-          {!isExam && (
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={submitting}
-              className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              Save for Later
-            </button>
-          )}
-          {canDismiss && (
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmingSubmit(false)
-                setConfirmingDiscard(true)
-              }}
-              disabled={submitting}
-              className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-            >
-              {isExam ? 'Discard Practice Exam' : 'Discard Quiz'}
-            </button>
-          )}
-          {canDismiss && (
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={submitting}
-              className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              {isExam ? 'Return to Practice Exam' : 'Return to Quiz'}
-            </button>
-          )}
-        </div>
+        <DialogFooter
+          answeredCount={answeredCount}
+          submitting={submitting}
+          isExam={isExam}
+          timeExpired={timeExpired}
+          canDismiss={canDismiss}
+          onSubmitClick={handleSubmitClick}
+          onSave={onSave}
+          onDiscardOpen={() => {
+            setConfirmingSubmit(false)
+            setConfirmingDiscard(true)
+          }}
+          onClose={handleClose}
+        />
       </div>
+    </div>
+  )
+}
+
+function ExpiredNotice({ submitting, countdown }: { submitting: boolean; countdown: number }) {
+  return (
+    <div className="mt-3 rounded-lg border border-red-400/40 bg-red-500/10 p-4">
+      <p className="text-sm font-medium text-red-600 dark:text-red-400">
+        Time expired! Your answers will be submitted automatically.
+      </p>
+      {!submitting && countdown > 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">Auto-submitting in {countdown}s...</p>
+      )}
+    </div>
+  )
+}
+
+function DialogFooter({
+  answeredCount,
+  submitting,
+  isExam,
+  timeExpired,
+  canDismiss,
+  onSubmitClick,
+  onSave,
+  onDiscardOpen,
+  onClose,
+}: {
+  answeredCount: number
+  submitting: boolean
+  isExam?: boolean
+  timeExpired?: boolean
+  canDismiss: boolean
+  onSubmitClick: () => void
+  onSave: () => void
+  onDiscardOpen: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="mt-6 flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={onSubmitClick}
+        disabled={submitting || (answeredCount === 0 && !timeExpired)}
+        className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+      >
+        {submitting
+          ? 'Submitting...'
+          : isExam
+            ? 'Submit Practice Exam'
+            : answeredCount > 0
+              ? 'Submit Quiz'
+              : 'Answer at least one question'}
+      </button>
+      {!isExam && (
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={submitting}
+          className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+        >
+          Save for Later
+        </button>
+      )}
+      {canDismiss && (
+        <button
+          type="button"
+          onClick={onDiscardOpen}
+          disabled={submitting}
+          className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+        >
+          {isExam ? 'Discard Practice Exam' : 'Discard Quiz'}
+        </button>
+      )}
+      {canDismiss && (
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={submitting}
+          className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+        >
+          {isExam ? 'Return to Practice Exam' : 'Return to Quiz'}
+        </button>
+      )}
     </div>
   )
 }

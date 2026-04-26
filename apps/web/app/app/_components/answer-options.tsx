@@ -55,7 +55,7 @@ export function AnswerOptions({
   const showResult = lockedSelection != null && correctOptionId != null
 
   function handleSelect(id: string) {
-    if (showResult || disabled) return
+    if (showResult || disabled || (isExam && lockedSelection != null)) return
     setSelected(id)
     onSelectionChange?.(id)
   }
@@ -80,7 +80,7 @@ export function AnswerOptions({
             type="button"
             data-testid={`option-${option.id}`}
             data-selected={isSelected && !showResult ? 'true' : undefined}
-            disabled={disabled}
+            disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
             className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >

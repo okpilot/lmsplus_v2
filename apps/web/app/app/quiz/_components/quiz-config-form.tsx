@@ -88,10 +88,20 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
       )}
 
       {/* Error messages — both modes */}
-      {isExam && exam.error && <p className="text-sm text-destructive">{exam.error}</p>}
-      {!isExam && config.error && <p className="text-sm text-destructive">{config.error}</p>}
+      {isExam && exam.error && (
+        <p role="alert" className="text-sm text-destructive">
+          {exam.error}
+        </p>
+      )}
+      {!isExam && config.error && (
+        <p role="alert" className="text-sm text-destructive">
+          {config.error}
+        </p>
+      )}
       {!isExam && config.authError && (
-        <p className="text-sm text-destructive">Session expired. Please refresh the page.</p>
+        <p role="alert" className="text-sm text-destructive">
+          Session expired. Please refresh the page.
+        </p>
       )}
 
       {/* Start button — same position for both modes */}

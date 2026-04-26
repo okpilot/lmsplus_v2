@@ -9,13 +9,15 @@ const StartExamInput = z.object({
   subjectId: z.uuid(),
 })
 
-type StartExamRpcResult = {
-  session_id: string
-  question_ids: string[]
-  time_limit_seconds: number
-  total_questions: number
-  pass_mark: number
-}
+const StartExamRpcResultSchema = z.object({
+  session_id: z.uuid(),
+  question_ids: z.array(z.uuid()),
+  time_limit_seconds: z.number().int().positive(),
+  total_questions: z.number().int().positive(),
+  pass_mark: z.number().min(0).max(100),
+})
+
+type StartExamRpcResult = z.infer<typeof StartExamRpcResultSchema>
 
 export async function startExamSession(raw: unknown): Promise<StartExamResult> {
   try {
@@ -60,12 +62,18 @@ export async function startExamSession(raw: unknown): Promise<StartExamResult> {
       return { success: false, error: 'Failed to start Practice Exam.' }
     }
 
+    const parsed = StartExamRpcResultSchema.safeParse(data)
+    if (!parsed.success) {
+      console.error('[startExamSession] Invalid RPC payload')
+      return { success: false, error: 'Failed to start Practice Exam.' }
+    }
+
     return {
       success: true,
-      sessionId: data.session_id,
-      questionIds: data.question_ids,
-      timeLimitSeconds: data.time_limit_seconds,
-      passMark: data.pass_mark,
+      sessionId: parsed.data.session_id,
+      questionIds: parsed.data.question_ids,
+      timeLimitSeconds: parsed.data.time_limit_seconds,
+      passMark: parsed.data.pass_mark,
     }
   } catch (err) {
     console.error('[startExamSession] Uncaught error:', err)

@@ -323,6 +323,35 @@ describe('AnswerOptions', () => {
     })
   })
 
+  describe('exam mode lock', () => {
+    it('ignores clicks once an exam answer is locked', async () => {
+      const user = userEvent.setup()
+      const onSelectionChange = vi.fn()
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          isExam={true}
+          selectedOptionId="a"
+          correctOptionId={null}
+          onSelectionChange={onSelectionChange}
+        />,
+      )
+      // Attempt to switch from the locked selection to another option
+      await user.click(screen.getByTestId('option-b'))
+      expect(onSelectionChange).not.toHaveBeenCalled()
+      // The original locked selection's exam-locked styling persists on option A
+      const lockedBtn = screen.getByTestId('option-a')
+      expect(lockedBtn.className).toContain('border-muted-foreground/40')
+      expect(lockedBtn.className).toContain('bg-muted/50')
+      // Option B did not pick up the selected styling (bg-primary/5 is unique to selected-pre-result)
+      const otherBtn = screen.getByTestId('option-b')
+      expect(otherBtn.className).not.toContain('bg-primary/5')
+      expect(otherBtn).not.toHaveAttribute('data-selected')
+    })
+  })
+
   describe('data-selected attribute', () => {
     it('sets data-selected="true" on the option the user clicks before submission', async () => {
       const user = userEvent.setup()
