@@ -118,9 +118,13 @@ export function FinishQuizDialog({
           />
         )}
 
-        {!isExam && confirmingDiscard && (
+        {confirmingDiscard && (
           <ConfirmPanel
-            message="Are you sure? Your progress will be lost."
+            message={
+              isExam
+                ? "Are you sure? Your progress will be lost. This attempt won't count."
+                : 'Are you sure? Your progress will be lost.'
+            }
             confirmLabel={submitting ? 'Discarding...' : 'Yes, discard'}
             onConfirm={onDiscard}
             onCancel={() => setConfirmingDiscard(false)}
@@ -151,27 +155,27 @@ export function FinishQuizDialog({
                   : 'Answer at least one question'}
           </button>
           {!isExam && (
-            <>
-              <button
-                type="button"
-                onClick={onSave}
-                disabled={submitting}
-                className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                Save for Later
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmingSubmit(false)
-                  setConfirmingDiscard(true)
-                }}
-                disabled={submitting}
-                className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-              >
-                Discard Quiz
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={submitting}
+              className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              Save for Later
+            </button>
+          )}
+          {canDismiss && (
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmingSubmit(false)
+                setConfirmingDiscard(true)
+              }}
+              disabled={submitting}
+              className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+            >
+              {isExam ? 'Discard Exam' : 'Discard Quiz'}
+            </button>
           )}
           {canDismiss && (
             <button
