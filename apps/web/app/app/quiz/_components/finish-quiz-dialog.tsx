@@ -118,7 +118,7 @@ export function FinishQuizDialog({
           />
         )}
 
-        {confirmingDiscard && (
+        {confirmingDiscard && canDismiss && (
           <ConfirmPanel
             message={
               isExam

@@ -289,6 +289,40 @@ describe('FinishQuizDialog', () => {
     expect(screen.getByRole('button', { name: /discard exam/i })).toBeDisabled()
   })
 
+  it('hides the discard confirmation if timeExpired flips to true while it is open', () => {
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /discard exam/i }))
+    expect(screen.getByText(/are you sure\?/i)).toBeInTheDocument()
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={true}
+      />,
+    )
+    expect(screen.queryByText(/are you sure\?/i)).not.toBeInTheDocument()
+  })
+
   // ---- Submit confirmation panel while submitting --------------------------
 
   it('shows "Submitting..." on the Submit anyway button while submitting', () => {

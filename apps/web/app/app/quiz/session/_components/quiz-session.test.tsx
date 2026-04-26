@@ -20,6 +20,11 @@ vi.mock('../../actions/draft-delete', () => ({
   deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
 }))
 
+const mockDiscardQuiz = vi.fn()
+vi.mock('../../actions/discard', () => ({
+  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+}))
+
 const mockCheckAnswer = vi.fn()
 vi.mock('../../actions/check-answer', () => ({
   checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
@@ -33,6 +38,8 @@ vi.mock('../../_components/finish-quiz-dialog', () => ({
     submitting,
     onSubmit,
     onCancel,
+    onDiscard,
+    isExam,
   }: {
     open: boolean
     answeredCount: number
@@ -40,9 +47,11 @@ vi.mock('../../_components/finish-quiz-dialog', () => ({
     submitting: boolean
     onSubmit: () => void
     onCancel: () => void
+    onDiscard: () => void
+    isExam?: boolean
   }) =>
     open ? (
-      <div data-testid="finish-dialog">
+      <div data-testid="finish-dialog" data-is-exam={isExam ? 'true' : 'false'}>
         <span data-testid="dialog-answered">{answeredCount}</span>
         <span data-testid="dialog-total">{totalQuestions}</span>
         <button type="button" onClick={onSubmit} disabled={submitting}>
@@ -50,6 +59,9 @@ vi.mock('../../_components/finish-quiz-dialog', () => ({
         </button>
         <button type="button" onClick={onCancel}>
           Return to Quiz
+        </button>
+        <button type="button" onClick={onDiscard}>
+          Discard Session
         </button>
       </div>
     ) : null,
@@ -237,6 +249,7 @@ describe('QuizSession', () => {
     vi.resetAllMocks()
     mockDeleteDraft.mockResolvedValue({ success: true })
     mockSaveDraft.mockResolvedValue({ success: true })
+    mockDiscardQuiz.mockResolvedValue({ success: true })
     mockCheckAnswer.mockResolvedValue({
       success: true,
       isCorrect: true,
@@ -461,6 +474,25 @@ describe('QuizSession', () => {
   it('does not show Submit Answer button before any option is selected', () => {
     render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
     expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
+  })
+
+  // ---- Exam-mode onDiscard wiring ------------------------------------------
+
+  it('passes isExam=true to FinishQuizDialog when mode is exam', () => {
+    render(
+      <QuizSession sessionId="sess-exam" questions={QUESTIONS} userId="test-user-id" mode="exam" />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Exam' }))
+    expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-is-exam', 'true')
+  })
+
+  it('calls discardQuiz via onDiscard when Discard Session is clicked in exam mode', async () => {
+    render(
+      <QuizSession sessionId="sess-exam" questions={QUESTIONS} userId="test-user-id" mode="exam" />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Exam' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard Session' }))
+    await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledOnce())
   })
 
   it('disables the Finish Test button while a submission is in progress', async () => {
