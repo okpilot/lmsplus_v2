@@ -588,6 +588,7 @@ verb_noun pattern:
   start_quiz_session         ← write, atomic: session + locked question set
   start_exam_session         ← write, atomic: read exam config + random question selection per distribution + session creation (mock_exam mode)
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
+  complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent)
   complete_quiz_session      ← write, atomic: session end + score + audit + last_active_at stamp (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
@@ -1158,6 +1159,26 @@ BEGIN
 END;
 $$;
 ```
+
+#### `complete_empty_exam_session` — close a timed-out exam with zero answers
+
+Completes a `mock_exam` session that expired before any answers were recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. The student is redirected to the report page showing 0% / FAIL instead of being silently discarded.
+
+**Purpose:** Called by `submitEmptyExamSession` Server Action when the countdown timer fires and `answers.size === 0`.
+
+**Idempotency:** Safe to call twice. If `ended_at IS NOT NULL`, the function returns the real stored `correct_count`, `score_percentage`, `passed`, and `answered_count` from `quiz_sessions` (not the hardcoded zeros). The `FOR UPDATE` lock already holds the row, so the re-read is safe and single-statement.
+
+**Security model (migration 049):**
+- `auth.uid()` check — rejects unauthenticated callers.
+- Org-scope guard — reads `organization_id` from `users` with `deleted_at IS NULL`.
+- Ownership + org check — `FOR UPDATE` fetch requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
+- Mode guard — raises if session is not `mock_exam`.
+- Audit log — appends `exam.expired` event. The `actor_role` subquery omits `deleted_at IS NULL` but the outer guard above already ensures the student is active (see #550).
+- `SECURITY DEFINER SET search_path = public` — required pattern for all security-definer RPCs.
+
+**Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }`
+
+---
 
 #### `get_report_correct_options` — correct option IDs for reports
 

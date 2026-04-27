@@ -14,11 +14,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_student_id  uuid := auth.uid();
-  v_org_id      uuid;
-  v_ended_at    timestamptz;
-  v_total       int;
-  v_mode        text;
+  v_student_id      uuid := auth.uid();
+  v_org_id          uuid;
+  v_ended_at        timestamptz;
+  v_total           int;
+  v_mode            text;
+  v_correct_count   int;
+  v_score           numeric;
+  v_passed          boolean;
+  v_answered        int;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
@@ -53,14 +57,20 @@ BEGIN
     RAISE EXCEPTION 'session is not a mock exam';
   END IF;
 
-  -- Idempotent: already completed — return existing result
+  -- Idempotent: already completed — return the real stored result.
+  -- FOR UPDATE lock already holds the row; SELECT is safe and single-statement.
   IF v_ended_at IS NOT NULL THEN
+    SELECT qs.correct_count, qs.score_percentage, qs.passed,
+           (SELECT count(*)::int FROM quiz_session_answers WHERE session_id = p_session_id)
+    INTO v_correct_count, v_score, v_passed, v_answered
+    FROM quiz_sessions qs
+    WHERE qs.id = p_session_id;
     RETURN jsonb_build_object(
-      'session_id', p_session_id,
-      'score_percentage', 0,
-      'passed', false,
-      'total_questions', v_total,
-      'answered_count', 0
+      'session_id',      p_session_id,
+      'score_percentage', COALESCE(v_score, 0),
+      'passed',           COALESCE(v_passed, false),
+      'total_questions',  v_total,
+      'answered_count',   COALESCE(v_answered, 0)
     );
   END IF;
 
@@ -74,6 +84,8 @@ BEGIN
   WHERE id = p_session_id;
 
   -- Audit log
+  -- #550: actor_role subquery omits AND deleted_at IS NULL — outer users.deleted_at
+  -- guard at top of function already ensures the student is not soft-deleted.
   INSERT INTO audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
   VALUES (

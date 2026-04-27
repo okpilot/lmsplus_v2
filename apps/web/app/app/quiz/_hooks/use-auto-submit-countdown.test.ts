@@ -234,4 +234,38 @@ describe('useAutoSubmitCountdown', () => {
 
     expect(onSubmit).not.toHaveBeenCalled()
   })
+
+  it('fires onSubmit again on second activation after countdown completed and dialog was closed', () => {
+    // Tests the full open→fire→close→reopen→fire cycle.
+    // firedRef is reset to false by Effect 3 when active goes false,
+    // so the second activation must produce a fresh countdown and fire once more.
+    const onSubmit = vi.fn()
+    const { result, rerender } = renderHook(
+      ({ active }: { active: boolean }) =>
+        useAutoSubmitCountdown({ active, seconds: 3, submitting: false, onSubmit }),
+      { initialProps: { active: true } },
+    )
+
+    // First cycle: countdown fires at zero
+    act(() => {
+      vi.advanceTimersByTime(3000)
+    })
+    expect(result.current).toBe(0)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+
+    // Dialog closes — deactivate resets firedRef and restores display value
+    rerender({ active: false })
+    act(() => {
+      vi.advanceTimersByTime(0)
+    })
+    expect(result.current).toBe(3)
+
+    // Dialog reopens — second activation should countdown fresh and fire again
+    rerender({ active: true })
+    act(() => {
+      vi.advanceTimersByTime(3000)
+    })
+    expect(result.current).toBe(0)
+    expect(onSubmit).toHaveBeenCalledTimes(2)
+  })
 })

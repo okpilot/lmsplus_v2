@@ -593,4 +593,14 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-04-04 — Decision 34: Server-side pagination with server-side sort/filter*
+### Decision 35: 0-answer expired Practice Exam → results page (not discard)
+
+**Date**: 2026-04-27
+**Context**: When a `mock_exam` session countdown reaches zero and the student has not answered any questions, the system must decide what to do with the session.
+**Decision**: Call `complete_empty_exam_session` RPC to record `score_percentage = 0`, `passed = false`, `correct_count = 0`, then redirect the student to `/app/quiz/report?session=<id>`. If that RPC fails, fall back to discard + redirect to `/app/quiz`.
+**Rationale**: Silent discard gives the student no feedback and no record of the attempt. An explicit 0% / FAIL result on the report page is better UX — the student knows what happened and the attempt is recorded for compliance purposes. The fallback-to-discard path exists so the student is never stuck on an un-submittable session.
+**Implementation**: Migration 049 (`complete_empty_exam_session` RPC), Server Action `submitEmptyExamSession`, `handleSubmitSession` in `quiz-submit.ts`.
+
+---
+
+*Last updated: 2026-04-27 — Decision 35: 0-answer expired Practice Exam → results page*

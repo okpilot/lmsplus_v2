@@ -106,29 +106,31 @@ export async function handleSubmitSession(opts: {
   onSuccess: () => void
   isExam?: boolean
 }) {
-  if (opts.answers.size === 0) {
-    if (opts.isExam) {
-      // Exam timed out with no answers — complete it in the DB so the student
-      // lands on the report page showing 0% / FAIL instead of being discarded.
-      const result = await submitEmptyExamSession({ sessionId: opts.sessionId })
-      if (result.success) {
-        clearActiveSession(opts.userId)
-        opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
-        clearDeploymentPin().catch(() => {})
-      } else {
-        // Fall back: discard and redirect to quiz home so student isn't stuck.
-        console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
-        clearActiveSession(opts.userId)
-        clearDeploymentPin().catch(() => {})
-        await discardQuiz({ sessionId: opts.sessionId, draftId: opts.draftId }).catch((err) =>
-          console.error('[handleSubmitSession] discardQuiz fallback failed:', err),
-        )
-        opts.setError(result.error)
-        opts.router.push('/app/quiz')
-      }
-      return
-    }
+  if (opts.answers.size === 0 && !opts.isExam) {
     opts.setError('No answers to submit.')
+    return
+  }
+  if (opts.answers.size === 0 && opts.isExam) {
+    // Exam timed out with no answers — complete it so the student lands on the
+    // report page showing 0% / FAIL instead of being silently discarded.
+    opts.setSubmitting(true)
+    const result = await submitEmptyExamSession({ sessionId: opts.sessionId })
+    if (result.success) {
+      clearActiveSession(opts.userId)
+      opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
+      clearDeploymentPin().catch(() => {})
+    } else {
+      // Fall back: discard and redirect to quiz home so the student isn't stuck.
+      console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
+      clearActiveSession(opts.userId)
+      clearDeploymentPin().catch(() => {})
+      await discardQuiz({ sessionId: opts.sessionId, draftId: opts.draftId }).catch((err) =>
+        console.error('[handleSubmitSession] discardQuiz fallback failed:', err),
+      )
+      opts.setError(result.error)
+      opts.router.push('/app/quiz')
+      opts.setSubmitting(false)
+    }
     return
   }
   opts.setSubmitting(true)

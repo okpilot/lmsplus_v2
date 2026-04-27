@@ -551,11 +551,13 @@ describe('handleSubmitSession', () => {
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
   })
 
-  it('does not show setError or setSubmitting on successful zero-answer exam completion', async () => {
+  it('sets setSubmitting(true) but not setError on successful zero-answer exam completion', async () => {
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
     expect(opts.setError).not.toHaveBeenCalled()
-    expect(opts.setSubmitting).not.toHaveBeenCalled()
+    // setSubmitting(true) fires to show loading; navigation takes over (no false call)
+    expect(opts.setSubmitting).toHaveBeenCalledWith(true)
+    expect(opts.setSubmitting).not.toHaveBeenCalledWith(false)
   })
 
   it('falls back to discard + /app/quiz when submitEmptyExamSession fails', async () => {
@@ -595,6 +597,22 @@ describe('handleSubmitSession', () => {
       const opts = makeOpts({ answers: new Map(), isExam: true })
       await handleSubmitSession(opts)
       expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
+  it('forwards draftId to discardQuiz and calls setSubmitting(false) on fallback failure', async () => {
+    mockSubmitEmptyExamSession.mockResolvedValue({ success: false, error: 'X' })
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const opts = makeOpts({ answers: new Map(), isExam: true, draftId: DRAFT_ID })
+      await handleSubmitSession(opts)
+      expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID, draftId: DRAFT_ID })
+      expect(opts.setError).toHaveBeenCalledWith('X')
+      expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+      expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
     } finally {
       consoleSpy.mockRestore()
     }
