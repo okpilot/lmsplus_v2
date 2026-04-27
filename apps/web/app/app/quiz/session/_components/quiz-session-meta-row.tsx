@@ -42,7 +42,7 @@ export function QuizSessionMetaRow({
         </span>
       )}
       <span className="text-xs text-muted-foreground">
-        {questionNumber ? `No. ${questionNumber}` : ' '}
+        {questionNumber ? `No. ${questionNumber}` : '\u00A0'}
       </span>
     </div>
   )
