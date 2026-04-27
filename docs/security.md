@@ -629,7 +629,7 @@ All database design rules (soft delete, immutability, idempotency, RPC conventio
 - No hard `DELETE` anywhere in application code — always `UPDATE SET deleted_at = now()`
 - Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) have RLS policies blocking UPDATE and DELETE
 - `SECURITY DEFINER` RPCs must always include a manual `auth.uid()` check + `SET search_path = public`
-- **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query.
+- **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query. **Narrow exception:** SELECTs that retrieve records by IDs already membership-validated at a prior locked step (e.g., `batch_submit_quiz` reading `questions` via `quiz_sessions.config.question_ids` locked at session start) may omit the filter, because historical scoring must access soft-deleted records and access is bounded by the prior lock — not by the deleted-at predicate. Document the exception inline at the call site and cross-reference `docs/database.md` §3 "Scoring Soft-Deleted Questions".
 - All multi-table mutations go through RPCs for atomicity — never multi-step application calls
 
 ## 16. What Supabase Handles For Us
