@@ -589,9 +589,10 @@ verb_noun pattern:
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit + last_active_at stamp (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
-  start_exam_session         ← write, atomic: read exam config + random question selection per distribution + session creation (mock_exam mode)
+  start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
   complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent)
+  complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam session, score from existing answers, audit exam.expired (idempotent)
   complete_quiz_session      ← write, atomic: session end + score + audit + last_active_at stamp (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
@@ -1180,6 +1181,37 @@ Completes a `mock_exam` session that expired before any answers were recorded. S
 - `SECURITY DEFINER SET search_path = public` — required pattern for all security-definer RPCs.
 
 **Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }`
+
+---
+
+#### `complete_overdue_exam_session` — close a past-deadline exam (Layer 1)
+
+Completes a `mock_exam` session whose deadline has passed (`now() > started_at + time_limit_seconds`). Computes score from any existing `quiz_session_answers` rows — partial answers are honoured, NOT zeroed. Sets `ended_at`, `correct_count`, `score_percentage`, `passed` and writes an `exam.expired` audit event with `metadata.reason ∈ { 'overdue_with_answers', 'overdue_zero_answers' }`.
+
+**Purpose (Layer 1, migration 050 / supabase 20260427000003):** Server-authoritative deadline enforcement. Called by:
+1. `start_exam_session` itself, before raising "already in progress" — guarantees a browser-crash exit during an exam cannot block the next attempt indefinitely AND records the score from buffered answers.
+2. A Server Action invoked by the report page or banner click after the client detects an expired session.
+
+**Layer 2 (periodic sweeper)** is tracked under issue #558. Layer 1 alone enforces the deadline on every entry/access path; Layer 2 closes the residual window for sessions never re-entered.
+
+**Score computation (mirrors `batch_submit_quiz` mock_exam branch):**
+- `v_score = round(correct_count / total_questions * 100, 2)` — unanswered count as wrong.
+- `v_passed = (pass_mark IS NOT NULL AND v_score >= pass_mark)`; an incomplete exam (`answered < total`) auto-fails regardless of score.
+
+**Idempotency:** If `ended_at IS NOT NULL`, the function returns the stored `correct_count`, `score_percentage`, `passed`, and a fresh `answered_count` from `quiz_session_answers`. The `FOR UPDATE` lock holds the row, so the re-read is safe.
+
+**Defense-in-depth invariants:**
+- `auth.uid()` check.
+- Org-scope guard reads `organization_id` from `users` with `deleted_at IS NULL`.
+- Ownership + org check — `FOR UPDATE` filter requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
+- Mode guard — RAISE if not `mock_exam`.
+- Overdue invariant — RAISE if `now() <= started_at + time_limit_seconds`. Callers must not invoke for active sessions.
+- Audit `actor_role` subquery omits `deleted_at IS NULL`; outer users guard above already ensures the student is active (security.md rule 10 / #550 pattern).
+- `SECURITY DEFINER SET search_path = public`.
+
+**Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }` — identical to `complete_empty_exam_session` for caller symmetry.
+
+**`start_exam_session` interaction (migration 050):** The replaced `start_exam_session` adds `'started_at'` to its return jsonb and, before raising the duplicate-active-session guard, looks up any same-subject `mock_exam` session that is past its deadline and calls `complete_overdue_exam_session` on it. The `started_at` field lets the client compute remaining time from the server clock instead of trusting its own local clock at start. Existing callers that ignore unknown jsonb keys (e.g. `start-exam.ts` Zod `safeParse` of a closed object) are unaffected — the schema strips unknown keys by default.
 
 ---
 
