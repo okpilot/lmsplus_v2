@@ -14,6 +14,7 @@ Writes Vitest unit and integration tests for new or changed TypeScript functions
 - Trust the agent's mock patterns — it maintains proven patterns in `.claude/agent-memory/test-writer/patterns.md`.
 - Run `pnpm test` after committing the agent's tests to confirm nothing regressed.
 - Review test names — they should describe behavior, not implementation ("schedules shorter interval when wrong" not "calls updateFsrsState").
+- For features that create server-side state outliving the client tab (sessions, payment intents, streaming jobs, etc.), the entry-page test must assert the page reads + surfaces existing server state. Don't just test the localStorage path.
 
 ### NEVER
 - Let the agent modify production code. It writes tests only.

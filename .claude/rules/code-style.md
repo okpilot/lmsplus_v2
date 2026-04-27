@@ -465,6 +465,58 @@ it('schedules a shorter review interval when the answer is wrong', () => { ... }
 
 **Do not write tests for the pre-hydration branch.** Only test the post-hydration (normal) state. This is a jsdom constraint, not a missing test.
 
+### Assert URL on Router-Navigation Mocks (from 2026-04-27)
+When a test mocks `router.push`, `router.replace`, `router.back`, or imports `redirect` from `next/navigation`, every assertion on that mock **must** check the URL/path argument — not just `.toHaveBeenCalled()`. Use `.toHaveBeenCalledWith('/expected/path')` or pass an explicit string match to `.lastCalledWith`.
+
+```ts
+// ❌ WRONG — counts calls but misses wrong redirect target
+expect(mockPush).toHaveBeenCalled()
+
+// ✅ CORRECT — asserts the exact destination
+expect(mockPush).toHaveBeenCalledWith('/app/exam/results/abc123')
+```
+
+**Applies to new tests added from 2026-04-27 onward.** Existing tests are migrated as touched, not in a sweep. Reason: PR #523 round 7 missed a wrong-redirect bug because the test only counted calls.
+
+### Lifecycle Integration Test for New Feature Modes (from 2026-04-27)
+Every new feature mode or flag that branches behavior at component, hook, or RPC level (e.g., `mode: 'exam'`, `isExam`, `isAdmin` toggles) requires at least **one** integration test exercising the **full lifecycle**: entry path → in-progress state → exit path → post-exit URL/state.
+
+Component-level tests with the flag toggled on are **necessary but not sufficient**. A lifecycle test connects the dots across the flow.
+
+```ts
+// ❌ INSUFFICIENT — tests the flag in isolation, not the flow
+it('shows countdown timer when isExam is true', () => { ... })
+
+// ✅ REQUIRED — tests the full flow end-to-end
+it('routes to results page after exam timer expires and auto-submits', () => {
+  // 1. render with exam session active
+  // 2. advance timer to expiry
+  // 3. assert auto-submit was called
+  // 4. assert router.push called with '/app/exam/results/<id>'
+})
+```
+
+Reason: PR #523 had isolated `isExam` toggle tests but no test connecting "user starts exam → timer expires → user lands on report" — so the wrong-redirect bug was invisible.
+
+### Refresh / Reload Test for Stateful UI (from 2026-04-27)
+Any UI flow that holds client-side state across renders (in-memory answer buffer, multi-step form state, persistent timer) requires a test simulating **page reload mid-flow**.
+
+- **Vitest:** mount the consumer with empty `localStorage` + a fixture representing an active server session, assert recovery render.
+- **Playwright:** explicit `page.reload()` mid-spec, assert resume.
+
+```ts
+// ✅ CORRECT — Vitest reload simulation
+it('recovers in-progress exam from server session when localStorage is empty', () => {
+  localStorage.clear()
+  mockGetActiveSession.mockResolvedValue(fixtureActiveExamSession)
+  render(<ExamPage />)
+  // assert the in-progress UI is shown, not a blank/start screen
+  expect(screen.getByRole('timer')).toBeInTheDocument()
+})
+```
+
+Reason: PR #523's exam refresh-resume bug shipped because no test reloaded the page mid-exam — the localStorage gap was invisible.
+
 ---
 
 ## 8. What the Code Reviewer Checks Automatically

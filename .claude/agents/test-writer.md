@@ -59,6 +59,16 @@ describe('functionName', () => {
 
 8. **Do NOT use `any` types in test code** — Use proper types or `unknown` with narrowing, even in mocks and test fixtures.
 
+## PR checklist — flag these gaps on every diff
+
+When reviewing a diff for test coverage, flag these patterns explicitly:
+
+- **flag-router-mock-no-url**: any `router.push` / `router.replace` / `router.back` / `redirect` from `next/navigation` that is asserted only with `.toHaveBeenCalled()` (no URL argument check). Suggest `.toHaveBeenCalledWith('/expected/path')` as the fix. Reason: wrong redirect targets are invisible when only the call count is asserted (PR #523 round 7).
+
+- **flag-mode-flag-no-lifecycle**: a new branch on a mode/flag (`isExam`, `mode === 'X'`, `isAdmin`, etc.) introduced in the diff without a corresponding lifecycle integration test elsewhere in the diff that exercises entry path → in-progress state → exit path → post-exit URL/state. Component-level toggle tests are not sufficient. Reason: isolated flag tests miss cross-step routing bugs (PR #523 wrong-redirect).
+
+- **flag-stateful-flow-no-reload**: a new stateful hook or component (holds answers, drafts, sessions, timers in memory or `localStorage`) introduced in the diff without a test simulating page reload from empty local state against an active server session. Vitest: mount with empty `localStorage` + fixture active session, assert recovery render. Playwright: `page.reload()` mid-spec, assert resume. Reason: PR #523 exam refresh-resume bug shipped because no spec reloaded the page mid-exam.
+
 ## After writing tests
 **Always run the tests you wrote** using the Bash tool: `cd <package-dir> && npx vitest run <test-file>`.
 If any test fails, fix it immediately. Never leave broken tests — the whole point is a green suite.
