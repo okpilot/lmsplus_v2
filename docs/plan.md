@@ -359,6 +359,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 **Phase 3 done (2026-03-11):** Question import tool:
 - `packages/db/src/import-schema.ts` — Zod validation for import JSON
 - `apps/web/scripts/import-questions.ts` — full import pipeline
+- `apps/web/scripts/check-import-conflicts.ts` — dry-run pre-check: verifies subject/topic/subtopic exist and lists existing `question_number` matches in the target bank (live + soft-deleted). Run this before importing a new zip against remote.
 - Bootstraps org (Egmont Aviation), admin user, question bank (EASA PPL(A) QDB)
 - Parses folder paths → derives topic/subtopic codes & names → upserts reference data
 - Uploads images to Supabase Storage (`question-images` bucket)
@@ -821,6 +822,42 @@ Import ~3,000 questions from JSON into Supabase.
 
 ### Import tool
 `apps/web/scripts/import-questions.ts` — reads JSON, validates with Zod, upserts to Supabase.
+`apps/web/scripts/check-import-conflicts.ts` — companion dry-run: validates syllabus rows exist and reports `question_number` collisions before a batch import.
+
+**Remote import workflow:**
+```bash
+# 1. Extract the zip (from QDB/)
+SCOPE=010-XX                     # e.g. 010-09, 010-12
+mkdir -p "ecqb_${SCOPE}_temp"
+unzip -o "ecqb_${SCOPE}_import.zip" -d "ecqb_${SCOPE}_temp/"
+
+# 2. From apps/web/ — load remote env + dry-run conflict check
+cd ../apps/web
+set -a && . ./.env.remote && set +a
+pnpm exec tsx scripts/check-import-conflicts.ts \
+  --dir "../../QDB/ecqb_${SCOPE}_temp/ecqb" --env ./.env.remote
+
+# 3. If clean, import each JSON file. For a single file:
+pnpm exec tsx scripts/import-questions.ts \
+  --file "../../QDB/ecqb_${SCOPE}_temp/ecqb/${SCOPE}-01.json" \
+  --base-dir "../../QDB/ecqb_${SCOPE}_temp/ecqb" --force-remote
+
+# 3b. Or loop multiple subtopic files:
+for f in "${SCOPE}-01" "${SCOPE}-02" "${SCOPE}-03"; do
+  pnpm exec tsx scripts/import-questions.ts \
+    --file "../../QDB/ecqb_${SCOPE}_temp/ecqb/${f}.json" \
+    --base-dir "../../QDB/ecqb_${SCOPE}_temp/ecqb" --force-remote
+done
+
+# 4. Re-run the check to verify live counts per subtopic
+pnpm exec tsx scripts/check-import-conflicts.ts \
+  --dir "../../QDB/ecqb_${SCOPE}_temp/ecqb" --env ./.env.remote
+```
+
+Notes:
+- `check-import-conflicts.ts` is idempotent read-only. `import-questions.ts` skips rows that already exist by `(bank_id, question_number)`, so re-running is safe.
+- Images referenced as `images/<file>` in JSON are uploaded to `question-images/<subject_code>/<file>` with `upsert: true`.
+- The `--force-remote` flag is required for any non-localhost Supabase URL (safety guard).
 
 ---
 
@@ -982,4 +1019,66 @@ From setup audit (2026-03-11), updated 2026-03-19:
 
 ---
 
-*Last updated: 2026-03-27 — Student Profile & Settings page (#368). Sprint 4 complete.*
+*Last updated: 2026-04-27 — PR #523 round 7 in progress. See **PR #523 Round 7** section below.*
+
+---
+
+## PR #523 Round 7 — Practice Exam manual-eval bug fixes (awaiting manual eval, 2026-04-27)
+
+16 commits ahead of round 6 (`5b36d7e`). Local-only, NOT yet pushed.
+
+### Shipped — initial 8 commits (3a/3b not yet user-evaluated at the time of writing)
+| Commit | Phase | Summary |
+|---|---|---|
+| `375bde5` | 1 | Auto-submit on 0-answer exam expiry → `/app/quiz/report` 0% FAIL. New RPC `complete_empty_exam_session` (mig 049 / 20260427000002). New action `submitEmptyExamSession`. Moved auto-submit out of render. |
+| `8782a18` | 1 fix | Added `setSubmitting`, reduced nesting, idempotent path reads real DB values, #550 cross-ref. |
+| `f22cb87` | 2 | Exam-mode localStorage persistence + new action `getActiveExamSession` + `ResumeExamBanner`. |
+| `4971eda` | 2 fix | Banner handoff populates real `questionIds` from server (validator was rejecting empty). |
+| `1f3afe2` | 2 fix | Surface orphaned exam sessions (malformed `config.question_ids`) with discard-only banner. |
+| `14d8f61` | 3 | Hide PRACTICE EXAM badge below `md` breakpoint. |
+| `553fe4d` | 4 | New E2E specs: `exam-flow.spec.ts` (auto-submit) + `exam-recovery.spec.ts` (refresh resume). |
+| `a09332a` | 5 | Rule updates: 3 testing rules in `code-style.md §7`, 1 security rule in `security.md §10`, `.coderabbit.yaml` synced. |
+
+### Shipped — Phases A/B/C (this session, 8 new commits resolving bug 3a + 3b + Layer 1)
+| Commit | Phase | Summary |
+|---|---|---|
+| `c656868` | A | Bug 3a — extend ActiveSession/SessionData with `startedAt`/`timeLimitSeconds`/`passMark`. Drop the categorical exam reject in `useSessionBootstrap`; recovery prompt now shows for both modes. `quiz-session.tsx` parses `props.startedAt` with `Date.now()` fallback. |
+| `8885693` | A fix | semantic-reviewer ISSUE: SessionRecoveryPrompt was study-mode only; added `mode` prop, hide "Save for Later" for exam, swap discard copy. parseStartedAt extracted to `_utils/parse-started-at.ts` to keep `quiz-session.tsx` ≤150. |
+| `43fa241` | B | Bug 3b — extend `ActiveExamSession` with `subjectCode` + `passMark`. ResumeExamBanner.handleResume() writes the full 9-field handoff payload. |
+| `d9e54d0` | B fix | semantic-reviewer ISSUE: align `extractPassMark` boundary with DB CHECK + storage validator (reject `pm <= 0`). Differentiate skip-log between malformed questionIds vs pass_mark. |
+| `5cbbfe8` | C-DB | New migration 20260427000003 / 050: `complete_overdue_exam_session(uuid)` + `start_exam_session` REPLACE adding `started_at` return + auto-complete same-subject overdue session. Score grafted from `batch_submit_quiz`. Audit `exam.expired` reason ∈ {'overdue_with_answers', 'overdue_zero_answers'}. |
+| `d35ce7e` | C-DB fix | Pin `GRANT EXECUTE ON FUNCTION start_exam_session(uuid) TO authenticated` (prior migration 20260411000003 relied on Postgres defaults). Annotate the COALESCE-based `passed` semantics for batch_submit_quiz parity. |
+| `6aac0f4` | C-app | Cold-start handoff carries `startedAt`. `getActiveExamSession` partitions overdue rows into `expiredSessionIds` and invokes the RPC. New `ExpiredExamNotice` component → `/app/quiz/report?session=<id>`. `pass_mark` Zod tightened to `int().min(1).max(100)`. `_overdue-helpers.ts` extracted. |
+| `f421c44` | C-app fix | semantic-reviewer ISSUE: when auto-complete RPC fails, route id to `orphanedSessionIds` (discard-only banner) instead of `expiredSessionIds` — the report page would otherwise redirect back to /app/quiz in a loop. |
+
+### Manual eval — needs re-run after this session's fixes
+- **Bug 3a** — refresh /app/quiz/session during a Practice Exam should rehydrate from localStorage with the original timer state (not bump to /app/quiz with toast).
+- **Bug 3b** — clicking "Resume Practice Exam" on the banner should land on the session page with the correct elapsed time, subject, and pass mark.
+- **Layer 1 — overdue auto-complete** — open /app/quiz with a stale (past-deadline) Practice Exam: should show "Practice Exam expired — view results" with a single button → report page renders the session score from quiz_session_answers (or 0% if no answers).
+
+### Manual eval — passed (prior cycle)
+1. Mobile badge hide ✓
+2. 0-answer auto-submit → /report 0% FAIL ✓
+5. Discard on resume banner frees server lock ✓
+6. Mobile header layout ✓
+
+### Follow-up issues filed
+- **#557** — red-team specs for `complete_empty_exam_session` (AN/AO/AP/AQ vectors).
+- **#558** — Layer 2 periodic sweeper (`pg_cron`) for truly abandoned exam sessions.
+- **#556** — bring Study Mode resume up to Practice Exam parity (server fallback).
+- **#559–#562** (this session, red-team agent) — coverage gaps for `complete_overdue_exam_session` (cross-tenant IDOR, non-overdue invariant, mode guard, concurrent race).
+
+### Pre-existing tech-debt noted
+- `quiz-session-storage.ts` is at 251 lines (utility cap 200) — was already over before this PR. Plan-critic / code-reviewer flagged; defer to a dedicated split PR.
+- `use-session-bootstrap.ts` is at 99 lines (hook cap 80) — pre-existing, this session reduced from 107.
+
+### Local state
+- Branch: `feat/exam-mode-student-session`. 223 test files, 3033+ unit tests passing. `pnpm check-types --force` clean. Lint clean.
+- New feedback memory: `feedback_exam_server_authoritative.md` — exam time = server-authoritative, client timer is UI only.
+
+### Resume protocol for next session
+1. Ask user to run the manual-eval scenarios above (bug 3a, bug 3b, Layer 1 expired-banner flow).
+2. After user yes: ask explicit push approval. If yes, `git push -u origin feat/exam-mode-student-session`.
+3. Apply migration 20260427000003 against the local Supabase before manual eval (`npx supabase migration up --local`).
+
+*Round 7 last updated: 2026-04-27 — Phases A + B + C complete locally; awaiting user manual eval.*
