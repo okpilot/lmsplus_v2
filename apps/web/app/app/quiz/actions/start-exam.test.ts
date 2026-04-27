@@ -32,6 +32,8 @@ const VALID_QUESTION_IDS = [
   '00000000-0000-4000-a000-000000000022',
 ]
 
+const VALID_STARTED_AT = '2026-04-27T12:00:00.000Z'
+
 const RPC_SUCCESS = {
   data: {
     session_id: VALID_SESSION_ID,
@@ -39,6 +41,7 @@ const RPC_SUCCESS = {
     time_limit_seconds: 3600,
     total_questions: 3,
     pass_mark: 75,
+    started_at: VALID_STARTED_AT,
   },
   error: null,
 }
@@ -168,6 +171,7 @@ describe('startExamSession — RPC payload validation', () => {
           time_limit_seconds: 3600,
           total_questions: 1,
           pass_mark: 75,
+          started_at: '2026-04-27T12:00:00.000Z',
           internal_secret: 'should-not-be-logged',
         },
         error: null,
@@ -193,6 +197,27 @@ describe('startExamSession — RPC payload validation', () => {
       consoleSpy.mockRestore()
     }
   })
+
+  it('rejects pass_mark = 0 (DB CHECK requires pass_mark > 0)', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockRpc.mockResolvedValue({
+        data: { ...RPC_SUCCESS.data, pass_mark: 0 },
+        error: null,
+      })
+
+      const result = await startExamSession({ subjectId: VALID_SUBJECT_ID })
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to start Practice Exam.')
+      expect(consoleSpy).toHaveBeenCalledWith('[startExamSession] Invalid RPC payload, fields:', [
+        'pass_mark',
+      ])
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
 })
 
 // ---- Happy path -----------------------------------------------------------
@@ -210,6 +235,7 @@ describe('startExamSession — happy path', () => {
     expect(result.totalQuestions).toBe(3)
     expect(result.timeLimitSeconds).toBe(3600)
     expect(result.passMark).toBe(75)
+    expect(result.startedAt).toBe(VALID_STARTED_AT)
   })
 
   it('passes p_subject_id to the start_exam_session RPC', async () => {

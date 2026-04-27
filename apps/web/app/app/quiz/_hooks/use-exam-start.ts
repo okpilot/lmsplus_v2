@@ -49,6 +49,7 @@ export function useExamStart(opts: UseExamStartOpts) {
               mode: 'exam',
               timeLimitSeconds: result.timeLimitSeconds,
               passMark: result.passMark,
+              startedAt: result.startedAt,
             }),
           )
         } catch (err) {

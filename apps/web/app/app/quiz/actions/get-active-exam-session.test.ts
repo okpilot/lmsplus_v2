@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -12,6 +13,10 @@ vi.mock('@repo/db/server', () => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
+}))
+
+vi.mock('@/lib/supabase-rpc', () => ({
+  rpc: mockRpc,
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -45,10 +50,21 @@ const SESSION_ROW = {
 }
 
 // ---- Lifecycle ------------------------------------------------------------
+// Freeze "now" at 10:30 — SESSION_ROW started at 10:00 with a 3600s (1h) limit, so
+// the default fixture is well within deadline. Tests that need an overdue row
+// either bump time_limit_seconds down or override started_at to a past time.
+const NOW_MS = Date.parse('2026-04-27T10:30:00.000Z')
 
 beforeEach(() => {
   vi.resetAllMocks()
+  vi.useFakeTimers()
+  vi.setSystemTime(NOW_MS)
   mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+  mockRpc.mockResolvedValue({ data: null, error: null })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 // ---- Tests ----------------------------------------------------------------
@@ -94,6 +110,7 @@ describe('getActiveExamSession — happy path', () => {
         },
       ],
       orphanedSessionIds: [],
+      expiredSessionIds: [],
     })
   })
 
@@ -119,7 +136,12 @@ describe('getActiveExamSession — happy path', () => {
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: [] })
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: [],
+      expiredSessionIds: [],
+    })
   })
 
   it('returns an empty array when data is null', async () => {
@@ -127,7 +149,12 @@ describe('getActiveExamSession — happy path', () => {
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: [] })
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: [],
+      expiredSessionIds: [],
+    })
   })
 
   it('falls back to Unknown subject and empty subjectCode when easa_subjects is null', async () => {
@@ -164,7 +191,12 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: ['session-empty'] })
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['session-empty'],
+      expiredSessionIds: [],
+    })
   })
 
   it('skips a row with non-array question_ids and adds to orphanedSessionIds', async () => {
@@ -177,7 +209,12 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: ['session-bad'] })
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['session-bad'],
+      expiredSessionIds: [],
+    })
   })
 
   it('skips a row with non-string elements in question_ids and adds to orphanedSessionIds', async () => {
@@ -190,7 +227,12 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: ['session-nums'] })
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['session-nums'],
+      expiredSessionIds: [],
+    })
   })
 
   it('skips a row with null config and adds to orphanedSessionIds', async () => {
@@ -200,7 +242,12 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: ['session-null'] })
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['session-null'],
+      expiredSessionIds: [],
+    })
   })
 
   it('skips a row with missing pass_mark and adds to orphanedSessionIds', async () => {
@@ -223,6 +270,7 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
       success: true,
       sessions: [],
       orphanedSessionIds: ['session-no-pm'],
+      expiredSessionIds: [],
     })
   })
 
@@ -246,6 +294,7 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
       success: true,
       sessions: [],
       orphanedSessionIds: ['session-bad-pm'],
+      expiredSessionIds: [],
     })
   })
 
@@ -269,6 +318,7 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
       success: true,
       sessions: [],
       orphanedSessionIds: ['session-pm-150'],
+      expiredSessionIds: [],
     })
   })
 
@@ -292,6 +342,7 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
       success: true,
       sessions: [],
       orphanedSessionIds: ['session-pm-zero'],
+      expiredSessionIds: [],
     })
   })
 
@@ -319,5 +370,87 @@ describe('getActiveExamSession — DB error', () => {
     const result = await getActiveExamSession()
 
     expect(result).toEqual({ success: false, error: 'Failed to fetch active exam sessions.' })
+  })
+})
+
+// ---- Layer 1 partitioning: expired (overdue) sessions --------------------
+
+describe('getActiveExamSession — expired sessions (Layer 1)', () => {
+  // SESSION_ROW started_at = 10:00, NOW = 10:30 → use a tiny limit to force overdue.
+  const overdueRow = (id: string) => ({
+    ...SESSION_ROW,
+    id,
+    started_at: '2026-04-27T10:00:00.000Z',
+    time_limit_seconds: 60, // deadline 10:01, NOW = 10:30 → overdue
+  })
+
+  it('moves an overdue row to expiredSessionIds and invokes complete_overdue_exam_session', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: [overdueRow('expired-1')], error: null }))
+
+    const result = await getActiveExamSession()
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.sessions).toEqual([])
+      expect(result.expiredSessionIds).toEqual(['expired-1'])
+      expect(result.orphanedSessionIds).toEqual([])
+    }
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'complete_overdue_exam_session', {
+      p_session_id: 'expired-1',
+    })
+  })
+
+  it('keeps id in expiredSessionIds even when auto-complete RPC errors (logs the error)', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: [overdueRow('expired-2')], error: null }))
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'session is not overdue' } })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const result = await getActiveExamSession()
+
+      expect(result.success).toBe(true)
+      if (result.success) expect(result.expiredSessionIds).toEqual(['expired-2'])
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[getActiveExamSession] Auto-complete failed:',
+        'expired-2',
+        'session is not overdue',
+      )
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
+  it('keeps an active (deadline-in-future) row in sessions; does not call RPC', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: [SESSION_ROW], error: null }))
+
+    const result = await getActiveExamSession()
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.sessions).toHaveLength(1)
+      expect(result.sessions[0]?.sessionId).toBe('sess-001')
+      expect(result.expiredSessionIds).toEqual([])
+    }
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('partitions a mix of active + expired + orphaned rows into the correct buckets', async () => {
+    const expiredRow = overdueRow('expired-mix')
+    const orphanedRow = { ...SESSION_ROW, id: 'orphan-mix', config: { question_ids: [] } }
+    mockFrom.mockReturnValue(
+      buildChain({ data: [SESSION_ROW, expiredRow, orphanedRow], error: null }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['sess-001'])
+      expect(result.expiredSessionIds).toEqual(['expired-mix'])
+      expect(result.orphanedSessionIds).toEqual(['orphan-mix'])
+    }
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'complete_overdue_exam_session', {
+      p_session_id: 'expired-mix',
+    })
   })
 })

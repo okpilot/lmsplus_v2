@@ -58,6 +58,8 @@ const DEFAULT_OPTS = {
   examSubjects: EXAM_SUBJECTS,
 }
 
+const STARTED_AT = '2026-04-27T12:00:00.000Z'
+
 const SUCCESS_RESULT = {
   success: true as const,
   sessionId: SESSION_ID,
@@ -65,6 +67,7 @@ const SUCCESS_RESULT = {
   totalQuestions: 2,
   timeLimitSeconds: 3600,
   passMark: 75,
+  startedAt: STARTED_AT,
 }
 
 const EXISTING_SESSION = {
@@ -189,6 +192,15 @@ describe('useExamStart — handleStart happy path', () => {
     const stored = JSON.parse(storedJson) as Record<string, unknown>
     expect(stored.timeLimitSeconds).toBe(3600)
     expect(stored.passMark).toBe(75)
+  })
+
+  it('includes startedAt in sessionStorage from RPC result (deadline base)', async () => {
+    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+
+    const storedJson = mockSessionStorageSetItem.mock.calls[0]?.[1] as string
+    const stored = JSON.parse(storedJson) as Record<string, unknown>
+    expect(stored.startedAt).toBe(STARTED_AT)
   })
 
   it('navigates to /app/quiz/session after a successful start', async () => {

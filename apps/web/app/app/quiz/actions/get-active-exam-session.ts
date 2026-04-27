@@ -1,6 +1,8 @@
 'use server'
 
 import { createServerSupabaseClient } from '@repo/db/server'
+import { rpc } from '@/lib/supabase-rpc'
+import { extractPassMark, extractQuestionIds, isExamOverdue } from './_overdue-helpers'
 
 export type ActiveExamSession = {
   sessionId: string
@@ -14,26 +16,13 @@ export type ActiveExamSession = {
 }
 
 export type GetActiveExamSessionResult =
-  | { success: true; sessions: ActiveExamSession[]; orphanedSessionIds: string[] }
+  | {
+      success: true
+      sessions: ActiveExamSession[]
+      orphanedSessionIds: string[]
+      expiredSessionIds: string[]
+    }
   | { success: false; error: string }
-
-function extractQuestionIds(config: unknown): string[] | null {
-  if (typeof config !== 'object' || config === null) return null
-  const ids = (config as Record<string, unknown>).question_ids
-  if (!Array.isArray(ids) || ids.length === 0) return null
-  if (ids.some((id) => typeof id !== 'string' || id.length === 0)) return null
-  return ids as string[]
-}
-
-function extractPassMark(config: unknown): number | null {
-  // DB CHECK constraint: pass_mark > 0 AND pass_mark <= 100. The session-storage
-  // validator enforces the same range; both must agree to avoid a server-accepts /
-  // client-rejects split-brain.
-  if (typeof config !== 'object' || config === null) return null
-  const pm = (config as Record<string, unknown>).pass_mark
-  if (typeof pm !== 'number' || !Number.isFinite(pm) || pm <= 0 || pm > 100) return null
-  return pm
-}
 
 export async function getActiveExamSession(): Promise<GetActiveExamSessionResult> {
   try {
@@ -60,6 +49,7 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
 
     const sessions: ActiveExamSession[] = []
     const orphanedSessionIds: string[] = []
+    const expiredSessionIds: string[] = []
     for (const row of data ?? []) {
       const questionIds = extractQuestionIds(row.config)
       const passMark = extractPassMark(row.config)
@@ -69,26 +59,31 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
         orphanedSessionIds.push(row.id)
         continue
       }
-      const subjectRel =
-        row.easa_subjects !== null && typeof row.easa_subjects === 'object'
-          ? (row.easa_subjects as { name?: unknown; short?: unknown })
-          : null
-      const subjectName =
-        subjectRel && typeof subjectRel.name === 'string' ? subjectRel.name : 'Unknown subject'
-      const subjectCode = subjectRel && typeof subjectRel.short === 'string' ? subjectRel.short : ''
+      const timeLimitSeconds = row.time_limit_seconds ?? 0
+      if (isExamOverdue(row.started_at, timeLimitSeconds)) {
+        const { error: rpcErr } = await rpc<unknown>(supabase, 'complete_overdue_exam_session', {
+          p_session_id: row.id,
+        })
+        if (rpcErr) {
+          console.error('[getActiveExamSession] Auto-complete failed:', row.id, rpcErr.message)
+        }
+        expiredSessionIds.push(row.id)
+        continue
+      }
+      const rel = row.easa_subjects as { name?: unknown; short?: unknown } | null
       sessions.push({
         sessionId: row.id,
         subjectId: row.subject_id ?? '',
-        subjectName,
-        subjectCode,
+        subjectName: typeof rel?.name === 'string' ? rel.name : 'Unknown subject',
+        subjectCode: typeof rel?.short === 'string' ? rel.short : '',
         startedAt: row.started_at,
-        timeLimitSeconds: row.time_limit_seconds ?? 0,
+        timeLimitSeconds,
         passMark,
         questionIds,
       })
     }
 
-    return { success: true, sessions, orphanedSessionIds }
+    return { success: true, sessions, orphanedSessionIds, expiredSessionIds }
   } catch (err) {
     console.error('[getActiveExamSession] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }

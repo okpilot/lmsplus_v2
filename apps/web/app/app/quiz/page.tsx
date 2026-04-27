@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
+import { ExpiredExamNotice } from './_components/expired-exam-notice'
 import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
 import { QuizTabs } from './_components/quiz-tabs'
 import { ResumeExamBanner } from './_components/resume-exam-banner'
@@ -17,6 +18,7 @@ export default async function QuizPage() {
 
   const activeExams = examResult.success ? examResult.sessions : []
   const orphanedIds = examResult.success ? examResult.orphanedSessionIds : []
+  const expiredIds = examResult.success ? examResult.expiredSessionIds : []
 
   return (
     <main className="space-y-6">
@@ -33,6 +35,10 @@ export default async function QuizPage() {
 
       {orphanedIds.map((sessionId) => (
         <ResumeExamBanner key={sessionId} userId={user.id} sessionId={sessionId} discardOnly />
+      ))}
+
+      {expiredIds.map((sessionId) => (
+        <ExpiredExamNotice key={sessionId} sessionId={sessionId} />
       ))}
 
       <QuizRecoveryBanner userId={user.id} />

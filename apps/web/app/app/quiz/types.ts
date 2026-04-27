@@ -141,6 +141,7 @@ export type StartExamResult =
       totalQuestions: number
       timeLimitSeconds: number
       passMark: number
+      startedAt: string
     }
   | { success: false; error: string }
 

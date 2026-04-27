@@ -14,7 +14,11 @@ const StartExamRpcResultSchema = z.object({
   question_ids: z.array(z.uuid()),
   time_limit_seconds: z.number().int().positive(),
   total_questions: z.number().int().positive(),
-  pass_mark: z.number().min(0).max(100),
+  // DB CHECK: pass_mark > 0 AND pass_mark <= 100. Tighten Zod to match — extractPassMark
+  // and the session-storage validator both reject 0, so this avoids a server-accepts /
+  // client-rejects split-brain.
+  pass_mark: z.number().int().min(1).max(100),
+  started_at: z.string(),
 })
 
 type StartExamRpcResult = z.infer<typeof StartExamRpcResultSchema>
@@ -76,6 +80,7 @@ export async function startExamSession(raw: unknown): Promise<StartExamResult> {
       totalQuestions: parsed.data.total_questions,
       timeLimitSeconds: parsed.data.time_limit_seconds,
       passMark: parsed.data.pass_mark,
+      startedAt: parsed.data.started_at,
     }
   } catch (err) {
     console.error('[startExamSession] Uncaught error:', err)
