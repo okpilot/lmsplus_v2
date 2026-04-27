@@ -390,6 +390,30 @@ describe('writeActiveSession + readActiveSession', () => {
 
     expect(result).not.toBeNull()
   })
+
+  it('round-trips a session with mode: exam', () => {
+    const session = makeSession({ mode: 'exam' })
+    writeActiveSession(session)
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBe('exam')
+  })
+
+  it('round-trips a session without mode field (backward compat)', () => {
+    // Entries persisted before mode was added must still be readable.
+    const legacySession = makeSession()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = { ...legacySession } as Record<string, unknown>
+    delete raw.mode
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(raw))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBeUndefined()
+  })
 })
 
 // ---- clearActiveSession ------------------------------------------------------
@@ -564,6 +588,21 @@ describe('buildActiveSession', () => {
     const result = buildActiveSession(opts, new Map(), 0)
 
     expect(result.feedback).toBeUndefined()
+  })
+
+  it('preserves mode: exam through buildActiveSession', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(0)
+
+    const opts = {
+      userId: USER_ID,
+      sessionId: 'sess-exam',
+      questions: [{ id: 'q1' }],
+      mode: 'exam' as const,
+    }
+
+    const result = buildActiveSession(opts, new Map(), 0)
+
+    expect(result.mode).toBe('exam')
   })
 })
 
@@ -820,6 +859,35 @@ describe('readSessionHandoff', () => {
 
     const result = readSessionHandoff(USER_ID)
 
+    expect(result).toBeNull()
+  })
+
+  it('accepts a handoff with mode: exam and non-empty questionIds', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { sessionId: 'sess-exam-1', questionIds: ['q1', 'q2'], mode: 'exam' }
+    mockSession._store.set(key, JSON.stringify(data))
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBe('exam')
+  })
+
+  // BUG: ResumeExamBanner.handleResume writes questionIds:[] which fails the
+  // isValidSessionData length check — the handoff is immediately discarded and
+  // the session page redirects back to /app/quiz instead of resuming the exam.
+  it('rejects a handoff with mode: exam and empty questionIds (banner bug)', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { userId: USER_ID, sessionId: 'sess-exam-1', mode: 'exam', questionIds: [] }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const result = readSessionHandoff(USER_ID)
+
+    // questionIds:[] fails isValidSessionData — handoff is discarded.
+    // Fix: ResumeExamBanner should write the real questionIds from the server,
+    // or useSessionBootstrap should handle an exam-mode handoff with empty
+    // questionIds by fetching them from the DB.
     expect(result).toBeNull()
   })
 })

@@ -229,6 +229,9 @@ CREATE TABLE lessons (
 ```
 
 ### quiz_sessions
+`config.question_ids` is read by `getActiveExamSession` (RLS-scoped Server Action, no SECURITY DEFINER)
+to populate the handoff payload for cold-start exam resume. See Decision 36.
+
 ```sql
 CREATE TABLE quiz_sessions (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),

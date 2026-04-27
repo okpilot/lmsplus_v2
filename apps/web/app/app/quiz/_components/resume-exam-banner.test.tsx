@@ -29,6 +29,9 @@ vi.mock('../session/_utils/quiz-session-storage', async (importOriginal) => {
   }
 })
 
+// Import the real readSessionHandoff for round-trip test
+import { readSessionHandoff } from '../session/_utils/quiz-session-storage'
+
 // ---- Subject under test ---------------------------------------------------
 
 import type { ActiveExamSession } from '../actions/get-active-exam-session'
@@ -42,6 +45,7 @@ const EXAM: ActiveExamSession = {
   subjectName: 'Air Law',
   startedAt: '2026-04-27T10:00:00.000Z',
   timeLimitSeconds: 3600,
+  questionIds: ['q-1', 'q-2'],
 }
 
 const USER_ID = 'user-test'
@@ -88,7 +92,7 @@ describe('ResumeExamBanner — rendering', () => {
 // ---- Resume ---------------------------------------------------------------
 
 describe('ResumeExamBanner — Resume', () => {
-  it('writes sessionId and mode=exam to sessionStorage and navigates', async () => {
+  it('writes sessionId, mode=exam, and real questionIds to sessionStorage then navigates', async () => {
     const mockSetItem = vi.fn()
     Object.defineProperty(globalThis, 'sessionStorage', {
       value: { setItem: mockSetItem, getItem: vi.fn(), removeItem: vi.fn() },
@@ -105,7 +109,33 @@ describe('ResumeExamBanner — Resume', () => {
     )
     const stored = JSON.parse(mockSetItem.mock.calls[0]?.[1] as string)
     expect(stored.mode).toBe('exam')
+    expect(stored.questionIds).toEqual(['q-1', 'q-2'])
+    expect(stored.questionIds.length).toBeGreaterThan(0)
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
+  })
+
+  it('round-trip: handoff written by banner passes isValidSessionData (readSessionHandoff returns non-null)', async () => {
+    // This is the integration contract the bug broke: the banner must write a payload
+    // that readSessionHandoff accepts. Previously questionIds:[] caused immediate discard.
+    const store = new Map<string, string>()
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        setItem: vi.fn((k: string, v: string) => store.set(k, v)),
+        getItem: vi.fn((k: string) => store.get(k) ?? null),
+        removeItem: vi.fn((k: string) => store.delete(k)),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    render(<ResumeExamBanner userId={USER_ID} exam={EXAM} />)
+    await userEvent.click(screen.getByRole('button', { name: /resume practice exam/i }))
+
+    const result = readSessionHandoff(USER_ID)
+    expect(result).not.toBeNull()
+    expect(result?.sessionId).toBe('sess-exam-001')
+    expect(result?.questionIds).toEqual(['q-1', 'q-2'])
+    expect(result?.mode).toBe('exam')
   })
 
   it('shows an error and does not navigate when sessionStorage.setItem throws', async () => {

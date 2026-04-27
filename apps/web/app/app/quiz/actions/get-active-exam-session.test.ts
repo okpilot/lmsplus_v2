@@ -40,6 +40,7 @@ const SESSION_ROW = {
   subject_id: 'subj-aaa',
   started_at: '2026-04-27T10:00:00.000Z',
   time_limit_seconds: 3600,
+  config: { question_ids: ['q-1', 'q-2', 'q-3'] },
   easa_subjects: { name: 'Air Law' },
 }
 
@@ -73,7 +74,7 @@ describe('getActiveExamSession — unauthenticated', () => {
 })
 
 describe('getActiveExamSession — happy path', () => {
-  it('returns an array of active exam sessions', async () => {
+  it('returns an array of active exam sessions with questionIds', async () => {
     mockFrom.mockReturnValue(buildChain({ data: [SESSION_ROW], error: null }))
 
     const result = await getActiveExamSession()
@@ -87,6 +88,7 @@ describe('getActiveExamSession — happy path', () => {
           subjectName: 'Air Law',
           startedAt: '2026-04-27T10:00:00.000Z',
           timeLimitSeconds: 3600,
+          questionIds: ['q-1', 'q-2', 'q-3'],
         },
       ],
     })
@@ -127,6 +129,62 @@ describe('getActiveExamSession — happy path', () => {
     await getActiveExamSession()
 
     expect(mockFrom).toHaveBeenCalledWith('quiz_sessions')
+  })
+})
+
+describe('getActiveExamSession — malformed config (row skipped)', () => {
+  it('skips a row with empty question_ids array', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({ data: [{ ...SESSION_ROW, config: { question_ids: [] } }], error: null }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result).toEqual({ success: true, sessions: [] })
+  })
+
+  it('skips a row with non-array question_ids', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [{ ...SESSION_ROW, config: { question_ids: 'not-an-array' } }],
+        error: null,
+      }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result).toEqual({ success: true, sessions: [] })
+  })
+
+  it('skips a row with non-string elements in question_ids', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({ data: [{ ...SESSION_ROW, config: { question_ids: [1, 2, 3] } }], error: null }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result).toEqual({ success: true, sessions: [] })
+  })
+
+  it('skips a row with null config', async () => {
+    mockFrom.mockReturnValue(buildChain({ data: [{ ...SESSION_ROW, config: null }], error: null }))
+
+    const result = await getActiveExamSession()
+
+    expect(result).toEqual({ success: true, sessions: [] })
+  })
+
+  it('returns valid rows alongside skipped ones', async () => {
+    const badRow = { ...SESSION_ROW, id: 'sess-bad', config: { question_ids: [] } }
+    mockFrom.mockReturnValue(buildChain({ data: [SESSION_ROW, badRow], error: null }))
+
+    const result = await getActiveExamSession()
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.sessions).toHaveLength(1)
+      expect(result.sessions[0]?.sessionId).toBe('sess-001')
+    }
   })
 })
 

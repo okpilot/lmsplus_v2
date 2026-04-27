@@ -334,18 +334,4 @@ describe('useExamPipeline — persistence', () => {
 
     expect(mockCheckpoint).not.toHaveBeenCalled()
   })
-
-  it('passes mode: exam to useQuizPersistence', () => {
-    const { mockUseQuizPersistenceCalls } = (() => {
-      // Check that the hook was called with mode: 'exam' via the quizOpts spread.
-      // We access the call via the mock — useQuizPersistence mock is already set.
-      // The test is structural: rendering the hook must invoke checkpoint without errors.
-      return { mockUseQuizPersistenceCalls: mockCheckpoint.mock.calls }
-    })()
-    // Rendering is the observable proof that useQuizPersistence was wired
-    const { result } = renderHook(() => useExamPipeline(makeOpts()))
-    expect(result.current.handleSelectAnswer).toBeDefined()
-    // The mock captures the wiring — no error means mode spread was accepted
-    expect(mockUseQuizPersistenceCalls).toBeDefined()
-  })
 })

@@ -8,11 +8,20 @@ export type ActiveExamSession = {
   subjectName: string
   startedAt: string
   timeLimitSeconds: number
+  questionIds: string[]
 }
 
 export type GetActiveExamSessionResult =
   | { success: true; sessions: ActiveExamSession[] }
   | { success: false; error: string }
+
+function extractQuestionIds(config: unknown): string[] | null {
+  if (typeof config !== 'object' || config === null) return null
+  const ids = (config as Record<string, unknown>).question_ids
+  if (!Array.isArray(ids) || ids.length === 0) return null
+  if (ids.some((id) => typeof id !== 'string' || id.length === 0)) return null
+  return ids as string[]
+}
 
 export async function getActiveExamSession(): Promise<GetActiveExamSessionResult> {
   try {
@@ -25,7 +34,7 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
 
     const { data, error } = await supabase
       .from('quiz_sessions')
-      .select('id, subject_id, started_at, time_limit_seconds, easa_subjects(name)')
+      .select('id, subject_id, started_at, time_limit_seconds, config, easa_subjects(name)')
       .eq('student_id', user.id)
       .is('ended_at', null)
       .is('deleted_at', null)
@@ -37,7 +46,13 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
       return { success: false, error: 'Failed to fetch active exam sessions.' }
     }
 
-    const sessions: ActiveExamSession[] = (data ?? []).map((row) => {
+    const sessions: ActiveExamSession[] = []
+    for (const row of data ?? []) {
+      const questionIds = extractQuestionIds(row.config)
+      if (!questionIds) {
+        console.error('[getActiveExamSession] Skipping row with malformed config:', row.id)
+        continue
+      }
       const subjectName =
         row.easa_subjects !== null &&
         typeof row.easa_subjects === 'object' &&
@@ -45,14 +60,15 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
         typeof (row.easa_subjects as { name: unknown }).name === 'string'
           ? (row.easa_subjects as { name: string }).name
           : 'Unknown subject'
-      return {
+      sessions.push({
         sessionId: row.id,
         subjectId: row.subject_id ?? '',
         subjectName,
         startedAt: row.started_at,
         timeLimitSeconds: row.time_limit_seconds ?? 0,
-      }
-    })
+        questionIds,
+      })
+    }
 
     return { success: true, sessions }
   } catch (err) {

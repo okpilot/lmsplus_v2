@@ -38,7 +38,7 @@ export function ResumeExamBanner({ userId, exam }: Props) {
           userId,
           sessionId: exam.sessionId,
           mode: 'exam',
-          questionIds: [],
+          questionIds: exam.questionIds,
         }),
       )
     } catch (err) {
