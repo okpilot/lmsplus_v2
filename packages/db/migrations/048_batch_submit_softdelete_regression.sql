@@ -1,21 +1,6 @@
--- Fix #523 (CodeRabbit round 5): batch_submit_quiz must NOT filter q.deleted_at
---
--- Migration 20260413000002 (timeout fix) regressed the historical-scoring
--- contract documented in docs/database.md §3 "Scoring Soft-Deleted Questions"
--- by adding `AND q.deleted_at IS NULL` to the bulk-fetch query. When a question
--- is soft-deleted mid-session, the temp table omits it and the per-answer
--- lookup raises 'question not found', breaking submission of an active session.
---
--- Session membership was already locked at session start (validated against
--- v_session_question_ids from quiz_sessions.config), so the soft-delete filter
--- adds no security value here — it only blocks legitimate historical scoring.
---
--- This migration recreates batch_submit_quiz identical to 20260413000002 except
--- the bulk-fetch removes `AND q.deleted_at IS NULL` and restores the explanatory
--- comment from migration 20260317000041.
---
--- NOTE: 310 lines — exceeds 300-line migration limit (same rationale as 047).
--- Cannot split: SECURITY DEFINER CREATE OR REPLACE must be atomic.
+-- Drop `AND q.deleted_at IS NULL` from batch_submit_quiz bulk-fetch (regressed
+-- by 20260413000002). See docs/database.md §3 "Scoring Soft-Deleted Questions"
+-- for the rationale; body is identical to 047 apart from the bulk-fetch block.
 
 CREATE OR REPLACE FUNCTION batch_submit_quiz(
   p_session_id uuid,
@@ -79,7 +64,6 @@ BEGIN
   IF v_ended_at IS NOT NULL THEN
     SELECT count(*)::int INTO v_answered
     FROM quiz_session_answers WHERE session_id = p_session_id;
-
     SELECT jsonb_agg(jsonb_build_object(
       'question_id', qsa.question_id,
       'is_correct', qsa.is_correct,
@@ -105,17 +89,13 @@ BEGIN
     );
   END IF;
 
-  -- *** SERVER-SIDE TIME LIMIT ENFORCEMENT ***
-  -- Grace period of 30 seconds accounts for network latency.
-  -- Beyond grace period: reject submission entirely (session is too stale).
-  -- Within grace period or no time limit: allow submission to proceed.
+  -- Server-side time-limit enforcement; 30s grace covers network latency.
   IF v_time_limit IS NOT NULL AND v_started_at IS NOT NULL THEN
     IF now() > v_started_at + (v_time_limit + 30) * interval '1 second' THEN
       -- Session is far past deadline — end it with zero score
       UPDATE quiz_sessions
       SET ended_at = now(), correct_count = 0, score_percentage = 0, passed = false
       WHERE id = p_session_id;
-
       INSERT INTO audit_events
         (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
       VALUES (
@@ -124,7 +104,6 @@ BEGIN
         'exam.expired', 'quiz_session', p_session_id,
         jsonb_build_object('total_questions', v_total, 'reason', 'submission past grace period')
       );
-
       RETURN jsonb_build_object(
         'results', '[]'::jsonb,
         'total_questions', v_total,
@@ -137,12 +116,10 @@ BEGIN
     END IF;
   END IF;
 
-  -- Step 2: Guard against malformed config
+  -- Guard malformed config and extract question_ids
   IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
     RAISE EXCEPTION 'session config is malformed — question_ids not set';
   END IF;
-
-  -- Step 3: Extract question_ids
   v_session_question_ids := ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[];
 
   -- Validate p_answers is a non-null JSON array
@@ -160,20 +137,11 @@ BEGIN
     RAISE EXCEPTION 'duplicate question_id in answers payload';
   END IF;
 
-  -- *** EXAM MODE: ALLOW PARTIAL SUBMISSION ***
-  -- NOTE: correct_option_id is returned in v_results for all modes. This is
-  -- safe because batch_submit_quiz is called only at session end (submit/auto-
-  -- submit), never per-question during the exam. Exam answers are buffered
-  -- client-side and submitted in one batch at completion.
-  -- Timer expiry may cause auto-submit with fewer answers than total.
-  -- Incomplete exam auto-fails (v_passed = false set after scoring).
-  -- No RAISE — process whatever answers were provided.
-
-  -- Bulk-fetch all questions for this session into a temp table.
-  -- Intentionally no `AND q.deleted_at IS NULL` filter: session membership was
-  -- locked at session start (v_session_question_ids comes from
-  -- quiz_sessions.config), and historical scoring must access soft-deleted
-  -- questions to score in-flight sessions and surface explanations. See
+  -- Exam mode allows partial submission; incomplete exams auto-fail below.
+  -- correct_option_id in v_results is safe: RPC fires only at session end.
+  -- Bulk-fetch session questions. No `AND q.deleted_at IS NULL` filter:
+  -- membership was locked at session start (v_session_question_ids), and
+  -- soft-deleted questions must score in-flight sessions. See
   -- docs/database.md §3 "Scoring Soft-Deleted Questions".
   DROP TABLE IF EXISTS _batch_questions;
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
@@ -271,31 +239,29 @@ BEGIN
   FROM quiz_session_answers qsa
   WHERE qsa.session_id = p_session_id;
 
-  -- Score: correct / total (not correct / answered)
-  -- Unanswered questions count as wrong in exam mode
+  -- Score: correct/total in exam mode (unanswered count as wrong); correct/answered otherwise.
   IF v_mode = 'mock_exam' THEN
     v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
   ELSE
     v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
   END IF;
 
-  -- *** PASSED COMPUTATION (exam mode only) ***
-  -- pass_mark is NOT NULL in exam_configs (CHECK constraint), so the NULL
-  -- guard below is purely defensive — v_pass_mark should always have a value.
+  -- Passed computation (exam mode). pass_mark is NOT NULL by CHECK constraint;
+  -- the NULL branch is defensive only.
   IF v_mode = 'mock_exam' THEN
     v_pass_mark := (v_config->>'pass_mark')::int;
     IF v_pass_mark IS NOT NULL THEN
       v_passed := (v_score >= v_pass_mark);
     ELSE
-      v_passed := false;  -- defensive: should never happen (pass_mark NOT NULL)
+      v_passed := false;
     END IF;
-    -- Incomplete exam: if not all questions answered, auto-fail regardless of score
+    -- Incomplete exam auto-fails regardless of score
     IF v_answered < v_total THEN
       v_passed := false;
     END IF;
   END IF;
 
-  -- Complete session
+  -- Complete session and audit
   UPDATE quiz_sessions
   SET
     ended_at         = now(),
@@ -303,8 +269,6 @@ BEGIN
     score_percentage = v_score,
     passed           = v_passed
   WHERE id = p_session_id;
-
-  -- Audit log
   INSERT INTO audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
   VALUES (
