@@ -87,7 +87,6 @@ BEGIN
   END IF;
 
   -- Score from existing answers (mirrors batch_submit_quiz mock_exam branch).
-  -- Unanswered count as wrong; incomplete exam auto-fails.
   SELECT
     count(*)::int,
     count(*) FILTER (WHERE qsa.is_correct)::int
@@ -99,9 +98,11 @@ BEGIN
                   THEN round((v_correct_count::numeric / v_total) * 100, 2)
                   ELSE 0 END;
 
+  -- pass_mark NOT NULL by CHECK constraint; COALESCE guards the defensive NULL
+  -- branch (matches batch_submit_quiz semantics).
   v_pass_mark := (v_config->>'pass_mark')::int;
   v_passed := COALESCE(v_pass_mark IS NOT NULL AND v_score >= v_pass_mark, false);
-  IF v_answered < v_total THEN
+  IF v_answered < v_total THEN  -- incomplete exam auto-fails (batch_submit parity)
     v_passed := false;
   END IF;
 
@@ -294,3 +295,6 @@ BEGIN
   );
 END;
 $$;
+
+-- Pin the grant explicitly (the original 20260411000003 relied on Postgres defaults).
+GRANT EXECUTE ON FUNCTION start_exam_session(uuid) TO authenticated;
