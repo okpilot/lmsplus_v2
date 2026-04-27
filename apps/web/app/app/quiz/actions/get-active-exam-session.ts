@@ -12,7 +12,7 @@ export type ActiveExamSession = {
 }
 
 export type GetActiveExamSessionResult =
-  | { success: true; sessions: ActiveExamSession[] }
+  | { success: true; sessions: ActiveExamSession[]; orphanedSessionIds: string[] }
   | { success: false; error: string }
 
 function extractQuestionIds(config: unknown): string[] | null {
@@ -47,10 +47,12 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
     }
 
     const sessions: ActiveExamSession[] = []
+    const orphanedSessionIds: string[] = []
     for (const row of data ?? []) {
       const questionIds = extractQuestionIds(row.config)
       if (!questionIds) {
         console.error('[getActiveExamSession] Skipping row with malformed config:', row.id)
+        orphanedSessionIds.push(row.id)
         continue
       }
       const subjectName =
@@ -70,7 +72,7 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
       })
     }
 
-    return { success: true, sessions }
+    return { success: true, sessions, orphanedSessionIds }
   } catch (err) {
     console.error('[getActiveExamSession] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }

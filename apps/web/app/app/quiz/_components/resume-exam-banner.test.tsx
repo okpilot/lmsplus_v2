@@ -159,6 +159,34 @@ describe('ResumeExamBanner — Resume', () => {
   })
 })
 
+// ---- Discard-only (orphaned session) ---------------------------------------
+
+describe('ResumeExamBanner — discardOnly', () => {
+  it('hides the Resume button when discardOnly is true', () => {
+    render(<ResumeExamBanner userId={USER_ID} sessionId="sess-orphan" discardOnly />)
+    expect(screen.queryByRole('button', { name: /resume practice exam/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the orphan-specific title copy', () => {
+    render(<ResumeExamBanner userId={USER_ID} sessionId="sess-orphan" discardOnly />)
+    expect(screen.getByText(/practice exam stuck/i)).toBeInTheDocument()
+  })
+
+  it('shows only the Discard button', () => {
+    render(<ResumeExamBanner userId={USER_ID} sessionId="sess-orphan" discardOnly />)
+    expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
+  })
+
+  it('calls discardQuiz with the orphaned sessionId and hides the banner on success', async () => {
+    render(<ResumeExamBanner userId={USER_ID} sessionId="sess-orphan" discardOnly />)
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i, hidden: false }))
+
+    await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-orphan' }))
+    expect(screen.queryByText(/practice exam stuck/i)).not.toBeInTheDocument()
+  })
+})
+
 // ---- Discard --------------------------------------------------------------
 
 describe('ResumeExamBanner — Discard', () => {

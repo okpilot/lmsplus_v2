@@ -16,6 +16,7 @@ export default async function QuizPage() {
   const [{ drafts }, examResult] = await Promise.all([loadDrafts(), getActiveExamSession()])
 
   const activeExams = examResult.success ? examResult.sessions : []
+  const orphanedIds = examResult.success ? examResult.orphanedSessionIds : []
 
   return (
     <main className="space-y-6">
@@ -28,6 +29,10 @@ export default async function QuizPage() {
 
       {activeExams.map((exam) => (
         <ResumeExamBanner key={exam.sessionId} userId={user.id} exam={exam} />
+      ))}
+
+      {orphanedIds.map((sessionId) => (
+        <ResumeExamBanner key={sessionId} userId={user.id} sessionId={sessionId} discardOnly />
       ))}
 
       <QuizRecoveryBanner userId={user.id} />

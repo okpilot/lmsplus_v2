@@ -91,6 +91,7 @@ describe('getActiveExamSession — happy path', () => {
           questionIds: ['q-1', 'q-2', 'q-3'],
         },
       ],
+      orphanedSessionIds: [],
     })
   })
 
@@ -99,7 +100,7 @@ describe('getActiveExamSession — happy path', () => {
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [] })
+    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: [] })
   })
 
   it('returns an empty array when data is null', async () => {
@@ -107,7 +108,7 @@ describe('getActiveExamSession — happy path', () => {
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [] })
+    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: [] })
   })
 
   it('falls back to Unknown subject when easa_subjects is null', async () => {
@@ -133,48 +134,56 @@ describe('getActiveExamSession — happy path', () => {
 })
 
 describe('getActiveExamSession — malformed config (row skipped)', () => {
-  it('skips a row with empty question_ids array', async () => {
-    mockFrom.mockReturnValue(
-      buildChain({ data: [{ ...SESSION_ROW, config: { question_ids: [] } }], error: null }),
-    )
-
-    const result = await getActiveExamSession()
-
-    expect(result).toEqual({ success: true, sessions: [] })
-  })
-
-  it('skips a row with non-array question_ids', async () => {
+  it('skips a row with empty question_ids array and returns its id in orphanedSessionIds', async () => {
     mockFrom.mockReturnValue(
       buildChain({
-        data: [{ ...SESSION_ROW, config: { question_ids: 'not-an-array' } }],
+        data: [{ ...SESSION_ROW, id: 'session-empty', config: { question_ids: [] } }],
         error: null,
       }),
     )
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [] })
+    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: ['session-empty'] })
   })
 
-  it('skips a row with non-string elements in question_ids', async () => {
+  it('skips a row with non-array question_ids and adds to orphanedSessionIds', async () => {
     mockFrom.mockReturnValue(
-      buildChain({ data: [{ ...SESSION_ROW, config: { question_ids: [1, 2, 3] } }], error: null }),
+      buildChain({
+        data: [{ ...SESSION_ROW, id: 'session-bad', config: { question_ids: 'not-an-array' } }],
+        error: null,
+      }),
     )
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [] })
+    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: ['session-bad'] })
   })
 
-  it('skips a row with null config', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [{ ...SESSION_ROW, config: null }], error: null }))
+  it('skips a row with non-string elements in question_ids and adds to orphanedSessionIds', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [{ ...SESSION_ROW, id: 'session-nums', config: { question_ids: [1, 2, 3] } }],
+        error: null,
+      }),
+    )
 
     const result = await getActiveExamSession()
 
-    expect(result).toEqual({ success: true, sessions: [] })
+    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: ['session-nums'] })
   })
 
-  it('returns valid rows alongside skipped ones', async () => {
+  it('skips a row with null config and adds to orphanedSessionIds', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({ data: [{ ...SESSION_ROW, id: 'session-null', config: null }], error: null }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: ['session-null'] })
+  })
+
+  it('returns valid rows alongside skipped ones; skipped row id in orphanedSessionIds', async () => {
     const badRow = { ...SESSION_ROW, id: 'sess-bad', config: { question_ids: [] } }
     mockFrom.mockReturnValue(buildChain({ data: [SESSION_ROW, badRow], error: null }))
 
@@ -184,6 +193,7 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
     if (result.success) {
       expect(result.sessions).toHaveLength(1)
       expect(result.sessions[0]?.sessionId).toBe('sess-001')
+      expect(result.orphanedSessionIds).toEqual(['sess-bad'])
     }
   })
 })
