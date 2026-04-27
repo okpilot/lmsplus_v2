@@ -15,6 +15,12 @@ import { QuizMainPanel } from './quiz-main-panel'
 import { QuizSessionHeader } from './quiz-session-header'
 import { QuizSessionMetaRow } from './quiz-session-meta-row'
 
+function parseStartedAt(startedAt: string | undefined): number {
+  if (!startedAt) return Date.now()
+  const parsed = new Date(startedAt).getTime()
+  return Number.isFinite(parsed) ? parsed : Date.now()
+}
+
 type QuizSessionProps = {
   userId: string
   sessionId: string
@@ -28,6 +34,7 @@ type QuizSessionProps = {
   mode?: 'study' | 'exam'
   timeLimitSeconds?: number
   passMark?: number
+  startedAt?: string
 }
 
 export function QuizSession(props: QuizSessionProps) {
@@ -42,7 +49,7 @@ export function QuizSession(props: QuizSessionProps) {
     existingAnswer: s.existingAnswer,
   })
 
-  const timerStartRef = useRef(Date.now())
+  const timerStartRef = useRef(parseStartedAt(props.startedAt))
   const autoSubmitFiredRef = useRef(false)
   const [timeExpired, setTimeExpired] = useState(false)
   const handleTimeExpired = useCallback(() => {

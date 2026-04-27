@@ -156,6 +156,28 @@ describe('useSessionBootstrap — active session triggers recovery', () => {
     // Recovery was NOT set — handoff wins
     expect(result.current.recovery).toBeNull()
   })
+
+  it('shows recovery for an exam-mode active session (no toast, no redirect)', () => {
+    // Bug 3a: an in-tab refresh during a Practice Exam must rehydrate from
+    // localStorage instead of being bumped to /app/quiz. The categorical
+    // exam-reject was removed; pre-ship entries (without startedAt) are now
+    // rejected at storage.ts:readActiveSession time, so anything that reaches
+    // here is a valid resumable exam.
+    const examActive = {
+      ...ACTIVE_SESSION,
+      mode: 'exam' as const,
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    }
+    mockReadActiveSession.mockReturnValue(examActive)
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    expect(result.current.recovery).toEqual(examActive)
+    expect(mockRouter.replace).not.toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
 })
 
 // ---- Handoff path -------------------------------------------------------

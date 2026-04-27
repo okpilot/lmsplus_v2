@@ -91,6 +91,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
       mode={bs.session.mode}
       timeLimitSeconds={bs.session.timeLimitSeconds}
       passMark={bs.session.passMark}
+      startedAt={bs.session.startedAt}
     />
   )
 }

@@ -85,13 +85,18 @@ vi.mock('../../_components/exam-countdown-timer', () => ({
   ExamCountdownTimer: ({
     onExpired,
     className,
+    startedAt,
   }: {
     timeLimitSeconds: number
     startedAt: number
     onExpired: () => void
     className?: string
   }) => (
-    <span data-testid="exam-countdown-timer" data-classname={className ?? ''}>
+    <span
+      data-testid="exam-countdown-timer"
+      data-classname={className ?? ''}
+      data-started-at={startedAt}
+    >
       <button type="button" data-testid="trigger-expired" onClick={onExpired}>
         Expire
       </button>
@@ -638,6 +643,68 @@ describe('QuizSession', () => {
       expect(dialogAfter).toHaveAttribute('data-time-expired', 'true')
       expect(dialogAfter).toHaveAttribute('data-can-dismiss', 'false')
     })
+  })
+
+  it('passes parsed startedAt timestamp to the exam countdown timer when prop is set', () => {
+    const startedAt = '2026-04-27T12:00:00.000Z'
+    const expectedMs = new Date(startedAt).getTime()
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+        startedAt={startedAt}
+      />,
+    )
+
+    const timers = screen.getAllByTestId('exam-countdown-timer')
+    for (const t of timers) {
+      expect(t.getAttribute('data-started-at')).toBe(String(expectedMs))
+    }
+  })
+
+  it('falls back to Date.now() for the timer start when startedAt prop is absent', () => {
+    const before = Date.now()
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+      />,
+    )
+    const after = Date.now()
+
+    const timer = screen.getAllByTestId('exam-countdown-timer')[0]!
+    const startedAtAttr = Number(timer.getAttribute('data-started-at'))
+    expect(startedAtAttr).toBeGreaterThanOrEqual(before)
+    expect(startedAtAttr).toBeLessThanOrEqual(after)
+  })
+
+  it('falls back to Date.now() when startedAt is a malformed ISO string', () => {
+    const before = Date.now()
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+        startedAt="not-a-real-date"
+      />,
+    )
+    const after = Date.now()
+
+    const timer = screen.getAllByTestId('exam-countdown-timer')[0]!
+    const startedAtAttr = Number(timer.getAttribute('data-started-at'))
+    expect(startedAtAttr).toBeGreaterThanOrEqual(before)
+    expect(startedAtAttr).toBeLessThanOrEqual(after)
   })
 
   it('hides the header countdown timer on desktop breakpoint', () => {

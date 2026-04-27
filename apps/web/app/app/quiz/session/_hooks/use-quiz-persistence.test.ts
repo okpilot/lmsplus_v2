@@ -110,4 +110,27 @@ describe('useQuizPersistence', () => {
       undefined,
     )
   })
+
+  it('forwards startedAt, timeLimitSeconds, passMark to buildActiveSession when present in opts', () => {
+    const opts: QuizStateOpts = {
+      ...makeOpts('user-1', 'exam'),
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    }
+    const { result } = renderHook(() => useQuizPersistence(opts))
+
+    result.current.checkpoint(makeAnswers(), 0)
+
+    expect(mockBuildActiveSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startedAt: '2026-04-27T12:00:00.000Z',
+        timeLimitSeconds: 1800,
+        passMark: 75,
+      }),
+      expect.anything(),
+      0,
+      undefined,
+    )
+  })
 })

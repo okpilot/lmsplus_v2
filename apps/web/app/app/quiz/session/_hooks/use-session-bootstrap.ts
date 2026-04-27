@@ -1,11 +1,9 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import { loadSessionQuestions } from '@/lib/queries/load-session-questions'
 import {
   type ActiveSession,
-  clearActiveSession,
   clearSessionHandoff,
   readActiveSession,
   readSessionHandoff,
@@ -43,12 +41,6 @@ export function useSessionBootstrap(userId: string) {
     if (!data) {
       const stored = readActiveSession(userId)
       if (stored) {
-        if (stored.mode === 'exam') {
-          clearActiveSession(userId)
-          toast.info('Your Practice Exam has expired.')
-          router.replace('/app/quiz')
-          return
-        }
         setRecovery(stored)
         return
       }

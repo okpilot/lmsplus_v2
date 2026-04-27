@@ -116,6 +116,7 @@ export type QuizStateOpts = {
   mode?: QuizMode
   timeLimitSeconds?: number
   passMark?: number
+  startedAt?: string
 }
 
 export type AnswerPipelineOpts = QuizStateOpts & {

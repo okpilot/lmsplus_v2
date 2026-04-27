@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActiveSession } from './quiz-session-storage'
 import {
   buildActiveSession,
+  buildHandoffPayload,
   clearActiveSession,
   clearSessionHandoff,
   readActiveSession,
   readSessionHandoff,
   sessionHandoffKey,
+  toSessionData,
   writeActiveSession,
 } from './quiz-session-storage'
 
@@ -392,8 +394,50 @@ describe('writeActiveSession + readActiveSession', () => {
   })
 
   it('round-trips a session with mode: exam', () => {
-    const session = makeSession({ mode: 'exam' })
+    const session = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    })
     writeActiveSession(session)
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBe('exam')
+    expect(result?.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(result?.timeLimitSeconds).toBe(1800)
+    expect(result?.passMark).toBe(75)
+  })
+
+  it('rejects mode: exam entries that lack startedAt', () => {
+    const broken = makeSession({ mode: 'exam', timeLimitSeconds: 1800 })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects mode: exam entries that lack timeLimitSeconds', () => {
+    const broken = makeSession({ mode: 'exam', startedAt: '2026-04-27T12:00:00.000Z' })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('accepts mode: exam entries with both startedAt and timeLimitSeconds present', () => {
+    const valid = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(valid))
 
     const result = readActiveSession(USER_ID)
 
@@ -603,6 +647,26 @@ describe('buildActiveSession', () => {
     const result = buildActiveSession(opts, new Map(), 0)
 
     expect(result.mode).toBe('exam')
+  })
+
+  it('populates startedAt, timeLimitSeconds, passMark from BuildOpts', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(0)
+
+    const opts = {
+      userId: USER_ID,
+      sessionId: 'sess-exam',
+      questions: [{ id: 'q1' }],
+      mode: 'exam' as const,
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    }
+
+    const result = buildActiveSession(opts, new Map(), 0)
+
+    expect(result.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(result.timeLimitSeconds).toBe(1800)
+    expect(result.passMark).toBe(75)
   })
 })
 
@@ -936,5 +1000,64 @@ describe('clearSessionHandoff', () => {
     })
 
     expect(() => clearSessionHandoff(USER_ID)).not.toThrow()
+  })
+})
+
+// ---- toSessionData -----------------------------------------------------------
+
+describe('toSessionData', () => {
+  it('includes startedAt, timeLimitSeconds, passMark when present on the ActiveSession', () => {
+    const active = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    })
+
+    const result = toSessionData(active)
+
+    expect(result.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(result.timeLimitSeconds).toBe(1800)
+    expect(result.passMark).toBe(75)
+    expect(result.mode).toBe('exam')
+  })
+
+  it('leaves new fields undefined when ActiveSession does not carry them', () => {
+    const active = makeSession()
+
+    const result = toSessionData(active)
+
+    expect(result.startedAt).toBeUndefined()
+    expect(result.timeLimitSeconds).toBeUndefined()
+    expect(result.passMark).toBeUndefined()
+  })
+})
+
+// ---- buildHandoffPayload -----------------------------------------------------
+
+describe('buildHandoffPayload', () => {
+  it('includes startedAt, timeLimitSeconds, passMark in the payload when present', () => {
+    const active = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    })
+
+    const payload = buildHandoffPayload(USER_ID, active)
+
+    expect(payload.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(payload.timeLimitSeconds).toBe(1800)
+    expect(payload.passMark).toBe(75)
+  })
+
+  it('omits the new fields when not on the source ActiveSession', () => {
+    const active = makeSession()
+
+    const payload = buildHandoffPayload(USER_ID, active)
+
+    expect(payload.startedAt).toBeUndefined()
+    expect(payload.timeLimitSeconds).toBeUndefined()
+    expect(payload.passMark).toBeUndefined()
   })
 })
