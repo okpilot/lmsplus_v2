@@ -10,16 +10,11 @@ import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizUI } from '../_hooks/use-quiz-ui'
+import { parseStartedAt } from '../_utils/parse-started-at'
 import { QuizControls } from './quiz-controls'
 import { QuizMainPanel } from './quiz-main-panel'
 import { QuizSessionHeader } from './quiz-session-header'
 import { QuizSessionMetaRow } from './quiz-session-meta-row'
-
-function parseStartedAt(startedAt: string | undefined): number {
-  if (!startedAt) return Date.now()
-  const parsed = new Date(startedAt).getTime()
-  return Number.isFinite(parsed) ? parsed : Date.now()
-}
 
 type QuizSessionProps = {
   userId: string

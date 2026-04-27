@@ -21,6 +21,7 @@ type SessionRecoveryPromptProps = Readonly<{
   onDiscard: () => void
   loading: boolean
   error: string | null
+  mode?: 'study' | 'exam'
 }>
 
 export function SessionRecoveryPrompt({
@@ -32,10 +33,14 @@ export function SessionRecoveryPrompt({
   onDiscard,
   loading,
   error,
+  mode,
 }: SessionRecoveryPromptProps) {
+  const isExam = mode === 'exam'
   return (
     <div className="mx-auto mt-16 max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
-      <h2 className="text-base font-semibold text-foreground">Resume your quiz?</h2>
+      <h2 className="text-base font-semibold text-foreground">
+        {isExam ? 'Resume your Practice Exam?' : 'Resume your quiz?'}
+      </h2>
       {subjectName && (
         <p className="mt-1 text-sm text-muted-foreground">You were answering {subjectName}.</p>
       )}
@@ -56,14 +61,18 @@ export function SessionRecoveryPrompt({
         >
           Resume
         </button>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={loading}
-          className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-        >
-          Save for Later
-        </button>
+        {!isExam && (
+          // Practice Exam answers are buffered into a server session that auto-submits
+          // at deadline — saving a draft would desync from the server clock.
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={loading}
+            className="rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            Save for Later
+          </button>
+        )}
         <AlertDialog>
           <AlertDialogTrigger
             render={
@@ -78,9 +87,13 @@ export function SessionRecoveryPrompt({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Discard quiz session?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {isExam ? 'Discard Practice Exam?' : 'Discard quiz session?'}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently discard your progress. You cannot undo this action.
+                {isExam
+                  ? 'This will permanently discard your Practice Exam session. You cannot undo this action.'
+                  : 'This will permanently discard your progress. You cannot undo this action.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
