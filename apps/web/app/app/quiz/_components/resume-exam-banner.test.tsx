@@ -43,8 +43,10 @@ const EXAM: ActiveExamSession = {
   sessionId: 'sess-exam-001',
   subjectId: 'subj-aaa',
   subjectName: 'Air Law',
+  subjectCode: 'ALW',
   startedAt: '2026-04-27T10:00:00.000Z',
   timeLimitSeconds: 3600,
+  passMark: 75,
   questionIds: ['q-1', 'q-2'],
 }
 
@@ -92,7 +94,7 @@ describe('ResumeExamBanner — rendering', () => {
 // ---- Resume ---------------------------------------------------------------
 
 describe('ResumeExamBanner — Resume', () => {
-  it('writes sessionId, mode=exam, and real questionIds to sessionStorage then navigates', async () => {
+  it('writes a complete handoff payload (all 9 fields) to sessionStorage then navigates', async () => {
     const mockSetItem = vi.fn()
     Object.defineProperty(globalThis, 'sessionStorage', {
       value: { setItem: mockSetItem, getItem: vi.fn(), removeItem: vi.fn() },
@@ -108,9 +110,17 @@ describe('ResumeExamBanner — Resume', () => {
       expect.stringContaining('sess-exam-001'),
     )
     const stored = JSON.parse(mockSetItem.mock.calls[0]?.[1] as string)
-    expect(stored.mode).toBe('exam')
-    expect(stored.questionIds).toEqual(['q-1', 'q-2'])
-    expect(stored.questionIds.length).toBeGreaterThan(0)
+    expect(stored).toEqual({
+      userId: USER_ID,
+      sessionId: 'sess-exam-001',
+      mode: 'exam',
+      questionIds: ['q-1', 'q-2'],
+      timeLimitSeconds: 3600,
+      passMark: 75,
+      subjectName: 'Air Law',
+      subjectCode: 'ALW',
+      startedAt: '2026-04-27T10:00:00.000Z',
+    })
     expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz/session')
   })
 
@@ -136,6 +146,11 @@ describe('ResumeExamBanner — Resume', () => {
     expect(result?.sessionId).toBe('sess-exam-001')
     expect(result?.questionIds).toEqual(['q-1', 'q-2'])
     expect(result?.mode).toBe('exam')
+    expect(result?.timeLimitSeconds).toBe(3600)
+    expect(result?.passMark).toBe(75)
+    expect(result?.subjectName).toBe('Air Law')
+    expect(result?.subjectCode).toBe('ALW')
+    expect(result?.startedAt).toBe('2026-04-27T10:00:00.000Z')
   })
 
   it('shows an error and does not navigate when sessionStorage.setItem throws', async () => {

@@ -40,8 +40,8 @@ const SESSION_ROW = {
   subject_id: 'subj-aaa',
   started_at: '2026-04-27T10:00:00.000Z',
   time_limit_seconds: 3600,
-  config: { question_ids: ['q-1', 'q-2', 'q-3'] },
-  easa_subjects: { name: 'Air Law' },
+  config: { question_ids: ['q-1', 'q-2', 'q-3'], pass_mark: 75 },
+  easa_subjects: { name: 'Air Law', short: 'ALW' },
 }
 
 // ---- Lifecycle ------------------------------------------------------------
@@ -86,13 +86,32 @@ describe('getActiveExamSession — happy path', () => {
           sessionId: 'sess-001',
           subjectId: 'subj-aaa',
           subjectName: 'Air Law',
+          subjectCode: 'ALW',
           startedAt: '2026-04-27T10:00:00.000Z',
           timeLimitSeconds: 3600,
+          passMark: 75,
           questionIds: ['q-1', 'q-2', 'q-3'],
         },
       ],
       orphanedSessionIds: [],
     })
+  })
+
+  it('defaults subjectCode to empty string when easa_subjects.short is missing', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [{ ...SESSION_ROW, easa_subjects: { name: 'Air Law' } }],
+        error: null,
+      }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.sessions[0]?.subjectCode).toBe('')
+      expect(result.sessions[0]?.subjectName).toBe('Air Law')
+    }
   })
 
   it('returns an empty array when no active exam sessions exist', async () => {
@@ -111,7 +130,7 @@ describe('getActiveExamSession — happy path', () => {
     expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: [] })
   })
 
-  it('falls back to Unknown subject when easa_subjects is null', async () => {
+  it('falls back to Unknown subject and empty subjectCode when easa_subjects is null', async () => {
     mockFrom.mockReturnValue(
       buildChain({ data: [{ ...SESSION_ROW, easa_subjects: null }], error: null }),
     )
@@ -121,6 +140,7 @@ describe('getActiveExamSession — happy path', () => {
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.sessions[0]?.subjectName).toBe('Unknown subject')
+      expect(result.sessions[0]?.subjectCode).toBe('')
     }
   })
 
@@ -181,6 +201,75 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
     const result = await getActiveExamSession()
 
     expect(result).toEqual({ success: true, sessions: [], orphanedSessionIds: ['session-null'] })
+  })
+
+  it('skips a row with missing pass_mark and adds to orphanedSessionIds', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [
+          {
+            ...SESSION_ROW,
+            id: 'session-no-pm',
+            config: { question_ids: ['q-1', 'q-2'] },
+          },
+        ],
+        error: null,
+      }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['session-no-pm'],
+    })
+  })
+
+  it('skips a row with non-numeric pass_mark and adds to orphanedSessionIds', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [
+          {
+            ...SESSION_ROW,
+            id: 'session-bad-pm',
+            config: { question_ids: ['q-1'], pass_mark: '75' },
+          },
+        ],
+        error: null,
+      }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['session-bad-pm'],
+    })
+  })
+
+  it('skips a row with out-of-range pass_mark and adds to orphanedSessionIds', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [
+          {
+            ...SESSION_ROW,
+            id: 'session-pm-150',
+            config: { question_ids: ['q-1'], pass_mark: 150 },
+          },
+        ],
+        error: null,
+      }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['session-pm-150'],
+    })
   })
 
   it('returns valid rows alongside skipped ones; skipped row id in orphanedSessionIds', async () => {

@@ -53,6 +53,11 @@ export function ResumeExamBanner({ userId, exam, discardOnly, sessionId }: Props
           sessionId: exam.sessionId,
           mode: 'exam',
           questionIds: exam.questionIds,
+          timeLimitSeconds: exam.timeLimitSeconds,
+          passMark: exam.passMark,
+          subjectName: exam.subjectName,
+          subjectCode: exam.subjectCode,
+          startedAt: exam.startedAt,
         }),
       )
     } catch (err) {
