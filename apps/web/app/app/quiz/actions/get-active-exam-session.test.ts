@@ -272,6 +272,29 @@ describe('getActiveExamSession — malformed config (row skipped)', () => {
     })
   })
 
+  it('skips a row with pass_mark = 0 (DB constraint requires > 0)', async () => {
+    mockFrom.mockReturnValue(
+      buildChain({
+        data: [
+          {
+            ...SESSION_ROW,
+            id: 'session-pm-zero',
+            config: { question_ids: ['q-1'], pass_mark: 0 },
+          },
+        ],
+        error: null,
+      }),
+    )
+
+    const result = await getActiveExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['session-pm-zero'],
+    })
+  })
+
   it('returns valid rows alongside skipped ones; skipped row id in orphanedSessionIds', async () => {
     const badRow = { ...SESSION_ROW, id: 'sess-bad', config: { question_ids: [] } }
     mockFrom.mockReturnValue(buildChain({ data: [SESSION_ROW, badRow], error: null }))

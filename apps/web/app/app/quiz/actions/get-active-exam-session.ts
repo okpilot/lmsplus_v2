@@ -26,9 +26,12 @@ function extractQuestionIds(config: unknown): string[] | null {
 }
 
 function extractPassMark(config: unknown): number | null {
+  // DB CHECK constraint: pass_mark > 0 AND pass_mark <= 100. The session-storage
+  // validator enforces the same range; both must agree to avoid a server-accepts /
+  // client-rejects split-brain.
   if (typeof config !== 'object' || config === null) return null
   const pm = (config as Record<string, unknown>).pass_mark
-  if (typeof pm !== 'number' || !Number.isFinite(pm) || pm < 0 || pm > 100) return null
+  if (typeof pm !== 'number' || !Number.isFinite(pm) || pm <= 0 || pm > 100) return null
   return pm
 }
 
@@ -61,7 +64,8 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
       const questionIds = extractQuestionIds(row.config)
       const passMark = extractPassMark(row.config)
       if (!questionIds || passMark === null) {
-        console.error('[getActiveExamSession] Skipping row with malformed config:', row.id)
+        const reason = !questionIds ? 'malformed questionIds' : 'malformed pass_mark'
+        console.error(`[getActiveExamSession] Skipping row (${reason}):`, row.id)
         orphanedSessionIds.push(row.id)
         continue
       }
