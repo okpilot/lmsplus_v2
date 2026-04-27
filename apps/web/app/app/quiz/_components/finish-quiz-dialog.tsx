@@ -151,7 +151,12 @@ export function FinishQuizDialog({
 
 function ExpiredNotice({ submitting, countdown }: { submitting: boolean; countdown: number }) {
   return (
-    <div className="mt-3 rounded-lg border border-red-400/40 bg-red-500/10 p-4">
+    <div
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+      className="mt-3 rounded-lg border border-red-400/40 bg-red-500/10 p-4"
+    >
       <p className="text-sm font-medium text-red-600 dark:text-red-400">
         Time expired! Your answers will be submitted automatically.
       </p>

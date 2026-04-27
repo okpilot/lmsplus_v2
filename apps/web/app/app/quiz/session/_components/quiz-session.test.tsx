@@ -614,6 +614,32 @@ describe('QuizSession', () => {
     expect(screen.queryByRole('button', { name: 'Discard Session' })).not.toBeInTheDocument()
   })
 
+  it('flips timeExpired on the open dialog when the timer fires (no submit in flight)', async () => {
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
+    const dialogBefore = screen.getByTestId('finish-dialog')
+    expect(dialogBefore).toHaveAttribute('data-time-expired', 'false')
+    expect(dialogBefore).toHaveAttribute('data-can-dismiss', 'true')
+
+    fireEvent.click(screen.getAllByTestId('trigger-expired')[0]!)
+
+    await waitFor(() => {
+      const dialogAfter = screen.getByTestId('finish-dialog')
+      expect(dialogAfter).toHaveAttribute('data-time-expired', 'true')
+      expect(dialogAfter).toHaveAttribute('data-can-dismiss', 'false')
+    })
+  })
+
   it('hides the header countdown timer on desktop breakpoint', () => {
     render(
       <QuizSession

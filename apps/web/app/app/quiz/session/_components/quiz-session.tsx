@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { SessionTimer } from '@/app/app/_components/session-timer'
 import { ThemeToggle } from '@/app/app/_components/theme-toggle'
 import type { SessionQuestion } from '@/app/app/_types/session'
@@ -46,9 +46,11 @@ export function QuizSession(props: QuizSessionProps) {
 
   const timerStartRef = useRef(Date.now())
   const autoSubmitFiredRef = useRef(false)
+  const [timeExpired, setTimeExpired] = useState(false)
   const handleTimeExpired = useCallback(() => {
     if (autoSubmitFiredRef.current) return
     autoSubmitFiredRef.current = true
+    setTimeExpired(true)
     s.setShowFinishDialog(true)
   }, [s.setShowFinishDialog])
 
@@ -180,7 +182,7 @@ export function QuizSession(props: QuizSessionProps) {
         onSave={s.handleSave}
         onDiscard={s.handleDiscard}
         isExam={s.isExam}
-        timeExpired={autoSubmitFiredRef.current}
+        timeExpired={timeExpired}
       />
     </div>
   )

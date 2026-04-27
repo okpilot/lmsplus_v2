@@ -198,7 +198,6 @@ describe('getExamEnabledSubjects', () => {
 
     await getExamEnabledSubjects()
 
-    // The chain proxy captures all calls — verify from() was called with 'exam_configs'
     expect(mockFrom).toHaveBeenCalledWith('exam_configs')
   })
 

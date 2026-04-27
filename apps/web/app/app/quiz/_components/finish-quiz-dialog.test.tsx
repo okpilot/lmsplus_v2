@@ -264,6 +264,14 @@ describe('FinishQuizDialog', () => {
     expect(screen.queryByRole('button', { name: /^discard quiz$/i })).not.toBeInTheDocument()
   })
 
+  it('announces the expiry notice as an assertive live region for screen readers', () => {
+    renderDialog({ isExam: true, timeExpired: true })
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveAttribute('aria-live', 'assertive')
+    expect(alert).toHaveAttribute('aria-atomic', 'true')
+    expect(alert).toHaveTextContent(/time expired/i)
+  })
+
   it('appends the "won\'t count" reassurance to the discard confirmation in exam mode', () => {
     renderDialog({ isExam: true })
     fireEvent.click(screen.getByRole('button', { name: /discard practice exam/i }))
