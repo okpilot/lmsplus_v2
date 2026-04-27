@@ -56,7 +56,22 @@ vi.mock('./topic-tree', () => ({
 }))
 
 vi.mock('./exam-config-form', () => ({
-  ExamConfigForm: () => <div data-testid="exam-config-form">ExamConfigForm</div>,
+  ExamConfigForm: ({
+    subjectId,
+    onSubjectChange,
+  }: {
+    subjectId: string
+    onSubjectChange: (v: string) => void
+  }) => (
+    <button
+      type="button"
+      data-testid="exam-config-form"
+      data-value={subjectId}
+      onClick={() => onSubjectChange('sub-1')}
+    >
+      ExamConfigForm
+    </button>
+  ),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -315,5 +330,22 @@ describe('QuizConfigForm', () => {
     )
     // examSubjectId starts as '' (empty state) so button is disabled
     expect(screen.getByRole('button', { name: 'Start Practice Exam' })).toBeDisabled()
+  })
+
+  it('enables Start Practice Exam after the exam form selects a subject and runs handleStart on click', async () => {
+    const handleStart = vi.fn()
+    mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ mode: 'exam' }))
+    mockUseExamStart.mockReturnValue({ loading: false, error: null, handleStart })
+    const user = userEvent.setup()
+    render(
+      <QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={EXAM_SUBJECTS} />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Start Practice Exam' })).toBeDisabled()
+    await user.click(screen.getByTestId('exam-config-form'))
+    expect(screen.getByRole('button', { name: 'Start Practice Exam' })).not.toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Start Practice Exam' }))
+    expect(handleStart).toHaveBeenCalledOnce()
   })
 })
