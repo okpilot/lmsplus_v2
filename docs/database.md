@@ -989,7 +989,12 @@ BEGIN
   -- Incomplete exam auto-fails (v_passed = false set after scoring).
   -- No RAISE — process whatever answers were provided.
 
-  -- Bulk-fetch all questions for this session into a temp table
+  -- Bulk-fetch all questions for this session into a temp table.
+  -- Intentionally no `AND q.deleted_at IS NULL` filter: session membership was
+  -- locked at session start (v_session_question_ids comes from
+  -- quiz_sessions.config), and historical scoring must access soft-deleted
+  -- questions to score in-flight sessions and surface explanations. See §3
+  -- "Scoring Soft-Deleted Questions".
   DROP TABLE IF EXISTS _batch_questions;
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT
@@ -1000,8 +1005,7 @@ BEGIN
     q.explanation_image_url,
     q.options
   FROM questions q
-  WHERE q.id = ANY(v_session_question_ids)
-    AND q.deleted_at IS NULL;
+  WHERE q.id = ANY(v_session_question_ids);
 
   -- Process each provided answer
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
