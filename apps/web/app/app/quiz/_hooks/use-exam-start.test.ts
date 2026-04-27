@@ -62,6 +62,7 @@ const SUCCESS_RESULT = {
   success: true as const,
   sessionId: SESSION_ID,
   questionIds: [Q1_ID, Q2_ID],
+  totalQuestions: 2,
   timeLimitSeconds: 3600,
   passMark: 75,
 }

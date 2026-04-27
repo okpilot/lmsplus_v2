@@ -137,6 +137,7 @@ export type StartExamResult =
       success: true
       sessionId: string
       questionIds: string[]
+      totalQuestions: number
       timeLimitSeconds: number
       passMark: number
     }

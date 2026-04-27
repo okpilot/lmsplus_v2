@@ -207,6 +207,7 @@ describe('startExamSession — happy path', () => {
     if (!result.success) return
     expect(result.sessionId).toBe(VALID_SESSION_ID)
     expect(result.questionIds).toEqual(VALID_QUESTION_IDS)
+    expect(result.totalQuestions).toBe(3)
     expect(result.timeLimitSeconds).toBe(3600)
     expect(result.passMark).toBe(75)
   })

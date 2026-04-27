@@ -850,6 +850,7 @@ DECLARE
   v_student_id      uuid := auth.uid();
   v_org_id          uuid;
   v_config          jsonb;
+  v_mode            text;
   v_answer          jsonb;
   v_correct_option  text;
   v_is_correct      boolean;
@@ -868,6 +869,10 @@ DECLARE
   v_rt_text         text;
   v_ended_at        timestamptz;
   v_options         jsonb;
+  v_passed          boolean;
+  v_pass_mark       int;
+  v_time_limit      int;
+  v_started_at      timestamptz;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
@@ -876,17 +881,15 @@ BEGIN
 
   -- Step 1: Fetch session row (allow already-completed sessions for idempotent replay)
   SELECT qs.organization_id, qs.total_questions, qs.config, qs.ended_at,
-         qs.correct_count, qs.score_percentage
-  INTO v_org_id, v_total, v_config, v_ended_at, v_correct_count, v_score
+         qs.correct_count, qs.score_percentage, qs.mode,
+         qs.time_limit_seconds, qs.started_at, qs.passed
+  INTO v_org_id, v_total, v_config, v_ended_at, v_correct_count, v_score, v_mode,
+       v_time_limit, v_started_at, v_passed
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
     AND qs.deleted_at IS NULL
   FOR UPDATE;
-  -- FOR UPDATE is acquired before the completed-session check intentionally:
-  -- it serializes concurrent retries so the second caller sees v_ended_at IS NOT NULL
-  -- and takes the replay path instead of double-writing. The read-only replay holds
-  -- the lock briefly (two SELECTs) — acceptable trade-off vs. a TOCTOU two-phase check.
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found or not accessible';
@@ -917,16 +920,49 @@ BEGIN
       'total_questions', v_total,
       'answered_count', v_answered,
       'correct_count', v_correct_count,
-      'score_percentage', v_score
+      'score_percentage', v_score,
+      'passed', v_passed
     );
   END IF;
 
-  -- Step 2: Guard against malformed config BEFORE extracting question_ids
+  -- *** SERVER-SIDE TIME LIMIT ENFORCEMENT ***
+  -- Grace period of 30 seconds accounts for network latency.
+  -- Beyond grace period: reject submission entirely (session is too stale).
+  -- Within grace period or no time limit: allow submission to proceed.
+  IF v_time_limit IS NOT NULL AND v_started_at IS NOT NULL THEN
+    IF now() > v_started_at + (v_time_limit + 30) * interval '1 second' THEN
+      -- Session is far past deadline — end it with zero score
+      UPDATE quiz_sessions
+      SET ended_at = now(), correct_count = 0, score_percentage = 0, passed = false
+      WHERE id = p_session_id;
+
+      INSERT INTO audit_events
+        (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
+      VALUES (
+        v_org_id, v_student_id,
+        (SELECT role FROM users WHERE id = v_student_id),
+        'exam.expired', 'quiz_session', p_session_id,
+        jsonb_build_object('total_questions', v_total, 'reason', 'submission past grace period')
+      );
+
+      RETURN jsonb_build_object(
+        'results', '[]'::jsonb,
+        'total_questions', v_total,
+        'answered_count', 0,
+        'correct_count', 0,
+        'score_percentage', 0,
+        'passed', false,
+        'expired', true
+      );
+    END IF;
+  END IF;
+
+  -- Step 2: Guard against malformed config
   IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
     RAISE EXCEPTION 'session config is malformed — question_ids not set';
   END IF;
 
-  -- Step 3: Now safe to extract question_ids
+  -- Step 3: Extract question_ids
   v_session_question_ids := ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[];
 
   -- Validate p_answers is a non-null JSON array
@@ -936,7 +972,7 @@ BEGIN
     RAISE EXCEPTION 'answers must be a non-empty JSON array';
   END IF;
 
-  -- Reject duplicate question_id entries in payload (compare as text, no cast)
+  -- Reject duplicate question_id entries in payload
   IF (
     SELECT count(*) <> count(DISTINCT lower(e->>'question_id'))
     FROM jsonb_array_elements(p_answers) AS e
@@ -944,10 +980,17 @@ BEGIN
     RAISE EXCEPTION 'duplicate question_id in answers payload';
   END IF;
 
-  -- Bulk-fetch all questions for this session into a temp table (fixes N+1).
-  -- Intentionally no deleted_at filter: session membership was verified against
-  -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
-  -- A question soft-deleted after that point must still score correctly.
+  -- *** EXAM MODE: ALLOW PARTIAL SUBMISSION ***
+  -- NOTE: correct_option_id is returned in v_results for all modes. This is
+  -- safe because batch_submit_quiz is called only at session end (submit/auto-
+  -- submit), never per-question during the exam. Exam answers are buffered
+  -- client-side and submitted in one batch at completion.
+  -- Timer expiry may cause auto-submit with fewer answers than total.
+  -- Incomplete exam auto-fails (v_passed = false set after scoring).
+  -- No RAISE — process whatever answers were provided.
+
+  -- Bulk-fetch all questions for this session into a temp table
+  DROP TABLE IF EXISTS _batch_questions;
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT
     q.id,
@@ -957,12 +1000,12 @@ BEGIN
     q.explanation_image_url,
     q.options
   FROM questions q
-  WHERE q.id = ANY(v_session_question_ids);
+  WHERE q.id = ANY(v_session_question_ids)
+    AND q.deleted_at IS NULL;
 
-  -- Process each provided answer (partial submission is allowed)
+  -- Process each provided answer
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP
-    -- Extract as text first, validate format, THEN cast
     v_qid_text        := v_answer->>'question_id';
     v_selected_option := v_answer->>'selected_option';
     v_rt_text         := v_answer->>'response_time_ms';
@@ -980,12 +1023,10 @@ BEGIN
     v_question_id   := v_qid_text::uuid;
     v_response_time := v_rt_text::int;
 
-    -- Validate question belongs to this session
     IF NOT (v_question_id = ANY(v_session_question_ids)) THEN
       RAISE EXCEPTION 'question % does not belong to session %', v_question_id, p_session_id;
     END IF;
 
-    -- Look up from pre-fetched temp table (single query for all questions)
     SELECT bq.correct_option, bq.explanation_text, bq.explanation_image_url, bq.options
     INTO v_correct_option, v_expl_text, v_expl_image_url, v_options
     FROM _batch_questions bq
@@ -999,7 +1040,6 @@ BEGIN
       RAISE EXCEPTION 'question % has no correct option', v_question_id;
     END IF;
 
-    -- Validate selected option belongs to this question's options array
     IF NOT EXISTS (
       SELECT 1 FROM jsonb_array_elements(v_options) opt
       WHERE opt->>'id' = v_selected_option
@@ -1009,14 +1049,12 @@ BEGIN
 
     v_is_correct := (v_selected_option = v_correct_option);
 
-    -- Insert answer (idempotent)
     INSERT INTO quiz_session_answers
       (session_id, question_id, selected_option_id, is_correct, response_time_ms)
     VALUES
       (p_session_id, v_question_id, v_selected_option, v_is_correct, v_response_time)
     ON CONFLICT (session_id, question_id) DO NOTHING;
 
-    -- Insert to immutable response log (idempotent)
     INSERT INTO student_responses
       (organization_id, student_id, question_id, session_id,
        selected_option_id, is_correct, response_time_ms)
@@ -1025,7 +1063,6 @@ BEGIN
        v_selected_option, v_is_correct, v_response_time)
     ON CONFLICT DO NOTHING;
 
-    -- Update last_was_correct atomically within this transaction.
     INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
     VALUES (v_student_id, v_question_id, v_is_correct, now())
     ON CONFLICT (student_id, question_id)
@@ -1033,7 +1070,6 @@ BEGIN
       last_was_correct = EXCLUDED.last_was_correct,
       updated_at = now();
 
-    -- Accumulate result
     v_results := v_results || jsonb_build_object(
       'question_id', v_question_id,
       'is_correct', v_is_correct,
@@ -1043,7 +1079,7 @@ BEGIN
     );
   END LOOP;
 
-  -- Count answered and correct from this session (idempotent ON CONFLICT means re-runs are safe)
+  -- Count answered and correct
   SELECT
     count(*)::int,
     count(*) FILTER (WHERE qsa.is_correct)::int
@@ -1051,15 +1087,37 @@ BEGIN
   FROM quiz_session_answers qsa
   WHERE qsa.session_id = p_session_id;
 
-  -- Score over answered questions only (unanswered questions are excluded from the denominator)
-  v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
+  -- Score: correct / total (not correct / answered)
+  -- Unanswered questions count as wrong in exam mode
+  IF v_mode = 'mock_exam' THEN
+    v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
+  ELSE
+    v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
+  END IF;
+
+  -- *** PASSED COMPUTATION (exam mode only) ***
+  -- pass_mark is NOT NULL in exam_configs (CHECK constraint), so the NULL
+  -- guard below is purely defensive — v_pass_mark should always have a value.
+  IF v_mode = 'mock_exam' THEN
+    v_pass_mark := (v_config->>'pass_mark')::int;
+    IF v_pass_mark IS NOT NULL THEN
+      v_passed := (v_score >= v_pass_mark);
+    ELSE
+      v_passed := false;  -- defensive: should never happen (pass_mark NOT NULL)
+    END IF;
+    -- Incomplete exam: if not all questions answered, auto-fail regardless of score
+    IF v_answered < v_total THEN
+      v_passed := false;
+    END IF;
+  END IF;
 
   -- Complete session
   UPDATE quiz_sessions
   SET
     ended_at         = now(),
     correct_count    = v_correct_count,
-    score_percentage = v_score
+    score_percentage = v_score,
+    passed           = v_passed
   WHERE id = p_session_id;
 
   -- Audit log
@@ -1069,14 +1127,15 @@ BEGIN
     v_org_id,
     v_student_id,
     (SELECT role FROM users WHERE id = v_student_id),
-    'quiz_session.batch_submitted',
+    CASE WHEN v_mode = 'mock_exam' THEN 'exam.completed' ELSE 'quiz_session.batch_submitted' END,
     'quiz_session',
     p_session_id,
     jsonb_build_object(
       'total_questions', v_total,
       'answered', v_answered,
       'correct', v_correct_count,
-      'score', v_score
+      'score', v_score,
+      'passed', v_passed
     )
   );
 
@@ -1085,7 +1144,8 @@ BEGIN
     'total_questions', v_total,
     'answered_count', v_answered,
     'correct_count', v_correct_count,
-    'score_percentage', v_score
+    'score_percentage', v_score,
+    'passed', v_passed
   );
 END;
 $$;

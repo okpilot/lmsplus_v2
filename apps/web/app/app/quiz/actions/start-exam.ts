@@ -73,6 +73,7 @@ export async function startExamSession(raw: unknown): Promise<StartExamResult> {
       success: true,
       sessionId: parsed.data.session_id,
       questionIds: parsed.data.question_ids,
+      totalQuestions: parsed.data.total_questions,
       timeLimitSeconds: parsed.data.time_limit_seconds,
       passMark: parsed.data.pass_mark,
     }
