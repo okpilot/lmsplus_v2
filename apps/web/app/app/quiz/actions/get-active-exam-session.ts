@@ -65,7 +65,12 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
           p_session_id: row.id,
         })
         if (rpcErr) {
+          // Auto-complete failed: the session has no ended_at yet, so the report page
+          // would redirect back to /app/quiz and the user would see this banner again.
+          // Route to orphanedSessionIds so the discard-only banner handles it.
           console.error('[getActiveExamSession] Auto-complete failed:', row.id, rpcErr.message)
+          orphanedSessionIds.push(row.id)
+          continue
         }
         expiredSessionIds.push(row.id)
         continue

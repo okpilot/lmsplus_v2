@@ -400,7 +400,10 @@ describe('getActiveExamSession — expired sessions (Layer 1)', () => {
     })
   })
 
-  it('keeps id in expiredSessionIds even when auto-complete RPC errors (logs the error)', async () => {
+  it('routes overdue row to orphanedSessionIds (not expiredSessionIds) when RPC errors', async () => {
+    // If complete_overdue_exam_session fails, the session has no ended_at yet,
+    // so the report page would redirect back to /app/quiz and the user would
+    // see the same expired banner in a loop. Discard-only banner handles it.
     mockFrom.mockReturnValue(buildChain({ data: [overdueRow('expired-2')], error: null }))
     mockRpc.mockResolvedValue({ data: null, error: { message: 'session is not overdue' } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -408,7 +411,10 @@ describe('getActiveExamSession — expired sessions (Layer 1)', () => {
       const result = await getActiveExamSession()
 
       expect(result.success).toBe(true)
-      if (result.success) expect(result.expiredSessionIds).toEqual(['expired-2'])
+      if (result.success) {
+        expect(result.expiredSessionIds).toEqual([])
+        expect(result.orphanedSessionIds).toEqual(['expired-2'])
+      }
       expect(consoleSpy).toHaveBeenCalledWith(
         '[getActiveExamSession] Auto-complete failed:',
         'expired-2',
