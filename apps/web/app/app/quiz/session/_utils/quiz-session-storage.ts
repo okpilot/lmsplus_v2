@@ -200,6 +200,7 @@ type BuildOpts = {
   subjectName?: string
   subjectCode?: string
   draftId?: string
+  mode?: 'study' | 'exam'
 }
 
 export function buildActiveSession(
@@ -219,5 +220,6 @@ export function buildActiveSession(
     subjectCode: opts.subjectCode,
     draftId: opts.draftId,
     savedAt: Date.now(),
+    mode: opts.mode,
   }
 }

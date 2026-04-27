@@ -2,8 +2,10 @@ import { Suspense } from 'react'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
 import { QuizRecoveryBanner } from './_components/quiz-recovery-banner'
 import { QuizTabs } from './_components/quiz-tabs'
+import { ResumeExamBanner } from './_components/resume-exam-banner'
 import { SavedDraftCard } from './_components/saved-draft-card'
 import { SubjectsSection } from './_components/subjects-section'
+import { getActiveExamSession } from './actions/get-active-exam-session'
 import { loadDrafts } from './actions/load-draft'
 
 export const dynamic = 'force-dynamic'
@@ -11,7 +13,9 @@ export const dynamic = 'force-dynamic'
 export default async function QuizPage() {
   const user = await requireAuthUser()
 
-  const { drafts } = await loadDrafts()
+  const [{ drafts }, examResult] = await Promise.all([loadDrafts(), getActiveExamSession()])
+
+  const activeExams = examResult.success ? examResult.sessions : []
 
   return (
     <main className="space-y-6">
@@ -21,6 +25,10 @@ export default async function QuizPage() {
           Configure and start a practice session.
         </p>
       </div>
+
+      {activeExams.map((exam) => (
+        <ResumeExamBanner key={exam.sessionId} userId={user.id} exam={exam} />
+      ))}
 
       <QuizRecoveryBanner userId={user.id} />
 

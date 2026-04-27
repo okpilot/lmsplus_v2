@@ -14,10 +14,11 @@ vi.mock('../_utils/quiz-session-storage', () => ({
 
 import { useQuizPersistence } from './use-quiz-persistence'
 
-const makeOpts = (userId = 'user-1'): QuizStateOpts => ({
+const makeOpts = (userId = 'user-1', mode?: QuizStateOpts['mode']): QuizStateOpts => ({
   userId,
   sessionId: 'session-1',
   questions: [],
+  mode,
 })
 
 const makeAnswers = (): Map<string, DraftAnswer> => new Map()
@@ -80,5 +81,33 @@ describe('useQuizPersistence', () => {
     rerender({ opts: makeOpts('user-b') })
 
     expect(result.current.checkpoint).not.toBe(first)
+  })
+
+  it('forwards mode: exam to buildActiveSession when opts.mode is exam', () => {
+    const opts = makeOpts('user-1', 'exam')
+    const { result } = renderHook(() => useQuizPersistence(opts))
+
+    result.current.checkpoint(makeAnswers(), 0)
+
+    expect(mockBuildActiveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'exam' }),
+      expect.anything(),
+      0,
+      undefined,
+    )
+  })
+
+  it('forwards mode: study to buildActiveSession when opts.mode is study', () => {
+    const opts = makeOpts('user-1', 'study')
+    const { result } = renderHook(() => useQuizPersistence(opts))
+
+    result.current.checkpoint(makeAnswers(), 0)
+
+    expect(mockBuildActiveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'study' }),
+      expect.anything(),
+      0,
+      undefined,
+    )
   })
 })

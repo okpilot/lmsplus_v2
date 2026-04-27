@@ -2,11 +2,13 @@ import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
 import type { AnswerFeedback, QuizStateOpts } from '../../types'
 import { useExamAnswerBuffer } from './use-exam-answer-buffer'
+import { useQuizPersistence } from './use-quiz-persistence'
 import { useQuizSubmit } from './use-quiz-submit'
 
 /**
  * Exam-mode answer pipeline: buffers answers locally (no per-answer RPC),
- * skips localStorage persistence, delegates batch submit to useQuizSubmit.
+ * persists to localStorage with mode='exam' for refresh recovery,
+ * delegates batch submit to useQuizSubmit.
  */
 export function useExamPipeline(opts: {
   quizOpts: QuizStateOpts
@@ -19,6 +21,8 @@ export function useExamPipeline(opts: {
   const router = useRouter()
   const emptyFeedbackRef = useRef<Map<string, AnswerFeedback>>(new Map())
   const emptyPendingRef = useRef(new Set<string>())
+
+  const { checkpoint } = useQuizPersistence({ ...opts.quizOpts, mode: 'exam' })
 
   const { answers, answersRef, confirmAnswer } = useExamAnswerBuffer({
     getQuestionId: opts.getQuestionId,
@@ -40,10 +44,18 @@ export function useExamPipeline(opts: {
     isExam: true,
   })
 
+  function handleSelectAnswer(id: string): Promise<boolean> {
+    const recorded = confirmAnswer(id)
+    if (recorded) {
+      checkpoint(answersRef.current, opts.currentIndexRef.current)
+    }
+    return Promise.resolve(recorded)
+  }
+
   return {
     answers,
     feedback: emptyFeedbackRef.current,
-    handleSelectAnswer: (id: string) => Promise.resolve(confirmAnswer(id)),
+    handleSelectAnswer,
     navigateTo: opts.navigateTo,
     navigate: opts.navigate,
     submitted: submit.submitted,
