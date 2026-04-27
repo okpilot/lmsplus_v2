@@ -1,10 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { SessionTimer } from '@/app/app/_components/session-timer'
-import { ThemeToggle } from '@/app/app/_components/theme-toggle'
 import type { SessionQuestion } from '@/app/app/_types/session'
-import { ExamCountdownTimer } from '../../_components/exam-countdown-timer'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
@@ -13,9 +10,10 @@ import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
 import { useQuizState } from '../_hooks/use-quiz-state'
 import { useQuizUI } from '../_hooks/use-quiz-ui'
-import { ExamBadge } from './exam-session-header'
 import { QuizControls } from './quiz-controls'
 import { QuizMainPanel } from './quiz-main-panel'
+import { QuizSessionHeader } from './quiz-session-header'
+import { QuizSessionMetaRow } from './quiz-session-meta-row'
 
 type QuizSessionProps = {
   userId: string
@@ -58,47 +56,18 @@ export function QuizSession(props: QuizSessionProps) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="relative flex items-center justify-between border-b border-border px-4 py-2">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium md:hidden">
-            Q {s.currentIndex + 1} / {props.questions.length}
-          </span>
-          {s.isExam ? (
-            <>
-              <ExamBadge />
-              {props.timeLimitSeconds && (
-                <ExamCountdownTimer
-                  timeLimitSeconds={props.timeLimitSeconds}
-                  startedAt={timerStartRef.current}
-                  onExpired={handleTimeExpired}
-                  className="text-sm md:hidden"
-                />
-              )}
-            </>
-          ) : (
-            <SessionTimer className="text-sm text-muted-foreground md:hidden" />
-          )}
-        </div>
-        {!s.isExam && (
-          <div className="pointer-events-none absolute inset-0 hidden items-center justify-center md:flex">
-            <div className="pointer-events-auto">
-              <QuestionTabs activeTab={activeTab} onTabChange={setActiveTab} />
-            </div>
-          </div>
-        )}
-        <div className="hidden md:block" />
-        <div className="z-10 flex items-center gap-2">
-          <ThemeToggle />
-          <button
-            type="button"
-            onClick={() => s.setShowFinishDialog(true)}
-            disabled={s.submitting}
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {s.isExam ? 'Finish Practice Exam' : 'Finish Test'}
-          </button>
-        </div>
-      </div>
+      <QuizSessionHeader
+        isExam={s.isExam}
+        currentIndex={s.currentIndex}
+        totalQuestions={props.questions.length}
+        submitting={s.submitting}
+        timeLimitSeconds={props.timeLimitSeconds}
+        timerStart={timerStartRef.current}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onTimeExpired={handleTimeExpired}
+        onFinishClick={() => s.setShowFinishDialog(true)}
+      />
 
       <div className="px-4 pt-4 pb-32 md:px-8 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-4">
@@ -118,28 +87,15 @@ export function QuizSession(props: QuizSessionProps) {
               <QuestionTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
           )}
-          <div className="flex items-center justify-between text-sm">
-            <span className="hidden font-medium md:inline">
-              Question {s.currentIndex + 1} of {props.questions.length}
-            </span>
-            {s.isExam ? (
-              props.timeLimitSeconds && (
-                <ExamCountdownTimer
-                  timeLimitSeconds={props.timeLimitSeconds}
-                  startedAt={timerStartRef.current}
-                  onExpired={handleTimeExpired}
-                  className="hidden text-sm md:inline"
-                />
-              )
-            ) : (
-              <span className="hidden md:inline">
-                <SessionTimer className="text-sm" />
-              </span>
-            )}
-            <span className="text-xs text-muted-foreground">
-              {s.question.question_number ? `No. ${s.question.question_number}` : '\u00A0'}
-            </span>
-          </div>
+          <QuizSessionMetaRow
+            isExam={s.isExam}
+            currentIndex={s.currentIndex}
+            totalQuestions={props.questions.length}
+            questionNumber={s.question.question_number ?? null}
+            timeLimitSeconds={props.timeLimitSeconds}
+            timerStart={timerStartRef.current}
+            onTimeExpired={handleTimeExpired}
+          />
           <QuizMainPanel
             s={s}
             activeTab={effectiveTab}
