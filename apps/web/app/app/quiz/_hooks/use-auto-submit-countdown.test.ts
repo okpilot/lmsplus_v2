@@ -188,4 +188,50 @@ describe('useAutoSubmitCountdown', () => {
     expect(result.current).toBe(0)
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
+
+  it('fires onSubmit exactly once even when the submit effect re-runs after zero', () => {
+    // Regression: verify that moving the submit call out of the setCountdown
+    // updater (to fix the setState-in-render warning) does not cause double fire.
+    const onSubmit = vi.fn()
+    const { rerender } = renderHook(
+      ({ submitting }: { submitting: boolean }) =>
+        useAutoSubmitCountdown({ active: true, seconds: 2, submitting, onSubmit }),
+      { initialProps: { submitting: false } },
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+
+    // Simulate a re-render (e.g. parent state update) after countdown reaches 0
+    rerender({ submitting: false })
+    act(() => {
+      vi.advanceTimersByTime(0)
+    })
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not fire onSubmit when submitting becomes true before countdown reaches zero', () => {
+    const onSubmit = vi.fn()
+    const { rerender } = renderHook(
+      ({ submitting }: { submitting: boolean }) =>
+        useAutoSubmitCountdown({ active: true, seconds: 3, submitting, onSubmit }),
+      { initialProps: { submitting: false } },
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+
+    // Mark as submitting before countdown reaches zero
+    rerender({ submitting: true })
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
 })

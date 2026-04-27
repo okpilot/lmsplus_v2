@@ -4,6 +4,7 @@ import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
 import { deleteDraft } from '../../actions/draft-delete'
+import { submitEmptyExamSession } from '../../actions/submit-empty-exam'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { clearActiveSession } from '../_utils/quiz-session-storage'
 
@@ -107,16 +108,24 @@ export async function handleSubmitSession(opts: {
 }) {
   if (opts.answers.size === 0) {
     if (opts.isExam) {
-      // Exam timed out with no answers — soft-delete the DB session (prevents
-      // orphaned rows that block future exam starts), then always redirect.
-      // Await discardQuiz to avoid a race where start_exam_session still sees
-      // the old row. Redirect unconditionally regardless of action outcome.
-      clearActiveSession(opts.userId)
-      clearDeploymentPin().catch(() => {})
-      await discardQuiz({ sessionId: opts.sessionId, draftId: opts.draftId }).catch((err) =>
-        console.error('[handleSubmitSession] discardQuiz failed:', err),
-      )
-      opts.router.push('/app/quiz')
+      // Exam timed out with no answers — complete it in the DB so the student
+      // lands on the report page showing 0% / FAIL instead of being discarded.
+      const result = await submitEmptyExamSession({ sessionId: opts.sessionId })
+      if (result.success) {
+        clearActiveSession(opts.userId)
+        opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
+        clearDeploymentPin().catch(() => {})
+      } else {
+        // Fall back: discard and redirect to quiz home so student isn't stuck.
+        console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
+        clearActiveSession(opts.userId)
+        clearDeploymentPin().catch(() => {})
+        await discardQuiz({ sessionId: opts.sessionId, draftId: opts.draftId }).catch((err) =>
+          console.error('[handleSubmitSession] discardQuiz fallback failed:', err),
+        )
+        opts.setError(result.error)
+        opts.router.push('/app/quiz')
+      }
       return
     }
     opts.setError('No answers to submit.')
