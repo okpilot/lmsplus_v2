@@ -890,6 +890,10 @@ BEGIN
     AND qs.student_id = v_student_id
     AND qs.deleted_at IS NULL
   FOR UPDATE;
+  -- FOR UPDATE is acquired before the completed-session check intentionally:
+  -- it serializes concurrent retries so the second caller sees v_ended_at IS NOT NULL
+  -- and takes the replay path instead of double-writing. The read-only replay holds
+  -- the lock briefly (two SELECTs) — acceptable trade-off vs. a TOCTOU two-phase check.
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found or not accessible';
