@@ -1076,9 +1076,10 @@ From setup audit (2026-03-11), updated 2026-03-19:
 - Branch: `feat/exam-mode-student-session`. 223 test files, 3033+ unit tests passing. `pnpm check-types --force` clean. Lint clean.
 - New feedback memory: `feedback_exam_server_authoritative.md` — exam time = server-authoritative, client timer is UI only.
 
-### Resume protocol for next session
-1. Ask user to run the manual-eval scenarios above (bug 3a, bug 3b, Layer 1 expired-banner flow).
-2. After user yes: ask explicit push approval. If yes, `git push -u origin feat/exam-mode-student-session`.
-3. Apply migration 20260427000003 against the local Supabase before manual eval (`npx supabase migration up --local`).
+### Resume protocol for next session — START HERE
+1. **Before any other work**, surface the manual-eval gate to the user. Three scenarios above (bug 3a, bug 3b, Layer 1 expired-banner). Don't read code, don't dispatch agents — ask first.
+2. Have the user apply the new migration locally first: `npx supabase migration up --local`. Then `pnpm dev` and sign in as `student@lmsplus.local / student123!`.
+3. After all three scenarios pass: ask explicit push approval. Branch: `feat/exam-mode-student-session`. Push: `git push -u origin feat/exam-mode-student-session`.
+4. If a scenario fails: read this section, then `git show <relevant-commit>` (commit list above), diagnose, patch — don't restart.
 
-*Round 7 last updated: 2026-04-27 — Phases A + B + C complete locally; awaiting user manual eval.*
+*Round 7 last updated: 2026-04-28 — Phases A + B + C complete locally; **PAUSED awaiting user manual eval**.*
