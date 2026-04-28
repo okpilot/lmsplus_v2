@@ -35,6 +35,9 @@ The learner proposes, the orchestrator decides. Apply a change when:
 3. The rule doesn't conflict with existing documented exceptions.
 4. The change is in the right place (Biome for formatting, code-style.md for structure, security.md for security).
 
+## Sweep On Rule Promotion
+When a pattern is promoted to a hard rule (count≥3 to `security.md`, `code-style.md`, or `biome.json`), the orchestrator must schedule a one-time repo sweep for all existing instances of the pattern — not only the call sites that triggered the promotion. The sweep produces either same-session fixes (≤10 lines per site) or GitHub Issues for each remaining offender. Without this step, the rule is enforced on new code while pre-existing offenders silently linger (e.g., issue #573 — `start_quiz_session` audit subquery missed when security.md §10 was promoted via #550).
+
 ---
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-04-28*

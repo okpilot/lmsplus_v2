@@ -460,6 +460,8 @@ it('calls updateFsrsState', () => { ... })
 it('schedules a shorter review interval when the answer is wrong', () => { ... })
 ```
 
+Omit narrative comments above an `it(...)` if the test name fully describes the behaviour. Comments that paraphrase the title rot when the title changes; reserve comments for non-obvious WHY (hidden invariants, jsdom workarounds, ordering constraints).
+
 ### jsdom Limitation: Pre-Hydration State Is Not Testable
 `@testing-library/react` wraps `render()` in `act()`, which flushes all effects synchronously. This means a hydration guard's pre-hydration state (e.g., disabled button, skeleton) is never observable in jsdom — `useEffect` runs before your assertions can run.
 
@@ -554,4 +556,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-04-28*
