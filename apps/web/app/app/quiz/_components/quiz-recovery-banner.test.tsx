@@ -130,6 +130,24 @@ describe('QuizRecoveryBanner — rendering', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  it('renders the banner for study-mode sessions (mode: study is not suppressed)', () => {
+    mockReadActiveSession.mockReturnValue({ ...ACTIVE_SESSION, mode: 'study' })
+    render(<QuizRecoveryBanner userId="test-user-id" />)
+    expect(screen.getByText(/unfinished quiz found/i)).toBeInTheDocument()
+  })
+
+  it('renders the banner when session has no mode field (backward-compat entries)', () => {
+    // Sessions written before the mode field existed have mode === undefined.
+    // They must still surface — the suppression is exact: only mode === 'exam'.
+    const { mode: _ignored, ...sessionWithoutMode } = {
+      ...ACTIVE_SESSION,
+      mode: 'study' as 'study' | 'exam' | undefined,
+    }
+    mockReadActiveSession.mockReturnValue(sessionWithoutMode)
+    render(<QuizRecoveryBanner userId="test-user-id" />)
+    expect(screen.getByText(/unfinished quiz found/i)).toBeInTheDocument()
+  })
+
   it('shows subject name, answered count, and total count', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     render(<QuizRecoveryBanner userId="test-user-id" />)
