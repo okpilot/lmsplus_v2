@@ -460,14 +460,28 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 
-  it('rejects mode: exam entries where timeLimitSeconds is NaN', () => {
-    // JSON.parse turns NaN into null; exercise via direct store manipulation.
+  it('rejects mode: exam entries where timeLimitSeconds is zero (non-positive guard)', () => {
     const broken = makeSession({
       mode: 'exam',
       startedAt: '2026-04-27T12:00:00.000Z',
-      // JSON.stringify(NaN) produces "null" — test the not-a-number branch
-      timeLimitSeconds: 0, // non-positive also caught by the new guard
+      timeLimitSeconds: 0,
     })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects mode: exam entries where timeLimitSeconds is null (typeof guard, JSON.stringify(NaN) → null)', () => {
+    // JSON.stringify(NaN) emits "null"; the typeof guard rejects it before isFinite runs.
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 60,
+    }) as unknown as Record<string, unknown>
+    broken.timeLimitSeconds = null
     mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
 
     const result = readActiveSession(USER_ID)
