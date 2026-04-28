@@ -1043,6 +1043,23 @@ describe('readSessionHandoff', () => {
     expect(result).toBeNull()
     expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
+
+  it('returns null without throwing when malformed JSON cleanup removeItem throws SecurityError', () => {
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        getItem: vi.fn(() => '{{not valid json}}'),
+        setItem: vi.fn(),
+        removeItem: vi.fn(() => {
+          throw new DOMException('The operation is insecure', 'SecurityError')
+        }),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    expect(() => readSessionHandoff(USER_ID)).not.toThrow()
+    expect(readSessionHandoff(USER_ID)).toBeNull()
+  })
 })
 
 // ---- clearSessionHandoff -----------------------------------------------------
