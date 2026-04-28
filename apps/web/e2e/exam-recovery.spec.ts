@@ -22,6 +22,7 @@
  */
 
 import { expect, type Page, test } from '@playwright/test'
+import { getAdminClient, TEST_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/user.json' })
 
@@ -108,6 +109,25 @@ test.describe('practice exam — refresh recovery', () => {
         if (key.startsWith('quiz-active-session:')) localStorage.removeItem(key)
       }
     })
+
+    // Soft-delete any leftover server-side mock_exam quiz_sessions for the shared
+    // test user so the next spec doesn't see a stale "Resume Practice Exam" banner
+    // (which would race with the regular "Resume" banner and trip strict-mode locator).
+    const admin = getAdminClient()
+    const { data: existingUsers } = await admin.auth.admin.listUsers()
+    const user = existingUsers?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
+    if (!user) return
+
+    const { error } = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('student_id', user.id)
+      .eq('mode', 'mock_exam')
+      .is('ended_at', null)
+      .is('deleted_at', null)
+    if (error) {
+      console.error('[exam-recovery cleanup] soft-delete failed:', error.message)
+    }
   })
 
   // ── 1. Warm in-tab refresh rehydrates from localStorage ────────────────────
