@@ -61,4 +61,17 @@ describe('BottomTabBar', () => {
     expect(screen.getByText('Quiz').closest('a')).toHaveAttribute('href', '/app/quiz')
     expect(screen.getByText('Reports').closest('a')).toHaveAttribute('href', '/app/reports')
   })
+
+  it('renders the Internal Exam tab for students', () => {
+    renderTabBar()
+    expect(screen.getByText('Internal Exam')).toBeInTheDocument()
+  })
+
+  it('links Internal Exam tab to the correct route', () => {
+    renderTabBar()
+    expect(screen.getByText('Internal Exam').closest('a')).toHaveAttribute(
+      'href',
+      '/app/internal-exam',
+    )
+  })
 })

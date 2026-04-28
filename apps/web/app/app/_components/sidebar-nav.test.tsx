@@ -123,4 +123,18 @@ describe('SidebarNav', () => {
     render(<SidebarNav userRole="student" collapsed={false} onToggle={vi.fn()} />)
     expect(screen.queryByText('Students')).not.toBeInTheDocument()
   })
+
+  it('renders the Internal Exam student nav item with the correct route', () => {
+    render(<SidebarNav collapsed={false} onToggle={vi.fn()} />)
+    const link = screen.getByText('Internal Exam').closest('a')
+    expect(link).toHaveAttribute('href', '/app/internal-exam')
+  })
+
+  it('renders the Internal Exams admin nav item with the correct route', () => {
+    render(<SidebarNav userRole="admin" collapsed={false} onToggle={vi.fn()} />)
+    // There are two entries with "Internal Exam" text: one student, one admin.
+    // The admin entry says "Internal Exams" (plural).
+    const link = screen.getByText('Internal Exams').closest('a')
+    expect(link).toHaveAttribute('href', '/app/admin/internal-exams')
+  })
 })

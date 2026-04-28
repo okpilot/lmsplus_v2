@@ -237,7 +237,7 @@ CREATE TABLE quiz_sessions (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id  UUID NOT NULL REFERENCES organizations(id),
   student_id       UUID NOT NULL REFERENCES users(id),
-  mode             TEXT NOT NULL CHECK (mode IN ('smart_review', 'quick_quiz', 'mock_exam')),
+  mode             TEXT NOT NULL CHECK (mode IN ('smart_review', 'quick_quiz', 'mock_exam', 'internal_exam')),
   subject_id       UUID REFERENCES easa_subjects(id) NULL,  -- NULL for smart_review
   topic_id         UUID REFERENCES easa_topics(id) NULL,
   config           JSONB NOT NULL DEFAULT '{}',             -- question IDs locked at start
@@ -473,6 +473,31 @@ Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of
 
 **Pattern:** Identical to `audit_events` — immutable, no direct client writes, controlled via SECURITY DEFINER RPCs.
 
+### internal_exam_codes
+
+Single-use 8-character codes for starting `internal_exam` mode sessions. Admins issue codes, students consume them once to start a session. Codes expire after 24 hours.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PK, default gen_random_uuid() |
+| organization_id | UUID | FK → organizations(id), NOT NULL |
+| code | TEXT | NOT NULL, 8 chars from ABCDEFGHJKLMNPQRSTUVWXYZ23456789, UNIQUE |
+| issued_by | UUID | FK → users(id), NOT NULL (admin who issued the code) |
+| consumed_by | UUID | FK → users(id), NULL (student who consumed the code) |
+| session_id | UUID | FK → quiz_sessions(id), NULL (the resulting session) |
+| issued_at | TIMESTAMPTZ | NOT NULL, default now() |
+| consumed_at | TIMESTAMPTZ | NULL (timestamp of consumption) |
+| voided_at | TIMESTAMPTZ | NULL (timestamp if voided by admin) |
+| voided_by | UUID | FK → users(id), NULL (admin who voided the code) |
+
+**RLS policies:**
+- SELECT: students see only own-consumed codes; admins see org-scoped codes via `is_admin()`
+- INSERT: denied (all writes via SECURITY DEFINER RPCs only)
+- UPDATE: denied (immutable)
+- DELETE: denied (immutable)
+
+**Pattern:** Accessed via three SECURITY DEFINER RPCs: `issue_internal_exam_code()` (admin), `start_internal_exam_session()` (student), `void_internal_exam_code()` (admin). No direct client writes.
+
 ---
 
 ## 3. Soft Delete
@@ -593,6 +618,9 @@ verb_noun pattern:
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
   complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent)
   complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam session, score from existing answers, audit exam.expired (idempotent)
+  issue_internal_exam_code   ← write, admin-only: generate 8-char single-use code, 24h validity, 5-retry collision handling, audit internal_exam.code_issued
+  start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard
+  void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
   complete_quiz_session      ← write, atomic: session end + score + audit + last_active_at stamp (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
@@ -1469,9 +1497,9 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 #### `is_admin()` — Admin role check helper
 
 Returns `boolean`. SECURITY DEFINER with `SET search_path = public`.
-Checks `auth.uid()` against `users.role = 'admin'`. Returns `false` (not an exception) when no user is authenticated, so it is safe to call from RLS policies without causing errors for unauthenticated requests.
+Checks `auth.uid()` against `users.role = 'admin'` AND `deleted_at IS NULL` (migration 20260429000001). Returns `false` (not an exception) when no user is authenticated, so it is safe to call from RLS policies without causing errors for unauthenticated requests.
 
-Used by RLS policies on `easa_subjects`, `easa_topics`, and `easa_subtopics` to gate INSERT/UPDATE/DELETE to admin users only (migration 039).
+Used by RLS policies on `easa_subjects`, `easa_topics`, `easa_subtopics`, and `internal_exam_codes` to gate INSERT/UPDATE/DELETE to active admin users only.
 
 ```sql
 CREATE OR REPLACE FUNCTION is_admin()
@@ -1480,7 +1508,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
   RETURN EXISTS (
-    SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'
+    SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin' AND deleted_at IS NULL
   );
 END;
 $$;
