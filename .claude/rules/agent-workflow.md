@@ -188,7 +188,10 @@ git commit
                                      │
                               ┌──────┴──────┐
                               │   learner   │  (sonnet) — pattern detection
-                              └──────┬──────┘
+                              └──────┬──────┘   (if learner promotes a rule
+                                     │          to hard status, schedule a
+                                     │          sweep per agent-learner.md
+                                     │          § Sweep On Rule Promotion)
                                      │
                     (if diff touches security files)
                               ┌──────┴──────┐

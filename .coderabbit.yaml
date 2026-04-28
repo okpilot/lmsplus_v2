@@ -125,6 +125,10 @@ reviews:
         - Test names describe behavior, not implementation.
           Good: 'schedules a shorter review interval when the answer is wrong'
           Bad: 'calls updateFsrsState'
+        - Omit narrative comments above it() if the test name fully describes
+          the behaviour. Comments paraphrasing the title rot when the title
+          changes. Reserve comments for non-obvious WHY: hidden invariants,
+          jsdom workarounds, ordering constraints.
         - Co-located with source file (same folder).
         - One test file per source file.
         - Mock external deps (Supabase, fetch), don't call real services.
