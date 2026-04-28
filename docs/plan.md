@@ -1076,10 +1076,13 @@ From setup audit (2026-03-11), updated 2026-03-19:
 - Branch: `feat/exam-mode-student-session`. 223 test files, 3033+ unit tests passing. `pnpm check-types --force` clean. Lint clean.
 - New feedback memory: `feedback_exam_server_authoritative.md` — exam time = server-authoritative, client timer is UI only.
 
-### Resume protocol for next session — START HERE
-1. **Before any other work**, surface the manual-eval gate to the user. Three scenarios above (bug 3a, bug 3b, Layer 1 expired-banner). Don't read code, don't dispatch agents — ask first.
-2. Have the user apply the new migration locally first: `npx supabase migration up --local`. Then `pnpm dev` and sign in as `student@lmsplus.local / student123!`.
-3. After all three scenarios pass: ask explicit push approval. Branch: `feat/exam-mode-student-session`. Push: `git push -u origin feat/exam-mode-student-session`.
-4. If a scenario fails: read this section, then `git show <relevant-commit>` (commit list above), diagnose, patch — don't restart.
+### Round 7 status — PUSHED 2026-04-28
+- Manual eval all-pass (3a/3b/Layer 1).
+- 22 commits pushed (`5b36d7e..a5a3f4b`).
+- Bonus fixes during eval: `82e64de` (dual recovery banner — exam-mode entry suppressed in `useQuizRecovery`), `932f231` (boundary tests), `53b8498` (visible error notice when `getActiveExamSession` fails), `b4e5b7e` (mig 051 fixes mig 049 actor_role soft-delete — security-auditor HIGH closed), `a5a3f4b` (docs/database.md realignment).
+- 15 round-5/6/7 CodeRabbit threads inline-replied with fix SHAs / explicit SKIPs.
 
-*Round 7 last updated: 2026-04-28 — Phases A + B + C complete locally; **PAUSED awaiting user manual eval**.*
+### Round 8 status — TO TRIAGE
+- 14 new CR comments on `b4e5b7e`. 1 replied (mig 049 stale-comment redundancy). 13 tracked in **#566**. None are CRITICAL; security-auditor APPROVED. Mix of Major (handoff cleanup, grace-window question, `.coderabbit.yaml` rule), Minor (test mock hygiene), Trivial (markdown formatting).
+
+*Round 7 last updated: 2026-04-28 — pushed; round 8 triage queued in #566.*
