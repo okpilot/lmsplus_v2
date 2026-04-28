@@ -17,6 +17,14 @@ vi.mock('../actions/start-exam', () => ({
   startExamSession: (...args: unknown[]) => mockStartExamSession(...args),
 }))
 
+const { mockDiscardQuiz } = vi.hoisted(() => ({
+  mockDiscardQuiz: vi.fn(),
+}))
+
+vi.mock('../actions/discard', () => ({
+  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+}))
+
 const { mockReadActiveSession, mockClearActiveSession } = vi.hoisted(() => ({
   mockReadActiveSession: vi.fn(),
   mockClearActiveSession: vi.fn(),
@@ -90,6 +98,8 @@ beforeEach(() => {
   mockStartExamSession.mockResolvedValue(SUCCESS_RESULT)
   // Default: no existing session
   mockReadActiveSession.mockReturnValue(null)
+  // Default: discard cleanup succeeds (used only on the handoff-failure path)
+  mockDiscardQuiz.mockResolvedValue({ success: true })
 })
 
 // ---- Initial state -------------------------------------------------------
@@ -361,6 +371,19 @@ describe('useExamStart — handleStart failure paths', () => {
 
     expect(mockClearActiveSession).not.toHaveBeenCalled()
     confirmSpy.mockRestore()
+  })
+
+  it('soft-deletes the orphaned exam when sessionStorage write fails', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+
+    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+
+    // Server already created result.sessionId; without this discard the next
+    // start would hit 'an exam session is already in progress for this subject'.
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID })
   })
 
   it('sets a generic error message when startExamSession throws', async () => {

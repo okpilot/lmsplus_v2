@@ -111,16 +111,24 @@ export async function handleSubmitSession(opts: {
     return
   }
   if (opts.answers.size === 0 && opts.isExam) {
-    // Exam timed out with no answers — complete it so the student lands on the
-    // report page showing 0% / FAIL instead of being silently discarded.
+    // Exam finished with no answers (timer-expiry or manual finish). Complete
+    // the session server-side so the student lands on the report page (0% / FAIL)
+    // instead of being silently discarded. submitEmptyExamSession catches its
+    // own errors, but RSC stream / network failures can still reject — fall back
+    // to the same cleanup as a result.success===false response.
     opts.setSubmitting(true)
-    const result = await submitEmptyExamSession({ sessionId: opts.sessionId })
+    let result: Awaited<ReturnType<typeof submitEmptyExamSession>>
+    try {
+      result = await submitEmptyExamSession({ sessionId: opts.sessionId })
+    } catch (err) {
+      console.error('[handleSubmitSession] submitEmptyExamSession threw:', err)
+      result = { success: false, error: 'Something went wrong. Please try again.' }
+    }
     if (result.success) {
       clearActiveSession(opts.userId)
       opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
       clearDeploymentPin().catch(() => {})
     } else {
-      // Fall back: discard and redirect to quiz home so the student isn't stuck.
       console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
       clearActiveSession(opts.userId)
       clearDeploymentPin().catch(() => {})

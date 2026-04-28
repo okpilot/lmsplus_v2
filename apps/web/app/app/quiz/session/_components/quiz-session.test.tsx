@@ -529,7 +529,7 @@ describe('QuizSession', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
     fireEvent.click(screen.getByRole('button', { name: 'Discard Session' }))
-    await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledOnce())
+    await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-exam' }))
   })
 
   it('disables the Finish Test button while a submission is in progress', async () => {

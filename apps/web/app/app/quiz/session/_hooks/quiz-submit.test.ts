@@ -617,6 +617,28 @@ describe('handleSubmitSession', () => {
       consoleSpy.mockRestore()
     }
   })
+
+  it('routes to /app/quiz and clears submitting when submitEmptyExamSession rejects', async () => {
+    // RSC stream / network failures bypass the action's internal try/catch and
+    // surface as a rejected promise. Without our outer catch, the student would
+    // be stuck with the spinner spinning forever.
+    mockSubmitEmptyExamSession.mockRejectedValue(new Error('network'))
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const opts = makeOpts({ answers: new Map(), isExam: true })
+      await handleSubmitSession(opts)
+      expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+      expect(opts.setError).toHaveBeenCalledWith('Something went wrong. Please try again.')
+      expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
+      expect(mockDiscardQuiz).toHaveBeenCalledWith({
+        sessionId: SESSION_ID,
+        draftId: undefined,
+      })
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
 })
 
 // ---- handleSaveSession ---------------------------------------------------

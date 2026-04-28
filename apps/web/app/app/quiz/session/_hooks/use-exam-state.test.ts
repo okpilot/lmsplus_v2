@@ -1,12 +1,15 @@
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { QuizStateOpts } from '../../types'
+import type { DraftAnswer, QuizStateOpts } from '../../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
+// answersRef.current must alias answers — that's the production invariant
+// (use-exam-answer-buffer keeps the ref pointing at the live Map). Keeping the
+// mocks aligned prevents buffer-sync regressions from being silently masked.
 const { mockConfirmAnswer, mockAnswers, mockAnswersRef } = vi.hoisted(() => {
-  const mockAnswers = new Map()
-  const mockAnswersRef = { current: new Map() }
+  const mockAnswers = new Map<string, DraftAnswer>()
+  const mockAnswersRef = { current: mockAnswers }
   return {
     mockConfirmAnswer: vi.fn(),
     mockAnswers,
@@ -118,6 +121,8 @@ function makeSubmitResult(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockAnswers.clear()
+  mockAnswersRef.current = mockAnswers
   mockUseQuizSubmit.mockReturnValue(makeSubmitResult())
 })
 

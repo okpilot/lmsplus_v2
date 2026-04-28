@@ -18,9 +18,15 @@ export function extractPassMark(config: unknown): number | null {
   return pm
 }
 
+// 30s grace window mirrors batch_submit_quiz (mig 047) and Layer 1 RPC
+// (mig 052). A TS-only check that fires sooner would call complete_overdue
+// which RAISEs 'session is not overdue' and routes the row to the orphaned
+// banner — diverging UI from the truth on the server.
+const OVERDUE_GRACE_SECONDS = 30
+
 export function isExamOverdue(startedAt: string, timeLimitSeconds: number): boolean {
   if (timeLimitSeconds <= 0) return false
   const startedMs = Date.parse(startedAt)
   if (!Number.isFinite(startedMs)) return false
-  return Date.now() > startedMs + timeLimitSeconds * 1000
+  return Date.now() > startedMs + (timeLimitSeconds + OVERDUE_GRACE_SECONDS) * 1000
 }

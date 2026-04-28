@@ -1,6 +1,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
+import { discardQuiz } from '../actions/discard'
 import { startExamSession } from '../actions/start-exam'
 import {
   clearActiveSession,
@@ -53,7 +54,18 @@ export function useExamStart(opts: UseExamStartOpts) {
             }),
           )
         } catch (err) {
+          // startExamSession already created a server-side exam. If the local
+          // handoff write fails, soft-delete the orphan so the next attempt isn't
+          // blocked by 'an exam session is already in progress for this subject'.
           console.warn('[use-exam-start] sessionStorage handoff failed:', err)
+          const cleanup = await discardQuiz({ sessionId: result.sessionId })
+          if (!cleanup.success) {
+            console.error(
+              '[use-exam-start] orphan discard failed for session',
+              result.sessionId,
+              cleanup.error,
+            )
+          }
           setError('Unable to start Practice Exam right now. Please try again.')
           setLoading(false)
           return
