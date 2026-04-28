@@ -831,7 +831,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Allows partial submissions. Study mode: score = `correct / answered`. Exam mode (migration 047): score = `correct / total` (unanswered = wrong); incomplete exams auto-fail regardless of score.
 - Enforces server-side time limit with 30-second grace period (migration 047); beyond grace period, auto-ends session with zero score and returns `expired: true`
 - Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction
-- Returns `answered_count`, `correct_count`, `score_percentage`, `passed` (boolean, exam mode only), and `expired` (boolean, if submission past grace period)
+- Returns `answered_count`, `correct_count`, `score_percentage`, `passed` (boolean, exam mode only), and `expired` (boolean). `expired` is returned only on grace-window timeout; it is absent on normal completion (including idempotent replay of a completed session).
 - Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
 - Hardens field validation (migration 026): validates `jsonb_typeof(v_config->'question_ids')` = 'array' BEFORE extraction (fixes eval-before-guard issue); validates `selected_option` and `response_time_ms` per answer AFTER extraction
 - Uses case-insensitive UUID regex (migration 028): validates question_id with `!~*` instead of `!~` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth hardening
@@ -1166,7 +1166,7 @@ $$;
 
 #### `complete_empty_exam_session` — close a zero-answer exam session (timer or manual)
 
-Completes a `mock_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. The student is redirected to the report page showing 0% / FAIL instead of being silently discarded.
+Completes a `mock_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. On RPC success the caller (`submitEmptyExamSession` in `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts`) routes the student to `/app/quiz/report?session=<id>` showing 0% / FAIL; on RPC failure the caller falls back to `/app/quiz` so the student is not stranded mid-flow.
 
 **Purpose:** Called by `submitEmptyExamSession` Server Action in two scenarios:
 1. Timer fires and `answers.size === 0` (student ran out of time without answering)
@@ -1178,7 +1178,7 @@ Completes a `mock_exam` session that has zero answers recorded. Sets `correct_co
 
 This ensures the audit trail reflects what actually happened, not a hard-coded assumption.
 
-**Idempotency:** Safe to call twice. If `ended_at IS NOT NULL`, the function returns the real stored `correct_count`, `score_percentage`, `passed`, and `answered_count` from `quiz_sessions` (not the hardcoded zeros). The `FOR UPDATE` lock already holds the row, so the re-read is safe and single-statement.
+**Idempotency:** Safe to call twice. If `ended_at IS NOT NULL`, the function returns the real stored `score_percentage`, `passed`, and `answered_count` from `quiz_sessions` (not the hardcoded zeros). The `FOR UPDATE` lock already holds the row, so the re-read is safe and single-statement.
 
 **Security model (migration 049, patched by migrations 051 & 053):**
 - `auth.uid()` check — rejects unauthenticated callers.
@@ -1208,7 +1208,7 @@ Completes a `mock_exam` session whose deadline has passed. Computes score from a
 - `v_score = round(correct_count / total_questions * 100, 2)` — unanswered count as wrong.
 - `v_passed = (pass_mark IS NOT NULL AND v_score >= pass_mark)`; an incomplete exam (`answered < total`) auto-fails regardless of score.
 
-**Idempotency:** If `ended_at IS NOT NULL`, the function returns the stored `correct_count`, `score_percentage`, `passed`, and a fresh `answered_count` from `quiz_session_answers`. The `FOR UPDATE` lock holds the row, so the re-read is safe.
+**Idempotency:** If `ended_at IS NOT NULL`, the function returns the stored `score_percentage`, `passed`, and a fresh `answered_count` from `quiz_session_answers`. The `FOR UPDATE` lock holds the row, so the re-read is safe.
 
 **Defense-in-depth invariants:**
 - `auth.uid()` check.

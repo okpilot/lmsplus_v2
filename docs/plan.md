@@ -1020,7 +1020,7 @@ From setup audit (2026-03-11), updated 2026-03-19:
 
 ---
 
-*Last updated: 2026-04-27 — PR #523 round 7 in progress. See **PR #523 Round 7** section below.*
+*Last updated: 2026-04-28 — PR #523 round 8 triaged + fixed; CI E2E unblock pushed. See PR #523 Round 7 section below.*
 
 ---
 
@@ -1029,6 +1029,7 @@ From setup audit (2026-03-11), updated 2026-03-19:
 16 commits ahead of round 6 (`5b36d7e`). Local-only, NOT yet pushed.
 
 ### Shipped — initial 8 commits (3a/3b not yet user-evaluated at the time of writing)
+
 | Commit | Phase | Summary |
 |---|---|---|
 | `375bde5` | 1 | Auto-submit on 0-answer exam expiry → `/app/quiz/report` 0% FAIL. New RPC `complete_empty_exam_session` (mig 049 / 20260427000002). New action `submitEmptyExamSession`. Moved auto-submit out of render. |
