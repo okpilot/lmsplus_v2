@@ -825,6 +825,7 @@ Import ~3,000 questions from JSON into Supabase.
 `apps/web/scripts/check-import-conflicts.ts` — companion dry-run: validates syllabus rows exist and reports `question_number` collisions before a batch import.
 
 **Remote import workflow:**
+
 ```bash
 # 1. Extract the zip (from QDB/)
 SCOPE=010-XX                     # e.g. 010-09, 010-12
@@ -1040,6 +1041,7 @@ From setup audit (2026-03-11), updated 2026-03-19:
 | `a09332a` | 5 | Rule updates: 3 testing rules in `code-style.md §7`, 1 security rule in `security.md §10`, `.coderabbit.yaml` synced. |
 
 ### Shipped — Phases A/B/C (this session, 8 new commits resolving bug 3a + 3b + Layer 1)
+
 | Commit | Phase | Summary |
 |---|---|---|
 | `c656868` | A | Bug 3a — extend ActiveSession/SessionData with `startedAt`/`timeLimitSeconds`/`passMark`. Drop the categorical exam reject in `useSessionBootstrap`; recovery prompt now shows for both modes. `quiz-session.tsx` parses `props.startedAt` with `Date.now()` fallback. |
@@ -1052,37 +1054,47 @@ From setup audit (2026-03-11), updated 2026-03-19:
 | `f421c44` | C-app fix | semantic-reviewer ISSUE: when auto-complete RPC fails, route id to `orphanedSessionIds` (discard-only banner) instead of `expiredSessionIds` — the report page would otherwise redirect back to /app/quiz in a loop. |
 
 ### Manual eval — needs re-run after this session's fixes
+
 - **Bug 3a** — refresh /app/quiz/session during a Practice Exam should rehydrate from localStorage with the original timer state (not bump to /app/quiz with toast).
 - **Bug 3b** — clicking "Resume Practice Exam" on the banner should land on the session page with the correct elapsed time, subject, and pass mark.
 - **Layer 1 — overdue auto-complete** — open /app/quiz with a stale (past-deadline) Practice Exam: should show "Practice Exam expired — view results" with a single button → report page renders the session score from quiz_session_answers (or 0% if no answers).
 
 ### Manual eval — passed (prior cycle)
+
 1. Mobile badge hide ✓
 2. 0-answer auto-submit → /report 0% FAIL ✓
-5. Discard on resume banner frees server lock ✓
-6. Mobile header layout ✓
+3. Discard on resume banner frees server lock ✓
+4. Mobile header layout ✓
 
 ### Follow-up issues filed
+
 - **#557** — red-team specs for `complete_empty_exam_session` (AN/AO/AP/AQ vectors).
 - **#558** — Layer 2 periodic sweeper (`pg_cron`) for truly abandoned exam sessions.
 - **#556** — bring Study Mode resume up to Practice Exam parity (server fallback).
 - **#559–#562** (this session, red-team agent) — coverage gaps for `complete_overdue_exam_session` (cross-tenant IDOR, non-overdue invariant, mode guard, concurrent race).
 
 ### Pre-existing tech-debt noted
+
 - `quiz-session-storage.ts` is at 251 lines (utility cap 200) — was already over before this PR. Plan-critic / code-reviewer flagged; defer to a dedicated split PR.
 - `use-session-bootstrap.ts` is at 99 lines (hook cap 80) — pre-existing, this session reduced from 107.
 
 ### Local state
+
 - Branch: `feat/exam-mode-student-session`. 223 test files, 3033+ unit tests passing. `pnpm check-types --force` clean. Lint clean.
 - New feedback memory: `feedback_exam_server_authoritative.md` — exam time = server-authoritative, client timer is UI only.
 
 ### Round 7 status — PUSHED 2026-04-28
+
 - Manual eval all-pass (3a/3b/Layer 1).
 - 22 commits pushed (`5b36d7e..a5a3f4b`).
 - Bonus fixes during eval: `82e64de` (dual recovery banner — exam-mode entry suppressed in `useQuizRecovery`), `932f231` (boundary tests), `53b8498` (visible error notice when `getActiveExamSession` fails), `b4e5b7e` (mig 051 fixes mig 049 actor_role soft-delete — security-auditor HIGH closed), `a5a3f4b` (docs/database.md realignment).
 - 15 round-5/6/7 CodeRabbit threads inline-replied with fix SHAs / explicit SKIPs.
 
-### Round 8 status — TO TRIAGE
-- 14 new CR comments on `b4e5b7e`. 1 replied (mig 049 stale-comment redundancy). 13 tracked in **#566**. None are CRITICAL; security-auditor APPROVED. Mix of Major (handoff cleanup, grace-window question, `.coderabbit.yaml` rule), Minor (test mock hygiene), Trivial (markdown formatting).
+### Round 8 status — TRIAGED + FIXED
 
-*Round 7 last updated: 2026-04-28 — pushed; round 8 triage queued in #566.*
+- 14 new CR comments on `b4e5b7e`. None CRITICAL; security-auditor APPROVED.
+- Round 8 fix commit closes Major findings: grace-window divergence (mig 052), neutral empty-completion label (mig 053), orphan-exam cleanup (`use-exam-start`), rejected-promise catch (`quiz-submit`), router.back rule cleanup, doc formatting.
+- Skipped (false-positive on source review): empty `exam.questionIds` guard in `resume-exam-banner` (upstream `extractQuestionIds` already filters empty arrays).
+- Deferred to issue: `waitForTimeout(300)` reliability smell in `e2e/exam-recovery.spec.ts`.
+
+*Round 7 last updated: 2026-04-28 — pushed; round 8 fixes staged in same branch.*

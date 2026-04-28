@@ -230,7 +230,7 @@ CREATE TABLE lessons (
 
 ### quiz_sessions
 `config.question_ids` is read by `getActiveExamSession` (RLS-scoped Server Action, no SECURITY DEFINER)
-to populate the handoff payload for cold-start exam resume. See Decision 36.
+to populate the handoff payload for cold-start exam resume. See [Decision 36 in `docs/decisions.md`](./decisions.md#decision-36-practice-exam-resume--sessionstorage-handoff--server-side-question-ids).
 
 ```sql
 CREATE TABLE quiz_sessions (

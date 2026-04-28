@@ -466,7 +466,9 @@ it('schedules a shorter review interval when the answer is wrong', () => { ... }
 **Do not write tests for the pre-hydration branch.** Only test the post-hydration (normal) state. This is a jsdom constraint, not a missing test.
 
 ### Assert URL on Router-Navigation Mocks (from 2026-04-27)
-When a test mocks `router.push`, `router.replace`, `router.back`, or imports `redirect` from `next/navigation`, every assertion on that mock **must** check the URL/path argument — not just `.toHaveBeenCalled()`. Use `.toHaveBeenCalledWith('/expected/path')` or pass an explicit string match to `.lastCalledWith`.
+When a test mocks `router.push`, `router.replace`, or imports `redirect` from `next/navigation`, every assertion on that mock **must** check the URL/path argument — not just `.toHaveBeenCalled()`. Use `.toHaveBeenCalledWith('/expected/path')` or pass an explicit string match to `.lastCalledWith`.
+
+`router.back()` is zero-argument and excluded from this rule — assert the observable navigation result (final URL or history state) rather than a destination argument.
 
 ```ts
 // ❌ WRONG — counts calls but misses wrong redirect target

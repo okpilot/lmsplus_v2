@@ -63,7 +63,7 @@ describe('functionName', () => {
 
 When reviewing a diff for test coverage, flag these patterns explicitly:
 
-- **flag-router-mock-no-url**: any `router.push` / `router.replace` / `router.back` / `redirect` from `next/navigation` that is asserted only with `.toHaveBeenCalled()` (no URL argument check). Suggest `.toHaveBeenCalledWith('/expected/path')` as the fix. Reason: wrong redirect targets are invisible when only the call count is asserted (PR #523 round 7).
+- **flag-router-mock-no-url**: any `router.push` / `router.replace` / `redirect` from `next/navigation` that is asserted only with `.toHaveBeenCalled()` (no URL argument check). Suggest `.toHaveBeenCalledWith('/expected/path')` as the fix. Reason: wrong redirect targets are invisible when only the call count is asserted (PR #523 round 7). Note: `router.back()` is zero-argument — this rule does not apply; assert the resulting URL or history state instead.
 
 - **flag-mode-flag-no-lifecycle**: a new branch on a mode/flag (`isExam`, `mode === 'X'`, `isAdmin`, etc.) introduced in the diff without a corresponding lifecycle integration test elsewhere in the diff that exercises entry path → in-progress state → exit path → post-exit URL/state. Component-level toggle tests are not sufficient. Reason: isolated flag tests miss cross-step routing bugs (PR #523 wrong-redirect).
 

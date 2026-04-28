@@ -129,9 +129,11 @@ reviews:
         - One test file per source file.
         - Mock external deps (Supabase, fetch), don't call real services.
         - Router mock URL assertion: any assertion on router.push / router.replace /
-          router.back / redirect from next/navigation MUST check the URL/path argument,
-          not just .toHaveBeenCalled(). Flag: expect(mockPush).toHaveBeenCalled() with
-          no argument check. Suggest: .toHaveBeenCalledWith('/expected/path').
+          redirect from next/navigation MUST check the URL/path argument, not just
+          .toHaveBeenCalled(). Flag: expect(mockPush).toHaveBeenCalled() with no
+          argument check. Suggest: .toHaveBeenCalledWith('/expected/path').
+          Note: router.back() is zero-argument — assert the observable navigation
+          result (final URL or history state), not a destination string.
         - Lifecycle integration test for feature modes: if the diff introduces a mode
           or flag branch (isExam, mode === 'X', isAdmin, etc.), verify that a lifecycle
           test exists in the diff covering entry → in-progress → exit → post-exit URL.
