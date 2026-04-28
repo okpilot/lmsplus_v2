@@ -10,11 +10,13 @@ export type NavItem = {
     | 'users'
     | 'settings'
     | 'clipboard-check'
+    | 'shield-check'
 }
 
 export const NAV_ITEMS: NavItem[] = [
   { href: '/app/dashboard', label: 'Dashboard', icon: 'home' },
   { href: '/app/quiz', label: 'Quiz', icon: 'file-question' },
+  { href: '/app/internal-exam', label: 'Internal Exam', icon: 'shield-check' },
   { href: '/app/reports', label: 'Reports', icon: 'bar-chart' },
   { href: '/app/settings', label: 'Settings', icon: 'settings' },
 ]
@@ -25,4 +27,5 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: '/app/admin/questions', label: 'Questions', icon: 'list' },
   { href: '/app/admin/students', label: 'Students', icon: 'users' },
   { href: '/app/admin/exam-config', label: 'Exam Config', icon: 'clipboard-check' },
+  { href: '/app/admin/internal-exams', label: 'Internal Exams', icon: 'shield-check' },
 ]
