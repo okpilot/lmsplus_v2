@@ -629,8 +629,18 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 **Waves 2–7**: UI and integration tests follow.
 
+**Product decisions (locked):**
+
+- **Crockford-style 8-character code.** Alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` — excludes `0/O/I/1` to avoid mis-reads when the admin verbally relays a code. 8 chars × 32 symbols = 32^8 ≈ 1.1 trillion entropy; a 5-retry collision loop is sufficient.
+- **24-hour validity, single-use.** Codes expire 24h after issue and are single-use only. No extension, no re-redeem. A student needing a retake gets a new code.
+- **Plaintext storage.** Codes are stored unhashed in `internal_exam_codes.code`. Justified by short window (24h) + admin's need to re-display a freshly issued code. Read-path queries never return the value to students.
+- **Code never displayed in student lists.** The student "Available" tab shows subject + expiry only. Code value is shown to the student exactly once, by the admin, out-of-band.
+- **No discard for internal-exam sessions.** `discardSession` Server Action rejects `mode = 'internal_exam'`; the in-session discard button is hidden by mode. Internal-exam attempts are auditable artefacts.
+- **Separate reports tab.** Internal-exam sessions are excluded from existing reports/progress queries and surfaced under a dedicated "My Reports" tab on `/app/internal-exam`. Practice and internal exams are reported separately.
+- **Admin-only issue/void.** Both lifecycle endpoints gate via `is_admin()` + org-scope. Voiding an active session forces `passed = false` with score computed from existing answers; voiding a finished session is refused (`cannot_void_finished_attempt`).
+
 **Rationale**: Single-use codes prevent reuse and ensure each student gets unique exam audit records. The code-first approach validates DB design before building Server Actions and UI.
 
 ---
 
-*Last updated: 2026-04-29 — Decision 37: Internal Exam Mode foundation*
+*Last updated: 2026-04-29 — Decision 37: Internal Exam Mode foundation + product decisions*

@@ -475,28 +475,40 @@ Immutable append-only GDPR consent audit log. Tracks user acceptance of Terms of
 
 ### internal_exam_codes
 
-Single-use 8-character codes for starting `internal_exam` mode sessions. Admins issue codes, students consume them once to start a session. Codes expire after 24 hours.
+Single-use 8-character codes for starting `internal_exam` mode sessions. Admins issue a code targeting a specific student + subject; the student consumes the code once to start a session. Codes expire after 24 hours.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PK, default gen_random_uuid() |
-| organization_id | UUID | FK → organizations(id), NOT NULL |
-| code | TEXT | NOT NULL, 8 chars from ABCDEFGHJKLMNPQRSTUVWXYZ23456789, UNIQUE |
-| issued_by | UUID | FK → users(id), NOT NULL (admin who issued the code) |
-| consumed_by | UUID | FK → users(id), NULL (student who consumed the code) |
-| session_id | UUID | FK → quiz_sessions(id), NULL (the resulting session) |
+| code | TEXT | NOT NULL, 8 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (Crockford-style; excludes `0/O/I/1`), UNIQUE |
+| subject_id | UUID | FK → easa_subjects(id), NOT NULL |
+| student_id | UUID | FK → users(id), NOT NULL (target student) |
+| issued_by | UUID | FK → users(id), NOT NULL (admin who issued) |
 | issued_at | TIMESTAMPTZ | NOT NULL, default now() |
-| consumed_at | TIMESTAMPTZ | NULL (timestamp of consumption) |
-| voided_at | TIMESTAMPTZ | NULL (timestamp if voided by admin) |
-| voided_by | UUID | FK → users(id), NULL (admin who voided the code) |
+| expires_at | TIMESTAMPTZ | NOT NULL (issued_at + 24h) |
+| consumed_at | TIMESTAMPTZ | NULL — set when student starts a session |
+| consumed_session_id | UUID | FK → quiz_sessions(id), NULL — paired with `consumed_at` via CHECK |
+| voided_at | TIMESTAMPTZ | NULL — set when admin voids the code |
+| voided_by | UUID | FK → users(id), NULL — paired with `voided_at` via CHECK |
+| void_reason | TEXT | NULL — admin-supplied reason on void |
+| organization_id | UUID | FK → organizations(id), NOT NULL |
+| deleted_at | TIMESTAMPTZ | NULL |
 
-**RLS policies:**
-- SELECT: students see only own-consumed codes; admins see org-scoped codes via `is_admin()`
-- INSERT: denied (all writes via SECURITY DEFINER RPCs only)
-- UPDATE: denied (immutable)
-- DELETE: denied (immutable)
+**Constraints:**
+- `consumed_pair_consistency` CHECK — `(consumed_at IS NULL) = (consumed_session_id IS NULL)`
+- `voided_pair_consistency` CHECK — `(voided_at IS NULL) = (voided_by IS NULL)`
 
-**Pattern:** Accessed via three SECURITY DEFINER RPCs: `issue_internal_exam_code()` (admin), `start_internal_exam_session()` (student), `void_internal_exam_code()` (admin). No direct client writes.
+**Indexes:**
+- `idx_internal_exam_codes_active` on `(student_id, expires_at)` WHERE active (not consumed/voided/expired/deleted)
+- `idx_internal_exam_codes_org` on `(organization_id)` WHERE `deleted_at IS NULL`
+
+**RLS policies (FORCE RLS, migration `20260429000009`):**
+- SELECT (student): `student_id = auth.uid()` AND active (not consumed, not voided, not expired, not deleted)
+- SELECT (admin): `is_admin()` AND org-scoped
+- UPDATE (admin): `is_admin()` AND org-scoped (USING + WITH CHECK)
+- No INSERT or DELETE policies — issuance/consumption/void happen via SECURITY DEFINER RPCs only.
+
+**Pattern:** Accessed via three SECURITY DEFINER RPCs: `issue_internal_exam_code()` (admin), `start_internal_exam_session()` (student), `void_internal_exam_code()` (admin). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`).
 
 ---
 
@@ -586,6 +598,7 @@ ORDER BY deleted_at DESC;
 | `exam_configs` | Yes | Per-subject exam configuration; soft-deleted when org removes exam mode |
 | `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE` |
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
+| `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival |
 
 > **Admin write access (migration 039):** `easa_subjects`, `easa_topics`, and `easa_subtopics` have RLS policies granting INSERT/UPDATE/DELETE to users where `is_admin()` returns `true`. All other users have SELECT-only access. These policies exist to support the Admin Syllabus Manager feature.
 
@@ -1250,6 +1263,63 @@ Completes a `mock_exam` session whose deadline has passed. Computes score from a
 **Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }` — identical to `complete_empty_exam_session` for caller symmetry.
 
 **`start_exam_session` interaction (migration 050):** The replaced `start_exam_session` adds `'started_at'` to its return jsonb and, before raising the duplicate-active-session guard, looks up any same-subject `mock_exam` session that is past its deadline and calls `complete_overdue_exam_session` on it. The `started_at` field lets the client compute remaining time from the server clock instead of trusting its own local clock at start. Existing callers that ignore unknown jsonb keys (e.g. `start-exam.ts` Zod `safeParse` of a closed object) are unaffected — the schema strips unknown keys by default.
+
+**Internal-exam extension (migration `20260429000008`):** `complete_overdue_exam_session` and `complete_empty_exam_session` were widened from `mode = 'mock_exam'` to `mode IN ('mock_exam', 'internal_exam')`. The audit `event_type` is branched: `internal_exam.expired` / `internal_exam.completed` for internal-exam sessions, the existing `exam.*` events for mock-exam sessions.
+
+---
+
+#### Internal Exam RPCs (mode `internal_exam`)
+
+Three SECURITY DEFINER RPCs implement the internal-exam lifecycle. All three set `search_path = public`, gate via `auth.uid()`, and apply `deleted_at IS NULL` filters on every SELECT (including `actor_role` audit subqueries) per security.md rules 7, 9, 10.
+
+##### `issue_internal_exam_code(p_subject_id, p_student_id)`
+
+Admin-only. Generates a single-use 8-char code (Crockford-style alphabet, excludes `0/O/I/1`), inserts it with a 24-hour `expires_at`, and writes an `internal_exam.code_issued` audit event. Up-to-5 retries on UNIQUE collision; raises `code_generation_failed` if all retries collide.
+
+**Guards:** `not_authenticated`, `not_admin`, `admin_not_found`, `student_not_found` (must be same-org student), `subject_not_found`, `exam_config_required` (an enabled `exam_configs` row must exist for the org+subject).
+
+**Returns:** `(code_id uuid, code text, expires_at timestamptz)`.
+
+##### `start_internal_exam_session(p_code)`
+
+Student-facing. Validates the code, atomically consumes it, and creates a fresh `quiz_sessions` row with `mode = 'internal_exam'`. Question selection mirrors `start_exam_session` exactly — same `exam_config_distributions` algorithm, same `q.status = 'active'` and soft-delete filters.
+
+**Validation order (each raises a distinct domain error string):** `code_not_found`, `code_not_yours`, `code_voided`, `code_already_used`, `code_expired`. Then resolves student org (`user not found or inactive`) and exam config (`exam_config_required`, `insufficient_questions_for_exam`).
+
+**Race-safe consumption:** the row is `SELECT ... FOR UPDATE` locked; consumption is `UPDATE ... WHERE id = v_code_id AND consumed_at IS NULL` and raises `code_already_used` if `ROW_COUNT = 0`. Active duplicate-session guard (migration `20260429000010`): before issuing, the RPC looks up any same-subject `internal_exam` session past `(time_limit_seconds + 30)` seconds and calls `complete_overdue_exam_session` on it (mirrors `start_exam_session`).
+
+**Audit:** `internal_exam.started` with `{ code_id, subject_id, total_questions, pass_mark }`.
+
+**Returns:** `(session_id uuid, question_ids uuid[], time_limit_seconds int, total_questions int, pass_mark int, started_at timestamptz)`.
+
+##### `void_internal_exam_code(p_code_id, p_reason)`
+
+Admin-only. Three branches:
+
+1. **Unconsumed** — sets `voided_at`, `voided_by`, `void_reason`. Audits `internal_exam.code_voided`.
+2. **Consumed + active session** — locks the linked `quiz_sessions` row, computes a final score from existing `quiz_session_answers` (unanswered = wrong, identical to `complete_overdue_exam_session`), forces `passed = false`, sets `ended_at`, then voids the code. Writes **two** audit events: `internal_exam.expired` (session) and `internal_exam.code_voided` (code).
+3. **Consumed + finished session** — refuses with `cannot_void_finished_attempt`. The RPC never retroactively changes a closed attempt.
+
+**Guards:** `not_authenticated`, `not_admin`, `admin_not_found`, `code_not_found` (also raised for cross-org access — same error to avoid leaking existence), `code_voided` (already voided), `cannot_void_finished_attempt`.
+
+**Returns:** `(code_id uuid, session_id uuid, session_ended boolean)`.
+
+---
+
+#### `is_admin()` — admin role check (soft-delete fix, migration `20260429000001`)
+
+`CREATE OR REPLACE FUNCTION public.is_admin()` body now includes `AND deleted_at IS NULL` on the `users` lookup. A soft-deleted admin row no longer satisfies `is_admin()`, closing a soft-delete bypass for every admin RLS policy and every admin-gated SECURITY DEFINER RPC. Promoted ahead of the new admin RPCs that depend on it.
+
+---
+
+#### `batch_submit_quiz` — internal-exam extension (migration `20260429000007`)
+
+`CREATE OR REPLACE` of the version in `056` (mock-exam pass-computation revision). Two changes:
+
+1. **All-answered guard restricted to `mock_exam`.** `internal_exam` is allowed to submit with `answered < total` (deliberate — internal exams support partial submission). Mock-exam still requires `answered_count = total_questions` after the +30s grace window.
+2. **Pass computation extended.** `passed` is computed for both `mock_exam` and `internal_exam` (`score_percentage >= pass_mark`); for partial internal-exam submissions an under-`pass_mark` score auto-fails.
+
+Audit `event_type` branches: `internal_exam.completed` for internal-exam sessions, `exam.completed` / `quiz_session.batch_submitted` for the existing modes.
 
 ---
 
