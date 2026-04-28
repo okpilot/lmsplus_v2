@@ -949,7 +949,7 @@ BEGIN
         (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
       VALUES (
         v_org_id, v_student_id,
-        (SELECT role FROM users WHERE id = v_student_id),
+        (SELECT role FROM users WHERE id = v_student_id AND deleted_at IS NULL),
         'exam.expired', 'quiz_session', p_session_id,
         jsonb_build_object('total_questions', v_total, 'reason', 'submission past grace period')
       );
@@ -1139,7 +1139,7 @@ BEGIN
   VALUES (
     v_org_id,
     v_student_id,
-    (SELECT role FROM users WHERE id = v_student_id),
+    (SELECT role FROM users WHERE id = v_student_id AND deleted_at IS NULL),
     CASE WHEN v_mode = 'mock_exam' THEN 'exam.completed' ELSE 'quiz_session.batch_submitted' END,
     'quiz_session',
     p_session_id,

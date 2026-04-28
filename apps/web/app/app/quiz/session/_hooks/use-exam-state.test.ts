@@ -201,42 +201,22 @@ describe('useExamPipeline — isExam flag', () => {
 
 // ---- quizOpts fields forwarded to useQuizSubmit -------------------------
 
-describe('useExamPipeline — quizOpts forwarding', () => {
-  it('forwards userId to useQuizSubmit', () => {
-    renderHook(() => useExamPipeline(makeOpts({ userId: 'u-forwarded' })))
-    const callArg = mockUseQuizSubmit.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(callArg.userId).toBe('u-forwarded')
+describe('useExamPipeline — submission metadata forwarding', () => {
+  it.each([
+    ['userId', 'u-forwarded'],
+    ['sessionId', 'sess-forwarded'],
+    ['draftId', 'draft-forwarded'],
+    ['subjectName', 'Air Law'],
+    ['subjectCode', 'ALW'],
+  ] as const)('forwards %s to submission options', (field, value) => {
+    renderHook(() => useExamPipeline(makeOpts({ [field]: value } as Partial<QuizStateOpts>)))
+    expect(mockUseQuizSubmit).toHaveBeenCalledWith(expect.objectContaining({ [field]: value }))
   })
 
-  it('forwards sessionId to useQuizSubmit', () => {
-    renderHook(() => useExamPipeline(makeOpts({ sessionId: 'sess-forwarded' })))
-    const callArg = mockUseQuizSubmit.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(callArg.sessionId).toBe('sess-forwarded')
-  })
-
-  it('forwards questions array to useQuizSubmit', () => {
+  it('forwards questions to submission options', () => {
     const questions = [{ id: 'q-forward' }] as QuizStateOpts['questions']
     renderHook(() => useExamPipeline(makeOpts({ questions })))
-    const callArg = mockUseQuizSubmit.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(callArg.questions).toBe(questions)
-  })
-
-  it('forwards draftId to useQuizSubmit', () => {
-    renderHook(() => useExamPipeline(makeOpts({ draftId: 'draft-forwarded' })))
-    const callArg = mockUseQuizSubmit.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(callArg.draftId).toBe('draft-forwarded')
-  })
-
-  it('forwards subjectName to useQuizSubmit', () => {
-    renderHook(() => useExamPipeline(makeOpts({ subjectName: 'Air Law' })))
-    const callArg = mockUseQuizSubmit.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(callArg.subjectName).toBe('Air Law')
-  })
-
-  it('forwards subjectCode to useQuizSubmit', () => {
-    renderHook(() => useExamPipeline(makeOpts({ subjectCode: 'ALW' })))
-    const callArg = mockUseQuizSubmit.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(callArg.subjectCode).toBe('ALW')
+    expect(mockUseQuizSubmit).toHaveBeenCalledWith(expect.objectContaining({ questions }))
   })
 })
 

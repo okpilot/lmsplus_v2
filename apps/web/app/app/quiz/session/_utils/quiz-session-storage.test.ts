@@ -446,7 +446,6 @@ describe('writeActiveSession + readActiveSession', () => {
   })
 
   it('rejects mode: exam entries where startedAt is an unparseable string', () => {
-    // Tightened in HEAD~3: !Number.isFinite(Date.parse(startedAt)) guard added.
     const broken = makeSession({
       mode: 'exam',
       startedAt: 'not-a-date',
@@ -995,10 +994,6 @@ describe('readSessionHandoff', () => {
     expect(result?.mode).toBe('exam')
   })
 
-  // Defensive validation: an exam-mode handoff with empty questionIds is
-  // semantically invalid (a session must have at least one question). Callers
-  // that need to write a handoff for an exam must populate the real
-  // questionIds; isValidSessionData rejects empty arrays for both modes.
   it('rejects a handoff with mode: exam and empty questionIds (defensive validation)', () => {
     const key = sessionHandoffKey(USER_ID)
     const data = { userId: USER_ID, sessionId: 'sess-exam-1', mode: 'exam', questionIds: [] }
@@ -1007,8 +1002,6 @@ describe('readSessionHandoff', () => {
 
     const result = readSessionHandoff(USER_ID)
 
-    // questionIds:[] fails isValidSessionData — handoff is discarded so the
-    // session page does not bootstrap with a malformed payload.
     expect(result).toBeNull()
   })
 })

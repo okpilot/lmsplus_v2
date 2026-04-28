@@ -87,6 +87,12 @@ const EXISTING_SESSION = {
   savedAt: Date.now(),
 }
 
+function readStoredSessionPayload(): Record<string, unknown> {
+  const storedJson = mockSessionStorageSetItem.mock.calls[0]?.[1]
+  if (typeof storedJson !== 'string') throw new Error('Expected sessionStorage payload')
+  return JSON.parse(storedJson) as Record<string, unknown>
+}
+
 // ---- Lifecycle ------------------------------------------------------------
 
 beforeEach(() => {
@@ -178,18 +184,13 @@ describe('useExamStart — handleStart happy path', () => {
   it('includes mode exam in sessionStorage payload', async () => {
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
-
-    const storedJson = mockSessionStorageSetItem.mock.calls[0]?.[1] as string
-    const stored = JSON.parse(storedJson) as Record<string, unknown>
-    expect(stored.mode).toBe('exam')
+    expect(readStoredSessionPayload().mode).toBe('exam')
   })
 
   it('includes subjectName and subjectCode in sessionStorage when subject is found', async () => {
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
-
-    const storedJson = mockSessionStorageSetItem.mock.calls[0]?.[1] as string
-    const stored = JSON.parse(storedJson) as Record<string, unknown>
+    const stored = readStoredSessionPayload()
     expect(stored.subjectName).toBe('Air Law')
     expect(stored.subjectCode).toBe('ALW')
   })
@@ -197,9 +198,7 @@ describe('useExamStart — handleStart happy path', () => {
   it('includes timeLimitSeconds and passMark in sessionStorage from RPC result', async () => {
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
-
-    const storedJson = mockSessionStorageSetItem.mock.calls[0]?.[1] as string
-    const stored = JSON.parse(storedJson) as Record<string, unknown>
+    const stored = readStoredSessionPayload()
     expect(stored.timeLimitSeconds).toBe(3600)
     expect(stored.passMark).toBe(75)
   })
@@ -207,10 +206,7 @@ describe('useExamStart — handleStart happy path', () => {
   it('includes startedAt in sessionStorage from RPC result (deadline base)', async () => {
     const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
-
-    const storedJson = mockSessionStorageSetItem.mock.calls[0]?.[1] as string
-    const stored = JSON.parse(storedJson) as Record<string, unknown>
-    expect(stored.startedAt).toBe(STARTED_AT)
+    expect(readStoredSessionPayload().startedAt).toBe(STARTED_AT)
   })
 
   it('navigates to /app/quiz/session after a successful start', async () => {
