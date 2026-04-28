@@ -1060,4 +1060,12 @@ describe('buildHandoffPayload', () => {
     expect(payload.timeLimitSeconds).toBeUndefined()
     expect(payload.passMark).toBeUndefined()
   })
+
+  it('preserves mode on the payload (matches SessionData and toSessionData)', () => {
+    const examPayload = buildHandoffPayload(USER_ID, makeSession({ mode: 'exam' }))
+    const studyPayload = buildHandoffPayload(USER_ID, makeSession({ mode: 'study' }))
+
+    expect(examPayload.mode).toBe('exam')
+    expect(studyPayload.mode).toBe('study')
+  })
 })

@@ -43,6 +43,7 @@ export function buildHandoffPayload(userId: string, s: ActiveSession) {
     draftId: s.draftId,
     subjectName: s.subjectName,
     subjectCode: s.subjectCode,
+    mode: s.mode,
     timeLimitSeconds: s.timeLimitSeconds,
     passMark: s.passMark,
     startedAt: s.startedAt,
