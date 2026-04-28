@@ -1057,7 +1057,6 @@ describe('readSessionHandoff', () => {
       configurable: true,
     })
 
-    expect(() => readSessionHandoff(USER_ID)).not.toThrow()
     expect(readSessionHandoff(USER_ID)).toBeNull()
   })
 })
