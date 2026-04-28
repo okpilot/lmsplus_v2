@@ -16,6 +16,7 @@ type AnswerOptionsProps = {
   correctOptionId?: string | null
   selectedOptionId?: string | null
   onSelectionChange?: (id: string | null) => void
+  isExam?: boolean
 }
 
 function getOptionStyle(opts: {
@@ -23,11 +24,18 @@ function getOptionStyle(opts: {
   isCorrect: boolean
   isWrongSelection: boolean
   isSelected: boolean
+  isExamLocked: boolean
 }) {
   if (opts.showResult && opts.isCorrect)
     return { card: 'border-green-500 bg-green-500/10', circle: 'bg-green-500 text-white' }
   if (opts.showResult && opts.isWrongSelection)
     return { card: 'border-destructive bg-destructive/10', circle: 'bg-red-500 text-white' }
+  // Exam mode: confirmed answer — neutral grey, no correctness signal
+  if (opts.isExamLocked)
+    return {
+      card: 'border-muted-foreground/40 bg-muted/50',
+      circle: 'bg-muted-foreground text-background',
+    }
   if (opts.isSelected && !opts.showResult)
     return { card: 'border-primary bg-primary/5', circle: 'bg-primary text-primary-foreground' }
   return { card: 'border-border hover:border-primary/40', circle: 'border border-current' }
@@ -40,13 +48,14 @@ export function AnswerOptions({
   correctOptionId,
   selectedOptionId: lockedSelection,
   onSelectionChange,
+  isExam,
 }: AnswerOptionsProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const currentSelection = lockedSelection ?? selected
   const showResult = lockedSelection != null && correctOptionId != null
 
   function handleSelect(id: string) {
-    if (showResult || disabled) return
+    if (showResult || disabled || (isExam && lockedSelection != null)) return
     setSelected(id)
     onSelectionChange?.(id)
   }
@@ -62,6 +71,7 @@ export function AnswerOptions({
           isCorrect,
           isWrongSelection,
           isSelected,
+          isExamLocked: !!isExam && lockedSelection != null && isSelected,
         })
 
         return (
@@ -70,7 +80,7 @@ export function AnswerOptions({
             type="button"
             data-testid={`option-${option.id}`}
             data-selected={isSelected && !showResult ? 'true' : undefined}
-            disabled={disabled}
+            disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
             className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
@@ -84,14 +94,14 @@ export function AnswerOptions({
         )
       })}
 
-      {!showResult && (
+      {!showResult && !(isExam && lockedSelection != null) && (
         <button
           type="button"
           disabled={!currentSelection || disabled}
           onClick={() => currentSelection && onSubmit(currentSelection)}
           className="mt-3 hidden w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:block"
         >
-          Submit Answer
+          {isExam ? 'Confirm Answer' : 'Submit Answer'}
         </button>
       )}
     </div>

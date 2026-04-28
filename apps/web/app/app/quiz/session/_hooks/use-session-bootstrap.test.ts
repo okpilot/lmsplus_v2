@@ -115,6 +115,17 @@ describe('useSessionBootstrap — no session data', () => {
     renderHook(() => useSessionBootstrap(USER_ID))
     expect(mockLoadSessionQuestions).not.toHaveBeenCalled()
   })
+
+  it('redirects to /app/quiz when readActiveSession rejects a stale exam entry (pre-deploy, no startedAt)', () => {
+    // readActiveSession strips exam entries that lack startedAt/timeLimitSeconds and
+    // returns null. The bootstrap must then fall through to router.replace('/app/quiz')
+    // rather than showing the recovery prompt for invalid data.
+    // This mirrors the storage guard added in c656868 to handle pre-deploy localStorage.
+    mockReadActiveSession.mockReturnValue(null) // storage guard already rejected it
+    renderHook(() => useSessionBootstrap(USER_ID))
+    expect(mockRouter.replace).toHaveBeenCalledWith('/app/quiz')
+    expect(mockClearActiveSession).not.toHaveBeenCalled() // caller must not double-clear
+  })
 })
 
 // ---- Recovery banner path -----------------------------------------------
@@ -155,6 +166,28 @@ describe('useSessionBootstrap — active session triggers recovery', () => {
 
     // Recovery was NOT set — handoff wins
     expect(result.current.recovery).toBeNull()
+  })
+
+  it('shows recovery for an exam-mode active session (no toast, no redirect)', () => {
+    // Bug 3a: an in-tab refresh during a Practice Exam must rehydrate from
+    // localStorage instead of being bumped to /app/quiz. The categorical
+    // exam-reject was removed; pre-ship entries (without startedAt) are now
+    // rejected at storage.ts:readActiveSession time, so anything that reaches
+    // here is a valid resumable exam.
+    const examActive = {
+      ...ACTIVE_SESSION,
+      mode: 'exam' as const,
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    }
+    mockReadActiveSession.mockReturnValue(examActive)
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    expect(result.current.recovery).toEqual(examActive)
+    expect(mockRouter.replace).not.toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 })
 
@@ -380,6 +413,100 @@ describe('useSessionBootstrap — handleRecoveryResume', () => {
     })
 
     await waitFor(() => expect(result.current.resumeLoading).toBe(false))
+  })
+})
+
+// ---- Bug-3a lifecycle: exam-mode refresh-recovery ----------------------
+// Lifecycle integration test per code-style.md §7:
+// entry path → recovery set → user clicks Resume → loadSessionQuestions →
+// toSessionData produces session with exam fields → QuizSession can reconstruct timer.
+
+describe('useSessionBootstrap — exam-mode refresh-recovery lifecycle (Bug 3a)', () => {
+  const EXAM_ACTIVE: typeof ACTIVE_SESSION & {
+    mode: 'exam'
+    startedAt: string
+    timeLimitSeconds: number
+    passMark: number
+  } = {
+    ...ACTIVE_SESSION,
+    mode: 'exam' as const,
+    startedAt: '2026-04-27T12:00:00.000Z',
+    timeLimitSeconds: 1800,
+    passMark: 75,
+  }
+
+  const EXAM_SESSION_DATA = {
+    ...SESSION_DATA,
+    mode: 'exam' as const,
+    startedAt: '2026-04-27T12:00:00.000Z',
+    timeLimitSeconds: 1800,
+    passMark: 75,
+  }
+
+  it('sets recovery with exam fields when readActiveSession returns an exam-mode entry', () => {
+    mockReadActiveSession.mockReturnValue(EXAM_ACTIVE)
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    expect(result.current.recovery).toEqual(EXAM_ACTIVE)
+    expect(result.current.recovery?.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(result.current.recovery?.timeLimitSeconds).toBe(1800)
+    expect(result.current.recovery?.passMark).toBe(75)
+  })
+
+  it('does not redirect and does not clear localStorage when exam recovery is pending', () => {
+    mockReadActiveSession.mockReturnValue(EXAM_ACTIVE)
+
+    renderHook(() => useSessionBootstrap(USER_ID))
+
+    expect(mockRouter.replace).not.toHaveBeenCalled()
+    expect(mockClearActiveSession).not.toHaveBeenCalled()
+  })
+
+  it('produces a session with startedAt/timeLimitSeconds/passMark after handleRecoveryResume succeeds', async () => {
+    // Full Bug-3a lifecycle: refresh → readActiveSession returns exam entry →
+    // recovery shown → user clicks Resume → loadSessionQuestions → toSessionData
+    // propagates exam fields → session state carries them for the loader to forward.
+    mockReadActiveSession.mockReturnValue(EXAM_ACTIVE)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockToSessionData.mockReturnValue(EXAM_SESSION_DATA)
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    await waitFor(() => expect(result.current.recovery).not.toBeNull())
+
+    await act(async () => {
+      result.current.handleRecoveryResume()
+    })
+
+    await waitFor(() => expect(result.current.session).not.toBeNull())
+
+    expect(result.current.session?.mode).toBe('exam')
+    expect(result.current.session?.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(result.current.session?.timeLimitSeconds).toBe(1800)
+    expect(result.current.session?.passMark).toBe(75)
+    // Recovery must be cleared after successful resume
+    expect(result.current.recovery).toBeNull()
+    // toSessionData must have been called with the exam ActiveSession
+    expect(mockToSessionData).toHaveBeenCalledWith(EXAM_ACTIVE)
+  })
+
+  it('loads questions using the exam session questionIds on resume', async () => {
+    mockReadActiveSession.mockReturnValue(EXAM_ACTIVE)
+    mockLoadSessionQuestions.mockResolvedValue(QUESTIONS_SUCCESS)
+    mockToSessionData.mockReturnValue(EXAM_SESSION_DATA)
+
+    const { result } = renderHook(() => useSessionBootstrap(USER_ID))
+
+    await waitFor(() => expect(result.current.recovery).not.toBeNull())
+
+    await act(async () => {
+      result.current.handleRecoveryResume()
+    })
+
+    await waitFor(() => expect(result.current.questions).not.toBeNull())
+
+    expect(mockLoadSessionQuestions).toHaveBeenCalledWith(EXAM_ACTIVE.questionIds)
   })
 })
 

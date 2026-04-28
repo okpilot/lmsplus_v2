@@ -14,10 +14,11 @@ vi.mock('../_utils/quiz-session-storage', () => ({
 
 import { useQuizPersistence } from './use-quiz-persistence'
 
-const makeOpts = (userId = 'user-1'): QuizStateOpts => ({
+const makeOpts = (userId = 'user-1', mode?: QuizStateOpts['mode']): QuizStateOpts => ({
   userId,
   sessionId: 'session-1',
   questions: [],
+  mode,
 })
 
 const makeAnswers = (): Map<string, DraftAnswer> => new Map()
@@ -39,7 +40,7 @@ describe('useQuizPersistence', () => {
     expect(mockWriteActiveSession).toHaveBeenCalledWith({ mock: 'session' })
   })
 
-  it('forwards the feedback Map as the fourth argument to buildActiveSession', () => {
+  it('includes the feedback map in the persisted session', () => {
     const opts = makeOpts()
     const { result } = renderHook(() => useQuizPersistence(opts))
     const answers = makeAnswers()
@@ -80,5 +81,56 @@ describe('useQuizPersistence', () => {
     rerender({ opts: makeOpts('user-b') })
 
     expect(result.current.checkpoint).not.toBe(first)
+  })
+
+  it('marks the persisted session as exam mode when opts.mode is exam', () => {
+    const opts = makeOpts('user-1', 'exam')
+    const { result } = renderHook(() => useQuizPersistence(opts))
+
+    result.current.checkpoint(makeAnswers(), 0)
+
+    expect(mockBuildActiveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'exam' }),
+      expect.anything(),
+      0,
+      undefined,
+    )
+  })
+
+  it('marks the persisted session as study mode when opts.mode is study', () => {
+    const opts = makeOpts('user-1', 'study')
+    const { result } = renderHook(() => useQuizPersistence(opts))
+
+    result.current.checkpoint(makeAnswers(), 0)
+
+    expect(mockBuildActiveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'study' }),
+      expect.anything(),
+      0,
+      undefined,
+    )
+  })
+
+  it('includes the exam timing fields in the persisted session when present', () => {
+    const opts: QuizStateOpts = {
+      ...makeOpts('user-1', 'exam'),
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    }
+    const { result } = renderHook(() => useQuizPersistence(opts))
+
+    result.current.checkpoint(makeAnswers(), 0)
+
+    expect(mockBuildActiveSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startedAt: '2026-04-27T12:00:00.000Z',
+        timeLimitSeconds: 1800,
+        passMark: 75,
+      }),
+      expect.anything(),
+      0,
+      undefined,
+    )
   })
 })

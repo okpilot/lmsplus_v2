@@ -23,6 +23,8 @@ const mockSummary: QuizReportSummary = {
   scorePercentage: 66.67,
   startedAt: '2026-03-12T10:00:00Z',
   endedAt: '2026-03-12T10:03:30Z',
+  passed: null,
+  timeLimitSeconds: null,
 }
 
 const mockQuestions: QuizReportQuestion[] = [

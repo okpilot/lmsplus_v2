@@ -4,6 +4,7 @@ import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
 import { saveDraft } from '../../actions/draft'
 import { deleteDraft } from '../../actions/draft-delete'
+import { submitEmptyExamSession } from '../../actions/submit-empty-exam'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { clearActiveSession } from '../_utils/quiz-session-storage'
 
@@ -103,9 +104,42 @@ export async function handleSubmitSession(opts: {
   setSubmitting: SetSubmitting
   setError: SetError
   onSuccess: () => void
+  isExam?: boolean
 }) {
-  if (opts.answers.size === 0) {
+  if (opts.answers.size === 0 && !opts.isExam) {
     opts.setError('No answers to submit.')
+    return
+  }
+  if (opts.answers.size === 0 && opts.isExam) {
+    // Exam finished with no answers (timer-expiry or manual finish). Complete
+    // the session server-side so the student lands on the report page (0% / FAIL)
+    // instead of being silently discarded. submitEmptyExamSession catches its
+    // own errors, but RSC stream / network failures can still reject — fall back
+    // to the same cleanup as a result.success===false response.
+    opts.setSubmitting(true)
+    let result: Awaited<ReturnType<typeof submitEmptyExamSession>>
+    try {
+      result = await submitEmptyExamSession({ sessionId: opts.sessionId })
+    } catch (err) {
+      console.error('[handleSubmitSession] submitEmptyExamSession threw:', err)
+      result = { success: false, error: 'Something went wrong. Please try again.' }
+    }
+    if (result.success) {
+      opts.onSuccess()
+      clearActiveSession(opts.userId)
+      opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
+      clearDeploymentPin().catch(() => {})
+    } else {
+      console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
+      clearActiveSession(opts.userId)
+      clearDeploymentPin().catch(() => {})
+      await discardQuiz({ sessionId: opts.sessionId, draftId: opts.draftId }).catch((err) =>
+        console.error('[handleSubmitSession] discardQuiz fallback failed:', err),
+      )
+      opts.setError(result.error)
+      opts.router.push('/app/quiz')
+      opts.setSubmitting(false)
+    }
     return
   }
   opts.setSubmitting(true)

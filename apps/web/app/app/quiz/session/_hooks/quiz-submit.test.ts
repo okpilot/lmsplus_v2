@@ -2,14 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockBatchSubmitQuiz, mockDeleteDraft, mockSaveDraft, mockDiscardQuiz, mockRouterPush } =
-  vi.hoisted(() => ({
-    mockBatchSubmitQuiz: vi.fn(),
-    mockDeleteDraft: vi.fn(),
-    mockSaveDraft: vi.fn(),
-    mockDiscardQuiz: vi.fn(),
-    mockRouterPush: vi.fn(),
-  }))
+const {
+  mockBatchSubmitQuiz,
+  mockDeleteDraft,
+  mockSaveDraft,
+  mockDiscardQuiz,
+  mockRouterPush,
+  mockSubmitEmptyExamSession,
+} = vi.hoisted(() => ({
+  mockBatchSubmitQuiz: vi.fn(),
+  mockDeleteDraft: vi.fn(),
+  mockSaveDraft: vi.fn(),
+  mockDiscardQuiz: vi.fn(),
+  mockRouterPush: vi.fn(),
+  mockSubmitEmptyExamSession: vi.fn(),
+}))
 
 vi.mock('../../actions/batch-submit', () => ({
   batchSubmitQuiz: (...args: unknown[]) => mockBatchSubmitQuiz(...args),
@@ -23,6 +30,10 @@ vi.mock('../../actions/draft-delete', () => ({
 }))
 vi.mock('../../actions/discard', () => ({
   discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+}))
+
+vi.mock('../../actions/submit-empty-exam', () => ({
+  submitEmptyExamSession: (...args: unknown[]) => mockSubmitEmptyExamSession(...args),
 }))
 
 const { mockClearDeploymentPin } = vi.hoisted(() => ({
@@ -89,6 +100,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockDeleteDraft.mockResolvedValue({ success: true })
   mockClearDeploymentPin.mockResolvedValue(undefined)
+  mockSubmitEmptyExamSession.mockResolvedValue({ success: true, sessionId: SESSION_ID })
 })
 
 // ---- submitQuizSession ---------------------------------------------------
@@ -506,6 +518,143 @@ describe('handleSubmitSession', () => {
     await handleSubmitSession(opts)
     expect(setSubmittingOrder[0]).toBe(true)
     expect(setErrorOrder[0]).toBeNull()
+  })
+
+  it('calls submitEmptyExamSession when exam times out with no answers', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(mockSubmitEmptyExamSession).toHaveBeenCalledWith({ sessionId: SESSION_ID })
+  })
+
+  it('redirects to report page with session id when exam times out with no answers', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(opts.router.push).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+  })
+
+  it('clears active session on successful zero-answer exam completion', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('fires clearDeploymentPin on successful zero-answer exam completion', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call discardQuiz on successful zero-answer exam completion', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(mockDiscardQuiz).not.toHaveBeenCalled()
+  })
+
+  it('invokes onSuccess and pushes to /app/quiz/report on zero-answer exam success', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(opts.onSuccess).toHaveBeenCalledTimes(1)
+    expect(opts.router.push).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+  })
+
+  it('sets setSubmitting(true) but not setError on successful zero-answer exam completion', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(opts.setError).not.toHaveBeenCalled()
+    // setSubmitting(true) fires to show loading; navigation takes over (no false call)
+    expect(opts.setSubmitting).toHaveBeenCalledWith(true)
+    expect(opts.setSubmitting).not.toHaveBeenCalledWith(false)
+  })
+
+  it('falls back to discard + /app/quiz when submitEmptyExamSession fails', async () => {
+    mockSubmitEmptyExamSession.mockResolvedValue({
+      success: false,
+      error: 'Session not found.',
+    })
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+    expect(mockDiscardQuiz).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      draftId: undefined,
+    })
+    expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+  })
+
+  it('sets error when submitEmptyExamSession fails', async () => {
+    mockSubmitEmptyExamSession.mockResolvedValue({
+      success: false,
+      error: 'Session not found.',
+    })
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+    expect(opts.setError).toHaveBeenCalledWith('Session not found.')
+  })
+
+  it('still redirects to /app/quiz when fallback discardQuiz throws', async () => {
+    mockSubmitEmptyExamSession.mockResolvedValue({
+      success: false,
+      error: 'Failed to complete Practice Exam.',
+    })
+    mockDiscardQuiz.mockRejectedValue(new Error('network'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const opts = makeOpts({ answers: new Map(), isExam: true })
+      await handleSubmitSession(opts)
+      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+      expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
+  it('discards the draft and clears the submitting flag when the empty-submit fallback fails', async () => {
+    mockSubmitEmptyExamSession.mockResolvedValue({ success: false, error: 'X' })
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const opts = makeOpts({ answers: new Map(), isExam: true, draftId: DRAFT_ID })
+      await handleSubmitSession(opts)
+      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+      expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID, draftId: DRAFT_ID })
+      expect(opts.setError).toHaveBeenCalledWith('X')
+      expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+      expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
+  it('routes to /app/quiz and clears submitting when submitEmptyExamSession rejects', async () => {
+    // RSC stream / network failures bypass the action's internal try/catch and
+    // surface as a rejected promise. Without our outer catch, the student would
+    // be stuck with the spinner spinning forever.
+    mockSubmitEmptyExamSession.mockRejectedValue(new Error('network'))
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const opts = makeOpts({ answers: new Map(), isExam: true })
+      await handleSubmitSession(opts)
+      expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+      expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
+      expect(opts.setError).toHaveBeenCalledWith('Something went wrong. Please try again.')
+      expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
+      expect(mockDiscardQuiz).toHaveBeenCalledWith({
+        sessionId: SESSION_ID,
+        draftId: undefined,
+      })
+    } finally {
+      consoleSpy.mockRestore()
+    }
   })
 })
 

@@ -13,7 +13,9 @@
 6. **Soft delete** — never hard DELETE. Always `UPDATE SET deleted_at = now()`.
 7. **Auth check in RPCs** — all SECURITY DEFINER functions must call `auth.uid()` manually and raise if null.
 8. **Secrets** — never commit `.env*` files. Pre-commit hook blocks them.
-9. **Soft-delete in RPCs** — every SELECT inside a SECURITY DEFINER function must include `AND deleted_at IS NULL` on soft-deletable tables. SECURITY DEFINER bypasses RLS, so soft-delete filters must be manual.
+9. **Soft-delete in RPCs** — every SELECT inside a SECURITY DEFINER function must include `AND deleted_at IS NULL` on soft-deletable tables. SECURITY DEFINER bypasses RLS, so soft-delete filters must be manual. **Narrow exception:** SELECTs fetching records by IDs stored in an immutable, write-once column (only current case: `batch_submit_quiz` reading `questions` via `quiz_sessions.config.question_ids`, written once at session start) may omit the filter. Any new instance must cite the immutable column at the call site — see `docs/security.md` §15 and `docs/database.md` §3.
+
+10. **Audit-event INSERT subqueries** — Every `INSERT INTO audit_events (...)` SQL block in a SECURITY DEFINER function must filter `deleted_at IS NULL` on any user/session/question/membership FK lookup used to populate `actor_id`, `actor_role`, or session-derived columns. The outer auth/ownership guards may already enforce this for the calling student, but the audit-row subqueries are independent SELECTs. First seen: issue #550 (`batch_submit_quiz`). Replicated: `complete_empty_exam_session` (cross-referenced 2026-04-27). Pattern hit count=3 — promoted from watch to hard rule.
 
 ## When the security-auditor agent runs
 On every `git push` via Lefthook pre-push hook.

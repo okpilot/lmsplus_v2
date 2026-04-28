@@ -593,4 +593,24 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-04-04 — Decision 34: Server-side pagination with server-side sort/filter*
+### Decision 35: 0-answer expired Practice Exam → results page (not discard)
+
+**Date**: 2026-04-27
+**Context**: When a `mock_exam` session countdown reaches zero and the student has not answered any questions, the system must decide what to do with the session.
+**Decision**: Call `complete_empty_exam_session` RPC to record `score_percentage = 0`, `passed = false`, `correct_count = 0`, then redirect the student to `/app/quiz/report?session=<id>`. If that RPC fails, fall back to discard + redirect to `/app/quiz`.
+**Rationale**: Silent discard gives the student no feedback and no record of the attempt. An explicit 0% / FAIL result on the report page is better UX — the student knows what happened and the attempt is recorded for compliance purposes. The fallback-to-discard path exists so the student is never stuck on an un-submittable session.
+**Implementation**: Migration 049 (`complete_empty_exam_session` RPC), Server Action `submitEmptyExamSession`, `handleSubmitSession` in `quiz-submit.ts`.
+
+---
+
+### Decision 36: Practice Exam resume = sessionStorage handoff + server-side question IDs
+
+**Date**: 2026-04-27
+**Context**: When a student resumes an interrupted Practice Exam from the dashboard banner (cold start — no active session page in memory), the session page needs the question IDs to rehydrate state. Previously the banner wrote `questionIds: []` to the sessionStorage handoff, which the validator (`isValidSessionData`) unconditionally rejects, silently redirecting the student back to `/app/quiz` instead of resuming.
+**Decision**: `getActiveExamSession` reads `quiz_sessions.config.question_ids` from the database (RLS-scoped, no SECURITY DEFINER needed — the student can only see their own rows), validates the JSONB array shape at the server, and returns the IDs in `ActiveExamSession`. The `ResumeExamBanner` writes those real IDs into the handoff payload. Rows with malformed config are skipped with a server-side log and do not appear in the banner.
+**Rationale**: The handoff format already requires non-empty `questionIds` (established in Phase 1). Reading them server-side at resume time is the simplest correct approach — no new RPC, no extra table, no client-side secret exposure. Cold-start and cross-tab recovery both work through this path.
+**Implementation**: `getActiveExamSession` + `ResumeExamBanner` updated; round-trip test in `resume-exam-banner.test.tsx` pins the validator contract.
+
+---
+
+*Last updated: 2026-04-27 — Decision 36: Practice Exam resume = sessionStorage handoff + server-side question IDs*

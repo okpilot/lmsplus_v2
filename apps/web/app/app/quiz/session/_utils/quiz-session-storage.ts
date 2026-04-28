@@ -24,6 +24,11 @@ export type ActiveSession = {
   subjectCode?: string
   draftId?: string
   savedAt: number // Date.now()
+  mode?: 'study' | 'exam'
+  // Exam-mode refresh recovery: timer needs deadline-relative state, independent of SessionData.
+  startedAt?: string // ISO string from quiz_sessions.started_at; required for exam mode
+  timeLimitSeconds?: number
+  passMark?: number
 }
 
 /** Build the sessionStorage handoff payload for resuming a session. */
@@ -38,6 +43,10 @@ export function buildHandoffPayload(userId: string, s: ActiveSession) {
     draftId: s.draftId,
     subjectName: s.subjectName,
     subjectCode: s.subjectCode,
+    mode: s.mode,
+    timeLimitSeconds: s.timeLimitSeconds,
+    passMark: s.passMark,
+    startedAt: s.startedAt,
   }
 }
 
@@ -100,6 +109,20 @@ export function readActiveSession(userId: string): ActiveSession | null {
       safeRemove(userId)
       return null
     }
+    // Exam mode requires startedAt + timeLimitSeconds for the timer.
+    // Reject pre-ship localStorage entries that lack these fields, and reject
+    // garbage values (NaN/Infinity/non-positive timeLimit, unparseable startedAt).
+    if (
+      data.mode === 'exam' &&
+      (typeof data.startedAt !== 'string' ||
+        !Number.isFinite(Date.parse(data.startedAt)) ||
+        typeof data.timeLimitSeconds !== 'number' ||
+        !Number.isFinite(data.timeLimitSeconds) ||
+        data.timeLimitSeconds <= 0)
+    ) {
+      safeRemove(userId)
+      return null
+    }
     // 7-day staleness check
     if (Date.now() - data.savedAt > SEVEN_DAYS_MS) {
       safeRemove(userId)
@@ -126,6 +149,10 @@ export type SessionData = {
   draftId?: string
   subjectName?: string
   subjectCode?: string
+  mode?: 'study' | 'exam'
+  timeLimitSeconds?: number
+  passMark?: number
+  startedAt?: string
 }
 
 export function isValidSessionData(data: unknown, expectedUserId: string): data is SessionData {
@@ -177,6 +204,10 @@ export function toSessionData(r: ActiveSession): SessionData {
     draftId: r.draftId,
     subjectName: r.subjectName,
     subjectCode: r.subjectCode,
+    mode: r.mode,
+    startedAt: r.startedAt,
+    timeLimitSeconds: r.timeLimitSeconds,
+    passMark: r.passMark,
   }
 }
 
@@ -195,6 +226,10 @@ type BuildOpts = {
   subjectName?: string
   subjectCode?: string
   draftId?: string
+  mode?: 'study' | 'exam'
+  startedAt?: string
+  timeLimitSeconds?: number
+  passMark?: number
 }
 
 export function buildActiveSession(
@@ -214,5 +249,9 @@ export function buildActiveSession(
     subjectCode: opts.subjectCode,
     draftId: opts.draftId,
     savedAt: Date.now(),
+    mode: opts.mode,
+    startedAt: opts.startedAt,
+    timeLimitSeconds: opts.timeLimitSeconds,
+    passMark: opts.passMark,
   }
 }

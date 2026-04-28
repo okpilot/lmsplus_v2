@@ -20,6 +20,11 @@ vi.mock('../../actions/draft-delete', () => ({
   deleteDraft: (...args: unknown[]) => mockDeleteDraft(...args),
 }))
 
+const mockDiscardQuiz = vi.fn()
+vi.mock('../../actions/discard', () => ({
+  discardQuiz: (...args: unknown[]) => mockDiscardQuiz(...args),
+}))
+
 const mockCheckAnswer = vi.fn()
 vi.mock('../../actions/check-answer', () => ({
   checkAnswer: (...args: unknown[]) => mockCheckAnswer(...args),
@@ -33,6 +38,9 @@ vi.mock('../../_components/finish-quiz-dialog', () => ({
     submitting,
     onSubmit,
     onCancel,
+    onDiscard,
+    isExam,
+    timeExpired,
   }: {
     open: boolean
     answeredCount: number
@@ -40,19 +48,60 @@ vi.mock('../../_components/finish-quiz-dialog', () => ({
     submitting: boolean
     onSubmit: () => void
     onCancel: () => void
-  }) =>
-    open ? (
-      <div data-testid="finish-dialog">
+    onDiscard: () => void
+    isExam?: boolean
+    timeExpired?: boolean
+  }) => {
+    if (!open) return null
+    const canDismiss = !(timeExpired && isExam)
+    return (
+      <div
+        data-testid="finish-dialog"
+        data-is-exam={isExam ? 'true' : 'false'}
+        data-time-expired={timeExpired ? 'true' : 'false'}
+        data-can-dismiss={canDismiss ? 'true' : 'false'}
+      >
         <span data-testid="dialog-answered">{answeredCount}</span>
         <span data-testid="dialog-total">{totalQuestions}</span>
         <button type="button" onClick={onSubmit} disabled={submitting}>
           Submit Quiz
         </button>
-        <button type="button" onClick={onCancel}>
-          Return to Quiz
-        </button>
+        {canDismiss && (
+          <button type="button" onClick={onCancel}>
+            Return to Quiz
+          </button>
+        )}
+        {canDismiss && (
+          <button type="button" onClick={onDiscard}>
+            Discard Session
+          </button>
+        )}
       </div>
-    ) : null,
+    )
+  },
+}))
+
+vi.mock('../../_components/exam-countdown-timer', () => ({
+  ExamCountdownTimer: ({
+    onExpired,
+    className,
+    startedAt,
+  }: {
+    timeLimitSeconds: number
+    startedAt: number
+    onExpired: () => void
+    className?: string
+  }) => (
+    <span
+      data-testid="exam-countdown-timer"
+      data-classname={className ?? ''}
+      data-started-at={startedAt}
+    >
+      <button type="button" data-testid="trigger-expired" onClick={onExpired}>
+        Expire
+      </button>
+    </span>
+  ),
 }))
 
 vi.mock('@/app/app/_components/question-card', () => ({
@@ -237,6 +286,7 @@ describe('QuizSession', () => {
     vi.resetAllMocks()
     mockDeleteDraft.mockResolvedValue({ success: true })
     mockSaveDraft.mockResolvedValue({ success: true })
+    mockDiscardQuiz.mockResolvedValue({ success: true })
     mockCheckAnswer.mockResolvedValue({
       success: true,
       isCorrect: true,
@@ -463,6 +513,26 @@ describe('QuizSession', () => {
     expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
   })
 
+  // ---- Exam-mode onDiscard wiring ------------------------------------------
+
+  it('passes isExam=true to FinishQuizDialog when mode is exam', () => {
+    render(
+      <QuizSession sessionId="sess-exam" questions={QUESTIONS} userId="test-user-id" mode="exam" />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
+    expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-is-exam', 'true')
+  })
+
+  it('calls discardQuiz via onDiscard when Discard Session is clicked in exam mode', async () => {
+    render(
+      <QuizSession sessionId="sess-exam" questions={QUESTIONS} userId="test-user-id" mode="exam" />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard Session' }))
+    await waitFor(() => expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: 'sess-exam' }))
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/app/quiz'))
+  })
+
   it('disables the Finish Test button while a submission is in progress', async () => {
     // Use a promise that never resolves so submitting stays true
     let resolveSubmit!: (value: unknown) => void
@@ -496,5 +566,168 @@ describe('QuizSession', () => {
       scorePercentage: 33,
       results: [],
     })
+  })
+
+  it('marks session expired even when submit is in flight', async () => {
+    // Keep batch submit pending so `s.submitting` stays true the whole time
+    let resolveSubmit!: (value: unknown) => void
+    mockBatchSubmitQuiz.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSubmit = resolve
+        }),
+    )
+
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+      />,
+    )
+
+    // Buffer an answer so handleSubmitSession progresses past the empty-answers guard
+    fireEvent.click(screen.getByTestId('option-a'))
+
+    // Open dialog and click Submit so the batch submit is in flight (submitting=true).
+    // Pre-fix: when the timer fires later, handleTimeExpired's `s.submitting` guard
+    // would short-circuit before setting autoSubmitFiredRef, so the dialog stayed
+    // dismissible. Post-fix: the guard is dropped so the ref is set unconditionally.
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Quiz' }))
+    await waitFor(() => expect(mockBatchSubmitQuiz).toHaveBeenCalled())
+
+    // Time expires while the submit is in flight
+    fireEvent.click(screen.getAllByTestId('trigger-expired')[0]!)
+
+    // Resolving the in-flight submit with a failure flips submitting back to
+    // false, which triggers a re-render and lets the dialog observe the
+    // already-set autoSubmitFiredRef. Without the fix, the ref was never set,
+    // so timeExpired stays false even after the re-render.
+    resolveSubmit({ success: false, error: 'Server error' })
+
+    await waitFor(() => {
+      const dialog = screen.getByTestId('finish-dialog')
+      expect(dialog).toHaveAttribute('data-time-expired', 'true')
+      expect(dialog).toHaveAttribute('data-can-dismiss', 'false')
+    })
+
+    // Dismiss controls are hidden when canDismiss=false
+    expect(screen.queryByRole('button', { name: 'Return to Quiz' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Discard Session' })).not.toBeInTheDocument()
+  })
+
+  it('flips timeExpired on the open dialog when the timer fires (no submit in flight)', async () => {
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Practice Exam' }))
+    const dialogBefore = screen.getByTestId('finish-dialog')
+    expect(dialogBefore).toHaveAttribute('data-time-expired', 'false')
+    expect(dialogBefore).toHaveAttribute('data-can-dismiss', 'true')
+
+    fireEvent.click(screen.getAllByTestId('trigger-expired')[0]!)
+
+    await waitFor(() => {
+      const dialogAfter = screen.getByTestId('finish-dialog')
+      expect(dialogAfter).toHaveAttribute('data-time-expired', 'true')
+      expect(dialogAfter).toHaveAttribute('data-can-dismiss', 'false')
+    })
+  })
+
+  it('passes parsed startedAt timestamp to the exam countdown timer when prop is set', () => {
+    const startedAt = '2026-04-27T12:00:00.000Z'
+    const expectedMs = new Date(startedAt).getTime()
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+        startedAt={startedAt}
+      />,
+    )
+
+    const timers = screen.getAllByTestId('exam-countdown-timer')
+    for (const t of timers) {
+      expect(t.getAttribute('data-started-at')).toBe(String(expectedMs))
+    }
+  })
+
+  it('falls back to Date.now() for the timer start when startedAt prop is absent', () => {
+    const before = Date.now()
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+      />,
+    )
+    const after = Date.now()
+
+    const timer = screen.getAllByTestId('exam-countdown-timer')[0]!
+    const startedAtAttr = Number(timer.getAttribute('data-started-at'))
+    expect(startedAtAttr).toBeGreaterThanOrEqual(before)
+    expect(startedAtAttr).toBeLessThanOrEqual(after)
+  })
+
+  it('falls back to Date.now() when startedAt is a malformed ISO string', () => {
+    const before = Date.now()
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+        startedAt="not-a-real-date"
+      />,
+    )
+    const after = Date.now()
+
+    const timer = screen.getAllByTestId('exam-countdown-timer')[0]!
+    const startedAtAttr = Number(timer.getAttribute('data-started-at'))
+    expect(startedAtAttr).toBeGreaterThanOrEqual(before)
+    expect(startedAtAttr).toBeLessThanOrEqual(after)
+  })
+
+  it('hides the header countdown timer on desktop breakpoint', () => {
+    render(
+      <QuizSession
+        sessionId="sess-exam"
+        questions={QUESTIONS}
+        userId="test-user-id"
+        mode="exam"
+        timeLimitSeconds={1800}
+        passMark={75}
+      />,
+    )
+
+    const timers = screen.getAllByTestId('exam-countdown-timer')
+    // Two instances render (header + main), but only one is visible on each breakpoint:
+    // header has `md:hidden` (mobile-only), main has `hidden md:inline` (desktop-only)
+    expect(timers).toHaveLength(2)
+    const headerTimer = timers[0]!
+    const mainTimer = timers[1]!
+    expect(headerTimer.getAttribute('data-classname')).toContain('md:hidden')
+    expect(mainTimer.getAttribute('data-classname')).toContain('hidden')
+    expect(mainTimer.getAttribute('data-classname')).toContain('md:inline')
   })
 })

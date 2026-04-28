@@ -460,7 +460,7 @@ describe('useQuizConfig — isPending from fc.isFilterPending', () => {
 // ---- handleStart delegation ----------------------------------------------
 
 describe('useQuizConfig — handleStart', () => {
-  it('delegates to the handleStart returned by useQuizStart', async () => {
+  it('invokes the start handler when called', async () => {
     const { result } = renderHook(() =>
       useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
     )
@@ -470,7 +470,7 @@ describe('useQuizConfig — handleStart', () => {
     expect(mockHandleStart).toHaveBeenCalled()
   })
 
-  it('passes loading and error state through from useQuizStart', () => {
+  it('exposes loading and error state on its return value', () => {
     ;(useQuizStart as Mock).mockReturnValue({
       loading: true,
       error: 'Something went wrong. Please try again.',

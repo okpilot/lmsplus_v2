@@ -19,7 +19,16 @@ vi.mock('../_hooks/use-session-bootstrap', () => ({
 // Mock heavy child components so tests focus on loader routing logic.
 vi.mock('./quiz-session', () => ({
   QuizSession: (props: Record<string, unknown>) => (
-    <div data-testid="quiz-session" data-session-id={props.sessionId as string} />
+    <div
+      data-testid="quiz-session"
+      data-session-id={props.sessionId as string}
+      data-mode={(props.mode as string | undefined) ?? ''}
+      data-pass-mark={typeof props.passMark === 'number' ? String(props.passMark) : ''}
+      data-started-at={(props.startedAt as string | undefined) ?? ''}
+      data-time-limit-seconds={
+        typeof props.timeLimitSeconds === 'number' ? String(props.timeLimitSeconds) : ''
+      }
+    />
   ),
 }))
 
@@ -286,6 +295,27 @@ describe('QuizSessionLoader — happy path', () => {
     })
     render(<QuizSessionLoader userId="user-1" />)
     expect(screen.getByTestId('quiz-session')).toHaveAttribute('data-session-id', 'sess-abc')
+  })
+
+  it('forwards mode, pass mark, and timing fields to the active quiz', () => {
+    const session: SessionData = {
+      ...makeSession(),
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    }
+    mockUseSessionBootstrap.mockReturnValue({
+      ...makeBootstrapBase(),
+      session,
+      questions: makeQuestions(),
+    })
+    render(<QuizSessionLoader userId="user-1" />)
+    const node = screen.getByTestId('quiz-session')
+    expect(node).toHaveAttribute('data-mode', 'exam')
+    expect(node).toHaveAttribute('data-pass-mark', '75')
+    expect(node).toHaveAttribute('data-started-at', '2026-04-27T12:00:00.000Z')
+    expect(node).toHaveAttribute('data-time-limit-seconds', '1800')
   })
 
   it('renders QuizSession when answers contain stale question ids', () => {

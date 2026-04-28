@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActiveSession } from './quiz-session-storage'
 import {
   buildActiveSession,
+  buildHandoffPayload,
   clearActiveSession,
   clearSessionHandoff,
   readActiveSession,
   readSessionHandoff,
   sessionHandoffKey,
+  toSessionData,
   writeActiveSession,
 } from './quiz-session-storage'
 
@@ -390,6 +392,159 @@ describe('writeActiveSession + readActiveSession', () => {
 
     expect(result).not.toBeNull()
   })
+
+  it('round-trips a session with mode: exam', () => {
+    const session = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    })
+    writeActiveSession(session)
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBe('exam')
+    expect(result?.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(result?.timeLimitSeconds).toBe(1800)
+    expect(result?.passMark).toBe(75)
+  })
+
+  it('rejects mode: exam entries that lack startedAt', () => {
+    const broken = makeSession({ mode: 'exam', timeLimitSeconds: 1800 })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects mode: exam entries that lack timeLimitSeconds', () => {
+    const broken = makeSession({ mode: 'exam', startedAt: '2026-04-27T12:00:00.000Z' })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('accepts mode: exam entries with both startedAt and timeLimitSeconds present', () => {
+    const valid = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(valid))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBe('exam')
+  })
+
+  it('rejects mode: exam entries where startedAt is an unparseable string', () => {
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: 'not-a-date',
+      timeLimitSeconds: 1800,
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects exam sessions where startedAt is a number instead of an ISO string', () => {
+    // Epoch-ms corruption: a writer stored Date.now() instead of new Date().toISOString().
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: 1714219200000 as unknown as string,
+      timeLimitSeconds: 1800,
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects exam sessions with a zero-second time limit', () => {
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 0,
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects exam sessions with a null time limit value', () => {
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 60,
+    }) as unknown as Record<string, unknown>
+    broken.timeLimitSeconds = null
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects exam sessions with a negative time limit', () => {
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: -1,
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects exam sessions when timeLimitSeconds overflows to Infinity', () => {
+    // 1e309 parses to Infinity; JSON.stringify({x: Infinity}) drops to null,
+    // so we serialise via makeSession with a sentinel and substitute the raw literal.
+    const base = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: '__OVERFLOW__' as unknown as number,
+    })
+    const brokenJson = JSON.stringify(base).replace('"__OVERFLOW__"', '1e309')
+    mockStorage._store.set(STORAGE_KEY, brokenJson)
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('round-trips a session without mode field (backward compat)', () => {
+    const legacySession = makeSession()
+    const raw = { ...legacySession } as Record<string, unknown>
+    delete raw.mode
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(raw))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBeUndefined()
+  })
 })
 
 // ---- clearActiveSession ------------------------------------------------------
@@ -565,6 +720,41 @@ describe('buildActiveSession', () => {
 
     expect(result.feedback).toBeUndefined()
   })
+
+  it('returns an exam-mode session when exam mode is requested', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(0)
+
+    const opts = {
+      userId: USER_ID,
+      sessionId: 'sess-exam',
+      questions: [{ id: 'q1' }],
+      mode: 'exam' as const,
+    }
+
+    const result = buildActiveSession(opts, new Map(), 0)
+
+    expect(result.mode).toBe('exam')
+  })
+
+  it('includes provided exam timing metadata in the session', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(0)
+
+    const opts = {
+      userId: USER_ID,
+      sessionId: 'sess-exam',
+      questions: [{ id: 'q1' }],
+      mode: 'exam' as const,
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    }
+
+    const result = buildActiveSession(opts, new Map(), 0)
+
+    expect(result.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(result.timeLimitSeconds).toBe(1800)
+    expect(result.passMark).toBe(75)
+  })
 })
 
 // ---- sessionHandoffKey -------------------------------------------------------
@@ -707,6 +897,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when draftCurrentIndex is a string', () => {
@@ -716,6 +907,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when draftId is an empty string', () => {
@@ -725,6 +917,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when subjectName is a number', () => {
@@ -734,6 +927,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when subjectCode is a boolean', () => {
@@ -743,6 +937,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('accepts payload with valid draftFeedback entries', () => {
@@ -781,6 +976,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when draftFeedback is an array', () => {
@@ -790,6 +986,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when a draftFeedback entry has isCorrect as a string', () => {
@@ -810,6 +1007,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('does not read a different user key', () => {
@@ -821,6 +1019,45 @@ describe('readSessionHandoff', () => {
     const result = readSessionHandoff(USER_ID)
 
     expect(result).toBeNull()
+  })
+
+  it('accepts a handoff with mode: exam and non-empty questionIds', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { sessionId: 'sess-exam-1', questionIds: ['q1', 'q2'], mode: 'exam' }
+    mockSession._store.set(key, JSON.stringify(data))
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).not.toBeNull()
+    expect(result?.mode).toBe('exam')
+  })
+
+  it('rejects a handoff with mode: exam and empty questionIds (defensive validation)', () => {
+    const key = sessionHandoffKey(USER_ID)
+    const data = { userId: USER_ID, sessionId: 'sess-exam-1', mode: 'exam', questionIds: [] }
+    mockSession._store.set(key, JSON.stringify(data))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const result = readSessionHandoff(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
+  })
+
+  it('returns null without throwing when malformed JSON cleanup removeItem throws SecurityError', () => {
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        getItem: vi.fn(() => '{{not valid json}}'),
+        setItem: vi.fn(),
+        removeItem: vi.fn(() => {
+          throw new DOMException('The operation is insecure', 'SecurityError')
+        }),
+      },
+      writable: true,
+      configurable: true,
+    })
+
+    expect(readSessionHandoff(USER_ID)).toBeNull()
   })
 })
 
@@ -868,5 +1105,72 @@ describe('clearSessionHandoff', () => {
     })
 
     expect(() => clearSessionHandoff(USER_ID)).not.toThrow()
+  })
+})
+
+// ---- toSessionData -----------------------------------------------------------
+
+describe('toSessionData', () => {
+  it('includes startedAt, timeLimitSeconds, passMark when present on the ActiveSession', () => {
+    const active = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    })
+
+    const result = toSessionData(active)
+
+    expect(result.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(result.timeLimitSeconds).toBe(1800)
+    expect(result.passMark).toBe(75)
+    expect(result.mode).toBe('exam')
+  })
+
+  it('leaves new fields undefined when ActiveSession does not carry them', () => {
+    const active = makeSession()
+
+    const result = toSessionData(active)
+
+    expect(result.startedAt).toBeUndefined()
+    expect(result.timeLimitSeconds).toBeUndefined()
+    expect(result.passMark).toBeUndefined()
+  })
+})
+
+// ---- buildHandoffPayload -----------------------------------------------------
+
+describe('buildHandoffPayload', () => {
+  it('includes startedAt, timeLimitSeconds, passMark in the payload when present', () => {
+    const active = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: 1800,
+      passMark: 75,
+    })
+
+    const payload = buildHandoffPayload(USER_ID, active)
+
+    expect(payload.startedAt).toBe('2026-04-27T12:00:00.000Z')
+    expect(payload.timeLimitSeconds).toBe(1800)
+    expect(payload.passMark).toBe(75)
+  })
+
+  it('omits the new fields when not on the source ActiveSession', () => {
+    const active = makeSession()
+
+    const payload = buildHandoffPayload(USER_ID, active)
+
+    expect(payload.startedAt).toBeUndefined()
+    expect(payload.timeLimitSeconds).toBeUndefined()
+    expect(payload.passMark).toBeUndefined()
+  })
+
+  it('preserves session mode on the handoff payload', () => {
+    const examPayload = buildHandoffPayload(USER_ID, makeSession({ mode: 'exam' }))
+    const studyPayload = buildHandoffPayload(USER_ID, makeSession({ mode: 'study' }))
+
+    expect(examPayload.mode).toBe('exam')
+    expect(studyPayload.mode).toBe('study')
   })
 })

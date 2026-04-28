@@ -105,7 +105,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
 function ExamBadge() {
   return (
     <span className="inline-block rounded-sm border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold uppercase leading-none tracking-wide text-amber-600">
-      Exam
+      {MODE_LABELS.mock_exam}
     </span>
   )
 }

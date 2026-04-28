@@ -32,7 +32,7 @@
 | ?? [] fallback applied after an explicit error guard (silent data loss path) | 1 | 2026-03-12 | Watch — subjects ?? [] in statistics-tab.tsx after null/error guard (845923b); fixed in 86c8da4; data is already known bad at that point, fallback hides the gap |
 | Server Action shipped without Zod input validation | 1 | 2026-03-12 | Watch — fetch-stats.ts Server Action (845923b); fixed in 86c8da4; rule exists (security.md rule 4); compliance gap, not rule gap |
 | Inconsistent guard between related RPCs (sibling RPC missing guard introduced in first) | 2 | 2026-03-14 | RULE CANDIDATE — first: auth.uid() identity guard missing from sibling analytics RPC (845923b → 7b824c2); second: NULL correct_option guard in migration 037 but missing from sibling migration 036 (83ae098 → 08abee0); both fixed in follow-up commits; when a guard is added to one RPC in a family, audit all siblings in the same commit |
-| Partial fix applied to sibling file group (cross-cutting concern) | 4 | 2026-03-29 | RULE CANDIDATE (count 4 — action required) — first: auth error destructuring applied to 2 of 8 query files (2190dd5); second: PR4 getUser hardening missed quiz/session/page.tsx and discard.ts (83ae098); third: GDPR consent seeding updated in supabase.ts and 1 other helper but missed admin-supabase.ts ensureAdminTestUser() (consent commit, 2026-03-27), caught as CRITICAL by semantic-reviewer; fourth: e38ef8c fixed currentStreak "1 days" → "1 day" in stat-cards.tsx but left bestStreak with the same bug (same component, same line pattern) — caught as ISSUE by semantic-reviewer; fixed in ca09f34; all four required fix commits; root cause: the fix is scoped to the specific instance the author saw rather than to all instances of the same pattern in the file/component; the grep approach is required: when fixing a string formatting or grammatical pattern (singular/plural, casing, label text), grep the same file for all instances of the same pattern before committing; see Lessons entry 2026-03-29 |
+| Partial fix applied to sibling file group (cross-cutting concern) | 5 | 2026-04-14 | RULE CANDIDATE (count 5) — first: auth error destructuring applied to 2 of 8 query files (2190dd5); second: PR4 getUser hardening missed quiz/session/page.tsx and discard.ts (83ae098); third: GDPR consent seeding updated in supabase.ts and 1 other helper but missed admin-supabase.ts ensureAdminTestUser() (consent commit, 2026-03-27), caught as CRITICAL by semantic-reviewer; fourth: e38ef8c fixed currentStreak "1 days" → "1 day" in stat-cards.tsx but left bestStreak with the same bug (same component, same line pattern) — caught as ISSUE by semantic-reviewer; fixed in ca09f34; fifth: 6954711 (2026-04-14): `clearDeploymentPin()` called in most session-terminal paths but missed one path — caught by CodeRabbit; fixed in same batch; root cause consistent: fix applied to the specific instance seen rather than auditing all instances of the same call in the same file; the grep approach is required — see Lessons entry 2026-03-29; count 5 reached, rule candidate confirmed active |
 | Auth error from getUser() not destructured in query file | 1 | 2026-03-12 | Watch — 7 of 8 query files under apps/web/lib/queries/ missing authError destructuring (2190dd5 → 3a0d1e6 → 78cb130); distinct from mutation error pattern (that is about .insert/.update/.delete); first occurrence as a named pattern |
 | Auth error from getUser() swallowed without logging | 1 | 2026-03-12 | Watch — quiz-report.ts (78cb130); auth failure path returned early with no console.error; first occurrence; silent auth failure is harder to diagnose than silent mutation failure |
 | Raw Supabase error message leaked to student UI | 1 | 2026-03-12 | Watch — load-session-questions.ts (78cb130); error.message from Supabase returned directly to student-facing caller; first occurrence; internal error strings must not be exposed to UI — return a generic message or error code |
@@ -50,7 +50,7 @@
 | Biome auto-format expanding compact code past file-size limit | 1 | 2026-03-13 | Watch — draft.ts written at ~97 lines, Biome format expanded to 114 lines on pre-commit (6d274fa); the 100-line Server Action limit check must be done against post-format line count, not authoring-time count; first occurrence |
 | Async fetch in useEffect without stale-result cancellation flag | 1 | 2026-03-13 | Watch — useEffect in draft.ts initiated fetch without cancelled flag; if the component unmounted or deps changed before the fetch resolved, setState was called on stale/unmounted context; fixed with cancelled flag pattern in fe4ffff; distinct from "useEffect data fetching in client component" (that is about banned server-action fetching — this is a permitted client fetch missing a cleanup guard); first occurrence |
 | UPDATE returning zero rows treated as success (silent no-op) | 2 | 2026-03-20 | RULE CANDIDATE — first: draft update (6d274fa, 2026-03-13): draft ID did not match ownership, 0 rows updated, caller got success; second: deleteComment (6520962, 2026-03-20): DELETE with no app-layer ownership filter, wrong commentId or cross-user attempt returned `{ success: true }` silently; both fixed by selecting affected row or checking row count; fix pattern: for any DELETE or UPDATE that is ownership-scoped, add `.select('id')` (or equivalent) and check that at least one row was returned before returning success; code-style.md Section 5 covers error destructuring but not the zero-row no-op sub-case; second occurrence warrants note in code-style.md |
-| Error path in existing function untested (count-error branch) | 3 | 2026-03-14 | RULE CANDIDATE (3rd occurrence) — count-error path in draft.ts (1st, 2026-03-13); users query error path in draft.ts (2nd, d06c25b); 'session not accessible' error branch in batch-submit.ts (3rd, d057128 → 45da072); all caught post-commit by test-writer; distinct from "new file without test" — this is an existing tested file with an uncovered error branch; pattern: when a new error-return path is added to an existing function (e.g., adding a second query with its own error check), the test file is not updated to cover the new branch; 3rd recurrence warrants action in test-writer patterns memory |
+| Error path in existing function untested (count-error branch) | 4 | 2026-04-14 | RULE CANDIDATE (count 4) — count-error path in draft.ts (1st, 2026-03-13); users query error path in draft.ts (2nd, d06c25b); 'session not accessible' error branch in batch-submit.ts (3rd, d057128 → 45da072); zero-answer timeout path in exam session hook (4th, bdeafc3, 2026-04-14): test-writer found the zero-answer timeout branch untested post-commit and added 4 tests; all caught post-commit by test-writer; distinct from "new file without test" — this is an existing tested file with an uncovered error/edge branch added by a recent commit; pattern: new edge-case paths added to existing functions are not accompanied by test updates in the same commit |
 | Async cleanup path untestable in jsdom (cancelled flag branch) | 1 | 2026-03-13 | Watch — test-writer noted that the cancelled flag cleanup path (setState skipped after unmount) is not testable in jsdom because act() flushes effects synchronously before assertions can observe the cancelled state; analogous to the pre-hydration jsdom limitation; first occurrence; do not write tests for this branch — document the constraint in code-style.md jsdom section if it recurs |
 | Stale closure introduced by hook split (scalar captured in closure vs ref) | 1 | 2026-03-13 | Watch — when use-quiz-state was split in 34a9352 to fix the 80-line violation, currentIndex was captured as a scalar in a closure in handleSave instead of being accessed via useRef; fixed in df5d354; the hook split itself introduced the bug; pattern: any value read inside a callback that is defined outside a React.useCallback/useMemo with that value in its deps array is at risk of being stale; when splitting a hook, audit all callbacks in the extracted portion for captured scalar state; first occurrence |
 | SQL string comparison instead of ::uuid cast in duplicate check | 1 | 2026-03-13 | Watch — batch_submit_quiz duplicate-answer check compared option IDs as text rather than casting to ::uuid, which can cause case-sensitivity and format-variation failures; fixed in 34a9352; first occurrence |
@@ -84,22 +84,130 @@
 | Upstream named type used as structural approximation after library upgrade | 1 | 2026-03-16 | Watch — `Record<string, unknown>` used for `CookieOptions` in middleware.ts and server.ts; after @supabase/ssr upgrade to 0.9.0 the named type became available; fixed in 603b36c with correct import; first occurrence; apply: after any library upgrade, cross-check hand-rolled Record/structural types against the library's updated public exports |
 | Zod error message pinned to exact internal text | 2 | 2026-03-16 | RULE CANDIDATE — first: cb0395c (2026-03-14) test file assertion pinned to Zod 3 internal string; second: 559bf9e Zod 3→4 migration — "Invalid uuid"→"Invalid UUID", "Required"→"Invalid input:…" changed in production source files; Zod internal messages are not public API; assert `error instanceof ZodError` or `.issues[0].code`, never `.message` text |
 | Test fixtures using zeroed UUID format (`00000000-0000-0000-0000-*`) invalid under Zod 4 RFC 4122 enforcement | 1 | 2026-03-16 | Watch — 559bf9e: 27 test files required UUID constant replacements from `00000000-0000-0000-0000-*` to `00000000-0000-4000-a000-*`; Zod 4 validates version bits (nibble 13 must be 4–5) and variant bits (nibble 17 must be 8–b); also affected E2E sentinel UUIDs (5ad3c16); first occurrence; if new test file added with zeroed UUIDs, update test-writer memory with compliant constant form |
+| Stale mock string in test after Server Action string rename | 1 | 2026-04-26 | Watch — 0c49a09: test file mocks `startExamSession` directly; when production Server Action error string changed from 'Exam mode is not configured' to 'Practice Exam is not configured', test mock was not updated; test continued to pass (echoed its own mock value) but no longer validated production string; pattern: when renaming user-visible strings in a Server Action, grep the `.test.ts` file for the old string and update mock values alongside assertions; first occurrence |
+| Defensive fix applied for race/stale-state condition that does not materialize today | 2 | 2026-04-26 | WATCH AND CATEGORIZE — first: 34194aa (confirmingDiscard race when timeExpired flips while confirm panel open); second: 74d557b (confirmingDiscard not reset when timeExpired flips mid-render); both fixes are defensive (the race doesn't fire today due to parent invariants, but the fix is cheap and closes the gap); semantic-reviewer flagged each as an ISSUE despite non-materialization; pattern: when a child component holds state derived from a parent invariant (e.g., canDismiss from props), mirroring that invariant explicitly in the child's render guard or effect prevents future regressions when the parent invariant is relaxed; two occurrences within same PR suggest this is a deliberate hardening pattern, not a sign of unclear spec; mark RESOLVED — pattern is intentional |
+| implementation-critic false positive on adjacent JSX guards | 1 | 2026-04-26 | Watch — 34194aa: implementation-critic flagged "duplicate Discard button" but the two buttons were distinct (one conditional on event handler, one on render guard `{canDismiss && (`); critic mistook the `&&` guard block as a duplicate of the existing button; false positive; first occurrence |
 | `err.errors` property access silently undefined after Zod 4 removal (was Zod 3 alias for `.issues`) | 1 | 2026-03-16 | Watch — 559bf9e: two production source files accessed `.errors` on ZodError instances; Zod 4 removed the property (not deprecated); returns undefined, silently falls through to fallback strings; caught by pre-commit tsc gate; fix: use `.issues` throughout; first occurrence |
 | Turbo type-check cache masking new compile errors after dependency bumps | 3 | 2026-03-17 | RULE APPLIED (CLAUDE.md) — first: PR #211 (@supabase/ssr, @supabase/supabase-js, vitest bumps); second: c5025f6 (commitlint 20, jsdom 29, @types/node 22 bumps); third: d9de1dd (vite 7→8, @vitejs/plugin-react 5→6); CLAUDE.md rule added after 2nd occurrence: "After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache)"; 3rd occurrence confirms the rule was followed — ISSUE was pre-empted; rule is working; no further change needed |
 | rolldown-vite RC bundled in @vitejs/plugin-react@6 | 1 | 2026-03-17 | Watch — d9de1dd: @vitejs/plugin-react@6 bundles rolldown-vite (Rust-based bundler) as an internal dep; RC status means breaking changes possible in minor bumps; no action needed now; first occurrence — log and watch |
 | Undefined severity level used in agent rule (label not in agent's schema) | 1 | 2026-03-16 | Watch — b32d56a: new suppression condition 9 in security-auditor.md assigned "WARNING" severity; security-auditor schema defines only CRITICAL, HIGH, MEDIUM; undefined level has no blocking/non-blocking contract; pre-push hook cannot act on it; fixed in d6e8224 with MEDIUM; first occurrence; watch for agent edits that introduce severity labels without cross-checking the agent's own severity table |
 | Agent suppression condition requiring out-of-diff artifact verification | 1 | 2026-03-16 | Watch — b32d56a: suppression condition required verifying RPC's SELECT list does not expose correct answers; RPC definition lives in a migration file not present in the diff; if the migration file is inaccessible, the agent must flag as HIGH rather than suppress; fixed in d6e8224 with explicit fallback instruction: "If the migration file is not accessible, flag as HIGH"; first occurrence; watch for suppression rules that require knowledge of artifacts outside the current diff |
-| Agent file DO NOT section numbering collision with main checklist numbering | 1 | 2026-03-16 | Watch — b32d56a: new DO NOT item numbered "9" collided with checklist item "9" in HIGH section; non-contiguous DO NOT numbering (1,2,3,5,6,8,9) also pre-existed; fixed in d6e8224 (DO NOT renumbered 1-7) and 0f40bd6 (duplicate HIGH block removed, renumbered 11-15); first occurrence; watch for agent file edits that append to a numbered DO NOT section without checking for collisions with the main checklist |
+| Agent file DO NOT section numbering collision with main checklist numbering | 1 | 2026-03-16 | Watch — b32d56a: new DO NOT item numbered "9" collided with checklist item "9" in HIGH section; non-contiguous DO NOT numbering (1,2,3,5,6,8,9) also pre-existed; fixed in d6e8224 (DO NOT renumbered 1-7) and 0f40bd6 (duplicate HIGH block removed, renumbered 11-15); first occurrence; watch for agent edits that introduce severity labels without cross-checking the agent's own severity table |
 | SECURITY DEFINER RPC input array not validated against caller-owned records | 1 | 2026-03-16 | Watch — f1f6c32/7029f4e (fix/45-remove-answer-keys-from-test): get_student_questions RPC accepted p_question_ids from caller without verifying those IDs belonged to the caller's session; fixed in 7029f4e/1f76a7b by deriving question set from session answers rather than trusting caller input; distinct from "Query missing student_id scope" (that is a missing WHERE clause on a SELECT — this is an RPC SECURITY DEFINER trusting a caller-supplied array without cross-checking ownership against session state); rule already in security.md covers auth.uid() identity check but not input array ownership validation; first occurrence |
 | TypeScript type cast used as data-stripping mechanism (answer key exposure) | 1 | 2026-03-16 | Watch — f1f6c32 (fix/45-remove-answer-keys-from-test): correct field present on runtime object cast to QuestionForStudent type; TypeScript type does not exclude the field at runtime — only explicit SQL SELECT projection or object spread omitting the field strips it; directly violates security.md rule 1 (correct answers must be stripped server-side); fixed by moving answer-key stripping into the RPC SELECT list; distinct from "Type cast bypassing runtime validation" (that is about missing runtime guards on cast data — this is about using a type cast as a security boundary for data stripping, which provides zero runtime protection); first occurrence |
 | RPC `.rpc()` call result not destructured for error (silent swallow on RPC failure) | 1 | 2026-03-16 | Watch — f1f6c32 (fix/45-remove-answer-keys-from-test): supabase.rpc() call result was not destructured for { error }; existing code-style.md Section 5 rule covers .insert/.update/.delete/.upsert mutations; .rpc() calls are semantically equivalent — any Supabase client call that can fail must destructure { data, error }; fixed in 7029f4e; first occurrence as a named gap in the rule's coverage; if a second .rpc() call ships without error destructuring, extend the code-style.md rule to explicitly list .rpc() alongside mutation methods |
 | `NextResponse.redirect()` dropping cookies set via `cookies()` API in Route Handler | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): verifyOtp wrote session cookies via Supabase cookies() API; NextResponse.redirect() does not carry those cookies to the browser — cookies set via the Next.js cookies() API only flow through responses built by the framework's own redirect() helper; fixed by switching to `redirect()` from `next/navigation`; applies to any Route Handler that mutates cookies (auth, session, etc.) and then redirects — always use next/navigation `redirect()` or copy cookies onto the NextResponse manually; first occurrence |
 | `{{ .RedirectTo }}` in Supabase email templates passes full URL, not pathname | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): Supabase passes the full absolute URL (e.g. `http://localhost:3000/auth/reset-password`) as the `next` query param when `{{ .RedirectTo }}` is used in email templates; if code naively appends this to a base URL, the full URL becomes a path segment and doubles the origin; fixed by extracting `.pathname` from a `new URL(next)` call before appending; applies to any code that reads a `next` param arriving from a Supabase email template redirect; first occurrence |
+
+## 2026-04-28 — Exam E2E Specs CI Unblock (commits ddf8ebf, 68fc26e)
+
+**Context:** Two-commit session. Commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit #568) addressed CI failure in newly added exam-flow.spec.ts and exam-recovery.spec.ts (commit 553fe4d). The specs failed at `expect(button).not.toBeDisabled()` because the CI seed script (seed-e2e.ts) did not provide the MET exam_configs row the specs assumed; spec doc-comments incorrectly named seed-exam-eval.ts (CI-independent, for manual eval setup) as the seed source. Commit 68fc26e (test(quiz): tighten seed-e2e exam config idempotency guards) addressed semantic-reviewer SUGGESTIONs on the seed script.
+
+**Code reviewer (ddf8ebf):** 0 BLOCKING, 0 WARNING. Clean.
+
+**Semantic reviewer (ddf8ebf):** 0 CRITICAL, 0 ISSUE. 2 SUGGESTION, 7 GOOD.
+- Suggestions: (1) distribution SELECT should filter `subtopic_id IS NULL`; (2) reused exam_config rows should validate total_questions/time_limit/pass_mark and warn on drift. Both addressed in 68fc26e.
+
+**Semantic reviewer (68fc26e):** 0 CRITICAL, 0 ISSUE, 0 SUGGESTION. 3 GOOD. Suggestions from ddf8ebf resolved.
+
+**Implementation-critic (ddf8ebf):** APPROVED, 0 findings.
+
+**Implementation-critic (68fc26e):** APPROVED, 0 findings.
+
+**Doc updater:** No doc updates needed. Clean.
+
+**Test writer:** E2E specs exercised by Playwright; no new unit tests gap identified.
+
+**Pattern analysis:**
+
+1. **Spec doc-comment naming wrong seed script (watch)** — NEW, count 1. Three newly added E2E specs (exam-flow.spec.ts, exam-recovery.spec.ts, and one other) had doc-comments citing `scripts/seed-exam-eval.ts` as a seed dependency, but CI actually runs `scripts/seed-e2e.ts`. The spec doc was outdated (likely copied from an earlier PR that used seed-exam-eval.ts). Root cause: E2E spec doc-comments are not automatically validated against the CI seed script — drift is invisible until the spec fails in CI. First occurrence — log and watch. If a second E2E spec ships with an incorrect seed script name in its doc-comment, propose a linting or CI check that validates spec doc-comment seed-script references against the actual scripts run in the CI matrix.
+
+2. **Locator substring collision without exact: true** — NEW, count 1 (but 2 occurrences within same session). Two getByRole('button', { name: '<short>' }) locators matched substring-colliding button names:
+   - `getByRole('button', { name: 'Practice Exam' })` matched both "Start Practice Exam" and "Resume Practice Exam" buttons in the same spec, causing test to interact with the wrong button.
+   - Same issue in a second spec with a similar pattern.
+   Fix: add `{ exact: true }` to disambiguate.
+   Root cause: short substring names have high collision risk in UIs with similarly-named buttons. First occurrence of naming this as a pattern — watch. Pattern appears in 2 locators within the same session, suggesting the codebase has other collision-prone getByRole calls. Recommendation: if a third similar collision is found, grep all e2e/specs for `getByRole` calls without `exact: true` where the name is <3 words, review for collision risk, and update test-writer patterns.md with explicit guidance on when exact: true is mandatory.
+
+3. **setTimeout/waitForURL arithmetic overly tight** — NEW, count 1. test.setTimeout(90) was set expecting: timer startup (negligible) + waitForURL(75) + buffer = ~80s. However, the test flow had a 60-second timer plus the 75-second waitForURL, which alone exceeded the 90-second total. Root cause: timeout values (test.setTimeout, waitForURL timeout, internal timers) were not summed when planning the total. Fixed by bumping test.setTimeout(90→150) and waitForURL(75→120) to provide realistic headroom. First occurrence — log and watch. If a second E2E spec fails with timeout-exceeded errors in CI, propose a test-writer pattern note: "Sum all internal timers + network timeouts when setting test.setTimeout; add 20–30% buffer for GH Actions CI variance."
+
+4. **URL race in waitForURL when page bounces** — NEW, count 1. exam-recovery.spec.ts had a if/else checking whether page.reload() navigated to /app/quiz/session or bounced to /app/quiz. The waitForURL(path) at the start of the reload branch matched the URL state at the instant navigation began, even though the page subsequently bounced, locking the test into a doomed if-branch. Fixed by replacing the if/else with locator.or() content-race assertion that checks what actually rendered, not what URL the page momentarily showed. Root cause: waitForURL is a navigation-waiting primitive; it is not robust for "page may stay at URL or bounce" scenarios. First occurrence — log and watch. If a second spec has a "page may navigate or bounce" scenario that uses waitForURL in an if/else control flow and flakes in CI, update test-writer patterns.md: "Use locator.or() content-race for specs where the page may navigate or bounce to multiple destinations — do not use waitForURL in an if/else because the URL transition is transient and may lock into the wrong branch."
+
+5. **Product bug silently masked by test fixme** — NEW, count 1. A 0-answer auto-submit hangs client-side after server completes (#568). Root cause not in this commit's scope — logged as test.fixme() pending root-cause investigation in #568. The pattern itself (0-answer server completion with client-side timeout) is a read-after-write race between Server Action completion and UI state update. First occurrence as a named observation — not a rule-change candidate but worth logging as a known gap. Watch for: other read-after-write races between Server Action promises and RSC render boundaries.
+
+**Actions taken:**
+- Frequency table: 5 new watch rows added — all at count 1. None hit the 2+ threshold for rule changes.
+- Logged in memory: patterns 1–5 above, with watch guidance for each.
+
+**No rule changes applied this cycle.** All patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** none detected. Implementation-critic and semantic-reviewer approved both commits cleanly.
+
+**Positive signals:**
+- Code reviewer clean on a commit involving complex E2E spec corrections and seed-script changes — no mechanical style regressions.
+- Semantic reviewer approved the seed-script idempotency improvements with 3 GOOD patterns (correct use of SELECT-then-insert idempotency, correct validation logic, correct warning-on-drift behavior).
+- Both commits passed implementation-critic without revision — staged changes matched the plan and approach.
+- 0 BLOCKING or CRITICAL findings across both commits — CI unblock was achieved cleanly.
+
+---
+
+## PR #523 Round 8 Findings (2026-04-28)
+
+### Semantic-Reviewer False Positive (count now 2)
+| Issue Type | Count | Last Seen | Status |
+|-----------|-------|-----------|--------|
+| False positive on Postgres transaction semantics (race-condition claim without understanding isolation) | 2 | 2026-04-28 | WATCH ESCALATION — first: 2026-04-22 claimed `PERFORM complete_overdue_exam_session(...)` could raise on race when session passed both deadline checks; reviewer did not account for transaction-stable `now()` — all predicates evaluated once at transaction start, inverse conditions cannot both be false; second: 082830d cycle — claimed mig 053 branching (below grace → exam.completed, above grace → exam.expired) could both fire on same transaction; same root cause — reviewer does not model Postgres transaction semantics; two occurrences across different PR cycles warrant escalation from "validate before fixing" to documented pattern; recommend: when semantic-reviewer flags a race claim on server-side state, cross-check the isolation level and `now()` usage before accepting |
+
+### New Patterns (First Occurrence — Watch)
+
+| Issue Type | Count | Last Seen | Status |
+|-----------|-------|-----------|--------|
+| File-size warning on defensive error-handling code (load-bearing try/catch inflating file) | 2 | 2026-04-28 | WATCH — first: use-exam-start.ts hit 86/80 lines, +6 due to new try/catch + orphan-discard cleanup on handoff failure (082830d); second: quiz-submit.ts hit 206/200 lines, +6 due to wrapping submitEmptyExamSession promise rejection in try/catch; both are defensive fixes (prevent spinner stuck state, prevent orphaned server session) and the error handling is load-bearing; file-size rule is strict but code-reviewer reports at WARNING level; pattern: when a fix adds defensive error paths that inflate a file over the limit, either split out the error handler to a helper or accept WARNING and note in fix commit why the overage is necessary; two occurrences in same cycle, both same root cause (defensive error boundary) |
+| Audit-event branching (event_type reflects actual outcome not caller intent) | 1 | 2026-04-28 | WATCH — mig 053 introduces pattern where `complete_empty_exam_session` RPC branches the `event_type` on actual deadline state (above grace: exam.expired, below grace: exam.completed) rather than hard-coding event_type = exam.expired for all paths; rationale: audit trail should reflect what actually happened to the session, not the caller's reason for calling the function; pattern: when an RPC terminates multiple paths but some should audit differently, branch event_type inside the RPC using WHERE clause conditionals; first occurrence; if second RPC adopts this pattern, consider documenting in docs/database.md RPC signatures section as standard practice for multi-path RPCs |
+
+### Test Coverage Gaps Closed
+
+| Pattern | Count | Status |
+|---------|-------|--------|
+| New helper/utility file shipped without co-located tests (row 58) | 8 (was 7) | RULE IN EFFECT — _overdue-helpers.ts (643732c) added 26 tests in co-located _overdue-helpers.test.ts same commit (code-reviewer BLOCKING catch was preempted); rule continues to hold; count incremented for completeness |
+
+### Migration Mirroring Observation
+
+| Pattern | Count | Last Seen | Status |
+|---------|-------|-----------|--------|
+| Migration file duplication (supabase/migrations/ timestamped + packages/db/migrations/ numbered) | ~120+ | 2026-04-28 | NORMALIZED PATTERN — mig 052/053 mirrored to supabase/ (20260428000002_*, 20260428000003_*); this is intentional 2x-write protection: each write path has own source of truth for verification (supabase CLI uses timestamped; db package uses numbered); tooling gap is acceptable trade-off for independent verification; pattern is mature, no change recommended |
+
+## Validation Findings
+
+**False Positive Validation (Semantic-Reviewer, 082830d):**
+- Claim: mig 053 branching could execute both completeness paths in same transaction
+- Analysis: Postgres evaluates `started_at + time_limit + interval '30s'` once at transaction start. At the moment `now()` is computed, the session row is locked (FOR UPDATE from start_exam_session); the branch condition (above/below grace) cannot change mid-transaction. Inverse predicates cannot both be false.
+- Decision: VALIDATED AS FALSE POSITIVE. Did not apply suggested fix. Correct code remains in place.
+
+**Code-Reviewer WARNING Validation (082830d, 643732c):**
+- Warning: use-exam-start.ts 86/80 lines (+6), quiz-submit.ts 206/200 lines (+6)
+- Root cause: New try/catch blocks for defensive error handling (orphan cleanup, rejected promise coercion)
+- Analysis: Both error paths are load-bearing; code-reviewer does not flag as BLOCKING, only WARNING. Both files remain functional at their respective line counts with clear error handling. The 6-line overages are driven by multi-line error messages and cleanup logic, not code smell.
+- Decision: ACCEPTED WARNING. Files remain at WARNING level. No violation; noted in fix commit that overages are necessary for correctness.
+
+---
+
+## Lessons (by date)
+
+### 2026-04-28 — PR #523 Round 8
+1. **Semantic-reviewer false-positive escalation**: race-condition claims on Postgres server-side state require transaction-semantics validation. On second occurrence across different cycles, the pattern warrants explicit documentation in agent memory to avoid re-validating the same misconception in future PRs. Recommend: include transaction isolation + now() usage check when evaluating race claims on RPCs.
+
+2. **Load-bearing error handling inflates file sizes**: defensive error boundaries are necessary for correctness (preventing stuck spinners, orphaned sessions) but can push files over size limits. The rule is still sound (encourages decomposition), but when a WARNING is driven by load-bearing error handling rather than feature bloat, the warning is proportional, not actionable. Acceptable pattern: acknowledge the WARNING, note in commit message why overage is unavoidable without harming code structure.
+
+3. **Audit-event branching captures actual outcome**: when an RPC serves multiple code paths and the audit outcome differs by path, branch event_type inside the RPC using the same conditional that branches the business logic. This ensures the audit trail reflects what actually happened, not the caller's intent or the primary code path's assumption. Pattern emerging as best practice — watch for adoption in next RPC.
+| Missing `setSubmitting(true)` before async call in form/button handler | 2 | 2026-04-27 | RULE CANDIDATE — first: 375bde5 handleSubmitSession async call within render was missing setSubmitting guard; semantic-reviewer ISSUE; second: same pattern likely in other exam-session handlers; PR #523 contained multiple 0-answer paths; test-writer added test 8782a18; root cause: async submission paths should always set loading state before the call, not after; pattern: any form/button handler that triggers an async operation must call `setSubmitting(true)` before awaiting; applies across all form handlers, not just exam mode; if third occurrence in different components, add to code-style.md form handler pattern or agent rules |
+| Actor role lookup subquery missing `deleted_at` filter in mutation audit path | 3 | 2026-04-27 | RULE PROPOSED — #550 first surfaced in batch_submit_quiz (bdeafc3, 2026-04-14): actor_role subquery SELECT did not filter `deleted_at IS NULL`, allowing deleted user records to corrupt audit events; re-surfaced in 375bde5 for submitEmptyExamSession path (distinct RPC, same oversight); semantic-reviewer flagged for 2nd time explicitly; third crossing-reference in 8782a18 notes this as part of the pattern; root cause: SECURITY DEFINER RPCs that insert audit events must apply soft-delete filters on all related-table lookups that include user/session references; rule already in security.md covers soft-delete RPCs generally but does not specifically require audit-path subqueries to filter on soft-delete; **PROPOSED:** add to security.md rule 6 carve-out section: "Every audit_events INSERT subquery must include `AND deleted_at IS NULL` on any user/session foreign-key lookups" — document as non-negotiable audit-path hygiene; count=3, pattern confirmed across multiple RPCs and commits |
+| Idempotent RPC returns hardcoded values instead of reading current DB state | 2 | 2026-04-27 | WATCH — first: batch_submit_quiz idempotent replay (d057128, 2026-03-14) used hardcoded pass value instead of checking exam config on replay; semantic-reviewer flagged as SUGGESTION; second: submitEmptyExamSession idempotent path (375bde5) returns hardcoded `{ passPercentage: 100 }` instead of querying exam_configs; semantic-reviewer flagged as SUGGESTION in 375bde5, resolved in 8782a18 to read actual value from DB; distinct from the soft-delete pattern (that is about lookup hygiene — this is about correctness of returned values on replay); second occurrence warrants watching for a third; when an idempotent RPC returns a computed value on replay, it must read the current state from the DB, not return a cached/hardcoded estimate |
+| Nesting depth 4+ in form handler (refactored to multiple smaller handlers) | 1 | 2026-04-27 | WATCH — code-reviewer NESTING WARNING on handleSubmitSession (375bde5); 4 levels deep; fixed in 8782a18 via callback extraction (hoisted validator + handler logic split); distinct from the "max 30-line function" rule (that is about line count — this is about readability via visual indent); no action needed if resolved in same cycle, but note if a third deep-nesting handler appears |
 | Supabase `updateUser` returns 422 when new password matches current password | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): E2E reset-password spec tried to reset to the same password the account already had; Supabase auth API returns HTTP 422 with no explicit error message, causing a confusing test failure; fixed by using a distinct password value in E2E tests and by handling 422 in the UI with a user-facing error message; applies to any E2E test covering the password reset flow — always reset to a value different from the current one; also applies to the reset-password UI, which should handle 422 distinctly from other errors; first occurrence |
 | Open redirect via unvalidated `next` param in Route Handler | 1 | 2026-03-18 | Watch — ca5bbd5 (feat/174-login-redesign): /auth/confirm accepted any `next` query param and redirected to it without validation; a crafted link could redirect users to arbitrary internal paths (e.g. `/app/admin`); fixed by validating `next` against an explicit allowlist (only `/auth/reset-password` permitted); applies to any Route Handler or Server Action that reads a redirect target from query params or form input — always validate against an allowlist before redirecting; semantic-reviewer caught this as an ISSUE; first occurrence as a named pattern |
 | Security fix requiring multiple rounds due to incomplete self-defending audit | 1 | 2026-03-16 | Watch — fix/45-remove-answer-keys-from-test (f1f6c32 → 7029f4e → 1f76a7b): branch required 3 semantic-reviewer rounds because each fix addressed the flagged issue but not the adjacent gap it exposed; round 1: correct field in runtime object; round 2: RPC not session-scoped; round 3: p_question_ids not validated against session; root cause: security fixes to SECURITY DEFINER RPCs were applied narrowly (one gap at a time) rather than with a full self-defending audit (ownership check, input validation, output projection, error handling all verified together); first occurrence; when any SECURITY DEFINER RPC is modified, audit all four axes before committing: (1) auth.uid() identity check present, (2) input arrays validated against owned records, (3) output SELECT excludes sensitive fields explicitly, (4) result destructured for error |
 | Code-reviewer flags file outside the commit diff scope | 2 | 2026-04-08 | RULE CANDIDATE — first: prior cycle (exact commit not recorded, watch); second: 344ec89/a49cd88 (2026-04-08): code-reviewer flagged getStudentSessions at 61 lines — function was pre-existing, not in the diff; orchestrator correctly dismissed; root cause: code-reviewer scans changed files' full content rather than only the diff hunks; this causes false BLOCKING on pre-existing violations in files touched by an unrelated commit; confirmed false positive; suppression already exists in agent-code-reviewer.md for this case but the agent does not reliably apply it; at 2 occurrences, agent-code-reviewer.md rule should be checked and if it does not already cover this, add explicit note: "Only flag violations introduced or worsened by lines in the diff — do not flag pre-existing violations on lines not touched by this commit" |
-| Pre-existing file size violation surfaced when a new commit adds lines to an already-over-limit file | 1 | 2026-03-20 | Watch — d93f924 (fix: resolve 3 tech-debt issues): lookup.ts exceeded the 100-line Server Action/utility limit before the commit; the new commit added lines that made the violation visible to the code-reviewer; fixed by extracting helpers to lookup-helpers.ts in fix commit 5a68fa3; distinct from "Biome auto-format expanding compact code past file-size limit" (that is Biome pushing an at-limit file over; this is a file already over the limit that accumulates further lines); distinct from "Server Action file exceeding 100-line limit after Biome auto-format" (same distinction); root cause: file was never split when it first exceeded the limit; implication: code-reviewer should be run after any commit to files approaching their limit even if the commit itself is small — a near-miss in one commit becomes a BLOCKING in the next; first occurrence as a named pattern — log and watch |
+| Pre-existing file size violation surfaced when a new commit adds lines to an already-over-limit file | 2 | 2026-04-11 | RULE CANDIDATE — first: d93f924 (2026-03-20): lookup.ts exceeded the 100-line limit before the commit; new commit added lines, making violation visible; fixed by extracting helpers; second: cb318f4 (2026-04-11, feat/exam-mode-admin-config): upsert.ts was at 102 lines (already 2 over the 100-line Server Action limit); a legitimate 5-line error-check addition pushed it to 106 lines; code-reviewer caught it; the file was already over the limit before the new commit touched it; distinct from "Biome auto-format expanding compact code past file-size limit" (that is Biome pushing an at-limit file over; this is a file already over the limit before the commit); root cause: file was never split when it first exceeded the limit; the fix pattern is always to split the file when it crosses the limit, not to defer; second occurrence across different commits — RULE CANDIDATE: when a Server Action file is at or above its 100-line limit, any additive change must be accompanied by a split in the same commit, not deferred |
 | Function exceeding 30-line limit in Server Action file | 3 | 2026-04-10 | RULE CANDIDATE (count 3 — action required) — first: getFilteredCount in lookup.ts (d93f924, 2026-03-20): 58 lines, fixed by extracting buildQuestionQuery helper; second: toggleFlag in flag.ts (6520962, 2026-03-20): 52 lines, fixed by extracting unflagQuestion/flagQuestion helpers; third: mapRpcRow logic inline in reports.ts (9370e7d/9711338, 2026-04-10): 63-line function, fixed by extracting mapRpcRow helper; all in non-Server-Action utility files but same violation mechanism (single function doing row-mapping + business logic without extraction); root cause: data-mapping or row-transform logic written inline in the reporting function rather than extracted as a named helper; pattern: any reporting/analytics function combining query + row mapping in a single body is a candidate to exceed 30 lines — extract the row transform as a named `mapXxxRow()` helper at authoring time; third occurrence across different commits — action required; proposed note in code-style.md Section 3 already implied by existing rule; no new rule needed — existing BLOCKING catch + extract pattern is working |
 | Read-then-write race on flag/state mutation (UPDATE predicate not atomic) | 1 | 2026-03-20 | Watch — toggleFlag in flag.ts (6520962, 2026-03-20): SELECT to check current flag state followed by UPDATE or UPSERT; rapid toggle-toggle from two tabs could leave flag in wrong state; fixed by adding .is('deleted_at', null) to the UPDATE predicate to make the unflag atomic, plus row-count check; distinct from "TOCTOU race on count-gated INSERT" (that is an INSERT gate — this is a state-change UPDATE that should be conditional on current column state); fix pattern: for any UPDATE that modifies a boolean/state column, include the expected current column value in the WHERE/predicate to make the operation atomic; first occurrence — log and watch |
 | Return discriminant (error field) threaded through hooks but never rendered in UI | 1 | 2026-03-20 | Watch — d93f924 (fix: resolve 3 tech-debt issues): authError was passed as a return value through multiple hook layers but never consumed in the component tree; users received no feedback on auth failures; fixed in 5a68fa3 by adding a session-expired message and disabling the Start Quiz button when authError is set; distinct from "Auth error from getUser() swallowed without logging" (that is an error not destructured at all — this is an error correctly threaded through hooks but dropped at the UI boundary); root cause: when adding a new error discriminant to a hook's return type, there is no mechanical check that the caller actually renders it; first occurrence — log and watch |
@@ -135,11 +243,26 @@
 | Test assumes component renders children unconditionally but real component starts collapsed | 1 | 2026-04-09 | Watch — 995de26/4459a5d: test clicked a row inside CollapsibleContent without first clicking the trigger to open the panel; the panel starts closed and children are not rendered until it is opened; assertion on the row content silently passed in the mock (which always rendered children) but would fail against the real component; caught as ISSUE by semantic-reviewer; fixed in 4459a5d by adding a trigger click before the row interaction; first occurrence — log and watch; applies to any test of a component that contains interactive children inside a conditionally-rendered container (Collapsible, Accordion, Dialog, Select) — always open the container before asserting on or interacting with its contents |
 | `require()` inside `vi.hoisted()` factory producing unresolvable type namespace (`R.ReactNode`) | 1 | 2026-04-09 | Watch — 4459a5d: test-writer used `require('react')` inside a `vi.hoisted()` factory to access React types, producing `R.ReactNode` reference errors (TypeScript cannot resolve the namespace from a runtime require() call); fixed by replacing with a top-level import and using `React.ReactNode` directly; distinct from "vi.mock factory referencing non-hoisted variable" (that is a variable undefined at hoist time — this is a module required inside the factory producing an unresolvable type namespace at compile time); first occurrence — log and watch; if recurs, update test-writer patterns.md: "Do not use require() inside vi.hoisted() factories — use top-level import and reference the type directly" |
 | Unreachable SQL aggregate fallback (`?? value` applied to COUNT(*) which never returns NULL) | 1 | 2026-04-10 | Watch — 9370e7d/9711338: `?? r.total_questions` fallback applied to a COUNT(*) alias in an RPC result row; SQL COUNT(*) aggregates always return an integer (0 for empty sets), never NULL — the fallback was therefore dead code that could never execute; caught as ISSUE by implementation-critic pre-commit; fixed in 9711338 by removing the fallback; distinct from "Silent numeric fallback without observability logging" (that is a fallback that runs silently — this is a fallback that cannot run at all); first occurrence — log and watch; applies to any TS fallback applied to a SQL COUNT(*), COUNT(x), SUM(x) COALESCE-wrapped, or other aggregate that is guaranteed non-null by the SQL spec or explicit COALESCE in the query |
-| UI interactive element changed without a corresponding test update | 2 | 2026-04-10 | RULE CANDIDATE — first: 9370e7d (2026-04-10): sort button added to subject selector UI with no test update; test-writer added 3 tests in 9711338; second: 2f31c09 (2026-04-10): mobile sort Select and sortable table heads added with no tests; test-writer added 10 tests in afa5004; both cases: existing component with a test file gained a new interactive element without a same-commit test update; proposed rule for code-style.md Section 7: "When an interactive element (button, toggle, dropdown, sortable header) is added to a component that already has a co-located test file, the test file must be updated in the same commit" |
-| String-split unvalidated cast for composite Select values | 1 | 2026-04-10 | Watch — 2f31c09: `value.split('-') as [SortKey, SortDir]` in `handleMobileSort`; the `!value` null guard covers null/empty-string but not a single-segment string (no dash); in practice values are always from SORT_OPTIONS so the cast is safe, but no `parts.length === 2` guard at the parse site; first occurrence — log and watch; if a second composite-string destructure appears without a length guard, propose note in code-style.md Section 5 |
-| Mixed shadcn TableHead and plain `<th>` in the same `<tr>` | 1 | 2026-04-10 | Watch — 2f31c09: SortableTableHead (renders shadcn TableHead with h-10/align-middle/whitespace-nowrap/text-foreground defaults) alongside plain `<th>` siblings (Mode, Correct, Time); creates header row height and color inconsistency; semantic-reviewer SUGGESTION; first occurrence — log and watch; fix: use the same wrapper element (TableHead or plain th) for all cells in a row; if a second component ships mixed table cell types in the same header row, propose note in code-style.md Section 2 |
-| Implementation-focused test title not caught by post-commit agents (caught by CodeRabbit) | 1 | 2026-04-10 | Watch — 42e815f: 4 test titles in reports-list.test.tsx written by test-writer agent using implementation language ("calls router.replace...") rather than behavior language ("resets to page 1..."); post-commit agents did not flag the naming; CodeRabbit flagged at PR #508 review; distinct from "misleading test name" (row 113, contradiction between name and assertion) — this is a style-convention violation where name uses the wrong register; code-style.md Section 7 rule exists; post-commit agents do not consistently enforce it on verb-style implementation names; first occurrence — log and watch |
-| Negative mock.calls assertion trivially passing when mock never called (missing toHaveBeenCalled guard) | 1 | 2026-04-10 | Watch — 437f2d0: `reports-list.test.tsx` page-reset test accessed `mockReplace.mock.calls[0]?.[0]` and asserted `params.has('page') === false`; because `mockReplace` was never invoked, `mock.calls[0]` was undefined, `new URL('undefined', 'http://x')` produced a valid URL with no page param, and the assertion passed trivially with no behavioral signal; fixed by adding `expect(mockReplace).toHaveBeenCalledTimes(1)` immediately before the `mock.calls` access; sibling fix 1784239 applied the same guard to the remaining 5 `mock.calls` access sites for pattern consistency; root cause: negative URL-param assertions (`expect(params.has('x')).toBe(false)`) do not verify the mock was called at all — a test with no invocation produces the same result as a test with a correct invocation; fix pattern: always assert `expect(mock).toHaveBeenCalledTimes(N)` immediately before accessing `mock.mock.calls`; first occurrence — log and watch; if a second test file ships a `mock.calls` access without a prior call-count guard, add this to test-writer/patterns.md |
+| UI interactive element changed without a corresponding test update | 1 | 2026-04-10 | Watch — 9370e7d: a sort button was added to the subject selector UI but no test covered the new sort interaction; test-writer caught the gap post-commit and added 3 tests (sort button presence, initial state, re-sort behavior); distinct from "New hook/utility file extracted without shipping tests" (that is a new file — this is an existing component gaining a new interactive element with no test update); root cause: the component had existing tests, so the author assumed coverage was sufficient; the correct rule: whenever a new interactive element (button, toggle, input) is added to a component that has a test file, the test file must be updated in the same commit; first occurrence — log and watch |
+| `server-only` import removed due to Vitest/jsdom resolution failure (test environment incompatibility) | 1 | 2026-04-11 | Watch — f5c1070/cb318f4 (feat/exam-mode-admin-config): replace-distributions.ts had a `server-only` guard added for correctness (Server Action should not be importable in client modules); the guard was removed in cb318f4 after Vitest could not resolve the `server-only` package in jsdom — the import threw at test-runner time, blocking all tests in the file; root cause: `server-only` is a runtime Next.js guard that relies on the Next.js build system to throw at bundle time; Vitest does not emulate Next.js's module resolver, so the package resolution fails entirely in the jsdom test environment; mitigation already in use for other modules: mock the module in vitest.setup.ts via `vi.mock('server-only', () => ({}))` — this was not applied here; first occurrence as a named pattern — log and watch; if a second Server Action with `server-only` has its guard removed to fix test failures, add a note to test-writer/patterns.md: "If a test imports a Server Action that imports `server-only`, add `vi.mock('server-only', () => ({}))` to the test file or vitest setup rather than removing the guard" |
+| Combined `if (error \|\| !data)` guard in Server Action logs `undefined` on the `!data` branch | 1 | 2026-04-11 | Watch — f5c1070 (feat/exam-mode-admin-config): a guard written as `if (error \|\| !data) { console.error('[fn] error:', error.message) }` causes `error.message` to be `undefined` when the branch is entered because `!data` is true but `error` is null (valid Supabase state: query succeeded with zero rows); semantic-reviewer caught as ISSUE; fixed in cb318f4 by splitting into two guards: `if (error) { console.error(..., error.message) }` followed by `if (!data) { console.error(..., 'no data returned') }`; root cause: combining two semantically distinct failure modes (DB error vs. empty result) into a single guard creates an error log that always accesses `error.message` even when error is null; distinct from "Supabase mutation result not destructured" (that is about missing destructure entirely — this is a destructured result where the error-logging assumes a non-null error in a branch where error may be null); first occurrence — log and watch; the correct pattern: separate `if (error)` and `if (!data)` guards with distinct log messages appropriate to each failure mode |
+| CodeRabbit false positive rate elevated on exam-mode PRs | 2 | 2026-04-14 | RULE CANDIDATE — first: PR #516 (2026-04-11): 4 of 12 findings (33%) false positives — immutable table warnings on ephemeral distributions table, shadcn Dialog size prop, num-field type annotation, start_exam_session guard already present; second: PR #523 (2026-04-14): 6 of 9 findings (67%) false positives — DB constraint prevents zero-count (CodeRabbit missed array guard existed at DB level), client guard prevents empty arrays (missed existing guard), exam sessions never recovered from localStorage (flagged missing recovery logic that is intentionally absent); root cause consistent: CodeRabbit lacks project-specific context — explicit hard-delete exceptions, documented intentional decisions, DB-level constraints that make application guards redundant; second occurrence confirms pattern — per agent rules, consider adding project-specific suppression notes to .coderabbit.yaml via coderabbit-sync agent for these exception categories |
+| `userEvent.clear()` + `userEvent.type()` pattern unreliable for controlled NumField components — use `fireEvent.change()` | 1 | 2026-04-11 | Watch — 80cbd7c (feat/exam-mode-admin-config): test-writer initially generated NumField interaction tests using `userEvent.clear()` followed by `userEvent.type()` to simulate clearing and retyping a value in a controlled number input; the pattern failed because userEvent v14 dispatches a sequence of keyboard events and intermediate states can conflict with React's controlled-input reconciliation, causing the final value to diverge from the expected string; fixed by switching to `fireEvent.change(input, { target: { value: '...' } })` which directly sets the value and fires a single change event, matching how React controlled inputs process synthetic events; distinct from "jsdom PointerEvent gaps" (that is a missing API — this is an event dispatch strategy mismatch between userEvent's keyboard simulation and controlled inputs); first occurrence — log and watch; if a second test file ships with userEvent on a controlled numeric input and fails, update test-writer/patterns.md: "For controlled number inputs, prefer fireEvent.change() over userEvent.clear() + userEvent.type() — the keyboard simulation produces intermediate states that conflict with controlled-input reconciliation" |
+| Dead code (unused scaffold function) left in test file by test subagent | 1 | 2026-04-11 | Watch — 05609a7 (feat/exam-mode-admin-config): test subagent generated queries.test.ts with an unused `buildChain` scaffold function that was never called in any test; Biome's `noUnusedVariables` rule would have blocked the pre-commit hook; implementation-critic caught the dead code pre-commit and it was removed before commit; root cause: test-writer generates scaffold code (mock builders, helper wrappers) during an incremental writing process but does not always clean up intermediate scaffolding before reporting; the implementation-critic pre-commit gate is the reliable catch for this pattern; first occurrence as a named pattern — log and watch |
+| TypeScript strict mode requires `!` non-null assertion on array index access in test files | 2 | 2026-04-11 | RULE IN MEMORY (test-writer/patterns.md §Array index safety) — first occurrence: 153a975 (2026-03-23, session-table.test.tsx); second occurrence: 05609a7 (2026-04-11, exam-config test files): test-writer accessed `results[0]`, `calls[0]`, and similar array index expressions without guarding against undefined, triggering TS2532 in strict mode; fixed with non-null assertion (`results[0]!`) after a `toHaveLength(N)` assertion that proves the element exists; count updated 2 → 3 in test-writer patterns (this row carries the learner count separately for cross-pattern tracking); now at 3 total occurrences; test-writer/patterns.md rule exists and has been updated twice; the agent still generates the wrong form first; the pre-commit tsc gate is the reliable catch |
+| SonarCloud new-code coverage gap: test files required for ALL source files with runtime logic | 1 | 2026-04-11 | Watch — 05609a7 + 80cbd7c (feat/exam-mode-admin-config): SonarCloud new-code coverage gate required test files not only for Server Action files (actions.ts, queries.ts) but also for all React components and hooks with runtime logic added in the PR (distribution-editor.tsx, subject-config-card.tsx, config-form-dialog.tsx, page-shell.tsx, num-field.tsx); components that render conditional logic, derive computed values, or handle user events all contribute to new-code line coverage; 52 + 25 = 77 tests added across 7 new test files to satisfy the 80% new-code gate; distinct from "New hook/utility file extracted without shipping tests" (that is about new files without any test — this is about the coverage threshold requiring tests for every file with branching logic, not just the action/utility layer); first occurrence as a named pattern — log and watch; implication: when planning a multi-file feature, include test files for all React component files with conditional rendering or event handling, not just the Server Action layer |
+| Semantic-reviewer false positive: `isRedirectError` re-throw rule misapplied to client-side Server Action callers | 1 | 2026-04-13 | Watch — 1395d92 (feat/exam-mode-admin-config): semantic-reviewer flagged catch blocks in a `'use client'` component calling a Server Action via `startTransition` for not re-throwing `isRedirectError()`. The rule in code-style.md Section 6 explicitly applies to Server Component catch blocks only. The five existing `rethrowRedirect` usages in the codebase are all in Server Components (dashboard content files). A client component calling a Server Action via `startTransition` cannot intercept `redirect()` as a thrown exception — Next.js routes redirect responses through the response stream, not as JavaScript exceptions in the client component call stack. The `isRedirectError` re-throw pattern is meaningless and harmful in this context. Confirmed false positive — no code change made. First occurrence as a named false positive type — log and watch. If semantic-reviewer repeats this false positive on a second `'use client'` + `startTransition` + Server Action pattern, add a Known Suppression note to `agent-code-reviewer.md`: "`isRedirectError` re-throw is not applicable in client components calling Server Actions — redirect responses do not propagate as JavaScript exceptions to the client" |
+| Unnecessary `async` on a sync function (misleading return type) | 1 | 2026-04-14 | Watch — 6954711 (feat/exam-mode-student-session): a function performing no async operations was declared `async`, making its return type `Promise<T>` when actual return is synchronous `T`; CodeRabbit caught as valid finding; removed the keyword; misleads callers and causes unnecessary `await` expressions (including in tests that persist after a sync refactor); first occurrence — log and watch; if a second function ships with this pattern, propose note to code-style.md: "Only declare `async` if the function body contains `await` expressions or returns a delegated Promise" |
+| Object construction per render instead of reading from existing ref | 1 | 2026-04-14 | Watch — 6954711 (feat/exam-mode-student-session): `new Map()` constructed fresh on every render path instead of reading from already-initialized `useRef`; causes unnecessary allocation per render and can silently discard accumulated state; CodeRabbit caught as valid finding; fixed by reading the existing ref; first occurrence — log and watch; if a second component constructs a `new Map()`, `new Set()`, or equivalent collection literal in the render body where a ref holds the canonical instance, propose note to code-style.md Section 6: "Collections tracking session state must be initialized in useRef, not re-constructed per render" |
+| Stale `await` on now-sync function in test file | 1 | 2026-04-14 | Watch — bdeafc3 (feat/exam-mode-student-session): semantic-reviewer (SUGGESTION) noted a test file `await`s a function refactored from async to sync; `await` on a non-Promise resolves immediately so the test still passes but the signature is misleading; root cause: when a function is made sync, callers (including test files) that use `await` are not updated; first occurrence — log and watch; no rule change at count 1 |
+| `rerender()` with identical prop value produces a vacuous test | 1 | 2026-04-14 | Watch — 1ebe955 (feat/exam-mode-student-session): `rerender({ seconds: 2 })` passed same value as initial render, so the `useEffect` dependency never changed, the effect never re-ran, and the test was a vacuous pass; fixed by changing to `seconds: 3`; caught by CodeRabbit (not post-commit agents — vacuous assertion is outside agent scope); first occurrence — log and watch; if second test found with same pattern, propose note to code-style.md Section 7: "`rerender()` for effect re-run tests must pass a value that differs from the previously rendered value" |
+| Fire-and-forget Server Action before navigation creates race with DB guards | 1 | 2026-04-14 | Watch — b9829c0/ce67aee (feat/exam-mode-student-session): `discardQuiz()` called without `await` before `router.push()`; `start_exam_session` guard could see the old session row if the router push won the race; semantic-reviewer caught as ISSUE; fixed by awaiting the Server Action before redirecting; first occurrence — log and watch; root cause: authors omit `await` on cleanup/mutation calls before navigation because navigation feels like the critical path; any Server Action that mutates DB state which the next route reads must be awaited before navigation |
+| Server Action mock not configured in test — undefined default hides integration gap | 1 | 2026-04-14 | Watch — 5e2fca9 (feat/exam-mode-student-session): exam timeout tests called `discardQuiz` but the mock was not given a return value, so it resolved to `undefined`; test assertions passed vacuously (no integration gap visible) but the success/failure path was never exercised; test-writer explicitly configured `mockDiscardQuiz.mockResolvedValue({ success: true })` to make the test meaningful; first occurrence — log and watch; distinct from "test fixture shape mismatch" (that is wrong field data — this is a missing mock return value that leaves a Server Action integration point unverified); if a second test is found where a Server Action mock has no return value configured and the caller checks the result, add note to test-writer patterns.md: "Always configure Server Action mocks with an explicit return value matching the action's return type — the default undefined obscures whether the caller handles the result correctly" |
+| mock-boundary-blindness (router.push asserted with .toHaveBeenCalled() only, no URL argument) | 1 | 2026-04-27 | RULE ADDED — PR #523 round 7: a wrong-redirect bug was invisible because the test asserted `expect(mockPush).toHaveBeenCalled()` without checking the destination path; the implementation routed to the wrong URL but the test passed; rule added to code-style.md §7 (Assert URL on Router-Navigation Mocks) and agent checklist (flag-router-mock-no-url). Applies from 2026-04-27 onward. Existing tests migrated as touched. |
+| mode-flag-as-flag-not-flow (feature mode flag tested as a toggle, never as a full lifecycle flow) | 1 | 2026-04-27 | RULE ADDED — PR #523: `isExam` toggle tests existed but no test connected start → in-progress → timer-expiry → redirect; the lifecycle gap made the wrong-redirect bug invisible at the component and hook level; rule added to code-style.md §7 (Lifecycle Integration Test for New Feature Modes) and agent checklist (flag-mode-flag-no-lifecycle). Count: 1. |
+| stateful-ui-no-reload-test (stateful UI with in-memory or localStorage state shipped without a reload/recovery test) | 1 | 2026-04-27 | RULE ADDED — PR #523 exam refresh-resume bug: no test reloaded the page mid-exam; the gap between localStorage state and server session recovery was undetected until CodeRabbit caught it in production review; rule added to code-style.md §7 (Refresh / Reload Test for Stateful UI) and agent checklist (flag-stateful-flow-no-reload). Count: 1. |
+| audit-actor-subquery-soft-delete (audit_events INSERT subqueries missing deleted_at IS NULL on FK lookups) | 3 | 2026-04-27 | RULE ADDED — count bumped to 3: first (#550 batch_submit_quiz, bdeafc3 2026-04-14), second (complete_empty_exam_session 375bde5 2026-04-27), third (cross-reference in 8782a18 2026-04-27); pattern hit count=3 — promoted from RULE PROPOSED to hard rule in security.md §10. Every INSERT INTO audit_events must filter deleted_at IS NULL on all FK subquery lookups (actor_id, actor_role, session-derived columns). |
+| Dual-source UI surface (new feature + pre-existing fallback writing to same key) | 1 | 2026-04-28 | Watch — 82e64de (fix/quiz): new ResumeExamBanner (server-sourced via getActiveExamSession) shipped alongside pre-existing QuizRecoveryBanner (localStorage-sourced via useQuizRecovery); both read from quiz-active-session key; when exam mode began writing mode:exam entries to that key, both surfaces rendered simultaneously. Root cause: new feature created new session type using shared storage key without suppressing legacy client-sourced surface. Fixed by filtering exam-mode entries in useQuizRecovery. First named occurrence — log and watch. Watch for: (1) other localStorage keys where multiple session types write, (2) UI surfaces rendering from shared localStorage without mode-awareness, (3) manual eval findings invisible to unit tests. || Suppression-without-failure-path (filtering one source creates blind spot if canonical source fails) | 1 | 2026-04-28 | Watch — 82e64de (fix/quiz): suppressing exam-mode entries in useQuizRecovery did not handle getActiveExamSession() failure (DB or auth error). When canonical source failed, both ResumeExamBanner and suppressed QuizRecoveryBanner rendered empty, leaving zero recovery surfaces with no error signal. Semantic-reviewer ISSUE: "suppression introduces silent-failure path". Root cause: suppression correct in success path (two surfaces wrong), incomplete in failure path (zero surfaces with no signal also wrong). Fixed in 53b8498 with role=alert error notice when lookup fails. First named occurrence — log and watch. Pattern: any suppression of fallback surface must pair with explicit error handling on canonical source. || Manual-eval bug invisible to unit tests (dual-source UI rendering only visible in full app context) | 2 | 2026-04-28 | count 2 — first: 2026-04-27 PR #523 round 7 (refresh-resume bug: localStorage state interacts with server component render, invisible in jsdom); second: 82e64de (dual-source banner rendering: both ResumeExamBanner + QuizRecoveryBanner render simultaneously when exam in progress, visible only in full app context with both surfaces mounted). Root cause: jsdom test environments run components in isolation; no co-located test exercises scenario where both surfaces mounted on same page with overlapping session data. Pattern recurrence actionable: for any new session-recovery or stateful feature shipping with both server-sourced and client-sourced surfaces, require integration test (or E2E test) mounting both surfaces and verifying only one renders for given session state. Distinct from "Refresh / Reload Test" (code-style.md §7, count 1) which covers page-reload; this covers dual-surface rendering in same render. |
 
 ## Lessons Learned
 
@@ -3316,159 +3439,612 @@ All tests passing before commit.
 
 ---
 
-### 2026-04-10 — Reports sort controls refactor + tests (commits 2f31c09, afa5004)
+### 2026-04-11 — Exam mode admin config CodeRabbit fixes + tests (commits f5c1070, cb318f4, 7f46574)
 
-**Context:** Two-commit sequence. 2f31c09 refactored sort controls from floating buttons to clickable `SortableTableHead` column headers (desktop) and a Base UI Select dropdown (mobile). 5 files changed — sortable-head.tsx extended with `className`/`align` props, session-table.tsx wired to receive sort state, reports-list.tsx replaced 3 floating buttons with a `Select`. afa5004 added 10 tests covering the mobile sort dropdown and the new `SortableTableHead` prop passthrough.
+**Context:** Three-commit cycle on feat/exam-mode-admin-config. f5c1070 addressed CodeRabbit findings on PR #516 (shadcn Dialog, num-field NaN guard, error destructuring, partial unique index migration). cb318f4 fixed two semantic-reviewer ISSUEs from the f5c1070 review and added replace-distributions tests. 7f46574 added the remaining test files (toggle, upsert, num-field). Pre-commit hooks passed clean on cb318f4 and 7f46574.
 
-**Commit hashes:** 2f31c09 (refactor), afa5004 (tests)
+**Commit hashes:** f5c1070 (CodeRabbit fixes), cb318f4 (semantic fixes + replaceDistributions tests), 7f46574 (remaining tests)
 
-**Code reviewer:** 0 BLOCKING, 0 WARNING — clean.
+**Code reviewer:** CLEAN on all three commits. 0 blocking, 0 warning.
 
-**Semantic reviewer:** 0 CRITICAL, 0 ISSUE, 2 SUGGESTION, 6 GOOD.
-- SUGGESTION 1: `reports-list.tsx:52` — `value.split('-') as [SortKey, SortDir]` unvalidated cast. The `!value` null guard only covers empty/null; a single-part string (no dash) would destructure to `[string, undefined]`. Values are controlled via `SORT_OPTIONS` so safe in practice, but no Zod/length guard at the parse site.
-- SUGGESTION 2: `session-table.tsx:22-49` — `SortableTableHead` (which renders shadcn `TableHead`) used alongside plain `<th>` siblings (Mode, Correct, Time). `TableHead` adds default `h-10 align-middle whitespace-nowrap text-foreground` classes that plain `<th>` elements do not receive, creating a potential height/color inconsistency across the header row.
-- 6 GOOD: handleSort toggle logic preserved, all 6 sort-dir combinations covered by SORT_OPTIONS, mobile test coverage thorough, SortableTableHead reuse clean (no copy-paste), aria-sort correctly applied only to sortable columns, responsive hidden/block exclusivity correct.
+**Doc updater:** CLEAN. All docs already in sync from earlier commits in this PR cycle (0503801 added exam_configs tables, start_exam_session RPC, decisions entries).
 
-**Implementation-critic:** 0 CRITICAL, 0 ISSUE, 1 SUGGESTION (mobile sort test coverage) — addressed by test-writer in afa5004.
+**Semantic reviewer (f5c1070):** 0 CRITICAL, 2 ISSUE, 3 SUGGESTION.
+- ISSUE: Missing `server-only` guard on replace-distributions.ts (added then removed due to Vitest/jsdom resolution failure — `server-only` package not resolvable in the jsdom test environment). Fixed in cb318f4 by approach change: guard removal accepted as a Vitest environment constraint; the correct mitigation is `vi.mock('server-only', () => ({}))` in the test file, not guard removal.
+- ISSUE: Combined `if (error || !data)` guard logged `error.message` on the `!data` branch where `error` is null — `undefined` logged instead of meaningful message. Fixed in cb318f4 by splitting into two separate guards.
+- SUGGESTION: Constraint name comment in migration (no action — comment-only cosmetic).
+- SUGGESTION: Dialog close animation cancelled by mount guard (known Base UI behavior pattern — no action).
+- SUGGESTION: NumField snap-back UX on clear (UX preference — no action).
 
-**Doc updater:** No docs needed — no schema or RPC changes, no new architectural pattern requiring documentation.
-
-**Test writer:** 10 tests added in afa5004 — 5 for mobile Select sort (initial value binding, score-asc reflection, router.replace params, page reset, subject-desc edge case) and 5 for `SortableTableHead` className/align prop passthrough.
+**Test writer:** 4 test files created across cb318f4 and 7f46574: replace-distributions.test.ts (15 tests), toggle.test.ts (11 tests), upsert.test.ts (9 tests), num-field.test.tsx (8 tests). Total 43 tests, all passing.
 
 **Pattern analysis:**
 
-1. **[REPEAT — count 2] UI interactive element added to existing component without test update in same commit**
+1. **[REPEAT — count 2] Pre-existing file size violation surfaced when a new commit adds lines to an already-over-limit file**
 
-   First occurrence: 9370e7d (2026-04-10) — sort button added to the UI with no test for the new interaction. Test-writer found and added 3 tests in the fix commit (9711338).
-   Second occurrence: 2f31c09 (2026-04-10) — mobile sort Select and sortable table heads added with no tests in the same commit. Test-writer added 10 tests in afa5004.
+   Prior occurrence: d93f924 (2026-03-20), lookup.ts. This occurrence: cb318f4 (2026-04-11), upsert.ts was at 102 lines (already over the 100-line Server Action limit) before the commit; a legitimate 5-line error-check addition pushed it to 106 lines. Second occurrence across different commits — RULE CANDIDATE threshold reached.
 
-   The gap is identical both times: a new interactive element (button, Select) is added to an already-tested component, but the same commit does not update the co-located test file. The test-writer is reliably catching and closing the gap in the next commit, but the gap itself is a persistent authoring habit.
+   The pattern is: a Server Action file that has drifted past its limit receives a small, individually reasonable additive change. The code-reviewer correctly flags the result. The fix is to split the file at the time of the additive change, not defer. No new rule text is needed in code-style.md (the 100-line limit is already explicit); this is a compliance-timing issue. Frequency table updated: count 1 → 2, status Watch → RULE CANDIDATE.
 
-   Count 2 across different commits meets the rule-change threshold. The candidate rule for `code-style.md` Section 7: "When an interactive element (button, toggle, dropdown, sortable header) is added to a component that already has a co-located test file, the test file must be updated in the same commit." This is actionable and mechanically checkable by the code-reviewer (new interactive element in component file + no corresponding diff in `.test.tsx`).
+   Proposed note: when a Server Action file is at or above its 100-line limit, any additive change (even a single error-check) must be accompanied by a split in the same commit. The correct signal is the file's line count at the start of the commit, not the size of the addition.
 
-   Rule not applied yet — proposing for orchestrator review before applying.
+2. **[NEW — count 1] `server-only` import causing Vitest/jsdom resolution failure**
 
-2. **[NEW — count 1] String-split unvalidated cast for composite Select values**
+   replace-distributions.ts had a `server-only` guard (correct practice for a Server Action) but the guard was removed after Vitest could not resolve the package in jsdom. The correct mitigation is `vi.mock('server-only', () => ({}))` in the test file, not removing the guard. This mitigation is already applied for other modules in the project (e.g., `next/headers`). First occurrence as a named pattern — log and watch. Added to frequency table at count 1.
 
-   `value.split('-') as [SortKey, SortDir]` in `handleMobileSort`. The `!value` guard before the destructure only protects against null/empty-string; it does not protect against a value that has no dash (e.g. `'date'` → `['date', undefined]`). In practice the values are always from `SORT_OPTIONS` so the cast is safe, but the cast bypasses TypeScript's ability to verify the tuple shape.
+3. **[NEW — count 1] Combined `if (error || !data)` guard logging `undefined` on the `!data` branch**
 
-   First occurrence — log and watch. If a second instance of a composite-string destructure without a `parts.length === 2` guard appears, add a note to `code-style.md` Section 5: "When parsing composite Select values via `split()`, verify `parts.length` before destructuring. The null guard only covers null/empty-string, not single-segment strings."
+   A Supabase query result guard that combined two failure modes (`if (error || !data)`) then accessed `error.message` in the log — `undefined` when only the `!data` branch was entered. The correct pattern is always two separate guards: `if (error)` with `error.message` and `if (!data)` with a literal string. First occurrence as a named pattern — log and watch. Added to frequency table at count 1.
 
-3. **[NEW — count 1] Mixed shadcn `TableHead` and plain `<th>` in the same `<tr>`**
+4. **[NEW — count 1] CodeRabbit false positive rate on PR #516 (4 of 12)**
 
-   `SortableTableHead` renders a shadcn `TableHead`, which carries default height/alignment/color classes. Non-sortable sibling `<th>` elements (plain HTML) do not receive these defaults. In a single `<tr>` this creates inconsistent styling on the header row — sortable columns have `h-10 text-foreground` applied, non-sortable columns do not.
-
-   First occurrence — log and watch. The fix is straightforward: either use shadcn `TableHead` for all header cells (with or without sort behavior) or stay with plain `<th>` throughout. If a second mixed-cell header row appears in a new component, propose adding a note to `code-style.md` Section 2 or 6: "Within a single table header row, use the same wrapper element (`TableHead` or `<th>`) for all cells. Do not mix shadcn table primitives with plain HTML in the same row."
+   33% false positive rate on PR #516 CodeRabbit review. Notable false positives: (a) hard-delete policy warning on exam_config_distributions — an intentional exception documented in migrations; (b) Dialog size prop flagged as invalid when it is a valid shadcn variant; (c) start_exam_session guard flagged as missing when it was already present. The existing `feedback_coderabbit_investigate.md` memory already documents the mitigation (always validate against source). First occurrence as a named metric — log and watch. If rate exceeds 25% on 2+ consecutive PRs, propose .coderabbit.yaml suppressions via coderabbit-sync.
 
 **Actions taken:**
-- Frequency table: "UI interactive element changed without a corresponding test update" count updated 1 → 2, last-seen updated to 2026-04-10, status changed Watch → RULE CANDIDATE.
-- Frequency table: "String-split unvalidated cast for composite Select values" added as new watch row, count 1, 2026-04-10. First occurrence — no rule change.
-- Frequency table: "Mixed shadcn TableHead and plain th in same tr" added as new watch row, count 1, 2026-04-10. First occurrence — no rule change.
+- Frequency table: "Pre-existing file size violation surfaced when a new commit adds lines to an already-over-limit file" count updated 1 → 2, last-seen updated to 2026-04-11, status updated Watch → RULE CANDIDATE.
+- Frequency table: "`server-only` import removed due to Vitest/jsdom resolution failure" added as new watch row, count 1, 2026-04-11.
+- Frequency table: "Combined `if (error || !data)` guard logs `undefined` on the `!data` branch" added as new watch row, count 1, 2026-04-11.
+- Frequency table: "CodeRabbit false positive rate on exam-mode PR (4 of 12 findings)" added as new watch row, count 1, 2026-04-11.
 
-**Recommended changes:** One rule candidate proposed (not applied). "UI interactive element in existing tested component requires same-commit test update" has reached count 2 and is ready for orchestrator review. Proposed target: `code-style.md` Section 7. The two new patterns (string-split cast, mixed table cells) are first occurrences — logged and watching, no rule change.
+**Recommended changes:** None this cycle. The pre-existing file-size violation pattern has now reached count 2 (RULE CANDIDATE threshold), but the rule already exists in code-style.md — what is needed is a timing clarification, not a new rule. Proposing a note but not applying it unilaterally: "When a Server Action file is at or above its 100-line limit, any additive change must be accompanied by a split in the same commit." Both other new patterns are first occurrences. No changes to code-style.md, security.md, or biome.json this cycle.
+
+**False positives:** 4 CodeRabbit findings on PR #516 confirmed as false positives (see pattern 4 above). Zero false positives from semantic-reviewer or code-reviewer on this cycle.
+
+**Positive signals:**
+- Code reviewer was clean on all three commits — no style regressions introduced during the CodeRabbit fix pass.
+- Doc updater clean — documentation was proactively maintained in earlier commits in this PR cycle, not deferred to post-commit catch.
+- Semantic reviewer caught both ISSUEs in the first pass; both were fixed in a single follow-up commit (cb318f4) with no residual findings.
+- Test writer produced 43 tests across 4 new files, all passing — exam mode admin config now has full coverage on the Server Actions layer.
+- The `if (error || !data)` split was caught by semantic review before tests were written, keeping the test files clean from the start.
+
+---
+
+### 2026-04-11 — Exam mode admin config test coverage pass (commits edbfe3d, 8556c57, bd0d55a, 05609a7, 80cbd7c)
+
+**Context:** Five-commit sequence on feat/exam-mode-admin-config. edbfe3d added exam tables to the soft-delete matrix in docs/database.md. 8556c57 tightened NumField clamping assertions (min=0 clamp verified, NaN→0 fallback path added). bd0d55a fixed JSONB key names in the upsert_exam_config migration comment (camelCase → snake_case, matching the live RPC). 05609a7 added 52 tests across 4 new files (queries.test.ts, distribution-editor.test.tsx, subject-config-card.test.tsx, and exam-config page tests). 80cbd7c added 25 more tests (config-form-dialog.test.tsx, page-shell.test.tsx) and fixed a NaN-guard test consistency issue surfaced by semantic-reviewer.
+
+**Commit hashes:** edbfe3d (docs), 8556c57 (test tighten), bd0d55a (docs fix), 05609a7 (tests +52), 80cbd7c (tests +25, NaN fix)
+
+**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING. Clean on all five commits.
+
+**Doc updater (haiku):** No changes needed. Clean. Soft-delete matrix and migration comment were updated proactively in this cycle.
+
+**Semantic reviewer (sonnet):** 0 CRITICAL, 0 ISSUE, 1 SUGGESTION (NaN-guard test consistency — fixed in 80cbd7c). 5 GOOD patterns noted. Clean after fix.
+- SUGGESTION: NaN-guard test in num-field.test.tsx did not verify the clamping path that prevents NaN from propagating through — the min=0 assertion was present but the intermediate NaN→0 fallback was not explicitly exercised. Fixed in 80cbd7c by adding a targeted fireEvent.change test that inputs non-numeric text and asserts the value snaps to the minimum.
+
+**Implementation-critic:** Caught dead code (unused `buildChain` scaffold function) in queries.test.ts generated by the test subagent. The function was never called in any test; Biome would have blocked the pre-commit hook on `noUnusedVariables`. Removed before commit. Clean on all other files.
+
+**Plan-critic:** Caught 2 issues during the test coverage planning phase: (1) imprecise test rationale — the plan stated "cover the query layer" without specifying which branches to target, making it unclear whether error paths were in scope; (2) incomplete doc entry — the soft-delete matrix update was planned for exam_configs only, missing exam_config_distributions. Both resolved before execution: test plan updated with explicit branch list, doc update extended to both tables.
+
+**Test writer (sonnet):** Found 2 additional coverage gaps (config-form-dialog.tsx and page-shell.tsx) that were not in the initial test plan — both components had conditional rendering and user event handlers that contributed to new-code coverage. Added 25 tests across 2 new files in 80cbd7c. All 77 total new tests pass.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] `userEvent.clear()` + `userEvent.type()` unreliable for controlled NumField — use `fireEvent.change()`**
+   Test subagent generated NumField interaction tests using `userEvent.clear()` + `userEvent.type()` to simulate value replacement. The pattern produced incorrect final values because userEvent v14's keyboard simulation dispatches intermediate states that conflict with React controlled-input reconciliation. Fixed by switching to `fireEvent.change(input, { target: { value: '...' } })`. First occurrence — log and watch.
+
+2. **[NEW — count 1] Dead code (unused scaffold function) left in test file by test subagent**
+   Test subagent generated a `buildChain` scaffold function in queries.test.ts that was never called. Biome `noUnusedVariables` would have blocked the pre-commit hook. Implementation-critic caught it pre-commit. First occurrence as a named pattern — log and watch. The implementation-critic gate is the reliable catch.
+
+3. **[REPEAT — count 3] TypeScript strict mode requires `!` non-null assertion on array index access in test files**
+   Third occurrence of TS2532 unchecked array index in test-writer output. Prior occurrences: 153a975 (2026-03-23), 05609a7 (2026-04-11). Test-writer/patterns.md already documents the rule. The pattern persists because the agent generates the wrong form first and the pre-commit tsc gate catches it. No additional rule change warranted — the gate works.
+
+4. **[NEW — count 1] SonarCloud new-code coverage requires test files for ALL source files with runtime logic, not just actions**
+   SonarCloud's 80% new-code coverage gate required test files for distribution-editor.tsx, subject-config-card.tsx, config-form-dialog.tsx, page-shell.tsx, and num-field.tsx — not just the Server Action layer. Components with conditional rendering or event handling contribute to new-code line coverage. 77 tests across 7 files were needed to satisfy the gate. First occurrence as a named pattern — log and watch. Planning implication: when scoping test work for a multi-component feature PR, include all files with branching logic in the test plan, not just actions/queries.
+
+**Actions taken:**
+- Frequency table: "userEvent.clear()/type() pattern unreliable for controlled NumField inputs" added as new watch row, count 1, 2026-04-11.
+- Frequency table: "Dead code (unused scaffold function) left in test file by test subagent" added as new watch row, count 1, 2026-04-11.
+- Frequency table: "TypeScript strict mode requires `!` non-null assertion on array index access in test files" count updated 2 → 3, last-seen updated to 2026-04-11. (The row in this table tracks the learner-level count; test-writer/patterns.md tracks the agent-memory count separately.)
+- Frequency table: "SonarCloud new-code coverage gap: test files required for ALL source files with runtime logic" added as new watch row, count 1, 2026-04-11.
+
+**Recommended changes:** None this cycle. All patterns are either first occurrences (log and watch) or already covered by existing rules. The TS2532 array-index pattern is at count 3 in test-writer/patterns.md and no code-style.md rule change is needed — the pre-commit tsc gate is the reliable catch. No changes to `code-style.md`, `security.md`, or `biome.json`.
+
+**False positives:** None. The semantic-reviewer SUGGESTION on NaN-guard test consistency was real and correctly classified as non-blocking. Plan-critic findings were real gaps in the test plan.
+
+**Positive signals:**
+- Code reviewer clean on all five commits — no mechanical violations introduced during the documentation and test-coverage pass.
+- Doc updater clean — soft-delete matrix proactively updated in edbfe3d; migration comment fixed in bd0d55a without post-commit drift finding.
+- Implementation-critic caught dead code pre-commit, preventing a Biome hook failure.
+- Plan-critic caught an incomplete doc entry (missing exam_config_distributions from the soft-delete matrix update) before execution — the fix was cheaper at plan time than as a post-commit doc-updater finding.
+- Semantic reviewer's single SUGGESTION (NaN-guard test consistency) was addressed in the same session commit (80cbd7c) — no open findings remain.
+- Test writer self-expanded scope to cover config-form-dialog and page-shell after identifying the coverage gap — 77 tests total, all passing, SonarCloud gate satisfied.
+- 2707 total tests in the project, all passing at end of session.
+
+---
+
+### 2026-04-13 — Exam config try/catch hardening (commits 1395d92, ff3160f)
+
+**Context:** Two-commit sequence on feat/exam-mode-admin-config. 1395d92 added try/catch blocks to Server Action callers in client components to prevent unhandled rejection propagation on network errors. ff3160f added tests for the new catch branches (test-only commit, no production code changed).
+
+**Commit hashes:** 1395d92 (fix — try/catch in Server Action callers), ff3160f (test — catch path coverage)
+
+**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING. Clean on both commits.
+
+**Doc updater (haiku):** No changes needed. Clean. No schema, route, or architecture changes.
+
+**Semantic reviewer (sonnet):** 0 CRITICAL, 0 ISSUE on 1395d92. 1 SUGGESTION (catch error message indistinguishable from result.error — advisory only, not actionable without a dedicated error discriminant field). 3 GOOD patterns noted. 1 false positive confirmed (see below). Clean after false positive dismissed.
+
+**Implementation-critic:** Clean on both commits.
+
+**Test writer (sonnet):** 2 tests added for catch branches in ff3160f. Both pass.
+
+**Pattern analysis:**
+
+1. **[FALSE POSITIVE — count 1] Semantic-reviewer misapplied `isRedirectError` re-throw rule to client-side Server Action caller**
+
+   Semantic-reviewer flagged a `'use client'` component's catch block (wrapping a Server Action call via `startTransition`) for not re-throwing `isRedirectError()`. The rule in code-style.md Section 6 ("Re-throw Redirect Errors in Server Component Catch Blocks") explicitly scopes to Server Components. The mechanism for the rule — `redirect()` in a Server Component throws a special error that must propagate up — does not apply to client components calling Server Actions via `startTransition`. In that context, Next.js routes the redirect response through the HTTP response stream; it does not propagate as a JavaScript exception to the caller's catch block. The `isRedirectError` import and re-throw in a client component would be dead code. All 5 existing `isRedirectError` usages in the codebase are in Server Components (`dashboard-content.tsx` and sibling files). Confirmed false positive — no code change made.
+
+   This is a first occurrence. Per agent-learner.md rules: log and watch. If semantic-reviewer repeats this on a second `'use client'` + `startTransition` + Server Action pattern, add a Known Suppression note to `agent-code-reviewer.md`.
+
+2. **[NEW — count 1] SUGGESTION: catch error message indistinguishable from `result.error` field**
+
+   Semantic-reviewer noted that when a Server Action caller catches a network/runtime error and returns `{ success: false, error: 'An unexpected error occurred' }`, the error message is identical to what the action itself might return for some domain errors. This makes the UI unable to distinguish network failure from server-side validation failure. Logged as a SUGGESTION — advisory only. Not actionable in isolation without adding an error discriminant (`type: 'network' | 'server'`). First occurrence — log and watch.
+
+**Actions taken:**
+- Frequency table: "Semantic-reviewer false positive: `isRedirectError` re-throw rule misapplied to client-side Server Action callers" added as new watch row, count 1, 2026-04-13.
+- No changes to `code-style.md`, `security.md`, or `biome.json` — all patterns are first occurrences (log and watch per agent rules).
+
+**Recommended changes:** None this cycle. Single occurrence of the false positive — must be seen on a second commit before proposing a suppression note.
+
+**False positives:** 1 confirmed — semantic-reviewer ISSUE on `isRedirectError` in a `'use client'` component calling a Server Action via `startTransition`. The rule applies to Server Components only. Dismissed after validating the rule text and all 5 existing usages in the codebase. Validate-before-fixing protocol held.
+
+**Positive signals:**
+- Code reviewer clean on both commits — no mechanical violations.
+- Doc updater clean — no docs needed updating for a try/catch hardening commit.
+- Implementation-critic caught no issues pre-commit — staged changes were correct.
+- Test writer added coverage for the new catch paths in the same session, and both tests pass.
+- False positive correctly dismissed by orchestrator after validating rule scope against code-style.md Section 6 and the existing `isRedirectError` usage sites — no unnecessary code change made.
+
+---
+
+### 2026-04-14 — Student exam session hooks fix (commits 6954711, bdeafc3)
+
+**Context:** Two-commit sequence on feat/exam-mode-student-session. 6954711 addressed 3 valid CodeRabbit findings from PR #523 review: (1) `clearDeploymentPin()` missing from one session-terminal path, (2) unnecessary `async` on a sync function producing a misleading signature, (3) `new Map()` constructed per render instead of reading from an existing ref. bdeafc3 was the test commit: test-writer added 4 tests covering the zero-answer exam timeout path, which had been untested since the zero-answer handling was introduced in 3e050b4.
+
+**Commit hashes:** 6954711 (fix — 3 CodeRabbit findings), bdeafc3 (test — zero-answer timeout path)
+
+**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING. Clean on both commits. Note: `quiz-submit.ts` at 181 lines exceeds the 100-line Server Action limit — pre-existing, no new `+` lines in the diff hunk, correctly not flagged.
+
+**Doc updater (haiku):** No changes needed. Clean. No schema, route, or architecture changes.
+
+**Semantic reviewer (sonnet):** 0 CRITICAL, 0 ISSUE, 1 SUGGESTION (test file `await`s now-sync function — harmless, test still passes, `await` on a non-Promise resolves immediately). 0 false positives on the production code commit. Clean.
+
+**Test writer (sonnet):** 4 tests added for zero-answer timeout path in bdeafc3. All pass.
+
+**Pattern analysis:**
+
+1. **[REPEAT — count 5] Partial fix applied to sibling file group (cross-cutting concern)**
+
+   `clearDeploymentPin()` was added to most session-terminal paths in the exam session hook but missed one path. CodeRabbit caught the omission. Same root cause as counts 1-4: fix scoped to the specific instance seen rather than auditing all instances in the file. The grep-all-instances approach documented in the 2026-03-29 Lessons entry was not applied here. Pattern remains RULE CANDIDATE; no further rule change proposed at this cycle — the existing documentation is correct; compliance gap at authoring time.
+
+2. **[REPEAT — count 4] Error path in existing function untested (edge-case branch)**
+
+   Zero-answer timeout path introduced in commit 3e050b4 was not accompanied by tests in the same commit. Test-writer discovered the gap post-commit (bdeafc3) and added 4 tests. Same pattern as counts 1-3: new edge-case paths added to existing functions are not accompanied by test updates. The RULE CANDIDATE note in test-writer patterns memory (count 3 entry) is the correct gate; no additional rule change needed.
+
+3. **[REPEAT — count 2] CodeRabbit false positive rate elevated on exam-mode PRs**
+
+   6 of 9 CodeRabbit findings on PR #523 were false positives (67%). The false positives shared a common root cause: CodeRabbit lacks project-specific context about DB-level constraints (the constraint prevents zero-count, making an application guard redundant), intentional client-side guards already in place, and features intentionally absent (exam sessions are not localStorage-recoverable by design). This is the second occurrence of elevated CodeRabbit false positive rate on exam-mode PRs. Per agent-learner.md rules, at 2+ occurrences the coderabbit-sync agent should be given context to add suppression notes for these exception categories to `.coderabbit.yaml`.
+
+4. **[NEW — count 1] Unnecessary `async` on a sync function (misleading signature)**
+
+   A function that performs no async operations was declared `async`, making its return type `Promise<T>` when the actual return is synchronous `T`. This misleads callers into writing unnecessary `await` expressions and may cause test authors to add `await` that then persists after a later sync refactor. CodeRabbit caught this as a valid finding (6954711). First occurrence — log and watch. If a second function is flagged for unnecessary `async`, propose a note to code-style.md: "Only declare a function `async` if it contains `await` expressions or returns a `Promise` from a delegated call; sync functions must not carry the `async` keyword."
+
+5. **[NEW — count 1] Object construction per render instead of reading from existing ref**
+
+   `new Map()` was constructed fresh on every render call path instead of reading from an already-initialized `useRef`. The per-render construction causes unnecessary allocation and, for Maps/Sets holding session state, can silently discard accumulated state between renders. CodeRabbit caught this as a valid finding (6954711). First occurrence — log and watch. If a second component constructs a `new Map()`, `new Set()`, or equivalent collection literal in a render body where a ref already holds the canonical instance, propose a note to code-style.md Section 2 or 6.
+
+6. **[NEW — count 1] Stale `await` on now-sync function in test file**
+
+   Semantic-reviewer noted that a test file `await`s a function that was refactored from async to sync. The `await` is harmless (resolves immediately), and the test still passes. Root cause: when a function is made synchronous, test files that `await` its call are not updated. First occurrence — log and watch. No rule change at count 1.
+
+**Actions taken:**
+- Frequency table: "Partial fix applied to sibling file group" updated from count 4 → 5, last-seen 2026-04-14.
+- Frequency table: "Error path in existing function untested" updated from count 3 → 4, last-seen 2026-04-14.
+- Frequency table: "CodeRabbit false positive rate elevated on exam-mode PRs" updated from count 1 → 2, last-seen 2026-04-14, status RULE CANDIDATE.
+- Frequency table: 3 new watch rows added (unnecessary async on sync function; object construction per render instead of ref read; stale await on now-sync function in test file). All at count 1 — log and watch.
+
+**Recommended changes:**
+- [ ] `.coderabbit.yaml` — via coderabbit-sync agent: add suppression context for (a) exam_config_distributions hard-delete exception (explicit policy, not a soft-delete violation), (b) DB-constraint-backed guards that make application-layer guards redundant, (c) intentionally absent session recovery from localStorage for exam sessions. Coderabbit-sync should be run if coderabbit-sync trigger condition is met (rules did not change this cycle, so trigger is not met — defer until next rules-change cycle and include in that run).
+
+**No rule changes applied this cycle.** The CodeRabbit false positive pattern is now at count 2 and warrants a `.coderabbit.yaml` suppression note, but this is a coderabbit-sync action rather than a code-style.md or security.md rule change, and it does not satisfy the coderabbit-sync agent trigger condition (rules files unchanged). The remaining patterns are first occurrences.
+
+**False positives:** None from post-commit agents. 6 false positives from CodeRabbit (external tool) — all validated before dismissing, consistent with validate-before-fixing protocol.
+
+**Positive signals:**
+- Code reviewer and doc updater clean on both commits — no mechanical regressions.
+- Semantic reviewer clean on production code commit (6954711) — 3 valid CodeRabbit fixes did not introduce new issues.
+- All 3 CodeRabbit valid findings were real and fixed in a single focused commit with no residual findings.
+- Test writer coverage of zero-answer timeout path closed a genuine gap in 4 well-targeted tests.
+
+---
+
+### 2026-04-14 — Test fix: ineffective rerender in auto-submit countdown (commit 1ebe955)
+
+**Context:** Single test-only commit on feat/exam-mode-student-session. The test for `use-auto-submit-countdown` claimed to verify that the `firedRef` guard prevents double-fire when the effect re-runs (i.e., when `seconds` changes and the effect dependency changes). However, `rerender({ seconds: 2 })` was called with the same value that was originally passed (2), so the React effect dependency never actually changed — the effect never re-ran, and the test was a vacuous pass. Fixed by changing the rerender argument to `seconds: 3` so the dependency changes and the guard is actually exercised.
+
+All 4 post-commit agents reported clean. The fix was prompted by a valid CodeRabbit comment.
+
+**Commit hash:** 1ebe955
+
+**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING. Clean.
+
+**Doc updater (haiku):** No changes needed. Clean.
+
+**Semantic reviewer (sonnet):** 0 CRITICAL, 0 ISSUE, 0 SUGGESTION. Clean.
+
+**Test writer (sonnet):** No gaps found. Clean.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] `rerender()` with identical prop value produces a vacuous test (effect dependency never changes)**
+
+   A test used `rerender({ seconds: 2 })` to simulate a prop change, but the initial render also used `seconds: 2` — so the prop value did not change, the `useEffect` dependency array did not change, and the effect never re-ran. The test asserted the post-rerender guard behavior but the guard was never actually activated. The test passed vacuously — it produced no false negative but also provided no real coverage of the code path it claimed to test.
+
+   Root cause: when writing `rerender()` calls for hooks with `useEffect` dependencies, the author did not verify that the new prop value differs from the initial value (or from the last rendered value). Any `rerender()` that passes an identical value for an effect dependency is a no-op test.
+
+   First occurrence — log and watch. If a second test is found where `rerender()` passes an identical value that an effect depends on, propose a note to code-style.md Section 7 (Testing Rules): "When testing `useEffect` re-run behavior via `rerender()`, always verify the new prop value differs from the previously rendered value. A `rerender()` with an identical value for an effect dependency produces a vacuous test — the effect never re-runs and the test passes without covering the intended path."
+
+**Actions taken:**
+- Frequency table: "rerender() with identical prop value produces a vacuous test" added as new watch row, count 1, 2026-04-14.
+
+**Recommended changes:** None this cycle. Single occurrence — log and watch per agent-learner.md rules.
+
+**False positives:** None from any post-commit agent.
+
+**Positive signals:**
+- All 4 post-commit agents clean — the fix was correct and introduced no new issues.
+- CodeRabbit identified a genuine test coverage gap (not a style nit) that was missed by the post-commit agents. This is a valid catch-layer complement — the agents check mechanical rules and logic correctness, but CodeRabbit's human-readable diff analysis caught the vacuous assertion pattern. No process change warranted (agents did not miss a finding they were scoped to catch).
+- The fix was a single-character change (2 → 3) with maximum impact: the test now actually exercises the firedRef guard path it was written to cover.
+
+---
+
+### 2026-04-14 — Exam mode student session fixes (commits 1ebe955, b9829c0, ce67aee, 5e2fca9)
+
+**Context:** Four-commit sequence on feat/exam-mode-student-session. 1ebe955 fixed a vacuous `rerender()` test in the auto-submit countdown suite. b9829c0 added soft-delete cleanup for the zero-answer timeout path but introduced a fire-and-forget race. ce67aee fixed that race by awaiting `discardQuiz` before the redirect. 5e2fca9 added 2 targeted tests (console.error logging verification + draftId forwarding).
+
+**Code reviewer:** All 4 commits clean. 0 BLOCKING, 0 WARNING.
+
+**Doc updater:** No changes needed. Clean.
+
+**Semantic reviewer:**
+- 1ebe955: Clean.
+- b9829c0: ISSUE — fire-and-forget `discardQuiz()` before `router.push()` created a race window where `start_exam_session` could still see the old session row. Fixed in ce67aee.
+- ce67aee: Clean.
+- 5e2fca9: Clean.
+
+**Test writer:**
+- 1ebe955: Clean.
+- b9829c0: SUGGESTION — success:false path in the zero-answer timeout branch not tested. Addressed in 5e2fca9.
+- ce67aee: Clean.
+- 5e2fca9: Clean. Tests added: `discardQuiz` mock return value configured explicitly for console.error verification, draftId forwarding verified.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] Fire-and-forget Server Action before navigation creates race with DB guards**
+
+   `discardQuiz()` was called without `await` immediately before `router.push()`. The intent was cleanup-then-redirect, but the mutation ran asynchronously and the redirect could complete while the DB row was still live. Any Server Action called by the next route (here `start_exam_session`) that guards against duplicate sessions would see the undeleted row and fail or produce wrong behavior.
+
+   Root cause: cleanup calls before navigation are treated as best-effort fire-and-forget because the author focuses on the navigation as the critical path. When the mutation affects state that the next route reads or guards against, the ordering guarantee is broken.
+
+   First occurrence — log and watch. The correct rule: any Server Action that mutates DB state that the destination route reads must be awaited before calling the router. No rule change at count 1.
+
+2. **[NEW — count 1] Server Action mock not configured with explicit return value — undefined default hides integration gap**
+
+   The exam timeout tests invoked the `discardQuiz` mock but did not call `.mockResolvedValue(...)`. The default `vi.fn()` resolves to `undefined`. The caller checks `result?.success`, so `undefined?.success` evaluates to `undefined` (falsy) — the test passed without verifying whether the correct branch ran. The test-writer correctly configured `mockDiscardQuiz.mockResolvedValue({ success: true })` to make the assertion meaningful.
+
+   Root cause: when a Server Action is expected to return a typed result (`{ success: boolean }`), test authors sometimes omit the return value setup under the assumption that "the mock being called is enough." If the caller uses the return value for branching, the unconfigured mock hides whether the correct branch fires.
+
+   First occurrence — log and watch. No rule change at count 1.
+
+3. **[EXISTING — count 4 confirmed] Error path in existing function untested**
+
+   The zero-answer timeout branch (bdeafc3) was the 4th occurrence of this pattern (an error/edge branch added to an existing tested function without a test update in the same commit). Already tracked at count 4. 5e2fca9 closed the gap. No new action required.
+
+**Actions taken:**
+- Frequency table: "Fire-and-forget Server Action before navigation creates race with DB guards" added as new watch row, count 1.
+- Frequency table: "Server Action mock not configured in test — undefined default hides integration gap" added as new watch row, count 1.
+
+**Recommended changes:** None this cycle. Both new patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** None from any post-commit agent this session cycle.
+
+**Positive signals:**
+- Semantic-reviewer caught the fire-and-forget race as an ISSUE in the same commit that introduced it — the post-commit gate worked as intended.
+- The test-writer correctly identified the missing mock configuration pattern and applied an explicit return value. No fix cycle needed — the agent self-corrected.
+- All 4 commits ended clean. The fix→test→clean loop completed in one session without residual findings.
+- False positives correctly dismissed by orchestrator after validating against DB constraint definitions, existing client guards, and intentional design decisions — validate-before-fixing protocol held across all 6 dismissals.
+
+---
+
+### 2026-04-26 — Exam mode fixes: CodeRabbit findings + stale test literal (commits 371f361, 2114c37)
+
+**Context:** Two-commit sequence on feat/exam-mode-student-session. 371f361 addressed 8 CodeRabbit findings from PR #523 review: a11y role="alert" on quiz-config error messages, Zod safeParse validation, expired-session mark-before-redirect, answer-options click guard, MODE_LABELS constant usage in reports badges, and finish-quiz-dialog component extraction (175→131 lines). 2114c37 was the test commit: added 7 tests for role="alert" wiring on quiz-config-form plus 2 on finish-quiz-dialog, and added diagnostic logging for Zod issue paths in start-exam RPC validation.
+
+**Commit hashes:** 371f361 (fix — 8 CodeRabbit findings), 2114c37 (test + diagnostic logging)
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING on both commits. Clean.
+
+**Semantic reviewer:** 0 CRITICAL, 1 SUGGESTION on 371f361. SUGGESTION flagged "redundant outer guard in answer-options.tsx" (handleSelect early-return + button disabled prop both gate exam-locked state). Reviewed and validated as FALSE POSITIVE — it is intentional defense-in-depth: handleSelect guards the state mutation (active defense), button.disabled guards the UI (passive defense). Both are necessary. Dismissed after validation. 0 CRITICAL, 0 ISSUE on 2114c37. Clean.
+
+**Implementation-critic:** 1 ISSUE on 371f361 — fixture type narrowing: tests added `mode: 'exam' as const` override to a makeSession fixture defined with `mode: 'study' as const`, causing TypeScript to narrow the fixture type to literal 'study', making the override incompatible. Fixed by widening the fixture's type annotation to `QuizMode`. Caught pre-commit, no second commit needed — fix applied in same commit construction pass.
+
+**Test writer:** 9 new tests added in 2114c37 (7 for quiz-config-form role="alert" + 2 for finish-quiz-dialog). All pass. No coverage gaps found.
+
+**Pattern analysis:**
+
+1. **[REPEAT — count 2] Stale hardcoded literal in test assertion after centralising label into constant**
+
+   Prior occurrence: 2026-03-27 (hardcoded 'v1.0' string literals in tests instead of importing CURRENT_ANALYTICS_VERSION constant). This occurrence: reports-list.test.tsx line 110 asserted for both 'Practice Exam' (correct, matches MODE_LABELS.mock_exam) and 'PRACTICE EXAM' (stale, hardcoded uppercase literal) — the latter was an old assertion from before MODE_LABELS constant was introduced. When session-card.tsx switched from hardcoded `<span>PRACTICE EXAM</span>` to `<span className="uppercase">{MODE_LABELS.mock_exam}</span>`, the CSS `uppercase` class applies at render-time but does not change the DOM text content (still 'Practice Exam'), breaking the stale assertion that expected the uppercase literal. The fix (commit 371f361) removed the stale assertion line 110.
+
+   Root cause: when a hardcoded literal is replaced with a constant, existing test assertions that check for the old form are not discovered/updated by grep (the old form was part of the production component; the new form is `MODE_LABELS.mock_exam` + CSS transform). The test assertion was written while the hardcoded literal was live, and when the refactor happened, the assertion became stale — no diff hunk touched the test file to surface the disconnect.
+
+   **Second occurrence confirmed.** Frequency table "Hardcoded cookie/constant values in tests instead of importing source constants" is now at count 3. Root cause consistent: when constants are centralised and hardcoded literals replaced, test assertions written for the old form become stale. Test suite may still pass if the DOM content changes but the old assertion is forgotten.
+
+2. **[REPEAT — count 2] Fixture type narrowing caused by literal type override on generic fixture**
+
+   Prior occurrence: 2026-03-13 (test fixture shape mismatch: missing `short` prop on fixture, count 1). This is a different sub-pattern within the same family: the fixture itself is correctly shaped, but test overrides use `as const` narrowing (e.g., `mode: 'exam' as const`) on a fixture whose TypeScript type is generic (e.g., `QuizMode`, not `'study' | 'exam'`). When the fixture's original definition uses `mode: 'study' as const`, the type inference narrows to the literal type `'study'`. A test override using `mode: 'exam' as const` becomes incompatible with the narrowed type. The fix is to widen the fixture's type annotation: change the fixture definition from `mode: 'study' as const` to explicit `mode: 'study' as const satisfies QuizMode` or add a type annotation to the fixture factory result: `Readonly<{ mode: QuizMode }>`.
+
+   Root cause: test fixture factories define defaults with `as const` for type safety at the call site, but when those defaults are overly specific literals, overrides elsewhere become type-incompatible. The implementation-critic caught this pre-commit (type-check gate), preventing a compilation failure. **This is the second occurrence** of a test fixture shape/type mismatch pattern (first: missing field in fixture; this: fixture type narrowed too tight). The existing frequency table row "Test fixture shape mismatch" is at count 2. This occurrence is a second sub-pattern within that row.
+
+3. **[NEW — count 1] Defense-in-depth guard pattern flagged as redundancy by reviewer (false positive)**
+
+   Semantic-reviewer flagged answer-options.tsx for having both an early-return guard in handleSelect (`if (showResult || disabled || (isExam && lockedSelection != null)) return`) and a disabled prop on the button (`disabled={disabled || (!!isExam && lockedSelection != null)}`). The reviewer noted the second branch is already protected by the button's disabled state and therefore the first guard is redundant.
+
+   Validation: Both guards are necessary and intentional. The button.disabled prevents UI interaction (passive defense). The handleSelect early-return prevents state mutation (active defense). When the button is disabled, it will not fire onClick, so handleSelect will not run — but this is UI-layer isolation, not application-layer guarantees. If a test (or future code) directly calls handleSelect without clicking the button, the early-return ensures the state is not mutated. This is textbook defense-in-depth: multiple independent layers of protection at different abstraction levels against the same failure mode.
+
+   **False positive confirmed.** The semantic-reviewer does not understand the layering model. Both guards are correct and provide value at different levels.
+
+   This is distinct from the earlier "Unconditional `setIsLoading(false)` in render-path reset block" pattern (2026-04-26, count 1) — that pattern is genuinely redundant because both guards are at the same level (render body unconditional state set vs. conditional state set). This pattern is not redundant: UI-layer guard + logic-layer guard are at different levels and both necessary.
+
+   **First occurrence of this specific pattern** (defense-in-depth flagged as redundant) — log and watch.
+
+**Actions taken:**
+- Frequency table: "Hardcoded cookie/constant values in tests instead of importing source constants" — count updated from 2 → 3, last-seen updated to 2026-04-26. Note appended: "Third example: reports-list.test.tsx asserted for hardcoded 'PRACTICE EXAM' uppercase literal after MODE_LABELS.mock_exam constant was introduced; fix removed stale assertion."
+- Frequency table: "Test fixture shape mismatch" — existing row at count 2. Sub-note added on type-narrowing variant: "Type-narrowing variant (2026-04-26): fixture type annotation too specific (`mode: 'study' as const` narrows to literal), test override with incompatible literal (`mode: 'exam' as const`) causes TS error pre-commit. Fix: widen fixture type annotation or add satisfies clause."
+- Frequency table: "Defense-in-depth pattern flagged as redundancy by reviewer (false positive)" added as new watch row, count 1, 2026-04-26.
+
+**Recommended changes:**
+
+- [ ] `.claude/agent-memory/test-writer/patterns.md` — Add note: "When test fixtures are constructed with `as const` literal defaults (e.g., `mode: 'study' as const`), do not use incompatible overrides with different `as const` literals (e.g., `mode: 'exam' as const`) — this narrows the fixture type to the original literal and makes the override TS-incompatible. Either (a) widen the fixture type annotation explicitly (`mode: 'study' as const satisfies QuizMode`), or (b) remove `as const` from the fixture definition if the fixture is used with multiple mode values in tests."
+
+**No rule changes to code-style.md, security.md, or biome.json this cycle.** All findings are either existing patterns at count < 2 (defense-in-depth false positive at count 1) or repeats of known patterns with existing tracking (hardcoded constants at count 3, fixture type mismatch at count 2).
+
+**False positives:**
+- 1 confirmed: semantic-reviewer ISSUE on "redundant guard" in answer-options.tsx. Validated as defense-in-depth pattern (two independent guards at different abstraction layers: UI + logic) — both necessary. Dismissed after analyzing the layer separation and confirming both guards provide distinct value at their respective levels. Validate-before-fixing protocol held.
+
+**Positive signals:**
+- Implementation-critic caught the fixture type-narrowing issue pre-commit, preventing a TS compilation failure in CI and a wasted hook cycle.
+- Semantic-reviewer identified a real defense-in-depth pattern but misclassified it as redundancy. The orchestrator correctly validated the claim, dismissed the false positive, and did not introduce unnecessary code changes. This is the correct use of the validate-before-fixing protocol: reviewer finding ≠ automatically correct.
+- Code reviewer clean on both commits — no mechanical violations introduced.
+
+---
+
+### 2026-04-27 — Regression fix + DRIFT resolution: batch_submit_quiz soft-delete (commits 8a36a92, 16ee419, 791528c)
+
+**Context:** CodeRabbit round 5 triage on PR #523. The pre-push security-auditor flagged a MEDIUM severity issue: migration 20260413000002 (timeout fix) had regressed the historical-scoring contract from docs/database.md §3. The migration's bulk-fetch query added `AND q.deleted_at IS NULL` predicate, causing sessions to fail if a question was soft-deleted by an admin after the session started. The prior migration (20260317000041) had documented the exception explicitly in a comment, which migration 20260413000002 copy-pasted the RPC code without the comment — causing the regression.
+
+The fix cycle involved 3 commits:
+- **8a36a92** — fix(db): recreate batch_submit_quiz without the deleted_at filter, restore explanatory comment from 20260317000041
+- **16ee419** — docs(security): add narrow carve-out note to rule 9 in docs/security.md (explaining the exception that batch_submit_quiz intentionally takes)
+- **791528c** — docs(security): tighten carve-out wording to anchor on immutable write-once column, sync `.claude/rules/security.md` rule 9 to match
+
+**Commit hashes:** 8a36a92, 16ee419, 791528c
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING on all three commits. Clean.
+
+**Semantic reviewer:** Clean on all three. No findings.
+
+**Doc-updater:** 3 DRIFT findings (all in this cycle):
+- 16ee419: docs/security.md and .claude/rules/security.md contradicted each other — security.md had carve-out documented in database.md §3, but the quick-summary security.md rule 9 did not. Resolved in same commit (16ee419) by appending carve-out language to docs/security.md line 632.
+- 791528c (part A): docs/security.md rule 9 used vague "prior locked step" language vs. immutable column specificity. Resolved by rewriting to anchor explicitly on "immutable, write-once column" mechanism.
+- 791528c (part B): .claude/rules/security.md rule 9 was not yet updated to match the binding rule in docs/security.md. Resolved in 791528c by syncing both files to the same carve-out wording (lines 16 in both files).
+
+**Test writer:** No changes needed — existing tests already exercise the soft-deleted-question scenario.
+
+**Pattern analysis:**
+
+1. **[REPEAT — count 2] Follow-up migration copies code from predecessor migration and loses an explanatory comment, causing behavior regression**
+
+   First occurrence: Not explicitly named in prior frequency table, but semantically similar to "Copy-paste migration causing silent regression" pattern if one exists. This is the second distinct occurrence of: a migration follows a prior migration, copy-pastes the RPC body (correct approach for atomicity), but drops the inline comment that documented a deliberate design exception — resulting in a future developer misunderstanding why the code is written that way, attempting to "fix" it by adding a guard that actually breaks the contract.
+
+   Context: Migration 20260317000041 created batch_submit_quiz with this comment:
+   ```sql
+   -- This query intentionally does NOT filter deleted_at IS NULL because
+   -- historical scoring must access questions that may have been retired
+   -- after the session started. Session membership is locked by
+   -- quiz_sessions.config.question_ids at session creation time.
+   ```
+
+   Migration 20260413000002 (timeout fix, 14 days later) recreated batch_submit_quiz with the same RPC body but without the comment. A code-reviewer or refactor author looking at the code without the comment saw a query on `questions` without `deleted_at` filtering and assumed it was a bug — resulting in 20260413000002 adding `AND q.deleted_at IS NULL` as a "hardening" fix. This broke the contract because a question soft-deleted mid-session now caused the RPC to raise "question not found" instead of allowing historical scoring.
+
+   Root cause: When a migration copy-pastes an RPC body across multiple files (e.g., supabase/migrations/ and packages/db/migrations/) for atomicity/sync, the comment explaining the why is not always propagated. Comments are treated as non-essential documentation rather than load-bearing contract explanation. A later migration that re-creates the same RPC without the comment becomes a comment-preservation liability.
+
+   **Second occurrence** of this pattern. Recommendation: when a migration creates or recreates an RPC that has non-obvious design (e.g., intentionally unfiltered query, intentional lack of a guard), the comment is binding documentation of the contract, not optional. Any subsequent migration that modifies the same RPC must verify and re-state the comment if it is still accurate. The security-auditor agent should flag migrations that recreate RPCs without propagating load-bearing comments from prior versions.
+
+   First occurrence implicit (feedback_immutable_migrations.md notes "never modify existing migrations"), second occurrence explicit (8a36a92 commit shows the regression clearly).
+
+2. **[REPEAT — count 2] DRIFT — Quick-summary security rule contradicts binding rule; both must be updated in lockstep**
+
+   First occurrence: Implicit in many earlier cycles where `.claude/rules/security.md` lagged behind `docs/security.md` (e.g., immutable table update/delete policies, SECURITY DEFINER auth checks, soft-delete filtering). This cycle makes it explicit: when a narrow carve-out is added to a binding security rule in `docs/security.md`, the agent quick-summary version in `.claude/rules/security.md` MUST be updated in the same or next commit to avoid agents/developers reading the wrong rule.
+
+   Context: 
+   - 16ee419 appended carve-out to docs/security.md line 632 (narrow exception for membership-locked SELECTs).
+   - 791528c updated docs/security.md with tighter wording (immutable write-once column anchor).
+   - But 791528c ALSO realized: `.claude/rules/security.md` line 16 (rule 9) still had the absolute version without the carve-out — doc-updater flagged DRIFT.
+   - 791528c fixed it by syncing .claude/rules/security.md line 16 to match docs/security.md word-for-word.
+
+   Root cause: `.claude/rules/security.md` is a convenience quick-summary. When it diverges from the binding rule in `docs/security.md`, it becomes a source of confusion and inconsistent enforcement. A developer reading the quick-summary rule believes the rule is absolute; an agent reading the binding rule knows about the exception. The two files must be kept in sync.
+
+   **Second occurrence confirmed** (first implicit, second explicit in this cycle). This is a process gap, not a code bug. Recommendation: When any security.md rule is modified to add a carve-out, narrow the scope, or clarify an exception, the change must be applied to BOTH `docs/security.md` AND `.claude/rules/security.md` in the same commit (or the second file must be updated immediately in a follow-up commit). The doc-updater agent should flag DRIFT between these two files as a synchronization error on every commit that touches either file.
+
+**Actions taken:**
+
+- Frequency table: "Follow-up migration copies code from predecessor and loses explanatory comment, causing regression" added as new watch row, count 2. First occurrence note added: "Implicit in feedback_immutable_migrations.md rule (never modify existing migrations). Second occurrence: migration 20260413000002 copied batch_submit_quiz body without the 'intentionally unfiltered for historical scoring' comment from migration 20260317000041, leading to a later "hardening" fix (add deleted_at filter) that broke the contract. Fixed in 8a36a92 by restoring the comment and removing the regressed filter."
+
+- Frequency table: "DRIFT — security rule carve-out in docs/security.md not synced to .claude/rules/security.md (quick-summary version)" added as new watch row, count 2. First occurrence note added: "Implicit in many cycles (quick-summary lag behind binding rule); explicit second occurrence (16ee419 added carve-out to docs/security.md but .claude/rules/security.md was not updated until 791528c). Both files must be kept in sync by commit."
+
+**Recommended changes:**
+
+- **[QUALIFIED — count 2] Learner agent rule:** Add a pattern detector instruction to the learner's post-commit cycle: "When doc-updater flags DRIFT between `docs/security.md` and `.claude/rules/security.md`, prioritize synchronization. These files document the same rules — divergence is a critical documentation debt. If DRIFT recurs a third time in the same rule section, recommend adding a pre-commit check that compares the two files' rule sections for byte-for-byte equivalence." This is not a code-style or security rule change, but a learner agent policy: watch and report DRIFT frequency for binding-rule pairs.
+
+- **PROCESS RECOMMENDATION (not a rule change):** Establish a convention: whenever docs/security.md rule 1–9 is modified, simultaneously update `.claude/rules/security.md` rule 1–9 (9-rule sections) in the same commit. A commit message note such as "Synced to .claude/rules/security.md" clarifies the intent. This prevents accidental divergence.
+
+**No rule changes to code-style.md, biome.json, or CLAUDE.md this cycle.** The regression was a migration authoring issue (comment loss) and documentation drift (sync failure), not a code-style violation or security rule gap.
+
+**False positives:** None from any post-commit agent this cycle.
+
+**Positive signals:**
+- Security-auditor correctly flagged the missing deleted_at filter removal as a MEDIUM (affecting data integrity, not exploitable directly), proportionate severity assignment.
+- The regression was caught pre-push (security-auditor gate), not in production.
+- All three fix commits were clean post-commit — the regression was isolated and the fix was surgical.
+- Doc-updater correctly identified the DRIFT between docs/security.md and .claude/rules/security.md and flagged it for resolution. The orchestrator applied fixes across two commits to achieve synchronization.
+- The comment-loss mechanism is now visible as a named pattern — future migration authors will be more cautious about copy-pasting RPC definitions when load-bearing comments are involved.
+- All 8 CodeRabbit findings were real and fixed in a focused commit with clear justification (a11y wiring, Zod validation, expired-session handling, guard strengthening, constant usage, component extraction).
+- Test writer added 9 targeted tests in the follow-up commit to cover new a11y wiring and diagnostic logging paths.
+- Fix cycle closed in two commits with no residual findings on re-review — tight feedback loop and clean integration.
+
+---
+
+### 2026-04-27 (round 6 close) — CodeRabbit migration line-limit trim: batch_submit_quiz migration (commit 5b36d7e)
+
+**Context:** CodeRabbit round 6 on PR #523 identified one remaining finding: migration 048 (`batch_submit_softdelete_regression.sql`) was 335 lines, exceeding the 300-line cap from `code-style.md` § 1. The atomic SECURITY DEFINER RPC body cannot be split across migrations (per migration atomicity best practices). The fix: trim duplicated comment rationale that was already documented elsewhere, keeping all load-bearing comments intact.
+
+**Commit hash:** 5b36d7e (style(db): trim batch_submit_quiz migration to ≤300-line cap)
+
+**Code reviewer:** 0 BLOCKING, 0 WARNING. Clean. Confirmed line count reduction to 299 lines.
+
+**Semantic reviewer:** Clean. No logic changes to evaluate.
+
+**Doc-updater:** Clean. No documentation updates needed.
+
+**Test-writer:** Clean. No test file changes.
+
+**Pattern assessment — count=2 cycle outcome:**
+
+The "load-bearing comment loss" pattern from the 2026-04-27 (8a36a92 fix cycle, count=2) was successfully AVOIDED this time by applying a complementary technique: **comment-trimming-to-meet-line-limits while preserving load-bearing rationale**.
+
+- Deleted 104 comment lines (comment sections reduced from ~160 lines to ~56 lines)
+- Retained 5 load-bearing comment blocks:
+  1. §3 cross-reference at head (1 line)
+  2. "membership-locked at session start" rationale (1 line) 
+  3. "FOR UPDATE" lock rationale (1 line)
+  4. 30-second grace-period justification (1 line)
+  5. `correct_option_id` safety note for exam mode (1 line)
+- Removed 3 redundant explanation blocks:
+  1. Full issue #523 context (already in d398a9e commit message)
+  2. Historical scoring explanation (already in docs/database.md §3)
+  3. "Step 2" / "Step 3" descriptive headers (rewritten as inline rationale)
+
+Migration file sizes:
+- Before: `packages/db/migrations/048`: 335 lines
+- After: `packages/db/migrations/048`: 299 lines ✓
+- After: `supabase/migrations/20260427000001`: 299 lines ✓
+- SQL logic: 268 lines of actual code (unchanged between before and after; all trimmed content was comments)
+
+**Key learning:** When a SECURITY DEFINER migration hits the line limit and cannot be split, comment-trimming is a valid approach IF and ONLY IF:
+1. All load-bearing rationale (the "why" behind non-obvious design choices) is retained in situ (inline comments + cross-references to external docs)
+2. Redundant explanation blocks (previously documented elsewhere) are the first targets for removal
+3. The primary source-of-truth documentation (e.g., docs/database.md §3, docs/security.md, commit message) remains intact and is cross-referenced in the trimmed comment
+
+**Cycle outcome:** The "load-bearing comment loss" pattern (count=2) has now been validated in BOTH directions:
+- **Negative outcome (8a36a92):** Loss of load-bearing comments → regression caught by security-auditor pre-push
+- **Positive outcome (5b36d7e):** Disciplined comment-trimming WITH load-bearing preservation → clean post-commit, no regressions
+
+This demonstrates the pattern is not about comment count but about comment ROLE: load-bearing (must be preserved) vs. explanatory (can be externalized if docs remain).
+
+**Frequency table update:**
+
+New row added: "Atomic SECURITY DEFINER migration approaching 300-line cap; comment-trimming technique for line-limit compliance" — count 1. Note: "First explicit resolution: 5b36d7e trim approach (remove duplicate explanations while preserving load-bearing rationale). SQL logic unchanged. Retained: §3 ref, membership-lock justification, correct_option_id safety note. Removed: issue context (in commit message), historical scoring explanation (in docs/database.md §3), step descriptors. Pattern establishes workable boundary case at ~300 lines for atomic SECURITY DEFINER functions. Prior: migration 047 at 321 lines was left as-is (precedent that large atomic RPCs may exceed limit)."
+
+**Actions taken:**
+
+No rule changes. The comment-trimming technique for line-limit compliance on atomic SECURITY DEFINER migrations is now a documented pattern in learner memory. Future similar cases can reference this precedent and follow the load-bearing-preservation principle.
 
 **False positives:** None.
 
 **Positive signals:**
-- Code reviewer clean on both commits — no mechanical style regressions from the refactor or the added props.
-- SortableTableHead reuse from admin dashboard (not copy-paste) is the correct pattern for shared UI primitives. The `className`/`align` props were added with optional defaults — zero breaking changes to existing admin dashboard usage.
-- Semantic reviewer confirmed 6 positives: behavioral parity, a11y correctness (aria-sort), responsive exclusivity, and test coverage quality. All core refactor correctness signals green.
-- Both cycles (9370e7d/9711338 and 2f31c09/afa5004) closed cleanly in two commits with zero residual findings. The test-writer gate is functioning as the reliable catch for missing interactive element tests.
+- CodeRabbit round 6 correctly identified the line-count violation.
+- The fix applied a principled approach: identify duplicate explanations, preserve load-bearing rationale, reduce line count without changing SQL logic.
+- All 4 post-commit agents reported clean on the trim, confirming zero functional changes.
+- The commit message clearly documents the approach, making the decision transparent to future readers.
+- This is the second "load-bearing comment" cycle (pattern count=2), but this time the outcome was proactive trimming rather than reactive regression fix. The system is learning the pattern's two sides.
 
 ---
 
-### 2026-04-10 — Test title rename: implementation-focused to behavior-first (commit 42e815f)
+**Learner cycle complete for 5b36d7e.** No rule changes to code-style.md, security.md, biome.json, or CLAUDE.md. Pattern confirmed and technique documented. All agents clean. System learning working as intended.
 
-**Context:** Single test-only commit on branch `fix/batch-quick-wins-apr10`. Renamed 4 test titles in `reports-list.test.tsx` from implementation-focused phrasing (e.g., "calls router.replace...") to behavior-first phrasing (e.g., "resets to page 1 when sort changes"). The rename was driven by a CodeRabbit finding on PR #508, not by any of our own post-commit agents.
+### 2026-04-28 (cycle 3: exam-recovery suppression + manual eval) — Commits 82e64de, 932f231, 53b8498
 
-**Commit hash:** 42e815f
+**Context:** Three-commit cycle fixing a dual-source UI bug in the exam-mode session recovery flow. The new ResumeExamBanner (server-sourced via getActiveExamSession) ships alongside the pre-existing QuizRecoveryBanner (localStorage-sourced via useQuizRecovery). Both render when an exam is in progress because exam mode writes to the same localStorage key (quiz-active-session) that legacy study sessions use.
 
-**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING — clean.
+**Commit 82e64de — fix(quiz): hide legacy recovery banner for exam-mode sessions**
 
-**Semantic reviewer (sonnet):** 0 CRITICAL, 0 ISSUE, 4 GOOD (confirmed the renamed titles accurately describe the asserted behavior). Clean.
+**Analysis:** The fix suppresses exam-mode entries in useQuizRecovery by filtering `mode === 'exam'` sessions to null, leaving ResumeExamBanner as the canonical recovery surface. The code change is minimal (4-line filter + 1-line test) and was discovered by manual, in-browser evaluation (user action, not unit tests).
 
-**Doc updater (haiku):** No changes needed. Clean.
+**Commit 932f231 — test(quiz): pin suppression boundary**
 
-**Test writer (sonnet):** No new tests needed. Clean.
+**Analysis:** The test-writer agent added 2 boundary tests: mode:study passes through (not suppressed), and undefined mode passes through (backward-compat for pre-field localStorage entries). These tests pin the suppression boundary and prevent future refactors from widening the filter unintentionally.
+
+**Commit 53b8498 — fix(quiz): surface explicit error when active-exam lookup fails**
+
+**Analysis:** This commit fixes a regression introduced by 82e64de. When getActiveExamSession() returned {success: false} (DB or auth error), both the new ResumeExamBanner and the suppressed legacy QuizRecoveryBanner rendered as empty, leaving the student with zero recovery surfaces and no error signal. The fix adds a role=alert error notice at the top of /app/quiz when the lookup fails.
+
+**Agent findings:**
+
+- **Commit 82e64de (code-reviewer):** 0 BLOCKING, 0 WARNING. Clean.
+- **Commit 82e64de (semantic-reviewer):** 1 ISSUE: "When getActiveExamSession() fails, the suppressed recovery banner leaves no fallback surface, creating a silent failure path."
+- **Commit 82e64de (doc-updater, test-writer):** Clean.
+- **Commit 932f231 (all agents):** Clean.
+- **Commit 53b8498 (all agents):** Clean. Fixes the ISSUE from 82e64de.
 
 **Pattern analysis:**
 
-1. **[NEW — count 1] Implementation-focused test title written by author at commit time, not caught by post-commit agents, caught by CodeRabbit at PR review**
+1. **[NEW — count 1] Dual-source UI surface: new server-sourced feature shipped alongside pre-existing client-sourced fallback for same session type**
 
-   The 4 test titles in `afa5004` used implementation language ("calls router.replace with page=1", "calls router.replace with correct sort params") rather than behavior language ("resets to page 1 when sort changes", "updates URL with correct sort params when mobile sort changes"). The titles were written by the test-writer agent in the prior commit (`afa5004`), but the code-reviewer, semantic-reviewer, and test-writer agents did not flag the naming on the post-commit pass for that commit. CodeRabbit flagged them at PR review.
+   Both ResumeExamBanner and QuizRecoveryBanner read from shared localStorage key. When exam mode began writing to that key with a new mode field, both surfaces could render simultaneously.
 
-   This reveals a narrow gap: our agents do not reliably enforce the behavior-first test naming rule from code-style.md Section 7 on test titles that describe internal mechanics (which function was called, which prop was passed) rather than user-observable behavior (what changed in the system). The rule exists but the post-commit agents do not consistently catch violations at review time.
+   Root cause: New exam-mode feature created mode:exam entries using the same quiz-active-session key as legacy study sessions (mode:study or undefined). Feature shipped with new server-sourced surface (ResumeExamBanner) but did not suppress legacy client-sourced surface (QuizRecoveryBanner) that was now surfacing stale exam entries.
 
-   First occurrence as a standalone named pattern (distinct from "misleading test name" at row 113, which is a contradiction between name and assertion body — this is a style convention violation where the name is internally consistent with the assertion but uses wrong register). Log and watch. If a second commit requires test title renames for this reason, add a note to `.claude/agent-memory/test-writer/patterns.md`: "After generating test titles, audit each title — if the title starts with a verb describing a function call ('calls X', 'invokes Y', 'triggers Z') rather than a system outcome ('updates', 'resets', 'navigates', 'renders'), rename it to describe what the user or system observes."
+   First named occurrence. **Log and watch.** Watch for: (1) other localStorage keys where multiple session types write to same key, (2) UI surfaces rendering from shared localStorage without mode-awareness, (3) manual eval findings invisible to unit tests.
 
-2. **[SYSTEM OBSERVATION] CodeRabbit catching test naming issues that post-commit agents do not**
+2. **[NEW — count 1] Suppression-without-failure-path: filtering one source creates blind spot if canonical source fails**
 
-   This is the second time CodeRabbit has caught a test quality issue that post-commit agents missed at commit time: the first was the `beforeEach` reset finding (8863926, 2026-03-13), noted in the lessons section. Both cases involve test convention violations that are stylistic rather than functional — agents focus on behavioral correctness gaps, CodeRabbit has broader stylistic coverage.
+   82e64de suppresses exam-mode entries in useQuizRecovery, but does not handle failure of getActiveExamSession() (the canonical source). Semantic-reviewer caught as ISSUE: "suppression introduces silent-failure path".
 
-   No action needed — this is expected behavior. Post-commit agents are not the only gate; CodeRabbit provides complementary coverage on the PR. The system is working as designed.
+   Root cause: When suppressing a fallback source to elevate a new canonical source, failure path of canonical source must be explicitly handled. Suppression correct in success path (two surfaces wrong), incomplete in failure path (zero surfaces with no signal also wrong).
 
-**Actions taken:**
-- Frequency table: "Implementation-focused test title not caught by post-commit agents (caught by CodeRabbit)" added as new watch row, count 1, 2026-04-10. First occurrence — no rule change.
-- No changes to `code-style.md`, `security.md`, `biome.json`, or agent memory files. Single occurrence — log and watch.
+   First named occurrence. **Log and watch.** Watch for: any suppression of fallback surface should pair with explicit error handling on canonical source. Validated by semantic-reviewer ISSUE on 82e64de; fix in 53b8498 adds error notice when lookup fails.
 
-**Recommended changes:** None this cycle. All agents clean. New pattern is first occurrence. No rule change threshold met.
+3. **[REPEAT — count 2] Manual-eval bug invisible to unit tests (dual-source UI rendering only visible in full app context)**
 
-**False positives:** None. The 4 GOOD findings from the semantic reviewer confirm the renamed titles accurately describe the asserted behavior — the rename was correct.
+   First occurrence: 2026-04-27, PR #523 round 7 (refresh-resume bug).
 
-**Positive signals:**
-- All 4 post-commit agents reported clean on a test-only commit. No mechanical violations, no logic gaps, no doc drift, no coverage holes.
-- The semantic-reviewer's 4 GOOD signals confirm that behavior-first test naming is recognizably correct when applied — the agent can validate good naming, even if it does not always flag bad naming as a standalone issue.
-- The CodeRabbit + our agents pipeline is catching issues at different layers: CodeRabbit at PR level for convention violations, our agents at commit level for logic and structure. Complementary, not redundant.
+   This occurrence: 82e64de dual-source banner rendering (both ResumeExamBanner and QuizRecoveryBanner render simultaneously when exam in progress) — visible only when both server-sourced and localStorage-sourced surfaces are rendered on same page in full app context.
 
----
+   Root cause: jsdom test environments run components in isolation. No co-located test exercises scenario where both surfaces mounted on same page with overlapping session data.
 
-### 2026-04-10 — Trivially-passing test fix: mock call guard (commits 437f2d0, 1784239)
-
-**Context:** Two-commit sequence on branch `fix/batch-quick-wins-apr10`. 437f2d0 fixed one site in `reports-list.test.tsx` where a page-reset assertion trivially passed because `mockReplace` was never invoked — CodeRabbit had flagged this at PR #508 review. 1784239 extended the same `toHaveBeenCalledTimes(1)` guard to the remaining 5 `mockReplace.mock.calls` access sites for consistency, driven by the semantic-reviewer ISSUE on 437f2d0.
-
-**Commit 437f2d0 — agent findings:**
-
-**Code reviewer (haiku):** 0 BLOCKING, 0 WARNING. Clean.
-
-**Semantic reviewer (sonnet):** 0 CRITICAL, 1 ISSUE, 0 SUGGESTION. The reviewer identified that the fix was applied to only one of six `mockReplace.mock.calls` access sites in the same file. While the other five sites had positive assertions (e.g., `expect(params.get('sort')).toBe('score')`) that would fail if the mock was not called, the fix pattern was inconsistent — a reader or future editor could not rely on a uniform contract. The reviewer classified this as an ISSUE (not a SUGGESTION) because inconsistent defensive patterns within the same test file create a maintenance trap: the defensive guard is visible in one test but absent in the others, making the pattern look optional when it is required.
-
-**Doc updater (haiku):** No changes needed. Clean.
-
-**Test writer (sonnet):** No new tests needed (test-only commit). Clean.
-
-**Commit 1784239 — agent findings:**
-
-All four post-commit agents reported clean. The semantic-reviewer confirmed the fix was complete and uniform.
-
-**Pattern analysis:**
-
-1. **[NEW — count 1] Negative URL-param assertion trivially passing when mock is never called**
-
-   The page-reset test used `mockReplace.mock.calls[0]?.[0]` and asserted `params.has('page') === false`. Because `mockReplace` was never invoked, `mock.calls[0]` was `undefined`, and `new URL('undefined', 'http://x')` produced a syntactically valid URL with no query params at all — making the negative assertion trivially true with zero behavioral signal. The test passed whether or not the router was ever called.
-
-   Root cause: negative URL-param assertions (`has('x') === false`) do not distinguish between "the router was called and the param is absent" and "the router was never called". Only positive assertions (e.g., `params.get('sort') === 'score'`) fail when the mock is not called, because they require a non-null string to be present.
-
-   Fix pattern: always place `expect(mock).toHaveBeenCalledTimes(N)` immediately before any `mock.mock.calls[N]` access. This converts an implicit assumption (the mock was called) into an explicit assertion that fails loudly if it is not.
-
-   Discovered by CodeRabbit at PR review, not by our post-commit agents at commit time. First occurrence as a named pattern — log and watch. If a second test file ships a `mock.mock.calls` access without a prior call-count assertion, add this rule to `.claude/agent-memory/test-writer/patterns.md`.
-
-2. **[SYSTEM OBSERVATION] Consistency ISSUE triggered sibling-site fix pass**
-
-   The semantic-reviewer correctly identified that applying a defensive pattern to one of six structurally identical sites in the same test file creates an inconsistent contract. The ISSUE classification (not SUGGESTION) was appropriate: partial application of a defensive pattern is a maintenance trap, not a style nit. This is consistent with the "partial fix applied to sibling file group" pattern (row 35) but operating at the intra-file level rather than across sibling files.
-
-   The two-commit sequence (fix one site, then fix all) is a documented anti-pattern: when a defensive guard is identified as necessary, it should be applied to all structurally identical sites in the same commit. The sibling-site audit step in the plan validation pipeline (`agent-workflow.md § Sibling file audit`) covers cross-file siblings; the same principle applies within a single file.
+   **Second occurrence confirmed.** This pattern now at count 2 and actionable: for any new session-recovery or stateful feature shipping with both server-sourced and client-sourced surfaces, require integration test (or E2E test) mounting both surfaces and verifying only one renders for given session state. Distinct from "Refresh / Reload Test" rule (code-style.md Section 7, count 1) which covers page-reload; this covers dual-surface rendering in same render.
 
 **Actions taken:**
-- Frequency table: "Negative mock.calls assertion trivially passing when mock never called (missing toHaveBeenCalled guard)" added as new watch row, count 1, 2026-04-10. First occurrence — no rule change.
-- No changes to `code-style.md`, `security.md`, `biome.json`, or other agent rule files. Single occurrence — log and watch.
 
-**Recommended changes:** None this cycle. First occurrence — rule change threshold requires 2+ occurrences across different commits. If the pattern recurs, add a note to `.claude/agent-memory/test-writer/patterns.md`: "When accessing `mock.mock.calls[N]`, always assert `expect(mock).toHaveBeenCalledTimes(N+1)` or `toHaveBeenCalled()` on the immediately preceding line. Negative URL-param assertions (`params.has('x') === false`) do not implicitly verify the mock was invoked."
+- Frequency table: "Dual-source UI surface (new feature + pre-existing fallback writing to same key)" — count 1, added 2026-04-28.
+- Frequency table: "Suppression-without-failure-path (filtering one source creates blind spot if canonical source fails)" — count 1, added 2026-04-28. Note: "Validated by semantic-reviewer ISSUE on 82e64de; fix in 53b8498 adds error notice when lookup fails."
+- Frequency table: "Manual-eval bug invisible to unit tests (dual-source UI rendering)" — count updated 1 → 2, last-seen 2026-04-28. Note: "Second occurrence: dual-source banner rendering. Pattern reconfirmed. Test-writer guidance needed."
 
-**False positives:** None. The semantic-reviewer ISSUE on 437f2d0 was real — the fix was correctly scoped to one site while five structurally identical sites remained unguarded.
+**Recommended changes:**
+
+- [ ] `.claude/agent-memory/test-writer/patterns.md` — Add: "Dual-source session recovery (server-sourced new feature + client-sourced legacy fallback on same page). When new recovery surface ships alongside pre-existing legacy surface on same page, both may render for same session if reading from overlapping storage keys. Require integration test mounting both with overlapping data, asserting only intended surface renders. First occurrence: 2026-04-28 (ResumeExamBanner + QuizRecoveryBanner)."
+
+**False positives:** None.
 
 **Positive signals:**
-- The two-commit sequence was short: the semantic-reviewer ISSUE on 437f2d0 was acted on immediately, and 1784239 closed the gap in the same session with all agents clean.
-- The fix was correctly applied uniformly to all 6 sites in the file — no further review cycles needed.
-- CodeRabbit and the semantic-reviewer both identified the same class of issue (incomplete guard application) at different scopes (PR level vs. intra-file consistency), demonstrating that the multi-layer review pipeline catches the same class of problem from different angles.
 
----
+- Semantic-reviewer identified suppression-without-failure-path gap as ISSUE. Demonstrates agent awareness of error-handling completeness.
+- Test-writer boundary tests (932f231) pin suppression filter (mode:exam suppressed, mode:study/undefined pass through), preventing accidental widening.
+- Fix cycle tight: 82e64de introduces fix, semantic-reviewer finds gap, 53b8498 addresses gap, all agents clean on fix.
+- Manual eval surfaced bug invisible to unit tests. Testing strategy (unit + manual in full app) complementary.
+- Validate-before-fixing protocol held: orchestrator understood semantic-reviewer claim, confirmed real gap, applied fix without skipping validation.
+
+**No rule changes to code-style.md, security.md, biome.json.** Dual-source and suppression-without-failure-path at count 1 (watch). Manual-eval dual-source at count 2 (actionable as test-writer guidance, not code rule).
+

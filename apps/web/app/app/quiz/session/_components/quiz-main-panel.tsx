@@ -51,6 +51,7 @@ export function QuizMainPanel({
         selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
         correctOptionId={s.currentFeedback?.correctOptionId ?? null}
         onSelectionChange={onSelectionChange}
+        isExam={s.isExam}
       />
     </div>
   )

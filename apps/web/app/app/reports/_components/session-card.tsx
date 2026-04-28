@@ -23,7 +23,7 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
       <p className="mt-1 text-xs text-muted-foreground">
         Mode:{' '}
         {exam ? (
-          <span className="font-semibold text-amber-600">EXAM</span>
+          <span className="font-semibold uppercase text-amber-600">{MODE_LABELS.mock_exam}</span>
         ) : (
           <span className="font-medium">{MODE_LABELS[s.mode] ?? s.mode}</span>
         )}

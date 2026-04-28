@@ -14,6 +14,8 @@ type DialogProps = {
   onCancel?: () => void
   onSave?: () => void
   onDiscard?: () => void
+  isExam?: boolean
+  timeExpired?: boolean
 }
 
 function renderDialog(overrides: DialogProps = {}) {
@@ -96,10 +98,10 @@ describe('FinishQuizDialog', () => {
     expect(onSubmit).toHaveBeenCalledOnce()
   })
 
-  it('hides Submit Quiz and shows hint when no questions are answered', () => {
+  it('disables submit and shows hint when no questions are answered', () => {
     renderDialog({ answeredCount: 0, totalQuestions: 5 })
-    expect(screen.queryByRole('button', { name: /submit quiz/i })).not.toBeInTheDocument()
-    expect(screen.getByText(/answer at least one question to submit/i)).toBeInTheDocument()
+    const btn = screen.getByRole('button', { name: /answer at least one question/i })
+    expect(btn).toBeDisabled()
   })
 
   it('calls onCancel when Return to Quiz button is clicked', () => {
@@ -243,6 +245,195 @@ describe('FinishQuizDialog', () => {
     expect(screen.queryByText(/unanswered/i)).not.toBeInTheDocument()
   })
 
+  // ---- Discard flow — exam mode -------------------------------------------
+
+  it('shows the Discard Practice Exam button when isExam is true and time has not expired', () => {
+    renderDialog({ isExam: true })
+    expect(screen.getByRole('button', { name: /discard practice exam/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^discard quiz$/i })).not.toBeInTheDocument()
+  })
+
+  it('hides the Save for Later button in exam mode', () => {
+    renderDialog({ isExam: true })
+    expect(screen.queryByRole('button', { name: /save for later/i })).not.toBeInTheDocument()
+  })
+
+  it('hides the Discard Practice Exam button when time has expired in exam mode', () => {
+    renderDialog({ isExam: true, timeExpired: true })
+    expect(screen.queryByRole('button', { name: /discard practice exam/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^discard quiz$/i })).not.toBeInTheDocument()
+  })
+
+  it('announces the expiry notice as an assertive live region for screen readers', () => {
+    renderDialog({ isExam: true, timeExpired: true })
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveAttribute('aria-live', 'assertive')
+    expect(alert).toHaveAttribute('aria-atomic', 'true')
+    expect(alert).toHaveTextContent(/time expired/i)
+  })
+
+  it('appends the "won\'t count" reassurance to the discard confirmation in exam mode', () => {
+    renderDialog({ isExam: true })
+    fireEvent.click(screen.getByRole('button', { name: /discard practice exam/i }))
+    expect(screen.getByText(/this attempt won't count/i)).toBeInTheDocument()
+  })
+
+  it('does not append the "won\'t count" copy outside exam mode', () => {
+    renderDialog()
+    fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
+    expect(screen.queryByText(/this attempt won't count/i)).not.toBeInTheDocument()
+  })
+
+  it('calls onDiscard after confirming the exam-mode discard', () => {
+    const onDiscard = vi.fn()
+    renderDialog({ isExam: true, onDiscard })
+    fireEvent.click(screen.getByRole('button', { name: /discard practice exam/i }))
+    fireEvent.click(screen.getByRole('button', { name: /yes, discard/i }))
+    expect(onDiscard).toHaveBeenCalledOnce()
+  })
+
+  it('disables the Discard Practice Exam button while submitting', () => {
+    renderDialog({ isExam: true, submitting: true })
+    expect(screen.getByRole('button', { name: /discard practice exam/i })).toBeDisabled()
+  })
+
+  it('clears the discard confirmation state when timeExpired flips, so it does not re-surface', () => {
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /discard practice exam/i }))
+    expect(screen.getByText(/are you sure\?/i)).toBeInTheDocument()
+    // Flip to expired — panel hides via the canDismiss guard AND state resets
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={true}
+      />,
+    )
+    expect(screen.queryByText(/are you sure\?/i)).not.toBeInTheDocument()
+    // If timeExpired hypothetically flips back, stale state must NOT re-surface the panel
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    expect(screen.queryByText(/are you sure\?/i)).not.toBeInTheDocument()
+  })
+
+  it('clears confirmingSubmit state when timeExpired flips so the submit panel does not re-surface', () => {
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    // Enter the submit confirmation flow (2 unanswered → shows ConfirmPanel)
+    fireEvent.click(screen.getByRole('button', { name: /submit practice exam/i }))
+    expect(screen.getByRole('button', { name: /submit anyway/i })).toBeInTheDocument()
+    // Flip to expired — panel hides via the !timeExpired render guard AND state is reset
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={true}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /submit anyway/i })).not.toBeInTheDocument()
+    // If timeExpired hypothetically flips back, stale confirmingSubmit must NOT re-surface the panel
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /submit anyway/i })).not.toBeInTheDocument()
+  })
+
+  it('hides the discard confirmation if timeExpired flips to true while it is open', () => {
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={false}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /discard practice exam/i }))
+    expect(screen.getByText(/are you sure\?/i)).toBeInTheDocument()
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+        isExam={true}
+        timeExpired={true}
+      />,
+    )
+    expect(screen.queryByText(/are you sure\?/i)).not.toBeInTheDocument()
+  })
+
   // ---- Submit confirmation panel while submitting --------------------------
 
   it('shows "Submitting..." on the Submit anyway button while submitting', () => {
@@ -337,5 +528,16 @@ describe('FinishQuizDialog', () => {
     const errorEl = screen.getByText('Something went wrong')
     expect(errorEl.tagName.toLowerCase()).toBe('p')
     expect(errorEl.className).toMatch(/destructive/)
+  })
+
+  it('renders the error paragraph with role="alert" so screen readers announce it', () => {
+    renderDialog({ error: 'Something went wrong' })
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong')
+  })
+
+  it('does not render a role="alert" element when there is no error', () => {
+    renderDialog({ error: null })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

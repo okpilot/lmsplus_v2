@@ -118,3 +118,31 @@ describe('SessionRecoveryPrompt — button callbacks', () => {
     expect(onDiscard).not.toHaveBeenCalled()
   })
 })
+
+// ---- Exam mode ------------------------------------------------------------
+
+describe('SessionRecoveryPrompt — exam mode', () => {
+  it('shows Practice Exam heading', () => {
+    render(<SessionRecoveryPrompt {...makeProps({ mode: 'exam' })} />)
+    expect(screen.getByText(/resume your practice exam\?/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^resume your quiz\?/i)).not.toBeInTheDocument()
+  })
+
+  it('hides the Save for Later button so users cannot save an exam draft', () => {
+    render(<SessionRecoveryPrompt {...makeProps({ mode: 'exam' })} />)
+    expect(screen.queryByRole('button', { name: /save for later/i })).not.toBeInTheDocument()
+  })
+
+  it('uses Practice Exam discard copy in the confirm dialog', async () => {
+    render(<SessionRecoveryPrompt {...makeProps({ mode: 'exam' })} />)
+    await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
+    expect(screen.getByText(/discard practice exam\?/i)).toBeInTheDocument()
+    expect(screen.getByText(/practice exam session\. you cannot undo/i)).toBeInTheDocument()
+  })
+
+  it('keeps study-mode copy when mode is undefined', () => {
+    render(<SessionRecoveryPrompt {...makeProps()} />)
+    expect(screen.getByText(/^resume your quiz\?/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save for later/i })).toBeInTheDocument()
+  })
+})

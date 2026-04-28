@@ -23,6 +23,8 @@ export type QuizReportSummary = {
   scorePercentage: number
   startedAt: string
   endedAt: string | null
+  passed: boolean | null
+  timeLimitSeconds: number | null
 }
 
 export type QuizReportQuestionsResult =
@@ -40,6 +42,8 @@ type SessionRow = {
   total_questions: number
   correct_count: number
   score_percentage: number | null
+  passed: boolean | null
+  time_limit_seconds: number | null
 }
 
 export async function getQuizReportSummary(sessionId: string): Promise<QuizReportSummary | null> {
@@ -58,7 +62,7 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
   const { data: sessionData, error: sessionError } = await supabase
     .from('quiz_sessions')
     .select(
-      'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage',
+      'id, mode, subject_id, started_at, ended_at, total_questions, correct_count, score_percentage, passed, time_limit_seconds',
     )
     .eq('id', sessionId)
     .eq('student_id', user.id)
@@ -108,5 +112,7 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
     scorePercentage: session.score_percentage ?? 0,
     startedAt: session.started_at,
     endedAt: session.ended_at,
+    passed: session.passed,
+    timeLimitSeconds: session.time_limit_seconds,
   }
 }

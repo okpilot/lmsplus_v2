@@ -70,6 +70,8 @@ export async function batchSubmitQuiz(raw: unknown): Promise<BatchSubmitResult> 
       correctCount: data.correct_count,
       scorePercentage: data.score_percentage,
       results,
+      passed: data.passed ?? null,
+      expired: data.expired ?? false,
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

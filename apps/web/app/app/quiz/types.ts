@@ -45,6 +45,8 @@ export type BatchSubmitResult =
       correctCount: number
       scorePercentage: number
       results: BatchAnswerResult[]
+      passed?: boolean | null
+      expired?: boolean
     }
   | { success: false; error: string }
 
@@ -60,6 +62,8 @@ export type BatchRpcResult = {
   answered_count: number
   correct_count: number
   score_percentage: number
+  passed?: boolean | null
+  expired?: boolean
 }
 
 export type CheckAnswerResult =
@@ -109,6 +113,10 @@ export type QuizStateOpts = {
   draftId?: string
   subjectName?: string
   subjectCode?: string
+  mode?: QuizMode
+  timeLimitSeconds?: number
+  passMark?: number
+  startedAt?: string
 }
 
 export type AnswerPipelineOpts = QuizStateOpts & {
@@ -125,4 +133,20 @@ export type AnswerPipelineOpts = QuizStateOpts & {
 
 export type QuizMode = 'study' | 'exam'
 
+export type StartExamResult =
+  | {
+      success: true
+      sessionId: string
+      questionIds: string[]
+      totalQuestions: number
+      timeLimitSeconds: number
+      passMark: number
+      startedAt: string
+    }
+  | { success: false; error: string }
+
 export type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'
+
+export type CompleteEmptyExamResult =
+  | { success: true; sessionId: string }
+  | { success: false; error: string }

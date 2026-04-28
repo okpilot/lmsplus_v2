@@ -13,6 +13,7 @@ type QuizControlsProps = {
   onPrev: () => void
   onNext: () => void
   onSubmitAnswer: () => void
+  isExam?: boolean
 }
 
 export function QuizControls({
@@ -28,6 +29,7 @@ export function QuizControls({
   onPrev,
   onNext,
   onSubmitAnswer,
+  isExam,
 }: QuizControlsProps) {
   return (
     <div className="py-3">
@@ -39,7 +41,7 @@ export function QuizControls({
           disabled={submitting}
           className="mb-3 w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:hidden"
         >
-          Submit Answer
+          {isExam ? 'Confirm Answer' : 'Submit Answer'}
         </button>
       )}
 

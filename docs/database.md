@@ -229,6 +229,9 @@ CREATE TABLE lessons (
 ```
 
 ### quiz_sessions
+`config.question_ids` is read by `getActiveExamSession` (RLS-scoped Server Action, no SECURITY DEFINER)
+to populate the handoff payload for cold-start exam resume. See [Decision 36 in `docs/decisions.md`](./decisions.md#decision-36-practice-exam-resume--sessionstorage-handoff--server-side-question-ids).
+
 ```sql
 CREATE TABLE quiz_sessions (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -586,8 +589,10 @@ verb_noun pattern:
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit + last_active_at stamp (deferred writes pattern)
   start_quiz_session         ← write, atomic: session + locked question set
-  start_exam_session         ← write, atomic: read exam config + random question selection per distribution + session creation (mock_exam mode)
+  start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
+  complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent)
+  complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam session, score from existing answers, audit exam.expired (idempotent)
   complete_quiz_session      ← write, atomic: session end + score + audit + last_active_at stamp (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
@@ -823,9 +828,10 @@ $$;
 Submits all quiz answers in a single transaction. Replaces the per-answer `submit_quiz_answer` loop + separate `complete_quiz_session` call. Calculates scores and completes the session atomically — if any answer fails, the entire batch rolls back.
 
 **Key behavior:**
-- Allows partial submissions (students may skip questions; score = `correct / answered`, not `correct / total`)
+- Allows partial submissions. Study mode: score = `correct / answered`. Exam mode (migration 047): score = `correct / total` (unanswered = wrong); incomplete exams auto-fail regardless of score.
+- Enforces server-side time limit with 30-second grace period (migration 047); beyond grace period, auto-ends session with zero score and returns `expired: true`
 - Updates `fsrs_cards.last_was_correct` atomically within the RPC transaction
-- Returns both `answered_count` (actual answers submitted) and `correct_count` (correct answers)
+- Returns `answered_count`, `correct_count`, `score_percentage`, `passed` (boolean, exam mode only), and `expired` (boolean). `expired` is returned only on grace-window timeout; it is absent on normal completion (including idempotent replay of a completed session).
 - Hardens input validation (migration 025): validates `p_answers` is non-null JSON array, guards against malformed session config, rejects duplicates, verifies question membership in session
 - Hardens field validation (migration 026): validates `jsonb_typeof(v_config->'question_ids')` = 'array' BEFORE extraction (fixes eval-before-guard issue); validates `selected_option` and `response_time_ms` per answer AFTER extraction
 - Uses case-insensitive UUID regex (migration 028): validates question_id with `!~*` instead of `!~` to accept uppercase UUIDs (valid per RFC 4122); defense-in-depth hardening
@@ -849,6 +855,7 @@ DECLARE
   v_student_id      uuid := auth.uid();
   v_org_id          uuid;
   v_config          jsonb;
+  v_mode            text;
   v_answer          jsonb;
   v_correct_option  text;
   v_is_correct      boolean;
@@ -867,6 +874,10 @@ DECLARE
   v_rt_text         text;
   v_ended_at        timestamptz;
   v_options         jsonb;
+  v_passed          boolean;
+  v_pass_mark       int;
+  v_time_limit      int;
+  v_started_at      timestamptz;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
@@ -875,8 +886,10 @@ BEGIN
 
   -- Step 1: Fetch session row (allow already-completed sessions for idempotent replay)
   SELECT qs.organization_id, qs.total_questions, qs.config, qs.ended_at,
-         qs.correct_count, qs.score_percentage
-  INTO v_org_id, v_total, v_config, v_ended_at, v_correct_count, v_score
+         qs.correct_count, qs.score_percentage, qs.mode,
+         qs.time_limit_seconds, qs.started_at, qs.passed
+  INTO v_org_id, v_total, v_config, v_ended_at, v_correct_count, v_score, v_mode,
+       v_time_limit, v_started_at, v_passed
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
@@ -916,16 +929,49 @@ BEGIN
       'total_questions', v_total,
       'answered_count', v_answered,
       'correct_count', v_correct_count,
-      'score_percentage', v_score
+      'score_percentage', v_score,
+      'passed', v_passed
     );
   END IF;
 
-  -- Step 2: Guard against malformed config BEFORE extracting question_ids
+  -- *** SERVER-SIDE TIME LIMIT ENFORCEMENT ***
+  -- Grace period of 30 seconds accounts for network latency.
+  -- Beyond grace period: reject submission entirely (session is too stale).
+  -- Within grace period or no time limit: allow submission to proceed.
+  IF v_time_limit IS NOT NULL AND v_started_at IS NOT NULL THEN
+    IF now() > v_started_at + (v_time_limit + 30) * interval '1 second' THEN
+      -- Session is far past deadline — end it with zero score
+      UPDATE quiz_sessions
+      SET ended_at = now(), correct_count = 0, score_percentage = 0, passed = false
+      WHERE id = p_session_id;
+
+      INSERT INTO audit_events
+        (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
+      VALUES (
+        v_org_id, v_student_id,
+        (SELECT role FROM users WHERE id = v_student_id AND deleted_at IS NULL),
+        'exam.expired', 'quiz_session', p_session_id,
+        jsonb_build_object('total_questions', v_total, 'reason', 'submission past grace period')
+      );
+
+      RETURN jsonb_build_object(
+        'results', '[]'::jsonb,
+        'total_questions', v_total,
+        'answered_count', 0,
+        'correct_count', 0,
+        'score_percentage', 0,
+        'passed', false,
+        'expired', true
+      );
+    END IF;
+  END IF;
+
+  -- Step 2: Guard against malformed config
   IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
     RAISE EXCEPTION 'session config is malformed — question_ids not set';
   END IF;
 
-  -- Step 3: Now safe to extract question_ids
+  -- Step 3: Extract question_ids
   v_session_question_ids := ARRAY(SELECT jsonb_array_elements_text(v_config->'question_ids'))::uuid[];
 
   -- Validate p_answers is a non-null JSON array
@@ -935,7 +981,7 @@ BEGIN
     RAISE EXCEPTION 'answers must be a non-empty JSON array';
   END IF;
 
-  -- Reject duplicate question_id entries in payload (compare as text, no cast)
+  -- Reject duplicate question_id entries in payload
   IF (
     SELECT count(*) <> count(DISTINCT lower(e->>'question_id'))
     FROM jsonb_array_elements(p_answers) AS e
@@ -943,10 +989,22 @@ BEGIN
     RAISE EXCEPTION 'duplicate question_id in answers payload';
   END IF;
 
-  -- Bulk-fetch all questions for this session into a temp table (fixes N+1).
-  -- Intentionally no deleted_at filter: session membership was verified against
-  -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
-  -- A question soft-deleted after that point must still score correctly.
+  -- *** EXAM MODE: ALLOW PARTIAL SUBMISSION ***
+  -- NOTE: correct_option_id is returned in v_results for all modes. This is
+  -- safe because batch_submit_quiz is called only at session end (submit/auto-
+  -- submit), never per-question during the exam. Exam answers are buffered
+  -- client-side and submitted in one batch at completion.
+  -- Timer expiry may cause auto-submit with fewer answers than total.
+  -- Incomplete exam auto-fails (v_passed = false set after scoring).
+  -- No RAISE — process whatever answers were provided.
+
+  -- Bulk-fetch all questions for this session into a temp table.
+  -- Intentionally no `AND q.deleted_at IS NULL` filter: session membership was
+  -- locked at session start (v_session_question_ids comes from
+  -- quiz_sessions.config), and historical scoring must access soft-deleted
+  -- questions to score in-flight sessions and surface explanations. See §3
+  -- "Scoring Soft-Deleted Questions".
+  DROP TABLE IF EXISTS _batch_questions;
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT
     q.id,
@@ -958,10 +1016,9 @@ BEGIN
   FROM questions q
   WHERE q.id = ANY(v_session_question_ids);
 
-  -- Process each provided answer (partial submission is allowed)
+  -- Process each provided answer
   FOR v_answer IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP
-    -- Extract as text first, validate format, THEN cast
     v_qid_text        := v_answer->>'question_id';
     v_selected_option := v_answer->>'selected_option';
     v_rt_text         := v_answer->>'response_time_ms';
@@ -979,12 +1036,10 @@ BEGIN
     v_question_id   := v_qid_text::uuid;
     v_response_time := v_rt_text::int;
 
-    -- Validate question belongs to this session
     IF NOT (v_question_id = ANY(v_session_question_ids)) THEN
       RAISE EXCEPTION 'question % does not belong to session %', v_question_id, p_session_id;
     END IF;
 
-    -- Look up from pre-fetched temp table (single query for all questions)
     SELECT bq.correct_option, bq.explanation_text, bq.explanation_image_url, bq.options
     INTO v_correct_option, v_expl_text, v_expl_image_url, v_options
     FROM _batch_questions bq
@@ -998,7 +1053,6 @@ BEGIN
       RAISE EXCEPTION 'question % has no correct option', v_question_id;
     END IF;
 
-    -- Validate selected option belongs to this question's options array
     IF NOT EXISTS (
       SELECT 1 FROM jsonb_array_elements(v_options) opt
       WHERE opt->>'id' = v_selected_option
@@ -1008,14 +1062,12 @@ BEGIN
 
     v_is_correct := (v_selected_option = v_correct_option);
 
-    -- Insert answer (idempotent)
     INSERT INTO quiz_session_answers
       (session_id, question_id, selected_option_id, is_correct, response_time_ms)
     VALUES
       (p_session_id, v_question_id, v_selected_option, v_is_correct, v_response_time)
     ON CONFLICT (session_id, question_id) DO NOTHING;
 
-    -- Insert to immutable response log (idempotent)
     INSERT INTO student_responses
       (organization_id, student_id, question_id, session_id,
        selected_option_id, is_correct, response_time_ms)
@@ -1024,7 +1076,6 @@ BEGIN
        v_selected_option, v_is_correct, v_response_time)
     ON CONFLICT DO NOTHING;
 
-    -- Update last_was_correct atomically within this transaction.
     INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
     VALUES (v_student_id, v_question_id, v_is_correct, now())
     ON CONFLICT (student_id, question_id)
@@ -1032,7 +1083,6 @@ BEGIN
       last_was_correct = EXCLUDED.last_was_correct,
       updated_at = now();
 
-    -- Accumulate result
     v_results := v_results || jsonb_build_object(
       'question_id', v_question_id,
       'is_correct', v_is_correct,
@@ -1042,7 +1092,7 @@ BEGIN
     );
   END LOOP;
 
-  -- Count answered and correct from this session (idempotent ON CONFLICT means re-runs are safe)
+  -- Count answered and correct
   SELECT
     count(*)::int,
     count(*) FILTER (WHERE qsa.is_correct)::int
@@ -1050,15 +1100,37 @@ BEGIN
   FROM quiz_session_answers qsa
   WHERE qsa.session_id = p_session_id;
 
-  -- Score over answered questions only (unanswered questions are excluded from the denominator)
-  v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
+  -- Score: correct / total (not correct / answered)
+  -- Unanswered questions count as wrong in exam mode
+  IF v_mode = 'mock_exam' THEN
+    v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
+  ELSE
+    v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
+  END IF;
+
+  -- *** PASSED COMPUTATION (exam mode only) ***
+  -- pass_mark is NOT NULL in exam_configs (CHECK constraint), so the NULL
+  -- guard below is purely defensive — v_pass_mark should always have a value.
+  IF v_mode = 'mock_exam' THEN
+    v_pass_mark := (v_config->>'pass_mark')::int;
+    IF v_pass_mark IS NOT NULL THEN
+      v_passed := (v_score >= v_pass_mark);
+    ELSE
+      v_passed := false;  -- defensive: should never happen (pass_mark NOT NULL)
+    END IF;
+    -- Incomplete exam: if not all questions answered, auto-fail regardless of score
+    IF v_answered < v_total THEN
+      v_passed := false;
+    END IF;
+  END IF;
 
   -- Complete session
   UPDATE quiz_sessions
   SET
     ended_at         = now(),
     correct_count    = v_correct_count,
-    score_percentage = v_score
+    score_percentage = v_score,
+    passed           = v_passed
   WHERE id = p_session_id;
 
   -- Audit log
@@ -1067,15 +1139,16 @@ BEGIN
   VALUES (
     v_org_id,
     v_student_id,
-    (SELECT role FROM users WHERE id = v_student_id),
-    'quiz_session.batch_submitted',
+    (SELECT role FROM users WHERE id = v_student_id AND deleted_at IS NULL),
+    CASE WHEN v_mode = 'mock_exam' THEN 'exam.completed' ELSE 'quiz_session.batch_submitted' END,
     'quiz_session',
     p_session_id,
     jsonb_build_object(
       'total_questions', v_total,
       'answered', v_answered,
       'correct', v_correct_count,
-      'score', v_score
+      'score', v_score,
+      'passed', v_passed
     )
   );
 
@@ -1084,11 +1157,73 @@ BEGIN
     'total_questions', v_total,
     'answered_count', v_answered,
     'correct_count', v_correct_count,
-    'score_percentage', v_score
+    'score_percentage', v_score,
+    'passed', v_passed
   );
 END;
 $$;
 ```
+
+#### `complete_empty_exam_session` — close a zero-answer exam session (timer or manual)
+
+Completes a `mock_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. On RPC success the caller (`submitEmptyExamSession` in `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts`) routes the student to `/app/quiz/report?session=<id>` showing 0% / FAIL; on RPC failure the caller falls back to `/app/quiz` so the student is not stranded mid-flow.
+
+**Purpose:** Called by `submitEmptyExamSession` Server Action in two scenarios:
+1. Timer fires and `answers.size === 0` (student ran out of time without answering)
+2. Student manually finishes before the deadline with zero answers recorded
+
+**Audit event branching (migration 053):** The RPC determines the actual deadline state and audits accordingly:
+- **Deadline passed (beyond +30s grace)** → `exam.expired` event with reason "timed out with no answers"
+- **Deadline not yet passed** → `exam.completed` event with reason "completed with no answers"
+
+This ensures the audit trail reflects what actually happened, not a hard-coded assumption.
+
+**Idempotency:** Safe to call twice. If `ended_at IS NOT NULL`, the function returns the real stored `score_percentage`, `passed`, and `answered_count` from `quiz_sessions` (not the hardcoded zeros). The `FOR UPDATE` lock already holds the row, so the re-read is safe and single-statement.
+
+**Security model (migration 049, patched by migrations 051 & 053):**
+- `auth.uid()` check — rejects unauthenticated callers.
+- Org-scope guard — reads `organization_id` from `users` with `deleted_at IS NULL`.
+- Ownership + org check — `FOR UPDATE` fetch requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
+- Mode guard — raises if session is not `mock_exam`.
+- Audit log — appends `exam.expired` or `exam.completed` event based on deadline state. The `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs, not subordinate to outer guards).
+- `SECURITY DEFINER SET search_path = public` — required pattern for all security-definer RPCs.
+
+**Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }`
+
+---
+
+#### `complete_overdue_exam_session` — close a past-deadline exam (Layer 1)
+
+Completes a `mock_exam` session whose deadline has passed. Computes score from any existing `quiz_session_answers` rows — partial answers are honoured, NOT zeroed. Sets `ended_at`, `correct_count`, `score_percentage`, `passed` and writes an `exam.expired` audit event.
+
+**Grace window (migration 052):** The overdue threshold is `now() > started_at + (time_limit_seconds + 30 seconds)`, matching the grace window in `batch_submit_quiz`. This ensures the Layer 1 refresh check and the submit RPC never disagree on whether a session is overdue — a session within the grace window is not considered overdue by either path.
+
+**Purpose (Layer 1, migration 050 / supabase 20260427000003):** Server-authoritative deadline enforcement. Called by:
+1. `start_exam_session` itself, before raising "already in progress" — guarantees a browser-crash exit during an exam cannot block the next attempt indefinitely AND records the score from buffered answers.
+2. A Server Action invoked by the report page or banner click after the client detects an expired session.
+
+**Layer 2 (periodic sweeper)** is tracked under issue #558. Layer 1 alone enforces the deadline on every entry/access path; Layer 2 closes the residual window for sessions never re-entered.
+
+**Score computation (mirrors `batch_submit_quiz` mock_exam branch):**
+- `v_score = round(correct_count / total_questions * 100, 2)` — unanswered count as wrong.
+- `v_passed = (pass_mark IS NOT NULL AND v_score >= pass_mark)`; an incomplete exam (`answered < total`) auto-fails regardless of score.
+
+**Idempotency:** If `ended_at IS NOT NULL`, the function returns the stored `score_percentage`, `passed`, and a fresh `answered_count` from `quiz_session_answers`. The `FOR UPDATE` lock holds the row, so the re-read is safe.
+
+**Defense-in-depth invariants:**
+- `auth.uid()` check.
+- Org-scope guard reads `organization_id` from `users` with `deleted_at IS NULL`.
+- Ownership + org check — `FOR UPDATE` filter requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
+- Mode guard — RAISE if not `mock_exam`.
+- Overdue invariant — RAISE if `now() <= started_at + (time_limit_seconds + 30 seconds)`. Callers must not invoke for sessions within the grace window.
+- Audit `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs and must validate soft-delete unconditionally).
+- `SECURITY DEFINER SET search_path = public`.
+
+**Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }` — identical to `complete_empty_exam_session` for caller symmetry.
+
+**`start_exam_session` interaction (migration 050):** The replaced `start_exam_session` adds `'started_at'` to its return jsonb and, before raising the duplicate-active-session guard, looks up any same-subject `mock_exam` session that is past its deadline and calls `complete_overdue_exam_session` on it. The `started_at` field lets the client compute remaining time from the server clock instead of trusting its own local clock at start. Existing callers that ignore unknown jsonb keys (e.g. `start-exam.ts` Zod `safeParse` of a closed object) are unaffected — the schema strips unknown keys by default.
+
+---
 
 #### `get_report_correct_options` — correct option IDs for reports
 
@@ -1668,4 +1803,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-04-05 (migration 062: question_banks unique org constraint) | Companion: docs/security.md*
+*Last updated: 2026-04-28 (migrations 054/055/056: org-scoping in start_exam_session, audit-metadata + replay-branch hardening in complete_empty_exam_session, deleted_at filter on batch_submit_quiz audit subqueries — closes #550) | Companion: docs/security.md*

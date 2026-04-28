@@ -5,24 +5,10 @@ type QuizMode = 'study' | 'exam'
 type ModeToggleProps = {
   value: QuizMode
   onValueChange: (mode: QuizMode) => void
+  examAvailable?: boolean
 }
 
-function ExamButton() {
-  return (
-    <button
-      type="button"
-      disabled
-      className="flex flex-1 items-center justify-center gap-1.5 rounded-[8px] px-4 py-2 text-sm font-medium text-muted-foreground opacity-50"
-    >
-      Exam{' '}
-      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-        Coming soon
-      </span>
-    </button>
-  )
-}
-
-export function ModeToggle({ value, onValueChange }: ModeToggleProps) {
+export function ModeToggle({ value, onValueChange, examAvailable = false }: ModeToggleProps) {
   return (
     <div className="space-y-1.5">
       <span className="text-[13px] font-medium">Mode</span>
@@ -39,10 +25,26 @@ export function ModeToggle({ value, onValueChange }: ModeToggleProps) {
         >
           Study
         </button>
-        <ExamButton />
+        <button
+          type="button"
+          aria-pressed={value === 'exam'}
+          disabled={!examAvailable}
+          onClick={() => examAvailable && onValueChange('exam')}
+          className={`flex-1 rounded-[8px] px-4 py-2 text-sm font-medium transition-colors ${
+            value === 'exam'
+              ? 'bg-primary text-primary-foreground'
+              : examAvailable
+                ? 'text-muted-foreground hover:text-foreground'
+                : 'text-muted-foreground opacity-50 cursor-not-allowed'
+          }`}
+        >
+          Practice Exam
+        </button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Study mode shows explanations after each answer. Exam mode is timed with no hints.
+        {value === 'exam'
+          ? 'Practice Exam mode is timed with no hints or feedback until submission.'
+          : 'Study mode shows explanations after each answer.'}
       </p>
     </div>
   )

@@ -3,46 +3,58 @@ import { useMemo, useRef, useState } from 'react'
 import { useNavigationGuard } from '../../_hooks/use-navigation-guard'
 import type { DraftAnswer, QuizStateOpts } from '../../types'
 import { useAnswerPipeline } from './use-answer-pipeline'
+import { useExamPipeline } from './use-exam-state'
 import { usePinnedQuestions } from './use-pinned-questions'
 import { useQuizNavigation } from './use-quiz-navigation'
 
 export type QuizState = ReturnType<typeof useQuizState>
 
 export function useQuizState(opts: QuizStateOpts) {
-  const { questions, initialAnswers } = opts
+  const isExam = opts.mode === 'exam'
   const router = useRouter()
   const nav = useQuizNavigation({
-    totalQuestions: questions.length,
+    totalQuestions: opts.questions.length,
     initialIndex: opts.initialIndex,
   })
-  const [answers, setAnswers] = useState<Map<string, DraftAnswer>>(() =>
-    initialAnswers ? new Map(Object.entries(initialAnswers)) : new Map(),
+  const [studyAnswers, setStudyAnswers] = useState<Map<string, DraftAnswer>>(() =>
+    opts.initialAnswers ? new Map(Object.entries(opts.initialAnswers)) : new Map(),
   )
   const { pinnedQuestions, togglePin: togglePinById } = usePinnedQuestions()
-  const answersRef = useRef(answers)
-  answersRef.current = answers
+  const studyAnswersRef = useRef(studyAnswers)
+  studyAnswersRef.current = studyAnswers
   const currentIndexRef = useRef(nav.currentIndex)
   currentIndexRef.current = nav.currentIndex
-  const question = questions[nav.currentIndex]
+  const question = opts.questions[nav.currentIndex]
   const questionId = question?.id ?? ''
 
-  const { feedback, handleSelectAnswer, navigateTo, navigate, submitted, error, ...submit } =
-    useAnswerPipeline({
-      ...opts,
-      getQuestionId: () => questionId,
-      getAnswerStartTime: () => nav.answerStartTime.current,
-      getCurrentIndex: () => nav.currentIndex,
-      answers,
-      setAnswers,
-      answersRef,
-      currentIndexRef,
-      navigateTo: nav.navigateTo,
-      router,
-    })
+  const getQId = () => questionId
+  const getStart = () => nav.answerStartTime.current
 
-  const initialSize = useRef(initialAnswers ? Object.keys(initialAnswers).length : 0)
-  useNavigationGuard(answers.size > initialSize.current && !submitted.current)
-  const stableQuestionIds = useMemo(() => questions.map((q) => q.id), [questions])
+  const exam = useExamPipeline({
+    quizOpts: opts,
+    getQuestionId: getQId,
+    getAnswerStartTime: getStart,
+    currentIndexRef,
+    navigateTo: nav.navigateTo,
+    navigate: nav.navigate,
+  })
+  const study = useAnswerPipeline({
+    ...opts,
+    getQuestionId: getQId,
+    getAnswerStartTime: getStart,
+    getCurrentIndex: () => nav.currentIndex,
+    answers: studyAnswers,
+    setAnswers: setStudyAnswers,
+    answersRef: studyAnswersRef,
+    currentIndexRef,
+    navigateTo: nav.navigateTo,
+    router,
+  })
+
+  const p = isExam ? exam : study
+  const answers = isExam ? exam.answers : studyAnswers
+  const initialSize = useRef(opts.initialAnswers ? Object.keys(opts.initialAnswers).length : 0)
+  useNavigationGuard(!isExam && answers.size > initialSize.current && !p.submitted.current)
 
   return {
     currentIndex: nav.currentIndex,
@@ -50,17 +62,23 @@ export function useQuizState(opts: QuizStateOpts) {
     questionId,
     answeredCount: answers.size,
     existingAnswer: answers.get(questionId),
-    currentFeedback: feedback.get(questionId) ?? null,
-    questionIds: stableQuestionIds,
+    currentFeedback: p.feedback.get(questionId) ?? null,
+    questionIds: useMemo(() => opts.questions.map((q) => q.id), [opts.questions]),
     answeredIds: new Set(answers.keys()),
-    feedback,
+    feedback: p.feedback,
     pinnedQuestions,
     isPinned: pinnedQuestions.has(questionId),
-    handleSelectAnswer,
-    navigateTo,
-    navigate,
+    handleSelectAnswer: p.handleSelectAnswer,
+    navigateTo: p.navigateTo,
+    navigate: p.navigate,
     togglePin: () => togglePinById(questionId),
-    error,
-    ...submit,
+    error: p.error,
+    isExam,
+    submitting: p.submitting,
+    handleSubmit: p.handleSubmit,
+    handleSave: p.handleSave,
+    handleDiscard: p.handleDiscard,
+    showFinishDialog: p.showFinishDialog,
+    setShowFinishDialog: p.setShowFinishDialog,
   }
 }

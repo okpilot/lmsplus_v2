@@ -460,10 +460,92 @@ it('calls updateFsrsState', () => { ... })
 it('schedules a shorter review interval when the answer is wrong', () => { ... })
 ```
 
+**Disallowed in `it(...)` titles** (impl-detail leakage — promoted 2026-04-28 after PR #523 rounds 9–11):
+
+| Pattern | Why it leaks impl |
+|---------|-------------------|
+| `forwards X to <InternalName>` (camelCase or PascalCase) | Names an internal helper, hook, or component the test calls into (e.g., `to handleSubmitSession`, `to AnswerOptions`, `to QuizSession`). Describe the *outcome*, not the call. |
+| `from <PascalCaseType>(?:Opts\|Config\|Args)` | Names an internal type. The behavior is the populated output, not the input type's name. |
+| `through <camelCaseName>(` or `via <camelCaseName>(` | Names the function under test. The enclosing `describe(...)` already provides that context. |
+| `(non-positive\|typeof\|isFinite\|NaN) guard` | Names a specific `\|\|` branch in a validator. Describe what input is rejected, not which branch fires. |
+| `(activates\|does not activate) the guard` | Refers to internal navigation/validation guard machinery. Describe the user-observable consequence (e.g., "does not warn when no answers exist"). |
+| `matches <PascalCaseType>` / `matches <internal helper>` | Asserts congruence with an internal type/helper. Describe the externally observable behavior. |
+
+**Permitted** (these are *contracts*, not impl):
+- `it('calls onClick when the button is clicked', ...)` — `onClick` is a public prop / public callback contract.
+- `it('calls signInWithPassword on valid submit', ...)` — names a public SDK method the user expects.
+- `it('does not call the RPC when the input is empty', ...)` — describes the externally observable side-effect.
+
+The distinction: external contracts (props, public callbacks, public SDK calls, RPC names visible at the integration boundary) are part of behavior. Internal helpers, validator branches, and private types are implementation.
+
+### Test Comments: Audit After Renaming
+
+Omit narrative comments above an `it(...)` if the test name fully describes the behaviour. Comments that paraphrase the title rot when the title changes; reserve comments for non-obvious WHY (hidden invariants, jsdom workarounds, ordering constraints).
+
+**When renaming a test title to be behavior-first, audit any inline comment inside the test body.** Comments often describe a broader implementation scenario than the renamed (more specific) test exercises — once the title narrows, the comment is stale or misleading. Drop it unless it points to a non-obvious WHY that the new title doesn't carry. Promoted 2026-04-28 after stale `JSON.stringify(NaN) → null` / `typeof guard` comments survived a round-9 rename and were re-flagged in round 11.
+
 ### jsdom Limitation: Pre-Hydration State Is Not Testable
+
 `@testing-library/react` wraps `render()` in `act()`, which flushes all effects synchronously. This means a hydration guard's pre-hydration state (e.g., disabled button, skeleton) is never observable in jsdom — `useEffect` runs before your assertions can run.
 
 **Do not write tests for the pre-hydration branch.** Only test the post-hydration (normal) state. This is a jsdom constraint, not a missing test.
+
+### Assert URL on Router-Navigation Mocks (from 2026-04-27)
+
+When a test mocks `router.push`, `router.replace`, or imports `redirect` from `next/navigation`, every assertion on that mock **must** check the URL/path argument — not just `.toHaveBeenCalled()`. Use `.toHaveBeenCalledWith('/expected/path')` or pass an explicit string match to `.lastCalledWith`.
+
+`router.back()` is zero-argument and excluded from this rule — assert the observable navigation result (final URL or history state) rather than a destination argument.
+
+```ts
+// ❌ WRONG — counts calls but misses wrong redirect target
+expect(mockPush).toHaveBeenCalled()
+
+// ✅ CORRECT — asserts the exact destination
+expect(mockPush).toHaveBeenCalledWith('/app/exam/results/abc123')
+```
+
+**Applies to new tests added from 2026-04-27 onward.** Existing tests are migrated as touched, not in a sweep. Reason: PR #523 round 7 missed a wrong-redirect bug because the test only counted calls.
+
+### Lifecycle Integration Test for New Feature Modes (from 2026-04-27)
+
+Every new feature mode or flag that branches behavior at component, hook, or RPC level (e.g., `mode: 'exam'`, `isExam`, `isAdmin` toggles) requires at least **one** integration test exercising the **full lifecycle**: entry path → in-progress state → exit path → post-exit URL/state.
+
+Component-level tests with the flag toggled on are **necessary but not sufficient**. A lifecycle test connects the dots across the flow.
+
+```ts
+// ❌ INSUFFICIENT — tests the flag in isolation, not the flow
+it('shows countdown timer when isExam is true', () => { ... })
+
+// ✅ REQUIRED — tests the full flow end-to-end
+it('routes to results page after exam timer expires and auto-submits', () => {
+  // 1. render with exam session active
+  // 2. advance timer to expiry
+  // 3. assert auto-submit was called
+  // 4. assert router.push called with '/app/exam/results/<id>'
+})
+```
+
+Reason: PR #523 had isolated `isExam` toggle tests but no test connecting "user starts exam → timer expires → user lands on report" — so the wrong-redirect bug was invisible.
+
+### Refresh / Reload Test for Stateful UI (from 2026-04-27)
+
+Any UI flow that holds client-side state across renders (in-memory answer buffer, multi-step form state, persistent timer) requires a test simulating **page reload mid-flow**.
+
+- **Vitest:** mount the consumer with empty `localStorage` + a fixture representing an active server session, assert recovery render.
+- **Playwright:** explicit `page.reload()` mid-spec, assert resume.
+
+```ts
+// ✅ CORRECT — Vitest reload simulation
+it('recovers in-progress exam from server session when localStorage is empty', () => {
+  localStorage.clear()
+  mockGetActiveSession.mockResolvedValue(fixtureActiveExamSession)
+  render(<ExamPage />)
+  // assert the in-progress UI is shown, not a blank/start screen
+  expect(screen.getByRole('timer')).toBeInTheDocument()
+})
+```
+
+Reason: PR #523's exam refresh-resume bug shipped because no test reloaded the page mid-exam — the localStorage gap was invisible.
 
 ---
 
@@ -497,4 +579,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-04-28*

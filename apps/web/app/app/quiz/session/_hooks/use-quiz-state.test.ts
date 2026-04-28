@@ -564,7 +564,7 @@ describe('useQuizState — navigation guard condition', () => {
     navGuardMock = useNavigationGuard as unknown as MockInstance
   })
 
-  it('does not activate the guard when no answers exist', () => {
+  it('does not warn on navigation when no answers have been recorded', () => {
     renderHook(() =>
       useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
@@ -573,7 +573,7 @@ describe('useQuizState — navigation guard condition', () => {
     expect(lastCall?.[0]).toBe(false)
   })
 
-  it('activates the guard after a new answer is recorded', async () => {
+  it('warns on navigation after a new answer is recorded', async () => {
     const { result } = renderHook(() =>
       useQuizState({ userId: 'test-user-id', sessionId: SESSION_ID, questions: THREE_QUESTIONS }),
     )
@@ -583,7 +583,7 @@ describe('useQuizState — navigation guard condition', () => {
     expect(lastCall?.[0]).toBe(true)
   })
 
-  it('does not activate the guard when mounted with pre-existing answers matching current count', () => {
+  it('does not warn on navigation when mounted with pre-existing answers and no new answer is added', () => {
     // initialAnswers provides one pre-loaded answer. On mount, answers.size === initialSize === 1,
     // so the condition (answers.size > initialSize) is false — guard must remain inactive.
     renderHook(() =>
@@ -600,7 +600,7 @@ describe('useQuizState — navigation guard condition', () => {
     expect(lastCall?.[0]).toBe(false)
   })
 
-  it('activates the guard when a new answer is added beyond the pre-loaded count', async () => {
+  it('warns on navigation when a new answer is added beyond the pre-loaded count', async () => {
     // Mount with one pre-loaded answer (initialSize = 1). Adding a second answer
     // makes answers.size (2) > initialSize (1), so the guard activates.
     const { result } = renderHook(() =>
