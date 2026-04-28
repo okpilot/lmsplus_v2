@@ -401,6 +401,54 @@ async function seed() {
   }
   console.log(`  Questions: ${inserted} inserted, ${SEED_QUESTIONS.length - inserted} skipped`)
 
+  // 7. Exam config for MET — required by exam-flow.spec.ts and exam-recovery.spec.ts.
+  // 60s timer + 10 questions + 70% pass mark to match what the specs assert.
+  const { data: existingCfg } = await db
+    .from('exam_configs')
+    .select('id')
+    .eq('organization_id', org.id)
+    .eq('subject_id', subject.id)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  let examConfigId: string
+  if (existingCfg) {
+    examConfigId = existingCfg.id
+  } else {
+    const { data: newCfg, error: cfgErr } = await db
+      .from('exam_configs')
+      .insert({
+        organization_id: org.id,
+        subject_id: subject.id,
+        enabled: true,
+        total_questions: 10,
+        time_limit_seconds: 60,
+        pass_mark: 70,
+      })
+      .select('id')
+      .single()
+    if (cfgErr) throw new Error(`Exam config: ${cfgErr.message}`)
+    examConfigId = newCfg.id
+  }
+
+  const { data: existingDist } = await db
+    .from('exam_config_distributions')
+    .select('id')
+    .eq('exam_config_id', examConfigId)
+    .eq('topic_id', topicId)
+    .maybeSingle()
+
+  if (!existingDist) {
+    const { error: distErr } = await db.from('exam_config_distributions').insert({
+      exam_config_id: examConfigId,
+      topic_id: topicId,
+      subtopic_id: null,
+      question_count: 10,
+    })
+    if (distErr) throw new Error(`Exam distribution: ${distErr.message}`)
+  }
+  console.log(`  Exam config: MET (10Q / 60s / 70%) → ${examConfigId}`)
+
   console.log('\nE2E seed complete.')
 }
 

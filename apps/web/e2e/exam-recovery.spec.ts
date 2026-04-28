@@ -1,11 +1,13 @@
 /**
  * E2E regression spec — Practice Exam refresh recovery.
  *
- * Seed dependency: apps/web/scripts/seed-exam-eval.ts
- *   Creates student@lmsplus.local / student123! and a MET exam config
- *   (timeLimitSeconds=60, 10 questions, 70% pass mark) plus ALW (Air Law).
- *   The e2e-test@lmsplus.local user (shared auth) belongs to the same
- *   Egmont Aviation org and sees the same exam configs.
+ * Seed dependency: apps/web/scripts/seed-e2e.ts (CI) and
+ *   apps/web/scripts/seed-exam-eval.ts (local manual eval). Both seed a MET
+ *   exam config (timeLimitSeconds=60, 10 questions, 70% pass mark). The
+ *   manual-eval seed also creates ALW (Air Law) and student@lmsplus.local —
+ *   the CI seed only creates the MET config plus the e2e-test user. The
+ *   e2e-test@lmsplus.local user (shared auth) belongs to the Egmont Aviation
+ *   org and sees the MET exam config seeded by either script.
  *
  * These tests lock down Bugs C + D from PR #523 Phase 2:
  *   Bug C — page.reload() on /app/quiz/session during exam mode redirected to
@@ -44,7 +46,7 @@ async function startMETExam(page: Page): Promise<void> {
   }
 
   // Switch to Practice Exam mode
-  const examModeButton = page.getByRole('button', { name: 'Practice Exam' })
+  const examModeButton = page.getByRole('button', { name: 'Practice Exam', exact: true })
   await examModeButton.waitFor({ state: 'visible', timeout: 10_000 })
   await expect(examModeButton).not.toBeDisabled()
   await examModeButton.click()
@@ -124,27 +126,27 @@ test.describe('practice exam — refresh recovery', () => {
     // on /app/quiz/session.
     await page.reload()
 
-    // Option (a): session page rehydrates and stays on /app/quiz/session
-    const isOnSession = await page
-      .waitForURL(/\/app\/quiz\/session/, { timeout: 8_000 })
-      .then(() => true)
-      .catch(() => false)
+    // Race the two valid post-reload outcomes by visible content rather than URL:
+    // page.waitForURL matches the URL at the START of navigation, so reloading
+    // /app/quiz/session resolves true even when the page subsequently bounces
+    // back to /app/quiz showing the resume banner. Using locator.or() lets us
+    // wait for whichever surface stabilises and branch on what is actually
+    // visible. (First use of locator.or() in this codebase — Playwright ≥1.33.)
+    const questionText = page.getByText(/Question \d/)
+    const resumeBanner = page.getByText('Practice Exam in progress')
+    await expect(questionText.or(resumeBanner)).toBeVisible({ timeout: 15_000 })
 
-    if (isOnSession) {
-      // Session should be visible with question content loaded
-      // (either at the answered question or next unanswered — both are valid)
-      await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
-    } else {
-      // Option (b): redirected to /app/quiz — should show the server-side
-      // "Practice Exam in progress" resume banner (Bug D regression path).
-      await page.waitForURL(/\/app\/quiz/, { timeout: 10_000 })
-      await expect(page.getByText('Practice Exam in progress')).toBeVisible({ timeout: 10_000 })
-
-      // Clicking Resume Practice Exam must land back on /app/quiz/session
+    if (await resumeBanner.isVisible().catch(() => false)) {
+      // Bug D path: server-side resume banner (localStorage handoff was lost or
+      // the session-page rehydrate path is not engaged). Clicking Resume must
+      // land back on /app/quiz/session with the question content visible.
       await page.getByRole('button', { name: 'Resume Practice Exam' }).click()
       await page.waitForURL(/\/app\/quiz\/session/, { timeout: 10_000 })
       await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
     }
+    // else: Bug C path — questionText was already visible after reload, so the
+    // session page rehydrated from the localStorage handoff. The earlier
+    // expect(...or...).toBeVisible() already proved the assertion.
   })
 
   // ── 2. Resume banner on /app/quiz when localStorage is cleared mid-exam ────
