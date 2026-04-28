@@ -576,6 +576,7 @@ describe('handleSubmitSession', () => {
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
     expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
     expect(mockDiscardQuiz).toHaveBeenCalledWith({
       sessionId: SESSION_ID,
       draftId: undefined,
@@ -592,6 +593,7 @@ describe('handleSubmitSession', () => {
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)
     expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+    expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
     expect(opts.setError).toHaveBeenCalledWith('Session not found.')
   })
 
@@ -606,6 +608,7 @@ describe('handleSubmitSession', () => {
       const opts = makeOpts({ answers: new Map(), isExam: true })
       await handleSubmitSession(opts)
       expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
       expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
     } finally {
       consoleSpy.mockRestore()
@@ -620,6 +623,7 @@ describe('handleSubmitSession', () => {
       const opts = makeOpts({ answers: new Map(), isExam: true, draftId: DRAFT_ID })
       await handleSubmitSession(opts)
       expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
       expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID, draftId: DRAFT_ID })
       expect(opts.setError).toHaveBeenCalledWith('X')
       expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
@@ -640,6 +644,7 @@ describe('handleSubmitSession', () => {
       const opts = makeOpts({ answers: new Map(), isExam: true })
       await handleSubmitSession(opts)
       expect(mockClearActiveSession).toHaveBeenCalledWith(USER_ID)
+      expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
       expect(opts.router.push).toHaveBeenCalledWith('/app/quiz')
       expect(opts.setError).toHaveBeenCalledWith('Something went wrong. Please try again.')
       expect(opts.setSubmitting).toHaveBeenLastCalledWith(false)
