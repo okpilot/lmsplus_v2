@@ -26,14 +26,23 @@ export default defineConfig({
     {
       name: 'e2e',
       testMatch: '**/*.spec.ts',
-      testIgnore: ['**/redteam/**', '**/admin-*.spec.ts'],
+      testIgnore: [
+        '**/redteam/**',
+        '**/admin-*.spec.ts',
+        // Internal Exam cross-role specs need both admin + student auth
+        // states; they run under the admin-e2e project (depends on
+        // admin-setup) and open a separate student context inside the test.
+        '**/internal-exam-*.spec.ts',
+      ],
       dependencies: ['setup'],
     },
     {
       name: 'admin-e2e',
-      testMatch: '**/admin-*.spec.ts',
+      testMatch: ['**/admin-*.spec.ts', '**/internal-exam-*.spec.ts'],
       testIgnore: '**/redteam/**',
-      dependencies: ['admin-setup'],
+      // setup is required so that e2e/.auth/user.json exists for the
+      // student-side context opened inside the internal-exam-* specs.
+      dependencies: ['setup', 'admin-setup'],
     },
     {
       name: 'redteam',
