@@ -20,7 +20,9 @@ export function useQuizRecovery(userId: string) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setSession(readActiveSession(userId))
+    const active = readActiveSession(userId)
+    // Exam-mode sessions surface via the server-sourced ResumeExamBanner — skip here to avoid double banners.
+    setSession(active?.mode === 'exam' ? null : active)
   }, [userId])
 
   function handleResume() {

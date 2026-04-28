@@ -124,6 +124,12 @@ describe('QuizRecoveryBanner — rendering', () => {
     expect(screen.getByText(/unfinished quiz found/i)).toBeInTheDocument()
   })
 
+  it('renders nothing for exam-mode sessions (ResumeExamBanner owns exam recovery)', () => {
+    mockReadActiveSession.mockReturnValue({ ...ACTIVE_SESSION, mode: 'exam' })
+    const { container } = render(<QuizRecoveryBanner userId="test-user-id" />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
   it('shows subject name, answered count, and total count', () => {
     mockReadActiveSession.mockReturnValue(ACTIVE_SESSION)
     render(<QuizRecoveryBanner userId="test-user-id" />)
