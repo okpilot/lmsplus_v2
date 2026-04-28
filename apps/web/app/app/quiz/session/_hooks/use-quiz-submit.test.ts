@@ -172,7 +172,7 @@ describe('useQuizSubmit — handleSubmit pending answer filtering', () => {
 // ---- handleSubmit — delegates to handleSubmitSession --------------------
 
 describe('useQuizSubmit — handleSubmit delegation', () => {
-  it('forwards userId and sessionId to handleSubmitSession', async () => {
+  it('submits with the userId and sessionId from opts', async () => {
     const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
     await act(async () => result.current.handleSubmit())
 
@@ -181,7 +181,7 @@ describe('useQuizSubmit — handleSubmit delegation', () => {
     expect(call.sessionId).toBe(SESSION_ID)
   })
 
-  it('forwards optional draftId to handleSubmitSession', async () => {
+  it('submits with the optional draftId from opts when provided', async () => {
     const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts({ draftId: 'draft-99' })))
     await act(async () => result.current.handleSubmit())
 
@@ -193,7 +193,7 @@ describe('useQuizSubmit — handleSubmit delegation', () => {
 // ---- handleSave ----------------------------------------------------------
 
 describe('useQuizSubmit — handleSave', () => {
-  it('delegates to handleSaveSession with userId and sessionId', async () => {
+  it('saves with the userId and sessionId from opts', async () => {
     const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
     await act(async () => result.current.handleSave())
 
@@ -238,7 +238,7 @@ describe('useQuizSubmit — handleSave', () => {
 // ---- handleDiscard -------------------------------------------------------
 
 describe('useQuizSubmit — handleDiscard', () => {
-  it('delegates to handleDiscardSession with userId and sessionId', async () => {
+  it('discards with the userId and sessionId from opts', async () => {
     const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
     await act(async () => result.current.handleDiscard())
 

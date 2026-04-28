@@ -113,7 +113,7 @@ describe('useFilteredCount — refetch', () => {
     expect(result.current.filteredCount).toBeNull()
   })
 
-  it('preserves existing count when guard returns early (no subjectId)', async () => {
+  it('preserves the existing count when subjectId is empty', async () => {
     mockGetFilteredCount.mockResolvedValueOnce({ count: 10, byTopic: {}, bySubtopic: {} })
     const { result } = renderHook(() => useFilteredCount())
     await act(async () => {
@@ -129,7 +129,7 @@ describe('useFilteredCount — refetch', () => {
     expect(mockGetFilteredCount).toHaveBeenCalledTimes(1)
   })
 
-  it('preserves existing count when guard returns early (all-only filters)', async () => {
+  it('preserves the existing count when only all-filters are applied', async () => {
     mockGetFilteredCount.mockResolvedValueOnce({ count: 10, byTopic: {}, bySubtopic: {} })
     const { result } = renderHook(() => useFilteredCount())
     await act(async () => {

@@ -130,7 +130,7 @@ describe('QuizMainPanel', () => {
   })
 
   describe('onSelectionChange forwarding', () => {
-    it('forwards onSelectionChange to AnswerOptions on the question tab', () => {
+    it('passes onSelectionChange to the answer options on the question tab', () => {
       const onSelectionChange = vi.fn()
       render(
         <QuizMainPanel

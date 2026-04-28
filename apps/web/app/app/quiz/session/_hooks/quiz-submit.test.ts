@@ -609,7 +609,7 @@ describe('handleSubmitSession', () => {
     }
   })
 
-  it('forwards draftId to discardQuiz and calls setSubmitting(false) on fallback failure', async () => {
+  it('discards the draft and clears the submitting flag when the empty-submit fallback fails', async () => {
     mockSubmitEmptyExamSession.mockResolvedValue({ success: false, error: 'X' })
     mockDiscardQuiz.mockResolvedValue({ success: true })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

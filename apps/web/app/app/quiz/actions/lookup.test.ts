@@ -93,7 +93,7 @@ beforeEach(() => {
 // ---- fetchTopicsForSubject ------------------------------------------------
 
 describe('fetchTopicsForSubject', () => {
-  it('delegates to getTopicsForSubject with the provided subjectId', async () => {
+  it('returns the topics for the given subjectId', async () => {
     mockGetTopicsForSubject.mockResolvedValue(TOPIC_OPTIONS)
     const result = await fetchTopicsForSubject(SUBJECT_ID)
     expect(mockGetTopicsForSubject).toHaveBeenCalledWith(SUBJECT_ID)
@@ -131,7 +131,7 @@ describe('fetchTopicsForSubject', () => {
 // ---- fetchSubtopicsForTopic -----------------------------------------------
 
 describe('fetchSubtopicsForTopic', () => {
-  it('delegates to getSubtopicsForTopic with the provided topicId', async () => {
+  it('returns the subtopics for the given topicId', async () => {
     mockGetSubtopicsForTopic.mockResolvedValue(SUBTOPIC_OPTIONS)
     const result = await fetchSubtopicsForTopic(TOPIC_ID)
     expect(mockGetSubtopicsForTopic).toHaveBeenCalledWith(TOPIC_ID)
@@ -551,7 +551,7 @@ const TOPIC_WITH_SUBTOPICS = [
 ]
 
 describe('fetchTopicsWithSubtopics', () => {
-  it('delegates to getTopicsWithSubtopics with the provided subjectId', async () => {
+  it('returns the topics-with-subtopics tree for the given subjectId', async () => {
     mockGetTopicsWithSubtopics.mockResolvedValue(TOPIC_WITH_SUBTOPICS)
     const result = await fetchTopicsWithSubtopics(SUBJECT_ID)
     expect(mockGetTopicsWithSubtopics).toHaveBeenCalledWith(SUBJECT_ID)

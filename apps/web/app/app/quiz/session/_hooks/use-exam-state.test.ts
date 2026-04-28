@@ -208,12 +208,12 @@ describe('useExamPipeline — submission metadata forwarding', () => {
     ['draftId', 'draft-forwarded'],
     ['subjectName', 'Air Law'],
     ['subjectCode', 'ALW'],
-  ] as const)('forwards %s to submission options', (field, value) => {
+  ] as const)('passes %s to the submit hook', (field, value) => {
     renderHook(() => useExamPipeline(makeOpts({ [field]: value } as Partial<QuizStateOpts>)))
     expect(mockUseQuizSubmit).toHaveBeenCalledWith(expect.objectContaining({ [field]: value }))
   })
 
-  it('forwards questions to submission options', () => {
+  it('passes questions to the submit hook', () => {
     const questions = [{ id: 'q-forward' }] as QuizStateOpts['questions']
     renderHook(() => useExamPipeline(makeOpts({ questions })))
     expect(mockUseQuizSubmit).toHaveBeenCalledWith(expect.objectContaining({ questions }))
@@ -223,14 +223,14 @@ describe('useExamPipeline — submission metadata forwarding', () => {
 // ---- navigation forwarding -----------------------------------------------
 
 describe('useExamPipeline — navigation forwarding', () => {
-  it('forwards navigateTo from opts directly', () => {
+  it('exposes the navigateTo callback unchanged', () => {
     const navigateTo = vi.fn()
     const opts = { ...makeOpts(), navigateTo }
     const { result } = renderHook(() => useExamPipeline(opts))
     expect(result.current.navigateTo).toBe(navigateTo)
   })
 
-  it('forwards navigate from opts directly', () => {
+  it('exposes the navigate callback unchanged', () => {
     const navigate = vi.fn()
     const opts = { ...makeOpts(), navigate }
     const { result } = renderHook(() => useExamPipeline(opts))
@@ -241,45 +241,45 @@ describe('useExamPipeline — navigation forwarding', () => {
 // ---- useQuizSubmit return values surfaced --------------------------------
 
 describe('useExamPipeline — submit state surfacing', () => {
-  it('surfaces submitting state from useQuizSubmit', () => {
+  it('exposes the submitting flag on its return value', () => {
     mockUseQuizSubmit.mockReturnValue(makeSubmitResult({ submitting: true }))
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.submitting).toBe(true)
   })
 
-  it('surfaces error state from useQuizSubmit', () => {
+  it('exposes the error state on its return value', () => {
     mockUseQuizSubmit.mockReturnValue(makeSubmitResult({ error: 'Submission failed' }))
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.error).toBe('Submission failed')
   })
 
-  it('surfaces showFinishDialog from useQuizSubmit', () => {
+  it('exposes the finish-dialog visibility on its return value', () => {
     mockUseQuizSubmit.mockReturnValue(makeSubmitResult({ showFinishDialog: true }))
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.showFinishDialog).toBe(true)
   })
 
-  it('surfaces handleSubmit from useQuizSubmit', () => {
+  it('exposes the submit handler on its return value', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.handleSubmit).toBe(mockHandleSubmit)
   })
 
-  it('surfaces handleSave from useQuizSubmit', () => {
+  it('exposes the save handler on its return value', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.handleSave).toBe(mockHandleSave)
   })
 
-  it('surfaces handleDiscard from useQuizSubmit', () => {
+  it('exposes the discard handler on its return value', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.handleDiscard).toBe(mockHandleDiscard)
   })
 
-  it('surfaces setShowFinishDialog from useQuizSubmit', () => {
+  it('exposes the finish-dialog setter on its return value', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.setShowFinishDialog).toBe(mockSetShowFinishDialog)
   })
 
-  it('surfaces submitted ref from useQuizSubmit', () => {
+  it('exposes the submitted ref on its return value', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.submitted).toBe(mockSubmitted)
   })

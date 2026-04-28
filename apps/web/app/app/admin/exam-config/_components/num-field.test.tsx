@@ -65,7 +65,7 @@ describe('NumField', () => {
       expect(onChange).toHaveBeenLastCalledWith(5)
     })
 
-    it('does not call onChange when the field is cleared (NaN guard)', () => {
+    it('does not call onChange when the field is cleared', () => {
       const onChange = vi.fn()
       render(<NumField label="Total" value={10} min={1} max={200} onChange={onChange} />)
       const input = screen.getByRole('spinbutton')

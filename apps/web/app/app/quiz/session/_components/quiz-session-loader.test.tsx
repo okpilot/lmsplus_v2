@@ -295,7 +295,7 @@ describe('QuizSessionLoader — happy path', () => {
     expect(screen.getByTestId('quiz-session')).toHaveAttribute('data-session-id', 'sess-abc')
   })
 
-  it('forwards startedAt and timeLimitSeconds from session to QuizSession', () => {
+  it('renders the session timing fields on the active quiz', () => {
     const session: SessionData = {
       ...makeSession(),
       mode: 'exam',

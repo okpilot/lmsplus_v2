@@ -40,7 +40,7 @@ describe('useQuizPersistence', () => {
     expect(mockWriteActiveSession).toHaveBeenCalledWith({ mock: 'session' })
   })
 
-  it('forwards the feedback Map as the fourth argument to buildActiveSession', () => {
+  it('includes the feedback map in the persisted session', () => {
     const opts = makeOpts()
     const { result } = renderHook(() => useQuizPersistence(opts))
     const answers = makeAnswers()
@@ -83,7 +83,7 @@ describe('useQuizPersistence', () => {
     expect(result.current.checkpoint).not.toBe(first)
   })
 
-  it('forwards mode: exam to buildActiveSession when opts.mode is exam', () => {
+  it('marks the persisted session as exam mode when opts.mode is exam', () => {
     const opts = makeOpts('user-1', 'exam')
     const { result } = renderHook(() => useQuizPersistence(opts))
 
@@ -97,7 +97,7 @@ describe('useQuizPersistence', () => {
     )
   })
 
-  it('forwards mode: study to buildActiveSession when opts.mode is study', () => {
+  it('marks the persisted session as study mode when opts.mode is study', () => {
     const opts = makeOpts('user-1', 'study')
     const { result } = renderHook(() => useQuizPersistence(opts))
 
@@ -111,7 +111,7 @@ describe('useQuizPersistence', () => {
     )
   })
 
-  it('forwards startedAt, timeLimitSeconds, passMark to buildActiveSession when present in opts', () => {
+  it('includes the exam timing fields in the persisted session when present', () => {
     const opts: QuizStateOpts = {
       ...makeOpts('user-1', 'exam'),
       startedAt: '2026-04-27T12:00:00.000Z',
