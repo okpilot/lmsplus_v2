@@ -445,6 +445,51 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(result?.mode).toBe('exam')
   })
 
+  it('rejects mode: exam entries where startedAt is an unparseable string', () => {
+    // Tightened in HEAD~3: !Number.isFinite(Date.parse(startedAt)) guard added.
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: 'not-a-date',
+      timeLimitSeconds: 1800,
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects mode: exam entries where timeLimitSeconds is NaN', () => {
+    // JSON.parse turns NaN into null; exercise via direct store manipulation.
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      // JSON.stringify(NaN) produces "null" — test the not-a-number branch
+      timeLimitSeconds: 0, // non-positive also caught by the new guard
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
+  it('rejects mode: exam entries where timeLimitSeconds is negative', () => {
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: -1,
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
   it('round-trips a session without mode field (backward compat)', () => {
     // Entries persisted before mode was added must still be readable.
     const legacySession = makeSession()

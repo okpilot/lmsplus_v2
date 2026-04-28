@@ -89,6 +89,12 @@ describe('extractPassMark', () => {
   it('returns null when pass_mark is Infinity', () => {
     expect(extractPassMark({ pass_mark: Infinity })).toBeNull()
   })
+
+  it('returns null when pass_mark is a float (non-integer)', () => {
+    // extractPassMark tightened from Number.isFinite to Number.isInteger in the
+    // HEAD~3 commit — 75.5 was previously accepted; it must now be rejected.
+    expect(extractPassMark({ pass_mark: 75.5 })).toBeNull()
+  })
 })
 
 // ---- isExamOverdue — 30s grace window ------------------------------------

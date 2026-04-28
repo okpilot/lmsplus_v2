@@ -1803,4 +1803,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-04-05 (migration 062: question_banks unique org constraint) | Companion: docs/security.md*
+*Last updated: 2026-04-28 (migrations 054/055/056: org-scoping in start_exam_session, audit-metadata + replay-branch hardening in complete_empty_exam_session, deleted_at filter on batch_submit_quiz audit subqueries — closes #550) | Companion: docs/security.md*
