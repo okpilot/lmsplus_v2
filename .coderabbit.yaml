@@ -125,10 +125,35 @@ reviews:
         - Test names describe behavior, not implementation.
           Good: 'schedules a shorter review interval when the answer is wrong'
           Bad: 'calls updateFsrsState'
+        - Disallowed it() title patterns (impl-detail leakage) — flag these:
+          - 'forwards X to <InternalName>' (camelCase or PascalCase) — names an
+            internal helper, hook, or component (e.g., 'to handleSubmitSession',
+            'to AnswerOptions', 'to QuizSession'). Describe the outcome instead.
+          - 'from <PascalCaseType>(Opts|Config|Args)' — names an internal type.
+            Describe the populated output, not the input type's name.
+          - 'through <camelCaseName>(' or 'via <camelCaseName>(' — names the
+            function under test; describe() already provides that context.
+          - '(non-positive|typeof|isFinite|NaN) guard' — names a specific
+            validator branch. Describe what input is rejected.
+          - '(activates|does not activate) the guard' — internal navigation/
+            validation guard machinery. Describe the user-observable consequence
+            (e.g., 'does not warn when no answers exist').
+          - 'matches <PascalCaseType>' or 'matches <internal helper>' — asserts
+            congruence with internal type/helper. Describe externally observable
+            behavior.
+          Permitted (these are public contracts, not impl):
+          - 'calls onClick when the button is clicked' — onClick is a public prop.
+          - 'calls signInWithPassword on valid submit' — public SDK method.
+          - 'does not call the RPC when the input is empty' — externally
+            observable side-effect.
         - Omit narrative comments above it() if the test name fully describes
           the behaviour. Comments paraphrasing the title rot when the title
           changes. Reserve comments for non-obvious WHY: hidden invariants,
           jsdom workarounds, ordering constraints.
+        - When renaming a test title to be behavior-first, audit any inline
+          comment inside the test body. Comments often describe an implementation
+          scenario broader than the renamed (more specific) test exercises —
+          drop stale comments unless they explain a non-obvious WHY.
         - Co-located with source file (same folder).
         - One test file per source file.
         - Mock external deps (Supabase, fetch), don't call real services.

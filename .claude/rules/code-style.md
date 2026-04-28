@@ -464,7 +464,7 @@ it('schedules a shorter review interval when the answer is wrong', () => { ... }
 
 | Pattern | Why it leaks impl |
 |---------|-------------------|
-| `forwards X to <camelCaseName>` | Names an internal helper/hook the test calls into. Describe the *outcome*, not the call. |
+| `forwards X to <InternalName>` (camelCase or PascalCase) | Names an internal helper, hook, or component the test calls into (e.g., `to handleSubmitSession`, `to AnswerOptions`, `to QuizSession`). Describe the *outcome*, not the call. |
 | `from <PascalCaseType>(?:Opts\|Config\|Args)` | Names an internal type. The behavior is the populated output, not the input type's name. |
 | `through <camelCaseName>(\|via <camelCaseName>(` | Names the function under test. The enclosing `describe(...)` already provides that context. |
 | `(non-positive\|typeof\|isFinite\|NaN) guard` | Names a specific `\|\|` branch in a validator. Describe what input is rejected, not which branch fires. |
