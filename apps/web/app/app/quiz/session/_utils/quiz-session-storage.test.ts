@@ -459,7 +459,7 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 
-  it('rejects mode: exam entries where timeLimitSeconds is zero (non-positive guard)', () => {
+  it('rejects exam sessions with a zero-second time limit', () => {
     const broken = makeSession({
       mode: 'exam',
       startedAt: '2026-04-27T12:00:00.000Z',
@@ -473,7 +473,7 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 
-  it('rejects mode: exam entries where timeLimitSeconds is null (typeof guard, JSON.stringify(NaN) → null)', () => {
+  it('rejects exam sessions with a null time limit value', () => {
     // JSON.stringify(NaN) emits "null"; the typeof guard rejects it before isFinite runs.
     const broken = makeSession({
       mode: 'exam',
@@ -489,7 +489,7 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 
-  it('rejects mode: exam entries where timeLimitSeconds is negative', () => {
+  it('rejects exam sessions with a negative time limit', () => {
     const broken = makeSession({
       mode: 'exam',
       startedAt: '2026-04-27T12:00:00.000Z',
@@ -1111,7 +1111,7 @@ describe('buildHandoffPayload', () => {
     expect(payload.passMark).toBeUndefined()
   })
 
-  it('preserves mode on the payload (matches SessionData and toSessionData)', () => {
+  it('preserves session mode on the handoff payload', () => {
     const examPayload = buildHandoffPayload(USER_ID, makeSession({ mode: 'exam' }))
     const studyPayload = buildHandoffPayload(USER_ID, makeSession({ mode: 'study' }))
 
