@@ -897,6 +897,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when draftCurrentIndex is a string', () => {
@@ -906,6 +907,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when draftId is an empty string', () => {
@@ -915,6 +917,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when subjectName is a number', () => {
@@ -924,6 +927,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when subjectCode is a boolean', () => {
@@ -933,6 +937,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('accepts payload with valid draftFeedback entries', () => {
@@ -971,6 +976,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when draftFeedback is an array', () => {
@@ -980,6 +986,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('rejects payload when a draftFeedback entry has isCorrect as a string', () => {
@@ -1000,6 +1007,7 @@ describe('readSessionHandoff', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     expect(readSessionHandoff(USER_ID)).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 
   it('does not read a different user key', () => {
@@ -1033,6 +1041,7 @@ describe('readSessionHandoff', () => {
     const result = readSessionHandoff(USER_ID)
 
     expect(result).toBeNull()
+    expect(mockSession.removeItem).toHaveBeenCalledWith(key)
   })
 })
 
