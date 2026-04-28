@@ -154,4 +154,57 @@ describe('getSessionReports', () => {
     const result = await getSessionReports(DEFAULT_OPTS)
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
   })
+
+  // ---- internal_exam exclusion --------------------------------------------
+
+  it('filters out internal_exam rows from the session list', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        makeRpcRow({ id: 'sess-quick', mode: 'quick_quiz' }),
+        makeRpcRow({ id: 'sess-internal', mode: 'internal_exam' }),
+        makeRpcRow({ id: 'sess-mock', mode: 'mock_exam' }),
+        makeRpcRow({ id: 'sess-smart', mode: 'smart_review' }),
+      ],
+      error: null,
+    })
+
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const ids = result.sessions.map((s) => s.id)
+    expect(ids).not.toContain('sess-internal')
+    expect(ids).toEqual(['sess-quick', 'sess-mock', 'sess-smart'])
+  })
+
+  it('retains mock_exam, quick_quiz, and smart_review rows when filtering', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        makeRpcRow({ id: 'sess-mock', mode: 'mock_exam' }),
+        makeRpcRow({ id: 'sess-quick', mode: 'quick_quiz' }),
+        makeRpcRow({ id: 'sess-smart', mode: 'smart_review' }),
+      ],
+      error: null,
+    })
+
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.sessions).toHaveLength(3)
+    expect(result.sessions.map((s) => s.mode).sort()).toEqual(
+      ['mock_exam', 'quick_quiz', 'smart_review'].sort(),
+    )
+  })
+
+  it('returns empty sessions when every row is internal_exam', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        makeRpcRow({ id: 'a', mode: 'internal_exam' }),
+        makeRpcRow({ id: 'b', mode: 'internal_exam' }),
+      ],
+      error: null,
+    })
+
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
+  })
 })

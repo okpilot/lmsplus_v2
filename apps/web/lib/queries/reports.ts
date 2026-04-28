@@ -85,7 +85,11 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
     return { ok: false, error: 'Failed to load reports' }
   }
 
-  const rows = Array.isArray(data) ? (data as RpcRow[]) : []
+  const allRows = Array.isArray(data) ? (data as RpcRow[]) : []
+
+  // Internal exam attempts live in the dedicated student "My Reports" tab and the
+  // admin attempts table — they must NOT pollute the practice/quiz session reports list.
+  const rows = allRows.filter((r) => r.mode !== 'internal_exam')
 
   if (rows.length === 0) {
     // Could be empty result or out-of-range page — for out-of-range we need to know totalCount.
