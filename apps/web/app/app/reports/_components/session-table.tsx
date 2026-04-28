@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SortableTableHead } from '@/app/app/admin/dashboard/_lib/sortable-head'
+import { isExamMode } from '@/lib/constants/exam-modes'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { scoreColor } from '@/lib/utils/score-color'
 import { formatDate, MODE_LABELS } from './reports-utils'
@@ -60,7 +61,7 @@ export function SessionTable({ sessions, sort, dir, onSort }: Props) {
 
 function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   const router = useRouter()
-  const exam = s.mode === 'mock_exam'
+  const exam = isExamMode(s.mode)
   const score = s.scorePercentage == null ? '\u2014' : `${Math.round(s.scorePercentage)}%`
   const color = s.scorePercentage == null ? undefined : scoreColor(s.scorePercentage)
   const href = `/app/quiz/report?session=${s.id}`
@@ -86,7 +87,7 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
       </td>
       <td className="px-4 py-3">
         {exam ? (
-          <ExamBadge />
+          <ExamBadge mode={s.mode} />
         ) : (
           <span className="text-muted-foreground">{MODE_LABELS[s.mode] ?? s.mode}</span>
         )}
@@ -102,10 +103,10 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
   )
 }
 
-function ExamBadge() {
+function ExamBadge({ mode }: Readonly<{ mode: string }>) {
   return (
     <span className="inline-block rounded-sm border border-amber-400 bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold uppercase leading-none tracking-wide text-amber-600">
-      {MODE_LABELS.mock_exam}
+      {MODE_LABELS[mode] ?? MODE_LABELS.mock_exam}
     </span>
   )
 }

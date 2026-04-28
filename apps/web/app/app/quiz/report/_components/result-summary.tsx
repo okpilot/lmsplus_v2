@@ -1,3 +1,4 @@
+import { isExamMode, MODE_LABELS } from '@/lib/constants/exam-modes'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report'
 import { ScoreRing } from './score-ring'
 
@@ -37,13 +38,16 @@ type Props = Readonly<{ summary: QuizReportSummary }>
 export function ResultSummary({ summary }: Props) {
   const dateStr = summary.endedAt ?? summary.startedAt
   const skipped = summary.totalQuestions - summary.answeredCount
-  const isExam = summary.mode === 'mock_exam'
+  const isExam = isExamMode(summary.mode)
+  // summary.mode is typed `string`; isExamMode confirms it's a valid exam mode at runtime,
+  // so the narrow cast for MODE_LABELS lookup is safe.
+  const examLabel = isExam ? MODE_LABELS[summary.mode as 'mock_exam' | 'internal_exam'] : null
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="mb-4">
         <p className="text-center font-semibold text-lg">
-          {isExam ? 'Practice Exam Complete' : 'Quiz Complete'}
+          {isExam ? `${examLabel} Complete` : 'Quiz Complete'}
         </p>
       </div>
 

@@ -1,10 +1,11 @@
 import Link from 'next/link'
+import { isExamMode } from '@/lib/constants/exam-modes'
 import type { SessionReport } from '@/lib/queries/reports'
 import { scoreColor } from '@/lib/utils/score-color'
 import { formatDate, MODE_LABELS } from './reports-utils'
 
 export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>) {
-  const exam = s.mode === 'mock_exam'
+  const exam = isExamMode(s.mode)
   const score = s.scorePercentage == null ? '\u2014' : `${Math.round(s.scorePercentage)}%`
   const color = s.scorePercentage == null ? undefined : scoreColor(s.scorePercentage)
 
@@ -23,7 +24,9 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
       <p className="mt-1 text-xs text-muted-foreground">
         Mode:{' '}
         {exam ? (
-          <span className="font-semibold uppercase text-amber-600">{MODE_LABELS.mock_exam}</span>
+          <span className="font-semibold uppercase text-amber-600">
+            {MODE_LABELS[s.mode] ?? MODE_LABELS.mock_exam}
+          </span>
         ) : (
           <span className="font-medium">{MODE_LABELS[s.mode] ?? s.mode}</span>
         )}

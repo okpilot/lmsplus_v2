@@ -15,6 +15,7 @@ type DialogProps = {
   onSave?: () => void
   onDiscard?: () => void
   isExam?: boolean
+  examMode?: 'mock_exam' | 'internal_exam'
   timeExpired?: boolean
 }
 
@@ -539,5 +540,44 @@ describe('FinishQuizDialog', () => {
   it('does not render a role="alert" element when there is no error', () => {
     renderDialog({ error: null })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  // ---- Internal exam mode -------------------------------------------------
+
+  it('uses the "Finish Internal Exam" title when examMode is internal_exam', () => {
+    renderDialog({ isExam: true, examMode: 'internal_exam' })
+    expect(screen.getByRole('dialog', { name: /finish internal exam/i })).toBeInTheDocument()
+  })
+
+  it('uses the "Finish Practice Exam" title when examMode is mock_exam', () => {
+    renderDialog({ isExam: true, examMode: 'mock_exam' })
+    expect(screen.getByRole('dialog', { name: /finish practice exam/i })).toBeInTheDocument()
+  })
+
+  it('renders "Submit Internal Exam" on the primary action for internal_exam', () => {
+    renderDialog({ isExam: true, examMode: 'internal_exam', answeredCount: 5, totalQuestions: 5 })
+    expect(screen.getByRole('button', { name: /submit internal exam/i })).toBeInTheDocument()
+  })
+
+  it('hides the discard button entirely for internal_exam mode', () => {
+    renderDialog({ isExam: true, examMode: 'internal_exam' })
+    expect(screen.queryByRole('button', { name: /discard/i })).not.toBeInTheDocument()
+  })
+
+  it('still renders Return-to-exam (dismiss) for internal_exam mode', () => {
+    renderDialog({ isExam: true, examMode: 'internal_exam' })
+    expect(screen.getByRole('button', { name: /return to internal exam/i })).toBeInTheDocument()
+  })
+
+  it('shows the partial-answer warning for internal_exam when not all questions answered', () => {
+    renderDialog({
+      isExam: true,
+      examMode: 'internal_exam',
+      answeredCount: 2,
+      totalQuestions: 5,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /submit internal exam/i }))
+    expect(screen.getByText(/3 questions are unanswered/i)).toBeInTheDocument()
+    expect(screen.getByText(/will be marked wrong/i)).toBeInTheDocument()
   })
 })

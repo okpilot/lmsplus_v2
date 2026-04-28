@@ -20,7 +20,14 @@ const RpcRowSchema = z.object({
 type RpcRow = z.infer<typeof RpcRowSchema>
 
 export type StartInternalExamResult =
-  | { success: true; sessionId: string }
+  | {
+      success: true
+      sessionId: string
+      questionIds: string[]
+      timeLimitSeconds: number
+      passMark: number
+      startedAt: string
+    }
   | { success: false; error: string }
 
 const ERROR_MESSAGES: Array<[string, string]> = [
@@ -78,7 +85,14 @@ export async function startInternalExam(raw: unknown): Promise<StartInternalExam
     }
 
     const result: RpcRow = rowParsed.data
-    return { success: true, sessionId: result.session_id }
+    return {
+      success: true,
+      sessionId: result.session_id,
+      questionIds: result.question_ids,
+      timeLimitSeconds: result.time_limit_seconds,
+      passMark: result.pass_mark,
+      startedAt: result.started_at,
+    }
   } catch (err) {
     console.error('[startInternalExam] Uncaught error:', err)
     return { success: false, error: 'Something went wrong. Please try again.' }

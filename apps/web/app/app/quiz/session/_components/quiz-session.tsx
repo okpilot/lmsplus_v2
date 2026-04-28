@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
+import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
 import { QuestionGrid } from '../../_components/question-grid'
 import { QuestionTabs } from '../../_components/question-tabs'
@@ -27,6 +28,7 @@ type QuizSessionProps = {
   subjectName?: string
   subjectCode?: string
   mode?: 'study' | 'exam'
+  examMode?: DbQuizMode
   timeLimitSeconds?: number
   passMark?: number
   startedAt?: string
@@ -56,10 +58,15 @@ export function QuizSession(props: QuizSessionProps) {
 
   if (!s.question) return null
 
+  // Default examMode to mock_exam in exam sessions when caller didn't supply it.
+  // (Existing exam sessions in localStorage written before this field landed.)
+  const examMode = s.isExam ? (props.examMode ?? 'mock_exam') : undefined
+
   return (
     <div className="flex flex-1 flex-col">
       <QuizSessionHeader
         isExam={s.isExam}
+        examMode={examMode}
         currentIndex={s.currentIndex}
         totalQuestions={props.questions.length}
         submitting={s.submitting}
@@ -140,6 +147,7 @@ export function QuizSession(props: QuizSessionProps) {
         onSave={s.handleSave}
         onDiscard={s.handleDiscard}
         isExam={s.isExam}
+        examMode={examMode}
         timeExpired={timeExpired}
       />
     </div>

@@ -90,6 +90,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
       subjectName={bs.session.subjectName}
       subjectCode={bs.session.subjectCode}
       mode={bs.session.mode}
+      examMode={bs.session.examMode}
       timeLimitSeconds={bs.session.timeLimitSeconds}
       passMark={bs.session.passMark}
       startedAt={bs.session.startedAt}

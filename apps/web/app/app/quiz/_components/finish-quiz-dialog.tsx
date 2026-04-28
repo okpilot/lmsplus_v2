@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
 import { useAutoSubmitCountdown } from '../_hooks/use-auto-submit-countdown'
 
 type FinishQuizDialogProps = {
@@ -14,6 +15,8 @@ type FinishQuizDialogProps = {
   onSave: () => void
   onDiscard: () => void
   isExam?: boolean
+  /** DB-level exam mode. Drives title and discard-button visibility. */
+  examMode?: DbQuizMode
   timeExpired?: boolean
 }
 
@@ -28,6 +31,7 @@ export function FinishQuizDialog({
   onSave,
   onDiscard,
   isExam,
+  examMode,
   timeExpired,
 }: FinishQuizDialogProps) {
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
@@ -49,8 +53,14 @@ export function FinishQuizDialog({
   if (!open) return null
 
   const unanswered = totalQuestions - answeredCount
-  const title = isExam ? 'Finish Practice Exam' : 'Finish Quiz'
+  const isInternalExam = isExam && examMode === 'internal_exam'
+  const examLabel = isExam ? (MODE_LABELS[examMode ?? 'mock_exam'] ?? 'Exam') : null
+  const title = isExam ? `Finish ${examLabel}` : 'Finish Quiz'
+  // canDismiss gates the backdrop close + Escape close + Return-to-quiz button.
+  // Internal exams DO allow dismissing the dialog (student returns to attempt) — discard
+  // is the only thing internal_exam disallows. That's gated separately via canDiscard.
   const canDismiss = !(timeExpired && isExam)
+  const canDiscard = canDismiss && !isInternalExam
 
   function handleClose() {
     if (!canDismiss) return
@@ -109,7 +119,7 @@ export function FinishQuizDialog({
           />
         )}
 
-        {confirmingDiscard && canDismiss && (
+        {confirmingDiscard && canDiscard && (
           <ConfirmPanel
             message={
               isExam
@@ -134,8 +144,10 @@ export function FinishQuizDialog({
           answeredCount={answeredCount}
           submitting={submitting}
           isExam={isExam}
+          examLabel={examLabel}
           timeExpired={timeExpired}
           canDismiss={canDismiss}
+          canDiscard={canDiscard}
           onSubmitClick={handleSubmitClick}
           onSave={onSave}
           onDiscardOpen={() => {
@@ -171,8 +183,10 @@ function DialogFooter({
   answeredCount,
   submitting,
   isExam,
+  examLabel,
   timeExpired,
   canDismiss,
+  canDiscard,
   onSubmitClick,
   onSave,
   onDiscardOpen,
@@ -181,8 +195,10 @@ function DialogFooter({
   answeredCount: number
   submitting: boolean
   isExam?: boolean
+  examLabel?: string | null
   timeExpired?: boolean
   canDismiss: boolean
+  canDiscard: boolean
   onSubmitClick: () => void
   onSave: () => void
   onDiscardOpen: () => void
@@ -199,7 +215,7 @@ function DialogFooter({
         {submitting
           ? 'Submitting...'
           : isExam
-            ? 'Submit Practice Exam'
+            ? `Submit ${examLabel ?? 'Exam'}`
             : answeredCount > 0
               ? 'Submit Quiz'
               : 'Answer at least one question'}
@@ -214,14 +230,14 @@ function DialogFooter({
           Save for Later
         </button>
       )}
-      {canDismiss && (
+      {canDiscard && (
         <button
           type="button"
           onClick={onDiscardOpen}
           disabled={submitting}
           className="w-full rounded-lg border border-destructive/30 bg-background px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
         >
-          {isExam ? 'Discard Practice Exam' : 'Discard Quiz'}
+          {isExam ? `Discard ${examLabel ?? 'Exam'}` : 'Discard Quiz'}
         </button>
       )}
       {canDismiss && (
@@ -231,7 +247,7 @@ function DialogFooter({
           disabled={submitting}
           className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
         >
-          {isExam ? 'Return to Practice Exam' : 'Return to Quiz'}
+          {isExam ? `Return to ${examLabel ?? 'Exam'}` : 'Return to Quiz'}
         </button>
       )}
     </div>
