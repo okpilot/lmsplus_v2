@@ -146,6 +146,10 @@ reviews:
           - 'calls signInWithPassword on valid submit' — public SDK method.
           - 'does not call the RPC when the input is empty' — externally
             observable side-effect.
+          Borderline tiebreaker: public props, public callbacks, public SDK
+          methods, and RPC names visible at the integration boundary are part
+          of behavior. Internal helpers, validator branches, and private types
+          are implementation.
         - Omit narrative comments above it() if the test name fully describes
           the behaviour. Comments paraphrasing the title rot when the title
           changes. Reserve comments for non-obvious WHY: hidden invariants,
