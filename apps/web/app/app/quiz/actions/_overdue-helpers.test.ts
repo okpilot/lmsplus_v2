@@ -1,5 +1,13 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { extractPassMark, extractQuestionIds, isExamOverdue } from './_overdue-helpers'
+
+// Per-test fake timers reset to real on teardown — even if an assertion throws
+// mid-test, the next test starts with real timers. Mirrors the pattern in
+// use-auto-submit-countdown.test.ts. Without this, a thrown assertion can leak
+// fake timers into another test file's setup() and cause sporadic failures.
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 // ---- extractQuestionIds ---------------------------------------------------
 
