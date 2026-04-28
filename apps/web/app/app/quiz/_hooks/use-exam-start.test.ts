@@ -386,6 +386,21 @@ describe('useExamStart — handleStart failure paths', () => {
     expect(mockDiscardQuiz).toHaveBeenCalledWith({ sessionId: SESSION_ID })
   })
 
+  it('still surfaces the correct user-facing error when the orphan discard itself fails', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Not found' })
+
+    const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
+    await act(async () => result.current.handleStart())
+
+    // The discard failure must not swallow the user-facing error
+    expect(result.current.error).toBe('Unable to start Practice Exam right now. Please try again.')
+    expect(result.current.loading).toBe(false)
+    expect(mockRouterPush).not.toHaveBeenCalled()
+  })
+
   it('sets a generic error message when startExamSession throws', async () => {
     mockStartExamSession.mockRejectedValue(new Error('network timeout'))
 
