@@ -1,10 +1,12 @@
 import { requireAdmin } from '@/lib/auth/require-admin'
 import type {
+  ExamSubjectOption,
   InternalExamAttemptRow,
   InternalExamCodeRow,
   InternalExamCodeStatus,
   ListAttemptsFilters,
   ListCodesFilters,
+  OrgStudentOption,
 } from './types'
 
 const DEFAULT_LIMIT = 50
@@ -189,4 +191,56 @@ export async function listInternalExamAttempts(
   const nextCursor = hasMore ? (rows[rows.length - 1]?.startedAt ?? null) : null
 
   return { rows, nextCursor }
+}
+
+type StudentRowRaw = { id: string; full_name: string | null; email: string | null }
+
+export async function listOrgStudents(): Promise<OrgStudentOption[]> {
+  const { supabase, organizationId } = await requireAdmin()
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, full_name, email')
+    .eq('organization_id', organizationId)
+    .eq('role', 'student')
+    .is('deleted_at', null)
+    .order('full_name', { ascending: true })
+
+  if (error) {
+    console.error('[listOrgStudents] DB error:', error.message)
+    throw new Error('Failed to load students')
+  }
+
+  const rows = (data ?? []) as StudentRowRaw[]
+  return rows.map((r) => ({
+    id: r.id,
+    fullName: r.full_name ?? '',
+    email: r.email ?? '',
+  }))
+}
+
+type SubjectRowRaw = { id: string; code: string; name: string }
+
+export async function listExamSubjects(): Promise<ExamSubjectOption[]> {
+  const { supabase, organizationId } = await requireAdmin()
+
+  const { data, error } = await supabase
+    .from('exam_configs')
+    .select('subject_id, easa_subjects:subject_id(id, code, name)')
+    .eq('organization_id', organizationId)
+    .eq('enabled', true)
+    .is('deleted_at', null)
+
+  if (error) {
+    console.error('[listExamSubjects] DB error:', error.message)
+    throw new Error('Failed to load subjects')
+  }
+
+  type Joined = { easa_subjects: SubjectRowRaw | null }
+  const rows = (data ?? []) as Joined[]
+  return rows
+    .map((r) => r.easa_subjects)
+    .filter((s): s is SubjectRowRaw => s !== null)
+    .sort((a, b) => a.code.localeCompare(b.code))
+    .map((s) => ({ id: s.id, code: s.code, name: s.name }))
 }

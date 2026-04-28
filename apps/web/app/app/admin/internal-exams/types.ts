@@ -50,3 +50,15 @@ export type ListAttemptsFilters = {
   limit?: number
   cursor?: string
 }
+
+export type OrgStudentOption = {
+  id: string
+  fullName: string
+  email: string
+}
+
+export type ExamSubjectOption = {
+  id: string
+  code: string
+  name: string
+}
