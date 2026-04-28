@@ -405,7 +405,7 @@ async function seed() {
   // 60s timer + 10 questions + 70% pass mark to match what the specs assert.
   const { data: existingCfg } = await db
     .from('exam_configs')
-    .select('id')
+    .select('id, total_questions, time_limit_seconds, pass_mark')
     .eq('organization_id', org.id)
     .eq('subject_id', subject.id)
     .is('deleted_at', null)
@@ -414,6 +414,19 @@ async function seed() {
   let examConfigId: string
   if (existingCfg) {
     examConfigId = existingCfg.id
+    // Warn loudly if a reused config drifts from the values the specs assert,
+    // so a "tests pass on master, fail on this branch" mystery is easy to debug.
+    if (
+      existingCfg.total_questions !== 10 ||
+      existingCfg.time_limit_seconds !== 60 ||
+      existingCfg.pass_mark !== 70
+    ) {
+      console.warn(
+        `  WARNING: reusing existing MET exam_config with drifted params ` +
+          `(total=${existingCfg.total_questions}, time=${existingCfg.time_limit_seconds}s, ` +
+          `pass=${existingCfg.pass_mark}%). Specs expect 10/60/70.`,
+      )
+    }
   } else {
     const { data: newCfg, error: cfgErr } = await db
       .from('exam_configs')
@@ -436,6 +449,7 @@ async function seed() {
     .select('id')
     .eq('exam_config_id', examConfigId)
     .eq('topic_id', topicId)
+    .is('subtopic_id', null)
     .maybeSingle()
 
   if (!existingDist) {
