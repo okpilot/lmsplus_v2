@@ -459,6 +459,17 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 
+  it('rejects exam sessions where startedAt is a number instead of an ISO string', () => {
+    // Epoch-ms corruption: a writer stored Date.now() instead of new Date().toISOString().
+    const brokenJson = `{"userId":"${USER_ID}","sessionId":"sess-ts","questionIds":["q1"],"answers":{},"currentIndex":0,"savedAt":${Date.now()},"mode":"exam","startedAt":1714219200000,"timeLimitSeconds":1800}`
+    mockStorage._store.set(STORAGE_KEY, brokenJson)
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
   it('rejects exam sessions with a zero-second time limit', () => {
     const broken = makeSession({
       mode: 'exam',
