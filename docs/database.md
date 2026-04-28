@@ -1164,20 +1164,28 @@ END;
 $$;
 ```
 
-#### `complete_empty_exam_session` — close a timed-out exam with zero answers
+#### `complete_empty_exam_session` — close a zero-answer exam session (timer or manual)
 
-Completes a `mock_exam` session that expired before any answers were recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. The student is redirected to the report page showing 0% / FAIL instead of being silently discarded.
+Completes a `mock_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. The student is redirected to the report page showing 0% / FAIL instead of being silently discarded.
 
-**Purpose:** Called by `submitEmptyExamSession` Server Action when the countdown timer fires and `answers.size === 0`.
+**Purpose:** Called by `submitEmptyExamSession` Server Action in two scenarios:
+1. Timer fires and `answers.size === 0` (student ran out of time without answering)
+2. Student manually finishes before the deadline with zero answers recorded
+
+**Audit event branching (migration 053):** The RPC determines the actual deadline state and audits accordingly:
+- **Deadline passed (beyond +30s grace)** → `exam.expired` event with reason "timed out with no answers"
+- **Deadline not yet passed** → `exam.completed` event with reason "completed with no answers"
+
+This ensures the audit trail reflects what actually happened, not a hard-coded assumption.
 
 **Idempotency:** Safe to call twice. If `ended_at IS NOT NULL`, the function returns the real stored `correct_count`, `score_percentage`, `passed`, and `answered_count` from `quiz_sessions` (not the hardcoded zeros). The `FOR UPDATE` lock already holds the row, so the re-read is safe and single-statement.
 
-**Security model (migration 049, patched by migration 051):**
+**Security model (migration 049, patched by migrations 051 & 053):**
 - `auth.uid()` check — rejects unauthenticated callers.
 - Org-scope guard — reads `organization_id` from `users` with `deleted_at IS NULL`.
 - Ownership + org check — `FOR UPDATE` fetch requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
 - Mode guard — raises if session is not `mock_exam`.
-- Audit log — appends `exam.expired` event. The `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs, not subordinate to outer guards).
+- Audit log — appends `exam.expired` or `exam.completed` event based on deadline state. The `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs, not subordinate to outer guards).
 - `SECURITY DEFINER SET search_path = public` — required pattern for all security-definer RPCs.
 
 **Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }`
@@ -1186,7 +1194,9 @@ Completes a `mock_exam` session that expired before any answers were recorded. S
 
 #### `complete_overdue_exam_session` — close a past-deadline exam (Layer 1)
 
-Completes a `mock_exam` session whose deadline has passed (`now() > started_at + time_limit_seconds`). Computes score from any existing `quiz_session_answers` rows — partial answers are honoured, NOT zeroed. Sets `ended_at`, `correct_count`, `score_percentage`, `passed` and writes an `exam.expired` audit event with `metadata.reason ∈ { 'overdue_with_answers', 'overdue_zero_answers' }`.
+Completes a `mock_exam` session whose deadline has passed. Computes score from any existing `quiz_session_answers` rows — partial answers are honoured, NOT zeroed. Sets `ended_at`, `correct_count`, `score_percentage`, `passed` and writes an `exam.expired` audit event.
+
+**Grace window (migration 052):** The overdue threshold is `now() > started_at + (time_limit_seconds + 30 seconds)`, matching the grace window in `batch_submit_quiz`. This ensures the Layer 1 refresh check and the submit RPC never disagree on whether a session is overdue — a session within the grace window is not considered overdue by either path.
 
 **Purpose (Layer 1, migration 050 / supabase 20260427000003):** Server-authoritative deadline enforcement. Called by:
 1. `start_exam_session` itself, before raising "already in progress" — guarantees a browser-crash exit during an exam cannot block the next attempt indefinitely AND records the score from buffered answers.
@@ -1205,7 +1215,7 @@ Completes a `mock_exam` session whose deadline has passed (`now() > started_at +
 - Org-scope guard reads `organization_id` from `users` with `deleted_at IS NULL`.
 - Ownership + org check — `FOR UPDATE` filter requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
 - Mode guard — RAISE if not `mock_exam`.
-- Overdue invariant — RAISE if `now() <= started_at + time_limit_seconds`. Callers must not invoke for active sessions.
+- Overdue invariant — RAISE if `now() <= started_at + (time_limit_seconds + 30 seconds)`. Callers must not invoke for sessions within the grace window.
 - Audit `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs and must validate soft-delete unconditionally).
 - `SECURITY DEFINER SET search_path = public`.
 
