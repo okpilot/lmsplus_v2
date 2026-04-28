@@ -474,7 +474,6 @@ describe('writeActiveSession + readActiveSession', () => {
   })
 
   it('rejects exam sessions with a null time limit value', () => {
-    // JSON.stringify(NaN) emits "null"; the typeof guard rejects it before isFinite runs.
     const broken = makeSession({
       mode: 'exam',
       startedAt: '2026-04-27T12:00:00.000Z',
@@ -691,7 +690,7 @@ describe('buildActiveSession', () => {
     expect(result.feedback).toBeUndefined()
   })
 
-  it('preserves mode: exam through buildActiveSession', () => {
+  it('returns an exam-mode session when exam mode is requested', () => {
     vi.spyOn(Date, 'now').mockReturnValue(0)
 
     const opts = {
@@ -706,7 +705,7 @@ describe('buildActiveSession', () => {
     expect(result.mode).toBe('exam')
   })
 
-  it('populates startedAt, timeLimitSeconds, passMark from BuildOpts', () => {
+  it('includes provided exam timing metadata in the session', () => {
     vi.spyOn(Date, 'now').mockReturnValue(0)
 
     const opts = {
