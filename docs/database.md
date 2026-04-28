@@ -1172,12 +1172,12 @@ Completes a `mock_exam` session that expired before any answers were recorded. S
 
 **Idempotency:** Safe to call twice. If `ended_at IS NOT NULL`, the function returns the real stored `correct_count`, `score_percentage`, `passed`, and `answered_count` from `quiz_sessions` (not the hardcoded zeros). The `FOR UPDATE` lock already holds the row, so the re-read is safe and single-statement.
 
-**Security model (migration 049):**
+**Security model (migration 049, patched by migration 051):**
 - `auth.uid()` check — rejects unauthenticated callers.
 - Org-scope guard — reads `organization_id` from `users` with `deleted_at IS NULL`.
 - Ownership + org check — `FOR UPDATE` fetch requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
 - Mode guard — raises if session is not `mock_exam`.
-- Audit log — appends `exam.expired` event. The `actor_role` subquery omits `deleted_at IS NULL` but the outer guard above already ensures the student is active (see #550).
+- Audit log — appends `exam.expired` event. The `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs, not subordinate to outer guards).
 - `SECURITY DEFINER SET search_path = public` — required pattern for all security-definer RPCs.
 
 **Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }`
@@ -1206,7 +1206,7 @@ Completes a `mock_exam` session whose deadline has passed (`now() > started_at +
 - Ownership + org check — `FOR UPDATE` filter requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
 - Mode guard — RAISE if not `mock_exam`.
 - Overdue invariant — RAISE if `now() <= started_at + time_limit_seconds`. Callers must not invoke for active sessions.
-- Audit `actor_role` subquery omits `deleted_at IS NULL`; outer users guard above already ensures the student is active (security.md rule 10 / #550 pattern).
+- Audit `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs and must validate soft-delete unconditionally).
 - `SECURITY DEFINER SET search_path = public`.
 
 **Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }` — identical to `complete_empty_exam_session` for caller symmetry.
