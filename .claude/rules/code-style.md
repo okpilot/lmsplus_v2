@@ -466,7 +466,7 @@ it('schedules a shorter review interval when the answer is wrong', () => { ... }
 |---------|-------------------|
 | `forwards X to <InternalName>` (camelCase or PascalCase) | Names an internal helper, hook, or component the test calls into (e.g., `to handleSubmitSession`, `to AnswerOptions`, `to QuizSession`). Describe the *outcome*, not the call. |
 | `from <PascalCaseType>(?:Opts\|Config\|Args)` | Names an internal type. The behavior is the populated output, not the input type's name. |
-| `through <camelCaseName>(\|via <camelCaseName>(` | Names the function under test. The enclosing `describe(...)` already provides that context. |
+| `through <camelCaseName>(` or `via <camelCaseName>(` | Names the function under test. The enclosing `describe(...)` already provides that context. |
 | `(non-positive\|typeof\|isFinite\|NaN) guard` | Names a specific `\|\|` branch in a validator. Describe what input is rejected, not which branch fires. |
 | `(activates\|does not activate) the guard` | Refers to internal navigation/validation guard machinery. Describe the user-observable consequence (e.g., "does not warn when no answers exist"). |
 | `matches <PascalCaseType>` / `matches <internal helper>` | Asserts congruence with an internal type/helper. Describe the externally observable behavior. |

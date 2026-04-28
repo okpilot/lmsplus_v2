@@ -248,7 +248,7 @@ describe('getQuizReportQuestions', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('passes the session id to the correct-options RPC', async () => {
+  it('calls correct-options RPC with the session id', async () => {
     mockFromSequence(
       { data: { id: 'sess-1', ended_at: sessionRow.ended_at } },
       { count: 2 },
