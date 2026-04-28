@@ -113,6 +113,149 @@ pnpm exec vitest run "student-header"
 # NOT: pnpm exec vitest run "app/app/admin/.../[id]/_components/student-header.test.tsx"
 ```
 
+### Stubbing 'server-only' in Vitest (2026-04-11)
+Files with `import 'server-only'` cannot be resolved by Vite during test transforms
+because the package does not exist in the test environment. `vi.mock('server-only')`
+does NOT fix this — the error is thrown by Vite's import analysis before mocks run.
+
+Fix: add an alias in `apps/web/vitest.config.ts` pointing to a stub file:
+```ts
+// vitest.config.ts resolve.alias section:
+'server-only': path.resolve(__dirname, 'vitest.server-only-stub.ts'),
+```
+The stub file (`apps/web/vitest.server-only-stub.ts`) contains only `export {}`.
+This is a one-time config change — no per-test setup needed.
+
+### SubjectSelect mock: hardcoded onValueChange id must match fixture ids (2026-04-14)
+When the top-level SubjectSelect mock calls `onValueChange('sub-1')` unconditionally, ALL
+exam subject fixtures must use `id: 'sub-1'` — including variants testing different timeLimitSeconds,
+passMark, etc. Do NOT put duplicate `vi.mock('./subject-select')` calls inside test bodies to try
+to change the hardcoded id: nested vi.mock calls are hoisted and only the last one takes effect,
+causing "unable to find element" failures. Instead, create multiple fixture objects that all share
+`id: 'sub-1'` (spread-override the id-neutral fields) so the single top-level mock always selects
+the correct fixture.
+
+```ts
+const SUBJECT_MINUTES:  ExamSubjectOption = { id: 'sub-1', timeLimitSeconds: 3000, ... }
+const SUBJECT_HOURS_ONLY: ExamSubjectOption = { ...SUBJECT_MINUTES, timeLimitSeconds: 3600 }
+const SUBJECT_HOURS_AND_MINUTES: ExamSubjectOption = { ...SUBJECT_MINUTES, timeLimitSeconds: 5400 }
+// All three use id='sub-1' — the mock's onValueChange('sub-1') resolves every variant.
+```
+
+### Extending component-level FinishQuizDialog mock to expose new props (2026-04-26)
+When `quiz-session.test.tsx` mocks `FinishQuizDialog` with a trimmed prop set, extending it
+to expose new props (e.g. `onDiscard`, `isExam`) is safe — existing tests ignore the new
+attributes/buttons; the new tests can assert on `data-is-exam` and new stub buttons.
+
+Pattern for data-attribute wiring assertions:
+```tsx
+// In mock: <div data-testid="finish-dialog" data-is-exam={isExam ? 'true' : 'false'}>
+// In test:
+expect(screen.getByTestId('finish-dialog')).toHaveAttribute('data-is-exam', 'true')
+```
+
+Always mock the CORRECT Server Action module. When `handleDiscardSession` in
+`quiz-submit.ts` calls `discardQuiz` (from `actions/discard`), mock `'../../actions/discard'`
+— NOT `'../../actions/draft-delete'`. Read the import chain in `_hooks/quiz-submit.ts`
+before adding a mock to confirm which module resolves the action.
+
+### Testing controlled inputs with fireEvent vs userEvent (2026-04-11)
+For controlled React inputs where the component manages value via props (not useState),
+use `fireEvent.change(input, { target: { value: '...' } })` instead of
+`userEvent.clear() + userEvent.type()`. The `userEvent` sequence fails on controlled
+inputs because: clear triggers an onChange with '' which the parent ignores (value stays),
+then type appends onto the still-visible old value producing unexpected numbers (e.g., '5' + '8' = '58').
+
+Import `fireEvent` at the top level from `@testing-library/react` — no dynamic import needed:
+```ts
+import { fireEvent, render, screen } from '@testing-library/react'
+```
+
+Use `userEvent` for interactive behaviour (typing, tab navigation, click + wait) where
+the full interaction chain matters. Use `fireEvent.change` when testing a single precise
+value change on a controlled input.
+
+### Testing client components with internal state and Server Action calls (2026-04-11)
+For 'use client' dialog/form components that manage local state and call Server Actions:
+- Mock Server Actions with `vi.mock('../actions/...')` before the import of the component
+- Use `vi.mocked(action).mockResolvedValue({ success: true })` to control the response
+- Use `waitFor` after `userEvent.click` on submit to allow the async transition to complete
+- Test `isValid` by inspecting `(button as HTMLButtonElement).disabled` — no need to spy on internal state
+- Test the conversion between display units and submitted units (e.g. minutes ↔ seconds) by
+  asserting on the call args of the mocked action
+
+```ts
+vi.mock('../actions/upsert-exam-config', () => ({
+  upsertExamConfig: vi.fn(),
+}))
+import { upsertExamConfig } from '../actions/upsert-exam-config'
+
+it('calls action with correct args', async () => {
+  vi.mocked(upsertExamConfig).mockResolvedValue({ success: true })
+  render(<Dialog subject={subject} open={true} onOpenChange={vi.fn()} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Save Config' }))
+  await waitFor(() => { expect(upsertExamConfig).toHaveBeenCalledWith({ ... }) })
+})
+```
+
+### Testing composition hooks (wiring/pipeline hooks) (2026-04-14)
+For hooks that purely wire together two other hooks (e.g. `useExamPipeline` wires
+`useExamAnswerBuffer` + `useQuizSubmit`), mock both dependencies entirely with
+`vi.hoisted` + `vi.mock`. The subject under test is the wiring logic, so tests focus on:
+1. Return shape contains all expected keys
+2. Fixed arguments passed to dependencies (e.g. `isExam: true`)
+3. quizOpts fields forwarded to the correct dependency
+4. Navigation functions forwarded by identity (`toBe`)
+5. Return values from dependencies surfaced by identity (`toBe`)
+6. handleSelectAnswer wraps a sync call in `Promise.resolve()` — assert `toBeInstanceOf(Promise)`
+   and `await` the result to confirm the resolved value
+
+Pattern: define `mockUseQuizSubmit = vi.fn()` and return a full mock result object from it.
+In `beforeEach`, reset all mocks and re-set the default `mockReturnValue`.
+
+```ts
+const { mockUseQuizSubmit } = vi.hoisted(() => ({ mockUseQuizSubmit: vi.fn() }))
+vi.mock('./use-quiz-submit', () => ({ useQuizSubmit: (...a: unknown[]) => mockUseQuizSubmit(...a) }))
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  mockUseQuizSubmit.mockReturnValue(makeSubmitResult())
+})
+```
+
+### Testing state-management shells that render sub-components (2026-04-11)
+For 'use client' shells that manage `useState` and pass `onEdit`/`onOpenChange` down:
+- Mock child components with `vi.mock('./child-component', () => ({ ChildComponent: ({ subject, onEdit }) => <button onClick={onEdit}>{subject.name}</button> }))`
+- Use `data-testid` on mock buttons to identify which subject triggered an action
+- Test: initial state (no dialog rendered), open dialog, close dialog via mock's `onOpenChange(false)`, and switching between subjects
+- Pattern avoids testing Dialog rendering internals while still covering all state transitions
+
+### Testing interval-based hooks with fake timers (2026-04-13)
+For hooks that use `setInterval` / `clearInterval` internally (e.g. `useAutoSubmitCountdown`):
+- Call `vi.useFakeTimers()` in `beforeEach` and `vi.useRealTimers()` in `afterEach`
+- Advance time with `act(() => { vi.advanceTimersByTime(ms) })` — `act` is required to flush
+  React state updates that are triggered inside the interval callback
+- Use `renderHook` from `@testing-library/react`; pass props via `initialProps` and update them
+  with the returned `rerender` function
+- To test the ref-capture pattern (latest callback, not stale closure): mount with `firstFn`,
+  advance partially, `rerender({ onSubmit: secondFn })`, advance to zero — only `secondFn` fires
+- To test a double-fire guard (firedRef): advance to zero (fires once), then trigger the effect
+  again via a prop change, advance again — call count must still be 1
+- To test deactivation reset: advance partially, `rerender({ active: false })`, wrap in
+  `act(() => vi.advanceTimersByTime(0))` to flush the reset effect, then assert countdown === seconds
+
+```ts
+beforeEach(() => { vi.useFakeTimers() })
+afterEach(() => { vi.useRealTimers(); vi.resetAllMocks() })
+
+it('fires onSubmit once when countdown reaches zero', () => {
+  const onSubmit = vi.fn()
+  renderHook(() => useMyHook({ active: true, seconds: 3, onSubmit }))
+  act(() => { vi.advanceTimersByTime(3000) })
+  expect(onSubmit).toHaveBeenCalledTimes(1)
+})
+```
+
 ## Patterns established
 
 ### Testing async module initialisation with next/headers (packages/db, 2026-03-12)
@@ -228,6 +371,37 @@ calls to the top of the file at compile time. A plain `const` declared above the
 `undefined` at factory execution time — the mock silently uses `undefined` as the implementation,
 producing no-ops or crashes depending on the call site. The bug is invisible until the test runs.
 
+### Testing interval-based timers with fake timers (2026-04-13)
+Components that use `setInterval` (e.g. countdown timers) require `vi.useFakeTimers()` in
+`beforeEach` and `vi.useRealTimers()` in `afterEach`. Advancing time must be wrapped in
+`act()` so React state updates flush before assertions:
+
+```ts
+async function advanceTimers(ms: number) {
+  await act(async () => { vi.advanceTimersByTime(ms) })
+}
+```
+
+To test visual class changes at boundary values (e.g. ≤60s, ≤300s), advance fake time to
+put the component in the desired state, then inspect `container.querySelector('span')?.className`.
+
+### Testing ref-based lock semantics in hooks (2026-04-13)
+When a hook uses a `ref` for immediate locking (before React re-render), test the same-tick
+race by firing two calls without awaiting between them and using `Promise.all`:
+
+```ts
+await act(async () => {
+  const p1 = result.current.confirmAnswer('opt-a')
+  const p2 = result.current.confirmAnswer('opt-b')
+  ;[firstReturn, secondReturn] = await Promise.all([p1, p2])
+})
+expect(firstReturn).toBe(true)
+expect(secondReturn).toBe(false)
+```
+
+This works because the ref is updated synchronously inside the first call before the second
+call's guard check runs — unlike `useState`, which batches and defers.
+
 Confirmed failure case (2026-03-20, subject-row.test.tsx): sonner toast mocks declared as plain
 `const` above `vi.mock('sonner', ...)` — both `mockToastSuccess` and `mockToastError` were
 `undefined` inside the factory. Caught by the test run, fixed before commit.
@@ -292,6 +466,37 @@ mockFrom.mockReturnValue({
   }),
 })
 ```
+
+### Testing useTransition + sonner toast in 'use client' components (2026-04-11)
+When a component uses `useTransition` to call a Server Action and shows a sonner toast
+on success/error, mock both the action module and sonner. Because the `vi.mock()` factories
+do not reference hoisted variables (they return plain `vi.fn()`), no `vi.hoisted()` is needed.
+Import the mocked modules AFTER the `vi.mock()` calls to get typed mock refs:
+
+```ts
+vi.mock('../actions/toggle-exam-config', () => ({
+  toggleExamConfig: vi.fn(),
+}))
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}))
+
+import { toggleExamConfig } from '../actions/toggle-exam-config'
+import { toast } from 'sonner'
+```
+
+Use `vi.mocked(toggleExamConfig).mockResolvedValue(...)` in each test, and
+wrap assertions in `waitFor` because `startTransition` is async:
+
+```ts
+await userEvent.click(toggleButton)
+await waitFor(() => {
+  expect(toast.success).toHaveBeenCalledWith('Exam mode disabled')
+})
+```
+
+`e.stopPropagation()` prevents the card's outer `onClick` from firing — verify this
+by asserting `onEdit` was NOT called when the toggle button is clicked.
 
 ### Testing table-row components in jsdom (2026-04-06)
 Render `<TableHead>`, `<TableRow>`, and `<TableCell>` components inside a minimal
@@ -3965,4 +4170,166 @@ The redirect URL omits `sort` and `dir` when they are the default values (`sort=
 
 ### Suite state after this commit
 184 tests across 11 commit-touched test files — all passing (+3 new tests).
+
+### Multi-table Supabase dispatch with different terminal methods (2026-04-11)
+When a query function calls `supabase.from()` on 6+ tables via `Promise.all`, each table
+may terminate its chain differently (`.order()`, `.is()`, or `.select()`). Use per-table
+factory functions and `mockFrom.mockImplementation((table: string) => { switch ... })`.
+
+Key insight: the terminal method must return a real Promise so `Promise.all` resolves it.
+Use `vi.fn().mockResolvedValue(resolved)` on the terminal — NOT `mockReturnValue`.
+
+```ts
+// Tables ending in .order() (easa_subjects, easa_topics, easa_subtopics)
+const makeOrderChain = (data: unknown[], error: FakeError) => ({
+  select: vi.fn().mockReturnThis(),
+  order: vi.fn().mockResolvedValue({ data, error }),
+})
+
+// Tables ending in .is(null) (exam_configs, questions — have .eq() filters before)
+const makeFilterChain = (data: unknown[], error: FakeError) => ({
+  select: vi.fn().mockReturnThis(),
+  eq: vi.fn().mockReturnThis(),
+  is: vi.fn().mockReturnValue(Promise.resolve({ data, error })),
+})
+
+// Tables ending directly in .select() (exam_config_distributions — no extra filters)
+const makeSelectChain = (data: unknown[], error: FakeError) => ({
+  select: vi.fn().mockResolvedValue({ data, error }),
+})
+
+mockFrom.mockImplementation((table: string) => {
+  switch (table) {
+    case 'easa_subjects': return makeOrderChain(subjectsData, subjectsError)
+    case 'exam_configs':  return makeFilterChain(configsData, configsError)
+    case 'exam_config_distributions': return makeSelectChain(distributionsData, distributionsError)
+    // ...
+  }
+})
+```
+
+`mockReturnThis()` works on filter chains because it returns the same object, so chained
+`.eq().eq().is()` all run on the same chain object whose `.is()` returns the real Promise terminal.
+
+Pattern established in `apps/web/app/app/admin/exam-config/queries.test.ts` (25 tests, all passing).
+
+### Testing role="alert" on error paragraphs (2026-04-26)
+When a commit adds `role="alert"` to error `<p>` elements for accessibility, the existing
+text-presence tests do NOT cover the new attribute. Add targeted `role="alert"` assertions
+alongside (not replacing) existing text-content assertions:
+
+```ts
+it('renders the error paragraph with role="alert"', () => {
+  // arrange: trigger the error state
+  expect(screen.getByRole('alert')).toHaveTextContent('the error text')
+})
+
+it('does not render a role="alert" element when there is no error', () => {
+  // arrange: no error state
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+```
+
+When a component has multiple conditional error paragraphs (study-mode error, auth error, exam error),
+write a separate `role="alert"` test for each branch — they cannot fire simultaneously, so
+`getByRole('alert')` (singular) works in each isolated test. The "no-error" test covers the
+combined absence of all branches.
+
+Pattern applied to `finish-quiz-dialog.test.tsx` (2 new tests) and `quiz-config-form.test.tsx`
+(3 new tests + 4 exam-mode tests) in commit `371f361`.
+
+### Lifecycle integration test for storage-layer guard + bootstrap redirect (2026-04-27)
+When a storage guard (e.g. `readActiveSession`) silently rejects and returns `null`, the bootstrap
+hook falls through to `router.replace`. The gap to cover is: a test that verifies the redirect
+fires even when the nominal session WOULD have existed (but was stripped by the guard), not just
+the "nothing in storage at all" case. Both are distinct because real-world bugs can silence the
+guard without clearing the slot.
+
+```ts
+it('redirects to /app/quiz when readActiveSession rejects a stale exam entry', () => {
+  // Storage guard already rejected the entry and returned null
+  mockReadActiveSession.mockReturnValue(null)
+  renderHook(() => useSessionBootstrap(USER_ID))
+  expect(mockRouter.replace).toHaveBeenCalledWith('/app/quiz')
+  expect(mockClearActiveSession).not.toHaveBeenCalled() // caller must not double-clear
+})
+```
+
+### Lifecycle integration test for exam-mode resume path (2026-04-27)
+Bug-3a class of bugs: the hook sets `recovery` from an exam `ActiveSession` (full exam fields),
+user clicks Resume, `loadSessionQuestions` resolves, `toSessionData` converts — the resulting
+`session` must carry `startedAt`/`timeLimitSeconds`/`passMark` for the loader to forward to
+`QuizSession`. This full path is distinct from unit tests on each step individually.
+
+Key: mock `toSessionData` to return an exam `SessionData` fixture (not `SESSION_DATA`), then
+assert `result.current.session?.startedAt` etc. AFTER `handleRecoveryResume` resolves.
+
+```ts
+mockToSessionData.mockReturnValue(EXAM_SESSION_DATA)  // critical: must override default mock
+
+await act(async () => { result.current.handleRecoveryResume() })
+await waitFor(() => expect(result.current.session).not.toBeNull())
+
+expect(result.current.session?.startedAt).toBe('2026-04-27T12:00:00.000Z')
+expect(result.current.session?.timeLimitSeconds).toBe(1800)
+expect(result.current.session?.passMark).toBe(75)
+expect(result.current.recovery).toBeNull()       // cleared on success
+expect(mockToSessionData).toHaveBeenCalledWith(EXAM_ACTIVE)  // called with the right input
+```
+
+---
+
+## Files tested in commits 082830d + 8707963 (2026-04-28 — overdue grace alignment)
+
+| Source file | Test file | Notes |
+|---|---|---|
+| `apps/web/app/app/quiz/actions/_overdue-helpers.ts` | `actions/_overdue-helpers.test.ts` | **NEW** — 26 tests: `extractQuestionIds` (null, non-object, missing field, not-array, empty, non-string, empty-string elements, valid); `extractPassMark` (null, missing, zero, negative, >100, 100-boundary, 1-boundary, non-number, Infinity, valid); `isExamOverdue` (zero/negative limit, bad date, early, at deadline, +29s grace, +31s past grace, well past) |
+| `apps/web/app/app/quiz/_hooks/use-exam-start.ts` | `_hooks/use-exam-start.test.ts` | **EXTENDED** — +1 test: still surfaces correct user-facing error when orphan discard itself returns `{ success: false }` |
+
+### isExamOverdue grace-window boundary tests (2026-04-28)
+`isExamOverdue` now returns `true` only after `startedAt + timeLimitSeconds + 30s`. This matches
+`batch_submit_quiz` (mig 047) and `complete_overdue_exam_session` (mig 052). The three load-bearing
+boundary tests use `vi.useFakeTimers()` / `vi.setSystemTime()` and `vi.useRealTimers()` at the end:
+
+```ts
+// At deadline (0s past) — false
+vi.setSystemTime(60_000)              // started=epoch, limit=60
+expect(isExamOverdue(startedAt, 60)).toBe(false)
+
+// At deadline + 29s — false (still in grace)
+vi.setSystemTime(60_000 + 29_000)
+expect(isExamOverdue(startedAt, 60)).toBe(false)
+
+// At deadline + 31s — true (grace expired)
+vi.setSystemTime(60_000 + 31_000)
+expect(isExamOverdue(startedAt, 60)).toBe(true)
+```
+
+Use `vi.useFakeTimers()` inside each `it` block (not `beforeEach`) so the non-fake-timer tests
+that follow are unaffected. Always call `vi.useRealTimers()` before exiting the test.
+
+### Orphan discard failure path: test observable state, not the error log
+When `discardQuiz` returns `{ success: false }` during the sessionStorage-write-failure path
+in `useExamStart`, the only externally observable difference from the success-cleanup case is:
+the user-facing error message and loading state are identical. The `console.error` call is
+an implementation detail — do NOT spy on it. Assert instead that:
+1. `result.current.error` equals the user-facing message (not null, not the cleanup error)
+2. `result.current.loading` is `false`
+3. `mockRouterPush` was NOT called
+
+```ts
+mockDiscardQuiz.mockResolvedValue({ success: false, error: 'Not found' })
+// ...sessionStorage throws...
+expect(result.current.error).toBe('Unable to start Practice Exam right now. Please try again.')
+expect(result.current.loading).toBe(false)
+expect(mockRouterPush).not.toHaveBeenCalled()
+```
+
+### isExamOverdue: do NOT add near-boundary fixtures to get-active-exam-session.test.ts
+The existing overdue fixture (`time_limit_seconds: 60`, `started_at: 10:00`, `NOW: 10:30`) is
+30 minutes past deadline — far beyond the 30s grace. The grace window change from 0→30s does
+NOT affect the existing assertion (30min >> 90s). No near-boundary fixture is load-bearing
+here — the boundary is already unit-tested in `_overdue-helpers.test.ts`. Do not add a
+near-boundary fixture to `get-active-exam-session.test.ts` as it would couple the integration
+test to a magic number that could become stale when the grace constant changes again.
 

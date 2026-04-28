@@ -98,6 +98,107 @@
 | RPC `.rpc()` call result not destructured for error (silent swallow on RPC failure) | 1 | 2026-03-16 | Watch — f1f6c32 (fix/45-remove-answer-keys-from-test): supabase.rpc() call result was not destructured for { error }; existing code-style.md Section 5 rule covers .insert/.update/.delete/.upsert mutations; .rpc() calls are semantically equivalent — any Supabase client call that can fail must destructure { data, error }; fixed in 7029f4e; first occurrence as a named gap in the rule's coverage; if a second .rpc() call ships without error destructuring, extend the code-style.md rule to explicitly list .rpc() alongside mutation methods |
 | `NextResponse.redirect()` dropping cookies set via `cookies()` API in Route Handler | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): verifyOtp wrote session cookies via Supabase cookies() API; NextResponse.redirect() does not carry those cookies to the browser — cookies set via the Next.js cookies() API only flow through responses built by the framework's own redirect() helper; fixed by switching to `redirect()` from `next/navigation`; applies to any Route Handler that mutates cookies (auth, session, etc.) and then redirects — always use next/navigation `redirect()` or copy cookies onto the NextResponse manually; first occurrence |
 | `{{ .RedirectTo }}` in Supabase email templates passes full URL, not pathname | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): Supabase passes the full absolute URL (e.g. `http://localhost:3000/auth/reset-password`) as the `next` query param when `{{ .RedirectTo }}` is used in email templates; if code naively appends this to a base URL, the full URL becomes a path segment and doubles the origin; fixed by extracting `.pathname` from a `new URL(next)` call before appending; applies to any code that reads a `next` param arriving from a Supabase email template redirect; first occurrence |
+
+## 2026-04-28 — Exam E2E Specs CI Unblock (commits ddf8ebf, 68fc26e)
+
+**Context:** Two-commit session. Commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit #568) addressed CI failure in newly added exam-flow.spec.ts and exam-recovery.spec.ts (commit 553fe4d). The specs failed at `expect(button).not.toBeDisabled()` because the CI seed script (seed-e2e.ts) did not provide the MET exam_configs row the specs assumed; spec doc-comments incorrectly named seed-exam-eval.ts (CI-independent, for manual eval setup) as the seed source. Commit 68fc26e (test(quiz): tighten seed-e2e exam config idempotency guards) addressed semantic-reviewer SUGGESTIONs on the seed script.
+
+**Code reviewer (ddf8ebf):** 0 BLOCKING, 0 WARNING. Clean.
+
+**Semantic reviewer (ddf8ebf):** 0 CRITICAL, 0 ISSUE. 2 SUGGESTION, 7 GOOD.
+- Suggestions: (1) distribution SELECT should filter `subtopic_id IS NULL`; (2) reused exam_config rows should validate total_questions/time_limit/pass_mark and warn on drift. Both addressed in 68fc26e.
+
+**Semantic reviewer (68fc26e):** 0 CRITICAL, 0 ISSUE, 0 SUGGESTION. 3 GOOD. Suggestions from ddf8ebf resolved.
+
+**Implementation-critic (ddf8ebf):** APPROVED, 0 findings.
+
+**Implementation-critic (68fc26e):** APPROVED, 0 findings.
+
+**Doc updater:** No doc updates needed. Clean.
+
+**Test writer:** E2E specs exercised by Playwright; no new unit tests gap identified.
+
+**Pattern analysis:**
+
+1. **Spec doc-comment naming wrong seed script (watch)** — NEW, count 1. Three newly added E2E specs (exam-flow.spec.ts, exam-recovery.spec.ts, and one other) had doc-comments citing `scripts/seed-exam-eval.ts` as a seed dependency, but CI actually runs `scripts/seed-e2e.ts`. The spec doc was outdated (likely copied from an earlier PR that used seed-exam-eval.ts). Root cause: E2E spec doc-comments are not automatically validated against the CI seed script — drift is invisible until the spec fails in CI. First occurrence — log and watch. If a second E2E spec ships with an incorrect seed script name in its doc-comment, propose a linting or CI check that validates spec doc-comment seed-script references against the actual scripts run in the CI matrix.
+
+2. **Locator substring collision without exact: true** — NEW, count 1 (but 2 occurrences within same session). Two getByRole('button', { name: '<short>' }) locators matched substring-colliding button names:
+   - `getByRole('button', { name: 'Practice Exam' })` matched both "Start Practice Exam" and "Resume Practice Exam" buttons in the same spec, causing test to interact with the wrong button.
+   - Same issue in a second spec with a similar pattern.
+   Fix: add `{ exact: true }` to disambiguate.
+   Root cause: short substring names have high collision risk in UIs with similarly-named buttons. First occurrence of naming this as a pattern — watch. Pattern appears in 2 locators within the same session, suggesting the codebase has other collision-prone getByRole calls. Recommendation: if a third similar collision is found, grep all e2e/specs for `getByRole` calls without `exact: true` where the name is <3 words, review for collision risk, and update test-writer patterns.md with explicit guidance on when exact: true is mandatory.
+
+3. **setTimeout/waitForURL arithmetic overly tight** — NEW, count 1. test.setTimeout(90) was set expecting: timer startup (negligible) + waitForURL(75) + buffer = ~80s. However, the test flow had a 60-second timer plus the 75-second waitForURL, which alone exceeded the 90-second total. Root cause: timeout values (test.setTimeout, waitForURL timeout, internal timers) were not summed when planning the total. Fixed by bumping test.setTimeout(90→150) and waitForURL(75→120) to provide realistic headroom. First occurrence — log and watch. If a second E2E spec fails with timeout-exceeded errors in CI, propose a test-writer pattern note: "Sum all internal timers + network timeouts when setting test.setTimeout; add 20–30% buffer for GH Actions CI variance."
+
+4. **URL race in waitForURL when page bounces** — NEW, count 1. exam-recovery.spec.ts had a if/else checking whether page.reload() navigated to /app/quiz/session or bounced to /app/quiz. The waitForURL(path) at the start of the reload branch matched the URL state at the instant navigation began, even though the page subsequently bounced, locking the test into a doomed if-branch. Fixed by replacing the if/else with locator.or() content-race assertion that checks what actually rendered, not what URL the page momentarily showed. Root cause: waitForURL is a navigation-waiting primitive; it is not robust for "page may stay at URL or bounce" scenarios. First occurrence — log and watch. If a second spec has a "page may navigate or bounce" scenario that uses waitForURL in an if/else control flow and flakes in CI, update test-writer patterns.md: "Use locator.or() content-race for specs where the page may navigate or bounce to multiple destinations — do not use waitForURL in an if/else because the URL transition is transient and may lock into the wrong branch."
+
+5. **Product bug silently masked by test fixme** — NEW, count 1. A 0-answer auto-submit hangs client-side after server completes (#568). Root cause not in this commit's scope — logged as test.fixme() pending root-cause investigation in #568. The pattern itself (0-answer server completion with client-side timeout) is a read-after-write race between Server Action completion and UI state update. First occurrence as a named observation — not a rule-change candidate but worth logging as a known gap. Watch for: other read-after-write races between Server Action promises and RSC render boundaries.
+
+**Actions taken:**
+- Frequency table: 5 new watch rows added — all at count 1. None hit the 2+ threshold for rule changes.
+- Logged in memory: patterns 1–5 above, with watch guidance for each.
+
+**No rule changes applied this cycle.** All patterns are first occurrences. Rule change threshold requires 2+ occurrences across different commits.
+
+**False positives:** none detected. Implementation-critic and semantic-reviewer approved both commits cleanly.
+
+**Positive signals:**
+- Code reviewer clean on a commit involving complex E2E spec corrections and seed-script changes — no mechanical style regressions.
+- Semantic reviewer approved the seed-script idempotency improvements with 3 GOOD patterns (correct use of SELECT-then-insert idempotency, correct validation logic, correct warning-on-drift behavior).
+- Both commits passed implementation-critic without revision — staged changes matched the plan and approach.
+- 0 BLOCKING or CRITICAL findings across both commits — CI unblock was achieved cleanly.
+
+---
+
+## PR #523 Round 8 Findings (2026-04-28)
+
+### Semantic-Reviewer False Positive (count now 2)
+| Issue Type | Count | Last Seen | Status |
+|-----------|-------|-----------|--------|
+| False positive on Postgres transaction semantics (race-condition claim without understanding isolation) | 2 | 2026-04-28 | WATCH ESCALATION — first: 2026-04-22 claimed `PERFORM complete_overdue_exam_session(...)` could raise on race when session passed both deadline checks; reviewer did not account for transaction-stable `now()` — all predicates evaluated once at transaction start, inverse conditions cannot both be false; second: 082830d cycle — claimed mig 053 branching (below grace → exam.completed, above grace → exam.expired) could both fire on same transaction; same root cause — reviewer does not model Postgres transaction semantics; two occurrences across different PR cycles warrant escalation from "validate before fixing" to documented pattern; recommend: when semantic-reviewer flags a race claim on server-side state, cross-check the isolation level and `now()` usage before accepting |
+
+### New Patterns (First Occurrence — Watch)
+
+| Issue Type | Count | Last Seen | Status |
+|-----------|-------|-----------|--------|
+| File-size warning on defensive error-handling code (load-bearing try/catch inflating file) | 2 | 2026-04-28 | WATCH — first: use-exam-start.ts hit 86/80 lines, +6 due to new try/catch + orphan-discard cleanup on handoff failure (082830d); second: quiz-submit.ts hit 206/200 lines, +6 due to wrapping submitEmptyExamSession promise rejection in try/catch; both are defensive fixes (prevent spinner stuck state, prevent orphaned server session) and the error handling is load-bearing; file-size rule is strict but code-reviewer reports at WARNING level; pattern: when a fix adds defensive error paths that inflate a file over the limit, either split out the error handler to a helper or accept WARNING and note in fix commit why the overage is necessary; two occurrences in same cycle, both same root cause (defensive error boundary) |
+| Audit-event branching (event_type reflects actual outcome not caller intent) | 1 | 2026-04-28 | WATCH — mig 053 introduces pattern where `complete_empty_exam_session` RPC branches the `event_type` on actual deadline state (above grace: exam.expired, below grace: exam.completed) rather than hard-coding event_type = exam.expired for all paths; rationale: audit trail should reflect what actually happened to the session, not the caller's reason for calling the function; pattern: when an RPC terminates multiple paths but some should audit differently, branch event_type inside the RPC using WHERE clause conditionals; first occurrence; if second RPC adopts this pattern, consider documenting in docs/database.md RPC signatures section as standard practice for multi-path RPCs |
+
+### Test Coverage Gaps Closed
+
+| Pattern | Count | Status |
+|---------|-------|--------|
+| New helper/utility file shipped without co-located tests (row 58) | 8 (was 7) | RULE IN EFFECT — _overdue-helpers.ts (643732c) added 26 tests in co-located _overdue-helpers.test.ts same commit (code-reviewer BLOCKING catch was preempted); rule continues to hold; count incremented for completeness |
+
+### Migration Mirroring Observation
+
+| Pattern | Count | Last Seen | Status |
+|---------|-------|-----------|--------|
+| Migration file duplication (supabase/migrations/ timestamped + packages/db/migrations/ numbered) | ~120+ | 2026-04-28 | NORMALIZED PATTERN — mig 052/053 mirrored to supabase/ (20260428000002_*, 20260428000003_*); this is intentional 2x-write protection: each write path has own source of truth for verification (supabase CLI uses timestamped; db package uses numbered); tooling gap is acceptable trade-off for independent verification; pattern is mature, no change recommended |
+
+## Validation Findings
+
+**False Positive Validation (Semantic-Reviewer, 082830d):**
+- Claim: mig 053 branching could execute both completeness paths in same transaction
+- Analysis: Postgres evaluates `started_at + time_limit + interval '30s'` once at transaction start. At the moment `now()` is computed, the session row is locked (FOR UPDATE from start_exam_session); the branch condition (above/below grace) cannot change mid-transaction. Inverse predicates cannot both be false.
+- Decision: VALIDATED AS FALSE POSITIVE. Did not apply suggested fix. Correct code remains in place.
+
+**Code-Reviewer WARNING Validation (082830d, 643732c):**
+- Warning: use-exam-start.ts 86/80 lines (+6), quiz-submit.ts 206/200 lines (+6)
+- Root cause: New try/catch blocks for defensive error handling (orphan cleanup, rejected promise coercion)
+- Analysis: Both error paths are load-bearing; code-reviewer does not flag as BLOCKING, only WARNING. Both files remain functional at their respective line counts with clear error handling. The 6-line overages are driven by multi-line error messages and cleanup logic, not code smell.
+- Decision: ACCEPTED WARNING. Files remain at WARNING level. No violation; noted in fix commit that overages are necessary for correctness.
+
+---
+
+## Lessons (by date)
+
+### 2026-04-28 — PR #523 Round 8
+1. **Semantic-reviewer false-positive escalation**: race-condition claims on Postgres server-side state require transaction-semantics validation. On second occurrence across different cycles, the pattern warrants explicit documentation in agent memory to avoid re-validating the same misconception in future PRs. Recommend: include transaction isolation + now() usage check when evaluating race claims on RPCs.
+
+2. **Load-bearing error handling inflates file sizes**: defensive error boundaries are necessary for correctness (preventing stuck spinners, orphaned sessions) but can push files over size limits. The rule is still sound (encourages decomposition), but when a WARNING is driven by load-bearing error handling rather than feature bloat, the warning is proportional, not actionable. Acceptable pattern: acknowledge the WARNING, note in commit message why overage is unavoidable without harming code structure.
+
+3. **Audit-event branching captures actual outcome**: when an RPC serves multiple code paths and the audit outcome differs by path, branch event_type inside the RPC using the same conditional that branches the business logic. This ensures the audit trail reflects what actually happened, not the caller's intent or the primary code path's assumption. Pattern emerging as best practice — watch for adoption in next RPC.
 | Missing `setSubmitting(true)` before async call in form/button handler | 2 | 2026-04-27 | RULE CANDIDATE — first: 375bde5 handleSubmitSession async call within render was missing setSubmitting guard; semantic-reviewer ISSUE; second: same pattern likely in other exam-session handlers; PR #523 contained multiple 0-answer paths; test-writer added test 8782a18; root cause: async submission paths should always set loading state before the call, not after; pattern: any form/button handler that triggers an async operation must call `setSubmitting(true)` before awaiting; applies across all form handlers, not just exam mode; if third occurrence in different components, add to code-style.md form handler pattern or agent rules |
 | Actor role lookup subquery missing `deleted_at` filter in mutation audit path | 3 | 2026-04-27 | RULE PROPOSED — #550 first surfaced in batch_submit_quiz (bdeafc3, 2026-04-14): actor_role subquery SELECT did not filter `deleted_at IS NULL`, allowing deleted user records to corrupt audit events; re-surfaced in 375bde5 for submitEmptyExamSession path (distinct RPC, same oversight); semantic-reviewer flagged for 2nd time explicitly; third crossing-reference in 8782a18 notes this as part of the pattern; root cause: SECURITY DEFINER RPCs that insert audit events must apply soft-delete filters on all related-table lookups that include user/session references; rule already in security.md covers soft-delete RPCs generally but does not specifically require audit-path subqueries to filter on soft-delete; **PROPOSED:** add to security.md rule 6 carve-out section: "Every audit_events INSERT subquery must include `AND deleted_at IS NULL` on any user/session foreign-key lookups" — document as non-negotiable audit-path hygiene; count=3, pattern confirmed across multiple RPCs and commits |
 | Idempotent RPC returns hardcoded values instead of reading current DB state | 2 | 2026-04-27 | WATCH — first: batch_submit_quiz idempotent replay (d057128, 2026-03-14) used hardcoded pass value instead of checking exam config on replay; semantic-reviewer flagged as SUGGESTION; second: submitEmptyExamSession idempotent path (375bde5) returns hardcoded `{ passPercentage: 100 }` instead of querying exam_configs; semantic-reviewer flagged as SUGGESTION in 375bde5, resolved in 8782a18 to read actual value from DB; distinct from the soft-delete pattern (that is about lookup hygiene — this is about correctness of returned values on replay); second occurrence warrants watching for a third; when an idempotent RPC returns a computed value on replay, it must read the current state from the DB, not return a cached/hardcoded estimate |
@@ -161,6 +262,7 @@
 | mode-flag-as-flag-not-flow (feature mode flag tested as a toggle, never as a full lifecycle flow) | 1 | 2026-04-27 | RULE ADDED — PR #523: `isExam` toggle tests existed but no test connected start → in-progress → timer-expiry → redirect; the lifecycle gap made the wrong-redirect bug invisible at the component and hook level; rule added to code-style.md §7 (Lifecycle Integration Test for New Feature Modes) and agent checklist (flag-mode-flag-no-lifecycle). Count: 1. |
 | stateful-ui-no-reload-test (stateful UI with in-memory or localStorage state shipped without a reload/recovery test) | 1 | 2026-04-27 | RULE ADDED — PR #523 exam refresh-resume bug: no test reloaded the page mid-exam; the gap between localStorage state and server session recovery was undetected until CodeRabbit caught it in production review; rule added to code-style.md §7 (Refresh / Reload Test for Stateful UI) and agent checklist (flag-stateful-flow-no-reload). Count: 1. |
 | audit-actor-subquery-soft-delete (audit_events INSERT subqueries missing deleted_at IS NULL on FK lookups) | 3 | 2026-04-27 | RULE ADDED — count bumped to 3: first (#550 batch_submit_quiz, bdeafc3 2026-04-14), second (complete_empty_exam_session 375bde5 2026-04-27), third (cross-reference in 8782a18 2026-04-27); pattern hit count=3 — promoted from RULE PROPOSED to hard rule in security.md §10. Every INSERT INTO audit_events must filter deleted_at IS NULL on all FK subquery lookups (actor_id, actor_role, session-derived columns). |
+| Dual-source UI surface (new feature + pre-existing fallback writing to same key) | 1 | 2026-04-28 | Watch — 82e64de (fix/quiz): new ResumeExamBanner (server-sourced via getActiveExamSession) shipped alongside pre-existing QuizRecoveryBanner (localStorage-sourced via useQuizRecovery); both read from quiz-active-session key; when exam mode began writing mode:exam entries to that key, both surfaces rendered simultaneously. Root cause: new feature created new session type using shared storage key without suppressing legacy client-sourced surface. Fixed by filtering exam-mode entries in useQuizRecovery. First named occurrence — log and watch. Watch for: (1) other localStorage keys where multiple session types write, (2) UI surfaces rendering from shared localStorage without mode-awareness, (3) manual eval findings invisible to unit tests. || Suppression-without-failure-path (filtering one source creates blind spot if canonical source fails) | 1 | 2026-04-28 | Watch — 82e64de (fix/quiz): suppressing exam-mode entries in useQuizRecovery did not handle getActiveExamSession() failure (DB or auth error). When canonical source failed, both ResumeExamBanner and suppressed QuizRecoveryBanner rendered empty, leaving zero recovery surfaces with no error signal. Semantic-reviewer ISSUE: "suppression introduces silent-failure path". Root cause: suppression correct in success path (two surfaces wrong), incomplete in failure path (zero surfaces with no signal also wrong). Fixed in 53b8498 with role=alert error notice when lookup fails. First named occurrence — log and watch. Pattern: any suppression of fallback surface must pair with explicit error handling on canonical source. || Manual-eval bug invisible to unit tests (dual-source UI rendering only visible in full app context) | 2 | 2026-04-28 | count 2 — first: 2026-04-27 PR #523 round 7 (refresh-resume bug: localStorage state interacts with server component render, invisible in jsdom); second: 82e64de (dual-source banner rendering: both ResumeExamBanner + QuizRecoveryBanner render simultaneously when exam in progress, visible only in full app context with both surfaces mounted). Root cause: jsdom test environments run components in isolation; no co-located test exercises scenario where both surfaces mounted on same page with overlapping session data. Pattern recurrence actionable: for any new session-recovery or stateful feature shipping with both server-sourced and client-sourced surfaces, require integration test (or E2E test) mounting both surfaces and verifying only one renders for given session state. Distinct from "Refresh / Reload Test" (code-style.md §7, count 1) which covers page-reload; this covers dual-surface rendering in same render. |
 
 ## Lessons Learned
 
@@ -3871,3 +3973,78 @@ No rule changes. The comment-trimming technique for line-limit compliance on ato
 ---
 
 **Learner cycle complete for 5b36d7e.** No rule changes to code-style.md, security.md, biome.json, or CLAUDE.md. Pattern confirmed and technique documented. All agents clean. System learning working as intended.
+
+### 2026-04-28 (cycle 3: exam-recovery suppression + manual eval) — Commits 82e64de, 932f231, 53b8498
+
+**Context:** Three-commit cycle fixing a dual-source UI bug in the exam-mode session recovery flow. The new ResumeExamBanner (server-sourced via getActiveExamSession) ships alongside the pre-existing QuizRecoveryBanner (localStorage-sourced via useQuizRecovery). Both render when an exam is in progress because exam mode writes to the same localStorage key (quiz-active-session) that legacy study sessions use.
+
+**Commit 82e64de — fix(quiz): hide legacy recovery banner for exam-mode sessions**
+
+**Analysis:** The fix suppresses exam-mode entries in useQuizRecovery by filtering `mode === 'exam'` sessions to null, leaving ResumeExamBanner as the canonical recovery surface. The code change is minimal (4-line filter + 1-line test) and was discovered by manual, in-browser evaluation (user action, not unit tests).
+
+**Commit 932f231 — test(quiz): pin suppression boundary**
+
+**Analysis:** The test-writer agent added 2 boundary tests: mode:study passes through (not suppressed), and undefined mode passes through (backward-compat for pre-field localStorage entries). These tests pin the suppression boundary and prevent future refactors from widening the filter unintentionally.
+
+**Commit 53b8498 — fix(quiz): surface explicit error when active-exam lookup fails**
+
+**Analysis:** This commit fixes a regression introduced by 82e64de. When getActiveExamSession() returned {success: false} (DB or auth error), both the new ResumeExamBanner and the suppressed legacy QuizRecoveryBanner rendered as empty, leaving the student with zero recovery surfaces and no error signal. The fix adds a role=alert error notice at the top of /app/quiz when the lookup fails.
+
+**Agent findings:**
+
+- **Commit 82e64de (code-reviewer):** 0 BLOCKING, 0 WARNING. Clean.
+- **Commit 82e64de (semantic-reviewer):** 1 ISSUE: "When getActiveExamSession() fails, the suppressed recovery banner leaves no fallback surface, creating a silent failure path."
+- **Commit 82e64de (doc-updater, test-writer):** Clean.
+- **Commit 932f231 (all agents):** Clean.
+- **Commit 53b8498 (all agents):** Clean. Fixes the ISSUE from 82e64de.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] Dual-source UI surface: new server-sourced feature shipped alongside pre-existing client-sourced fallback for same session type**
+
+   Both ResumeExamBanner and QuizRecoveryBanner read from shared localStorage key. When exam mode began writing to that key with a new mode field, both surfaces could render simultaneously.
+
+   Root cause: New exam-mode feature created mode:exam entries using the same quiz-active-session key as legacy study sessions (mode:study or undefined). Feature shipped with new server-sourced surface (ResumeExamBanner) but did not suppress legacy client-sourced surface (QuizRecoveryBanner) that was now surfacing stale exam entries.
+
+   First named occurrence. **Log and watch.** Watch for: (1) other localStorage keys where multiple session types write to same key, (2) UI surfaces rendering from shared localStorage without mode-awareness, (3) manual eval findings invisible to unit tests.
+
+2. **[NEW — count 1] Suppression-without-failure-path: filtering one source creates blind spot if canonical source fails**
+
+   82e64de suppresses exam-mode entries in useQuizRecovery, but does not handle failure of getActiveExamSession() (the canonical source). Semantic-reviewer caught as ISSUE: "suppression introduces silent-failure path".
+
+   Root cause: When suppressing a fallback source to elevate a new canonical source, failure path of canonical source must be explicitly handled. Suppression correct in success path (two surfaces wrong), incomplete in failure path (zero surfaces with no signal also wrong).
+
+   First named occurrence. **Log and watch.** Watch for: any suppression of fallback surface should pair with explicit error handling on canonical source. Validated by semantic-reviewer ISSUE on 82e64de; fix in 53b8498 adds error notice when lookup fails.
+
+3. **[REPEAT — count 2] Manual-eval bug invisible to unit tests (dual-source UI rendering only visible in full app context)**
+
+   First occurrence: 2026-04-27, PR #523 round 7 (refresh-resume bug).
+
+   This occurrence: 82e64de dual-source banner rendering (both ResumeExamBanner and QuizRecoveryBanner render simultaneously when exam in progress) — visible only when both server-sourced and localStorage-sourced surfaces are rendered on same page in full app context.
+
+   Root cause: jsdom test environments run components in isolation. No co-located test exercises scenario where both surfaces mounted on same page with overlapping session data.
+
+   **Second occurrence confirmed.** This pattern now at count 2 and actionable: for any new session-recovery or stateful feature shipping with both server-sourced and client-sourced surfaces, require integration test (or E2E test) mounting both surfaces and verifying only one renders for given session state. Distinct from "Refresh / Reload Test" rule (code-style.md Section 7, count 1) which covers page-reload; this covers dual-surface rendering in same render.
+
+**Actions taken:**
+
+- Frequency table: "Dual-source UI surface (new feature + pre-existing fallback writing to same key)" — count 1, added 2026-04-28.
+- Frequency table: "Suppression-without-failure-path (filtering one source creates blind spot if canonical source fails)" — count 1, added 2026-04-28. Note: "Validated by semantic-reviewer ISSUE on 82e64de; fix in 53b8498 adds error notice when lookup fails."
+- Frequency table: "Manual-eval bug invisible to unit tests (dual-source UI rendering)" — count updated 1 → 2, last-seen 2026-04-28. Note: "Second occurrence: dual-source banner rendering. Pattern reconfirmed. Test-writer guidance needed."
+
+**Recommended changes:**
+
+- [ ] `.claude/agent-memory/test-writer/patterns.md` — Add: "Dual-source session recovery (server-sourced new feature + client-sourced legacy fallback on same page). When new recovery surface ships alongside pre-existing legacy surface on same page, both may render for same session if reading from overlapping storage keys. Require integration test mounting both with overlapping data, asserting only intended surface renders. First occurrence: 2026-04-28 (ResumeExamBanner + QuizRecoveryBanner)."
+
+**False positives:** None.
+
+**Positive signals:**
+
+- Semantic-reviewer identified suppression-without-failure-path gap as ISSUE. Demonstrates agent awareness of error-handling completeness.
+- Test-writer boundary tests (932f231) pin suppression filter (mode:exam suppressed, mode:study/undefined pass through), preventing accidental widening.
+- Fix cycle tight: 82e64de introduces fix, semantic-reviewer finds gap, 53b8498 addresses gap, all agents clean on fix.
+- Manual eval surfaced bug invisible to unit tests. Testing strategy (unit + manual in full app) complementary.
+- Validate-before-fixing protocol held: orchestrator understood semantic-reviewer claim, confirmed real gap, applied fix without skipping validation.
+
+**No rule changes to code-style.md, security.md, biome.json.** Dual-source and suppression-without-failure-path at count 1 (watch). Manual-eval dual-source at count 2 (actionable as test-writer guidance, not code rule).
+
