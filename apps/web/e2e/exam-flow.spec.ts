@@ -13,10 +13,10 @@
  *   The report page was never reached; the session page stayed visible.
  *
  * The test uses test.setTimeout(150_000) to fit: ~10s setup + 60s in-page timer +
- * up to 75s waitForURL on the post-submit redirect (line 102) + small margin. The
- * waitForURL timeout itself stays at 75_000 — long enough to absorb the timer +
- * server-side complete_overdue_exam_session RPC + redirect. A 90s test cap was
- * arithmetically impossible (60 + 75 alone exceeds it).
+ * up to 120s waitForURL on the post-submit redirect (line 120) + small margin. The
+ * waitForURL timeout itself is 120_000 — long enough to absorb the timer +
+ * server-side complete_overdue_exam_session RPC + Next.js RSC payload fetch +
+ * redirect. A 90s test cap was arithmetically impossible (60 + 120 alone exceeds it).
  *
  * Auth: uses the shared student session saved by auth.setup.ts
  * (e2e/.auth/user.json — the e2e-test@lmsplus.local user).

@@ -58,12 +58,20 @@ export function useExamStart(opts: UseExamStartOpts) {
           // handoff write fails, soft-delete the orphan so the next attempt isn't
           // blocked by 'an exam session is already in progress for this subject'.
           console.warn('[use-exam-start] sessionStorage handoff failed:', err)
-          const cleanup = await discardQuiz({ sessionId: result.sessionId })
-          if (!cleanup.success) {
+          try {
+            const cleanup = await discardQuiz({ sessionId: result.sessionId })
+            if (!cleanup.success) {
+              console.error(
+                '[use-exam-start] orphan discard failed for session',
+                result.sessionId,
+                cleanup.error,
+              )
+            }
+          } catch (cleanupErr) {
             console.error(
-              '[use-exam-start] orphan discard failed for session',
+              '[use-exam-start] orphan discard threw for session',
               result.sessionId,
-              cleanup.error,
+              cleanupErr,
             )
           }
           setError('Unable to start Practice Exam right now. Please try again.')

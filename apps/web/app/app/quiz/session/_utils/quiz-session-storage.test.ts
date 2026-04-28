@@ -448,7 +448,6 @@ describe('writeActiveSession + readActiveSession', () => {
   it('round-trips a session without mode field (backward compat)', () => {
     // Entries persisted before mode was added must still be readable.
     const legacySession = makeSession()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = { ...legacySession } as Record<string, unknown>
     delete raw.mode
     mockStorage._store.set(STORAGE_KEY, JSON.stringify(raw))
@@ -937,10 +936,11 @@ describe('readSessionHandoff', () => {
     expect(result?.mode).toBe('exam')
   })
 
-  // BUG: ResumeExamBanner.handleResume writes questionIds:[] which fails the
-  // isValidSessionData length check — the handoff is immediately discarded and
-  // the session page redirects back to /app/quiz instead of resuming the exam.
-  it('rejects a handoff with mode: exam and empty questionIds (banner bug)', () => {
+  // Defensive validation: an exam-mode handoff with empty questionIds is
+  // semantically invalid (a session must have at least one question). Callers
+  // that need to write a handoff for an exam must populate the real
+  // questionIds; isValidSessionData rejects empty arrays for both modes.
+  it('rejects a handoff with mode: exam and empty questionIds (defensive validation)', () => {
     const key = sessionHandoffKey(USER_ID)
     const data = { userId: USER_ID, sessionId: 'sess-exam-1', mode: 'exam', questionIds: [] }
     mockSession._store.set(key, JSON.stringify(data))
@@ -948,10 +948,8 @@ describe('readSessionHandoff', () => {
 
     const result = readSessionHandoff(USER_ID)
 
-    // questionIds:[] fails isValidSessionData — handoff is discarded.
-    // Fix: ResumeExamBanner should write the real questionIds from the server,
-    // or useSessionBootstrap should handle an exam-mode handoff with empty
-    // questionIds by fetching them from the DB.
+    // questionIds:[] fails isValidSessionData — handoff is discarded so the
+    // session page does not bootstrap with a malformed payload.
     expect(result).toBeNull()
   })
 })

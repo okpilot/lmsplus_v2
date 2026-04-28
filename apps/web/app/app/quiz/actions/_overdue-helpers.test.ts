@@ -135,6 +135,17 @@ describe('isExamOverdue', () => {
     vi.useRealTimers()
   })
 
+  it('returns false at deadline + 30s (exact grace boundary)', () => {
+    // Boundary check: the function uses `Date.now() > deadline + grace` (strict),
+    // so exactly +30s must NOT be overdue. Mirrors the SQL `>` boundary.
+    vi.useFakeTimers()
+    const startedAt = new Date(0).toISOString() // epoch
+    // now = 0 + 60 000 + 30 000 ms = 90 000 ms (exact deadline + grace)
+    vi.setSystemTime(60_000 + 30_000)
+    expect(isExamOverdue(startedAt, 60)).toBe(false)
+    vi.useRealTimers()
+  })
+
   it('returns true at deadline + 31s (grace window expired)', () => {
     vi.useFakeTimers()
     const startedAt = new Date(0).toISOString() // epoch

@@ -401,6 +401,35 @@ describe('useExamStart — handleStart failure paths', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
+  it('still surfaces the correct user-facing error when the orphan discard throws', async () => {
+    mockSessionStorageSetItem.mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    const cleanupErr = new Error('discard network failure')
+    mockDiscardQuiz.mockRejectedValue(cleanupErr)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      const { result } = renderHook(() => useExamStart(DEFAULT_OPTS))
+      await act(async () => result.current.handleStart())
+
+      // A thrown rejection from discardQuiz must NOT bubble to the outer catch —
+      // the user must see the same handoff-failure error and loading must clear.
+      expect(result.current.error).toBe(
+        'Unable to start Practice Exam right now. Please try again.',
+      )
+      expect(result.current.loading).toBe(false)
+      expect(mockRouterPush).not.toHaveBeenCalled()
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[use-exam-start] orphan discard threw for session',
+        SESSION_ID,
+        cleanupErr,
+      )
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
   it('sets a generic error message when startExamSession throws', async () => {
     mockStartExamSession.mockRejectedValue(new Error('network timeout'))
 

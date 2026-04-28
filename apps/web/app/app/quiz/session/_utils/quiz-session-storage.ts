@@ -110,10 +110,15 @@ export function readActiveSession(userId: string): ActiveSession | null {
       return null
     }
     // Exam mode requires startedAt + timeLimitSeconds for the timer.
-    // Reject pre-ship localStorage entries that lack these fields.
+    // Reject pre-ship localStorage entries that lack these fields, and reject
+    // garbage values (NaN/Infinity/non-positive timeLimit, unparseable startedAt).
     if (
       data.mode === 'exam' &&
-      (typeof data.startedAt !== 'string' || typeof data.timeLimitSeconds !== 'number')
+      (typeof data.startedAt !== 'string' ||
+        !Number.isFinite(Date.parse(data.startedAt)) ||
+        typeof data.timeLimitSeconds !== 'number' ||
+        !Number.isFinite(data.timeLimitSeconds) ||
+        data.timeLimitSeconds <= 0)
     ) {
       safeRemove(userId)
       return null

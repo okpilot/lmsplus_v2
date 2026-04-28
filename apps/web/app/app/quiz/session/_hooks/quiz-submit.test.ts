@@ -551,6 +551,13 @@ describe('handleSubmitSession', () => {
     expect(mockDiscardQuiz).not.toHaveBeenCalled()
   })
 
+  it('invokes onSuccess and pushes to /app/quiz/report on zero-answer exam success', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true })
+    await handleSubmitSession(opts)
+    expect(opts.onSuccess).toHaveBeenCalledTimes(1)
+    expect(opts.router.push).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+  })
+
   it('sets setSubmitting(true) but not setError on successful zero-answer exam completion', async () => {
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)

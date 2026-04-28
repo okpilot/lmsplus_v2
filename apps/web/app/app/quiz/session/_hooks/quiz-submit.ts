@@ -125,6 +125,7 @@ export async function handleSubmitSession(opts: {
       result = { success: false, error: 'Something went wrong. Please try again.' }
     }
     if (result.success) {
+      opts.onSuccess()
       clearActiveSession(opts.userId)
       opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
       clearDeploymentPin().catch(() => {})

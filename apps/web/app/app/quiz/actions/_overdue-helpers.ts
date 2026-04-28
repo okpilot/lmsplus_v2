@@ -14,7 +14,7 @@ export function extractQuestionIds(config: unknown): string[] | null {
 export function extractPassMark(config: unknown): number | null {
   if (typeof config !== 'object' || config === null) return null
   const pm = (config as Record<string, unknown>).pass_mark
-  if (typeof pm !== 'number' || !Number.isFinite(pm) || pm <= 0 || pm > 100) return null
+  if (typeof pm !== 'number' || !Number.isInteger(pm) || pm <= 0 || pm > 100) return null
   return pm
 }
 
