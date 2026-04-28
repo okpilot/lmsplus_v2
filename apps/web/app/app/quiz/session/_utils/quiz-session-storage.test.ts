@@ -461,8 +461,12 @@ describe('writeActiveSession + readActiveSession', () => {
 
   it('rejects exam sessions where startedAt is a number instead of an ISO string', () => {
     // Epoch-ms corruption: a writer stored Date.now() instead of new Date().toISOString().
-    const brokenJson = `{"userId":"${USER_ID}","sessionId":"sess-ts","questionIds":["q1"],"answers":{},"currentIndex":0,"savedAt":${Date.now()},"mode":"exam","startedAt":1714219200000,"timeLimitSeconds":1800}`
-    mockStorage._store.set(STORAGE_KEY, brokenJson)
+    const broken = makeSession({
+      mode: 'exam',
+      startedAt: 1714219200000 as unknown as string,
+      timeLimitSeconds: 1800,
+    })
+    mockStorage._store.set(STORAGE_KEY, JSON.stringify(broken))
 
     const result = readActiveSession(USER_ID)
 
@@ -515,8 +519,13 @@ describe('writeActiveSession + readActiveSession', () => {
 
   it('rejects exam sessions when timeLimitSeconds overflows to Infinity', () => {
     // 1e309 parses to Infinity; JSON.stringify({x: Infinity}) drops to null,
-    // so the !Number.isFinite branch is only reachable via raw JSON.
-    const brokenJson = `{"userId":"${USER_ID}","sessionId":"sess-overflow","questionIds":["q1"],"answers":{},"currentIndex":0,"savedAt":${Date.now()},"mode":"exam","startedAt":"2026-04-27T12:00:00.000Z","timeLimitSeconds":1e309}`
+    // so we serialise via makeSession with a sentinel and substitute the raw literal.
+    const base = makeSession({
+      mode: 'exam',
+      startedAt: '2026-04-27T12:00:00.000Z',
+      timeLimitSeconds: '__OVERFLOW__' as unknown as number,
+    })
+    const brokenJson = JSON.stringify(base).replace('"__OVERFLOW__"', '1e309')
     mockStorage._store.set(STORAGE_KEY, brokenJson)
 
     const result = readActiveSession(USER_ID)
