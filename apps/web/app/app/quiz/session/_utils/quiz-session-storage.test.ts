@@ -502,8 +502,19 @@ describe('writeActiveSession + readActiveSession', () => {
     expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
   })
 
+  it('rejects exam sessions when timeLimitSeconds overflows to Infinity', () => {
+    // 1e309 parses to Infinity; JSON.stringify({x: Infinity}) drops to null,
+    // so the !Number.isFinite branch is only reachable via raw JSON.
+    const brokenJson = `{"userId":"${USER_ID}","sessionId":"sess-overflow","questionIds":["q1"],"answers":{},"currentIndex":0,"savedAt":${Date.now()},"mode":"exam","startedAt":"2026-04-27T12:00:00.000Z","timeLimitSeconds":1e309}`
+    mockStorage._store.set(STORAGE_KEY, brokenJson)
+
+    const result = readActiveSession(USER_ID)
+
+    expect(result).toBeNull()
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(STORAGE_KEY)
+  })
+
   it('round-trips a session without mode field (backward compat)', () => {
-    // Entries persisted before mode was added must still be readable.
     const legacySession = makeSession()
     const raw = { ...legacySession } as Record<string, unknown>
     delete raw.mode
