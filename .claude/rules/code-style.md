@@ -460,7 +460,29 @@ it('calls updateFsrsState', () => { ... })
 it('schedules a shorter review interval when the answer is wrong', () => { ... })
 ```
 
+**Disallowed in `it(...)` titles** (impl-detail leakage — promoted 2026-04-28 after PR #523 rounds 9–11):
+
+| Pattern | Why it leaks impl |
+|---------|-------------------|
+| `forwards X to <camelCaseName>` | Names an internal helper/hook the test calls into. Describe the *outcome*, not the call. |
+| `from <PascalCaseType>(?:Opts\|Config\|Args)` | Names an internal type. The behavior is the populated output, not the input type's name. |
+| `through <camelCaseName>(\|via <camelCaseName>(` | Names the function under test. The enclosing `describe(...)` already provides that context. |
+| `(non-positive\|typeof\|isFinite\|NaN) guard` | Names a specific `\|\|` branch in a validator. Describe what input is rejected, not which branch fires. |
+| `(activates\|does not activate) the guard` | Refers to internal navigation/validation guard machinery. Describe the user-observable consequence (e.g., "does not warn when no answers exist"). |
+| `matches <PascalCaseType>` / `matches <internal helper>` | Asserts congruence with an internal type/helper. Describe the externally observable behavior. |
+
+**Permitted** (these are *contracts*, not impl):
+- `it('calls onClick when the button is clicked', ...)` — `onClick` is a public prop / public callback contract.
+- `it('calls signInWithPassword on valid submit', ...)` — names a public SDK method the user expects.
+- `it('does not call the RPC when the input is empty', ...)` — describes the externally observable side-effect.
+
+The distinction: external contracts (props, public callbacks, public SDK calls, RPC names visible at the integration boundary) are part of behavior. Internal helpers, validator branches, and private types are implementation.
+
+### Test Comments: Audit After Renaming
+
 Omit narrative comments above an `it(...)` if the test name fully describes the behaviour. Comments that paraphrase the title rot when the title changes; reserve comments for non-obvious WHY (hidden invariants, jsdom workarounds, ordering constraints).
+
+**When renaming a test title to be behavior-first, audit any inline comment inside the test body.** Comments often describe a broader implementation scenario than the renamed (more specific) test exercises — once the title narrows, the comment is stale or misleading. Drop it unless it points to a non-obvious WHY that the new title doesn't carry. Promoted 2026-04-28 after stale `JSON.stringify(NaN) → null` / `typeof guard` comments survived a round-9 rename and were re-flagged in round 11.
 
 ### jsdom Limitation: Pre-Hydration State Is Not Testable
 
