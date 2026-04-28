@@ -16,6 +16,7 @@ export default async function QuizPage() {
 
   const [{ drafts }, examResult] = await Promise.all([loadDrafts(), getActiveExamSession()])
 
+  const examLookupFailed = !examResult.success
   const activeExams = examResult.success ? examResult.sessions : []
   const orphanedIds = examResult.success ? examResult.orphanedSessionIds : []
   const expiredIds = examResult.success ? examResult.expiredSessionIds : []
@@ -28,6 +29,16 @@ export default async function QuizPage() {
           Configure and start a practice session.
         </p>
       </div>
+
+      {examLookupFailed && (
+        <div
+          role="alert"
+          className="mx-auto max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+        >
+          We couldn&apos;t check for active Practice Exams right now. Please refresh — if the issue
+          persists, contact support.
+        </div>
+      )}
 
       {activeExams.map((exam) => (
         <ResumeExamBanner key={exam.sessionId} userId={user.id} exam={exam} />
