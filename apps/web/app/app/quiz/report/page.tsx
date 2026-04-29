@@ -4,13 +4,15 @@ import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { ReportCard } from './_components/report-card'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default async function QuizReportPage({
   searchParams,
 }: {
   searchParams: Promise<{ session?: string; page?: string }>
 }) {
   const { session: sessionId, page: pageParam } = await searchParams
-  if (!sessionId) redirect('/app/quiz')
+  if (!sessionId || !UUID_RE.test(sessionId)) redirect('/app/quiz')
 
   const summary = await getQuizReportSummary(sessionId)
   if (!summary) redirect('/app/quiz')
