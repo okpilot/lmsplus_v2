@@ -343,8 +343,11 @@ export async function cleanupInternalExamStudentActiveSessions(
     (row): row is CodeRow =>
       row.consumed_session_id !== null && row.quiz_sessions?.ended_at == null,
   )
-  if (stale.length === 0) return
 
+  // No early return on stale.length === 0: the practice/study-session discard
+  // below must always run. Otherwise a leftover non-internal-exam session left
+  // by a prior reports-separation run survives, defeating the cleanup #587 set
+  // out to provide. The for-loop is a safe no-op when stale is empty.
   for (const row of stale) {
     const { error } = await adminAuthedClient.rpc('void_internal_exam_code', {
       p_code_id: row.id,

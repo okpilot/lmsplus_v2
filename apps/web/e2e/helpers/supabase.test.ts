@@ -556,4 +556,23 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
       'cleanupInternalExamStudentActiveSessions practice: update failed',
     )
   })
+
+  it('runs the practice-session discard even when no stale internal-exam codes exist', async () => {
+    // Pins the fix for the early-return bug: a leftover practice/study session
+    // from a prior reports-separation run must still be cleaned up even if no
+    // open internal-exam codes are present. We assert this via the discard's
+    // error path — if the practice-session UPDATE were skipped, this would not
+    // throw.
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [],
+        discardError: { message: 'practice cleanup failed' },
+      }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions practice: practice cleanup failed',
+    )
+  })
 })

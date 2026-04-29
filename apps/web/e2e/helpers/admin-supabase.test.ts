@@ -6,7 +6,7 @@ vi.hoisted(() => {
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
 })
 
-import { ADMIN_TEST_EMAIL, signInAsAdmin } from './admin-supabase'
+import { ADMIN_TEST_EMAIL, ADMIN_TEST_PASSWORD, signInAsAdmin } from './admin-supabase'
 
 const { mockCreateClient } = vi.hoisted(() => ({
   mockCreateClient: vi.fn(),
@@ -49,7 +49,12 @@ describe('signInAsAdmin', () => {
 
     await signInAsAdmin()
 
-    expect(signInMock).toHaveBeenCalledWith(expect.objectContaining({ email: ADMIN_TEST_EMAIL }))
+    expect(signInMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: ADMIN_TEST_EMAIL,
+        password: ADMIN_TEST_PASSWORD,
+      }),
+    )
   })
 
   it('returns the authenticated client on success', async () => {

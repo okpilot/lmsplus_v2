@@ -1,5 +1,5 @@
 import { expect, test as setup } from '@playwright/test'
-import { signInAsAdmin } from './helpers/admin-supabase'
+import { ensureAdminTestUser, signInAsAdmin } from './helpers/admin-supabase'
 import {
   cleanupInternalExamStudentActiveSessions,
   ensureInternalExamStudentUser,
@@ -11,6 +11,11 @@ const AUTH_FILE = 'e2e/.auth/internal-exam-student.json'
 
 setup('create internal-exam student authenticated session', async ({ page }) => {
   await ensureInternalExamStudentUser()
+  // Self-contained: ensure the admin user exists before signInAsAdmin().
+  // Playwright does not order setup projects without explicit dependencies, so
+  // this project may run before admin-setup. On a fresh CI DB the admin auth
+  // user wouldn't exist yet → "Invalid login credentials".
+  await ensureAdminTestUser()
 
   // Void any active session left over from a prior run before the suite starts.
   // See issue #587 — stale sessions cascade across tests.
