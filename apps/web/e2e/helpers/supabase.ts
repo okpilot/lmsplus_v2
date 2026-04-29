@@ -320,9 +320,13 @@ export async function cleanupInternalExamStudentActiveSessions(
     throw new Error(`cleanupInternalExamStudentActiveSessions student: ${studentError.message}`)
   if (!studentRow) return
 
+  // FK-hint syntax (`!`), not column-alias (`:`). The colon form silently
+  // returns null on resolution failure; the hint form errors loudly. Project
+  // memory: "PostgREST `:` vs `!` alias-vs-hint silent-null trap" — see
+  // production pattern in lib/queries.ts where this same join uses `!`.
   const { data: codes, error: codesError } = await admin
     .from('internal_exam_codes')
-    .select('id, consumed_session_id, quiz_sessions:consumed_session_id (ended_at)')
+    .select('id, consumed_session_id, quiz_sessions!consumed_session_id (ended_at)')
     .eq('student_id', studentRow.id)
     .not('consumed_session_id', 'is', null)
     .is('voided_at', null)
@@ -357,13 +361,23 @@ export async function cleanupInternalExamStudentActiveSessions(
   // clicking the Discard button (soft-delete via deleted_at) — see
   // app/app/quiz/actions/discard.ts. The internal-exam student is dedicated to
   // this suite, so leftover practice sessions should never persist between runs.
-  const { error: discardError } = await admin
+  // Chain `.select('id')` per code-style.md §5 zero-row no-op rule — the
+  // service-role UPDATE returns 200 OK with empty rows when the filter matches
+  // nothing, which is a valid steady state (nothing to clean) but only safe to
+  // treat as success if observable.
+  const { data: discarded, error: discardError } = await admin
     .from('quiz_sessions')
     .update({ deleted_at: new Date().toISOString() })
     .eq('student_id', studentRow.id)
     .neq('mode', 'internal_exam')
     .is('ended_at', null)
     .is('deleted_at', null)
+    .select('id')
   if (discardError)
     throw new Error(`cleanupInternalExamStudentActiveSessions practice: ${discardError.message}`)
+  if ((discarded?.length ?? 0) > 0) {
+    console.log(
+      `[cleanupInternalExamStudentActiveSessions] discarded ${discarded?.length} leftover practice/study session(s)`,
+    )
+  }
 }

@@ -7,6 +7,7 @@ vi.hoisted(() => {
 
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
 import {
+  cleanupInternalExamStudentActiveSessions,
   ensureConsentRecords,
   ensureTestUser,
   getAdminClient,
@@ -389,5 +390,170 @@ describe('ensureConsentRecords', () => {
     await expect(
       ensureConsentRecords(client as ReturnType<typeof getAdminClient>, 'user-abc'),
     ).rejects.toThrow('ensureConsentRecords: unique violation')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// cleanupInternalExamStudentActiveSessions
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds a minimal mock for the service-role admin client used inside
+ * cleanupInternalExamStudentActiveSessions. The function always calls
+ * getAdminClient() internally, so mockCreateClient controls what it receives.
+ *
+ * adminAuthedClient is a separate RPC-capable mock passed as the argument.
+ */
+function buildCleanupMockClient(opts: {
+  studentRow?: { id: string } | null
+  studentError?: { message: string } | null
+  codes?: Array<{
+    id: string
+    consumed_session_id: string
+    quiz_sessions: { ended_at: string | null } | null
+  }>
+  codesError?: { message: string } | null
+  discardError?: { message: string } | null
+}) {
+  const {
+    studentRow = { id: 'student-uuid' },
+    studentError = null,
+    codes = [],
+    codesError = null,
+    discardError = null,
+  } = opts
+
+  return {
+    from: (table: string) => {
+      if (table === 'users') {
+        return buildChain({ data: studentRow, error: studentError })
+      }
+      if (table === 'internal_exam_codes') {
+        return buildChain({ data: codes, error: codesError })
+      }
+      if (table === 'quiz_sessions') {
+        return buildChain({ error: discardError })
+      }
+      return buildChain({ data: null, error: null })
+    },
+    auth: { admin: {} },
+  }
+}
+
+describe('cleanupInternalExamStudentActiveSessions', () => {
+  it('returns without calling the RPC when the student row does not exist yet', async () => {
+    mockCreateClient.mockReturnValue(buildCleanupMockClient({ studentRow: null }))
+    const rpcMock = vi.fn()
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when the student lookup query fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({ studentError: { message: 'connection timeout' } }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions student: connection timeout',
+    )
+  })
+
+  it('returns without calling the RPC when no stale codes exist', async () => {
+    mockCreateClient.mockReturnValue(buildCleanupMockClient({ codes: [] }))
+    const rpcMock = vi.fn()
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('returns without calling the RPC when all codes have already ended sessions', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [
+          {
+            id: 'code-1',
+            consumed_session_id: 'sess-1',
+            quiz_sessions: { ended_at: '2026-04-29T10:00:00Z' },
+          },
+        ],
+      }),
+    )
+    const rpcMock = vi.fn()
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('calls void_internal_exam_code for each stale open session', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [
+          { id: 'code-a', consumed_session_id: 'sess-a', quiz_sessions: { ended_at: null } },
+          { id: 'code-b', consumed_session_id: 'sess-b', quiz_sessions: { ended_at: null } },
+        ],
+      }),
+    )
+    const rpcMock = vi.fn().mockResolvedValue({ error: null })
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(rpcMock).toHaveBeenCalledTimes(2)
+    expect(rpcMock).toHaveBeenCalledWith('void_internal_exam_code', {
+      p_code_id: 'code-a',
+      p_reason: 'e2e-cleanup',
+    })
+    expect(rpcMock).toHaveBeenCalledWith('void_internal_exam_code', {
+      p_code_id: 'code-b',
+      p_reason: 'e2e-cleanup',
+    })
+  })
+
+  it('throws when the void RPC returns an error', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [{ id: 'code-x', consumed_session_id: 'sess-x', quiz_sessions: { ended_at: null } }],
+      }),
+    )
+    const rpcMock = vi.fn().mockResolvedValue({ error: { message: 'rpc failed' } })
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions void code code-x: rpc failed',
+    )
+  })
+
+  it('throws when the internal_exam_codes query fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({ codesError: { message: 'schema mismatch' } }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions codes: schema mismatch',
+    )
+  })
+
+  it('throws when the practice-session discard update fails after voiding stale codes', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [{ id: 'code-z', consumed_session_id: 'sess-z', quiz_sessions: { ended_at: null } }],
+        discardError: { message: 'update failed' },
+      }),
+    )
+    const rpcMock = vi.fn().mockResolvedValue({ error: null })
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions practice: update failed',
+    )
   })
 })

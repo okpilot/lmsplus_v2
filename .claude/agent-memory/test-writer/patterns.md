@@ -4333,3 +4333,44 @@ here — the boundary is already unit-tested in `_overdue-helpers.test.ts`. Do n
 near-boundary fixture to `get-active-exam-session.test.ts` as it would couple the integration
 test to a magic number that could become stale when the grace constant changes again.
 
+---
+
+## cleanupInternalExamStudentActiveSessions: early-return structure (2026-04-29)
+
+The function has TWO early returns before the discard update:
+1. `if (!studentRow) return` — student not found
+2. `if (stale.length === 0) return` — no open internal-exam sessions
+
+The discard-error path is ONLY reachable when at least one stale code exists (so
+`stale.length > 0` and the early return is skipped). A test for the discard error must
+therefore include a stale code in the fixture, not just `codes: []`.
+
+```ts
+// CORRECT: discard-error test needs a stale code to bypass the early return
+buildCleanupMockClient({
+  codes: [{ id: 'code-z', consumed_session_id: 'sess-z', quiz_sessions: { ended_at: null } }],
+  discardError: { message: 'update failed' },
+})
+// WRONG: codes: [] causes stale.length === 0 → return before discard runs
+```
+
+## Two-client pattern in e2e helpers (2026-04-29)
+
+`cleanupInternalExamStudentActiveSessions` uses TWO separate Supabase clients:
+- `getAdminClient()` (service-role, created internally) — for raw table reads/writes that bypass RLS
+- `adminAuthedClient` (anon + signed-in admin, passed as argument) — for SECURITY DEFINER RPCs
+  that require `auth.uid()` (e.g. `void_internal_exam_code`)
+
+When mocking this function, `mockCreateClient` controls the service-role internal client,
+while the `adminAuthedClient` argument is a separate `{ rpc: vi.fn() }` mock. Both must be
+set up independently.
+
+`signInAsAdmin` (admin-supabase.ts) creates the anon+authed client. Its test must assert
+that the SECOND argument to `createClient` is the anon key (not the service role key) — this
+is the security-critical property that stops it from being confused with `getAdminClient`.
+
+```ts
+const [, secondArg] = mockCreateClient.mock.calls[0] as [unknown, string, unknown]
+expect(secondArg).toBe('test-anon-key')
+```
+
