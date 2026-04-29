@@ -112,6 +112,8 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
           subject_id: configuredSubjectId,
           code: 'RT-T1',
           name: 'Red Team Fixture Topic 1',
+          // easa_topics.sort_order is INT NOT NULL with no default (mig 001).
+          sort_order: 9001,
         })
         .select('id')
         .single()
