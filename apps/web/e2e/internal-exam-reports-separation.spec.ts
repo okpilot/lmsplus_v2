@@ -8,23 +8,21 @@
  *   - /app/internal-exam My Reports tab lists ONLY the internal attempt.
  *
  * Seed dependency: apps/web/scripts/seed-exam-eval.ts. Assumes admin
- * (admin@lmsplus.local) and the shared E2E student fixture.
+ * (admin@lmsplus.local) and the dedicated internal-exam student fixture
+ * (e2e-internal-exam@lmsplus.local) — see helpers/supabase.ts.
  *
  * NOTE: requires migrations 057a..065 to be applied before this spec passes.
  *
  * Auth: admin storage is the default; a separate student context is opened
- * for the student-side assertions.
+ * (internal-exam-student.json) for the student-side assertions.
  */
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
+import { INTERNAL_EXAM_STUDENT_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
-// Pin the admin's student-select dropdown to the seeded E2E student so we
-// don't accidentally issue a code to a different student depending on alphabetical
-// order or seed drift. Match the full name from helpers/supabase.ts.
-const STUDENT_LABEL_FRAGMENT = 'E2E Test Student'
 
 async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promise<string> {
   await adminPage.goto('/app/admin/internal-exams')
@@ -33,7 +31,7 @@ async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promi
   await form.locator('[aria-label="Student"]').click()
   await adminPage
     .locator('[data-slot="select-item"]')
-    .filter({ hasText: STUDENT_LABEL_FRAGMENT })
+    .filter({ hasText: INTERNAL_EXAM_STUDENT_EMAIL })
     .first()
     .click()
   await form.locator('[aria-label="Subject"]').click()
@@ -53,7 +51,9 @@ async function openStudentContext(
   browser: BrowserContext['browser'],
 ): Promise<{ context: BrowserContext; page: Page }> {
   if (!browser) throw new Error('browser is null')
-  const context = await browser.newContext({ storageState: 'e2e/.auth/user.json' })
+  const context = await browser.newContext({
+    storageState: 'e2e/.auth/internal-exam-student.json',
+  })
   const page = await context.newPage()
   return { context, page }
 }

@@ -24,6 +24,10 @@ export default defineConfig({
     { name: 'setup', testMatch: 'auth.setup.ts' },
     { name: 'admin-setup', testMatch: 'admin-auth.setup.ts' },
     {
+      name: 'internal-exam-student-setup',
+      testMatch: 'internal-exam-student-auth.setup.ts',
+    },
+    {
       name: 'e2e',
       testMatch: '**/*.spec.ts',
       testIgnore: [
@@ -40,9 +44,11 @@ export default defineConfig({
       name: 'admin-e2e',
       testMatch: ['**/admin-*.spec.ts', '**/internal-exam-*.spec.ts'],
       testIgnore: '**/redteam/**',
-      // setup is required so that e2e/.auth/user.json exists for the
-      // student-side context opened inside the internal-exam-* specs.
-      dependencies: ['setup', 'admin-setup'],
+      // internal-exam-student-setup creates a dedicated student fixture for the
+      // student-side context spawned inside the internal-exam-* specs. Using a
+      // dedicated user (not user.json) avoids session-rotation invalidation
+      // caused by the prior `e2e` project's specs running against user.json.
+      dependencies: ['admin-setup', 'internal-exam-student-setup'],
     },
     {
       name: 'redteam',

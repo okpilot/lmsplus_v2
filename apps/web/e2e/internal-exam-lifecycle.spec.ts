@@ -15,12 +15,15 @@
  *       complete_internal_exam_session) to be applied. Until then the
  *       Server Action calls will fail and these specs will not pass.
  *
- * Auth: uses both `e2e/.auth/admin.json` and `e2e/.auth/user.json`. The
- * default `test.use({ storageState })` pins the page to admin; we open a
- * second context with the student state for the second half of the flow.
+ * Auth: uses `e2e/.auth/admin.json` and `e2e/.auth/internal-exam-student.json`.
+ * The default `test.use({ storageState })` pins the page to admin; we open a
+ * second context with the dedicated internal-exam student state for the
+ * student half of the flow. (Using user.json would race against
+ * session-rotation invalidation from the prior `e2e` project's specs.)
  */
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
+import { INTERNAL_EXAM_STUDENT_EMAIL } from './helpers/supabase'
 
 test.describe.configure({ mode: 'serial' })
 
@@ -37,10 +40,14 @@ async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promi
   const form = adminPage.getByTestId('issue-code-form')
   await expect(form).toBeVisible()
 
-  // Pick the first available student.
+  // Pin selection to the dedicated internal-exam student fixture.
   const studentSelect = form.locator('[aria-label="Student"]')
   await studentSelect.click()
-  await adminPage.locator('[data-slot="select-item"]').first().click()
+  await adminPage
+    .locator('[data-slot="select-item"]')
+    .filter({ hasText: INTERNAL_EXAM_STUDENT_EMAIL })
+    .first()
+    .click()
 
   // Pick the subject by name fragment.
   const subjectSelect = form.locator('[aria-label="Subject"]')
@@ -66,7 +73,9 @@ async function openStudentContext(browser: BrowserContext['browser']): Promise<{
   page: Page
 }> {
   if (!browser) throw new Error('browser is null')
-  const context = await browser.newContext({ storageState: 'e2e/.auth/user.json' })
+  const context = await browser.newContext({
+    storageState: 'e2e/.auth/internal-exam-student.json',
+  })
   const page = await context.newPage()
   return { context, page }
 }

@@ -6,16 +6,18 @@
  * handoff was lost, the recovery banner on /app/internal-exam is the fallback.
  *
  * Seed dependency: apps/web/scripts/seed-exam-eval.ts. Assumes admin
- * (admin@lmsplus.local) and student (e2e-test@lmsplus.local) fixture users
- * exist in the Egmont Aviation org with at least one active exam_config.
+ * (admin@lmsplus.local) and the dedicated internal-exam student fixture
+ * (e2e-internal-exam@lmsplus.local) exist in the Egmont Aviation org with at
+ * least one active exam_config.
  *
  * NOTE: requires migrations 057a..065 to be applied before this spec passes.
  *
  * Auth: this spec uses the admin storage state to issue a code, then opens a
- * separate student context for the resume verification.
+ * separate student context (internal-exam-student.json) for the resume check.
  */
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
+import { INTERNAL_EXAM_STUDENT_EMAIL } from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
@@ -26,7 +28,11 @@ async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promi
   await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
   const form = adminPage.getByTestId('issue-code-form')
   await form.locator('[aria-label="Student"]').click()
-  await adminPage.locator('[data-slot="select-item"]').first().click()
+  await adminPage
+    .locator('[data-slot="select-item"]')
+    .filter({ hasText: INTERNAL_EXAM_STUDENT_EMAIL })
+    .first()
+    .click()
   await form.locator('[aria-label="Subject"]').click()
   await adminPage
     .locator('[data-slot="select-item"]')
@@ -44,7 +50,9 @@ async function openStudentContext(
   browser: BrowserContext['browser'],
 ): Promise<{ context: BrowserContext; page: Page }> {
   if (!browser) throw new Error('browser is null')
-  const context = await browser.newContext({ storageState: 'e2e/.auth/user.json' })
+  const context = await browser.newContext({
+    storageState: 'e2e/.auth/internal-exam-student.json',
+  })
   const page = await context.newPage()
   return { context, page }
 }
