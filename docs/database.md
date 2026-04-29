@@ -606,6 +606,8 @@ ORDER BY deleted_at DESC;
 
 > **Storage: `question-images` bucket (migrations 053, 055, 20260410000009):** Admin INSERT/UPDATE/DELETE policies enforce org-scoped path isolation — images are stored at `{org_id}/{filename}` and policies check `(storage.foldername(name))[1]` matches the admin's org. Authenticated SELECT allows all users to read images (for quiz display). The upload action (`uploadQuestionImage`) resolves the admin's org and prefixes the path automatically.
 
+> **Admin cross-row reads on `users` (binding pattern):** When an admin Server Action reads or *embeds* the `users` table to fetch peer rows (not just the calling admin's own row), use `adminClient` from `@repo/db/admin` — never the user-scoped supabase client. The `users.tenant_isolation` policy uses a self-referential subquery `(SELECT organization_id FROM users WHERE id = auth.uid())`, and PostgreSQL's planner is unreliable when an RLS policy references the same table for cross-row reads. Self-row reads work; cross-row reads silently return `null` / empty arrays. PostgREST applies RLS to embedded resources too, so even joining `users(...)` from another table triggers the same failure mode. Defense in depth: gate the path with `requireAdmin()` first, then apply `.eq('organization_id', organizationId)` on every adminClient query. Established call sites: `apps/web/app/app/admin/students/queries.ts`, `apps/web/app/app/admin/dashboard/queries.ts`, `apps/web/app/app/admin/internal-exams/queries.ts`.
+
 ---
 
 ## 4. RPC Conventions

@@ -124,27 +124,36 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     }
 
     // Other red-team specs (e.g. rpc-question-membership) pick the second subject
-    // returned by `select('id').limit(2)` and expect it to have at least one topic.
-    // When our subjects upsert above runs in a CI Supabase that had only one
-    // pre-existing subject, RT-FIXTURE-2 ends up as that "second subject" — but
-    // it has no topics by default, breaking those specs. Seed a topic for it.
+    // returned by `select('id').limit(2)` and expect it to have at least one topic
+    // AND at least one question linked to that topic. When our subjects upsert above
+    // runs in a CI Supabase that had only one pre-existing subject, RT-FIXTURE-2 ends
+    // up as that "second subject" — but it has no topics or questions by default,
+    // breaking those specs. Seed both.
+    let unconfTopicId: string
     const { data: unconfTopics } = await admin
       .from('easa_topics')
       .select('id')
       .eq('subject_id', unconfiguredSubjectId)
       .limit(1)
-    if (!unconfTopics || unconfTopics.length === 0) {
-      const { error: unconfTopicErr } = await admin.from('easa_topics').insert({
-        subject_id: unconfiguredSubjectId,
-        code: 'RT-T2',
-        name: 'Red Team Fixture Topic 2',
-        sort_order: 9002,
-      })
-      if (unconfTopicErr) {
+    if (unconfTopics && unconfTopics.length > 0) {
+      unconfTopicId = unconfTopics[0].id
+    } else {
+      const { data: insertedUnconfTopic, error: unconfTopicErr } = await admin
+        .from('easa_topics')
+        .insert({
+          subject_id: unconfiguredSubjectId,
+          code: 'RT-T2',
+          name: 'Red Team Fixture Topic 2',
+          sort_order: 9002,
+        })
+        .select('id')
+        .single()
+      if (unconfTopicErr || !insertedUnconfTopic) {
         throw new Error(
-          `seed: failed to insert fixture topic for unconfigured subject: ${unconfTopicErr.message}`,
+          `seed: failed to insert fixture topic for unconfigured subject: ${unconfTopicErr?.message}`,
         )
       }
+      unconfTopicId = insertedUnconfTopic.id
     }
 
     // Seed an enabled exam_config for the configured subject in the egmont org.
@@ -154,6 +163,47 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
       .eq('slug', 'egmont-aviation')
       .single()
     const egmontOrgId = orgRow!.id
+
+    // Ensure rpc-question-membership has at least one question on the unconfigured
+    // subject's topic. Idempotent — only inserts if no question exists.
+    const { data: existingUnconfQ } = await admin
+      .from('questions')
+      .select('id')
+      .eq('topic_id', unconfTopicId)
+      .is('deleted_at', null)
+      .limit(1)
+    if (!existingUnconfQ || existingUnconfQ.length === 0) {
+      const { data: bankRow } = await admin
+        .from('question_banks')
+        .select('id')
+        .eq('organization_id', egmontOrgId)
+        .is('deleted_at', null)
+        .limit(1)
+        .maybeSingle()
+      if (bankRow) {
+        const { error: unconfQErr } = await admin.from('questions').insert({
+          organization_id: egmontOrgId,
+          bank_id: bankRow.id,
+          question_number: 'RT-FOREIGN-1',
+          subject_id: unconfiguredSubjectId,
+          topic_id: unconfTopicId,
+          question_text: 'Red team fixture: foreign-subject question.',
+          options: [
+            { id: 'a', text: 'A', correct: true },
+            { id: 'b', text: 'B', correct: false },
+            { id: 'c', text: 'C', correct: false },
+            { id: 'd', text: 'D', correct: false },
+          ],
+          explanation_text: 'Fixture only.',
+          difficulty: 'medium',
+          status: 'active',
+          created_by: egmontStudentId,
+        })
+        if (unconfQErr) {
+          throw new Error(`seed: failed to insert foreign-subject question: ${unconfQErr.message}`)
+        }
+      }
+    }
     await ensureExamConfig(egmontOrgId, configuredSubjectId, topicId)
 
     // Ensure NO active exam_config exists for the unconfigured subject. Soft-delete

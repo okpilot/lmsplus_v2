@@ -886,13 +886,18 @@ Supabase session via `@supabase/ssr` package (server-side session management for
 /app/
 ├── dashboard/              ← progress overview, recent sessions, quick actions
 ├── quiz/                   ← Quiz config (subject, count, randomized mode)
-│   └── session/            ← active quiz session (immediate feedback + in-session explanation)
+│   ├── session/            ← active quiz session (immediate feedback + in-session explanation)
+│   └── report/             ← per-question breakdown (mode-aware: practice/quick/review/mock_exam)
+├── internal-exam/          ← student internal-exam landing (Available + My Reports tabs)
+│   └── report/             ← internal-exam report (mode-guarded; redirects non-internal_exam to /quiz/report)
 ├── progress/               ← detailed progress per subject/topic/subtopic
 ├── reports/                ← session history with sortable columns, links to quiz reports
 ├── settings/               ← student profile & settings: display name edit, password change (#368)
 └── admin/                  ← admin-only (proxy guard + requireAdmin())
     ├── syllabus/           ← CRUD for subjects/topics/subtopics (#171)
-    └── questions/          ← question editor: create, edit, list, filter, bulk actions (#271)
+    ├── questions/          ← question editor: create, edit, list, filter, bulk actions (#271)
+    └── internal-exams/     ← admin internal-exam management (Codes + Attempts tabs, #541)
+        └── report/         ← admin per-question breakdown for an internal-exam attempt (org-scoped)
 ```
 
 ### Components (in `packages/ui/`)

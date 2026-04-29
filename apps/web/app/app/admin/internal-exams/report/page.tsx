@@ -10,13 +10,17 @@ import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { AdminInternalExamReportFooter } from './_components/admin-internal-exam-report-footer'
 import { AdminInternalExamReportHeader } from './_components/admin-internal-exam-report-header'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default async function AdminInternalExamReportPage({
   searchParams,
 }: {
   searchParams: Promise<{ session?: string; page?: string }>
 }) {
   const { session: sessionId, page: pageParam } = await searchParams
-  if (!sessionId) redirect('/app/admin/internal-exams?tab=attempts')
+  if (!sessionId || !UUID_RE.test(sessionId)) {
+    redirect('/app/admin/internal-exams?tab=attempts')
+  }
 
   const summary = await getAdminQuizReportSummary(sessionId)
   if (!summary) redirect('/app/admin/internal-exams?tab=attempts')

@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { type KeyboardEvent, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import type {
   ExamSubjectOption,
   InternalExamAttemptRow,
@@ -22,10 +22,18 @@ type TabKey = 'codes' | 'attempts'
 
 const TAB_ORDER: TabKey[] = ['codes', 'attempts']
 
+function readTabParam(value: string | null): TabKey {
+  return value === 'attempts' ? 'attempts' : 'codes'
+}
+
 export function InternalExamsTabs({ students, subjects, codes, attempts }: Props) {
   const searchParams = useSearchParams()
-  const initialTab: TabKey = searchParams.get('tab') === 'attempts' ? 'attempts' : 'codes'
-  const [tab, setTab] = useState<TabKey>(initialTab)
+  const tabParam = searchParams.get('tab')
+  const [tab, setTab] = useState<TabKey>(readTabParam(tabParam))
+  // Re-sync when ?tab= changes via soft navigation (e.g., "Back" CTA from report page).
+  useEffect(() => {
+    setTab(readTabParam(tabParam))
+  }, [tabParam])
   const tablistRef = useRef<HTMLDivElement | null>(null)
 
   function focusTab(key: TabKey) {
