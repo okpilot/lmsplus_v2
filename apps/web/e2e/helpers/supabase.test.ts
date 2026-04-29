@@ -8,9 +8,11 @@ vi.hoisted(() => {
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
 import {
   cleanupInternalExamStudentActiveSessions,
+  E2E_ADMIN_Q_MARKER,
   ensureConsentRecords,
   ensureTestUser,
   getAdminClient,
+  restoreSeededQuestionsState,
   TEST_EMAIL,
   TEST_PASSWORD,
 } from './supabase'
@@ -609,6 +611,135 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
     await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
 
     expect(logSpy).not.toHaveBeenCalled()
+    logSpy.mockRestore()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// restoreSeededQuestionsState
+// ---------------------------------------------------------------------------
+
+/**
+ * Mock builder for restoreSeededQuestionsState. The function makes 3 chained
+ * Supabase calls in order:
+ *   1. SELECT egmont-aviation org
+ *   2. UPDATE questions (soft-delete E2E-marker rows) → returns affected ids
+ *   3. UPDATE questions (reactivate non-active rows)  → returns affected ids
+ *
+ * `questionsCalls` is an ordered list of return values; each `from('questions')`
+ * call pops the next entry. Lets a single test exercise both update branches.
+ */
+function buildRestoreMockClient(opts: {
+  org?: { data: { id: string } | null; error: { message: string } | null }
+  questionsCalls?: Array<{ data: Array<{ id: string }> | null; error: { message: string } | null }>
+}) {
+  const {
+    org = { data: { id: 'org-123' }, error: null },
+    questionsCalls = [
+      { data: [], error: null },
+      { data: [], error: null },
+    ],
+  } = opts
+  const queue = [...questionsCalls]
+
+  return {
+    from: (table: string) => {
+      if (table === 'organizations') return buildChain(org)
+      if (table === 'questions') {
+        const next = queue.shift() ?? { data: [], error: null }
+        return buildChain(next)
+      }
+      return buildChain({ data: null, error: null })
+    },
+  }
+}
+
+describe('E2E_ADMIN_Q_MARKER', () => {
+  it('exports a stable, prefix-shaped marker', () => {
+    expect(E2E_ADMIN_Q_MARKER).toBe('[E2E_ADMIN_Q]')
+  })
+})
+
+describe('restoreSeededQuestionsState', () => {
+  it('throws when the egmont-aviation org lookup fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        org: { data: null, error: { message: 'connection refused' } },
+      }),
+    )
+    await expect(restoreSeededQuestionsState()).rejects.toThrow(
+      'restoreSeededQuestionsState org lookup: connection refused',
+    )
+  })
+
+  it('throws when the soft-delete update returns an error', async () => {
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        questionsCalls: [{ data: null, error: { message: 'permission denied' } }],
+      }),
+    )
+    await expect(restoreSeededQuestionsState()).rejects.toThrow(
+      'restoreSeededQuestionsState delete: permission denied',
+    )
+  })
+
+  it('throws when the reactivate update returns an error', async () => {
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        questionsCalls: [
+          { data: [], error: null },
+          { data: null, error: { message: 'rls denied' } },
+        ],
+      }),
+    )
+    await expect(restoreSeededQuestionsState()).rejects.toThrow(
+      'restoreSeededQuestionsState reactivate: rls denied',
+    )
+  })
+
+  it('does not log when no rows were affected', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(buildRestoreMockClient({}))
+
+    await restoreSeededQuestionsState()
+
+    expect(logSpy).not.toHaveBeenCalled()
+    logSpy.mockRestore()
+  })
+
+  it('logs the soft-deleted count when E2E-marker rows are removed', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        questionsCalls: [
+          { data: [{ id: 'q-1' }, { id: 'q-2' }], error: null },
+          { data: [], error: null },
+        ],
+      }),
+    )
+
+    await restoreSeededQuestionsState()
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('soft-deleted 2 E2E-created question(s)'),
+    )
+    logSpy.mockRestore()
+  })
+
+  it('logs the reactivated count when seeded rows are flipped back to active', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        questionsCalls: [
+          { data: [], error: null },
+          { data: [{ id: 'q-3' }, { id: 'q-4' }, { id: 'q-5' }], error: null },
+        ],
+      }),
+    )
+
+    await restoreSeededQuestionsState()
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('reactivated 3 seeded question(s)'))
     logSpy.mockRestore()
   })
 })

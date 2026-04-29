@@ -384,3 +384,78 @@ export async function cleanupInternalExamStudentActiveSessions(
     )
   }
 }
+
+/** Marker prefix used in `question_text` for E2E-created questions in admin-questions.spec.ts. */
+export const E2E_ADMIN_Q_MARKER = '[E2E_ADMIN_Q]'
+
+/**
+ * Restore the questions table to a state where every internal-exam spec can
+ * find ≥10 active questions in the seeded MET topic.
+ *
+ * Why this exists: admin-questions.spec.ts mutates shared seed state — its
+ * "selects rows and performs bulk status change" test flips every visible row
+ * to `status='draft'`, and its "creates a new question" test inserts a row that
+ * persists. Within Playwright's `admin-e2e` project, admin-questions runs
+ * alphabetically before internal-exam-*.spec.ts, so without restoration
+ * `start_internal_exam_session` raises `insufficient_questions_for_exam` and
+ * every internal-exam spec times out on `/app/quiz/session` redirect (issue
+ * #587).
+ *
+ * Soft-delete (not hard-delete) for E2E-created questions: `student_responses`,
+ * `quiz_session_answers`, `flagged_questions`, and `question_comments` all
+ * carry FK references to `questions(id)`. Hard DELETE risks FK violations;
+ * the project rule is soft-delete via `deleted_at` regardless. Same row-volume
+ * outcome since CI starts from a fresh DB.
+ *
+ * Difficulty is intentionally NOT restored — local dev seeds (e.g.
+ * seed-quiz-setup-eval.ts) intentionally vary difficulty per question, and
+ * the edit test's `difficulty='hard'` leak does not break any downstream spec.
+ */
+export async function restoreSeededQuestionsState(): Promise<void> {
+  const admin = getAdminClient()
+
+  const { data: org, error: orgError } = await admin
+    .from('organizations')
+    .select('id')
+    .eq('slug', 'egmont-aviation')
+    .single()
+  if (orgError || !org)
+    throw new Error(`restoreSeededQuestionsState org lookup: ${orgError?.message}`)
+
+  // Soft-delete any E2E-created question rows so they don't accumulate during
+  // a spec run. Marker lives in question_text (the create test fills it; no
+  // question_number input exists on the form). Zero-row no-op rule §5: chain
+  // .select('id') and treat empty as a valid steady state — only log when a
+  // row actually changed so the helper stays quiet on filter-only tests.
+  const { data: deleted, error: deleteError } = await admin
+    .from('questions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('organization_id', org.id)
+    .like('question_text', `${E2E_ADMIN_Q_MARKER}%`)
+    .is('deleted_at', null)
+    .select('id')
+  if (deleteError) throw new Error(`restoreSeededQuestionsState delete: ${deleteError.message}`)
+  if ((deleted?.length ?? 0) > 0) {
+    console.log(
+      `[restoreSeededQuestionsState] soft-deleted ${deleted?.length} E2E-created question(s)`,
+    )
+  }
+
+  // Reactivate any seeded question that the bulk-Deactivate test flipped to
+  // 'draft'. Filter on `status != 'active'` so the UPDATE is a no-op when seed
+  // state is already clean. .select('id') confirms the write actually landed.
+  const { data: reactivated, error: reactivateError } = await admin
+    .from('questions')
+    .update({ status: 'active' })
+    .eq('organization_id', org.id)
+    .is('deleted_at', null)
+    .neq('status', 'active')
+    .select('id')
+  if (reactivateError)
+    throw new Error(`restoreSeededQuestionsState reactivate: ${reactivateError.message}`)
+  if ((reactivated?.length ?? 0) > 0) {
+    console.log(
+      `[restoreSeededQuestionsState] reactivated ${reactivated?.length} seeded question(s)`,
+    )
+  }
+}

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { E2E_ADMIN_Q_MARKER, restoreSeededQuestionsState } from './helpers/supabase'
 
 // Use admin auth state from admin-auth.setup.ts
 test.use({ storageState: 'e2e/.auth/admin.json' })
@@ -7,6 +8,14 @@ test.describe('Admin Question Editor', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/app/admin/questions')
     await expect(page.getByRole('heading', { name: 'Question Editor' })).toBeVisible()
+  })
+
+  // Restore seed state after every test in this file. Two tests in here
+  // (Section 3 create, Section 5 bulk-Deactivate) mutate shared rows that
+  // internal-exam specs depend on — without restore the rest of the
+  // admin-e2e project fails with `insufficient_questions_for_exam` (#587).
+  test.afterEach(async () => {
+    await restoreSeededQuestionsState()
   })
 
   // ── Section 1: Page loads correctly ──────────────────────────────────
@@ -62,7 +71,9 @@ test.describe('Admin Question Editor', () => {
   // ── Section 3: Create question ──────────────────────────────────────
 
   test('creates a new question via the dialog', async ({ page }) => {
-    const uniqueText = `E2E ${Date.now()}: What is the tropopause?`
+    // Marker prefix lets the afterEach helper soft-delete this row so it
+    // doesn't leak into downstream specs.
+    const uniqueText = `${E2E_ADMIN_Q_MARKER} ${Date.now()}: What is the tropopause?`
 
     // Open create dialog
     await page.getByRole('button', { name: 'New Question' }).click()
