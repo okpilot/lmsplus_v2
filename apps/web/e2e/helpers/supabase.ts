@@ -424,9 +424,12 @@ export async function restoreSeededQuestionsState(): Promise<void> {
 
   // Soft-delete any E2E-created question rows so they don't accumulate during
   // a spec run. Marker lives in question_text (the create test fills it; no
-  // question_number input exists on the form). Zero-row no-op rule §5: chain
-  // .select('id') and treat empty as a valid steady state — only log when a
-  // row actually changed so the helper stays quiet on filter-only tests.
+  // question_number input exists on the form). Brackets and underscores in
+  // `[E2E_ADMIN_Q]` are literal in PostgreSQL LIKE — neither is a wildcard
+  // metacharacter (only `%` and `_` outside brackets are), so this is a
+  // literal-prefix match. Zero-row no-op rule §5: chain .select('id') and
+  // treat empty as a valid steady state — only log when a row actually
+  // changed so the helper stays quiet on filter-only tests.
   const { data: deleted, error: deleteError } = await admin
     .from('questions')
     .update({ deleted_at: new Date().toISOString() })
@@ -444,6 +447,16 @@ export async function restoreSeededQuestionsState(): Promise<void> {
   // Reactivate any seeded question that the bulk-Deactivate test flipped to
   // 'draft'. Filter on `status != 'active'` so the UPDATE is a no-op when seed
   // state is already clean. .select('id') confirms the write actually landed.
+  //
+  // Scope note: this flips EVERY non-active, non-deleted question in the org
+  // back to 'active' — there is no question_text prefix filter, intentionally,
+  // because the bulk-Deactivate test selects all visible rows (seed + any
+  // test-created). On CI this is exact-match safe (fresh DB → only seeded +
+  // E2E-marker rows exist; the latter were soft-deleted above). On a shared
+  // local dev DB, a manually-authored draft question in egmont-aviation would
+  // be silently published by this UPDATE — accept that risk: this helper is
+  // only ever called from admin-questions.spec.ts's afterEach, which a dev
+  // running e2e specs has opted into.
   const { data: reactivated, error: reactivateError } = await admin
     .from('questions')
     .update({ status: 'active' })

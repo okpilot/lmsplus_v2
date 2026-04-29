@@ -620,14 +620,16 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
 // ---------------------------------------------------------------------------
 
 /**
- * Mock builder for restoreSeededQuestionsState. The function makes 3 chained
- * Supabase calls in order:
+ * Mock builder for restoreSeededQuestionsState. The function makes one
+ * `from('organizations')` call followed by exactly two sequential
+ * `from('questions')` calls:
  *   1. SELECT egmont-aviation org
  *   2. UPDATE questions (soft-delete E2E-marker rows) → returns affected ids
  *   3. UPDATE questions (reactivate non-active rows)  → returns affected ids
  *
- * `questionsCalls` is an ordered list of return values; each `from('questions')`
- * call pops the next entry. Lets a single test exercise both update branches.
+ * `questionsCalls` is an ordered list of return values for the two
+ * `from('questions')` calls; each call pops the next entry. Lets a single
+ * test exercise both update branches.
  */
 function buildRestoreMockClient(opts: {
   org?: { data: { id: string } | null; error: { message: string } | null }
@@ -669,6 +671,17 @@ describe('restoreSeededQuestionsState', () => {
     )
     await expect(restoreSeededQuestionsState()).rejects.toThrow(
       'restoreSeededQuestionsState org lookup: connection refused',
+    )
+  })
+
+  it('throws when the org row is missing but no db error is returned', async () => {
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        org: { data: null, error: null },
+      }),
+    )
+    await expect(restoreSeededQuestionsState()).rejects.toThrow(
+      'restoreSeededQuestionsState org lookup:',
     )
   })
 
