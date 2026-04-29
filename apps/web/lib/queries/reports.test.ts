@@ -174,6 +174,9 @@ describe('getSessionReports', () => {
     const ids = result.sessions.map((s) => s.id)
     expect(ids).not.toContain('sess-internal')
     expect(ids).toEqual(['sess-quick', 'sess-mock', 'sess-smart'])
+    // totalCount comes from the RPC window function (total_count field on the
+    // first surviving row); makeRpcRow seeds it as 1.
+    expect(result.totalCount).toBe(1)
   })
 
   it('retains mock_exam, quick_quiz, and smart_review rows when filtering', async () => {

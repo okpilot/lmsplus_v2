@@ -39,6 +39,19 @@ function buildChain(returnValue: unknown) {
   })
 }
 
+const USER_ORG_ROW = { organization_id: 'org-1' }
+
+/**
+ * Wraps a session-table chain factory so that requests against the `users`
+ * table return the standard org row, while everything else falls back to the
+ * provided session chain. Mirrors how the production code calls
+ * `from('users')` first to look up organization_id.
+ */
+function withUserChain(sessionChain: unknown) {
+  return (table: string) =>
+    table === 'users' ? buildChain({ data: USER_ORG_ROW, error: null }) : sessionChain
+}
+
 const SESSION_ROW = {
   id: 'sess-001',
   subject_id: 'subj-aaa',
@@ -70,7 +83,7 @@ afterEach(() => {
 describe('getActiveInternalExamSession — unauthenticated', () => {
   it('returns error when auth error is present', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: 'no session' } })
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    mockFrom.mockImplementation(withUserChain(buildChain({ data: [], error: null })))
 
     const result = await getActiveInternalExamSession()
 
@@ -79,7 +92,7 @@ describe('getActiveInternalExamSession — unauthenticated', () => {
 
   it('returns error when user is null without auth error', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    mockFrom.mockImplementation(withUserChain(buildChain({ data: [], error: null })))
 
     const result = await getActiveInternalExamSession()
 
@@ -89,7 +102,7 @@ describe('getActiveInternalExamSession — unauthenticated', () => {
 
 describe('getActiveInternalExamSession — happy path', () => {
   it('returns an array of active internal exam sessions with questionIds', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [SESSION_ROW], error: null }))
+    mockFrom.mockImplementation(withUserChain(buildChain({ data: [SESSION_ROW], error: null })))
 
     const result = await getActiveInternalExamSession()
 
@@ -113,7 +126,7 @@ describe('getActiveInternalExamSession — happy path', () => {
   })
 
   it('returns an empty array when no active internal exam sessions exist', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    mockFrom.mockImplementation(withUserChain(buildChain({ data: [], error: null })))
 
     const result = await getActiveInternalExamSession()
 
@@ -126,7 +139,7 @@ describe('getActiveInternalExamSession — happy path', () => {
   })
 
   it('returns an empty array when data is null', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
+    mockFrom.mockImplementation(withUserChain(buildChain({ data: null, error: null })))
 
     const result = await getActiveInternalExamSession()
 
@@ -139,8 +152,8 @@ describe('getActiveInternalExamSession — happy path', () => {
   })
 
   it('falls back to Unknown subject when easa_subjects is null', async () => {
-    mockFrom.mockReturnValue(
-      buildChain({ data: [{ ...SESSION_ROW, easa_subjects: null }], error: null }),
+    mockFrom.mockImplementation(
+      withUserChain(buildChain({ data: [{ ...SESSION_ROW, easa_subjects: null }], error: null })),
     )
 
     const result = await getActiveInternalExamSession()
@@ -153,7 +166,7 @@ describe('getActiveInternalExamSession — happy path', () => {
   })
 
   it('queries the quiz_sessions table', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    mockFrom.mockImplementation(withUserChain(buildChain({ data: [], error: null })))
 
     await getActiveInternalExamSession()
 
@@ -163,11 +176,13 @@ describe('getActiveInternalExamSession — happy path', () => {
 
 describe('getActiveInternalExamSession — malformed config (row skipped)', () => {
   it('skips a row with empty question_ids and adds id to orphanedSessionIds', async () => {
-    mockFrom.mockReturnValue(
-      buildChain({
-        data: [{ ...SESSION_ROW, id: 'session-empty', config: { question_ids: [] } }],
-        error: null,
-      }),
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'session-empty', config: { question_ids: [] } }],
+          error: null,
+        }),
+      ),
     )
 
     const result = await getActiveInternalExamSession()
@@ -181,17 +196,19 @@ describe('getActiveInternalExamSession — malformed config (row skipped)', () =
   })
 
   it('skips a row with missing pass_mark and adds id to orphanedSessionIds', async () => {
-    mockFrom.mockReturnValue(
-      buildChain({
-        data: [
-          {
-            ...SESSION_ROW,
-            id: 'session-no-pm',
-            config: { question_ids: ['q-1', 'q-2'] },
-          },
-        ],
-        error: null,
-      }),
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [
+            {
+              ...SESSION_ROW,
+              id: 'session-no-pm',
+              config: { question_ids: ['q-1', 'q-2'] },
+            },
+          ],
+          error: null,
+        }),
+      ),
     )
 
     const result = await getActiveInternalExamSession()
@@ -205,8 +222,13 @@ describe('getActiveInternalExamSession — malformed config (row skipped)', () =
   })
 
   it('skips a row with null config and adds id to orphanedSessionIds', async () => {
-    mockFrom.mockReturnValue(
-      buildChain({ data: [{ ...SESSION_ROW, id: 'session-null', config: null }], error: null }),
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'session-null', config: null }],
+          error: null,
+        }),
+      ),
     )
 
     const result = await getActiveInternalExamSession()
@@ -222,8 +244,8 @@ describe('getActiveInternalExamSession — malformed config (row skipped)', () =
 
 describe('getActiveInternalExamSession — DB error', () => {
   it('returns error when query fails', async () => {
-    mockFrom.mockReturnValue(
-      buildChain({ data: null, error: { message: 'relation does not exist' } }),
+    mockFrom.mockImplementation(
+      withUserChain(buildChain({ data: null, error: { message: 'relation does not exist' } })),
     )
 
     const result = await getActiveInternalExamSession()
@@ -244,7 +266,9 @@ describe('getActiveInternalExamSession — expired sessions (Layer 1)', () => {
   })
 
   it('moves an overdue row to expiredSessionIds and invokes complete_overdue_exam_session', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [overdueRow('expired-1')], error: null }))
+    mockFrom.mockImplementation(
+      withUserChain(buildChain({ data: [overdueRow('expired-1')], error: null })),
+    )
 
     const result = await getActiveInternalExamSession()
 
@@ -260,7 +284,9 @@ describe('getActiveInternalExamSession — expired sessions (Layer 1)', () => {
   })
 
   it('routes overdue row to orphanedSessionIds when RPC errors', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [overdueRow('expired-2')], error: null }))
+    mockFrom.mockImplementation(
+      withUserChain(buildChain({ data: [overdueRow('expired-2')], error: null })),
+    )
     mockRpc.mockResolvedValue({ data: null, error: { message: 'session is not overdue' } })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
@@ -282,7 +308,7 @@ describe('getActiveInternalExamSession — expired sessions (Layer 1)', () => {
   })
 
   it('keeps an active (deadline-in-future) row in sessions; does not call RPC', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [SESSION_ROW], error: null }))
+    mockFrom.mockImplementation(withUserChain(buildChain({ data: [SESSION_ROW], error: null })))
 
     const result = await getActiveInternalExamSession()
 
@@ -309,7 +335,9 @@ describe('getActiveInternalExamSession — expired sessions (Layer 1)', () => {
     }
     chain.is = () => chain
     chain.order = () => chain
-    mockFrom.mockReturnValue(chain)
+    mockFrom.mockImplementation((table: string) =>
+      table === 'users' ? buildChain({ data: USER_ORG_ROW, error: null }) : chain,
+    )
 
     await getActiveInternalExamSession()
 

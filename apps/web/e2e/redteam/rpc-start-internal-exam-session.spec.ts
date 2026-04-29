@@ -48,8 +48,11 @@ async function seedCode(
     voidedBy?: string | null
   },
 ): Promise<CodeRow> {
-  const code = `RT${Math.random()
-    .toString(36)
+  // crypto.randomUUID() is collision-resistant; Math.random() can collide
+  // across rapid test runs in the same describe block.
+  const code = `RT${crypto
+    .randomUUID()
+    .replace(/-/g, '')
     .toUpperCase()
     .replace(/[^A-Z2-9]/g, 'A')
     .slice(0, 6)}`
@@ -99,8 +102,10 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     // Resolve subject + topic from egmont and ensure an exam_config exists so
     // the RPC can reach the active-session / consumption code paths.
     const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
-    expect(subjects).not.toBeNull()
-    subjectId = subjects![0].id
+    if (!subjects || subjects.length === 0) {
+      throw new Error('seed: no easa_subjects rows available for red-team setup')
+    }
+    subjectId = subjects[0]!.id
 
     const { data: topics } = await admin
       .from('easa_topics')
@@ -231,10 +236,10 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     // 'insufficient_questions_for_exam' before reaching the active-session
     // guard. Skip the assertion in that case (covered by SQL integration tests).
     if (first.error && /insufficient_questions/i.test(first.error.message)) {
-      test.info().annotations.push({
-        type: 'skip',
-        description: 'insufficient seeded questions for exam_config — fixture limitation',
-      })
+      test.skip(
+        true,
+        'insufficient seeded questions for exam_config — fixture limitation; covered by SQL integration tests',
+      )
       return
     }
     expect(first.error).toBeNull()

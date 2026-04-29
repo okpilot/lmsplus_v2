@@ -107,10 +107,15 @@ test.describe('internal exam — reports separation', () => {
       await page.goto('/app/reports')
       await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible()
 
-      // Practice Exam label should be present.
-      await expect(page.getByText('Practice Exam').first()).toBeVisible({ timeout: 10_000 })
-      // Internal Exam label must NOT appear.
-      await expect(page.getByText('Internal Exam', { exact: true })).toHaveCount(0)
+      // Scope assertions to the page's <main> region so we don't pick up sidebar
+      // nav links or other layout chrome.
+      const reportsMain = page.getByRole('main')
+      // Practice Exam label should be present in the reports list.
+      await expect(reportsMain.getByText('Practice Exam').first()).toBeVisible({
+        timeout: 10_000,
+      })
+      // Internal Exam label must NOT appear inside the reports list itself.
+      await expect(reportsMain.getByText('Internal Exam', { exact: true })).toHaveCount(0)
 
       // ── /app/internal-exam My Reports tab lists ONLY internal_exam ──────────
       await page.goto('/app/internal-exam')

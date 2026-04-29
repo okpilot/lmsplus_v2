@@ -37,10 +37,22 @@ export async function getActiveInternalExamSession(): Promise<GetActiveInternalE
     } = await supabase.auth.getUser()
     if (authError || !user) return { success: false, error: 'Not authenticated' }
 
+    const { data: userRow, error: userErr } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (userErr || !userRow?.organization_id) {
+      console.error('[getActiveInternalExamSession] User lookup error:', userErr?.message)
+      return { success: false, error: 'Failed to fetch active internal exam sessions.' }
+    }
+
     const { data, error } = await supabase
       .from('quiz_sessions')
       .select('id, subject_id, started_at, time_limit_seconds, config, easa_subjects(name, short)')
       .eq('student_id', user.id)
+      .eq('organization_id', userRow.organization_id)
       .is('ended_at', null)
       .is('deleted_at', null)
       .eq('mode', 'internal_exam')

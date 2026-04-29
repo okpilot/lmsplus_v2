@@ -46,8 +46,10 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
 
     // Resolve a real subject from egmont-aviation
     const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
-    expect(subjects).not.toBeNull()
-    const subjectId = subjects![0].id
+    if (!subjects || subjects.length === 0) {
+      throw new Error('seed: no easa_subjects rows available for red-team setup')
+    }
+    const subjectId = subjects[0]!.id
 
     // Seed two active codes (one per student) directly via service-role.
     // Direct INSERT bypasses RLS — that's fine; we're constructing fixture data,
@@ -126,7 +128,10 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     const { data: meRes } = await attackerClient.auth.getUser()
     const myId = meRes?.user?.id ?? ''
     const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
-    const subjectId = subjects![0].id
+    if (!subjects || subjects.length === 0) {
+      throw new Error('seed: no easa_subjects rows available for INSERT vector')
+    }
+    const subjectId = subjects[0]!.id
     const { data: org } = await admin
       .from('users')
       .select('organization_id')

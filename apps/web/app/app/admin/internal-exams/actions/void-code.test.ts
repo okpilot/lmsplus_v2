@@ -109,6 +109,7 @@ describe('voidInternalExamCode', () => {
         expect(result.sessionId).toBe(SESSION_ID)
         expect(result.sessionEnded).toBe(true)
       }
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/internal-exams')
     })
 
     it('handles RPC returning a single object (not an array)', async () => {

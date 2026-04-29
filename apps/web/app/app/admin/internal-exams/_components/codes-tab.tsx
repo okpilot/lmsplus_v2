@@ -14,7 +14,7 @@ type Props = {
 
 export type IssuedCode = { code: string; expiresAt: string }
 
-export function CodesTab({ students, subjects, codes }: Readonly<Props>) {
+export function CodesTab({ students, subjects, codes }: Props) {
   const [issued, setIssued] = useState<IssuedCode | null>(null)
 
   return (

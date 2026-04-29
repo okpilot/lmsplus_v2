@@ -84,7 +84,7 @@ function CodeRow({ r, onVoid }: { r: InternalExamCodeRow; onVoid: (id: string) =
   )
 }
 
-export function CodesTable({ rows, status }: Readonly<Props>) {
+export function CodesTable({ rows, status }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [voidId, setVoidId] = useState<string | null>(null)

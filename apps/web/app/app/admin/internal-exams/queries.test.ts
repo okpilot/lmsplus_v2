@@ -33,7 +33,7 @@ function mockAdmin() {
 function buildChain(data: unknown, error: { message: string } | null = null) {
   const resolved = { data, error }
   const builder: Record<string, unknown> = {}
-  for (const fn of ['select', 'eq', 'is', 'not', 'order', 'limit']) {
+  for (const fn of ['select', 'eq', 'is', 'not', 'order', 'limit', 'lte', 'gt']) {
     builder[fn] = vi.fn().mockReturnValue(builder)
   }
   // biome-ignore lint/suspicious/noThenProperty: supabase chain must be thenable to mock awaiting the query builder

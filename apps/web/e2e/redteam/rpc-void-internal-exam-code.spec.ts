@@ -42,8 +42,11 @@ async function seedCode(
   admin: ReturnType<typeof getAdminClient>,
   opts: SeedOpts,
 ): Promise<{ id: string; code: string }> {
-  const code = `RT${Math.random()
-    .toString(36)
+  // crypto.randomUUID() is collision-resistant; Math.random() can collide
+  // across rapid test runs in the same describe block.
+  const code = `RT${crypto
+    .randomUUID()
+    .replace(/-/g, '')
     .toUpperCase()
     .replace(/[^A-Z2-9]/g, 'A')
     .slice(0, 6)}`
@@ -124,8 +127,10 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     crossOrgAdminClient = await createAuthenticatedClient(crossOrg.email, crossOrg.password)
 
     const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
-    expect(subjects).not.toBeNull()
-    subjectId = subjects![0].id
+    if (!subjects || subjects.length === 0) {
+      throw new Error('seed: no easa_subjects rows available for red-team setup')
+    }
+    subjectId = subjects[0]!.id
 
     const { data: topics } = await admin
       .from('easa_topics')

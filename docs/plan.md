@@ -1020,7 +1020,7 @@ From setup audit (2026-03-11), updated 2026-03-19:
 
 ---
 
-*Last updated: 2026-04-28 — PR #523 (Practice Exam Mode student session) merged as `9dae1e0`. Epic #180 closed. Eval-deferred bugs: #575 (reload loses answers), #539 (no change-answer path mid-flow). See PR #523 Round 7 section below for delivery detail.*
+*PR #523 status (2026-04-28): Practice Exam Mode student session merged as `9dae1e0`. Epic #180 closed. Eval-deferred bugs: #575 (reload loses answers), #539 (no change-answer path mid-flow). See PR #523 Round 7 section below for delivery detail.*
 
 ---
 

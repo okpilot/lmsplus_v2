@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { InternalExamsContent } from './_components/internal-exams-content'
+import { InternalExamsFallback } from './_components/internal-exams-fallback'
 
 export default async function InternalExamsPage() {
   await requireAdmin()
@@ -15,17 +16,6 @@ export default async function InternalExamsPage() {
       <Suspense fallback={<InternalExamsFallback />}>
         <InternalExamsContent />
       </Suspense>
-    </div>
-  )
-}
-
-function InternalExamsFallback() {
-  return (
-    <div className="grid gap-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
-        <div key={i} className="h-20 animate-pulse rounded-lg bg-muted" />
-      ))}
     </div>
   )
 }

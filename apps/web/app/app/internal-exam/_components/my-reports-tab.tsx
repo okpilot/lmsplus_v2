@@ -26,7 +26,7 @@ function formatScore(score: number | null): string {
   return `${Math.round(score)}%`
 }
 
-export function MyReportsTab({ rows }: Readonly<Props>) {
+export function MyReportsTab({ rows }: Props) {
   if (rows.length === 0) {
     return (
       <div

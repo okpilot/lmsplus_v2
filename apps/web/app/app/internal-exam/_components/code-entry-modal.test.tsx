@@ -61,6 +61,16 @@ describe('CodeEntryModal', () => {
     expect(input.value).toBe('ABX9')
   })
 
+  it('truncates input to 8 valid characters when more are pasted', async () => {
+    renderModal()
+    const input = screen.getByTestId('code-input') as HTMLInputElement
+    // 12 valid alphabet chars — sanitize() must clip to first 8.
+    await userEvent.click(input)
+    await userEvent.paste('ABCD2345EFGH')
+    expect(input.value).toBe('ABCD2345')
+    expect(input.value.length).toBe(8)
+  })
+
   it('does NOT call the action when the code is shorter than 8 chars', async () => {
     renderModal()
     const input = screen.getByTestId('code-input') as HTMLInputElement

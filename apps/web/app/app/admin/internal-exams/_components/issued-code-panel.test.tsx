@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockToastSuccess = vi.hoisted(() => vi.fn())
 const mockToastError = vi.hoisted(() => vi.fn())
@@ -17,8 +17,22 @@ const PROPS = {
 }
 
 describe('IssuedCodePanel', () => {
+  // Capture and restore the original clipboard descriptor across tests so we
+  // never leak a fake `writeText` to sibling specs.
+  const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+
   beforeEach(() => {
     vi.resetAllMocks()
+  })
+
+  afterEach(() => {
+    if (originalClipboardDescriptor) {
+      Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor)
+    } else {
+      // Some jsdom builds don't define clipboard at all — strip the test fake.
+      // biome-ignore lint/performance/noDelete: required to fully restore navigator
+      delete (navigator as unknown as { clipboard?: unknown }).clipboard
+    }
   })
 
   it('displays the issued code in large monospace text', () => {

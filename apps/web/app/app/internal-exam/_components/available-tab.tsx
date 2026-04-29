@@ -55,8 +55,15 @@ export function AvailableTab({ rows, userId }: Readonly<Props>) {
                 {row.subjectName}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Expires {formatAbsolute(row.expiresAt)}{' '}
-                <span className="text-muted-foreground/80">({formatRelative(row.expiresAt)})</span>
+                Expires {formatAbsolute(row.expiresAt)}
+                {formatRelative(row.expiresAt) && (
+                  <>
+                    {' '}
+                    <span className="text-muted-foreground/80">
+                      ({formatRelative(row.expiresAt)})
+                    </span>
+                  </>
+                )}
               </p>
             </div>
             <Button type="button" onClick={() => setSelected(row)} data-testid="start-button">

@@ -66,6 +66,8 @@ type ChainBuilder = {
   eq: (col: string, val: unknown) => ChainBuilder
   is: (col: string, val: null) => ChainBuilder
   not: (col: string, op: string, val: unknown) => ChainBuilder
+  lte: (col: string, val: unknown) => ChainBuilder
+  gt: (col: string, val: unknown) => ChainBuilder
   order: (col: string, opts: { ascending: boolean }) => ChainBuilder
   limit: (n: number) => ChainBuilder
 }
@@ -81,7 +83,7 @@ export async function listInternalExamCodes(
   const limit = clampLimit(filters.limit)
   const client = supabase as unknown as AnyClient
 
-  const builder = client
+  let builder = client
     .from('internal_exam_codes')
     .select(
       `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
@@ -92,8 +94,30 @@ export async function listInternalExamCodes(
     )
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
-    .order('issued_at', { ascending: false })
-    .limit(limit + 1)
+
+  if (filters.studentId) builder = builder.eq('student_id', filters.studentId)
+  if (filters.subjectId) builder = builder.eq('subject_id', filters.subjectId)
+
+  const nowIso = new Date().toISOString()
+  switch (filters.status) {
+    case 'voided':
+      builder = builder.not('voided_at', 'is', null)
+      break
+    case 'expired':
+      builder = builder.is('voided_at', null).is('consumed_at', null).lte('expires_at', nowIso)
+      break
+    case 'consumed':
+    case 'finished':
+      builder = builder.not('consumed_at', 'is', null).is('voided_at', null)
+      break
+    case 'active':
+      builder = builder.is('consumed_at', null).is('voided_at', null).gt('expires_at', nowIso)
+      break
+    default:
+      break
+  }
+
+  builder = builder.order('issued_at', { ascending: false }).limit(limit + 1)
 
   const { data, error } = (await (builder as unknown as PromiseLike<{
     data: unknown
@@ -126,7 +150,16 @@ export async function listInternalExamCodes(
     sessionEndedAt: r.quiz_sessions?.ended_at ?? null,
   }))
 
-  if (filters.status) mapped = mapped.filter((r) => r.status === filters.status)
+  // SQL above is the primary filter. TS guards below preserve correctness when
+  // a caller passes status-derived filters and act as a safety net for the
+  // 'consumed' vs 'finished' split (depends on linked quiz_sessions.ended_at).
+  if (filters.status === 'finished') {
+    mapped = mapped.filter((r) => r.sessionEndedAt !== null)
+  } else if (filters.status === 'consumed') {
+    mapped = mapped.filter((r) => r.sessionEndedAt === null && r.status === 'consumed')
+  } else if (filters.status) {
+    mapped = mapped.filter((r) => r.status === filters.status)
+  }
   if (filters.studentId) mapped = mapped.filter((r) => r.studentId === filters.studentId)
   if (filters.subjectId) mapped = mapped.filter((r) => r.subjectId === filters.subjectId)
 
@@ -144,7 +177,7 @@ export async function listInternalExamAttempts(
   const limit = clampLimit(filters.limit)
   const client = supabase as unknown as AnyClient
 
-  const builder = client
+  let builder = client
     .from('quiz_sessions')
     .select(
       `id, student_id, subject_id, started_at, ended_at, total_questions,
@@ -157,8 +190,11 @@ export async function listInternalExamAttempts(
     .eq('mode', 'internal_exam')
     .not('ended_at', 'is', null)
     .is('deleted_at', null)
-    .order('started_at', { ascending: false })
-    .limit(limit + 1)
+
+  if (filters.studentId) builder = builder.eq('student_id', filters.studentId)
+  if (filters.subjectId) builder = builder.eq('subject_id', filters.subjectId)
+
+  builder = builder.order('started_at', { ascending: false }).limit(limit + 1)
 
   const { data, error } = (await (builder as unknown as PromiseLike<{
     data: unknown
@@ -183,6 +219,7 @@ export async function listInternalExamAttempts(
     voidReason: r.internal_exam_codes?.[0]?.void_reason ?? null,
   }))
 
+  // SQL filters above are primary; TS guards preserve safety on already-paginated rows.
   if (filters.studentId) mapped = mapped.filter((r) => r.studentId === filters.studentId)
   if (filters.subjectId) mapped = mapped.filter((r) => r.subjectId === filters.subjectId)
 

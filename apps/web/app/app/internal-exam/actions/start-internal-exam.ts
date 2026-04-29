@@ -12,7 +12,6 @@ const RpcRowSchema = z.object({
   session_id: z.uuid(),
   question_ids: z.array(z.uuid()),
   time_limit_seconds: z.number().int().positive(),
-  total_questions: z.number().int().positive(),
   pass_mark: z.number().int().min(1).max(100),
   started_at: z.string(),
 })

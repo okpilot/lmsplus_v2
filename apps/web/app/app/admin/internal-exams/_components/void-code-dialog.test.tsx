@@ -99,15 +99,16 @@ describe('VoidCodeDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('shows session-ended toast when sessionEnded is true', async () => {
+  it('shows session-ended toast and closes dialog when sessionEnded is true', async () => {
     vi.mocked(voidInternalExamCode).mockResolvedValue({
       success: true,
       codeId: CODE_ID,
       sessionId: 'sess-1',
       sessionEnded: true,
     })
+    const onOpenChange = vi.fn()
     const user = userEvent.setup({ delay: null })
-    render(<VoidCodeDialog codeId={CODE_ID} open={true} onOpenChange={vi.fn()} />)
+    render(<VoidCodeDialog codeId={CODE_ID} open={true} onOpenChange={onOpenChange} />)
 
     await user.type(screen.getByLabelText('Reason'), 'reason')
     await user.click(screen.getByRole('button', { name: 'Void code' }))
@@ -115,6 +116,7 @@ describe('VoidCodeDialog', () => {
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith('Code voided and active session ended')
     })
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
   it('shows inline error message and keeps dialog open on failure', async () => {

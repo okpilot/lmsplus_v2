@@ -16,7 +16,7 @@ function formatExpiry(iso: string): string {
   return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-export function IssuedCodePanel({ code, expiresAt, onDismiss }: Readonly<Props>) {
+export function IssuedCodePanel({ code, expiresAt, onDismiss }: Props) {
   const [copied, setCopied] = useState(false)
 
   async function handleCopy() {
