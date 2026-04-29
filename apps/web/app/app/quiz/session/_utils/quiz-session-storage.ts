@@ -1,3 +1,4 @@
+import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import {
   hasValidOptionalFields,
@@ -25,6 +26,10 @@ export type ActiveSession = {
   draftId?: string
   savedAt: number // Date.now()
   mode?: 'study' | 'exam'
+  // DB-level exam mode (mock_exam | internal_exam). Display-only; drives badge label
+  // and UI gating (e.g., hides Discard for internal_exam). Defaults to mock_exam when
+  // mode === 'exam' and examMode is absent.
+  examMode?: DbQuizMode
   // Exam-mode refresh recovery: timer needs deadline-relative state, independent of SessionData.
   startedAt?: string // ISO string from quiz_sessions.started_at; required for exam mode
   timeLimitSeconds?: number
@@ -44,6 +49,7 @@ export function buildHandoffPayload(userId: string, s: ActiveSession) {
     subjectName: s.subjectName,
     subjectCode: s.subjectCode,
     mode: s.mode,
+    examMode: s.examMode,
     timeLimitSeconds: s.timeLimitSeconds,
     passMark: s.passMark,
     startedAt: s.startedAt,
@@ -150,6 +156,7 @@ export type SessionData = {
   subjectName?: string
   subjectCode?: string
   mode?: 'study' | 'exam'
+  examMode?: DbQuizMode
   timeLimitSeconds?: number
   passMark?: number
   startedAt?: string
@@ -205,6 +212,7 @@ export function toSessionData(r: ActiveSession): SessionData {
     subjectName: r.subjectName,
     subjectCode: r.subjectCode,
     mode: r.mode,
+    examMode: r.examMode,
     startedAt: r.startedAt,
     timeLimitSeconds: r.timeLimitSeconds,
     passMark: r.passMark,
@@ -227,6 +235,7 @@ type BuildOpts = {
   subjectCode?: string
   draftId?: string
   mode?: 'study' | 'exam'
+  examMode?: DbQuizMode
   startedAt?: string
   timeLimitSeconds?: number
   passMark?: number
@@ -250,6 +259,7 @@ export function buildActiveSession(
     draftId: opts.draftId,
     savedAt: Date.now(),
     mode: opts.mode,
+    examMode: opts.examMode,
     startedAt: opts.startedAt,
     timeLimitSeconds: opts.timeLimitSeconds,
     passMark: opts.passMark,

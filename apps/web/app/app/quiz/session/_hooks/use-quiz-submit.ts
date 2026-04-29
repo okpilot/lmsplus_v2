@@ -1,6 +1,7 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import { useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
+import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
 
@@ -17,6 +18,7 @@ export function useQuizSubmit(opts: {
   subjectName?: string
   subjectCode?: string
   isExam?: boolean
+  examMode?: DbQuizMode
 }) {
   const submitted = useRef(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
@@ -36,6 +38,7 @@ export function useQuizSubmit(opts: {
       answers: safeAnswers,
       draftId: opts.draftId,
       isExam: opts.isExam,
+      examMode: opts.examMode,
       onSuccess: () => {
         submitted.current = true
         setShowFinishDialog(false)

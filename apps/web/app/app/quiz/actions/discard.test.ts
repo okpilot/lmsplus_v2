@@ -77,9 +77,35 @@ describe('discardQuiz', () => {
 
   // ---- session soft-delete -------------------------------------------------
 
+  /**
+   * Helper: build a quiz_sessions chain that:
+   *   - returns `selectResult` when the chain ends with `.maybeSingle()` (pre-fetch)
+   *   - returns `updateResult` otherwise (UPDATE ... .select('id'))
+   */
+  function quizSessionsDualChain(selectResult: unknown, updateResult: unknown) {
+    function makeChain(returnValue: unknown): unknown {
+      const awaitable = {
+        // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
+        then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
+          Promise.resolve(returnValue).then(resolve, reject),
+      }
+      return new Proxy(awaitable as Record<string, unknown>, {
+        get(target, prop) {
+          if (prop === 'then') return target.then
+          if (prop === 'maybeSingle') return () => makeChain(selectResult)
+          return (..._args: unknown[]) => makeChain(returnValue)
+        },
+      })
+    }
+    return makeChain(updateResult)
+  }
+
   it('soft-deletes the session and returns success when no draftId is provided', async () => {
     mockFrom.mockReturnValue(
-      buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null }),
+      quizSessionsDualChain(
+        { data: { id: '00000000-0000-4000-a000-000000000001', mode: 'quick_quiz' }, error: null },
+        { data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null },
+      ),
     )
 
     const result = await discardQuiz({
@@ -90,8 +116,44 @@ describe('discardQuiz', () => {
     expect(mockFrom).toHaveBeenCalledWith('quiz_sessions')
   })
 
+  it('soft-deletes a mock_exam (Practice Exam) session — regression guard', async () => {
+    mockFrom.mockReturnValue(
+      quizSessionsDualChain(
+        { data: { id: '00000000-0000-4000-a000-000000000001', mode: 'mock_exam' }, error: null },
+        { data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null },
+      ),
+    )
+
+    const result = await discardQuiz({
+      sessionId: '00000000-0000-4000-a000-000000000001',
+    })
+
+    expect(result).toEqual({ success: true })
+  })
+
+  it('rejects discard for internal_exam sessions (server-side guard)', async () => {
+    mockFrom.mockReturnValue(
+      quizSessionsDualChain(
+        {
+          data: { id: '00000000-0000-4000-a000-000000000001', mode: 'internal_exam' },
+          error: null,
+        },
+        // Should never be reached — UPDATE must not run.
+        { data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null },
+      ),
+    )
+
+    const result = await discardQuiz({
+      sessionId: '00000000-0000-4000-a000-000000000001',
+    })
+
+    expect(result).toEqual({ success: false, error: 'cannot_discard_internal_exam' })
+  })
+
   it('returns failure when session not found or not owned (zero rows affected)', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    mockFrom.mockReturnValue(
+      quizSessionsDualChain({ data: null, error: null }, { data: [], error: null }),
+    )
 
     const result = await discardQuiz({
       sessionId: '00000000-0000-4000-a000-000000000001',
@@ -103,9 +165,30 @@ describe('discardQuiz', () => {
   it('returns failure when the session soft-delete query errors', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'quiz_sessions')
-        return buildChain({ error: { message: 'constraint violation' } })
+        return quizSessionsDualChain(
+          {
+            data: { id: '00000000-0000-4000-a000-000000000001', mode: 'quick_quiz' },
+            error: null,
+          },
+          { error: { message: 'constraint violation' } },
+        )
       return buildChain({ error: null })
     })
+
+    const result = await discardQuiz({
+      sessionId: '00000000-0000-4000-a000-000000000001',
+    })
+
+    expect(result).toEqual({ success: false, error: 'Failed to discard quiz' })
+  })
+
+  it('returns failure when the session pre-fetch query errors', async () => {
+    mockFrom.mockReturnValue(
+      quizSessionsDualChain(
+        { data: null, error: { message: 'connection lost', code: 'XX000' } },
+        { data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null },
+      ),
+    )
 
     const result = await discardQuiz({
       sessionId: '00000000-0000-4000-a000-000000000001',
@@ -119,7 +202,13 @@ describe('discardQuiz', () => {
   it('deletes the draft and returns success when draftId is provided', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'quiz_sessions')
-        return buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null })
+        return quizSessionsDualChain(
+          {
+            data: { id: '00000000-0000-4000-a000-000000000001', mode: 'quick_quiz' },
+            error: null,
+          },
+          { data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null },
+        )
       if (table === 'quiz_drafts') return buildChain({ error: null })
       throw new Error(`Unexpected table: ${table}`)
     })
@@ -136,7 +225,13 @@ describe('discardQuiz', () => {
   it('still returns success when draft deletion fails (non-fatal)', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'quiz_sessions')
-        return buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null })
+        return quizSessionsDualChain(
+          {
+            data: { id: '00000000-0000-4000-a000-000000000001', mode: 'quick_quiz' },
+            error: null,
+          },
+          { data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null },
+        )
       if (table === 'quiz_drafts') return buildChain({ error: { message: 'draft not found' } })
       throw new Error(`Unexpected table: ${table}`)
     })
@@ -152,7 +247,10 @@ describe('discardQuiz', () => {
 
   it('does not query quiz_drafts when no draftId is provided', async () => {
     mockFrom.mockReturnValue(
-      buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null }),
+      quizSessionsDualChain(
+        { data: { id: '00000000-0000-4000-a000-000000000001', mode: 'quick_quiz' }, error: null },
+        { data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null },
+      ),
     )
 
     await discardQuiz({
@@ -169,7 +267,13 @@ describe('discardQuiz', () => {
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'quiz_sessions')
-        return buildChain({ data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null })
+        return quizSessionsDualChain(
+          {
+            data: { id: '00000000-0000-4000-a000-000000000001', mode: 'quick_quiz' },
+            error: null,
+          },
+          { data: [{ id: '00000000-0000-4000-a000-000000000001' }], error: null },
+        )
       if (table === 'quiz_drafts') {
         // Build a spy chain that records method names before forwarding
         const spyChain = (returnValue: unknown): unknown => {

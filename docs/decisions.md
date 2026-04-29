@@ -611,6 +611,36 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 **Rationale**: The handoff format already requires non-empty `questionIds` (established in Phase 1). Reading them server-side at resume time is the simplest correct approach — no new RPC, no extra table, no client-side secret exposure. Cold-start and cross-tab recovery both work through this path.
 **Implementation**: `getActiveExamSession` + `ResumeExamBanner` updated; round-trip test in `resume-exam-banner.test.tsx` pins the validator contract.
 
+### Decision 37: Internal Exam Mode foundation — single-use code-based exam access (2026-04-29)
+
+**Date**: 2026-04-29
+
+**Context**: Official exam delivery (separate from Practice Exam) requires instructor-controlled student access. Single-use 8-character codes ensure one-off exam sessions with controlled demographics and audit trails.
+
+**Decision — Wave 1 (DB + RPCs only, code-first)**:
+- New `internal_exam_codes` table with 8-char unique codes (alphabet: A-Z minus O/I, digits 2-9), issued_by/consumed_by/voided_by audit columns, 24h expiry, immutable per RLS
+- `quiz_sessions.mode` CHECK extended: `'smart_review' | 'quick_quiz' | 'mock_exam' | 'internal_exam'`
+- New admin-only RPC `issue_internal_exam_code()`: generate code, 5-retry collision handling, audit `internal_exam.code_issued`
+- New student RPC `start_internal_exam_session()`: validate code, consume atomically via WHERE-clause race guard, auto-complete overdue prior session, build question set from exam config (identical to `start_exam_session`), return sessionId
+- New admin RPC `void_internal_exam_code()`: three branches (unconsumed, active-void→session.passed=false, finished), audit event
+- Extended `batch_submit_quiz()`: `internal_exam` mode allows partial submissions (no all-answered guard), score = correct/total (unanswered = wrong, same as mock_exam), audit event branched on mode
+- Extended `complete_overdue_exam_session()`: same RPC signature, now handles both `mock_exam` and `internal_exam` modes
+- `is_admin()` RPC: added `deleted_at IS NULL` filter (closes soft-delete bypass for admin checks, regression from soft-delete matrix)
+
+**Waves 2–7**: UI and integration tests follow.
+
+**Product decisions (locked):**
+
+- **Crockford-style 8-character code.** Alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` — excludes `0/O/I/1` to avoid mis-reads when the admin verbally relays a code. 8 chars × 32 symbols = 32^8 ≈ 1.1 trillion entropy; a 5-retry collision loop is sufficient.
+- **24-hour validity, single-use.** Codes expire 24h after issue and are single-use only. No extension, no re-redeem. A student needing a retake gets a new code.
+- **Plaintext storage.** Codes are stored unhashed in `internal_exam_codes.code`. Justified by short window (24h) + admin's need to re-display a freshly issued code. Read-path queries never return the value to students.
+- **Code never displayed in student lists.** The student "Available" tab shows subject + expiry only. Code value is shown to the student exactly once, by the admin, out-of-band.
+- **No discard for internal-exam sessions.** `discardSession` Server Action rejects `mode = 'internal_exam'`; the in-session discard button is hidden by mode. Internal-exam attempts are auditable artefacts.
+- **Separate reports tab.** Internal-exam sessions are excluded from existing reports/progress queries and surfaced under a dedicated "My Reports" tab on `/app/internal-exam`. Practice and internal exams are reported separately.
+- **Admin-only issue/void.** Both lifecycle endpoints gate via `is_admin()` + org-scope. Voiding an active session forces `passed = false` with score computed from existing answers; voiding a finished session is refused (`cannot_void_finished_attempt`).
+
+**Rationale**: Single-use codes prevent reuse and ensure each student gets unique exam audit records. The code-first approach validates DB design before building Server Actions and UI.
+
 ---
 
-*Last updated: 2026-04-27 — Decision 36: Practice Exam resume = sessionStorage handoff + server-side question IDs*
+*Last updated: 2026-04-29 — Decision 37: Internal Exam Mode foundation + product decisions*

@@ -497,6 +497,19 @@ describe('handleSubmitSession', () => {
     expect(opts.setError).toHaveBeenCalledWith(null)
   })
 
+  it('navigates to /app/internal-exam/report after a successful internal-exam submission', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    const opts = makeOpts({ isExam: true, examMode: 'internal_exam' })
+    await handleSubmitSession(opts)
+    expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
+  })
+
+  it('navigates to /app/internal-exam/report on zero-answer internal-exam timeout', async () => {
+    const opts = makeOpts({ answers: new Map(), isExam: true, examMode: 'internal_exam' })
+    await handleSubmitSession(opts)
+    expect(opts.router.push).toHaveBeenCalledWith(`/app/internal-exam/report?session=${SESSION_ID}`)
+  })
+
   it('shows error and stops loading when submission fails', async () => {
     mockBatchSubmitQuiz.mockResolvedValue({ success: false, error: 'session discarded' })
     const opts = makeOpts()

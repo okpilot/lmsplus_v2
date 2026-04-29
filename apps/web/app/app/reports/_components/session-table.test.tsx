@@ -95,6 +95,11 @@ describe('SessionTable', () => {
     expect(screen.getByText('Practice Exam')).toBeInTheDocument()
   })
 
+  it('renders an Internal Exam badge for internal_exam mode', () => {
+    render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'internal_exam' })]} />)
+    expect(screen.getByText('Internal Exam')).toBeInTheDocument()
+  })
+
   it('renders mode label for non-exam modes', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ mode: 'quick_quiz' })]} />)
     expect(screen.getByText('Study')).toBeInTheDocument()

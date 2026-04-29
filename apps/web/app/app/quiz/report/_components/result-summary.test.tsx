@@ -137,5 +137,20 @@ describe('ResultSummary', () => {
       render(<ResultSummary summary={makeSummary()} />)
       expect(screen.getByText('Quiz Complete')).toBeInTheDocument()
     })
+
+    it('renders "Practice Exam Complete" for mock_exam mode', () => {
+      render(<ResultSummary summary={makeSummary({ mode: 'mock_exam', passed: true })} />)
+      expect(screen.getByText('Practice Exam Complete')).toBeInTheDocument()
+    })
+
+    it('renders "Internal Exam Complete" for internal_exam mode', () => {
+      render(<ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: true })} />)
+      expect(screen.getByText('Internal Exam Complete')).toBeInTheDocument()
+    })
+
+    it('shows the pass/fail badge for internal_exam mode', () => {
+      render(<ResultSummary summary={makeSummary({ mode: 'internal_exam', passed: false })} />)
+      expect(screen.getByText('FAILED')).toBeInTheDocument()
+    })
   })
 })

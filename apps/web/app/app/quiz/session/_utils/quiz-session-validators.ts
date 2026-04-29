@@ -45,6 +45,7 @@ export function hasValidOptionalFields(d: Record<string, unknown>, questionCount
     isOptionalFieldValid(d, 'subjectName', (v) => typeof v === 'string') &&
     isOptionalFieldValid(d, 'subjectCode', (v) => typeof v === 'string') &&
     isOptionalFieldValid(d, 'mode', (v) => v === 'study' || v === 'exam') &&
+    isOptionalFieldValid(d, 'examMode', (v) => v === 'mock_exam' || v === 'internal_exam') &&
     isOptionalFieldValid(d, 'timeLimitSeconds', (v) => typeof v === 'number' && v > 0) &&
     isOptionalFieldValid(d, 'passMark', (v) => typeof v === 'number' && v > 0 && v <= 100) &&
     isOptionalFieldValid(d, 'startedAt', (v) => typeof v === 'string')

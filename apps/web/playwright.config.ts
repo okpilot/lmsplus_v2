@@ -24,16 +24,31 @@ export default defineConfig({
     { name: 'setup', testMatch: 'auth.setup.ts' },
     { name: 'admin-setup', testMatch: 'admin-auth.setup.ts' },
     {
+      name: 'internal-exam-student-setup',
+      testMatch: 'internal-exam-student-auth.setup.ts',
+    },
+    {
       name: 'e2e',
       testMatch: '**/*.spec.ts',
-      testIgnore: ['**/redteam/**', '**/admin-*.spec.ts'],
+      testIgnore: [
+        '**/redteam/**',
+        '**/admin-*.spec.ts',
+        // Internal Exam cross-role specs need both admin + student auth
+        // states; they run under the admin-e2e project (depends on
+        // admin-setup) and open a separate student context inside the test.
+        '**/internal-exam-*.spec.ts',
+      ],
       dependencies: ['setup'],
     },
     {
       name: 'admin-e2e',
-      testMatch: '**/admin-*.spec.ts',
+      testMatch: ['**/admin-*.spec.ts', '**/internal-exam-*.spec.ts'],
       testIgnore: '**/redteam/**',
-      dependencies: ['admin-setup'],
+      // internal-exam-student-setup creates a dedicated student fixture for the
+      // student-side context spawned inside the internal-exam-* specs. Using a
+      // dedicated user (not user.json) avoids session-rotation invalidation
+      // caused by the prior `e2e` project's specs running against user.json.
+      dependencies: ['admin-setup', 'internal-exam-student-setup'],
     },
     {
       name: 'redteam',

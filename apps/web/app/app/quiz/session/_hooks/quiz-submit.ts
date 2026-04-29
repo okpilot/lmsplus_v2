@@ -1,4 +1,5 @@
 import type { useRouter } from 'next/navigation'
+import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
 import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
 import { discardQuiz } from '../../actions/discard'
@@ -105,7 +106,12 @@ export async function handleSubmitSession(opts: {
   setError: SetError
   onSuccess: () => void
   isExam?: boolean
+  examMode?: DbQuizMode
 }) {
+  // Internal exams have their own report URL namespace (/app/internal-exam/report).
+  // Practice exams + study mode use /app/quiz/report.
+  const reportPath =
+    opts.examMode === 'internal_exam' ? '/app/internal-exam/report' : '/app/quiz/report'
   if (opts.answers.size === 0 && !opts.isExam) {
     opts.setError('No answers to submit.')
     return
@@ -127,7 +133,7 @@ export async function handleSubmitSession(opts: {
     if (result.success) {
       opts.onSuccess()
       clearActiveSession(opts.userId)
-      opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
+      opts.router.push(`${reportPath}?session=${opts.sessionId}`)
       clearDeploymentPin().catch(() => {})
     } else {
       console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
@@ -147,7 +153,7 @@ export async function handleSubmitSession(opts: {
   const r = await submitQuizSession(opts.sessionId, opts.answers, opts.userId, opts.draftId)
   if (r.success) {
     opts.onSuccess()
-    opts.router.push(`/app/quiz/report?session=${opts.sessionId}`)
+    opts.router.push(`${reportPath}?session=${opts.sessionId}`)
   } else {
     opts.setError(r.error)
     opts.setSubmitting(false)

@@ -13,6 +13,15 @@ export const TEST_PASSWORD = 'e2e-test-password-2026!'
 export const LOGIN_TEST_EMAIL = 'e2e-login-test@lmsplus.local'
 export const LOGIN_TEST_PASSWORD = 'e2e-login-test-password-2026!'
 
+// Separate user for internal-exam specs in the admin-e2e project. The regular
+// e2e project's specs run first and rotate `e2e/.auth/user.json`'s session via
+// @supabase/ssr refresh, deleting the auth.sessions row referenced by the saved
+// access_token. By the time admin-e2e specs spawn a student context from
+// user.json, gotrue rejects the token (session_id no longer exists). Same
+// rationale as LOGIN_TEST_EMAIL above.
+export const INTERNAL_EXAM_STUDENT_EMAIL = 'e2e-internal-exam@lmsplus.local'
+export const INTERNAL_EXAM_STUDENT_PASSWORD = 'e2e-internal-exam-password-2026!'
+
 export function getAdminClient() {
   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -206,6 +215,76 @@ export async function ensureLoginTestUser() {
       .update({ organization_id: orgId })
       .eq('id', userId)
     if (updateError) throw new Error(`ensureLoginTestUser update org: ${updateError.message}`)
+  }
+
+  await ensureConsentRecords(admin, userId)
+  return { orgId, userId }
+}
+
+/** Ensure a separate internal-exam student exists (used by admin-e2e/internal-exam-* specs). */
+export async function ensureInternalExamStudentUser() {
+  const admin = getAdminClient()
+
+  const { data: org, error: orgError } = await admin
+    .from('organizations')
+    .select('id')
+    .eq('slug', 'egmont-aviation')
+    .single()
+
+  if (orgError || !org)
+    throw new Error(`ensureInternalExamStudentUser org lookup: ${orgError?.message}`)
+  const orgId = org.id
+
+  const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
+  if (listError) throw new Error(`ensureInternalExamStudentUser listUsers: ${listError.message}`)
+  const existingAuth = existingUsers?.users.find(
+    (u: { email?: string }) => u.email === INTERNAL_EXAM_STUDENT_EMAIL,
+  )
+
+  let userId: string
+  if (existingAuth) {
+    userId = existingAuth.id
+    const { error: resetError } = await admin.auth.admin.updateUserById(userId, {
+      password: INTERNAL_EXAM_STUDENT_PASSWORD,
+    })
+    if (resetError)
+      throw new Error(`ensureInternalExamStudentUser reset password: ${resetError.message}`)
+  } else {
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email: INTERNAL_EXAM_STUDENT_EMAIL,
+      password: INTERNAL_EXAM_STUDENT_PASSWORD,
+      email_confirm: true,
+    })
+    if (authError) throw new Error(`ensureInternalExamStudentUser auth: ${authError.message}`)
+    userId = authData.user.id
+  }
+
+  const { data: userRow, error: userRowError } = await admin
+    .from('users')
+    .select('id, organization_id')
+    .eq('id', userId)
+    .single()
+
+  if (userRowError && userRowError.code !== 'PGRST116') {
+    throw new Error(`ensureInternalExamStudentUser user lookup: ${userRowError.message}`)
+  }
+
+  if (!userRow) {
+    const { error: userError } = await admin.from('users').insert({
+      id: userId,
+      organization_id: orgId,
+      email: INTERNAL_EXAM_STUDENT_EMAIL,
+      full_name: 'E2E Internal Exam Student',
+      role: 'student',
+    })
+    if (userError) throw new Error(`ensureInternalExamStudentUser public: ${userError.message}`)
+  } else if (userRow.organization_id !== orgId) {
+    const { error: updateError } = await admin
+      .from('users')
+      .update({ organization_id: orgId })
+      .eq('id', userId)
+    if (updateError)
+      throw new Error(`ensureInternalExamStudentUser update org: ${updateError.message}`)
   }
 
   await ensureConsentRecords(admin, userId)

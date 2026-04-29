@@ -503,6 +503,12 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 | `quiz_session.completed` | Student finishes session (score recorded) |
 | `exam.started` | Mock exam begins |
 | `exam.completed` | Mock exam ends (score + pass/fail recorded) |
+| `exam.expired` | Mock exam past deadline auto-completed (Layer 1) |
+| `internal_exam.code_issued` | Admin issues an `internal_exam_codes` row |
+| `internal_exam.started` | Student consumes a code; new `internal_exam` session created |
+| `internal_exam.completed` | Internal-exam session submitted (score + pass/fail recorded) |
+| `internal_exam.expired` | Internal-exam session ended past deadline (Layer 1) or via admin void of an active session |
+| `internal_exam.code_voided` | Admin voids a code (always written; on active-void, paired with `internal_exam.expired` for the session) |
 | `question.created` | Instructor adds a question |
 | `question.edited` | Instructor modifies a question |
 | `question.deleted` | Instructor deletes a question |
@@ -551,6 +557,23 @@ Any Server Action that operates on a quiz session or its questions must verify *
 **Enforced in:** `checkAnswer`, `fetchExplanation` (commit 306f44a, 2026-03-13). The `batch_submit_quiz` RPC enforces the same four checks at the SQL layer.
 
 **Runtime guard:** When reading `config.question_ids` from the DB, use `Array.isArray()` before `.includes()` — the `as unknown as` TypeScript cast provides no runtime guarantee against malformed JSONB.
+
+---
+
+## 11b. Internal Exam Mode
+
+`mode = 'internal_exam'` reuses the mock-exam integrity rules above (single activation, immutable responses, server-side deadline, locked question set) and adds:
+
+- **Code-gated entry.** Sessions can only start via `start_internal_exam_session(p_code)`. The RPC validates `code_not_yours`, `code_voided`, `code_already_used`, `code_expired`, and consumes the code with a race-safe `WHERE consumed_at IS NULL` clause. There is no client-side path that bypasses code validation.
+- **Single-use codes.** `internal_exam_codes` has no INSERT or DELETE RLS policy — writes happen only via SECURITY DEFINER RPCs (`issue_internal_exam_code`, `start_internal_exam_session`, `void_internal_exam_code`). FORCE ROW LEVEL SECURITY (migration `20260429000009`) prevents the table-owner role from bypassing RLS even on direct PostgREST writes.
+- **Plaintext code storage.** Codes are stored unhashed because the active-code window is short (24h, single-use) and admins must be able to re-display a code they just issued. Codes are never returned to students through any read-path query — the student "Available" tab lists active codes by subject + expiry only, never the code value. This is enforced in `apps/web/app/app/internal-exam/queries.ts`.
+- **Admin void = forced fail.** Voiding a consumed code with an active session forces `passed = false` and computes the score from existing answers (unanswered = wrong). The RPC refuses to retroactively change a session whose `ended_at` is already set (`cannot_void_finished_attempt`).
+- **No discard.** Server Action `discardSession` rejects `mode = 'internal_exam'`. The student-side discard button is hidden by mode in the session header. Internal-exam attempts are auditable artefacts and cannot be removed by the student.
+- **Admin-only issue/void.** `issue_internal_exam_code` and `void_internal_exam_code` both gate via `is_admin()` AND org-scope. `start_internal_exam_session` requires `code.student_id = auth.uid()` — students cannot redeem another student's code.
+
+### `is_admin()` soft-delete fix (migration `20260429000001`)
+
+`public.is_admin()` was missing `AND deleted_at IS NULL` on the `users` lookup. A soft-deleted admin previously satisfied `is_admin()` for every admin RLS policy and admin-gated RPC. Migration `20260429000001` adds the filter. _Pattern hit count = 1 for `is_admin()` specifically; not promoted to a new rule yet — flag and watch for a second occurrence in any other admin-gated function._
 
 ---
 

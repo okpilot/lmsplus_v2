@@ -31,7 +31,10 @@ if [ "$DIFF_LINES" -gt "$MAX_DIFF_LINES" ]; then
   FILTERED_LINES=$(printf '%s' "$DIFF" | wc -l)
   if [ "$FILTERED_LINES" -gt "$MAX_DIFF_LINES" ]; then
     echo "[security-auditor] Filtered diff still large ($FILTERED_LINES lines). Truncating to $MAX_DIFF_LINES lines."
-    DIFF=$(printf '%s' "$DIFF" | head -n "$MAX_DIFF_LINES")
+    # Use awk instead of head to avoid SIGPIPE (exit 141) under `set -o pipefail`.
+    # `head -n` closes its stdin once the limit is reached, which causes the
+    # upstream `printf` to receive SIGPIPE and abort the script.
+    DIFF=$(printf '%s' "$DIFF" | awk -v max="$MAX_DIFF_LINES" 'NR <= max')
     DIFF="$DIFF
 ... (truncated — $FILTERED_LINES total lines, showing first $MAX_DIFF_LINES)"
   fi
