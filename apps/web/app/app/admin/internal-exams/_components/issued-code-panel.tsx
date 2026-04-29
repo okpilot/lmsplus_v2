@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 
@@ -18,6 +18,15 @@ function formatExpiry(iso: string): string {
 
 export function IssuedCodePanel({ code, expiresAt, onDismiss }: Props) {
   const [copied, setCopied] = useState(false)
+
+  // Reset the "Copied" indicator when the panel is reused for a different code
+  // (e.g. admin issues a second code without unmounting the panel). The effect
+  // body doesn't read `code`, but the dep is the change-trigger — exactly the
+  // case useExhaustiveDependencies misclassifies.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: code is the change trigger, not a read
+  useEffect(() => {
+    setCopied(false)
+  }, [code])
 
   async function handleCopy() {
     try {

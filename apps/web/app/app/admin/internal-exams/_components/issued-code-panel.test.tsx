@@ -88,4 +88,20 @@ describe('IssuedCodePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
+
+  it('resets the Copied indicator when the panel is rerendered with a different code', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+
+    const { rerender } = render(<IssuedCodePanel {...PROPS} />)
+    fireEvent.click(screen.getByRole('button', { name: /copy code/i }))
+    // findByRole awaits the post-clipboard rerender that flips the label.
+    expect(await screen.findByRole('button', { name: /^copied$/i })).toBeInTheDocument()
+
+    rerender(<IssuedCodePanel {...PROPS} code="ZZZZ7777" />)
+    expect(screen.getByRole('button', { name: /copy code/i })).toBeInTheDocument()
+  })
 })

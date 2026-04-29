@@ -321,8 +321,9 @@ describe('getActiveInternalExamSession — expired sessions (Layer 1)', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('filters by mode=internal_exam (chain receives the correct equality argument)', async () => {
-    // Capture .eq calls so we can verify the mode filter is "internal_exam".
+  it('filters by mode=internal_exam and the resolved organization_id', async () => {
+    // Capture .eq calls so we can verify both the mode and org-scope filters
+    // make it onto the quiz_sessions chain.
     const eqCalls: Array<[string, unknown]> = []
     const chain: Record<string, unknown> = {}
     // biome-ignore lint/suspicious/noThenProperty: supabase chain must be thenable to mock awaiting the query builder
@@ -343,5 +344,7 @@ describe('getActiveInternalExamSession — expired sessions (Layer 1)', () => {
 
     const modeFilter = eqCalls.find(([col]) => col === 'mode')
     expect(modeFilter?.[1]).toBe('internal_exam')
+    const orgFilter = eqCalls.find(([col]) => col === 'organization_id')
+    expect(orgFilter?.[1]).toBe(USER_ORG_ROW.organization_id)
   })
 })

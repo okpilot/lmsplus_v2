@@ -44,6 +44,7 @@ async function seedCode(
     orgId: string
     expiresInMs?: number
     consumedAt?: string | null
+    consumedSessionId?: string | null
     voidedAt?: string | null
     voidedBy?: string | null
   },
@@ -65,7 +66,34 @@ async function seedCode(
     expires_at: expiresAt,
     organization_id: opts.orgId,
   }
-  if (opts.consumedAt) insertRow.consumed_at = opts.consumedAt
+  if (opts.consumedAt) {
+    insertRow.consumed_at = opts.consumedAt
+    // CHECK constraint consumed_pair_consistency requires consumed_session_id
+    // and consumed_at to be NULL together or both set together. When the caller
+    // doesn't provide a real session id, synthesise a placeholder quiz_session
+    // so the seed satisfies the constraint and the RPC's read-side guard runs.
+    let sessionId = opts.consumedSessionId
+    if (!sessionId) {
+      const { data: sessionRow, error: sessionErr } = await admin
+        .from('quiz_sessions')
+        .insert({
+          organization_id: opts.orgId,
+          student_id: opts.studentId,
+          mode: 'internal_exam',
+          subject_id: opts.subjectId,
+          config: { question_ids: [] },
+          total_questions: 0,
+          ended_at: opts.consumedAt,
+        })
+        .select('id')
+        .single()
+      if (sessionErr || !sessionRow) {
+        throw new Error(`seedCode placeholder session: ${sessionErr?.message}`)
+      }
+      sessionId = sessionRow.id
+    }
+    insertRow.consumed_session_id = sessionId
+  }
   if (opts.voidedAt) {
     insertRow.voided_at = opts.voidedAt
     insertRow.voided_by = opts.voidedBy ?? opts.studentId
@@ -112,7 +140,15 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
       .select('id')
       .eq('subject_id', subjectId)
       .limit(1)
-    const topicId = topics?.[0]?.id ?? subjectId
+    // Don't fall back to subjectId — easa_topics.id and easa_subjects.id are
+    // distinct relations; a fallback would FK-fail downstream with a confusing
+    // error instead of a clear setup failure.
+    const topicId = topics?.[0]?.id
+    if (!topicId) {
+      throw new Error(
+        `seed: no easa_topics row for subject ${subjectId} — red-team fixtures need at least one topic`,
+      )
+    }
 
     await ensureExamConfig(orgId, subjectId, topicId)
   })

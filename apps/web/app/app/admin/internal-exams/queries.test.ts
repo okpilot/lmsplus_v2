@@ -245,6 +245,102 @@ describe('listInternalExamCodes', () => {
       expect(result.rows[0]!.id).toBe('code-voided')
     })
 
+    it('returns only consumed-with-ended-session rows for status=finished', async () => {
+      // 'finished' = code is consumed AND the linked quiz_sessions row has
+      // ended_at set. 'consumed' = consumed but session still in flight.
+      // The split happens in the TS post-step (queries.ts ~L156-159).
+      const rows = [
+        {
+          id: 'code-in-flight',
+          code: 'IF',
+          subject_id: 'sub-1',
+          student_id: 'stu-1',
+          issued_by: 'a',
+          issued_at: PAST,
+          expires_at: FUTURE,
+          consumed_at: PAST,
+          consumed_session_id: 'sess-in-flight',
+          voided_at: null,
+          voided_by: null,
+          void_reason: null,
+          easa_subjects: null,
+          users: null,
+          quiz_sessions: { ended_at: null },
+        },
+        {
+          id: 'code-finished',
+          code: 'FN',
+          subject_id: 'sub-1',
+          student_id: 'stu-1',
+          issued_by: 'a',
+          issued_at: PAST,
+          expires_at: FUTURE,
+          consumed_at: PAST,
+          consumed_session_id: 'sess-done',
+          voided_at: null,
+          voided_by: null,
+          void_reason: null,
+          easa_subjects: null,
+          users: null,
+          quiz_sessions: { ended_at: PAST },
+        },
+      ]
+      mockAdmin()
+      mockFrom.mockReturnValue(buildChain(rows))
+
+      const result = await listInternalExamCodes({ status: 'finished' })
+
+      expect(result.rows).toHaveLength(1)
+      expect(result.rows[0]!.id).toBe('code-finished')
+      expect(result.rows[0]!.sessionEndedAt).toBe(PAST)
+    })
+
+    it('returns only consumed-without-ended-session rows for status=consumed', async () => {
+      const rows = [
+        {
+          id: 'code-in-flight',
+          code: 'IF',
+          subject_id: 'sub-1',
+          student_id: 'stu-1',
+          issued_by: 'a',
+          issued_at: PAST,
+          expires_at: FUTURE,
+          consumed_at: PAST,
+          consumed_session_id: 'sess-in-flight',
+          voided_at: null,
+          voided_by: null,
+          void_reason: null,
+          easa_subjects: null,
+          users: null,
+          quiz_sessions: { ended_at: null },
+        },
+        {
+          id: 'code-finished',
+          code: 'FN',
+          subject_id: 'sub-1',
+          student_id: 'stu-1',
+          issued_by: 'a',
+          issued_at: PAST,
+          expires_at: FUTURE,
+          consumed_at: PAST,
+          consumed_session_id: 'sess-done',
+          voided_at: null,
+          voided_by: null,
+          void_reason: null,
+          easa_subjects: null,
+          users: null,
+          quiz_sessions: { ended_at: PAST },
+        },
+      ]
+      mockAdmin()
+      mockFrom.mockReturnValue(buildChain(rows))
+
+      const result = await listInternalExamCodes({ status: 'consumed' })
+
+      expect(result.rows).toHaveLength(1)
+      expect(result.rows[0]!.id).toBe('code-in-flight')
+    })
+
     it('filters by studentId', async () => {
       mockAdmin()
       mockFrom.mockReturnValue(buildChain(makeRows()))

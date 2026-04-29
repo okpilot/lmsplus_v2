@@ -126,7 +126,8 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     // Table has no INSERT policy and no INSERT GRANT to authenticated.
     // The attempt must fail with an RLS / permission error — never silently succeed.
     const { data: meRes } = await attackerClient.auth.getUser()
-    const myId = meRes?.user?.id ?? ''
+    const myId = meRes?.user?.id
+    if (!myId) throw new Error('seed: attackerClient has no authenticated user')
     const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
     if (!subjects || subjects.length === 0) {
       throw new Error('seed: no easa_subjects rows available for INSERT vector')
@@ -138,6 +139,7 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
       .eq('id', myId)
       .single()
     const orgId = org?.organization_id
+    if (!orgId) throw new Error('seed: attacker user has no organization_id')
 
     const forgedCode = `FORGED${Date.now().toString(36).toUpperCase().slice(-4)}`
     const { error } = await attackerClient.from('internal_exam_codes').insert({
@@ -149,9 +151,13 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
       organization_id: orgId,
     })
 
-    // Must error (no INSERT GRANT). PostgREST returns code 42501 (permission denied)
-    // or RLS-violation error. Either way, error must not be null.
+    // Must error with a permission/RLS class — not a NOT NULL or FK error
+    // that would mean the test is "passing" for the wrong reason.
     expect(error).not.toBeNull()
+    expect(
+      error?.code === '42501' ||
+        /permission denied|row-level security|rls/i.test(error?.message ?? ''),
+    ).toBe(true)
 
     // Belt-and-braces: verify no row with this code exists in the DB.
     const { data: probe } = await admin

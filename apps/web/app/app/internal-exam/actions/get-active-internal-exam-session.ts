@@ -75,7 +75,30 @@ export async function getActiveInternalExamSession(): Promise<GetActiveInternalE
         orphanedSessionIds.push(row.id)
         continue
       }
-      const timeLimitSeconds = row.time_limit_seconds ?? 0
+      // Defensive: a row with non-positive/non-integer time_limit_seconds or an
+      // unparseable started_at can't be evaluated by isExamOverdue. Internal
+      // exam mode has no discard path, so a stranded row would lock the
+      // student into a non-expiring official attempt. Quarantine instead.
+      const rawTimeLimit = row.time_limit_seconds
+      if (
+        typeof rawTimeLimit !== 'number' ||
+        !Number.isFinite(rawTimeLimit) ||
+        rawTimeLimit <= 0 ||
+        !Number.isInteger(rawTimeLimit)
+      ) {
+        console.error(
+          '[getActiveInternalExamSession] Skipping row (invalid time_limit_seconds):',
+          row.id,
+        )
+        orphanedSessionIds.push(row.id)
+        continue
+      }
+      if (typeof row.started_at !== 'string' || Number.isNaN(Date.parse(row.started_at))) {
+        console.error('[getActiveInternalExamSession] Skipping row (invalid started_at):', row.id)
+        orphanedSessionIds.push(row.id)
+        continue
+      }
+      const timeLimitSeconds = rawTimeLimit
       if (isExamOverdue(row.started_at, timeLimitSeconds)) {
         const { error: rpcErr } = await rpc<unknown>(supabase, 'complete_overdue_exam_session', {
           p_session_id: row.id,

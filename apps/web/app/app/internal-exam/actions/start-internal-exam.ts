@@ -42,6 +42,15 @@ const ERROR_MESSAGES: Array<[string, string]> = [
     'You already have an active internal exam session for this subject. Submit it before starting a new one.',
   ],
   ['insufficient_questions_for_exam', 'Cannot start exam: not enough questions configured.'],
+  [
+    'exam_config_required',
+    'No exam configuration available for this subject. Please contact your administrator.',
+  ],
+  // Token text is the literal RAISE EXCEPTION string from mig 070/071, with spaces.
+  [
+    'user not found or inactive',
+    'Your account is no longer active. Please contact your administrator.',
+  ],
 ]
 
 function mapRpcError(message: string): string {

@@ -45,6 +45,10 @@ function renderModal(open = true) {
 describe('CodeEntryModal', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    // The successful-start path writes 'quiz-session:<userId>' into sessionStorage.
+    // Clear so cases that run after it don't inherit the seed and assert against
+    // stale state.
+    sessionStorage.clear()
   })
 
   it('disables the submit button when the input is empty', () => {

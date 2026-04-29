@@ -59,12 +59,39 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     adminClientAuthed = await createAuthenticatedClient(adminEmail, adminPassword)
     crossOrgAdminClient = await createAuthenticatedClient(crossOrg.email, crossOrg.password)
 
-    // Resolve subjects/topics for the egmont org.
-    const { data: subjects } = await admin
+    // Resolve subjects/topics for the egmont org. Need at least 2 distinct
+    // subjects (one configured, one unconfigured). CI Supabase seeds may carry
+    // only one — top up with throwaway rows when needed.
+    let { data: subjects } = await admin
       .from('easa_subjects')
       .select('id')
       .order('sort_order', { ascending: true })
       .limit(2)
+    if (!subjects || subjects.length < 2) {
+      await admin.from('easa_subjects').upsert(
+        [
+          {
+            code: 'RT-FIXTURE-1',
+            name: 'Red Team Fixture Subject 1',
+            short: 'RTF1',
+            sort_order: 9001,
+          },
+          {
+            code: 'RT-FIXTURE-2',
+            name: 'Red Team Fixture Subject 2',
+            short: 'RTF2',
+            sort_order: 9002,
+          },
+        ],
+        { onConflict: 'code', ignoreDuplicates: true },
+      )
+      const refetched = await admin
+        .from('easa_subjects')
+        .select('id')
+        .order('sort_order', { ascending: true })
+        .limit(2)
+      subjects = refetched.data
+    }
     expect(subjects).not.toBeNull()
     expect(subjects!.length).toBeGreaterThanOrEqual(2)
     configuredSubjectId = subjects![0].id
@@ -75,7 +102,24 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
       .select('id')
       .eq('subject_id', configuredSubjectId)
       .limit(1)
-    const topicId = topics?.[0]?.id ?? configuredSubjectId
+    // Don't fall back to configuredSubjectId — easa_topics.id and easa_subjects.id
+    // are distinct relations; ensureExamConfig would FK-fail downstream.
+    let topicId = topics?.[0]?.id
+    if (!topicId) {
+      const { data: insertedTopic, error: topicErr } = await admin
+        .from('easa_topics')
+        .insert({
+          subject_id: configuredSubjectId,
+          code: 'RT-T1',
+          name: 'Red Team Fixture Topic 1',
+        })
+        .select('id')
+        .single()
+      if (topicErr || !insertedTopic) {
+        throw new Error(`seed: failed to insert fixture topic: ${topicErr?.message}`)
+      }
+      topicId = insertedTopic.id
+    }
 
     // Seed an enabled exam_config for the configured subject in the egmont org.
     const { data: orgRow } = await admin

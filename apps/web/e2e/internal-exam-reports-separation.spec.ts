@@ -21,13 +21,21 @@ import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
 const SUBJECT_LABEL_FRAGMENT = 'Meteorology'
+// Pin the admin's student-select dropdown to the seeded E2E student so we
+// don't accidentally issue a code to a different student depending on alphabetical
+// order or seed drift. Match the full name from helpers/supabase.ts.
+const STUDENT_LABEL_FRAGMENT = 'E2E Test Student'
 
 async function issueCodeAsAdmin(adminPage: Page, subjectFragment: string): Promise<string> {
   await adminPage.goto('/app/admin/internal-exams')
   await expect(adminPage.getByRole('heading', { name: 'Internal Exams' })).toBeVisible()
   const form = adminPage.getByTestId('issue-code-form')
   await form.locator('[aria-label="Student"]').click()
-  await adminPage.locator('[data-slot="select-item"]').first().click()
+  await adminPage
+    .locator('[data-slot="select-item"]')
+    .filter({ hasText: STUDENT_LABEL_FRAGMENT })
+    .first()
+    .click()
   await form.locator('[aria-label="Subject"]').click()
   await adminPage
     .locator('[data-slot="select-item"]')
