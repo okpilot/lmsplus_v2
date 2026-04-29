@@ -42,6 +42,7 @@ export function useExamPipeline(opts: {
     subjectName: opts.quizOpts.subjectName,
     subjectCode: opts.quizOpts.subjectCode,
     isExam: true,
+    examMode: opts.quizOpts.examMode,
   })
 
   function handleSelectAnswer(id: string): Promise<boolean> {

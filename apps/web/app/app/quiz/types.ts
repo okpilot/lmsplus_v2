@@ -114,6 +114,7 @@ export type QuizStateOpts = {
   subjectName?: string
   subjectCode?: string
   mode?: QuizMode
+  examMode?: import('@/lib/constants/exam-modes').QuizMode
   timeLimitSeconds?: number
   passMark?: number
   startedAt?: string
