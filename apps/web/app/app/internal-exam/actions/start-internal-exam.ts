@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { rpc } from '@/lib/supabase-rpc'
+import { START_INTERNAL_EXAM_ERROR_MESSAGES } from './_error-messages'
 
 const StartInternalExamInput = z.object({
   code: z.string().min(1).max(64),
@@ -29,32 +30,8 @@ export type StartInternalExamResult =
     }
   | { success: false; error: string }
 
-const ERROR_MESSAGES: Array<[string, string]> = [
-  ['not_authenticated', 'Not authenticated'],
-  // UNIFIED — never reveal whether the code exists for a different student.
-  ['code_not_found', 'Invalid or expired code. Please contact your administrator.'],
-  ['code_not_yours', 'Invalid or expired code. Please contact your administrator.'],
-  ['code_expired', 'This code has expired. Please contact your administrator.'],
-  ['code_already_used', 'This code has already been used.'],
-  ['code_voided', 'This code has been cancelled. Please contact your administrator.'],
-  [
-    'active_session_exists',
-    'You already have an active internal exam session for this subject. Submit it before starting a new one.',
-  ],
-  ['insufficient_questions_for_exam', 'Cannot start exam: not enough questions configured.'],
-  [
-    'exam_config_required',
-    'No exam configuration available for this subject. Please contact your administrator.',
-  ],
-  // Token text is the literal RAISE EXCEPTION string from mig 070/071, with spaces.
-  [
-    'user not found or inactive',
-    'Your account is no longer active. Please contact your administrator.',
-  ],
-]
-
 function mapRpcError(message: string): string {
-  for (const [token, friendly] of ERROR_MESSAGES) {
+  for (const [token, friendly] of START_INTERNAL_EXAM_ERROR_MESSAGES) {
     if (message.includes(token)) return friendly
   }
   return 'Failed to start internal exam.'
