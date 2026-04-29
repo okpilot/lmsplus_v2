@@ -310,7 +310,7 @@ if (error) {
 return { success: true }
 ```
 
-**Zero-row no-op check:** For ownership-scoped DELETE and UPDATE calls, verify at least one row was affected by chaining `.select('id')` and checking the returned array length. Supabase returns no error when RLS blocks a mutation — it returns 200 OK with zero affected rows. Without this check, cross-user or wrong-ID calls silently succeed.
+**Zero-row no-op check:** For any DELETE or UPDATE that's expected to mutate rows — ownership-scoped via RLS, admin-context via service-key, or a test-cleanup helper — chain `.select('id')` and verify the returned array length. Supabase returns 200 OK with zero affected rows when the filter matches nothing or RLS blocks the write. Without this check, cross-user, wrong-ID, or filter-regressed calls silently succeed.
 
 ```ts
 // ❌ WRONG — RLS blocks cross-user delete, but returns no error
@@ -323,7 +323,32 @@ const { data, error } = await supabase.from('comments').delete().eq('id', commen
 if (error) return { success: false }
 if (!data?.length) return { success: false, error: 'Not found or not owned' }
 return { success: true }
+
+// ✅ CORRECT — service-role cleanup where zero rows IS valid; observability still required
+const { data: discarded, error } = await admin
+  .from('quiz_sessions')
+  .update({ deleted_at: new Date().toISOString() })
+  .eq('student_id', studentId)
+  .is('ended_at', null)
+  .select('id')
+if (error) throw new Error(`cleanup: ${error.message}`)
+if ((discarded?.length ?? 0) > 0) {
+  console.log(`[cleanup] discarded ${discarded?.length} session(s)`)
+}
 ```
+
+### PostgREST Embedded Resources: Use `!` (FK-hint), Not `:` (alias)
+The `:` operator in `.select()` aliases the result key but does NOT expand a foreign key. PostgREST may resolve the embedded resource by table name when there's a single FK, but on resolution failure (FK ambiguous, schema drift) it returns null silently — and downstream code that expected an object then operates on null. Use `!fk_column_name` to explicitly hint the FK; resolution failures error loudly.
+
+```ts
+// ❌ WRONG — `:` is an alias, returns null on resolution failure
+.select('id, consumed_session_id, quiz_sessions:consumed_session_id (ended_at)')
+
+// ✅ CORRECT — `!` is the FK hint, errors loudly on resolution failure
+.select('id, consumed_session_id, quiz_sessions!consumed_session_id (ended_at)')
+```
+
+Same shape applies to nested resources, joined columns, and renamed embeds. Reserve `:` for genuine column-rename in the result, never as a substitute for `!` on FK expansion.
 
 ### Sanitize Error Messages in Server Actions
 Every `if (error)` block in a Server Action must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly — Postgres error strings can expose connection details, schema names, and internal state.
