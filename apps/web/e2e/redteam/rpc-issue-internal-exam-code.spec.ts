@@ -123,6 +123,30 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
       topicId = insertedTopic.id
     }
 
+    // Other red-team specs (e.g. rpc-question-membership) pick the second subject
+    // returned by `select('id').limit(2)` and expect it to have at least one topic.
+    // When our subjects upsert above runs in a CI Supabase that had only one
+    // pre-existing subject, RT-FIXTURE-2 ends up as that "second subject" — but
+    // it has no topics by default, breaking those specs. Seed a topic for it.
+    const { data: unconfTopics } = await admin
+      .from('easa_topics')
+      .select('id')
+      .eq('subject_id', unconfiguredSubjectId)
+      .limit(1)
+    if (!unconfTopics || unconfTopics.length === 0) {
+      const { error: unconfTopicErr } = await admin.from('easa_topics').insert({
+        subject_id: unconfiguredSubjectId,
+        code: 'RT-T2',
+        name: 'Red Team Fixture Topic 2',
+        sort_order: 9002,
+      })
+      if (unconfTopicErr) {
+        throw new Error(
+          `seed: failed to insert fixture topic for unconfigured subject: ${unconfTopicErr.message}`,
+        )
+      }
+    }
+
     // Seed an enabled exam_config for the configured subject in the egmont org.
     const { data: orgRow } = await admin
       .from('organizations')
