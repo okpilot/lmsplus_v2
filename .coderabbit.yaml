@@ -179,6 +179,35 @@ reviews:
           state in localStorage or in-memory across renders, verify a test simulates
           reload with empty local state against an active server session.
 
+    # E2E Playwright specs — hermiticity (cross-spec state pollution)
+    - path: "apps/web/e2e/**/*.spec.ts"
+      instructions: |
+        Playwright E2E spec. Enforce hermiticity — cross-spec state pollution is
+        the #1 cause of CI flake-that-isn't-flake (issue #587). Specs share a
+        Supabase project, so a spec mutating seed without cleanup poisons every
+        downstream spec in the same project's alphabetical run order.
+        - Any mutation of shared seed data (questions, students, sessions, configs)
+          must restore in `test.afterEach` (or `afterAll` for describe-scoped fixtures).
+          Read-only specs and specs that only mutate per-test throwaway rows tied
+          to a unique marker do not need afterEach.
+        - Test-created rows must carry a stable marker prefix in a queryable column
+          (e.g. `question_text LIKE '[E2E_ADMIN_Q]%'`, `email LIKE 'e2e-student-mgmt-%'`).
+          Marker constants must be EXPORTED from a shared helper module — flag
+          inline magic strings like `'e2e-test-' + Date.now()` not anchored to a const.
+        - Cleanup that touches tables with FK children must use soft-delete
+          (UPDATE deleted_at = now()), not hard DELETE. FK children of `questions`:
+          student_responses, quiz_session_answers, flagged_questions,
+          question_comments. Hard DELETE risks 23503 violations and breaks
+          docs/security.md rule 6.
+        - Cleanup helpers must chain `.select('id')` and gate logging on
+          `data.length > 0` per code-style.md §5 (zero-row no-op rule). Silent
+          on filter-only tests; observable when something actually changed.
+        - Cleanup helpers themselves need Vitest unit tests (co-located in
+          helpers/*.test.ts) covering: org-lookup error path, each mutation error
+          path, no-op silence, each log path. Use the vi.hoisted + buildChain
+          queue/shift pattern when the helper makes multiple sequential calls on
+          the same table.
+
     # Environment files — block immediately
     - path: "**/.env*"
       instructions: |
