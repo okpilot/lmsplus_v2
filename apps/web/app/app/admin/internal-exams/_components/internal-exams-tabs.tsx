@@ -1,5 +1,6 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { type KeyboardEvent, useRef, useState } from 'react'
 import type {
   ExamSubjectOption,
@@ -22,7 +23,9 @@ type TabKey = 'codes' | 'attempts'
 const TAB_ORDER: TabKey[] = ['codes', 'attempts']
 
 export function InternalExamsTabs({ students, subjects, codes, attempts }: Props) {
-  const [tab, setTab] = useState<TabKey>('codes')
+  const searchParams = useSearchParams()
+  const initialTab: TabKey = searchParams.get('tab') === 'attempts' ? 'attempts' : 'codes'
+  const [tab, setTab] = useState<TabKey>(initialTab)
   const tablistRef = useRef<HTMLDivElement | null>(null)
 
   function focusTab(key: TabKey) {

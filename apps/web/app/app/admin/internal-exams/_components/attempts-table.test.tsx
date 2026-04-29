@@ -1,10 +1,25 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { InternalExamAttemptRow } from '../types'
 
+const mockPush = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
+
 vi.mock('next/link', () => ({
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    href,
+    children,
+    onClick,
+  }: {
+    href: string
+    children: React.ReactNode
+    onClick?: (e: React.MouseEvent) => void
+  }) => (
+    <a href={href} onClick={onClick}>
+      {children}
+    </a>
   ),
 }))
 
@@ -35,7 +50,7 @@ describe('AttemptsTable', () => {
   it('renders student name as a link to the report page with sessionId', () => {
     render(<AttemptsTable rows={[baseRow]} />)
     const link = screen.getByRole('link', { name: 'Alice' })
-    expect(link.getAttribute('href')).toBe('/app/quiz/report?id=sess-1')
+    expect(link.getAttribute('href')).toBe('/app/admin/internal-exams/report?session=sess-1')
   })
 
   it('renders subject name', () => {
@@ -74,11 +89,18 @@ describe('AttemptsTable', () => {
   it('falls back to email when student name is empty', () => {
     render(<AttemptsTable rows={[{ ...baseRow, studentName: '' }]} />)
     const link = screen.getByRole('link', { name: 'alice@example.com' })
-    expect(link.getAttribute('href')).toBe('/app/quiz/report?id=sess-1')
+    expect(link.getAttribute('href')).toBe('/app/admin/internal-exams/report?session=sess-1')
   })
 
   it('renders dash for null score', () => {
     render(<AttemptsTable rows={[{ ...baseRow, scorePercentage: null }]} />)
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+
+  it('navigates to the admin report when the row is clicked', () => {
+    mockPush.mockClear()
+    render(<AttemptsTable rows={[baseRow]} />)
+    fireEvent.click(screen.getByRole('link', { name: 'Alice' }).closest('tr') as HTMLElement)
+    expect(mockPush).toHaveBeenCalledWith('/app/admin/internal-exams/report?session=sess-1')
   })
 })

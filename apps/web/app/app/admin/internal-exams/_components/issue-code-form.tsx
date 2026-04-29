@@ -73,7 +73,7 @@ export function IssueCodeForm({ students, subjects, onIssued }: Readonly<Props>)
           <SelectTrigger id="student" aria-label="Student" className="w-full">
             <SelectValue placeholder="Select student" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent alignItemWithTrigger={false}>
             {studentItems.map((item) => (
               <SelectItem key={item.value} value={item.value} label={item.label}>
                 {item.label}
@@ -94,7 +94,7 @@ export function IssueCodeForm({ students, subjects, onIssued }: Readonly<Props>)
           <SelectTrigger id="subject" aria-label="Subject" className="w-full">
             <SelectValue placeholder="Select subject" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent alignItemWithTrigger={false}>
             {subjectItems.map((item) => (
               <SelectItem key={item.value} value={item.value} label={item.label}>
                 {item.label}

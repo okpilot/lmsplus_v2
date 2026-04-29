@@ -1,9 +1,24 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+const mockPush = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
+
 vi.mock('next/link', () => ({
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    href,
+    children,
+    onClick,
+  }: {
+    href: string
+    children: React.ReactNode
+    onClick?: (e: React.MouseEvent) => void
+  }) => (
+    <a href={href} onClick={onClick}>
+      {children}
+    </a>
   ),
 }))
 
@@ -30,16 +45,32 @@ describe('MyReportsTab', () => {
     expect(screen.getByTestId('reports-empty')).toHaveTextContent(/no internal exam attempts yet/i)
   })
 
-  it('renders the subject short as a link to the report page with the session id', () => {
+  it('renders the full subject name as a link to the report page with the session id', () => {
     render(<MyReportsTab rows={[baseRow]} />)
-    const link = screen.getByRole('link', { name: '010' })
-    expect(link.getAttribute('href')).toBe('/app/quiz/report?id=sess-1')
+    const link = screen.getByRole('link', { name: 'Air Law' })
+    expect(link.getAttribute('href')).toBe('/app/internal-exam/report?session=sess-1')
   })
 
-  it('falls back to the subject name when there is no short code', () => {
-    render(<MyReportsTab rows={[{ ...baseRow, subjectShort: '' }]} />)
-    const link = screen.getByRole('link', { name: 'Air Law' })
-    expect(link.getAttribute('href')).toBe('/app/quiz/report?id=sess-1')
+  it('falls back to the subject short code when there is no full name', () => {
+    render(<MyReportsTab rows={[{ ...baseRow, subjectName: '' }]} />)
+    const link = screen.getByRole('link', { name: '010' })
+    expect(link.getAttribute('href')).toBe('/app/internal-exam/report?session=sess-1')
+  })
+
+  it('navigates to the report when the row is clicked', () => {
+    mockPush.mockClear()
+    render(<MyReportsTab rows={[baseRow]} />)
+    const row = screen.getByTestId('report-row-sess-1')
+    fireEvent.click(row)
+    expect(mockPush).toHaveBeenCalledWith('/app/internal-exam/report?session=sess-1')
+  })
+
+  it('navigates to the report when Enter is pressed on a focused row', () => {
+    mockPush.mockClear()
+    render(<MyReportsTab rows={[baseRow]} />)
+    const row = screen.getByTestId('report-row-sess-1')
+    fireEvent.keyDown(row, { key: 'Enter' })
+    expect(mockPush).toHaveBeenCalledWith('/app/internal-exam/report?session=sess-1')
   })
 
   it('renders the attempt number prefixed with #', () => {

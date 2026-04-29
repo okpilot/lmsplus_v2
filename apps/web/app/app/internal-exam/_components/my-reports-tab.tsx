@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -53,49 +54,63 @@ export function MyReportsTab({ rows }: Props) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((r) => {
-            const label = r.subjectShort || r.subjectName || '—'
-            return (
-              <TableRow key={r.id} data-testid={`report-row-${r.id}`}>
-                <TableCell>
-                  <Link
-                    href={`/app/quiz/report?id=${r.id}`}
-                    className="text-primary hover:underline"
-                  >
-                    {label}
-                  </Link>
-                </TableCell>
-                <TableCell className="tabular-nums">#{r.attemptNumber}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatAbsolute(r.startedAt)}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatAbsolute(r.endedAt)}
-                </TableCell>
-                <TableCell className="font-mono text-sm">
-                  {formatScore(r.scorePercentage)}
-                </TableCell>
-                <TableCell>
-                  {r.passed === null ? (
-                    <span className="text-muted-foreground">—</span>
-                  ) : r.passed ? (
-                    <Badge variant="default" aria-label="Passed">
-                      Pass
-                    </Badge>
-                  ) : (
-                    <Badge variant="destructive" aria-label="Failed">
-                      Fail
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs tabular-nums">
-                  {r.answeredCount}/{r.totalQuestions}
-                </TableCell>
-              </TableRow>
-            )
-          })}
+          {rows.map((r) => (
+            <ReportRow key={r.id} row={r} />
+          ))}
         </TableBody>
       </Table>
     </div>
+  )
+}
+
+function ReportRow({ row: r }: { row: InternalExamHistoryEntry }) {
+  const router = useRouter()
+  const href = `/app/internal-exam/report?session=${r.id}`
+  const label = r.subjectName || r.subjectShort || '—'
+  const navigate = () => router.push(href)
+
+  return (
+    <TableRow
+      data-testid={`report-row-${r.id}`}
+      tabIndex={0}
+      onClick={navigate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          navigate()
+        }
+      }}
+      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      <TableCell>
+        <Link
+          href={href}
+          onClick={(e) => e.stopPropagation()}
+          className="font-medium text-foreground no-underline focus-visible:underline"
+        >
+          {label}
+        </Link>
+      </TableCell>
+      <TableCell className="tabular-nums">#{r.attemptNumber}</TableCell>
+      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.startedAt)}</TableCell>
+      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.endedAt)}</TableCell>
+      <TableCell className="font-mono text-sm">{formatScore(r.scorePercentage)}</TableCell>
+      <TableCell>
+        {r.passed === null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : r.passed ? (
+          <Badge variant="default" aria-label="Passed">
+            Pass
+          </Badge>
+        ) : (
+          <Badge variant="destructive" aria-label="Failed">
+            Fail
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-xs tabular-nums">
+        {r.answeredCount}/{r.totalQuestions}
+      </TableCell>
+    </TableRow>
   )
 }

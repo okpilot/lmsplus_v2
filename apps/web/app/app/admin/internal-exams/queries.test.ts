@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Mocks ----------------------------------------------------------------
 
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
-const mockFrom = vi.hoisted(() => vi.fn())
+const mockAdminFrom = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
+vi.mock('@repo/db/admin', () => ({ adminClient: { from: mockAdminFrom } }))
 
 // ---- Subject under test ---------------------------------------------------
 
@@ -20,7 +21,7 @@ const PAST = new Date('2026-04-27T12:00:00.000Z').toISOString()
 
 function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
-    supabase: { from: mockFrom },
+    supabase: { from: mockAdminFrom },
     organizationId: ORG_ID,
     userId: 'admin-001',
   })
@@ -70,7 +71,7 @@ describe('listInternalExamCodes', () => {
         users: { full_name: 'Alice', email: 'alice@example.com' },
         quiz_sessions: null,
       }
-      mockFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row]))
 
       const result = await listInternalExamCodes()
 
@@ -106,7 +107,7 @@ describe('listInternalExamCodes', () => {
         users: null,
         quiz_sessions: null,
       }
-      mockFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row]))
 
       const result = await listInternalExamCodes()
 
@@ -132,7 +133,7 @@ describe('listInternalExamCodes', () => {
         users: null,
         quiz_sessions: { ended_at: PAST },
       }
-      mockFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row]))
 
       const result = await listInternalExamCodes()
 
@@ -159,7 +160,7 @@ describe('listInternalExamCodes', () => {
         users: null,
         quiz_sessions: null,
       }
-      mockFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row]))
 
       const result = await listInternalExamCodes()
 
@@ -185,7 +186,7 @@ describe('listInternalExamCodes', () => {
         users: null,
         quiz_sessions: null,
       }
-      mockFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row]))
 
       const result = await listInternalExamCodes()
 
@@ -237,7 +238,7 @@ describe('listInternalExamCodes', () => {
 
     it('filters by status', async () => {
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain(makeRows()))
+      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
 
       const result = await listInternalExamCodes({ status: 'voided' })
 
@@ -286,7 +287,7 @@ describe('listInternalExamCodes', () => {
         },
       ]
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain(rows))
+      mockAdminFrom.mockReturnValue(buildChain(rows))
 
       const result = await listInternalExamCodes({ status: 'finished' })
 
@@ -333,7 +334,7 @@ describe('listInternalExamCodes', () => {
         },
       ]
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain(rows))
+      mockAdminFrom.mockReturnValue(buildChain(rows))
 
       const result = await listInternalExamCodes({ status: 'consumed' })
 
@@ -343,7 +344,7 @@ describe('listInternalExamCodes', () => {
 
     it('filters by studentId', async () => {
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain(makeRows()))
+      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
 
       const result = await listInternalExamCodes({ studentId: 'stu-1' })
 
@@ -353,7 +354,7 @@ describe('listInternalExamCodes', () => {
 
     it('filters by subjectId', async () => {
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain(makeRows()))
+      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
 
       const result = await listInternalExamCodes({ subjectId: 'sub-2' })
 
@@ -383,7 +384,7 @@ describe('listInternalExamCodes', () => {
         users: null,
         quiz_sessions: null,
       }))
-      mockFrom.mockReturnValue(buildChain(rows))
+      mockAdminFrom.mockReturnValue(buildChain(rows))
 
       const result = await listInternalExamCodes({ limit: 2 })
 
@@ -393,7 +394,7 @@ describe('listInternalExamCodes', () => {
 
     it('returns null nextCursor when no more rows remain', async () => {
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain([]))
+      mockAdminFrom.mockReturnValue(buildChain([]))
 
       const result = await listInternalExamCodes()
 
@@ -405,7 +406,7 @@ describe('listInternalExamCodes', () => {
   describe('error propagation', () => {
     it('throws when the codes query returns an error', async () => {
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain(null, { message: 'codes DB error' }))
+      mockAdminFrom.mockReturnValue(buildChain(null, { message: 'codes DB error' }))
 
       await expect(listInternalExamCodes()).rejects.toThrow('codes DB error')
     })
@@ -438,7 +439,7 @@ describe('listInternalExamAttempts', () => {
         users: { full_name: 'Alice', email: 'alice@example.com' },
         internal_exam_codes: null,
       }
-      mockFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row]))
 
       const result = await listInternalExamAttempts()
 
@@ -474,7 +475,7 @@ describe('listInternalExamAttempts', () => {
         users: null,
         internal_exam_codes: [{ void_reason: 'cheating detected' }],
       }
-      mockFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row]))
 
       const result = await listInternalExamAttempts()
 
@@ -497,7 +498,7 @@ describe('listInternalExamAttempts', () => {
         users: null,
         internal_exam_codes: null,
       }
-      mockFrom.mockReturnValue(buildChain([row]))
+      mockAdminFrom.mockReturnValue(buildChain([row]))
 
       const result = await listInternalExamAttempts()
 
@@ -541,7 +542,7 @@ describe('listInternalExamAttempts', () => {
 
     it('filters by studentId', async () => {
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain(makeRows()))
+      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
 
       const result = await listInternalExamAttempts({ studentId: 'stu-2' })
 
@@ -551,7 +552,7 @@ describe('listInternalExamAttempts', () => {
 
     it('filters by subjectId', async () => {
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain(makeRows()))
+      mockAdminFrom.mockReturnValue(buildChain(makeRows()))
 
       const result = await listInternalExamAttempts({ subjectId: 'sub-1' })
 
@@ -563,7 +564,7 @@ describe('listInternalExamAttempts', () => {
   describe('error propagation', () => {
     it('throws when the attempts query returns an error', async () => {
       mockAdmin()
-      mockFrom.mockReturnValue(buildChain(null, { message: 'attempts DB error' }))
+      mockAdminFrom.mockReturnValue(buildChain(null, { message: 'attempts DB error' }))
 
       await expect(listInternalExamAttempts()).rejects.toThrow('attempts DB error')
     })

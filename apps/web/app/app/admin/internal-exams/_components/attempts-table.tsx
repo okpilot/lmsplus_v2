@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -47,52 +48,64 @@ export function AttemptsTable({ rows }: Readonly<Props>) {
               </TableCell>
             </TableRow>
           ) : (
-            rows.map((r) => {
-              const total = r.totalQuestions ?? 0
-              const correct = r.correctCount ?? 0
-              const passed = r.passed
-              return (
-                <TableRow key={r.sessionId}>
-                  <TableCell>
-                    <Link
-                      href={`/app/quiz/report?id=${r.sessionId}`}
-                      className="text-primary hover:underline"
-                    >
-                      {r.studentName || r.studentEmail || '—'}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{r.subjectName || '—'}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {formatAbsolute(r.startedAt)}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {formatAbsolute(r.endedAt)}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {formatScore(r.scorePercentage)}
-                  </TableCell>
-                  <TableCell>
-                    {passed === null ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : passed ? (
-                      <Badge variant="default" aria-label="Passed">
-                        Pass
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive" aria-label="Failed">
-                        Fail
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs tabular-nums">
-                    {correct}/{total}
-                  </TableCell>
-                </TableRow>
-              )
-            })
+            rows.map((r) => <AttemptRow key={r.sessionId} row={r} />)
           )}
         </TableBody>
       </Table>
     </div>
+  )
+}
+
+function AttemptRow({ row: r }: { row: InternalExamAttemptRow }) {
+  const router = useRouter()
+  const total = r.totalQuestions ?? 0
+  const correct = r.correctCount ?? 0
+  const passed = r.passed
+  const href = `/app/admin/internal-exams/report?session=${r.sessionId}`
+  const studentLabel = r.studentName || r.studentEmail || '—'
+  const navigate = () => router.push(href)
+
+  return (
+    <TableRow
+      tabIndex={0}
+      onClick={navigate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          navigate()
+        }
+      }}
+      className="cursor-pointer hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      <TableCell>
+        <Link
+          href={href}
+          onClick={(e) => e.stopPropagation()}
+          className="font-medium text-foreground no-underline focus-visible:underline"
+        >
+          {studentLabel}
+        </Link>
+      </TableCell>
+      <TableCell>{r.subjectName || '—'}</TableCell>
+      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.startedAt)}</TableCell>
+      <TableCell className="text-xs text-muted-foreground">{formatAbsolute(r.endedAt)}</TableCell>
+      <TableCell className="font-mono text-sm">{formatScore(r.scorePercentage)}</TableCell>
+      <TableCell>
+        {passed === null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : passed ? (
+          <Badge variant="default" aria-label="Passed">
+            Pass
+          </Badge>
+        ) : (
+          <Badge variant="destructive" aria-label="Failed">
+            Fail
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-xs tabular-nums">
+        {correct}/{total}
+      </TableCell>
+    </TableRow>
   )
 }

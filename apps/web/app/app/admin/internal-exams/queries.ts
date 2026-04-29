@@ -1,3 +1,4 @@
+import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import type {
   ExamSubjectOption,
@@ -79,9 +80,11 @@ type AnyClient = {
 export async function listInternalExamCodes(
   filters: ListCodesFilters = {},
 ): Promise<{ rows: InternalExamCodeRow[]; nextCursor: string | null }> {
-  const { supabase, organizationId } = await requireAdmin()
+  const { organizationId } = await requireAdmin()
   const limit = clampLimit(filters.limit)
-  const client = supabase as unknown as AnyClient
+  // adminClient: cross-row reads on `users` are unreliable under tenant_isolation RLS
+  // (self-referential subquery), and PostgREST applies RLS to embedded resources too.
+  const client = adminClient as unknown as AnyClient
 
   let builder = client
     .from('internal_exam_codes')
@@ -89,8 +92,8 @@ export async function listInternalExamCodes(
       `id, code, subject_id, student_id, issued_by, issued_at, expires_at,
        consumed_at, consumed_session_id, voided_at, voided_by, void_reason,
        easa_subjects(name),
-       users:student_id(full_name, email),
-       quiz_sessions:consumed_session_id(ended_at)`,
+       users!student_id(full_name, email),
+       quiz_sessions!consumed_session_id(ended_at)`,
     )
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
@@ -173,9 +176,11 @@ export async function listInternalExamCodes(
 export async function listInternalExamAttempts(
   filters: ListAttemptsFilters = {},
 ): Promise<{ rows: InternalExamAttemptRow[]; nextCursor: string | null }> {
-  const { supabase, organizationId } = await requireAdmin()
+  const { organizationId } = await requireAdmin()
   const limit = clampLimit(filters.limit)
-  const client = supabase as unknown as AnyClient
+  // adminClient: same RLS-recursion reason as listInternalExamCodes — embed of `users`
+  // returns null under the user-scoped client.
+  const client = adminClient as unknown as AnyClient
 
   let builder = client
     .from('quiz_sessions')
@@ -183,8 +188,8 @@ export async function listInternalExamAttempts(
       `id, student_id, subject_id, started_at, ended_at, total_questions,
        correct_count, score_percentage, passed,
        easa_subjects(name),
-       users:student_id(full_name, email),
-       internal_exam_codes:consumed_session_id(void_reason)`,
+       users!student_id(full_name, email),
+       internal_exam_codes!consumed_session_id(void_reason)`,
     )
     .eq('organization_id', organizationId)
     .eq('mode', 'internal_exam')
@@ -233,9 +238,11 @@ export async function listInternalExamAttempts(
 type StudentRowRaw = { id: string; full_name: string | null; email: string | null }
 
 export async function listOrgStudents(): Promise<OrgStudentOption[]> {
-  const { supabase, organizationId } = await requireAdmin()
+  const { organizationId } = await requireAdmin()
 
-  const { data, error } = await supabase
+  // Cross-row reads on `users` are unreliable under tenant_isolation RLS
+  // (self-referential subquery). Mirrors apps/web/app/app/admin/students/queries.ts.
+  const { data, error } = await adminClient
     .from('users')
     .select('id, full_name, email')
     .eq('organization_id', organizationId)
