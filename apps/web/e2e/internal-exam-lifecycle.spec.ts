@@ -23,7 +23,11 @@
  */
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
-import { INTERNAL_EXAM_STUDENT_EMAIL } from './helpers/supabase'
+import { signInAsAdmin } from './helpers/admin-supabase'
+import {
+  cleanupInternalExamStudentActiveSessions,
+  INTERNAL_EXAM_STUDENT_EMAIL,
+} from './helpers/supabase'
 
 test.describe.configure({ mode: 'serial' })
 
@@ -76,12 +80,24 @@ async function openStudentContext(browser: BrowserContext['browser']): Promise<{
   const context = await browser.newContext({
     storageState: 'e2e/.auth/internal-exam-student.json',
   })
+  // Manually-created contexts don't inherit the global `trace` setting from
+  // playwright.config.ts. Start tracing explicitly so student-side failures
+  // are debuggable in CI artifacts — see issue #587. Swallow the
+  // "already started" error that can fire on Playwright retry.
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: true }).catch(() => {})
   const page = await context.newPage()
   return { context, page }
 }
 
 test.describe('internal exam — lifecycle', () => {
   test.setTimeout(120_000)
+
+  // Void any active session left over from a prior test before each run.
+  // See issue #587 — stale sessions cascade and block start_internal_exam_session.
+  test.beforeEach(async () => {
+    const adminClient = await signInAsAdmin()
+    await cleanupInternalExamStudentActiveSessions(adminClient)
+  })
 
   test('admin issues code, student starts + submits, attempt appears in My Reports', async ({
     page: adminPage,
@@ -115,17 +131,23 @@ test.describe('internal exam — lifecycle', () => {
       await page.waitForURL(/\/app\/quiz\/session/, { timeout: 15_000 })
       await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
 
-      // Answer one option (exam mode buffers selection client-side).
+      // Answer one option and confirm it. In exam mode, selection alone leaves
+      // answeredCount=0, which keeps the Submit button in the finish dialog
+      // disabled — see finish-quiz-dialog.tsx (`answeredCount === 0 && !timeExpired`).
       const answerBtns = page.locator('button:has(span.rounded-full)')
       await answerBtns.first().click()
+      await page.getByRole('button', { name: 'Confirm Answer' }).click()
       await page.waitForTimeout(300)
 
       // Open the finish dialog and submit.
       await page.getByRole('button', { name: 'Finish Internal Exam' }).click()
-      await page.getByRole('button', { name: 'Submit Quiz' }).click()
+      await page.getByRole('button', { name: 'Submit Internal Exam' }).click()
+      // Only 1 of 10 confirmed → finish-quiz-dialog shows the unanswered-confirm
+      // warning. The actual submit fires when "Submit anyway" is clicked.
+      await page.getByRole('button', { name: 'Submit anyway' }).click()
 
       // ── 4. Land on /app/quiz/report with badge + pass/fail ────────────────
-      await page.waitForURL(/\/app\/quiz\/report\?session=/, { timeout: 30_000 })
+      await page.waitForURL(/\/app\/internal-exam\/report\?session=/, { timeout: 30_000 })
       await expect(page.getByText('Internal Exam Complete')).toBeVisible({ timeout: 10_000 })
       // Pass or fail badge — both valid outcomes; assert one of them is rendered.
       const badge = page.getByText(/^(PASSED|FAILED)$/)
@@ -141,6 +163,9 @@ test.describe('internal exam — lifecycle', () => {
         timeout: 10_000,
       })
     } finally {
+      await studentCtx.tracing
+        .stop({ path: test.info().outputPath('student-trace.zip') })
+        .catch(() => {})
       await studentCtx.close()
     }
   })

@@ -12,8 +12,10 @@ test.describe('Admin Question Editor', () => {
   // ── Section 1: Page loads correctly ──────────────────────────────────
 
   test('displays seeded questions in the table', async ({ page }) => {
-    // Seed data has questions — count varies by environment (local: EVAL-*, CI: CI-*)
-    await expect(page.getByText(/\d+ question/)).toBeVisible()
+    // Seed data has questions — count varies by environment (local: EVAL-*, CI: CI-*).
+    // Anchor the regex so we don't double-match the pagination footer
+    // ("Showing 1–25 of N questions").
+    await expect(page.getByText(/^\d+ questions?$/)).toBeVisible()
     // At least one question row should be visible in the table
     await expect(page.locator('tbody tr').first()).toBeVisible()
   })

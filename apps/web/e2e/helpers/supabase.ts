@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
@@ -289,4 +289,81 @@ export async function ensureInternalExamStudentUser() {
 
   await ensureConsentRecords(admin, userId)
   return { orgId, userId }
+}
+
+/**
+ * Force-end any active internal-exam session that the dedicated student left
+ * open from a prior test, by voiding the linked code via the audited admin RPC.
+ *
+ * Why this exists: tests that exercise mid-session behavior (resume, void, etc.)
+ * don't always submit before exiting, so quiz_sessions rows survive with
+ * ended_at IS NULL. The next test's start_internal_exam_session then raises
+ * 'active_session_exists', the modal renders the inline error, and the redirect
+ * never fires — see issue #587 for the full repro.
+ *
+ * Uses `void_internal_exam_code(p_code_id, p_reason)` so cleanup goes through
+ * the same SECURITY DEFINER path that the admin "Void" button uses in
+ * production: writes the audit event, sets ended_at, marks passed=false, and
+ * voids the code. No raw UPDATEs.
+ */
+export async function cleanupInternalExamStudentActiveSessions(
+  adminAuthedClient: SupabaseClient,
+): Promise<void> {
+  const admin = getAdminClient()
+
+  const { data: studentRow, error: studentError } = await admin
+    .from('users')
+    .select('id')
+    .eq('email', INTERNAL_EXAM_STUDENT_EMAIL)
+    .maybeSingle()
+  if (studentError)
+    throw new Error(`cleanupInternalExamStudentActiveSessions student: ${studentError.message}`)
+  if (!studentRow) return
+
+  const { data: codes, error: codesError } = await admin
+    .from('internal_exam_codes')
+    .select('id, consumed_session_id, quiz_sessions:consumed_session_id (ended_at)')
+    .eq('student_id', studentRow.id)
+    .not('consumed_session_id', 'is', null)
+    .is('voided_at', null)
+    .is('deleted_at', null)
+  if (codesError)
+    throw new Error(`cleanupInternalExamStudentActiveSessions codes: ${codesError.message}`)
+
+  type CodeRow = {
+    id: string
+    consumed_session_id: string
+    quiz_sessions: { ended_at: string | null } | null
+  }
+  const stale = (codes ?? []).filter(
+    (row): row is CodeRow =>
+      row.consumed_session_id !== null && row.quiz_sessions?.ended_at == null,
+  )
+  if (stale.length === 0) return
+
+  for (const row of stale) {
+    const { error } = await adminAuthedClient.rpc('void_internal_exam_code', {
+      p_code_id: row.id,
+      p_reason: 'e2e-cleanup',
+    })
+    if (error)
+      throw new Error(
+        `cleanupInternalExamStudentActiveSessions void code ${row.id}: ${error.message}`,
+      )
+  }
+
+  // Also discard any non-internal-exam sessions (practice/study) the student
+  // left active in a prior reports-separation run. Same effect as the user
+  // clicking the Discard button (soft-delete via deleted_at) — see
+  // app/app/quiz/actions/discard.ts. The internal-exam student is dedicated to
+  // this suite, so leftover practice sessions should never persist between runs.
+  const { error: discardError } = await admin
+    .from('quiz_sessions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('student_id', studentRow.id)
+    .neq('mode', 'internal_exam')
+    .is('ended_at', null)
+    .is('deleted_at', null)
+  if (discardError)
+    throw new Error(`cleanupInternalExamStudentActiveSessions practice: ${discardError.message}`)
 }

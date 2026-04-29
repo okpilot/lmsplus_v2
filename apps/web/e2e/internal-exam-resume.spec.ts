@@ -17,7 +17,11 @@
  */
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
-import { INTERNAL_EXAM_STUDENT_EMAIL } from './helpers/supabase'
+import { signInAsAdmin } from './helpers/admin-supabase'
+import {
+  cleanupInternalExamStudentActiveSessions,
+  INTERNAL_EXAM_STUDENT_EMAIL,
+} from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
@@ -53,6 +57,8 @@ async function openStudentContext(
   const context = await browser.newContext({
     storageState: 'e2e/.auth/internal-exam-student.json',
   })
+  // Manual contexts don't inherit global trace — start it explicitly. See #587.
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: true }).catch(() => {})
   const page = await context.newPage()
   return { context, page }
 }
@@ -71,6 +77,12 @@ async function startInternalExamAsStudent(page: Page, code: string): Promise<voi
 test.describe('internal exam — refresh resume', () => {
   test.setTimeout(120_000)
 
+  // Stale-session cleanup — see issue #587.
+  test.beforeEach(async () => {
+    const adminClient = await signInAsAdmin()
+    await cleanupInternalExamStudentActiveSessions(adminClient)
+  })
+
   test('reloading mid-session restores the session page (or surfaces the recovery banner)', async ({
     page: adminPage,
     context: adminCtx,
@@ -81,27 +93,34 @@ test.describe('internal exam — refresh resume', () => {
     try {
       await startInternalExamAsStudent(page, code)
 
-      // Buffer one answer so there's state worth recovering.
+      // Buffer one answer so there's state worth recovering. The Confirm
+      // step is what writes the answer into sessionStorage and the buffered
+      // state — selection alone leaves the buffer empty.
       await page.locator('button:has(span.rounded-full)').first().click()
+      await page.getByRole('button', { name: 'Confirm Answer' }).click()
       await page.waitForTimeout(300)
 
       // Force a full reload — sessionStorage survives in-tab reloads, so the
       // session page should rehydrate via the handoff. If the handoff is lost
-      // (e.g. fresh tab), the /app/internal-exam page exposes a recovery banner.
+      // (e.g. fresh tab), /app/quiz/session falls back to SessionRecoveryPrompt
+      // ("Resume your … Exam?"). The /app/internal-exam page is a separate
+      // recovery surface tested in the next spec.
       await page.reload()
 
       const questionText = page.getByText(/Question \d/)
-      const recoveryBanner = page.getByTestId('internal-exam-recovery-banner')
-      await expect(questionText.or(recoveryBanner)).toBeVisible({ timeout: 15_000 })
+      const recoveryPrompt = page.getByRole('heading', { name: /Resume your/i })
+      await expect(questionText.or(recoveryPrompt)).toBeVisible({ timeout: 15_000 })
 
-      if (await recoveryBanner.isVisible().catch(() => false)) {
-        // Banner path — clicking Resume must land back on /app/quiz/session.
-        await page.getByTestId('resume-internal-exam-link').click()
-        await page.waitForURL(/\/app\/quiz\/session/, { timeout: 10_000 })
+      if (await recoveryPrompt.isVisible().catch(() => false)) {
+        // Cold-rehydrate path — click Resume to re-enter the active session.
+        await page.getByRole('button', { name: 'Resume' }).click()
         await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
       }
       // Otherwise: warm rehydrate path — the question is already visible.
     } finally {
+      await studentCtx.tracing
+        .stop({ path: test.info().outputPath('student-trace.zip') })
+        .catch(() => {})
       await studentCtx.close()
     }
   })
@@ -135,6 +154,9 @@ test.describe('internal exam — refresh resume', () => {
       await page.waitForURL(/\/app\/quiz\/session/, { timeout: 10_000 })
       await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
     } finally {
+      await studentCtx.tracing
+        .stop({ path: test.info().outputPath('student-trace.zip') })
+        .catch(() => {})
       await studentCtx.close()
     }
   })
