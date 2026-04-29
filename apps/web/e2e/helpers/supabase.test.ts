@@ -413,6 +413,9 @@ function buildCleanupMockClient(opts: {
     quiz_sessions: { ended_at: string | null } | null
   }>
   codesError?: { message: string } | null
+  // `discarded` mirrors the production .select('id') return shape so tests can
+  // exercise the observability branch (console.log when length > 0).
+  discarded?: Array<{ id: string }> | null
   discardError?: { message: string } | null
 }) {
   const {
@@ -420,6 +423,7 @@ function buildCleanupMockClient(opts: {
     studentError = null,
     codes = [],
     codesError = null,
+    discarded = null,
     discardError = null,
   } = opts
 
@@ -432,7 +436,7 @@ function buildCleanupMockClient(opts: {
         return buildChain({ data: codes, error: codesError })
       }
       if (table === 'quiz_sessions') {
-        return buildChain({ error: discardError })
+        return buildChain({ data: discarded, error: discardError })
       }
       return buildChain({ data: null, error: null })
     },
@@ -574,5 +578,37 @@ describe('cleanupInternalExamStudentActiveSessions', () => {
     await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
       'cleanupInternalExamStudentActiveSessions practice: practice cleanup failed',
     )
+  })
+
+  it('logs the discarded practice-session count when leftover sessions are removed', async () => {
+    // Pins the observability branch: when the practice-session UPDATE actually
+    // soft-deletes a row, the helper logs the count. Without a `data` field on
+    // the mock this branch was unreachable in tests.
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [],
+        discarded: [{ id: 'sess-leftover-1' }, { id: 'sess-leftover-2' }],
+      }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('discarded 2 leftover practice/study session(s)'),
+    )
+    logSpy.mockRestore()
+  })
+
+  it('does not log when no practice-session rows were affected', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(buildCleanupMockClient({ codes: [], discarded: [] }))
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(logSpy).not.toHaveBeenCalled()
+    logSpy.mockRestore()
   })
 })
