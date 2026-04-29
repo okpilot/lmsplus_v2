@@ -174,6 +174,191 @@ describe('getActiveInternalExamSession — happy path', () => {
   })
 })
 
+describe('getActiveInternalExamSession — malformed time_limit_seconds (row quarantined)', () => {
+  it('quarantines a row with time_limit_seconds=null into orphanedSessionIds', async () => {
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'sess-null-tl', time_limit_seconds: null }],
+          error: null,
+        }),
+      ),
+    )
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['sess-null-tl'],
+      expiredSessionIds: [],
+    })
+  })
+
+  it('quarantines a row with time_limit_seconds=0 into orphanedSessionIds', async () => {
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'sess-zero-tl', time_limit_seconds: 0 }],
+          error: null,
+        }),
+      ),
+    )
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['sess-zero-tl'],
+      expiredSessionIds: [],
+    })
+  })
+
+  it('quarantines a row with a non-integer (fractional) time_limit_seconds into orphanedSessionIds', async () => {
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'sess-frac-tl', time_limit_seconds: 3600.5 }],
+          error: null,
+        }),
+      ),
+    )
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['sess-frac-tl'],
+      expiredSessionIds: [],
+    })
+  })
+
+  it('quarantines a row with time_limit_seconds=NaN into orphanedSessionIds', async () => {
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'sess-nan-tl', time_limit_seconds: Number.NaN }],
+          error: null,
+        }),
+      ),
+    )
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['sess-nan-tl'],
+      expiredSessionIds: [],
+    })
+  })
+
+  it('quarantines a row with time_limit_seconds=Infinity into orphanedSessionIds', async () => {
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [
+            { ...SESSION_ROW, id: 'sess-inf-tl', time_limit_seconds: Number.POSITIVE_INFINITY },
+          ],
+          error: null,
+        }),
+      ),
+    )
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['sess-inf-tl'],
+      expiredSessionIds: [],
+    })
+  })
+})
+
+describe('getActiveInternalExamSession — malformed started_at (row quarantined)', () => {
+  it('quarantines a row with a non-string started_at into orphanedSessionIds', async () => {
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'sess-num-sa', started_at: 1_700_000_000_000 }],
+          error: null,
+        }),
+      ),
+    )
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['sess-num-sa'],
+      expiredSessionIds: [],
+    })
+  })
+
+  it('quarantines a row with an unparseable started_at string into orphanedSessionIds', async () => {
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'sess-bad-sa', started_at: 'not-a-date' }],
+          error: null,
+        }),
+      ),
+    )
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['sess-bad-sa'],
+      expiredSessionIds: [],
+    })
+  })
+
+  it('quarantines a row with null started_at into orphanedSessionIds', async () => {
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'sess-null-sa', started_at: null }],
+          error: null,
+        }),
+      ),
+    )
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result).toEqual({
+      success: true,
+      sessions: [],
+      orphanedSessionIds: ['sess-null-sa'],
+      expiredSessionIds: [],
+    })
+  })
+
+  it('accepts a valid ISO started_at string and places the row in sessions', async () => {
+    mockFrom.mockImplementation(
+      withUserChain(
+        buildChain({
+          data: [{ ...SESSION_ROW, id: 'sess-valid-sa', started_at: '2026-04-29T10:00:00.000Z' }],
+          error: null,
+        }),
+      ),
+    )
+
+    const result = await getActiveInternalExamSession()
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.sessions[0]?.sessionId).toBe('sess-valid-sa')
+      expect(result.orphanedSessionIds).toEqual([])
+    }
+  })
+})
+
 describe('getActiveInternalExamSession — malformed config (row skipped)', () => {
   it('skips a row with empty question_ids and adds id to orphanedSessionIds', async () => {
     mockFrom.mockImplementation(

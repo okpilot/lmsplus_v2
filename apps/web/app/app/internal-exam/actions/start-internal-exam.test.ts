@@ -166,6 +166,29 @@ describe('startInternalExam — RPC error messages', () => {
     expect(result.error).toBe('Cannot start exam: not enough questions configured.')
   })
 
+  it('tells the student no exam config is set up when exam_config_required is returned', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'exam_config_required' } })
+    const result = await startInternalExam({ code: VALID_CODE })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(
+      'No exam configuration available for this subject. Please contact your administrator.',
+    )
+  })
+
+  it('tells the student their account is inactive when the RPC raises user not found or inactive', async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: 'user not found or inactive' },
+    })
+    const result = await startInternalExam({ code: VALID_CODE })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(
+      'Your account is no longer active. Please contact your administrator.',
+    )
+  })
+
   it('returns a generic failure for an unknown RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
     const result = await startInternalExam({ code: VALID_CODE })

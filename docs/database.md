@@ -1304,6 +1304,18 @@ Admin-only. Three branches:
 
 **Returns:** `(code_id uuid, session_id uuid, session_ended boolean)`.
 
+##### `start_internal_exam_session` — column qualification fix (migration `20260430000005`)
+
+**Bug (CodeRabbit PR #576 round-2 + CI red-team failure):** The RPC `RETURNS TABLE(... time_limit_seconds int, ..., started_at timestamptz)` exposes those names as return-value variables. The function body's auto-complete SELECT referenced `time_limit_seconds` and `started_at` unqualified, creating ambiguity when checking whether an active session is past its grace window. Postgres raised error 42702 ("column reference is ambiguous") when the red-team spec exercised that code path.
+
+**Fix:** `CREATE OR REPLACE` with `public.quiz_sessions AS qs` alias and full qualification on all column references (e.g., `qs.time_limit_seconds`). Function body otherwise unchanged from migration `20260429000010`.
+
+##### `void_internal_exam_code` — org-scope defense-in-depth (migration `20260430000006`)
+
+**Enhancement (CodeRabbit PR #576 round-2, Major):** The RPC validates that the code's `organization_id` matches the admin's, then locks and updates the linked `quiz_sessions` row by id only. This is a SECURITY DEFINER function bypassing RLS. If a future bug ever stored a cross-org `consumed_session_id`, the RPC would expire a foreign-org session.
+
+**Fix:** `CREATE OR REPLACE` with explicit `qs.organization_id = v_admin_org` filter on both the SELECT and UPDATE of the linked session. Also asserts `ROW_COUNT > 0` after the UPDATE (raises `session_state_changed` if a concurrent writer stole the row). Function body otherwise unchanged from migration `20260429000009`.
+
 ---
 
 #### `is_admin()` — admin role check (soft-delete fix, migration `20260429000001`)
