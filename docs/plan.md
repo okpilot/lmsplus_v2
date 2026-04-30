@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-03-27
+> Last updated: 2026-04-30 — Internal Exam Mode + CI flake fix landed
 
 ---
 
@@ -1115,3 +1115,48 @@ From setup audit (2026-03-11), updated 2026-03-19:
 - Issue #568 filed for the deferred 0-answer auto-submit bug.
 
 *Round 7 last updated: 2026-04-28 — pushed; round 8 fixes staged; CI e2e unblock pushed.*
+
+---
+
+## Internal Exam Mode — LANDED 2026-04-29 → 2026-04-30
+
+PR #576 (foundation + 4 waves) merged 2026-04-29 (`673d932`). PR #590 (CI flake fix) merged 2026-04-30 (`1eeeda6`) and closed issue #587. **Feature is live on master.**
+
+### What shipped
+
+- **DB foundation** (mig 057a–065 + 067 + 070 + 071 + 072): `internal_exam_codes` table (8-char single-use codes, 24h expiry, FORCE RLS, immutable), three SECURITY DEFINER RPCs (`issue_internal_exam_code`, `start_internal_exam_session`, `void_internal_exam_code`), extended `batch_submit_quiz` for `mode='internal_exam'` partial submissions, extended `complete_overdue_exam_session` to handle internal exams, `is_admin()` `deleted_at` filter (regression close).
+- **Server actions** (`apps/web/app/app/internal-exam/actions/` + `apps/web/app/app/admin/internal-exams/actions/`): issue / start / void / list / report — all admin paths via `adminClient`, all student paths via the user's RLS-scoped client.
+- **Admin UI** at `/app/admin/internal-exams`: issue-code form, code/attempt tables with deep-linked `?tab=` filters, namespaced admin report at `/app/admin/internal-exams/report`.
+- **Student UI** at `/app/internal-exam`: Available + My Reports tabs, code-entry modal, namespaced student report at `/app/internal-exam/report`. Discard hidden mid-session; exam-mode finish dialog.
+- **Tests**: 6 new E2E specs (lifecycle, no-discard-and-void, reports-separation, resume), red-team specs for cross-tenant + question-membership + start-session vectors. Unit-test coverage for every new helper.
+- **Rules promoted at count=2 during PR #576**: PostgREST `!` over `:` for FK expansion; zero-row check scope clarification.
+
+### CI flake fix (PR #590, issue #587)
+
+Six internal-exam Playwright specs deterministically failed in CI after PR #576 with `page.waitForURL(/\/app\/quiz\/session/)` 15 s timeout. Three rounds of investigation:
+
+| Round | Cause | Commits |
+|---|---|---|
+| 1 | Stale-session cascade (active `quiz_sessions` left over from prior tests) → cleanup helper voids leftover via `void_internal_exam_code`. Production-vs-test selector drift after `Submit Quiz`→`Submit Internal Exam` rename. Student `BrowserContext.tracing` was never started. | `e36864d`, `9c4b508`, `c00a2ba`, `4669923`, `db856d5` |
+| 2 | `admin-questions.spec.ts` test "selects rows and performs bulk status change" flips every visible MET question to `status='draft'` and never restores. admin-questions runs alphabetically before internal-exam-* in the `admin-e2e` Playwright project, so `start_internal_exam_session` raised `insufficient_questions_for_exam` and 6 student-side `waitForURL` calls timed out. | `e3a7a0b`, `7082d77`, `787b5f0` |
+
+Round-2 fix shape (mirrors `admin-students.spec.ts` precedent):
+
+- New `restoreSeededQuestionsState()` helper in `apps/web/e2e/helpers/supabase.ts`: soft-deletes `[E2E_ADMIN_Q]`-marker rows + reactivates non-active seeded rows. Both writes chain `.select('id')` + log only when something changed.
+- `test.afterEach` wired into `admin-questions.spec.ts`.
+- Soft-delete (not hard) — `student_responses` / `quiz_session_answers` / `flagged_questions` / `question_comments` carry FK references to `questions(id)`. plan-critic CRITICAL caught this before commit.
+- Difficulty intentionally NOT reset — local dev seeds (`seed-quiz-setup-eval.ts:184`) intentionally vary difficulty; the edit-test's leak doesn't break any downstream spec.
+- 7 unit tests for the helper (org-lookup error, both update error paths, no-op silence, both log paths, org-row-null branch).
+
+### Rule promoted at count=2 — E2E Spec Hermiticity
+
+Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.ts` this fix). New rule in `code-style.md` §7 + mirrored in `.coderabbit.yaml`. Sweep on rule promotion: zero remaining offenders. See **Decision 38** in `decisions.md`.
+
+### Verification
+
+- 3356 / 3356 unit tests pass.
+- All E2E specs green in CI on the merge commit.
+- Type-check + lint clean.
+- Pre-push security-auditor passed.
+
+*Last updated: 2026-04-30 — Internal Exam Mode + CI flake fix landed.*
