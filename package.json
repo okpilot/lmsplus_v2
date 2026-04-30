@@ -19,22 +19,22 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.10",
-    "@commitlint/cli": "^20.5.0",
+    "@biomejs/biome": "^2.4.13",
+    "@commitlint/cli": "^20.5.2",
     "@commitlint/config-conventional": "^20.5.0",
-    "knip": "^6.3.0",
-    "lefthook": "^2.1.5",
-    "turbo": "^2.9.5",
-    "typescript": "^6.0.2"
+    "knip": "^6.9.0",
+    "lefthook": "^2.1.6",
+    "turbo": "^2.9.6",
+    "typescript": "^6.0.3"
   },
   "pnpm": {
     "overrides": {
       "undici": ">=7.24.0 <8",
-      "zod": "^4.3.6"
+      "zod": "^4.4.1"
     }
   },
   "packageManager": "pnpm@9.15.0",
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "^4.4.1"
   }
 }
