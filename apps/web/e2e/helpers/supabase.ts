@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
@@ -289,4 +289,186 @@ export async function ensureInternalExamStudentUser() {
 
   await ensureConsentRecords(admin, userId)
   return { orgId, userId }
+}
+
+/**
+ * Force-end any active internal-exam session that the dedicated student left
+ * open from a prior test, by voiding the linked code via the audited admin RPC.
+ *
+ * Why this exists: tests that exercise mid-session behavior (resume, void, etc.)
+ * don't always submit before exiting, so quiz_sessions rows survive with
+ * ended_at IS NULL. The next test's start_internal_exam_session then raises
+ * 'active_session_exists', the modal renders the inline error, and the redirect
+ * never fires — see issue #587 for the full repro.
+ *
+ * Uses `void_internal_exam_code(p_code_id, p_reason)` so cleanup goes through
+ * the same SECURITY DEFINER path that the admin "Void" button uses in
+ * production: writes the audit event, sets ended_at, marks passed=false, and
+ * voids the code. No raw UPDATEs.
+ */
+export async function cleanupInternalExamStudentActiveSessions(
+  adminAuthedClient: SupabaseClient,
+): Promise<void> {
+  const admin = getAdminClient()
+
+  const { data: studentRow, error: studentError } = await admin
+    .from('users')
+    .select('id')
+    .eq('email', INTERNAL_EXAM_STUDENT_EMAIL)
+    .maybeSingle()
+  if (studentError)
+    throw new Error(`cleanupInternalExamStudentActiveSessions student: ${studentError.message}`)
+  if (!studentRow) return
+
+  // FK-hint syntax (`!`), not column-alias (`:`). The colon form silently
+  // returns null on resolution failure; the hint form errors loudly. Project
+  // memory: "PostgREST `:` vs `!` alias-vs-hint silent-null trap" — see
+  // production pattern in lib/queries.ts where this same join uses `!`.
+  const { data: codes, error: codesError } = await admin
+    .from('internal_exam_codes')
+    .select('id, consumed_session_id, quiz_sessions!consumed_session_id (ended_at)')
+    .eq('student_id', studentRow.id)
+    .not('consumed_session_id', 'is', null)
+    .is('voided_at', null)
+    .is('deleted_at', null)
+  if (codesError)
+    throw new Error(`cleanupInternalExamStudentActiveSessions codes: ${codesError.message}`)
+
+  type CodeRow = {
+    id: string
+    consumed_session_id: string
+    quiz_sessions: { ended_at: string | null } | null
+  }
+  const stale = (codes ?? []).filter(
+    (row): row is CodeRow =>
+      row.consumed_session_id !== null && row.quiz_sessions?.ended_at == null,
+  )
+
+  // No early return on stale.length === 0: the practice/study-session discard
+  // below must always run. Otherwise a leftover non-internal-exam session left
+  // by a prior reports-separation run survives, defeating the cleanup #587 set
+  // out to provide. The for-loop is a safe no-op when stale is empty.
+  for (const row of stale) {
+    const { error } = await adminAuthedClient.rpc('void_internal_exam_code', {
+      p_code_id: row.id,
+      p_reason: 'e2e-cleanup',
+    })
+    if (error)
+      throw new Error(
+        `cleanupInternalExamStudentActiveSessions void code ${row.id}: ${error.message}`,
+      )
+  }
+
+  // Also discard any non-internal-exam sessions (practice/study) the student
+  // left active in a prior reports-separation run. Same effect as the user
+  // clicking the Discard button (soft-delete via deleted_at) — see
+  // app/app/quiz/actions/discard.ts. The internal-exam student is dedicated to
+  // this suite, so leftover practice sessions should never persist between runs.
+  // Chain `.select('id')` per code-style.md §5 zero-row no-op rule — the
+  // service-role UPDATE returns 200 OK with empty rows when the filter matches
+  // nothing, which is a valid steady state (nothing to clean) but only safe to
+  // treat as success if observable.
+  const { data: discarded, error: discardError } = await admin
+    .from('quiz_sessions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('student_id', studentRow.id)
+    .neq('mode', 'internal_exam')
+    .is('ended_at', null)
+    .is('deleted_at', null)
+    .select('id')
+  if (discardError)
+    throw new Error(`cleanupInternalExamStudentActiveSessions practice: ${discardError.message}`)
+  if ((discarded?.length ?? 0) > 0) {
+    console.log(
+      `[cleanupInternalExamStudentActiveSessions] discarded ${discarded?.length} leftover practice/study session(s)`,
+    )
+  }
+}
+
+/** Marker prefix used in `question_text` for E2E-created questions in admin-questions.spec.ts. */
+export const E2E_ADMIN_Q_MARKER = '[E2E_ADMIN_Q]'
+
+/**
+ * Restore the questions table to a state where every internal-exam spec can
+ * find ≥10 active questions in the seeded MET topic.
+ *
+ * Why this exists: admin-questions.spec.ts mutates shared seed state — its
+ * "selects rows and performs bulk status change" test flips every visible row
+ * to `status='draft'`, and its "creates a new question" test inserts a row that
+ * persists. Within Playwright's `admin-e2e` project, admin-questions runs
+ * alphabetically before internal-exam-*.spec.ts, so without restoration
+ * `start_internal_exam_session` raises `insufficient_questions_for_exam` and
+ * every internal-exam spec times out on `/app/quiz/session` redirect (issue
+ * #587).
+ *
+ * Soft-delete (not hard-delete) for E2E-created questions: `student_responses`,
+ * `quiz_session_answers`, `flagged_questions`, and `question_comments` all
+ * carry FK references to `questions(id)`. Hard DELETE risks FK violations;
+ * the project rule is soft-delete via `deleted_at` regardless. Same row-volume
+ * outcome since CI starts from a fresh DB.
+ *
+ * Difficulty is intentionally NOT restored — local dev seeds (e.g.
+ * seed-quiz-setup-eval.ts) intentionally vary difficulty per question, and
+ * the edit test's `difficulty='hard'` leak does not break any downstream spec.
+ */
+export async function restoreSeededQuestionsState(): Promise<void> {
+  const admin = getAdminClient()
+
+  const { data: org, error: orgError } = await admin
+    .from('organizations')
+    .select('id')
+    .eq('slug', 'egmont-aviation')
+    .single()
+  if (orgError || !org)
+    throw new Error(`restoreSeededQuestionsState org lookup: ${orgError?.message}`)
+
+  // Soft-delete any E2E-created question rows so they don't accumulate during
+  // a spec run. Marker lives in question_text (the create test fills it; no
+  // question_number input exists on the form). Brackets and underscores in
+  // `[E2E_ADMIN_Q]` are literal in PostgreSQL LIKE — neither is a wildcard
+  // metacharacter (only `%` and `_` outside brackets are), so this is a
+  // literal-prefix match. Zero-row no-op rule §5: chain .select('id') and
+  // treat empty as a valid steady state — only log when a row actually
+  // changed so the helper stays quiet on filter-only tests.
+  const { data: deleted, error: deleteError } = await admin
+    .from('questions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('organization_id', org.id)
+    .like('question_text', `${E2E_ADMIN_Q_MARKER}%`)
+    .is('deleted_at', null)
+    .select('id')
+  if (deleteError) throw new Error(`restoreSeededQuestionsState delete: ${deleteError.message}`)
+  if ((deleted?.length ?? 0) > 0) {
+    console.log(
+      `[restoreSeededQuestionsState] soft-deleted ${deleted?.length} E2E-created question(s)`,
+    )
+  }
+
+  // Reactivate any seeded question that the bulk-Deactivate test flipped to
+  // 'draft'. Filter on `status != 'active'` so the UPDATE is a no-op when seed
+  // state is already clean. .select('id') confirms the write actually landed.
+  //
+  // Scope note: this flips EVERY non-active, non-deleted question in the org
+  // back to 'active' — there is no question_text prefix filter, intentionally,
+  // because the bulk-Deactivate test selects all visible rows (seed + any
+  // test-created). On CI this is exact-match safe (fresh DB → only seeded +
+  // E2E-marker rows exist; the latter were soft-deleted above). On a shared
+  // local dev DB, a manually-authored draft question in egmont-aviation would
+  // be silently published by this UPDATE — accept that risk: this helper is
+  // only ever called from admin-questions.spec.ts's afterEach, which a dev
+  // running e2e specs has opted into.
+  const { data: reactivated, error: reactivateError } = await admin
+    .from('questions')
+    .update({ status: 'active' })
+    .eq('organization_id', org.id)
+    .is('deleted_at', null)
+    .neq('status', 'active')
+    .select('id')
+  if (reactivateError)
+    throw new Error(`restoreSeededQuestionsState reactivate: ${reactivateError.message}`)
+  if ((reactivated?.length ?? 0) > 0) {
+    console.log(
+      `[restoreSeededQuestionsState] reactivated ${reactivated?.length} seeded question(s)`,
+    )
+  }
 }

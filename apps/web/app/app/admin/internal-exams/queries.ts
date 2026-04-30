@@ -270,7 +270,7 @@ export async function listExamSubjects(): Promise<ExamSubjectOption[]> {
 
   const { data, error } = await supabase
     .from('exam_configs')
-    .select('subject_id, easa_subjects:subject_id(id, code, name)')
+    .select('subject_id, easa_subjects!subject_id(id, code, name)')
     .eq('organization_id', organizationId)
     .eq('enabled', true)
     .is('deleted_at', null)

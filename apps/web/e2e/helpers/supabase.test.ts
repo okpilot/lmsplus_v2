@@ -7,9 +7,12 @@ vi.hoisted(() => {
 
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/consent/versions'
 import {
+  cleanupInternalExamStudentActiveSessions,
+  E2E_ADMIN_Q_MARKER,
   ensureConsentRecords,
   ensureTestUser,
   getAdminClient,
+  restoreSeededQuestionsState,
   TEST_EMAIL,
   TEST_PASSWORD,
 } from './supabase'
@@ -389,5 +392,367 @@ describe('ensureConsentRecords', () => {
     await expect(
       ensureConsentRecords(client as ReturnType<typeof getAdminClient>, 'user-abc'),
     ).rejects.toThrow('ensureConsentRecords: unique violation')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// cleanupInternalExamStudentActiveSessions
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds a minimal mock for the service-role admin client used inside
+ * cleanupInternalExamStudentActiveSessions. The function always calls
+ * getAdminClient() internally, so mockCreateClient controls what it receives.
+ *
+ * adminAuthedClient is a separate RPC-capable mock passed as the argument.
+ */
+function buildCleanupMockClient(opts: {
+  studentRow?: { id: string } | null
+  studentError?: { message: string } | null
+  codes?: Array<{
+    id: string
+    consumed_session_id: string
+    quiz_sessions: { ended_at: string | null } | null
+  }>
+  codesError?: { message: string } | null
+  // `discarded` mirrors the production .select('id') return shape so tests can
+  // exercise the observability branch (console.log when length > 0).
+  discarded?: Array<{ id: string }> | null
+  discardError?: { message: string } | null
+}) {
+  const {
+    studentRow = { id: 'student-uuid' },
+    studentError = null,
+    codes = [],
+    codesError = null,
+    discarded = null,
+    discardError = null,
+  } = opts
+
+  return {
+    from: (table: string) => {
+      if (table === 'users') {
+        return buildChain({ data: studentRow, error: studentError })
+      }
+      if (table === 'internal_exam_codes') {
+        return buildChain({ data: codes, error: codesError })
+      }
+      if (table === 'quiz_sessions') {
+        return buildChain({ data: discarded, error: discardError })
+      }
+      return buildChain({ data: null, error: null })
+    },
+    auth: { admin: {} },
+  }
+}
+
+describe('cleanupInternalExamStudentActiveSessions', () => {
+  it('returns without calling the RPC when the student row does not exist yet', async () => {
+    mockCreateClient.mockReturnValue(buildCleanupMockClient({ studentRow: null }))
+    const rpcMock = vi.fn()
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when the student lookup query fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({ studentError: { message: 'connection timeout' } }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions student: connection timeout',
+    )
+  })
+
+  it('returns without calling the RPC when no stale codes exist', async () => {
+    mockCreateClient.mockReturnValue(buildCleanupMockClient({ codes: [] }))
+    const rpcMock = vi.fn()
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('returns without calling the RPC when all codes have already ended sessions', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [
+          {
+            id: 'code-1',
+            consumed_session_id: 'sess-1',
+            quiz_sessions: { ended_at: '2026-04-29T10:00:00Z' },
+          },
+        ],
+      }),
+    )
+    const rpcMock = vi.fn()
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('calls void_internal_exam_code for each stale open session', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [
+          { id: 'code-a', consumed_session_id: 'sess-a', quiz_sessions: { ended_at: null } },
+          { id: 'code-b', consumed_session_id: 'sess-b', quiz_sessions: { ended_at: null } },
+        ],
+      }),
+    )
+    const rpcMock = vi.fn().mockResolvedValue({ error: null })
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(rpcMock).toHaveBeenCalledTimes(2)
+    expect(rpcMock).toHaveBeenCalledWith('void_internal_exam_code', {
+      p_code_id: 'code-a',
+      p_reason: 'e2e-cleanup',
+    })
+    expect(rpcMock).toHaveBeenCalledWith('void_internal_exam_code', {
+      p_code_id: 'code-b',
+      p_reason: 'e2e-cleanup',
+    })
+  })
+
+  it('throws when the void RPC returns an error', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [{ id: 'code-x', consumed_session_id: 'sess-x', quiz_sessions: { ended_at: null } }],
+      }),
+    )
+    const rpcMock = vi.fn().mockResolvedValue({ error: { message: 'rpc failed' } })
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions void code code-x: rpc failed',
+    )
+  })
+
+  it('throws when the internal_exam_codes query fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({ codesError: { message: 'schema mismatch' } }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions codes: schema mismatch',
+    )
+  })
+
+  it('throws when the practice-session discard update fails after voiding stale codes', async () => {
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [{ id: 'code-z', consumed_session_id: 'sess-z', quiz_sessions: { ended_at: null } }],
+        discardError: { message: 'update failed' },
+      }),
+    )
+    const rpcMock = vi.fn().mockResolvedValue({ error: null })
+    const adminAuthedClient = { rpc: rpcMock } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions practice: update failed',
+    )
+  })
+
+  it('runs the practice-session discard even when no stale internal-exam codes exist', async () => {
+    // Pins the fix for the early-return bug: a leftover practice/study session
+    // from a prior reports-separation run must still be cleaned up even if no
+    // open internal-exam codes are present. We assert this via the discard's
+    // error path — if the practice-session UPDATE were skipped, this would not
+    // throw.
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [],
+        discardError: { message: 'practice cleanup failed' },
+      }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await expect(cleanupInternalExamStudentActiveSessions(adminAuthedClient)).rejects.toThrow(
+      'cleanupInternalExamStudentActiveSessions practice: practice cleanup failed',
+    )
+  })
+
+  it('logs the discarded practice-session count when leftover sessions are removed', async () => {
+    // Pins the observability branch: when the practice-session UPDATE actually
+    // soft-deletes a row, the helper logs the count. Without a `data` field on
+    // the mock this branch was unreachable in tests.
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(
+      buildCleanupMockClient({
+        codes: [],
+        discarded: [{ id: 'sess-leftover-1' }, { id: 'sess-leftover-2' }],
+      }),
+    )
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('discarded 2 leftover practice/study session(s)'),
+    )
+    logSpy.mockRestore()
+  })
+
+  it('does not log when no practice-session rows were affected', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(buildCleanupMockClient({ codes: [], discarded: [] }))
+    const adminAuthedClient = { rpc: vi.fn() } as unknown as ReturnType<typeof getAdminClient>
+
+    await cleanupInternalExamStudentActiveSessions(adminAuthedClient)
+
+    expect(logSpy).not.toHaveBeenCalled()
+    logSpy.mockRestore()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// restoreSeededQuestionsState
+// ---------------------------------------------------------------------------
+
+/**
+ * Mock builder for restoreSeededQuestionsState. The function makes one
+ * `from('organizations')` call followed by exactly two sequential
+ * `from('questions')` calls:
+ *   1. SELECT egmont-aviation org
+ *   2. UPDATE questions (soft-delete E2E-marker rows) → returns affected ids
+ *   3. UPDATE questions (reactivate non-active rows)  → returns affected ids
+ *
+ * `questionsCalls` is an ordered list of return values for the two
+ * `from('questions')` calls; each call pops the next entry. Lets a single
+ * test exercise both update branches.
+ */
+function buildRestoreMockClient(opts: {
+  org?: { data: { id: string } | null; error: { message: string } | null }
+  questionsCalls?: Array<{ data: Array<{ id: string }> | null; error: { message: string } | null }>
+}) {
+  const {
+    org = { data: { id: 'org-123' }, error: null },
+    questionsCalls = [
+      { data: [], error: null },
+      { data: [], error: null },
+    ],
+  } = opts
+  const queue = [...questionsCalls]
+
+  return {
+    from: (table: string) => {
+      if (table === 'organizations') return buildChain(org)
+      if (table === 'questions') {
+        const next = queue.shift() ?? { data: [], error: null }
+        return buildChain(next)
+      }
+      return buildChain({ data: null, error: null })
+    },
+  }
+}
+
+describe('E2E_ADMIN_Q_MARKER', () => {
+  it('exports a stable, prefix-shaped marker', () => {
+    expect(E2E_ADMIN_Q_MARKER).toBe('[E2E_ADMIN_Q]')
+  })
+})
+
+describe('restoreSeededQuestionsState', () => {
+  it('throws when the egmont-aviation org lookup fails', async () => {
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        org: { data: null, error: { message: 'connection refused' } },
+      }),
+    )
+    await expect(restoreSeededQuestionsState()).rejects.toThrow(
+      'restoreSeededQuestionsState org lookup: connection refused',
+    )
+  })
+
+  it('throws when the org row is missing but no db error is returned', async () => {
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        org: { data: null, error: null },
+      }),
+    )
+    await expect(restoreSeededQuestionsState()).rejects.toThrow(
+      'restoreSeededQuestionsState org lookup:',
+    )
+  })
+
+  it('throws when the soft-delete update returns an error', async () => {
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        questionsCalls: [{ data: null, error: { message: 'permission denied' } }],
+      }),
+    )
+    await expect(restoreSeededQuestionsState()).rejects.toThrow(
+      'restoreSeededQuestionsState delete: permission denied',
+    )
+  })
+
+  it('throws when the reactivate update returns an error', async () => {
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        questionsCalls: [
+          { data: [], error: null },
+          { data: null, error: { message: 'rls denied' } },
+        ],
+      }),
+    )
+    await expect(restoreSeededQuestionsState()).rejects.toThrow(
+      'restoreSeededQuestionsState reactivate: rls denied',
+    )
+  })
+
+  it('does not log when no rows were affected', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(buildRestoreMockClient({}))
+
+    await restoreSeededQuestionsState()
+
+    expect(logSpy).not.toHaveBeenCalled()
+    logSpy.mockRestore()
+  })
+
+  it('logs the soft-deleted count when E2E-marker rows are removed', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        questionsCalls: [
+          { data: [{ id: 'q-1' }, { id: 'q-2' }], error: null },
+          { data: [], error: null },
+        ],
+      }),
+    )
+
+    await restoreSeededQuestionsState()
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('soft-deleted 2 E2E-created question(s)'),
+    )
+    logSpy.mockRestore()
+  })
+
+  it('logs the reactivated count when seeded rows are flipped back to active', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockCreateClient.mockReturnValue(
+      buildRestoreMockClient({
+        questionsCalls: [
+          { data: [], error: null },
+          { data: [{ id: 'q-3' }, { id: 'q-4' }, { id: 'q-5' }], error: null },
+        ],
+      }),
+    )
+
+    await restoreSeededQuestionsState()
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('reactivated 3 seeded question(s)'))
+    logSpy.mockRestore()
   })
 })

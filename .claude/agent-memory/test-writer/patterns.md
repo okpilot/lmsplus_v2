@@ -327,6 +327,42 @@ vi.mock('next/navigation', () => ({
 }))
 ```
 
+### Testing `ensure*` E2E helper functions in e2e/helpers/ (2026-04-29)
+
+`ensure*` helpers (e.g. `ensureAdminTestUser`, `ensureInternalExamStudentUser`) share the
+same structure: org lookup → user lookup/create → optional update. Mock `@supabase/supabase-js`
+with `vi.hoisted(() => ({ mockCreateClient: vi.fn() }))` and supply a fresh mock client per test.
+
+Key points:
+- `buildChain()` is defined **locally** in each test file (do not import from supabase.test.ts).
+- `auth.admin.updateUserById`, `createUser`, and `deleteUser` are `vi.fn()` so call counts
+  and args can be asserted.
+- `from('users')` returns an object with separate `select`, `insert`, and `update` methods
+  (production code calls each independently); do NOT use `buildChain` for the users table.
+- `from('user_consents')` can safely return `buildChain({ data: [], error: null })` — the
+  `ensureConsentRecords` call at the end of every happy path only inserts when rows are missing,
+  and tests for `ensure*` don't need to verify consent seeding (that's covered in supabase.test.ts).
+- Rollback path: when insert fails, the function calls `auth.admin.deleteUser(userId)`.
+  Assert `deleteUser` was called with the created userId. When rollback also fails, the error
+  message includes `"rollback also failed: <msg>"` — assert on that substring.
+- Non-PGRST116 user lookup error (`code: '08001'`) must throw `'..user lookup: <msg>'`; a
+  PGRST116 error is expected "no rows" and triggers the create path instead.
+
+Template for a single test:
+```ts
+it('throws when auth user creation fails', async () => {
+  const { client } = buildAdminMockClient({
+    userRow: { data: null, error: { message: 'no rows', code: 'PGRST116' } },
+    createUserResult: { data: null, error: { message: 'email already taken' } },
+  })
+  mockCreateClient.mockReturnValue(client)
+
+  await expect(ensureAdminTestUser()).rejects.toThrow(
+    'ensureAdminTestUser auth: email already taken',
+  )
+})
+```
+
 ### Mocking Server Actions in hook tests (2026-03-12)
 Server Actions ('use server' files) must be mocked at the module path — the same
 import path used in the hook under test. Use vi.hoisted + spread args pattern:
@@ -4332,4 +4368,87 @@ NOT affect the existing assertion (30min >> 90s). No near-boundary fixture is lo
 here — the boundary is already unit-tested in `_overdue-helpers.test.ts`. Do not add a
 near-boundary fixture to `get-active-exam-session.test.ts` as it would couple the integration
 test to a magic number that could become stale when the grace constant changes again.
+
+---
+
+## cleanupInternalExamStudentActiveSessions: early-return structure (2026-04-29)
+
+The function has TWO early returns before the discard update:
+1. `if (!studentRow) return` — student not found
+2. `if (stale.length === 0) return` — no open internal-exam sessions
+
+The discard-error path is ONLY reachable when at least one stale code exists (so
+`stale.length > 0` and the early return is skipped). A test for the discard error must
+therefore include a stale code in the fixture, not just `codes: []`.
+
+```ts
+// CORRECT: discard-error test needs a stale code to bypass the early return
+buildCleanupMockClient({
+  codes: [{ id: 'code-z', consumed_session_id: 'sess-z', quiz_sessions: { ended_at: null } }],
+  discardError: { message: 'update failed' },
+})
+// WRONG: codes: [] causes stale.length === 0 → return before discard runs
+```
+
+## Two-client pattern in e2e helpers (2026-04-29)
+
+`cleanupInternalExamStudentActiveSessions` uses TWO separate Supabase clients:
+- `getAdminClient()` (service-role, created internally) — for raw table reads/writes that bypass RLS
+- `adminAuthedClient` (anon + signed-in admin, passed as argument) — for SECURITY DEFINER RPCs
+  that require `auth.uid()` (e.g. `void_internal_exam_code`)
+
+When mocking this function, `mockCreateClient` controls the service-role internal client,
+while the `adminAuthedClient` argument is a separate `{ rpc: vi.fn() }` mock. Both must be
+set up independently.
+
+`signInAsAdmin` (admin-supabase.ts) creates the anon+authed client. Its test must assert
+that the SECOND argument to `createClient` is the anon key (not the service role key) — this
+is the security-critical property that stops it from being confused with `getAdminClient`.
+
+```ts
+const [, secondArg] = mockCreateClient.mock.calls[0] as [unknown, string, unknown]
+expect(secondArg).toBe('test-anon-key')
+```
+
+### E2E hermetic-cleanup pattern: marker prefix + afterEach restore (2026-04-30, count=2)
+
+When an E2E spec mutates rows in a shared seed (questions, sessions, configs) it MUST
+restore state in `test.afterEach`, otherwise downstream specs in the same Playwright
+project hit cross-spec state-leak failures that look like flaky timeouts but are
+deterministic.
+
+Two confirmed occurrences:
+- `apps/web/e2e/admin-students.spec.ts` (existing) — `cleanupE2eStudents()` deletes any
+  user matching `${E2E_STUDENT_EMAIL_PREFIX}%`.
+- `apps/web/e2e/admin-questions.spec.ts` + `helpers/supabase.ts:restoreSeededQuestionsState`
+  (added in #587 fix) — soft-deletes `question_text LIKE '[E2E_ADMIN_Q]%'` and
+  reactivates `status != 'active'` seeded rows.
+
+Required pieces:
+1. **Stable marker constant** exported from a shared helper module (NOT a magic string
+   inlined in each test). E2E_ADMIN_Q_MARKER, E2E_STUDENT_EMAIL_PREFIX, etc.
+2. **Test-created rows** carry the marker in a queryable column (text prefix preferred
+   over JSON metadata so PostgREST `.like()` works).
+3. **Single afterEach** at the describe level calls the cleanup helper. Cleanup runs
+   even on test failure — that is what we want.
+4. **Soft-delete, not hard-delete**, when the table has FK children
+   (`student_responses`, `quiz_session_answers`, `flagged_questions`,
+   `question_comments` all reference `questions(id)`). Hard DELETE risks 23503 FK
+   violations and also violates `docs/security.md` rule 6.
+5. **Zero-row no-op chain** (`.select('id')` + log only when `data.length > 0`) so
+   the helper is silent on filter-only tests.
+
+Test the helper itself with the queue/shift mock pattern:
+```ts
+function buildRestoreMockClient(opts: { questionsCalls?: Array<...> }) {
+  const queue = [...questionsCalls]
+  return { from: (table) => table === 'questions'
+    ? buildChain(queue.shift() ?? defaultEmpty)
+    : buildChain(orgRow) }
+}
+```
+Each sequential `from('questions')` call pops the next entry. Cover org-lookup error,
+each update error, no-op silence, and each log path. Plan-critic threshold: do test
+the org-row-null-with-no-error branch — `.single()` returning `{ data: null, error: null }`
+is a real PostgREST shape and the code's `if (orgError || !org)` covers it.
 

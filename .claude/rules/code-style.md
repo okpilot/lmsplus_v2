@@ -310,7 +310,7 @@ if (error) {
 return { success: true }
 ```
 
-**Zero-row no-op check:** For ownership-scoped DELETE and UPDATE calls, verify at least one row was affected by chaining `.select('id')` and checking the returned array length. Supabase returns no error when RLS blocks a mutation — it returns 200 OK with zero affected rows. Without this check, cross-user or wrong-ID calls silently succeed.
+**Zero-row no-op check:** For any DELETE or UPDATE that's expected to mutate rows — ownership-scoped via RLS, admin-context via service-key, or a test-cleanup helper — chain `.select('id')` and verify the returned array length. Supabase returns 200 OK with zero affected rows when the filter matches nothing or RLS blocks the write. Without this check, cross-user, wrong-ID, or filter-regressed calls silently succeed.
 
 ```ts
 // ❌ WRONG — RLS blocks cross-user delete, but returns no error
@@ -323,7 +323,32 @@ const { data, error } = await supabase.from('comments').delete().eq('id', commen
 if (error) return { success: false }
 if (!data?.length) return { success: false, error: 'Not found or not owned' }
 return { success: true }
+
+// ✅ CORRECT — service-role cleanup where zero rows IS valid; observability still required
+const { data: discarded, error } = await admin
+  .from('quiz_sessions')
+  .update({ deleted_at: new Date().toISOString() })
+  .eq('student_id', studentId)
+  .is('ended_at', null)
+  .select('id')
+if (error) throw new Error(`cleanup: ${error.message}`)
+if ((discarded?.length ?? 0) > 0) {
+  console.log(`[cleanup] discarded ${discarded?.length} session(s)`)
+}
 ```
+
+### PostgREST Embedded Resources: Use `!` (FK-hint), Not `:` (alias)
+The `:` operator in `.select()` aliases the result key but does NOT expand a foreign key. PostgREST may resolve the embedded resource by table name when there's a single FK, but on resolution failure (FK ambiguous, schema drift) it returns null silently — and downstream code that expected an object then operates on null. Use `!fk_column_name` to explicitly hint the FK; resolution failures error loudly.
+
+```ts
+// ❌ WRONG — `:` is an alias, returns null on resolution failure
+.select('id, consumed_session_id, quiz_sessions:consumed_session_id (ended_at)')
+
+// ✅ CORRECT — `!` is the FK hint, errors loudly on resolution failure
+.select('id, consumed_session_id, quiz_sessions!consumed_session_id (ended_at)')
+```
+
+Same shape applies to nested resources, joined columns, and renamed embeds. Reserve `:` for genuine column-rename in the result, never as a substitute for `!` on FK expansion.
 
 ### Sanitize Error Messages in Server Actions
 Every `if (error)` block in a Server Action must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly — Postgres error strings can expose connection details, schema names, and internal state.
@@ -547,6 +572,41 @@ it('recovers in-progress exam from server session when localStorage is empty', (
 
 Reason: PR #523's exam refresh-resume bug shipped because no test reloaded the page mid-exam — the localStorage gap was invisible.
 
+### E2E Spec Hermiticity (from 2026-04-30)
+
+Every Playwright E2E spec that mutates shared seed data **must** restore state in `test.afterEach` (or `afterAll` for describe-scoped fixtures). Without restoration, downstream specs in the same Playwright project see polluted state and fail with what looks like flakiness but is deterministic cross-spec coupling.
+
+The required shape:
+
+1. **Stable marker constant** for test-created rows, exported from a shared helper module — never a magic string inlined per test. Examples: `E2E_STUDENT_EMAIL_PREFIX = 'e2e-student-mgmt-'`, `E2E_ADMIN_Q_MARKER = '[E2E_ADMIN_Q]'`.
+2. **Test-created rows carry the marker** in a queryable column (text prefix preferred over JSON metadata so PostgREST `.like()` works).
+3. **Single `afterEach` at the describe level** calls a shared cleanup helper. `afterEach` runs even after a failed test — that is what we want.
+4. **Soft-delete, not hard-delete**, when the table has FK children. `student_responses`, `quiz_session_answers`, `flagged_questions`, and `question_comments` all reference `questions(id)`. Hard DELETE risks 23503 FK violations and also violates `docs/security.md` rule 6.
+5. **Zero-row no-op chain** (`.select('id')` + log only when `data.length > 0`) per Section 5 — keeps the helper silent on filter-only tests, surfaces actual mutation when something happened.
+6. **Helper has unit tests** (Vitest) covering: org-lookup error path, each update error path, no-op silence, each log path. Use the `vi.hoisted` + `buildChain` queue/shift pattern when the helper makes multiple sequential calls on the same table.
+
+```ts
+// ✅ CORRECT — admin-questions.spec.ts pattern
+import { restoreSeededQuestionsState } from './helpers/supabase'
+
+test.describe('Admin Question Editor', () => {
+  test.afterEach(async () => {
+    await restoreSeededQuestionsState()
+  })
+  // tests that may mutate seeded questions...
+})
+
+// ✅ CORRECT — admin-students.spec.ts pattern
+test.describe('Admin Student Management — Create', () => {
+  test.afterEach(async () => {
+    await cleanupE2eStudents()  // hard-deletes rows matching prefix marker
+  })
+  // tests that create students...
+})
+```
+
+Reason: issue #587 — `admin-questions.spec.ts`'s bulk-Deactivate test flipped every visible MET question to `status='draft'` and never restored. Within Playwright's `admin-e2e` project, admin-questions runs alphabetically before `internal-exam-*.spec.ts`, so `start_internal_exam_session` raised `insufficient_questions_for_exam` and 6 internal-exam specs timed out in CI. Promoted to a rule at count=2 (`admin-students.spec.ts` was already hermetic; `admin-questions.spec.ts` is the second).
+
 ---
 
 ## 8. What the Code Reviewer Checks Automatically
@@ -579,4 +639,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-04-28*
+*Last updated: 2026-04-30*

@@ -1,7 +1,33 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { ensureConsentRecords, getAdminClient } from './supabase'
 
 export const ADMIN_TEST_EMAIL = 'admin@lmsplus.local'
 export const ADMIN_TEST_PASSWORD = 'admin123!'
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+if (!SUPABASE_ANON_KEY) throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required for E2E tests')
+
+/**
+ * Sign in as the E2E admin user and return an authenticated, ephemeral
+ * Supabase client. Used by helpers that call SECURITY DEFINER RPCs requiring
+ * `auth.uid()` (e.g. `void_internal_exam_code`).
+ *
+ * Uses `persistSession: false` so this token never touches the browser
+ * storage state used by tests (`e2e/.auth/admin.json`); the persisted token
+ * remains valid because Supabase JWTs are stateless and concurrent.
+ */
+export async function signInAsAdmin(): Promise<SupabaseClient> {
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { error } = await client.auth.signInWithPassword({
+    email: ADMIN_TEST_EMAIL,
+    password: ADMIN_TEST_PASSWORD,
+  })
+  if (error) throw new Error(`signInAsAdmin: ${error.message}`)
+  return client
+}
 
 /** Ensure the admin E2E test user exists with admin role and seeded question data. */
 export async function ensureAdminTestUser() {
