@@ -66,8 +66,9 @@ reviews:
         - Explicit return types on all exported functions.
         - No `any` type — use `unknown` with narrowing.
         - Destructure { error } from ALL Supabase mutation calls (.insert/.update/.delete/.upsert).
-        - For ownership-scoped DELETE and UPDATE, chain .select('id') and check data?.length.
-          Supabase returns 200 OK with zero rows when RLS blocks — no error is thrown.
+        - For ANY DELETE or UPDATE expected to mutate rows (RLS-scoped, admin-context, or test-cleanup),
+          chain .select('id') and verify data?.length. Supabase returns 200 OK with zero rows when the
+          filter matches nothing or RLS blocks — no error is thrown.
 
     # Hooks — small and focused
     - path: "apps/web/app/**/_hooks/use-*.ts"
@@ -85,6 +86,9 @@ reviews:
         - No type casting of unvalidated external data via `as SubmitAnswerInput`.
         - When casting DB/RPC results via `as unknown as T`, pair the cast with runtime guards (Array.isArray, typeof checks, etc).
         - All Zod-validated inputs must use .parse() before use, not `as` casts.
+        - PostgREST embedded resources MUST use `!fk_column` (FK-hint), NOT `:fk_column` (alias).
+          The `:` form silently returns null on resolution failure; `!` errors loudly. Reserve `:`
+          for genuine column-rename only, never as a substitute for FK expansion.
 
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"
@@ -174,6 +178,35 @@ reviews:
         - Reload test for stateful UI: if the diff adds a hook or component holding
           state in localStorage or in-memory across renders, verify a test simulates
           reload with empty local state against an active server session.
+
+    # E2E Playwright specs — hermiticity (cross-spec state pollution)
+    - path: "apps/web/e2e/**/*.spec.ts"
+      instructions: |
+        Playwright E2E spec. Enforce hermiticity — cross-spec state pollution is
+        the #1 cause of CI flake-that-isn't-flake (issue #587). Specs share a
+        Supabase project, so a spec mutating seed without cleanup poisons every
+        downstream spec in the same project's alphabetical run order.
+        - Any mutation of shared seed data (questions, students, sessions, configs)
+          must restore in `test.afterEach` (or `afterAll` for describe-scoped fixtures).
+          Read-only specs and specs that only mutate per-test throwaway rows tied
+          to a unique marker do not need afterEach.
+        - Test-created rows must carry a stable marker prefix in a queryable column
+          (e.g. `question_text LIKE '[E2E_ADMIN_Q]%'`, `email LIKE 'e2e-student-mgmt-%'`).
+          Marker constants must be EXPORTED from a shared helper module — flag
+          inline magic strings like `'e2e-test-' + Date.now()` not anchored to a const.
+        - Cleanup that touches tables with FK children must use soft-delete
+          (UPDATE deleted_at = now()), not hard DELETE. FK children of `questions`:
+          student_responses, quiz_session_answers, flagged_questions,
+          question_comments. Hard DELETE risks 23503 violations and breaks
+          docs/security.md rule 6.
+        - Cleanup helpers must chain `.select('id')` and gate logging on
+          `data.length > 0` per code-style.md §5 (zero-row no-op rule). Silent
+          on filter-only tests; observable when something actually changed.
+        - Cleanup helpers themselves need Vitest unit tests (co-located in
+          helpers/*.test.ts) covering: org-lookup error path, each mutation error
+          path, no-op silence, each log path. Use the vi.hoisted + buildChain
+          queue/shift pattern when the helper makes multiple sequential calls on
+          the same table.
 
     # Environment files — block immediately
     - path: "**/.env*"

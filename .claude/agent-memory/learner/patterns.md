@@ -4048,3 +4048,206 @@ No rule changes. The comment-trimming technique for line-limit compliance on ato
 
 **No rule changes to code-style.md, security.md, biome.json.** Dual-source and suppression-without-failure-path at count 1 (watch). Manual-eval dual-source at count 2 (actionable as test-writer guidance, not code rule).
 
+---
+
+### 2026-04-29 (cycle on #587 — flaky internal-exam E2E, cleanup + PostgREST pattern) — Commits e36866d, 9c4b508
+
+**Context:** Two-commit fix cycle for flaky internal-exam Playwright specs (#587). Specs timeout at `Start exam` → `/app/quiz/session` redirect in CI. Root cause: test helper `signInAsAdmin` was using anon-key (client-side auth), causing `is_admin()` RPC check to fail silently (returns false, no error thrown). Helper switched to service-key (admin client) to perform admin lookups without RPC gate.
+
+**Commit e36866d — fix(e2e): admin test helper + cleanup for internal-exam specs**
+
+- Created `signInAsAdmin()` helper in `apps/web/e2e/helpers/supabase.ts`
+- Added `cleanupInternalExamCode()`, `cleanupInternalExamSession()`, `cleanupTestUser()` helpers
+- Wired helpers into 6 internal-exam spec setup/teardown blocks
+- 1 WARNING from code-reviewer: `helpers/supabase.ts` at 369 lines (borderline non-test utility; suggestion only, non-blocking)
+
+**Commit 9c4b508 — fix(e2e): PostgREST `:` vs `!` syntax + zero-row no-op check**
+
+- Changed 2 `.select()` calls from `:` (alias hint) to `!` (strict foreign-key expansion) in admin-supabase test helper
+- Added `.select('id').then(d => !d?.length ? throw : ...)` zero-row guard on service-role UPDATE in `cleanupTestUser()`
+- Semantic-reviewer flagged both as ISSUE; semantic-reviewer 2nd pass confirmed clean
+
+**Agent findings summary:**
+
+- **code-reviewer (e36866d):** 1 WARNING (helpers/supabase.ts 369 lines). Non-blocking.
+- **semantic-reviewer (e36866d):** 2 ISSUE:
+  1. PostgREST `:` vs `!` — affects 2 `.select()` calls in helpers; this is the **2nd hit** of this pattern (prior: f286e5d commit in PR #576 had same issue, cited count=2 already at that time). **Now count=3 total.**
+  2. Missing `.select('id')` zero-row no-op check on service-role UPDATE. Per code-style.md §5, a hard rule already, but scope was documented for ownership-scoped (user-context) UPDATEs only. This is a service-role (admin-context) UPDATE in test cleanup. Rule applies universally but scope text didn't explicitly cover admin helpers. **Documented gap in rule scope.**
+- **semantic-reviewer (9c4b508):** Both ISSUEs resolved. Clean.
+- **test-writer (e36866d):** 13 new unit tests, all passing. Notably flagged that `signInAsAdmin` could swap anon-key for service-key without functional regression — security-relevant discovery that helpers/admin-supabase.test.ts now guards.
+- **doc-updater (e36866d):** Test-only commit; no doc changes needed.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] Helper file size pressure on boundary (non-test utilities in E2E)**
+
+   `helpers/supabase.ts` grew to 369 lines to accommodate 7 cleanup/auth helpers for internal-exam E2E. Code-reviewer WARNING flagged it as borderline. The file is a non-test utility (helper library), which has a 200-line soft limit per code-style.md §1. At 369 lines, it exceeds the standard but is not a hard violation (test file relaxed limits apply to `.test.ts` only, not helpers).
+
+   First explicit named occurrence of helper-file line-count pressure. **Log and watch.** If E2E helper files continue to grow (future features may add more cleanup patterns), establish explicit line-limit rule (propose 200 lines baseline for non-test utility helpers, with 300-line exception for "infrastructure utilities" that serve multiple spec files).
+
+2. **[REPEAT — count 3] PostgREST `:` vs `!` foreign-key expansion syntax silent-trap**
+
+   First named occurrence: PR #576 stabilization commit f286e5d. Reviewer noted "count=2 already" at that time (one in f286e5d itself, one earlier in same session).
+
+   This occurrence: e36866d has 2 `.select()` calls using `:` (alias-only hint, does not expand FK) instead of `!` (strict expansion, requires FK). This is the **3rd hit** in the learning system. Semantic-reviewer called it correctly.
+
+   Root cause: PostgREST two-operator syntax `:` (alias + field hint) vs `!` (strict expand FK + alias) is not intuitive. Developers new to Supabase can write `select: 'field_name: alias_name'` without realizing they've elided the FK expansion. The `:` form returns null for the FK object instead of throwing/logging error, creating a silent no-op that passes basic tests (shape looks right, key exists with null value).
+
+   **Third occurrence across separate commits warrants rule promotion.** Pattern is now hitting count 3; recommend codifying in code-style.md.
+
+3. **[RULE SCOPE GAP] Zero-row no-op check applies to service-role UPDATEs, not just ownership-scoped UPDATEs**
+
+   Code-style.md Section 5 documents zero-row no-op check for "ownership-scoped DELETE/UPDATE" (user-context, where cross-user attempts return 0 rows silently). The rule uses examples like "draft ID did not match ownership" and "DELETE with no app-layer ownership filter".
+
+   This commit revealed the pattern applies also to service-role UPDATEs in test cleanup: `cleanupTestUser()` uses service-key, so the ownership-scoped RLS filter is bypassed. The zero-row check is still required (ensures the target user existed, prevent silent orphans), but the semantic context differs (infrastructure/cleanup, not student-facing).
+
+   First explicit test-cleanup context for the zero-row rule. **Scope clarification needed, not a new rule.** Recommend extending code-style.md §5 rule scope text to cover both user-context and admin-context UPDATEs.
+
+**Actions taken:**
+
+- Frequency table: "PostgREST `:` vs `!` foreign-key expansion syntax" — count updated 2 → 3, last-seen 2026-04-29. Status: **PROMOTE TO HARD RULE — count=3 threshold met.** Recommend: Add explicit rule to code-style.md Section 5 (TypeScript/Supabase rules) or create a new subsection on PostgREST select syntax, with examples of both forms and a clear statement: `.select('alias:field')` (`:` operator) does not expand foreign keys — use `.select('alias!field')` (`!` operator) for strict FK expansion.
+
+- Frequency table: "Helper file size pressure on boundary (non-test E2E helpers)" — count 1, added 2026-04-29. Status: **Log and watch.** Future adds to E2E helpers may trigger rule extension (propose explicit 200-line baseline for helpers, with documented 300-line exception for "infrastructure utilities serving multiple specs").
+
+- Code-style.md §5 scope clarification: Extend zero-row no-op check rule to explicitly state it applies to both ownership-scoped (user-context RLS) and admin-context (service-key) UPDATEs/DELETEs. Add example of both forms to clarify intent is consistent (verify row was actually modified, not silently no-op'd).
+
+**False positives:** None.
+
+**Positive signals:**
+
+- Semantic-reviewer correctly identified PostgREST `:` vs `!` pattern on second pass; this is the agent learning the pattern across sessions and applying it more aggressively (good signal).
+- Test-writer boundary discovery: `signInAsAdmin` anon-vs-service-key swap has no functional impact on test assertions (both resolve the helper, neither throws), but is a security-relevant gap that guards tests now protect against (agent depth on infrastructure testing working).
+- Code reviewer non-blocking WARNING on helper file size appropriately calibrated (file is legitimately at boundary; not an error, but worth noting for future refactors).
+- Two-round semantic-reviewer cycle (ISSUE found, committed fix, re-run, clean) demonstrates error-correction loop working as designed.
+
+**Recommended rule changes (orchestrator decision required):**
+
+1. **Add PostgREST foreign-key expansion rule to code-style.md Section 5** (or new dedicated section):
+   - Rule: "Supabase `.select()` with FK expansion must use `!` operator (strict), not `:` (alias-only). Form `.select('alias!fieldName')` expands the FK relationship; form `.select('alias:fieldName')` returns null for the FK object and does not expand."
+   - Example: `.select('user!user_id').select('session!session_id')` (correct, expands both) vs `.select('user:userId').select('session:sessionId')` (wrong, both return null).
+   - Add to .coderabbit.yaml sync queue.
+
+2. **Clarify code-style.md §5 zero-row no-op check rule scope** to explicitly cover admin-context UPDATEs:
+   - Current text: "for any DELETE or UPDATE that is ownership-scoped, add `.select('id')` and check that at least one row was returned before returning success"
+   - Propose: Extend to "for any DELETE or UPDATE (ownership-scoped via RLS or admin-context via service-key), add `.select('id')` and check `data?.length > 0` before returning success. Ownership-scoped calls protect against cross-user attempts; admin-context calls protect against infrastructure operations on non-existent records."
+   - Add example: admin test helper cleanup pattern.
+
+---
+
+**Learner cycle complete for e36866d + 9c4b508.** PostgREST pattern promoted count=3 threshold. Code-style.md updates proposed. Test infrastructure patterns logged for future test-writer guidance.
+
+---
+
+### 2026-04-29 (cycle on #590 — flake removal + load-bearing test coverage) — Commits 4669923, db856d5
+
+**Context:** Two-commit cycle fixing setup-order and cleanup-gap issues in PR #590 (internal-exam E2E flakes). Root causes: (1) Playwright setup-project execution ordering bug, (2) early-return short-circuiting a cleanup branch, (3) load-bearing helper had no unit coverage.
+
+**Commit 4669923 — fix(e2e): unblock CI signInAsAdmin + close cleanup gaps**
+
+Three distinct fixes bundled:
+
+1. **Playwright setup-project ordering:** `internal-exam-student-auth.setup.ts` now calls `ensureAdminTestUser()` before `signInAsAdmin()`. Playwright does not order setup projects without explicit `dependencies` config, so on a fresh CI DB this project could run before `admin-setup`, causing "Invalid login credentials" against a non-existent admin user. Fix: self-contained helper call (same pattern as `ensureInternalExamStudentUser()` already in the file).
+
+2. **Early-return short-circuits cleanup branch:** `cleanupInternalExamStudentActiveSessions()` had an early return on `stale.length === 0`, skipping the downstream practice/study-session discard loop. This left leftover non-internal-exam sessions from prior test runs intact, reintroducing the flake class #587 aimed to eliminate. Fix: remove early return, let the for-loop run (safe no-op on empty arrays). New unit test pins the contract via the discard error path.
+
+3. **Incomplete test assertion:** `signInAsAdmin` test only asserted email; now also asserts password. Prevents regression in `ADMIN_TEST_PASSWORD` constant.
+
+**Agent findings:**
+
+- **code-reviewer (4669923):** 0 BLOCKING, 0 WARNINGS. Clean.
+- **semantic-reviewer (4669923):** 0 CRITICAL, 0 ISSUE, 2 SUGGESTIONS, 5 GOOD.
+  - SUGGESTION 1: `buildCleanupMockClient` returned `buildChain({ error })` for `quiz_sessions` without a `data` field, leaving the observability branch (console.log discard count) unreachable in tests. **Pattern: test mock omits data field, leaving observability branch untestable.** (addressed in db856d5)
+  - SUGGESTION 2: `ensure*` E2E helpers reset password via `updateUserById` regardless of whether it changed. Pre-existing pattern across all helpers. Note but no new action.
+- **doc-updater (4669923):** No doc updates needed. Test-only, steering docs aligned.
+- **test-writer (4669923):** Found critical gap — `ensureAdminTestUser` made load-bearing by this commit (added to setup file) but had zero unit-test coverage. Added 11 tests in db856d5. **Pattern: function pulled into load-bearing position by a commit, but with no co-located unit-test file.**
+
+**Commit db856d5 — test(e2e helpers): add ensureAdminTestUser coverage + cleanup observability tests**
+
+Two follow-ups from post-commit pipeline on 4669923:
+
+1. **Load-bearing helper coverage:** Added 11 Vitest cases for `ensureAdminTestUser` covering org lookup failures, user role/org reconciliation, password reset, new-user creation, insert rollback, and rollback-failure error format.
+
+2. **Observability branch coverage:** Fixed mock to return `data` field on `quiz_sessions` chain, pinning observability branch (count log when rows discarded, no log when zero rows affected).
+
+**Agent findings:**
+
+- **code-reviewer (db856d5):** 0 BLOCKING, 0 WARNINGS. Clean.
+- **semantic-reviewer (db856d5):** 0 CRITICAL, 0 ISSUE. Clean.
+- **doc-updater (db856d5):** No doc updates. Test-only.
+- **test-writer (db856d5):** All 46 tests pass. No new gaps found.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] Playwright setup-project ordering assumption without explicit dependency**
+
+   `internal-exam-student-auth.setup.ts` assumed `admin-setup` project ran first (created admin user) but did not declare a `dependencies` field. On fresh CI DB, setup-project execution order is undefined, so this project could run before admin user was created, causing "Invalid login credentials" silently in `signInAsAdmin()`.
+
+   Root cause: Playwright setup projects have no implicit ordering — dependencies must be explicit. Each setup project is self-contained unless declared dependent. A setup project that relies on side effects (auth user creation) from another setup project must declare the dependency or call the side effect itself.
+
+   First explicit named occurrence. **Log and watch.** Watch for: any E2E setup file that calls external helpers without first ensuring their preconditions (e.g., `signInAsAdmin()` assumes admin user exists; if called from a new setup project, that project must either depend on admin-setup or call `ensureAdminTestUser()` itself).
+
+   **Action taken:** Fix applied (commit 4669923): explicit `ensureAdminTestUser()` call makes the setup self-contained, eliminating ordering dependency. This is the pattern solution: self-containment over coupling.
+
+2. **[NEW — count 1] Early-return for one branch's edge case unintentionally short-circuits sibling cleanup branch**
+
+   `cleanupInternalExamStudentActiveSessions()` had `if (stale.length === 0) return` before the practice/study-session discard loop. On empty stale codes (successful void), the function returned early, skipping the unconditional cleanup of non-internal-exam sessions. This left leftover practice sessions from prior test runs intact, reintroducing the flake (#587) meant to be eliminated.
+
+   Root cause: Early returns are generally good (fail fast), but in a cleanup function where two distinct cleanup paths are independent, an early return for one path's edge case (no stale codes) unintentionally short-circuits the other path (always discard practice sessions).
+
+   First explicit named occurrence. **Log and watch.** Watch for: cleanup/teardown functions with multiple independent cleanup branches. Early returns should be reserved for error paths (precondition failed, cannot proceed). Edge cases within a successful path (e.g., "no codes to void") should not short-circuit downstream cleanup branches unless there's a strict causal dependency (e.g., "we only need cleanup B if cleanup A succeeded and found rows").
+
+   **Action taken:** Fix applied (commit 4669923): removed early return, let the for-loop run on empty arrays (safe no-op). Test pinned the contract (db856d5): assert discard error path fires even with empty codes.
+
+3. **[NEW — count 1] Test mock omits data field, leaving observability branch untestable**
+
+   Semantic-reviewer SUGGESTION on 4669923: `buildCleanupMockClient` returned only `{ error }` for `quiz_sessions` chain, omitting the `data` field. Production code includes `const { data: discarded } = await ... .select('id')` and logs `console.log(discarded?.length > 0 ? 'discarded N session(s)' : '')`. The log branch was unreachable in tests because `discarded` was undefined.
+
+   Root cause: Test mock construction did not mirror production return shape. Mock returning `{ error }` is sufficient to test error paths, but production code that reads properties on the data object (`data.length`) cannot be reached without that property in the mock.
+
+   First explicit named occurrence. **Log and watch.** Watch for: test mocks that return a partial shape (error only, data only). When production code has branches reading from both `data` and `error` (or any property on `data` itself), mock must include both.
+
+   **Action taken:** Fix applied (db856d5): added `discarded?: Array<{ id: string }> | null` to `buildCleanupMockClient` opts, mirroring production `.select('id')` shape. Two new tests pin observability: (1) logs count when rows discarded, (2) no log when zero rows affected.
+
+4. **[NEW — count 1] Function pulled into load-bearing position by a commit, but with no co-located unit-test file**
+
+   Commit 4669923 made `ensureAdminTestUser` load-bearing by adding it to `internal-exam-student-auth.setup.ts`. The function existed in `admin-supabase.ts` but had no co-located `admin-supabase.test.ts` file — test-writer agent discovered the gap and added 11 tests.
+
+   Root cause: When a helper is called from a utility script or a non-test context, it is typically tested indirectly through the caller's tests. But when a helper is promoted to a setup file (now on the critical path for E2E tests), it is load-bearing — if it fails silently or incompletely, all downstream E2E specs fail. The promotion should trigger a review of test coverage and creation of direct unit tests if none exist.
+
+   First explicit named occurrence of this pattern (function moved to load-bearing position without triggering a coverage audit). **Log and watch.** Watch for: helpers pulled into new load-bearing contexts (setup files, critical paths). When a helper is promoted, verify it has co-located unit tests. If not, add them as part of the promotion commit (or create a follow-up commit). Pattern is a recurrence of "new hooks and utilities must ship with tests" rule (code-style.md §7), but this specific case is about re-promoting existing functions.
+
+   **Action taken:** Fix applied (db856d5): added 11 Vitest cases covering org lookup, role/org reconciliation, password reset, new-user creation, insert rollback, and rollback-failure error format. All tests pass. Coverage now blocks unintentional regressions.
+
+**Actions taken:**
+
+- Frequency table: "Playwright setup-project ordering assumption without explicit dependency" — count 1, added 2026-04-29. Status: **Log and watch.** Solution pattern: explicit self-contained helper calls instead of relying on setup-project execution order.
+
+- Frequency table: "Early-return for one branch's edge case short-circuits sibling cleanup branch" — count 1, added 2026-04-29. Status: **Log and watch.** Solution pattern: reserve early returns for error paths, not successful-path edge cases in cleanup functions.
+
+- Frequency table: "Test mock omits data field, leaving observability branch untestable" — count 1, added 2026-04-29. Status: **Log and watch.** Solution pattern: mock return shape must match production (both data and error, plus any properties read from data).
+
+- Frequency table: "Function promoted to load-bearing position without coverage audit" — count 1, added 2026-04-29. Status: **Log and watch.** This is a recurrence of "new hooks and utilities must ship with tests" (code-style.md §7), applied to re-promotion of existing functions into critical paths.
+
+**False positives:** None.
+
+**Positive signals:**
+
+- Semantic-reviewer SUGGESTION correctly identified unreachable observability branch (good depth on code-path coverage).
+- Test-writer agent correctly identified load-bearing function with zero coverage and added comprehensive test suite (11 tests).
+- Fix cycle tight: 4669923 makes changes, agents find gaps, db856d5 addresses gaps, all agents clean on fix commit.
+- Root causes were real and distinct (three separate bugs, not one cascading issue).
+- All post-commit agents clean on both commits. No regressions.
+
+**Recommended changes:**
+
+No rule promotions at count=1. All four patterns logged as new observations.
+
+**Note on pattern count totals:**
+
+- "Early-return short-circuits sibling branch" — first explicit occurrence but may have precedent in earlier sessions; recommend pattern-scanning through memory for "early return" + "cleanup" + "short-circuit" to establish true count.
+- "Test mock observability branch" — first explicit occurrence with clear fix; pattern is distinct from "ensure mocks return correct shape" (which is more general).
+
+---
+
+**Learner cycle complete for 4669923 + db856d5.** Four new patterns logged. No rule promotions (all at count=1). All agents clean on both commits. System learning capturing incremental improvements in test infrastructure and E2E setup robustness.
+

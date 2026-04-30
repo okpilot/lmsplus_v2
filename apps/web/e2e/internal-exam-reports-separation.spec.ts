@@ -18,7 +18,11 @@
  */
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
-import { INTERNAL_EXAM_STUDENT_EMAIL } from './helpers/supabase'
+import { signInAsAdmin } from './helpers/admin-supabase'
+import {
+  cleanupInternalExamStudentActiveSessions,
+  INTERNAL_EXAM_STUDENT_EMAIL,
+} from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
@@ -54,6 +58,8 @@ async function openStudentContext(
   const context = await browser.newContext({
     storageState: 'e2e/.auth/internal-exam-student.json',
   })
+  // Manual contexts don't inherit global trace — start it explicitly. See #587.
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: true }).catch(() => {})
   const page = await context.newPage()
   return { context, page }
 }
@@ -71,9 +77,12 @@ async function runPracticeExamToCompletion(page: Page): Promise<void> {
   await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
 
   await page.locator('button:has(span.rounded-full)').first().click()
+  await page.getByRole('button', { name: 'Confirm Answer' }).click()
   await page.waitForTimeout(300)
   await page.getByRole('button', { name: 'Finish Practice Exam' }).click()
-  await page.getByRole('button', { name: 'Submit Quiz' }).click()
+  await page.getByRole('button', { name: 'Submit Practice Exam' }).click()
+  // Unanswered-confirm warning fires when answeredCount < totalQuestions.
+  await page.getByRole('button', { name: 'Submit anyway' }).click()
   await page.waitForURL(/\/app\/quiz\/report\?session=/, { timeout: 30_000 })
 }
 
@@ -88,14 +97,23 @@ async function runInternalExamToCompletion(page: Page, code: string): Promise<vo
   await expect(page.getByText(/Question \d/)).toBeVisible({ timeout: 10_000 })
 
   await page.locator('button:has(span.rounded-full)').first().click()
+  await page.getByRole('button', { name: 'Confirm Answer' }).click()
   await page.waitForTimeout(300)
   await page.getByRole('button', { name: 'Finish Internal Exam' }).click()
-  await page.getByRole('button', { name: 'Submit Quiz' }).click()
-  await page.waitForURL(/\/app\/quiz\/report\?session=/, { timeout: 30_000 })
+  await page.getByRole('button', { name: 'Submit Internal Exam' }).click()
+  // Unanswered-confirm warning fires when answeredCount < totalQuestions.
+  await page.getByRole('button', { name: 'Submit anyway' }).click()
+  await page.waitForURL(/\/app\/internal-exam\/report\?session=/, { timeout: 30_000 })
 }
 
 test.describe('internal exam — reports separation', () => {
   test.setTimeout(180_000)
+
+  // Stale-session cleanup — see issue #587.
+  test.beforeEach(async () => {
+    const adminClient = await signInAsAdmin()
+    await cleanupInternalExamStudentActiveSessions(adminClient)
+  })
 
   test('practice attempt shows only on /app/reports; internal attempt only on /app/internal-exam', async ({
     page: adminPage,
@@ -140,6 +158,9 @@ test.describe('internal exam — reports separation', () => {
         page.getByTestId('tabpanel-reports').getByText('Practice Exam', { exact: true }),
       ).toHaveCount(0)
     } finally {
+      await studentCtx.tracing
+        .stop({ path: test.info().outputPath('student-trace.zip') })
+        .catch(() => {})
       await studentCtx.close()
     }
   })

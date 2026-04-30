@@ -641,6 +641,25 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 **Rationale**: Single-use codes prevent reuse and ensure each student gets unique exam audit records. The code-first approach validates DB design before building Server Actions and UI.
 
+### Decision 38: E2E Spec Hermiticity — every Playwright spec restores shared seed state in afterEach (2026-04-30)
+
+**Date**: 2026-04-30
+
+**Context**: Issue #587 — six `internal-exam-*.spec.ts` files failed deterministically in CI with `page.waitForURL(/\/app\/quiz\/session/)` 15 s timeout. Root cause was *not* the visible symptom: `admin-questions.spec.ts` test "selects rows and performs bulk status change" flipped every visible MET question to `status='draft'` and never restored. Within Playwright's `admin-e2e` project, admin-questions runs alphabetically before `internal-exam-*`, so by the time `start_internal_exam_session` ran, its `q.status='active'` filter returned zero and the RPC raised `insufficient_questions_for_exam`. Three rounds of investigation chased the most-visible signal (stale-session cascade, selector drift, tracing visibility) before round 2 found the cross-spec coupling.
+
+**Decision**: Every Playwright spec that mutates shared seed data must restore state in `test.afterEach` (or `afterAll` for describe-scoped fixtures). Codified as a hard rule in `code-style.md §7` "E2E Spec Hermiticity" and mirrored in `.coderabbit.yaml`. The required shape:
+
+1. **Stable marker constant** for test-created rows, exported from a shared helper module — never inline magic strings.
+2. **Test-created rows carry the marker** in a queryable column (text prefix preferred — PostgREST `.like()` works).
+3. **Single `afterEach` at describe level** invoking the cleanup helper. Runs even on test failure — that is what we want.
+4. **Soft-delete, not hard-delete**, for tables with FK children. `student_responses` / `quiz_session_answers` / `flagged_questions` / `question_comments` reference `questions(id)`; hard DELETE risks 23503 violations and breaks `docs/security.md` rule 6.
+5. **Zero-row no-op chain** (`.select('id')` + log gated on `data.length > 0`) per `code-style.md §5`.
+6. **Cleanup helper has Vitest unit tests** covering org-lookup error, each mutation error path, no-op silence, each log path. Use the `vi.hoisted` + `buildChain` queue/shift pattern when the helper makes multiple sequential calls on the same table.
+
+**Rationale**: Cross-spec test-state leakage produces deterministic failures that present as flakiness — by far the worst class of CI failure to debug, because the symptom and the cause are in different files and the latency between them is the entire prior spec's duration. Promoting the pattern to a rule at count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.ts` this fix) prevents the next instance from getting through review. Implementation also encodes *why* difficulty is NOT reset in `restoreSeededQuestionsState`: local dev seeds vary difficulty per question (`seed-quiz-setup-eval.ts:184`); resetting would silently mutate dev data while CI is unaffected. That trade-off is documented inline so a future reader doesn't add the reset back without understanding the constraint.
+
+**Implementation**: Round-2 fix commits `e3a7a0b` + `7082d77` + `787b5f0` (PR #590, merged 2026-04-30 → `1eeeda6`). New helper `restoreSeededQuestionsState()` in `apps/web/e2e/helpers/supabase.ts`. Marker constant `E2E_ADMIN_Q_MARKER` exported from same module. 7 unit tests for the helper.
+
 ---
 
-*Last updated: 2026-04-29 — Decision 37: Internal Exam Mode foundation + product decisions*
+*Last updated: 2026-04-30 — Decision 38: E2E Spec Hermiticity rule promotion (count=2)*

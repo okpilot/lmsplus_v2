@@ -23,7 +23,11 @@
  */
 
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
-import { INTERNAL_EXAM_STUDENT_EMAIL } from './helpers/supabase'
+import { signInAsAdmin } from './helpers/admin-supabase'
+import {
+  cleanupInternalExamStudentActiveSessions,
+  INTERNAL_EXAM_STUDENT_EMAIL,
+} from './helpers/supabase'
 
 test.use({ storageState: 'e2e/.auth/admin.json' })
 
@@ -59,6 +63,8 @@ async function openStudentContext(
   const context = await browser.newContext({
     storageState: 'e2e/.auth/internal-exam-student.json',
   })
+  // Manual contexts don't inherit global trace — start it explicitly. See #587.
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: true }).catch(() => {})
   const page = await context.newPage()
   return { context, page }
 }
@@ -77,6 +83,12 @@ async function startInternalExamAsStudent(page: Page, code: string): Promise<voi
 test.describe('internal exam — no-discard + admin void', () => {
   test.setTimeout(120_000)
 
+  // Stale-session cleanup — see issue #587.
+  test.beforeEach(async () => {
+    const adminClient = await signInAsAdmin()
+    await cleanupInternalExamStudentActiveSessions(adminClient)
+  })
+
   // ── (a) Discard button is hidden in the finish dialog ─────────────────────
 
   test('FinishQuizDialog hides Discard but shows Submit and Return during an active internal exam', async ({
@@ -93,12 +105,15 @@ test.describe('internal exam — no-discard + admin void', () => {
       await page.getByRole('button', { name: 'Finish Internal Exam' }).click()
 
       // Submit + Return must be visible. Discard must NOT.
-      await expect(page.getByRole('button', { name: 'Submit Quiz' })).toBeVisible({
+      await expect(page.getByRole('button', { name: 'Submit Internal Exam' })).toBeVisible({
         timeout: 5_000,
       })
       await expect(page.getByRole('button', { name: 'Return to Internal Exam' })).toBeVisible()
       await expect(page.getByRole('button', { name: /^Discard /i })).toHaveCount(0)
     } finally {
+      await studentCtx.tracing
+        .stop({ path: test.info().outputPath('student-trace.zip') })
+        .catch(() => {})
       await studentCtx.close()
     }
   })
@@ -115,8 +130,11 @@ test.describe('internal exam — no-discard + admin void', () => {
     try {
       await startInternalExamAsStudent(page, code)
 
-      // Buffer an answer so the session is not 0-answer.
+      // Buffer an answer so the session is not 0-answer. In exam mode, the
+      // Confirm step is what increments answeredCount — selection alone is not
+      // enough to enable the Submit button in the finish dialog.
       await page.locator('button:has(span.rounded-full)').first().click()
+      await page.getByRole('button', { name: 'Confirm Answer' }).click()
       await page.waitForTimeout(300)
 
       // Admin: navigate to internal-exams, void the freshly issued code.
@@ -137,9 +155,11 @@ test.describe('internal exam — no-discard + admin void', () => {
       // Student: attempt to submit the in-flight session — voided codes must
       // either land on a terminated report OR surface a server-side error.
       await page.getByRole('button', { name: 'Finish Internal Exam' }).click()
-      await page.getByRole('button', { name: 'Submit Quiz' }).click()
+      await page.getByRole('button', { name: 'Submit Internal Exam' }).click()
+      // Unanswered-confirm warning: real submit fires from "Submit anyway".
+      await page.getByRole('button', { name: 'Submit anyway' }).click()
 
-      const reportUrl = page.waitForURL(/\/app\/quiz\/report/, { timeout: 30_000 })
+      const reportUrl = page.waitForURL(/\/app\/internal-exam\/report/, { timeout: 30_000 })
       const errorText = page
         .getByText(/voided|cancelled|cancel/i)
         .first()
@@ -147,6 +167,9 @@ test.describe('internal exam — no-discard + admin void', () => {
 
       await Promise.race([reportUrl, errorText])
     } finally {
+      await studentCtx.tracing
+        .stop({ path: test.info().outputPath('student-trace.zip') })
+        .catch(() => {})
       await studentCtx.close()
     }
   })
