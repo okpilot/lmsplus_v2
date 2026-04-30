@@ -557,7 +557,7 @@ When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to 
 2. **Explanations are preserved** — the question record still exists (soft-deleted, not hard-deleted), so we can still retrieve explanation text and images.
 3. **Historical integrity** — we score the response as it was when the student answered, not based on the question's current (deleted) state.
 
-**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` when fetching questions for explanation. RLS policies do not apply inside SECURITY DEFINER functions, so the RPC can access deleted questions as needed to complete historical scoring.
+**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` in its bulk-fetch temp table SELECT, which is scoped by the immutable `quiz_sessions.config.question_ids` array (locked at session start). RLS policies do not apply inside SECURITY DEFINER functions, so the RPC can access deleted questions as needed to complete historical scoring. **The carve-out is scoped to that bulk-fetch only**: the idempotent replay JOIN on `questions` is *not* scoped by `config.question_ids`, so it must filter `q.deleted_at IS NULL` like every other SECURITY DEFINER SELECT (security.md §10, migration `20260430000009`, closes #531).
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -964,7 +964,7 @@ BEGIN
     ))
     INTO v_results
     FROM quiz_session_answers qsa
-    JOIN questions q ON q.id = qsa.question_id
+    JOIN questions q ON q.id = qsa.question_id AND q.deleted_at IS NULL
     WHERE qsa.session_id = p_session_id;
 
     RETURN jsonb_build_object(
@@ -1335,6 +1335,8 @@ Admin-only. Three branches:
 
 Audit `event_type` branches: `internal_exam.completed` for internal-exam sessions, `exam.completed` / `quiz_session.batch_submitted` for the existing modes.
 
+**Migration `20260430000009`:** adds `AND q.deleted_at IS NULL` to the idempotent replay JOIN on `questions` (security.md §10, closes #531). The bulk-fetch temp table SELECT scoped by `config.question_ids` remains unfiltered — see §3 carve-out.
+
 ---
 
 #### `get_report_correct_options` — correct option IDs for reports
@@ -1491,6 +1493,8 @@ $$;
 
 #### `start_quiz_session` — locks question set atomically
 
+**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573).
+
 ```sql
 CREATE OR REPLACE FUNCTION start_quiz_session(
   p_mode         text,
@@ -1531,7 +1535,7 @@ BEGIN
   VALUES (
     (SELECT organization_id FROM users WHERE id = v_uid),
     v_uid,
-    (SELECT role FROM users WHERE id = v_uid),
+    (SELECT role FROM users WHERE id = v_uid AND deleted_at IS NULL),
     'quiz_session.started',
     'quiz_session',
     v_session_id
@@ -1847,7 +1851,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 
 | Trigger | Table | Purpose |
 |---------|-------|---------|
-| `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021) |
+| `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021; `SET search_path = public` added in `20260430000007` — closes #588) |
 | `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 
 ---
