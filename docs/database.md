@@ -881,7 +881,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Hardens null guard (migration 030): adds explicit `IS NULL` check on `v_config->'question_ids'` BEFORE calling `jsonb_typeof` (prevents SQL NULL vs missing key ambiguity); raises if no correct option found for a question (data integrity check)
 - Option membership validation (migration 037): verifies each `selected_option` exists in the question's options JSONB array. Prevents attackers from submitting arbitrary strings as option IDs in batch operations.
 - **N+1 fix (migration 041):** uses `CREATE TEMP TABLE _batch_questions` to bulk-fetch all questions for the session in a single query before the answer loop, then reads from the temp table per-answer instead of issuing N separate SELECT statements. Reduces query overhead from O(N) to O(1) for question lookups.
-- **Active-user gate (migration `20260430000010`):** after the `auth.uid()` check, an `IF NOT EXISTS (SELECT 1 FROM users WHERE id = v_student_id AND deleted_at IS NULL) THEN RAISE 'user not found or inactive'` block rejects soft-deleted callers at the top of the function. Defense-in-depth: the existing `actor_role` subquery filters in audit INSERTs are preserved (PR #599 CR root-cause fix).
+- **Active-user gate + cached `actor_role` (migration `20260430000012`):** after the `auth.uid()` check, the function loads the caller's role into `v_actor_role` from `users WHERE id = v_student_id AND deleted_at IS NULL`. `IF NOT FOUND` raises `'user not found or inactive'`. The cached local is reused in both the timeout (`exam.expired` / `internal_exam.expired`) and completion (`exam.completed` / `internal_exam.completed` / `quiz_session.batch_submitted`) audit INSERTs — closing the TOCTOU window where a soft-delete between the gate and audit write would null the scalar subquery and abort the whole transaction (PR #599 CR root-cause fix).
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -897,6 +897,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_student_id      uuid := auth.uid();
+  v_actor_role      text;
   v_org_id          uuid;
   v_config          jsonb;
   v_mode            text;
@@ -922,19 +923,23 @@ DECLARE
   v_pass_mark       int;
   v_time_limit      int;
   v_started_at      timestamptz;
+  v_expired_event   text;
+  v_completed_event text;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
-  -- Active-user gate (migration 20260430000010): reject soft-deleted callers
-  -- at the top of the function, before any session work.
-  IF NOT EXISTS (
-    SELECT 1 FROM users
-    WHERE id = v_student_id
-      AND deleted_at IS NULL
-  ) THEN
+  -- Active-user gate (migration 20260430000012): reject soft-deleted callers
+  -- and cache the role for both audit INSERTs below.
+  SELECT role
+  INTO v_actor_role
+  FROM users
+  WHERE id = v_student_id
+    AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'user not found or inactive';
   END IF;
 
@@ -999,12 +1004,15 @@ BEGIN
       SET ended_at = now(), correct_count = 0, score_percentage = 0, passed = false
       WHERE id = p_session_id;
 
+      v_expired_event := CASE v_mode
+                           WHEN 'internal_exam' THEN 'internal_exam.expired'
+                           ELSE 'exam.expired'
+                         END;
       INSERT INTO audit_events
         (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
       VALUES (
-        v_org_id, v_student_id,
-        (SELECT role FROM users WHERE id = v_student_id AND deleted_at IS NULL),
-        'exam.expired', 'quiz_session', p_session_id,
+        v_org_id, v_student_id, v_actor_role,
+        v_expired_event, 'quiz_session', p_session_id,
         jsonb_build_object('total_questions', v_total, 'reason', 'submission past grace period')
       );
 
@@ -1154,26 +1162,27 @@ BEGIN
   FROM quiz_session_answers qsa
   WHERE qsa.session_id = p_session_id;
 
-  -- Score: correct / total (not correct / answered)
-  -- Unanswered questions count as wrong in exam mode
-  IF v_mode = 'mock_exam' THEN
+  -- Score: correct / total for both exam modes (unanswered = wrong);
+  -- correct / answered for non-exam modes.
+  IF v_mode IN ('mock_exam', 'internal_exam') THEN
     v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
   ELSE
     v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
   END IF;
 
-  -- *** PASSED COMPUTATION (exam mode only) ***
+  -- *** PASSED COMPUTATION (exam modes only) ***
   -- pass_mark is NOT NULL in exam_configs (CHECK constraint), so the NULL
   -- guard below is purely defensive — v_pass_mark should always have a value.
-  IF v_mode = 'mock_exam' THEN
+  -- mock_exam additionally requires all questions answered; internal_exam
+  -- allows partial submissions per attendance-only scoring.
+  IF v_mode IN ('mock_exam', 'internal_exam') THEN
     v_pass_mark := (v_config->>'pass_mark')::int;
     IF v_pass_mark IS NOT NULL THEN
       v_passed := (v_score >= v_pass_mark);
     ELSE
       v_passed := false;  -- defensive: should never happen (pass_mark NOT NULL)
     END IF;
-    -- Incomplete exam: if not all questions answered, auto-fail regardless of score
-    IF v_answered < v_total THEN
+    IF v_mode = 'mock_exam' AND v_answered < v_total THEN
       v_passed := false;
     END IF;
   END IF;
@@ -1188,13 +1197,18 @@ BEGIN
   WHERE id = p_session_id;
 
   -- Audit log
+  v_completed_event := CASE v_mode
+                         WHEN 'mock_exam'     THEN 'exam.completed'
+                         WHEN 'internal_exam' THEN 'internal_exam.completed'
+                         ELSE 'quiz_session.batch_submitted'
+                       END;
   INSERT INTO audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
   VALUES (
     v_org_id,
     v_student_id,
-    (SELECT role FROM users WHERE id = v_student_id AND deleted_at IS NULL),
-    CASE WHEN v_mode = 'mock_exam' THEN 'exam.completed' ELSE 'quiz_session.batch_submitted' END,
+    v_actor_role,
+    v_completed_event,
     'quiz_session',
     p_session_id,
     jsonb_build_object(
@@ -1347,6 +1361,8 @@ Admin-only. Three branches:
 Audit `event_type` branches: `internal_exam.completed` for internal-exam sessions, `exam.completed` / `quiz_session.batch_submitted` for the existing modes.
 
 **Migration `20260430000009`:** adds `AND q.deleted_at IS NULL` to the idempotent replay JOIN on `questions` (security.md §10, closes #531). The bulk-fetch temp table SELECT scoped by `config.question_ids` remains unfiltered — see §3 carve-out.
+
+**Migration `20260430000012`:** adds a top-level active-user gate (`SELECT role INTO v_actor_role FROM users WHERE id = v_student_id AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`). Both audit INSERTs (timeout `exam.expired` / `internal_exam.expired`, completion `exam.completed` / `internal_exam.completed` / `quiz_session.batch_submitted`) read `v_actor_role` from the cached local instead of re-querying `users` — closes the TOCTOU window where a soft-delete between the gate and audit write would null the scalar subquery and abort the entire submission transaction (PR #599 CR root-cause fix). Co-mig: `20260430000010` makes the matching change for `start_quiz_session`.
 
 ---
 
@@ -1944,4 +1960,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-04-28 (migrations 054/055/056: org-scoping in start_exam_session, audit-metadata + replay-branch hardening in complete_empty_exam_session, deleted_at filter on batch_submit_quiz audit subqueries — closes #550) | Companion: docs/security.md*
+*Last updated: 2026-05-01 (migrations 073-078 / 20260430000007-12: search_path on enforce_draft_limit, deleted_at on start_quiz_session+batch_submit_quiz audit subqueries, advisory lock on draft-limit trigger, active-user gate + cached actor_role on start_quiz_session and batch_submit_quiz — closes #588 #573 #531; PR #599 CR root-cause cycle) | Companion: docs/security.md*
