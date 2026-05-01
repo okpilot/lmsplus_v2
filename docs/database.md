@@ -557,7 +557,7 @@ When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to 
 2. **Explanations are preserved** — the question record still exists (soft-deleted, not hard-deleted), so we can still retrieve explanation text and images.
 3. **Historical integrity** — we score the response as it was when the student answered, not based on the question's current (deleted) state.
 
-**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` in its bulk-fetch temp table SELECT, which is scoped by the immutable `quiz_sessions.config.question_ids` array (locked at session start). RLS policies do not apply inside SECURITY DEFINER functions, so the RPC can access deleted questions as needed to complete historical scoring. **The carve-out is scoped to that bulk-fetch only**: the idempotent replay JOIN on `questions` is *not* scoped by `config.question_ids`, so it must filter `q.deleted_at IS NULL` like every other SECURITY DEFINER SELECT (security.md §10, migration `20260430000009`, closes #531).
+**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` in its bulk-fetch temp table SELECT, which is scoped by the immutable `quiz_sessions.config.question_ids` array (locked at session start). RLS policies do not apply inside SECURITY DEFINER functions, so the RPC can access deleted questions as needed to complete historical scoring. **The carve-out is scoped to that bulk-fetch only**: the idempotent replay JOIN on `questions` is *not* scoped by `config.question_ids`, so it must filter `q.deleted_at IS NULL` like every other SECURITY DEFINER SELECT (security.md §10, migration `20260430000009`, closes #531). PR #599 review extended this from scattered subquery filters to a top-level active-user gate after auth — see migration `20260430000010`.
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -881,6 +881,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Hardens null guard (migration 030): adds explicit `IS NULL` check on `v_config->'question_ids'` BEFORE calling `jsonb_typeof` (prevents SQL NULL vs missing key ambiguity); raises if no correct option found for a question (data integrity check)
 - Option membership validation (migration 037): verifies each `selected_option` exists in the question's options JSONB array. Prevents attackers from submitting arbitrary strings as option IDs in batch operations.
 - **N+1 fix (migration 041):** uses `CREATE TEMP TABLE _batch_questions` to bulk-fetch all questions for the session in a single query before the answer loop, then reads from the temp table per-answer instead of issuing N separate SELECT statements. Reduces query overhead from O(N) to O(1) for question lookups.
+- **Active-user gate (migration `20260430000010`):** after the `auth.uid()` check, an `IF NOT EXISTS (SELECT 1 FROM users WHERE id = v_student_id AND deleted_at IS NULL) THEN RAISE 'user not found or inactive'` block rejects soft-deleted callers at the top of the function. Defense-in-depth: the existing `actor_role` subquery filters in audit INSERTs are preserved (PR #599 CR root-cause fix).
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -925,6 +926,16 @@ BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
+  END IF;
+
+  -- Active-user gate (migration 20260430000010): reject soft-deleted callers
+  -- at the top of the function, before any session work.
+  IF NOT EXISTS (
+    SELECT 1 FROM users
+    WHERE id = v_student_id
+      AND deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'user not found or inactive';
   END IF;
 
   -- Step 1: Fetch session row (allow already-completed sessions for idempotent replay)
@@ -1493,7 +1504,7 @@ $$;
 
 #### `start_quiz_session` — locks question set atomically
 
-**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573).
+**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix).
 
 ```sql
 CREATE OR REPLACE FUNCTION start_quiz_session(
@@ -1510,16 +1521,30 @@ AS $$
 DECLARE
   v_session_id uuid;
   v_uid uuid := auth.uid();
+  v_org_id uuid;
+  v_role text;
 BEGIN
   IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'not authenticated';
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Top-level active-user gate (PR #599): one lookup, then reuse v_org_id / v_role
+  -- in both INSERTs below. Replaces three scattered subqueries on `users`.
+  SELECT organization_id, role
+  INTO v_org_id, v_role
+  FROM users
+  WHERE id = v_uid
+    AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user not found or inactive';
   END IF;
 
   INSERT INTO quiz_sessions
     (organization_id, student_id, mode, subject_id, topic_id,
      config, total_questions)
   VALUES (
-    (SELECT organization_id FROM users WHERE id = v_uid),
+    v_org_id,
     v_uid,
     p_mode,
     p_subject_id,
@@ -1533,9 +1558,9 @@ BEGIN
   INSERT INTO audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id)
   VALUES (
-    (SELECT organization_id FROM users WHERE id = v_uid),
+    v_org_id,
     v_uid,
-    (SELECT role FROM users WHERE id = v_uid AND deleted_at IS NULL),
+    v_role,
     'quiz_session.started',
     'quiz_session',
     v_session_id
@@ -1851,7 +1876,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 
 | Trigger | Table | Purpose |
 |---------|-------|---------|
-| `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021; `SET search_path = public` added in `20260430000007` — closes #588) |
+| `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021; `SET search_path = public` added in `20260430000007` — closes #588; `20260430000011` adds `pg_advisory_xact_lock(hashtext(NEW.student_id::text))` to serialize the 20-draft cap check under concurrency — PR #599 CR root-cause fix) |
 | `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 
 ---
