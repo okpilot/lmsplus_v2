@@ -1,7 +1,4 @@
--- Active-user gate + cached actor_role for batch_submit_quiz (CR #599 root-cause fix).
--- Loads the caller's role once after the deleted_at gate so the audit_events.actor_role NOT NULL writes
--- at the timeout and completion paths use a stable local variable. Closes the TOCTOU window where a
--- soft-delete between the gate and audit INSERT would null the scalar subquery and abort the txn.
+-- batch_submit_quiz: active-user gate + cached actor_role (CR #599; see docs/database.md for rationale).
 
 CREATE OR REPLACE FUNCTION batch_submit_quiz(
   p_session_id uuid,
@@ -99,8 +96,6 @@ BEGIN
       'passed', v_passed
     );
   END IF;
-
-  -- Time-limit enforcement (30s grace, mirrors mig 056).
   IF v_time_limit IS NOT NULL AND v_started_at IS NOT NULL THEN
     IF now() > v_started_at + (v_time_limit + 30) * interval '1 second' THEN
       UPDATE quiz_sessions
@@ -147,7 +142,6 @@ BEGIN
     RAISE EXCEPTION 'duplicate question_id in answers payload';
   END IF;
 
-  -- See docs/database.md §3 "Scoring Soft-Deleted Questions".
   DROP TABLE IF EXISTS _batch_questions;
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT
@@ -240,8 +234,6 @@ BEGIN
   FROM quiz_session_answers qsa
   WHERE qsa.session_id = p_session_id;
 
-  -- Score: correct/total for both exam modes (unanswered = wrong);
-  -- correct/answered for non-exam modes.
   IF v_mode IN ('mock_exam', 'internal_exam') THEN
     v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
   ELSE
