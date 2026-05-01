@@ -1253,7 +1253,7 @@ Atomically reads the subject's `exam_configs` row, randomly selects questions pe
 
 **Audit event:** `exam.started` on `audit_events`, metadata `{ subject_id, total_questions, time_limit_seconds, pass_mark }`.
 
-**Return shape:** `{ session_id, question_ids, time_limit_seconds, total_questions, pass_mark, started_at }`. `started_at` (added in migration 050) lets the client compute remaining time from the server clock instead of trusting its own local clock at start. The `quiz_sessions.config` JSONB persists `{ question_ids, exam_config_id, pass_mark }`; the row-level `started_at` and `time_limit_seconds` columns are the canonical timing source.
+**Return shape:** `{ session_id, question_ids, time_limit_seconds, total_questions, pass_mark, started_at }`. `started_at` (added in migration 050) lets the client compute remaining time from the server clock instead of trusting its own local clock at start. The `quiz_sessions.config` JSONB persists `{ question_ids, exam_config_id, pass_mark }`; the row-level `started_at` and `time_limit_seconds` columns are the canonical timing source. The caller validates the payload with `StartExamRpcResultSchema.safeParse()` (`z.object()` default strips unknown keys), so additive return-shape changes do not break existing callers — only renames or removals do.
 
 ---
 
