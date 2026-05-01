@@ -247,7 +247,7 @@ describe('useExamPipeline — submit state surfacing', () => {
     expect(result.current.submitting).toBe(true)
   })
 
-  it('returns the submission error to render', () => {
+  it('surfaces the submission error string', () => {
     mockUseQuizSubmit.mockReturnValue(makeSubmitResult({ error: 'Submission failed' }))
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.error).toBe('Submission failed')
