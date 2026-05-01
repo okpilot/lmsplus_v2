@@ -1232,6 +1232,31 @@ END;
 $$;
 ```
 
+#### `start_exam_session` — initiate a `mock_exam` session for a subject
+
+Atomically reads the subject's `exam_configs` row, randomly selects questions per `exam_config_distributions`, creates a `quiz_sessions` row with `mode = 'mock_exam'`, and writes an `exam.started` audit event. Returns the new session id together with the question id list, timing, pass mark, and `started_at` so the caller can compute remaining time from the server clock.
+
+**Purpose:** Called by the `startExamSession` Server Action (`apps/web/app/app/quiz/actions/start-exam.ts`) when a student opens an exam for a subject. Single round-trip — no separate "create then fetch questions" sequence.
+
+**Auto-complete-then-guard sequence (migrations 050 / 052 / 054):** Before checking the duplicate-active-session guard, looks up any same-subject `mock_exam` session for this student past `started_at + (time_limit_seconds + 30 seconds)` and calls `complete_overdue_exam_session` on it. The +30s grace window matches `batch_submit_quiz` and `complete_overdue_exam_session` so all three RPCs agree on whether a session is overdue. A browser-crash exit during a previous attempt cannot indefinitely block the next one — the prior session is closed (with any buffered answers scored) before the duplicate guard runs.
+
+**Org-scope filter (CR 3152802436, migration 054):** Both the overdue-lookup SELECT and the duplicate-active-session EXISTS check filter on `organization_id = v_org_id`. Without this filter, a session created while the student belonged to a previous organization could match here after a transfer, blocking the user from starting an exam in their current org.
+
+**Question selection:** Iterates `exam_config_distributions` rows for the matching `exam_configs` row, ordered by `(topic_id, subtopic_id NULLS LAST)` (migration 046 — deterministic traversal so the same config produces a consistent distribution order). For each distribution row, selects `question_count` ids from `questions` filtered by `subject_id`, `topic_id`, optional `subtopic_id`, `status = 'active'`, `deleted_at IS NULL`, `organization_id = v_org_id`, and `id != ALL(v_selected_ids)` (no cross-distribution duplicates), then `ORDER BY random() LIMIT v_dist.question_count`. RAISEs `not enough active questions for topic ... (subtopic ...)` if any distribution row under-delivers, and RAISEs `distribution total ... does not match configured total_questions ...` if the cumulative selection disagrees with `exam_configs.total_questions`.
+
+**Defense-in-depth invariants:**
+- `auth.uid()` check — rejects unauthenticated callers.
+- Org-scope guard reads `organization_id` from `users` with `deleted_at IS NULL`; raises `user not found or inactive` otherwise.
+- Mode is set as the literal `'mock_exam'` in the `INSERT INTO quiz_sessions` — not derived from a parameter.
+- Audit `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs and must validate soft-delete unconditionally).
+- `SECURITY DEFINER SET search_path = public`.
+
+**Audit event:** `exam.started` on `audit_events`, metadata `{ subject_id, total_questions, time_limit_seconds, pass_mark }`.
+
+**Return shape:** `{ session_id, question_ids, time_limit_seconds, total_questions, pass_mark, started_at }`. `started_at` (added in migration 050) lets the client compute remaining time from the server clock instead of trusting its own local clock at start. The `quiz_sessions.config` JSONB persists `{ question_ids, exam_config_id, pass_mark }`; the row-level `started_at` and `time_limit_seconds` columns are the canonical timing source.
+
+---
+
 #### `complete_empty_exam_session` — close a zero-answer exam session (timer or manual)
 
 Completes a `mock_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. On RPC success the caller (`submitEmptyExamSession` in `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts`) routes the student to `/app/quiz/report?session=<id>` showing 0% / FAIL; on RPC failure the caller falls back to `/app/quiz` so the student is not stranded mid-flow.
@@ -1289,7 +1314,7 @@ Completes a `mock_exam` session whose deadline has passed. Computes score from a
 
 **Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }` — identical to `complete_empty_exam_session` for caller symmetry.
 
-**`start_exam_session` interaction (migration 050):** The replaced `start_exam_session` adds `'started_at'` to its return jsonb and, before raising the duplicate-active-session guard, looks up any same-subject `mock_exam` session that is past its deadline and calls `complete_overdue_exam_session` on it. The `started_at` field lets the client compute remaining time from the server clock instead of trusting its own local clock at start. Existing callers that ignore unknown jsonb keys (e.g. `start-exam.ts` Zod `safeParse` of a closed object) are unaffected — the schema strips unknown keys by default.
+**`start_exam_session` interaction:** Before raising the duplicate-active-session guard, `start_exam_session` looks up any same-subject `mock_exam` session past `started_at + (time_limit_seconds + 30 seconds)` and calls `complete_overdue_exam_session` on it. See the `start_exam_session` subsection above for the full sequence and the org-scope filter on the lookup.
 
 **Internal-exam extension (migration `20260429000008`):** `complete_overdue_exam_session` and `complete_empty_exam_session` were widened from `mode = 'mock_exam'` to `mode IN ('mock_exam', 'internal_exam')`. The audit `event_type` is branched: `internal_exam.expired` / `internal_exam.completed` for internal-exam sessions, the existing `exam.*` events for mock-exam sessions.
 
