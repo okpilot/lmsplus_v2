@@ -1242,7 +1242,7 @@ Atomically reads the subject's `exam_configs` row, randomly selects questions pe
 
 **Org-scope filter (CR 3152802436, migration 054):** Both the overdue-lookup SELECT and the duplicate-active-session EXISTS check filter on `organization_id = v_org_id`. Without this filter, a session created while the student belonged to a previous organization could match here after a transfer, blocking the user from starting an exam in their current org.
 
-**Question selection:** Iterates `exam_config_distributions` rows for the matching `exam_configs` row, ordered by `(topic_id, subtopic_id NULLS LAST)` (migration 046 — deterministic traversal so the same config produces a consistent distribution order). For each distribution row, selects `question_count` ids from `questions` filtered by `subject_id`, `topic_id`, optional `subtopic_id`, `status = 'active'`, `deleted_at IS NULL`, `organization_id = v_org_id`, and `id != ALL(v_selected_ids)` (no cross-distribution duplicates), then `ORDER BY random() LIMIT v_dist.question_count`. RAISEs `not enough active questions for topic ... (subtopic ...)` if any distribution row under-delivers, and RAISEs `distribution total ... does not match configured total_questions ...` if the cumulative selection disagrees with `exam_configs.total_questions`.
+**Question selection:** Iterates `exam_config_distributions` rows for the matching `exam_configs` row, ordered by `(topic_id, subtopic_id NULLS LAST)` (migration 046). `NULLS LAST` is load-bearing: subtopic-specific distribution rows are processed before the topic-level catch-all (`subtopic_id IS NULL`) for the same topic, and the running `id != ALL(v_selected_ids)` filter prevents the catch-all from exhausting the subtopic pool. For each distribution row, selects `question_count` ids from `questions` filtered by `subject_id`, `topic_id`, optional `subtopic_id`, `status = 'active'`, `deleted_at IS NULL`, `organization_id = v_org_id`, and `id != ALL(v_selected_ids)` (no cross-distribution duplicates), then `ORDER BY random() LIMIT v_dist.question_count`. RAISEs `not enough active questions for topic ... (subtopic ...)` if any distribution row under-delivers, and RAISEs `distribution total ... does not match configured total_questions ...` if the cumulative selection disagrees with `exam_configs.total_questions`.
 
 **Defense-in-depth invariants:**
 - `auth.uid()` check — rejects unauthenticated callers.
@@ -1307,7 +1307,7 @@ Completes a `mock_exam` session whose deadline has passed. Computes score from a
 - `auth.uid()` check.
 - Org-scope guard reads `organization_id` from `users` with `deleted_at IS NULL`.
 - Ownership + org check — `FOR UPDATE` filter requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
-- Mode guard — RAISE if not `mock_exam`.
+- Mode guard — RAISE if mode is not `mock_exam` or `internal_exam` (widened in migration `20260429000008` — see "Internal-exam extension" below).
 - Overdue invariant — RAISE if `now() <= started_at + (time_limit_seconds + 30 seconds)`. Callers must not invoke for sessions within the grace window.
 - Audit `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs and must validate soft-delete unconditionally).
 - `SECURITY DEFINER SET search_path = public`.
