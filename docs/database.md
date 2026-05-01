@@ -557,7 +557,7 @@ When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to 
 2. **Explanations are preserved** — the question record still exists (soft-deleted, not hard-deleted), so we can still retrieve explanation text and images.
 3. **Historical integrity** — we score the response as it was when the student answered, not based on the question's current (deleted) state.
 
-**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` when fetching questions for explanation. RLS policies do not apply inside SECURITY DEFINER functions, so the RPC can access deleted questions as needed to complete historical scoring.
+**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` in its bulk-fetch temp table SELECT, which is scoped by the immutable `quiz_sessions.config.question_ids` array (locked at session start). RLS policies do not apply inside SECURITY DEFINER functions, so the RPC can access deleted questions as needed to complete historical scoring. **The carve-out is scoped to that bulk-fetch only**: the idempotent replay JOIN on `questions` is *not* scoped by `config.question_ids`, so it must filter `q.deleted_at IS NULL` like every other SECURITY DEFINER SELECT (security.md §10, migration `20260430000009`, closes #531). PR #599 review extended this from scattered subquery filters to a top-level active-user gate after auth — see migration `20260430000010` for `start_quiz_session` and migration `20260430000012` for `batch_submit_quiz`.
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -881,6 +881,7 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Hardens null guard (migration 030): adds explicit `IS NULL` check on `v_config->'question_ids'` BEFORE calling `jsonb_typeof` (prevents SQL NULL vs missing key ambiguity); raises if no correct option found for a question (data integrity check)
 - Option membership validation (migration 037): verifies each `selected_option` exists in the question's options JSONB array. Prevents attackers from submitting arbitrary strings as option IDs in batch operations.
 - **N+1 fix (migration 041):** uses `CREATE TEMP TABLE _batch_questions` to bulk-fetch all questions for the session in a single query before the answer loop, then reads from the temp table per-answer instead of issuing N separate SELECT statements. Reduces query overhead from O(N) to O(1) for question lookups.
+- **Active-user gate + cached `actor_role` (migration `20260430000012`):** after the `auth.uid()` check, the function loads the caller's role into `v_actor_role` from `users WHERE id = v_student_id AND deleted_at IS NULL`. `IF NOT FOUND` raises `'user not found or inactive'`. The cached local is reused in both the timeout (`exam.expired` / `internal_exam.expired`) and completion (`exam.completed` / `internal_exam.completed` / `quiz_session.batch_submitted`) audit INSERTs — closing the TOCTOU window where a soft-delete between the gate and audit write would null the scalar subquery and abort the whole transaction (PR #599 CR root-cause fix).
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -896,6 +897,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_student_id      uuid := auth.uid();
+  v_actor_role      text;
   v_org_id          uuid;
   v_config          jsonb;
   v_mode            text;
@@ -921,10 +923,24 @@ DECLARE
   v_pass_mark       int;
   v_time_limit      int;
   v_started_at      timestamptz;
+  v_expired_event   text;
+  v_completed_event text;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
+  END IF;
+
+  -- Active-user gate (migration 20260430000012): reject soft-deleted callers
+  -- and cache the role for both audit INSERTs below.
+  SELECT role
+  INTO v_actor_role
+  FROM users
+  WHERE id = v_student_id
+    AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user not found or inactive';
   END IF;
 
   -- Step 1: Fetch session row (allow already-completed sessions for idempotent replay)
@@ -964,7 +980,7 @@ BEGIN
     ))
     INTO v_results
     FROM quiz_session_answers qsa
-    JOIN questions q ON q.id = qsa.question_id
+    JOIN questions q ON q.id = qsa.question_id AND q.deleted_at IS NULL
     WHERE qsa.session_id = p_session_id;
 
     RETURN jsonb_build_object(
@@ -988,12 +1004,15 @@ BEGIN
       SET ended_at = now(), correct_count = 0, score_percentage = 0, passed = false
       WHERE id = p_session_id;
 
+      v_expired_event := CASE v_mode
+                           WHEN 'internal_exam' THEN 'internal_exam.expired'
+                           ELSE 'exam.expired'
+                         END;
       INSERT INTO audit_events
         (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
       VALUES (
-        v_org_id, v_student_id,
-        (SELECT role FROM users WHERE id = v_student_id AND deleted_at IS NULL),
-        'exam.expired', 'quiz_session', p_session_id,
+        v_org_id, v_student_id, v_actor_role,
+        v_expired_event, 'quiz_session', p_session_id,
         jsonb_build_object('total_questions', v_total, 'reason', 'submission past grace period')
       );
 
@@ -1143,26 +1162,27 @@ BEGIN
   FROM quiz_session_answers qsa
   WHERE qsa.session_id = p_session_id;
 
-  -- Score: correct / total (not correct / answered)
-  -- Unanswered questions count as wrong in exam mode
-  IF v_mode = 'mock_exam' THEN
+  -- Score: correct / total for both exam modes (unanswered = wrong);
+  -- correct / answered for non-exam modes.
+  IF v_mode IN ('mock_exam', 'internal_exam') THEN
     v_score := CASE WHEN v_total > 0 THEN round((v_correct_count::numeric / v_total) * 100, 2) ELSE 0 END;
   ELSE
     v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
   END IF;
 
-  -- *** PASSED COMPUTATION (exam mode only) ***
+  -- *** PASSED COMPUTATION (exam modes only) ***
   -- pass_mark is NOT NULL in exam_configs (CHECK constraint), so the NULL
   -- guard below is purely defensive — v_pass_mark should always have a value.
-  IF v_mode = 'mock_exam' THEN
+  -- mock_exam additionally requires all questions answered; internal_exam
+  -- allows partial submissions per attendance-only scoring.
+  IF v_mode IN ('mock_exam', 'internal_exam') THEN
     v_pass_mark := (v_config->>'pass_mark')::int;
     IF v_pass_mark IS NOT NULL THEN
       v_passed := (v_score >= v_pass_mark);
     ELSE
       v_passed := false;  -- defensive: should never happen (pass_mark NOT NULL)
     END IF;
-    -- Incomplete exam: if not all questions answered, auto-fail regardless of score
-    IF v_answered < v_total THEN
+    IF v_mode = 'mock_exam' AND v_answered < v_total THEN
       v_passed := false;
     END IF;
   END IF;
@@ -1177,13 +1197,18 @@ BEGIN
   WHERE id = p_session_id;
 
   -- Audit log
+  v_completed_event := CASE v_mode
+                         WHEN 'mock_exam'     THEN 'exam.completed'
+                         WHEN 'internal_exam' THEN 'internal_exam.completed'
+                         ELSE 'quiz_session.batch_submitted'
+                       END;
   INSERT INTO audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
   VALUES (
     v_org_id,
     v_student_id,
-    (SELECT role FROM users WHERE id = v_student_id AND deleted_at IS NULL),
-    CASE WHEN v_mode = 'mock_exam' THEN 'exam.completed' ELSE 'quiz_session.batch_submitted' END,
+    v_actor_role,
+    v_completed_event,
     'quiz_session',
     p_session_id,
     jsonb_build_object(
@@ -1334,6 +1359,10 @@ Admin-only. Three branches:
 2. **Pass computation extended.** `passed` is computed for both `mock_exam` and `internal_exam` (`score_percentage >= pass_mark`); for partial internal-exam submissions an under-`pass_mark` score auto-fails.
 
 Audit `event_type` branches: `internal_exam.completed` for internal-exam sessions, `exam.completed` / `quiz_session.batch_submitted` for the existing modes.
+
+**Migration `20260430000009`:** adds `AND q.deleted_at IS NULL` to the idempotent replay JOIN on `questions` (security.md §10, closes #531). The bulk-fetch temp table SELECT scoped by `config.question_ids` remains unfiltered — see §3 carve-out.
+
+**Migration `20260430000012`:** adds a top-level active-user gate (`SELECT role INTO v_actor_role FROM users WHERE id = v_student_id AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`). Both audit INSERTs (timeout `exam.expired` / `internal_exam.expired`, completion `exam.completed` / `internal_exam.completed` / `quiz_session.batch_submitted`) read `v_actor_role` from the cached local instead of re-querying `users` — closes the TOCTOU window where a soft-delete between the gate and audit write would null the scalar subquery and abort the entire submission transaction (PR #599 CR root-cause fix). Co-mig: `20260430000010` makes the matching change for `start_quiz_session`.
 
 ---
 
@@ -1491,6 +1520,8 @@ $$;
 
 #### `start_quiz_session` — locks question set atomically
 
+**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix).
+
 ```sql
 CREATE OR REPLACE FUNCTION start_quiz_session(
   p_mode         text,
@@ -1506,16 +1537,30 @@ AS $$
 DECLARE
   v_session_id uuid;
   v_uid uuid := auth.uid();
+  v_org_id uuid;
+  v_role text;
 BEGIN
   IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'not authenticated';
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Top-level active-user gate (PR #599): one lookup, then reuse v_org_id / v_role
+  -- in both INSERTs below. Replaces three scattered subqueries on `users`.
+  SELECT organization_id, role
+  INTO v_org_id, v_role
+  FROM users
+  WHERE id = v_uid
+    AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user not found or inactive';
   END IF;
 
   INSERT INTO quiz_sessions
     (organization_id, student_id, mode, subject_id, topic_id,
      config, total_questions)
   VALUES (
-    (SELECT organization_id FROM users WHERE id = v_uid),
+    v_org_id,
     v_uid,
     p_mode,
     p_subject_id,
@@ -1529,9 +1574,9 @@ BEGIN
   INSERT INTO audit_events
     (organization_id, actor_id, actor_role, event_type, resource_type, resource_id)
   VALUES (
-    (SELECT organization_id FROM users WHERE id = v_uid),
+    v_org_id,
     v_uid,
-    (SELECT role FROM users WHERE id = v_uid),
+    v_role,
     'quiz_session.started',
     'quiz_session',
     v_session_id
@@ -1847,7 +1892,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 
 | Trigger | Table | Purpose |
 |---------|-------|---------|
-| `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021) |
+| `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021; `SET search_path = public` added in `20260430000007` — closes #588; `20260430000011` adds `pg_advisory_xact_lock(hashtext(NEW.student_id::text))` to serialize the 20-draft cap check under concurrency — PR #599 CR root-cause fix) |
 | `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 
 ---
@@ -1915,4 +1960,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-04-28 (migrations 054/055/056: org-scoping in start_exam_session, audit-metadata + replay-branch hardening in complete_empty_exam_session, deleted_at filter on batch_submit_quiz audit subqueries — closes #550) | Companion: docs/security.md*
+*Last updated: 2026-05-01 (migrations 073-078 / 20260430000007-12: search_path on enforce_draft_limit, deleted_at on start_quiz_session+batch_submit_quiz audit subqueries, advisory lock on draft-limit trigger, active-user gate + cached actor_role on start_quiz_session and batch_submit_quiz — closes #588 #573 #531; PR #599 CR root-cause cycle) | Companion: docs/security.md*
