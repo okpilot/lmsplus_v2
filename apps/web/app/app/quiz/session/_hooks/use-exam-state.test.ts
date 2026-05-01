@@ -192,7 +192,7 @@ describe('useExamPipeline — handleSelectAnswer', () => {
 // ---- isExam: true forwarded to useQuizSubmit ----------------------------
 
 describe('useExamPipeline — isExam flag', () => {
-  it('passes isExam: true to useQuizSubmit', () => {
+  it('enables exam mode', () => {
     renderHook(() => useExamPipeline(makeOpts()))
     const callArg = mockUseQuizSubmit.mock.calls[0]?.[0] as Record<string, unknown>
     expect(callArg.isExam).toBe(true)
@@ -241,45 +241,45 @@ describe('useExamPipeline — navigation forwarding', () => {
 // ---- useQuizSubmit return values surfaced --------------------------------
 
 describe('useExamPipeline — submit state surfacing', () => {
-  it('exposes the submitting flag on its return value', () => {
+  it('returns true while submission is pending', () => {
     mockUseQuizSubmit.mockReturnValue(makeSubmitResult({ submitting: true }))
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.submitting).toBe(true)
   })
 
-  it('exposes the error state on its return value', () => {
+  it('surfaces the submission error string', () => {
     mockUseQuizSubmit.mockReturnValue(makeSubmitResult({ error: 'Submission failed' }))
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.error).toBe('Submission failed')
   })
 
-  it('exposes the finish-dialog visibility on its return value', () => {
+  it('returns true while the finish dialog is open', () => {
     mockUseQuizSubmit.mockReturnValue(makeSubmitResult({ showFinishDialog: true }))
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.showFinishDialog).toBe(true)
   })
 
-  it('exposes the submit handler on its return value', () => {
+  it('returns the submit handler to the consumer', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.handleSubmit).toBe(mockHandleSubmit)
   })
 
-  it('exposes the save handler on its return value', () => {
+  it('returns the save handler to the consumer', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.handleSave).toBe(mockHandleSave)
   })
 
-  it('exposes the discard handler on its return value', () => {
+  it('returns the discard handler to the consumer', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.handleDiscard).toBe(mockHandleDiscard)
   })
 
-  it('exposes the finish-dialog setter on its return value', () => {
+  it('returns the finish-dialog setter to the consumer', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.setShowFinishDialog).toBe(mockSetShowFinishDialog)
   })
 
-  it('exposes the submitted ref on its return value', () => {
+  it('returns the submitted ref to the consumer', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.submitted).toBe(mockSubmitted)
   })

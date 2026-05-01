@@ -8,7 +8,7 @@ vi.mock('sonner', () => ({
   toast: { success: mockToastSuccess, error: mockToastError },
 }))
 
-import { IssuedCodePanel } from './issued-code-panel'
+import { formatExpiry, IssuedCodePanel } from './issued-code-panel'
 
 const PROPS = {
   code: 'ABCD2345',
@@ -47,8 +47,7 @@ describe('IssuedCodePanel', () => {
 
   it('shows the expiry timestamp in a human-readable format', () => {
     render(<IssuedCodePanel {...PROPS} />)
-    // The exact format depends on locale, but the year and month should appear.
-    expect(screen.getByText(/Expires/)).toBeInTheDocument()
+    expect(screen.getByText(`Expires ${formatExpiry(PROPS.expiresAt)}`)).toBeInTheDocument()
   })
 
   it('copies the code to the clipboard and shows a confirmation toast on copy', async () => {
