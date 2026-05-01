@@ -192,7 +192,7 @@ describe('useExamPipeline — handleSelectAnswer', () => {
 // ---- isExam: true forwarded to useQuizSubmit ----------------------------
 
 describe('useExamPipeline — isExam flag', () => {
-  it('enables exam mode on the submission hook', () => {
+  it('enables exam mode', () => {
     renderHook(() => useExamPipeline(makeOpts()))
     const callArg = mockUseQuizSubmit.mock.calls[0]?.[0] as Record<string, unknown>
     expect(callArg.isExam).toBe(true)
