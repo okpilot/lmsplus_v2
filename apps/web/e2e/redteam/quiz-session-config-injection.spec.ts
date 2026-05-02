@@ -119,12 +119,17 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     // Soft-delete the session via service-role admin client (deleted_at is a
     // mutable column for service_role and bypasses the trigger).
     if (sessionId) {
-      const { error } = await admin
+      const { data, error } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', sessionId)
+        .select('id')
       if (error) {
         console.error('[quiz-session-config-injection cleanup] soft-delete failed:', error.message)
+      } else if ((data?.length ?? 0) > 0) {
+        console.log(
+          `[quiz-session-config-injection cleanup] soft-deleted ${data?.length} session(s)`,
+        )
       }
     }
   })
