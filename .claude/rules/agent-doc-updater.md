@@ -52,7 +52,7 @@ When a doc commit adds cross-references INTO an existing section (anchor links, 
 
 ## Steering Document Drift Detection
 
-New finding type: **DRIFT** — non-blocking by default; escalates to CRITICAL when it contradicts security rules (treat as semantic-reviewer CRITICAL in that case).
+**DRIFT** finding type — ISSUE by default (per the Cross-Reference Audit Rule above); escalates to CRITICAL when it contradicts security rules (treat as semantic-reviewer CRITICAL in that case).
 
 **Severity escalation:** If drift contradicts `docs/security.md` or `.claude/rules/security.md`, elevate to CRITICAL.
 
