@@ -39,9 +39,20 @@ Keeps project documentation in sync with code changes. Watches for schema change
 ## File Rename Protocol
 When the agent detects a renamed file (e.g., `middleware.ts` → `proxy.ts`), it must grep all docs for stale references. This is documented in `code-style.md` Section 9 and the agent enforces it.
 
+## Cross-Reference Audit Rule
+
+When a doc commit adds a **structural** cross-reference to an existing section — a new section whose body links/refers to an existing section, a row added to a summary table or RPC index that points at an existing function/section, or a TOC/anchor entry pointing at an existing target — the doc-updater audits the **entire referenced section** AND any related summary tables, matrices, or RPC indexes — not just lines marked `+` in the diff. Casual prose mentions ("see X for context") added inside otherwise-unrelated edits do NOT trigger this audit.
+
+**Why:** PR #605 (`docs/database.md` `complete_overdue_exam_session` section) had four stale claims surviving since mig 063 widened the function's mode guard from `mock_exam` to `mock_exam OR internal_exam`. Three different reviewers each caught a different stale claim — semantic-reviewer per-commit caught L1310, PR-level semantic sweep caught L635 (RPC summary table), CodeRabbit caught L1290 and L1302 (prose drift). Per-commit doc-updater audited only the `+` lines and missed all four. Four stale claims concentrated in one section, surfaced across three reviewers and two review passes — promoted to a hard rule (the per-`+`-line scope is systematically insufficient regardless of cross-commit frequency, so the standard learner count=N threshold does not apply here).
+
+**How to apply:** When the diff adds a structural cross-reference INTO an existing section:
+1. Read the entire target section, not just the cross-reference site.
+2. Scan summary tables, matrices, and indexes that mention the target subject (e.g., the `## RPC Summary` row for the function, or schema matrices that list the table).
+3. Flag any claim that contradicts the latest migration or current code as DRIFT (severity: ISSUE; escalate to CRITICAL if it contradicts a rule in `docs/security.md` or `.claude/rules/security.md`).
+
 ## Steering Document Drift Detection
 
-New finding type: **DRIFT** — non-blocking by default; escalates to CRITICAL when it contradicts security rules (treat as semantic-reviewer CRITICAL in that case).
+**DRIFT** finding type — ISSUE by default (per the Cross-Reference Audit Rule above); escalates to CRITICAL when it contradicts security rules (treat as semantic-reviewer CRITICAL in that case).
 
 **Severity escalation:** If drift contradicts `docs/security.md` or `.claude/rules/security.md`, elevate to CRITICAL.
 
@@ -62,4 +73,4 @@ If `.spec-workflow/steering/` does not exist or is empty, skip the drift check w
 
 ---
 
-*Last updated: 2026-04-03*
+*Last updated: 2026-05-02*

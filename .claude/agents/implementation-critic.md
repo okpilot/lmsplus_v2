@@ -1,7 +1,7 @@
 ---
 name: implementation-critic
 description: Reviews staged changes against the validated plan and requirements before commit. Catches deviations from the approved plan, logic errors, missed requirements, and pattern violations. Always runs — no skip condition.
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 ---
 
 # Implementation Critic Agent
@@ -66,6 +66,19 @@ You receive:
    - A clearer variable name
    - A more idiomatic approach that doesn't affect correctness
    - Opportunities to reduce duplication (under 3 instances — not blocking per code-style.md)
+
+## Pre-Flag Verification: CREATE OR REPLACE Chain
+
+Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "missing SET search_path", "missing auth.uid() check") on a Postgres function in the staged diff:
+
+1. Do NOT read the function definition only from the migration file currently being reviewed.
+2. Grep the entire migration directory for `CREATE OR REPLACE FUNCTION <name>` (including any other migrations also in the staged diff):
+   - `supabase/migrations/YYYYMMDDHHMMSS_*.sql` — sort chronologically by timestamp
+   - `packages/db/migrations/*.sql` — sort numerically by prefix
+3. Read the LAST (most recent) definition in both directories — that is the binding body.
+4. If the latest definition already contains the pattern, do NOT report it as missing.
+
+This prevents false positives where a multi-migration commit adds the missing-pattern fix in a later migration than the one being reviewed in isolation. Tracked as a recurring failure mode in `.claude/agent-memory/learner/patterns.md`.
 
 ## Severity Definitions
 
@@ -145,4 +158,4 @@ Use this memory to give more accurate reviews over time and reduce false positiv
 
 ---
 
-*Last updated: 2026-04-03*
+*Last updated: 2026-05-02*
