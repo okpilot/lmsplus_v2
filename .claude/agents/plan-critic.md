@@ -1,7 +1,7 @@
 ---
 name: plan-critic
 description: Reviews validated plans against the codebase before execution. Catches wrong assumptions about function signatures, missed callers, incorrect fallback values, and pattern violations. Runs via Agent tool after plan validation, before user approval.
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 ---
 
 # Plan Critic Agent
@@ -47,6 +47,19 @@ You receive:
    - Plan touches auth, RLS, or answer data without referencing `docs/security.md`
    - Plan adds a new RPC without `auth.uid()` check or `SET search_path`
    - Plan changes input validation without updating Zod schemas
+
+## Pre-Flag Verification: CREATE OR REPLACE Chain
+
+Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "missing SET search_path", "missing auth.uid() check") on a Postgres function:
+
+1. Do NOT read the function definition only from files in the current diff.
+2. Grep the entire migration directory for `CREATE OR REPLACE FUNCTION <name>`:
+   - `supabase/migrations/YYYYMMDDHHMMSS_*.sql` — sort chronologically by timestamp
+   - `packages/db/migrations/*.sql` — sort numerically by prefix
+3. Read the LAST (most recent) definition in both directories — that is the binding body.
+4. If the latest definition already contains the pattern, do NOT report it as missing.
+
+This prevents false positives where the fix landed in a later migration than the one in the current diff. Tracked as a recurring failure mode in `.claude/agent-memory/learner/patterns.md`.
 
 ## Severity Definitions
 

@@ -39,6 +39,17 @@ Keeps project documentation in sync with code changes. Watches for schema change
 ## File Rename Protocol
 When the agent detects a renamed file (e.g., `middleware.ts` → `proxy.ts`), it must grep all docs for stale references. This is documented in `code-style.md` Section 9 and the agent enforces it.
 
+## Cross-Reference Audit Rule
+
+When a doc commit adds cross-references INTO an existing section (anchor links, "see X above", section refs, summary-table rows pointing at a function/RPC subsection), the doc-updater audits the **entire referenced section** AND any related summary tables, matrices, or RPC indexes — not just lines marked `+` in the diff.
+
+**Why:** PR #605 (`docs/database.md` `complete_overdue_exam_session` section) had four stale claims surviving since mig 063 widened the function's mode guard from `mock_exam` to `mock_exam OR internal_exam`. Three different reviewers each caught a different stale claim — semantic-reviewer per-commit caught L1310, PR-level semantic sweep caught L635 (RPC summary table), CodeRabbit caught L1290 and L1302 (prose drift). Per-commit doc-updater audited only the `+` lines and missed all four. Pattern hit count=4 within one section; promoted to a hard rule.
+
+**How to apply:** When the diff adds an anchor or "see X" reference INTO an existing section:
+1. Read the entire target section, not just the cross-reference site.
+2. Scan summary tables, matrices, and indexes that mention the target subject (e.g., the `## RPC Summary` row for the function, or schema matrices that list the table).
+3. Flag any claim that contradicts the latest migration or current code as DRIFT (severity: ISSUE; escalate to CRITICAL if it contradicts a rule in `docs/security.md` or `.claude/rules/security.md`).
+
 ## Steering Document Drift Detection
 
 New finding type: **DRIFT** — non-blocking by default; escalates to CRITICAL when it contradicts security rules (treat as semantic-reviewer CRITICAL in that case).
@@ -62,4 +73,4 @@ If `.spec-workflow/steering/` does not exist or is empty, skip the drift check w
 
 ---
 
-*Last updated: 2026-04-03*
+*Last updated: 2026-05-02*

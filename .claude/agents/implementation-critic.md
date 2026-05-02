@@ -1,7 +1,7 @@
 ---
 name: implementation-critic
 description: Reviews staged changes against the validated plan and requirements before commit. Catches deviations from the approved plan, logic errors, missed requirements, and pattern violations. Always runs — no skip condition.
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 ---
 
 # Implementation Critic Agent
@@ -145,4 +145,4 @@ Use this memory to give more accurate reviews over time and reduce false positiv
 
 ---
 
-*Last updated: 2026-04-03*
+*Last updated: 2026-05-02*
