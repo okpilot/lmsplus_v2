@@ -21,7 +21,7 @@ Uses critic severity levels: CRITICAL, ISSUE, SUGGESTION. No additional levels a
 - For plan-critic CRITICAL findings, the orchestrator resolves directly — do not send back for a revision round.
 - Report critic findings to the user in the agent findings summary (agent / severity / count / status) alongside post-commit agent results.
 - Run implementation-critic on staged changes even for small single-file edits — only plan-critic is skipped for trivial changes.
-- Trace `CREATE OR REPLACE FUNCTION` chain to the latest definition before flagging a missing-pattern finding on a Postgres function — see the "Pre-Flag Verification" sections in `plan-critic.md` and `semantic-reviewer.md`.
+- Trace `CREATE OR REPLACE FUNCTION` chain to the latest definition before flagging a missing-pattern finding on a Postgres function — see the "Pre-Flag Verification" sections in `plan-critic.md`, `semantic-reviewer.md`, and `implementation-critic.md`.
 
 ### NEVER
 - Skip implementation-critic, even for small changes. Plan-critic may be skipped for single-file changes under 10 lines, but implementation-critic always runs.
