@@ -6,7 +6,9 @@
 -- and then call batch_submit_quiz, scoring against the substituted set.
 --
 -- Mirrors `protect_users_sensitive_columns` (mig 20260316000041): BEFORE UPDATE OF
--- column-list trigger with `current_role = 'service_role'` exemption.
+-- column-list trigger with `current_role = 'service_role'` exemption. Not declared
+-- SECURITY DEFINER on purpose — the guard relies on the *caller's* role, which
+-- SECURITY DEFINER would mask by always reporting the function owner.
 --
 -- Mutable columns (NOT in BEFORE UPDATE OF list): id (PK), ended_at, correct_count,
 -- score_percentage, passed, deleted_at. These cover all SECURITY DEFINER UPDATE paths

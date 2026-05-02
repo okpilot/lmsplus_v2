@@ -86,6 +86,8 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     const { data: startData, error: startError } = await attackerClient.rpc('start_exam_session', {
       p_subject_id: subjectId,
     })
+    // Expected skip: seed fixture too small for the exam_config distribution.
+    // Any other RPC error is unexpected and falls through to the assertion below.
     if (startError && /insufficient_questions/i.test(startError.message)) {
       test.skip(
         true,
