@@ -1287,7 +1287,7 @@ This ensures the audit trail reflects what actually happened, not a hard-coded a
 
 #### `complete_overdue_exam_session` — close a past-deadline exam (Layer 1)
 
-Completes a `mock_exam` session whose deadline has passed. Computes score from any existing `quiz_session_answers` rows — partial answers are honoured, NOT zeroed. Sets `ended_at`, `correct_count`, `score_percentage`, `passed` and writes an `exam.expired` audit event.
+Completes a `mock_exam` or `internal_exam` session whose deadline has passed. Computes score from any existing `quiz_session_answers` rows — partial answers are honoured, NOT zeroed. Sets `ended_at`, `correct_count`, `score_percentage`, `passed` and writes an `exam.expired` (or `internal_exam.expired`) audit event.
 
 **Grace window (migration 052):** The overdue threshold is `now() > started_at + (time_limit_seconds + 30 seconds)`, matching the grace window in `batch_submit_quiz`. This ensures the Layer 1 refresh check and the submit RPC never disagree on whether a session is overdue — a session within the grace window is not considered overdue by either path.
 
@@ -1297,9 +1297,9 @@ Completes a `mock_exam` session whose deadline has passed. Computes score from a
 
 **Layer 2 (periodic sweeper)** is tracked under issue #558. Layer 1 alone enforces the deadline on every entry/access path; Layer 2 closes the residual window for sessions never re-entered.
 
-**Score computation (mirrors `batch_submit_quiz` mock_exam branch):**
-- `v_score = round(correct_count / total_questions * 100, 2)` — unanswered count as wrong.
-- `v_passed = (pass_mark IS NOT NULL AND v_score >= pass_mark)`; an incomplete exam (`answered < total`) auto-fails regardless of score.
+**Score computation:**
+- `v_score = round(correct_count / total_questions * 100, 2)` — unanswered count as wrong (formula imported from `batch_submit_quiz`'s `mock_exam` branch).
+- `v_passed := (pass_mark IS NOT NULL AND v_score >= pass_mark)`. Mode-specific incompleteness rule (migration 063): an incomplete `mock_exam` (`answered < total`) auto-fails regardless of score; `internal_exam` allows partial submissions and is judged solely on the score-vs-pass-mark check.
 
 **Idempotency:** If `ended_at IS NOT NULL`, the function returns the stored `score_percentage`, `passed`, and a fresh `answered_count` from `quiz_session_answers`. The `FOR UPDATE` lock holds the row, so the re-read is safe.
 
