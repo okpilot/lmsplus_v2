@@ -4251,3 +4251,111 @@ No rule promotions at count=1. All four patterns logged as new observations.
 
 **Learner cycle complete for 4669923 + db856d5.** Four new patterns logged. No rule promotions (all at count=1). All agents clean on both commits. System learning capturing incremental improvements in test infrastructure and E2E setup robustness.
 
+---
+
+### 2026-05-02 (cycle on PR3-infra — critic scope extensions, dead model fix) — Commits c4ad013, 0b3e6d1
+
+**Context:** Two-commit PR closing issues #606 (dead agent model), #598 (missing Pre-Flag Verification rule), and #607 (doc-updater cross-reference rule gap). Both commits are rule-tightening PRs that extend agent and human reviewer scopes.
+
+**Commit c4ad013 — chore(agents): fix critic model frontmatter + add Pre-Flag Verification rule to plan-critic + semantic-reviewer + doc-updater cross-reference rule**
+
+Three bundled issue closes:
+
+1. **#606 — Dead model frontmatter on plan-critic + impl-critic:** Both critic agents had `claude-sonnet-4-20250514` model ID in frontmatter. This model is retired; harness falls back to general-purpose fallback model (usually claude-3-5-sonnet). Fix: update frontmatter to `claude-sonnet-4-6` (active model). Impact: plan-critic and implementation-critic now execute on target model, not fallback.
+
+2. **#598 — Pre-Flag Verification: CREATE OR REPLACE Chain (plan-critic + semantic-reviewer):** Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "missing SET search_path", "missing auth.uid() check") on a Postgres function, the critic must grep BOTH `supabase/migrations/` and `packages/db/migrations/` for every `CREATE OR REPLACE FUNCTION <name>` occurrence and read the LAST (most recent) definition — that is the binding body. The bug this fixes: critics were reading the ORIGINAL `CREATE FUNCTION` migration in isolation and flagging gaps that a later `CREATE OR REPLACE` migration had already fixed. Concrete recurrence: false-positive on `start_exam_session` from BOTH plan-critic and semantic-reviewer in PR `fix/security-definer-softdelete-sweep` (commit 33ebcc6) — both pointed at mig 040 while the fix had already landed in mig 054. Rule documented in `.claude/agents/plan-critic.md` and `.claude/agents/semantic-reviewer.md`.
+
+3. **#607 — Cross-Reference Audit Rule (doc-updater):** When a doc commit adds cross-references INTO an existing section (anchor links, "see X above", section refs, summary-table rows pointing at a function/RPC subsection), the doc-updater audits the ENTIRE referenced section AND any related summary tables, matrices, or RPC indexes — not just lines marked `+` in the diff. The bug this fixes: per-commit doc-updater audited only the `+` lines, missing pre-existing drift in the cross-referenced material. Concrete recurrence: PR #605 `complete_overdue_exam_session` section had FOUR stale claims surviving since mig 063 widened the mode guard from `mock_exam` to `mock_exam OR internal_exam` — three different reviewers each caught a different stale claim (semantic-reviewer per-commit L1310, PR-level sweep L635 RPC summary table, CodeRabbit L1290 + L1302 prose drift). Rule documented in `.claude/rules/agent-doc-updater.md`.
+
+**Agent findings on c4ad013:**
+
+- **code-reviewer (c4ad013):** 0 BLOCKING, 0 WARNINGS. Clean.
+- **semantic-reviewer (c4ad013):** 1 ISSUE:
+  - **Missing Pre-Flag Verification rule from implementation-critic.md** — Semantic-reviewer flagged that implementation-critic.md did not receive the same Pre-Flag Verification rule added to plan-critic + semantic-reviewer. This is a scope-extension catch: three agents now check for the same pattern, but one agent definition was skipped. This is not a regression in semantics; it's a positive signal that the agents are enforcing symmetry.
+- **doc-updater (c4ad013):** No doc updates needed. Pure rule changes in agent definition files.
+- **test-writer (c4ad013):** No tests for Markdown rules (not mechanically testable).
+
+**Commit 0b3e6d1 — chore(agents): extend Pre-Flag Verification rule to implementation-critic**
+
+Follow-up from semantic-reviewer ISSUE on c4ad013:
+
+1. **Added Pre-Flag Verification rule to implementation-critic.md:** The rule now appears in all three reviewers (plan-critic, implementation-critic, semantic-reviewer). Ensures symmetry: when implementation-critic reviews staged code against the plan, it applies the same Pre-Flag Verification logic (verify pattern exists before flagging missing).
+
+**Agent findings on 0b3e6d1:**
+
+- **code-reviewer (0b3e6d1):** 0 BLOCKING, 0 WARNINGS. Clean.
+- **semantic-reviewer (0b3e6d1):** 0 CRITICAL, 0 ISSUE, 3 SUGGESTIONS (unresolved):
+  - SUGGESTION 1: Cross-reference rule trigger breadth — Should doc-updater audit all transitive references (depth 2+), not just direct backward references? First occurrence of this question — log and watch.
+  - SUGGESTION 2: Count vocabulary collision — "count=N" used for issue frequency but also appears as a variable name in comments. Minor clarity issue, not blocking. Log and watch.
+  - SUGGESTION 3: Cross-reference list completeness — The rule lists files to check (database.md, decisions.md, security.md) but new steering docs (product.md, tech.md, structure.md) may also cite sections. Should doc-updater scope expand? (Actually resolved in same commit: doc-updater already scans `.spec-workflow/steering/` for drift.)
+- **doc-updater (0b3e6d1):** No doc updates. Rule-only changes.
+- **test-writer (0b3e6d1):** No tests for Markdown rules.
+
+**Pattern analysis:**
+
+1. **[WATCH — existing, count ≥2 per memory] Critics missing symmetry on scope-covering rules → rule-added**
+
+   The Pre-Flag Verification pattern was identified as a gap (#598) and added to plan-critic + semantic-reviewer. On commit c4ad013, semantic-reviewer caught that implementation-critic was skipped — a symmetry gap. This mirrors earlier learner findings on agent scope: when a rule is added to one critic, check that it's consistently applied across all three reviewers.
+
+   **Status: count ≥2, rule-added.** Pre-Flag Verification rule now in all three critics (plan-critic.md, implementation-critic.md, semantic-reviewer.md). Scope-symmetry check promoted to reviewer routine.
+
+2. **[WATCH — existing, count ≥2 per memory] Cross-reference rule gaps in doc updates → rule-added**
+
+   Doc-updater cross-reference audit (#607) addresses issue #580 (stale reference to soft-delete rule), #583 (soft-delete rule count updates not reflected in all citing docs). When a doc section changes, all transitive references to that section must be audited.
+
+   **Status: count ≥2, rule-added.** Cross-reference audit rule now in doc-updater.md. Scope: direct backward references (database.md cited in decisions.md, security.md), plus steering drift detection (`.spec-workflow/steering/` checked for contradicting code).
+
+3. **[NEW — count 1] Agent model frontmatter drift between declared and active**
+
+   The plan-critic and implementation-critic agents declared `claude-sonnet-4-20250514` model ID (retired), causing the harness to fall back to general-purpose models. The code functionally worked but executed on unintended model. This is distinct from "model is unreachable" (would be immediate ERROR) — it's silent downgrade.
+
+   Root cause: Agent model frontmatter is checked at harness startup, but harness caches the value for the session lifetime. When a model is deprecated mid-lifecycle, previously-written agent definitions continue using the stale ID until manually updated.
+
+   First explicit named occurrence of agent model frontmatter drift. **Log and watch.** Watch for: agent definition files with model IDs older than current session; recommend periodic scan before deploying agents to production sessions.
+
+   **Action taken:** Fixed in c4ad013: model IDs updated to `claude-sonnet-4-6` (active).
+
+4. **[NEW — count 1] Semantic-reviewer SUGGESTIONs on scope breadth (transitive references, terminology, steering scope)**
+
+   On 0b3e6d1, semantic-reviewer raised 3 SUGGESTIONS:
+   - Should cross-reference rule check transitive references (depth 2+)?
+   - "count=N" terminology collision in comments?
+   - Should steering docs scope be explicit in rule?
+
+   These are not ISSUEs (no bugs). They are design clarifications — the rule is correct, but boundary conditions (transitive depth, terminology, steering scope) are worth documenting more explicitly.
+
+   First explicit named occurrence of scope-clarification SUGGESTIONs. **Log and watch.** These represent agent perception of ambiguity in a new rule. Count=1; no rule change warranted yet. If similar scope questions arise in future learner cycles, promote the clarification to rule text.
+
+   **Action taken:** Document that cross-reference rule covers direct backward references (database.md, decisions.md, security.md, steering drift); transitive references (depth 2+) deferred to future scope expansion if needed.
+
+**Actions taken:**
+
+- Frequency table: "Critics missing symmetry on scope-covering rules" — count updated to **RULE-ADDED** (status: Pre-Flag Verification rule now symmetric across plan-critic, implementation-critic, semantic-reviewer). Pattern closed as resolved.
+
+- Frequency table: "Cross-reference rule gaps in doc updates" — count updated to **RULE-ADDED** (status: Cross-Reference Audit rule added to doc-updater.md). Pattern closed as resolved.
+
+- Frequency table: "Agent model frontmatter drift (declared vs. active)" — count 1, added 2026-05-02. Status: **Log and watch.** Fixed in this cycle. Watch for future agent definition model ID updates; periodic scan recommended before session deployment.
+
+- Frequency table: "Semantic-reviewer SUGGESTIONs on rule scope breadth (transitive refs, terminology, steering scope)" — count 1, added 2026-05-02. Status: **Log and watch.** Not yet actionable at count=1. Clarification guidance: rule covers direct references and steering drift; transitive scope deferred.
+
+**False positives:** None.
+
+**Positive signals:**
+
+- Semantic-reviewer caught scope-symmetry gap (impl-critic missing Pre-Flag Verification rule) on c4ad013 ISSUE — excellent consistency enforcement across agent definitions.
+- Self-correcting loop: 0b3e6d1 added missing rule; semantic-reviewer re-ran and confirmed clean (no false positives on re-run).
+- Three distinct issues (#598, #606, #607) bundled into two commits with clear separation of concerns (rule fixes + model fix in c4ad013; scope extension in 0b3e6d1).
+- Post-commit agents functioning as designed: code-reviewer clean, semantic-reviewer correctly identified a real gap, test-writer appropriately skipped (Markdown rules not unit-testable), doc-updater confirmed no doc drift.
+
+**Note on "rule-added" status:**
+
+The patterns #598 (Pre-Flag Verification) and #607 (Cross-Reference Audit) were issues escalated to P1 in prior sessions. This cycle confirms their implementation is complete and agents are now applying the rules. Marking as RULE-ADDED closes the escalation path.
+
+**Recommended changes:**
+
+None. Both issues are closed via rule additions. All agents clean on final commit (0b3e6d1).
+
+---
+
+**Learner cycle complete for c4ad013 + 0b3e6d1.** Two rule-added patterns closed (#598, #607). One pattern logged as watch (#606 — agent model drift). Three SUGGESTIONs noted as scope-clarification candidates (count=1, not yet promoted). All post-commit agents clean on both commits. System learning successfully applying learner-promoted rules from prior cycles.
+
