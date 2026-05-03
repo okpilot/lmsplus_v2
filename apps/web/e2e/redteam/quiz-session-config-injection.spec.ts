@@ -65,6 +65,10 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
   })
 
   test.beforeEach(async () => {
+    // Reset describe-scoped session id so a test.skip() below does not let
+    // afterEach soft-delete a stale id from the previous iteration.
+    sessionId = ''
+
     // Discard any leftover active session from a prior iteration so
     // start_exam_session doesn't trip its duplicate-active-session guard.
     const { data: studentRow } = await admin
@@ -99,7 +103,13 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     expect(startError).toBeNull()
     expect(startData).toBeTruthy()
 
-    type StartExamResult = { session_id: string; question_ids?: string[]; started_at?: string }
+    type StartExamResult = {
+      session_id: string
+      question_ids?: string[]
+      time_limit_seconds?: number
+      total_questions?: number
+      pass_mark?: number
+    }
     expect(typeof startData).toBe('object')
     expect(startData).not.toBeNull()
     expect(typeof (startData as { session_id?: unknown }).session_id).toBe('string')
