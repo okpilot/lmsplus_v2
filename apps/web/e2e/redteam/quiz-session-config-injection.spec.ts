@@ -35,6 +35,20 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
   let sessionId: string
   let originalQuestionIds: string[]
 
+  // Sanity check shared by every attack test: re-reads the persisted session via
+  // admin (bypassing RLS) and asserts question_ids + mode are unchanged.
+  async function assertSessionStillLocked() {
+    const { data: row } = await admin
+      .from('quiz_sessions')
+      .select('config, mode')
+      .eq('id', sessionId)
+      .single()
+
+    const persisted = (row?.config ?? {}) as { question_ids?: string[] }
+    expect(persisted.question_ids).toEqual(originalQuestionIds)
+    expect(row?.mode).toBe('mock_exam')
+  }
+
   test.beforeAll(async () => {
     admin = getAdminClient()
     const seed = await seedRedTeamUsers()
@@ -161,15 +175,7 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     expect(error?.message ?? '').toContain('config')
     expect(error?.message ?? '').toContain('immutable')
 
-    // Sanity: persisted config.question_ids unchanged.
-    const { data: row } = await admin
-      .from('quiz_sessions')
-      .select('config, mode')
-      .eq('id', sessionId)
-      .single()
-    const persisted = (row?.config ?? {}) as { question_ids?: string[] }
-    expect(persisted.question_ids).toEqual(originalQuestionIds)
-    expect(row?.mode).toBe('mock_exam')
+    await assertSessionStillLocked()
   })
 
   test('Attack 2 — mode swap is blocked by trigger', async () => {
@@ -182,14 +188,7 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     expect(error?.message ?? '').toContain('mode')
     expect(error?.message ?? '').toContain('immutable')
 
-    const { data: row } = await admin
-      .from('quiz_sessions')
-      .select('config, mode')
-      .eq('id', sessionId)
-      .single()
-    const persisted = (row?.config ?? {}) as { question_ids?: string[] }
-    expect(persisted.question_ids).toEqual(originalQuestionIds)
-    expect(row?.mode).toBe('mock_exam')
+    await assertSessionStillLocked()
   })
 
   test('Attack 3 — total_questions inflate is blocked by trigger', async () => {
@@ -202,14 +201,7 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     expect(error?.message ?? '').toContain('total_questions')
     expect(error?.message ?? '').toContain('immutable')
 
-    const { data: row } = await admin
-      .from('quiz_sessions')
-      .select('config, mode')
-      .eq('id', sessionId)
-      .single()
-    const persisted = (row?.config ?? {}) as { question_ids?: string[] }
-    expect(persisted.question_ids).toEqual(originalQuestionIds)
-    expect(row?.mode).toBe('mock_exam')
+    await assertSessionStillLocked()
   })
 
   test('Attack 4 — started_at backdate is blocked by trigger', async () => {
@@ -222,13 +214,6 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     expect(error?.message ?? '').toContain('started_at')
     expect(error?.message ?? '').toContain('immutable')
 
-    const { data: row } = await admin
-      .from('quiz_sessions')
-      .select('config, mode')
-      .eq('id', sessionId)
-      .single()
-    const persisted = (row?.config ?? {}) as { question_ids?: string[] }
-    expect(persisted.question_ids).toEqual(originalQuestionIds)
-    expect(row?.mode).toBe('mock_exam')
+    await assertSessionStillLocked()
   })
 })
