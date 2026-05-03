@@ -33,20 +33,43 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
   let orgId: string
   let subjectId: string
   let sessionId: string
-  let originalQuestionIds: string[]
+  let originalFrozen: FrozenColumnsRow
 
-  // Sanity check shared by every attack test: re-reads the persisted session via
-  // admin (bypassing RLS) and asserts question_ids + mode are unchanged.
+  // Mirrors migration 079's BEFORE UPDATE OF column list. Re-using the same
+  // string in beforeEach + helper guarantees the baseline and the assertion
+  // cover identical columns — any future column added to the trigger only
+  // needs to be added here once for every attack to gain coverage.
+  const FROZEN_COLUMNS_SELECT =
+    'config, total_questions, mode, time_limit_seconds, started_at, organization_id, student_id, subject_id, topic_id, created_at'
+
+  type FrozenColumnsRow = {
+    config: { question_ids?: string[] } | null
+    total_questions: number | null
+    mode: string | null
+    time_limit_seconds: number | null
+    started_at: string | null
+    organization_id: string | null
+    student_id: string | null
+    subject_id: string | null
+    topic_id: string | null
+    created_at: string | null
+  }
+
+  // Sanity check shared by every attack test: re-reads ALL frozen columns via
+  // admin (bypassing RLS) and asserts every one is byte-for-byte identical to
+  // the post-start baseline. This is defense-in-depth on top of the trigger
+  // error-message check — if a regression silently lets a write through on the
+  // attacked column while leaving other frozen columns intact, the deep-equal
+  // here catches it. Adding new attack vectors does not require helper edits.
   async function assertSessionStillLocked() {
     const { data: row } = await admin
       .from('quiz_sessions')
-      .select('config, mode')
+      .select(FROZEN_COLUMNS_SELECT)
       .eq('id', sessionId)
       .single()
 
-    const persisted = (row?.config ?? {}) as { question_ids?: string[] }
-    expect(persisted.question_ids).toEqual(originalQuestionIds)
-    expect(row?.mode).toBe('mock_exam')
+    expect(row).not.toBeNull()
+    expect(row as unknown as FrozenColumnsRow).toEqual(originalFrozen)
   }
 
   test.beforeAll(async () => {
@@ -91,7 +114,7 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
       .eq('email', ATTACKER_EMAIL)
       .maybeSingle()
     if (studentRow) {
-      const { error: preCleanupError } = await admin
+      const { data: discarded, error: preCleanupError } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('student_id', studentRow.id)
@@ -99,6 +122,11 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
         .is('deleted_at', null)
         .select('id')
       expect(preCleanupError).toBeNull()
+      if ((discarded?.length ?? 0) > 0) {
+        console.log(
+          `[quiz-session-config-injection pre-cleanup] discarded ${discarded?.length} stale session(s)`,
+        )
+      }
     }
 
     // Start a fresh mock_exam session.
@@ -131,18 +159,20 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     sessionId = result.session_id
     expect(sessionId).toBeTruthy()
 
-    // Re-read the row so we observe the actual persisted config.question_ids
-    // (not whatever the RPC returns), giving us a faithful baseline for the
-    // sanity assertion at the end of each attack test.
+    // Re-read the row so we observe the actual persisted values (not whatever
+    // the RPC returns) for every frozen column, giving us a faithful baseline
+    // for the deep-equal sanity assertion at the end of each attack test.
     const { data: row, error: readError } = await admin
       .from('quiz_sessions')
-      .select('config')
+      .select(FROZEN_COLUMNS_SELECT)
       .eq('id', sessionId)
       .single()
     expect(readError).toBeNull()
-    const config = (row?.config ?? {}) as { question_ids?: string[] }
-    originalQuestionIds = Array.isArray(config.question_ids) ? config.question_ids : []
-    expect(originalQuestionIds.length).toBeGreaterThan(0)
+    expect(row).not.toBeNull()
+    originalFrozen = row as unknown as FrozenColumnsRow
+    const initialQuestionIds = (originalFrozen.config ?? {}).question_ids ?? []
+    expect(Array.isArray(initialQuestionIds)).toBe(true)
+    expect(initialQuestionIds.length).toBeGreaterThan(0)
   })
 
   test.afterEach(async () => {

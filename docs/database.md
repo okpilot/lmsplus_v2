@@ -40,7 +40,7 @@ Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), whi
 
 | Table | Frozen columns | Mutable columns | Trigger | Migration |
 |-------|----------------|-----------------|---------|-----------|
-| `users` | `role`, `organization_id`, `deleted_at` | `full_name`, `email`, `last_active_at` (all other columns mutable; trigger only freezes the three listed) | `trg_protect_users_sensitive_columns` | `20260316000041` |
+| `users` | `role`, `organization_id`, `deleted_at` | `full_name`, `email`, `last_active_at` (any other non-frozen column is mutable for authenticated connections; service-role bypasses the trigger entirely) | `trg_protect_users_sensitive_columns` | `20260316000041` |
 | `quiz_sessions` | `config`, `total_questions`, `mode`, `time_limit_seconds`, `started_at`, `organization_id`, `student_id`, `subject_id`, `topic_id`, `created_at` | `ended_at`, `correct_count`, `score_percentage`, `passed`, `deleted_at` | `trg_quiz_sessions_immutable_columns` | `079` |
 
 The `quiz_sessions` trigger closes the exam-question-swap vector where a student could inject question_ids into their own active session via direct PostgREST UPDATE (issue #554).
