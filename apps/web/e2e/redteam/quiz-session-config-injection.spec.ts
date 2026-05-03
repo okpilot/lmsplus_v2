@@ -170,7 +170,7 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     expect(readError).toBeNull()
     expect(row).not.toBeNull()
     originalFrozen = row as unknown as FrozenColumnsRow
-    const initialQuestionIds = (originalFrozen.config ?? {}).question_ids ?? []
+    const initialQuestionIds = originalFrozen.config?.question_ids ?? []
     expect(Array.isArray(initialQuestionIds)).toBe(true)
     expect(initialQuestionIds.length).toBeGreaterThan(0)
   })
