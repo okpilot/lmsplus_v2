@@ -73,13 +73,14 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
       .eq('email', ATTACKER_EMAIL)
       .maybeSingle()
     if (studentRow) {
-      await admin
+      const { error: preCleanupError } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('student_id', studentRow.id)
         .is('ended_at', null)
         .is('deleted_at', null)
         .select('id')
+      expect(preCleanupError).toBeNull()
     }
 
     // Start a fresh mock_exam session.
@@ -99,6 +100,9 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
     expect(startData).toBeTruthy()
 
     type StartExamResult = { session_id: string; question_ids?: string[]; started_at?: string }
+    expect(typeof startData).toBe('object')
+    expect(startData).not.toBeNull()
+    expect(typeof (startData as { session_id?: unknown }).session_id).toBe('string')
     const result = startData as StartExamResult
     sessionId = result.session_id
     expect(sessionId).toBeTruthy()
@@ -133,6 +137,7 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
           `[quiz-session-config-injection cleanup] soft-deleted ${data?.length} session(s)`,
         )
       }
+      expect(error).toBeNull()
     }
   })
 
