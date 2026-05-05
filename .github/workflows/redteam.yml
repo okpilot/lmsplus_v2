@@ -31,11 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - uses: supabase/setup-cli@b60b5899c73b63a2d2d651b1e90db8d4c9392f51 # v1
+      - uses: supabase/setup-cli@df56b21da46c98abb12a9804e4fb1f657773e333 # v1
         with:
           version: 2.78.1
 
-      - uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v4
+      - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
