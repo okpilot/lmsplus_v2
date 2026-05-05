@@ -2,8 +2,10 @@
 -- subject 080 (Aircraft General Knowledge — Aeroplane). Source: manifest v3 in
 -- QDB/ecqb_082_full_import.zip, 143 questions across 16 subtopics.
 --
--- This migration is data-only: 5 topics + 16 subtopics. Subject 080 already exists
--- (seeded in 20260504000001_seed_080_agk.sql); no easa_subjects insert here.
+-- This migration is data-only: subject 080 + 5 topics + 16 subtopics. The subject row
+-- duplicates the insert in 20260504000001_seed_080_agk.sql with ON CONFLICT DO NOTHING
+-- so the two migrations can apply in either order on a fresh database (the 080 seed
+-- branch is a separate PR; defensive copy keeps this migration self-contained).
 -- Question rows are loaded separately via the import script (PostgREST + service-role
 -- key), keyed by these codes.
 --
@@ -15,6 +17,10 @@
 -- - Idempotency: ON CONFLICT (subject_id, code) / (topic_id, code) DO NOTHING.
 --   Re-running is a no-op.
 -- - All FK lookups via subquery on `code` — no hard-coded UUIDs.
+
+INSERT INTO easa_subjects (code, name, short, sort_order)
+VALUES ('080', 'Aircraft General Knowledge (Aeroplane)', 'AGK', 3)
+ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO easa_topics (subject_id, code, name, sort_order)
 SELECT s.id, t.code, t.name, t.sort_order
