@@ -36,6 +36,15 @@ Enforce at the database level (RLS policies), not just application convention.
 
 Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), which run as the database owner and bypass RLS, allowing controlled inserts with business logic enforced in the function. Direct client inserts are blocked.
 
+**Column-level immutability (`users` and `quiz_sessions`):** Some tables allow UPDATE on certain columns but freeze others after row creation. Enforced by `BEFORE UPDATE OF` triggers with a `current_role = 'service_role'` exemption.
+
+| Table | Frozen columns | Mutable columns | Trigger | Migration |
+|-------|----------------|-----------------|---------|-----------|
+| `users` | `role`, `organization_id`, `deleted_at` | `full_name`, `email`, `last_active_at` (any other non-frozen column is mutable for authenticated connections; service-role bypasses the trigger entirely) | `trg_protect_users_sensitive_columns` | `20260316000041` |
+| `quiz_sessions` | `config`, `total_questions`, `mode`, `time_limit_seconds`, `started_at`, `organization_id`, `student_id`, `subject_id`, `topic_id`, `created_at` | `ended_at`, `correct_count`, `score_percentage`, `passed`, `deleted_at` | `trg_quiz_sessions_immutable_columns` | `079` / `20260502000001` |
+
+The `quiz_sessions` trigger closes the exam-question-swap vector where a student could inject question_ids into their own active session via direct PostgREST UPDATE (issue #554).
+
 **Soft-deletable tables (UPDATE deleted_at, never hard DELETE):**
 - Everything else — see §3.
 
@@ -553,7 +562,7 @@ No `WHERE deleted_at IS NULL` needed in application code — RLS handles it.
 
 When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to score a question that was soft-deleted *after* the quiz session started. This is safe because:
 
-1. **Membership was validated at session start** — `quiz_sessions.config.question_ids` was locked when the session began, before the question could be deleted.
+1. **Membership was validated at session start** — `quiz_sessions.config.question_ids` was locked when the session began, before the question could be deleted. Enforced by trigger `trg_quiz_sessions_immutable_columns` (migration 079).
 2. **Explanations are preserved** — the question record still exists (soft-deleted, not hard-deleted), so we can still retrieve explanation text and images.
 3. **Historical integrity** — we score the response as it was when the student answered, not based on the question's current (deleted) state.
 
