@@ -23,6 +23,17 @@
 - 2026-04-11: hard DELETE on `exam_config_distributions` inside `upsert_exam_config` RPC — intentional exception documented in migration 043 and docs/database.md. Table is ephemeral config (same precedent as quiz_drafts). Not a no-soft-delete violation.
 - 2026-04-26 (commit 34194aa): flagged "duplicate Discard button" but mistook the adjacent conditional JSX guard block `{canDismiss && (` for the existing Discard button. Two distinct buttons: one state-driven (confirmingDiscard trigger), one prop-driven (canDismiss guard on confirm panel). Both correctly in place. Resolved without revision.
 
+## Session 2026-05-06 — issue #622 start_quiz_session input hardening
+- Migration CREATE OR REPLACE chain traced correctly: mig 076 → mig 077 (new). All guards from mig 076 preserved (`Not authenticated`, `user not found or inactive`, `SET search_path = public`, `auth.uid()`). Clean.
+- smart_review NULL carve-out: `(p_subject_id IS NULL OR q.subject_id = p_subject_id)` and same for topic — correct per plan.
+- 3 specs with status='active' filter: session-race-condition, session-replay, rate-limiting — all confirmed in diff. Correct.
+- 3 excluded specs (audit-event-forgery, rpc-cross-tenant, pkce-state): confirmed absent from diff. Correct.
+- Cross-org integration test uses shared easa_subjects taxonomy (not org-scoped) but questions are org-scoped — RPC catches it via `q.organization_id = v_org_id`. Confirmed valid.
+- ISSUE found: soft-delete test's `.update(...).select('id')` does not check `data?.length` for zero-row no-op per code-style.md §5. Minor — does not affect the RPC test outcome but violates the pattern.
+- ISSUE found: inactive-question test seeds via `seedQuestions` (which may default to `status: 'active'`) and then sets `status: 'draft'` — confirmed `seedQuestions` does default to `active`, so the update correctly makes it draft. Valid.
+- rpc-question-membership.spec.ts: subjectB lookup queries `subjects` table (org-scoped), not `easa_subjects` — correct. Preserves distinct A/B subject intent.
+- quiz-draft-injection.spec.ts: dropped `.limit(2)` second subject in favor of same-org single subject. Comment explains RLS scopes drafts by org not subject — semantically valid for this attack vector. Test intent preserved.
+
 ## Recurring Issues
 <!-- Track patterns across sessions -->
 

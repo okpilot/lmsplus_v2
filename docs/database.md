@@ -2000,4 +2000,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-05-01 (migrations 073-078 / 20260430000007-12: search_path on enforce_draft_limit, deleted_at on start_quiz_session+batch_submit_quiz audit subqueries, advisory lock on draft-limit trigger, active-user gate + cached actor_role on start_quiz_session and batch_submit_quiz — closes #588 #573 #531; PR #599 CR root-cause cycle) | Companion: docs/security.md*
+*Last updated: 2026-05-06 (migration 20260506000001: start_quiz_session input hardening — rejects null/empty p_question_ids and validates each UUID against active+in-org+subject/topic scope, with smart_review NULL-tolerance; closes #622) | Previous: 2026-05-01 (migrations 073-078 / 20260430000007-12: closes #588 #573 #531) | Companion: docs/security.md*

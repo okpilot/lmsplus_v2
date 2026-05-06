@@ -53,6 +53,11 @@ test.describe('Red Team: Session Race Condition', () => {
       .is('deleted_at', null)
       .limit(3)
     questionIds = (qs ?? []).map((q) => q.id)
+    if (questionIds.length !== 3) {
+      throw new Error(
+        `session-race-condition seed: expected 3 active questions in (subject=${subjectId}, topic=${topicId}), got ${questionIds.length}`,
+      )
+    }
   })
 
   test('completed session cannot be overwritten with discarded status', async () => {

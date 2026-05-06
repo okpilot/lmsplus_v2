@@ -47,6 +47,15 @@ Plans that change `toBeLessThanOrEqual(max)` to `toBe(max)` justify it with "com
 ### [2026-04-11] Multi-query parallel fetch functions need table-dispatching mock pattern — not flat mockFrom
 Plans for testing functions with `Promise.all([...N supabase.from() calls...])` consistently say "follow existing test patterns." The existing sibling action test pattern (single `mockFrom` returning one chain) cannot distinguish between N different `.from('tableName')` calls. Plans must explicitly call out the `mockImplementation((tableName) => ...)` dispatch pattern for any test covering parallel multi-table fetches.
 
+### [2026-05-06] Validation COUNT query breaks for NULL-subject (smart_review) mode
+Plans that add a pre-INSERT COUNT query to `start_quiz_session` using `q.subject_id = p_subject_id` forget that `smart_review` mode passes `p_subject_id = NULL`. In Postgres, `q.subject_id = NULL` is always NULL (not TRUE), so the COUNT returns 0 and the validation raises `invalid_question_ids` for every valid smart_review call. The fix is `(p_subject_id IS NULL OR q.subject_id = p_subject_id)`. Plans must check the null-subject call path before adding subject-scoped WHERE clauses.
+
+### [2026-05-06] spec-by-spec intent review: some redteam specs intentionally pass empty/cross-org question IDs
+`rpc-cross-tenant.spec.ts` deliberately passes foreign-org question IDs expecting the RPC to fail. After hardening `start_quiz_session` to validate question org membership, that spec's attack must still produce an error — but the error code changes from "23502 NOT NULL" to "invalid_question_ids". Plans must check whether any spec's *pass condition* is a specific error code; if the hardening changes the error, the spec assertion must be updated too. Cross-tenant spec at line 68-78 uses open error check (`expect(error).not.toBeNull()`), so it survives — but this must be verified per spec.
+
+### [2026-05-06] Redteam specs that fetch questions without status=active filter pass invalid IDs to new validation
+`session-race-condition.spec.ts` (lines 44-50), `session-replay.spec.ts`, and `rate-limiting.spec.ts` fetch question IDs with only `deleted_at IS NULL` but NOT `status = 'active'`. After adding `q.status = 'active'` to the RPC validation COUNT, these specs could fail if any seeded question has `status != 'active'`. Plans must either add `.eq('status', 'active')` to all spec question fetches or document the assumption that seeded test questions are always active.
+
 ## Positive Signals
 
 ### [2026-04-09] Base UI data attribute names correctly verified

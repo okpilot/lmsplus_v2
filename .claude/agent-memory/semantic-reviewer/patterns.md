@@ -97,6 +97,40 @@ When a server-rendered error notice is always-present on load (e.g., rendered fr
 **Validator gate blocks mis-tagged study sessions from reaching the exam filter (GOOD)**
 - A study session mis-tagged with `mode: 'exam'` would fail the validator at `readActiveSession` lines 113-118 (missing `startedAt`/`timeLimitSeconds`) and return `null` before reaching `useQuizRecovery`. The hook's filter therefore cannot incorrectly suppress a legitimate study session even if storage is partially corrupt.
 
+### 2026-05-06 — commit bc3226a (fix(db,e2e): harden start_quiz_session input + deterministic redteam fixtures)
+- **Files reviewed:** migration 20260506000001, helpers/seed.ts, 11 redteam specs, rpc-start-session.integration.test.ts, docs/database.md
+- **CRITICAL:** 0 | **ISSUE:** 2 | **SUGGESTION:** 1 | **GOOD:** 7
+
+**Migration chain verified — all mig 076 guards preserved (GOOD)**
+- Mig 076 (`20260430000010`) had: SECURITY DEFINER, SET search_path = public, auth.uid() null check, users SELECT with deleted_at IS NULL + IF NOT FOUND guard, both INSERTs reading from locals (v_org_id, v_uid, v_role). New mig 077 (`20260506000001`) preserves every guard identically, inserts new validation block after the active-user gate. No regression.
+
+**Audit log uses locals, not subqueries — security.md §10 compliant (GOOD)**
+- audit_events INSERT reads v_org_id, v_uid, v_role from DECLARE section (populated in the top-level SELECT). No deleted_at-unfiltered subquery inside the audit block. Rule §10 satisfied.
+
+**ISSUE — session-race-condition and session-replay: questionIds fetched with .limit(3) but no guard that exactly 3 IDs were returned**
+- Both specs call `pickSubjectWithQuestions(..., { minActiveQuestions: 3, topicMinQuestions: 3 })` which guarantees the COUNT query sees ≥3 rows. But the subsequent `.limit(3)` question fetch (`qs`) has no `expect(questionIds.length).toBe(3)` guard. If a race (concurrent soft-delete) or a RLS/auth timing issue drops any returned rows, `questionIds` could be 0–2 IDs. The race condition spec then passes that shorter array to `start_quiz_session` — which would succeed with fewer questions — silently altering test pre-conditions. The replay spec does the same. Both specs depend on exactly 3 question IDs for correct `batch_submit_quiz` payload construction. Risk is low in practice (admin client, same transaction), but the test intent is not encoded as an assertion.
+
+**ISSUE — rpc-question-membership: subjectBId search queries all subjects without an ORDER BY, breaking determinism for the "second subject" pick**
+- In `rpc-question-membership.spec.ts` the inline subject-B loop iterates over `orgSubjects` which is ordered `code ASC`, so the iteration order is deterministic. However the loop's `count` query uses no `.order()`, which is fine (COUNT HEAD). The real gap: `pickSubjectWithQuestions` is not used for subject B — instead there is a bespoke inline loop that finds the first subject (≠ A) with ≥1 active question. This is correct in semantics but does not pick a topic for subject B. The `foreignQuestions` fetch (step 4) queries by `subject_id` only (no `topic_id` filter), so it can return questions from any topic in subject B. This is the intended behaviour for the cross-subject injection test. Not a bug — but the asymmetry (A has a specific topic, B is subject-level) should be noted as intentional.
+
+**SUGGESTION — pickSubjectWithQuestions N+1 pattern acceptable for test setup but worth noting**
+- The helper iterates subjects, then for each subject issues a COUNT query, then iterates topics, then issues another COUNT query per topic. In CI against a seeded DB with ~6 subjects and ~30 topics this is fine. If seed cardinality grows significantly, the nested loop could slow `beforeAll`. A single query with a lateral join could replace it, but this is test infrastructure — not a production concern.
+
+**Soft-delete integration test uses zero-row no-op check (.select('id') + length guard) — code-style.md compliant (GOOD)**
+- `rpc-start-session.integration.test.ts` lines 282-283 verify `updData?.length` after the soft-delete UPDATE. Pattern from code-style.md §5 correctly applied.
+
+**Cross-org integration test correctly seeds a question in otherOrgId using the shared subject/topic refs (GOOD)**
+- Using `refs.subjectId` and `refs.topicId` (which point to EASA global taxonomy rows) for the cross-org question seed is correct: the RPC filters by `q.organization_id = v_org_id`, so a question that exists under the same subject/topic but belongs to a different org will correctly fail the COUNT check, raising `invalid_question_ids`. The test correctly validates this boundary.
+
+**pickSubjectWithQuestions throws loudly on no match — replaces silent .limit(1) lottery (GOOD)**
+- The old pattern returned whatever the DB happened to return first. The new helper throws with a descriptive message if no subject/topic meets the threshold. E2E failures now surface as "pickSubjectWithQuestions: no subject in org X has ≥N active question(s)..." rather than as a cryptic RPC error mid-test.
+
+**docs/database.md validation contract section is internally consistent and matches migration body (GOOD)**
+- The three error strings ('no_questions_provided', 'invalid_question_ids', 'Not authenticated', 'user not found or inactive') listed in database.md match the RAISE EXCEPTION strings in the migration. The NULL-tolerance description for smart_review matches the `(p_subject_id IS NULL OR ...)` conditional in the WHERE clause.
+
+**Pattern — COUNT-then-INSERT TOCTOU window is an accepted trade-off (documented):**
+The new validation does a COUNT of valid question IDs, then INSERTs. A question soft-deleted or deactivated between the COUNT and INSERT would pass the gate with stale data. This is the same accepted trade-off used throughout the codebase (no serializable isolation on quiz sessions). The window is milliseconds and the consequence is a locked session containing a now-inactive question — not a security issue, just a corner case. Documented as acceptable. Count=1, watching.
+
 **Call site coverage is complete — `useQuizRecovery` has exactly one consumer (GOOD)**
 - Grep confirms `useQuizRecovery` is imported only in `quiz-recovery-banner.tsx`. The filter change has no unexpected impact on other components.
 

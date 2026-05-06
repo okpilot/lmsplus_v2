@@ -194,50 +194,16 @@ export async function pickSubjectWithQuestions(
     throw new Error(`pickSubjectWithQuestions: no subjects found in org ${orgId}`)
 
   for (const subject of subjects) {
-    const { count: subjectQCount, error: subjectCountError } = await admin
-      .from('questions')
-      .select('id', { head: true, count: 'exact' })
-      .eq('organization_id', orgId)
-      .eq('subject_id', subject.id)
-      .eq('status', 'active')
-      .is('deleted_at', null)
-    if (subjectCountError)
-      throw new Error(
-        `pickSubjectWithQuestions count subject ${subject.code}: ${subjectCountError.message}`,
-      )
-    if ((subjectQCount ?? 0) < minActiveQuestions) continue
+    const subjectQCount = await countActiveQuestions(admin, { orgId, subjectId: subject.id })
+    if (subjectQCount < minActiveQuestions) continue
 
-    const { data: topics, error: topicsError } = await admin
-      .from('topics')
-      .select('id, sort_order')
-      .eq('organization_id', orgId)
-      .eq('subject_id', subject.id)
-      .is('deleted_at', null)
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true })
-    if (topicsError)
-      throw new Error(
-        `pickSubjectWithQuestions topics for ${subject.code}: ${topicsError.message}`,
-      )
-    if (!topics || topics.length === 0) continue
-
-    for (const topic of topics) {
-      const { count: topicQCount, error: topicCountError } = await admin
-        .from('questions')
-        .select('id', { head: true, count: 'exact' })
-        .eq('organization_id', orgId)
-        .eq('subject_id', subject.id)
-        .eq('topic_id', topic.id)
-        .eq('status', 'active')
-        .is('deleted_at', null)
-      if (topicCountError)
-        throw new Error(
-          `pickSubjectWithQuestions count topic ${topic.id} in ${subject.code}: ${topicCountError.message}`,
-        )
-      if ((topicQCount ?? 0) >= topicMinQuestions) {
-        return { subjectId: subject.id, subjectCode: subject.code, topicId: topic.id }
-      }
-    }
+    const topicId = await findTopicWithQuestions(admin, {
+      orgId,
+      subjectId: subject.id,
+      subjectCode: subject.code,
+      topicMinQuestions,
+    })
+    if (topicId) return { subjectId: subject.id, subjectCode: subject.code, topicId }
   }
 
   throw new Error(
@@ -245,6 +211,51 @@ export async function pickSubjectWithQuestions(
       `>=${minActiveQuestions} active question(s) with a topic having ` +
       `>=${topicMinQuestions} active question(s)`,
   )
+}
+
+async function findTopicWithQuestions(
+  admin: ReturnType<typeof getAdminClient>,
+  opts: { orgId: string; subjectId: string; subjectCode: string; topicMinQuestions: number },
+): Promise<string | null> {
+  const { orgId, subjectId, subjectCode, topicMinQuestions } = opts
+
+  const { data: topics, error: topicsError } = await admin
+    .from('topics')
+    .select('id, sort_order')
+    .eq('organization_id', orgId)
+    .eq('subject_id', subjectId)
+    .is('deleted_at', null)
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true })
+  if (topicsError)
+    throw new Error(`pickSubjectWithQuestions topics for ${subjectCode}: ${topicsError.message}`)
+  if (!topics || topics.length === 0) return null
+
+  for (const topic of topics) {
+    const count = await countActiveQuestions(admin, { orgId, subjectId, topicId: topic.id })
+    if (count >= topicMinQuestions) return topic.id
+  }
+  return null
+}
+
+async function countActiveQuestions(
+  admin: ReturnType<typeof getAdminClient>,
+  opts: { orgId: string; subjectId: string; topicId?: string },
+): Promise<number> {
+  let q = admin
+    .from('questions')
+    .select('id', { head: true, count: 'exact' })
+    .eq('organization_id', opts.orgId)
+    .eq('subject_id', opts.subjectId)
+    .eq('status', 'active')
+    .is('deleted_at', null)
+  if (opts.topicId) q = q.eq('topic_id', opts.topicId)
+  const { count, error } = await q
+  if (error)
+    throw new Error(
+      `pickSubjectWithQuestions count subject=${opts.subjectId} topic=${opts.topicId ?? 'none'}: ${error.message}`,
+    )
+  return count ?? 0
 }
 
 /**

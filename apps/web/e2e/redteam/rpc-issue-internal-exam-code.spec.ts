@@ -98,12 +98,14 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
         ],
         { onConflict: 'code', ignoreDuplicates: true },
       )
-      const refetched = await admin
+      const { data: refetched, error: refetchedError } = await admin
         .from('easa_subjects')
         .select('id')
         .order('sort_order', { ascending: true })
         .limit(5)
-      subjectsForUnconfigured = refetched.data
+      if (refetchedError)
+        throw new Error(`seed: refetch easa_subjects failed: ${refetchedError.message}`)
+      subjectsForUnconfigured = refetched
       unconfPick = subjectsForUnconfigured?.find((s) => s.id !== configuredSubjectId)
     }
     if (!unconfPick) {
