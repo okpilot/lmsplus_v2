@@ -166,10 +166,13 @@ export async function seedQuestions(opts: {
 
   // 1:1 org:bank invariant (mig 062) — reuse the existing bank if one exists,
   // otherwise create one. Mirrors production lookup in insert-question.ts.
+  // Service-role bypasses RLS, so the soft-delete filter must be applied
+  // manually (production gets it from the authenticated-user RLS policy).
   const { data: existingBank, error: lookupErr } = await admin
     .from('question_banks')
     .select('id')
     .eq('organization_id', orgId)
+    .is('deleted_at', null)
     .maybeSingle()
   if (lookupErr) throw new Error(`seedBank lookup: ${lookupErr.message}`)
 

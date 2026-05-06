@@ -190,7 +190,7 @@ export async function pickSubjectWithQuestions(
     .order('code', { ascending: true })
   if (subjectsError) throw new Error(`pickSubjectWithQuestions subjects: ${subjectsError.message}`)
   if (!subjects || subjects.length === 0)
-    throw new Error('pickSubjectWithQuestions: no easa_subjects found')
+    throw new Error(`pickSubjectWithQuestions: no easa_subjects found (orgId=${orgId})`)
 
   for (const subject of subjects) {
     const subjectQCount = await countActiveQuestions(admin, { orgId, subjectId: subject.id })
