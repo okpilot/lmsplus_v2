@@ -12,6 +12,7 @@
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
+import { pickSubjectWithQuestions, seedRedTeamUsers } from './helpers/seed'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -33,15 +34,10 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
 
     // Resolve real IDs to use as attack inputs — these represent data an
     // attacker might enumerate from leaked IDs or guessing UUIDs.
-    const { data: subjects } = await adminClient.from('easa_subjects').select('id').limit(1)
-    knownSubjectId = subjects?.[0]?.id ?? '00000000-0000-4000-a000-000000000000'
-
-    const { data: topics } = await adminClient
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', knownSubjectId)
-      .limit(1)
-    knownTopicId = topics?.[0]?.id ?? '00000000-0000-4000-a000-000000000003'
+    const { orgId } = await seedRedTeamUsers()
+    const picked = await pickSubjectWithQuestions(adminClient, { orgId })
+    knownSubjectId = picked.subjectId
+    knownTopicId = picked.topicId
 
     const { data: sessions } = await adminClient.from('quiz_sessions').select('id').limit(1)
     knownSessionId = sessions?.[0]?.id ?? '00000000-0000-4000-a000-000000000001'

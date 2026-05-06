@@ -24,6 +24,7 @@ import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
   ensureExamConfig,
+  pickSubjectWithQuestions,
   seedRedTeamUsers,
 } from './helpers/seed'
 
@@ -80,23 +81,9 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
 
     // Resolve a subject + topic in the seeded org and ensure an exam_config exists
     // so start_exam_session reaches its question-selection / session-create path.
-    const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
-    if (!subjects || subjects.length === 0) {
-      throw new Error('seed: no easa_subjects rows available for red-team setup')
-    }
-    subjectId = subjects[0]!.id
-
-    const { data: topics } = await admin
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', subjectId)
-      .limit(1)
-    const topicId = topics?.[0]?.id
-    if (!topicId) {
-      throw new Error(
-        `seed: no easa_topics row for subject ${subjectId} — red-team fixtures need at least one topic`,
-      )
-    }
+    const picked = await pickSubjectWithQuestions(admin, { orgId })
+    subjectId = picked.subjectId
+    const topicId = picked.topicId
 
     await ensureExamConfig(orgId, subjectId, topicId)
   })

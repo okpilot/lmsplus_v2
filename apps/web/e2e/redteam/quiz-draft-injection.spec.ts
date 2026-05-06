@@ -20,6 +20,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
@@ -44,26 +45,17 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     attackerUserId = me?.user?.id ?? ''
     expect(attackerUserId).not.toBe('')
 
-    // Admin: resolve real question IDs from a second subject (foreign scope for injection attempt)
-    const { data: subjects } = await adminClient.from('easa_subjects').select('id').limit(2)
-
-    expect(subjects?.length).toBeGreaterThanOrEqual(1)
-
-    // Pick questions from a second subject (foreign scope for injection attempt)
-    const secondSubjectId = subjects![1]?.id ?? subjects![0].id
-
-    const { data: topics } = await adminClient
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', secondSubjectId)
-      .limit(3)
-
-    const topicIds = (topics ?? []).map((t) => t.id)
-
+    // Admin: resolve real question IDs from a subject in this org (used as
+    // "foreign-scope" payload for the injection attempt — RLS scopes drafts by
+    // org, not subject, so any same-org questions exercise the read path).
+    const picked = await pickSubjectWithQuestions(adminClient, { orgId })
     const { data: questions } = await adminClient
       .from('questions')
       .select('id')
-      .in('topic_id', topicIds.length > 0 ? topicIds : ['00000000-0000-4000-a000-000000000000'])
+      .eq('organization_id', orgId)
+      .eq('subject_id', picked.subjectId)
+      .eq('topic_id', picked.topicId)
+      .eq('status', 'active')
       .is('deleted_at', null)
       .limit(5)
 

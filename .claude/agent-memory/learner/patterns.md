@@ -99,6 +99,72 @@
 | `NextResponse.redirect()` dropping cookies set via `cookies()` API in Route Handler | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): verifyOtp wrote session cookies via Supabase cookies() API; NextResponse.redirect() does not carry those cookies to the browser — cookies set via the Next.js cookies() API only flow through responses built by the framework's own redirect() helper; fixed by switching to `redirect()` from `next/navigation`; applies to any Route Handler that mutates cookies (auth, session, etc.) and then redirects — always use next/navigation `redirect()` or copy cookies onto the NextResponse manually; first occurrence |
 | `{{ .RedirectTo }}` in Supabase email templates passes full URL, not pathname | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): Supabase passes the full absolute URL (e.g. `http://localhost:3000/auth/reset-password`) as the `next` query param when `{{ .RedirectTo }}` is used in email templates; if code naively appends this to a base URL, the full URL becomes a path segment and doubles the origin; fixed by extracting `.pathname` from a `new URL(next)` call before appending; applies to any code that reads a `next` param arriving from a Supabase email template redirect; first occurrence |
 
+## 2026-05-06 — PR #628 Red-team Fixture Fragility (commits 01a3244, 071e0ee, 1a9d5f8)
+
+**Context:** Three-commit session. Commit 01a3244 (fix(e2e,db): repair fixtures against real schema + bank uniqueness) addressed three independent CI failures in red-team specs. Commit 071e0ee (fix(e2e,db): address semantic-reviewer findings on 01a3244) addressed an ISSUE flagged by semantic-reviewer. Commit 1a9d5f8 (test(db): unit tests for seedQuestions lookup-then-insert branching) added tests discovered by post-commit test-writer agent.
+
+**Code reviewer (01a3244):** 0 BLOCKING, 0 WARNING. Clean.
+
+**Semantic reviewer (01a3244):** 0 CRITICAL, 1 ISSUE, 2 SUGGESTION, 5 GOOD.
+- **ISSUE (NEW PATTERN — count 1, watching):** `seedQuestions` bank lookup does not filter `deleted_at IS NULL`. Service-role client bypasses RLS. Migration 062's UNIQUE constraint on `(organization_id)` is unconditional (not a partial index). If a previous test soft-deleted the bank and a subsequent test calls `seedQuestions`, the helper will reuse the deleted bank instead of creating a fresh one. Service-role bypasses the `deleted_at IS NULL` RLS guard that production code gets automatically. This is a **service-role fixture pattern gap**: service-role test fixtures must apply soft-delete filters that production code gets from RLS.
+- Suggestions: (1) easa_subjects lookup in rpc-question-membership.spec.ts needs error destructuring for observability; (2) Distribution SELECT should filter `subtopic_id IS NULL` (fixed in 071e0ee).
+- **GOOD patterns:** easa_subjects/topics org-scoping correctly delegated to countActiveQuestions; cross-org iteration is safe; bank lookup-then-insert mirrors production correctly; determinism nits (`.order('id')` before `.limit(3)`) are correct.
+
+**Semantic reviewer (071e0ee):** 0 CRITICAL, 0 ISSUE, 0 SUGGESTION. Clean — all findings from 01a3244 addressed.
+
+**Implementation-critic (01a3244, 071e0ee, 1a9d5f8):** All 3 commits APPROVED, 0 blocking findings. Session log in implementation-critic/patterns.md notes: error message refactor in seed.test.ts lacked regex update (count 1, watching).
+
+**Doc updater:** No doc updates needed. Clean.
+
+**Test writer (1a9d5f8):** Added 6 tests covering seedQuestions lookup-then-insert branching (existing-bank reuse, new-bank insert, question ID mapping, error messages on lookup/insert failures). Tests required vitest.config.ts adjustment to exclude only `*.integration.test.ts` files, not the entire `__integration__` directory.
+
+**Pattern analysis:**
+
+1. **PATTERN — Service-role fixtures missing soft-delete guards (count 1, WATCHING):**
+   Root cause: `seedQuestions` uses service-role client to bypass RLS. Service role also bypasses the `deleted_at IS NULL` RLS filter that production clients get automatically. When a table has a soft-delete column and an unconditional UNIQUE constraint (e.g., mig 062's `UNIQUE(organization_id)` on question_banks), the fixture's SELECT for idempotency must manually filter `deleted_at IS NULL` even though production code does not need to — production is protected by RLS, fixture is not.
+   
+   **Applies to:** any service-role fixture that reads a soft-deletable table with a uniqueness constraint before inserting.
+   
+   **If count >= 2 across different commits:** promote to a rule note in code-style.md Section 7 or a separate fixture-pattern rule document.
+   
+   **Production example:** apps/web/lib/db/insert-question.ts:21-30 (correct pattern, no soft-delete filter needed because RLS provides it).
+   
+   **Fixture example:** packages/db/src/__integration__/setup.ts (now corrected with filter after 071e0ee).
+
+2. **PATTERN — Query without schema verification (count 1, WATCHING):**
+   Root cause: `pickSubjectWithQuestions` helper was written querying `subjects`/`topics` tables that don't exist in the schema (real tables: `easa_subjects`/`easa_topics`). The helper was added without reading the migration file or checking the actual schema. Both production code (`insert-question.ts`) and the fixture helper were written against memory rather than schema source of truth.
+   
+   **Watch for:** new helpers written without consulting `supabase/migrations/` can query non-existent tables or wrong columns. This ties to the user's earlier instruction ("always verify source code") — logged as a reminder for future sessions.
+   
+   **Count=1 (watching).**
+
+3. **Determinism without `.order()` before `.limit()` (count 2+ already, pre-existing watch):**
+   CodeRabbit flagged two specs in commit 01a3244 with `.limit(3)` queries without `.order()`. Both were fixed by adding `.order('id', { ascending: true })` before `.limit(3)`.
+   
+   This pattern has appeared in multiple prior commits (e.g., 2026-04-27 exam specs). Code-reviewer already watches for determinism in Playwright specs. No rule change needed — existing watch is sufficient.
+
+4. **PATTERN — Error message refactor without updating test regex (count 1, WATCHING):**
+   Root cause (implementation-critic finding): When `seedQuestions` error prefixes changed from `"seedBank: ..."` to `"seedBank lookup: ..."` and `"seedQuestions: ..."`, the paired test regex assertions in `seed.test.ts` were not updated to match. Test lines were reformatted by Biome during pre-commit (single-line collapse), masking the stale regex. Fixed in 01a3244.
+   
+   **Pattern:** error message refactors must update all paired test assertions that match against the old message.
+   
+   **Count=1 (watching). If count >= 2:** propose a rule in code-style.md Testing section.
+
+**Actions taken:**
+- Frequency table: 4 watch patterns logged (patterns 1–4 above). No pattern reached count >= 2.
+- Pattern 1 (service-role soft-delete) is a real gap; 071e0ee fixed the immediate instance, so this is now "fixed but watching for recurrence."
+- Implementation-critic and semantic-reviewer agent memories updated with session findings.
+
+**No rule changes applied this cycle.** All patterns are at count 1. Pattern 1 would require a second occurrence across different commits to promote (e.g., if another service-role fixture with soft-deletable tables ships without manual delete_at filters).
+
+**False positives:** none. All findings were valid — 071e0ee successfully addressed the semantic-reviewer ISSUE, and 1a9d5f8 added comprehensive test coverage for the lookup-then-insert logic.
+
+**Positive signals:**
+- Semantic reviewer correctly identified service-role vs. RLS filtering divergence — the gap was real and needed fixing.
+- Implementation-critic caught the error message refactor oversight — added to agent memory for future vigilance.
+- Test-writer discovered and correctly tested the lookup-then-insert branching logic, validating the helper's idempotency contract.
+- Zero CRITICAL findings across all 3 commits — CI unblock achieved without security regressions.
+
 ## 2026-04-28 — Exam E2E Specs CI Unblock (commits ddf8ebf, 68fc26e)
 
 **Context:** Two-commit session. Commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit #568) addressed CI failure in newly added exam-flow.spec.ts and exam-recovery.spec.ts (commit 553fe4d). The specs failed at `expect(button).not.toBeDisabled()` because the CI seed script (seed-e2e.ts) did not provide the MET exam_configs row the specs assumed; spec doc-comments incorrectly named seed-exam-eval.ts (CI-independent, for manual eval setup) as the seed source. Commit 68fc26e (test(quiz): tighten seed-e2e exam config idempotency guards) addressed semantic-reviewer SUGGESTIONs on the seed script.
@@ -4358,4 +4424,135 @@ None. Both issues are closed via rule additions. All agents clean on final commi
 ---
 
 **Learner cycle complete for c4ad013 + 0b3e6d1.** Two rule-added patterns closed (#598, #607). One pattern logged as watch (#606 — agent model drift). Three SUGGESTIONs noted as scope-clarification candidates (count=1, not yet promoted). All post-commit agents clean on both commits. System learning successfully applying learner-promoted rules from prior cycles.
+
+
+---
+
+### 2026-05-06 (cycle on #622 — redteam fixture fragility: .limit() non-determinism + RPC hardening) — Commits bc3226a, 111f617, fa57571
+
+**Context:** Three-commit cycle closing issue #622 (redteam fixture fragility — intermittent spec failures when subject 080 seed was added in PR #613). Root cause: `.limit(1)` without ORDER BY in fixture selection, combined with weak input validation on `start_quiz_session` RPC.
+
+**Commit bc3226a — fix(db,e2e): harden start_quiz_session input + deterministic redteam fixtures**
+
+Main changes:
+- Migration hardens `start_quiz_session` RPC: rejects null/empty `p_question_ids`; validates every UUID is active, non-deleted, in-org, matching `p_subject_id`/`p_topic_id` (NULL-tolerant for smart_review).
+- `pickSubjectWithQuestions()` helper replaces `.limit(1)` lottery with deterministic ordering: `ORDER BY code ASC` (subject) + `ORDER BY sort_order ASC, id ASC` (topic).
+- 11 redteam specs updated to call new helper. question-ID fetches filtered by `status='active'`.
+- 7 integration tests cover empty, non-existent, wrong-subject, soft-deleted, inactive, cross-org, smart_review scenarios.
+
+**Agent findings on bc3226a:**
+- **code-reviewer:** 0 BLOCKING; 2 WARNINGS (function 72L, nesting 5 levels; file size 388→399L). Non-blocking.
+- **semantic-reviewer:** 0 CRITICAL; 2 ISSUE (questionIds length not asserted post-.limit(N); refetch missing error destructure); 1 SUGGESTION; 7 GOOD.
+- **doc-updater:** 1 ISSUE (stale footer timestamp).
+- **test-writer:** 7 tests; flagged 3 coverage gaps (NULL-not-empty, mixed-valid array, wrong-topic).
+- **red-team:** 1 GAP (new E2E spec for cross-org/draft smuggling detection).
+
+**Commit 111f617 — fix(e2e,db,docs): address #622 post-commit findings**
+
+Follow-up fixes from semantic-reviewer:
+- Extracted `findTopicWithQuestions()` and `countActiveQuestions()` helpers to reduce complexity.
+- Added `if (!questionIds?.length) throw` assertion after SELECT to surface race conditions.
+- Added `{ error }` destructure + logging on secondary refetch query.
+- Fixed docs/database.md footer timestamp.
+
+**Agent findings on 111f617:** All clean.
+
+**Commit fa57571 — test(e2e): unit tests for pickSubjectWithQuestions helper**
+
+7 Vitest cases for helper. All tests passing. All agents clean.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] `.limit(N)` without ORDER BY causes non-deterministic row selection**
+
+   `pickSubjectWithQuestions()` replaced `.limit(1)` pattern that returned first-inserted row when new subject 080 was seeded. Without ORDER BY, 11 redteam specs intermittently picked wrong subject because insertion order is non-deterministic.
+
+   Root cause: `.limit()` returns rows in insertion order. When table state changes, order changes unpredictably. Distinct from TOCTOU races (concurrent ops) and COUNT-then-SELECT races (multi-step logic).
+
+   First occurrence: bc3226a / #622. **Log and watch.** When 2nd occurrence surfaces in non-test context, promote to rule.
+
+   **Action:** Helper now explicitly orders by `code ASC` + `sort_order ASC, id ASC`.
+
+2. **[WATCH — count 2+] POST-COUNT race: COUNT to check availability + SELECT to fetch diverge under concurrent deletes**
+
+   Semantic-reviewer flagged: `pickSubjectWithQuestions()` counts available questions (e.g., COUNT returns 5), then immediately SELECTs those rows. If concurrent soft-delete removes one row, SELECT returns 4, violating helper's invariant.
+
+   **Prior occurrence:** 2026-03-21 TOCTOU insert-guard race — same root cause (multi-step logic assumes state doesn't change mid-operation). **Count = 2 now** (insert-guard + select-fetch). **Escalate to rule if count=3.**
+
+   **Action:** Added explicit length assertion `if (!questionIds?.length) throw` after SELECT.
+
+3. **[WATCH — count 3+] Missing `{ error }` destructure on SELECT queries (distinct from mutation pattern)**
+
+   bc3226a's refetch query lacked `{ error }` destructure. This is 3rd occurrence across auth helpers (2) + E2E helpers (1).
+
+   **Prior occurrences:** 2026-03-14 auth-helper count=2 (83ae098, 6b49021). Both destructured error but did not log. **Count = 3 now.** **READY FOR RULE PROMOTION.**
+
+   **Action:** Fixed in 111f617 with `{ error }` destructure + logging.
+
+4. **[NEW — count 1] NULL-tolerant SQL filtering (WHERE p_x IS NULL OR col = p_x) undocumented**
+
+   bc3226a's migration introduces NULL-tolerant WHERE clauses for RPC parameters that are optional in some modes (smart_review ignores subject/topic constraints). Pattern is not documented in code-style.md or database.md.
+
+   First occurrence. **Log and watch.** Document when 2nd occurrence surfaces.
+
+**Actions taken:**
+
+- `.limit(N)` without ORDER BY — count 1, added 2026-05-06. Status: **Log and watch.** Solution: pickSubjectWithQuestions() now deterministic.
+
+- POST-COUNT race (COUNT + SELECT diverge) — count updated to **2**. Status: **Watch — escalate to rule if count=3.**
+
+- SELECT error not destructured — count updated to **3**. Status: **PROMOTE TO HARD RULE — code-style.md §5 extension proposed.**
+
+- NULL-tolerant WHERE filtering — count 1, added 2026-05-06. Status: **Log and watch.** Document when 2nd occurrence surfaces.
+
+**Recommended rule change (count=3 threshold met):**
+
+**Code-style.md Section 5 — Extend error destructure rule to SELECT queries:**
+
+Add new subsection after "Destructure Supabase Mutation Results":
+
+```
+### SELECT Query Error Handling
+
+All `.select()` queries must destructure `{ data, error }` before consuming the result:
+
+✗ WRONG — error silently dropped
+const questions = await supabase.from('questions').select('*').eq('id', qId)
+if (!questions) return { success: false }
+
+✓ CORRECT — error logged, result checked
+const { data: questions, error } = await supabase.from('questions').select('*').eq('id', qId)
+if (error) {
+  console.error('fetch error:', error.message)
+  return { success: false }
+}
+if (!questions?.length) return { success: false }
+```
+
+Scope: Applies to SELECT queries in auth helpers, E2E helpers, and test setup. Exception: test setup may use single try-catch wrapping multiple queries if setup is atomic.
+
+**False positives:** None.
+
+**Positive signals:**
+
+1. **Hardening approach:** RPC contract itself hardened (exhaustive input validation), not just symptom fix.
+2. **Helper extraction:** 111f617 split helpers to reduce complexity (code-reviewer WARNINGS properly addressed in follow-up).
+3. **Test coverage discovery:** test-writer flagged 3 good negative-case gaps (NULL-not-empty, mixed-valid array, wrong-topic).
+4. **Red-team advisory:** Flagged cross-org smuggling gap without blocking (non-blocking advisory working as designed).
+5. **Two-layer fix:** (1) RPC hardening + deterministic helper, (2) post-commit agents found gaps, (3) follow-ups addressed them. Iteration loop working well.
+
+**Coverage gaps to file as GitHub Issues:**
+
+1. **E2E spec: start_quiz_session cross-org smuggling detection** (red-team GAP, MEDIUM priority)
+   - Attempt to start quiz with questions from different org → should raise `cross_org_questions` error.
+
+2. **Unit test: start_quiz_session NULL-not-empty validation edge case** (test-writer flag)
+   - p_question_ids is NULL (empty array, not absent) → should raise `no_questions_provided`.
+
+3. **Unit test: start_quiz_session mixed-valid array edge case** (test-writer flag)
+   - p_question_ids contains some valid UUIDs + some invalid → should raise `invalid_question_ids` (not partial success).
+
+---
+
+**Learner cycle complete for bc3226a + 111f617 + fa57571.** Four patterns detected: 1 NEW (`.limit()` determinism, count=1), 1 ESCALATED (POST-COUNT race, count=2), 1 PROMOTED (SELECT error destructure, count=3), 1 NEW (NULL-tolerant WHERE, count=1). **SELECT error destructure pattern promoted to rule-ready status.** All agents clean on final commits. Issue #622 fully addressed (RPC hardening + deterministic helper + post-commit fixes).
 

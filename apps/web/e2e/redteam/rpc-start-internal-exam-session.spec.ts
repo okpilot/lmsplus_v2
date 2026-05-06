@@ -22,6 +22,7 @@ import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
   ensureExamConfig,
+  pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
@@ -129,26 +130,9 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
 
     // Resolve subject + topic from egmont and ensure an exam_config exists so
     // the RPC can reach the active-session / consumption code paths.
-    const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
-    if (!subjects || subjects.length === 0) {
-      throw new Error('seed: no easa_subjects rows available for red-team setup')
-    }
-    subjectId = subjects[0]!.id
-
-    const { data: topics } = await admin
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', subjectId)
-      .limit(1)
-    // Don't fall back to subjectId — easa_topics.id and easa_subjects.id are
-    // distinct relations; a fallback would FK-fail downstream with a confusing
-    // error instead of a clear setup failure.
-    const topicId = topics?.[0]?.id
-    if (!topicId) {
-      throw new Error(
-        `seed: no easa_topics row for subject ${subjectId} — red-team fixtures need at least one topic`,
-      )
-    }
+    const picked = await pickSubjectWithQuestions(admin, { orgId })
+    subjectId = picked.subjectId
+    const topicId = picked.topicId
 
     await ensureExamConfig(orgId, subjectId, topicId)
   })
