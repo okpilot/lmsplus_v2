@@ -110,7 +110,9 @@ describe('seedQuestions', () => {
   })
 
   it('throws with "seedBank lookup:" prefix when the bank lookup query fails', async () => {
-    mockFrom.mockReturnValueOnce(buildChain({ data: null, error: { message: 'connection refused' } }))
+    mockFrom.mockReturnValueOnce(
+      buildChain({ data: null, error: { message: 'connection refused' } }),
+    )
 
     await expect(seedQuestions(BASE_OPTS)).rejects.toThrow(/seedBank lookup:/)
   })
