@@ -152,7 +152,6 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     }
 
     // Seed an enabled exam_config for the configured subject in the egmont org.
-    const egmontOrgId = egmontOrgIdForPick
 
     // Ensure rpc-question-membership has at least one question on the unconfigured
     // subject's topic. Idempotent — only inserts if no question exists.
@@ -166,13 +165,13 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
       const { data: bankRow } = await admin
         .from('question_banks')
         .select('id')
-        .eq('organization_id', egmontOrgId)
+        .eq('organization_id', egmontOrgIdForPick)
         .is('deleted_at', null)
         .limit(1)
         .maybeSingle()
       if (bankRow) {
         const { error: unconfQErr } = await admin.from('questions').insert({
-          organization_id: egmontOrgId,
+          organization_id: egmontOrgIdForPick,
           bank_id: bankRow.id,
           question_number: 'RT-FOREIGN-1',
           subject_id: unconfiguredSubjectId,
@@ -194,14 +193,14 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
         }
       }
     }
-    await ensureExamConfig(egmontOrgId, configuredSubjectId, topicId)
+    await ensureExamConfig(egmontOrgIdForPick, configuredSubjectId, topicId)
 
     // Ensure NO active exam_config exists for the unconfigured subject. Soft-delete
     // any pre-existing row to keep the test deterministic.
     await admin
       .from('exam_configs')
       .update({ deleted_at: new Date().toISOString() })
-      .eq('organization_id', egmontOrgId)
+      .eq('organization_id', egmontOrgIdForPick)
       .eq('subject_id', unconfiguredSubjectId)
       .is('deleted_at', null)
   })
