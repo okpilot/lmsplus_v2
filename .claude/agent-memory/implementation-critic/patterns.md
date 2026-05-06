@@ -6,6 +6,12 @@
 ## Common Deviation Types
 <!-- Track which types of plan deviations occur most often -->
 
+### 2026-05-06 — Error message changed without updating test assertion regex (PR #628 fixture-fragility fix)
+- `pickSubjectWithQuestions` empty-list error changed from `"no subjects found in org ${orgId}"` to `"no easa_subjects found"` (dropped "in org" suffix) when switching to the shared `easa_subjects` table.
+- The test at seed.test.ts:152 still asserted `/no subjects found in org/`. The regex no longer matches the new message — the test would fail at runtime.
+- Pattern: when refactoring a function that throws descriptive error messages (often containing context like orgId), and the new implementation changes what context is embedded, the paired test assertions must be updated in the same diff. The new table name (`easa_subjects`) no longer has org scoping, so "in org" was removed — but the test was not updated to match.
+- Watch for: any error message refactor where context strings (org IDs, table names, filter clauses) are removed or replaced. Always grep test files for the old message substring before committing.
+
 ## Positive Signals
 
 ### 2026-04-08 — Batch A admin hardening (#494, #492, #487)

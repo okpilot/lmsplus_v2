@@ -4,6 +4,31 @@
 
 ## Session Log
 
+### 2026-05-06 — commit 01a3244 (fix(e2e,db): repair fixtures against real schema + bank uniqueness)
+- **Files reviewed:** apps/web/e2e/redteam/helpers/seed.ts, apps/web/e2e/redteam/helpers/seed.test.ts, apps/web/e2e/redteam/rpc-question-membership.spec.ts, apps/web/e2e/redteam/session-race-condition.spec.ts, apps/web/e2e/redteam/session-replay.spec.ts, packages/db/src/__integration__/setup.ts
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 5
+
+**ISSUE — seedQuestions bank lookup does not filter deleted_at (NEW, not flagged as critical because service-role bypasses RLS and deleted_at IS NOT enforced by the UNIQUE constraint)**
+- `question_banks` has `deleted_at TIMESTAMPTZ NULL` and the mig 062 UNIQUE constraint `UNIQUE (organization_id)` is unconditional (not a partial index). The `seedQuestions` bank lookup uses `.maybeSingle()` without `.is('deleted_at', null)`. The service-role client bypasses the RLS policy that filters `deleted_at IS NULL` for normal users. So: if a previous test soft-deleted the bank and the constraint is unconditional, this is moot (the bank is still uniquely found); but if future tests ever soft-delete the org's bank before calling seedQuestions again, the helper will reuse the deleted bank and new questions will be inserted into a logically-deleted bank. Count=1, watching.
+
+**easa_subjects/topics switch: org scoping correctly delegated to countActiveQuestions (GOOD)**
+- `pickSubjectWithQuestions` now queries the global `easa_subjects` / `easa_topics` tables (which have no `organization_id` or `deleted_at`). Org scoping is fully enforced by `countActiveQuestions`, which filters `organization_id`, `status='active'`, and `deleted_at IS NULL` on the `questions` table. The delegation is correct: the helper will never return a subject that has zero active questions in the target org.
+
+**cross-org subject iteration is safe in rpc-question-membership (GOOD)**
+- Step 2 iterates over all `easa_subjects` rows, skips the one already chosen as subject A, then checks `questions.count` filtered by `organization_id = orgId`. Only a subject with at least one active org-scoped question is accepted as subject B. No leakage of foreign-org data into the test flow.
+
+**error destructuring dropped on allSubjects query — minor observability gap (SUGGESTION)**
+- `rpc-question-membership.spec.ts` line 131: `const { data: allSubjects } = await adminClient.from('easa_subjects')...`. The `error` field is not destructured. `expect(allSubjects).not.toBeNull()` will fail with a confusing "received null" message if the query errors, rather than surfacing the Supabase error message. Low severity in a spec file — failing tests are loud enough — but inconsistent with the error-check pattern in the same file (line 192: `expect(questionsError).toBeNull()`).
+
+**Pattern — reference-table vs org-scoped-table split in seed helpers:**
+When a helper scans taxonomy (subjects/topics) and then counts questions, the scan can use the global reference table (no org filter needed, no deleted_at), but the count MUST scope to org + deleted_at + status. This pattern is now established in pickSubjectWithQuestions and countActiveQuestions. Future helpers should follow the same delegation.
+
+**seedQuestions lookup-then-insert mirrors production correctly (GOOD)**
+- The new `maybeSingle()` + conditional insert in `setup.ts` mirrors `insert-question.ts:21-30` (which uses `.limit(1).single()`). The only divergence is that production uses `.limit(1).single()` (which throws if 0 rows) while the fixture uses `.maybeSingle()` (returns null on 0 rows). Both are correct for their contexts: production always expects a bank to exist (admin UI would have created it); the fixture must handle the first-call case where no bank yet exists.
+
+**`.order('id')` determinism nits on questions fetch (GOOD)**
+- Both `session-race-condition.spec.ts` and `session-replay.spec.ts` now add `.order('id', { ascending: true })` before `.limit(3)` on their questions fetch. This is a direct fix for CI flakiness where physical row order was non-deterministic after inserts. Correct and consistent with the project's determinism principle.
+
 ### 2026-04-28 — commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit)
 - **Files reviewed:** apps/web/scripts/seed-e2e.ts, apps/web/e2e/exam-flow.spec.ts, apps/web/e2e/exam-recovery.spec.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 7
