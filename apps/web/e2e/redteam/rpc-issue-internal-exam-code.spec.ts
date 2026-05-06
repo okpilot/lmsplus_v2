@@ -21,6 +21,7 @@ import {
   ATTACKER_PASSWORD,
   createCrossOrgUser,
   ensureExamConfig,
+  pickSubjectWithQuestions,
   seedCrossOrgAdmin,
   seedRedTeamAdmin,
   seedRedTeamUsers,
@@ -59,23 +60,35 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     adminClientAuthed = await createAuthenticatedClient(adminEmail, adminPassword)
     crossOrgAdminClient = await createAuthenticatedClient(crossOrg.email, crossOrg.password)
 
-    // Resolve subjects/topics for the egmont org. Need at least 2 distinct
-    // subjects (one configured, one unconfigured). CI Supabase seeds may carry
-    // only one — top up with throwaway rows when needed.
-    let { data: subjects } = await admin
+    // Resolve the egmont org id up-front; needed for both the configured-subject
+    // pick and the unconfigured-subject lookup.
+    const { data: egmontOrgRow } = await admin
+      .from('organizations')
+      .select('id')
+      .eq('slug', 'egmont-aviation')
+      .single()
+    const egmontOrgIdForPick = egmontOrgRow!.id
+
+    // Pick a configured subject deterministically — must have at least one active
+    // question so issue_internal_exam_code's downstream paths reach exam_config.
+    const pickedConfigured = await pickSubjectWithQuestions(admin, {
+      orgId: egmontOrgIdForPick,
+    })
+    configuredSubjectId = pickedConfigured.subjectId
+    const topicId = pickedConfigured.topicId
+
+    // Resolve a SECOND subject (the "unconfigured" one) — different from the
+    // configured pick. Top up with a throwaway easa_subjects row if the org has
+    // only one.
+    let { data: subjectsForUnconfigured } = await admin
       .from('easa_subjects')
       .select('id')
       .order('sort_order', { ascending: true })
-      .limit(2)
-    if (!subjects || subjects.length < 2) {
+      .limit(5)
+    let unconfPick = subjectsForUnconfigured?.find((s) => s.id !== configuredSubjectId)
+    if (!unconfPick) {
       await admin.from('easa_subjects').upsert(
         [
-          {
-            code: 'RT-FIXTURE-1',
-            name: 'Red Team Fixture Subject 1',
-            short: 'RTF1',
-            sort_order: 9001,
-          },
           {
             code: 'RT-FIXTURE-2',
             name: 'Red Team Fixture Subject 2',
@@ -89,39 +102,14 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
         .from('easa_subjects')
         .select('id')
         .order('sort_order', { ascending: true })
-        .limit(2)
-      subjects = refetched.data
+        .limit(5)
+      subjectsForUnconfigured = refetched.data
+      unconfPick = subjectsForUnconfigured?.find((s) => s.id !== configuredSubjectId)
     }
-    expect(subjects).not.toBeNull()
-    expect(subjects!.length).toBeGreaterThanOrEqual(2)
-    configuredSubjectId = subjects![0].id
-    unconfiguredSubjectId = subjects![1].id
-
-    const { data: topics } = await admin
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', configuredSubjectId)
-      .limit(1)
-    // Don't fall back to configuredSubjectId — easa_topics.id and easa_subjects.id
-    // are distinct relations; ensureExamConfig would FK-fail downstream.
-    let topicId = topics?.[0]?.id
-    if (!topicId) {
-      const { data: insertedTopic, error: topicErr } = await admin
-        .from('easa_topics')
-        .insert({
-          subject_id: configuredSubjectId,
-          code: 'RT-T1',
-          name: 'Red Team Fixture Topic 1',
-          // easa_topics.sort_order is INT NOT NULL with no default (mig 001).
-          sort_order: 9001,
-        })
-        .select('id')
-        .single()
-      if (topicErr || !insertedTopic) {
-        throw new Error(`seed: failed to insert fixture topic: ${topicErr?.message}`)
-      }
-      topicId = insertedTopic.id
+    if (!unconfPick) {
+      throw new Error('seed: failed to resolve a second (unconfigured) subject')
     }
+    unconfiguredSubjectId = unconfPick.id
 
     // Other red-team specs (e.g. rpc-question-membership) pick the second subject
     // returned by `select('id').limit(2)` and expect it to have at least one topic
@@ -157,12 +145,7 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     }
 
     // Seed an enabled exam_config for the configured subject in the egmont org.
-    const { data: orgRow } = await admin
-      .from('organizations')
-      .select('id')
-      .eq('slug', 'egmont-aviation')
-      .single()
-    const egmontOrgId = orgRow!.id
+    const egmontOrgId = egmontOrgIdForPick
 
     // Ensure rpc-question-membership has at least one question on the unconfigured
     // subject's topic. Idempotent — only inserts if no question exists.

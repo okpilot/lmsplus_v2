@@ -13,14 +13,21 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed'
+import {
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
+  pickSubjectWithQuestions,
+  seedRedTeamUsers,
+} from './helpers/seed'
 
 test.describe('Red Team: RPC Question Membership Check', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let adminClient: Awaited<ReturnType<typeof getAdminClient>>
+  let orgId: string
 
   test.beforeAll(async () => {
-    await seedRedTeamUsers()
+    const seed = await seedRedTeamUsers()
+    orgId = seed.orgId
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
     adminClient = getAdminClient()
 
@@ -113,32 +120,44 @@ test.describe('Red Team: RPC Question Membership Check', () => {
   })
 
   test('submit_quiz_answer rejects a question that does not belong to the session subject', async () => {
-    // Step 1: Find two distinct subjects in the egmont-aviation org
-    const { data: subjects, error: subjectsError } = await adminClient
-      .from('easa_subjects')
-      .select('id, name')
-      .limit(2)
+    // Step 1: Pick a subject A with at least one active question (deterministic).
+    const subjectAPick = await pickSubjectWithQuestions(adminClient, { orgId })
+    const subjectAId = subjectAPick.subjectId
+    const topicAId = subjectAPick.topicId
 
-    expect(subjectsError).toBeNull()
-    expect(subjects).not.toBeNull()
-    expect(subjects!.length).toBeGreaterThanOrEqual(2)
-
-    const subjectA = subjects![0]
-    const subjectB = subjects![1]
-
-    // Step 2: Attacker starts a session for subject A — fetch question IDs first
-    const { data: topicsA } = await adminClient
-      .from('easa_topics')
+    // Step 2: Find a different subject B that also has at least one active question.
+    const { data: orgSubjects } = await adminClient
+      .from('subjects')
       .select('id')
-      .eq('subject_id', subjectA.id)
-      .limit(5)
-    const topicAIds = (topicsA ?? []).map((t) => t.id)
-    const topicAId = topicAIds[0] ?? subjectA.id
+      .eq('organization_id', orgId)
+      .is('deleted_at', null)
+      .order('code', { ascending: true })
+    expect(orgSubjects).not.toBeNull()
+    let subjectBId: string | null = null
+    for (const s of orgSubjects ?? []) {
+      if (s.id === subjectAId) continue
+      const { count } = await adminClient
+        .from('questions')
+        .select('id', { head: true, count: 'exact' })
+        .eq('organization_id', orgId)
+        .eq('subject_id', s.id)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+      if ((count ?? 0) >= 1) {
+        subjectBId = s.id
+        break
+      }
+    }
+    expect(subjectBId, 'need a second subject with at least one active question').not.toBeNull()
 
+    // Step 3: Attacker starts a session for subject A — fetch question IDs first
     const { data: questionsA } = await adminClient
       .from('questions')
       .select('id')
-      .in('topic_id', topicAIds)
+      .eq('organization_id', orgId)
+      .eq('subject_id', subjectAId)
+      .eq('topic_id', topicAId)
+      .eq('status', 'active')
       .is('deleted_at', null)
       .limit(5)
     const questionAIds = (questionsA ?? []).map((q) => q.id)
@@ -147,7 +166,7 @@ test.describe('Red Team: RPC Question Membership Check', () => {
       'start_quiz_session',
       {
         p_mode: 'quick_quiz',
-        p_subject_id: subjectA.id,
+        p_subject_id: subjectAId,
         p_topic_id: topicAId,
         p_question_ids: questionAIds,
       },
@@ -161,24 +180,13 @@ test.describe('Red Team: RPC Question Membership Check', () => {
 
     expect(sessionId).toBeTruthy()
 
-    // Step 3: Admin finds a question belonging to subject B (different subject)
-    // Questions are linked to topics, topics to subjects.
-    const { data: topicsB, error: topicsError } = await adminClient
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', subjectB.id)
-      .limit(5)
-
-    expect(topicsError).toBeNull()
-    expect(topicsB).not.toBeNull()
-    expect(topicsB!.length).toBeGreaterThan(0)
-
-    const topicBIds = topicsB!.map((t) => t.id)
-
+    // Step 4: Admin finds a question belonging to subject B (different subject)
     const { data: foreignQuestions, error: questionsError } = await adminClient
       .from('questions')
       .select('id, options')
-      .in('topic_id', topicBIds)
+      .eq('organization_id', orgId)
+      .eq('subject_id', subjectBId!)
+      .eq('status', 'active')
       .is('deleted_at', null)
       .limit(1)
 

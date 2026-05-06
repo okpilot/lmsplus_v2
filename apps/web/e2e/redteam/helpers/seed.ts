@@ -160,6 +160,94 @@ export async function seedCrossOrgAdmin(): Promise<{
 }
 
 /**
+ * Pick the first subject (by `code` ASC) in `orgId` whose active, non-deleted
+ * question count meets `minActiveQuestions`, then the first topic within that
+ * subject (by `sort_order` ASC, then `id` ASC) whose active, non-deleted
+ * question count meets `topicMinQuestions`.
+ *
+ * Deterministic replacement for the `.limit(1)` "first subject + first topic"
+ * pattern used across red-team specs. PostgREST `.limit(1)` without ORDER BY
+ * returns rows in physical order — after seed 080 added a taxonomy-only
+ * subject with zero questions, that pattern intermittently picked an empty
+ * subject and crashed `start_quiz_session` (issue #622).
+ *
+ * Throws with a descriptive message if no subject or no topic meets the
+ * threshold, so test failures are loud rather than silent.
+ */
+export async function pickSubjectWithQuestions(
+  admin: ReturnType<typeof getAdminClient>,
+  opts: { orgId: string; minActiveQuestions?: number; topicMinQuestions?: number },
+): Promise<{ subjectId: string; subjectCode: string; topicId: string }> {
+  const { orgId } = opts
+  const minActiveQuestions = opts.minActiveQuestions ?? 1
+  const topicMinQuestions = opts.topicMinQuestions ?? 1
+
+  const { data: subjects, error: subjectsError } = await admin
+    .from('subjects')
+    .select('id, code')
+    .eq('organization_id', orgId)
+    .is('deleted_at', null)
+    .order('code', { ascending: true })
+  if (subjectsError)
+    throw new Error(`pickSubjectWithQuestions subjects: ${subjectsError.message}`)
+  if (!subjects || subjects.length === 0)
+    throw new Error(`pickSubjectWithQuestions: no subjects found in org ${orgId}`)
+
+  for (const subject of subjects) {
+    const { count: subjectQCount, error: subjectCountError } = await admin
+      .from('questions')
+      .select('id', { head: true, count: 'exact' })
+      .eq('organization_id', orgId)
+      .eq('subject_id', subject.id)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+    if (subjectCountError)
+      throw new Error(
+        `pickSubjectWithQuestions count subject ${subject.code}: ${subjectCountError.message}`,
+      )
+    if ((subjectQCount ?? 0) < minActiveQuestions) continue
+
+    const { data: topics, error: topicsError } = await admin
+      .from('topics')
+      .select('id, sort_order')
+      .eq('organization_id', orgId)
+      .eq('subject_id', subject.id)
+      .is('deleted_at', null)
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true })
+    if (topicsError)
+      throw new Error(
+        `pickSubjectWithQuestions topics for ${subject.code}: ${topicsError.message}`,
+      )
+    if (!topics || topics.length === 0) continue
+
+    for (const topic of topics) {
+      const { count: topicQCount, error: topicCountError } = await admin
+        .from('questions')
+        .select('id', { head: true, count: 'exact' })
+        .eq('organization_id', orgId)
+        .eq('subject_id', subject.id)
+        .eq('topic_id', topic.id)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+      if (topicCountError)
+        throw new Error(
+          `pickSubjectWithQuestions count topic ${topic.id} in ${subject.code}: ${topicCountError.message}`,
+        )
+      if ((topicQCount ?? 0) >= topicMinQuestions) {
+        return { subjectId: subject.id, subjectCode: subject.code, topicId: topic.id }
+      }
+    }
+  }
+
+  throw new Error(
+    `pickSubjectWithQuestions: no subject in org ${orgId} has ` +
+      `>=${minActiveQuestions} active question(s) with a topic having ` +
+      `>=${topicMinQuestions} active question(s)`,
+  )
+}
+
+/**
  * Ensure an enabled exam_config (with at least one distribution row) exists for
  * (orgId, subjectId). Idempotent. Returns the exam_config id.
  *
@@ -214,6 +302,7 @@ export async function ensureExamConfig(
     .from('exam_config_distributions')
     .select('id')
     .eq('exam_config_id', configId)
+    .order('id', { ascending: true })
     .limit(1)
   if (!dist || dist.length === 0) {
     const { error: distError } = await admin.from('exam_config_distributions').insert({
