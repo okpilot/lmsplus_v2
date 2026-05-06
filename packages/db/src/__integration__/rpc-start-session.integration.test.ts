@@ -337,6 +337,10 @@ describe('RPC: start_quiz_session input validation', () => {
   })
 
   it('rejects a cross-org question with invalid_question_ids', async () => {
+    // easa_subjects/easa_topics are shared global reference data (no
+    // organization_id column), so reusing refs.subjectId/topicId here is
+    // intentional — only the questions.organization_id mismatch should
+    // trigger the rejection, not a subject/topic mismatch.
     const seeded = await seedQuestions({
       admin,
       orgId: otherOrgId,
