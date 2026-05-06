@@ -147,6 +147,34 @@ When a server-rendered error notice is always-present on load (e.g., rendered fr
 **Cross-org integration test correctly seeds a question in otherOrgId using the shared subject/topic refs (GOOD)**
 - Using `refs.subjectId` and `refs.topicId` (which point to EASA global taxonomy rows) for the cross-org question seed is correct: the RPC filters by `q.organization_id = v_org_id`, so a question that exists under the same subject/topic but belongs to a different org will correctly fail the COUNT check, raising `invalid_question_ids`. The test correctly validates this boundary.
 
+### 2026-05-06 — PR-level sweep (PR #628, fix/redteam-fixture-fragility — 13 commits)
+- **Files reviewed:** supabase/migrations/20260502000001, 20260506000001, packages/db/migrations/079, rpc-start-session.integration.test.ts, setup.ts, setup.test.ts, seed.ts (E2E), seed.test.ts (E2E), 10 redteam specs, docs/database.md, docs/security.md, .claude/agent-memory/red-team/attack-surface.md
+- **CRITICAL:** 0 | **ISSUE:** 2 | **SUGGESTION:** 1 | **GOOD:** 8
+
+**ISSUE — Vector AM row in attack-surface.md not updated to FIXED** (RESOLVED in PR #628 commit 6958085)
+- `attack-surface.md` line 46 showed status `GAP` despite migration 20260502000001 (mig 079) installing `trg_quiz_sessions_immutable_columns` and `quiz-session-config-injection.spec.ts` (4 attack tests) closing the vector. Resolved by updating the row to FIXED with migration and spec references in the PR-level sweep cleanup commit.
+
+**ISSUE — packages/db/migrations/ missing 080_start_quiz_session_harden_input.sql** (RESOLVED in PR #628 commit 6958085)
+- The project's dual-directory convention requires every supabase/migrations/ migration to have a numbered counterpart in packages/db/migrations/. Migration 20260506000001 was missing its 080_ counterpart. Resolved by adding `packages/db/migrations/080_start_quiz_session_harden_input.sql`.
+
+**SUGGESTION — rpc-internal-exam-codes: duplicate orgId lookup in test body**
+- In `rpc-internal-exam-codes.spec.ts` test "student cannot INSERT directly..." (line ~123), the test re-fetches the attacker's `organization_id` from the `users` table even though `seedRedTeamUsers()` already returns `orgId` in `beforeAll`. The `orgId` from `beforeAll` is scoped to the `beforeAll` callback and not stored in a describe-level variable, so the test cannot access it — making the inline lookup necessary. Consider promoting `orgId` to a describe-level variable (alongside `attackerClient`) to eliminate the per-test re-fetch. Non-blocking.
+
+**Trigger safety — SECURITY DEFINER RPCs only touch mutable columns (GOOD)**
+- All SECURITY DEFINER UPDATE paths on quiz_sessions (complete_quiz_session, complete_overdue_exam_session, complete_empty_exam_session, batch_submit_quiz, soft-delete on discard) exclusively SET the mutable columns (ended_at, correct_count, score_percentage, passed, deleted_at) — none of which appear in the BEFORE UPDATE OF column list. The trigger's service-role exemption is correct and the mutable set covers all legitimate RPC paths.
+
+**Migration body exactly matches docs/database.md embedded SQL (GOOD)**
+- The start_quiz_session SQL block in docs/database.md (lines 1566–1641) is byte-identical to supabase/migrations/20260506000001. The validation contract section accurately describes all four error codes. The NULL-tolerance for smart_review mode is correctly documented and matches the `(p_subject_id IS NULL OR ...)` WHERE clause.
+
+**Error codes consistent across migration, integration tests, and docs (GOOD)**
+- `no_questions_provided` and `invalid_question_ids` are used identically in the migration RAISE EXCEPTION statements, the 8 integration test `.toContain()` assertions, and the docs/database.md validation contract table. No cross-commit drift.
+
+**pickSubjectWithQuestions logic is internally consistent (GOOD)**
+- Helper, unit test, and all spec callers agree on the CONTRACT: returns { subjectId, subjectCode, topicId }. Subjects ordered by code ASC, topics by sort_order ASC then id ASC. Count threshold checks filter by org + status='active' + deleted_at IS NULL. Throws with descriptive messages on exhaustion. The unit tests (seed.test.ts) correctly mock the multi-call chain via buildChain and cover all branches including error paths.
+
+**docs/security.md §15 correctly cross-references mig 079 trigger (GOOD)**
+- The soft-delete rule exception in docs/security.md was updated to note that config.question_ids write-once guarantee is enforced by trg_quiz_sessions_immutable_columns (migration 079). This closes the circular argument where the carve-out relied on "immutability by convention" — it now has a DB-level enforcement citation.
+
 **pickSubjectWithQuestions throws loudly on no match — replaces silent .limit(1) lottery (GOOD)**
 - The old pattern returned whatever the DB happened to return first. The new helper throws with a descriptive message if no subject/topic meets the threshold. E2E failures now surface as "pickSubjectWithQuestions: no subject in org X has ≥N active question(s)..." rather than as a cryptic RPC error mid-test.
 
