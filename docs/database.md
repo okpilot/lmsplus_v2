@@ -1579,6 +1579,7 @@ DECLARE
   v_uid uuid := auth.uid();
   v_org_id uuid;
   v_role text;
+  v_count int;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
@@ -1594,6 +1595,28 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'user not found or inactive';
+  END IF;
+
+  -- Input validation (mig 20260506000001, closes #622).
+  IF p_question_ids IS NULL OR array_length(p_question_ids, 1) IS NULL THEN
+    RAISE EXCEPTION 'no_questions_provided';
+  END IF;
+
+  -- Verify every UUID resolves to an active, in-org, non-deleted question
+  -- matching the (subject, topic) scope. NULL p_subject_id / p_topic_id =>
+  -- smart_review mode; the corresponding match is skipped, but org + active +
+  -- soft-delete checks always apply.
+  SELECT count(*) INTO v_count
+  FROM unnest(p_question_ids) AS qid
+  JOIN public.questions q ON q.id = qid
+  WHERE q.organization_id = v_org_id
+    AND (p_subject_id IS NULL OR q.subject_id = p_subject_id)
+    AND (p_topic_id   IS NULL OR q.topic_id   = p_topic_id)
+    AND q.status = 'active'
+    AND q.deleted_at IS NULL;
+
+  IF v_count <> array_length(p_question_ids, 1) THEN
+    RAISE EXCEPTION 'invalid_question_ids';
   END IF;
 
   INSERT INTO quiz_sessions
