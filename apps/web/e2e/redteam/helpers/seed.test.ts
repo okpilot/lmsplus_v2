@@ -1,16 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { pickSubjectWithQuestions } from './seed'
 
 // ---------------------------------------------------------------------------
-// Supabase mock — prevents the real createClient call (which requires env
-// vars and a live DB) from running during unit tests.
+// Supabase admin-client mock — the real `e2e/helpers/supabase.ts` throws at
+// module-import time if SUPABASE_SERVICE_ROLE_KEY isn't set (it's intended
+// for live Playwright E2E runs, not jsdom unit tests). Mock the helper
+// module BEFORE importing seed.ts so the env check never fires.
 // ---------------------------------------------------------------------------
 
 const mockFrom = vi.hoisted(() => vi.fn())
 
+vi.mock('../../helpers/supabase', () => ({
+  getAdminClient: () => ({ from: mockFrom }),
+}))
+
+// Also mock the upstream lib in case anything else in the import graph reaches it.
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({ from: mockFrom }),
 }))
+
+// vitest hoists the vi.mock calls above this import — so the helper
+// module gets the mock implementation before seed.ts loads it.
+import { pickSubjectWithQuestions } from './seed'
 
 // buildChain returns a Proxy that forwards every method call back to itself,
 // and resolves to `returnValue` when awaited. This mirrors the project-wide

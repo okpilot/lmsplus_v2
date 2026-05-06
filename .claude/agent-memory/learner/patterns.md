@@ -4359,3 +4359,134 @@ None. Both issues are closed via rule additions. All agents clean on final commi
 
 **Learner cycle complete for c4ad013 + 0b3e6d1.** Two rule-added patterns closed (#598, #607). One pattern logged as watch (#606 — agent model drift). Three SUGGESTIONs noted as scope-clarification candidates (count=1, not yet promoted). All post-commit agents clean on both commits. System learning successfully applying learner-promoted rules from prior cycles.
 
+
+---
+
+### 2026-05-06 (cycle on #622 — redteam fixture fragility: .limit() non-determinism + RPC hardening) — Commits bc3226a, 111f617, fa57571
+
+**Context:** Three-commit cycle closing issue #622 (redteam fixture fragility — intermittent spec failures when subject 080 seed was added in PR #613). Root cause: `.limit(1)` without ORDER BY in fixture selection, combined with weak input validation on `start_quiz_session` RPC.
+
+**Commit bc3226a — fix(db,e2e): harden start_quiz_session input + deterministic redteam fixtures**
+
+Main changes:
+- Migration hardens `start_quiz_session` RPC: rejects null/empty `p_question_ids`; validates every UUID is active, non-deleted, in-org, matching `p_subject_id`/`p_topic_id` (NULL-tolerant for smart_review).
+- `pickSubjectWithQuestions()` helper replaces `.limit(1)` lottery with deterministic ordering: `ORDER BY code ASC` (subject) + `ORDER BY sort_order ASC, id ASC` (topic).
+- 11 redteam specs updated to call new helper. question-ID fetches filtered by `status='active'`.
+- 7 integration tests cover empty, non-existent, wrong-subject, soft-deleted, inactive, cross-org, smart_review scenarios.
+
+**Agent findings on bc3226a:**
+- **code-reviewer:** 0 BLOCKING; 2 WARNINGS (function 72L, nesting 5 levels; file size 388→399L). Non-blocking.
+- **semantic-reviewer:** 0 CRITICAL; 2 ISSUE (questionIds length not asserted post-.limit(N); refetch missing error destructure); 1 SUGGESTION; 7 GOOD.
+- **doc-updater:** 1 ISSUE (stale footer timestamp).
+- **test-writer:** 7 tests; flagged 3 coverage gaps (NULL-not-empty, mixed-valid array, wrong-topic).
+- **red-team:** 1 GAP (new E2E spec for cross-org/draft smuggling detection).
+
+**Commit 111f617 — fix(e2e,db,docs): address #622 post-commit findings**
+
+Follow-up fixes from semantic-reviewer:
+- Extracted `findTopicWithQuestions()` and `countActiveQuestions()` helpers to reduce complexity.
+- Added `if (!questionIds?.length) throw` assertion after SELECT to surface race conditions.
+- Added `{ error }` destructure + logging on secondary refetch query.
+- Fixed docs/database.md footer timestamp.
+
+**Agent findings on 111f617:** All clean.
+
+**Commit fa57571 — test(e2e): unit tests for pickSubjectWithQuestions helper**
+
+7 Vitest cases for helper. All tests passing. All agents clean.
+
+**Pattern analysis:**
+
+1. **[NEW — count 1] `.limit(N)` without ORDER BY causes non-deterministic row selection**
+
+   `pickSubjectWithQuestions()` replaced `.limit(1)` pattern that returned first-inserted row when new subject 080 was seeded. Without ORDER BY, 11 redteam specs intermittently picked wrong subject because insertion order is non-deterministic.
+
+   Root cause: `.limit()` returns rows in insertion order. When table state changes, order changes unpredictably. Distinct from TOCTOU races (concurrent ops) and COUNT-then-SELECT races (multi-step logic).
+
+   First occurrence: bc3226a / #622. **Log and watch.** When 2nd occurrence surfaces in non-test context, promote to rule.
+
+   **Action:** Helper now explicitly orders by `code ASC` + `sort_order ASC, id ASC`.
+
+2. **[WATCH — count 2+] POST-COUNT race: COUNT to check availability + SELECT to fetch diverge under concurrent deletes**
+
+   Semantic-reviewer flagged: `pickSubjectWithQuestions()` counts available questions (e.g., COUNT returns 5), then immediately SELECTs those rows. If concurrent soft-delete removes one row, SELECT returns 4, violating helper's invariant.
+
+   **Prior occurrence:** 2026-03-21 TOCTOU insert-guard race — same root cause (multi-step logic assumes state doesn't change mid-operation). **Count = 2 now** (insert-guard + select-fetch). **Escalate to rule if count=3.**
+
+   **Action:** Added explicit length assertion `if (!questionIds?.length) throw` after SELECT.
+
+3. **[WATCH — count 3+] Missing `{ error }` destructure on SELECT queries (distinct from mutation pattern)**
+
+   bc3226a's refetch query lacked `{ error }` destructure. This is 3rd occurrence across auth helpers (2) + E2E helpers (1).
+
+   **Prior occurrences:** 2026-03-14 auth-helper count=2 (83ae098, 6b49021). Both destructured error but did not log. **Count = 3 now.** **READY FOR RULE PROMOTION.**
+
+   **Action:** Fixed in 111f617 with `{ error }` destructure + logging.
+
+4. **[NEW — count 1] NULL-tolerant SQL filtering (WHERE p_x IS NULL OR col = p_x) undocumented**
+
+   bc3226a's migration introduces NULL-tolerant WHERE clauses for RPC parameters that are optional in some modes (smart_review ignores subject/topic constraints). Pattern is not documented in code-style.md or database.md.
+
+   First occurrence. **Log and watch.** Document when 2nd occurrence surfaces.
+
+**Actions taken:**
+
+- `.limit(N)` without ORDER BY — count 1, added 2026-05-06. Status: **Log and watch.** Solution: pickSubjectWithQuestions() now deterministic.
+
+- POST-COUNT race (COUNT + SELECT diverge) — count updated to **2**. Status: **Watch — escalate to rule if count=3.**
+
+- SELECT error not destructured — count updated to **3**. Status: **PROMOTE TO HARD RULE — code-style.md §5 extension proposed.**
+
+- NULL-tolerant WHERE filtering — count 1, added 2026-05-06. Status: **Log and watch.** Document when 2nd occurrence surfaces.
+
+**Recommended rule change (count=3 threshold met):**
+
+**Code-style.md Section 5 — Extend error destructure rule to SELECT queries:**
+
+Add new subsection after "Destructure Supabase Mutation Results":
+
+```
+### SELECT Query Error Handling
+
+All `.select()` queries must destructure `{ data, error }` before consuming the result:
+
+✗ WRONG — error silently dropped
+const questions = await supabase.from('questions').select('*').eq('id', qId)
+if (!questions) return { success: false }
+
+✓ CORRECT — error logged, result checked
+const { data: questions, error } = await supabase.from('questions').select('*').eq('id', qId)
+if (error) {
+  console.error('fetch error:', error.message)
+  return { success: false }
+}
+if (!questions?.length) return { success: false }
+```
+
+Scope: Applies to SELECT queries in auth helpers, E2E helpers, and test setup. Exception: test setup may use single try-catch wrapping multiple queries if setup is atomic.
+
+**False positives:** None.
+
+**Positive signals:**
+
+1. **Hardening approach:** RPC contract itself hardened (exhaustive input validation), not just symptom fix.
+2. **Helper extraction:** 111f617 split helpers to reduce complexity (code-reviewer WARNINGS properly addressed in follow-up).
+3. **Test coverage discovery:** test-writer flagged 3 good negative-case gaps (NULL-not-empty, mixed-valid array, wrong-topic).
+4. **Red-team advisory:** Flagged cross-org smuggling gap without blocking (non-blocking advisory working as designed).
+5. **Two-layer fix:** (1) RPC hardening + deterministic helper, (2) post-commit agents found gaps, (3) follow-ups addressed them. Iteration loop working well.
+
+**Coverage gaps to file as GitHub Issues:**
+
+1. **E2E spec: start_quiz_session cross-org smuggling detection** (red-team GAP, MEDIUM priority)
+   - Attempt to start quiz with questions from different org → should raise `cross_org_questions` error.
+
+2. **Unit test: start_quiz_session NULL-not-empty validation edge case** (test-writer flag)
+   - p_question_ids is NULL (empty array, not absent) → should raise `no_questions_provided`.
+
+3. **Unit test: start_quiz_session mixed-valid array edge case** (test-writer flag)
+   - p_question_ids contains some valid UUIDs + some invalid → should raise `invalid_question_ids` (not partial success).
+
+---
+
+**Learner cycle complete for bc3226a + 111f617 + fa57571.** Four patterns detected: 1 NEW (`.limit()` determinism, count=1), 1 ESCALATED (POST-COUNT race, count=2), 1 PROMOTED (SELECT error destructure, count=3), 1 NEW (NULL-tolerant WHERE, count=1). **SELECT error destructure pattern promoted to rule-ready status.** All agents clean on final commits. Issue #622 fully addressed (RPC hardening + deterministic helper + post-commit fixes).
+

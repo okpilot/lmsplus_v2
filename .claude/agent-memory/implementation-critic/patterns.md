@@ -23,6 +23,14 @@
 - 2026-04-11: hard DELETE on `exam_config_distributions` inside `upsert_exam_config` RPC — intentional exception documented in migration 043 and docs/database.md. Table is ephemeral config (same precedent as quiz_drafts). Not a no-soft-delete violation.
 - 2026-04-26 (commit 34194aa): flagged "duplicate Discard button" but mistook the adjacent conditional JSX guard block `{canDismiss && (` for the existing Discard button. Two distinct buttons: one state-driven (confirmingDiscard trigger), one prop-driven (canDismiss guard on confirm panel). Both correctly in place. Resolved without revision.
 
+## Session 2026-05-06 — issue #622 CodeRabbit round 2 (duplicate-UUID hardening)
+- Migration duplicate-UUID guard correct: `SELECT count(DISTINCT qid) INTO v_count FROM unnest(p_question_ids) AS qid; IF v_count <> array_length(p_question_ids,1) THEN RAISE EXCEPTION 'invalid_question_ids'` placed BEFORE the JOIN-COUNT block. All prior guards preserved.
+- docs/database.md validation contract prose correctly updated to document both RAISE cases for `invalid_question_ids`.
+- Integration test `[dupId, dupId]` case added inside correct describe block; `questionIds[0]!` safe per seeded beforeAll.
+- `egmontOrgRow` lookup: now destructures `{ data, error }` and throws on missing org — correct.
+- `createdSessionIds` populated BEFORE `expect()` call — correct.
+- ISSUE: `afterEach` soft-delete missing `{ error }` destructure and `.select('id')` zero-row observability chain (code-style.md §5). Pattern recurs from session 2026-04-10 zero-row no-op watch item.
+
 ## Session 2026-05-06 — issue #622 start_quiz_session input hardening
 - Migration CREATE OR REPLACE chain traced correctly: mig 076 → mig 077 (new). All guards from mig 076 preserved (`Not authenticated`, `user not found or inactive`, `SET search_path = public`, `auth.uid()`). Clean.
 - smart_review NULL carve-out: `(p_subject_id IS NULL OR q.subject_id = p_subject_id)` and same for topic — correct per plan.
