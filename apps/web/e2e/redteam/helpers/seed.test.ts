@@ -53,9 +53,7 @@ const COUNT_FAIL = { count: 0, error: null }
 // Because we mocked @supabase/supabase-js above, every call to
 // createClient() returns { from: mockFrom }. We pass that object directly
 // to pickSubjectWithQuestions as `admin`.
-const adminMock = { from: mockFrom } as unknown as Parameters<
-  typeof pickSubjectWithQuestions
->[0]
+const adminMock = { from: mockFrom } as unknown as Parameters<typeof pickSubjectWithQuestions>[0]
 
 const ORG_ID = 'org-uuid-0001'
 
@@ -147,11 +145,11 @@ describe('pickSubjectWithQuestions', () => {
     expect(result.topicId).toBe('topic-default')
   })
 
-  it('throws a descriptive message when no subjects exist in the org', async () => {
+  it('throws a descriptive message when no easa_subjects exist', async () => {
     mockFrom.mockReturnValueOnce(buildChain({ data: [], error: null }))
 
     await expect(pickSubjectWithQuestions(adminMock, { orgId: ORG_ID })).rejects.toThrow(
-      /no subjects found in org/,
+      /no easa_subjects found/,
     )
   })
 

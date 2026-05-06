@@ -126,15 +126,15 @@ test.describe('Red Team: RPC Question Membership Check', () => {
     const topicAId = subjectAPick.topicId
 
     // Step 2: Find a different subject B that also has at least one active question.
-    const { data: orgSubjects } = await adminClient
-      .from('subjects')
+    // easa_subjects is shared reference data (no organization_id, no deleted_at).
+    // Org scoping is enforced by the per-subject question count below.
+    const { data: allSubjects } = await adminClient
+      .from('easa_subjects')
       .select('id')
-      .eq('organization_id', orgId)
-      .is('deleted_at', null)
       .order('code', { ascending: true })
-    expect(orgSubjects).not.toBeNull()
+    expect(allSubjects).not.toBeNull()
     let subjectBId: string | null = null
-    for (const s of orgSubjects ?? []) {
+    for (const s of allSubjects ?? []) {
       if (s.id === subjectAId) continue
       const { count } = await adminClient
         .from('questions')

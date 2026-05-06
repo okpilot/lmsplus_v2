@@ -51,6 +51,7 @@ test.describe('Red Team: Session Race Condition', () => {
       .eq('topic_id', topicId)
       .eq('status', 'active')
       .is('deleted_at', null)
+      .order('id', { ascending: true })
       .limit(3)
     questionIds = (qs ?? []).map((q) => q.id)
     if (questionIds.length !== 3) {

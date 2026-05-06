@@ -164,20 +164,35 @@ export async function seedQuestions(opts: {
 }): Promise<{ bankId: string; questionIds: string[] }> {
   const { admin, orgId, createdBy, subjectId, topicId, subtopicId } = opts
 
-  const { data: bank, error: bErr } = await admin
+  // 1:1 org:bank invariant (mig 062) — reuse the existing bank if one exists,
+  // otherwise create one. Mirrors production lookup in insert-question.ts.
+  const { data: existingBank, error: lookupErr } = await admin
     .from('question_banks')
-    .insert({
-      organization_id: orgId,
-      name: `Test Bank ${Date.now()}`,
-      created_by: createdBy,
-    })
     .select('id')
-    .single()
-  if (bErr) throw new Error(`seedBank: ${bErr.message}`)
+    .eq('organization_id', orgId)
+    .maybeSingle()
+  if (lookupErr) throw new Error(`seedBank lookup: ${lookupErr.message}`)
+
+  let bankId: string
+  if (existingBank) {
+    bankId = existingBank.id
+  } else {
+    const { data: bank, error: bErr } = await admin
+      .from('question_banks')
+      .insert({
+        organization_id: orgId,
+        name: `Test Bank ${Date.now()}`,
+        created_by: createdBy,
+      })
+      .select('id')
+      .single()
+    if (bErr) throw new Error(`seedBank: ${bErr.message}`)
+    bankId = bank.id
+  }
 
   const questions = Array.from({ length: opts.count }, (_, i) => ({
     organization_id: orgId,
-    bank_id: bank.id,
+    bank_id: bankId,
     subject_id: subjectId,
     topic_id: topicId,
     subtopic_id: subtopicId ?? null,
@@ -198,7 +213,7 @@ export async function seedQuestions(opts: {
   if (qErr) throw new Error(`seedQuestions: ${qErr.message}`)
 
   return {
-    bankId: bank.id,
+    bankId,
     questionIds: (data as Array<{ id: string }>).map((q) => q.id),
   }
 }

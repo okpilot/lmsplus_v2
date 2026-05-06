@@ -182,16 +182,15 @@ export async function pickSubjectWithQuestions(
   const minActiveQuestions = opts.minActiveQuestions ?? 1
   const topicMinQuestions = opts.topicMinQuestions ?? 1
 
+  // easa_subjects is shared reference data (no organization_id, no deleted_at).
+  // Org scoping lives on `questions` and is enforced by countActiveQuestions below.
   const { data: subjects, error: subjectsError } = await admin
-    .from('subjects')
+    .from('easa_subjects')
     .select('id, code')
-    .eq('organization_id', orgId)
-    .is('deleted_at', null)
     .order('code', { ascending: true })
-  if (subjectsError)
-    throw new Error(`pickSubjectWithQuestions subjects: ${subjectsError.message}`)
+  if (subjectsError) throw new Error(`pickSubjectWithQuestions subjects: ${subjectsError.message}`)
   if (!subjects || subjects.length === 0)
-    throw new Error(`pickSubjectWithQuestions: no subjects found in org ${orgId}`)
+    throw new Error('pickSubjectWithQuestions: no easa_subjects found')
 
   for (const subject of subjects) {
     const subjectQCount = await countActiveQuestions(admin, { orgId, subjectId: subject.id })
@@ -219,12 +218,12 @@ async function findTopicWithQuestions(
 ): Promise<string | null> {
   const { orgId, subjectId, subjectCode, topicMinQuestions } = opts
 
+  // easa_topics is shared reference data (no organization_id, no deleted_at).
+  // Org scoping is enforced by the countActiveQuestions call below.
   const { data: topics, error: topicsError } = await admin
-    .from('topics')
+    .from('easa_topics')
     .select('id, sort_order')
-    .eq('organization_id', orgId)
     .eq('subject_id', subjectId)
-    .is('deleted_at', null)
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true })
   if (topicsError)
