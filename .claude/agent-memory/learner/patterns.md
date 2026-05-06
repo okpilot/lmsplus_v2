@@ -99,6 +99,72 @@
 | `NextResponse.redirect()` dropping cookies set via `cookies()` API in Route Handler | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): verifyOtp wrote session cookies via Supabase cookies() API; NextResponse.redirect() does not carry those cookies to the browser — cookies set via the Next.js cookies() API only flow through responses built by the framework's own redirect() helper; fixed by switching to `redirect()` from `next/navigation`; applies to any Route Handler that mutates cookies (auth, session, etc.) and then redirects — always use next/navigation `redirect()` or copy cookies onto the NextResponse manually; first occurrence |
 | `{{ .RedirectTo }}` in Supabase email templates passes full URL, not pathname | 1 | 2026-03-18 | Watch — 738eb43 (feat/174-login-redesign): Supabase passes the full absolute URL (e.g. `http://localhost:3000/auth/reset-password`) as the `next` query param when `{{ .RedirectTo }}` is used in email templates; if code naively appends this to a base URL, the full URL becomes a path segment and doubles the origin; fixed by extracting `.pathname` from a `new URL(next)` call before appending; applies to any code that reads a `next` param arriving from a Supabase email template redirect; first occurrence |
 
+## 2026-05-06 — PR #628 Red-team Fixture Fragility (commits 01a3244, 071e0ee, 1a9d5f8)
+
+**Context:** Three-commit session. Commit 01a3244 (fix(e2e,db): repair fixtures against real schema + bank uniqueness) addressed three independent CI failures in red-team specs. Commit 071e0ee (fix(e2e,db): address semantic-reviewer findings on 01a3244) addressed an ISSUE flagged by semantic-reviewer. Commit 1a9d5f8 (test(db): unit tests for seedQuestions lookup-then-insert branching) added tests discovered by post-commit test-writer agent.
+
+**Code reviewer (01a3244):** 0 BLOCKING, 0 WARNING. Clean.
+
+**Semantic reviewer (01a3244):** 0 CRITICAL, 1 ISSUE, 2 SUGGESTION, 5 GOOD.
+- **ISSUE (NEW PATTERN — count 1, watching):** `seedQuestions` bank lookup does not filter `deleted_at IS NULL`. Service-role client bypasses RLS. Migration 062's UNIQUE constraint on `(organization_id)` is unconditional (not a partial index). If a previous test soft-deleted the bank and a subsequent test calls `seedQuestions`, the helper will reuse the deleted bank instead of creating a fresh one. Service-role bypasses the `deleted_at IS NULL` RLS guard that production code gets automatically. This is a **service-role fixture pattern gap**: service-role test fixtures must apply soft-delete filters that production code gets from RLS.
+- Suggestions: (1) easa_subjects lookup in rpc-question-membership.spec.ts needs error destructuring for observability; (2) Distribution SELECT should filter `subtopic_id IS NULL` (fixed in 071e0ee).
+- **GOOD patterns:** easa_subjects/topics org-scoping correctly delegated to countActiveQuestions; cross-org iteration is safe; bank lookup-then-insert mirrors production correctly; determinism nits (`.order('id')` before `.limit(3)`) are correct.
+
+**Semantic reviewer (071e0ee):** 0 CRITICAL, 0 ISSUE, 0 SUGGESTION. Clean — all findings from 01a3244 addressed.
+
+**Implementation-critic (01a3244, 071e0ee, 1a9d5f8):** All 3 commits APPROVED, 0 blocking findings. Session log in implementation-critic/patterns.md notes: error message refactor in seed.test.ts lacked regex update (count 1, watching).
+
+**Doc updater:** No doc updates needed. Clean.
+
+**Test writer (1a9d5f8):** Added 6 tests covering seedQuestions lookup-then-insert branching (existing-bank reuse, new-bank insert, question ID mapping, error messages on lookup/insert failures). Tests required vitest.config.ts adjustment to exclude only `*.integration.test.ts` files, not the entire `__integration__` directory.
+
+**Pattern analysis:**
+
+1. **PATTERN — Service-role fixtures missing soft-delete guards (count 1, WATCHING):**
+   Root cause: `seedQuestions` uses service-role client to bypass RLS. Service role also bypasses the `deleted_at IS NULL` RLS filter that production clients get automatically. When a table has a soft-delete column and an unconditional UNIQUE constraint (e.g., mig 062's `UNIQUE(organization_id)` on question_banks), the fixture's SELECT for idempotency must manually filter `deleted_at IS NULL` even though production code does not need to — production is protected by RLS, fixture is not.
+   
+   **Applies to:** any service-role fixture that reads a soft-deletable table with a uniqueness constraint before inserting.
+   
+   **If count >= 2 across different commits:** promote to a rule note in code-style.md Section 7 or a separate fixture-pattern rule document.
+   
+   **Production example:** apps/web/lib/db/insert-question.ts:21-30 (correct pattern, no soft-delete filter needed because RLS provides it).
+   
+   **Fixture example:** packages/db/src/__integration__/setup.ts (now corrected with filter after 071e0ee).
+
+2. **PATTERN — Query without schema verification (count 1, WATCHING):**
+   Root cause: `pickSubjectWithQuestions` helper was written querying `subjects`/`topics` tables that don't exist in the schema (real tables: `easa_subjects`/`easa_topics`). The helper was added without reading the migration file or checking the actual schema. Both production code (`insert-question.ts`) and the fixture helper were written against memory rather than schema source of truth.
+   
+   **Watch for:** new helpers written without consulting `supabase/migrations/` can query non-existent tables or wrong columns. This ties to the user's earlier instruction ("always verify source code") — logged as a reminder for future sessions.
+   
+   **Count=1 (watching).**
+
+3. **Determinism without `.order()` before `.limit()` (count 2+ already, pre-existing watch):**
+   CodeRabbit flagged two specs in commit 01a3244 with `.limit(3)` queries without `.order()`. Both were fixed by adding `.order('id', { ascending: true })` before `.limit(3)`.
+   
+   This pattern has appeared in multiple prior commits (e.g., 2026-04-27 exam specs). Code-reviewer already watches for determinism in Playwright specs. No rule change needed — existing watch is sufficient.
+
+4. **PATTERN — Error message refactor without updating test regex (count 1, WATCHING):**
+   Root cause (implementation-critic finding): When `seedQuestions` error prefixes changed from `"seedBank: ..."` to `"seedBank lookup: ..."` and `"seedQuestions: ..."`, the paired test regex assertions in `seed.test.ts` were not updated to match. Test lines were reformatted by Biome during pre-commit (single-line collapse), masking the stale regex. Fixed in 01a3244.
+   
+   **Pattern:** error message refactors must update all paired test assertions that match against the old message.
+   
+   **Count=1 (watching). If count >= 2:** propose a rule in code-style.md Testing section.
+
+**Actions taken:**
+- Frequency table: 4 watch patterns logged (patterns 1–4 above). No pattern reached count >= 2.
+- Pattern 1 (service-role soft-delete) is a real gap; 071e0ee fixed the immediate instance, so this is now "fixed but watching for recurrence."
+- Implementation-critic and semantic-reviewer agent memories updated with session findings.
+
+**No rule changes applied this cycle.** All patterns are at count 1. Pattern 1 would require a second occurrence across different commits to promote (e.g., if another service-role fixture with soft-deletable tables ships without manual delete_at filters).
+
+**False positives:** none. All findings were valid — 071e0ee successfully addressed the semantic-reviewer ISSUE, and 1a9d5f8 added comprehensive test coverage for the lookup-then-insert logic.
+
+**Positive signals:**
+- Semantic reviewer correctly identified service-role vs. RLS filtering divergence — the gap was real and needed fixing.
+- Implementation-critic caught the error message refactor oversight — added to agent memory for future vigilance.
+- Test-writer discovered and correctly tested the lookup-then-insert branching logic, validating the helper's idempotency contract.
+- Zero CRITICAL findings across all 3 commits — CI unblock achieved without security regressions.
+
 ## 2026-04-28 — Exam E2E Specs CI Unblock (commits ddf8ebf, 68fc26e)
 
 **Context:** Two-commit session. Commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit #568) addressed CI failure in newly added exam-flow.spec.ts and exam-recovery.spec.ts (commit 553fe4d). The specs failed at `expect(button).not.toBeDisabled()` because the CI seed script (seed-e2e.ts) did not provide the MET exam_configs row the specs assumed; spec doc-comments incorrectly named seed-exam-eval.ts (CI-independent, for manual eval setup) as the seed source. Commit 68fc26e (test(quiz): tighten seed-e2e exam config idempotency guards) addressed semantic-reviewer SUGGESTIONs on the seed script.
