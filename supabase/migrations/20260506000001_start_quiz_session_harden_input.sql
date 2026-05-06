@@ -5,11 +5,15 @@
 -- quiz_sessions.total_questions (SQLSTATE 23502). It also accepted arbitrary
 -- UUIDs without verifying they referenced real, active, non-deleted questions
 -- belonging to the caller's organization (and matching p_subject_id /
--- p_topic_id when provided).
+-- p_topic_id when provided), and accepted duplicate UUIDs which created an
+-- inconsistent session: total_questions counted duplicates while downstream
+-- get_quiz_questions() collapses them and quiz_session_answers' unique
+-- constraint blocks all-but-one answer attempts.
 --
 -- Fix: after the active-user gate, reject null/empty arrays with
--- 'no_questions_provided', then verify every UUID resolves to an active,
--- in-org, non-deleted question matching the (subject, topic) scope —
+-- 'no_questions_provided', reject any duplicate UUID with 'invalid_question_ids'
+-- (set-based COUNT(DISTINCT ...) check), then verify every UUID resolves to an
+-- active, in-org, non-deleted question matching the (subject, topic) scope —
 -- raising 'invalid_question_ids' on any mismatch. smart_review mode passes
 -- both subject_id and topic_id as NULL, so the scope filter is conditional.
 
@@ -49,6 +53,18 @@ BEGIN
     RAISE EXCEPTION 'no_questions_provided';
   END IF;
 
+  -- Reject duplicate UUIDs. unnest + JOIN below would silently double-count
+  -- and pass the COUNT equality check, then create an inconsistent session.
+  SELECT count(DISTINCT qid) INTO v_count
+  FROM unnest(p_question_ids) AS qid;
+  IF v_count <> array_length(p_question_ids, 1) THEN
+    RAISE EXCEPTION 'invalid_question_ids';
+  END IF;
+
+  -- Verify every UUID resolves to an active, in-org, non-deleted question
+  -- matching the (subject, topic) scope. NULL p_subject_id / p_topic_id =>
+  -- smart_review; corresponding match is skipped, org + active + soft-delete
+  -- always apply.
   SELECT count(*) INTO v_count
   FROM unnest(p_question_ids) AS qid
   JOIN public.questions q ON q.id = qid

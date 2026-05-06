@@ -62,12 +62,17 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
 
     // Resolve the egmont org id up-front; needed for both the configured-subject
     // pick and the unconfigured-subject lookup.
-    const { data: egmontOrgRow } = await admin
+    const { data: egmontOrgRow, error: egmontOrgErr } = await admin
       .from('organizations')
       .select('id')
       .eq('slug', 'egmont-aviation')
       .single()
-    const egmontOrgIdForPick = egmontOrgRow!.id
+    if (egmontOrgErr || !egmontOrgRow) {
+      throw new Error(
+        `seed: failed to resolve egmont-aviation org: ${egmontOrgErr?.message ?? 'not found'}`,
+      )
+    }
+    const egmontOrgIdForPick = egmontOrgRow.id
 
     // Pick a configured subject deterministically — must have at least one active
     // question so issue_internal_exam_code's downstream paths reach exam_config.

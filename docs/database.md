@@ -1558,7 +1558,7 @@ $$;
 
 **Validation contract** (raised before any INSERT, after the auth and active-user gates):
 - `'no_questions_provided'` — `p_question_ids` is NULL or empty (`array_length(...) IS NULL`).
-- `'invalid_question_ids'` — at least one UUID in `p_question_ids` does not resolve to a question that is in the caller's organization, has `status = 'active'`, has `deleted_at IS NULL`, and matches `p_subject_id` and `p_topic_id` when those parameters are non-NULL.
+- `'invalid_question_ids'` — raised in two cases: (a) `p_question_ids` contains a duplicate UUID (set-based `count(DISTINCT)` mismatch with `array_length`), or (b) at least one UUID does not resolve to a question that is in the caller's organization, has `status = 'active'`, has `deleted_at IS NULL`, and matches `p_subject_id` / `p_topic_id` when those parameters are non-NULL.
 - `p_subject_id` and `p_topic_id` MAY be NULL (smart_review mode crosses subjects/topics); the per-question subject/topic match is skipped for the NULL parameter, while the org + active + soft-delete checks always apply.
 - Existing guards retained: `'Not authenticated'` (auth.uid() is null) and `'user not found or inactive'` (caller soft-deleted between auth and gate).
 
@@ -1600,6 +1600,13 @@ BEGIN
   -- Input validation (mig 20260506000001, closes #622).
   IF p_question_ids IS NULL OR array_length(p_question_ids, 1) IS NULL THEN
     RAISE EXCEPTION 'no_questions_provided';
+  END IF;
+
+  -- Reject duplicate UUIDs (would otherwise silently double-count below).
+  SELECT count(DISTINCT qid) INTO v_count
+  FROM unnest(p_question_ids) AS qid;
+  IF v_count <> array_length(p_question_ids, 1) THEN
+    RAISE EXCEPTION 'invalid_question_ids';
   END IF;
 
   -- Verify every UUID resolves to an active, in-org, non-deleted question

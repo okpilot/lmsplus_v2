@@ -29,6 +29,9 @@ test.describe('Red Team: Rate Limiting', () => {
   let subjectId: string
   let questionIds: string[]
   let topicId: string
+  // Track every quiz_session this spec creates so afterEach can soft-delete
+  // them even if assertions fail mid-test (per code-style.md §7 hermiticity).
+  const createdSessionIds: string[] = []
 
   test.beforeAll(async () => {
     const { orgId } = await seedRedTeamUsers()
@@ -49,6 +52,20 @@ test.describe('Red Team: Rate Limiting', () => {
       .is('deleted_at', null)
       .limit(1)
     questionIds = (qs ?? []).map((q) => q.id)
+  })
+
+  test.afterEach(async () => {
+    if (createdSessionIds.length === 0) return
+    const admin = getAdminClient()
+    const { data, error } = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', createdSessionIds)
+      .select('id')
+    if (error) console.error('[rate-limiting afterEach] cleanup error:', error.message)
+    if ((data?.length ?? 0) > 0)
+      console.log(`[rate-limiting afterEach] soft-deleted ${data?.length} session(s)`)
+    createdSessionIds.length = 0
   })
 
   // ---------------------------------------------------------------------------
@@ -100,6 +117,12 @@ test.describe('Red Team: Rate Limiting', () => {
       ),
     )
 
+    // Collect created session IDs BEFORE any assertion so afterEach cleans
+    // up even if the expectation below fails (hermiticity rule).
+    for (const r of results) {
+      if (!r.error && r.data) createdSessionIds.push(r.data as string)
+    }
+
     const successes = results.filter((r) => !r.error).length
     const failures = results.filter((r) => r.error).length
 
@@ -109,16 +132,5 @@ test.describe('Red Team: Rate Limiting', () => {
     // Current expectation: all succeed (no throttle)
     // Update this threshold when rate limiting is added.
     expect(successes).toBe(50)
-
-    // Clean up: discard the 50 sessions we just created so the DB stays tidy
-    const admin = getAdminClient()
-    const sessionIds = results.filter((r) => !r.error && r.data).map((r) => r.data as string)
-
-    if (sessionIds.length > 0) {
-      await admin
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('id', sessionIds)
-    }
   })
 })

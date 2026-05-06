@@ -240,6 +240,21 @@ describe('RPC: start_quiz_session input validation', () => {
     expect(error?.message).toContain('no_questions_provided')
   })
 
+  it('rejects duplicate question UUIDs with invalid_question_ids', async () => {
+    // Without this guard, total_questions counts duplicates while the answers
+    // table only stores one row per question — the session would be unfinishable.
+    // questionIds[0]! safe — seeded in beforeAll with count: N >= 1
+    const dupId = questionIds[0]!
+    const { error } = await studentClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: refs.subjectId,
+      p_topic_id: refs.topicId,
+      p_question_ids: [dupId, dupId],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('invalid_question_ids')
+  })
+
   it('rejects a non-existent question UUID with invalid_question_ids', async () => {
     const { error } = await studentClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
