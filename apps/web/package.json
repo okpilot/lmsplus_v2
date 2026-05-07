@@ -13,8 +13,8 @@
     "test:watch": "vitest",
     "import-questions": "tsx scripts/import-questions.ts",
     "e2e": "playwright test --project=e2e --project=admin-e2e",
-    "e2e:ui": "playwright test --ui",
-    "e2e:headed": "playwright test --headed",
+    "e2e:ui": "playwright test --project=e2e --project=admin-e2e --ui",
+    "e2e:headed": "playwright test --project=e2e --project=admin-e2e --headed",
     "e2e:redteam": "playwright test --project=redteam"
   },
   "dependencies": {

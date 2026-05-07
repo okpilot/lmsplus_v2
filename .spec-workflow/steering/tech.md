@@ -82,7 +82,7 @@ lmsplusv2/
 - **Testing**:
   - **Unit/integration**: Vitest with v8 coverage provider. 2000+ tests across 165+ files. Co-located with source files (no `__tests__/` directories).
   - **E2E**: Playwright (10 specs covering login, quiz flow, admin tools, settings, consent).
-  - **Red-team**: 18 Playwright attack specs for adversarial security testing (`e2e/redteam/`), covering OWASP A01 access control, A02 security headers, A03 injection (SQL + XSS), A07 auth, A09 audit completeness.
+  - **Red-team**: 18 Playwright attack specs for adversarial security testing (`e2e/redteam/`), covering OWASP A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring.
 - **Type checking**: `tsc --noEmit` per package via `pnpm check-types`. Strict mode with `noUncheckedIndexedAccess`.
 
 ### Version Control & Collaboration
