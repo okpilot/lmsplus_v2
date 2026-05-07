@@ -7,6 +7,23 @@ import {
   CURRENT_TOS_VERSION,
 } from '@/lib/consent/versions'
 
+// next.config.ts `headers()` does NOT apply to non-routed responses
+// emitted from Edge Middleware (3xx redirects, 4xx/5xx errors). Mirror
+// the static security headers on every middleware-emitted response so the
+// posture is uniform regardless of status code.
+function applySecurityHeaders(res: NextResponse): void {
+  res.headers.set('X-DNS-Prefetch-Control', 'on')
+  res.headers.set('X-Frame-Options', 'DENY')
+  res.headers.set('X-Content-Type-Options', 'nosniff')
+  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+  // Minimal hardened CSP for non-routed responses. No scripts execute on a
+  // 3xx/4xx/5xx, so we lock default-src down to 'none' and keep
+  // frame-ancestors aligned with the routed-response CSP in next.config.ts.
+  res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
+}
+
 export async function proxy(request: NextRequest): Promise<Response> {
   // Cast needed: @playwright/test causes a duplicate next.js install with incompatible internal types
   const { supabase, response } = createMiddlewareSupabaseClient(
@@ -24,23 +41,6 @@ export async function proxy(request: NextRequest): Promise<Response> {
   }
 
   const { pathname } = request.nextUrl
-
-  // next.config.ts `headers()` does NOT apply to non-routed responses
-  // emitted from Edge Middleware (3xx redirects, 4xx/5xx errors). Mirror
-  // the static security headers on every middleware-emitted response so the
-  // posture is uniform regardless of status code.
-  function applySecurityHeaders(res: NextResponse): void {
-    res.headers.set('X-DNS-Prefetch-Control', 'on')
-    res.headers.set('X-Frame-Options', 'DENY')
-    res.headers.set('X-Content-Type-Options', 'nosniff')
-    res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-    res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-    res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
-    // Minimal hardened CSP for non-routed responses. No scripts execute on a
-    // 3xx/4xx/5xx, so we lock default-src down to 'none' and keep
-    // frame-ancestors aligned with the routed-response CSP in next.config.ts.
-    res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
-  }
 
   function redirectWithCookies(url: URL) {
     const redirect = NextResponse.redirect(url)
