@@ -171,6 +171,14 @@ describe('voidInternalExamCode', () => {
       if (!result.success) expect(result.error).toBe('Admin permission required')
     })
 
+    it('maps invalid_reason', async () => {
+      mockAdmin()
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'invalid_reason' } })
+      const result = await voidInternalExamCode(VALID_INPUT)
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error).toBe('Reason cannot be blank or whitespace-only')
+    })
+
     it('returns generic message for unrecognized RPC error', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: null, error: { message: 'connection lost' } })

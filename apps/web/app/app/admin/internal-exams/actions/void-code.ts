@@ -20,6 +20,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   not_authenticated: 'Not authenticated',
   not_admin: 'Admin permission required',
   admin_not_found: 'Admin permission required',
+  invalid_reason: 'Reason cannot be blank or whitespace-only',
   cannot_void_finished_attempt: 'Cannot void a finished attempt — record is final',
   code_not_found: 'Code not found',
   code_voided: 'Code is already voided',
