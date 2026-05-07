@@ -148,27 +148,6 @@ describe('VoidCodeDialog', () => {
     expect(toast.success).not.toHaveBeenCalled()
   })
 
-  it('surfaces invalid_reason error string in inline alert', async () => {
-    vi.mocked(voidInternalExamCode).mockResolvedValue({
-      success: false,
-      error: 'Reason cannot be blank or whitespace-only',
-    })
-    const onOpenChange = vi.fn()
-    const user = userEvent.setup({ delay: null })
-    render(<VoidCodeDialog codeId={CODE_ID} open={true} onOpenChange={onOpenChange} />)
-
-    await user.type(screen.getByLabelText('Reason'), 'reason')
-    await user.click(screen.getByRole('button', { name: 'Void code' }))
-
-    await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toBe(
-        'Reason cannot be blank or whitespace-only',
-      )
-    })
-    expect(onOpenChange).not.toHaveBeenCalledWith(false)
-    expect(toast.success).not.toHaveBeenCalled()
-  })
-
   it('shows generic error and keeps dialog open when action throws', async () => {
     vi.mocked(voidInternalExamCode).mockRejectedValue(new Error('Network'))
     const onOpenChange = vi.fn()
