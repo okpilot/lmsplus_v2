@@ -37,7 +37,8 @@ test.describe('Red Team: Audit Event Completeness', () => {
   let topicId: string
 
   // Track sessions and codes created during tests so afterEach can clean up
-  // via service-role soft-delete (sessions) or hard-delete (codes).
+  // via service-role soft-delete for both (deleted_at is in the mutable-
+  // columns whitelist; both tables retain row history for audit purposes).
   const createdSessionIds = new Set<string>()
   const createdCodeIds = new Set<string>()
 
@@ -154,8 +155,15 @@ test.describe('Red Team: Audit Event Completeness', () => {
       throw new Error(`buildAnswers: unexpected questions shape: ${JSON.stringify(questions)}`)
     }
     return questions.map((raw) => {
-      const q = raw as { id: string; options: Array<{ id: string }> | null }
-      const optionId = q.options?.[0]?.id
+      const q = raw as unknown as { id: unknown; options: unknown }
+      if (typeof q.id !== 'string') {
+        throw new Error(`buildAnswers: unexpected question id shape: ${JSON.stringify(q.id)}`)
+      }
+      if (!Array.isArray(q.options)) {
+        throw new Error(`buildAnswers: question ${q.id} options is not an array`)
+      }
+      const firstOpt = q.options[0] as { id?: unknown } | undefined
+      const optionId = typeof firstOpt?.id === 'string' ? firstOpt.id : undefined
       if (!optionId) {
         throw new Error(`buildAnswers: question ${q.id} has no options`)
       }
@@ -417,7 +425,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
     // on the new row even though it wasn't produced by this invocation.
     // Practical risk is near-zero — Playwright runs the redteam project
     // serially, and studentUserId is the redteam-scoped attacker user.
-    const { data: pre } = await admin
+    const { data: pre, error: preError } = await admin
       .from('audit_events')
       .select('id, created_at')
       .eq('event_type', 'student.login')
@@ -425,6 +433,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
+    if (preError) throw new Error(`student.login pre-query: ${preError.message}`)
 
     const { error } = await studentClient.rpc('record_login')
     expect(error, 'record_login error').toBeNull()

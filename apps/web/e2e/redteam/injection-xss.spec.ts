@@ -59,7 +59,10 @@ async function assertSanitized(page: Page, scope: Locator): Promise<void> {
       return hasInlineHandler || hasUnsafeUrl
     }),
   )
-  expect(hasUnsafeAttribute).toBe(false)
+  expect(
+    hasUnsafeAttribute,
+    'found unsafe inline handler or javascript:/vbscript:/data: URL in DOM attribute within scope',
+  ).toBe(false)
 
   const pwned = await page.evaluate(() => (window as { __pwned?: boolean }).__pwned === true)
   expect(pwned).toBe(false)
