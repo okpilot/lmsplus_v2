@@ -36,9 +36,25 @@ async function assertSanitized(page: Page, scope: Locator): Promise<void> {
   // seeded field, so it must be visible in the rendered DOM.
   await expect(scope).toContainText(MARKER)
   await expect(scope.locator('script')).toHaveCount(0)
-  const html = await scope.evaluate((el) => el.outerHTML)
-  expect(html).not.toMatch(/\son\w+\s*=/i)
-  expect(html).not.toMatch(/(?:href|src)\s*=\s*["']?javascript:/i)
+
+  // Walk actual DOM attributes — NOT the serialized outerHTML. A payload
+  // rendered safely as escaped text (e.g. `&lt;img onerror=...&gt;`) still
+  // contains "onerror=" in the text node; an outerHTML regex would false-
+  // fail on safe content. We only fail on real element attributes.
+  const hasUnsafeAttribute = await scope.locator('*').evaluateAll((nodes) =>
+    nodes.some((node) => {
+      const el = node as Element
+      const attrNames = el.getAttributeNames()
+      const hasInlineHandler = attrNames.some((name) => /^on\w+/i.test(name))
+      const hasJavascriptUrl = ['href', 'src'].some((name) => {
+        const value = el.getAttribute(name)
+        return value?.trim().toLowerCase().startsWith('javascript:') === true
+      })
+      return hasInlineHandler || hasJavascriptUrl
+    }),
+  )
+  expect(hasUnsafeAttribute).toBe(false)
+
   const pwned = await page.evaluate(() => (window as { __pwned?: boolean }).__pwned === true)
   expect(pwned).toBe(false)
 }
