@@ -94,12 +94,23 @@ type SeedArgs = {
 }
 
 async function seedXssQuestion(args: SeedArgs): Promise<string> {
+  const admin = getAdminClient()
+  const { data: bank, error: bankError } = await admin
+    .from('question_banks')
+    .select('id')
+    .eq('organization_id', args.orgId)
+    .is('deleted_at', null)
+    .limit(1)
+    .single()
+  if (bankError || !bank) throw new Error(`seedXssQuestion bank: ${bankError?.message}`)
+
   const tag = `${MARKER} ${args.field} ${args.payload.name} ${Date.now()}`
   const v = args.payload.value
-  const { data, error } = await getAdminClient()
+  const { data, error } = await admin
     .from('questions')
     .insert({
       organization_id: args.orgId,
+      bank_id: bank.id,
       subject_id: args.subjectId,
       topic_id: args.topicId,
       question_number: tag.slice(0, 60),
@@ -130,15 +141,42 @@ async function cleanupXssQuestions(): Promise<void> {
   if ((data?.length ?? 0) > 0) console.log(`[injection-xss] deleted ${data?.length} question(s)`)
 }
 
-async function startStudentSessionFor(qid: string, subjectId: string, topicId: string) {
+async function startStudentSessionFor(
+  qid: string,
+  subjectId: string,
+  topicId: string,
+): Promise<{ sessionId: string; questionIds: string[] }> {
   const c = await createAuthenticatedClient(TEST_EMAIL, TEST_PASSWORD)
-  const { error } = await c.rpc('start_quiz_session', {
+  const { data: sessionId, error } = await c.rpc('start_quiz_session', {
     p_mode: 'quick_quiz',
     p_subject_id: subjectId,
     p_topic_id: topicId,
     p_question_ids: [qid],
   })
   expect(error).toBeNull()
+  expect(typeof sessionId).toBe('string')
+  return { sessionId: sessionId as string, questionIds: [qid] }
+}
+
+// The /app/quiz/session page reads its session from sessionStorage (handoff
+// set by the Start Quiz click on /app/quiz). Calling start_quiz_session via
+// RPC creates the DB row but the UI does not hydrate from the server, so we
+// inject the handoff payload directly to bypass the UI flow.
+async function seedSessionHandoff(
+  page: Page,
+  userId: string,
+  sessionId: string,
+  questionIds: string[],
+): Promise<void> {
+  await page.evaluate(
+    ({ userId, sessionId, questionIds }) => {
+      sessionStorage.setItem(
+        `quiz-session:${userId}`,
+        JSON.stringify({ userId, sessionId, questionIds, mode: 'study' }),
+      )
+    },
+    { userId, sessionId, questionIds },
+  )
 }
 
 test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
@@ -176,7 +214,7 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
   async function bootStudentSession(
     field: Field,
     payload: { name: string; value: string },
-  ): Promise<void> {
+  ): Promise<{ sessionId: string; questionIds: string[] }> {
     const { subjectId, topicId } = await pickSubjectAndTopic(orgId)
     const qid = await seedXssQuestion({
       orgId,
@@ -187,7 +225,7 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
       payload,
     })
     await discardActiveSessions(studentUserId)
-    await startStudentSessionFor(qid, subjectId, topicId)
+    return startStudentSessionFor(qid, subjectId, topicId)
   }
 
   for (const payload of XSS_PAYLOADS) {
@@ -211,23 +249,28 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
     test(`student quiz session sanitizes question_text payload ${payload.name}`, async ({
       page,
     }) => {
-      await bootStudentSession('question_text', payload)
+      const { sessionId, questionIds } = await bootStudentSession('question_text', payload)
       await loginAs(page, TEST_EMAIL, TEST_PASSWORD)
+      await seedSessionHandoff(page, studentUserId, sessionId, questionIds)
       await page.goto('/app/quiz/session')
       await expect(page.getByText(/Question 1/)).toBeVisible({ timeout: 15_000 })
       await assertSanitized(page, page.locator('main'))
     })
 
     test(`feedback panel sanitizes explanation_text payload ${payload.name}`, async ({ page }) => {
-      await bootStudentSession('explanation_text', payload)
+      const { sessionId, questionIds } = await bootStudentSession('explanation_text', payload)
       await loginAs(page, TEST_EMAIL, TEST_PASSWORD)
+      await seedSessionHandoff(page, studentUserId, sessionId, questionIds)
       await page.goto('/app/quiz/session')
       await expect(page.getByText(/Question 1/)).toBeVisible({ timeout: 15_000 })
       const answerBtns = page.locator('button:has(span.rounded-full)')
       await answerBtns.first().waitFor({ state: 'visible', timeout: 10_000 })
       await answerBtns.first().click()
       await page.getByRole('button', { name: 'Submit Answer' }).first().click()
-      await expect(page.getByRole('button', { name: /Next/ })).toBeVisible({ timeout: 10_000 })
+      // Use exact-match regex; bare /Next/ also matches "Open Next.js Dev Tools" in dev mode.
+      await expect(page.getByRole('button', { name: /^Next\s*›$/ })).toBeVisible({
+        timeout: 10_000,
+      })
       await assertSanitized(page, page.locator('main'))
     })
   }

@@ -154,6 +154,11 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
       orgId,
     })
 
+    // Capture testStart BEFORE the redemption attempt so the probe ignores
+    // attacker sessions created by sibling tests (BL/BM/etc.) and prior runs
+    // that did not get cleaned up.
+    const testStart = new Date().toISOString()
+
     // Attacker (student-B) tries to redeem the victim's code.
     const { data, error } = await attackerClient.rpc('start_internal_exam_session', {
       p_code: code.code,
@@ -167,13 +172,14 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     expect(data).toBeNull()
 
     // Belt-and-braces: no session was created for the attacker against the
-    // victim's code.
+    // victim's code during this test.
     const { data: probe } = await admin
       .from('quiz_sessions')
       .select('id')
       .eq('student_id', attackerUserId)
       .eq('mode', 'internal_exam')
       .is('deleted_at', null)
+      .gte('created_at', testStart)
     expect((probe ?? []).length).toBe(0)
   })
 
