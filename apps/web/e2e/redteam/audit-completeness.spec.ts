@@ -341,10 +341,12 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(error).toBeNull()
     type StartedRow = { session_id: string }
     const row = (data as StartedRow[] | null)?.[0]
-    expect(row?.session_id).toBeTruthy()
-    if (row?.session_id) createdSessionIds.add(row.session_id)
+    if (!row?.session_id) {
+      throw new Error('start_internal_exam_session returned no session_id')
+    }
+    createdSessionIds.add(row.session_id)
 
-    await expectAuditRow('internal_exam.started', studentUserId, testStart, row?.session_id)
+    await expectAuditRow('internal_exam.started', studentUserId, testStart, row.session_id)
   })
 
   test('writes internal_exam.completed when internal_exam batch submits within time limit', async () => {
