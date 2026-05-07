@@ -4715,3 +4715,32 @@ None identified at this time. All issues were resolved in-cycle. The red-team ad
 
 **Learner cycle complete for c45330f + abc745c.** Five patterns logged (all count=1, watch threshold): CR/LF control char validation, test actor/threat-model mismatch, shared fixture brittleness, incomplete audit event enum, numeric doc counts. All issues resolved. Plan-critic + post-commit review working well; pre-commit critics caught half the issues (4/8) and saved iteration time. No rule changes at this time; monitor these patterns for count=2 recurrence.
 
+
+
+## 2026-05-07 — feat/redteam-owasp-coverage-108 cycle (61883bd → 06f7b2a)
+
+### Issue Frequency (rows added this cycle)
+
+| Stale `why` annotations on test payloads after guard mechanism change | 2 | 2026-05-07 | WATCH — both occurrences in `apps/web/e2e/redteam/helpers/payloads.ts` WHITESPACE_PAYLOADS table; first: `spaces-only` and `tabs-only` referenced `btrim()` after migration `20260507000001` switched the guard to POSIX `^[[:space:]]*$` (semantic-reviewer 61883bd); second: `cr-only` lacked the JSON-encoding transport note that `newlines-only` had after the table grew (semantic-reviewer 5f1295c). Effective root cause: same file, same migration cycle. Promotion deferred until count=2 across **distinct** payload tables / feature areas. |
+
+| Server Action ERROR_MESSAGES not synchronized with new RPC `RAISE EXCEPTION` literals | 2 | 2026-05-07 | WATCH-PROMOTION-CANDIDATE — `apps/web/app/app/admin/internal-exams/actions/void-code.ts` ERROR_MESSAGES missed `invalid_reason` after migration `20260507000001` added the guard (semantic-reviewer 61883bd); same file missed `session_state_changed` raised by migration `20260430000006` line 135 (semantic-reviewer cumulative 5f1295c sweep). Both fall through to generic "Failed to void internal exam code" — UX gap, not security. Same file but two different RPC RAISE statements added by two different migrations. The rule shape would be: "every `RAISE EXCEPTION '<code>'` in a SECURITY DEFINER RPC must have a matching `<code>: '<user message>'` entry in any Server Action that calls the RPC; the migration commit and the action commit must include both updates." Promotion would require a one-time repo sweep of all `supabase/migrations/**/*.sql` for `RAISE EXCEPTION` and cross-check every Server Action's ERROR_MESSAGES coverage. Defer-budget already at 2 (#636, #637); promotion + sweep would push to red flag. Holding for a third occurrence in a **different** Server Action / RPC family before promoting. |
+
+| Edge Middleware response-path security-header parity (3xx vs 4xx/5xx) | 1 | 2026-05-07 | WATCH — `apps/web/proxy.ts` had security headers on 3xx redirects (commit ef53aa3) but not on 4xx (403) or 5xx (503) responses returned from the same middleware function. Fix in 5f1295c extracted `applySecurityHeaders` helper and applied it to all three branches. Single-cycle finding. Promotion deferred until count=2 in different middleware functions / projects. |
+
+### Positive signals
+
+- **Annotation drift caught early.** Two stale-annotation findings surfaced and were fixed in the same cycle. The semantic-reviewer's "validate findings before fixing" rule kept the orchestrator from chasing false positives — both were real.
+
+- **Cumulative PR sweep value.** Running per-commit pipelines on 7 commits caught 4 findings; running the cumulative semantic-reviewer pass on the full PR diff caught 2 ISSUEs (proxy.ts 4xx/5xx headers, session_state_changed UX) that the per-commit pass had missed because each commit alone looked clean. This validates the `agent-workflow.md § Pre-Push PR Sweep` rule — the per-commit lens cannot see whole-PR consistency gaps.
+
+- **Defer discipline held.** Two deferrals filed this cycle (#636 null-guard ergonomics, #637 4xx/5xx header E2E coverage). Both have effort + priority + acceptance criteria. No silent backlog growth.
+
+- **No rule violations from new test code.** All 11 new redteam Playwright spec files passed code-reviewer cleanly across the cycle. Test naming conventions (behavior-first, no impl-leak) and afterEach hermiticity (zero-row no-op observability) held throughout.
+
+### Cycle status
+
+- 10 commits this session, all post-commit pipelines clean (code-reviewer, semantic-reviewer, doc-updater, test-writer, red-team).
+- Cumulative `abc745c..HEAD` PR-level sweep clean after 5f1295c addressed the 2 ISSUEs.
+- Suite green: 115 passed + 1 skipped.
+- Three deferrals: #633 (BV JSONB), #634 (A10:2025), #636 (null-guard ergonomics), #637 (4xx/5xx header E2E). Total = 4 open (3 inherited from prior session, 1 new this session).
+- No rule promotions this cycle; three watch entries logged for future evaluation.

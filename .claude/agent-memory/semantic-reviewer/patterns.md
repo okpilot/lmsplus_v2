@@ -160,6 +160,31 @@ When the production UI writes sessionStorage as part of a click flow that cannot
 **Pattern — `session_state_changed` is a new guard pattern in SECURITY DEFINER functions:**
 When a SECURITY DEFINER function adds a `GET DIAGNOSTICS n = ROW_COUNT` + RAISE pattern for concurrent-write detection, the Server Action that wraps the RPC should add the new error code to ERROR_MESSAGES. The guard fires in production on concurrent voids/completions and produces a confusing generic error if not mapped. Track this gap whenever a new `RAISE EXCEPTION '<code>'` is added to a migration without a paired Server Action update.
 
+### 2026-05-07 — commit 5f1295c (fix(proxy,actions): security headers on 4xx/5xx + session_state_changed UX)
+- **Files reviewed:** apps/web/proxy.ts, apps/web/app/app/admin/internal-exams/actions/void-code.ts, apps/web/app/app/admin/internal-exams/actions/void-code.test.ts, apps/web/e2e/redteam/injection-sql.spec.ts, .spec-workflow/steering/tech.md
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 5
+
+**applySecurityHeaders extraction is a pure refactor — all 7 headers preserved (GOOD)**
+- All 7 `headers.set` calls land exclusively inside the new `applySecurityHeaders` helper. No stale inline copies remain. Values are byte-for-byte identical to the previous inline block in `redirectWithCookies` and to `next.config.ts` securityHeaders array. Refactor is safe.
+
+**cookies-before-headers ordering preserved on 403/503 paths (GOOD)**
+- Both new branches follow the pattern: `new NextResponse(...)` → cookie loop → `applySecurityHeaders(...)`. Cookies are set before headers — no ordering regression vs `redirectWithCookies`.
+
+**Security posture strictly stronger — no regression (GOOD)**
+- 403/503 previously emitted no security headers. They now carry the same 7 headers as redirects. CSP on non-routed responses (`default-src 'none'; frame-ancestors 'none'`) is more restrictive than the routed CSP — correct since no scripts execute on 4xx/5xx.
+
+**session_state_changed string is verbatim match to RAISE EXCEPTION in latest migration (GOOD)**
+- Migration 20260507000001 line 127: `RAISE EXCEPTION 'session_state_changed'`. ERROR_MESSAGES key is `session_state_changed`. `mapRpcError` uses `.includes(code)` — exact substring match. Vitest test passes the exact string as `error.message` and asserts the UX string. Both ISSUEs from the PR-level sweep are resolved.
+
+**injection-sql.spec.ts afterEach parity complete (GOOD)**
+- All three soft-delete UPDATE calls in injection-sql.spec.ts now carry `.is('deleted_at', null)`. Matches sibling spec injection-xss.spec.ts pattern. No inconsistency remains across the two files.
+
+**SUGGESTION — applySecurityHeaders defined inside proxy() closure (non-blocking)**
+- The helper is a `function` statement inside the async `proxy` function body. Re-created on every request at the JS level (negligible cost at Edge runtime). Module-level placement would be semantically cleaner. No behavioral impact.
+
+**Pattern — helper-extraction from repeated inline block:**
+When extracting repeated inline logic into a named helper, verify (a) all call sites are updated (grep `headers.set` confirms 0 residual inline copies), (b) the helper parameter type is the shared supertype of all call sites (`NextResponse` here, not the narrower redirect-specific subtype), and (c) the ordering constraints at each call site are preserved (cookies before headers, auth before data access, etc.).
+
 ### 2026-04-28 — commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit)
 - **Files reviewed:** apps/web/scripts/seed-e2e.ts, apps/web/e2e/exam-flow.spec.ts, apps/web/e2e/exam-recovery.spec.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 7
