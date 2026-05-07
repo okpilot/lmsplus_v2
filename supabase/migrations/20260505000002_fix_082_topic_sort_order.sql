@@ -9,14 +9,8 @@
 -- convention and the intentional gap at sort_order 15 for 082-05).
 -- Subtopic sort_order is partitioned by topic_id and stays as-is.
 
-UPDATE easa_topics
-SET sort_order = v.sort_order
-FROM (VALUES
-  ('082-01', 11),
-  ('082-02', 12),
-  ('082-03', 13),
-  ('082-04', 14),
-  ('082-06', 16)
-) AS v(code, sort_order)
-WHERE easa_topics.code = v.code
-  AND easa_topics.subject_id = (SELECT id FROM easa_subjects WHERE code = '080');
+UPDATE easa_topics SET sort_order = 11 WHERE code = '082-01';
+UPDATE easa_topics SET sort_order = 12 WHERE code = '082-02';
+UPDATE easa_topics SET sort_order = 13 WHERE code = '082-03';
+UPDATE easa_topics SET sort_order = 14 WHERE code = '082-04';
+UPDATE easa_topics SET sort_order = 16 WHERE code = '082-06';

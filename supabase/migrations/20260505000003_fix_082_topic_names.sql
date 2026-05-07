@@ -4,13 +4,7 @@
 -- 082-02..06 (e.g. 082-04 was named "Directional gyroscope", which is actually
 -- subtopic 082-04-04). Rename to standard EASA syllabus headings.
 
-UPDATE easa_topics
-SET name = v.name
-FROM (VALUES
-  ('082-02', 'Measurement of air data parameters'),
-  ('082-03', 'Magnetism — direct reading compass'),
-  ('082-04', 'Gyroscopic instruments'),
-  ('082-06', 'Warning and recording equipment')
-) AS v(code, name)
-WHERE easa_topics.code = v.code
-  AND easa_topics.subject_id = (SELECT id FROM easa_subjects WHERE code = '080');
+UPDATE easa_topics SET name = 'Measurement of air data parameters' WHERE code = '082-02';
+UPDATE easa_topics SET name = 'Magnetism — direct reading compass' WHERE code = '082-03';
+UPDATE easa_topics SET name = 'Gyroscopic instruments'             WHERE code = '082-04';
+UPDATE easa_topics SET name = 'Warning and recording equipment'    WHERE code = '082-06';
