@@ -30,6 +30,11 @@ async function loginAs(page: Page, email: string, password: string): Promise<voi
 }
 
 async function assertSanitized(page: Page, scope: Locator): Promise<void> {
+  // Liveness check first: if seeded content was silently dropped (e.g.
+  // sanitizer too aggressive, payload broke React's render), every other
+  // assertion below would pass vacuously. The MARKER prefix is in every
+  // seeded field, so it must be visible in the rendered DOM.
+  await expect(scope).toContainText(MARKER)
   await expect(scope.locator('script')).toHaveCount(0)
   const html = await scope.evaluate((el) => el.outerHTML)
   expect(html).not.toMatch(/\son\w+\s*=/i)
