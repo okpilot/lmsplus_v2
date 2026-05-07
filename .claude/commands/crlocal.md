@@ -11,15 +11,15 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 1. **Run the review:**
    ```bash
    coderabbit review --plain --base master --type committed > /tmp/cr-local-roundN.log 2>&1; \
-   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n'
+   printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log
    ```
    The command runs in 2-5 minutes. Use `run_in_background: true` and the Monitor-style wait pattern (`until grep -qiE "Review completed|findings ✔" <output> ...`).
 
    **Belt-and-suspenders reminder delivery.** Two layers:
-   1. The trailing `printf` block is appended to the actual bash output, so when the orchestrator reads the log file (or sees the bash result), the STOP block is right after the findings — exactly when it's needed.
-   2. A `PostToolUse` hook (`.claude/hooks/cr-local-plan-reminder.sh`, wired in `.claude/settings.json`) also fires for any Bash invocation containing `coderabbit review`. For background commands the hook fires when the wrapper exits (early), priming the orchestrator before findings exist; for foreground commands it fires when the review actually returns. Either way, both the hook and the printf reach the orchestrator's context.
+   1. The trailing `printf` block is appended to `/tmp/cr-local-roundN.log` via `>>` (must be on the printf, not on the `coderabbit review` line — shell redirect scope ends at the semicolon, so `2>&1` on the first command does not carry over to printf). When the orchestrator reads the completed log, the STOP block is at the bottom, right after the findings. Works in both foreground and background bash modes.
+   2. A `PostToolUse` hook (`.claude/hooks/cr-local-plan-reminder.sh`, wired in `.claude/settings.json`) also fires for any Bash invocation containing `coderabbit review`. For background commands the hook fires when the wrapper exits (early), priming the orchestrator before findings exist; for foreground commands it fires when the review actually returns.
 
-   Do not strip either layer. The hook alone is unreliable on background bash (fires too early); the printf alone is unreliable if someone uses a different command shape that doesn't include the printf chain.
+   Do not strip either layer. The hook alone is unreliable on background bash (fires too early); the printf alone is unreliable if someone forgets to redirect it into the log (then it lands only in bash stdout, which background mode doesn't see).
 
 2. **Verify the CLI is installed:** if `which coderabbit` is empty, tell the user to install via the CodeRabbit docs and skip this step. Do NOT pretend the review ran.
 
