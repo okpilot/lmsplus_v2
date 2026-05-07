@@ -37,6 +37,14 @@
 - `createdSessionIds` populated BEFORE `expect()` call — correct.
 - ISSUE: `afterEach` soft-delete missing `{ error }` destructure and `.select('id')` zero-row observability chain (code-style.md §5). Pattern recurs from session 2026-04-10 zero-row no-op watch item.
 
+## Session 2026-05-07 — issue #108 security-header gap + session_state_changed mapping + steering drift
+
+- proxy.ts `applySecurityHeaders` helper: all 7 headers confirmed present (X-DNS-Prefetch-Control, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, Strict-Transport-Security, Content-Security-Policy). `redirectWithCookies` now delegates to helper. Both 503 and 403 branches call `applySecurityHeaders` AFTER the cookie loop — cookie posture preserved.
+- `session_state_changed` ERROR_MESSAGES entry: message text matches Vitest assertion exactly. Test follows same `mockAdmin() → mockRpc → result.success false → result.error === ...` pattern as sibling cases.
+- `injection-sql.spec.ts` `submit_quiz_answer` afterEach: `.is('deleted_at', null)` added at line 318, chained between `.eq('id', sessionToCleanup)` and `.select('id')`. Sibling `void_internal_exam_code` afterEach already had the filter at line 138 — pattern now consistent.
+- `tech.md` steering doc: `SAMEORIGIN` → `DENY` + Edge Middleware mirror note. Matches proxy.ts and aligns with issue #631 decision.
+- APPROVED — no findings.
+
 ## Session 2026-05-07 — issue #108 void_internal_exam_code whitespace check
 - Single-change migration: diff between new mig 20260507000001 and prior mig 20260430000006 is exactly one line (btrim guard → POSIX regex). All security guards, search_path, auth.uid() check, audit subqueries, GRANT, and ROW_COUNT assertion preserved byte-for-byte.
 - Doc section accurate: bug rationale, migration ID, and guard expression all correct.

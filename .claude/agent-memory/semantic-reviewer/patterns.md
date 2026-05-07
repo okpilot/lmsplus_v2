@@ -118,6 +118,48 @@ Uses `vi.hoisted` mocks, `vi.resetAllMocks()` in `beforeEach`, and follows the s
 **Pattern — sessionStorage handoff injection for E2E spec bootstrap:**
 When the production UI writes sessionStorage as part of a click flow that cannot be easily reproduced in a redteam spec (e.g., Start Quiz button), inject the handoff payload via `page.evaluate()` AFTER `loginAs` establishes the origin context and BEFORE `page.goto` to the target page. The payload must match the `SessionData` type exactly (sessionId + questionIds required; userId optional but enables cross-user guard). Do not write before `loginAs` — `sessionStorage` is scoped to the origin, and the origin is not established until the first page navigation.
 
+### 2026-05-07 — PR-level sweep: feat/redteam-owasp-coverage-108 (18 commits, 23 files, +991/−101)
+- **Scope:** full PR diff abc745c..HEAD reviewed at CodeRabbit depth
+- **CRITICAL:** 0 | **ISSUE:** 2 | **SUGGESTION:** 3 | **GOOD:** 8
+
+**ISSUE — `session_state_changed` RPC error not in ERROR_MESSAGES (new guard, missing UX mapping)**
+- `void-code.ts` ERROR_MESSAGES has entries for `not_authenticated`, `not_admin`, `admin_not_found`, `invalid_reason`, `cannot_void_finished_attempt`, `code_not_found`, `code_voided`. Migration 20260507000001 adds a new `session_state_changed` RAISE EXCEPTION path (line 127 of migration) for the case where a concurrent writer ends or deletes the session between the SELECT and UPDATE. No ERROR_MESSAGES entry exists for this code. `mapRpcError` will fall through to the generic `'Failed to void internal exam code'` string. This is not a security gap, but it's a user-experience and observability gap: the admin gets a generic error when the actual cause is a known race (concurrent void or complete). Count=1, watching.
+
+**ISSUE — proxy.ts 503 and 403 responses do not carry security headers**
+- `proxy.ts` lines 88-101: the `profileError` path returns a 503 `NextResponse` and the non-admin path returns a 403 `NextResponse`. Both copy cookies but neither calls `redirect.headers.set(...)` for the security headers injected by `redirectWithCookies`. These are the only two response branches that don't go through `redirectWithCookies`. For the 503 path this is low-probability (Supabase role lookup failing), but the 403 path is triggered for every non-admin user who hits an `/app/admin/*` route — a real surface. `X-Frame-Options: DENY` and `frame-ancestors 'none'` are absent on these responses. Count=1, watching.
+
+**SUGGESTION — `record_login` audit test uses windowStart=now-60s to handle rate-limiting but the logic is subtly wrong for a race**
+- `audit-completeness.spec.ts:389` — `windowStart = new Date(Date.now() - 60_000).toISOString()` is set before the RPC call. If the RPC hits the rate-limit window and skips the INSERT (returns without error, no row written), `expectAuditRow` will find the pre-existing row from the previous run (which is ≥ windowStart). This makes the test pass vacuously when the RPC skips the insert — it's testing that a previous run wrote an event, not that this run's RPC wrote one. The rate-limit behavior is production-correct, but the test cannot distinguish "RPC wrote a row" from "a prior row happened to be in the window." To tighten: capture windowStart AFTER a known-gap or add a 61-second cooldown. Count=1, watching.
+
+**SUGGESTION — `STORED_AS_TEXT_PAYLOADS` filter at compile time only; `rtl-override` and `url-encoded-nul` are both ≤500 chars and go through the stored-as-text path**
+- `injection-sql.spec.ts:150` — filtering by `p.value.length <= 500` correctly excludes `long-string-1k` (1024 chars). `rtl-override` (12 chars) and `url-encoded-nul` (9 chars) pass the filter and are asserted with `expect(error).toBeNull()` + `expect(row?.void_reason).toBe(payload.value)`. Both are correct behaviorally: `rtl-override` is a printable string stored verbatim; `url-encoded-nul` is the literal 9-char ASCII string `abc%00def` (no actual NUL byte), stored verbatim. The test is correct, but a future reader might expect `url-encoded-nul` to trigger rejection. The `why` comment in payloads.ts does document this correctly. No action needed, flagged for awareness.
+
+**SUGGESTION — XSS spec `assertSanitized` liveness check order: `.toContainText(MARKER)` fires before DOM-attribute walk**
+- `injection-xss.spec.ts:36` — The liveness check `await expect(scope).toContainText(MARKER)` is now the first assertion in `assertSanitized`. This is the fix for the vacuous-pass problem flagged in commit c45330f's SUGGESTION (count=1). Pattern resolved after 1 occurrence.
+
+**Cross-PR issues resolved (positive signal):**
+- CRLF TRANSPORT_LAYER_PAYLOADS issue (c45330f ISSUE): resolved in d13dc55 — CRLF entry removed, only `nul-byte` remains. count reset to 0.
+- submit_quiz_answer shared session (c45330f ISSUE): resolved — `beforeAll` → `beforeEach` per-test session. count reset to 0.
+- `seedXssQuestion` using studentUserId as `created_by` (c45330f ISSUE): resolved in 3790db7 — `bootStudentSession` passes `adminUserId`. count reset to 0.
+
+**Migration 20260507000001 security posture is correct (GOOD)**
+- `auth.uid()` check fires first. `is_admin()` check second. `invalid_reason` guard third (before any data access). `deleted_at IS NULL` on users, internal_exam_codes, quiz_sessions. Both audit INSERT subqueries (`u.role` lookups) filter `AND u.deleted_at IS NULL`. `quiz_session_answers` has no `deleted_at` column (immutable table per initial schema) — the missing filter is correct. `GET DIAGNOSTICS v_session_updated = ROW_COUNT` with `IF = 0 THEN RAISE EXCEPTION` closes the TOCTOU window on the session UPDATE. All security.md rules verified.
+
+**proxy.ts redirectWithCookies is fully consistent across all redirect branches (GOOD)**
+- Every `return redirectWithCookies(...)` call (lines 60, 65, 73, 120) passes through the same function, which copies all session cookies AND sets all 7 security headers. No branch divergence. The GOOD pattern from code-style.md §6 is correctly applied.
+
+**next.config.ts X-Frame-Options DENY aligns with proxy.ts and CSP frame-ancestors 'none' (GOOD)**
+- Per-commit suggestion from c45330f (X-Frame-Options SAMEORIGIN contradicted frame-ancestors 'none') was resolved in this PR: next.config.ts changed from SAMEORIGIN to DENY, proxy.ts also uses DENY. Legacy browsers now see a consistent posture.
+
+**header-validation.spec.ts responseClass split correctly distinguishes routed vs redirect CSP (GOOD)**
+- The `responseClass: 'routed' | 'redirect'` enum prevents the test from asserting the full CSP (default-src 'self', script-src, etc.) on a 3xx redirect response where the minimal CSP is correct. Without this split, the test would fail in CI on the redirect path. The split is documented with an inline comment. Correct.
+
+**E2E hermiticity markers exported from seed.ts (GOOD)**
+- `E2E_REDTEAM_CODE_PREFIX` and `E2E_XSS_MARKER` are now exported constants from `helpers/seed.ts`, resolving the magic-string anti-pattern from the initial spec files. Per code-style.md §7 hermiticity rule.
+
+**Pattern — `session_state_changed` is a new guard pattern in SECURITY DEFINER functions:**
+When a SECURITY DEFINER function adds a `GET DIAGNOSTICS n = ROW_COUNT` + RAISE pattern for concurrent-write detection, the Server Action that wraps the RPC should add the new error code to ERROR_MESSAGES. The guard fires in production on concurrent voids/completions and produces a confusing generic error if not mapped. Track this gap whenever a new `RAISE EXCEPTION '<code>'` is added to a migration without a paired Server Action update.
+
 ### 2026-04-28 — commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit)
 - **Files reviewed:** apps/web/scripts/seed-e2e.ts, apps/web/e2e/exam-flow.spec.ts, apps/web/e2e/exam-recovery.spec.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 7
