@@ -21,7 +21,7 @@ const PATHS = [
 
 const EXACT_HEADERS = [
   { key: 'x-dns-prefetch-control', expected: 'on' },
-  { key: 'x-frame-options', expected: 'SAMEORIGIN' },
+  { key: 'x-frame-options', expected: 'DENY' },
   { key: 'x-content-type-options', expected: 'nosniff' },
   { key: 'referrer-policy', expected: 'strict-origin-when-cross-origin' },
   { key: 'permissions-policy', expected: 'camera=(), microphone=(), geolocation=()' },

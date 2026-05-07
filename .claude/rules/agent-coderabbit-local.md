@@ -14,6 +14,10 @@ The runtime command is `/crlocal`. This file is the binding policy.
 
 Do NOT run after every commit — too slow (2-5 min per round), no value on small fix commits.
 
+## Apply-vs-Defer
+
+The triage table below decides class; the apply/skip/defer **verdict** is bound by `agent-workflow.md § Apply-vs-Defer Discipline`. **Default to APPLY.** DEFER requires ≥30 LOC, separate concern, and a design decision the PR doesn't establish — all three. Defer-budget per PR is 0-2; 3+ is a red flag.
+
 ## Finding Classification (read source, do not trust labels)
 
 Every CR finding falls into exactly one of these classes. Severity labels (`trivial`, `minor`, `major`, `critical`, `nitpick`, `potential_issue`) are advisory — verify against the actual code.

@@ -264,6 +264,75 @@ When a reviewer flags an ISSUE or CRITICAL, do NOT immediately edit code. Valida
 
 Only then fix. This is a closed loop: `finding → validate → fix → re-validate if plan changed`.
 
+## Apply-vs-Defer Discipline (MANDATORY before push)
+
+> **Default: apply. Defer is the exception.** Sort everything on the local machine before pushing. Don't push with a queue of unfinished business.
+
+The orchestrator drifts toward deferral when a PR feels "almost done" — every deferral is locally rational ("it's separate scope," "it's just additive coverage") but in aggregate they grow an invisible backlog of TODO-eventually that ages and rots. The rules below close that drift.
+
+### When to APPLY (default — most cases)
+
+Apply the finding inline when ANY of these hold:
+
+- **< 30 LOC and same-pattern-as-existing-code.** Adding entries to a payload table, swapping a config value the codebase already exposes, mirroring a sibling spec's afterEach pattern, etc.
+- **You already have the context loaded.** If you're in the file or the surrounding feature, fix it now. Re-loading context later is more expensive than the fix.
+- **The finding is from CR local, semantic-reviewer, plan-critic, or impl-critic — and would otherwise be triaged on the PR after CI.** Pre-push triage is always cheaper than post-push triage.
+- **The finding addresses a project-rule violation** (`code-style.md`, `security.md`, `agent-*.md` rules). Rule violations are not deferrable — fix or document the exception.
+
+### When to DEFER (exception — requires all three)
+
+Only file a GitHub Issue and defer when **every one** of these is true:
+
+1. **≥ 30 LOC** estimated total (code + tests + docs).
+2. **Genuinely separate concern** — different feature area, different threat model, different RPC family. The work could stand on its own as a coherent PR.
+3. **Requires a design decision** the current PR doesn't establish, OR involves a system the orchestrator hasn't loaded context for.
+
+If any of those is false, apply.
+
+### Defer-budget per PR
+
+- **0 deferrals** is the goal.
+- **1-2 deferrals** is acceptable when each one genuinely meets the three-condition test above.
+- **3+ deferrals** is a red flag — recheck triage. The PR scope was probably wrong (either too narrow → expand and apply some, or too broad → split). Re-evaluate every deferral before filing.
+
+### What every deferred issue must include (no silent backlog growth)
+
+If you file a deferral, the issue body must contain:
+
+- **Effort estimate** — S (< 30 LOC) / M (30-150 LOC) / L (150+ LOC).
+- **Priority** — P0 (security/correctness blocker) / P1 (important) / P2 (nice-to-have).
+- **Acceptance criteria** — a developer should be able to start the work without re-reading the original CR comment or chat history.
+- **Source link** — the originating finding (CR comment URL, semantic-reviewer report, etc.) so the rationale is recoverable.
+
+If you can't articulate effort + priority + acceptance now, you can't articulate them later either — the issue will rot. Either pay the small cost to fill them in, or apply the fix.
+
+### "Won't do" is a valid verdict at file time
+
+If, while writing the deferral, you realize you wouldn't pick this up in the next 2 sprints, **don't file** — close the finding as "won't do" with a one-line reason. Better than letting an issue age forever.
+
+### Pre-push gate
+
+Before push, every reviewer/CR finding must be in one of these terminal states:
+
+- **APPLIED** in a commit on this branch.
+- **DEFERRED** with a filed GitHub issue carrying effort + priority + acceptance.
+- **SKIPPED** with a written reason that establishes the finding is wrong on the merits (false positive, contradicts codebase pattern, etc.). "I don't want to do this" is not a skip reason.
+
+No in-flight findings at push time.
+
+### DO
+
+- Lean APPLY by default. Treat DEFER as the suspicious choice that needs justification.
+- When in doubt between APPLY and DEFER, apply. Re-loading context is expensive.
+- Periodically (weekly via `/insights`) review open deferred issues — re-prioritize, action, or close as wontfix.
+
+### NEVER
+
+- Defer because "the PR is almost done." That's the failure mode this rule exists to prevent.
+- File a deferral without effort + priority + acceptance criteria. Bare titles rot.
+- Skip a finding to avoid the work. Skip is reserved for "wrong on the merits."
+- Push with in-flight findings (no terminal state assigned).
+
 ## Orchestrator Role
 
 - **You plan and review. Agents execute.**

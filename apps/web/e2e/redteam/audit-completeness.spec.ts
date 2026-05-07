@@ -374,4 +374,17 @@ test.describe('Red Team: Audit Event Completeness', () => {
 
     await expectAuditRow('internal_exam.expired', studentUserId, testStart)
   })
+
+  test('writes student.login when record_login() is invoked', async () => {
+    // record_login() rate-limits at 60s — if a prior test run was within
+    // the window, the RPC returns without inserting and the existing row
+    // satisfies the assertion. Capture the window edge and accept any row
+    // within it.
+    const windowStart = new Date(Date.now() - 60_000).toISOString()
+
+    const { error } = await studentClient.rpc('record_login')
+    expect(error, 'record_login error').toBeNull()
+
+    await expectAuditRow('student.login', studentUserId, windowStart)
+  })
 })

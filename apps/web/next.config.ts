@@ -8,7 +8,10 @@ const allowLocal = isDev || isLocalSupabase
 
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
-  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  // DENY (not SAMEORIGIN) so legacy browsers that ignore the CSP
+  // frame-ancestors directive still see a deny intent matching
+  // "frame-ancestors 'none'" below. Issue #631.
+  { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
