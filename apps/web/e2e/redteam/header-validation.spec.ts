@@ -1,0 +1,67 @@
+/**
+ * Red Team Spec — OWASP A02 Security Misconfiguration: Response Headers
+ *
+ * Attack surface: A misconfigured or missing security header (CSP, HSTS,
+ * X-Frame-Options, etc.) lets an attacker frame the app, downgrade
+ * connections, or run injected scripts.
+ *
+ * Defense: `apps/web/next.config.ts` declares 7 security headers under a
+ * catch-all `source: '/(.*)'` rule. This spec verifies the response actually
+ * carries them on representative pre-auth, post-redirect, and unauth-redirect
+ * paths. Closes part of issue #108.
+ */
+
+import { expect, test } from '@playwright/test'
+
+const PATHS = [
+  { name: 'root', path: '/' },
+  { name: 'dashboard (unauth → redirect)', path: '/app/dashboard' },
+  { name: 'login', path: '/auth/login' },
+] as const
+
+const EXACT_HEADERS = [
+  { key: 'x-dns-prefetch-control', expected: 'on' },
+  { key: 'x-frame-options', expected: 'SAMEORIGIN' },
+  { key: 'x-content-type-options', expected: 'nosniff' },
+  { key: 'referrer-policy', expected: 'strict-origin-when-cross-origin' },
+  { key: 'permissions-policy', expected: 'camera=(), microphone=(), geolocation=()' },
+] as const
+
+const HSTS_MIN_MAX_AGE = 15_768_000 // 6 months
+
+test.describe('Red Team: OWASP A02 — security response headers', () => {
+  for (const { name, path } of PATHS) {
+    test(`${name} response carries all required security headers`, async ({ request }) => {
+      // maxRedirects: 0 — assert headers on the FIRST response, including 3xx
+      // redirects from middleware (e.g. unauth /app/* → /auth/login).
+      const response = await request.fetch(path, { maxRedirects: 0 })
+      expect(response.status(), `unexpected response for ${path}`).toBeLessThan(500)
+
+      const headers = response.headers()
+
+      for (const { key, expected } of EXACT_HEADERS) {
+        expect(headers[key], `missing or wrong ${key} on ${path}`).toBe(expected)
+      }
+
+      // HSTS — must be present with max-age ≥ 6 months.
+      const hsts = headers['strict-transport-security']
+      expect(hsts, `missing HSTS on ${path}`).toBeTruthy()
+      const maxAgeMatch = hsts?.match(/max-age=(\d+)/)
+      expect(maxAgeMatch, `HSTS missing max-age on ${path}`).not.toBeNull()
+      expect(
+        Number(maxAgeMatch?.[1] ?? 0),
+        `HSTS max-age too short on ${path}`,
+      ).toBeGreaterThanOrEqual(HSTS_MIN_MAX_AGE)
+
+      // CSP — structural assertions only (the directive set varies by env:
+      // dev injects 'unsafe-eval'; local supabase injects localhost origins).
+      const csp = headers['content-security-policy']
+      expect(csp, `missing CSP on ${path}`).toBeTruthy()
+      expect(csp).toContain("default-src 'self'")
+      expect(csp).toContain("frame-ancestors 'none'")
+      expect(csp).toMatch(/script-src 'self'/)
+      expect(csp).toMatch(/connect-src[^;]*https:\/\/\*\.supabase\.co/)
+      expect(csp).toContain("worker-src 'self' blob:")
+    })
+  }
+})
