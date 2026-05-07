@@ -20,6 +20,17 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/cr-local-plan-reminder.sh"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

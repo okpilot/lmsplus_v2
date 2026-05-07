@@ -10,11 +10,11 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 1. **Run the review:**
    ```bash
-   coderabbit review --plain --base master --type committed && printf '\n\n════════════════════════════════════════════════════════════════════════════\nSTOP. Review output above is INPUT, not a TODO list.\n\nBefore any Edit:\n  1. Read the SOURCE CODE for every finding (do not trust CR line numbers — they\n     are sometimes wrong; verify by grep).\n  2. Triage each finding into apply / skip (with reason) / defer (with issue).\n  3. WRITE A PLAN inline to the user: files to change, blast radius (callers,\n     sibling files, tests, docs), risks, verification step.\n  4. Wait for user approval (or rely on prior global approval if the plan is\n     single-file < 10 LOC and the verdict is unambiguous).\n  5. ONLY THEN apply.\n\nThe triage output is NOT the plan. Triage tells you what to do; the plan tells\nyou how, in what order, with what risks. Skipping the plan step is the most\ncommon CR-local failure mode.\n════════════════════════════════════════════════════════════════════════════\n'
+   coderabbit review --plain --base master --type committed
    ```
    The command runs in 2-5 minutes. Use `run_in_background: true` and the Monitor-style wait pattern (`until grep -qiE "Review completed|findings ✔" <output> ...`).
 
-   The trailing `printf` block is a checklist the orchestrator MUST read before doing anything. It is not a separate `/plan` skill invocation — the orchestrator plans inline in the next user-facing message. The point is to break the reflex of going from "triage table" straight to "Edit call".
+   A `PostToolUse` hook (`.claude/hooks/cr-local-plan-reminder.sh`, wired in `.claude/settings.json`) detects any Bash invocation containing `coderabbit review` and appends a STOP reminder to the tool result. The reminder restates the required flow: read source → triage → plan → execute → run review agents → re-run CR. The orchestrator reads it as part of the bash output and cannot proceed without seeing it.
 
 2. **Verify the CLI is installed:** if `which coderabbit` is empty, tell the user to install via the CodeRabbit docs and skip this step. Do NOT pretend the review ran.
 
