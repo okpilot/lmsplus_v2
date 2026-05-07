@@ -69,6 +69,30 @@ When a helper scans taxonomy (subjects/topics) and then counts questions, the sc
 **Pattern — transport-layer payload assertions need to account for JSON client-side encoding:**
 When a payload contains control characters (CRLF, NUL), check whether the JS SDK encodes them before sending. NUL bytes (0x00) survive JSON encoding as ` ` and are rejected by Postgres. CRLF bytes (0x0d 0x0a) survive JSON encoding as `\r\n` and are accepted by Postgres text columns. Tests asserting "transport rejection" of CRLF should either (a) verify the actual Postgres rejection message, or (b) remove the TRANSPORT_LAYER claim and test the stored value instead.
 
+### 2026-05-07 — commit d13dc55 (fix(redteam,actions): broader whitespace coverage + invalid_reason UX)
+- **Files reviewed:** apps/web/e2e/redteam/helpers/payloads.ts, apps/web/app/app/admin/internal-exams/actions/void-code.ts, apps/web/app/app/admin/internal-exams/actions/void-code.test.ts
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 5
+
+**All three targeted fixes verified correct:**
+1. `spaces-only` and `tabs-only` `why` annotations updated — no stale btrim reference in `spaces-only`; `tabs-only` correctly retains btrim reference as a regression-canary statement (describes what btrim CANNOT do).
+2. Three new WHITESPACE_PAYLOADS entries (`newlines-only`, `cr-only`, `mixed-whitespace`) have correct SqlPayload shape, correct byte values verified (LF=0x0A, CR=0x0D, mixed covers all 6 [[:space:]] members: 0x20 0x09 0x0A 0x0D 0x0C 0x0B).
+3. `invalid_reason` key added to ERROR_MESSAGES — exact string matches `RAISE EXCEPTION 'invalid_reason'` in migration 20260507000001. New Vitest test correctly mocks `{ message: 'invalid_reason' }` and asserts mapped UX string.
+
+**SUGGESTION — WHITESPACE_PAYLOADS block comment: `why` for `newlines-only` says "JSON-encoded as \\n, reaches RPC verbatim" — accurate but asymmetric with `cr-only` which gives no such transport note.**
+The claim is correct (`\n` → `\n` in JSON, Postgres text column receives 0x0A). `\r` behaves identically (`\r` → `\r` in JSON). A future reader hitting only `cr-only` might wonder why CR is not in TRANSPORT_LAYER_PAYLOADS. Mirroring the transport note on `cr-only` would make the table self-documenting. Count=1, watching.
+
+**`\f` (0x0C) and `\v` (0x0B) in mixed-whitespace correctly survive JSON round-trip (GOOD)**
+`\f` → `"\f"` (valid JSON escape per RFC 4627 §2.5); `\v` → `""` (JSON.stringify uses unicode escape since `\v` is not a standard JSON escape). Both round-trip correctly: the Postgres RPC receives 0x0C and 0x0B in the text column, where `[[:space:]]` matches them. No transport-rejection risk.
+
+**`invalid_reason` ERROR_MESSAGES mapping is defense-in-depth UX only (GOOD)**
+Zod's `z.string().min(1)` rejects empty strings at the Server Action boundary. Whitespace-only strings (length ≥ 1) pass Zod and reach the RPC, where the POSIX `^[[:space:]]*$` guard raises `invalid_reason`. The new ERROR_MESSAGES entry translates that DB-layer rejection into a user-facing message. No change to auth or data-flow security posture.
+
+**Vitest test for invalid_reason follows established mock pattern (GOOD)**
+Uses `vi.hoisted` mocks, `vi.resetAllMocks()` in `beforeEach`, and follows the same mock-shape as all existing error-mapping tests. Test title `'maps invalid_reason'` is consistent with sibling test names `'maps code_not_found'`, `'maps not_admin'`, etc. The `mockRpc.mockResolvedValue({ data: null, error: { message: 'invalid_reason' } })` shape correctly exercises the `mapRpcError` path.
+
+**`mapRpcError` uses `.includes(code)` for substring matching — safe for `invalid_reason` (GOOD)**
+`invalid_reason` does not appear as a substring of any other ERROR_MESSAGES key (`not_authenticated`, `not_admin`, `admin_not_found`, `cannot_void_finished_attempt`, `code_not_found`, `code_voided`). No false-positive risk from the substring scan. The iteration order of `Object.entries(ERROR_MESSAGES)` is insertion order in V8, and `invalid_reason` is inserted before `cannot_void_finished_attempt` — no ordering edge case exists here.
+
 ### 2026-04-28 — commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit)
 - **Files reviewed:** apps/web/scripts/seed-e2e.ts, apps/web/e2e/exam-flow.spec.ts, apps/web/e2e/exam-recovery.spec.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 7

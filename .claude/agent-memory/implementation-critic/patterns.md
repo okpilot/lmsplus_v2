@@ -37,6 +37,13 @@
 - `createdSessionIds` populated BEFORE `expect()` call — correct.
 - ISSUE: `afterEach` soft-delete missing `{ error }` destructure and `.select('id')` zero-row observability chain (code-style.md §5). Pattern recurs from session 2026-04-10 zero-row no-op watch item.
 
+## Session 2026-05-07 — issue #108 void_internal_exam_code whitespace check
+- Single-change migration: diff between new mig 20260507000001 and prior mig 20260430000006 is exactly one line (btrim guard → POSIX regex). All security guards, search_path, auth.uid() check, audit subqueries, GRANT, and ROW_COUNT assertion preserved byte-for-byte.
+- Doc section accurate: bug rationale, migration ID, and guard expression all correct.
+- Guards line updated to include `invalid_reason` with full description (NULL, whitespace-only, >500 chars).
+- Regex `p_reason ~ '^[[:space:]]*$'` confirmed: matches NULL (via explicit OR), '', '   ', '\t\t\t', '\n', mixed; does NOT match 'a', '  abc  '. Logic is correct.
+- APPROVED — no findings.
+
 ## Session 2026-05-06 — issue #622 start_quiz_session input hardening
 - Migration CREATE OR REPLACE chain traced correctly: mig 076 → mig 077 (new). All guards from mig 076 preserved (`Not authenticated`, `user not found or inactive`, `SET search_path = public`, `auth.uid()`). Clean.
 - smart_review NULL carve-out: `(p_subject_id IS NULL OR q.subject_id = p_subject_id)` and same for topic — correct per plan.
