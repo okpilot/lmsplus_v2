@@ -4556,3 +4556,44 @@ Scope: Applies to SELECT queries in auth helpers, E2E helpers, and test setup. E
 
 **Learner cycle complete for bc3226a + 111f617 + fa57571.** Four patterns detected: 1 NEW (`.limit()` determinism, count=1), 1 ESCALATED (POST-COUNT race, count=2), 1 PROMOTED (SELECT error destructure, count=3), 1 NEW (NULL-tolerant WHERE, count=1). **SELECT error destructure pattern promoted to rule-ready status.** All agents clean on final commits. Issue #622 fully addressed (RPC hardening + deterministic helper + post-commit fixes).
 
+---
+
+## Learner Cycle — 2026-05-07 — Commit 287b98d
+
+**fix(db): scope 082 topic UPDATE migrations to subject 080**
+
+### Agent Findings Summary
+- **code-reviewer (287b98d):** 0 BLOCKING, 0 WARNINGS. Clean.
+- **semantic-reviewer (287b98d):** 1 SUGGESTION (non-blocking): Idempotency improvement — the migration could check `WHERE ... AND sort_order <> v.sort_order` to avoid no-op UPDATEs. Not a functional issue; the bare UPDATE to existing value is idempotent but adds a redundant query. Suggestion only — no fix required.
+- **doc-updater (287b98d):** No doc updates needed. Migration-only change.
+- **test-writer (287b98d):** No tests needed. Migrations are schema-only; no unit tests apply.
+
+### Pattern Detected
+**[NEW — count 1] UPDATE in seed/fix migrations missing compound-key scoping when table has UNIQUE (parent_id, code) constraint**
+
+**Description:**
+Migrations `20260505000002_fix_082_topic_sort_order.sql` and `20260505000003_fix_082_topic_names.sql` initially used `UPDATE easa_topics SET ... WHERE code = '082-XX'` — scoping only by `code`. The table has `UNIQUE (subject_id, code)`, making `code` NOT globally unique. The seed migration `20260505000001_seed_082_instrumentation.sql` correctly scoped via `WHERE subject_id = (SELECT id FROM easa_subjects WHERE code = '080')`, but the corresponding fix migrations omitted this join. CodeRabbit flagged both as Major violations. Fixed in 287b98d by converting to `UPDATE ... FROM (VALUES) WHERE code = v.code AND subject_id = ...` form.
+
+**Root cause:** The author scoped the seed INSERT correctly but did not apply the same scope discipline to follow-up UPDATEs. Likely mindset: once code is seeded, assume it's "done"; didn't consider risk of future code-duplicate scenarios.
+
+**Risk:** If the same codes (082-01, etc.) ever appear under a different subject, unscoped UPDATEs would corrupt the wrong subject's data. On a multi-tenant or multi-curriculum table, compound-key violations are high-consequence bugs.
+
+**First occurrence.** Logged as watch item. **Action: Log and watch.** Will propose a doc or rule note if a second occurrence surfaces in a different seed/fix cycle.
+
+### Recommended Changes
+None at this time. First occurrence = log and watch. No rule change warranted yet.
+
+### Memory Updated
+Added to frequency table (end of Issue Frequency table, above current session notes):
+
+| UPDATE in migration missing compound-key scoping (UNIQUE parent_id, code table) | 1 | 2026-05-07 | Watch — 287b98d (082 topics seed/fix): code-only scoping; CodeRabbit caught both migrations; fixed by adding subject_id join; if second seed/fix cycle has same pattern, propose guidance in database.md or code-style.md §SQL migration rules |
+
+### Positive Signals
+- CodeRabbit caught both unscoped UPDATEs independently (Major severity) — external code review functioning well on this pattern class.
+- Diff shows correct fix pattern: `FROM (VALUES...) WHERE ... AND subject_id = (SELECT...)` — good idempotent structure.
+- Seed migration (same PR, commit 4508d68) scoped correctly — inconsistency was between seed and fix migrations, not a systemic authoring gap.
+
+### False Positives
+None. Semantic-reviewer SUGGESTION is valid design guidance (idempotency check); not a functional gap.
+
+**Learner cycle complete for 287b98d.** One new pattern logged (UPDATE compound-key scoping). All agents clean. No rule changes. System tracking via memory for future recurrence.
