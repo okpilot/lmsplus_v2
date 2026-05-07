@@ -7,7 +7,7 @@ import { rpc } from '@/lib/supabase-rpc'
 
 const VoidCodeSchema = z.object({
   codeId: z.uuid(),
-  reason: z.string().min(1).max(500),
+  reason: z.string().trim().min(1).max(500),
 })
 
 export type VoidCodeInput = z.infer<typeof VoidCodeSchema>
@@ -20,9 +20,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   not_authenticated: 'Not authenticated',
   not_admin: 'Admin permission required',
   admin_not_found: 'Admin permission required',
+  invalid_reason: 'Reason cannot be blank or whitespace-only',
   cannot_void_finished_attempt: 'Cannot void a finished attempt — record is final',
   code_not_found: 'Code not found',
   code_voided: 'Code is already voided',
+  session_state_changed: 'This session was modified by another action — please refresh and retry',
 }
 
 function mapRpcError(message: string): string {

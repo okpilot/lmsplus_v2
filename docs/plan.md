@@ -542,7 +542,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 - Mailpit helper (`e2e/helpers/mailpit.ts`): fetch latest email, extract links (used for password reset)
 - Supabase helper (`e2e/helpers/supabase.ts`): ensure E2E test user exists in Egmont Aviation org
 - Playwright config: auth state caching, headless + headed modes, HTML reporter
-- Scripts: `pnpm e2e`, `pnpm e2e:ui`, `pnpm e2e:headed`
+- Scripts: `pnpm e2e` (e2e + admin-e2e projects only), `pnpm e2e:redteam` (redteam attack suite — runs in its own CI workflow `redteam.yml`), `pnpm e2e:ui`, `pnpm e2e:headed`
 - All core user flows covered: login → quiz/review → progress → back to dashboard
 
 **Phase 5B-5 done (2026-03-11):** CI/QA pipelines (Lefthook + subagents + GitHub Actions):

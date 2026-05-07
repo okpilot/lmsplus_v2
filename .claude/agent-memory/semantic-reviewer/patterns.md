@@ -29,6 +29,162 @@ When a helper scans taxonomy (subjects/topics) and then counts questions, the sc
 **`.order('id')` determinism nits on questions fetch (GOOD)**
 - Both `session-race-condition.spec.ts` and `session-replay.spec.ts` now add `.order('id', { ascending: true })` before `.limit(3)` on their questions fetch. This is a direct fix for CI flakiness where physical row order was non-deterministic after inserts. Correct and consistent with the project's determinism principle.
 
+### 2026-05-07 — commit c45330f (test(redteam): add OWASP A02/A05/A09 coverage — 52 new specs, closes #108)
+- **Files reviewed:** audit-completeness.spec.ts, injection-sql.spec.ts, injection-xss.spec.ts, header-validation.spec.ts, helpers/payloads.ts
+- **CRITICAL:** 0 | **ISSUE:** 3 | **SUGGESTION:** 3 | **GOOD:** 6
+
+**ISSUE — CRLF payload is string escape sequences, not real CRLF at JSON-wire level**
+- `payloads.ts:63` — `TRANSPORT_LAYER_PAYLOADS[1]` value is `'abc\r\ndef'`, which at runtime produces real CR (0x0d) + LF (0x0a) bytes. The `why` comment says "CRLF in JSON body — control chars rejected by transport." However, the Supabase JS client JSON-encodes the payload before sending, rendering the CR/LF as `\r\n` escape sequences — valid inside a JSON string. PostgREST accepts this and passes the value to Postgres unmodified. The transport-layer rejection that the comment predicts does NOT occur. The test only asserts `error !== null` for this payload, which will FAIL when the RPC returns successfully (error is null for `void_internal_exam_code` p_reason containing CRLF, which is a legal reason string). Count=1, watching.
+
+**ISSUE — injection-sql.spec.ts submit_quiz_answer describe: single shared session across all DB_LAYER_PAYLOADS is safe but only by coincidence**
+- `injection-sql.spec.ts:239` — A single `sessionId` (quick_quiz, 1 question) is created in `beforeAll` and reused across all 6 DB_LAYER_PAYLOADS + 2 TRANSPORT_LAYER_PAYLOADS tests. `submit_quiz_answer` is a per-question RPC. Each call is rejected with "selected option does not belong", so no `quiz_session_answers` row is written and the session is never ended. This works today, but if a payload test accidentally produced a valid option id (or if the rejection logic changed), the session would end on first success and all subsequent tests would fail with `session_already_ended` rather than `option not found`. A per-test beforeEach session would be more robust. Count=1, watching.
+
+**ISSUE — injection-xss.spec.ts seeds questions using studentUserId as `created_by`**
+- `injection-xss.spec.ts:169` — `seedXssQuestion` uses `authorId: studentUserId` (the TEST_EMAIL student, not an admin). The `questions.created_by` column is not validated by an RLS policy at the DB level — the insert goes via service-role client, so it succeeds regardless. But the semantic intent of the spec is "an admin authors malicious markup." Using a student's UUID as `created_by` is semantically wrong: it misrepresents who authored the question in audit context and could cause the question to not appear in admin-authored-question filters if such a filter is ever added. Should use `ensureAdminTestUser()` result's userId. Count=1, watching.
+
+**SUGGESTION — header-validation.spec.ts: X-Frame-Options SAMEORIGIN contradicts CSP frame-ancestors 'none'**
+- `header-validation.spec.ts:24,61` — The spec asserts both `x-frame-options: SAMEORIGIN` (allows same-origin frames) and CSP `frame-ancestors 'none'` (blocks all frames including same-origin). Modern browsers honor `frame-ancestors` and ignore `X-Frame-Options` when CSP is present; older browsers only see X-Frame-Options. The test is verifying two contradictory policies simultaneously — a security posture that, on older browsers, is SAMEORIGIN (permissive) not 'none' (strict). This mismatch is in `next.config.ts` itself (lines 11 and 29). The test correctly reproduces what the server sends, but neither the test nor a comment flags this as a known security trade-off for older browsers. This should be either aligned (change X-Frame-Options to DENY to match 'none') or documented as intentional. Count=1, watching.
+
+**SUGGESTION — payloads.ts: no unicode-RTL or null-coalescing payloads in DB_LAYER_PAYLOADS**
+- `payloads.ts:20-51` — The SQL payload set covers classic tautology, statement chaining, comment injection, unicode homoglyph, and length. Missing: right-to-left override (U+202E, U+2066) which can mislead log readers reading the `void_reason` column; and `%00` (URL-encoded NUL) which is distinct from the raw NUL byte and not intercepted by the same PostgREST path. These are advisory. Count=1, watching.
+
+**SUGGESTION — injection-xss.spec.ts: assertSanitized checks DOM shape but not text-node content of XSS payloads**
+- `injection-xss.spec.ts:32-39` — `assertSanitized` checks `<script>` count = 0, no `on\w+=` attributes, no `javascript:` URIs, and `window.__pwned`. This is good coverage for element-based XSS. It does NOT assert that the payload text itself (e.g., the raw `<script>` string) appears escaped as literal text in the DOM. If React rendered nothing (empty cell) instead of the escaped payload, the test would still pass — the absence of the payload is indistinguishable from it being sanitized. A `.toContainText('[E2E_XSS]')` on the scope would bind the assertion to content actually being rendered. Count=1, watching.
+
+**backdateSession math is correct and explicit (GOOD)**
+- `audit-completeness.spec.ts:146-159` — time_limit=60s, started 91s ago, grace=30s → condition is `now() > (now-91s) + 90s = now-1s` which is true. The 1-second margin is tight but deterministic (no clock skew possible since the backdate is a DB write, not a network round-trip). The `select('id')` + `!data?.length` check guards against a silent no-op. Correct.
+
+**audit-completeness isolation is strong (GOOD)**
+- `testStart` captured before each RPC call + `actor_id` + `event_type` triple-filter in `expectAuditRow` means parallel specs writing the same event_type for different users won't pollute counts. The spec's comment documents this explicitly.
+
+**void_internal_exam_code round-trip equality proves non-interpretation (GOOD)**
+- `injection-sql.spec.ts:176` — `expect(row?.void_reason).toBe(payload.value)` asserts the payload was stored byte-for-byte. Combined with "no error", this is the correct proof that the SQL fragment was treated as text, not executed. No other spec needed.
+
+**internal_exam.expired and exam.expired share backdateSession correctly (GOOD)**
+- Both expiry tests use `backdateSession` which updates both `started_at` and `time_limit_seconds`. The `batch_submit_quiz` RPC (mig 012) reads both values and applies the `now() > started_at + (time_limit + 30) * interval '1 second'` check. The 91s backdate with 60s limit fires this branch deterministically. Correct branch isolation.
+
+**CSP structural assertions degrade gracefully across dev/CI environments (GOOD)**
+- `header-validation.spec.ts:57-64` — The comment correctly explains that `unsafe-eval` appears only in dev and localhost origins appear only in `isLocalSupabase` mode. The assertions use structural checks (`toContain`, `toMatch`) not exact equality, so they pass in both production and local-supabase CI environments. No false-positive risk from env variation.
+
+**Pattern — transport-layer payload assertions need to account for JSON client-side encoding:**
+When a payload contains control characters (CRLF, NUL), check whether the JS SDK encodes them before sending. NUL bytes (0x00) survive JSON encoding as ` ` and are rejected by Postgres. CRLF bytes (0x0d 0x0a) survive JSON encoding as `\r\n` and are accepted by Postgres text columns. Tests asserting "transport rejection" of CRLF should either (a) verify the actual Postgres rejection message, or (b) remove the TRANSPORT_LAYER claim and test the stored value instead.
+
+### 2026-05-07 — commit d13dc55 (fix(redteam,actions): broader whitespace coverage + invalid_reason UX)
+- **Files reviewed:** apps/web/e2e/redteam/helpers/payloads.ts, apps/web/app/app/admin/internal-exams/actions/void-code.ts, apps/web/app/app/admin/internal-exams/actions/void-code.test.ts
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 5
+
+**All three targeted fixes verified correct:**
+1. `spaces-only` and `tabs-only` `why` annotations updated — no stale btrim reference in `spaces-only`; `tabs-only` correctly retains btrim reference as a regression-canary statement (describes what btrim CANNOT do).
+2. Three new WHITESPACE_PAYLOADS entries (`newlines-only`, `cr-only`, `mixed-whitespace`) have correct SqlPayload shape, correct byte values verified (LF=0x0A, CR=0x0D, mixed covers all 6 [[:space:]] members: 0x20 0x09 0x0A 0x0D 0x0C 0x0B).
+3. `invalid_reason` key added to ERROR_MESSAGES — exact string matches `RAISE EXCEPTION 'invalid_reason'` in migration 20260507000001. New Vitest test correctly mocks `{ message: 'invalid_reason' }` and asserts mapped UX string.
+
+**SUGGESTION — WHITESPACE_PAYLOADS block comment: `why` for `newlines-only` says "JSON-encoded as \\n, reaches RPC verbatim" — accurate but asymmetric with `cr-only` which gives no such transport note.**
+The claim is correct (`\n` → `\n` in JSON, Postgres text column receives 0x0A). `\r` behaves identically (`\r` → `\r` in JSON). A future reader hitting only `cr-only` might wonder why CR is not in TRANSPORT_LAYER_PAYLOADS. Mirroring the transport note on `cr-only` would make the table self-documenting. Count=1, watching.
+
+**`\f` (0x0C) and `\v` (0x0B) in mixed-whitespace correctly survive JSON round-trip (GOOD)**
+`\f` → `"\f"` (valid JSON escape per RFC 4627 §2.5); `\v` → `""` (JSON.stringify uses unicode escape since `\v` is not a standard JSON escape). Both round-trip correctly: the Postgres RPC receives 0x0C and 0x0B in the text column, where `[[:space:]]` matches them. No transport-rejection risk.
+
+**`invalid_reason` ERROR_MESSAGES mapping is defense-in-depth UX only (GOOD)**
+Zod's `z.string().min(1)` rejects empty strings at the Server Action boundary. Whitespace-only strings (length ≥ 1) pass Zod and reach the RPC, where the POSIX `^[[:space:]]*$` guard raises `invalid_reason`. The new ERROR_MESSAGES entry translates that DB-layer rejection into a user-facing message. No change to auth or data-flow security posture.
+
+**Vitest test for invalid_reason follows established mock pattern (GOOD)**
+Uses `vi.hoisted` mocks, `vi.resetAllMocks()` in `beforeEach`, and follows the same mock-shape as all existing error-mapping tests. Test title `'maps invalid_reason'` is consistent with sibling test names `'maps code_not_found'`, `'maps not_admin'`, etc. The `mockRpc.mockResolvedValue({ data: null, error: { message: 'invalid_reason' } })` shape correctly exercises the `mapRpcError` path.
+
+**`mapRpcError` uses `.includes(code)` for substring matching — safe for `invalid_reason` (GOOD)**
+`invalid_reason` does not appear as a substring of any other ERROR_MESSAGES key (`not_authenticated`, `not_admin`, `admin_not_found`, `cannot_void_finished_attempt`, `code_not_found`, `code_voided`). No false-positive risk from the substring scan. The iteration order of `Object.entries(ERROR_MESSAGES)` is insertion order in V8, and `invalid_reason` is inserted before `cannot_void_finished_attempt` — no ordering edge case exists here.
+
+### 2026-05-07 — commit 3790db7 (fix(redteam): make 50+ specs runnable end-to-end)
+- **Files reviewed:** apps/web/e2e/redteam/injection-xss.spec.ts, apps/web/e2e/redteam/rpc-start-internal-exam-session.spec.ts
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 5
+
+**seedXssQuestion bank lookup is org-scoped and soft-delete-aware (GOOD)**
+- `.eq('organization_id', args.orgId).is('deleted_at', null)` — `question_banks` has `deleted_at TIMESTAMPTZ NULL` in the initial schema. The filter is correct. Using `getAdminClient()` (service role) bypasses RLS, so the explicit `deleted_at IS NULL` filter is the only soft-delete guard, and it is present. Mirrors the pattern the learner tracked from commit 01a3244 (which flagged the previous `seedQuestions` omission of this filter — this is the fix for that pattern).
+
+**seedSessionHandoff payload satisfies isValidSessionData (GOOD)**
+- Injected payload `{ userId, sessionId, questionIds, mode: 'study' }` passes all `isValidSessionData` checks: `sessionId` non-empty string, `questionIds` non-empty array of non-empty strings, `userId` present and equal to `expectedUserId` (same variable passed to both), `mode: 'study'` accepted by `hasValidOptionalFields` (`v === 'study' || v === 'exam'`). Payload correctly mirrors the `SessionData` type shape.
+
+**seedSessionHandoff write-then-navigate ordering is race-free (GOOD)**
+- `loginAs` lands on `/app/dashboard`. `page.evaluate()` writes to `sessionStorage` synchronously in the browser context (Playwright awaits completion). `page.goto('/app/quiz/session')` fires after. `useSessionBootstrap`'s `readSessionHandoff` is inside a `useEffect` that runs after client-side hydration — sessionStorage is already populated before the effect fires. No race window.
+
+**testStart ISO string is Postgres-comparable on TIMESTAMPTZ column (GOOD)**
+- `quiz_sessions.created_at` is `TIMESTAMPTZ NOT NULL DEFAULT now()`. JavaScript's `new Date().toISOString()` produces an RFC 3339 UTC string (e.g. `2026-05-07T14:03:45.123Z`) that Postgres casts losslessly to `TIMESTAMPTZ`. PostgREST `.gte()` maps to `>=` in SQL. `testStart` is captured BEFORE the RPC call, so any session the RPC might erroneously insert would have `created_at >= testStart`. The filter is tight and correct.
+
+**No production code touched (GOOD)**
+- Both changed files are E2E spec infrastructure. No Server Actions, RPCs, migrations, or client components were modified.
+
+**SUGGESTION — seedXssQuestion: `created_by` now correctly uses `authorId` from `ensureAdminTestUser` but the `bootStudentSession` closure still passes `adminUserId` (which was the fix from commit c45330f's ISSUE)**
+- Confirmed fixed: `bootStudentSession` passes `authorId: adminUserId` (line 222), and `adminUserId` is populated from `ensureAdminTestUser()` in `beforeAll`. The ISSUE logged in c45330f review (studentUserId used as created_by) is resolved in this commit. Count for that pattern: 0 open recurrences.
+
+**Pattern — sessionStorage handoff injection for E2E spec bootstrap:**
+When the production UI writes sessionStorage as part of a click flow that cannot be easily reproduced in a redteam spec (e.g., Start Quiz button), inject the handoff payload via `page.evaluate()` AFTER `loginAs` establishes the origin context and BEFORE `page.goto` to the target page. The payload must match the `SessionData` type exactly (sessionId + questionIds required; userId optional but enables cross-user guard). Do not write before `loginAs` — `sessionStorage` is scoped to the origin, and the origin is not established until the first page navigation.
+
+### 2026-05-07 — PR-level sweep: feat/redteam-owasp-coverage-108 (18 commits, 23 files, +991/−101)
+- **Scope:** full PR diff abc745c..HEAD reviewed at CodeRabbit depth
+- **CRITICAL:** 0 | **ISSUE:** 2 | **SUGGESTION:** 3 | **GOOD:** 8
+
+**ISSUE — `session_state_changed` RPC error not in ERROR_MESSAGES (new guard, missing UX mapping)**
+- `void-code.ts` ERROR_MESSAGES has entries for `not_authenticated`, `not_admin`, `admin_not_found`, `invalid_reason`, `cannot_void_finished_attempt`, `code_not_found`, `code_voided`. Migration 20260507000001 adds a new `session_state_changed` RAISE EXCEPTION path (line 127 of migration) for the case where a concurrent writer ends or deletes the session between the SELECT and UPDATE. No ERROR_MESSAGES entry exists for this code. `mapRpcError` will fall through to the generic `'Failed to void internal exam code'` string. This is not a security gap, but it's a user-experience and observability gap: the admin gets a generic error when the actual cause is a known race (concurrent void or complete). Count=1, watching.
+
+**ISSUE — proxy.ts 503 and 403 responses do not carry security headers**
+- `proxy.ts` lines 88-101: the `profileError` path returns a 503 `NextResponse` and the non-admin path returns a 403 `NextResponse`. Both copy cookies but neither calls `redirect.headers.set(...)` for the security headers injected by `redirectWithCookies`. These are the only two response branches that don't go through `redirectWithCookies`. For the 503 path this is low-probability (Supabase role lookup failing), but the 403 path is triggered for every non-admin user who hits an `/app/admin/*` route — a real surface. `X-Frame-Options: DENY` and `frame-ancestors 'none'` are absent on these responses. Count=1, watching.
+
+**SUGGESTION — `record_login` audit test uses windowStart=now-60s to handle rate-limiting but the logic is subtly wrong for a race**
+- `audit-completeness.spec.ts:389` — `windowStart = new Date(Date.now() - 60_000).toISOString()` is set before the RPC call. If the RPC hits the rate-limit window and skips the INSERT (returns without error, no row written), `expectAuditRow` will find the pre-existing row from the previous run (which is ≥ windowStart). This makes the test pass vacuously when the RPC skips the insert — it's testing that a previous run wrote an event, not that this run's RPC wrote one. The rate-limit behavior is production-correct, but the test cannot distinguish "RPC wrote a row" from "a prior row happened to be in the window." To tighten: capture windowStart AFTER a known-gap or add a 61-second cooldown. Count=1, watching.
+
+**SUGGESTION — `STORED_AS_TEXT_PAYLOADS` filter at compile time only; `rtl-override` and `url-encoded-nul` are both ≤500 chars and go through the stored-as-text path**
+- `injection-sql.spec.ts:150` — filtering by `p.value.length <= 500` correctly excludes `long-string-1k` (1024 chars). `rtl-override` (12 chars) and `url-encoded-nul` (9 chars) pass the filter and are asserted with `expect(error).toBeNull()` + `expect(row?.void_reason).toBe(payload.value)`. Both are correct behaviorally: `rtl-override` is a printable string stored verbatim; `url-encoded-nul` is the literal 9-char ASCII string `abc%00def` (no actual NUL byte), stored verbatim. The test is correct, but a future reader might expect `url-encoded-nul` to trigger rejection. The `why` comment in payloads.ts does document this correctly. No action needed, flagged for awareness.
+
+**SUGGESTION — XSS spec `assertSanitized` liveness check order: `.toContainText(MARKER)` fires before DOM-attribute walk**
+- `injection-xss.spec.ts:36` — The liveness check `await expect(scope).toContainText(MARKER)` is now the first assertion in `assertSanitized`. This is the fix for the vacuous-pass problem flagged in commit c45330f's SUGGESTION (count=1). Pattern resolved after 1 occurrence.
+
+**Cross-PR issues resolved (positive signal):**
+- CRLF TRANSPORT_LAYER_PAYLOADS issue (c45330f ISSUE): resolved in d13dc55 — CRLF entry removed, only `nul-byte` remains. count reset to 0.
+- submit_quiz_answer shared session (c45330f ISSUE): resolved — `beforeAll` → `beforeEach` per-test session. count reset to 0.
+- `seedXssQuestion` using studentUserId as `created_by` (c45330f ISSUE): resolved in 3790db7 — `bootStudentSession` passes `adminUserId`. count reset to 0.
+
+**Migration 20260507000001 security posture is correct (GOOD)**
+- `auth.uid()` check fires first. `is_admin()` check second. `invalid_reason` guard third (before any data access). `deleted_at IS NULL` on users, internal_exam_codes, quiz_sessions. Both audit INSERT subqueries (`u.role` lookups) filter `AND u.deleted_at IS NULL`. `quiz_session_answers` has no `deleted_at` column (immutable table per initial schema) — the missing filter is correct. `GET DIAGNOSTICS v_session_updated = ROW_COUNT` with `IF = 0 THEN RAISE EXCEPTION` closes the TOCTOU window on the session UPDATE. All security.md rules verified.
+
+**proxy.ts redirectWithCookies is fully consistent across all redirect branches (GOOD)**
+- Every `return redirectWithCookies(...)` call (lines 60, 65, 73, 120) passes through the same function, which copies all session cookies AND sets all 7 security headers. No branch divergence. The GOOD pattern from code-style.md §6 is correctly applied.
+
+**next.config.ts X-Frame-Options DENY aligns with proxy.ts and CSP frame-ancestors 'none' (GOOD)**
+- Per-commit suggestion from c45330f (X-Frame-Options SAMEORIGIN contradicted frame-ancestors 'none') was resolved in this PR: next.config.ts changed from SAMEORIGIN to DENY, proxy.ts also uses DENY. Legacy browsers now see a consistent posture.
+
+**header-validation.spec.ts responseClass split correctly distinguishes routed vs redirect CSP (GOOD)**
+- The `responseClass: 'routed' | 'redirect'` enum prevents the test from asserting the full CSP (default-src 'self', script-src, etc.) on a 3xx redirect response where the minimal CSP is correct. Without this split, the test would fail in CI on the redirect path. The split is documented with an inline comment. Correct.
+
+**E2E hermiticity markers exported from seed.ts (GOOD)**
+- `E2E_REDTEAM_CODE_PREFIX` and `E2E_XSS_MARKER` are now exported constants from `helpers/seed.ts`, resolving the magic-string anti-pattern from the initial spec files. Per code-style.md §7 hermiticity rule.
+
+**Pattern — `session_state_changed` is a new guard pattern in SECURITY DEFINER functions:**
+When a SECURITY DEFINER function adds a `GET DIAGNOSTICS n = ROW_COUNT` + RAISE pattern for concurrent-write detection, the Server Action that wraps the RPC should add the new error code to ERROR_MESSAGES. The guard fires in production on concurrent voids/completions and produces a confusing generic error if not mapped. Track this gap whenever a new `RAISE EXCEPTION '<code>'` is added to a migration without a paired Server Action update.
+
+### 2026-05-07 — commit 5f1295c (fix(proxy,actions): security headers on 4xx/5xx + session_state_changed UX)
+- **Files reviewed:** apps/web/proxy.ts, apps/web/app/app/admin/internal-exams/actions/void-code.ts, apps/web/app/app/admin/internal-exams/actions/void-code.test.ts, apps/web/e2e/redteam/injection-sql.spec.ts, .spec-workflow/steering/tech.md
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 5
+
+**applySecurityHeaders extraction is a pure refactor — all 7 headers preserved (GOOD)**
+- All 7 `headers.set` calls land exclusively inside the new `applySecurityHeaders` helper. No stale inline copies remain. Values are byte-for-byte identical to the previous inline block in `redirectWithCookies` and to `next.config.ts` securityHeaders array. Refactor is safe.
+
+**cookies-before-headers ordering preserved on 403/503 paths (GOOD)**
+- Both new branches follow the pattern: `new NextResponse(...)` → cookie loop → `applySecurityHeaders(...)`. Cookies are set before headers — no ordering regression vs `redirectWithCookies`.
+
+**Security posture strictly stronger — no regression (GOOD)**
+- 403/503 previously emitted no security headers. They now carry the same 7 headers as redirects. CSP on non-routed responses (`default-src 'none'; frame-ancestors 'none'`) is more restrictive than the routed CSP — correct since no scripts execute on 4xx/5xx.
+
+**session_state_changed string is verbatim match to RAISE EXCEPTION in latest migration (GOOD)**
+- Migration 20260507000001 line 127: `RAISE EXCEPTION 'session_state_changed'`. ERROR_MESSAGES key is `session_state_changed`. `mapRpcError` uses `.includes(code)` — exact substring match. Vitest test passes the exact string as `error.message` and asserts the UX string. Both ISSUEs from the PR-level sweep are resolved.
+
+**injection-sql.spec.ts afterEach parity complete (GOOD)**
+- All three soft-delete UPDATE calls in injection-sql.spec.ts now carry `.is('deleted_at', null)`. Matches sibling spec injection-xss.spec.ts pattern. No inconsistency remains across the two files.
+
+**SUGGESTION — applySecurityHeaders defined inside proxy() closure (non-blocking)**
+- The helper is a `function` statement inside the async `proxy` function body. Re-created on every request at the JS level (negligible cost at Edge runtime). Module-level placement would be semantically cleaner. No behavioral impact.
+
+**Pattern — helper-extraction from repeated inline block:**
+When extracting repeated inline logic into a named helper, verify (a) all call sites are updated (grep `headers.set` confirms 0 residual inline copies), (b) the helper parameter type is the shared supertype of all call sites (`NextResponse` here, not the narrower redirect-specific subtype), and (c) the ordering constraints at each call site are preserved (cookies before headers, auth before data access, etc.).
+
 ### 2026-04-28 — commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit)
 - **Files reviewed:** apps/web/scripts/seed-e2e.ts, apps/web/e2e/exam-flow.spec.ts, apps/web/e2e/exam-recovery.spec.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 7
@@ -82,6 +238,27 @@ Seed scripts in this codebase consistently use SELECT-to-check + INSERT pattern 
 
 **Pattern — type coercion to narrower union on caught rejection (GOOD, confirmed safe):**
 `quiz-submit.ts` coerces a caught rejection to `{ success: false, error: string }` which satisfies `CompleteEmptyExamResult`'s failure branch. TypeScript will infer `result` as the full union type and the subsequent `if (result.success)` discriminates correctly. The coerced object is structurally assignable because `CompleteEmptyExamResult` failure branch is `{ success: false; error: string }`. Safe.
+
+### 2026-05-07 — commit a523e10 (docs(crlocal): belt-and-suspenders reminder — printf + hook)
+- **Files reviewed:** .claude/commands/crlocal.md (documentation only — no production code, no migrations, no Server Actions)
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 0 | **GOOD:** 2
+
+**ISSUE — printf does NOT appear at the end of the log file; it writes to bash stdout only**
+- The command `coderabbit review ... > /tmp/cr-local-roundN.log 2>&1; printf '...'` scopes the redirect (`> log 2>&1`) to the `coderabbit review` subcommand only. The semicolon ends the redirect scope. `printf` writes to its own stdout (the orchestrator's bash result), not to the log file. The commit message claim "the printf appears at the end of the log file" (implying `2>&1` captures it) is factually incorrect, verified by shell behavior test. The documentation text partially preserves the confusion by phrasing "when the orchestrator reads the log file (or sees the bash result)" — the disjunction obscures that the two items are mutually exclusive delivery channels. In background mode (the normal usage), the orchestrator reads the log file via `Read` tool and does NOT see the printf there; the printf arrives via the task-notification. In foreground mode, the orchestrator sees the bash result (which includes printf) but not the log file separately. The stated purpose is still achieved because the hook provides layer 2 — but layer 1 (printf) only works reliably in foreground mode. Count=1, watching.
+
+**All three verifiable behavioral properties:**
+1. Semicolon separator (not `&&`) — CORRECT. `printf` runs unconditionally regardless of `coderabbit review` exit code.
+2. `2>&1` captures stderr into the log — CORRECT for `coderabbit review`'s stderr only. Does NOT affect `printf`.
+3. `roundN` placeholder is explicit — CORRECT. The orchestrator must substitute `N` per round.
+
+**Verified: semicolon separator is correct and unconditional (GOOD)**
+- The command line ends with `2>&1; \` — semicolon before backslash-newline continuation. Shell exit semantics: if `coderabbit review` exits non-zero (timeout, auth error, network error), `printf` still runs. The STOP reminder appears in the bash result regardless of review success/failure. This is the correct behavior for a safety reminder.
+
+**roundN placeholder is explicit and correct (GOOD)**
+- `/tmp/cr-local-roundN.log` is a literal placeholder. The doc correctly expects the orchestrator to substitute `N` per round, producing distinct log files per round (e.g., `round1.log`, `round2.log`). Each round's findings are independently preserved and can be diffed. Correct design.
+
+**Pattern — redirect scope ends at semicolon, not at the end of the command chain:**
+When documenting shell command behavior, verify redirect scope explicitly. `cmd1 > file 2>&1; cmd2` scopes the redirect to `cmd1` only. `cmd2`'s output goes to shell stdout. This is a recurring source of documentation errors when describing "belt-and-suspenders" logging patterns where both a file redirect and a terminal reminder are intended.
 
 ### 2026-04-28 — commit 53b8498 (fix(quiz): surface explicit error when active-exam lookup fails)
 - **Files reviewed:** apps/web/app/app/quiz/page.tsx (only changed file)
@@ -4259,3 +4436,31 @@ Resumeable exam banners → orphan banners → QuizRecoveryBanner. Correct order
 
 **Test double-click pattern is consistent with existing tests**
 The discard-confirm interaction requires two clicks (trigger → confirm dialog). The pattern at line 183 matches the existing normal-mode test at line 195. Pre-existing fragility in CI if AlertDialog animation delays render, but not introduced here.
+
+### 2026-05-07 — commits 17ec581 + 03ccc90 (fix(redteam,docs): CR round 5 probe scoping, teardown independence, CSP doc + chore(hooks): PostToolUse reminder)
+- **Files reviewed:** rpc-start-internal-exam-session.spec.ts, injection-xss.spec.ts, proxy.ts, docs/security.md, .spec-workflow/steering/tech.md, .claude/hooks/cr-local-plan-reminder.sh, .claude/settings.json, .claude/commands/crlocal.md
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 1 | **GOOD:** 5
+
+**ISSUE — cr-local-plan-reminder.sh reads CLAUDE_TOOL_INPUT as an env var but Claude Code may not set it for PostToolUse hooks**
+The PreToolUse hook (`guard-bash.js`) receives the tool input via a CLI argument (`"$CLAUDE_TOOL_INPUT"` interpolated in the settings.json command string). The new PostToolUse hook (`cr-local-plan-reminder.sh`) instead reads `${CLAUDE_TOOL_INPUT:-}` directly from the environment, without any CLI arg passing in settings.json. Whether `CLAUDE_TOOL_INPUT` is set as an environment variable (rather than only interpolated as a CLI arg) for PostToolUse events is unconfirmed. If it is not, the env var will be empty and the `[[ "$input" != *'coderabbit review'* ]]` check will always be true, causing the hook to exit 0 silently — the reminder never fires. The fix is to either: (a) confirm that `CLAUDE_TOOL_INPUT` is also set as an env var for PostToolUse hooks, or (b) change settings.json to pass it explicitly as `bash .claude/hooks/cr-local-plan-reminder.sh "$CLAUDE_TOOL_INPUT"` (matching the guard-bash.js pattern) and update the script to read `$1`.
+
+**SUGGESTION — PostToolUse hook fires on every Bash call, not just coderabbit review**
+The PostToolUse matcher is `"Bash"` (all Bash calls), but the hook early-exits for non-coderabbit-review commands. The overhead is minimal (~2-5ms per call) and the false-positive risk from matching `coderabbit review` in non-review commands (e.g., `grep 'coderabbit review' file.txt`) is low-impact (just an extra banner). Not a logic error — the design is intentional. Worth noting if Bash call frequency becomes high enough to feel slow.
+
+**GOOD — Vector BK probe now scoped to subject_id + organization_id**
+The `.eq('subject_id', subjectId).eq('organization_id', orgId)` additions at lines 183-184 of `rpc-start-internal-exam-session.spec.ts` correctly tighten the probe. `subjectId` and `orgId` are set in `beforeAll` (lines 127-135) and are in scope. The `testStart` timestamp already isolated the window; the subject/org scoping additionally prevents parallel specs running against different subjects from inflating the probe count. Correct and complete.
+
+**GOOD — injection-xss.spec.ts teardown independence is correct**
+All three teardown steps (full_name restore, discardActiveSessions, cleanupXssQuestions) now run inside independent try/catch blocks. Errors are accumulated in an array and re-thrown as a single aggregated error after all three steps complete. This correctly implements the hermiticity requirement from code-style.md §7: a failure in step 1 no longer prevents steps 2 and 3 from running. The pattern matches the principle (all cleanup always runs) without needing try/finally.
+
+**GOOD — docs/security.md X-Frame-Options doc corrected (SAMEORIGIN → DENY)**
+The code block in `docs/security.md` previously showed `X-Frame-Options: SAMEORIGIN`, contradicting both `next.config.ts` (line 14: `value: 'DENY'`) and `proxy.ts` (line 16: `'DENY'`). This was the stale claim flagged as a SUGGESTION in the 2026-05-07 session (commit c45330f). Corrected to `DENY` — doc now matches code. The `header-validation.spec.ts` was already asserting `DENY` correctly (line 30).
+
+**GOOD — CSP dual-policy documentation is accurate against proxy.ts**
+`docs/security.md` now describes the two CSP tiers: routed responses (full policy from `next.config.ts`) and middleware-only responses (reduced `default-src 'none'; frame-ancestors 'none'` from `proxy.ts`). Verified against `proxy.ts` line 24: `res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")`. The doc claim is accurate.
+
+**GOOD — tech.md steering doc update accurately reflects the dual-CSP architecture**
+The steering doc change mirrors the security.md update. The description of the CSP reduction rationale ("no scripts execute on a 3xx/4xx/5xx") is accurate — middleware-only responses do not serve HTML with scripts. The `frame-ancestors 'none'` alignment note is correct.
+
+**Pattern — hook input delivery: PreToolUse vs PostToolUse may differ**
+PreToolUse hooks in Claude Code can receive tool input via CLI arg (interpolated env var pattern: `"$CLAUDE_TOOL_INPUT"`) or via stdin. PostToolUse hooks may deliver data differently. When writing PostToolUse hooks that need to inspect the invoked command, confirm the delivery method (env var vs stdin vs CLI arg) against the Claude Code SDK docs, or mirror the proven PreToolUse pattern from settings.json. Discrepancy detected at count=1 — watch for recurrence.

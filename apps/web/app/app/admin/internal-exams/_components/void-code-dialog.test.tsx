@@ -42,6 +42,14 @@ describe('VoidCodeDialog', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true)
   })
 
+  it('disables submit when reason contains only whitespace', async () => {
+    render(<VoidCodeDialog codeId={CODE_ID} open={true} onOpenChange={vi.fn()} />)
+    const user = userEvent.setup({ delay: null })
+    await user.type(screen.getByLabelText('Reason'), '   \t  ')
+    const btn = screen.getByRole('button', { name: 'Void code' })
+    expect((btn as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('disables submit when codeId is null', async () => {
     render(<VoidCodeDialog codeId={null} open={true} onOpenChange={vi.fn()} />)
     const user = userEvent.setup({ delay: null })

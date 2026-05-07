@@ -1361,7 +1361,7 @@ Admin-only. Three branches:
 2. **Consumed + active session** — locks the linked `quiz_sessions` row, computes a final score from existing `quiz_session_answers` (unanswered = wrong, identical to `complete_overdue_exam_session`), forces `passed = false`, sets `ended_at`, then voids the code. Writes **two** audit events: `internal_exam.expired` (session) and `internal_exam.code_voided` (code).
 3. **Consumed + finished session** — refuses with `cannot_void_finished_attempt`. The RPC never retroactively changes a closed attempt.
 
-**Guards:** `not_authenticated`, `not_admin`, `admin_not_found`, `code_not_found` (also raised for cross-org access — same error to avoid leaking existence), `code_voided` (already voided), `cannot_void_finished_attempt`.
+**Guards:** `not_authenticated`, `not_admin`, `invalid_reason` (NULL or whitespace-only — POSIX `^[[:space:]]*$` — or > 500 chars), `admin_not_found`, `code_not_found` (also raised for cross-org access — same error to avoid leaking existence), `code_voided` (already voided), `cannot_void_finished_attempt`.
 
 **Returns:** `(code_id uuid, session_id uuid, session_ended boolean)`.
 
@@ -1376,6 +1376,12 @@ Admin-only. Three branches:
 **Enhancement (CodeRabbit PR #576 round-2, Major):** The RPC validates that the code's `organization_id` matches the admin's, then locks and updates the linked `quiz_sessions` row by id only. This is a SECURITY DEFINER function bypassing RLS. If a future bug ever stored a cross-org `consumed_session_id`, the RPC would expire a foreign-org session.
 
 **Fix:** `CREATE OR REPLACE` with explicit `qs.organization_id = v_admin_org` filter on both the SELECT and UPDATE of the linked session. Also asserts `ROW_COUNT > 0` after the UPDATE (raises `session_state_changed` if a concurrent writer stole the row). Function body otherwise unchanged from migration `20260429000009`.
+
+##### `void_internal_exam_code` — strict blank-reason check (migration `20260507000001`)
+
+**Bug (red-team finding, issue #108):** The blank-reason guard `btrim(p_reason) = ''` rejects empty strings and spaces-only inputs but accepts tabs (`\t`), newlines (`\n`), CR (`\r`), form feed (`\f`), and vertical tab (`\v`). Postgres `btrim(text)` defaults to a space charset; non-space whitespace passes through unchanged. The Server Action's Zod schema validates length only (`z.string().min(1).max(500)`), so the RPC is the only line of defense for non-whitespace content.
+
+**Fix:** `CREATE OR REPLACE` with the guard rewritten to `p_reason ~ '^[[:space:]]*$'` (POSIX whitespace class — matches the empty string AND any whitespace-only input). Function body otherwise unchanged from migration `20260430000006`.
 
 ---
 

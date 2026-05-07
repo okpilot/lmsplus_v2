@@ -37,6 +37,21 @@
 - `createdSessionIds` populated BEFORE `expect()` call — correct.
 - ISSUE: `afterEach` soft-delete missing `{ error }` destructure and `.select('id')` zero-row observability chain (code-style.md §5). Pattern recurs from session 2026-04-10 zero-row no-op watch item.
 
+## Session 2026-05-07 — issue #108 security-header gap + session_state_changed mapping + steering drift
+
+- proxy.ts `applySecurityHeaders` helper: all 7 headers confirmed present (X-DNS-Prefetch-Control, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, Strict-Transport-Security, Content-Security-Policy). `redirectWithCookies` now delegates to helper. Both 503 and 403 branches call `applySecurityHeaders` AFTER the cookie loop — cookie posture preserved.
+- `session_state_changed` ERROR_MESSAGES entry: message text matches Vitest assertion exactly. Test follows same `mockAdmin() → mockRpc → result.success false → result.error === ...` pattern as sibling cases.
+- `injection-sql.spec.ts` `submit_quiz_answer` afterEach: `.is('deleted_at', null)` added at line 318, chained between `.eq('id', sessionToCleanup)` and `.select('id')`. Sibling `void_internal_exam_code` afterEach already had the filter at line 138 — pattern now consistent.
+- `tech.md` steering doc: `SAMEORIGIN` → `DENY` + Edge Middleware mirror note. Matches proxy.ts and aligns with issue #631 decision.
+- APPROVED — no findings.
+
+## Session 2026-05-07 — issue #108 void_internal_exam_code whitespace check
+- Single-change migration: diff between new mig 20260507000001 and prior mig 20260430000006 is exactly one line (btrim guard → POSIX regex). All security guards, search_path, auth.uid() check, audit subqueries, GRANT, and ROW_COUNT assertion preserved byte-for-byte.
+- Doc section accurate: bug rationale, migration ID, and guard expression all correct.
+- Guards line updated to include `invalid_reason` with full description (NULL, whitespace-only, >500 chars).
+- Regex `p_reason ~ '^[[:space:]]*$'` confirmed: matches NULL (via explicit OR), '', '   ', '\t\t\t', '\n', mixed; does NOT match 'a', '  abc  '. Logic is correct.
+- APPROVED — no findings.
+
 ## Session 2026-05-06 — issue #622 start_quiz_session input hardening
 - Migration CREATE OR REPLACE chain traced correctly: mig 076 → mig 077 (new). All guards from mig 076 preserved (`Not authenticated`, `user not found or inactive`, `SET search_path = public`, `auth.uid()`). Clean.
 - smart_review NULL carve-out: `(p_subject_id IS NULL OR q.subject_id = p_subject_id)` and same for topic — correct per plan.
@@ -85,6 +100,19 @@
 ### 2026-04-13 — Migration pairs (packages/db + supabase/) stay byte-for-byte identical
 - Both 046 and 047 pairs diffed clean — zero divergence between packages/db/migrations/ and supabase/migrations/ counterparts.
 - Positive signal: the implementer consistently keeps both directories in sync.
+
+### 2026-05-07 — TRANSPORT_LAYER loops applied inconsistently across RPC fuzzing blocks (issue #108)
+- `injection-sql.spec.ts` covers `start_internal_exam_session` and `submit_quiz_answer` with both DB_LAYER and TRANSPORT_LAYER loops, but `void_internal_exam_code` gets only DB_LAYER + WHITESPACE, no TRANSPORT_LAYER loop.
+- Plan explicitly states "TRANSPORT_LAYER_PAYLOADS asserted with `error !== null` only" for all 3 RPCs.
+- The omission means 2 NUL-byte / CRLF payloads go untested against a text parameter that also accepts arbitrary input.
+- Watch for: when plan documents a payload group applied to N RPCs, count the actual loops in each describe block before approving.
+- ISSUE raised: requires adding a `for (const payload of TRANSPORT_LAYER_PAYLOADS)` loop to the `void_internal_exam_code` describe block.
+
+### 2026-05-07 — backdateSession missing `.select('id')` zero-row observability (issue #108)
+- `backdateSession` in `audit-completeness.spec.ts` calls `.update(...).eq('id', sessionId)` without chaining `.select('id')` or checking `data?.length`.
+- Pattern recurs from session 2026-05-06 (issue #622) — now seen twice in E2E helper contexts.
+- Per code-style.md §5, every UPDATE expected to hit rows must observe zero-row no-ops via `.select('id')` + length check.
+- SUGGESTION raised (not ISSUE — in a test helper, not production code, and the sessionId comes from a trusted beforeAll — but the pattern is still preferred).
 
 ### 2026-04-08 — Blank line after import block (batch testing debt)
 - Removing `afterEach(cleanup)` lines that served as visual separators between the import block and the first statement left no blank line between the last import and `beforeEach`.

@@ -21,6 +21,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  E2E_REDTEAM_CODE_PREFIX,
   ensureExamConfig,
   pickSubjectWithQuestions,
   seedRedTeamUsers,
@@ -52,7 +53,7 @@ async function seedCode(
 ): Promise<CodeRow> {
   // crypto.randomUUID() is collision-resistant; Math.random() can collide
   // across rapid test runs in the same describe block.
-  const code = `RT${crypto
+  const code = `${E2E_REDTEAM_CODE_PREFIX}${crypto
     .randomUUID()
     .replace(/-/g, '')
     .toUpperCase()
@@ -154,6 +155,11 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
       orgId,
     })
 
+    // Capture testStart BEFORE the redemption attempt so the probe ignores
+    // attacker sessions created by sibling tests (BL/BM/etc.) and prior runs
+    // that did not get cleaned up.
+    const testStart = new Date().toISOString()
+
     // Attacker (student-B) tries to redeem the victim's code.
     const { data, error } = await attackerClient.rpc('start_internal_exam_session', {
       p_code: code.code,
@@ -167,13 +173,17 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     expect(data).toBeNull()
 
     // Belt-and-braces: no session was created for the attacker against the
-    // victim's code.
+    // victim's code during this test. Scope to subject + org so unrelated
+    // sessions from other specs in the same window can't inflate the count.
     const { data: probe } = await admin
       .from('quiz_sessions')
       .select('id')
       .eq('student_id', attackerUserId)
       .eq('mode', 'internal_exam')
+      .eq('subject_id', subjectId)
+      .eq('organization_id', orgId)
       .is('deleted_at', null)
+      .gte('created_at', testStart)
     expect((probe ?? []).length).toBe(0)
   })
 

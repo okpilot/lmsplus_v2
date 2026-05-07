@@ -10,6 +10,11 @@ export const ADMIN_PASSWORD = 'redteam-admin-2026!'
 export const CROSS_ORG_ADMIN_EMAIL = 'redteam-crossorg-admin@lmsplus.local'
 export const CROSS_ORG_ADMIN_PASSWORD = 'redteam-crossorg-admin-2026!'
 
+// E2E hermiticity markers — exported per code-style.md §7 so cleanup queries
+// in any spec or maintenance script can target the rows these tests create.
+export const E2E_REDTEAM_CODE_PREFIX = 'RT'
+export const E2E_XSS_MARKER = '[E2E_XSS]'
+
 const OTHER_ORG_SLUG = 'redteam-other-org'
 
 export async function seedRedTeamUsers(): Promise<{

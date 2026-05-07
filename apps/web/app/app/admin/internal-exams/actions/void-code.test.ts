@@ -61,6 +61,12 @@ describe('voidInternalExamCode', () => {
       expect(result.success).toBe(false)
     })
 
+    it('rejects whitespace-only reason', async () => {
+      const result = await voidInternalExamCode({ codeId: CODE_ID, reason: '  \t\n  ' })
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error).toBe('Invalid input')
+    })
+
     it('rejects reason longer than 500 chars', async () => {
       const result = await voidInternalExamCode({
         codeId: CODE_ID,
@@ -169,6 +175,26 @@ describe('voidInternalExamCode', () => {
       const result = await voidInternalExamCode(VALID_INPUT)
       expect(result.success).toBe(false)
       if (!result.success) expect(result.error).toBe('Admin permission required')
+    })
+
+    it('maps invalid_reason', async () => {
+      mockAdmin()
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'invalid_reason' } })
+      const result = await voidInternalExamCode(VALID_INPUT)
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error).toBe('Reason cannot be blank or whitespace-only')
+    })
+
+    it('maps session_state_changed', async () => {
+      mockAdmin()
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'session_state_changed' } })
+      const result = await voidInternalExamCode(VALID_INPUT)
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error).toBe(
+          'This session was modified by another action — please refresh and retry',
+        )
+      }
     })
 
     it('returns generic message for unrecognized RPC error', async () => {
