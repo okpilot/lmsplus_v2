@@ -285,14 +285,17 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
     })
 
     test.afterEach(async () => {
-      if (!activeSessionId) return
+      const sessionToCleanup = activeSessionId
+      activeSessionId = null
+      if (!sessionToCleanup) return
       const { error } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', activeSessionId)
+        .eq('id', sessionToCleanup)
         .select('id')
-      activeSessionId = null
-      if (error) throw new Error(`afterEach soft-delete session: ${error.message}`)
+      if (error) {
+        throw new Error(`afterEach soft-delete session ${sessionToCleanup}: ${error.message}`)
+      }
     })
 
     for (const payload of DB_LAYER_PAYLOADS) {
