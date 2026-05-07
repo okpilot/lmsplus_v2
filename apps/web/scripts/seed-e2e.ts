@@ -316,7 +316,7 @@ async function seed() {
   const { data: subject, error: subErr } = await db
     .from('easa_subjects')
     .upsert(
-      { code: '050', name: 'Meteorology', short: 'MET', sort_order: 50 },
+      { code: '050', name: 'Meteorology', short: 'MET', sort_order: 1 },
       { onConflict: 'code' },
     )
     .select('id')

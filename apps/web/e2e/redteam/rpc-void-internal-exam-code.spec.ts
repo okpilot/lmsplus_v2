@@ -18,6 +18,7 @@ import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
   ensureExamConfig,
+  pickSubjectWithQuestions,
   seedCrossOrgAdmin,
   seedRedTeamAdmin,
   seedRedTeamUsers,
@@ -126,18 +127,9 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     adminClientAuthed = await createAuthenticatedClient(adminEmail, adminPassword)
     crossOrgAdminClient = await createAuthenticatedClient(crossOrg.email, crossOrg.password)
 
-    const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
-    if (!subjects || subjects.length === 0) {
-      throw new Error('seed: no easa_subjects rows available for red-team setup')
-    }
-    subjectId = subjects[0]!.id
-
-    const { data: topics } = await admin
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', subjectId)
-      .limit(1)
-    const topicId = topics?.[0]?.id ?? subjectId
+    const picked = await pickSubjectWithQuestions(admin, { orgId })
+    subjectId = picked.subjectId
+    const topicId = picked.topicId
 
     // Egmont org needs the exam_config so subject is "exam-eligible".
     await ensureExamConfig(orgId, subjectId, topicId)

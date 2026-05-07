@@ -17,37 +17,55 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed'
+import {
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
+  pickSubjectWithQuestions,
+  seedRedTeamUsers,
+} from './helpers/seed'
 
 test.describe('Red Team: Rate Limiting', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let subjectId: string
   let questionIds: string[]
   let topicId: string
+  // Track every quiz_session this spec creates so afterEach can soft-delete
+  // them even if assertions fail mid-test (per code-style.md §7 hermiticity).
+  const createdSessionIds: string[] = []
 
   test.beforeAll(async () => {
-    await seedRedTeamUsers()
+    const { orgId } = await seedRedTeamUsers()
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     const admin = getAdminClient()
-    const { data: subject } = await admin.from('easa_subjects').select('id').limit(1).single()
-    subjectId = subject!.id
-
-    const { data: topics } = await admin
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', subjectId)
-      .limit(5)
-    topicId = (topics ?? [])[0]?.id ?? subjectId
-    const topicIds = (topics ?? []).map((t) => t.id)
+    const picked = await pickSubjectWithQuestions(admin, { orgId })
+    subjectId = picked.subjectId
+    topicId = picked.topicId
 
     const { data: qs } = await admin
       .from('questions')
       .select('id')
-      .in('topic_id', topicIds)
+      .eq('organization_id', orgId)
+      .eq('subject_id', subjectId)
+      .eq('topic_id', topicId)
+      .eq('status', 'active')
       .is('deleted_at', null)
       .limit(1)
     questionIds = (qs ?? []).map((q) => q.id)
+  })
+
+  test.afterEach(async () => {
+    if (createdSessionIds.length === 0) return
+    const admin = getAdminClient()
+    const { data, error } = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', createdSessionIds)
+      .select('id')
+    if (error) console.error('[rate-limiting afterEach] cleanup error:', error.message)
+    if ((data?.length ?? 0) > 0)
+      console.log(`[rate-limiting afterEach] soft-deleted ${data?.length} session(s)`)
+    createdSessionIds.length = 0
   })
 
   // ---------------------------------------------------------------------------
@@ -99,6 +117,12 @@ test.describe('Red Team: Rate Limiting', () => {
       ),
     )
 
+    // Collect created session IDs BEFORE any assertion so afterEach cleans
+    // up even if the expectation below fails (hermiticity rule).
+    for (const r of results) {
+      if (!r.error && r.data) createdSessionIds.push(r.data as string)
+    }
+
     const successes = results.filter((r) => !r.error).length
     const failures = results.filter((r) => r.error).length
 
@@ -108,16 +132,5 @@ test.describe('Red Team: Rate Limiting', () => {
     // Current expectation: all succeed (no throttle)
     // Update this threshold when rate limiting is added.
     expect(successes).toBe(50)
-
-    // Clean up: discard the 50 sessions we just created so the DB stays tidy
-    const admin = getAdminClient()
-    const sessionIds = results.filter((r) => !r.error && r.data).map((r) => r.data as string)
-
-    if (sessionIds.length > 0) {
-      await admin
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('id', sessionIds)
-    }
   })
 })

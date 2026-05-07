@@ -6,6 +6,12 @@
 ## Common Deviation Types
 <!-- Track which types of plan deviations occur most often -->
 
+### 2026-05-06 — Error message changed without updating test assertion regex (PR #628 fixture-fragility fix)
+- `pickSubjectWithQuestions` empty-list error changed from `"no subjects found in org ${orgId}"` to `"no easa_subjects found"` (dropped "in org" suffix) when switching to the shared `easa_subjects` table.
+- The test at seed.test.ts:152 still asserted `/no subjects found in org/`. The regex no longer matches the new message — the test would fail at runtime.
+- Pattern: when refactoring a function that throws descriptive error messages (often containing context like orgId), and the new implementation changes what context is embedded, the paired test assertions must be updated in the same diff. The new table name (`easa_subjects`) no longer has org scoping, so "in org" was removed — but the test was not updated to match.
+- Watch for: any error message refactor where context strings (org IDs, table names, filter clauses) are removed or replaced. Always grep test files for the old message substring before committing.
+
 ## Positive Signals
 
 ### 2026-04-08 — Batch A admin hardening (#494, #492, #487)
@@ -22,6 +28,25 @@
 - 2026-04-08: `avg_score` returns NULL (no COALESCE) for students with no sessions — this is intentional. The app type is `number | null` and the UI guards with `!== null`. Not a bug.
 - 2026-04-11: hard DELETE on `exam_config_distributions` inside `upsert_exam_config` RPC — intentional exception documented in migration 043 and docs/database.md. Table is ephemeral config (same precedent as quiz_drafts). Not a no-soft-delete violation.
 - 2026-04-26 (commit 34194aa): flagged "duplicate Discard button" but mistook the adjacent conditional JSX guard block `{canDismiss && (` for the existing Discard button. Two distinct buttons: one state-driven (confirmingDiscard trigger), one prop-driven (canDismiss guard on confirm panel). Both correctly in place. Resolved without revision.
+
+## Session 2026-05-06 — issue #622 CodeRabbit round 2 (duplicate-UUID hardening)
+- Migration duplicate-UUID guard correct: `SELECT count(DISTINCT qid) INTO v_count FROM unnest(p_question_ids) AS qid; IF v_count <> array_length(p_question_ids,1) THEN RAISE EXCEPTION 'invalid_question_ids'` placed BEFORE the JOIN-COUNT block. All prior guards preserved.
+- docs/database.md validation contract prose correctly updated to document both RAISE cases for `invalid_question_ids`.
+- Integration test `[dupId, dupId]` case added inside correct describe block; `questionIds[0]!` safe per seeded beforeAll.
+- `egmontOrgRow` lookup: now destructures `{ data, error }` and throws on missing org — correct.
+- `createdSessionIds` populated BEFORE `expect()` call — correct.
+- ISSUE: `afterEach` soft-delete missing `{ error }` destructure and `.select('id')` zero-row observability chain (code-style.md §5). Pattern recurs from session 2026-04-10 zero-row no-op watch item.
+
+## Session 2026-05-06 — issue #622 start_quiz_session input hardening
+- Migration CREATE OR REPLACE chain traced correctly: mig 076 → mig 077 (new). All guards from mig 076 preserved (`Not authenticated`, `user not found or inactive`, `SET search_path = public`, `auth.uid()`). Clean.
+- smart_review NULL carve-out: `(p_subject_id IS NULL OR q.subject_id = p_subject_id)` and same for topic — correct per plan.
+- 3 specs with status='active' filter: session-race-condition, session-replay, rate-limiting — all confirmed in diff. Correct.
+- 3 excluded specs (audit-event-forgery, rpc-cross-tenant, pkce-state): confirmed absent from diff. Correct.
+- Cross-org integration test uses shared easa_subjects taxonomy (not org-scoped) but questions are org-scoped — RPC catches it via `q.organization_id = v_org_id`. Confirmed valid.
+- ISSUE found: soft-delete test's `.update(...).select('id')` does not check `data?.length` for zero-row no-op per code-style.md §5. Minor — does not affect the RPC test outcome but violates the pattern.
+- ISSUE found: inactive-question test seeds via `seedQuestions` (which may default to `status: 'active'`) and then sets `status: 'draft'` — confirmed `seedQuestions` does default to `active`, so the update correctly makes it draft. Valid.
+- rpc-question-membership.spec.ts: subjectB lookup queries `subjects` table (org-scoped), not `easa_subjects` — correct. Preserves distinct A/B subject intent.
+- quiz-draft-injection.spec.ts: dropped `.limit(2)` second subject in favor of same-org single subject. Comment explains RLS scopes drafts by org not subject — semantically valid for this attack vector. Test intent preserved.
 
 ## Recurring Issues
 <!-- Track patterns across sessions -->

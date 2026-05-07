@@ -4,6 +4,31 @@
 
 ## Session Log
 
+### 2026-05-06 — commit 01a3244 (fix(e2e,db): repair fixtures against real schema + bank uniqueness)
+- **Files reviewed:** apps/web/e2e/redteam/helpers/seed.ts, apps/web/e2e/redteam/helpers/seed.test.ts, apps/web/e2e/redteam/rpc-question-membership.spec.ts, apps/web/e2e/redteam/session-race-condition.spec.ts, apps/web/e2e/redteam/session-replay.spec.ts, packages/db/src/__integration__/setup.ts
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 5
+
+**ISSUE — seedQuestions bank lookup does not filter deleted_at (NEW, not flagged as critical because service-role bypasses RLS and deleted_at IS NOT enforced by the UNIQUE constraint)**
+- `question_banks` has `deleted_at TIMESTAMPTZ NULL` and the mig 062 UNIQUE constraint `UNIQUE (organization_id)` is unconditional (not a partial index). The `seedQuestions` bank lookup uses `.maybeSingle()` without `.is('deleted_at', null)`. The service-role client bypasses the RLS policy that filters `deleted_at IS NULL` for normal users. So: if a previous test soft-deleted the bank and the constraint is unconditional, this is moot (the bank is still uniquely found); but if future tests ever soft-delete the org's bank before calling seedQuestions again, the helper will reuse the deleted bank and new questions will be inserted into a logically-deleted bank. Count=1, watching.
+
+**easa_subjects/topics switch: org scoping correctly delegated to countActiveQuestions (GOOD)**
+- `pickSubjectWithQuestions` now queries the global `easa_subjects` / `easa_topics` tables (which have no `organization_id` or `deleted_at`). Org scoping is fully enforced by `countActiveQuestions`, which filters `organization_id`, `status='active'`, and `deleted_at IS NULL` on the `questions` table. The delegation is correct: the helper will never return a subject that has zero active questions in the target org.
+
+**cross-org subject iteration is safe in rpc-question-membership (GOOD)**
+- Step 2 iterates over all `easa_subjects` rows, skips the one already chosen as subject A, then checks `questions.count` filtered by `organization_id = orgId`. Only a subject with at least one active org-scoped question is accepted as subject B. No leakage of foreign-org data into the test flow.
+
+**error destructuring dropped on allSubjects query — minor observability gap (SUGGESTION)**
+- `rpc-question-membership.spec.ts` line 131: `const { data: allSubjects } = await adminClient.from('easa_subjects')...`. The `error` field is not destructured. `expect(allSubjects).not.toBeNull()` will fail with a confusing "received null" message if the query errors, rather than surfacing the Supabase error message. Low severity in a spec file — failing tests are loud enough — but inconsistent with the error-check pattern in the same file (line 192: `expect(questionsError).toBeNull()`).
+
+**Pattern — reference-table vs org-scoped-table split in seed helpers:**
+When a helper scans taxonomy (subjects/topics) and then counts questions, the scan can use the global reference table (no org filter needed, no deleted_at), but the count MUST scope to org + deleted_at + status. This pattern is now established in pickSubjectWithQuestions and countActiveQuestions. Future helpers should follow the same delegation.
+
+**seedQuestions lookup-then-insert mirrors production correctly (GOOD)**
+- The new `maybeSingle()` + conditional insert in `setup.ts` mirrors `insert-question.ts:21-30` (which uses `.limit(1).single()`). The only divergence is that production uses `.limit(1).single()` (which throws if 0 rows) while the fixture uses `.maybeSingle()` (returns null on 0 rows). Both are correct for their contexts: production always expects a bank to exist (admin UI would have created it); the fixture must handle the first-call case where no bank yet exists.
+
+**`.order('id')` determinism nits on questions fetch (GOOD)**
+- Both `session-race-condition.spec.ts` and `session-replay.spec.ts` now add `.order('id', { ascending: true })` before `.limit(3)` on their questions fetch. This is a direct fix for CI flakiness where physical row order was non-deterministic after inserts. Correct and consistent with the project's determinism principle.
+
 ### 2026-04-28 — commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit)
 - **Files reviewed:** apps/web/scripts/seed-e2e.ts, apps/web/e2e/exam-flow.spec.ts, apps/web/e2e/exam-recovery.spec.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 7
@@ -96,6 +121,68 @@ When a server-rendered error notice is always-present on load (e.g., rendered fr
 
 **Validator gate blocks mis-tagged study sessions from reaching the exam filter (GOOD)**
 - A study session mis-tagged with `mode: 'exam'` would fail the validator at `readActiveSession` lines 113-118 (missing `startedAt`/`timeLimitSeconds`) and return `null` before reaching `useQuizRecovery`. The hook's filter therefore cannot incorrectly suppress a legitimate study session even if storage is partially corrupt.
+
+### 2026-05-06 — commit bc3226a (fix(db,e2e): harden start_quiz_session input + deterministic redteam fixtures)
+- **Files reviewed:** migration 20260506000001, helpers/seed.ts, 11 redteam specs, rpc-start-session.integration.test.ts, docs/database.md
+- **CRITICAL:** 0 | **ISSUE:** 2 | **SUGGESTION:** 1 | **GOOD:** 7
+
+**Migration chain verified — all mig 076 guards preserved (GOOD)**
+- Mig 076 (`20260430000010`) had: SECURITY DEFINER, SET search_path = public, auth.uid() null check, users SELECT with deleted_at IS NULL + IF NOT FOUND guard, both INSERTs reading from locals (v_org_id, v_uid, v_role). New mig 077 (`20260506000001`) preserves every guard identically, inserts new validation block after the active-user gate. No regression.
+
+**Audit log uses locals, not subqueries — security.md §10 compliant (GOOD)**
+- audit_events INSERT reads v_org_id, v_uid, v_role from DECLARE section (populated in the top-level SELECT). No deleted_at-unfiltered subquery inside the audit block. Rule §10 satisfied.
+
+**ISSUE — session-race-condition and session-replay: questionIds fetched with .limit(3) but no guard that exactly 3 IDs were returned**
+- Both specs call `pickSubjectWithQuestions(..., { minActiveQuestions: 3, topicMinQuestions: 3 })` which guarantees the COUNT query sees ≥3 rows. But the subsequent `.limit(3)` question fetch (`qs`) has no `expect(questionIds.length).toBe(3)` guard. If a race (concurrent soft-delete) or a RLS/auth timing issue drops any returned rows, `questionIds` could be 0–2 IDs. The race condition spec then passes that shorter array to `start_quiz_session` — which would succeed with fewer questions — silently altering test pre-conditions. The replay spec does the same. Both specs depend on exactly 3 question IDs for correct `batch_submit_quiz` payload construction. Risk is low in practice (admin client, same transaction), but the test intent is not encoded as an assertion.
+
+**ISSUE — rpc-question-membership: subjectBId search queries all subjects without an ORDER BY, breaking determinism for the "second subject" pick**
+- In `rpc-question-membership.spec.ts` the inline subject-B loop iterates over `orgSubjects` which is ordered `code ASC`, so the iteration order is deterministic. However the loop's `count` query uses no `.order()`, which is fine (COUNT HEAD). The real gap: `pickSubjectWithQuestions` is not used for subject B — instead there is a bespoke inline loop that finds the first subject (≠ A) with ≥1 active question. This is correct in semantics but does not pick a topic for subject B. The `foreignQuestions` fetch (step 4) queries by `subject_id` only (no `topic_id` filter), so it can return questions from any topic in subject B. This is the intended behaviour for the cross-subject injection test. Not a bug — but the asymmetry (A has a specific topic, B is subject-level) should be noted as intentional.
+
+**SUGGESTION — pickSubjectWithQuestions N+1 pattern acceptable for test setup but worth noting**
+- The helper iterates subjects, then for each subject issues a COUNT query, then iterates topics, then issues another COUNT query per topic. In CI against a seeded DB with ~6 subjects and ~30 topics this is fine. If seed cardinality grows significantly, the nested loop could slow `beforeAll`. A single query with a lateral join could replace it, but this is test infrastructure — not a production concern.
+
+**Soft-delete integration test uses zero-row no-op check (.select('id') + length guard) — code-style.md compliant (GOOD)**
+- `rpc-start-session.integration.test.ts` lines 282-283 verify `updData?.length` after the soft-delete UPDATE. Pattern from code-style.md §5 correctly applied.
+
+**Cross-org integration test correctly seeds a question in otherOrgId using the shared subject/topic refs (GOOD)**
+- Using `refs.subjectId` and `refs.topicId` (which point to EASA global taxonomy rows) for the cross-org question seed is correct: the RPC filters by `q.organization_id = v_org_id`, so a question that exists under the same subject/topic but belongs to a different org will correctly fail the COUNT check, raising `invalid_question_ids`. The test correctly validates this boundary.
+
+### 2026-05-06 — PR-level sweep (PR #628, fix/redteam-fixture-fragility — 13 commits)
+- **Files reviewed:** supabase/migrations/20260502000001, 20260506000001, packages/db/migrations/079, rpc-start-session.integration.test.ts, setup.ts, setup.test.ts, seed.ts (E2E), seed.test.ts (E2E), 10 redteam specs, docs/database.md, docs/security.md, .claude/agent-memory/red-team/attack-surface.md
+- **CRITICAL:** 0 | **ISSUE:** 2 | **SUGGESTION:** 1 | **GOOD:** 8
+
+**ISSUE — Vector AM row in attack-surface.md not updated to FIXED** (RESOLVED in PR #628 commit 6958085)
+- `attack-surface.md` line 46 showed status `GAP` despite migration 20260502000001 (mig 079) installing `trg_quiz_sessions_immutable_columns` and `quiz-session-config-injection.spec.ts` (4 attack tests) closing the vector. Resolved by updating the row to FIXED with migration and spec references in the PR-level sweep cleanup commit.
+
+**ISSUE — packages/db/migrations/ missing 080_start_quiz_session_harden_input.sql** (RESOLVED in PR #628 commit 6958085)
+- The project's dual-directory convention requires every supabase/migrations/ migration to have a numbered counterpart in packages/db/migrations/. Migration 20260506000001 was missing its 080_ counterpart. Resolved by adding `packages/db/migrations/080_start_quiz_session_harden_input.sql`.
+
+**SUGGESTION — rpc-internal-exam-codes: duplicate orgId lookup in test body**
+- In `rpc-internal-exam-codes.spec.ts` test "student cannot INSERT directly..." (line ~123), the test re-fetches the attacker's `organization_id` from the `users` table even though `seedRedTeamUsers()` already returns `orgId` in `beforeAll`. The `orgId` from `beforeAll` is scoped to the `beforeAll` callback and not stored in a describe-level variable, so the test cannot access it — making the inline lookup necessary. Consider promoting `orgId` to a describe-level variable (alongside `attackerClient`) to eliminate the per-test re-fetch. Non-blocking.
+
+**Trigger safety — SECURITY DEFINER RPCs only touch mutable columns (GOOD)**
+- All SECURITY DEFINER UPDATE paths on quiz_sessions (complete_quiz_session, complete_overdue_exam_session, complete_empty_exam_session, batch_submit_quiz, soft-delete on discard) exclusively SET the mutable columns (ended_at, correct_count, score_percentage, passed, deleted_at) — none of which appear in the BEFORE UPDATE OF column list. The trigger's service-role exemption is correct and the mutable set covers all legitimate RPC paths.
+
+**Migration body exactly matches docs/database.md embedded SQL (GOOD)**
+- The start_quiz_session SQL block in docs/database.md (lines 1566–1641) is byte-identical to supabase/migrations/20260506000001. The validation contract section accurately describes all four error codes. The NULL-tolerance for smart_review mode is correctly documented and matches the `(p_subject_id IS NULL OR ...)` WHERE clause.
+
+**Error codes consistent across migration, integration tests, and docs (GOOD)**
+- `no_questions_provided` and `invalid_question_ids` are used identically in the migration RAISE EXCEPTION statements, the 8 integration test `.toContain()` assertions, and the docs/database.md validation contract table. No cross-commit drift.
+
+**pickSubjectWithQuestions logic is internally consistent (GOOD)**
+- Helper, unit test, and all spec callers agree on the CONTRACT: returns { subjectId, subjectCode, topicId }. Subjects ordered by code ASC, topics by sort_order ASC then id ASC. Count threshold checks filter by org + status='active' + deleted_at IS NULL. Throws with descriptive messages on exhaustion. The unit tests (seed.test.ts) correctly mock the multi-call chain via buildChain and cover all branches including error paths.
+
+**docs/security.md §15 correctly cross-references mig 079 trigger (GOOD)**
+- The soft-delete rule exception in docs/security.md was updated to note that config.question_ids write-once guarantee is enforced by trg_quiz_sessions_immutable_columns (migration 079). This closes the circular argument where the carve-out relied on "immutability by convention" — it now has a DB-level enforcement citation.
+
+**pickSubjectWithQuestions throws loudly on no match — replaces silent .limit(1) lottery (GOOD)**
+- The old pattern returned whatever the DB happened to return first. The new helper throws with a descriptive message if no subject/topic meets the threshold. E2E failures now surface as "pickSubjectWithQuestions: no subject in org X has ≥N active question(s)..." rather than as a cryptic RPC error mid-test.
+
+**docs/database.md validation contract section is internally consistent and matches migration body (GOOD)**
+- The three error strings ('no_questions_provided', 'invalid_question_ids', 'Not authenticated', 'user not found or inactive') listed in database.md match the RAISE EXCEPTION strings in the migration. The NULL-tolerance description for smart_review matches the `(p_subject_id IS NULL OR ...)` conditional in the WHERE clause.
+
+**Pattern — COUNT-then-INSERT TOCTOU window is an accepted trade-off (documented):**
+The new validation does a COUNT of valid question IDs, then INSERTs. A question soft-deleted or deactivated between the COUNT and INSERT would pass the gate with stale data. This is the same accepted trade-off used throughout the codebase (no serializable isolation on quiz sessions). The window is milliseconds and the consequence is a locked session containing a now-inactive question — not a security issue, just a corner case. Documented as acceptable. Count=1, watching.
 
 **Call site coverage is complete — `useQuizRecovery` has exactly one consumer (GOOD)**
 - Grep confirms `useQuizRecovery` is imported only in `quiz-recovery-banner.tsx`. The filter change has no unexpected impact on other components.

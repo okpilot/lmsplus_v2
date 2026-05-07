@@ -637,7 +637,7 @@ verb_noun pattern:
   check_quiz_answer                ← read, verify answer + return explanation (immediate feedback)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit + last_active_at stamp (deferred writes pattern)
-  start_quiz_session         ← write, atomic: session + locked question set
+  start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids')
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
   complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent)
@@ -1554,7 +1554,13 @@ $$;
 
 #### `start_quiz_session` — locks question set atomically
 
-**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix).
+**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix). `20260506000001_start_quiz_session_harden_input.sql` — adds input validation on `p_question_ids` (closes #622).
+
+**Validation contract** (raised before any INSERT, after the auth and active-user gates):
+- `'no_questions_provided'` — `p_question_ids` is NULL or empty (`array_length(...) IS NULL`).
+- `'invalid_question_ids'` — raised in two cases: (a) `p_question_ids` contains a duplicate UUID (set-based `count(DISTINCT)` mismatch with `array_length`), or (b) at least one UUID does not resolve to a question that is in the caller's organization, has `status = 'active'`, has `deleted_at IS NULL`, and matches `p_subject_id` / `p_topic_id` when those parameters are non-NULL.
+- `p_subject_id` and `p_topic_id` MAY be NULL (smart_review mode crosses subjects/topics); the per-question subject/topic match is skipped for the NULL parameter, while the org + active + soft-delete checks always apply.
+- Existing guards retained: `'Not authenticated'` (auth.uid() is null) and `'user not found or inactive'` (caller soft-deleted between auth and gate).
 
 ```sql
 CREATE OR REPLACE FUNCTION start_quiz_session(
@@ -1573,6 +1579,7 @@ DECLARE
   v_uid uuid := auth.uid();
   v_org_id uuid;
   v_role text;
+  v_count int;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
@@ -1588,6 +1595,35 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'user not found or inactive';
+  END IF;
+
+  -- Input validation (mig 20260506000001, closes #622).
+  IF p_question_ids IS NULL OR array_length(p_question_ids, 1) IS NULL THEN
+    RAISE EXCEPTION 'no_questions_provided';
+  END IF;
+
+  -- Reject duplicate UUIDs (would otherwise silently double-count below).
+  SELECT count(DISTINCT qid) INTO v_count
+  FROM unnest(p_question_ids) AS qid;
+  IF v_count <> array_length(p_question_ids, 1) THEN
+    RAISE EXCEPTION 'invalid_question_ids';
+  END IF;
+
+  -- Verify every UUID resolves to an active, in-org, non-deleted question
+  -- matching the (subject, topic) scope. NULL p_subject_id / p_topic_id =>
+  -- smart_review mode; the corresponding match is skipped, but org + active +
+  -- soft-delete checks always apply.
+  SELECT count(*) INTO v_count
+  FROM unnest(p_question_ids) AS qid
+  JOIN public.questions q ON q.id = qid
+  WHERE q.organization_id = v_org_id
+    AND (p_subject_id IS NULL OR q.subject_id = p_subject_id)
+    AND (p_topic_id   IS NULL OR q.topic_id   = p_topic_id)
+    AND q.status = 'active'
+    AND q.deleted_at IS NULL;
+
+  IF v_count <> array_length(p_question_ids, 1) THEN
+    RAISE EXCEPTION 'invalid_question_ids';
   END IF;
 
   INSERT INTO quiz_sessions
@@ -1994,4 +2030,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-05-01 (migrations 073-078 / 20260430000007-12: search_path on enforce_draft_limit, deleted_at on start_quiz_session+batch_submit_quiz audit subqueries, advisory lock on draft-limit trigger, active-user gate + cached actor_role on start_quiz_session and batch_submit_quiz — closes #588 #573 #531; PR #599 CR root-cause cycle) | Companion: docs/security.md*
+*Last updated: 2026-05-06 (migration 20260506000001: start_quiz_session input hardening — rejects null/empty p_question_ids and validates each UUID against active+in-org+subject/topic scope, with smart_review NULL-tolerance; closes #622) | Previous: 2026-05-01 (migrations 073-078 / 20260430000007-12: closes #588 #573 #531) | Companion: docs/security.md*

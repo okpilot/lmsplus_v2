@@ -18,6 +18,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
@@ -44,12 +45,9 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
     admin = getAdminClient()
 
-    // Resolve a real subject from egmont-aviation
-    const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
-    if (!subjects || subjects.length === 0) {
-      throw new Error('seed: no easa_subjects rows available for red-team setup')
-    }
-    const subjectId = subjects[0]!.id
+    // Resolve a real subject from egmont-aviation (with active questions, so the
+    // FK target is a real, exam-eligible subject — not a taxonomy-only stub).
+    const { subjectId } = await pickSubjectWithQuestions(admin, { orgId })
 
     // Seed two active codes (one per student) directly via service-role.
     // Direct INSERT bypasses RLS — that's fine; we're constructing fixture data,
@@ -128,11 +126,6 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     const { data: meRes } = await attackerClient.auth.getUser()
     const myId = meRes?.user?.id
     if (!myId) throw new Error('seed: attackerClient has no authenticated user')
-    const { data: subjects } = await admin.from('easa_subjects').select('id').limit(1)
-    if (!subjects || subjects.length === 0) {
-      throw new Error('seed: no easa_subjects rows available for INSERT vector')
-    }
-    const subjectId = subjects[0]!.id
     const { data: org } = await admin
       .from('users')
       .select('organization_id')
@@ -140,6 +133,7 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
       .single()
     const orgId = org?.organization_id
     if (!orgId) throw new Error('seed: attacker user has no organization_id')
+    const { subjectId } = await pickSubjectWithQuestions(admin, { orgId })
 
     const forgedCode = `FORGED${Date.now().toString(36).toUpperCase().slice(-4)}`
     const { error } = await attackerClient.from('internal_exam_codes').insert({

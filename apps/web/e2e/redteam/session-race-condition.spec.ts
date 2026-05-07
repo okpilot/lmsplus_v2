@@ -17,7 +17,12 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed'
+import {
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
+  pickSubjectWithQuestions,
+  seedRedTeamUsers,
+} from './helpers/seed'
 
 test.describe('Red Team: Session Race Condition', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -26,28 +31,34 @@ test.describe('Red Team: Session Race Condition', () => {
   let topicId: string
 
   test.beforeAll(async () => {
-    await seedRedTeamUsers()
+    const { orgId } = await seedRedTeamUsers()
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     const admin = getAdminClient()
-    const { data: subject } = await admin.from('easa_subjects').select('id').limit(1).single()
-    subjectId = subject!.id
-
-    const { data: topics } = await admin
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', subjectId)
-      .limit(5)
-    topicId = (topics ?? [])[0]?.id ?? subjectId
-    const topicIds = (topics ?? []).map((t) => t.id)
+    const picked = await pickSubjectWithQuestions(admin, {
+      orgId,
+      minActiveQuestions: 3,
+      topicMinQuestions: 3,
+    })
+    subjectId = picked.subjectId
+    topicId = picked.topicId
 
     const { data: qs } = await admin
       .from('questions')
       .select('id')
-      .in('topic_id', topicIds)
+      .eq('organization_id', orgId)
+      .eq('subject_id', subjectId)
+      .eq('topic_id', topicId)
+      .eq('status', 'active')
       .is('deleted_at', null)
+      .order('id', { ascending: true })
       .limit(3)
     questionIds = (qs ?? []).map((q) => q.id)
+    if (questionIds.length !== 3) {
+      throw new Error(
+        `session-race-condition seed: expected 3 active questions in (subject=${subjectId}, topic=${topicId}), got ${questionIds.length}`,
+      )
+    }
   })
 
   test('completed session cannot be overwritten with discarded status', async () => {

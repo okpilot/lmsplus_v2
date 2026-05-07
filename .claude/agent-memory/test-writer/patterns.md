@@ -113,6 +113,34 @@ pnpm exec vitest run "student-header"
 # NOT: pnpm exec vitest run "app/app/admin/.../[id]/_components/student-header.test.tsx"
 ```
 
+### Mocking sequential .from() calls in Supabase helper functions (2026-05-06)
+
+When a helper makes multiple sequential `.from(table)` calls (e.g. subjects → questions count
+→ topics → questions count again), use `mockImplementationOnce` / `mockReturnValueOnce` queuing
+so each call in order returns the right fixture. `buildChain(returnValue)` handles the full
+`.select().eq().is().order()...` chain for each individual call:
+
+```ts
+mockFrom
+  .mockReturnValueOnce(buildChain({ data: subjects, error: null }))  // call 1: subjects list
+  .mockReturnValueOnce(buildChain({ count: 5, error: null }))         // call 2: subject question count
+  .mockReturnValueOnce(buildChain({ data: topics, error: null }))     // call 3: topics list
+  .mockReturnValueOnce(buildChain({ count: 5, error: null }))         // call 4: topic question count
+```
+
+The admin mock is constructed as `{ from: mockFrom }` — no `auth` key needed if the function
+under test doesn't call auth methods. Cast to the parameter type with `as unknown as
+Parameters<typeof fn>[0]`.
+
+Key: mock `@supabase/supabase-js` at module level so `createClient()` is intercepted before
+any env-var checks (`SERVICE_ROLE_KEY`) throw in the helper module's top-level code:
+
+```ts
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: () => ({ from: mockFrom }),
+}))
+```
+
 ### Stubbing 'server-only' in Vitest (2026-04-11)
 Files with `import 'server-only'` cannot be resolved by Vite during test transforms
 because the package does not exist in the test environment. `vi.mock('server-only')`
