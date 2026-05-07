@@ -4597,3 +4597,121 @@ Added to frequency table (end of Issue Frequency table, above current session no
 None. Semantic-reviewer SUGGESTION is valid design guidance (idempotency check); not a functional gap.
 
 **Learner cycle complete for 287b98d.** One new pattern logged (UPDATE compound-key scoping). All agents clean. No rule changes. System tracking via memory for future recurrence.
+
+---
+
+## Learner Cycle — 2026-05-07 (evening) — Commits c45330f + abc745c
+
+**Context:** Two-commit cycle on feat/redteam-owasp-coverage-108 (red-team Playwright specs for OWASP Top 10 injection, XSS, and auth bypass tests, 906 lines total). c45330f added 4 specs + 1 helper; abc745c fixed 8 follow-up findings from plan-critic (4), semantic-reviewer (3), and red-team (1).
+
+### Agent Findings Summary
+- **code-reviewer (c45330f):** 0 BLOCKING, 0 WARNINGS. Clean.
+- **code-reviewer (abc745c):** 0 BLOCKING, 0 WARNINGS. Clean.
+- **semantic-reviewer (c45330f):** 0 CRITICAL, 3 ISSUE, 1 SUGGESTION, 1 GOOD.
+  - ISSUE 1: Raw CR/LF payloads assumed rejected at transport but JSON.stringify encodes as escape sequences; PostgREST accepts. Fix: pre-validate at RPC boundary instead of assuming transport-layer rejection.
+  - ISSUE 2: XSS test seeded malicious questions with studentUserId as author, misrepresenting threat model (real attacks are guest-injected via form). Fix: seed with correct actor (guest/anonymous).
+  - ISSUE 3: Single fixture `submit_quiz_answer` created in `beforeAll`, reused across 8 negative tests. Brittle if any payload coincidentally matches real value. Fix: generate per-test fixture in loop.
+- **semantic-reviewer (abc745c):** 0 CRITICAL, 0 ISSUE. Clean.
+- **red-team (c45330f):** 1 GAP: internal_exam.completed audit event type not covered. (9 event types tested; missed 1 code-emitted event_type literal in batch_submit_quiz when mode='internal_exam'.) Fix: enumerate all event_type literals in batch_submit_quiz + complete_empty_exam_session, add test for each.
+- **red-team (abc745c):** Clean.
+- **doc-updater (c45330f + abc745c):** 1 ISSUE: `.spec-workflow/steering/tech.md` had numeric counts ("9 specs" in 3 places) that went stale when 10th spec was added. Rule: numeric doc counts are fragile; prefer "specs for each OWASP category" or "injection/XSS/auth specs" instead of hard numbers.
+- **test-writer (c45330f + abc745c):** 0 gaps. E2E specs only; no unit tests needed.
+
+### Pattern Analysis
+
+**[NEW — count 1] CR/LF control character in payload assumed rejected at transport layer**
+
+**Description:**
+c45330f's injection test included CR (0x0D) and LF (0x0A) in payloads, assuming they would be rejected by PostgREST or JSON encoding. Semantic-reviewer flagged: JSON.stringify encodes CR/LF as escape sequences (`\r`, `\n`), and PostgREST accepts escaped sequences as regular text. The payload reaches the DB as literal `\r\n` characters in the text column, bypassing the intended rejection. Root cause: false-confidence that "control characters are always stripped at the network layer" — incorrect for JSON transport (only NUL byte 0x00 is actually rejected by most stacks).
+
+**First occurrence.** **Log and watch.** Pattern: control-character validation should not rely on transport-layer rejection; always validate at application boundary (RPC entry point or form input validation). If a second occurrence surfaces where control characters are assumed rejected without explicit app-layer checks, propose rule addition to security.md (no implicit reliance on transport-layer filtering).
+
+**Action taken:** Test fixed to pre-validate payloads at RPC boundary (mock validates CR/LF are stripped before SQL execution).
+
+---
+
+**[NEW — count 1] Test fixture seeded with wrong actor role, misrepresenting threat model**
+
+**Description:**
+c45330f's XSS test created malicious questions with `studentUserId` as the author. In the real system, students cannot create questions — this is a guest/admin action. The test exercised the code with an artificial threat scenario (student-authored malicious question) that does not match the actual attack path (guest form input). This is not a false-positive finding (the code does execute the vulnerability path); it is a threat-model misalignment: the test validates code correctness but not the likelihood of the threat.
+
+**First occurrence.** **Log and watch.** Pattern: when tests seed data representing a real-world threat (malicious question, stolen token, etc.), verify the seed actor and permission level match the actual attack vector. If a second threat-model mismatch is found, add a note to code-style.md Section 7 (Testing Rules) or red-team guidance: "Threat-model tests must seed data via the same permission path as the real attack vector."
+
+**Action taken:** Fixture re-seeded with guest/anonymous actor to match real injection path.
+
+---
+
+**[NEW — count 1] Single fixture shared across negative-test loop introduces brittleness**
+
+**Description:**
+c45330f created a `submit_quiz_answer` fixture once in `beforeAll` and reused it across 8 test cases that assert different negative conditions (empty answer, no such question, session expired, etc.). If any test's mutation (e.g., setting `selectedOptionId = null`) happened to match a real/valid value in the test environment, the assertion would pass for the wrong reason. The fixture should be mutated per-test, not shared.
+
+**First occurrence.** **Log and watch.** Pattern: negative-test loops that mutate a single fixture are brittle; each test should generate or mutate its own fixture instance. If a second occurrence is found where a shared fixture causes a false-positive assertion, promote to rule: "Each test in a negative-test loop must mutate its own fixture instance; never share a single mutated fixture across multiple tests."
+
+**Action taken:** Fixed in abc745c by generating per-test fixture mutations in the loop body.
+
+---
+
+**[NEW — count 1] Incomplete enumeration of code-emitted event types when scoping audit-coverage tests**
+
+**Description:**
+c45330f wrote tests covering 8 audit event types (`quiz.started`, `quiz.submitted`, etc.) emitted by the quiz session flow. The author thought "8 untested event types from the code" but did not enumerate ALL event_type literals across both `batch_submit_quiz` and `complete_empty_exam_session` RPCs. `internal_exam.completed` exists in `batch_submit_quiz` (when `mode='internal_exam' AND within_time_limit=true`) but was missed because the author did not cross-reference the RPC implementation.
+
+**First occurrence.** **Log and watch.** Pattern: when writing audit-coverage tests, enumerate ALL event_type literals in the code, not just the ones referenced in a single code path. If a second occurrence is found where event types are missed, add a rule to red-team guidance: "Audit event coverage tests must enumerate ALL `event_type` string literals in the codebase (use grep across all RPCs + Server Actions), not just the ones exercised by the main happy path."
+
+**Action taken:** Fixed in abc745c by grepping for all event_type literals and adding test for the missed `internal_exam.completed` case.
+
+---
+
+**[NEW — count 1] Numeric counts in steering docs go stale fast**
+
+**Description:**
+`.spec-workflow/steering/tech.md` documented "9 specs" for OWASP coverage in 3 places. When c45330f added the 10th spec, the numeric claims became stale immediately. This is a doc maintenance burden and error-prone. Better to write "specs for each OWASP category" or "injection, XSS, auth specs" (non-numeric, resilient to additions).
+
+**First occurrence.** **Log and watch.** Pattern: avoid hard numeric counts in steering docs. Prefer category names or structural descriptions. If a second steering doc with numeric counts goes stale, propose a guideline: "Steering docs should use category names and structural descriptions, not hard numeric counts, to remain resilient to future additions."
+
+**Action taken:** Fixed in abc745c by removing numeric counts and replacing with category-based language.
+
+---
+
+**[WATCH — count 2] Cross-agent finding redundancy (plan-critic caught 4, semantic-reviewer caught 3, red-team caught 1)**
+
+Note: This is **not** a "multi-agent overlap" issue (agents have distinct scopes and do not duplicate findings). This is a **pre-commit vs. post-commit timing observation**: plan-critic (pre-commit) found 4 high-level design issues (wrong actor, shared fixture, incomplete enum, control-char validation). Post-commit semantic-reviewer found 3 of the same issues with more implementation detail. Red-team found the 4th (incomplete enum) separately. All 8 findings were real; no duplicates. The pattern is: pre-commit critics catch design-level issues; post-commit agents find the same issues with implementation-level specificity. This is the second cycle where pre-commit critics provide value by surfacing issues early. No rule change — this is positive signal that the gate is working. Observation: for 906-line multi-file PRs (spec + fixtures + helper + 4 main files), plan-critic finding half the issues pre-commit saves iteration time (shorter fixing feedback loop).
+
+---
+
+### Recommended Changes
+None at this time. All 4 new patterns are count=1 (log and watch threshold). No rule promotions yet.
+
+### Memory Updated
+Added 5 rows to Issue Frequency table:
+
+| CR/LF control character assumed rejected at transport (JSON encodes as escape sequences, not stripped) | 1 | 2026-05-07 | Watch — c45330f: test assumed CR/LF would be rejected by PostgREST but JSON.stringify encodes as `\r`, `\n` escape sequences; RPC must explicitly validate; if second occurrence, add security.md guidance: "Control-character validation must occur at application boundary, not transport layer" |
+
+| Test fixture seeded with wrong actor role (misrepresents threat model) | 1 | 2026-05-07 | Watch — c45330f XSS test: malicious questions seeded with studentUserId as author (students cannot create questions). Real attack is guest form injection. Root cause: test author did not verify fixture actor matched real attack vector. If second threat-model mismatch found, add code-style.md §7 rule: "Threat-model tests must seed data via actual attack permission path" |
+
+| Single fixture shared across negative-test loop (brittleness risk) | 1 | 2026-05-07 | Watch — c45330f: `submit_quiz_answer` fixture created once, mutated and reused across 8 negative tests (empty answer, no question, expired session, etc.). If any mutation happened to match a real value, assertion would pass vacuously. Fixed in abc745c by generating per-test fixture. If second shared-fixture negative loop found, promote to rule: "Each negative test must mutate its own fixture instance" |
+
+| Incomplete audit event_type enumeration (missed internal_exam.completed) | 1 | 2026-05-07 | Watch — c45330f: author thought "8 untested event types" but missed internal_exam.completed from batch_submit_quiz mode='internal_exam' path. Root cause: did not enumerate ALL event_type literals across both RPC implementations. If second event-type enum gap found, add rule: "Audit coverage tests must grep ALL event_type literals in codebase, not just main path" |
+
+| Numeric counts in steering docs (fragile, go stale fast) | 1 | 2026-05-07 | Watch — tech.md had "9 specs" in 3 places; count became stale when 10th spec added. Prefer category-based language ("specs for each OWASP category") instead of hard counts. If second numeric steering doc goes stale, propose guideline: "Steering docs use category names, not counts, for resilience" |
+
+---
+
+### Positive Signals
+1. **Pre-commit + post-commit agent integration working well:** Plan-critic found design issues (actor mismatch, shared fixture, incomplete enum) at plan validation time; post-commit semantic-reviewer confirmed those issues with implementation detail. Together, 8 issues found and fixed in single cycle with clear iteration path.
+2. **Threat-model awareness improving:** Finding that tests must match real attack vectors is an important discipline for security specs. The fact that semantic-reviewer flagged actor mismatch shows the agent understands threat modeling.
+3. **E2E spec hermiticity rule (from 2026-04-30 code-style.md §7) was applied correctly:** All 4 OWASP specs include `test.afterEach` cleanup with soft-delete. System learning is working.
+4. **Red-team advisory (non-blocking) is finding gaps:** The 9th event type miss was caught by red-team mapping, not by code-reviewer or semantic-reviewer. Distinct coverage tool working as designed.
+5. **Doc drift detection (numeric counts):** Doc-updater caught the stale count pattern immediately, showing good doc freshness discipline.
+
+### False Positives
+None. All 8 findings were real issues that required fixes.
+
+### Issues to File
+None identified at this time. All issues were resolved in-cycle. The red-team advisory about the 9th event type was handled; no blocking gap.
+
+---
+
+**Learner cycle complete for c45330f + abc745c.** Five patterns logged (all count=1, watch threshold): CR/LF control char validation, test actor/threat-model mismatch, shared fixture brittleness, incomplete audit event enum, numeric doc counts. All issues resolved. Plan-critic + post-commit review working well; pre-commit critics caught half the issues (4/8) and saved iteration time. No rule changes at this time; monitor these patterns for count=2 recurrence.
+

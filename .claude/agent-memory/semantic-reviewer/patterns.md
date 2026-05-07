@@ -29,6 +29,46 @@ When a helper scans taxonomy (subjects/topics) and then counts questions, the sc
 **`.order('id')` determinism nits on questions fetch (GOOD)**
 - Both `session-race-condition.spec.ts` and `session-replay.spec.ts` now add `.order('id', { ascending: true })` before `.limit(3)` on their questions fetch. This is a direct fix for CI flakiness where physical row order was non-deterministic after inserts. Correct and consistent with the project's determinism principle.
 
+### 2026-05-07 — commit c45330f (test(redteam): add OWASP A02/A05/A09 coverage — 52 new specs, closes #108)
+- **Files reviewed:** audit-completeness.spec.ts, injection-sql.spec.ts, injection-xss.spec.ts, header-validation.spec.ts, helpers/payloads.ts
+- **CRITICAL:** 0 | **ISSUE:** 3 | **SUGGESTION:** 3 | **GOOD:** 6
+
+**ISSUE — CRLF payload is string escape sequences, not real CRLF at JSON-wire level**
+- `payloads.ts:63` — `TRANSPORT_LAYER_PAYLOADS[1]` value is `'abc\r\ndef'`, which at runtime produces real CR (0x0d) + LF (0x0a) bytes. The `why` comment says "CRLF in JSON body — control chars rejected by transport." However, the Supabase JS client JSON-encodes the payload before sending, rendering the CR/LF as `\r\n` escape sequences — valid inside a JSON string. PostgREST accepts this and passes the value to Postgres unmodified. The transport-layer rejection that the comment predicts does NOT occur. The test only asserts `error !== null` for this payload, which will FAIL when the RPC returns successfully (error is null for `void_internal_exam_code` p_reason containing CRLF, which is a legal reason string). Count=1, watching.
+
+**ISSUE — injection-sql.spec.ts submit_quiz_answer describe: single shared session across all DB_LAYER_PAYLOADS is safe but only by coincidence**
+- `injection-sql.spec.ts:239` — A single `sessionId` (quick_quiz, 1 question) is created in `beforeAll` and reused across all 6 DB_LAYER_PAYLOADS + 2 TRANSPORT_LAYER_PAYLOADS tests. `submit_quiz_answer` is a per-question RPC. Each call is rejected with "selected option does not belong", so no `quiz_session_answers` row is written and the session is never ended. This works today, but if a payload test accidentally produced a valid option id (or if the rejection logic changed), the session would end on first success and all subsequent tests would fail with `session_already_ended` rather than `option not found`. A per-test beforeEach session would be more robust. Count=1, watching.
+
+**ISSUE — injection-xss.spec.ts seeds questions using studentUserId as `created_by`**
+- `injection-xss.spec.ts:169` — `seedXssQuestion` uses `authorId: studentUserId` (the TEST_EMAIL student, not an admin). The `questions.created_by` column is not validated by an RLS policy at the DB level — the insert goes via service-role client, so it succeeds regardless. But the semantic intent of the spec is "an admin authors malicious markup." Using a student's UUID as `created_by` is semantically wrong: it misrepresents who authored the question in audit context and could cause the question to not appear in admin-authored-question filters if such a filter is ever added. Should use `ensureAdminTestUser()` result's userId. Count=1, watching.
+
+**SUGGESTION — header-validation.spec.ts: X-Frame-Options SAMEORIGIN contradicts CSP frame-ancestors 'none'**
+- `header-validation.spec.ts:24,61` — The spec asserts both `x-frame-options: SAMEORIGIN` (allows same-origin frames) and CSP `frame-ancestors 'none'` (blocks all frames including same-origin). Modern browsers honor `frame-ancestors` and ignore `X-Frame-Options` when CSP is present; older browsers only see X-Frame-Options. The test is verifying two contradictory policies simultaneously — a security posture that, on older browsers, is SAMEORIGIN (permissive) not 'none' (strict). This mismatch is in `next.config.ts` itself (lines 11 and 29). The test correctly reproduces what the server sends, but neither the test nor a comment flags this as a known security trade-off for older browsers. This should be either aligned (change X-Frame-Options to DENY to match 'none') or documented as intentional. Count=1, watching.
+
+**SUGGESTION — payloads.ts: no unicode-RTL or null-coalescing payloads in DB_LAYER_PAYLOADS**
+- `payloads.ts:20-51` — The SQL payload set covers classic tautology, statement chaining, comment injection, unicode homoglyph, and length. Missing: right-to-left override (U+202E, U+2066) which can mislead log readers reading the `void_reason` column; and `%00` (URL-encoded NUL) which is distinct from the raw NUL byte and not intercepted by the same PostgREST path. These are advisory. Count=1, watching.
+
+**SUGGESTION — injection-xss.spec.ts: assertSanitized checks DOM shape but not text-node content of XSS payloads**
+- `injection-xss.spec.ts:32-39` — `assertSanitized` checks `<script>` count = 0, no `on\w+=` attributes, no `javascript:` URIs, and `window.__pwned`. This is good coverage for element-based XSS. It does NOT assert that the payload text itself (e.g., the raw `<script>` string) appears escaped as literal text in the DOM. If React rendered nothing (empty cell) instead of the escaped payload, the test would still pass — the absence of the payload is indistinguishable from it being sanitized. A `.toContainText('[E2E_XSS]')` on the scope would bind the assertion to content actually being rendered. Count=1, watching.
+
+**backdateSession math is correct and explicit (GOOD)**
+- `audit-completeness.spec.ts:146-159` — time_limit=60s, started 91s ago, grace=30s → condition is `now() > (now-91s) + 90s = now-1s` which is true. The 1-second margin is tight but deterministic (no clock skew possible since the backdate is a DB write, not a network round-trip). The `select('id')` + `!data?.length` check guards against a silent no-op. Correct.
+
+**audit-completeness isolation is strong (GOOD)**
+- `testStart` captured before each RPC call + `actor_id` + `event_type` triple-filter in `expectAuditRow` means parallel specs writing the same event_type for different users won't pollute counts. The spec's comment documents this explicitly.
+
+**void_internal_exam_code round-trip equality proves non-interpretation (GOOD)**
+- `injection-sql.spec.ts:176` — `expect(row?.void_reason).toBe(payload.value)` asserts the payload was stored byte-for-byte. Combined with "no error", this is the correct proof that the SQL fragment was treated as text, not executed. No other spec needed.
+
+**internal_exam.expired and exam.expired share backdateSession correctly (GOOD)**
+- Both expiry tests use `backdateSession` which updates both `started_at` and `time_limit_seconds`. The `batch_submit_quiz` RPC (mig 012) reads both values and applies the `now() > started_at + (time_limit + 30) * interval '1 second'` check. The 91s backdate with 60s limit fires this branch deterministically. Correct branch isolation.
+
+**CSP structural assertions degrade gracefully across dev/CI environments (GOOD)**
+- `header-validation.spec.ts:57-64` — The comment correctly explains that `unsafe-eval` appears only in dev and localhost origins appear only in `isLocalSupabase` mode. The assertions use structural checks (`toContain`, `toMatch`) not exact equality, so they pass in both production and local-supabase CI environments. No false-positive risk from env variation.
+
+**Pattern — transport-layer payload assertions need to account for JSON client-side encoding:**
+When a payload contains control characters (CRLF, NUL), check whether the JS SDK encodes them before sending. NUL bytes (0x00) survive JSON encoding as ` ` and are rejected by Postgres. CRLF bytes (0x0d 0x0a) survive JSON encoding as `\r\n` and are accepted by Postgres text columns. Tests asserting "transport rejection" of CRLF should either (a) verify the actual Postgres rejection message, or (b) remove the TRANSPORT_LAYER claim and test the stored value instead.
+
 ### 2026-04-28 — commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit)
 - **Files reviewed:** apps/web/scripts/seed-e2e.ts, apps/web/e2e/exam-flow.spec.ts, apps/web/e2e/exam-recovery.spec.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 7

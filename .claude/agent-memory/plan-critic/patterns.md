@@ -56,6 +56,18 @@ Plans that add a pre-INSERT COUNT query to `start_quiz_session` using `q.subject
 ### [2026-05-06] Redteam specs that fetch questions without status=active filter pass invalid IDs to new validation
 `session-race-condition.spec.ts` (lines 44-50), `session-replay.spec.ts`, and `rate-limiting.spec.ts` fetch question IDs with only `deleted_at IS NULL` but NOT `status = 'active'`. After adding `q.status = 'active'` to the RPC validation COUNT, these specs could fail if any seeded question has `status != 'active'`. Plans must either add `.eq('status', 'active')` to all spec question fetches or document the assumption that seeded test questions are always active.
 
+### [2026-05-07] Red-team injection specs: NUL-byte payload fails before reaching RPC error
+SQL injection payload arrays that include a NUL byte (`\x00`) will be rejected by PostgREST before the Postgres function runs, producing a PostgREST 400 error whose message does NOT match the RPC's `RAISE EXCEPTION` string. Plans that assert a single regex (e.g. `/code_not_found/i`) against all SQL payloads will fail on the NUL-byte case. The fix: either remove the NUL-byte payload from the "all rejected with code_not_found" group, or write a separate assertion branch for it.
+
+### [2026-05-07] audit-completeness specs: actor_id differs per event type — admin events must filter by admin's id
+`internal_exam.code_issued` and `internal_exam.code_voided` write `actor_id = v_admin_id` (the admin who called the RPC), while `internal_exam.started`, `internal_exam.expired` (via batch_submit_quiz), `exam.started`, `exam.completed`, `quiz_session.batch_submitted` write `actor_id = v_student_id`. Plans that assert `.eq('actor_id', expected_actor)` on every event type without distinguishing admin vs. student actor will produce a 0-row result for admin-originated events. Each test must bind `expected_actor` to the correct role's uid.
+
+### [2026-05-07] submit_quiz_answer injection: option-validation check requires fixture to reach it
+The "selected option does not belong" check (migration 040, line 96-101) is the 5th guard in submit_quiz_answer, after: session ownership, session-ended, question-membership, and question-found. To reliably hit the option-validation check, the test fixture needs (a) an active session owned by the student, (b) a real question whose id is in the session's config.question_ids, and (c) a payload that is not a valid option id of that question. Plans that mention "assert /selected option does not belong/i" without specifying how this fixture is arranged will produce a test that hits an earlier guard (e.g., 'question does not belong to this session') and fails. Plans must specify the fixture setup explicitly.
+
+### [2026-05-07] exam.started / exam.completed require start_exam_session RPC, not start_internal_exam_session
+These two event types are emitted by the mock_exam flow (start_exam_session / batch_submit_quiz with mode='mock_exam'). Plans for audit-completeness tests that list these events without specifying which RPC to call risk the implementer using start_internal_exam_session (which emits internal_exam.started / internal_exam.completed). Plans must name the specific RPC for each event type.
+
 ## Positive Signals
 
 ### [2026-04-09] Base UI data attribute names correctly verified

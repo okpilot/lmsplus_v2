@@ -86,6 +86,19 @@
 - Both 046 and 047 pairs diffed clean — zero divergence between packages/db/migrations/ and supabase/migrations/ counterparts.
 - Positive signal: the implementer consistently keeps both directories in sync.
 
+### 2026-05-07 — TRANSPORT_LAYER loops applied inconsistently across RPC fuzzing blocks (issue #108)
+- `injection-sql.spec.ts` covers `start_internal_exam_session` and `submit_quiz_answer` with both DB_LAYER and TRANSPORT_LAYER loops, but `void_internal_exam_code` gets only DB_LAYER + WHITESPACE, no TRANSPORT_LAYER loop.
+- Plan explicitly states "TRANSPORT_LAYER_PAYLOADS asserted with `error !== null` only" for all 3 RPCs.
+- The omission means 2 NUL-byte / CRLF payloads go untested against a text parameter that also accepts arbitrary input.
+- Watch for: when plan documents a payload group applied to N RPCs, count the actual loops in each describe block before approving.
+- ISSUE raised: requires adding a `for (const payload of TRANSPORT_LAYER_PAYLOADS)` loop to the `void_internal_exam_code` describe block.
+
+### 2026-05-07 — backdateSession missing `.select('id')` zero-row observability (issue #108)
+- `backdateSession` in `audit-completeness.spec.ts` calls `.update(...).eq('id', sessionId)` without chaining `.select('id')` or checking `data?.length`.
+- Pattern recurs from session 2026-05-06 (issue #622) — now seen twice in E2E helper contexts.
+- Per code-style.md §5, every UPDATE expected to hit rows must observe zero-row no-ops via `.select('id')` + length check.
+- SUGGESTION raised (not ISSUE — in a test helper, not production code, and the sessionId comes from a trusted beforeAll — but the pattern is still preferred).
+
 ### 2026-04-08 — Blank line after import block (batch testing debt)
 - Removing `afterEach(cleanup)` lines that served as visual separators between the import block and the first statement left no blank line between the last import and `beforeEach`.
 - Biome `organizeImports` rule flags this as a required blank line separator — would fail the pre-commit hook.
