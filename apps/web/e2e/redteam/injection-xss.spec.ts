@@ -139,7 +139,12 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
 
   test.afterEach(async () => {
     const admin = getAdminClient()
-    await admin.from('users').update({ full_name: originalFullName }).eq('id', studentUserId)
+    const { error } = await admin
+      .from('users')
+      .update({ full_name: originalFullName })
+      .eq('id', studentUserId)
+      .select('id')
+    if (error) throw new Error(`afterEach restore full_name: ${error.message}`)
     await discardActiveSessions(studentUserId)
     await cleanupXssQuestions()
   })
