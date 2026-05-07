@@ -28,6 +28,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  E2E_REDTEAM_CODE_PREFIX,
   ensureExamConfig,
   pickSubjectWithQuestions,
   seedRedTeamAdmin,
@@ -40,7 +41,7 @@ async function seedUnconsumedCode(
   admin: ReturnType<typeof getAdminClient>,
   opts: { studentId: string; subjectId: string; orgId: string; issuedBy: string },
 ): Promise<IssuedCode> {
-  const code = `RT${crypto
+  const code = `${E2E_REDTEAM_CODE_PREFIX}${crypto
     .randomUUID()
     .replace(/-/g, '')
     .toUpperCase()
@@ -141,7 +142,13 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
       }
     })
 
-    for (const payload of DB_LAYER_PAYLOADS) {
+    // Short SQL fragments: stored verbatim, code voided per the contract.
+    // Length-bounded by the 500-char guard, so we filter on payload length —
+    // not on name — so renaming an entry in payloads.ts can't silently flip
+    // a length-guard case into a "stored as text" assertion.
+    const STORED_AS_TEXT_PAYLOADS = DB_LAYER_PAYLOADS.filter((p) => p.value.length <= 500)
+
+    for (const payload of STORED_AS_TEXT_PAYLOADS) {
       test(`SQL-fragment p_reason (${payload.name}) is stored as text and does not execute`, async () => {
         const code = await seedUnconsumedCode(admin, {
           studentId: victimUserId,
@@ -156,31 +163,42 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
           p_reason: payload.value,
         })
 
-        if (payload.name === 'long-string-1k') {
-          // 1024 chars > 500 → length guard fires.
-          expect(error?.message ?? '').toMatch(/invalid_reason/i)
-          const { data: row } = await admin
-            .from('internal_exam_codes')
-            .select('voided_at, void_reason')
-            .eq('id', code.id)
-            .single()
-          expect(row?.voided_at ?? null).toBeNull()
-          expect(row?.void_reason ?? null).toBeNull()
-        } else {
-          // Short SQL fragment: stored verbatim, code voided as documented.
-          expect(error).toBeNull()
-          const { data: row } = await admin
-            .from('internal_exam_codes')
-            .select('voided_at, voided_by, void_reason')
-            .eq('id', code.id)
-            .single()
-          expect(row?.voided_at).not.toBeNull()
-          expect(row?.voided_by).toBe(adminUserId)
-          // Round-trip equality proves the payload was not interpreted.
-          expect(row?.void_reason).toBe(payload.value)
-        }
+        expect(error).toBeNull()
+        const { data: row } = await admin
+          .from('internal_exam_codes')
+          .select('voided_at, voided_by, void_reason')
+          .eq('id', code.id)
+          .single()
+        expect(row?.voided_at).not.toBeNull()
+        expect(row?.voided_by).toBe(adminUserId)
+        // Round-trip equality proves the payload was not interpreted.
+        expect(row?.void_reason).toBe(payload.value)
       })
     }
+
+    test('p_reason exceeding 500 chars is rejected as invalid_reason', async () => {
+      const code = await seedUnconsumedCode(admin, {
+        studentId: victimUserId,
+        subjectId,
+        orgId,
+        issuedBy: adminUserId,
+      })
+      activeCodeId = code.id
+
+      const { error } = await adminClient.rpc('void_internal_exam_code', {
+        p_code_id: code.id,
+        p_reason: 'A'.repeat(501),
+      })
+
+      expect(error?.message ?? '').toMatch(/invalid_reason/i)
+      const { data: row } = await admin
+        .from('internal_exam_codes')
+        .select('voided_at, void_reason')
+        .eq('id', code.id)
+        .single()
+      expect(row?.voided_at ?? null).toBeNull()
+      expect(row?.void_reason ?? null).toBeNull()
+    })
 
     for (const payload of WHITESPACE_PAYLOADS) {
       test(`whitespace-only p_reason (${payload.name}) is rejected as invalid_reason`, async () => {
