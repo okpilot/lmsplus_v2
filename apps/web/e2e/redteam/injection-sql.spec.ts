@@ -135,6 +135,7 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
         .from('internal_exam_codes')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', codeToCleanup)
+        .is('deleted_at', null)
         .select('id')
       if (error) throw new Error(`afterEach soft-delete code ${codeToCleanup}: ${error.message}`)
       if ((data?.length ?? 0) > 0) {

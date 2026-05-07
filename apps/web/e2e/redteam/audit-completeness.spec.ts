@@ -127,7 +127,13 @@ test.describe('Red Team: Audit Event Completeness', () => {
       .eq('id', sessionId)
       .single()
     if (sErr || !session) throw new Error(`buildAnswers session: ${sErr?.message}`)
-    const ids = ((session.config as { question_ids?: string[] })?.question_ids ?? []) as string[]
+    const rawIds = (session.config as { question_ids?: unknown })?.question_ids
+    if (!Array.isArray(rawIds)) {
+      throw new Error(
+        `buildAnswers: config.question_ids is not an array: ${JSON.stringify(rawIds)}`,
+      )
+    }
+    const ids = rawIds.filter((v): v is string => typeof v === 'string')
     if (ids.length === 0) throw new Error('buildAnswers: session has no question_ids')
 
     // Service role can read full questions including options for grading shape.

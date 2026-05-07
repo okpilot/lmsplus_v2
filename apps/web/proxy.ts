@@ -30,6 +30,27 @@ export async function proxy(request: NextRequest): Promise<Response> {
     for (const cookie of response.cookies.getAll()) {
       redirect.cookies.set(cookie)
     }
+    // next.config.ts `headers()` does NOT apply to redirect responses
+    // emitted from Edge Middleware — they bypass the request-handler layer.
+    // Mirror the static security headers here so every redirect (login
+    // gate, consent gate, admin gate, recovery gate) carries the same
+    // posture as a routed response.
+    redirect.headers.set('X-DNS-Prefetch-Control', 'on')
+    redirect.headers.set('X-Frame-Options', 'DENY')
+    redirect.headers.set('X-Content-Type-Options', 'nosniff')
+    redirect.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    redirect.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    redirect.headers.set(
+      'Strict-Transport-Security',
+      'max-age=63072000; includeSubDomains; preload',
+    )
+    // Minimal hardened CSP for redirect responses. No scripts execute on a
+    // 3xx, so we lock the default down to 'none' and keep frame-ancestors
+    // aligned with the routed-response CSP in next.config.ts.
+    redirect.headers.set(
+      'Content-Security-Policy',
+      "default-src 'none'; frame-ancestors 'none'",
+    )
     return redirect
   }
 

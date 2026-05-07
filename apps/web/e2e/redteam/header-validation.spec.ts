@@ -13,10 +13,16 @@
 
 import { expect, test } from '@playwright/test'
 
+// Two response classes carry different CSPs:
+// - Routed responses (`/`, `/auth/login`): full CSP from next.config.ts —
+//   default-src 'self', supabase.co connect-src, etc.
+// - Edge-Middleware redirects (`/app/dashboard` for unauth users): minimal
+//   hardened CSP set by proxy.ts — default-src 'none'; frame-ancestors 'none'.
+//   No scripts execute on a 3xx, so `default-src 'none'` is correct here.
 const PATHS = [
-  { name: 'root', path: '/' },
-  { name: 'dashboard (unauth → redirect)', path: '/app/dashboard' },
-  { name: 'login', path: '/auth/login' },
+  { name: 'root', path: '/', responseClass: 'routed' },
+  { name: 'dashboard (unauth → redirect)', path: '/app/dashboard', responseClass: 'redirect' },
+  { name: 'login', path: '/auth/login', responseClass: 'routed' },
 ] as const
 
 const EXACT_HEADERS = [
@@ -30,7 +36,7 @@ const EXACT_HEADERS = [
 const HSTS_MIN_MAX_AGE = 15_768_000 // 6 months
 
 test.describe('Red Team: OWASP A02 — security response headers', () => {
-  for (const { name, path } of PATHS) {
+  for (const { name, path, responseClass } of PATHS) {
     test(`${name} response carries all required security headers`, async ({ request }) => {
       // maxRedirects: 0 — assert headers on the FIRST response, including 3xx
       // redirects from middleware (e.g. unauth /app/* → /auth/login).
@@ -53,15 +59,26 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
         `HSTS max-age too short on ${path}`,
       ).toBeGreaterThanOrEqual(HSTS_MIN_MAX_AGE)
 
-      // CSP — structural assertions only (the directive set varies by env:
-      // dev injects 'unsafe-eval'; local supabase injects localhost origins).
+      // CSP — present on every response, but the directive set differs by
+      // class. frame-ancestors 'none' must be on both because that's the
+      // single policy directive that applies to a 3xx browser preview.
       const csp = headers['content-security-policy']
       expect(csp, `missing CSP on ${path}`).toBeTruthy()
-      expect(csp).toContain("default-src 'self'")
       expect(csp).toContain("frame-ancestors 'none'")
-      expect(csp).toMatch(/script-src 'self'/)
-      expect(csp).toMatch(/connect-src[^;]*https:\/\/\*\.supabase\.co/)
-      expect(csp).toContain("worker-src 'self' blob:")
+
+      if (responseClass === 'routed') {
+        // Full CSP from next.config.ts — env-dependent allowances vary
+        // (dev injects 'unsafe-eval', local-supabase injects localhost),
+        // so only assert the env-stable structural pieces.
+        expect(csp).toContain("default-src 'self'")
+        expect(csp).toMatch(/script-src 'self'/)
+        expect(csp).toMatch(/connect-src[^;]*https:\/\/\*\.supabase\.co/)
+        expect(csp).toContain("worker-src 'self' blob:")
+      } else {
+        // Minimal hardened CSP set by proxy.ts redirectWithCookies. No
+        // scripts execute on a 3xx, so default-src 'none' is correct.
+        expect(csp).toContain("default-src 'none'")
+      }
     })
   }
 })

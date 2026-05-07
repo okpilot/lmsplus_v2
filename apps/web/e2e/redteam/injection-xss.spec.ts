@@ -155,17 +155,20 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
     orgId = seeded.orgId
     const admin = getAdminClient()
     const { data } = await admin.from('users').select('full_name').eq('id', studentUserId).single()
-    originalFullName = (data?.full_name as string) ?? 'E2E Test Student'
+    originalFullName = data?.full_name ?? 'E2E Test Student'
   })
 
   test.afterEach(async () => {
     const admin = getAdminClient()
-    const { error } = await admin
+    const { data, error } = await admin
       .from('users')
       .update({ full_name: originalFullName })
       .eq('id', studentUserId)
       .select('id')
     if (error) throw new Error(`afterEach restore full_name: ${error.message}`)
+    if ((data?.length ?? 0) > 0) {
+      console.log(`[injection-xss] restored full_name for ${data?.length} user(s)`)
+    }
     await discardActiveSessions(studentUserId)
     await cleanupXssQuestions()
   })
