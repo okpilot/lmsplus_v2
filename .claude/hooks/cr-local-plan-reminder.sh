@@ -5,11 +5,14 @@
 # been returned to the orchestrator, so the reminder appears as the last
 # thing the orchestrator reads from this tool result.
 #
-# CLAUDE_TOOL_INPUT is the JSON tool_input wrapper. Parse it minimally
-# without a JSON dependency — match the literal `coderabbit review`
-# substring inside the .command field.
+# Tool input is passed as a CLI argument by `.claude/settings.json`
+# (interpolated from $CLAUDE_TOOL_INPUT at hook invocation time). This
+# mirrors the proven pattern used by `guard-bash.js` for PreToolUse —
+# relying on env var inheritance into PostToolUse hooks is unverified
+# in this harness. Match the literal `coderabbit review` substring
+# inside the JSON payload's .command field.
 
-input="${CLAUDE_TOOL_INPUT:-}"
+input="${1:-}"
 
 # Robust substring check: look for `coderabbit review` anywhere in the
 # command string. False positive risk is negligible — no other tool

@@ -65,8 +65,11 @@ test.describe('Red Team: Audit Event Completeness', () => {
     // Service-role soft-delete (bypasses RLS + immutable-columns trigger,
     // deleted_at is in the mutable-columns whitelist).
     // try/finally ensures the ID set is cleared even if the soft-delete
-    // throws — otherwise the next test's afterEach retries the same failing
-    // delete and masks its own state.
+    // throws. The error accumulator ensures BOTH cleanup blocks run even
+    // when the first throws — otherwise the second block (codes) is
+    // skipped on a session-cleanup failure, leaving codes uncleaned and
+    // polluting downstream specs (code-style.md §7 hermiticity).
+    const errors: string[] = []
     const now = new Date().toISOString()
     if (createdSessionIds.size > 0) {
       try {
@@ -80,6 +83,8 @@ test.describe('Red Team: Audit Event Completeness', () => {
         if ((data?.length ?? 0) > 0) {
           console.log(`[audit-completeness] soft-deleted ${data?.length} quiz_session(s)`)
         }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
       } finally {
         createdSessionIds.clear()
       }
@@ -96,10 +101,13 @@ test.describe('Red Team: Audit Event Completeness', () => {
         if ((data?.length ?? 0) > 0) {
           console.log(`[audit-completeness] soft-deleted ${data?.length} internal_exam_code(s)`)
         }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
       } finally {
         createdCodeIds.clear()
       }
     }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   async function fetchActiveQuestionIds(limit: number): Promise<string[]> {

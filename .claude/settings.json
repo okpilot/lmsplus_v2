@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/cr-local-plan-reminder.sh"
+            "command": "bash .claude/hooks/cr-local-plan-reminder.sh \"$CLAUDE_TOOL_INPUT\""
           }
         ]
       }

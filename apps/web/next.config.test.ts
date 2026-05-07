@@ -198,10 +198,10 @@ describe('next.config — security headers', () => {
       expect(hsts?.value).toBe('max-age=63072000; includeSubDomains; preload')
     })
 
-    it('X-Frame-Options is SAMEORIGIN', async () => {
+    it('X-Frame-Options is DENY', async () => {
       const groups = await getHeaderGroups('production')
       const xfo = groups[0]?.headers.find((h: { key: string }) => h.key === 'X-Frame-Options')
-      expect(xfo?.value).toBe('SAMEORIGIN')
+      expect(xfo?.value).toBe('DENY')
     })
   })
 })
