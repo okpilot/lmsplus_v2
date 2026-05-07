@@ -4744,3 +4744,34 @@ None identified at this time. All issues were resolved in-cycle. The red-team ad
 - Suite green: 115 passed + 1 skipped.
 - Three deferrals: #633 (BV JSONB), #634 (A10:2025), #636 (null-guard ergonomics), #637 (4xx/5xx header E2E). Total = 4 open (3 inherited from prior session, 1 new this session).
 - No rule promotions this cycle; three watch entries logged for future evaluation.
+
+---
+
+## 2026-05-07 (evening) — feat/redteam-owasp-coverage-108 pre-push triage (commits 42ac863, af8004f, f819624)
+
+### Issue Frequency (rows added this cycle)
+
+| Session-rotation footgun: shared E2E test user invalidates saved auth state | 1 | 2026-05-07 | WATCH — 42ac863: `injection-xss.spec.ts` introduced `loginAs(TEST_EMAIL, TEST_PASSWORD)`, rotating Supabase refresh token. Downstream `user.json` saved by `auth.setup.ts` became stale; 54 specs failed. Fix: excluded redteam from default `pnpm e2e`. Root cause: test infrastructure (`auth.setup.ts` saves user.json once at start) assumes no mid-session token rotation; new spec pattern violated that assumption. Pattern: E2E specs reusing global-seed test user credentials must rotate via `.logout()` → `.loginAs()` path, or create dedicated test user per spec. code-style.md §7 E2E hermiticity rule covers seed-data mutation; add new subsection for shared-user session rotation once count=2 in distinct E2E suites. |
+
+| Optional-chain result passed to filter-accepting function, degrading defensiveness | 1 | 2026-05-07 | WATCH — af8004f audit-completeness.spec.ts:347: `row?.session_id` used after non-load-bearing `toBeTruthy()` assertion. Semantically: `row` is checked, but then `?.session_id` is extracted and passed to a function that treats `undefined` as "skip the filter". A future softening of the assertion (`expect(row).toBeDefined()` → removed) would silently degrade the filter. Pattern: optional-chain results should not be passed to functions that treat falsy as "do nothing". Recommendation: semantic-reviewer should flag this on next cycle. First occurrence on watch list. |
+
+| Doc numeric spec-count drift (steering/tech.md) | 1 | 2026-05-07 | WATCH — af8004f doc-updater finding: decisions.md L477 hardcoded "9 specs" while reality is 18. Each redteam spec addition must bump this row. Pattern: numeric doc counts in steering files are fragile. Recommend: replace counts with structural descriptions ("specs for each OWASP category") or automate count via grep. Deferred on watch list pending second occurrence in different steering doc. |
+
+| Zod whitespace-only string validation (min(1) accepts spaces) | 1 | 2026-05-07 | WATCH — af8004f code-reviewer flag on `void-code.ts`: `z.string().min(1)` accepts whitespace-only input. Human-facing form fields (reason text, code) should `.trim().min(1)`. Codebase-wide grep needed to identify all sibling occurrences (candidate: ~12 similar validators in form schema files). Pattern: string validators for form input should `.trim()` before `.min(1)` to reject whitespace. Grep all `z.string().min(1)` and `z.string().max(N).min(1)` across `apps/web/**` to determine count before promoting rule. Deferred on watch list. |
+
+### Positive signals
+
+1. **Post-commit + implementation-critic coverage is tight.** af8004f's ISSUE (optional-chain narrowing) was found and fixed in f819624 (hard throw guard). Same-session finding + fix = no re-run lag.
+2. **Doc drift detection working.** decisions.md spec count mismatch was immediately surfaced by doc-updater. Numeric doc values are now a known high-friction area.
+3. **Pre-push triage (coderabbit-local / CodeRabbit CLI) value confirmed.** CR flagged whitespace-validation on void-code.ts as Major severity pre-push; internal agents (code-reviewer) did not catch it mechanically. Pre-push gate catching what style checkers miss.
+
+### Cycle status
+
+- Commits 42ac863, af8004f, f819624: all post-commit agents reported (no blockers on af8004f; ISSUE on optional-chain in af8004f fixed in f819624).
+- All fixes committed same session before push.
+- New redteam specs excluded from default `pnpm e2e` to avoid 54-failure cascade.
+- Four patterns logged to watch list (session rotation, optional-chain degradation, doc numeric drift, whitespace validation). All count=1, no promotions.
+
+### No rule changes this cycle.
+
+All four patterns are count=1 (below promotion threshold). Session-rotation pattern is closest to count=2 (shared-user token rotation is a distinct pattern class, not yet seen in another E2E suite in this codebase). Monitor for recurrence.
