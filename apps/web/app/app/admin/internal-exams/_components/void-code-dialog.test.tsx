@@ -42,6 +42,14 @@ describe('VoidCodeDialog', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true)
   })
 
+  it('disables submit when reason contains only whitespace', async () => {
+    render(<VoidCodeDialog codeId={CODE_ID} open={true} onOpenChange={vi.fn()} />)
+    const user = userEvent.setup({ delay: null })
+    await user.type(screen.getByLabelText('Reason'), '   \t  ')
+    const btn = screen.getByRole('button', { name: 'Void code' })
+    expect((btn as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('disables submit when codeId is null', async () => {
     render(<VoidCodeDialog codeId={null} open={true} onOpenChange={vi.fn()} />)
     const user = userEvent.setup({ delay: null })
@@ -134,6 +142,27 @@ describe('VoidCodeDialog', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toBe(
         'Cannot void a finished attempt — record is final',
+      )
+    })
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('surfaces invalid_reason error string in inline alert', async () => {
+    vi.mocked(voidInternalExamCode).mockResolvedValue({
+      success: false,
+      error: 'Reason cannot be blank or whitespace-only',
+    })
+    const onOpenChange = vi.fn()
+    const user = userEvent.setup({ delay: null })
+    render(<VoidCodeDialog codeId={CODE_ID} open={true} onOpenChange={onOpenChange} />)
+
+    await user.type(screen.getByLabelText('Reason'), 'reason')
+    await user.click(screen.getByRole('button', { name: 'Void code' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toBe(
+        'Reason cannot be blank or whitespace-only',
       )
     })
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
