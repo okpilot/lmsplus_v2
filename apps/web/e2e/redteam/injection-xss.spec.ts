@@ -149,6 +149,23 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
     await cleanupXssQuestions()
   })
 
+  async function bootStudentSession(
+    field: Field,
+    payload: { name: string; value: string },
+  ): Promise<void> {
+    const { subjectId, topicId } = await pickSubjectAndTopic(orgId)
+    const qid = await seedXssQuestion({
+      orgId,
+      subjectId,
+      topicId,
+      authorId: adminUserId,
+      field,
+      payload,
+    })
+    await discardActiveSessions(studentUserId)
+    await startStudentSessionFor(qid, subjectId, topicId)
+  }
+
   for (const payload of XSS_PAYLOADS) {
     test(`admin students table escapes student full_name payload ${payload.name}`, async ({
       page,
@@ -167,24 +184,10 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
       await assertSanitized(page, tbody)
     })
 
-    async function bootStudentSession(field: Field) {
-      const { subjectId, topicId } = await pickSubjectAndTopic(orgId)
-      const qid = await seedXssQuestion({
-        orgId,
-        subjectId,
-        topicId,
-        authorId: adminUserId,
-        field,
-        payload,
-      })
-      await discardActiveSessions(studentUserId)
-      await startStudentSessionFor(qid, subjectId, topicId)
-    }
-
     test(`student quiz session sanitizes question_text payload ${payload.name}`, async ({
       page,
     }) => {
-      await bootStudentSession('question_text')
+      await bootStudentSession('question_text', payload)
       await loginAs(page, TEST_EMAIL, TEST_PASSWORD)
       await page.goto('/app/quiz/session')
       await expect(page.getByText(/Question 1/)).toBeVisible({ timeout: 15_000 })
@@ -192,7 +195,7 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
     })
 
     test(`feedback panel sanitizes explanation_text payload ${payload.name}`, async ({ page }) => {
-      await bootStudentSession('explanation_text')
+      await bootStudentSession('explanation_text', payload)
       await loginAs(page, TEST_EMAIL, TEST_PASSWORD)
       await page.goto('/app/quiz/session')
       await expect(page.getByText(/Question 1/)).toBeVisible({ timeout: 15_000 })

@@ -26,8 +26,6 @@ import {
   seedRedTeamUsers,
 } from './helpers/seed'
 
-type QuestionRow = { id: string; options: Array<{ id: string }> }
-
 test.describe('Red Team: Audit Event Completeness', () => {
   let admin: ReturnType<typeof getAdminClient>
   let studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -66,32 +64,41 @@ test.describe('Red Team: Audit Event Completeness', () => {
   test.afterEach(async () => {
     // Service-role soft-delete (bypasses RLS + immutable-columns trigger,
     // deleted_at is in the mutable-columns whitelist).
+    // try/finally ensures the ID set is cleared even if the soft-delete
+    // throws — otherwise the next test's afterEach retries the same failing
+    // delete and masks its own state.
     const now = new Date().toISOString()
     if (createdSessionIds.size > 0) {
-      const { data, error } = await admin
-        .from('quiz_sessions')
-        .update({ deleted_at: now })
-        .in('id', Array.from(createdSessionIds))
-        .is('deleted_at', null)
-        .select('id')
-      if (error) throw new Error(`afterEach soft-delete sessions: ${error.message}`)
-      if ((data?.length ?? 0) > 0) {
-        console.log(`[audit-completeness] soft-deleted ${data?.length} quiz_session(s)`)
+      try {
+        const { data, error } = await admin
+          .from('quiz_sessions')
+          .update({ deleted_at: now })
+          .in('id', Array.from(createdSessionIds))
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`afterEach soft-delete sessions: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[audit-completeness] soft-deleted ${data?.length} quiz_session(s)`)
+        }
+      } finally {
+        createdSessionIds.clear()
       }
-      createdSessionIds.clear()
     }
     if (createdCodeIds.size > 0) {
-      const { data, error } = await admin
-        .from('internal_exam_codes')
-        .update({ deleted_at: now })
-        .in('id', Array.from(createdCodeIds))
-        .is('deleted_at', null)
-        .select('id')
-      if (error) throw new Error(`afterEach soft-delete codes: ${error.message}`)
-      if ((data?.length ?? 0) > 0) {
-        console.log(`[audit-completeness] soft-deleted ${data?.length} internal_exam_code(s)`)
+      try {
+        const { data, error } = await admin
+          .from('internal_exam_codes')
+          .update({ deleted_at: now })
+          .in('id', Array.from(createdCodeIds))
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`afterEach soft-delete codes: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[audit-completeness] soft-deleted ${data?.length} internal_exam_code(s)`)
+        }
+      } finally {
+        createdCodeIds.clear()
       }
-      createdCodeIds.clear()
     }
   })
 
@@ -129,12 +136,21 @@ test.describe('Red Team: Audit Event Completeness', () => {
       .select('id, options')
       .in('id', ids)
     if (qErr || !questions) throw new Error(`buildAnswers questions: ${qErr?.message}`)
-    const typed = questions as QuestionRow[]
-    return typed.map((q) => ({
-      question_id: q.id,
-      selected_option: q.options[0]?.id ?? 'a',
-      response_time_ms: 1500,
-    }))
+    if (!Array.isArray(questions)) {
+      throw new Error(`buildAnswers: unexpected questions shape: ${JSON.stringify(questions)}`)
+    }
+    return questions.map((raw) => {
+      const q = raw as { id: string; options: Array<{ id: string }> | null }
+      const optionId = q.options?.[0]?.id
+      if (!optionId) {
+        throw new Error(`buildAnswers: question ${q.id} has no options`)
+      }
+      return {
+        question_id: q.id,
+        selected_option: optionId,
+        response_time_ms: 1500,
+      }
+    })
   }
 
   async function expectAuditRow(eventType: string, actorId: string, testStart: string) {
@@ -172,7 +188,10 @@ test.describe('Red Team: Audit Event Completeness', () => {
       p_student_id: studentUserId,
     })
     expect(error, 'issue_internal_exam_code error').toBeNull()
-    const row = (data as Array<{ code_id: string; code: string }> | null)?.[0]
+    if (!Array.isArray(data)) {
+      throw new Error(`issueCodeViaRpc: unexpected RPC return shape: ${JSON.stringify(data)}`)
+    }
+    const row = data[0] as { code_id: string; code: string } | undefined
     expect(row, 'issue_internal_exam_code returned empty').toBeTruthy()
     if (!row) throw new Error('unreachable')
     createdCodeIds.add(row.code_id)
