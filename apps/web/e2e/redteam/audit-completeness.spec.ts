@@ -411,6 +411,12 @@ test.describe('Red Team: Audit Event Completeness', () => {
     // (delta), or the rate-limit kept an existing row that's still inside
     // the window. Snapshotting eliminates the false-positive where a
     // concurrent spec writes a student.login for the same actor.
+    //
+    // Known race (accepted): if a concurrent record_login fires for the
+    // same studentUserId between the pre and post queries, the test passes
+    // on the new row even though it wasn't produced by this invocation.
+    // Practical risk is near-zero — Playwright runs the redteam project
+    // serially, and studentUserId is the redteam-scoped attacker user.
     const { data: pre } = await admin
       .from('audit_events')
       .select('id, created_at')

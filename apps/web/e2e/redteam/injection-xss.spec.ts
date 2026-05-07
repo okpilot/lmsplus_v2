@@ -233,6 +233,8 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
     } catch (e) {
       errors.push(`discardSession: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
+      // finally is load-bearing: a throw above must still reset state so
+      // the next test's bootStudentSession opens a clean session.
       activeSessionId = null
     }
     try {
