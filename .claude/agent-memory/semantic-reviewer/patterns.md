@@ -93,6 +93,31 @@ Uses `vi.hoisted` mocks, `vi.resetAllMocks()` in `beforeEach`, and follows the s
 **`mapRpcError` uses `.includes(code)` for substring matching — safe for `invalid_reason` (GOOD)**
 `invalid_reason` does not appear as a substring of any other ERROR_MESSAGES key (`not_authenticated`, `not_admin`, `admin_not_found`, `cannot_void_finished_attempt`, `code_not_found`, `code_voided`). No false-positive risk from the substring scan. The iteration order of `Object.entries(ERROR_MESSAGES)` is insertion order in V8, and `invalid_reason` is inserted before `cannot_void_finished_attempt` — no ordering edge case exists here.
 
+### 2026-05-07 — commit 3790db7 (fix(redteam): make 50+ specs runnable end-to-end)
+- **Files reviewed:** apps/web/e2e/redteam/injection-xss.spec.ts, apps/web/e2e/redteam/rpc-start-internal-exam-session.spec.ts
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 5
+
+**seedXssQuestion bank lookup is org-scoped and soft-delete-aware (GOOD)**
+- `.eq('organization_id', args.orgId).is('deleted_at', null)` — `question_banks` has `deleted_at TIMESTAMPTZ NULL` in the initial schema. The filter is correct. Using `getAdminClient()` (service role) bypasses RLS, so the explicit `deleted_at IS NULL` filter is the only soft-delete guard, and it is present. Mirrors the pattern the learner tracked from commit 01a3244 (which flagged the previous `seedQuestions` omission of this filter — this is the fix for that pattern).
+
+**seedSessionHandoff payload satisfies isValidSessionData (GOOD)**
+- Injected payload `{ userId, sessionId, questionIds, mode: 'study' }` passes all `isValidSessionData` checks: `sessionId` non-empty string, `questionIds` non-empty array of non-empty strings, `userId` present and equal to `expectedUserId` (same variable passed to both), `mode: 'study'` accepted by `hasValidOptionalFields` (`v === 'study' || v === 'exam'`). Payload correctly mirrors the `SessionData` type shape.
+
+**seedSessionHandoff write-then-navigate ordering is race-free (GOOD)**
+- `loginAs` lands on `/app/dashboard`. `page.evaluate()` writes to `sessionStorage` synchronously in the browser context (Playwright awaits completion). `page.goto('/app/quiz/session')` fires after. `useSessionBootstrap`'s `readSessionHandoff` is inside a `useEffect` that runs after client-side hydration — sessionStorage is already populated before the effect fires. No race window.
+
+**testStart ISO string is Postgres-comparable on TIMESTAMPTZ column (GOOD)**
+- `quiz_sessions.created_at` is `TIMESTAMPTZ NOT NULL DEFAULT now()`. JavaScript's `new Date().toISOString()` produces an RFC 3339 UTC string (e.g. `2026-05-07T14:03:45.123Z`) that Postgres casts losslessly to `TIMESTAMPTZ`. PostgREST `.gte()` maps to `>=` in SQL. `testStart` is captured BEFORE the RPC call, so any session the RPC might erroneously insert would have `created_at >= testStart`. The filter is tight and correct.
+
+**No production code touched (GOOD)**
+- Both changed files are E2E spec infrastructure. No Server Actions, RPCs, migrations, or client components were modified.
+
+**SUGGESTION — seedXssQuestion: `created_by` now correctly uses `authorId` from `ensureAdminTestUser` but the `bootStudentSession` closure still passes `adminUserId` (which was the fix from commit c45330f's ISSUE)**
+- Confirmed fixed: `bootStudentSession` passes `authorId: adminUserId` (line 222), and `adminUserId` is populated from `ensureAdminTestUser()` in `beforeAll`. The ISSUE logged in c45330f review (studentUserId used as created_by) is resolved in this commit. Count for that pattern: 0 open recurrences.
+
+**Pattern — sessionStorage handoff injection for E2E spec bootstrap:**
+When the production UI writes sessionStorage as part of a click flow that cannot be easily reproduced in a redteam spec (e.g., Start Quiz button), inject the handoff payload via `page.evaluate()` AFTER `loginAs` establishes the origin context and BEFORE `page.goto` to the target page. The payload must match the `SessionData` type exactly (sessionId + questionIds required; userId optional but enables cross-user guard). Do not write before `loginAs` — `sessionStorage` is scoped to the origin, and the origin is not established until the first page navigation.
+
 ### 2026-04-28 — commit ddf8ebf (test(quiz): unblock CI exam e2e + skip 0-answer autosubmit)
 - **Files reviewed:** apps/web/scripts/seed-e2e.ts, apps/web/e2e/exam-flow.spec.ts, apps/web/e2e/exam-recovery.spec.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 7

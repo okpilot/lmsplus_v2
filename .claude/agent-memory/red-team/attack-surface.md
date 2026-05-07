@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-05-07 (commit d13dc55 — WHITESPACE_PAYLOADS expanded to 5 entries covering all 6 POSIX [[:space:]] members; BP marked FULLY COVERED; invalid_reason ERROR_MESSAGES mapping added to void-code.ts)
+> Last updated: 2026-05-07 (commit 3790db7 — pure test infrastructure fixes; no new vectors; BK probe scoped to testStart; BR/Vector BR (injection-xss.spec.ts) session hydration restored via seedSessionHandoff; spec coverage unchanged)
 
 ## Vector-to-Spec Mapping
 
