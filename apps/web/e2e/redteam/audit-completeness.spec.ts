@@ -293,6 +293,33 @@ test.describe('Red Team: Audit Event Completeness', () => {
     await expectAuditRow('internal_exam.started', studentUserId, testStart)
   })
 
+  test('writes internal_exam.completed when internal_exam batch submits within time limit', async () => {
+    const testStart = new Date().toISOString()
+
+    const { code } = await issueCodeViaRpc()
+    const { data: startData, error: startErr } = await studentClient.rpc(
+      'start_internal_exam_session',
+      { p_code: code },
+    )
+    expect(startErr).toBeNull()
+    type StartedRow = { session_id: string }
+    const sessionId = (startData as StartedRow[] | null)?.[0]?.session_id
+    expect(sessionId).toBeTruthy()
+    if (!sessionId) throw new Error('no sessionId')
+    createdSessionIds.add(sessionId)
+
+    const answers = await buildAnswersForSession(sessionId)
+    const { data: submitData, error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
+      p_session_id: sessionId,
+      p_answers: answers,
+    })
+    expect(submitErr).toBeNull()
+    // expired flag should be false on the within-time-limit path
+    expect((submitData as { expired?: boolean } | null)?.expired).not.toBe(true)
+
+    await expectAuditRow('internal_exam.completed', studentUserId, testStart)
+  })
+
   test('writes internal_exam.expired when internal_exam session is past the grace period', async () => {
     const testStart = new Date().toISOString()
 

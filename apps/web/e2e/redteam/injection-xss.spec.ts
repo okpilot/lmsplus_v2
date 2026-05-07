@@ -122,11 +122,13 @@ async function startStudentSessionFor(qid: string, subjectId: string, topicId: s
 
 test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
   let studentUserId: string
+  let adminUserId: string
   let orgId: string
   let originalFullName: string
 
   test.beforeAll(async () => {
-    await ensureAdminTestUser()
+    const adminSeed = await ensureAdminTestUser()
+    adminUserId = adminSeed.userId
     const seeded = await ensureTestUser()
     studentUserId = seeded.userId
     orgId = seeded.orgId
@@ -166,7 +168,7 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
         orgId,
         subjectId,
         topicId,
-        authorId: studentUserId,
+        authorId: adminUserId,
         field,
         payload,
       })

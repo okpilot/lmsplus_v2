@@ -236,8 +236,10 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
   test.describe('submit_quiz_answer — p_selected_option must match an option id on the question', () => {
     let admin: ReturnType<typeof getAdminClient>
     let studentClient: SupabaseClient
-    let sessionId: string
+    let subjectId: string
+    let topicId: string
     let knownQuestionId: string
+    let activeSessionId: string | null = null
 
     test.beforeAll(async () => {
       admin = getAdminClient()
@@ -247,6 +249,8 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
       studentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
       const picked = await pickSubjectWithQuestions(admin, { orgId })
+      subjectId = picked.subjectId
+      topicId = picked.topicId
 
       // Pull one active question id in the picked subject + topic so the
       // session config carries a real membership-eligible question.
@@ -254,8 +258,8 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
         .from('questions')
         .select('id')
         .eq('organization_id', orgId)
-        .eq('subject_id', picked.subjectId)
-        .eq('topic_id', picked.topicId)
+        .eq('subject_id', subjectId)
+        .eq('topic_id', topicId)
         .eq('status', 'active')
         .is('deleted_at', null)
         .limit(1)
@@ -263,31 +267,38 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
       if (!questions?.length)
         throw new Error('seed questions: no active question for subject/topic')
       knownQuestionId = questions[0].id
+    })
 
+    // Per-test session creation: a payload that happens to match a real
+    // option_id (extremely unlikely but possible for UUID-shaped fragments)
+    // would consume the question and break sibling tests if a single session
+    // were shared. Each test gets a fresh session.
+    test.beforeEach(async () => {
       const { data: startData, error: startError } = await studentClient.rpc('start_quiz_session', {
         p_mode: 'quick_quiz',
-        p_subject_id: picked.subjectId,
-        p_topic_id: picked.topicId,
+        p_subject_id: subjectId,
+        p_topic_id: topicId,
         p_question_ids: [knownQuestionId],
       })
       if (startError || !startData) throw new Error(`start_quiz_session: ${startError?.message}`)
-      sessionId = startData as string
+      activeSessionId = startData as string
     })
 
-    test.afterAll(async () => {
-      if (!sessionId) return
+    test.afterEach(async () => {
+      if (!activeSessionId) return
       const { error } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', sessionId)
+        .eq('id', activeSessionId)
         .select('id')
-      if (error) throw new Error(`afterAll soft-delete session: ${error.message}`)
+      activeSessionId = null
+      if (error) throw new Error(`afterEach soft-delete session: ${error.message}`)
     })
 
     for (const payload of DB_LAYER_PAYLOADS) {
       test(`SQL-fragment p_selected_option (${payload.name}) is rejected as not a member of the question`, async () => {
         const { data, error } = await studentClient.rpc('submit_quiz_answer', {
-          p_session_id: sessionId,
+          p_session_id: activeSessionId as string,
           p_question_id: knownQuestionId,
           p_selected_option: payload.value,
           p_response_time_ms: 1000,
@@ -302,7 +313,7 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
     for (const payload of TRANSPORT_LAYER_PAYLOADS) {
       test(`control-character p_selected_option (${payload.name}) is rejected before persistence`, async () => {
         const { data, error } = await studentClient.rpc('submit_quiz_answer', {
-          p_session_id: sessionId,
+          p_session_id: activeSessionId as string,
           p_question_id: knownQuestionId,
           p_selected_option: payload.value,
           p_response_time_ms: 1000,
