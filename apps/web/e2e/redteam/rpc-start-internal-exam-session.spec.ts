@@ -21,6 +21,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  E2E_REDTEAM_CODE_PREFIX,
   ensureExamConfig,
   pickSubjectWithQuestions,
   seedRedTeamUsers,
@@ -52,7 +53,7 @@ async function seedCode(
 ): Promise<CodeRow> {
   // crypto.randomUUID() is collision-resistant; Math.random() can collide
   // across rapid test runs in the same describe block.
-  const code = `RT${crypto
+  const code = `${E2E_REDTEAM_CODE_PREFIX}${crypto
     .randomUUID()
     .replace(/-/g, '')
     .toUpperCase()
