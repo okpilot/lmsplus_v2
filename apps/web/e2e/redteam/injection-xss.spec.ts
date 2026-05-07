@@ -46,11 +46,17 @@ async function assertSanitized(page: Page, scope: Locator): Promise<void> {
       const el = node as Element
       const attrNames = el.getAttributeNames()
       const hasInlineHandler = attrNames.some((name) => /^on\w+/i.test(name))
-      const hasJavascriptUrl = ['href', 'src'].some((name) => {
+      const hasUnsafeUrl = ['href', 'src'].some((name) => {
         const value = el.getAttribute(name)
-        return value?.trim().toLowerCase().startsWith('javascript:') === true
+        if (!value) return false
+        const normalized = value.trim().toLowerCase()
+        return (
+          normalized.startsWith('javascript:') ||
+          normalized.startsWith('vbscript:') ||
+          normalized.startsWith('data:')
+        )
       })
-      return hasInlineHandler || hasJavascriptUrl
+      return hasInlineHandler || hasUnsafeUrl
     }),
   )
   expect(hasUnsafeAttribute).toBe(false)
@@ -59,15 +65,14 @@ async function assertSanitized(page: Page, scope: Locator): Promise<void> {
   expect(pwned).toBe(false)
 }
 
-async function discardActiveSessions(studentId: string): Promise<void> {
+async function discardSession(sessionId: string): Promise<void> {
   const { data, error } = await getAdminClient()
     .from('quiz_sessions')
     .update({ deleted_at: new Date().toISOString() })
-    .eq('student_id', studentId)
-    .is('ended_at', null)
+    .eq('id', sessionId)
     .is('deleted_at', null)
     .select('id')
-  if (error) throw new Error(`discardActiveSessions: ${error.message}`)
+  if (error) throw new Error(`discardSession: ${error.message}`)
   if ((data?.length ?? 0) > 0) console.log(`[injection-xss] discarded ${data?.length} session(s)`)
 }
 
@@ -189,6 +194,7 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
   let adminUserId: string
   let orgId: string
   let originalFullName: string
+  let activeSessionId: string | null = null
 
   test.beforeAll(async () => {
     const adminSeed = await ensureAdminTestUser()
@@ -221,9 +227,13 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
       errors.push(e instanceof Error ? e.message : String(e))
     }
     try {
-      await discardActiveSessions(studentUserId)
+      if (activeSessionId) {
+        await discardSession(activeSessionId)
+      }
     } catch (e) {
-      errors.push(`discardActiveSessions: ${e instanceof Error ? e.message : String(e)}`)
+      errors.push(`discardSession: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      activeSessionId = null
     }
     try {
       await cleanupXssQuestions()
@@ -237,6 +247,12 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
     field: Field,
     payload: { name: string; value: string },
   ): Promise<{ sessionId: string; questionIds: string[] }> {
+    // Defense in depth: if the previous afterEach somehow left a session
+    // tracked, discard it before opening a new one.
+    if (activeSessionId) {
+      await discardSession(activeSessionId)
+      activeSessionId = null
+    }
     const { subjectId, topicId } = await pickSubjectAndTopic(orgId)
     const qid = await seedXssQuestion({
       orgId,
@@ -246,8 +262,9 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
       field,
       payload,
     })
-    await discardActiveSessions(studentUserId)
-    return startStudentSessionFor(qid, subjectId, topicId)
+    const session = await startStudentSessionFor(qid, subjectId, topicId)
+    activeSessionId = session.sessionId
+    return session
   }
 
   for (const payload of XSS_PAYLOADS) {

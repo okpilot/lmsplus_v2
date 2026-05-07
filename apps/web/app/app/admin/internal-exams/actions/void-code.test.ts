@@ -61,6 +61,12 @@ describe('voidInternalExamCode', () => {
       expect(result.success).toBe(false)
     })
 
+    it('rejects whitespace-only reason', async () => {
+      const result = await voidInternalExamCode({ codeId: CODE_ID, reason: '  \t\n  ' })
+      expect(result.success).toBe(false)
+      if (!result.success) expect(result.error).toBe('Invalid input')
+    })
+
     it('rejects reason longer than 500 chars', async () => {
       const result = await voidInternalExamCode({
         codeId: CODE_ID,

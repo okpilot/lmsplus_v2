@@ -7,7 +7,7 @@ import { rpc } from '@/lib/supabase-rpc'
 
 const VoidCodeSchema = z.object({
   codeId: z.uuid(),
-  reason: z.string().min(1).max(500),
+  reason: z.string().trim().min(1).max(500),
 })
 
 export type VoidCodeInput = z.infer<typeof VoidCodeSchema>

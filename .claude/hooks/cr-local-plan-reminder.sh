@@ -14,10 +14,24 @@
 
 input="${1:-}"
 
-# Robust substring check: look for `coderabbit review` anywhere in the
-# command string. False positive risk is negligible — no other tool
-# shares that token sequence.
-if [[ "$input" != *'coderabbit review'* ]]; then
+# Parse the .command field from the JSON tool-input payload before
+# matching, so a description or env value containing "coderabbit review"
+# does not trigger the reminder. Falls back to the raw input if the
+# payload is not JSON.
+command_input="$input"
+if parsed_command="$(node -e '
+const raw = process.argv[1] ?? "";
+try {
+  const obj = JSON.parse(raw);
+  process.stdout.write(typeof obj.command === "string" ? obj.command : "");
+} catch {
+  process.stdout.write(raw);
+}
+' "$input" 2>/dev/null)"; then
+  command_input="$parsed_command"
+fi
+
+if [[ "$command_input" != *'coderabbit review'* ]]; then
   exit 0
 fi
 

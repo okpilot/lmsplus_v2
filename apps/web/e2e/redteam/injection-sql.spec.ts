@@ -165,11 +165,13 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
         })
 
         expect(error).toBeNull()
-        const { data: row } = await admin
+        const { data: row, error: rowError } = await admin
           .from('internal_exam_codes')
           .select('voided_at, voided_by, void_reason')
           .eq('id', code.id)
           .single()
+        expect(rowError).toBeNull()
+        expect(row).not.toBeNull()
         expect(row?.voided_at).not.toBeNull()
         expect(row?.voided_by).toBe(adminUserId)
         // Round-trip equality proves the payload was not interpreted.
@@ -192,11 +194,13 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
       })
 
       expect(error?.message ?? '').toMatch(/invalid_reason/i)
-      const { data: row } = await admin
+      const { data: row, error: rowError } = await admin
         .from('internal_exam_codes')
         .select('voided_at, void_reason')
         .eq('id', code.id)
         .single()
+      expect(rowError).toBeNull()
+      expect(row).not.toBeNull()
       expect(row?.voided_at ?? null).toBeNull()
       expect(row?.void_reason ?? null).toBeNull()
     })
@@ -219,11 +223,13 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
         expect(error?.message ?? '').toMatch(/invalid_reason/i)
 
         // Code must remain un-voided after the rejection.
-        const { data: row } = await admin
+        const { data: row, error: rowError } = await admin
           .from('internal_exam_codes')
           .select('voided_at')
           .eq('id', code.id)
           .single()
+        expect(rowError).toBeNull()
+        expect(row).not.toBeNull()
         expect(row?.voided_at ?? null).toBeNull()
       })
     }
@@ -246,11 +252,13 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
         expect(error).not.toBeNull()
 
         // Code must remain un-voided after the transport-layer rejection.
-        const { data: row } = await admin
+        const { data: row, error: rowError } = await admin
           .from('internal_exam_codes')
           .select('voided_at')
           .eq('id', code.id)
           .single()
+        expect(rowError).toBeNull()
+        expect(row).not.toBeNull()
         expect(row?.voided_at ?? null).toBeNull()
       })
     }

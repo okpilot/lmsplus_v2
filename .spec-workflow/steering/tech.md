@@ -82,7 +82,7 @@ lmsplusv2/
 - **Testing**:
   - **Unit/integration**: Vitest with v8 coverage provider. 2000+ tests across 165+ files. Co-located with source files (no `__tests__/` directories).
   - **E2E**: Playwright (10 specs covering login, quiz flow, admin tools, settings, consent).
-  - **Red-team**: 18 Playwright attack specs for adversarial security testing (`e2e/redteam/`), covering OWASP A01 access control, A02 security headers, A05 injection (SQL + XSS), A07 auth, A09 audit completeness.
+  - **Red-team**: 18 Playwright attack specs for adversarial security testing (`e2e/redteam/`), covering OWASP A01 access control, A02 security headers, A03 injection (SQL + XSS), A07 auth, A09 audit completeness.
 - **Type checking**: `tsc --noEmit` per package via `pnpm check-types`. Strict mode with `noUncheckedIndexedAccess`.
 
 ### Version Control & Collaboration
@@ -180,7 +180,7 @@ lmsplusv2/
 
 12. **GDPR consent gate with version-based re-consent** (Decision 32): Append-only `user_consents` table. Cookie-based middleware check (no DB hit per request). Version bump in `lib/consent/versions.ts` triggers re-consent.
 
-13. **Red-team adversarial security testing** (Decision 27): 18 Playwright attack specs in `e2e/redteam/`. Separate CI workflow on security-sensitive paths. Red-team agent maps diffs to affected specs. OWASP coverage spans A01 access control, A02 security misconfiguration, A05 injection (SQL + XSS), A07 auth, A09 logging/monitoring.
+13. **Red-team adversarial security testing** (Decision 27): 18 Playwright attack specs in `e2e/redteam/`. Separate CI workflow on security-sensitive paths. Red-team agent maps diffs to affected specs. OWASP coverage spans A01 access control, A02 security misconfiguration, A03 injection (SQL + XSS), A07 auth, A09 logging/monitoring.
 
 14. **Server-side pagination with server-side sort/filter** (Decision 34): All paginated lists use Supabase `.range()` with `{ count: 'exact' }`, URL-driven `?page=N&sort=field&dir=asc|desc`, and the shared `PaginationBar` component. Sorting and filtering MUST be server-side when combined with pagination — client-side sort on a paginated subset returns incorrect results. Page sizes: 10 for student-facing pages, 25 for admin pages. Out-of-range pages redirect to the last valid page. First established in admin questions (PR #463), now standardized app-wide.
 

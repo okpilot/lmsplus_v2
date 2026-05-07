@@ -167,17 +167,25 @@ test.describe('Red Team: Audit Event Completeness', () => {
     })
   }
 
-  async function expectAuditRow(eventType: string, actorId: string, testStart: string) {
-    const { data, error } = await admin
+  async function expectAuditRow(
+    eventType: string,
+    actorId: string,
+    testStart: string,
+    resourceId?: string,
+  ) {
+    let q = admin
       .from('audit_events')
-      .select('id, event_type, actor_id, created_at')
+      .select('id, event_type, actor_id, resource_id, created_at')
       .eq('event_type', eventType)
       .eq('actor_id', actorId)
       .gte('created_at', testStart)
+    if (resourceId) q = q.eq('resource_id', resourceId)
+    const { data, error } = await q
     expect(error, `audit_events query error for ${eventType}`).toBeNull()
+    const where = resourceId ? ` resource ${resourceId}` : ''
     expect(
       data?.length ?? 0,
-      `expected at least one ${eventType} audit row for actor ${actorId}`,
+      `expected at least one ${eventType} audit row for actor ${actorId}${where}`,
     ).toBeGreaterThan(0)
   }
 
@@ -233,7 +241,12 @@ test.describe('Red Team: Audit Event Completeness', () => {
     })
     expect(submitErr).toBeNull()
 
-    await expectAuditRow('quiz_session.batch_submitted', studentUserId, testStart)
+    await expectAuditRow(
+      'quiz_session.batch_submitted',
+      studentUserId,
+      testStart,
+      sessionId as string,
+    )
   })
 
   test('writes exam.started when start_exam_session runs', async () => {
@@ -247,7 +260,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(sessionId).toBeTruthy()
     if (sessionId) createdSessionIds.add(sessionId)
 
-    await expectAuditRow('exam.started', studentUserId, testStart)
+    await expectAuditRow('exam.started', studentUserId, testStart, sessionId)
   })
 
   test('writes exam.completed on mock_exam batch submit within time limit', async () => {
@@ -269,7 +282,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
     })
     expect(submitErr).toBeNull()
 
-    await expectAuditRow('exam.completed', studentUserId, testStart)
+    await expectAuditRow('exam.completed', studentUserId, testStart, sessionId)
   })
 
   test('writes exam.expired when mock_exam session is past the grace period', async () => {
@@ -294,15 +307,15 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(submitErr).toBeNull()
     expect((submitData as { expired?: boolean } | null)?.expired).toBe(true)
 
-    await expectAuditRow('exam.expired', studentUserId, testStart)
+    await expectAuditRow('exam.expired', studentUserId, testStart, sessionId)
   })
 
   test('writes internal_exam.code_issued when admin issues a code (actor=admin)', async () => {
     const testStart = new Date().toISOString()
 
-    await issueCodeViaRpc()
+    const { codeId } = await issueCodeViaRpc()
 
-    await expectAuditRow('internal_exam.code_issued', adminUserId, testStart)
+    await expectAuditRow('internal_exam.code_issued', adminUserId, testStart, codeId)
   })
 
   test('writes internal_exam.code_voided when admin voids a code (actor=admin)', async () => {
@@ -315,7 +328,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
     })
     expect(voidErr).toBeNull()
 
-    await expectAuditRow('internal_exam.code_voided', adminUserId, testStart)
+    await expectAuditRow('internal_exam.code_voided', adminUserId, testStart, codeId)
   })
 
   test('writes internal_exam.started when student redeems a valid code', async () => {
@@ -331,7 +344,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(row?.session_id).toBeTruthy()
     if (row?.session_id) createdSessionIds.add(row.session_id)
 
-    await expectAuditRow('internal_exam.started', studentUserId, testStart)
+    await expectAuditRow('internal_exam.started', studentUserId, testStart, row?.session_id)
   })
 
   test('writes internal_exam.completed when internal_exam batch submits within time limit', async () => {
@@ -358,7 +371,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
     // expired flag should be false on the within-time-limit path
     expect((submitData as { expired?: boolean } | null)?.expired).not.toBe(true)
 
-    await expectAuditRow('internal_exam.completed', studentUserId, testStart)
+    await expectAuditRow('internal_exam.completed', studentUserId, testStart, sessionId)
   })
 
   test('writes internal_exam.expired when internal_exam session is past the grace period', async () => {
@@ -386,19 +399,42 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(submitErr).toBeNull()
     expect((submitData as { expired?: boolean } | null)?.expired).toBe(true)
 
-    await expectAuditRow('internal_exam.expired', studentUserId, testStart)
+    await expectAuditRow('internal_exam.expired', studentUserId, testStart, sessionId)
   })
 
   test('writes student.login when record_login() is invoked', async () => {
-    // record_login() rate-limits at 60s — if a prior test run was within
-    // the window, the RPC returns without inserting and the existing row
-    // satisfies the assertion. Capture the window edge and accept any row
-    // within it.
-    const windowStart = new Date(Date.now() - 60_000).toISOString()
+    // record_login() rate-limits at 60s — if a prior call was within the
+    // window, the RPC returns without inserting. Snapshot the most recent
+    // matching row before the call; afterwards either a new row exists
+    // (delta), or the rate-limit kept an existing row that's still inside
+    // the window. Snapshotting eliminates the false-positive where a
+    // concurrent spec writes a student.login for the same actor.
+    const { data: pre } = await admin
+      .from('audit_events')
+      .select('id, created_at')
+      .eq('event_type', 'student.login')
+      .eq('actor_id', studentUserId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
     const { error } = await studentClient.rpc('record_login')
     expect(error, 'record_login error').toBeNull()
 
-    await expectAuditRow('student.login', studentUserId, windowStart)
+    const { data: post } = await admin
+      .from('audit_events')
+      .select('id, created_at')
+      .eq('event_type', 'student.login')
+      .eq('actor_id', studentUserId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    expect(post, 'expected at least one student.login row after record_login').not.toBeNull()
+    if (pre?.id && post?.id === pre.id) {
+      // Rate-limited path: existing row must be within the 60s window.
+      const ageMs = Date.now() - new Date(post.created_at as string).getTime()
+      expect(ageMs).toBeLessThan(60_000)
+    }
   })
 })
