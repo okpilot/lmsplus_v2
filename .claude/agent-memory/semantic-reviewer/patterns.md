@@ -239,6 +239,27 @@ Seed scripts in this codebase consistently use SELECT-to-check + INSERT pattern 
 **Pattern — type coercion to narrower union on caught rejection (GOOD, confirmed safe):**
 `quiz-submit.ts` coerces a caught rejection to `{ success: false, error: string }` which satisfies `CompleteEmptyExamResult`'s failure branch. TypeScript will infer `result` as the full union type and the subsequent `if (result.success)` discriminates correctly. The coerced object is structurally assignable because `CompleteEmptyExamResult` failure branch is `{ success: false; error: string }`. Safe.
 
+### 2026-05-07 — commit a523e10 (docs(crlocal): belt-and-suspenders reminder — printf + hook)
+- **Files reviewed:** .claude/commands/crlocal.md (documentation only — no production code, no migrations, no Server Actions)
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 0 | **GOOD:** 2
+
+**ISSUE — printf does NOT appear at the end of the log file; it writes to bash stdout only**
+- The command `coderabbit review ... > /tmp/cr-local-roundN.log 2>&1; printf '...'` scopes the redirect (`> log 2>&1`) to the `coderabbit review` subcommand only. The semicolon ends the redirect scope. `printf` writes to its own stdout (the orchestrator's bash result), not to the log file. The commit message claim "the printf appears at the end of the log file" (implying `2>&1` captures it) is factually incorrect, verified by shell behavior test. The documentation text partially preserves the confusion by phrasing "when the orchestrator reads the log file (or sees the bash result)" — the disjunction obscures that the two items are mutually exclusive delivery channels. In background mode (the normal usage), the orchestrator reads the log file via `Read` tool and does NOT see the printf there; the printf arrives via the task-notification. In foreground mode, the orchestrator sees the bash result (which includes printf) but not the log file separately. The stated purpose is still achieved because the hook provides layer 2 — but layer 1 (printf) only works reliably in foreground mode. Count=1, watching.
+
+**All three verifiable behavioral properties:**
+1. Semicolon separator (not `&&`) — CORRECT. `printf` runs unconditionally regardless of `coderabbit review` exit code.
+2. `2>&1` captures stderr into the log — CORRECT for `coderabbit review`'s stderr only. Does NOT affect `printf`.
+3. `roundN` placeholder is explicit — CORRECT. The orchestrator must substitute `N` per round.
+
+**Verified: semicolon separator is correct and unconditional (GOOD)**
+- The command line ends with `2>&1; \` — semicolon before backslash-newline continuation. Shell exit semantics: if `coderabbit review` exits non-zero (timeout, auth error, network error), `printf` still runs. The STOP reminder appears in the bash result regardless of review success/failure. This is the correct behavior for a safety reminder.
+
+**roundN placeholder is explicit and correct (GOOD)**
+- `/tmp/cr-local-roundN.log` is a literal placeholder. The doc correctly expects the orchestrator to substitute `N` per round, producing distinct log files per round (e.g., `round1.log`, `round2.log`). Each round's findings are independently preserved and can be diffed. Correct design.
+
+**Pattern — redirect scope ends at semicolon, not at the end of the command chain:**
+When documenting shell command behavior, verify redirect scope explicitly. `cmd1 > file 2>&1; cmd2` scopes the redirect to `cmd1` only. `cmd2`'s output goes to shell stdout. This is a recurring source of documentation errors when describing "belt-and-suspenders" logging patterns where both a file redirect and a terminal reminder are intended.
+
 ### 2026-04-28 — commit 53b8498 (fix(quiz): surface explicit error when active-exam lookup fails)
 - **Files reviewed:** apps/web/app/app/quiz/page.tsx (only changed file)
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 4
@@ -4415,3 +4436,31 @@ Resumeable exam banners → orphan banners → QuizRecoveryBanner. Correct order
 
 **Test double-click pattern is consistent with existing tests**
 The discard-confirm interaction requires two clicks (trigger → confirm dialog). The pattern at line 183 matches the existing normal-mode test at line 195. Pre-existing fragility in CI if AlertDialog animation delays render, but not introduced here.
+
+### 2026-05-07 — commits 17ec581 + 03ccc90 (fix(redteam,docs): CR round 5 probe scoping, teardown independence, CSP doc + chore(hooks): PostToolUse reminder)
+- **Files reviewed:** rpc-start-internal-exam-session.spec.ts, injection-xss.spec.ts, proxy.ts, docs/security.md, .spec-workflow/steering/tech.md, .claude/hooks/cr-local-plan-reminder.sh, .claude/settings.json, .claude/commands/crlocal.md
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 1 | **GOOD:** 5
+
+**ISSUE — cr-local-plan-reminder.sh reads CLAUDE_TOOL_INPUT as an env var but Claude Code may not set it for PostToolUse hooks**
+The PreToolUse hook (`guard-bash.js`) receives the tool input via a CLI argument (`"$CLAUDE_TOOL_INPUT"` interpolated in the settings.json command string). The new PostToolUse hook (`cr-local-plan-reminder.sh`) instead reads `${CLAUDE_TOOL_INPUT:-}` directly from the environment, without any CLI arg passing in settings.json. Whether `CLAUDE_TOOL_INPUT` is set as an environment variable (rather than only interpolated as a CLI arg) for PostToolUse events is unconfirmed. If it is not, the env var will be empty and the `[[ "$input" != *'coderabbit review'* ]]` check will always be true, causing the hook to exit 0 silently — the reminder never fires. The fix is to either: (a) confirm that `CLAUDE_TOOL_INPUT` is also set as an env var for PostToolUse hooks, or (b) change settings.json to pass it explicitly as `bash .claude/hooks/cr-local-plan-reminder.sh "$CLAUDE_TOOL_INPUT"` (matching the guard-bash.js pattern) and update the script to read `$1`.
+
+**SUGGESTION — PostToolUse hook fires on every Bash call, not just coderabbit review**
+The PostToolUse matcher is `"Bash"` (all Bash calls), but the hook early-exits for non-coderabbit-review commands. The overhead is minimal (~2-5ms per call) and the false-positive risk from matching `coderabbit review` in non-review commands (e.g., `grep 'coderabbit review' file.txt`) is low-impact (just an extra banner). Not a logic error — the design is intentional. Worth noting if Bash call frequency becomes high enough to feel slow.
+
+**GOOD — Vector BK probe now scoped to subject_id + organization_id**
+The `.eq('subject_id', subjectId).eq('organization_id', orgId)` additions at lines 183-184 of `rpc-start-internal-exam-session.spec.ts` correctly tighten the probe. `subjectId` and `orgId` are set in `beforeAll` (lines 127-135) and are in scope. The `testStart` timestamp already isolated the window; the subject/org scoping additionally prevents parallel specs running against different subjects from inflating the probe count. Correct and complete.
+
+**GOOD — injection-xss.spec.ts teardown independence is correct**
+All three teardown steps (full_name restore, discardActiveSessions, cleanupXssQuestions) now run inside independent try/catch blocks. Errors are accumulated in an array and re-thrown as a single aggregated error after all three steps complete. This correctly implements the hermiticity requirement from code-style.md §7: a failure in step 1 no longer prevents steps 2 and 3 from running. The pattern matches the principle (all cleanup always runs) without needing try/finally.
+
+**GOOD — docs/security.md X-Frame-Options doc corrected (SAMEORIGIN → DENY)**
+The code block in `docs/security.md` previously showed `X-Frame-Options: SAMEORIGIN`, contradicting both `next.config.ts` (line 14: `value: 'DENY'`) and `proxy.ts` (line 16: `'DENY'`). This was the stale claim flagged as a SUGGESTION in the 2026-05-07 session (commit c45330f). Corrected to `DENY` — doc now matches code. The `header-validation.spec.ts` was already asserting `DENY` correctly (line 30).
+
+**GOOD — CSP dual-policy documentation is accurate against proxy.ts**
+`docs/security.md` now describes the two CSP tiers: routed responses (full policy from `next.config.ts`) and middleware-only responses (reduced `default-src 'none'; frame-ancestors 'none'` from `proxy.ts`). Verified against `proxy.ts` line 24: `res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")`. The doc claim is accurate.
+
+**GOOD — tech.md steering doc update accurately reflects the dual-CSP architecture**
+The steering doc change mirrors the security.md update. The description of the CSP reduction rationale ("no scripts execute on a 3xx/4xx/5xx") is accurate — middleware-only responses do not serve HTML with scripts. The `frame-ancestors 'none'` alignment note is correct.
+
+**Pattern — hook input delivery: PreToolUse vs PostToolUse may differ**
+PreToolUse hooks in Claude Code can receive tool input via CLI arg (interpolated env var pattern: `"$CLAUDE_TOOL_INPUT"`) or via stdin. PostToolUse hooks may deliver data differently. When writing PostToolUse hooks that need to inspect the invoked command, confirm the delivery method (env var vs stdin vs CLI arg) against the Claude Code SDK docs, or mirror the proven PreToolUse pattern from settings.json. Discrepancy detected at count=1 — watch for recurrence.
