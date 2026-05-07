@@ -179,6 +179,18 @@ describe('voidInternalExamCode', () => {
       if (!result.success) expect(result.error).toBe('Reason cannot be blank or whitespace-only')
     })
 
+    it('maps session_state_changed', async () => {
+      mockAdmin()
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'session_state_changed' } })
+      const result = await voidInternalExamCode(VALID_INPUT)
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error).toBe(
+          'This session was modified by another action — please refresh and retry',
+        )
+      }
+    })
+
     it('returns generic message for unrecognized RPC error', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: null, error: { message: 'connection lost' } })

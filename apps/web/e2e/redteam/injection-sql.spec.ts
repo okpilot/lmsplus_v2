@@ -315,6 +315,7 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', sessionToCleanup)
+        .is('deleted_at', null)
         .select('id')
       if (error) {
         throw new Error(`afterEach soft-delete session ${sessionToCleanup}: ${error.message}`)

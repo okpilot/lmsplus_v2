@@ -136,7 +136,7 @@ lmsplusv2/
 - **Correct answer protection**: `get_quiz_questions()` RPC strips `correct` field from options JSONB. `get_report_correct_options()` RPC for post-session feedback (completed sessions only).
 - **Service role key**: Server-only in `packages/db/src/admin.ts` with runtime browser guard. Never `NEXT_PUBLIC_`.
 - **Input validation**: Zod `.parse()` / `.safeParse()` on every Server Action. LIKE metacharacter escaping. Free-text ILIKE fields capped at 200 chars.
-- **Security headers**: CSP, HSTS (2yr + preload), X-Frame-Options (SAMEORIGIN), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy.
+- **Security headers**: CSP, HSTS (2yr + preload), X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy. Mirrored from `next.config.ts` to Edge Middleware redirect / 4xx / 5xx responses by `apps/web/proxy.ts` so all middleware-emitted responses carry the same posture.
 - **Immutable tables**: `student_responses`, `quiz_session_answers`, `audit_events`, `user_consents` -- no UPDATE, no DELETE, ever. RLS policies block all writes; inserts only via SECURITY DEFINER RPCs.
 - **Soft delete**: All mutable tables use `deleted_at TIMESTAMPTZ NULL`. No hard DELETE (exception: `question_comments`, Decision 30).
 - **SECURITY DEFINER RPCs**: Always include `auth.uid()` IS NULL check + `SET search_path = public`. Must manually filter `deleted_at IS NULL` on soft-deletable tables (RLS bypassed).

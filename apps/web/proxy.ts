@@ -25,32 +25,29 @@ export async function proxy(request: NextRequest): Promise<Response> {
 
   const { pathname } = request.nextUrl
 
+  // next.config.ts `headers()` does NOT apply to non-routed responses
+  // emitted from Edge Middleware (3xx redirects, 4xx/5xx errors). Mirror
+  // the static security headers on every middleware-emitted response so the
+  // posture is uniform regardless of status code.
+  function applySecurityHeaders(res: NextResponse): void {
+    res.headers.set('X-DNS-Prefetch-Control', 'on')
+    res.headers.set('X-Frame-Options', 'DENY')
+    res.headers.set('X-Content-Type-Options', 'nosniff')
+    res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+    // Minimal hardened CSP for non-routed responses. No scripts execute on a
+    // 3xx/4xx/5xx, so we lock default-src down to 'none' and keep
+    // frame-ancestors aligned with the routed-response CSP in next.config.ts.
+    res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
+  }
+
   function redirectWithCookies(url: URL) {
     const redirect = NextResponse.redirect(url)
     for (const cookie of response.cookies.getAll()) {
       redirect.cookies.set(cookie)
     }
-    // next.config.ts `headers()` does NOT apply to redirect responses
-    // emitted from Edge Middleware — they bypass the request-handler layer.
-    // Mirror the static security headers here so every redirect (login
-    // gate, consent gate, admin gate, recovery gate) carries the same
-    // posture as a routed response.
-    redirect.headers.set('X-DNS-Prefetch-Control', 'on')
-    redirect.headers.set('X-Frame-Options', 'DENY')
-    redirect.headers.set('X-Content-Type-Options', 'nosniff')
-    redirect.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-    redirect.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-    redirect.headers.set(
-      'Strict-Transport-Security',
-      'max-age=63072000; includeSubDomains; preload',
-    )
-    // Minimal hardened CSP for redirect responses. No scripts execute on a
-    // 3xx, so we lock the default down to 'none' and keep frame-ancestors
-    // aligned with the routed-response CSP in next.config.ts.
-    redirect.headers.set(
-      'Content-Security-Policy',
-      "default-src 'none'; frame-ancestors 'none'",
-    )
+    applySecurityHeaders(redirect)
     return redirect
   }
 
@@ -89,6 +86,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
       for (const cookie of response.cookies.getAll()) {
         unavailable.cookies.set(cookie)
       }
+      applySecurityHeaders(unavailable)
       return unavailable
     }
 
@@ -97,6 +95,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
       for (const cookie of response.cookies.getAll()) {
         forbidden.cookies.set(cookie)
       }
+      applySecurityHeaders(forbidden)
       return forbidden
     }
   }
