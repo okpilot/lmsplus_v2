@@ -68,21 +68,29 @@ test.describe('Red Team: Audit Event Completeness', () => {
     // deleted_at is in the mutable-columns whitelist).
     const now = new Date().toISOString()
     if (createdSessionIds.size > 0) {
-      await admin
+      const { data, error } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: now })
         .in('id', Array.from(createdSessionIds))
         .is('deleted_at', null)
         .select('id')
+      if (error) throw new Error(`afterEach soft-delete sessions: ${error.message}`)
+      if ((data?.length ?? 0) > 0) {
+        console.log(`[audit-completeness] soft-deleted ${data?.length} quiz_session(s)`)
+      }
       createdSessionIds.clear()
     }
     if (createdCodeIds.size > 0) {
-      await admin
+      const { data, error } = await admin
         .from('internal_exam_codes')
         .update({ deleted_at: now })
         .in('id', Array.from(createdCodeIds))
         .is('deleted_at', null)
         .select('id')
+      if (error) throw new Error(`afterEach soft-delete codes: ${error.message}`)
+      if ((data?.length ?? 0) > 0) {
+        console.log(`[audit-completeness] soft-deleted ${data?.length} internal_exam_code(s)`)
+      }
       createdCodeIds.clear()
     }
   })

@@ -127,14 +127,18 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
     let activeCodeId: string | null = null
 
     test.afterEach(async () => {
-      if (!activeCodeId) return
-      const { error } = await admin
+      const codeToCleanup = activeCodeId
+      activeCodeId = null
+      if (!codeToCleanup) return
+      const { data, error } = await admin
         .from('internal_exam_codes')
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', activeCodeId)
+        .eq('id', codeToCleanup)
         .select('id')
-      if (error) throw new Error(`afterEach soft-delete: ${error.message}`)
-      activeCodeId = null
+      if (error) throw new Error(`afterEach soft-delete code ${codeToCleanup}: ${error.message}`)
+      if ((data?.length ?? 0) > 0) {
+        console.log(`[injection-sql] soft-deleted internal_exam_code ${codeToCleanup}`)
+      }
     })
 
     for (const payload of DB_LAYER_PAYLOADS) {
@@ -288,13 +292,16 @@ test.describe('Red Team: OWASP A05 SQL fuzzing — RPC text parameters', () => {
       const sessionToCleanup = activeSessionId
       activeSessionId = null
       if (!sessionToCleanup) return
-      const { error } = await admin
+      const { data, error } = await admin
         .from('quiz_sessions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', sessionToCleanup)
         .select('id')
       if (error) {
         throw new Error(`afterEach soft-delete session ${sessionToCleanup}: ${error.message}`)
+      }
+      if ((data?.length ?? 0) > 0) {
+        console.log(`[injection-sql] soft-deleted quiz_session ${sessionToCleanup}`)
       }
     })
 
