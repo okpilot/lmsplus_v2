@@ -173,12 +173,15 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     expect(data).toBeNull()
 
     // Belt-and-braces: no session was created for the attacker against the
-    // victim's code during this test.
+    // victim's code during this test. Scope to subject + org so unrelated
+    // sessions from other specs in the same window can't inflate the count.
     const { data: probe } = await admin
       .from('quiz_sessions')
       .select('id')
       .eq('student_id', attackerUserId)
       .eq('mode', 'internal_exam')
+      .eq('subject_id', subjectId)
+      .eq('organization_id', orgId)
       .is('deleted_at', null)
       .gte('created_at', testStart)
     expect((probe ?? []).length).toBe(0)

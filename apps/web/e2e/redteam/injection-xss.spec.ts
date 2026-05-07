@@ -202,18 +202,35 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
   })
 
   test.afterEach(async () => {
-    const admin = getAdminClient()
-    const { data, error } = await admin
-      .from('users')
-      .update({ full_name: originalFullName })
-      .eq('id', studentUserId)
-      .select('id')
-    if (error) throw new Error(`afterEach restore full_name: ${error.message}`)
-    if ((data?.length ?? 0) > 0) {
-      console.log(`[injection-xss] restored full_name for ${data?.length} user(s)`)
+    // Run all three teardown steps independently. If one fails, the others
+    // still run — otherwise a single failure leaves shared seed state behind
+    // for downstream specs (code-style.md §7 hermiticity).
+    const errors: string[] = []
+    try {
+      const admin = getAdminClient()
+      const { data, error } = await admin
+        .from('users')
+        .update({ full_name: originalFullName })
+        .eq('id', studentUserId)
+        .select('id')
+      if (error) throw new Error(`restore full_name: ${error.message}`)
+      if ((data?.length ?? 0) > 0) {
+        console.log(`[injection-xss] restored full_name for ${data?.length} user(s)`)
+      }
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
     }
-    await discardActiveSessions(studentUserId)
-    await cleanupXssQuestions()
+    try {
+      await discardActiveSessions(studentUserId)
+    } catch (e) {
+      errors.push(`discardActiveSessions: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    try {
+      await cleanupXssQuestions()
+    } catch (e) {
+      errors.push(`cleanupXssQuestions: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   async function bootStudentSession(

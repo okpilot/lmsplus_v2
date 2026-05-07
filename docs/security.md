@@ -354,7 +354,7 @@ const allowLocal = isDev || isLocalSupabase
 
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control',    value: 'on' },
-  { key: 'X-Frame-Options',           value: 'SAMEORIGIN' },
+  { key: 'X-Frame-Options',           value: 'DENY' },
   { key: 'X-Content-Type-Options',    value: 'nosniff' },
   { key: 'Referrer-Policy',           value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy',        value: 'camera=(), microphone=(), geolocation=()' },
@@ -385,6 +385,8 @@ export default {
   },
 }
 ```
+
+**Edge Middleware responses (3xx redirects, 4xx Forbidden, 5xx errors).** Next.js `headers()` only applies to routed responses; middleware-emitted responses bypass it. `apps/web/proxy.ts` re-emits the 6 static headers on every middleware response and applies a **reduced CSP** of `default-src 'none'; frame-ancestors 'none'` (not the full routed-response CSP). The reduction is intentional: no scripts execute on a 3xx/4xx/5xx, so locking `default-src` to `'none'` is at least as strict as the routed policy and prevents accidental subresource loading on error pages. `frame-ancestors 'none'` matches the routed CSP so legacy browsers ignoring `default-src` still see the framing deny intent. The redteam spec `apps/web/e2e/redteam/header-validation.spec.ts` asserts both response classes; do not assume routed-response CSP rules apply to middleware responses when reviewing security changes.
 
 ---
 
