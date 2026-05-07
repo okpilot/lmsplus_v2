@@ -60,7 +60,7 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 - Run more than 4 fix-driven loops without escalating to the user.
 - Bypass the skip-with-reason requirement. Silent skips are forbidden — every skip needs a one-line rationale in the round summary.
 - Run CR local as a pre-push git hook. The wall-clock is too long, the protocol needs orchestrator judgment, and `--no-verify` would be the natural workaround. The orchestrator runs it via `/fullpush`.
-- Defer something that's < 10 lines. The "<10 lines = fix now" rule from `agent-workflow.md` overrides DEFER for tiny fixes.
+- Defer something that's < 10 lines and clearly within scope. The per-agent SUGGESTION rules (e.g., `agent-semantic-reviewer.md`, `agent-code-reviewer.md`) say "fix if under 10 lines"; for the broader APPLY-vs-DEFER decision, see `agent-workflow.md § Apply-vs-Defer Discipline` (DEFER requires ≥ 30 LOC plus separate concern plus design decision — all three).
 
 ## Common Pitfalls Observed (PR #108, 2026-05-07)
 
