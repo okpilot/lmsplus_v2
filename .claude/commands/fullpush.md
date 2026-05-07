@@ -41,7 +41,8 @@ After answering the checklist:
 ```
 
 5. **If an active spec exists**, confirm all completed tasks are checked off in `tasks.md` (`[ ]` → `[x]`). If any are missing, update before proceeding.
-6. **Ask for explicit push approval.** Never push without it.
+6. **Run CodeRabbit local pre-push review** via the `/crlocal` command. Loop and apply findings per its triage protocol until a stop condition trips. Do not skip — CR local catches things our internal agents miss (observability gaps, runtime guard omissions, cleanup ordering). Skip only if `which coderabbit` returns nothing AND tell the user to install it.
+7. **Ask for explicit push approval.** Never push without it.
 
 ## Why this exists
 
