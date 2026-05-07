@@ -114,7 +114,12 @@ async function seedXssQuestion(args: SeedArgs): Promise<string> {
       subject_id: args.subjectId,
       topic_id: args.topicId,
       question_number: tag.slice(0, 60),
-      question_text: args.field === 'question_text' ? `${tag}\n\n${v}` : `${tag} inert`,
+      // Inert branch must NOT contain MARKER — assertSanitized's liveness
+      // check is scoped to `main`, so a MARKER in the inert question_text
+      // would let the explanation_text test pass even if the feedback
+      // panel never renders. The question_number still carries `tag`
+      // (and therefore MARKER) for cleanup queries to target.
+      question_text: args.field === 'question_text' ? `${tag}\n\n${v}` : 'inert',
       options: [
         { id: 'a', text: 'opt-a', correct: true },
         { id: 'b', text: 'opt-b', correct: false },

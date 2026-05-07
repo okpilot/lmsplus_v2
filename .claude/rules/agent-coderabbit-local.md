@@ -56,7 +56,7 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 ### NEVER
 - Trust CodeRabbit's severity label as a triage shortcut — read the code.
 - Apply every finding to make CodeRabbit silent. Refactor-induced bugs creep in this way.
-- Skip a finding because "it's just a nit" — past PRs had `nitpick / trivial` findings that were genuine project-rule violations (PR #108 round 1: 3 such findings on `.select('id')` observability; round 2 caught a missing error path on `full_name` restore labelled trivial).
+- Skip a finding because "it's just a nit" — past PRs had `nitpick / trivial` findings that were genuine project-rule violations (PR #108 round 1: 3 such findings on `.select('id')` observability; round 2 caught a missing error path on `full_name` restore labeled trivial).
 - Run more than 4 fix-driven loops without escalating to the user.
 - Bypass the skip-with-reason requirement. Silent skips are forbidden — every skip needs a one-line rationale in the round summary.
 - Run CR local as a pre-push git hook. The wall-clock is too long, the protocol needs orchestrator judgment, and `--no-verify` would be the natural workaround. The orchestrator runs it via `/fullpush`.
