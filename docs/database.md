@@ -1560,13 +1560,15 @@ $$;
 
 #### `start_quiz_session` — locks question set atomically
 
-**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix). `20260506000001_start_quiz_session_harden_input.sql` — adds input validation on `p_question_ids` (closes #622).
+**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix). `20260506000001_start_quiz_session_harden_input.sql` — adds input validation on `p_question_ids` (closes #622). `081_start_quiz_session_mode_whitelist.sql` — hard whitelist on `p_mode`: rejects `mock_exam` and `internal_exam` (which must be created exclusively by `start_exam_session` and `start_internal_exam_session`) with `mode_not_allowed` (closes #629).
 
-**Validation contract** (raised before any INSERT, after the auth and active-user gates):
+**Validation contract** (raised in this order: auth → mode whitelist → active-user gate → input validation):
+- `'Not authenticated'` — `auth.uid()` returns NULL.
+- `'mode_not_allowed'` — `p_mode` is not in `('smart_review','quick_quiz')`. Runs immediately after the auth check (before the active-user gate) so attackers cannot probe `'user inactive'` vs `'mode invalid'` via timing or error differences. mock_exam sessions are created exclusively by `start_exam_session` (mig 040) after exam config validation; internal_exam sessions by `start_internal_exam_session` (mig 058).
+- `'user not found or inactive'` — caller soft-deleted between auth and gate.
 - `'no_questions_provided'` — `p_question_ids` is NULL or empty (`array_length(...) IS NULL`).
 - `'invalid_question_ids'` — raised in two cases: (a) `p_question_ids` contains a duplicate UUID (set-based `count(DISTINCT)` mismatch with `array_length`), or (b) at least one UUID does not resolve to a question that is in the caller's organization, has `status = 'active'`, has `deleted_at IS NULL`, and matches `p_subject_id` / `p_topic_id` when those parameters are non-NULL.
 - `p_subject_id` and `p_topic_id` MAY be NULL (smart_review mode crosses subjects/topics); the per-question subject/topic match is skipped for the NULL parameter, while the org + active + soft-delete checks always apply.
-- Existing guards retained: `'Not authenticated'` (auth.uid() is null) and `'user not found or inactive'` (caller soft-deleted between auth and gate).
 
 ```sql
 CREATE OR REPLACE FUNCTION start_quiz_session(
@@ -1589,6 +1591,12 @@ DECLARE
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Mode whitelist (mig 081, closes #629): only student-facing practice modes.
+  -- mock_exam => start_exam_session; internal_exam => start_internal_exam_session.
+  IF p_mode NOT IN ('smart_review', 'quick_quiz') THEN
+    RAISE EXCEPTION 'mode_not_allowed';
   END IF;
 
   -- Top-level active-user gate (PR #599): one lookup, then reuse v_org_id / v_role
