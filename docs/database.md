@@ -247,6 +247,10 @@ CREATE TABLE quiz_sessions (
   organization_id  UUID NOT NULL REFERENCES organizations(id),
   student_id       UUID NOT NULL REFERENCES users(id),
   mode             TEXT NOT NULL CHECK (mode IN ('smart_review', 'quick_quiz', 'mock_exam', 'internal_exam')),
+  -- Creation paths (enforced by the RPCs, not the table CHECK):
+  --   start_quiz_session            → 'smart_review' | 'quick_quiz' (whitelist; mig 081 rejects exam modes)
+  --   start_exam_session            → 'mock_exam'                   (mig 040)
+  --   start_internal_exam_session   → 'internal_exam'               (mig 058)
   subject_id       UUID REFERENCES easa_subjects(id) NULL,  -- NULL for smart_review
   topic_id         UUID REFERENCES easa_topics(id) NULL,
   config           JSONB NOT NULL DEFAULT '{}',             -- question IDs locked at start
@@ -1560,7 +1564,7 @@ $$;
 
 #### `start_quiz_session` — locks question set atomically
 
-**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix). `20260506000001_start_quiz_session_harden_input.sql` — adds input validation on `p_question_ids` (closes #622). `081_start_quiz_session_mode_whitelist.sql` — hard whitelist on `p_mode`: rejects `mock_exam` and `internal_exam` (which must be created exclusively by `start_exam_session` and `start_internal_exam_session`) with `mode_not_allowed` (closes #629).
+**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix). `20260506000001_start_quiz_session_harden_input.sql` — adds input validation on `p_question_ids` (closes #622). `20260508000001_start_quiz_session_mode_whitelist.sql` — hard whitelist on `p_mode`: rejects `mock_exam` and `internal_exam` (which must be created exclusively by `start_exam_session` and `start_internal_exam_session`) with `mode_not_allowed` (closes #629).
 
 **Validation contract** (raised in this order: auth → mode whitelist → active-user gate → input validation):
 - `'Not authenticated'` — `auth.uid()` returns NULL.
@@ -2044,4 +2048,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-05-06 (migration 20260506000001: start_quiz_session input hardening — rejects null/empty p_question_ids and validates each UUID against active+in-org+subject/topic scope, with smart_review NULL-tolerance; closes #622) | Previous: 2026-05-01 (migrations 073-078 / 20260430000007-12: closes #588 #573 #531) | Companion: docs/security.md*
+*Last updated: 2026-05-08 (migration 20260508000001: start_quiz_session p_mode whitelist — rejects mock_exam and internal_exam with mode_not_allowed before the active-user gate; closes #629) | Previous: 2026-05-06 (migration 20260506000001: start_quiz_session input hardening — closes #622) | Companion: docs/security.md*
