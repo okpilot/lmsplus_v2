@@ -147,6 +147,88 @@
    Root cause (implementation-critic finding): When `seedQuestions` error prefixes changed from `"seedBank: ..."` to `"seedBank lookup: ..."` and `"seedQuestions: ..."`, the paired test regex assertions in `seed.test.ts` were not updated to match. Test lines were reformatted by Biome during pre-commit (single-line collapse), masking the stale regex. Fixed in 01a3244.
    
    **Pattern:** error message refactors must update all paired test assertions that match against the old message.
+
+---
+
+## 2026-05-08 — PR #629 OWASP A02/A05/A09 Coverage (Sub-Batch 1: commits 5b4223b, d32868b, fc5d47e, d17a7d0)
+
+**Context:** Four-commit session. PR #629 closes #629 (redteam spec suite for OWASP attack vectors). Commit 5b4223b (original: migration 081 + redteam spec + doc update). Commit d32868b (fix-commit: semantic-reviewer ISSUE + doc-updater ISSUE). Commit fc5d47e (test-writer: integration tests for p_mode whitelist). Commit d17a7d0 (red-team agent: attack-surface update).
+
+**Code reviewer (5b4223b):** 0 BLOCKING, 0 WARNING. Noted footer drift (would surface from doc-updater).
+
+**Semantic reviewer (5b4223b):** 0 CRITICAL, 1 ISSUE, 2 SUGGESTIONS, 7 GOOD.
+- **ISSUE:** Migration 081 history filename format mismatch in docs/database.md. Migration history uses supabase timestamp filename (`20260508000001_description.sql`), not short packages/db form (`081_description.sql`). Fixed in d32868b by using correct supabase filename in RPC summary table.
+- **SUGGESTIONS:** (1) footer requires updating; (2) future-mode comment in migration header (skipped with documented reason: immutability risk + already in spec).
+- **GOOD patterns:** migration structure, RPC signature, mode whitelist, mode-check guard ordering all correct.
+
+**Semantic reviewer (d32868b):** 0 CRITICAL, 0 ISSUE, 0 SUGGESTION. Clean.
+
+**Doc updater (5b4223b):** 1 ISSUE (DRIFT).
+- **DRIFT:** `quiz_sessions.mode` schema CHECK constraint documentation does not note the runtime narrowing introduced by mig 081 (whitelist enforcement in `start_quiz_session`). Fixed in d32868b by adding creation-path comment to the CHECK clause section.
+
+**Doc updater (d32868b):** 0 ISSUE. Clean.
+
+**Test writer (fc5d47e):** Added 2 integration cases against `rpc-start-session.integration.test.ts`:
+- Coverage for valid mode values (within whitelist).
+- Coverage for invalid/rejected mode values (outside whitelist).
+
+**Red-team agent (d17a7d0):** COVERED — Vector BU (business logic bypass via mode override) now fixed by mig 081 whitelist. No new coverage gaps flagged.
+
+**Implementation-critic (5b4223b → d32868b):** 1 ISSUE pre-commit on 5b4223b (dual-directory invariant: `packages/db/migrations/081` needs `supabase/migrations/` counterpart). Resolved before original commit.
+
+**Pattern analysis (six patterns evaluated per user request):**
+
+1. **Dual-directory invariant (count 1, WATCHING):**
+   Every `packages/db/migrations/<NNN>_*.sql` requires byte-identical `supabase/migrations/<timestamp>_*.sql` counterpart (established by commit 3136469). Caught by impl-critic pre-commit in this cycle.
+   
+   **Status:** Impl-critic gate is working correctly. Single occurrence. No prior pattern history found.
+   
+   **Action:** Log and watch. Not a rule candidate until count ≥ 2. Impl-critic is functioning as intended — no rule change needed.
+
+2. **Migration history filename format (count 1, WATCHING):**
+   `docs/database.md` migration history lines use supabase timestamp filename (`20260508000001_description.sql`), not short packages/db form (`081_description.sql`). Semantic-reviewer caught inconsistency (assumed short form, caught mismatch).
+   
+   **Status:** Single occurrence. No prior pattern history. Not a rule candidate.
+   
+   **Action:** Log and watch. This is a documentation presentation choice, not a code enforcement gap. When documenting migration history, use the authoritative supabase filename. If flagged again in future docs commits, consider adding a note to agent-doc-updater.md about migration history naming conventions.
+
+3. **Last updated footer drift (count 1, WATCHING):**
+   Footer on `docs/database.md` requires updating when substantive doc changes are made. Both code-reviewer and semantic-reviewer noted it as stale. Doc-updater also watches this but did not explicitly flag it as an ISSUE (treated as implicit update within the schema-block comment fix).
+   
+   **Status:** Single occurrence, caught by two agents but not promoted. Procedural detail, not a functional gap.
+   
+   **Action:** Log and watch. Acknowledge orchestrator did apply the fix (footer was updated in d32868b). Not a rule candidate — the procedural reminder is insufficient; would require tooling (footer auto-update) or tighter human discipline that has proven difficult to enforce.
+
+4. **Schema-block creation-path comment (count 1, WATCHING):**
+   When an RPC narrows a CHECK constraint via runtime guard (e.g., the p_mode whitelist in 081), the schema-block comment should note the runtime narrowing. Doc-updater flagged this as a DRIFT condition and suggested adding a creation-path comment to the constraint section.
+   
+   **Status:** First occurrence. Single commit. Not a rule candidate.
+   
+   **Action:** Log and watch. This is good documentation discipline but not a binding rule yet. If a second RPC ships with a schema-narrowing guard that lacks documentation, promote to code-style.md or agent-doc-updater.md guidance.
+
+5. **Migration immutability after commit (count 1, IMPLICIT):**
+   You considered but reverted a migration header comment edit in the fix-commit, citing Supabase content-hash drift risk on `migration up`. Not explicitly written in rules, but implied by Supabase's migration framework (checksums fail if migration content drifts post-commit).
+   
+   **Status:** Single occurrence. Implicit rule followed correctly. Not a rule candidate.
+   
+   **Action:** Log and watch. This is a best practice you applied correctly. If a future commit attempts a post-commit migration edit despite the risk, add an explicit rule to CLAUDE.md: "Do not edit migration files after commit — Supabase checksums will prevent the migration from applying. Create a new migration instead."
+
+6. **Apply-vs-Defer discipline (count 1, VALIDATED):**
+   You applied 4 of 5 reviewer findings (3 ISSUES, 1 SUGGESTION) and explicitly skipped the 5th SUGGESTION (future-mode comment in migration header) with a written reason. Per `agent-workflow.md § Apply-vs-Defer Discipline`:
+   - Defer-budget this PR: 0 deferrals + 1 skip-with-reason ✓
+   - APPLY verdict on all 4 findings ✓
+   - Skip reason documented (immutability risk + already in spec) ✓
+   
+   **Status:** Workflow correctly followed.
+   
+   **Action:** Log and validate. No action needed.
+
+**Summary:**
+- All 6 patterns evaluated are single-occurrence, watch-list items (count ≤ 1).
+- No patterns hit count ≥ 2 threshold for rule promotion.
+- All gates (impl-critic, semantic-reviewer, doc-updater) functioned as designed.
+- Apply-vs-Defer discipline correctly applied.
+- **Recommendation:** No rule changes needed. Continue watching these patterns across subsequent cycles.
    
    **Count=1 (watching). If count >= 2:** propose a rule in code-style.md Testing section.
 
