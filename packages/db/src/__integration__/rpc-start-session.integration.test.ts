@@ -372,4 +372,28 @@ describe('RPC: start_quiz_session input validation', () => {
     expect(error).toBeNull()
     expect(data).toBeTruthy()
   })
+
+  it('rejects p_mode=mock_exam with mode_not_allowed', async () => {
+    const { data, error } = await studentClient.rpc('start_quiz_session', {
+      p_mode: 'mock_exam',
+      p_subject_id: refs.subjectId,
+      p_topic_id: refs.topicId,
+      p_question_ids: questionIds.slice(0, 1),
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('mode_not_allowed')
+    expect(data).toBeNull()
+  })
+
+  it('rejects p_mode=internal_exam with mode_not_allowed', async () => {
+    const { data, error } = await studentClient.rpc('start_quiz_session', {
+      p_mode: 'internal_exam',
+      p_subject_id: refs.subjectId,
+      p_topic_id: refs.topicId,
+      p_question_ids: questionIds.slice(0, 1),
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('mode_not_allowed')
+    expect(data).toBeNull()
+  })
 })
