@@ -4,12 +4,6 @@ import type { SyllabusSubject, SyllabusTree } from './types'
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type TopicRow = { id: string; subject_id: string; code: string; name: string; sort_order: number }
 type SubtopicRow = { id: string; topic_id: string; code: string; name: string; sort_order: number }
-type QuestionCountRow = {
-  subject_id: string | null
-  topic_id: string | null
-  subtopic_id: string | null
-  n: number
-}
 
 export async function getSyllabusTree(): Promise<SyllabusTree> {
   const supabase = await createServerSupabaseClient()
@@ -31,7 +25,7 @@ export async function getSyllabusTree(): Promise<SyllabusTree> {
   const subjects = (subjectsRes.data ?? []) as SubjectRow[]
   const topics = (topicsRes.data ?? []) as TopicRow[]
   const subtopics = (subtopicsRes.data ?? []) as SubtopicRow[]
-  const countRows = (countsRes.data ?? []) as QuestionCountRow[]
+  const countRows = countsRes.data ?? []
 
   // Sum question counts per subject/topic/subtopic (each row contributes to all three levels)
   const subjectCounts = new Map<string, number>()
