@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
+const mockRpc = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
 
@@ -40,8 +41,16 @@ const DISTRIBUTION_1 = {
   question_count: 20,
 }
 
-const QUESTION_1 = { subject_id: 'sub-1', topic_id: 'top-1', subtopic_id: null }
-const QUESTION_2 = { subject_id: 'sub-1', topic_id: 'top-1', subtopic_id: 'stp-1' }
+// Grouped row shape returned by get_question_counts RPC:
+// { subject_id, topic_id, subtopic_id, n }. Two rows below put top-1 at n=2
+// (1 with null subtopic + 1 with stp-1) and stp-1 at n=1.
+const COUNT_ROW_TOPIC_ONLY = { subject_id: 'sub-1', topic_id: 'top-1', subtopic_id: null, n: 1 }
+const COUNT_ROW_TOPIC_AND_SUBTOPIC = {
+  subject_id: 'sub-1',
+  topic_id: 'top-1',
+  subtopic_id: 'stp-1',
+  n: 1,
+}
 
 type FakeError = { message: string } | null
 
@@ -61,8 +70,8 @@ function buildTableMocks({
   configsData = [CONFIG_1] as unknown[],
   distributionsError = null,
   distributionsData = [DISTRIBUTION_1] as unknown[],
-  questionsError = null,
-  questionsData = [QUESTION_1, QUESTION_2] as unknown[],
+  questionCountsError = null,
+  questionCountsData = [COUNT_ROW_TOPIC_ONLY, COUNT_ROW_TOPIC_AND_SUBTOPIC] as unknown[],
 }: {
   subjectsError?: FakeError
   subjectsData?: unknown[]
@@ -74,8 +83,8 @@ function buildTableMocks({
   configsData?: unknown[]
   distributionsError?: FakeError
   distributionsData?: unknown[]
-  questionsError?: FakeError
-  questionsData?: unknown[]
+  questionCountsError?: FakeError
+  questionCountsData?: unknown[]
 } = {}) {
   // .order() is the terminal for easa_subjects, easa_topics, easa_subtopics
   const makeOrderChain = (data: unknown[], error: FakeError) => ({
@@ -83,7 +92,7 @@ function buildTableMocks({
     order: vi.fn().mockResolvedValue({ data, error }),
   })
 
-  // .is(null) is the last filter for exam_configs and questions; returns a thenable
+  // .is(null) is the last filter for exam_configs; returns a thenable
   const makeFilterChain = (data: unknown[], error: FakeError) => {
     const resolved = { data, error }
     // Make the object itself thenable so Promise.all resolves it
@@ -113,17 +122,17 @@ function buildTableMocks({
         return makeFilterChain(configsData, configsError)
       case 'exam_config_distributions':
         return makeSelectChain(distributionsData, distributionsError)
-      case 'questions':
-        return makeFilterChain(questionsData, questionsError)
       default:
         throw new Error(`Unexpected table in test: ${table}`)
     }
   })
+
+  mockRpc.mockResolvedValue({ data: questionCountsData, error: questionCountsError })
 }
 
 function mockAdmin() {
   mockRequireAdmin.mockResolvedValue({
-    supabase: { from: mockFrom },
+    supabase: { from: mockFrom, rpc: mockRpc },
     organizationId: ORG_ID,
   })
 }
@@ -243,10 +252,12 @@ describe('getExamConfigData', () => {
   })
 
   describe('question counting', () => {
-    it('sets availableQuestions on topics from question rows', async () => {
+    it('sums n into topic availableQuestions across grouped rows', async () => {
       mockAdmin()
-      // QUESTION_1 and QUESTION_2 both belong to topic top-1
-      buildTableMocks({ questionsData: [QUESTION_1, QUESTION_2] })
+      // top-1 appears in two rows: n=1 (no subtopic) + n=1 (with stp-1) → total 2
+      buildTableMocks({
+        questionCountsData: [COUNT_ROW_TOPIC_ONLY, COUNT_ROW_TOPIC_AND_SUBTOPIC],
+      })
 
       const result = await getExamConfigData()
       const topic1 = result[0]!.topics[0]!
@@ -254,10 +265,11 @@ describe('getExamConfigData', () => {
       expect(topic1.availableQuestions).toBe(2)
     })
 
-    it('sets availableQuestions on subtopics from question rows', async () => {
+    it('sums n into subtopic availableQuestions from rows where subtopic_id is set', async () => {
       mockAdmin()
-      // QUESTION_2 has subtopic_id = stp-1
-      buildTableMocks({ questionsData: [QUESTION_1, QUESTION_2] })
+      buildTableMocks({
+        questionCountsData: [COUNT_ROW_TOPIC_ONLY, COUNT_ROW_TOPIC_AND_SUBTOPIC],
+      })
 
       const result = await getExamConfigData()
       const subtopic1 = result[0]!.topics[0]!.subtopics[0]!
@@ -265,9 +277,9 @@ describe('getExamConfigData', () => {
       expect(subtopic1.availableQuestions).toBe(1)
     })
 
-    it('returns zero availableQuestions when no questions match the topic', async () => {
+    it('returns zero availableQuestions when no question count rows match the topic', async () => {
       mockAdmin()
-      buildTableMocks({ questionsData: [] })
+      buildTableMocks({ questionCountsData: [] })
 
       const result = await getExamConfigData()
       const topic1 = result[0]!.topics[0]!
@@ -277,8 +289,9 @@ describe('getExamConfigData', () => {
 
     it('uses topic-level count on a distribution when subtopic_id is null', async () => {
       mockAdmin()
-      // QUESTION_1 maps to top-1 (no subtopic)
-      buildTableMocks({ questionsData: [QUESTION_1, QUESTION_1] })
+      buildTableMocks({
+        questionCountsData: [{ subject_id: 'sub-1', topic_id: 'top-1', subtopic_id: null, n: 2 }],
+      })
 
       const result = await getExamConfigData()
       const dist = result[0]!.config?.distributions[0]
@@ -292,7 +305,9 @@ describe('getExamConfigData', () => {
       const distWithSubtopic = { ...DISTRIBUTION_1, subtopic_id: 'stp-1' }
       buildTableMocks({
         distributionsData: [distWithSubtopic],
-        questionsData: [QUESTION_2, QUESTION_2],
+        questionCountsData: [
+          { subject_id: 'sub-1', topic_id: 'top-1', subtopic_id: 'stp-1', n: 2 },
+        ],
       })
 
       const result = await getExamConfigData()
@@ -300,6 +315,39 @@ describe('getExamConfigData', () => {
 
       // distWithSubtopic has subtopic_id: stp-1 so it reads subtopicCounts
       expect(dist?.availableQuestions).toBe(2)
+    })
+
+    it('reflects full counts across topics totalling more than 1000 questions', async () => {
+      mockAdmin()
+      const topics = Array.from({ length: 5 }, (_, i) => ({
+        id: `top-large-${i}`,
+        subject_id: 'sub-1',
+        code: `TL${i}`,
+        name: `Large Topic ${i}`,
+      }))
+      const countRows = topics.map((t) => ({
+        subject_id: 'sub-1',
+        topic_id: t.id,
+        subtopic_id: null,
+        n: 300,
+      }))
+      buildTableMocks({
+        topicsData: topics,
+        subtopicsData: [],
+        configsData: [],
+        distributionsData: [],
+        questionCountsData: countRows,
+      })
+
+      const result = await getExamConfigData()
+      const subject1 = result[0]!
+
+      expect(subject1.topics).toHaveLength(5)
+      const total = subject1.topics.reduce((sum, t) => sum + t.availableQuestions, 0)
+      expect(total).toBe(1500)
+      for (const t of subject1.topics) {
+        expect(t.availableQuestions).toBe(300)
+      }
     })
   })
 
@@ -390,11 +438,11 @@ describe('getExamConfigData', () => {
       await expect(getExamConfigData()).rejects.toThrow('distributions DB error')
     })
 
-    it('throws when the questions query fails', async () => {
+    it('throws when the question counts RPC fails', async () => {
       mockAdmin()
-      buildTableMocks({ questionsError: { message: 'questions DB error' } })
+      buildTableMocks({ questionCountsError: { message: 'question counts RPC error' } })
 
-      await expect(getExamConfigData()).rejects.toThrow('questions DB error')
+      await expect(getExamConfigData()).rejects.toThrow('question counts RPC error')
     })
   })
 
