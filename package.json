@@ -19,12 +19,12 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
+    "@biomejs/biome": "^2.4.15",
     "@commitlint/cli": "^20.5.3",
     "@commitlint/config-conventional": "^20.5.3",
-    "knip": "^6.11.0",
-    "lefthook": "^2.1.6",
-    "turbo": "^2.9.9",
+    "knip": "^6.14.1",
+    "lefthook": "^2.1.8",
+    "turbo": "^2.9.14",
     "typescript": "^6.0.3"
   },
   "pnpm": {
