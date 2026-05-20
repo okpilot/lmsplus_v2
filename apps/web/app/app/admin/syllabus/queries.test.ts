@@ -165,6 +165,30 @@ describe('getSyllabusTree', () => {
     expect(tree).toEqual([])
   })
 
+  it('throws a sanitized message and logs the raw DB error when a query fails', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    // subjects query returns an error; the other three are healthy
+    const errorChain = {
+      select: vi.fn(),
+      order: vi.fn().mockResolvedValue({ data: null, error: { message: 'connection refused' } }),
+    }
+    errorChain.select.mockReturnValue(errorChain)
+
+    mockFrom
+      .mockReturnValueOnce(errorChain)
+      .mockReturnValueOnce(makeOrderedChain([]))
+      .mockReturnValueOnce(makeOrderedChain([]))
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom, rpc: mockRpc })
+
+    await expect(getSyllabusTree()).rejects.toThrow('Failed to load syllabus tree')
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[getSyllabusTree] DB error:',
+      'connection refused',
+    )
+  })
+
   it('reflects the full question count when the bank exceeds the PostgREST 1000-row cap', async () => {
     const subjects = [
       { id: 's1', code: '010', name: 'Air Law', short: 'AL', sort_order: 1 },

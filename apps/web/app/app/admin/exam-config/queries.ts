@@ -36,7 +36,10 @@ export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
     distributionsRes,
     questionCountsRes,
   ]) {
-    if (res.error) throw new Error(`[getExamConfigData] ${res.error.message}`)
+    if (res.error) {
+      console.error('[getExamConfigData] DB error:', res.error.message)
+      throw new Error('Failed to load exam configuration')
+    }
   }
 
   const subjects = subjectsRes.data ?? []

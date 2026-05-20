@@ -404,46 +404,76 @@ describe('getExamConfigData', () => {
   })
 
   describe('error propagation', () => {
-    it('throws when the subjects query fails', async () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    })
+
+    it('throws a sanitized message when the subjects query fails', async () => {
       mockAdmin()
       buildTableMocks({ subjectsError: { message: 'subjects DB error' } })
 
-      await expect(getExamConfigData()).rejects.toThrow('subjects DB error')
+      await expect(getExamConfigData()).rejects.toThrow('Failed to load exam configuration')
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[getExamConfigData] DB error:',
+        'subjects DB error',
+      )
     })
 
-    it('throws when the topics query fails', async () => {
+    it('throws a sanitized message when the topics query fails', async () => {
       mockAdmin()
       buildTableMocks({ topicsError: { message: 'topics DB error' } })
 
-      await expect(getExamConfigData()).rejects.toThrow('topics DB error')
+      await expect(getExamConfigData()).rejects.toThrow('Failed to load exam configuration')
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[getExamConfigData] DB error:',
+        'topics DB error',
+      )
     })
 
-    it('throws when the subtopics query fails', async () => {
+    it('throws a sanitized message when the subtopics query fails', async () => {
       mockAdmin()
       buildTableMocks({ subtopicsError: { message: 'subtopics DB error' } })
 
-      await expect(getExamConfigData()).rejects.toThrow('subtopics DB error')
+      await expect(getExamConfigData()).rejects.toThrow('Failed to load exam configuration')
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[getExamConfigData] DB error:',
+        'subtopics DB error',
+      )
     })
 
-    it('throws when the exam_configs query fails', async () => {
+    it('throws a sanitized message when the exam_configs query fails', async () => {
       mockAdmin()
       buildTableMocks({ configsError: { message: 'configs DB error' } })
 
-      await expect(getExamConfigData()).rejects.toThrow('configs DB error')
+      await expect(getExamConfigData()).rejects.toThrow('Failed to load exam configuration')
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[getExamConfigData] DB error:',
+        'configs DB error',
+      )
     })
 
-    it('throws when the exam_config_distributions query fails', async () => {
+    it('throws a sanitized message when the exam_config_distributions query fails', async () => {
       mockAdmin()
       buildTableMocks({ distributionsError: { message: 'distributions DB error' } })
 
-      await expect(getExamConfigData()).rejects.toThrow('distributions DB error')
+      await expect(getExamConfigData()).rejects.toThrow('Failed to load exam configuration')
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[getExamConfigData] DB error:',
+        'distributions DB error',
+      )
     })
 
-    it('throws when the question counts RPC fails', async () => {
+    it('throws a sanitized message when the question counts RPC fails', async () => {
       mockAdmin()
       buildTableMocks({ questionCountsError: { message: 'question counts RPC error' } })
 
-      await expect(getExamConfigData()).rejects.toThrow('question counts RPC error')
+      await expect(getExamConfigData()).rejects.toThrow('Failed to load exam configuration')
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[getExamConfigData] DB error:',
+        'question counts RPC error',
+      )
     })
   })
 
