@@ -406,14 +406,18 @@ describe('listInternalExamCodes', () => {
   describe('error propagation', () => {
     it('throws a sanitized message and logs the raw error when the codes query fails', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(null, { message: 'codes DB error' }))
+      try {
+        mockAdmin()
+        mockAdminFrom.mockReturnValue(buildChain(null, { message: 'codes DB error' }))
 
-      await expect(listInternalExamCodes()).rejects.toThrow('Failed to load internal exam codes')
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[listInternalExamCodes] DB error:',
-        'codes DB error',
-      )
+        await expect(listInternalExamCodes()).rejects.toThrow('Failed to load internal exam codes')
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '[listInternalExamCodes] DB error:',
+          'codes DB error',
+        )
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
     })
   })
 
@@ -569,16 +573,20 @@ describe('listInternalExamAttempts', () => {
   describe('error propagation', () => {
     it('throws a sanitized message and logs the raw error when the attempts query fails', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      mockAdmin()
-      mockAdminFrom.mockReturnValue(buildChain(null, { message: 'attempts DB error' }))
+      try {
+        mockAdmin()
+        mockAdminFrom.mockReturnValue(buildChain(null, { message: 'attempts DB error' }))
 
-      await expect(listInternalExamAttempts()).rejects.toThrow(
-        'Failed to load internal exam attempts',
-      )
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[listInternalExamAttempts] DB error:',
-        'attempts DB error',
-      )
+        await expect(listInternalExamAttempts()).rejects.toThrow(
+          'Failed to load internal exam attempts',
+        )
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          '[listInternalExamAttempts] DB error:',
+          'attempts DB error',
+        )
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
     })
   })
 
