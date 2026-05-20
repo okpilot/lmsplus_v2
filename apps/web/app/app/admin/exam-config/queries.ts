@@ -11,7 +11,7 @@ export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
   const { supabase, organizationId } = await requireAdmin()
 
   // Fetch all data in parallel
-  const [subjectsRes, topicsRes, subtopicsRes, configsRes, distributionsRes, questionsRes] =
+  const [subjectsRes, topicsRes, subtopicsRes, configsRes, distributionsRes, questionCountsRes] =
     await Promise.all([
       supabase.from('easa_subjects').select('id, code, name, short').order('sort_order'),
       supabase.from('easa_topics').select('id, subject_id, code, name').order('sort_order'),
@@ -24,12 +24,7 @@ export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
       supabase
         .from('exam_config_distributions')
         .select('id, exam_config_id, topic_id, subtopic_id, question_count'),
-      supabase
-        .from('questions')
-        .select('subject_id, topic_id, subtopic_id')
-        .eq('organization_id', organizationId)
-        .eq('status', 'active')
-        .is('deleted_at', null),
+      supabase.rpc('get_question_counts', { p_status: 'active' }),
     ])
 
   // Throw on any query error so the Suspense error boundary catches it
@@ -39,9 +34,12 @@ export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
     subtopicsRes,
     configsRes,
     distributionsRes,
-    questionsRes,
+    questionCountsRes,
   ]) {
-    if (res.error) throw new Error(`[getExamConfigData] ${res.error.message}`)
+    if (res.error) {
+      console.error('[getExamConfigData] DB error:', res.error.message)
+      throw new Error('Failed to load exam configuration')
+    }
   }
 
   const subjects = subjectsRes.data ?? []
@@ -50,15 +48,16 @@ export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
   const configs = configsRes.data ?? []
   // Distributions are org-scoped via RLS on parent exam_configs
   const distributions = distributionsRes.data ?? []
-  const questions = questionsRes.data ?? []
+  const questionCounts = questionCountsRes.data ?? []
 
-  // Count questions per topic/subtopic
+  // Sum question counts per topic/subtopic. Each topic appears once per subtopic
+  // in the grouped result, so we must sum n, not assign.
   const topicCounts = new Map<string, number>()
   const subtopicCounts = new Map<string, number>()
-  for (const q of questions) {
-    if (q.topic_id) topicCounts.set(q.topic_id, (topicCounts.get(q.topic_id) ?? 0) + 1)
-    if (q.subtopic_id)
-      subtopicCounts.set(q.subtopic_id, (subtopicCounts.get(q.subtopic_id) ?? 0) + 1)
+  for (const row of questionCounts) {
+    if (row.topic_id) topicCounts.set(row.topic_id, (topicCounts.get(row.topic_id) ?? 0) + row.n)
+    if (row.subtopic_id)
+      subtopicCounts.set(row.subtopic_id, (subtopicCounts.get(row.subtopic_id) ?? 0) + row.n)
   }
 
   // Build config map

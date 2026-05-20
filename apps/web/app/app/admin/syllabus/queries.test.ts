@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---- Mocks ----------------------------------------------------------------
 
 const mockFrom = vi.hoisted(() => vi.fn())
+const mockRpc = vi.hoisted(() => vi.fn())
 const mockCreateServerSupabaseClient = vi.hoisted(() => vi.fn())
 
 vi.mock('@repo/db/server', () => ({
@@ -29,31 +30,21 @@ function makeOrderedChain(data: unknown[]) {
 }
 
 /**
- * For the questions query which ends in .select('subject_id, topic_id, subtopic_id')
- * with no subsequent .order() call — select() is the thenable leaf.
- */
-function makeSelectOnlyChain(data: unknown[]) {
-  return {
-    select: vi.fn().mockResolvedValue({ data, error: null }),
-  }
-}
-
-/**
  * Mock all four DB calls for a full tree fetch.
- * subjects/topics/subtopics use ordered chains; questions uses select-only chain.
+ * subjects/topics/subtopics use ordered chains; question counts come from the RPC.
  */
 function mockAllFrom(
   subjects: unknown[],
   topics: unknown[],
   subtopics: unknown[],
-  questions: unknown[],
+  countRows: unknown[],
 ) {
   mockFrom
     .mockReturnValueOnce(makeOrderedChain(subjects))
     .mockReturnValueOnce(makeOrderedChain(topics))
     .mockReturnValueOnce(makeOrderedChain(subtopics))
-    .mockReturnValueOnce(makeSelectOnlyChain(questions))
-  mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+  mockRpc.mockResolvedValue({ data: countRows, error: null })
+  mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom, rpc: mockRpc })
 }
 
 // ---- Tests ----------------------------------------------------------------
@@ -77,17 +68,17 @@ describe('getSyllabusTree', () => {
     const subtopics = [
       { id: 'st1', topic_id: 't1', code: '010-01-01', name: 'Aims', sort_order: 1 },
     ]
-    // 2 questions with full refs (subject + topic + subtopic), 1 with only subject ref
-    const questions = [
-      { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1' },
-      { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1' },
-      { subject_id: 's1', topic_id: null, subtopic_id: null },
+    // 2 questions grouped at (s1, t1, st1) + 1 question with only a subject ref
+    const countRows = [
+      { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 2 },
+      { subject_id: 's1', topic_id: null, subtopic_id: null, n: 1 },
     ]
 
-    mockAllFrom(subjects, topics, subtopics, questions)
+    mockAllFrom(subjects, topics, subtopics, countRows)
 
     const tree = await getSyllabusTree()
 
+    expect(mockRpc).toHaveBeenCalledWith('get_question_counts')
     expect(tree).toHaveLength(1)
     // Length asserted above — safe to access [0]
     const subject = tree[0]!
@@ -161,19 +152,73 @@ describe('getSyllabusTree', () => {
       chain.select.mockReturnValue(chain)
       return chain
     }
-    const makeNullSelectOnlyChain = () => ({
-      select: vi.fn().mockResolvedValue({ data: null, error: null }),
-    })
 
     mockFrom
       .mockReturnValueOnce(makeNullOrderedChain())
       .mockReturnValueOnce(makeNullOrderedChain())
       .mockReturnValueOnce(makeNullOrderedChain())
-      .mockReturnValueOnce(makeNullSelectOnlyChain())
-    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom })
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom, rpc: mockRpc })
 
     const tree = await getSyllabusTree()
 
     expect(tree).toEqual([])
+  })
+
+  it('throws a sanitized message and logs the raw DB error when a query fails', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      // subjects query returns an error; the other three are healthy
+      const errorChain = {
+        select: vi.fn(),
+        order: vi.fn().mockResolvedValue({ data: null, error: { message: 'connection refused' } }),
+      }
+      errorChain.select.mockReturnValue(errorChain)
+
+      mockFrom
+        .mockReturnValueOnce(errorChain)
+        .mockReturnValueOnce(makeOrderedChain([]))
+        .mockReturnValueOnce(makeOrderedChain([]))
+      mockRpc.mockResolvedValue({ data: [], error: null })
+      mockCreateServerSupabaseClient.mockResolvedValue({ from: mockFrom, rpc: mockRpc })
+
+      await expect(getSyllabusTree()).rejects.toThrow('Failed to load syllabus tree')
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[getSyllabusTree] DB error:',
+        'connection refused',
+      )
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
+  })
+
+  it('reflects the full question count when the bank exceeds the PostgREST 1000-row cap', async () => {
+    const subjects = [
+      { id: 's1', code: '010', name: 'Air Law', short: 'AL', sort_order: 1 },
+      { id: 's2', code: '020', name: 'Aircraft', short: 'AC', sort_order: 2 },
+    ]
+    const topics = [
+      { id: 't1', subject_id: 's1', code: '010-01', name: 'ICAO', sort_order: 1 },
+      { id: 't2', subject_id: 's2', code: '020-01', name: 'Airframe', sort_order: 1 },
+    ]
+    const subtopics = [
+      { id: 'st1', topic_id: 't1', code: '010-01-01', name: 'Aims', sort_order: 1 },
+      { id: 'st2', topic_id: 't2', code: '020-01-01', name: 'Frame', sort_order: 1 },
+    ]
+    const countRows = [
+      { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 800 },
+      { subject_id: 's2', topic_id: 't2', subtopic_id: 'st2', n: 900 },
+    ]
+
+    mockAllFrom(subjects, topics, subtopics, countRows)
+
+    const tree = await getSyllabusTree()
+
+    expect(tree[0]!.questionCount).toBe(800)
+    expect(tree[0]!.topics[0]!.questionCount).toBe(800)
+    expect(tree[0]!.topics[0]!.subtopics[0]!.questionCount).toBe(800)
+    expect(tree[1]!.questionCount).toBe(900)
+    expect(tree[1]!.topics[0]!.questionCount).toBe(900)
+    expect(tree[1]!.topics[0]!.subtopics[0]!.questionCount).toBe(900)
   })
 })
