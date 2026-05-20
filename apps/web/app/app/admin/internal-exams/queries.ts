@@ -126,7 +126,10 @@ export async function listInternalExamCodes(
     data: unknown
     error: { message: string } | null
   }>)) ?? { data: null, error: null }
-  if (error) throw new Error(`[listInternalExamCodes] ${error.message}`)
+  if (error) {
+    console.error('[listInternalExamCodes] DB error:', error.message)
+    throw new Error('Failed to load internal exam codes')
+  }
   const raw = Array.isArray(data) ? (data as CodeRowRaw[]) : []
 
   let mapped: InternalExamCodeRow[] = raw.map((r) => ({
@@ -205,7 +208,10 @@ export async function listInternalExamAttempts(
     data: unknown
     error: { message: string } | null
   }>)) ?? { data: null, error: null }
-  if (error) throw new Error(`[listInternalExamAttempts] ${error.message}`)
+  if (error) {
+    console.error('[listInternalExamAttempts] DB error:', error.message)
+    throw new Error('Failed to load internal exam attempts')
+  }
   const raw = Array.isArray(data) ? (data as AttemptRowRaw[]) : []
 
   let mapped: InternalExamAttemptRow[] = raw.map((r) => ({
