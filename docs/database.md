@@ -1948,7 +1948,7 @@ Returns paginated session reports for the authenticated student with subject nam
 
 Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_id)`. Used by the admin exam-config and syllabus pages to show available-question totals per node without paging through the full question bank.
 
-**Security:** `SECURITY INVOKER` (caller-context). RLS scopes the result to the caller's organisation via the existing `tenant_isolation` policy on `questions` — no manual `auth.uid()` check needed.
+**Security:** `SECURITY INVOKER` (caller-context). RLS scopes the result to the caller's organization via the existing `tenant_isolation` policy on `questions` — no manual `auth.uid()` check needed.
 
 **Parameters:** `p_status TEXT DEFAULT NULL`
 - `NULL` — count all non-deleted questions (active + draft); used by `admin/syllabus/queries.ts`.
