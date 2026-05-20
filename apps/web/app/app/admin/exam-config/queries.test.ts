@@ -151,6 +151,7 @@ describe('getExamConfigData', () => {
 
       const result = await getExamConfigData()
 
+      expect(mockRpc).toHaveBeenCalledWith('get_question_counts', { p_status: 'active' })
       expect(result).toHaveLength(2)
       expect(result[0]!.id).toBe('sub-1')
       expect(result[1]!.id).toBe('sub-2')

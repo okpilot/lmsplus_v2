@@ -78,6 +78,7 @@ describe('getSyllabusTree', () => {
 
     const tree = await getSyllabusTree()
 
+    expect(mockRpc).toHaveBeenCalledWith('get_question_counts')
     expect(tree).toHaveLength(1)
     // Length asserted above — safe to access [0]
     const subject = tree[0]!

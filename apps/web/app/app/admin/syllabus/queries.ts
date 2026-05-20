@@ -21,6 +21,13 @@ export async function getSyllabusTree(): Promise<SyllabusTree> {
     supabase.rpc('get_question_counts'),
   ])
 
+  for (const res of [subjectsRes, topicsRes, subtopicsRes, countsRes]) {
+    if (res.error) {
+      console.error('[getSyllabusTree] DB error:', res.error.message)
+      throw new Error('Failed to load syllabus tree')
+    }
+  }
+
   const subjects = (subjectsRes.data ?? []) as SubjectRow[]
   const topics = (topicsRes.data ?? []) as TopicRow[]
   const subtopics = (subtopicsRes.data ?? []) as SubtopicRow[]
