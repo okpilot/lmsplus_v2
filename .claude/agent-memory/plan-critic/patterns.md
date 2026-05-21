@@ -68,6 +68,15 @@ The "selected option does not belong" check (migration 040, line 96-101) is the 
 ### [2026-05-07] exam.started / exam.completed require start_exam_session RPC, not start_internal_exam_session
 These two event types are emitted by the mock_exam flow (start_exam_session / batch_submit_quiz with mode='mock_exam'). Plans for audit-completeness tests that list these events without specifying which RPC to call risk the implementer using start_internal_exam_session (which emits internal_exam.started / internal_exam.completed). Plans must name the specific RPC for each event type.
 
+### [2026-05-08] SECURITY DEFINER trigger bypass: current_role not always 'postgres'
+Plans that add `current_role IN ('service_role', 'postgres')` bypass to a trigger assume the SECURITY DEFINER function owner is 'postgres'. In Supabase, the owner can be 'supabase_admin' or 'postgres' depending on how the function was created and the environment. Plans must make T1.1 (owner verification) a BLOCKER before writing the migration, not a runtime verification. If the plan defers this check to "during execution," it is an open risk that blocks implementation.
+
+### [2026-05-08] mode CHECK constraint widened by later migration — plans must check full migration chain
+Plans referencing quiz_sessions.mode values often cite mig 001 (3 modes: smart_review, quick_quiz, mock_exam). Migration 058 widened the CHECK to add 'internal_exam'. Plans for p_mode whitelists must grep all migrations for ALTER TABLE on quiz_sessions to find the current live constraint, not just mig 001.
+
+### [2026-05-08] assertSessionStillLocked deep-equal breaks when new score columns are added to FROZEN_COLUMNS_SELECT but the session has non-null values after trigger extension
+When FROZEN_COLUMNS_SELECT is extended to include correct_count, score_percentage, passed, ended_at, and these columns are initially NULL in the mock_exam baseline, assertSessionStillLocked() will compare NULL to NULL (safe). But if any attack test in the existing spec causes a legitimate completion RPC to run before the deep-equal check, the values become non-null and the baseline (captured pre-completion) mismatches. Plans must confirm no existing attack test triggers a completion RPC between baseline capture and assertSessionStillLocked().
+
 ## Positive Signals
 
 ### [2026-04-09] Base UI data attribute names correctly verified

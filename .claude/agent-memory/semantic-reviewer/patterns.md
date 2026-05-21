@@ -69,6 +69,40 @@ When a helper scans taxonomy (subjects/topics) and then counts questions, the sc
 **Pattern — transport-layer payload assertions need to account for JSON client-side encoding:**
 When a payload contains control characters (CRLF, NUL), check whether the JS SDK encodes them before sending. NUL bytes (0x00) survive JSON encoding as ` ` and are rejected by Postgres. CRLF bytes (0x0d 0x0a) survive JSON encoding as `\r\n` and are accepted by Postgres text columns. Tests asserting "transport rejection" of CRLF should either (a) verify the actual Postgres rejection message, or (b) remove the TRANSPORT_LAYER claim and test the stored value instead.
 
+### 2026-05-08 — commit 5b4223b (fix(rpc): whitelist start_quiz_session p_mode to reject exam modes)
+- **Files reviewed:** packages/db/migrations/081_start_quiz_session_mode_whitelist.sql, supabase/migrations/20260508000001_start_quiz_session_mode_whitelist.sql, apps/web/e2e/redteam/start-quiz-session-mode-confusion.spec.ts, docs/database.md
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 7
+
+**ISSUE — docs/database.md migration history uses inconsistent filename format for mig 081**
+- All prior migration history entries cite supabase-format timestamps (`20260430000008`, `20260506000001_start_quiz_session_harden_input.sql`). The new entry cites the packages/db short form: `081_start_quiz_session_mode_whitelist.sql`. Other entries use the supabase form (`20260508000001_start_quiz_session_mode_whitelist.sql`). Inconsistent cross-directory reference — should match the format used by the immediately preceding entry.
+
+**SUGGESTION — migration comment should call out future-mode extension requirement**
+- The whitelist `('smart_review', 'quick_quiz')` is a subset of the CHECK constraint `('smart_review', 'quick_quiz', 'mock_exam', 'internal_exam')`. If a 5th student-facing mode is added, the CHECK constraint and this whitelist are both updated — but the migration comment does not call this out. A one-line note would prevent future contributors from updating the CHECK constraint without revisiting the whitelist.
+
+**SUGGESTION — spec timestamp comparison: gte with ISO string is technically correct but docs.database.md last-updated line was not updated**
+- `testStartIso = new Date().toISOString()` is set in `beforeEach` (not `beforeAll`), so it resets before each of the two attack tests. The `.gte('created_at', testStartIso)` scope is therefore fresh per test. Correct. However, `docs/database.md` `*Last updated:` footer still reads `2026-05-06` — not updated to `2026-05-08` for this commit. Minor doc drift.
+
+**Whitelist position (auth → mode → active-user → input) is correct security ordering (GOOD)**
+- The whitelist fires before the `users` SELECT, preventing timing-based probing of 'user not found or inactive' vs 'mode_not_allowed'. The comment in both the migration and the spec explicitly documents this. The ordering matches the stated invariant.
+
+**Exception name `mode_not_allowed` confirmed consistent with mig 063 convention (GOOD)**
+- mig 063 (`complete_overdue_exam_session`) uses the same `mode_not_allowed` string. The migration header comment cites this explicitly. Confirmed correct reuse.
+
+**Migration body is byte-identical to mig 080 except for the added IF block (GOOD)**
+- Diffing against `080_start_quiz_session_harden_input.sql` confirms the only changes are: the 5-line whitelist IF block inserted after the auth check (lines 36-40) and the updated header comment. All other guards, INSERTs, and variable declarations are preserved verbatim.
+
+**No application code passes exam modes to start_quiz_session (GOOD)**
+- `apps/web/app/app/quiz/actions/start.ts:48` hardcodes `p_mode: 'quick_quiz'`. No other application path calls `start_quiz_session`. The whitelist cannot break any currently-reachable code path.
+
+**No seed migrations call start_quiz_session with exam modes (GOOD)**
+- Grepping all SQL in `packages/db/migrations/` and `supabase/migrations/` for `start_quiz_session(` as an invocation (not a CREATE) returns no results. The whitelist cannot break any migration-time call.
+
+**Spec attack independence is robust (GOOD)**
+- Both attacks independently scope their no-insert assertion to `attackerUserId + gte(testStartIso)`. Because `testStartIso` is reset in `beforeEach`, Attack 2's scope window excludes any rows that could hypothetically have leaked from Attack 1. The tests are genuinely independent.
+
+**Pattern — docs migration history filename format:**
+When adding a new migration history entry, use the same filename format as the immediately preceding entry (supabase-format timestamp for supabase/migrations entries). Mixing short-form `NNN_` with timestamp form creates doc-navigation confusion.
+
 ### 2026-05-07 — commit d13dc55 (fix(redteam,actions): broader whitespace coverage + invalid_reason UX)
 - **Files reviewed:** apps/web/e2e/redteam/helpers/payloads.ts, apps/web/app/app/admin/internal-exams/actions/void-code.ts, apps/web/app/app/admin/internal-exams/actions/void-code.test.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 5

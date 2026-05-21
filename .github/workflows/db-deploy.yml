@@ -1,0 +1,68 @@
+name: DB Deploy
+
+# Auto-applies Supabase migrations to production on merge to master.
+#
+# Why: PR #652 (2026-05-20) shipped app code that called a new RPC, but the
+# migration introducing that RPC was never applied to prod — exam-config page
+# 500'd until the migration was applied manually. Issue #654 tracks closing
+# this gap permanently.
+#
+# Behavior:
+#   - Triggers only when supabase/migrations/** changes on master.
+#   - Dry-runs first to surface what will apply (visible in workflow logs).
+#   - Then applies via `supabase db push`. Idempotent: already-applied migrations
+#     are skipped via the remote migration_history table.
+#   - Fails loudly if remote has migrations not in the local tree — indicates
+#     drift that should not be silently reconciled (see PR #641 incident).
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize migration pushes — never run two at once against the same prod DB.
+  group: db-deploy-prod
+  cancel-in-progress: false
+
+env:
+  SUPABASE_PROJECT_REF: uepvblipahxizozxvwjn
+
+jobs:
+  push:
+    name: Apply migrations to prod
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: supabase/setup-cli@df56b21da46c98abb12a9804e4fb1f657773e333 # v1
+        with:
+          version: 2.78.1
+
+      - name: Link to production project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Dry-run (preview pending migrations)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push --dry-run
+
+      - name: Apply migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        # `--include-all` skipped intentionally — push only files in supabase/migrations
+        # whose version_number is missing from remote migration_history.
+        run: supabase db push --yes
