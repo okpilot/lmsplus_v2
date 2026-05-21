@@ -293,4 +293,35 @@ describe('listMyInternalExamHistory', () => {
     expect(result[0]?.subjectName).toBe('Unknown subject')
     expect(result[0]?.subjectShort).toBe('')
   })
+
+  it('returns an empty array when data is null and there is no error', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    const result = await listMyInternalExamHistory()
+    expect(result).toEqual([])
+  })
+
+  it('defaults attemptNumber to 1 when the RPC returns 0 for attempt_number', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'sess-z',
+          subject_id: 'sub-z',
+          subject_name: 'Air Law',
+          subject_short: 'ALW',
+          started_at: '2026-04-29T15:00:00.000Z',
+          ended_at: null,
+          score_percentage: null,
+          passed: null,
+          total_questions: 10,
+          answered_count: 0,
+          attempt_number: 0,
+        },
+      ],
+      error: null,
+    })
+
+    const result = await listMyInternalExamHistory()
+    // asNumber(0) returns 0, then || 1 coerces to 1
+    expect(result[0]?.attemptNumber).toBe(1)
+  })
 })
