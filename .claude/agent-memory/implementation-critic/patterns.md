@@ -45,6 +45,14 @@
 - `tech.md` steering doc: `SAMEORIGIN` → `DENY` + Edge Middleware mirror note. Matches proxy.ts and aligns with issue #631 decision.
 - APPROVED — no findings.
 
+## Session 2026-05-08 — issue #629 start_quiz_session p_mode whitelist (PR 1 of sub-batch 1)
+- Migration 081 body: diff vs 080 is exactly the 5-line whitelist IF block + comment. All prior guards preserved byte-for-byte (auth.uid(), active-user gate, input validation, INSERT, audit INSERT). SECURITY DEFINER + SET search_path = public present. APPROVED.
+- Spec structure mirrors quiz-session-config-injection.spec.ts correctly. beforeAll seeds via seedRedTeamUsers() and picks subject via pickSubjectWithQuestions(). attackerClient uses authenticated student context. Both attacks assert error + count=0. No afterEach cleanup per plan (RPC raises pre-INSERT). Docblock explains no-cleanup intent explicitly.
+- ISSUE: supabase/migrations/ counterpart for 081 missing from staged diff. Commit 3136469 established a "dual-directory invariant" — every packages/db/migrations/ migration must have a byte-identical copy in supabase/migrations/. Migration 080 was committed with a supabase counterpart; 081 was not.
+- Doc update: migration history line extended with correct convention (081_start_quiz_session_mode_whitelist.sql). Validation contract reordered to match actual execution order (auth → mode → active-user → input). Inline SQL block updated with IF block in the correct position (after auth check, before active-user gate). All accurate.
+- No call sites pass mock_exam or internal_exam to start_quiz_session (grepped apps/web and all integration tests — only 'quick_quiz' and 'smart_review' found). No breaking callers.
+- Recurring watch: dual-directory supabase/migrations invariant. This is the first miss in a numeric migration. Track for next session.
+
 ## Session 2026-05-07 — issue #108 void_internal_exam_code whitespace check
 - Single-change migration: diff between new mig 20260507000001 and prior mig 20260430000006 is exactly one line (btrim guard → POSIX regex). All security guards, search_path, auth.uid() check, audit subqueries, GRANT, and ROW_COUNT assertion preserved byte-for-byte.
 - Doc section accurate: bug rationale, migration ID, and guard expression all correct.
