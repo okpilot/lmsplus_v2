@@ -4,11 +4,6 @@ import type { SyllabusSubject, SyllabusTree } from './types'
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type TopicRow = { id: string; subject_id: string; code: string; name: string; sort_order: number }
 type SubtopicRow = { id: string; topic_id: string; code: string; name: string; sort_order: number }
-type QuestionRef = {
-  subject_id: string | null
-  topic_id: string | null
-  subtopic_id: string | null
-}
 
 export async function getSyllabusTree(): Promise<SyllabusTree> {
   const supabase = await createServerSupabaseClient()
@@ -17,28 +12,35 @@ export async function getSyllabusTree(): Promise<SyllabusTree> {
     supabase.from('easa_subjects').select('*').order('sort_order'),
     supabase.from('easa_topics').select('*').order('sort_order'),
     supabase.from('easa_subtopics').select('*').order('sort_order'),
-    supabase.from('questions').select('subject_id, topic_id, subtopic_id'),
+    supabase.rpc('get_question_counts'),
   ])
+
+  for (const res of [subjectsRes, topicsRes, subtopicsRes, countsRes]) {
+    if (res.error) {
+      console.error('[getSyllabusTree] DB error:', res.error.message)
+      throw new Error('Failed to load syllabus tree')
+    }
+  }
 
   const subjects = (subjectsRes.data ?? []) as SubjectRow[]
   const topics = (topicsRes.data ?? []) as TopicRow[]
   const subtopics = (subtopicsRes.data ?? []) as SubtopicRow[]
-  const questions = (countsRes.data ?? []) as QuestionRef[]
+  const countRows = countsRes.data ?? []
 
-  // Count questions per subject/topic/subtopic
+  // Sum question counts per subject/topic/subtopic (each row contributes to all three levels)
   const subjectCounts = new Map<string, number>()
   const topicCounts = new Map<string, number>()
   const subtopicCounts = new Map<string, number>()
 
-  for (const q of questions) {
-    if (q.subject_id) {
-      subjectCounts.set(q.subject_id, (subjectCounts.get(q.subject_id) ?? 0) + 1)
+  for (const row of countRows) {
+    if (row.subject_id) {
+      subjectCounts.set(row.subject_id, (subjectCounts.get(row.subject_id) ?? 0) + row.n)
     }
-    if (q.topic_id) {
-      topicCounts.set(q.topic_id, (topicCounts.get(q.topic_id) ?? 0) + 1)
+    if (row.topic_id) {
+      topicCounts.set(row.topic_id, (topicCounts.get(row.topic_id) ?? 0) + row.n)
     }
-    if (q.subtopic_id) {
-      subtopicCounts.set(q.subtopic_id, (subtopicCounts.get(q.subtopic_id) ?? 0) + 1)
+    if (row.subtopic_id) {
+      subtopicCounts.set(row.subtopic_id, (subtopicCounts.get(row.subtopic_id) ?? 0) + row.n)
     }
   }
 

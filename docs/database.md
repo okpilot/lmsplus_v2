@@ -654,6 +654,7 @@ verb_noun pattern:
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
   get_subject_scores         ← read, analytics: avg scores by subject
+  get_question_counts        ← read, per-(subject, topic, subtopic) question counts; replaces client-side counting that truncated at the PostgREST 1000-row cap (#614)
 ```
 
 ### Security Model
@@ -1952,6 +1953,26 @@ Returns paginated session reports for the authenticated student with subject nam
 **Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, answered_count BIGINT, total_count BIGINT)`
 
 **Migration:** `20260410000010_get_session_reports_rpc.sql`
+
+---
+
+#### `get_question_counts` — per-(subject, topic, subtopic) question counts
+
+Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_id)`. Used by the admin exam-config and syllabus pages to show available-question totals per node without paging through the full question bank.
+
+**Security:** `SECURITY INVOKER` (caller-context). RLS scopes the result to the caller's organization via the existing `tenant_isolation` policy on `questions` — no manual `auth.uid()` check needed.
+
+**Parameters:** `p_status TEXT DEFAULT NULL`
+- `NULL` — count all non-deleted questions (active + draft); used by `admin/syllabus/queries.ts`.
+- `'active'` — count only active questions; used by `admin/exam-config/queries.ts` (drafts are not eligible for exams).
+
+**Returns:** `TABLE(subject_id UUID, topic_id UUID, subtopic_id UUID, n BIGINT)`
+
+**Filters:** `deleted_at IS NULL` always; `status = p_status` when `p_status` is non-NULL.
+
+**Migration:** `20260520000001_get_question_counts_rpc.sql`
+
+**Rationale:** Replaces client-side counting that silently truncated at the PostgREST 1000-row cap once the question bank crossed 1000 rows (#614).
 
 ---
 
