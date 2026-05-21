@@ -40,6 +40,8 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - uses: supabase/setup-cli@df56b21da46c98abb12a9804e4fb1f657773e333 # v1
         with:
