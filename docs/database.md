@@ -515,13 +515,14 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 - `idx_internal_exam_codes_active` on `(student_id, expires_at)` WHERE active (not consumed/voided/expired/deleted)
 - `idx_internal_exam_codes_org` on `(organization_id)` WHERE `deleted_at IS NULL`
 
-**RLS policies (FORCE RLS, migration `20260429000009`):**
-- SELECT (student): `student_id = auth.uid()` AND active (not consumed, not voided, not expired, not deleted)
+**RLS policies (FORCE RLS, migration `20260429000009`; tightened in `20260521000004`):**
+- SELECT (student): none — direct PostgREST reads return 0 rows; students read via `list_my_active_internal_exam_codes()` RPC (closes #577). The earlier `student_read_active_codes` policy was dropped because it exposed the plaintext `code` column to any caller who knew an `id`.
 - SELECT (admin): `is_admin()` AND org-scoped
-- UPDATE (admin): `is_admin()` AND org-scoped (USING + WITH CHECK)
+- UPDATE (admin): none — admin write paths run only inside SECURITY DEFINER RPCs (`void_internal_exam_code`, `start_internal_exam_session`). The earlier `admin_update_org_codes` policy was dropped (closes #578) and `REVOKE UPDATE ON internal_exam_codes FROM authenticated` was executed for defense-in-depth.
 - No INSERT or DELETE policies — issuance/consumption/void happen via SECURITY DEFINER RPCs only.
+- GRANTs to `authenticated`: `SELECT` only (UPDATE revoked in mig `20260521000004`).
 
-**Pattern:** Accessed via three SECURITY DEFINER RPCs: `issue_internal_exam_code()` (admin), `start_internal_exam_session()` (student), `void_internal_exam_code()` (admin). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`).
+**Pattern:** Accessed via SECURITY DEFINER RPCs only — three writers (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin) and one reader (`list_my_active_internal_exam_codes()` student). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The reader RPC omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
 
 ---
 
@@ -649,6 +650,8 @@ verb_noun pattern:
   issue_internal_exam_code   ← write, admin-only: generate 8-char single-use code, 24h validity, 5-retry collision handling, audit internal_exam.code_issued
   start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard
   void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
+  list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004)
+  list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
   complete_quiz_session      ← write, atomic: session end + score + audit + last_active_at stamp (DEPRECATED — use batch_submit_quiz)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
@@ -1717,7 +1720,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 Returns `boolean`. SECURITY DEFINER with `SET search_path = public`.
 Checks `auth.uid()` against `users.role = 'admin'` AND `deleted_at IS NULL` (migration 20260429000001). Returns `false` (not an exception) when no user is authenticated, so it is safe to call from RLS policies without causing errors for unauthenticated requests.
 
-Used by RLS policies on `easa_subjects`, `easa_topics`, `easa_subtopics`, and `internal_exam_codes` to gate INSERT/UPDATE/DELETE to active admin users only.
+Used by RLS policies on `easa_subjects`, `easa_topics`, `easa_subtopics` to gate INSERT/UPDATE/DELETE to active admin users only. Also used on `internal_exam_codes` — but as of migration `20260521000004`, only the admin SELECT policy remains; UPDATE/INSERT/DELETE for `internal_exam_codes` go through SECURITY DEFINER RPCs that re-check `is_admin()` internally.
 
 ```sql
 CREATE OR REPLACE FUNCTION is_admin()
