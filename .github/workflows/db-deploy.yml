@@ -57,6 +57,10 @@ jobs:
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
+          if [ -z "${SUPABASE_DB_PASSWORD:-}" ]; then
+            echo "::error::SUPABASE_DB_PASSWORD secret is not set on this repo. Add it under Settings → Secrets and variables → Actions before re-running." >&2
+            exit 1
+          fi
           PW_ENC=$(jq -nr --arg p "$SUPABASE_DB_PASSWORD" '$p|@uri')
           echo "::add-mask::$PW_ENC"
           DB_URL="postgresql://postgres.${SUPABASE_PROJECT_REF}:${PW_ENC}@aws-1-eu-central-1.pooler.supabase.com:5432/postgres"
