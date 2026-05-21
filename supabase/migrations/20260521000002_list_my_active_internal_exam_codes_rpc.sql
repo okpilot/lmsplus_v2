@@ -35,7 +35,6 @@ BEGIN
   FROM public.internal_exam_codes iec
   LEFT JOIN public.easa_subjects s
     ON s.id = iec.subject_id
-    AND s.deleted_at IS NULL
   WHERE iec.student_id = v_user_id
     AND iec.consumed_at IS NULL
     AND iec.voided_at IS NULL

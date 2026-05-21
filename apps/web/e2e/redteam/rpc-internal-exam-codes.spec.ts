@@ -91,21 +91,23 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
   })
 
   test.afterAll(async () => {
-    // E2E hermiticity (code-style.md §7): remove the two fixture code rows so
-    // downstream specs (e.g. issue/void RPCs) start from a known state.
-    // Service-role hard-delete is acceptable here — these codes are never
-    // consumed in this spec, so no FK children reference them.
+    // E2E hermiticity (code-style.md §7): soft-delete the two fixture code rows
+    // so downstream specs (e.g. issue/void RPCs) start from a known state.
+    // Soft-delete (not hard-delete) per security.md §6 — never hard DELETE.
     const { data: discarded, error } = await admin
       .from('internal_exam_codes')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .in('id', [attackerCodeId, victimCodeId])
+      .is('deleted_at', null)
       .select('id')
     if (error) {
-      console.error(`[rpc-internal-exam-codes cleanup] delete error: ${error.message}`)
+      console.error(`[rpc-internal-exam-codes cleanup] soft-delete error: ${error.message}`)
       return
     }
     if ((discarded?.length ?? 0) > 0) {
-      console.log(`[rpc-internal-exam-codes cleanup] removed ${discarded?.length} fixture code(s)`)
+      console.log(
+        `[rpc-internal-exam-codes cleanup] soft-deleted ${discarded?.length} fixture code(s)`,
+      )
     }
   })
 

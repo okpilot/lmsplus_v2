@@ -12,7 +12,12 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { createCrossOrgUser, pickSubjectWithQuestions, seedRedTeamUsers } from './helpers/seed'
+import {
+  createCrossOrgUser,
+  E2E_REDTEAM_CODE_PREFIX,
+  pickSubjectWithQuestions,
+  seedRedTeamUsers,
+} from './helpers/seed'
 
 test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -157,7 +162,7 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     // `WHERE iec.student_id = auth.uid()`, so the victim's code must never
     // appear in the cross-org caller's result.
     const { subjectId } = await pickSubjectWithQuestions(adminClient, { orgId: egmontOrgId })
-    const victimCodeText = `RT${Date.now().toString(36).toUpperCase().slice(-6)}V`
+    const victimCodeText = `${E2E_REDTEAM_CODE_PREFIX}${Date.now().toString(36).toUpperCase().slice(-6)}V`
     const { data: codeRow, error: codeErr } = await adminClient
       .from('internal_exam_codes')
       .insert({
@@ -235,15 +240,17 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
       }
     }
     if (seededVictimCodeId) {
+      // Soft-delete per security.md §6 — never hard DELETE.
       const { data: discarded, error } = await adminClient
         .from('internal_exam_codes')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', seededVictimCodeId)
+        .is('deleted_at', null)
         .select('id')
       if (error) {
-        console.error(`[rpc-cross-tenant cleanup] code delete error: ${error.message}`)
+        console.error(`[rpc-cross-tenant cleanup] code soft-delete error: ${error.message}`)
       } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[rpc-cross-tenant cleanup] removed ${discarded?.length} fixture code(s)`)
+        console.log(`[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture code(s)`)
       }
     }
   })

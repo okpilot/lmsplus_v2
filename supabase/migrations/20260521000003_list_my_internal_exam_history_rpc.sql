@@ -68,7 +68,6 @@ BEGIN
   FROM numbered n
   LEFT JOIN public.easa_subjects s
     ON s.id = n.subject_id
-    AND s.deleted_at IS NULL
   LEFT JOIN answers a
     ON a.session_id = n.id
   ORDER BY n.started_at DESC

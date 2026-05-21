@@ -522,7 +522,7 @@ Single-use 8-character codes for starting `internal_exam` mode sessions. Admins 
 - No INSERT or DELETE policies — issuance/consumption/void happen via SECURITY DEFINER RPCs only.
 - GRANTs to `authenticated`: `SELECT` only (UPDATE revoked in mig `20260521000004`).
 
-**Pattern:** Accessed via SECURITY DEFINER RPCs only — three writers (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin) and one reader (`list_my_active_internal_exam_codes()` student). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The reader RPC omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
+**Pattern:** Student reads and all writes are RPC-mediated; admin direct SELECT remains RLS-scoped (`admin_read_org_codes`). Three writer RPCs (`issue_internal_exam_code()` admin, `start_internal_exam_session()` student, `void_internal_exam_code()` admin) and one student reader (`list_my_active_internal_exam_codes()`). The `start_internal_exam_session` RPC additionally guards against duplicate active sessions via the `WHERE consumed_at IS NULL` race-clause on the consumption UPDATE (migration `20260429000010`). The reader RPC omits the plaintext `code` column from its return signature so that even a leaked PostgREST request cannot harvest active codes.
 
 ---
 
@@ -1403,7 +1403,8 @@ Student-facing read. Returns the caller's currently usable internal-exam codes w
 - `iec.voided_at IS NULL` — not voided by admin
 - `iec.expires_at > now()` — within 24h validity window
 - `iec.deleted_at IS NULL` — not soft-deleted
-- `easa_subjects.deleted_at IS NULL` on the LEFT JOIN — soft-deleted subjects null out the name (no row leakage)
+
+`easa_subjects` is reference data with no `deleted_at` column, so the LEFT JOIN carries no soft-delete predicate.
 
 Ordered by `expires_at ASC`, limited to 100 rows (the issuance ceiling is well below this — the cap is defensive).
 
@@ -1432,7 +1433,8 @@ Student-facing read. Returns the caller's `internal_exam` quiz-session history w
 - `qs.student_id = auth.uid()` — ownership
 - `qs.mode = 'internal_exam'` — mode scope
 - `qs.deleted_at IS NULL` — not soft-deleted
-- `easa_subjects.deleted_at IS NULL` on the LEFT JOIN — soft-deleted subjects null out the name
+
+`easa_subjects` is reference data with no `deleted_at` column, so the LEFT JOIN carries no soft-delete predicate.
 
 **Answered count:** computed via a sibling CTE aggregating `quiz_session_answers` for the windowed session ids. `quiz_session_answers` has no `deleted_at` column (immutable table — see §1 Immutability and §3 carve-outs), so no soft-delete filter applies.
 
@@ -1787,7 +1789,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 Returns `boolean`. SECURITY DEFINER with `SET search_path = public`.
 Checks `auth.uid()` against `users.role = 'admin'` AND `deleted_at IS NULL` (migration 20260429000001). Returns `false` (not an exception) when no user is authenticated, so it is safe to call from RLS policies without causing errors for unauthenticated requests.
 
-Used by RLS policies on `easa_subjects`, `easa_topics`, `easa_subtopics` to gate INSERT/UPDATE/DELETE to active admin users only. Also used on `internal_exam_codes` — but as of migration `20260521000004`, only the admin SELECT policy remains; UPDATE/INSERT/DELETE for `internal_exam_codes` go through SECURITY DEFINER RPCs that re-check `is_admin()` internally.
+Used by RLS policies on `easa_subjects`, `easa_topics`, `easa_subtopics` to gate INSERT/UPDATE/DELETE to active admin users only. Also used on `internal_exam_codes` — but as of migration `20260521000004`, only the admin SELECT policy remains. Admin issue/void RPCs (`issue_internal_exam_code`, `void_internal_exam_code`) re-check `is_admin()` internally; student code consumption via `start_internal_exam_session` is authorized by ownership/code validation, not admin role.
 
 ```sql
 CREATE OR REPLACE FUNCTION is_admin()
