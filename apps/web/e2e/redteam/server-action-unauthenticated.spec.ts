@@ -92,6 +92,25 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     }
   })
 
+  test('list_my_active_internal_exam_codes rejects unauthenticated callers (Vector BW)', async () => {
+    // The RPC raises not_authenticated via the auth.uid() IS NULL guard before
+    // any data access. An anon-key client has no JWT, so auth.uid() is NULL and
+    // the exception fires before the SELECT runs.
+    const { data, error } = await unauthClient.rpc('list_my_active_internal_exam_codes')
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('list_my_internal_exam_history rejects unauthenticated callers (Vector BX)', async () => {
+    // Same not_authenticated guard as list_my_active_internal_exam_codes —
+    // anonymous callers must not enumerate any student's session history.
+    const { data, error } = await unauthClient.rpc('list_my_internal_exam_history')
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
   // --- Direct table SELECT vectors ---
 
   test('unauthenticated client sees 0 rows from student_responses', async () => {

@@ -2,46 +2,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+// queries.ts calls `rpc()` from `@/lib/supabase-rpc`, which forwards to
+// `client.rpc(fn, args)` positionally. We mock `rpc` on the injected client so
+// the helper's pass-through delivers the mocked result. If the helper is ever
+// refactored to NOT call `client.rpc`, this indirection breaks silently —
+// update the mock boundary here (e.g. `vi.mock('@/lib/supabase-rpc', ...)`)
+// when that happens.
+const { mockGetUser, mockRpc } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
-  mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     auth: { getUser: mockGetUser },
-    from: mockFrom,
+    rpc: mockRpc,
   }),
 }))
 
 // ---- Subject under test ---------------------------------------------------
 
 import { listAvailableInternalExams, listMyInternalExamHistory } from './queries'
-
-// ---- Helpers --------------------------------------------------------------
-
-function buildChain(returnValue: unknown) {
-  const awaitable = {
-    // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
-    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
-      Promise.resolve(returnValue).then(resolve, reject),
-  }
-  return new Proxy(awaitable as Record<string, unknown>, {
-    get(target, prop) {
-      if (prop === 'then') return target.then
-      return (..._args: unknown[]) => buildChain(returnValue)
-    },
-  })
-}
-
-function mockFromSequence(...returnValues: unknown[]) {
-  let i = 0
-  mockFrom.mockImplementation(() => {
-    const v = returnValues[Math.min(i, returnValues.length - 1)]
-    i++
-    return buildChain(v)
-  })
-}
 
 // ---- Lifecycle ------------------------------------------------------------
 
@@ -57,24 +38,23 @@ describe('listAvailableInternalExams', () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
     const result = await listAvailableInternalExams()
     expect(result).toEqual([])
-    expect(mockFrom).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('returns mapped rows omitting the code value', async () => {
-    mockFrom.mockReturnValue(
-      buildChain({
-        data: [
-          {
-            id: 'code-1',
-            subject_id: 'sub-1',
-            expires_at: '2026-05-01T12:00:00.000Z',
-            issued_at: '2026-04-29T12:00:00.000Z',
-            easa_subjects: { name: 'Air Law', short: 'ALW' },
-          },
-        ],
-        error: null,
-      }),
-    )
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'code-1',
+          subject_id: 'sub-1',
+          subject_name: 'Air Law',
+          subject_short: 'ALW',
+          expires_at: '2026-05-01T12:00:00.000Z',
+          issued_at: '2026-04-29T12:00:00.000Z',
+        },
+      ],
+      error: null,
+    })
 
     const result = await listAvailableInternalExams()
 
@@ -95,23 +75,22 @@ describe('listAvailableInternalExams', () => {
   })
 
   it('NEVER returns the code value even if the row contains one (defense-in-depth)', async () => {
-    mockFrom.mockReturnValue(
-      buildChain({
-        data: [
-          {
-            id: 'code-1',
-            // Even if a future schema change leaks `code` into the row, the
-            // mapper must not expose it.
-            code: 'SECRET-XYZ',
-            subject_id: 'sub-1',
-            expires_at: '2026-05-01T12:00:00.000Z',
-            issued_at: '2026-04-29T12:00:00.000Z',
-            easa_subjects: { name: 'Air Law', short: 'ALW' },
-          },
-        ],
-        error: null,
-      }),
-    )
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'code-1',
+          // Even if a future RPC change leaks `code` into the returned row,
+          // the mapper must not expose it.
+          code: 'SECRET-XYZ',
+          subject_id: 'sub-1',
+          subject_name: 'Air Law',
+          subject_short: 'ALW',
+          expires_at: '2026-05-01T12:00:00.000Z',
+          issued_at: '2026-04-29T12:00:00.000Z',
+        },
+      ],
+      error: null,
+    })
 
     const result = await listAvailableInternalExams()
 
@@ -127,37 +106,36 @@ describe('listAvailableInternalExams', () => {
     )
   })
 
-  it('queries the internal_exam_codes table', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+  it('loads active codes via the list_my_active_internal_exam_codes RPC', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
     await listAvailableInternalExams()
-    expect(mockFrom).toHaveBeenCalledWith('internal_exam_codes')
+    expect(mockRpc).toHaveBeenCalledWith('list_my_active_internal_exam_codes', {})
   })
 
-  it('falls back to "Unknown subject" when easa_subjects is null', async () => {
-    mockFrom.mockReturnValue(
-      buildChain({
-        data: [
-          {
-            id: 'code-2',
-            subject_id: 'sub-2',
-            expires_at: '2026-05-01T12:00:00.000Z',
-            issued_at: '2026-04-29T12:00:00.000Z',
-            easa_subjects: null,
-          },
-        ],
-        error: null,
-      }),
-    )
+  it('falls back to "Unknown subject" when subject_name is empty', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'code-2',
+          subject_id: 'sub-2',
+          subject_name: '',
+          subject_short: '',
+          expires_at: '2026-05-01T12:00:00.000Z',
+          issued_at: '2026-04-29T12:00:00.000Z',
+        },
+      ],
+      error: null,
+    })
 
     const result = await listAvailableInternalExams()
     expect(result[0]?.subjectName).toBe('Unknown subject')
     expect(result[0]?.subjectShort).toBe('')
   })
 
-  it('returns an empty array on query error and logs', async () => {
+  it('returns an empty array on RPC error and logs', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
-      mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'boom' } }))
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
       const result = await listAvailableInternalExams()
       expect(result).toEqual([])
       expect(consoleSpy).toHaveBeenCalledWith('[listAvailableInternalExams] Query error:', 'boom')
@@ -167,7 +145,7 @@ describe('listAvailableInternalExams', () => {
   })
 
   it('returns an empty array when data is null', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: null, error: null }))
+    mockRpc.mockResolvedValue({ data: null, error: null })
     const result = await listAvailableInternalExams()
     expect(result).toEqual([])
   })
@@ -180,65 +158,60 @@ describe('listMyInternalExamHistory', () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
     const result = await listMyInternalExamHistory()
     expect(result).toEqual([])
-    expect(mockFrom).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('returns sessions sorted newest-first, with attemptNumber computed per subject (1=oldest)', async () => {
-    mockFromSequence(
-      {
-        data: [
-          // Newest first (already DESC). Two attempts on subject A, one on subject B.
-          {
-            id: 'sess-3',
-            subject_id: 'sub-A',
-            started_at: '2026-04-29T15:00:00.000Z',
-            ended_at: '2026-04-29T16:00:00.000Z',
-            score_percentage: 80,
-            passed: true,
-            total_questions: 10,
-            easa_subjects: { name: 'Air Law', short: 'ALW' },
-          },
-          {
-            id: 'sess-2',
-            subject_id: 'sub-B',
-            started_at: '2026-04-28T15:00:00.000Z',
-            ended_at: '2026-04-28T16:00:00.000Z',
-            score_percentage: 60,
-            passed: false,
-            total_questions: 10,
-            easa_subjects: { name: 'Met', short: 'MET' },
-          },
-          {
-            id: 'sess-1',
-            subject_id: 'sub-A',
-            started_at: '2026-04-27T15:00:00.000Z',
-            ended_at: '2026-04-27T16:00:00.000Z',
-            score_percentage: 50,
-            passed: false,
-            total_questions: 10,
-            easa_subjects: { name: 'Air Law', short: 'ALW' },
-          },
-        ],
-        error: null,
-      },
-      {
-        data: [
-          { session_id: 'sess-1' },
-          { session_id: 'sess-1' },
-          { session_id: 'sess-1' },
-          { session_id: 'sess-2' },
-          { session_id: 'sess-3' },
-          { session_id: 'sess-3' },
-        ],
-        error: null,
-      },
-    )
+  it('passes through sessions in the order and attempt numbers returned by the RPC', async () => {
+    // The RPC returns rows already sorted newest-first with attempt_number
+    // computed per subject (1 = oldest). The TS layer only renames keys.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'sess-3',
+          subject_id: 'sub-A',
+          subject_name: 'Air Law',
+          subject_short: 'ALW',
+          started_at: '2026-04-29T15:00:00.000Z',
+          ended_at: '2026-04-29T16:00:00.000Z',
+          score_percentage: 80,
+          passed: true,
+          total_questions: 10,
+          answered_count: 2,
+          attempt_number: 2,
+        },
+        {
+          id: 'sess-2',
+          subject_id: 'sub-B',
+          subject_name: 'Met',
+          subject_short: 'MET',
+          started_at: '2026-04-28T15:00:00.000Z',
+          ended_at: '2026-04-28T16:00:00.000Z',
+          score_percentage: 60,
+          passed: false,
+          total_questions: 10,
+          answered_count: 1,
+          attempt_number: 1,
+        },
+        {
+          id: 'sess-1',
+          subject_id: 'sub-A',
+          subject_name: 'Air Law',
+          subject_short: 'ALW',
+          started_at: '2026-04-27T15:00:00.000Z',
+          ended_at: '2026-04-27T16:00:00.000Z',
+          score_percentage: 50,
+          passed: false,
+          total_questions: 10,
+          answered_count: 3,
+          attempt_number: 1,
+        },
+      ],
+      error: null,
+    })
 
     const result = await listMyInternalExamHistory()
 
     expect(result.map((r) => r.id)).toEqual(['sess-3', 'sess-2', 'sess-1'])
-    // Attempt numbers: sess-1 is the oldest sub-A attempt → 1; sess-3 is the
-    // newer sub-A attempt → 2; sess-2 is the only sub-B attempt → 1.
     const byId = new Map(result.map((r) => [r.id, r]))
     expect(byId.get('sess-1')?.attemptNumber).toBe(1)
     expect(byId.get('sess-3')?.attemptNumber).toBe(2)
@@ -252,25 +225,25 @@ describe('listMyInternalExamHistory', () => {
     expect(byId.get('sess-3')?.subjectShort).toBe('ALW')
   })
 
-  it('returns answeredCount=0 when no answers are returned for a session', async () => {
-    mockFromSequence(
-      {
-        data: [
-          {
-            id: 'sess-x',
-            subject_id: 'sub-x',
-            started_at: '2026-04-29T15:00:00.000Z',
-            ended_at: null,
-            score_percentage: null,
-            passed: null,
-            total_questions: 10,
-            easa_subjects: { name: 'X', short: 'X' },
-          },
-        ],
-        error: null,
-      },
-      { data: [], error: null },
-    )
+  it('preserves answeredCount=0 when the RPC returns zero answers for a session', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'sess-x',
+          subject_id: 'sub-x',
+          subject_name: 'X',
+          subject_short: 'X',
+          started_at: '2026-04-29T15:00:00.000Z',
+          ended_at: null,
+          score_percentage: null,
+          passed: null,
+          total_questions: 10,
+          answered_count: 0,
+          attempt_number: 1,
+        },
+      ],
+      error: null,
+    })
 
     const result = await listMyInternalExamHistory()
     expect(result).toHaveLength(1)
@@ -279,15 +252,15 @@ describe('listMyInternalExamHistory', () => {
   })
 
   it('returns an empty array when no internal exam sessions exist', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    mockRpc.mockResolvedValue({ data: [], error: null })
     const result = await listMyInternalExamHistory()
     expect(result).toEqual([])
   })
 
-  it('returns an empty array on session query error', async () => {
+  it('returns an empty array on RPC error', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
-      mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'boom' } }))
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
       const result = await listMyInternalExamHistory()
       expect(result).toEqual([])
       expect(consoleSpy).toHaveBeenCalledWith('[listMyInternalExamHistory] Query error:', 'boom')
@@ -296,68 +269,65 @@ describe('listMyInternalExamHistory', () => {
     }
   })
 
-  it('queries the quiz_sessions table first', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+  it('loads history via the list_my_internal_exam_history RPC', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
     await listMyInternalExamHistory()
-    expect(mockFrom).toHaveBeenCalledWith('quiz_sessions')
+    expect(mockRpc).toHaveBeenCalledWith('list_my_internal_exam_history', {})
   })
 
-  it('falls back to "Unknown subject" when easa_subjects is null', async () => {
-    mockFromSequence(
-      {
-        data: [
-          {
-            id: 'sess-y',
-            subject_id: 'sub-y',
-            started_at: '2026-04-29T15:00:00.000Z',
-            ended_at: '2026-04-29T16:00:00.000Z',
-            score_percentage: 75,
-            passed: true,
-            total_questions: 10,
-            easa_subjects: null,
-          },
-        ],
-        error: null,
-      },
-      { data: [], error: null },
-    )
+  it('falls back to "Unknown subject" when subject_name is empty', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'sess-y',
+          subject_id: 'sub-y',
+          subject_name: '',
+          subject_short: '',
+          started_at: '2026-04-29T15:00:00.000Z',
+          ended_at: '2026-04-29T16:00:00.000Z',
+          score_percentage: 75,
+          passed: true,
+          total_questions: 10,
+          answered_count: 5,
+          attempt_number: 1,
+        },
+      ],
+      error: null,
+    })
 
     const result = await listMyInternalExamHistory()
     expect(result[0]?.subjectName).toBe('Unknown subject')
     expect(result[0]?.subjectShort).toBe('')
   })
 
-  it('still returns sessions even when answers query errors (degrades gracefully)', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    try {
-      mockFromSequence(
-        {
-          data: [
-            {
-              id: 'sess-z',
-              subject_id: 'sub-z',
-              started_at: '2026-04-29T15:00:00.000Z',
-              ended_at: '2026-04-29T16:00:00.000Z',
-              score_percentage: 80,
-              passed: true,
-              total_questions: 10,
-              easa_subjects: { name: 'Z', short: 'Z' },
-            },
-          ],
-          error: null,
-        },
-        { data: null, error: { message: 'answers boom' } },
-      )
+  it('returns an empty array when data is null and there is no error', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    const result = await listMyInternalExamHistory()
+    expect(result).toEqual([])
+  })
 
-      const result = await listMyInternalExamHistory()
-      expect(result).toHaveLength(1)
-      expect(result[0]?.answeredCount).toBe(0)
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[listMyInternalExamHistory] Answers query error:',
-        'answers boom',
-      )
-    } finally {
-      consoleSpy.mockRestore()
-    }
+  it('defaults attemptNumber to 1 when the RPC returns 0 for attempt_number', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'sess-z',
+          subject_id: 'sub-z',
+          subject_name: 'Air Law',
+          subject_short: 'ALW',
+          started_at: '2026-04-29T15:00:00.000Z',
+          ended_at: null,
+          score_percentage: null,
+          passed: null,
+          total_questions: 10,
+          answered_count: 0,
+          attempt_number: 0,
+        },
+      ],
+      error: null,
+    })
+
+    const result = await listMyInternalExamHistory()
+    // asNumber(0) returns 0, then || 1 coerces to 1
+    expect(result[0]?.attemptNumber).toBe(1)
   })
 })

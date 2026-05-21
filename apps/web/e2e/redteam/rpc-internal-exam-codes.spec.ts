@@ -3,12 +3,17 @@
  *
  * Vectors BE / BF / BG (HIGH): direct table access on internal_exam_codes.
  *  - BE: unauthenticated SELECT must return 0 rows (or error).
- *  - BF: authenticated student INSERT/UPDATE/DELETE must be blocked at the
- *        RLS layer (no INSERT/DELETE policy; UPDATE policy gates on is_admin()).
- *  - BG: student-B SELECT of student-A's code row must return 0 rows.
+ *  - BF: authenticated student INSERT/UPDATE/DELETE must be blocked. After
+ *        migration 20260521000004 the student SELECT and admin UPDATE policies
+ *        were dropped and UPDATE was revoked from `authenticated`, so direct
+ *        writes fail at the privilege layer in addition to RLS.
+ *  - BG: any direct SELECT (own row or cross-student) returns 0 rows — the
+ *        only read path is `list_my_active_internal_exam_codes()` RPC, whose
+ *        return signature omits the plaintext `code` column.
  *
- * Status: Expected to PASS — table has RLS enabled, no INSERT/DELETE policy,
- * UPDATE policy requires is_admin(). If any assertion fails it is an RLS gap.
+ * Status: Expected to PASS — table has RLS enabled, no INSERT/DELETE/UPDATE
+ * policy for the authenticated role, and the student SELECT policy was
+ * dropped in favour of the RPC. If any assertion fails it is an RLS gap.
  */
 
 import { expect, test } from '@playwright/test'
@@ -85,6 +90,27 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     attackerCodeId = aRow.id
   })
 
+  test.afterAll(async () => {
+    // E2E hermiticity (code-style.md §7): soft-delete the two fixture code rows
+    // so downstream specs (e.g. issue/void RPCs) start from a known state.
+    // Soft-delete (not hard-delete) per security.md §6 — never hard DELETE.
+    const { data: discarded, error } = await admin
+      .from('internal_exam_codes')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', [attackerCodeId, victimCodeId])
+      .is('deleted_at', null)
+      .select('id')
+    if (error) {
+      console.error(`[rpc-internal-exam-codes cleanup] soft-delete error: ${error.message}`)
+      return
+    }
+    if ((discarded?.length ?? 0) > 0) {
+      console.log(
+        `[rpc-internal-exam-codes cleanup] soft-deleted ${discarded?.length} fixture code(s)`,
+      )
+    }
+  })
+
   test('unauthenticated client sees 0 rows from internal_exam_codes (Vector BE)', async () => {
     const { data, error } = await unauthClient
       .from('internal_exam_codes')
@@ -109,15 +135,33 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     expect(data?.length ?? 0).toBe(0)
   })
 
-  test('student sees only their own active code via direct SELECT', async () => {
-    // Sanity: the policy correctly admits the student's own row.
+  test('student direct SELECT on own active code now returns 0 rows (RPC is the only read path) (Vector BG)', async () => {
+    // Migration 20260521000004 dropped the `student_read_active_codes` SELECT
+    // policy. With no SELECT policy admitting the authenticated role, every
+    // direct PostgREST read returns 0 rows — including the student's own
+    // active code. Reads must go through `list_my_active_internal_exam_codes`.
     const { data, error } = await attackerClient
       .from('internal_exam_codes')
       .select('id, student_id')
       .eq('id', attackerCodeId)
 
     expect(error).toBeNull()
-    expect(data?.length ?? 0).toBe(1)
+    expect(data?.length ?? 0).toBe(0)
+  })
+
+  test('list_my_active_internal_exam_codes RPC returns active codes without the code column', async () => {
+    // The RPC is the only sanctioned read path. It must (a) return at least
+    // one row for the calling student's own active code, and (b) omit the
+    // plaintext `code` column from every returned row so PostgREST cannot
+    // leak it via direct table access either.
+    const { data, error } = await attackerClient.rpc('list_my_active_internal_exam_codes')
+    expect(error).toBeNull()
+    expect(Array.isArray(data)).toBe(true)
+    const rows = (data ?? []) as Array<Record<string, unknown>>
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      expect(Object.keys(row)).not.toContain('code')
+    }
   })
 
   test('student cannot INSERT directly into internal_exam_codes (Vector BF)', async () => {
@@ -162,9 +206,12 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
   })
 
   test('student cannot UPDATE another student code via direct write (Vector BF)', async () => {
-    // UPDATE policy requires is_admin(); student attempts must be silently
-    // filtered (0 rows affected) per RLS USING clause behaviour — verify the
-    // row is unchanged in the DB.
+    // Migration 20260521000004 dropped the `admin_update_org_codes` policy and
+    // executed `REVOKE UPDATE ON internal_exam_codes FROM authenticated`. The
+    // attempt now fails at the GRANT layer (privilege denied) — and even if a
+    // future regression restored the GRANT, no UPDATE policy exists to admit
+    // the row. Verify the row is unchanged in the DB regardless of which
+    // layer rejected the write.
     const { data: before } = await admin
       .from('internal_exam_codes')
       .select('voided_at, void_reason')
@@ -186,10 +233,14 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     expect(after?.void_reason ?? null).toEqual(before?.void_reason ?? null)
   })
 
-  test('student cannot UPDATE their own code (admin-only UPDATE policy) (Vector BF)', async () => {
-    // Even on rows the student can SELECT (their own active code), the UPDATE
-    // policy gates on is_admin(). A student updating their own row must result
-    // in zero affected rows — no privilege escalation via own-row mutation.
+  test('student cannot UPDATE their own code (no UPDATE policy, GRANT revoked) (Vector BF)', async () => {
+    // After migration 20260521000004 there is no UPDATE policy on
+    // `internal_exam_codes` for the authenticated role AND
+    // `REVOKE UPDATE ... FROM authenticated` was executed. A student updating
+    // their own row must result in zero affected rows — defense in depth via
+    // (1) no policy admitting the write and (2) no GRANT permitting the verb.
+    // The student also cannot SELECT the row directly any more, but the
+    // service-role probe below still verifies no mutation occurred.
     const { data: before } = await admin
       .from('internal_exam_codes')
       .select('void_reason')
