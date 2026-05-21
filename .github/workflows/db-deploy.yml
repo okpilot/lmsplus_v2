@@ -47,22 +47,30 @@ jobs:
         with:
           version: 2.78.1
 
-      - name: Link to production project
+      # Build the connection URL explicitly and pass via --db-url. The CLI's
+      # `link + SUPABASE_DB_PASSWORD env var` path was rejecting valid pooler
+      # credentials with SCRAM/SASL auth failures (observed 2026-05-21 across
+      # three password resets). Constructing the URL ourselves routes around
+      # that code path. Session pooler (port 5432) is used because direct DB
+      # (port 5432 on db.<ref>.supabase.co) is IPv6-only on Supabase.
+      - name: Build DB URL
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+        run: |
+          PW_ENC=$(jq -nr --arg p "$SUPABASE_DB_PASSWORD" '$p|@uri')
+          echo "::add-mask::$PW_ENC"
+          DB_URL="postgresql://postgres.${SUPABASE_PROJECT_REF}:${PW_ENC}@aws-1-eu-central-1.pooler.supabase.com:5432/postgres"
+          echo "::add-mask::$DB_URL"
+          echo "DB_URL=$DB_URL" >> "$GITHUB_ENV"
 
       - name: Dry-run (preview pending migrations)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: supabase db push --dry-run
+        run: supabase db push --dry-run --db-url "$DB_URL"
 
       - name: Apply migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         # `--include-all` skipped intentionally — push only files in supabase/migrations
         # whose version_number is missing from remote migration_history.
-        run: supabase db push --yes
+        run: supabase db push --yes --db-url "$DB_URL"
