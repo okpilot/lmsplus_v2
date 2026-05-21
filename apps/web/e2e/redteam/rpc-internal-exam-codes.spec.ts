@@ -90,6 +90,25 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     attackerCodeId = aRow.id
   })
 
+  test.afterAll(async () => {
+    // E2E hermiticity (code-style.md §7): remove the two fixture code rows so
+    // downstream specs (e.g. issue/void RPCs) start from a known state.
+    // Service-role hard-delete is acceptable here — these codes are never
+    // consumed in this spec, so no FK children reference them.
+    const { data: discarded, error } = await admin
+      .from('internal_exam_codes')
+      .delete()
+      .in('id', [attackerCodeId, victimCodeId])
+      .select('id')
+    if (error) {
+      console.error(`[rpc-internal-exam-codes cleanup] delete error: ${error.message}`)
+      return
+    }
+    if ((discarded?.length ?? 0) > 0) {
+      console.log(`[rpc-internal-exam-codes cleanup] removed ${discarded?.length} fixture code(s)`)
+    }
+  })
+
   test('unauthenticated client sees 0 rows from internal_exam_codes (Vector BE)', async () => {
     const { data, error } = await unauthClient
       .from('internal_exam_codes')

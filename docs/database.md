@@ -1391,6 +1391,73 @@ Admin-only. Three branches:
 
 **Fix:** `CREATE OR REPLACE` with the guard rewritten to `p_reason ~ '^[[:space:]]*$'` (POSIX whitespace class — matches the empty string AND any whitespace-only input). Function body otherwise unchanged from migration `20260430000006`.
 
+##### `list_my_active_internal_exam_codes()` (migration `20260521000002`)
+
+Student-facing read. Returns the caller's currently usable internal-exam codes without the plaintext `code` column — the value is single-use and meaningful only at issuance time, so it is omitted from every subsequent read. Replaces the direct `SELECT FROM internal_exam_codes` path previously gated by the `student_read_active_codes` RLS policy (dropped in migration `20260521000004` so plaintext never leaves the issuance RPC). Closes issue #577.
+
+**Security:** SECURITY DEFINER with `SET search_path = public`. Manual `auth.uid()` null check raises `not_authenticated`. SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly inside the function.
+
+**Filters (every SELECT):**
+- `iec.student_id = auth.uid()` — ownership
+- `iec.consumed_at IS NULL` — unused
+- `iec.voided_at IS NULL` — not voided by admin
+- `iec.expires_at > now()` — within 24h validity window
+- `iec.deleted_at IS NULL` — not soft-deleted
+- `easa_subjects.deleted_at IS NULL` on the LEFT JOIN — soft-deleted subjects null out the name (no row leakage)
+
+Ordered by `expires_at ASC`, limited to 100 rows (the issuance ceiling is well below this — the cap is defensive).
+
+```sql
+CREATE OR REPLACE FUNCTION public.list_my_active_internal_exam_codes()
+RETURNS TABLE (
+  id uuid,
+  subject_id uuid,
+  subject_name text,
+  subject_short text,
+  expires_at timestamptz,
+  issued_at timestamptz
+)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+```
+
+`GRANT EXECUTE ... TO authenticated`. No audit event — pure read.
+
+##### `list_my_internal_exam_history()` (migration `20260521000003`)
+
+Student-facing read. Returns the caller's `internal_exam` quiz-session history with a stable per-subject `attempt_number` computed server-side via `row_number() OVER (PARTITION BY subject_id ORDER BY started_at)`. The window function runs over **all** of the caller's sessions before `LIMIT 200` is applied, so the displayed `attempt_number` stays correct even when a subject has more than 200 total attempts. Closes issue #579 (TS-side counter restarted at row 200 because the client only saw a truncated slice).
+
+**Security:** SECURITY DEFINER with `SET search_path = public`. Manual `auth.uid()` null check raises `not_authenticated`. SECURITY DEFINER bypasses RLS, so soft-delete and ownership filters are enforced explicitly.
+
+**Filters:**
+- `qs.student_id = auth.uid()` — ownership
+- `qs.mode = 'internal_exam'` — mode scope
+- `qs.deleted_at IS NULL` — not soft-deleted
+- `easa_subjects.deleted_at IS NULL` on the LEFT JOIN — soft-deleted subjects null out the name
+
+**Answered count:** computed via a sibling CTE aggregating `quiz_session_answers` for the windowed session ids. `quiz_session_answers` has no `deleted_at` column (immutable table — see §1 Immutability and §3 carve-outs), so no soft-delete filter applies.
+
+Ordered by `started_at DESC`, limited to 200 returned rows (window function ranks all rows first; LIMIT only truncates the display slice).
+
+```sql
+CREATE OR REPLACE FUNCTION public.list_my_internal_exam_history()
+RETURNS TABLE (
+  id uuid,
+  subject_id uuid,
+  subject_name text,
+  subject_short text,
+  started_at timestamptz,
+  ended_at timestamptz,
+  score_percentage numeric,
+  passed boolean,
+  total_questions int,
+  answered_count int,
+  attempt_number int
+)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+```
+
+`GRANT EXECUTE ... TO authenticated`. No audit event — pure read.
+
 ---
 
 #### `is_admin()` — admin role check (soft-delete fix, migration `20260429000001`)
