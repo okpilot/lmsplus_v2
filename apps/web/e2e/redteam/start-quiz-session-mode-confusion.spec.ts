@@ -9,11 +9,15 @@
  *         batch_submit_quiz against a self-assembled question set, effectively
  *         generating a fake exam report without completing a real exam.
  *
- * Defense: Migration 081 adds an early `IF p_mode NOT IN ('smart_review',
- *          'quick_quiz') THEN RAISE EXCEPTION 'mode_not_allowed'` immediately
- *          after the auth check in start_quiz_session. The whitelist runs BEFORE
- *          the active-user gate so mode_not_allowed cannot be used to probe
- *          'user inactive' via timing or error differences.
+ * Defense: Migration 081 adds an early `IF p_mode IS NULL OR p_mode NOT IN
+ *          ('smart_review', 'quick_quiz') THEN RAISE EXCEPTION
+ *          'mode_not_allowed'` immediately after the auth check. The `IS NULL`
+ *          clause is required because Postgres 3-valued logic returns NULL for
+ *          `NULL NOT IN (...)` and `IF NULL THEN` evaluates as false — without
+ *          it, NULL bypasses the guard. The whitelist runs BEFORE the
+ *          active-user gate so mode_not_allowed cannot be used to probe
+ *          'user inactive' via timing or error differences. The NULL guard
+ *          ships in migration 20260521000001_start_quiz_session_null_guard.
  *
  * No afterEach cleanup — the RPC raises before any INSERT reaches the table.
  * Both attacks assert count === 0 new rows as a positive verification of the
@@ -113,6 +117,35 @@ test.describe('Vector — start_quiz_session p_mode whitelist (issue #629)', () 
 
     // Positive no-insert assertion: zero quiz_sessions rows were created for
     // this attacker after the test started.
+    const { count, error: countError } = await admin
+      .from('quiz_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('student_id', attackerUserId)
+      .gte('created_at', testStartIso)
+    expect(countError).toBeNull()
+    expect(count).toBe(0)
+  })
+
+  // Attack 3 sends p_mode as an EXPLICIT JSON null (not an omitted argument).
+  // Omitting the argument would be rejected by PostgREST at the HTTP layer
+  // before the function runs — a different code path. Explicit null reaches
+  // the SQL function, which without the `IS NULL OR` guard would proceed past
+  // the active-user gate (Postgres 3-valued logic: `NULL NOT IN (...)`
+  // evaluates to NULL, and `IF NULL THEN` is false). The mode-whitelist guard
+  // must reject NULL with the same `mode_not_allowed` symbol as exam modes,
+  // so an attacker cannot distinguish "mode rejected" from "auth passed,
+  // failed at INSERT" via error string.
+  test('Attack 3 — explicit-null mode is rejected before the active-user gate', async () => {
+    const { error } = await attackerClient.rpc('start_quiz_session', {
+      p_mode: null as unknown as string,
+      p_subject_id: subjectId,
+      p_topic_id: topicId,
+      p_question_ids: questionIds,
+    })
+
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toContain('mode_not_allowed')
+
     const { count, error: countError } = await admin
       .from('quiz_sessions')
       .select('id', { count: 'exact', head: true })

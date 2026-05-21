@@ -396,4 +396,22 @@ describe('RPC: start_quiz_session input validation', () => {
     expect(error?.message).toContain('mode_not_allowed')
     expect(data).toBeNull()
   })
+
+  // Without `IS NULL OR`, Postgres 3-valued logic makes `NULL NOT IN (...)`
+  // evaluate to NULL, the IF skips, and the function proceeds past the
+  // active-user gate. NULL would then fail at INSERT against the NOT NULL
+  // constraint with a different error message, letting a caller distinguish
+  // auth-passed from mode-rejected. The guard must reject NULL with the same
+  // `mode_not_allowed` symbol as other invalid modes.
+  it('rejects p_mode=null with mode_not_allowed', async () => {
+    const { data, error } = await studentClient.rpc('start_quiz_session', {
+      p_mode: null as unknown as string,
+      p_subject_id: refs.subjectId,
+      p_topic_id: refs.topicId,
+      p_question_ids: questionIds.slice(0, 1),
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('mode_not_allowed')
+    expect(data).toBeNull()
+  })
 })
