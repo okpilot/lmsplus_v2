@@ -66,22 +66,25 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
     }
   }
 
+  const correctBySubject = new Map<string, number>()
+  const correctByTopic = new Map<string, number>()
+  for (const cid of correctIds) {
+    const sid = subjectByQuestionId.get(cid)
+    if (sid) correctBySubject.set(sid, (correctBySubject.get(sid) ?? 0) + 1)
+    const tid = topicByQuestionId.get(cid)
+    if (tid) correctByTopic.set(tid, (correctByTopic.get(tid) ?? 0) + 1)
+  }
+
   return subjects
     .map((s) => {
       const sQuestions = qBySubject.get(s.id) ?? []
-      let sCorrect = 0
-      for (const cid of correctIds) {
-        if (subjectByQuestionId.get(cid) === s.id) sCorrect++
-      }
+      const sCorrect = correctBySubject.get(s.id) ?? 0
 
       const subjectTopics = topics
         .filter((t) => t.subject_id === s.id)
         .map((t) => {
           const tQuestions = qByTopic.get(t.id) ?? []
-          let tCorrect = 0
-          for (const cid of correctIds) {
-            if (topicByQuestionId.get(cid) === t.id) tCorrect++
-          }
+          const tCorrect = correctByTopic.get(t.id) ?? 0
           return {
             id: t.id,
             code: t.code,
