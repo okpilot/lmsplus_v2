@@ -12,7 +12,12 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { createCrossOrgUser, seedRedTeamUsers } from './helpers/seed'
+import {
+  createCrossOrgUser,
+  E2E_REDTEAM_CODE_PREFIX,
+  pickSubjectWithQuestions,
+  seedRedTeamUsers,
+} from './helpers/seed'
 
 test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -20,9 +25,15 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let egmontSubjectId: string
   let egmontTopicId: string
   let egmontQuestionIds: string[]
+  let egmontVictimUserId: string
+  let egmontOrgId: string
+  let seededVictimCodeId: string | null = null
+  let seededVictimSessionId: string | null = null
 
   test.beforeAll(async () => {
-    await seedRedTeamUsers()
+    const seed = await seedRedTeamUsers()
+    egmontVictimUserId = seed.victimUserId
+    egmontOrgId = seed.orgId
     const crossOrgUser = await createCrossOrgUser()
     crossOrgClient = await createAuthenticatedClient(crossOrgUser.email, crossOrgUser.password)
     adminClient = getAdminClient()
@@ -141,6 +152,105 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
 
       for (const row of progress) {
         expect(row.student_id).toBe(crossOrgUserId)
+      }
+    }
+  })
+
+  test('list_my_active_internal_exam_codes excludes other-student rows for the calling student (Vector BY)', async () => {
+    // Seed an active internal_exam code owned by the egmont victim, then call
+    // the RPC as the cross-org user. The RPC filters via
+    // `WHERE iec.student_id = auth.uid()`, so the victim's code must never
+    // appear in the cross-org caller's result.
+    const { subjectId } = await pickSubjectWithQuestions(adminClient, { orgId: egmontOrgId })
+    const victimCodeText = `${E2E_REDTEAM_CODE_PREFIX}${Date.now().toString(36).toUpperCase().slice(-6)}V`
+    const { data: codeRow, error: codeErr } = await adminClient
+      .from('internal_exam_codes')
+      .insert({
+        code: victimCodeText,
+        subject_id: subjectId,
+        student_id: egmontVictimUserId,
+        issued_by: egmontVictimUserId,
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        organization_id: egmontOrgId,
+      })
+      .select('id')
+      .single()
+    if (codeErr || !codeRow) throw new Error(`seed victim code: ${codeErr?.message}`)
+    seededVictimCodeId = codeRow.id
+
+    const { data, error } = await crossOrgClient.rpc('list_my_active_internal_exam_codes')
+    expect(error).toBeNull()
+    const rows = (data ?? []) as Array<{ id: string }>
+    expect(rows.find((r) => r.id === seededVictimCodeId)).toBeUndefined()
+  })
+
+  test('list_my_internal_exam_history excludes other-student sessions for the calling student (Vector BY)', async () => {
+    // Seed a finished internal_exam quiz_session owned by the egmont victim,
+    // then call the RPC as the cross-org user. The RPC filters via
+    // `WHERE qs.student_id = v_user_id AND qs.mode = 'internal_exam'`, so the
+    // victim's session must never appear in the cross-org caller's history.
+    const { subjectId } = await pickSubjectWithQuestions(adminClient, { orgId: egmontOrgId })
+    const startedAt = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    const endedAt = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+    const { data: sessionRow, error: sessionErr } = await adminClient
+      .from('quiz_sessions')
+      .insert({
+        organization_id: egmontOrgId,
+        student_id: egmontVictimUserId,
+        mode: 'internal_exam',
+        subject_id: subjectId,
+        config: { question_ids: [], pass_mark: 75 },
+        total_questions: 1,
+        time_limit_seconds: 600,
+        started_at: startedAt,
+        ended_at: endedAt,
+        score_percentage: 100,
+        passed: true,
+        correct_count: 1,
+      })
+      .select('id')
+      .single()
+    if (sessionErr || !sessionRow) throw new Error(`seed victim session: ${sessionErr?.message}`)
+    seededVictimSessionId = sessionRow.id
+
+    const { data, error } = await crossOrgClient.rpc('list_my_internal_exam_history')
+    expect(error).toBeNull()
+    const rows = (data ?? []) as Array<{ id: string }>
+    expect(rows.find((r) => r.id === seededVictimSessionId)).toBeUndefined()
+  })
+
+  test.afterAll(async () => {
+    // E2E hermiticity (code-style.md §7): remove the fixture code/session rows
+    // the BY-vector tests inserted into egmont so downstream specs don't see
+    // them. Soft-delete the session (quiz_sessions is soft-delete only) and
+    // hard-delete the code row (no FK children — code was never consumed).
+    if (seededVictimSessionId) {
+      const { data: discarded, error } = await adminClient
+        .from('quiz_sessions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', seededVictimSessionId)
+        .is('deleted_at', null)
+        .select('id')
+      if (error) {
+        console.error(`[rpc-cross-tenant cleanup] session soft-delete error: ${error.message}`)
+      } else if ((discarded?.length ?? 0) > 0) {
+        console.log(
+          `[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture session(s)`,
+        )
+      }
+    }
+    if (seededVictimCodeId) {
+      // Soft-delete per security.md §6 — never hard DELETE.
+      const { data: discarded, error } = await adminClient
+        .from('internal_exam_codes')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', seededVictimCodeId)
+        .is('deleted_at', null)
+        .select('id')
+      if (error) {
+        console.error(`[rpc-cross-tenant cleanup] code soft-delete error: ${error.message}`)
+      } else if ((discarded?.length ?? 0) > 0) {
+        console.log(`[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture code(s)`)
       }
     }
   })
