@@ -4,6 +4,26 @@
 
 ## Session Log
 
+### 2026-05-22 — PR-level sweep (commits b94e460c, efbc6c11, 4218bb6a, 5d3df2f7) — fix(dashboard,progress): keep subjects visible when student has responses (#540)
+- **Files reviewed:** apps/web/lib/queries/dashboard.ts, apps/web/lib/queries/progress.ts, apps/web/lib/queries/dashboard-stats.ts, apps/web/lib/queries/dashboard.test.ts, apps/web/lib/queries/progress.test.ts
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 7
+
+**SUGGESTION — issue 664 body mentions only progress-content.tsx KPI text; per-subject masteryPercentage > 100% and examReadiness inflation are same root cause but not listed in acceptance criteria**
+- Issue 664 was filed for the `N/M questions mastered` KPI text in progress-content.tsx:23 where N>M when student has orphan responses. Root cause: `s.answeredCorrectly` (numerator) counts non-deleted question responses including drafts; `s.totalQuestions` (denominator) counts active questions only. Same denominator/numerator mismatch means per-subject progress bars can render > 100% width (both dashboard.ts:148 and progress.ts:92/105), and examReadiness.readyCount (dashboard-stats.ts:115) can be inflated. The acceptance criteria in issue 664 says "at minimum, cap percentage display at 100%" and "apply to BOTH the percentage and the displayed ratio" — fixing this will implicitly fix the per-subject bars and examReadiness too. Prod data probe confirmed 0 current orphans, so the gap cannot manifest today. P2 deferral is correct. Recommend adding the two additional surfaces to the issue's acceptance criteria so a future fixer knows to regression-test them.
+
+**All 8 cross-commit checks passed (GOOD)**
+1. Test assertions vs production code: `lastPracticedAt: '2026-03-18T10:00:00Z'` assertion in dashboard orphan test fires correctly after `questionSubjectMap.set(q.id, q.subject_id)` added in 4218bb6a. Verified by tracing the `questionSubjectMap` → `applyLastPracticed` → `latestPerSubject` chain manually and via all 23 tests passing.
+2. Doc matrices: no doc changes in this PR. No drift.
+3. Filter condition consistency: `totalQuestions > 0 || answeredCorrectly > 0` is identical in dashboard.ts:152, progress.ts:109, and progress.ts:95 — same operator, same field names, same ordering.
+4. Draft question in questionSubjectMap: `q.subject_id` comes from DB row (not derived). No cross-subject attribution possible. `applyLastPracticed` attribution is correct — student DID practice the subject via the draft question.
+5. `subjectByQuestionId.get(cid)` returning `undefined` for cross-org IDs: `undefined === s.id` is always false. `sCorrect` stays a number, no NaN or undefined leak.
+6. `.is('deleted_at', null)` parity: added to both question queries in dashboard.ts. progress.ts replaced `.eq('status', 'active')` with `.is('deleted_at', null)` then applies in-memory `if (q.status === 'active')` gate for count maps. No straggler active-only queries without deleted_at filter.
+7. Audit/security: pure read queries on student-owned data. No RPCs, no migrations, no auth changes. Not applicable.
+8. Issue 664: filed with effort S, priority P2, acceptance criteria. Deferral is correct given 0 current orphans in prod.
+
+**Pattern — denominator/numerator mismatch when widening a query for retention (watch):**
+When a read query is widened (e.g., from active-only to non-deleted) to retain data for orphan-retention UX, verify that all aggregate computations using the widened result as numerator still have a compatible denominator. If the denominator remains narrow (active-only), the quotient can exceed 100%. Apply a `Math.min(percentage, 100)` cap or align the denominator. First seen: issue #540 (dashboard, progress). Count=1, watching.
+
 ### 2026-05-06 — commit 01a3244 (fix(e2e,db): repair fixtures against real schema + bank uniqueness)
 - **Files reviewed:** apps/web/e2e/redteam/helpers/seed.ts, apps/web/e2e/redteam/helpers/seed.test.ts, apps/web/e2e/redteam/rpc-question-membership.spec.ts, apps/web/e2e/redteam/session-race-condition.spec.ts, apps/web/e2e/redteam/session-replay.spec.ts, packages/db/src/__integration__/setup.ts
 - **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 5
