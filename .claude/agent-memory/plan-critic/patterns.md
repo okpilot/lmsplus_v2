@@ -77,6 +77,14 @@ Plans referencing quiz_sessions.mode values often cite mig 001 (3 modes: smart_r
 ### [2026-05-08] assertSessionStillLocked deep-equal breaks when new score columns are added to FROZEN_COLUMNS_SELECT but the session has non-null values after trigger extension
 When FROZEN_COLUMNS_SELECT is extended to include correct_count, score_percentage, passed, ended_at, and these columns are initially NULL in the mock_exam baseline, assertSessionStillLocked() will compare NULL to NULL (safe). But if any attack test in the existing spec causes a legitimate completion RPC to run before the deep-equal check, the values become non-null and the baseline (captured pre-completion) mismatches. Plans must confirm no existing attack test triggers a completion RPC between baseline capture and assertSessionStillLocked().
 
+### [2026-05-22] Same-table sequential queries cannot be differentiated with single mockFrom dispatch
+
+When a production function calls `supabase.from('questions')` twice with different filters (e.g., once with `.eq('status', 'active')` for counts, once without for correct-response mapping), the single `mockFrom` dispatch pattern (keyed by table name only) returns the same `buildChain` value for both calls. Plans that propose tests requiring two calls to the same table to return different data MUST flag this limitation and either redesign the test or explicitly scope a `mockFromSequence`/call-order tracking conversion as in-scope work. First seen: issue #540 (`getDashboardData` questions count query vs. correct-mapping query). Related to the earlier [2026-04-11] pattern about multi-query parallel fetches — that pattern covered different tables; this covers the same table called sequentially with different filter semantics.
+
+### [2026-05-22] Plans that add a field to a Supabase `.select()` string must also update the local type alias
+
+When a production function uses a local `type QuestionRow = { ... }` cast and the plan adds a new column to `.select(...)`, the plan must also update the type alias. TypeScript does not enforce the cast against the runtime result, so the missing field is invisible until the refactored code references it, at which point `check-types` fails. First seen: issue #540 (`progress.ts` plan adding `status` to the questions query without updating `QuestionRow`). Applies to any file using local row-type aliases with `as SomeRow[]` casts.
+
 ## Positive Signals
 
 ### [2026-04-09] Base UI data attribute names correctly verified

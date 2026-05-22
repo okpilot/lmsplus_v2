@@ -91,6 +91,7 @@ async function getSubjectProgressWithMap(
     .from('questions')
     .select('id, subject_id')
     .eq('status', 'active')
+    .is('deleted_at', null)
 
   const questionCounts = (questionCountsData ?? []) as QuestionIdSubjectRow[]
 
@@ -116,7 +117,7 @@ async function getSubjectProgressWithMap(
       ? await supabase
           .from('questions')
           .select('id, subject_id')
-          .eq('status', 'active')
+          .is('deleted_at', null)
           .in('id', [...correctQuestionIds])
       : { data: [] }
 
@@ -147,7 +148,7 @@ async function getSubjectProgressWithMap(
         lastPracticedAt: null as string | null,
       }
     })
-    .filter((s) => s.totalQuestions > 0)
+    .filter((s) => s.totalQuestions > 0 || s.answeredCorrectly > 0)
 
   return { subjects: result, questionSubjectMap }
 }

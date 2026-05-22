@@ -82,10 +82,10 @@ describe('getProgressData', () => {
       if (table === 'questions')
         return buildChain({
           data: [
-            { id: 'q1', subject_id: 's1', topic_id: 't1' },
-            { id: 'q2', subject_id: 's1', topic_id: 't1' },
-            { id: 'q3', subject_id: 's1', topic_id: 't1' },
-            { id: 'q4', subject_id: 's1', topic_id: 't1' },
+            { id: 'q1', subject_id: 's1', topic_id: 't1', status: 'active' },
+            { id: 'q2', subject_id: 's1', topic_id: 't1', status: 'active' },
+            { id: 'q3', subject_id: 's1', topic_id: 't1', status: 'active' },
+            { id: 'q4', subject_id: 's1', topic_id: 't1', status: 'active' },
           ],
         })
       if (table === 'student_responses')
@@ -121,8 +121,8 @@ describe('getProgressData', () => {
       if (table === 'questions')
         return buildChain({
           data: [
-            { id: 'q1', subject_id: 's1', topic_id: 't1' },
-            { id: 'q2', subject_id: 's1', topic_id: 't2' },
+            { id: 'q1', subject_id: 's1', topic_id: 't1', status: 'active' },
+            { id: 'q2', subject_id: 's1', topic_id: 't2', status: 'active' },
           ],
         })
       if (table === 'student_responses') return buildChain({ data: [{ question_id: 'q1' }] })
@@ -138,7 +138,7 @@ describe('getProgressData', () => {
     expect(t2.masteryPercentage).toBe(0) // q2 not correct, 0 of 1
   })
 
-  it('filters out subjects with no questions', async () => {
+  it('filters out subjects with zero questions AND zero responses', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
@@ -151,15 +151,71 @@ describe('getProgressData', () => {
         })
       if (table === 'easa_topics') return buildChain({ data: [] })
       if (table === 'questions')
-        return buildChain({ data: [{ id: 'q1', subject_id: 's1', topic_id: null }] })
+        return buildChain({
+          data: [{ id: 'q1', subject_id: 's1', topic_id: null, status: 'active' }],
+        })
       if (table === 'student_responses') return buildChain({ data: [] })
       return buildChain({ data: null })
     })
 
     const result = await getProgressData()
-    // s2 has no questions → filtered
+    // s2 has no questions AND no responses → filtered
     expect(result.every((s) => s.totalQuestions > 0)).toBe(true)
     expect(result.find((s) => s.id === 's2')).toBeUndefined()
+  })
+
+  it('keeps subject when it has no active questions but the student has correct responses to it', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AIRLAW', name: 'Air Law', short: 'AIR', sort_order: 1 }],
+        })
+      if (table === 'easa_topics') return buildChain({ data: [] })
+      if (table === 'questions')
+        return buildChain({
+          data: [{ id: 'q1', subject_id: 's1', topic_id: 't1', status: 'draft' }],
+        })
+      if (table === 'student_responses') return buildChain({ data: [{ question_id: 'q1' }] })
+      return buildChain({ data: null })
+    })
+
+    const result = await getProgressData()
+    expect(result).toHaveLength(1)
+    expect(result[0]!.id).toBe('s1')
+    expect(result[0]!.totalQuestions).toBe(0)
+    expect(result[0]!.answeredCorrectly).toBe(1)
+    expect(result[0]!.masteryPercentage).toBe(0)
+  })
+
+  it('keeps topic when it has no active questions but the student has correct responses to it', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AIRLAW', name: 'Air Law', short: 'AIR', sort_order: 1 }],
+        })
+      if (table === 'easa_topics')
+        return buildChain({
+          data: [{ id: 't1', code: 'TOP1', name: 'Topic 1', subject_id: 's1', sort_order: 1 }],
+        })
+      if (table === 'questions')
+        return buildChain({
+          data: [
+            { id: 'q1', subject_id: 's1', topic_id: 't1', status: 'active' },
+            { id: 'q2', subject_id: 's1', topic_id: 't2_orphan', status: 'draft' },
+          ],
+        })
+      if (table === 'student_responses') return buildChain({ data: [{ question_id: 'q2' }] })
+      return buildChain({ data: null })
+    })
+
+    const result = await getProgressData()
+    expect(result).toHaveLength(1)
+    expect(result[0]!.totalQuestions).toBe(1)
+    expect(result[0]!.answeredCorrectly).toBe(1)
   })
 
   it('sets masteryPercentage to 0 when a subject has questions but none answered correctly', async () => {
@@ -172,7 +228,9 @@ describe('getProgressData', () => {
         })
       if (table === 'easa_topics') return buildChain({ data: [] })
       if (table === 'questions')
-        return buildChain({ data: [{ id: 'q1', subject_id: 's1', topic_id: 't1' }] })
+        return buildChain({
+          data: [{ id: 'q1', subject_id: 's1', topic_id: 't1', status: 'active' }],
+        })
       if (table === 'student_responses') return buildChain({ data: [] }) // no correct responses
       return buildChain({ data: null })
     })
