@@ -202,6 +202,50 @@ describe('getDashboardData', () => {
     expect(result.subjects[0]!.masteryPercentage).toBe(0)
   })
 
+  it('counts only active questions in totalQuestions but attributes draft-question responses to their subject', async () => {
+    // Central scenario for #540: subject has 2 active + 1 draft question.
+    // Student answered the draft question correctly. totalQuestions = 2 (active only),
+    // answeredCorrectly = 1 (attributed via the non-deleted secondary questions query).
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    let questionsCallCount = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 1 }],
+        })
+      if (table === 'student_responses')
+        return buildChain({
+          count: 1,
+          data: [{ question_id: 'q_draft', created_at: '2026-03-18T10:00:00Z' }],
+        })
+      if (table === 'questions') {
+        questionsCallCount++
+        if (questionsCallCount === 1) {
+          // First query: active questions only — q_draft is excluded
+          return buildChain({
+            data: [
+              { id: 'q1', subject_id: 's1' },
+              { id: 'q2', subject_id: 's1' },
+            ],
+          })
+        }
+        // Second query: non-deleted questions for response attribution — q_draft is included
+        return buildChain({
+          data: [{ id: 'q_draft', subject_id: 's1' }],
+        })
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.subjects).toHaveLength(1)
+    const subject = result.subjects[0]!
+    expect(subject.totalQuestions).toBe(2)
+    expect(subject.answeredCorrectly).toBe(1)
+    expect(subject.masteryPercentage).toBe(50)
+  })
+
   it('counts questions answered today', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 

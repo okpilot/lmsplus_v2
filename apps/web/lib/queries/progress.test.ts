@@ -218,6 +218,43 @@ describe('getProgressData', () => {
     expect(result[0]!.answeredCorrectly).toBe(1)
   })
 
+  it('counts active and draft question responses separately at the topic level', async () => {
+    // Topic has 1 active question and 1 draft question. Student answered the draft one correctly.
+    // totalQuestions = 1 (active only), answeredCorrectly = 1 (draft included for attribution).
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 1 }],
+        })
+      if (table === 'easa_topics')
+        return buildChain({
+          data: [{ id: 't1', code: 'MET-01', name: 'Atmosphere', subject_id: 's1', sort_order: 1 }],
+        })
+      if (table === 'questions')
+        return buildChain({
+          data: [
+            { id: 'q_active', subject_id: 's1', topic_id: 't1', status: 'active' },
+            { id: 'q_draft', subject_id: 's1', topic_id: 't1', status: 'draft' },
+          ],
+        })
+      if (table === 'student_responses') return buildChain({ data: [{ question_id: 'q_draft' }] })
+      return buildChain({ data: null })
+    })
+
+    const result = await getProgressData()
+    expect(result).toHaveLength(1)
+    const topic = result[0]!.topics.find((t) => t.id === 't1')!
+    expect(topic.totalQuestions).toBe(1) // only the active question
+    expect(topic.answeredCorrectly).toBe(1) // draft question response attributed
+    // masteryPercentage = answeredCorrectly / totalActive = 1/1 = 100
+    expect(topic.masteryPercentage).toBe(100)
+    // subject level mirrors the topic: 1 active question, 1 correct (via draft attribution)
+    expect(result[0]!.totalQuestions).toBe(1)
+    expect(result[0]!.answeredCorrectly).toBe(1)
+  })
+
   it('sets masteryPercentage to 0 when a subject has questions but none answered correctly', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
