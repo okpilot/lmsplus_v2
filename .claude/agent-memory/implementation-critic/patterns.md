@@ -122,6 +122,19 @@
 - Per code-style.md §5, every UPDATE expected to hit rows must observe zero-row no-ops via `.select('id')` + length check.
 - SUGGESTION raised (not ISSUE — in a test helper, not production code, and the sessionId comes from a trusted beforeAll — but the pattern is still preferred).
 
+### 2026-05-22 — issue #540 dashboard/progress orphan-retention fix (APPROVED)
+- All 8 plan items implemented correctly across dashboard.ts, progress.ts, dashboard.test.ts, progress.test.ts.
+- Both `if (q.topic_id)` null guards added to `topicByQuestionId` (line 62) and `qByTopic` (line 65) — correct.
+- `sCorrect`/`tCorrect` type change from array to number: all `.length` references updated, all masteryPercentage calculations use the number correctly.
+- `questionSubjectMap` scope unchanged (built from active-only count query) — `applyLastPracticed` correctness preserved.
+- Count query retains `.eq('status', 'active')` — correct; correct-mapping query drops it — correct.
+- Dashboard orphan test uses scoped `let questionsCallCount = 0` inside the `it(...)` closure — no cross-test leakage.
+- Deviation #1 (added `created_at` to response mock): confirmed necessary — `getStreakData` calls `r.created_at.slice(0,10)` and `applyLastPracticed` also accesses `r.created_at`. Would throw on existing tests without it.
+- Deviation #2 (`status: 'active'` on 4 pre-existing fixtures): confirmed necessary — new `if (q.status === 'active')` guard would skip all pre-existing fixtures and break their existing assertions.
+- No `any` types, no `useEffect`, no barrel files introduced.
+- Both acknowledged deviations are justified and do not change the behavioral claims the original tests validate.
+- Positive signal: implementer correctly tracked the plan's two-query distinction for dashboard.ts (count vs. correct-mapping) and used a call-counter pattern to differentiate them in the test.
+
 ### 2026-04-08 — Blank line after import block (batch testing debt)
 - Removing `afterEach(cleanup)` lines that served as visual separators between the import block and the first statement left no blank line between the last import and `beforeEach`.
 - Biome `organizeImports` rule flags this as a required blank line separator — would fail the pre-commit hook.

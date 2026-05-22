@@ -190,6 +190,8 @@ describe('getProgressData', () => {
   })
 
   it('keeps topic when it has no active questions but the student has correct responses to it', async () => {
+    // Topic t2 has zero active questions (q2 is now draft) — without the fix it vanishes.
+    // The student answered q2 when it was active; the topic card must remain visible.
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
@@ -199,13 +201,16 @@ describe('getProgressData', () => {
         })
       if (table === 'easa_topics')
         return buildChain({
-          data: [{ id: 't1', code: 'TOP1', name: 'Topic 1', subject_id: 's1', sort_order: 1 }],
+          data: [
+            { id: 't1', code: 'TOP1', name: 'Topic 1', subject_id: 's1', sort_order: 1 },
+            { id: 't2', code: 'TOP2', name: 'Topic 2', subject_id: 's1', sort_order: 2 },
+          ],
         })
       if (table === 'questions')
         return buildChain({
           data: [
             { id: 'q1', subject_id: 's1', topic_id: 't1', status: 'active' },
-            { id: 'q2', subject_id: 's1', topic_id: 't2_orphan', status: 'draft' },
+            { id: 'q2', subject_id: 's1', topic_id: 't2', status: 'draft' },
           ],
         })
       if (table === 'student_responses') return buildChain({ data: [{ question_id: 'q2' }] })
@@ -214,8 +219,14 @@ describe('getProgressData', () => {
 
     const result = await getProgressData()
     expect(result).toHaveLength(1)
-    expect(result[0]!.totalQuestions).toBe(1)
-    expect(result[0]!.answeredCorrectly).toBe(1)
+    expect(result[0]!.totalQuestions).toBe(1) // only q1 is active
+    expect(result[0]!.answeredCorrectly).toBe(1) // q2 attributed via subjectByQuestionId
+
+    const t2 = result[0]!.topics.find((t) => t.id === 't2')
+    expect(t2).toBeDefined()
+    expect(t2!.totalQuestions).toBe(0)
+    expect(t2!.answeredCorrectly).toBe(1)
+    expect(t2!.masteryPercentage).toBe(0)
   })
 
   it('counts active and draft question responses separately at the topic level', async () => {

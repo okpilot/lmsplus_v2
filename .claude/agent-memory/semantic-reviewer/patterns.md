@@ -4498,3 +4498,37 @@ The steering doc change mirrors the security.md update. The description of the C
 
 **Pattern — hook input delivery: PreToolUse vs PostToolUse may differ**
 PreToolUse hooks in Claude Code can receive tool input via CLI arg (interpolated env var pattern: `"$CLAUDE_TOOL_INPUT"`) or via stdin. PostToolUse hooks may deliver data differently. When writing PostToolUse hooks that need to inspect the invoked command, confirm the delivery method (env var vs stdin vs CLI arg) against the Claude Code SDK docs, or mirror the proven PreToolUse pattern from settings.json. Discrepancy detected at count=1 — watch for recurrence.
+
+### 2026-05-22 — commit b94e460c (fix(dashboard,progress): keep subjects visible when student has responses #540)
+- **Files reviewed:** apps/web/lib/queries/dashboard.ts, apps/web/lib/queries/progress.ts, apps/web/lib/queries/dashboard-stats.ts, apps/web/lib/queries/dashboard.test.ts, apps/web/lib/queries/progress.test.ts
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 6
+
+**ISSUE — dashboard.ts: questionSubjectMap is active-only; applyLastPracticed cannot attribute lastPracticedAt for draft questions**
+- `questionSubjectMap` (lines 107-111) is built exclusively from `questionCounts` (active-only questions, `.eq('status', 'active')`). `applyLastPracticed` (dashboard-stats.ts:97) uses this map to resolve `question_id → subject_id` when computing `lastPracticedAt`. Draft questions are absent from the map. Result: a subject that passes the new `answeredCorrectly > 0` filter shows `answeredCorrectly=N` but `lastPracticedAt=null` — an internally inconsistent record. Fix: after building `correctPerSubject` (line 134), extend `questionSubjectMap` with entries from `correctQuestions` (which already covers draft/non-deleted questions the student answered). Count=1.
+
+**SUGGESTION — progress.test.ts: topic-level orphan retention is not directly tested**
+- The test "keeps topic when it has no active questions but the student has correct responses to it" (line 192) uses `t2_orphan` as the question's `topic_id`, but `t2_orphan` is NOT in `easa_topics`. As a result, the `.filter(t.totalQuestions > 0 || t.answeredCorrectly > 0)` branch at the topic level is never exercised — `t2_orphan` never enters the topics iteration loop. The test exercises subject-level attribution of a question with an orphan topic_id, not topic-level retention. The true missing test: a topic IN `easa_topics`, all its questions are `status='draft'`, student has correct responses to them — topic should appear in the result. Count=1.
+
+**SUGGESTION — progress.test.ts uses vi.clearAllMocks() where dashboard.test.ts uses vi.resetAllMocks()**
+- Minor inconsistency between sibling test files. Both work because each test sets fresh mock implementations. Prefer `vi.resetAllMocks()` throughout for stronger isolation. Count=1, watching.
+
+**GOOD — query refactor correctly uses two sets of maps for active vs all-non-deleted questions**
+- progress.ts split `qBySubject`/`qByTopic` (active-only, for `.length` totals) from `subjectByQuestionId`/`topicByQuestionId` (all non-deleted, for response attribution). This is the semantically correct two-track design: `totalQuestions` counts what students can practice today; `answeredCorrectly` credits all historical work. The parallel-map approach is clean and future-safe.
+
+**GOOD — question status enum verified before using .is(deleted_at, null) as the attribution filter**
+- The schema CHECK constraint limits `status` to `('active', 'draft')` only — no `archived` or other states. So `.is('deleted_at', null)` on the correctQuestionsData query (dashboard.ts:120) and the questions query (progress.ts:43) correctly captures exactly active + draft, with no risk of over-attribution to a third status.
+
+**GOOD — masteryPercentage correctly guarded against division-by-zero for orphaned subjects**
+- Both files use `totalQuestions > 0 ? Math.round(correct/total * 100) : 0`. A subject with `totalQuestions=0` and `answeredCorrectly>0` shows `masteryPercentage=0`, which is arithmetically correct. Tests assert this explicitly. The behavior is intentional and consistent across both files.
+
+**GOOD — filter change to .filter(s.totalQuestions > 0 || s.answeredCorrectly > 0) is symmetric**
+- Subject and topic filters are updated identically in both dashboard.ts (line 151) and progress.ts (lines 95, 109). No divergence between the two files. Both callers of `getProgressData` and `getDashboardData` receive consistent visibility semantics.
+
+**GOOD — no security implications**
+- No Server Actions, no DB mutations, no auth changes, no RLS modifications. All queries use the user-scoped Supabase client with RLS enforced. `student_responses` is explicitly scoped by `.eq('student_id', user.id)`. No answer option fields (correct/incorrect) are exposed.
+
+**GOOD — Big-O for nested correctIds loops is benign at EASA PPL dataset size**
+- progress.ts: `for (const cid of correctIds)` runs inside both the subject map (14 iters × N_correctIds) and inside each topic map (7 iters/subject × N_correctIds). At ~300 correct responses per student, ~14 subjects, ~100 topics: ~34,000 JS ops total. Single-digit milliseconds. No regression.
+
+**Pattern — partial attribution fix can produce internally inconsistent output fields:**
+When a fix extends attribution coverage for field A (e.g., `answeredCorrectly`) but leaves field B (e.g., `lastPracticedAt`) on an older, narrower data source, the same record can simultaneously show A=nonzero and B=null. Audit all fields derived from the same logical set whenever attribution coverage changes. This is the pattern: the correctQuestions query was extended to include draft questions, but `questionSubjectMap` (the source for `lastPracticedAt`) was not. Count=1, watching.

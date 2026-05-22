@@ -200,6 +200,7 @@ describe('getDashboardData', () => {
     expect(result.subjects[0]!.totalQuestions).toBe(0)
     expect(result.subjects[0]!.answeredCorrectly).toBe(1)
     expect(result.subjects[0]!.masteryPercentage).toBe(0)
+    expect(result.subjects[0]!.lastPracticedAt).toBe('2026-03-18T10:00:00Z')
   })
 
   it('counts only active questions in totalQuestions but attributes draft-question responses to their subject', async () => {

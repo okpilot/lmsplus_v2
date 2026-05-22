@@ -131,6 +131,7 @@ async function getSubjectProgressWithMap(
       correctPerSubject.set(q.subject_id, set)
     }
     set.add(q.id)
+    questionSubjectMap.set(q.id, q.subject_id)
   }
 
   const result = subjects
