@@ -35,7 +35,7 @@ function buildChain(returnValue: unknown) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
 })
 
 describe('getProgressData', () => {
