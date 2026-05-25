@@ -122,6 +122,18 @@
 - Per code-style.md §5, every UPDATE expected to hit rows must observe zero-row no-ops via `.select('id')` + length check.
 - SUGGESTION raised (not ISSUE — in a test helper, not production code, and the sessionId comes from a trusted beforeAll — but the pattern is still preferred).
 
+### 2026-05-25 — issue #664 mastery % clamp fix (APPROVED)
+
+- All 5 plan items implemented correctly across progress.ts, dashboard.ts, progress-content.tsx, and their 3 test files.
+- `answeredCorrectly` stays raw in all production code. Never wrapped in `Math.min`. The #540 filter `totalQuestions > 0 || answeredCorrectly > 0` continues to use the raw value — orphan-retention signal preserved.
+- Topic masteryPercentage in `progress.ts` line 106: `Math.min(Math.round(...), 100)` inside the `tQuestions.length > 0 ?` branch — zero-question case still returns 0. Correct.
+- Subject masteryPercentage in `progress.ts` line 121: same structure, same correctness.
+- `dashboard.ts` line 151: same pattern, with comment explaining `correct` can exceed `total`.
+- `progress-content.tsx`: `overallMastery` clamped via `Math.min(..., 100)` on line 12; `masteredCount = Math.min(totalCorrect, totalQuestions)` on line 13. `makeSubject(1, 3)` → totalCorrect=3, totalQuestions=1 → overallMastery=`Math.min(300, 100)=100`, masteredCount=`Math.min(3,1)=1` → "1 / 1 questions mastered". Verified correct.
+- New tests assert `answeredCorrectly === 2` (raw) alongside `masteryPercentage === 100` (clamped) in both progress.test.ts and dashboard.test.ts. progress-content.test.tsx asserts "100%" and "1 / 1 questions mastered".
+- `makeSubject` helper in progress-content.test.tsx: masteryPercentage line is NOT clamped inside the helper (computes 300%). This is intentional — the component's own clamp logic is what the test exercises.
+- APPROVED — no findings.
+
 ### 2026-05-22 — issue #540 dashboard/progress orphan-retention fix (APPROVED)
 
 - All 8 plan items implemented correctly across dashboard.ts, progress.ts, dashboard.test.ts, progress.test.ts.

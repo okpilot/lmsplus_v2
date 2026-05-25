@@ -4859,3 +4859,28 @@ None identified at this time. All issues were resolved in-cycle. The red-team ad
 ### No rule changes this cycle.
 
 All four patterns are count=1 (below promotion threshold). Session-rotation pattern is closest to count=2 (shared-user token rotation is a distinct pattern class, not yet seen in another E2E suite in this codebase). Monitor for recurrence.
+
+---
+
+## Learner Cycle — 2026-05-25 — PR #665 Mastery-Clamp Fix (Commits 23cffad9 + 333bb1a7)
+
+| Finding | Count | Status | Action |
+|---------|-------|--------|--------|
+| Test fixture helper computes derived field without mirroring production transform (clamp/normalize) | 1 | WATCH | 23cffad9: semantic-reviewer ISSUE flagged `makeSubject` fixture's `masteryPercentage` lacked the `Math.min(..., 100)` clamp production applies. Fixed in 333bb1a7 by adding clamp to fixture. **Root cause:** fixture synthesis diverged from production shape — possible issue when multiple derived fields are computed across production and test contexts. **Watch for similar divergence:** if a second test helper/mock computes a derived field (e.g., a computed total, a normalized score, a categorized status) without matching production's transform, promote to a rule: "Test fixtures that compute derived values must apply the same normalization/clamp/transform as production; verify by grep-matching the formula (e.g., Math.min(X, Y) in both)" |
+
+**Prior patterns status:**
+- **O(n²)-spread-in-loop** — logged 2026-05-25, count=1. Status: unchanged. Did not recur in this cycle. Continue watching.
+- **Test comment enforcement gap** — logged 2026-05-25, count=1. Status: unchanged. No violations found in this cycle; test comments are well-justified (e.g., "Mirror the production clamp" on makeSubject). Continue watching.
+
+**Agent findings summary:**
+- Code reviewer: 0 findings (clean)
+- Semantic reviewer: 1 ISSUE (test fixture), 2 SUGGESTIONS (PostgREST empty-.in() guard documentation + clamp at query layer rejected via Finding-Validation), 7 GOOD
+- Doc updater: 0 findings (no doc drift)
+- Test writer: 0 findings (coverage complete)
+
+**Positive signals:**
+- Finding-Validation discipline (agent-workflow.md) caught a plan-critic false-positive: critic proposed clamping at query layer (would have regressed #540 orphan-retention logic). Orchestrator validated and rejected the suggestion before implementing. System is working as designed.
+- Prior pattern (O(n²)-spread-in-loop from 85d5de06) did not recur in this work cycle. Fix appears to be stable.
+
+**No rule changes recommended.** Pattern is at count=1 (watch threshold). Semantic-reviewer's ISSUE was appropriately scoped: single fixture helper, single instance, already fixed. Return to watching for a second divergence in a different helper/mock before proposing a broad test-fixture-contract rule.
+

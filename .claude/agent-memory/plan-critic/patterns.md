@@ -85,6 +85,14 @@ When a production function calls `supabase.from('questions')` twice with differe
 
 When a production function uses a local `type QuestionRow = { ... }` cast and the plan adds a new column to `.select(...)`, the plan must also update the type alias. TypeScript does not enforce the cast against the runtime result, so the missing field is invisible until the refactored code references it, at which point `check-types` fails. First seen: issue #540 (`progress.ts` plan adding `status` to the questions query without updating `QuestionRow`). Applies to any file using local row-type aliases with `as SomeRow[]` casts.
 
+### [2026-05-25] Component-level clamping of a raw aggregated field (answeredCorrectly) is inconsistent when the same raw field is passed straight through the type — fix must also clamp the display-string numerator in progress-content.tsx
+
+When a bug produces `answeredCorrectly > totalQuestions` at the query layer, plans that clamp only `masteryPercentage` at the query level but also propose clamping the display numerator (`totalCorrect`) only in progress-content.tsx create a subtle contract inconsistency: the `answeredCorrectly` field in `SubjectDetail` and `SubjectProgress` still carries the raw (unclamped) value, which could mislead future callers who sum it (e.g. exam-readiness checks, future API serializers). Plans must decide: either (a) clamp `answeredCorrectly` at the query layer too, or (b) document explicitly that `answeredCorrectly` is intentionally raw and only `masteryPercentage` is clamped. A display-only clamp in the component is acceptable IF the plan acknowledges the raw value persists in the type and states it is intentional.
+
+### [2026-05-25] progress.test.ts test at L257 asserts masteryPercentage === 100 for a draft-correct-only case — new clamp test must use a DIFFERENT scenario to produce overflow
+
+The existing test "counts active and draft question responses separately at the topic level" (progress.test.ts L229) sets up 1 active + 1 draft question where the student answered the draft one. Since the draft response is credited to the topic (`answeredCorrectly = 1`) and `totalQuestions = 1` (active only), the ratio is exactly 1/1 = 100 — NOT an overflow. A plan that describes a new test as "1 active question, student answered 1 active + 1 draft = answeredCorrectly 2, totalQuestions 1 → assert 100" must confirm that the query layer produces answeredCorrectly = 2 (not 1) in that scenario. In progress.ts, `correctByTopic` counts all correct responses (active or draft) for questions whose topic_id is known; `tQuestions.length` counts only active ones. So 2 correct / 1 active = 200% unclamped — this IS a genuine overflow scenario and the new test is correct, but the test fixture must place both the active AND the draft question in the same topic and credit both as correct.
+
 ## Positive Signals
 
 ### [2026-04-09] Base UI data attribute names correctly verified
