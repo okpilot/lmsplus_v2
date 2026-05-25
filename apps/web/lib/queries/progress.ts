@@ -6,6 +6,10 @@ export type SubjectDetail = {
   name: string
   short: string
   totalQuestions: number
+  // Counts correct responses to ALL non-deleted questions, including ones that
+  // later became draft — so it can exceed totalQuestions (active-only). Kept raw
+  // on purpose: it's the orphan-retention signal (#540). masteryPercentage is the
+  // clamped, display-safe derivative.
   answeredCorrectly: number
   masteryPercentage: number
   topics: TopicDetail[]
@@ -98,7 +102,9 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
             totalQuestions: tQuestions.length,
             answeredCorrectly: tCorrect,
             masteryPercentage:
-              tQuestions.length > 0 ? Math.round((tCorrect / tQuestions.length) * 100) : 0,
+              tQuestions.length > 0
+                ? Math.min(Math.round((tCorrect / tQuestions.length) * 100), 100)
+                : 0,
           }
         })
         .filter((t) => t.totalQuestions > 0 || t.answeredCorrectly > 0)
@@ -111,7 +117,9 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
         totalQuestions: sQuestions.length,
         answeredCorrectly: sCorrect,
         masteryPercentage:
-          sQuestions.length > 0 ? Math.round((sCorrect / sQuestions.length) * 100) : 0,
+          sQuestions.length > 0
+            ? Math.min(Math.round((sCorrect / sQuestions.length) * 100), 100)
+            : 0,
         topics: subjectTopics,
       }
     })

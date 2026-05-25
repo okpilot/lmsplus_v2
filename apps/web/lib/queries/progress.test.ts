@@ -281,4 +281,41 @@ describe('getProgressData', () => {
     expect(result[0]!.masteryPercentage).toBe(0)
     expect(result[0]!.answeredCorrectly).toBe(0)
   })
+
+  it('caps masteryPercentage at 100 while keeping the raw correct count when orphan responses exceed active questions', async () => {
+    // #540/#664: topic t1 has 1 active + 1 now-draft question; the student answered
+    // BOTH correctly. answeredCorrectly (2) stays raw (orphan-retention signal), but
+    // the derived percentage must not exceed 100.
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 1 }],
+        })
+      if (table === 'easa_topics')
+        return buildChain({
+          data: [{ id: 't1', code: 'MET-01', name: 'Atmosphere', subject_id: 's1', sort_order: 1 }],
+        })
+      if (table === 'questions')
+        return buildChain({
+          data: [
+            { id: 'q_active', subject_id: 's1', topic_id: 't1', status: 'active' },
+            { id: 'q_draft', subject_id: 's1', topic_id: 't1', status: 'draft' },
+          ],
+        })
+      if (table === 'student_responses')
+        return buildChain({ data: [{ question_id: 'q_active' }, { question_id: 'q_draft' }] })
+      return buildChain({ data: null })
+    })
+
+    const result = await getProgressData()
+    const topic = result[0]!.topics.find((t) => t.id === 't1')!
+    expect(topic.totalQuestions).toBe(1)
+    expect(topic.answeredCorrectly).toBe(2)
+    expect(topic.masteryPercentage).toBe(100)
+    expect(result[0]!.totalQuestions).toBe(1)
+    expect(result[0]!.answeredCorrectly).toBe(2)
+    expect(result[0]!.masteryPercentage).toBe(100)
+  })
 })

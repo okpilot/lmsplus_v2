@@ -145,7 +145,10 @@ async function getSubjectProgressWithMap(
         short: s.short,
         totalQuestions: total,
         answeredCorrectly: correct,
-        masteryPercentage: total > 0 ? Math.round((correct / total) * 100) : 0,
+        // correct counts correct responses to non-deleted questions of any status,
+        // so it can exceed total (active-only) when the student answered a now-draft
+        // question (#540/#664). Clamp the displayed percentage to 100.
+        masteryPercentage: total > 0 ? Math.min(Math.round((correct / total) * 100), 100) : 0,
         lastPracticedAt: null as string | null,
       }
     })

@@ -75,6 +75,18 @@ describe('ProgressContent', () => {
     expect(screen.getByText('10 / 15 questions mastered')).toBeInTheDocument()
   })
 
+  it('shows 100% and a count capped at the active total when orphan responses exceed questions', async () => {
+    // #664: a student with correct responses to now-draft questions can have
+    // answeredCorrectly > totalQuestions. The KPI must not render above 100% or "N / M" with N > M.
+    mockGetProgressData.mockResolvedValue([makeSubject(1, 3)])
+
+    const jsx = await ProgressContent()
+    render(jsx)
+
+    expect(screen.getByText('100%')).toBeInTheDocument()
+    expect(screen.getByText('1 / 1 questions mastered')).toBeInTheDocument()
+  })
+
   it('passes subjects to SubjectBreakdown', async () => {
     const subjects = [makeSubject(10, 5), makeSubject(20, 15)]
     mockGetProgressData.mockResolvedValue(subjects)
