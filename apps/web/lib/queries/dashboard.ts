@@ -112,6 +112,8 @@ async function getSubjectProgressWithMap(
 
   const correctQuestionIds = new Set(correctResponses.map((r) => r.question_id))
 
+  // Guard the empty-array case: PostgREST rejects `.in('id', [])`. Also short-circuits
+  // the query entirely when the student has no correct responses yet.
   const { data: correctQuestionsData } =
     correctQuestionIds.size > 0
       ? await supabase

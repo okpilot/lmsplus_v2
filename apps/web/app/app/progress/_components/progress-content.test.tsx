@@ -26,8 +26,11 @@ function makeSubject(totalQuestions: number, answeredCorrectly: number): Subject
     short: 'TST',
     totalQuestions,
     answeredCorrectly,
+    // Mirror the production clamp (#664) so fixtures never carry a >100% value.
     masteryPercentage:
-      totalQuestions > 0 ? Math.round((answeredCorrectly / totalQuestions) * 100) : 0,
+      totalQuestions > 0
+        ? Math.min(Math.round((answeredCorrectly / totalQuestions) * 100), 100)
+        : 0,
     topics: [],
   }
 }
