@@ -153,7 +153,7 @@ describe('getDashboardData', () => {
     expect(met!.totalQuestions).toBe(1)
   })
 
-  it('excludes subjects that have zero questions', async () => {
+  it('excludes subjects with zero questions AND zero responses', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
@@ -167,9 +167,125 @@ describe('getDashboardData', () => {
     })
 
     const result = await getDashboardData()
-    // Subject with 0 questions is filtered out
+    // Subject with 0 questions AND 0 responses is filtered out
     expect(result.subjects).toHaveLength(0)
     expect(result.totalQuestions).toBe(0)
+  })
+
+  it('keeps subject when it has no active questions but the student has correct responses to it', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    let questionsCallCount = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AIRLAW', name: 'Air Law', short: 'AIR', sort_order: 1 }],
+        })
+      if (table === 'student_responses')
+        return buildChain({
+          count: 1,
+          data: [{ question_id: 'q1', created_at: '2026-03-18T10:00:00Z' }],
+        })
+      if (table === 'questions') {
+        questionsCallCount++
+        if (questionsCallCount === 1) return buildChain({ data: [] })
+        return buildChain({ data: [{ id: 'q1', subject_id: 's1' }] })
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.subjects).toHaveLength(1)
+    expect(result.subjects[0]!.id).toBe('s1')
+    expect(result.subjects[0]!.totalQuestions).toBe(0)
+    expect(result.subjects[0]!.answeredCorrectly).toBe(1)
+    expect(result.subjects[0]!.masteryPercentage).toBe(0)
+    expect(result.subjects[0]!.lastPracticedAt).toBe('2026-03-18T10:00:00Z')
+  })
+
+  it('counts only active questions in totalQuestions but attributes draft-question responses to their subject', async () => {
+    // Central scenario for #540: subject has 2 active + 1 draft question.
+    // Student answered the draft question correctly. totalQuestions = 2 (active only),
+    // answeredCorrectly = 1 (attributed via the non-deleted secondary questions query).
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    let questionsCallCount = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 1 }],
+        })
+      if (table === 'student_responses')
+        return buildChain({
+          count: 1,
+          data: [{ question_id: 'q_draft', created_at: '2026-03-18T10:00:00Z' }],
+        })
+      if (table === 'questions') {
+        questionsCallCount++
+        if (questionsCallCount === 1) {
+          // First query: active questions only — q_draft is excluded
+          return buildChain({
+            data: [
+              { id: 'q1', subject_id: 's1' },
+              { id: 'q2', subject_id: 's1' },
+            ],
+          })
+        }
+        // Second query: non-deleted questions for response attribution — q_draft is included
+        return buildChain({
+          data: [{ id: 'q_draft', subject_id: 's1' }],
+        })
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.subjects).toHaveLength(1)
+    const subject = result.subjects[0]!
+    expect(subject.totalQuestions).toBe(2)
+    expect(subject.answeredCorrectly).toBe(1)
+    expect(subject.masteryPercentage).toBe(50)
+  })
+
+  it('caps masteryPercentage at 100 when correct responses exceed the active question count', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    let questionsCallCount = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 1 }],
+        })
+      if (table === 'student_responses')
+        return buildChain({
+          count: 2,
+          data: [
+            { question_id: 'q1', created_at: '2026-03-18T10:00:00Z' },
+            { question_id: 'q_draft', created_at: '2026-03-18T10:00:00Z' },
+          ],
+        })
+      if (table === 'questions') {
+        questionsCallCount++
+        if (questionsCallCount === 1) {
+          // First query: active questions only
+          return buildChain({ data: [{ id: 'q1', subject_id: 's1' }] })
+        }
+        // Second query: non-deleted attribution — active q1 + now-draft q_draft
+        return buildChain({
+          data: [
+            { id: 'q1', subject_id: 's1' },
+            { id: 'q_draft', subject_id: 's1' },
+          ],
+        })
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    const subject = result.subjects[0]!
+    expect(subject.totalQuestions).toBe(1)
+    expect(subject.answeredCorrectly).toBe(2)
+    expect(subject.masteryPercentage).toBe(100)
   })
 
   it('counts questions answered today', async () => {

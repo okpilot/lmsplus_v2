@@ -4836,6 +4836,8 @@ None identified at this time. All issues were resolved in-cycle. The red-team ad
 | Session-rotation footgun: shared E2E test user invalidates saved auth state | 1 | 2026-05-07 | WATCH — 42ac863: `injection-xss.spec.ts` introduced `loginAs(TEST_EMAIL, TEST_PASSWORD)`, rotating Supabase refresh token. Downstream `user.json` saved by `auth.setup.ts` became stale; 54 specs failed. Fix: excluded redteam from default `pnpm e2e`. Root cause: test infrastructure (`auth.setup.ts` saves user.json once at start) assumes no mid-session token rotation; new spec pattern violated that assumption. Pattern: E2E specs reusing global-seed test user credentials must rotate via `.logout()` → `.loginAs()` path, or create dedicated test user per spec. code-style.md §7 E2E hermiticity rule covers seed-data mutation; add new subsection for shared-user session rotation once count=2 in distinct E2E suites. |
 
 | Optional-chain result passed to filter-accepting function, degrading defensiveness | 1 | 2026-05-07 | WATCH — af8004f audit-completeness.spec.ts:347: `row?.session_id` used after non-load-bearing `toBeTruthy()` assertion. Semantically: `row` is checked, but then `?.session_id` is extracted and passed to a function that treats `undefined` as "skip the filter". A future softening of the assertion (`expect(row).toBeDefined()` → removed) would silently degrade the filter. Pattern: optional-chain results should not be passed to functions that treat falsy as "do nothing". Recommendation: semantic-reviewer should flag this on next cycle. First occurrence on watch list. |
+| O(n²) array-spread accumulation in loop (replaced with get-or-push) | 1 | 2026-05-25 | WATCH — 85d5de06: progress.ts lines 64-65 used `[...qBySubject.get(...) ?? [], q.id]` pattern in loop over all active questions, creating O(n²) profile. Fixed with `.get()` + conditional `.push()` approach (O(n)). Behavior identical (only performance improved). Distinct from "Derived value correct by coincidence" (row 59) — this is a micro-perf gap in a hot path, not a semantic correctness issue. First occurrence. Log and watch. If similar spread-in-loop patterns surface in different files/components (especially in data aggregation paths), promote to code-style.md guidance: "Use get-or-push for map accumulation in hot loops; avoid `[...array, item]` spread in iteration." |
+| Test comment redundancy after code-style.md §7 rule promotion (2026-04-28) | 1 | 2026-05-25 | RULE VALIDATION — 85d5de06: progress.test.ts had 7 comment instances restating it() titles and assertions (e.g., `// s2 has no questions AND no responses → filtered` above expect()). Code-reviewer and test-writer agents did not flag pre-commit; CodeRabbit caught as redundancy post-merge. Comments removed, aligning with code-style.md §7 "Test Comments: Audit After Renaming" rule (promoted 2026-04-28). This is an **enforcement gap**, not a rule gap — the rule exists and is correct; authoring discipline did not follow it at write time. CodeRabbit's external validation of the rule's correctness. Note: this is count=1 for the enforcement gap (low adherence when comment rules are new); system should continue tracking if a second rule-compliant refactor (after rule was introduced) misses comments again. |
 
 | Doc numeric spec-count drift (steering/tech.md) | 1 | 2026-05-07 | WATCH — af8004f doc-updater finding: decisions.md L477 hardcoded "9 specs" while reality is 18. Each redteam spec addition must bump this row. Pattern: numeric doc counts in steering files are fragile. Recommend: replace counts with structural descriptions ("specs for each OWASP category") or automate count via grep. Deferred on watch list pending second occurrence in different steering doc. |
 
@@ -4857,3 +4859,28 @@ None identified at this time. All issues were resolved in-cycle. The red-team ad
 ### No rule changes this cycle.
 
 All four patterns are count=1 (below promotion threshold). Session-rotation pattern is closest to count=2 (shared-user token rotation is a distinct pattern class, not yet seen in another E2E suite in this codebase). Monitor for recurrence.
+
+---
+
+## Learner Cycle — 2026-05-25 — PR #665 Mastery-Clamp Fix (Commits 23cffad9 + 333bb1a7)
+
+| Finding | Count | Status | Action |
+|---------|-------|--------|--------|
+| Test fixture helper computes derived field without mirroring production transform (clamp/normalize) | 1 | WATCH | 23cffad9: semantic-reviewer ISSUE flagged `makeSubject` fixture's `masteryPercentage` lacked the `Math.min(..., 100)` clamp production applies. Fixed in 333bb1a7 by adding clamp to fixture. **Root cause:** fixture synthesis diverged from production shape — possible issue when multiple derived fields are computed across production and test contexts. **Watch for similar divergence:** if a second test helper/mock computes a derived field (e.g., a computed total, a normalized score, a categorized status) without matching production's transform, promote to a rule: "Test fixtures that compute derived values must apply the same normalization/clamp/transform as production; verify by grep-matching the formula (e.g., Math.min(X, Y) in both)" |
+
+**Prior patterns status:**
+- **O(n²)-spread-in-loop** — logged 2026-05-25, count=1. Status: unchanged. Did not recur in this cycle. Continue watching.
+- **Test comment enforcement gap** — logged 2026-05-25, count=1. Status: unchanged. No violations found in this cycle; test comments are well-justified (e.g., "Mirror the production clamp" on makeSubject). Continue watching.
+
+**Agent findings summary:**
+- Code reviewer: 0 findings (clean)
+- Semantic reviewer: 1 ISSUE (test fixture), 2 SUGGESTIONS (PostgREST empty-.in() guard documentation + clamp at query layer rejected via Finding-Validation), 7 GOOD
+- Doc updater: 0 findings (no doc drift)
+- Test writer: 0 findings (coverage complete)
+
+**Positive signals:**
+- Finding-Validation discipline (agent-workflow.md) caught a plan-critic false-positive: critic proposed clamping at query layer (would have regressed #540 orphan-retention logic). Orchestrator validated and rejected the suggestion before implementing. System is working as designed.
+- Prior pattern (O(n²)-spread-in-loop from 85d5de06) did not recur in this work cycle. Fix appears to be stable.
+
+**No rule changes recommended.** Pattern is at count=1 (watch threshold). Semantic-reviewer's ISSUE was appropriately scoped: single fixture helper, single instance, already fixed. Return to watching for a second divergence in a different helper/mock before proposing a broad test-fixture-contract rule.
+

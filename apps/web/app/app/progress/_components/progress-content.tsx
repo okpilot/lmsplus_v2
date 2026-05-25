@@ -6,7 +6,11 @@ export async function ProgressContent() {
 
   const totalQuestions = subjects.reduce((sum, s) => sum + s.totalQuestions, 0)
   const totalCorrect = subjects.reduce((sum, s) => sum + s.answeredCorrectly, 0)
-  const overallMastery = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
+  // totalCorrect counts orphan (now-draft) responses too, so it can exceed
+  // totalQuestions — clamp both the bar percentage and the displayed count (#664).
+  const overallMastery =
+    totalQuestions > 0 ? Math.min(Math.round((totalCorrect / totalQuestions) * 100), 100) : 0
+  const masteredCount = Math.min(totalCorrect, totalQuestions)
 
   return (
     <>
@@ -20,7 +24,7 @@ export async function ProgressContent() {
           />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          {totalCorrect} / {totalQuestions} questions mastered
+          {masteredCount} / {totalQuestions} questions mastered
         </p>
       </div>
 

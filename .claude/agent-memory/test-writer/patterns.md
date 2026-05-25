@@ -4480,3 +4480,48 @@ each update error, no-op silence, and each log path. Plan-critic threshold: do t
 the org-row-null-with-no-error branch — `.single()` returning `{ data: null, error: null }`
 is a real PostgREST shape and the code's `if (orgError || !org)` covers it.
 
+---
+
+### Two-pass questions query pattern (status-split attribution, 2026-05-22)
+
+When a query function makes **two separate questions queries** — one for active-only
+(counts/totals) and one for all non-deleted (response attribution) — use a call-counter
+inside the `mockFrom` implementation to return different fixtures per call:
+
+```ts
+let questionsCallCount = 0
+mockFrom.mockImplementation((table: string) => {
+  if (table === 'questions') {
+    questionsCallCount++
+    if (questionsCallCount === 1) return buildChain({ data: activeQuestionsFixture })
+    return buildChain({ data: allNonDeletedQuestionsFixture })
+  }
+  // ...
+})
+```
+
+The central test scenario for a "status-split" fix is:
+- **Subject has N active + M draft questions**
+- **Student answered a draft question correctly**
+- **Expected:** `totalQuestions = N` (active only), `answeredCorrectly = 1` (draft attribution), `masteryPercentage = Math.round(1/N * 100)`
+
+This test is distinct from the "zero active questions" orphan test — it exercises the split
+when BOTH active and non-active questions coexist, ensuring the counts don't bleed across paths.
+
+Applied in: `apps/web/lib/queries/dashboard.test.ts` commit `efbc6c11`.
+
+### Topic-level draft attribution in progress.ts (2026-05-22)
+
+For `progress.ts`'s single-query design (fetches all non-deleted questions and splits on `status`
+in-memory), the topic-level test requires:
+- A topic with 1 active + 1 draft question
+- Student has a correct response to the draft question
+- Expected: `topic.totalQuestions = 1` (active), `topic.answeredCorrectly = 1` (draft counted),
+  `topic.masteryPercentage = 100` (1/1 * 100, denominator is active total only)
+
+`masteryPercentage` uses the active-question count as the denominator. Verify the literal formula
+in production (`tQuestions.length`, which is built from `qByTopic` which only includes
+`status === 'active'` questions) before asserting the percentage value.
+
+Applied in: `apps/web/lib/queries/progress.test.ts` commit `efbc6c11`.
+

@@ -26,8 +26,11 @@ function makeSubject(totalQuestions: number, answeredCorrectly: number): Subject
     short: 'TST',
     totalQuestions,
     answeredCorrectly,
+    // Mirror the production clamp (#664) so fixtures never carry a >100% value.
     masteryPercentage:
-      totalQuestions > 0 ? Math.round((answeredCorrectly / totalQuestions) * 100) : 0,
+      totalQuestions > 0
+        ? Math.min(Math.round((answeredCorrectly / totalQuestions) * 100), 100)
+        : 0,
     topics: [],
   }
 }
@@ -73,6 +76,16 @@ describe('ProgressContent', () => {
     render(jsx)
 
     expect(screen.getByText('10 / 15 questions mastered')).toBeInTheDocument()
+  })
+
+  it('shows 100% and a count capped at the active total when orphan responses exceed questions', async () => {
+    mockGetProgressData.mockResolvedValue([makeSubject(1, 3)])
+
+    const jsx = await ProgressContent()
+    render(jsx)
+
+    expect(screen.getByText('100%')).toBeInTheDocument()
+    expect(screen.getByText('1 / 1 questions mastered')).toBeInTheDocument()
   })
 
   it('passes subjects to SubjectBreakdown', async () => {

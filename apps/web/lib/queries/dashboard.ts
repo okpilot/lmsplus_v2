@@ -91,6 +91,7 @@ async function getSubjectProgressWithMap(
     .from('questions')
     .select('id, subject_id')
     .eq('status', 'active')
+    .is('deleted_at', null)
 
   const questionCounts = (questionCountsData ?? []) as QuestionIdSubjectRow[]
 
@@ -111,12 +112,14 @@ async function getSubjectProgressWithMap(
 
   const correctQuestionIds = new Set(correctResponses.map((r) => r.question_id))
 
+  // Guard the empty-array case: PostgREST rejects `.in('id', [])`. Also short-circuits
+  // the query entirely when the student has no correct responses yet.
   const { data: correctQuestionsData } =
     correctQuestionIds.size > 0
       ? await supabase
           .from('questions')
           .select('id, subject_id')
-          .eq('status', 'active')
+          .is('deleted_at', null)
           .in('id', [...correctQuestionIds])
       : { data: [] }
 
@@ -130,6 +133,7 @@ async function getSubjectProgressWithMap(
       correctPerSubject.set(q.subject_id, set)
     }
     set.add(q.id)
+    questionSubjectMap.set(q.id, q.subject_id)
   }
 
   const result = subjects
@@ -143,11 +147,14 @@ async function getSubjectProgressWithMap(
         short: s.short,
         totalQuestions: total,
         answeredCorrectly: correct,
-        masteryPercentage: total > 0 ? Math.round((correct / total) * 100) : 0,
+        // correct counts correct responses to non-deleted questions of any status,
+        // so it can exceed total (active-only) when the student answered a now-draft
+        // question (#540/#664). Clamp the displayed percentage to 100.
+        masteryPercentage: total > 0 ? Math.min(Math.round((correct / total) * 100), 100) : 0,
         lastPracticedAt: null as string | null,
       }
     })
-    .filter((s) => s.totalQuestions > 0)
+    .filter((s) => s.totalQuestions > 0 || s.answeredCorrectly > 0)
 
   return { subjects: result, questionSubjectMap }
 }
