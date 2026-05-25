@@ -248,8 +248,6 @@ describe('getDashboardData', () => {
   })
 
   it('caps masteryPercentage at 100 when correct responses exceed the active question count', async () => {
-    // #540/#664: 1 active question, but the student answered both it and a now-draft
-    // question correctly. correct (2) exceeds total (1) → percentage clamps to 100.
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     let questionsCallCount = 0

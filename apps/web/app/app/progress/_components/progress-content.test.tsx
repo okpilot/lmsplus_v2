@@ -79,8 +79,6 @@ describe('ProgressContent', () => {
   })
 
   it('shows 100% and a count capped at the active total when orphan responses exceed questions', async () => {
-    // #664: a student with correct responses to now-draft questions can have
-    // answeredCorrectly > totalQuestions. The KPI must not render above 100% or "N / M" with N > M.
     mockGetProgressData.mockResolvedValue([makeSubject(1, 3)])
 
     const jsx = await ProgressContent()
