@@ -159,7 +159,6 @@ describe('getProgressData', () => {
     })
 
     const result = await getProgressData()
-    // s2 has no questions AND no responses → filtered
     expect(result.every((s) => s.totalQuestions > 0)).toBe(true)
     expect(result.find((s) => s.id === 's2')).toBeUndefined()
   })
@@ -190,8 +189,6 @@ describe('getProgressData', () => {
   })
 
   it('keeps topic when it has no active questions but the student has correct responses to it', async () => {
-    // Topic t2 has zero active questions (q2 is now draft) — without the fix it vanishes.
-    // The student answered q2 when it was active; the topic card must remain visible.
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
@@ -219,8 +216,8 @@ describe('getProgressData', () => {
 
     const result = await getProgressData()
     expect(result).toHaveLength(1)
-    expect(result[0]!.totalQuestions).toBe(1) // only q1 is active
-    expect(result[0]!.answeredCorrectly).toBe(1) // q2 attributed via subjectByQuestionId
+    expect(result[0]!.totalQuestions).toBe(1)
+    expect(result[0]!.answeredCorrectly).toBe(1)
 
     const t2 = result[0]!.topics.find((t) => t.id === 't2')
     expect(t2).toBeDefined()
@@ -230,8 +227,6 @@ describe('getProgressData', () => {
   })
 
   it('counts active and draft question responses separately at the topic level', async () => {
-    // Topic has 1 active question and 1 draft question. Student answered the draft one correctly.
-    // totalQuestions = 1 (active only), answeredCorrectly = 1 (draft included for attribution).
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     mockFrom.mockImplementation((table: string) => {
@@ -257,11 +252,9 @@ describe('getProgressData', () => {
     const result = await getProgressData()
     expect(result).toHaveLength(1)
     const topic = result[0]!.topics.find((t) => t.id === 't1')!
-    expect(topic.totalQuestions).toBe(1) // only the active question
-    expect(topic.answeredCorrectly).toBe(1) // draft question response attributed
-    // masteryPercentage = answeredCorrectly / totalActive = 1/1 = 100
+    expect(topic.totalQuestions).toBe(1)
+    expect(topic.answeredCorrectly).toBe(1)
     expect(topic.masteryPercentage).toBe(100)
-    // subject level mirrors the topic: 1 active question, 1 correct (via draft attribution)
     expect(result[0]!.totalQuestions).toBe(1)
     expect(result[0]!.answeredCorrectly).toBe(1)
   })

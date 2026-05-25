@@ -61,8 +61,14 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
     subjectByQuestionId.set(q.id, q.subject_id)
     if (q.topic_id) topicByQuestionId.set(q.id, q.topic_id)
     if (q.status === 'active') {
-      qBySubject.set(q.subject_id, [...(qBySubject.get(q.subject_id) ?? []), q.id])
-      if (q.topic_id) qByTopic.set(q.topic_id, [...(qByTopic.get(q.topic_id) ?? []), q.id])
+      const subjectArr = qBySubject.get(q.subject_id)
+      if (subjectArr) subjectArr.push(q.id)
+      else qBySubject.set(q.subject_id, [q.id])
+      if (q.topic_id) {
+        const topicArr = qByTopic.get(q.topic_id)
+        if (topicArr) topicArr.push(q.id)
+        else qByTopic.set(q.topic_id, [q.id])
+      }
     }
   }
 

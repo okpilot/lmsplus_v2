@@ -123,6 +123,7 @@
 - SUGGESTION raised (not ISSUE — in a test helper, not production code, and the sessionId comes from a trusted beforeAll — but the pattern is still preferred).
 
 ### 2026-05-22 — issue #540 dashboard/progress orphan-retention fix (APPROVED)
+
 - All 8 plan items implemented correctly across dashboard.ts, progress.ts, dashboard.test.ts, progress.test.ts.
 - Both `if (q.topic_id)` null guards added to `topicByQuestionId` (line 62) and `qByTopic` (line 65) — correct.
 - `sCorrect`/`tCorrect` type change from array to number: all `.length` references updated, all masteryPercentage calculations use the number correctly.
