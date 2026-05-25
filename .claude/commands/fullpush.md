@@ -26,9 +26,13 @@ Before doing anything else, answer these questions honestly. Do NOT skip any. Pr
 After answering the checklist:
 
 1. **If any answer is "no"** — fix it before proceeding. Do not rationalize.
-2. **Run the full test suite**: `pnpm --filter @repo/web test -- --run` — report pass/fail count.
+2. **Lint the whole repo (read-only)**: `pnpm lint` (this is `biome check .`). Report errors. ⚠️ Do NOT use `pnpm check` here — that is `biome check --write .`, a fixer that rewrites files repo-wide. The gate must be read-only.
 3. **Run type check**: `pnpm check-types`
-4. **Show the agent findings summary table** for this session:
+4. **Run the full test suite**: `pnpm --filter @repo/web test -- --run` — report pass/fail count. (Vitest runs unit AND integration locally — they mock the DB, so no Supabase instance is needed.)
+5. **Build the app**: `pnpm build` (`turbo run build`). Always run it — catches RSC / Server-vs-Client boundary / static-generation errors that `tsc` misses. Turbo caches unchanged packages, so incremental builds are fast. A build failure blocks the push.
+6. **Migration validation (conditional)**: if `git diff master...HEAD --name-only` includes `supabase/migrations/` or `packages/db/migrations/`, validate the migrations on a clean local DB before push. If a local Supabase instance is running, run `supabase db reset` and confirm every migration applies cleanly. If no local instance is up, do NOT silently skip — print a loud `⚠️ MIGRATIONS CHANGED — VALIDATE ON A CLEAN DB BEFORE MERGE` and tell the user (CI's "Migration Test (clean reset)" is otherwise the first place a bad migration surfaces).
+7. **E2E (conditional)**: if `git diff master...HEAD --name-only` includes `apps/web/e2e/`, run the affected Playwright specs (`pnpm --filter @repo/web e2e`). Skip when no e2e specs changed — the full suite is slow and CI runs it on push anyway.
+8. **Show the agent findings summary table** for this session:
 
 ```
 | Agent             | Severity | Count | Status   |
@@ -40,9 +44,20 @@ After answering the checklist:
 | learner           | ...      | ...   | done     |
 ```
 
-5. **If an active spec exists**, confirm all completed tasks are checked off in `tasks.md` (`[ ]` → `[x]`). If any are missing, update before proceeding.
-6. **Run CodeRabbit local pre-push review** via the `/crlocal` command. Loop and apply findings per its triage protocol until a stop condition trips. Do not skip — CR local catches things our internal agents miss (observability gaps, runtime guard omissions, cleanup ordering). Skip only if `which coderabbit` returns nothing AND tell the user to install it.
-7. **Ask for explicit push approval.** Never push without it.
+9. **If an active spec exists**, confirm all completed tasks are checked off in `tasks.md` (`[ ]` → `[x]`). If any are missing, update before proceeding.
+10. **Run CodeRabbit local pre-push review** via the `/crlocal` command. Loop and apply findings per its triage protocol until a stop condition trips. Do not skip — CR local catches things our internal agents miss (observability gaps, runtime guard omissions, cleanup ordering). Skip only if `which coderabbit` returns nothing AND tell the user to install it.
+11. **Ask for explicit push approval.** Never push without it.
+
+## What this gate does NOT cover (left to CI on purpose)
+
+These run in CI and are intentionally not replicated locally — they are slow/infra-heavy quality gates, not "broken code" checks:
+- Lighthouse performance audit (`lighthouse.yml`)
+- SonarCloud + CodeQL deep static/security analysis (`sonarcloud.yml`, `codeql.yml`)
+- Bundle-size regression (`bundle-size.yml`)
+- Codecov patch-coverage threshold (`ci.yml`, `coverage-trend.yml`)
+- Dead-code / unused-export scan (`dead-code.yml`)
+
+The local gate ensures the code compiles, lints, type-checks, passes unit + integration tests, builds, and (when relevant) passes migrations + E2E — i.e. that it is not *broken*. The CI-only checks above track quality/perf trends and are fine to surface post-push.
 
 ## Why this exists
 
