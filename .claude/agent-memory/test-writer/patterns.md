@@ -4563,3 +4563,38 @@ in production (`tQuestions.length`, which is built from `qByTopic` which only in
 
 Applied in: `apps/web/lib/queries/progress.test.ts` commit `efbc6c11`.
 
+### Testing sessionId-chunking in fetchUserSessionAnswers (2026-05-27)
+
+`fetchUserSessionAnswers` loops over `sessionIds` in batches of 1000 and calls `fetchAllRows`
+once per batch. To test the chunking without a full Supabase proxy:
+
+**Mock `@/lib/supabase-paginate` at module scope** so `fetchAllRows` is a `vi.fn()`. Then:
+- Assert `toHaveBeenCalledTimes(N)` to prove the correct number of batches were issued.
+- Use `mockResolvedValueOnce` chains to supply per-batch results.
+- Assert total `result.data.length` for accumulation correctness.
+- Assert early-exit on error: when batch K fails, `mockFetchAllRows` call count equals K+1
+  (not 3), and `result.data === []`.
+
+Boundary cases to cover:
+- `ids.length === 0` → 0 calls, empty result
+- `ids.length === 1000` → 1 call (exact boundary, no second batch)
+- `ids.length === 1001` → 2 calls (just over the boundary)
+- `ids.length === 2500` → 3 calls, 2500 accumulated rows
+- `ids.length === 2000` (two full batches) → 2 calls, 2000 rows
+- Mid-batch error → 0 accumulated rows, error propagated, no further batch calls
+
+```ts
+const { mockFetchAllRows } = vi.hoisted(() => ({
+  mockFetchAllRows: vi.fn<
+    Parameters<typeof import('../supabase-paginate').fetchAllRows>,
+    ReturnType<typeof import('../supabase-paginate').fetchAllRows>
+  >(),
+}))
+
+vi.mock('@/lib/supabase-paginate', () => ({
+  fetchAllRows: mockFetchAllRows,
+}))
+```
+
+Applied in: `apps/web/lib/gdpr/collect-user-data-queries.test.ts` (2026-05-27, #668).
+

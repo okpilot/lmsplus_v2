@@ -5293,3 +5293,165 @@ These were NOT touched by the #668 fix commits (9eca47d6 is scoped only to dashb
 - **All post-commit agents clean**
 - **Patterns tracked:** 3 watch-list patterns (counts 2 → monitor for count 3)
 - **Deferred work:** 1 GitHub issue for pre-existing rpc<T[]> sweep (progress.ts, analytics.ts)
+
+---
+
+## Learner Cycle — 2026-05-27 — #668 GDPR Export Pagination (commits 9da1e069, ee6d646a, 431d930d)
+
+**Post-commit agent synthesis on GDPR export pagination + chunking test additions.**
+
+### Context
+
+Three-commit sequence implementing paginated GDPR export with error resilience:
+1. **9da1e069** — `feat(gdpr): paginated export-user-data with chunking + recovery (#668)` — orchestrator impl, collect-user-data.ts split into collect-user-data-queries.ts to fit 200-line limit, pagination logic added
+2. **ee6d646a** — `fix(gdpr): empty on error (discard partial, return {data:[], error}) (#668)` — semantic-reviewer ISSUE fix, fetchAllRows now returns empty on mid-pagination error
+3. **431d930d** — `test(gdpr): cover chunking edge cases + error recovery (#668)` — test-writer additions, comprehensive chunking tests
+
+### Agent Findings Summary
+
+**Pre-commit Critics (plan-critic + implementation-critic):**
+
+- **Plan-critic:** 2 ISSUEs, both pre-execution
+  * **ISSUE 1:** `.order('id')` on `active_flagged_questions` view → 400 error (composite PK view, no 'id' column). RESOLUTION: Plan revised to order by `flagged_at, question_id`. Re-run clean.
+  * **ISSUE 2:** Test mock count-vs-range dispatch underspecified → Promise.all call interleaving makes global call-order fragile. RESOLUTION: Orchestrator specified per-table head/range dispatch detail before execution. Re-run clean.
+  * **Finding:** Both ISSUEs were validation-stage problems (plan reviewed code without reading schema details). Orchestrator read schema and PostgREST docs before executing; both issues eliminated via thorough plan validation.
+
+- **Implementation-critic:** Clean on 9da1e069 and ee6d646a
+  * **BLOCKING on 431d930d (test commit):** 147 lines of dead code (unused `buildAnswersClient` helper) in new test file. Would trigger 7 biome noUnusedVariables errors at pre-commit. RESOLUTION: Test author deleted dead scaffolding before commit. Re-run clean.
+  * **Test title ISSUE:** One test name over-promising behavior. RESOLUTION: Clarified title to match assertion. Re-run clean.
+  * **Finding:** Implementation-critic caught blocking biome violations before commit, preventing pre-commit-hook failure. Positive signal for the every-commit critic policy.
+
+**Post-commit Agents:**
+
+- **code-reviewer:** 0 BLOCKING, 0 WARNING — clean
+  * File size: collect-user-data.ts split correctly (collect-user-data-queries.ts 180 lines, collect-user-data.ts 95 lines, both under 200 limit)
+  * No style violations; naming consistent
+
+- **semantic-reviewer:** 0 CRITICAL; **1 ISSUE** (logic error)
+  * **ISSUE:** `fetchAllRows()` returned **partial rows** on mid-pagination error → GDPR export orchestrator built a silently-incomplete export (data present, error silently dropped)
+  * **Root:** Outer try/catch swallowed errors; returned data up to the failure point without signaling truncation
+  * **RESOLUTION (ee6d646a):** Changed contract: fetchAllRows now returns `{data:[], error}` on ANY error. Empty-on-error semantics guarantee export consumers see either complete data or empty+error, never partial.
+  * **Re-review:** Clean. 1 non-blocking SUGGESTION (defensive `?? []` on concat) — SKIPPED (types statically guarantee non-null array from RPC).
+
+- **doc-updater:** 1 ISSUE flagged
+  * **Claim:** docs/plan.md #668 section needs update (not specified what)
+  * **Context:** Another branch (not 9da1e069/ee6d646a/431d930d) also edits the same #668 section. Cross-branch conflict; reconciliation deferred to merge conflict resolution.
+  * **Orchestrator action:** Noted conflict; #668 issue tracking remains source of truth. No doc update needed in this session.
+
+- **test-writer:** Added chunking test file
+  * Tests cover: edge cases (2 rows, 500 rows, 5000 rows), empty dataset, in-pagination error + recovery, request-timing boundaries
+  * All pass
+
+**Conditional Agents:**
+
+- **Red-team:** Not triggered (no security-sensitive file changes in diff; GDPR export is admin-only RPC, no new auth/RLS patterns)
+
+### Patterns Detected
+
+#### [POSITIVE SIGNAL] Every-commit implementation-critic policy validated
+
+**Description:**
+Implementation-critic ran on the test-file commit (431d930d) and caught 1 BLOCKING lint failure (7 unused-variable errors from dead `buildAnswersClient` helper) that would have triggered pre-commit-hook failure. The user noted this as a watch item last session: "impl-critic skipped on fix commits [concern about overhead]". This cycle confirms the policy has tangible value.
+
+**Instances (this cycle):**
+1. Test commit 431d930d had dead scaffolding that passed vitest (esbuild strips types), passed manual review (easy to miss in large test file), but would fail biome lint at pre-commit hook time.
+2. Implementation-critic caught it pre-commit, prevented merge of a commit that CI would reject.
+
+**Why this matters:**
+- Biome pre-commit hook is fast (< 1s); biome failures on PR branches waste 10+ minutes of CI/re-push cycles.
+- Dead code in tests is easy to miss because test-only code is not type-checked during development (esbuild runtime only).
+- Every-commit implementation-critic caught this without human code review.
+
+**Status:** Positive signal. **Watch item resolved.** Implementation-critic on every commit (even test-only) is justified. Policy continues.
+
+#### [POSITIVE SIGNAL] Plan-critic caught pre-execution validation gaps (schema + contract)
+
+**Description:**
+Plan-critic's 2 ISSUEs were both upstream of code-writing: (1) plan didn't read the actual view schema (active_flagged_questions has no 'id' column); (2) plan didn't detail per-table mock dispatch (fragile Promise.all ordering). Both RESOLVED during plan validation, before execution. This is the correct gate sequence — catch validation issues at plan time, not implementation time.
+
+**Instances (this cycle):**
+1. `.order('id')` on a view → pre-execution ISSUE detection. Orchestrator read schema, realized plan was wrong, revised plan. Implementation used the correct order clause.
+2. Mock dispatch underspecified → ISSUE caught. Orchestrator detailed the per-table dispatch rules. Tests written with correct mock structure.
+
+**Why this matters:**
+Plan-critic's role is to catch the shape of the approach before writing code. This cycle is textbook: plan was wrong, critic caught it, orchestrator fixed the plan, execution proceeded with correct approach. No wasted implementation time, no rework.
+
+**Status:** Positive signal. Plan-validation pipeline working as designed. No changes needed; continue disciplined approach.
+
+#### [POSITIVE SIGNAL] Semantic-reviewer ISSUE (partial-data export) correctly identified and fixed with contract change
+
+**Description:**
+Semantic-reviewer flagged that `fetchAllRows()` returned partial results on error, creating a silent-failure export. The fix was not a local guard (try/catch harder) but a **contract change**: move to empty-on-error semantics (`{data:[], error}` always, never partial data). This prevents downstream code from mistaking incomplete data for complete data.
+
+**Instances (this cycle):**
+1. Original implementation (9da1e069): fetchAllRows returned `data?.slice(0, pageNum)` on error, continuing to export partial.
+2. Fix (ee6d646a): Changed to return `{data:[], error}`, guaranteeing either all rows or none.
+
+**Why this matters:**
+- GDPR exports are legally sensitive (completeness required by regulation).
+- Silent partial-export is worse than visible error (user thinks they got everything, but didn't).
+- Contract clarity (empty vs. partial) prevents confusion at call sites.
+
+**Status:** Positive signal. Semantic-reviewer identified a data-integrity gap and suggested the right fix approach (not just error handling, but contract design). No rule change needed; this is how semantic review should work.
+
+#### [WATCH PATTERN — count 1] Type-validation gap: new test files aren't type-checked until pre-commit hook
+
+**Description:**
+Test file 431d930d was authored with dead scaffolding code (`buildAnswersClient` helper). Vitest run (via `pnpm test`) succeeds because vitest uses esbuild (strips types, doesn't run tsc). The code passes test execution. But `pnpm check-types` (tsc) would flag it immediately. Pre-commit hook runs biome (includes linting but not separate type check); biome's linter flagged the unused variable.
+
+**Root cause:** Workflow gap. Test authors run `pnpm test` to validate tests, not `pnpm check-types` which type-checks the files. Dead TypeScript (unused imports, unused helper functions) can hide in tests between `test` and the pre-commit hook.
+
+**Why this matters:**
+- Test files are code too; dead code is debt.
+- If implementation-critic hadn't caught the biome violation, the commit would have passed local checks, failed on pre-commit hook, required a fix commit, and delayed merge.
+- This is avoidable with a note in the test-writing workflow (run `pnpm check-types` after adding test files, not just `pnpm test`).
+
+**Assessment:** This is a **workflow note, not a rule violation**. Not promoted to a hard rule; just a discipline note for future test-writing cycles: after adding test files, run `pnpm check-types` alongside `pnpm test` to catch dead code early. Implementation-critic will still catch biome failures, but early detection by author saves review time.
+
+**Status:** Log and suggest. If dead code in tests recurs in a second cycle without `check-types` being run, propose adding a note to test-writer.md or CLAUDE.md about post-authorship type-checking.
+
+#### [REPEAT — count 2 now, but not actionable] CodeRabbit-local vs. post-commit agent rpc<T[]> guard gaps
+
+**Prior note (2026-05-26 post-push CR-fix):** CodeRabbit local caught rpc<T[]> guard gaps that post-commit agents missed on the original RPC feature commit (a6dc7a9c).
+
+**This cycle:** No new RPC additions in the GDPR export feature (it uses existing RPCs). No recurrence this cycle. Pattern remains at count 2 from the prior cycle. **No action this cycle; continue watching.**
+
+### Recommended Changes
+
+**No hard rule changes. One workflow note (non-binding) for test-writer context:**
+
+**Proposed addition to CLAUDE.md or team memory (not a binding rule, just process guidance):**
+
+> After adding test files (`.test.ts` / `.test.tsx`), run `pnpm check-types` alongside `pnpm test` to catch dead code and type errors early. Test-only code is not type-checked during development (esbuild runtime), so unused scaffolding can hide between test execution and pre-commit hook. Implementation-critic will catch biome failures, but early detection saves review cycles.
+
+This is a suggestion for orchestrator consideration, not a learner enforcement point. The binding gate is the pre-commit hook; this just optimizes workflow.
+
+### Watch-List Status
+
+**Patterns at count 2+ (monitor for count 3 or promotion):**
+
+1. **"RPC-backed SQL logic must be verified via real-SQL probe/E2E, NOT mockRpc Vitest tests"** — count 2 (from 2026-05-26). No recurrence this cycle (no complex-SQL RPCs added). Continue watching.
+2. **"CodeRabbit-local catches rpc<T[]> guard gaps that post-commit agents miss"** — count 2 (from 2026-05-26 post-push CR-fix). No recurrence this cycle (no new RPCs). Continue watching.
+3. **"Spec-doc section status speculation by doc-updater agent"** — count 2 (from 2026-05-26 post-push CR-fix). No recurrence this cycle (doc-updater flagged a real conflict, not speculation). Continue watching.
+
+**New watch pattern (count 1):**
+
+4. **"Type-validation gap in new test files (dead code hidden from test execution, caught at biome pre-commit)"** — count 1. If dead code in tests appears in a second cycle, propose a workflow note.
+
+### Cycle Status
+
+- **3 commits:** impl, error-contract fix, tests
+- **Pre-commit critics:** 2 plan-critic ISSUEs resolved pre-execution; 1 implementation-critic BLOCKING resolved pre-commit
+- **Post-commit agents:** 1 semantic-reviewer ISSUE (partial-data export) resolved with contract fix; 0 other critical findings
+- **All findings addressed in-cycle; all agents clean on final commits**
+- **Positive signals:** (1) every-commit impl-critic validated (caught biome failure pre-commit); (2) plan-validation pipeline working (caught schema gaps before execution); (3) semantic-reviewer identified data-integrity gap correctly
+
+### No Rule Promotions This Cycle
+
+All findings were either:
+- Pre-execution validation issues (fixed during plan revision, not rule-level)
+- Single-occurrence workflow observations (dead code in tests, type-checking discipline)
+- Positive signals on existing policies (impl-critic, plan-validation, semantic-review)
+- Prior watch patterns (count 2) with no new recurrence
+
+No patterns reached count 2 this cycle. **Prior patterns holding steady at count 2 (no escalation to promotion threshold yet).**

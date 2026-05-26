@@ -187,6 +187,28 @@
 - docs/database.md: 2 RPC summary rows added after mastery row (L661-663). 2 signature sections added after mastery section (L2073, L2092). Both accurate vs migration body.
 - APPROVED — no findings.
 
+### 2026-05-27 — issue #668 PR C test file: dead buildAnswersClient helper causes Biome pre-commit failure — ISSUE
+
+- `buildAnswersClient` (147 lines, test file lines 35–181) built a full Supabase proxy to simulate `.in()` batch tracking, but was never called — all 7 tests switched to the simpler `vi.hoisted` + `mockFetchAllRows` mock approach.
+- Biome reported 7 lint errors (`noUnusedVariables` ×4, `noUnusedFunctionParameters` ×1, `useConst` ×1, format ×1) — would have failed the pre-commit hook.
+- Pattern: dead helper from an earlier design draft survives when the approach is refactored mid-implementation. Identical failure mode to session 2026-04-11 (queries.test.ts unused `buildChain`).
+- Watch for: any test file containing a large helper function (proxy-builder, client factory, chain-builder) — grep for call sites before committing. If the helper is only referenced in its own definition, delete it.
+- Count: 2 occurrences (2026-04-11 + 2026-05-27). Pattern is now confirmed recurring — add to pre-commit mental checklist.
+
+### 2026-05-27 — issue #668 PR C: GDPR export pagination (collect-user-data + supabase-paginate) — APPROVED
+
+- fetchAllRows loop: `for (from=0; from<total; from+=pageSize)` with `to=Math.min(from+pageSize,total)-1`. Exact-multiple boundary verified (total=4, pageSize=2 → 2 calls, no third). Can't infinite-loop (total is fixed, from grows by pageSize each iteration, loop terminates at from>=total).
+- All 8 list reads routed through fetchAllRows — quiz_sessions, student_responses, fsrs_cards, active_flagged_questions, question_comments, user_consents, audit_events (all via named fetchUser* helpers), quiz_session_answers (chunked in fetchUserSessionAnswers). users read stays .single(). No read left un-paginated.
+- active_flagged_questions: view already filters deleted_at IS NULL (migration 20260323000051). Count and page queries add no extra deleted_at filter — correct, consistent. Order uses .order('question_id') tiebreak (no id column on the composite-PK table/view).
+- student_responses / fsrs_cards / quiz_session_answers / user_consents: none have deleted_at — queries correctly omit the filter.
+- sessionsResult.data used directly (no ?? fallback) — correct; fetchAllRows return type guarantees data: T[] (never null).
+- Phase-2 chunk size = 1000 exactly matching the .in() URI limit; empty sessionIds guarded before the loop. An error in any batch breaks early and is logged.
+- Error logging: simplified from `'error' in result && result.error` to `result.error` — safe because fetchAllRows always returns the {data, error} envelope (data is never absent from the type). answers error logged separately.
+- audit_events: only SELECTed, never mutated. Immutability rule preserved.
+- File sizes: collect-user-data-queries.ts 191 lines (max 200), collect-user-data.ts 90 lines (max 200), supabase-paginate.ts 30 lines (max 200). All within limits.
+- Positive signal: count-query filters (deleted_at IS NULL, student_id equality) exactly mirror page-query filters in all 8 helpers — a count/page filter mismatch would cause pagination to fetch wrong or excess rows.
+- APPROVED — no findings.
+
 ### 2026-05-26 — issue #540 CodeRabbit doc+error-path fixes (PR #674) — APPROVED
 
 - design.md Scoping bullet: corrected from "no manual scoping, no auth preamble" to "RLS + an explicit numerator predicate" with `sr.student_id = auth.uid()`. Wording verified against migration `20260521000005_student_mastery_stats_rpc.sql` — correct_q CTE has `WHERE sr.student_id = auth.uid()` at line 68. security.md §11 reference is accurate (`student_responses` has `instructors_read_students` policy that OR-combines with the student policy).
