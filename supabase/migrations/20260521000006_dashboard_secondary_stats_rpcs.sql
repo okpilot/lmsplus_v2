@@ -57,6 +57,11 @@ AS $$
     COALESCE((SELECT MAX(r.len) FROM runs r), 0) AS best_streak;
 $$;
 
+-- Both functions grant EXECUTE only to `authenticated` (same as get_student_mastery_stats).
+-- Supabase's platform defaults ALSO implicitly grant EXECUTE to `anon` on new functions — this
+-- migration does not add that, and it is safe to leave: an anon caller resolves auth.uid() to
+-- NULL and the RLS policies on student_responses/questions yield an empty set. RLS — not the
+-- EXECUTE grant — is the access boundary here.
 GRANT EXECUTE ON FUNCTION public.get_student_streak() TO authenticated;
 
 COMMENT ON FUNCTION public.get_student_streak() IS

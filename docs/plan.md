@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-04-30 — Internal Exam Mode + CI flake fix landed
+> Last updated: 2026-05-26 — Umbrella #668: PostgREST 1000-row truncation fixes. Instance #1: get_student_mastery_stats (2026-05-26). Instance #2: get_student_streak + get_student_last_practiced (2026-05-26).
 
 ---
 
@@ -1157,3 +1157,45 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - Pre-push security-auditor passed.
 
 *Last updated: 2026-04-30 — Internal Exam Mode + CI flake fix landed.*
+
+---
+
+## Umbrella #668 — PostgREST 1000-Row Truncation Fixes (IN PROGRESS)
+
+**Issue:** PostgREST silently truncates unpaginated reads at 1000 rows. Client-side aggregations using `.limit(10000)` and `.limit(5000)` to work around this cap were ineffective. Two dashboard stats (student mastery + daily-practice streak + per-subject last-practiced) undercount for students with high response volume.
+
+**Solution:** Move aggregations from client-side SQL to Postgres RPCs, which execute atomically without row-count limits.
+
+### Instance #1: get_student_mastery_stats (LANDED 2026-05-26)
+
+**Commit:** `ae087c76`
+
+- New RPC: `get_student_mastery_stats()` (mig 20260521000005) — per-(subject) and per-(subject,topic) mastery counts, gaps-and-islands aggregate.
+- Security: `SECURITY INVOKER` + explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11 — `student_responses` has 2 permissive SELECT policies).
+- Replaces: client-side `getMasteryStats()` over a `.select('*').eq('student_id', userId).limit(1000)` read that truncated for high-response students.
+- Verification: prod probes synthetic + real (2026-05-26).
+
+### Instance #2: get_student_streak + get_student_last_practiced (LANDED 2026-05-26)
+
+**Commit:** `a6dc7a9c`
+
+- New RPCs (mig 20260521000006):
+  - `get_student_streak()` — current + best daily-practice streak (in days), gaps-and-islands over DISTINCT UTC response dates.
+  - `get_student_last_practiced()` — most recent response timestamp per subject (all responses).
+- Security: both `SECURITY INVOKER` + explicit `sr.student_id = auth.uid()` (same load-bearing reason).
+- Replaces:
+  - `getStreakData()` over a `.limit(10000)` read that undercounted for high-response students.
+  - `applyLastPracticed()` + the coupled truncated `questionSubjectMap` read (deferred to PR #674).
+- Verification: staged for prod probes (task #6 of this sprint).
+
+### Instance #3: Deferred to PR #674
+
+Per commit message: retires the `questionSubjectMap` questions read. Out of scope for this PR.
+
+### Status
+
+- **Complete:** instances #1–#2 (merged to master).
+- **Pending:** prod verification via synthetic + real student probes.
+- **Deferred:** instance #3 (PR #674, questions read simplification).
+
+*Last updated: 2026-05-26 — Instances #1–#2 landed; instance #3 deferred.*
