@@ -2058,8 +2058,8 @@ Returns mastery counts at two granularities in one result set: a subject-level r
 **Parameters:** none (caller is always self).
 
 **Returns:** `TABLE(subject_id UUID, topic_id UUID, total BIGINT, correct BIGINT)`
-- `total` — `COUNT(DISTINCT)` of `status = 'active'` questions (denominator).
-- `correct` — `COUNT(DISTINCT)` of questions answered correctly, **any** status (numerator); can exceed `total` when the student answered a now-draft question (orphan retention, #540/#664). The percentage clamp and the `total>0 OR correct>0` orphan-retention filter stay in TypeScript, which consumes the raw counts.
+- `total` — `COUNT(*)` of `status = 'active'` questions in the `active_q` CTE (denominator; rows are already unique by `questions.id` PK, so no `DISTINCT` keyword is needed).
+- `correct` — count of **distinct** questions answered correctly, **any** status (numerator; the `correct_q` CTE dedups via `SELECT DISTINCT q.id`, then `COUNT(*)` over that set, so multiple correct attempts on one question count once); can exceed `total` when the student answered a now-draft question (orphan retention, #540/#664). The percentage clamp and the `total>0 OR correct>0` orphan-retention filter stay in TypeScript, which consumes the raw counts.
 - `topic_id IS NULL` marks the subject-level aggregate row — a safe sentinel because `questions.topic_id` is `NOT NULL`.
 
 **Migration:** `20260521000005_student_mastery_stats_rpc.sql`

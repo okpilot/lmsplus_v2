@@ -91,18 +91,26 @@ async function getSubjectProgressWithMap(supabase: SupabaseClient): Promise<Subj
   const subjects = (subjectsData ?? []) as SubjectRow[]
   if (!subjects.length) return { subjects: [], questionSubjectMap: new Map() }
 
-  // Per-subject mastery counts aggregated in Postgres (#540): the prior client-side
-  // numerator/denominator reads truncated at the PostgREST 1000-row cap. The RPC returns
-  // both subject-level (topic_id === null) and topic-level rows; we use the subject rows.
-  const { data: masteryData, error: masteryError } = await rpc<MasteryRow[]>(
-    supabase,
-    'get_student_mastery_stats',
-    {},
-  )
-  if (masteryError) throw new Error(`Failed to fetch mastery stats: ${masteryError.message}`)
+  // Two independent reads, run in parallel:
+  //  - Per-subject mastery counts aggregated in Postgres (#540): the prior client-side
+  //    numerator/denominator reads truncated at the PostgREST 1000-row cap. The RPC returns
+  //    both subject-level (topic_id === null) and topic-level rows; we use the subject rows.
+  //  - Last-practiced attribution map (deferred #668 — this read is still truncated at the
+  //    1000-row cap). NOT used for mastery. Any-status non-deleted reproduces the legacy map
+  //    (active ∪ non-deleted-answered) exactly, so lastPracticedAt does not regress.
+  const [masteryRes, questionMapRes] = await Promise.all([
+    rpc<MasteryRow[]>(supabase, 'get_student_mastery_stats', {}),
+    supabase.from('questions').select('id, subject_id').is('deleted_at', null),
+  ])
+  if (masteryRes.error) {
+    throw new Error(`Failed to fetch mastery stats: ${masteryRes.error.message}`)
+  }
+  if (questionMapRes.error) {
+    throw new Error(`Failed to fetch question-subject map: ${questionMapRes.error.message}`)
+  }
 
   const masteryBySubject = new Map<string, { total: number; correct: number }>()
-  for (const row of masteryData ?? []) {
+  for (const row of masteryRes.data ?? []) {
     if (row.topic_id !== null) continue
     if (!row.subject_id) continue
     masteryBySubject.set(row.subject_id, {
@@ -111,19 +119,8 @@ async function getSubjectProgressWithMap(supabase: SupabaseClient): Promise<Subj
     })
   }
 
-  // Last-practiced attribution only (deferred #668 — this read is still truncated at the
-  // 1000-row cap). NOT used for mastery. Any-status non-deleted reproduces the legacy map
-  // (active ∪ non-deleted-answered) exactly, so lastPracticedAt does not regress.
-  const { data: questionMapData, error: questionMapError } = await supabase
-    .from('questions')
-    .select('id, subject_id')
-    .is('deleted_at', null)
-  if (questionMapError) {
-    throw new Error(`Failed to fetch question-subject map: ${questionMapError.message}`)
-  }
-
   const questionSubjectMap = new Map<string, string>()
-  for (const q of (questionMapData ?? []) as QuestionIdSubjectRow[]) {
+  for (const q of (questionMapRes.data ?? []) as QuestionIdSubjectRow[]) {
     questionSubjectMap.set(q.id, q.subject_id)
   }
 
