@@ -10,10 +10,12 @@
 --
 -- SECURITY INVOKER + RLS (same model as get_question_counts, #614, the prior fix for this
 -- identical bug class): the `tenant_isolation` policy on `questions` scopes every read to
--- the caller's organization + deleted_at IS NULL (any status), and the `student_responses`
--- RLS policy (student_id = auth.uid()) scopes the numerator to the caller. No manual
--- org-scoping and no auth preamble are needed — an unauthenticated caller resolves
--- auth.uid() to NULL, both policies match zero rows, and the function returns an empty set.
+-- the caller's organization + deleted_at IS NULL (any status). The numerator additionally
+-- self-scopes with an explicit `sr.student_id = auth.uid()` (see correct_q) — student_responses
+-- has a second SELECT policy (instructors_read_students) that would otherwise let an
+-- instructor/admin aggregate org-wide, so RLS alone is not enough to keep it per-caller. No
+-- manual org-scoping and no auth preamble are needed — an unauthenticated caller resolves
+-- auth.uid() to NULL, the filters match zero rows, and the function returns an empty set.
 --
 -- Preserves the PR #665 / d1cd4770 semantics EXACTLY (behaviour-preserving TS->SQL move):
 --   total   = COUNT(DISTINCT q.id) WHERE status = 'active'   (denominator; RLS already
@@ -53,12 +55,18 @@ AS $$
     WHERE q.status = 'active'
   ),
   -- NUMERATOR: distinct questions the caller answered correctly, attributed to the
-  -- question's own subject/topic. Any status (RLS = own responses + org + non-deleted).
+  -- question's own subject/topic; any status (the questions JOIN is org + non-deleted via RLS).
+  -- The explicit `sr.student_id = auth.uid()` is REQUIRED, not redundant: student_responses
+  -- has a second SELECT policy (instructors_read_students) that lets an instructor/admin read
+  -- ALL responses in their org, so RLS alone would aggregate org-wide for those roles. This
+  -- self-scope keeps the numerator per-caller for every role (matches the legacy client read's
+  -- .eq('student_id', userId)). Unauthenticated → auth.uid() NULL → zero rows.
   correct_q AS (
     SELECT DISTINCT q.id, q.subject_id, q.topic_id
     FROM student_responses sr
     JOIN questions q ON q.id = sr.question_id
-    WHERE sr.is_correct = true
+    WHERE sr.student_id = auth.uid()
+      AND sr.is_correct = true
   ),
   subj_total AS (
     SELECT aq.subject_id, COUNT(*)::bigint AS total
