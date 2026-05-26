@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { rpc } from '@/lib/supabase-rpc'
 
 export type SubjectOption = {
   id: string
@@ -33,30 +34,45 @@ export type TopicWithSubtopics = {
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type TopicRow = { id: string; code: string; name: string; sort_order: number }
 type SubtopicRow = { id: string; code: string; name: string; sort_order: number; topic_id: string }
-type QuestionRefRow = { subject_id: string }
-type QuestionTopicRow = { topic_id: string }
-type QuestionSubtopicRow = { subtopic_id: string }
+type QuestionCountRow = {
+  subject_id: string
+  topic_id: string
+  subtopic_id: string | null
+  n: number | string
+}
 type QuestionIdRow = { id: string }
 type QuestionFilterRef = { question_id: string }
 
 export type QuestionFilter = 'all' | 'unseen' | 'incorrect' | 'flagged'
 
+async function fetchActiveQuestionCounts(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+): Promise<QuestionCountRow[]> {
+  const { data, error } = await rpc<QuestionCountRow[]>(supabase, 'get_question_counts', {
+    p_status: 'active',
+  })
+  if (error) {
+    console.error('[fetchActiveQuestionCounts] get_question_counts error:', error.message)
+    return []
+  }
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
+  return Array.isArray(data) ? data : []
+}
+
 export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
   const supabase = await createServerSupabaseClient()
 
-  const [{ data: subjectsData }, { data: countsData }] = await Promise.all([
+  const [{ data: subjectsData }, countsData] = await Promise.all([
     supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
-    supabase.from('questions').select('subject_id').eq('status', 'active').is('deleted_at', null),
+    fetchActiveQuestionCounts(supabase),
   ])
 
   const subjects = (subjectsData ?? []) as SubjectRow[]
   if (!subjects.length) return []
 
-  const counts = (countsData ?? []) as QuestionRefRow[]
-
   const countMap = new Map<string, number>()
-  for (const q of counts) {
-    countMap.set(q.subject_id, (countMap.get(q.subject_id) ?? 0) + 1)
+  for (const row of countsData) {
+    countMap.set(row.subject_id, (countMap.get(row.subject_id) ?? 0) + Number(row.n))
   }
 
   return subjects
@@ -82,18 +98,12 @@ export async function getTopicsForSubject(subjectId: string): Promise<TopicOptio
   const topics = (topicsData ?? []) as TopicRow[]
   if (!topics.length) return []
 
-  const { data: countsData } = await supabase
-    .from('questions')
-    .select('topic_id')
-    .eq('status', 'active')
-    .eq('subject_id', subjectId)
-    .is('deleted_at', null)
-
-  const counts = (countsData ?? []) as QuestionTopicRow[]
+  const countsData = await fetchActiveQuestionCounts(supabase)
 
   const countMap = new Map<string, number>()
-  for (const q of counts) {
-    countMap.set(q.topic_id, (countMap.get(q.topic_id) ?? 0) + 1)
+  for (const row of countsData) {
+    if (row.subject_id !== subjectId) continue
+    countMap.set(row.topic_id, (countMap.get(row.topic_id) ?? 0) + Number(row.n))
   }
 
   return topics
@@ -118,18 +128,12 @@ export async function getSubtopicsForTopic(topicId: string): Promise<SubtopicOpt
   const subtopics = (subtopicsData ?? []) as SubtopicRow[]
   if (!subtopics.length) return []
 
-  const { data: countsData } = await supabase
-    .from('questions')
-    .select('subtopic_id')
-    .eq('status', 'active')
-    .eq('topic_id', topicId)
-    .is('deleted_at', null)
-
-  const counts = (countsData ?? []) as QuestionSubtopicRow[]
+  const countsData = await fetchActiveQuestionCounts(supabase)
 
   const countMap = new Map<string, number>()
-  for (const q of counts) {
-    countMap.set(q.subtopic_id, (countMap.get(q.subtopic_id) ?? 0) + 1)
+  for (const row of countsData) {
+    if (row.topic_id !== topicId || row.subtopic_id === null) continue
+    countMap.set(row.subtopic_id, (countMap.get(row.subtopic_id) ?? 0) + Number(row.n))
   }
 
   return subtopics
@@ -156,35 +160,28 @@ export async function getTopicsWithSubtopics(subjectId: string): Promise<TopicWi
 
   const topicIds = topics.map((t) => t.id)
 
-  const [{ data: subtopicsData }, { data: qTopicData }, { data: qSubtopicData }] =
-    await Promise.all([
-      supabase
-        .from('easa_subtopics')
-        .select('id, code, name, sort_order, topic_id')
-        .in('topic_id', topicIds)
-        .order('sort_order'),
-      supabase
-        .from('questions')
-        .select('topic_id')
-        .eq('status', 'active')
-        .eq('subject_id', subjectId)
-        .is('deleted_at', null),
-      supabase
-        .from('questions')
-        .select('subtopic_id')
-        .eq('status', 'active')
-        .eq('subject_id', subjectId)
-        .is('deleted_at', null),
-    ])
+  const [{ data: subtopicsData }, countsData] = await Promise.all([
+    supabase
+      .from('easa_subtopics')
+      .select('id, code, name, sort_order, topic_id')
+      .in('topic_id', topicIds)
+      .order('sort_order'),
+    fetchActiveQuestionCounts(supabase),
+  ])
 
   const subtopics = (subtopicsData ?? []) as SubtopicRow[]
+
   const topicCounts = new Map<string, number>()
-  for (const q of (qTopicData ?? []) as QuestionTopicRow[]) {
-    topicCounts.set(q.topic_id, (topicCounts.get(q.topic_id) ?? 0) + 1)
-  }
   const subtopicCounts = new Map<string, number>()
-  for (const q of (qSubtopicData ?? []) as QuestionSubtopicRow[]) {
-    subtopicCounts.set(q.subtopic_id, (subtopicCounts.get(q.subtopic_id) ?? 0) + 1)
+  for (const row of countsData) {
+    if (row.subject_id !== subjectId) continue
+    topicCounts.set(row.topic_id, (topicCounts.get(row.topic_id) ?? 0) + Number(row.n))
+    if (row.subtopic_id !== null) {
+      subtopicCounts.set(
+        row.subtopic_id,
+        (subtopicCounts.get(row.subtopic_id) ?? 0) + Number(row.n),
+      )
+    }
   }
 
   const subtopicsByTopic = new Map<string, SubtopicOption[]>()

@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -12,6 +13,10 @@ vi.mock('@repo/db/server', () => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
+}))
+
+vi.mock('@/lib/supabase-rpc', () => ({
+  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -61,25 +66,31 @@ function mockFromSequence(...responses: unknown[]) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockRpc.mockResolvedValue({ data: [], error: null })
 })
 
 describe('getSubjectsWithCounts', () => {
   it('returns subjects with question counts aggregated by subject_id', async () => {
-    mockFromSequence(
-      {
-        data: [
-          {
-            id: 's1',
-            code: 'AGK',
-            name: 'Aircraft General Knowledge',
-            short: 'AGK',
-            sort_order: 1,
-          },
-          { id: 's2', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 2 },
-        ],
-      },
-      { data: [{ subject_id: 's1' }, { subject_id: 's1' }, { subject_id: 's2' }] },
-    )
+    mockFromSequence({
+      data: [
+        {
+          id: 's1',
+          code: 'AGK',
+          name: 'Aircraft General Knowledge',
+          short: 'AGK',
+          sort_order: 1,
+        },
+        { id: 's2', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 2 },
+      ],
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: 1 },
+        { subject_id: 's2', topic_id: 't2', subtopic_id: null, n: 1 },
+      ],
+      error: null,
+    })
 
     const result = await getSubjectsWithCounts()
     expect(result).toHaveLength(2)
@@ -94,15 +105,16 @@ describe('getSubjectsWithCounts', () => {
   })
 
   it('filters out subjects with zero questions', async () => {
-    mockFromSequence(
-      {
-        data: [
-          { id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 },
-          { id: 's2', code: 'MET', name: 'MET', short: 'MET', sort_order: 2 },
-        ],
-      },
-      { data: [{ subject_id: 's1' }] }, // s2 has no questions
-    )
+    mockFromSequence({
+      data: [
+        { id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 },
+        { id: 's2', code: 'MET', name: 'MET', short: 'MET', sort_order: 2 },
+      ],
+    })
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's1', topic_id: 't1', subtopic_id: null, n: 1 }],
+      error: null,
+    })
 
     const result = await getSubjectsWithCounts()
     expect(result).toHaveLength(1)
@@ -119,15 +131,21 @@ describe('getSubjectsWithCounts', () => {
 
 describe('getTopicsForSubject', () => {
   it('returns topics with question counts for the given subject', async () => {
-    mockFromSequence(
-      {
-        data: [
-          { id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 },
-          { id: 't2', code: '050-02', name: 'Engines', sort_order: 2 },
-        ],
-      },
-      { data: [{ topic_id: 't1' }, { topic_id: 't1' }, { topic_id: 't2' }] },
-    )
+    mockFromSequence({
+      data: [
+        { id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 },
+        { id: 't2', code: '050-02', name: 'Engines', sort_order: 2 },
+      ],
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: 1 },
+        { subject_id: 's1', topic_id: 't2', subtopic_id: null, n: 1 },
+        { subject_id: 's-other', topic_id: 't1', subtopic_id: null, n: 99 },
+      ],
+      error: null,
+    })
 
     const result = await getTopicsForSubject('s1')
     expect(result).toHaveLength(2)
@@ -142,10 +160,8 @@ describe('getTopicsForSubject', () => {
   })
 
   it('filters out topics with zero questions', async () => {
-    mockFromSequence(
-      { data: [{ id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 }] },
-      { data: [] }, // no active questions for any topic
-    )
+    mockFromSequence({ data: [{ id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 }] })
+    // rpc default → no counts → t1 filtered out
 
     const result = await getTopicsForSubject('s1')
     expect(result).toHaveLength(0)
@@ -249,15 +265,21 @@ describe('getRandomQuestionIds', () => {
 
 describe('getSubtopicsForTopic', () => {
   it('returns subtopics with question counts for the given topic', async () => {
-    mockFromSequence(
-      {
-        data: [
-          { id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 },
-          { id: 'st2', code: '050-01-02', name: 'Drag', sort_order: 2 },
-        ],
-      },
-      { data: [{ subtopic_id: 'st1' }, { subtopic_id: 'st1' }, { subtopic_id: 'st2' }] },
-    )
+    mockFromSequence({
+      data: [
+        { id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 },
+        { id: 'st2', code: '050-01-02', name: 'Drag', sort_order: 2 },
+      ],
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: 1 },
+        { subject_id: 's1', topic_id: 't-other', subtopic_id: 'st1', n: 99 },
+      ],
+      error: null,
+    })
 
     const result = await getSubtopicsForTopic('t1')
     expect(result).toHaveLength(2)
@@ -272,10 +294,8 @@ describe('getSubtopicsForTopic', () => {
   })
 
   it('filters out subtopics with zero questions', async () => {
-    mockFromSequence(
-      { data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 }] },
-      { data: [] }, // no active questions for any subtopic
-    )
+    mockFromSequence({ data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 }] })
+    // rpc default → st1 filtered out
 
     const result = await getSubtopicsForTopic('t1')
     expect(result).toHaveLength(0)
@@ -284,15 +304,17 @@ describe('getSubtopicsForTopic', () => {
 
 describe('getTopicsWithSubtopics', () => {
   it('returns topics with their subtopics and question counts', async () => {
-    // Call sequence: topics → [subtopics, question topic_ids, question subtopic_ids]
     mockFromSequence(
       { data: [{ id: 't1', code: '050-01', name: 'Aerodynamics', sort_order: 1 }] },
-      {
-        data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1, topic_id: 't1' }],
-      },
-      { data: [{ topic_id: 't1' }, { topic_id: 't1' }] },
-      { data: [{ subtopic_id: 'st1' }] },
+      { data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1, topic_id: 't1' }] },
     )
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: null, n: 1 },
+      ],
+      error: null,
+    })
 
     const result = await getTopicsWithSubtopics('s1')
     expect(result).toHaveLength(1)
@@ -312,10 +334,9 @@ describe('getTopicsWithSubtopics', () => {
   it('filters out topics with zero questions', async () => {
     mockFromSequence(
       { data: [{ id: 't1', code: '050-01', name: 'Aerodynamics', sort_order: 1 }] },
-      { data: [] }, // no subtopics
-      { data: [] }, // no question topic refs
-      { data: [] }, // no question subtopic refs
+      { data: [] },
     )
+    // rpc default → t1 count 0 → filtered
 
     const result = await getTopicsWithSubtopics('s1')
     expect(result).toHaveLength(0)
@@ -330,9 +351,11 @@ describe('getTopicsWithSubtopics', () => {
           { id: 'st2', code: '050-01-02', name: 'Drag', sort_order: 2, topic_id: 't1' },
         ],
       },
-      { data: [{ topic_id: 't1' }] },
-      { data: [{ subtopic_id: 'st1' }] }, // st2 has no questions
     )
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 }],
+      error: null,
+    })
 
     const result = await getTopicsWithSubtopics('s1')
     expect(result).toHaveLength(1)
