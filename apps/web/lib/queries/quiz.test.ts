@@ -494,3 +494,97 @@ describe('getRandomQuestionIds — filter error paths', () => {
     consoleSpy.mockRestore()
   })
 })
+
+// ---- fetchActiveQuestionCounts error / guard paths -------------------------
+// These tests exercise the shared helper via the 4 public count functions.
+// One RPC-error test per function (each exercises a distinct call site) and
+// one non-array-payload test on getSubjectsWithCounts (the guard is shared).
+
+describe('getSubjectsWithCounts — RPC error from get_question_counts', () => {
+  it('returns empty array when the counts RPC fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mockFromSequence({
+      data: [{ id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 }],
+    })
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
+
+    const result = await getSubjectsWithCounts()
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchActiveQuestionCounts] get_question_counts error:',
+      'rpc boom',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('returns empty array when the counts RPC returns a non-array payload', async () => {
+    mockFromSequence({
+      data: [{ id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 }],
+    })
+    // data is a plain object (not an array) — the Array.isArray guard yields []
+    mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
+
+    const result = await getSubjectsWithCounts()
+    // countMap stays empty → all subjects get questionCount 0 → filtered out
+    expect(result).toEqual([])
+  })
+})
+
+describe('getTopicsForSubject — RPC error from get_question_counts', () => {
+  it('returns empty array when the counts RPC fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mockFromSequence({
+      data: [{ id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 }],
+    })
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
+
+    const result = await getTopicsForSubject('s1')
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchActiveQuestionCounts] get_question_counts error:',
+      'rpc boom',
+    )
+    consoleSpy.mockRestore()
+  })
+})
+
+describe('getSubtopicsForTopic — RPC error from get_question_counts', () => {
+  it('returns empty array when the counts RPC fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mockFromSequence({
+      data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 }],
+    })
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
+
+    const result = await getSubtopicsForTopic('t1')
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchActiveQuestionCounts] get_question_counts error:',
+      'rpc boom',
+    )
+    consoleSpy.mockRestore()
+  })
+})
+
+describe('getTopicsWithSubtopics — RPC error from get_question_counts', () => {
+  it('returns empty array when the counts RPC fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mockFromSequence(
+      { data: [{ id: 't1', code: '050-01', name: 'Aerodynamics', sort_order: 1 }] },
+      { data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1, topic_id: 't1' }] },
+    )
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
+
+    const result = await getTopicsWithSubtopics('s1')
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchActiveQuestionCounts] get_question_counts error:',
+      'rpc boom',
+    )
+    consoleSpy.mockRestore()
+  })
+})
