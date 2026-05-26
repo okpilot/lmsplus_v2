@@ -331,4 +331,74 @@ describe('getProgressData', () => {
     expect(result[0]!.answeredCorrectly).toBe(1366)
     expect(result[0]!.masteryPercentage).toBe(100)
   })
+
+  it('coerces bigint-as-string total and correct at both subject and topic level', async () => {
+    // PostgREST may return bigint columns as strings. The MasteryRow type declares
+    // `total: number | string`; production code calls Number() before arithmetic.
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
+        })
+      if (table === 'easa_topics')
+        return buildChain({
+          data: [{ id: 't1', code: '050-01', name: 'Airframe', subject_id: 's1', sort_order: 1 }],
+        })
+      return buildChain({ data: null })
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        // Strings instead of numbers — simulates the bigint-as-string driver path.
+        { subject_id: 's1', topic_id: null, total: '8', correct: '4' },
+        { subject_id: 's1', topic_id: 't1', total: '8', correct: '4' },
+      ],
+      error: null,
+    })
+
+    const result = await getProgressData()
+    expect(result).toHaveLength(1)
+    expect(result[0]!.totalQuestions).toBe(8)
+    expect(result[0]!.answeredCorrectly).toBe(4)
+    expect(result[0]!.masteryPercentage).toBe(50)
+    const topic = result[0]!.topics.find((t) => t.id === 't1')!
+    expect(topic.totalQuestions).toBe(8)
+    expect(topic.answeredCorrectly).toBe(4)
+    expect(topic.masteryPercentage).toBe(50)
+  })
+
+  it('returns active and orphan subjects side by side without cross-contaminating their counts', async () => {
+    // Two subjects in one RPC result: s1 is active (total > 0), s2 is an orphan
+    // (total: 0, correct > 0). Verifies the partition loop does not mix their counts.
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [
+            { id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 },
+            { id: 's2', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 2 },
+          ],
+        })
+      if (table === 'easa_topics') return buildChain({ data: [] })
+      return buildChain({ data: null })
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: null, total: 10, correct: 7 }, // active
+        { subject_id: 's2', topic_id: null, total: 0, correct: 2 }, // orphan
+      ],
+      error: null,
+    })
+
+    const result = await getProgressData()
+    expect(result).toHaveLength(2)
+
+    const agk = result.find((s) => s.id === 's1')!
+    expect(agk.totalQuestions).toBe(10)
+    expect(agk.answeredCorrectly).toBe(7)
+    expect(agk.masteryPercentage).toBe(70)
+
+    const met = result.find((s) => s.id === 's2')!
+    expect(met.totalQuestions).toBe(0)
+    expect(met.answeredCorrectly).toBe(2)
+    expect(met.masteryPercentage).toBe(0)
+  })
 })

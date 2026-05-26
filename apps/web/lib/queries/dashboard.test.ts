@@ -481,4 +481,108 @@ describe('getDashboardData', () => {
 
     await expect(getDashboardData()).rejects.toThrow('Failed to fetch mastery stats: boom')
   })
+
+  it('coerces bigint-as-string total and correct from the RPC into numbers', async () => {
+    // PostgREST may return bigint columns as strings depending on driver version.
+    // The MasteryRow type is `total: number | string` and production code calls Number().
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's1', topic_id: null, total: '6', correct: '3' }],
+      error: null,
+    })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
+        })
+      if (table === 'student_responses') return buildChain({ count: 3, data: [] })
+      if (table === 'questions') return buildChain({ data: [] })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.subjects).toHaveLength(1)
+    const subject = result.subjects[0]!
+    expect(subject.totalQuestions).toBe(6)
+    expect(subject.answeredCorrectly).toBe(3)
+    expect(subject.masteryPercentage).toBe(50)
+  })
+
+  it('ignores topic-level RPC rows and uses only subject-level rows for subject mastery', async () => {
+    // The RPC returns both topic_id=null (subject-level) and topic_id!=null (topic-level) rows.
+    // dashboard.ts uses the `continue` guard to skip topic-level rows. If those rows were
+    // accidentally accumulated, totalQuestions and answeredCorrectly would be inflated.
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockRpc.mockResolvedValue({
+      data: [
+        // Subject-level row: 10 total, 5 correct.
+        { subject_id: 's1', topic_id: null, total: 10, correct: 5 },
+        // Topic-level rows that must be ignored.
+        { subject_id: 's1', topic_id: 't1', total: 6, correct: 3 },
+        { subject_id: 's1', topic_id: 't2', total: 4, correct: 2 },
+      ],
+      error: null,
+    })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
+        })
+      if (table === 'student_responses') return buildChain({ count: 5, data: [] })
+      if (table === 'questions') return buildChain({ data: [] })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.subjects).toHaveLength(1)
+    const subject = result.subjects[0]!
+    // Must reflect subject-level row only, not the sum of topic rows.
+    expect(subject.totalQuestions).toBe(10)
+    expect(subject.answeredCorrectly).toBe(5)
+    expect(subject.masteryPercentage).toBe(50)
+  })
+
+  it('returns active and orphan subjects together when both appear in the same RPC result', async () => {
+    // One subject has active questions (total > 0); the other is an orphan
+    // (total: 0, correct: 1 — answered a now-draft question). Both must appear in the output.
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: null, total: 5, correct: 3 }, // active
+        { subject_id: 's2', topic_id: null, total: 0, correct: 1 }, // orphan
+      ],
+      error: null,
+    })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [
+            { id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 },
+            { id: 's2', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 2 },
+          ],
+        })
+      if (table === 'student_responses') return buildChain({ count: 4, data: [] })
+      if (table === 'questions') return buildChain({ data: [] })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.subjects).toHaveLength(2)
+
+    const agk = result.subjects.find((s) => s.code === 'AGK')!
+    expect(agk.totalQuestions).toBe(5)
+    expect(agk.answeredCorrectly).toBe(3)
+    expect(agk.masteryPercentage).toBe(60)
+
+    const met = result.subjects.find((s) => s.code === 'MET')!
+    expect(met.totalQuestions).toBe(0)
+    expect(met.answeredCorrectly).toBe(1)
+    expect(met.masteryPercentage).toBe(0)
+  })
 })
