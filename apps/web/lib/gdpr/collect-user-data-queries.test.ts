@@ -1,18 +1,9 @@
 import type { Database } from '@repo/db/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchUserSessionAnswers } from './collect-user-data-queries'
+import { type AnswerRow, fetchUserSessionAnswers } from './collect-user-data-queries'
 
 // ---- helpers ---------------------------------------------------------------
-
-type AnswerRow = {
-  session_id: string
-  question_id: string
-  selected_option_id: string
-  is_correct: boolean
-  response_time_ms: number
-  answered_at: string
-}
 
 function makeAnswer(sessionId: string, index: number): AnswerRow {
   return {
