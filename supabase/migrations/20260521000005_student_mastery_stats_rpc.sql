@@ -18,9 +18,12 @@
 -- Preserves the PR #665 / d1cd4770 semantics EXACTLY (behaviour-preserving TS->SQL move):
 --   total   = COUNT(DISTINCT q.id) WHERE status = 'active'   (denominator; RLS already
 --             enforces org + deleted_at IS NULL).
---   correct = COUNT(DISTINCT sr.question_id) for is_correct responses to questions of ANY
---             status (numerator; RLS enforces org + non-deleted) — so `correct` can EXCEED
---             `total` when the student answered a now-draft question. The percentage clamp
+--   correct = count of DISTINCT questions answered correctly — the correct_q CTE dedups
+--             per question via SELECT DISTINCT q.id (so multiple correct attempts on the
+--             same question count once), then COUNT(*) over that set. is_correct responses
+--             to questions of ANY status (numerator; RLS enforces org + non-deleted) — so
+--             `correct` can EXCEED `total` when the student answered a now-draft question.
+--             The percentage clamp
 --             (min(.,100)) and the "include if total>0 OR correct>0" orphan-retention filter
 --             stay in TypeScript, which still consumes the raw counts.
 --
@@ -102,6 +105,10 @@ AS $$
    AND tc.topic_id = tt.topic_id;
 $$;
 
+-- Supabase's default function privileges also grant EXECUTE to anon (same as
+-- get_question_counts and the other student-facing INVOKER RPCs). That is safe: an anon
+-- caller resolves auth.uid() to NULL, and the RLS policies on questions/student_responses
+-- yield an empty set. RLS — not the EXECUTE grant — is the access boundary here.
 GRANT EXECUTE ON FUNCTION public.get_student_mastery_stats() TO authenticated;
 
 COMMENT ON FUNCTION public.get_student_mastery_stats() IS
