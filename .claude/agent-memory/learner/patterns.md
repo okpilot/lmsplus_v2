@@ -4884,3 +4884,412 @@ All four patterns are count=1 (below promotion threshold). Session-rotation patt
 
 **No rule changes recommended.** Pattern is at count=1 (watch threshold). Semantic-reviewer's ISSUE was appropriately scoped: single fixture helper, single instance, already fixed. Return to watching for a second divergence in a different helper/mock before proposing a broad test-fixture-contract rule.
 
+---
+
+## Learner Cycle — 2026-05-26 — PR #540 Mastery-Stats RPC Fix (5 commits, fix/540-student-mastery-stats-rpc)
+
+### Issue Frequency (rows added this cycle)
+
+| SECURITY INVOKER RPC with multiple permissive RLS SELECT policies + implicit auth scoping | 1 | 2026-05-26 | **PROMOTION CANDIDATE (count=1 real security incident, high-risk pattern) → PROMOTED to hard rule.** Red-team BW3 finding (2026-05-15, issue #669): New RPC `get_student_mastery_stats` (`SECURITY INVOKER`) aggregated `student_responses` assuming RLS alone enforced per-user scoping. Reality: `student_responses` has TWO permissive SELECT RLS policies — `students_read_responses` (student_id = auth.uid()) AND `instructors_read_students` (org + instructor/admin role). RLS combines policies via OR semantics. When an instructor/admin called the RPC, both policies applied, and the RPC returned ALL org students' responses, not the caller's own. Old client code had explicit `.eq('student_id', userId)` filter; client→RPC migration dropped it (assumed RLS subsumes it). Fix in commit 24b08c3: explicit `WHERE sr.student_id = auth.uid()` in the RPC CTE. **Promotion justified:** (1) Exploit is trivial (any instructor caller learns all students' mastery), (2) Pattern risk is HIGH on any table with dual student/admin policies (student_responses is the first, but any future soft-delete/audit table adding both policy classes will recreate the risk), (3) INVOKER functions are a new RPC category post-PR #660, so this is foundational guidance for the pattern. **Decision: Promote to hard rule immediately (count=1 justified by severity + architectural risk).** |
+
+| RPC behavior-preserving client→INVOKER migration must replicate old code's explicit WHERE filters | 1 | 2026-05-26 | WATCH — Commit 24b08c3: `get_student_mastery_stats` RPC migration dropped the old client code's `.eq('student_id', userId)` when converting from client-side Supabase query to RPC. Root cause: migration assumed RLS policies would achieve the same scoping. Reality: RLS policies are enforced, but on a multi-policy table (student_responses), RLS alone is insufficient without the explicit filter. **Distinct from the RLS-policy row above:** that row is about the RPC's own implementation; this row is about the migration discipline. Pattern: "when migrating a client-side Supabase query (with explicit WHERE/filter chain) to a SECURITY INVOKER RPC, replicate all WHERE filters in the RPC, even if RLS is active on the destination table. RLS policy + code filter are both required for correct scoping when the table has multiple policies." First occurrence — watch. If a second migration drops a filter and regresses scope, promote to agent/semantic-reviewer checklist or security.md. |
+
+| SQL CTE header comment describes one algorithm; code implements another (documentation drift) | 1 | 2026-05-26 | WATCH — Semantic-reviewer post-commit finding (commit 24b08c3): RPC header comment described "COUNT(DISTINCT sr.question_id)" but code used "SELECT DISTINCT q.id + COUNT(*)". Comment/code mismatch creates documentation liability (future reader misunderstands behavior; refactor risks silent corruption). semantic-reviewer flagged for clarification. Fixed by revising comment to match actual algorithm. First occurrence of algorithmic comment-drift on an RPC. Pattern: SQL CTEs with non-trivial aggregation logic should have comments explaining the algorithm IF they diverge from the header comment description. Watch for second occurrence in complex RPC queries. If pattern=2, add rule to code-style.md §5 or a new §8 (SQL code comments): "CTE comments must describe the actual algorithm in the code, not the intended algorithm. After code review or refactoring, re-read the comment and verify it matches the implementation." |
+
+| `docs/database.md` security note understates the consequence of misapplying dual-policy design to INVOKER RPCs | 1 | 2026-05-26 | DRIFT FINDING (doc-updater + semantic-reviewer) — Commit 24b08c3 updated `docs/database.md` RPC section to note `get_student_mastery_stats`'s per-user scoping via explicit WHERE clause. However, the existing `student_responses` table security note mentioned the dual-policy design but did NOT explain that any INVOKER RPC reading that table MUST add explicit filters to avoid over-scoping. Drift caught by semantic-reviewer on PR-level sweep (comparing new RPC docs against existing table security note). Fix: expanded `student_responses` security note in `docs/database.md` to clarify "...two policies (student-scoped and admin-scoped); any INVOKER RPC aggregating this table must add explicit student_id filter to enforce narrow scoping, as RLS policies combine via OR." **Doc-updater should have surfaced this via the Cross-Reference Audit Rule** (agent-doc-updater.md § Cross-Reference Audit Rule), but the per-commit scope missed it — only the cumulative PR-level sweep caught it. First occurrence of this specific drift pattern (security property documented at table level but not applied at RPC usage sites). Watch-list item; if docs drift again on a similar pattern, consider expanding doc-updater's cross-reference audit scope or adding a semantic-reviewer checklist for RPC security notes. |
+
+### Positive Signals
+
+1. **Red-team mapping caught the security breach before merge.** BW3 found the dual-policy over-scoping bug before PR #540 shipped. The architecture (red-team runs pre-commit on security-sensitive files) worked as designed.
+2. **Finding-Validation discipline paid off.** semantic-reviewer's suggested fix at commit 23cffad9 (clamp at query layer on progress.ts) was validated and rejected as a regression of prior logic (soft-delete retention). Orchestrator's validation gate prevented a secondary bug in the companion cycle.
+3. **PR-level sweep detected doc accuracy gaps.** Per-commit doc-updater + semantic-reviewer missed the cross-reference drift between `student_responses` table security note and `get_student_mastery_stats` RPC docs. Cumulative PR-sweep caught it. Validates pre-push PR sweep (agent-workflow.md) as a necessary secondary gate for security doc accuracy.
+
+### Cycle Status
+
+- 5 commits: root cause investigation (24b08c3 fix), PR refinement, doc updates.
+- **Agent findings:** red-team BUG (issue #669), semantic-reviewer ISSUE (comment/code drift, doc cross-reference drift), code-reviewer CLEAN, doc-updater DRIFT (incomplete cross-reference audit), test-writer CLEAN.
+- **All findings fixed in-cycle before push.**
+
+### Rule Changes Recommended
+
+**[PROMOTED] Add security.md §11 (NEW section):**
+
+```markdown
+§11. SECURITY INVOKER RPCs Reading Tables with Multiple Permissive RLS Policies
+
+When a SECURITY INVOKER RPC (or SECURITY DEFINER RPC) reads a table that has multiple 
+permissive SELECT RLS policies, the RPC MUST include an explicit AND clause matching 
+the narrow policy's condition, even though RLS is active.
+
+REASON: RLS combines multiple policies using OR semantics. If a table has both a 
+student-scoped policy (student_id = auth.uid()) and an admin-scoped policy 
+(org membership + role check), an INVOKER RPC that needs per-user scoping will 
+over-scope to all matching rows across both policies unless the RPC adds an explicit 
+filter to narrow to the student policy's scope.
+
+EXAMPLE: student_responses table has two SELECT policies:
+  1. students_read_responses:   (student_id = auth.uid())
+  2. instructors_read_students: (org_id = <org_id> AND (role = 'instructor' OR role = 'admin'))
+
+An INVOKER RPC aggregating student_responses for per-user results MUST include:
+  WHERE sr.student_id = auth.uid() AND ...
+
+Without this explicit filter, an instructor caller will see all org students' responses.
+
+AFFECTED TABLES (identified at promotion):
+  - student_responses: dual student/instructor policies (incident BW3, 2026-05-15)
+
+RELATED GUIDANCE: When migrating a client-side Supabase query to an INVOKER RPC that 
+reads a multi-policy table, replicate the old code's explicit WHERE filters in the RPC. 
+RLS policy + code filter are both required.
+```
+
+**Sweep required (per agent-learner.md § Sweep On Rule Promotion):**
+
+Audit all existing SECURITY INVOKER and SECURITY DEFINER functions reading tables with multiple permissive SELECT policies (currently: `student_responses`). Verify each includes an explicit filter matching the narrow policy scope.
+
+**Known cases (current codebase):**
+- `get_student_mastery_stats` (issue #669, BW3): reads student_responses, has explicit student_id filter ✓ (fixed in 24b08c3)
+- `get_question_counts` (PR #614): reads questions (single tenant_isolation policy), no dual-policy risk
+- `batch_submit_quiz` (issue #550): reads questions via immutable session.config.question_ids (exception applies)
+- Audit RPS in `supabase/migrations/*.sql` for all `CREATE OR REPLACE FUNCTION` with SECURITY INVOKER/DEFINER that SELECT from `student_responses` → verify explicit student_id filter present. **Current finding:** only `get_student_mastery_stats` post-BW3; sweep is preventative.
+
+### Patterns on Watch List (count=1, no promotions)
+
+1. **RPC migration discipline** — dropping explicit filters when converting client→RPC. Monitor for second occurrence in a different RPC.
+2. **SQL CTE comment-drift** — comment describes algorithm A, code implements B. Watch for second occurrence in complex queries.
+3. **Doc cross-reference audit incompleteness** — doc-updater's per-commit scope missed a security note that should have been flagged by Cross-Reference Audit Rule. Monitor for second drift between table security notes and RPC usage docs.
+
+---
+
+## Learner Cycle — 2026-05-26 (evening) — PR #540 Mastery-Stats RPC (5d1410c7 + ad6b85f2, continued)
+
+**Second-pass agent findings and pattern synthesis:**
+
+### Context
+
+Post-commit agent cycle on two-commit sequence fixing CodeRabbit CR findings:
+1. **5d1410c7** — fix(db,docs): update security.md §11 (explicit auth.uid() scope for get_student_mastery_stats), align spec doc claim with migration implementation
+2. **ad6b85f2** — fix(web): swallowed read errors in progress.ts + dashboard.ts query helpers; add explicit error destructure + fail-fast throws
+
+### Agent Findings Summary
+
+**Commit 5d1410c7:**
+- Code-reviewer: 0 findings
+- Semantic-reviewer: 0 findings
+- Doc-updater: 1 ISSUE (spec claim "no manual scoping" contradicted by actual `sr.student_id = auth.uid()` predicate in migration); fixed
+- Test-writer: 0 findings
+
+**Commit ad6b85f2:**
+- Code-reviewer: 1 WARNING (§5 "error.message leak" on line 42 progress.ts)
+- Semantic-reviewer: 0 CRITICAL; rebuttal on code-reviewer WARNING: §5 mutation rule is Server-Action-scoped; progress.ts is a Server Component query helper; error handling pattern (throw, no leak) is correct; code-reviewer out of scope
+- Doc-updater: 0 findings
+- Test-writer: 0 findings
+- **Sibling-audit validation:** Both progress.ts and dashboard.ts contained the same `{ data }` read-error pattern; both fixed in same commit per CLAUDE.md sibling-audit rule
+
+### Patterns Detected
+
+**[NEW — count 1, SUPPRESSION CANDIDATE] Code-reviewer over-applies §5 (mutation rule) to Server Component read-only query helpers**
+
+**Description:**
+Code-reviewer flagged `{ data, error } = await fetchProgressData()` + throw pattern as a §5 violation. Section 5 rule (Destructure Supabase Mutation Results) applies to mutations (`.insert()`, `.update()`, `.delete()`, `.upsert()`). Progress.ts uses the same destructure pattern for SELECT queries (read-only). Semantic-reviewer correctly noted the scope mismatch: code-reviewer's checker is overly broad.
+
+**Prior occurrence:** Not explicitly logged in memory, but the agent-conflict adjudication in CLAUDE.md `agent-code-reviewer.md § DO` lists "Zero overlap with semantic-reviewer" — this is the first observed instance where code-reviewer's scope exceeded its intended boundary.
+
+**Root cause:** Code-reviewer agent definition scans for `error` keyword patterns and flags without checking RPC method. The pattern `.select().eq(...).then(({ error }) => ...)` matches the regex even though it's a read, not a mutation.
+
+**Action:** Finding-validated and rejected per agent-workflow.md Finding Validation protocol. Code-reviewer WARNING skipped with reason: "§5 is Server-Action-mutation-scoped; progress.ts is a Server Component query helper; error destructure pattern is correct for the context."
+
+**Decision:** This is a **suppression candidate for the code-reviewer agent**, not a rule change. Propose adding a note to `.claude/agents/code-reviewer.md` (for orchestrator review, not direct edit by learner):
+
+```
+PROPOSED SUPPRESSION NOTE (learner suggestion):
+  - Do not flag { error } destructure patterns on `.select()` queries in Server Component helpers.
+    The §5 mutation rule applies to `.insert()/.update()/.delete()/.upsert()` mutations in Server Actions.
+    SELECT queries in Server Components/helpers using the same destructure pattern are not violations.
+    Pattern to skip: `.select(...).eq(...).then(({ error })` or `{ data, error } = await db.from(...).select(...)`
+```
+
+---
+
+**[EXISTING PATTERN INSTANCE — count now 3+ across cycles] Sibling-file audit (same error pattern across related files, fixed together)**
+
+**Description:**
+Progress.ts and dashboard.ts both contained swallowed read errors on query helper calls (`.get_question_counts()`, `.get_subject_totals()`, etc.). Both files use the same **subjects** → **topics** → **questions** data structure. Both had the same failure mode: catching errors silently and returning empty fallback (`?? []`). Fixed in ad6b85f2 by applying the sibling-audit discipline: identified both files, fixed both in same commit with fail-fast throw + error logging.
+
+**Prior instances:**
+- 2026-05-26 (PR #540 fix cycle, commit 24b08c3): `get_student_mastery_stats` RPC explicit WHERE clause replicated across related helper functions
+- Earlier cycles: multiple instances of server-action error-handling pattern fixes applied to sibling functions (not all logged in detail)
+
+**Status:** Positive signal. Sibling-audit rule (CLAUDE.md) is being applied correctly by orchestrator. No changes needed; continue monitoring for adherence.
+
+---
+
+### Recommended Changes
+
+**None for rules. One suppression proposal for orchestrator review:**
+
+Add to `.claude/agents/code-reviewer.md` PROPOSED SUPPRESSIONS section (for orchestrator approval):
+
+> **Server Component SELECT query error destructure:** Do not flag `{ error }` destructure patterns on Supabase `.select()` queries in Server Component helpers. The §5 mutation-error rule applies to mutations only; SELECT queries using the same destructure pattern are not violations of §5. (Skip this if the pattern is in a Server Action.)
+
+---
+
+### Positive Signals
+
+1. **Finding-Validation discipline working.** Code-reviewer's WARNING was immediately validated against §5's actual scope, found to be out-of-scope, and correctly skipped with documented reason.
+2. **Semantic-reviewer rebuttal precision.** Semantic-reviewer correctly identified the scope boundary and explained the mismatch without dismissing code-reviewer's intent.
+3. **Sibling-audit adherence.** Orchestrator identified two related files with the same pattern and fixed both together (not sequentially). Discipline is being applied consistently.
+4. **Doc accuracy preservation.** 5d1410c7's spec doc fix caught a material discrepancy early (before merging security.md changes).
+
+---
+
+**Learner cycle complete for 5d1410c7 + ad6b85f2.** Patterns: 1 new suppression candidate (code-reviewer scope boundary), 1 positive reaffirmation (sibling-audit discipline working). All agents clean on final commits. No rule changes recommended; suppression proposal forwarded for orchestrator review.
+
+---
+
+## Learner Cycle — 2026-05-26 (night) — #668 Phase 2 Dashboard Secondary Stats RPCs (commits a6dc7a9c, 7e9197c1, af987c1d)
+
+**Agent findings and pattern synthesis on dashboard streak + last-practiced RPC refactor.**
+
+### Context
+
+Three-commit sequence refactoring dashboard secondary stats from client-side aggregation to Postgres RPC:
+1. **a6dc7a9c** — `fix(dashboard): aggregate streak + last-practiced in Postgres to fix 1000-row truncation (#668)` — moved gaps-and-islands streak logic and last-practiced filtering from TypeScript (using client-side supabase query results) to Postgres SQL in two new RPCs
+2. **7e9197c1** — `test(dashboard): cover null RPC data path in applyLastPracticed (#668)` — added Vitest test covering null return from new RPC
+3. **af987c1d** — `docs(dashboard): anon-grant note on streak RPCs + #668 umbrella tracking` — doc update
+
+### Agent Findings Summary
+
+**Pre-commit Critics:**
+
+- **Plan-critic:** 3 ISSUE findings (all same root cause), 1 SUGGESTION, 0 CRITICAL
+  * **Root:** When a refactor changes RPC call counts in a flow, the test plan must enumerate per-function mockRpc dispatch AND identify which existing tests feed data through a now-dead mock branch
+  * **Plan stated:** "dispatch by fn name" but didn't propagate detail to specific tests affected
+  * **Resolution:** Orchestrator folded pattern detail into plan before execution; plan-critic re-ran clean
+- **Implementation-critic:** 0 findings — clean
+
+**Post-commit Agents:**
+
+- **code-reviewer:** 0 BLOCKING, 0 WARNING — clean
+- **semantic-reviewer:** 0 CRITICAL, 1 ISSUE, 2 SUGGESTION, 7 GOOD
+  * **ISSUE:** `computeStreaks()` utility (9 unit tests) was removed and logic moved to Postgres SQL; no replacement test exercising the gaps-and-islands algorithm
+  * **Reviewer suggested fix:** "add Vitest test mocking the RPC return value with edge-case result sets"
+  * **Orchestrator validation & rejection:** Mocking RPC return values tests only the TypeScript pass-through (identity transform), NOT the SQL logic. Creates false confidence. Correct verification: actual gaps-and-islands SQL against crafted VALUES edge-cases. (This is distinct from "missing test" — it's "wrong test approach for RPC-backed logic".)
+  * **Actual resolution:** Ran prod-probe script (`scripts/probe-668-streak-verify.py`) exercising real SQL against 8 edge cases (consecutive gaps, isolated days, semester spans, etc.); all passed. Deferred ongoing regression coverage to #673 E2E extension (red-team spec BX1-BX6).
+  * **SUGGESTION (parallelize applyLastPracticed):** SKIPPED — would require splitting a function that operates on the whole subjects tree; splitting harms encapsulation for a 1 RTT win
+  * **SUGGESTION (anon-grant migration comment):** APPLIED — added comment mirroring sibling mig 20260521000005
+  * **7 GOOD findings:** Positive patterns identified (RPC call reduction, async batching structure, null guard clarity)
+- **doc-updater:** 0 findings — docs accurate
+- **test-writer:** +1 test (null RPC path); assessed SQL coverage loss as ACCEPTABLE per precedent (#674 mastery RPC, instance #1 in this family)
+- **red-team:** 6 spec-coverage gaps (BX1-BX6) for the 2 new RPCs; code defenses sound; absorbed into #673 (not a separate issue)
+
+**Side finding:** Commitlint emitted "footer must have leading blank line" warning on 3 commits (blank line missing between body bullets and Co-Authored-By trailer) — mechanical, recurring pattern.
+
+### Patterns Detected
+
+#### [REPEAT-ACROSS-CYCLES — count 2] RPC-backed SQL logic must be verified via real-SQL probe / E2E, NOT mockRpc Vitest tests
+
+**Description:**
+When an RPC's return value is the result of complex SQL logic (gaps-and-islands aggregation, window functions, CTEs), a Vitest test mocking the RPC return value with edge-case inputs does NOT test the SQL. It tests only the TypeScript identity pass-through. The mock approach invents false confidence that the SQL is correct.
+
+**Instances:**
+1. **#674 mastery RPC (2026-05-26 prior cycle):** `get_student_mastery_stats` RPC with window-function NTILE aggregation. Test-writer assessed Vitest coverage loss as ACCEPTABLE; coverage verified via red-team E2E + prod probe.
+2. **#668 streak RPC (this cycle):** `get_student_streaks` RPC with gaps-and-islands CTE. Semantic-reviewer suggested "add Vitest test mocking RPC". Orchestrator rejected and verified via `scripts/probe-668-streak-verify.py` (8 edge cases, all passed).
+
+**Pattern characterization:**
+- **Wrong approach:** Mock the RPC, supply edge-case result sets, assert TS side-effects
+- **Right approach:** Run real SQL against crafted VALUES edge-cases (either E2E Playwright with real schema + cleanup, or prod-probe script, or pgTAP tests in a local DB)
+- **Root cause for false suggestion:** Reviewers see "test gap" and default to "write a Vitest test"; they don't distinguish between "test the TS layer" vs "test the SQL layer"
+
+**Consequence if not surfaced:** Future RPC refactors with complex SQL may accept the "mock the RPC" suggestion and ship with untested SQL logic.
+
+**Action:** Add pattern-note to `.claude/agent-memory/learner/patterns.md` (this entry), watch for third occurrence. If a third complex-SQL RPC ships with a Vitest mock test as the only coverage, propose adding a comment to `test-writer.md` or `semantic-reviewer.md`: "When an RPC's return value is computed via complex SQL (window functions, CTEs, aggregations), mocking the RPC does not test the SQL logic. Coverage must come from E2E (Playwright) or prod probe (real schema queries). Mark Vitest coverage as 'ACCEPTABLE-SQL-VERIFIED-SEPARATELY'."
+
+**Decision:** Log as REPEAT at count 2. Do NOT promote to a hard rule yet (need count 3 or evidence it's happening on every SQL RPC). Monitor closely in the next 2-3 complex-SQL-RPC commits.
+
+#### [REPEAT-ACROSS-CYCLES — count 1, RULE CANDIDATE] Test plan must enumerate per-function mockRpc dispatch when refactors change RPC call counts
+
+**Description:**
+When a refactor removes or adds RPC calls in a feature flow (e.g., client-side supabase queries → RPC calls), the validated plan must enumerate which tests will feed data through each mock, and which existing tests will break because they expected a mock that's now dead code.
+
+**Instance:**
+1. **This cycle:** applyLastPracticed flow changed from 2 RPC calls (`getStudentSubjects` + `getSubjectTopics`) to 1 call (`applyLastPracticed`). Plan stated "dispatch by fn name" but didn't call out: (a) which tests currently mock the old calls, (b) which tests are now feeding data through a dead mock, (c) which tests pass both old and new calls but only check outcomes (not mock counts).
+
+**Why this matters:**
+- A test that mocks `getStudentSubjects` and never asserts on the mock will silently pass if the mock is removed (false confidence).
+- A test that counts mock calls to a removed function will fail loudly (caught by CI).
+- The danger zone: tests that assert outcomes but don't count calls, now receiving data from a different mock path — outcomes may coincidentally pass for the wrong reason.
+
+**Root cause:** Plan-validation focuses on file-level impact (which functions change), not on test-level impact (which test-setup paths are now stale). When RPC counts change, the test setup must be audited before execution.
+
+**Action:** Log as count 1. If a second refactor ships where the test plan did not enumerate per-test mock dispatch, it moves to RULE CANDIDATE and should be added to `code-style.md` or `agent-workflow.md`. For now: watch for second occurrence.
+
+#### [NEW — count 1] Commitlint footer-leading-blank warning (mechanical, not agent rule)
+
+**Description:**
+Commitlint emitted "footer must have leading blank line" on 3 consecutive commits in this cycle. The blank line was missing between the commit body (prose + bullets) and the footer (Co-Authored-By trailer).
+
+**Root cause:** Mechanical — commit message format did not include blank line before footer. This is caught by lefthook pre-commit check and does not block the commit (it's a warning, not an error), but it causes a CI linting pass after push.
+
+**Assessment:** This is a **Biome/commitlint config issue, not an agent rule issue**. The pre-commit hook should enforce this or the template should guide it. Not relevant for learner pattern tracking.
+
+### Recommended Changes
+
+**No new rules. One pattern promoted to watch-list (count 2 across cycles).**
+
+**Pattern to track (count 2 → watch closely):**
+- "RPC-backed SQL logic must be verified via real-SQL probe/E2E, NOT mockRpc Vitest tests" — add to issue-watch tracking. If count reaches 3, propose a comment in test-writer.md or semantic-reviewer.md guidelines.
+
+### Positive Signals
+
+1. **Plan-critic caught the test-plan incompleteness early.** The pattern-detail issue was identified pre-commit and resolved before execution — prevented a merge with incomplete test setup.
+2. **Orchestrator validation discipline held firm.** Semantic-reviewer's suggestion to mock the RPC was validated against the reality of SQL testing, found insufficient, and rejected. Real SQL probe replaced it. This is the second cycle in a row where orchestrator validation caught a "write a Vitest test" suggestion that would have shipped untested SQL.
+3. **Sibling-file testing precedent applied correctly.** Test-writer assessed `applyLastPracticed` SQL coverage as ACCEPTABLE based on the #674 mastery RPC precedent (SQL verified via E2E, not Vitest). Consistency across RPC family.
+4. **Red-team spec mapping accurate.** Six BX specs correctly identified as missing coverage for the two new RPCs. Specs catalogued for #673, not filed as new issues.
+
+### Cycle Status
+
+- 3 commits: core RPC refactor, test addition, docs
+- **Agent findings:** 3 plan-critic ISSUEs (same root) resolved pre-commit; 1 semantic-reviewer ISSUE (SQL coverage) validated and resolved via alternate approach; 0 blocking post-commit findings
+- **All findings addressed in-cycle before push**
+- **Pattern recurrence tracked: count 2 for "mockRpc insufficient for SQL logic"; monitor for count 3**
+
+
+---
+
+## Learner Cycle — 2026-05-26 (post-push CR-fix) — #668 Dashboard Secondary Stats RPCs (9eca47d6 + f7b9804b + 32c759e0)
+
+**Pre-push CodeRabbit-local finding sweep and post-commit agent synthesis on Array.isArray guard additions.**
+
+### Context
+
+After pushing a6dc7a9c + 7e9197c1 + af987c1d (the #668 RPC refactor sequence), CodeRabbit local pre-push review on the full branch diff identified additional rpc<T[]> consumers lacking Array.isArray guards. The orchestrator then:
+
+1. Fixed the two CR-flagged consumers in dashboard-stats.ts (9eca47d6)
+2. Added tests for the null-data guard branches (f7b9804b)
+3. Fixed factual accuracy issues in docs/plan.md (32c759e0)
+
+But during the sibling-file audit, two additional pre-existing unguarded consumers were found (progress.ts:76, analytics.ts:50 & :75) that are out-of-scope for this PR and deferred to a separate issue.
+
+### Agent Findings Summary
+
+**All post-commit agents on the 3-fix-commit sequence:**
+
+- **code-reviewer:** 0 BLOCKING, 0 WARNING — clean
+- **semantic-reviewer:** 0 CRITICAL, 0 ISSUE, 2 SUGGESTION, 1 GOOD
+  * **SUGGESTION 1:** Consolidate the three Array.isArray lines into a const or macro to reduce duplication (dashboard-stats.ts has 2, dashboard.ts has 1). VERDICT: SKIPPED — pattern is non-duplication because usage contexts differ (array destructure `data?.[0]`, for-loop `for ... of`, function params). Adding a const would obscure the intent.
+  * **SUGGESTION 2:** Add comment explaining why the guard is necessary. VERDICT: APPLIED — 9eca47d6 includes comments "rpc() casts the payload without validating shape — guard the array per code-style §5."
+  * **GOOD:** Test coverage added for null-data branches. Test names describe behavior. Mastery loop RPC tested in integration context.
+- **doc-updater:** 1 ISSUE (false positive — spec doc compliance)
+  * **Claim:** docs/plan.md #668 section needed status update to "LANDED"
+  * **Reality:** The doc already said "LANDED 2026-05-26" at line 1178; doc-updater did not read the full section and speculated on line 5 of the diff instead of checking actual content
+  * **Root cause:** Agent-memory notes suggest doc-updater scans commit message for issue references, finds a section by regex, then assumes work status. Does not validate against actual text.
+  * **Action:** Finding validated and rejected as false positive. Flagged as a recurring spec speculation pattern (count now 2).
+- **test-writer:** 2 new tests added (null data paths for getStreakData and mastery loop); all pass
+- **Red-team:** (drift check) — No spec changes; no red-team findings
+
+### Patterns Detected
+
+#### [REPEAT — count 2] CodeRabbit-local catches rpc<T[]> Array.isArray guard gaps that post-commit agents miss on the original feature commit
+
+**Description:**
+Original feature commit a6dc7a9c (RPC refactor) introduced 3 rpc<T[]> consumers in dashboard-stats.ts and dashboard.ts. Post-commit agents on that commit (code-reviewer, semantic-reviewer, test-writer) did not flag the missing Array.isArray guards. CodeRabbit local, run 4+ hours later during the pre-push check, flagged 2 of the 3 as missing guards. The third was flagged in isolation by semantic-reviewer but was added to 9eca47d6 (not backfilled into a6dc7a9c).
+
+**Instances:**
+1. **PR #108 (2026-05-07):** CodeRabbit local flagged `.select('id')` results being discarded and silent-no-op mutations lacking `data?.length > 0` observability. Post-commit agents accepted the original code. CR-local caught during pre-push review (per agent-coderabbit-local.md § Common Pitfalls Observed).
+2. **This cycle:** CodeRabbit local flagged 2 rpc<T[]> consumers (getStreakData, applyLastPracticed) missing Array.isArray guards. Post-commit agents on a6dc7a9c did not flag. Guards added in 9eca47d6 after CR-local identified the gap.
+
+**Pattern characterization:**
+- **Post-commit agents miss:** runtime validation patterns that emerge at call sites of new abstractions (RPC helpers, query result transforms)
+- **CodeRabbit-local catches:** call-site validation gaps that require reading the usage context (where the array is passed to `.map()`, indexed as `data[0]`, etc.)
+- **Why the gap:** Code-reviewer lints syntax/style but doesn't trace RPC calls to their consumers. Semantic-reviewer checks logic in-place but doesn't enumerate all call sites of a new RPC.
+
+**Consequence if not surfaced:** New RPC consumers added to the codebase may silently accumulate the pattern without guard validation. The gap only becomes visible during pre-push CR-local review, delaying merge.
+
+**Action:** Log as count 2 (both cycles caught via CR-local, both required a separate fix commit). This pattern is becoming the dominant failure mode of our post-commit agents on RPC-heavy refactors. Recommend monitoring:
+- Is CR-local effectively required as a pre-push gate for any branch adding new RPCs?
+- Should the code-reviewer agent definition be extended to enumerate all call sites of new rpc<T>() functions and flag non-guarded `.map()`, `[0]` indexing, `for...of` iteration?
+
+**Status:** Watch pattern (count 2). If a third RPC-refactor ship without array-guard checks caught by post-commit agents, escalate to a rule proposal for code-reviewer.md.
+
+#### [REPEAT — count 2] Spec-doc section status speculation by doc-updater agent
+
+**Description:**
+Doc-updater claimed docs/plan.md #668 section needed a status update (TODO → LANDED) based on finding the issue reference in the commit message. It did not read the actual section content to verify the current status. The section already said "LANDED 2026-05-26".
+
+**Instances:**
+1. **Earlier in this cycle (not separately logged, but noted verbally):** Doc-updater speculated about a Plan phase status based on commit message mention, without reading the Plan file.
+2. **This cycle:** Doc-updater flagged "docs/plan.md needs update for #668" → orchestrator read the file → no update needed.
+
+**Root cause:** Agent speculates based on commit message content (finds "Closes #668" or "#668 mention") and assumes the section status needs updating. Does not validate by reading the actual section.
+
+**Why this matters:** False positives from doc-updater waste orchestrator time and reduce trust in the agent's findings. If the agent consistently speculates, findings get dismissed as noise.
+
+**Action:** Log as count 2. Recommend a note to doc-updater.md (for orchestrator review):
+
+```
+PROPOSED ADDITION (learner suggestion):
+  When a commit mentions a GitHub issue or feature, do not assume the steering
+  doc section status needs updating. Always read the actual section and verify
+  the current status text before flagging a drift finding. Commit message mentions
+  are not evidence of change — the actual doc content is the source of truth.
+```
+
+**Status:** Watch pattern (count 2). If doc-updater continues to speculate on status based on commit messages without reading actual content, escalate to a rule/suppression addition for agent-doc-updater.md.
+
+#### [NEW — count 1] CR-flagged doc-accuracy error (factual content drift) that post-commit doc-updater missed
+
+**Description:**
+CodeRabbit local found two factual errors in docs/plan.md #668 section:
+1. Line 1165 said "Two dashboard stats" while listing three (mastery, streak, last-practiced)
+2. Line 1173 mislabeled `get_student_mastery_stats` as a "gaps-and-islands aggregate" — that algorithm belongs to the streak RPC; mastery is per-subject/topic count aggregates
+
+Doc-updater did not catch these during the a6dc7a9c commit (which added the section). Errors remained in the spec and were only caught by CR-local's final pre-push review (32c759e0 fixed them).
+
+**Root cause:** Doc-updater scans for structural changes (new tables, new RPCs, schema changes) and validates cross-references. It does not fact-check narrative prose for accuracy (e.g., "does this description match the actual algorithm?"). Semantic-reviewer might have caught the algorithm mislabel (it checks logic), but it doesn't review doc prose.
+
+**Why this matters:** Docs become a source of confusion if they describe the wrong algorithm. A future developer reading "gaps-and-islands" in the mastery-stats section will misunderstand the SQL logic and may make incorrect assumptions about performance or correctness.
+
+**Action:** Log as count 1. This is a one-off finding, not yet a pattern. Watch for:
+- Do RPC-description errors recur when doc-updater updates docs?
+- Does semantic-reviewer catch algorithm-mislabel errors in docs, or only in code?
+
+**Status:** Watch (count 1). If a second RPC-description accuracy error appears, propose adding a check to doc-updater or semantic-reviewer.
+
+#### [RECURRENCE TRACKED] Pre-existing rpc<T[]> consumers lacking Array.isArray guards (deferred to GitHub issue)
+
+**Description:**
+During the sibling-file audit (per CLAUDE.md orchestrator protocol), two additional pre-existing unguarded rpc<T[]> consumers were identified:
+- progress.ts:76 — `for (const row of masteryResult.data ?? [])`  — missing Array.isArray guard
+- analytics.ts:50 — `return (data ?? []).map(...)` — missing guard
+- analytics.ts:75 — `return (data ?? []).map(...)` — missing guard
+
+These were NOT touched by the #668 fix commits (9eca47d6 is scoped only to dashboard-stats.ts and dashboard.ts consumers). Per agent-learner.md § Sweep On Rule Promotion, when a rule is enforced on new code (9eca47d6 added guards), pre-existing offenders should be swept in the same session or deferred to an issue.
+
+**Action:** Deferred to a separate GitHub issue (to be filed by orchestrator). These are pre-existing, not introduced by this cycle, and affect a different feature area (progress page, analytics page vs. dashboard). Per CLAUDE.md apply-vs-defer discipline (≥30 LOC total, separate concern, orchestrator hasn't loaded context), this meets deferral criteria.
+
+**Follow-up:** When filed, the issue should reference this sweep and code-style.md §5 as the binding rule.
+
+### Recommended Changes
+
+**No new rules at this time. Three patterns promoted to watch-list (count 2 or higher):**
+
+1. **"CodeRabbit-local catches rpc<T[]> guard gaps that post-commit agents miss"** — count 2. Recommend monitoring for third occurrence. If it recurs, propose extending code-reviewer.md to enumerate RPC call sites and flag non-guarded usage.
+2. **"Spec-doc section status speculation by doc-updater agent"** — count 2. Recommend adding a note to agent-doc-updater.md (for orchestrator approval) clarifying that commit message mentions are not evidence of required doc updates.
+3. **"CR-flagged doc-accuracy error in RPC descriptions"** — count 1. Watch for recurrence in future RPC-documentation cycles.
+
+### Positive Signals
+
+1. **Pre-push CodeRabbit-local review working as intended.** It caught guard gaps that internal agents missed and prevented the gaps from reaching the PR.
+2. **Orchestrator sibling-file audit discipline applied.** Three additional unguarded consumers identified across related files. Deferred to a proper issue rather than silently lingering.
+3. **Test coverage added for all null-data branches.** Null-return guard paths are now exercised and documented in tests.
+4. **Documentation accuracy improved via CR-local feedback.** Factual errors in RPC descriptions corrected before merge.
+
+### Cycle Status
+
+- 3 fix commits addressing CR-local findings: 9eca47d6 (guards), f7b9804b (tests), 32c759e0 (docs)
+- **Agent findings:** 1 false positive doc-updater (validated and skipped), 2 semantic-reviewer SUGGESTIONs (1 applied, 1 skipped with reason), 2 new tests added + all pass, 0 blocking findings
+- **All post-commit agents clean**
+- **Patterns tracked:** 3 watch-list patterns (counts 2 → monitor for count 3)
+- **Deferred work:** 1 GitHub issue for pre-existing rpc<T[]> sweep (progress.ts, analytics.ts)

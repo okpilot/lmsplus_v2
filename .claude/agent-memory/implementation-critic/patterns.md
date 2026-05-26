@@ -134,6 +134,16 @@
 - `makeSubject` helper in progress-content.test.tsx: masteryPercentage line is NOT clamped inside the helper (computes 300%). This is intentional — the component's own clamp logic is what the test exercises.
 - APPROVED — no findings.
 
+### 2026-05-26 — issue #540 mastery-stats RPC (#668 instance #1) (APPROVED — one ISSUE, one SUGGESTION)
+
+- SQL: SECURITY INVOKER + STABLE + SET search_path = public + GRANT authenticated. FULL JOIN (not LEFT) for orphan retention. topic_id IS NULL sentinel. Denominator filters status='active'; numerator has no status filter. No answer data exposed (counts only). All security attributes match plan.
+- TS: Both files use rpc<MasteryRow[]>(supabase, 'get_student_mastery_stats', {}). Error checked via { data, error } / masteryResult.error. Number() coercion on bigint. !row.subject_id guard in both. topic_id !== null skip in dashboard.ts; === null branch in progress.ts. Orphan filter (totalQuestions > 0 || answeredCorrectly > 0) in both. answeredCorrectly is raw/unclamped.
+- types.ts: Args: never (consistent with get_admin_student_stats pattern in file; plan said Record<string, never> but never is the established codebase pattern — SUGGESTION noted).
+- Tests: from: mockFrom retained. questionsCallCount pattern removed. #540 regression test (total:1366, correct:1366) present in both suites. RPC-error test present in both suites.
+- ISSUE: docs/database.md not staged — get_student_mastery_stats not added to the RPC list (line 660) or Core RPCs section (line 2031). Plan explicitly listed docs/database.md as a file to change. Doc-updater must handle post-commit.
+- SUGGESTION: _userId param in getSubjectProgressWithMap is dead — the RPC is caller-scoped via RLS, so the param serves no purpose. Keeping it with the _ prefix suppresses lint but it could be removed and the caller updated. Not blocking.
+- No false positives this session.
+
 ### 2026-05-22 — issue #540 dashboard/progress orphan-retention fix (APPROVED)
 
 - All 8 plan items implemented correctly across dashboard.ts, progress.ts, dashboard.test.ts, progress.test.ts.
@@ -152,3 +162,37 @@
 - Removing `afterEach(cleanup)` lines that served as visual separators between the import block and the first statement left no blank line between the last import and `beforeEach`.
 - Biome `organizeImports` rule flags this as a required blank line separator — would fail the pre-commit hook.
 - Watch for this in future test cleanup PRs: when a statement is removed from between imports and `beforeEach`/`describe`, the blank line separator must be added explicitly.
+
+### 2026-05-26 — issue #540 PR-sweep: Promise.all parallelization + database.md COUNT wording — APPROVED
+
+- dashboard.ts `getSubjectProgressWithMap`: two sequential awaits (mastery RPC + questions map) merged into `Promise.all([rpc(...), supabase.from(...)])`. Both arms return `{data, error}` envelopes and never throw on query errors — no unhandled rejection risk. Error precedence (mastery before map) unchanged. Early-return on empty subjects correctly stays before the parallel reads.
+- Variable rename sweep complete: `masteryData`→`masteryRes.data`, `questionMapData`→`questionMapRes.data` at all usage sites.
+- database.md `total` correction: `active_q` CTE is a plain single-table SELECT on PK `questions.id` (no fan-out), so `COUNT(*)` is accurate and `DISTINCT` is redundant — verified against migration 20260521000005 lines 52-55, 72-74.
+- database.md `correct` correction: `correct_q` CTE uses `SELECT DISTINCT q.id` (line 65) to dedup, then `subj_correct` aggregates with `COUNT(*)` (line 77) — two-step dedup described correctly in updated doc.
+- Positive signal: `rpc` wrapper contract verified once — record that it returns `{data, error}` and never throws; future reviews of `Promise.all([rpc(...), ...])` can rely on this invariant without re-reading the wrapper.
+
+### 2026-05-26 — issue #668 phase 2: dashboard secondary-stats RPCs (APPROVED)
+
+- Migration 20260521000006: both RPCs are LANGUAGE sql, SECURITY INVOKER, STABLE, SET search_path = public, GRANT EXECUTE TO authenticated, COMMENT. No prior definition of either function in any migration — CREATE OR REPLACE chain starts fresh. Timestamp ordering correct (000006 > 000005).
+- Security §11 compliance: explicit `sr.student_id = auth.uid()` in BOTH get_student_streak (days CTE) and get_student_last_practiced (WHERE clause). Two permissive SELECT policies on student_responses confirmed (students_read_responses + instructors_read_students). SECURITY INVOKER + self-scope is the correct defense. Unauthenticated caller → auth.uid() NULL → zero rows → {0,0} single row for streak, empty set for last-practiced.
+- Gaps-and-islands semantics verified: `d - ROW_NUMBER() OVER (ORDER BY d)` produces same grp for consecutive dates. current_streak subquery uses `run_end >= today - 1` — exactly mirrors legacy `anchoredToNow` (today or yesterday). best_streak = MAX(len). Empty result → {0,0} via scalar subquery with no FROM.
+- UTC date derivation: `(sr.created_at AT TIME ZONE 'UTC')::date` matches legacy `created_at.toISOString().slice(0,10)`. Correct.
+- get_student_last_practiced: JOIN on questions inherits `deleted_at IS NULL` via tenant_isolation RLS policy (confirmed in 20260311000001). All responses, no is_correct filter — behavior-preserving.
+- TS refactor: getStreakData drops userId param, calls rpc with {}, Number() coercion, data?.[0] fallback to {0,0}. applyLastPracticed drops userId + questionSubjectMap, data ?? [] fallback safe. Error paths throw with sanitized messages. All consistent with existing mastery RPC pattern.
+- getDashboardData correctly wired: getSubjectProgress returns SubjectProgress[] directly. Parallel Promise.all includes getStreakData(supabase). applyLastPracticed(supabase, subjects) called post-parallel. bestStreak field wired to return object.
+- Dangling references: none. computeStreaks, ResponseDateRow, QuestionIdSubjectRow, SubjectProgressResult all removed. No other callers of the refactored functions outside the two files.
+- Tests: mockRpc hoisted with vi.hoisted in both test files. computeStreaks tests appropriately deleted (logic now in SQL). New tests cover: wiring, Number() coercion (string→num), empty data→{0,0}, error→throw for both getStreakData and applyLastPracticed. dashboard.test.ts uses setRpc() dispatcher for per-fn dispatch. Error-path tests for streak and last-practiced RPCs added. questions-branch removed from mockFrom.
+- File sizes: dashboard-stats.ts 74 lines (max 200), dashboard.ts 131 lines (max 200), migration 88 lines (max 300). All within limits.
+- Dual-directory invariant: does NOT apply to 20260521000006 — pattern confirmed against 20260521000005 (mastery RPC) which also omitted packages/db/migrations counterpart. Timestamp-format migrations live in supabase/migrations/ only.
+- docs/database.md: 2 RPC summary rows added after mastery row (L661-663). 2 signature sections added after mastery section (L2073, L2092). Both accurate vs migration body.
+- APPROVED — no findings.
+
+### 2026-05-26 — issue #540 CodeRabbit doc+error-path fixes (PR #674) — APPROVED
+
+- design.md Scoping bullet: corrected from "no manual scoping, no auth preamble" to "RLS + an explicit numerator predicate" with `sr.student_id = auth.uid()`. Wording verified against migration `20260521000005_student_mastery_stats_rpc.sql` — correct_q CTE has `WHERE sr.student_id = auth.uid()` at line 68. security.md §11 reference is accurate (`student_responses` has `instructors_read_students` policy that OR-combines with the student policy).
+- progress.ts: added `if (subjectsRes.error) throw` and `if (topicsRes.error) throw` matching the pre-existing `masteryResult.error` pattern. Sequential error checking after `Promise.all` — first error wins, which is the intended fail-fast behavior.
+- dashboard.ts `getSubjectProgressWithMap`: added `if (subjectsError) throw` on easa_subjects read and `if (questionMapError) throw` on questions read. Both match the existing `masteryError` throw pattern already in the function.
+- Callers are Server Components (no `'use client'`), not Server Actions — `error.message` in throw message is correct (§5 sanitize rule applies only to client-facing Server Action returns).
+- Files within line limits: progress.ts (118 lines, max 200), dashboard.ts (159 lines, max 200).
+- New error paths (subjects/topics/question-map read errors) have no test coverage yet — test-writer post-commit agent must add them. Not a blocker for this commit.
+- Positive signal: sibling-audit rule applied correctly — both dashboard.ts and progress.ts swallowed-error fixes staged together in one diff.

@@ -905,6 +905,44 @@ When production code has `Array.isArray(data) ? (data as T[]) : []`, the non-arr
 needs a dedicated test — `mockRpc.mockResolvedValue({ data: null, error: null })` covers it.
 Without this test, the defensive cast silently goes untested and reviewers flag it as dead code.
 
+### Array.isArray guard: null-data behavior depends on downstream filter (2026-05-26)
+When `Array.isArray(data) ? data : []` guards a loop that builds a Map, and downstream code
+filters the result set based on Map-derived values, `{ data: null, error: null }` produces an
+**empty Map** — not zero-valued rows. Subjects with all-zero derived values are then filtered
+out entirely. Assert the correct observable output (empty subjects list, totalQuestions: 0) rather
+than asserting the subject survives with zero values.
+
+Compare with `applyLastPracticed`: there the Map populates `lastPracticedAt`; if the Map is empty
+every subject keeps its existing `null` value. The mastery loop is different because subjects are
+also filtered by `totalQuestions > 0 || answeredCorrectly > 0` — null mastery data zeros both
+fields and drops every subject.
+
+Always read the full pipeline (loop → map → filter) before asserting the test's expected output.
+
+### RPC `data ?? []` fallback path (2026-05-26)
+When production code iterates `for (const row of data ?? [])` (null-coalescing instead of
+`Array.isArray`), the `{ data: null, error: null }` case is still a genuine test gap because:
+- The error path (`error != null`) is tested separately.
+- The happy path (`data: [...]`) tests rows being mapped.
+- But `{ data: null, error: null }` (no responses at all) exercises the `??` arm — the map stays
+  empty and all outputs retain their defaults (e.g. `lastPracticedAt: null`).
+
+Test with two subjects so the assertion covers the entire slice, not just one element:
+```ts
+it('leaves all lastPracticedAt values null when the RPC returns null data without an error', async () => {
+  mockRpc.mockResolvedValue({ data: null, error: null })
+  const subjects = [
+    { id: 'subject-a', lastPracticedAt: null },
+    { id: 'subject-b', lastPracticedAt: null },
+  ]
+  ...
+  expect(result).toEqual([
+    { id: 'subject-a', lastPracticedAt: null },
+    { id: 'subject-b', lastPracticedAt: null },
+  ])
+})
+```
+
 ---
 
 ## Files tested in Phase 4

@@ -38,20 +38,14 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
-  const [subjectResult, responses, questionsToday, streakData] = await Promise.all([
-    getSubjectProgressWithMap(supabase),
+  const [subjects, responses, questionsToday, streakData] = await Promise.all([
+    getSubjectProgress(supabase),
     getTotalAnswered(supabase, user.id),
     getQuestionsToday(supabase, user.id),
-    getStreakData(supabase, user.id),
+    getStreakData(supabase),
   ])
 
-  const { subjects, questionSubjectMap } = subjectResult
-  const subjectsWithDates = await applyLastPracticed(
-    supabase,
-    user.id,
-    subjects,
-    questionSubjectMap,
-  )
+  const subjectsWithDates = await applyLastPracticed(supabase, subjects)
   const examReadiness = computeExamReadiness(subjectsWithDates)
 
   return {
@@ -68,7 +62,6 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
-type QuestionIdSubjectRow = { id: string; subject_id: string }
 type MasteryRow = {
   subject_id: string
   topic_id: string | null
@@ -76,12 +69,7 @@ type MasteryRow = {
   correct: number | string
 }
 
-type SubjectProgressResult = {
-  subjects: SubjectProgress[]
-  questionSubjectMap: Map<string, string>
-}
-
-async function getSubjectProgressWithMap(supabase: SupabaseClient): Promise<SubjectProgressResult> {
+async function getSubjectProgress(supabase: SupabaseClient): Promise<SubjectProgress[]> {
   const { data: subjectsData, error: subjectsError } = await supabase
     .from('easa_subjects')
     .select('id, code, name, short, sort_order')
@@ -89,28 +77,23 @@ async function getSubjectProgressWithMap(supabase: SupabaseClient): Promise<Subj
   if (subjectsError) throw new Error(`Failed to fetch subjects: ${subjectsError.message}`)
 
   const subjects = (subjectsData ?? []) as SubjectRow[]
-  if (!subjects.length) return { subjects: [], questionSubjectMap: new Map() }
+  if (!subjects.length) return []
 
-  // Two independent reads, run in parallel:
-  //  - Per-subject mastery counts aggregated in Postgres (#540): the prior client-side
-  //    numerator/denominator reads truncated at the PostgREST 1000-row cap. The RPC returns
-  //    both subject-level (topic_id === null) and topic-level rows; we use the subject rows.
-  //  - Last-practiced attribution map (deferred #668 — this read is still truncated at the
-  //    1000-row cap). NOT used for mastery. Any-status non-deleted reproduces the legacy map
-  //    (active ∪ non-deleted-answered) exactly, so lastPracticedAt does not regress.
-  const [masteryRes, questionMapRes] = await Promise.all([
-    rpc<MasteryRow[]>(supabase, 'get_student_mastery_stats', {}),
-    supabase.from('questions').select('id, subject_id').is('deleted_at', null),
-  ])
-  if (masteryRes.error) {
-    throw new Error(`Failed to fetch mastery stats: ${masteryRes.error.message}`)
-  }
-  if (questionMapRes.error) {
-    throw new Error(`Failed to fetch question-subject map: ${questionMapRes.error.message}`)
+  // Per-subject mastery counts aggregated in Postgres (#540): the prior client-side
+  // numerator/denominator reads truncated at the PostgREST 1000-row cap. The RPC returns
+  // both subject-level (topic_id === null) and topic-level rows; we use the subject rows.
+  const { data: masteryData, error: masteryError } = await rpc<MasteryRow[]>(
+    supabase,
+    'get_student_mastery_stats',
+    {},
+  )
+  if (masteryError) {
+    throw new Error(`Failed to fetch mastery stats: ${masteryError.message}`)
   }
 
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
   const masteryBySubject = new Map<string, { total: number; correct: number }>()
-  for (const row of masteryRes.data ?? []) {
+  for (const row of Array.isArray(masteryData) ? masteryData : []) {
     if (row.topic_id !== null) continue
     if (!row.subject_id) continue
     masteryBySubject.set(row.subject_id, {
@@ -119,12 +102,7 @@ async function getSubjectProgressWithMap(supabase: SupabaseClient): Promise<Subj
     })
   }
 
-  const questionSubjectMap = new Map<string, string>()
-  for (const q of (questionMapRes.data ?? []) as QuestionIdSubjectRow[]) {
-    questionSubjectMap.set(q.id, q.subject_id)
-  }
-
-  const result = subjects
+  return subjects
     .map((s) => {
       const counts = masteryBySubject.get(s.id) ?? { total: 0, correct: 0 }
       const { total, correct } = counts
@@ -143,8 +121,6 @@ async function getSubjectProgressWithMap(supabase: SupabaseClient): Promise<Subj
       }
     })
     .filter((s) => s.totalQuestions > 0 || s.answeredCorrectly > 0)
-
-  return { subjects: result, questionSubjectMap }
 }
 
 async function getTotalAnswered(supabase: SupabaseClient, userId: string): Promise<number> {

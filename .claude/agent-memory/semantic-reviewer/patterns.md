@@ -4,6 +4,66 @@
 
 ## Session Log
 
+### 2026-05-26 — commit 5d1410c7 (fix(queries,docs): fail-fast on subject/topic read errors + correct scoping doc (#540))
+- **Files reviewed:** apps/web/lib/queries/progress.ts, apps/web/lib/queries/dashboard.ts, .spec-workflow/specs/student-mastery-stats-rpc/design.md, supabase/migrations/20260521000005_student_mastery_stats_rpc.sql
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 5
+
+**SUGGESTION — error.message forwarded into throw Error for all new and existing throws in progress.ts and dashboard.ts (no console.error)**
+- New throws: `Failed to fetch subjects: ${subjectsRes.error.message}`, `Failed to fetch topics: ${topicsRes.error.message}`, etc. No `console.error` accompanies any of these. The error.message sanitization rule (code-style.md §5) is explicitly scoped to Server Actions. These helpers are called from async Server Components (via Suspense, not via 'use server' actions). The thrown error propagates to Next.js's root error boundary (`apps/web/app/error.tsx`), which renders a generic "An unexpected error occurred" message to the client and sends the full error object to Sentry — the error.message never reaches the browser DOM. From a client-exposure standpoint, the pattern is safe. However, there is no server-side console.error log before the throw, which means no structured server log line to correlate with a Sentry report. The pattern is consistent across ALL five throw sites (both new and pre-existing) in these files, so this is a cohort-level SUGGESTION rather than a targeted inconsistency. Count=1, watching.
+
+**SUGGESTION — getTotalAnswered in dashboard.ts does not destructure error (pre-existing, not introduced by this commit)**
+- Lines 154-158: `const { count } = await supabase.from('student_responses').select(...).eq(...)` — `error` is not destructured. Consistent with `getQuestionsToday` and `getStreakData` in dashboard-stats.ts, which also omit error checks. This is a pre-existing pattern that this commit did not introduce or worsen, but it is inconsistent with the three query helpers in the same file that now check errors. Not flagged as ISSUE because it is pre-existing and out of this commit's diff scope. Count=1, watching.
+
+**design.md correction is accurate against migration 20260521000005 (GOOD)**
+- The old text said "no manual scoping, no auth preamble." The migration's `correct_q` CTE contains explicit `WHERE sr.student_id = auth.uid()`. The new text correctly describes this predicate, its motivation (dual SELECT policy on `student_responses`), and the safety of no auth preamble (NULL auth.uid → zero rows). The description precisely matches the SQL.
+
+**New throws preserve happy-path behavior (GOOD)**
+- In progress.ts, the previous code used `subjectsRes.data ?? []` and `topicsRes.data ?? []` as fallbacks when errors were silently swallowed. The new throws only fire on non-null `.error`. On the happy path, `.error` is null and `.data` is non-null — so the downstream `?? []` fallbacks remain but are never exercised by real errors. Behavior is strictly preserved for the non-error path.
+
+**Consistency within progress.ts is now complete (GOOD)**
+- Previously masteryResult.error was the only guard. Now subjectsRes.error and topicsRes.error are guarded in the same style (`if (X.error) throw new Error(...)`) at the same point in the function (after the Promise.all). All three are consistently ordered before any data consumption.
+
+**Error propagation chain is client-safe (GOOD)**
+- Both progress.ts and dashboard.ts are called from async Server Components (ProgressContent, DashboardStatsContent, SubjectGridContent) wrapped in `<Suspense>`. Uncaught throws propagate to `apps/web/app/error.tsx`, which renders a generic message and sends to Sentry. The error.message is never serialized into a client-visible HTML payload. No Server Action boundary is crossed.
+
+**dashboard.ts getSubjectProgressWithMap — ordering of subjectsError check is correct (GOOD)**
+- The subjectsError throw is placed before the early `if (!subjects.length) return` guard. If subjectsData is null due to an error, `(subjectsData ?? []) as SubjectRow[]` would produce `[]`, triggering the early return and silently masking the error. The throw is placed before that fallback, correctly preventing silent masking.
+
+**Pattern — Server Component query helpers vs. Server Actions: error sanitization scope:**
+The error.message sanitization rule (code-style.md §5 + code-style.md "Sanitize Error Messages in Server Actions") is explicitly scoped to Server Actions. Server Component data-fetching helpers that throw propagate to the Next.js error boundary — the message never reaches the browser DOM. For these helpers, a console.error before the throw is a best practice for server-side observability, but failing to add it is not a security gap. Distinguish the two contexts before flagging an error.message in a throw as a violation.
+
+### 2026-05-26 — commit ae087c76 (fix(dashboard,progress): aggregate mastery in Postgres to fix 1000-row truncation (#540)) — #668 phase 2 secondary-stats RPCs
+- **Files reviewed:** supabase/migrations/20260521000006_dashboard_secondary_stats_rpcs.sql, apps/web/lib/queries/dashboard-stats.ts, apps/web/lib/queries/dashboard.ts, apps/web/lib/queries/dashboard-stats.test.ts, apps/web/lib/queries/dashboard.test.ts, docs/database.md
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 7
+
+**ISSUE — gaps-and-islands SQL unit coverage deleted; streak semantics now untested at unit level**
+- `computeStreaks` had 9 dedicated Vitest unit tests covering: empty input, today-only, yesterday-only, 2-days-ago (currentStreak=0), consecutive-days anchored to today, consecutive-days anchored to yesterday, best-streak > current-streak, gap-then-stale run, duplicate-date handling. All 9 deleted. The SQL `get_student_streak` has no equivalent in-process unit tests — the spec/design.md mentions "synthetic probes" but those are read-only prod probes (task #6), not committed Vitest/pgTAP tests. If the gaps-and-islands SQL is ever wrong (e.g., a future migration rewrites it, or a timezone regression occurs), the test suite will not catch it. Count=1, tracking as test-writer gap.
+
+**SUGGESTION — applyLastPracticed runs sequentially after Promise.all; could be parallelised with streak**
+- `dashboard.ts:41-48`: `getStreakData` is inside `Promise.all` but `applyLastPracticed` awaits sequentially after. Both RPCs are read-only, independent, and scoped to `auth.uid()`. They could be run in parallel: `const [subjectsWithDates, streakData] = await Promise.all([applyLastPracticed(supabase, subjects), getStreakData(supabase)])`. Net latency reduction ~= RTT of one RPC call per dashboard load. Not a correctness issue, but a performance opportunity. Count=1.
+
+**SUGGESTION — error.message forwarded into throw Error in two new throws (no console.error), consistent with pre-existing pattern**
+- `getStreakData:31`, `applyLastPracticed:51`: `throw new Error('Failed to fetch streak: ${error.message}')` and `throw new Error('Failed to fetch last-practiced: ${error.message}')`. No `console.error` before the throw. Same pattern as all prior throws in `dashboard.ts` and `dashboard-stats.ts` (noted in 2026-05-26 session, count=2). Per the session note: these helpers are called from async Server Components, not Server Actions. Errors propagate to `apps/web/app/error.tsx` → Sentry; `error.message` never reaches browser DOM. Not a security gap. Count=2 across sessions — pattern is established as intentional for Server Component helpers. Do NOT flag as ISSUE.
+
+**SQL correctness: gaps-and-islands logic exactly reproduces legacy computeStreaks (GOOD)**
+- `current_streak`: uses `WHERE r.run_end >= (now() AT TIME ZONE 'UTC')::date - 1`. Since `run_end = MAX(d)` and all dates come from historical `created_at`, `run_end <= today` is guaranteed. So the predicate is `today-1 <= run_end <= today` = "today or yesterday" — exact semantic match for `anchoredToNow = sortedDatesDesc[0] === today || sortedDatesDesc[0] === yesterday`. The `COALESCE(..., 0)` matches the `anchoredToNow ? currentStreak : 0` early-return. Best streak: `MAX(r.len)` over all runs — matches legacy `bestStreak = Math.max(...)`. UTC cast matches legacy `created_at.toISOString().slice(0,10)`. No off-by-one in the `d - ROW_NUMBER()` grouping (verified: consecutive dates both increment d and ROW_NUMBER by 1, yielding same grp; a gap causes d to skip 1 while ROW_NUMBER increments 1, producing different grp).
+
+**Security §11 compliance: explicit sr.student_id = auth.uid() in both RPCs (GOOD)**
+- Both `get_student_streak` (mig line 34) and `get_student_last_practiced` (mig line 81) contain `WHERE sr.student_id = auth.uid()`. `student_responses` has two permissive SELECT policies (`students_own_data` + `instructors_read_students`). SECURITY INVOKER + RLS alone would let an instructor/admin aggregate org-wide. The explicit predicate is load-bearing and present. Matches security.md §11 requirement.
+
+**Anon caller path correctly returns zero/empty (GOOD)**
+- `get_student_streak`: empty `days` CTE → empty `islands` → empty `runs` → scalar subqueries COALESCE to 0 → returns single `{0, 0}` row. `getStreakData` reads `data?.[0] ?? { current_streak: 0, best_streak: 0 }` — fallback unreachable but harmless.
+- `get_student_last_practiced`: `sr.student_id = NULL` matches no rows → empty set returned. `applyLastPracticed` `latestPerSubject` is empty → all subjects get `lastPracticedAt: null`. Correct.
+
+**No answer exposure from get_student_last_practiced (GOOD)**
+- The SELECT clause is `q.subject_id, MAX(sr.created_at)`. No question text, option content, correct-answer flag, or any other sensitive column is returned. The JOIN on `questions` only uses `q.subject_id` for grouping and is scoped to `tenant_isolation` (org + `deleted_at IS NULL`).
+
+**questionSubjectMap and truncated questions read fully retired (GOOD)**
+- `QuestionIdSubjectRow`, `SubjectProgressResult`, `getSubjectProgressWithMap`, `questionSubjectMap` are deleted. The `questions` read at former dashboard.ts:103 is gone. `applyLastPracticed` no longer takes `userId` or `questionSubjectMap` parameters. All call sites updated. No stale references in non-test code.
+
+**applyLastPracticed short-circuit preserved (GOOD)**
+- `if (!subjects.length) return subjects` on line 45 of dashboard-stats.ts fires before the RPC call. When all EASA subjects have zero activity, `getSubjectProgress` returns `[]` (filter removes all), and `applyLastPracticed` short-circuits without an RPC round-trip. Correct and consistent with legacy behavior.
+
 ### 2026-05-22 — PR-level sweep (commits b94e460c, efbc6c11, 4218bb6a, 5d3df2f7) — fix(dashboard,progress): keep subjects visible when student has responses (#540)
 - **Files reviewed:** apps/web/lib/queries/dashboard.ts, apps/web/lib/queries/progress.ts, apps/web/lib/queries/dashboard-stats.ts, apps/web/lib/queries/dashboard.test.ts, apps/web/lib/queries/progress.test.ts
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 7

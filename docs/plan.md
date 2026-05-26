@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-04-30 — Internal Exam Mode + CI flake fix landed
+> Last updated: 2026-05-26 — Umbrella #668: PostgREST 1000-row truncation fixes. Instance #1: get_student_mastery_stats (2026-05-26). Instance #2: get_student_streak + get_student_last_practiced (2026-05-26).
 
 ---
 
@@ -359,9 +359,9 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 **Phase 3 done (2026-03-11):** Question import tool:
 - `packages/db/src/import-schema.ts` — Zod validation for import JSON
 - `apps/web/scripts/import-questions.ts` — full import pipeline
-- `apps/web/scripts/check-import-conflicts.ts` — dry-run pre-check: verifies subject/topic/subtopic exist and lists existing `question_number` matches in the target bank (live + soft-deleted). Run this before importing a new zip against remote.
+- Conflict pre-check is a read-only probe script (`scripts/probe-<topic>-import-conflicts.py`, one per topic) that hits the Supabase Management API (SELECT-only) to verify the subject/topic/subtopic taxonomy and bank exist and to list existing `question_number` matches (live + soft-deleted) before importing against remote. (An earlier `check-import-conflicts.ts` was planned here but never built — the Python probe is the actual tool.)
 - Bootstraps org (Egmont Aviation), admin user, question bank (EASA PPL(A) QDB)
-- Parses folder paths → derives topic/subtopic codes & names → upserts reference data
+- Resolves subject/topic/subtopic from each question's own JSON fields (folder path is a fallback) and **looks up** the existing taxonomy rows — it throws ("Add it via /app/admin/syllabus first") if a topic/subtopic is missing and does NOT create reference data
 - Uploads images to Supabase Storage (`question-images` bucket)
 - Dedup by `question_number` per bank (unique index)
 - Migration `002_add_question_number.sql` — added `question_number` column
@@ -827,37 +827,34 @@ Import ~3,000 questions from JSON into Supabase.
 **Remote import workflow:**
 
 ```bash
-# 1. Extract the zip (from QDB/)
-SCOPE=010-XX                     # e.g. 010-09, 010-12
-mkdir -p "ecqb_${SCOPE}_temp"
-unzip -o "ecqb_${SCOPE}_import.zip" -d "ecqb_${SCOPE}_temp/"
+# 1. Extract the zip to a staging dir (yields <topic>-NN.json files + a figures/ dir)
+STAGE=/tmp/ecqb-<topic>-stage
+unzip -o "ecqb_<topic>_import.zip" -d "$STAGE"
 
-# 2. From apps/web/ — load remote env + dry-run conflict check
-cd ../apps/web
-set -a && . ./.env.remote && set +a
-pnpm exec tsx scripts/check-import-conflicts.ts \
-  --dir "../../QDB/ecqb_${SCOPE}_temp/ecqb" --env ./.env.remote
+# 2. Conflict pre-check (read-only, SELECT-only via Management API). Copy an existing
+#    probe (e.g. scripts/probe-091-02-import-conflicts.py), repoint it at the new zip,
+#    run it. Verifies taxonomy exists (importer THROWS if not), bank exists, and lists
+#    question_number collisions.
+python3 scripts/probe-<topic>-import-conflicts.py
 
-# 3. If clean, import each JSON file. For a single file:
-pnpm exec tsx scripts/import-questions.ts \
-  --file "../../QDB/ecqb_${SCOPE}_temp/ecqb/${SCOPE}-01.json" \
-  --base-dir "../../QDB/ecqb_${SCOPE}_temp/ecqb" --force-remote
-
-# 3b. Or loop multiple subtopic files:
-for f in "${SCOPE}-01" "${SCOPE}-02" "${SCOPE}-03"; do
-  pnpm exec tsx scripts/import-questions.ts \
-    --file "../../QDB/ecqb_${SCOPE}_temp/ecqb/${f}.json" \
-    --base-dir "../../QDB/ecqb_${SCOPE}_temp/ecqb" --force-remote
+# 3. If clean, import each subtopic file (one file per subtopic — refs resolve from
+#    questions[0], so a file must not mix subtopics). Creds come from .env.remote;
+#    loadEnv() only fills keys absent from process.env, so these exports win.
+export NEXT_PUBLIC_SUPABASE_URL="$(grep -m1 '^NEXT_PUBLIC_SUPABASE_URL=' apps/web/.env.remote | cut -d= -f2-)"
+export SUPABASE_SERVICE_ROLE_KEY="$(grep -m1 '^SUPABASE_SERVICE_ROLE_KEY=' apps/web/.env.remote | cut -d= -f2-)"
+for f in "$STAGE"/<topic>-*.json; do
+  apps/web/node_modules/.bin/tsx apps/web/scripts/import-questions.ts \
+    --file "$f" --base-dir "$STAGE/figures" --force-remote
 done
 
-# 4. Re-run the check to verify live counts per subtopic
-pnpm exec tsx scripts/check-import-conflicts.ts \
-  --dir "../../QDB/ecqb_${SCOPE}_temp/ecqb" --env ./.env.remote
+# 4. Re-run the probe to verify (expect all incoming question_numbers now active).
+python3 scripts/probe-<topic>-import-conflicts.py
 ```
 
 Notes:
-- `check-import-conflicts.ts` is idempotent read-only. `import-questions.ts` skips rows that already exist by `(bank_id, question_number)`, so re-running is safe.
-- Images referenced as `images/<file>` in JSON are uploaded to `question-images/<subject_code>/<file>` with `upsert: true`.
+- The probe is read-only (SELECT-only guard). `import-questions.ts` is **insert-only**: it skips rows already present by `(bank_id, question_number)` and CANNOT update them — re-running is safe but never applies content edits to existing rows.
+- Taxonomy (subject/topic/subtopic) must already exist in `easa_subjects`/`easa_topics`/`easa_subtopics`; the importer throws otherwise (it does not create taxonomy).
+- Images are referenced by **basename** in JSON and upload to `question-images/<subject_code>/<basename>` with `upsert: true`. Trap: nested source paths (`diagrams/.../x.svg`) 404 and get stored as raw strings = broken images — the builder must rewrite image fields to basenames.
 - The `--force-remote` flag is required for any non-localhost Supabase URL (safety guard).
 
 ---
@@ -1160,3 +1157,45 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - Pre-push security-auditor passed.
 
 *Last updated: 2026-04-30 — Internal Exam Mode + CI flake fix landed.*
+
+---
+
+## Umbrella #668 — PostgREST 1000-Row Truncation Fixes (IN PROGRESS)
+
+**Issue:** PostgREST silently truncates unpaginated reads at 1000 rows. Client-side aggregations using `.limit(10000)` and `.limit(5000)` to work around this cap were ineffective. Three dashboard metrics (student mastery, daily-practice streak, and per-subject last-practiced) undercount for students with high response volume.
+
+**Solution:** Move aggregations from client-side SQL to Postgres RPCs, which execute atomically without row-count limits.
+
+### Instance #1: get_student_mastery_stats (LANDED 2026-05-26)
+
+**Commit:** `ae087c76`
+
+- New RPC: `get_student_mastery_stats()` (mig 20260521000005) — per-(subject) and per-(subject,topic) mastery counts from question/response aggregates.
+- Security: `SECURITY INVOKER` + explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11 — `student_responses` has 2 permissive SELECT policies).
+- Replaces: client-side `getMasteryStats()` over a `.select('*').eq('student_id', userId).limit(1000)` read that truncated for high-response students.
+- Verification: prod probes synthetic + real (2026-05-26).
+
+### Instance #2: get_student_streak + get_student_last_practiced (LANDED 2026-05-26)
+
+**Commit:** `a6dc7a9c`
+
+- New RPCs (mig 20260521000006):
+  - `get_student_streak()` — current + best daily-practice streak (in days), gaps-and-islands over DISTINCT UTC response dates.
+  - `get_student_last_practiced()` — most recent response timestamp per subject (all responses).
+- Security: both `SECURITY INVOKER` + explicit `sr.student_id = auth.uid()` (same load-bearing reason).
+- Replaces:
+  - `getStreakData()` over a `.limit(10000)` read that undercounted for high-response students.
+  - `applyLastPracticed()` + the coupled truncated `questionSubjectMap` read (deferred to PR #674).
+- Verification: staged for prod probes (task #6 of this sprint).
+
+### Instance #3: Deferred to PR #674
+
+Per commit message: retires the `questionSubjectMap` questions read. Out of scope for this PR.
+
+### Status
+
+- **Complete:** instances #1–#2 (merged to master).
+- **Pending:** prod verification via synthetic + real student probes.
+- **Deferred:** instance #3 (PR #674, questions read simplification).
+
+*Last updated: 2026-05-26 — Instances #1–#2 landed; instance #3 deferred.*

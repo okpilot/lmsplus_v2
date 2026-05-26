@@ -40,25 +40,48 @@ function buildChain(returnValue: unknown) {
 }
 
 /**
- * getDashboardData makes many parallel from() calls. We intercept by table name.
- * The order of from() calls:
- *   getSubjectProgressWithMap -> 'easa_subjects', 'questions' (last-practiced map only)
- *   getTotalAnswered          -> 'student_responses' (count query)
- *   getQuestionsToday         -> 'student_responses' (count + gte filter)
- *   getStreakData             -> 'student_responses' (created_at select)
- *   applyLastPracticed        -> 'student_responses' (question_id, created_at)
+ * getDashboardData reads three data sources via the rpc() wrapper (mocked through mockRpc)
+ * and two via .from():
+ *   .from('easa_subjects')     -> subject list (getSubjectProgress)
+ *   .from('student_responses') -> count head only (getTotalAnswered + getQuestionsToday)
+ *   rpc 'get_student_mastery_stats'   -> per-subject mastery counts
+ *   rpc 'get_student_streak'          -> current/best streak
+ *   rpc 'get_student_last_practiced'  -> subject_id -> last_practiced_at
  *
- * Per-subject mastery counts (totalQuestions/answeredCorrectly) now come from the
- * get_student_mastery_stats RPC (mocked via mockRpc), NOT from .from('questions')/
- * .from('student_responses'). The single surviving 'questions' read only feeds the
- * last-practiced attribution map. Since buildChain returns the same value for all chain
- * calls on a table, we set both `count` and `data` so all consumer shapes work from one
- * mock value.
+ * rpc() is called as rpc(supabase, fn, args), so mockRpc receives (supabase, fn, args).
+ * setRpc dispatches on the function name so each RPC can be driven independently.
+ * Since buildChain returns the same value for all chain calls on a table, the
+ * 'student_responses' mock only needs its `count` field.
  */
+
+type RpcResult = { data: unknown; error: { message: string } | null }
+
+/** Drives the three dashboard RPCs by name. Unset args resolve to safe empties. */
+function setRpc(opts: {
+  mastery?: unknown[]
+  streak?: { current_streak: number | string; best_streak: number | string }[]
+  lastPracticed?: { subject_id: string; last_practiced_at: string }[]
+}) {
+  mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+    if (fn === 'get_student_mastery_stats') {
+      return Promise.resolve({ data: opts.mastery ?? [], error: null })
+    }
+    if (fn === 'get_student_streak') {
+      return Promise.resolve({
+        data: opts.streak ?? [{ current_streak: 0, best_streak: 0 }],
+        error: null,
+      })
+    }
+    if (fn === 'get_student_last_practiced') {
+      return Promise.resolve({ data: opts.lastPracticed ?? [], error: null })
+    }
+    throw new Error(`Unexpected RPC: ${fn}`)
+  })
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mockRpc.mockResolvedValue({ data: [], error: null })
+  setRpc({})
 })
 
 describe('getDashboardData', () => {
@@ -80,8 +103,7 @@ describe('getDashboardData', () => {
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects') return buildChain({ data: [] })
-      if (table === 'student_responses') return buildChain({ count: 0, data: [] })
-      if (table === 'questions') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 0 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -98,30 +120,14 @@ describe('getDashboardData', () => {
   it('computes question counts and mastery per subject', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's1', topic_id: null, total: 2, correct: 1 }],
-      error: null,
-    })
+    setRpc({ mastery: [{ subject_id: 's1', topic_id: null, total: 2, correct: 1 }] })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
         })
-      if (table === 'student_responses') {
-        return buildChain({
-          count: 10,
-          data: [{ question_id: 'q1', created_at: '2026-03-18T10:00:00Z' }],
-        })
-      }
-      if (table === 'questions') {
-        return buildChain({
-          data: [
-            { id: 'q1', subject_id: 's1' },
-            { id: 'q2', subject_id: 's1' },
-          ],
-        })
-      }
+      if (table === 'student_responses') return buildChain({ count: 10 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -138,12 +144,11 @@ describe('getDashboardData', () => {
   it('attributes questions to the correct subject across multiple subjects', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    mockRpc.mockResolvedValue({
-      data: [
+    setRpc({
+      mastery: [
         { subject_id: 's1', topic_id: null, total: 2, correct: 0 },
         { subject_id: 's2', topic_id: null, total: 1, correct: 0 },
       ],
-      error: null,
     })
 
     mockFrom.mockImplementation((table: string) => {
@@ -154,19 +159,7 @@ describe('getDashboardData', () => {
             { id: 's2', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 2 },
           ],
         })
-      if (table === 'student_responses')
-        return buildChain({
-          count: 5,
-          data: [{ question_id: 'q1', created_at: '2026-03-18T10:00:00Z' }],
-        })
-      if (table === 'questions')
-        return buildChain({
-          data: [
-            { id: 'q1', subject_id: 's1' },
-            { id: 'q2', subject_id: 's1' },
-            { id: 'q3', subject_id: 's2' },
-          ],
-        })
+      if (table === 'student_responses') return buildChain({ count: 5 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -186,8 +179,7 @@ describe('getDashboardData', () => {
         return buildChain({
           data: [{ id: 's1', code: 'MET', name: 'Met', short: 'MET', sort_order: 1 }],
         })
-      if (table === 'student_responses') return buildChain({ count: 0, data: [] })
-      if (table === 'questions') return buildChain({ data: [] }) // no questions for this subject
+      if (table === 'student_responses') return buildChain({ count: 0 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -201,9 +193,9 @@ describe('getDashboardData', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     // Orphan subject: 0 active questions, 1 correct response to a now-draft question.
-    mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's1', topic_id: null, total: 0, correct: 1 }],
-      error: null,
+    setRpc({
+      mastery: [{ subject_id: 's1', topic_id: null, total: 0, correct: 1 }],
+      lastPracticed: [{ subject_id: 's1', last_practiced_at: '2026-03-18T10:00:00Z' }],
     })
 
     mockFrom.mockImplementation((table: string) => {
@@ -211,13 +203,7 @@ describe('getDashboardData', () => {
         return buildChain({
           data: [{ id: 's1', code: 'AIRLAW', name: 'Air Law', short: 'AIR', sort_order: 1 }],
         })
-      if (table === 'student_responses')
-        return buildChain({
-          count: 1,
-          data: [{ question_id: 'q1', created_at: '2026-03-18T10:00:00Z' }],
-        })
-      // Last-practiced attribution map: q1 belongs to s1 (non-deleted, any status).
-      if (table === 'questions') return buildChain({ data: [{ id: 'q1', subject_id: 's1' }] })
+      if (table === 'student_responses') return buildChain({ count: 1 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -236,23 +222,14 @@ describe('getDashboardData', () => {
     // (correct response to a non-deleted, any-status question).
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's1', topic_id: null, total: 2, correct: 1 }],
-      error: null,
-    })
+    setRpc({ mastery: [{ subject_id: 's1', topic_id: null, total: 2, correct: 1 }] })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 1 }],
         })
-      if (table === 'student_responses')
-        return buildChain({
-          count: 1,
-          data: [{ question_id: 'q_draft', created_at: '2026-03-18T10:00:00Z' }],
-        })
-      // Last-practiced attribution map only (any-status non-deleted).
-      if (table === 'questions') return buildChain({ data: [{ id: 'q_draft', subject_id: 's1' }] })
+      if (table === 'student_responses') return buildChain({ count: 1 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -268,32 +245,14 @@ describe('getDashboardData', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     // 1 active question, 2 correct responses (one to a now-draft question) -> correct > total.
-    mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's1', topic_id: null, total: 1, correct: 2 }],
-      error: null,
-    })
+    setRpc({ mastery: [{ subject_id: 's1', topic_id: null, total: 1, correct: 2 }] })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 1 }],
         })
-      if (table === 'student_responses')
-        return buildChain({
-          count: 2,
-          data: [
-            { question_id: 'q1', created_at: '2026-03-18T10:00:00Z' },
-            { question_id: 'q_draft', created_at: '2026-03-18T10:00:00Z' },
-          ],
-        })
-      // Last-practiced attribution map only (any-status non-deleted).
-      if (table === 'questions')
-        return buildChain({
-          data: [
-            { id: 'q1', subject_id: 's1' },
-            { id: 'q_draft', subject_id: 's1' },
-          ],
-        })
+      if (table === 'student_responses') return buildChain({ count: 2 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -309,8 +268,7 @@ describe('getDashboardData', () => {
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects') return buildChain({ data: [] })
-      if (table === 'student_responses') return buildChain({ count: 7, data: [] })
-      if (table === 'questions') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 7 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -318,98 +276,48 @@ describe('getDashboardData', () => {
     expect(result.questionsToday).toBe(7)
   })
 
-  it('computes current streak of consecutive days', async () => {
+  it('surfaces the current and best streak from get_student_streak', async () => {
+    // Streak semantics (gaps-and-islands over UTC dates) now live in SQL; the data layer
+    // only wires the RPC result through to the dashboard payload.
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    const today = new Date().toISOString().slice(0, 10)
-    const d1 = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
-    const d2 = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10)
+    setRpc({ streak: [{ current_streak: 3, best_streak: 5 }] })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects') return buildChain({ data: [] })
-      if (table === 'student_responses')
-        return buildChain({
-          count: 3,
-          data: [
-            { question_id: 'q1', created_at: `${today}T10:00:00Z` },
-            { question_id: 'q2', created_at: `${d1}T10:00:00Z` },
-            { question_id: 'q3', created_at: `${d2}T10:00:00Z` },
-          ],
-        })
-      if (table === 'questions') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 6 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
     const result = await getDashboardData()
     expect(result.currentStreak).toBe(3)
-  })
-
-  it('breaks streak on gap day', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
-    const today = new Date().toISOString().slice(0, 10)
-    // Skip yesterday — gap at d1
-    const d2 = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10)
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'easa_subjects') return buildChain({ data: [] })
-      if (table === 'student_responses')
-        return buildChain({
-          count: 2,
-          data: [
-            { question_id: 'q1', created_at: `${today}T10:00:00Z` },
-            { question_id: 'q2', created_at: `${d2}T10:00:00Z` },
-          ],
-        })
-      if (table === 'questions') return buildChain({ data: [] })
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const result = await getDashboardData()
-    expect(result.currentStreak).toBe(1)
-  })
-
-  it('tracks best streak separately from current', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
-    const today = new Date().toISOString().slice(0, 10)
-    // Only practiced today (current streak = 1)
-    // Historical 5-day streak 10–14 days ago
-    const makeDate = (daysAgo: number) =>
-      new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10)
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'easa_subjects') return buildChain({ data: [] })
-      if (table === 'student_responses')
-        return buildChain({
-          count: 6,
-          data: [
-            { question_id: 'q1', created_at: `${today}T10:00:00Z` },
-            // gap at days 1-9
-            { question_id: 'q2', created_at: `${makeDate(10)}T10:00:00Z` },
-            { question_id: 'q3', created_at: `${makeDate(11)}T10:00:00Z` },
-            { question_id: 'q4', created_at: `${makeDate(12)}T10:00:00Z` },
-            { question_id: 'q5', created_at: `${makeDate(13)}T10:00:00Z` },
-            { question_id: 'q6', created_at: `${makeDate(14)}T10:00:00Z` },
-          ],
-        })
-      if (table === 'questions') return buildChain({ data: [] })
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const result = await getDashboardData()
-    expect(result.currentStreak).toBe(1)
     expect(result.bestStreak).toBe(5)
   })
 
-  it('includes lastPracticedAt per subject', async () => {
+  it('reports a zero streak when the streak RPC returns no rows', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    setRpc({ streak: [] })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 0 })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.currentStreak).toBe(0)
+    expect(result.bestStreak).toBe(0)
+  })
+
+  it('includes lastPracticedAt per subject from get_student_last_practiced', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
     const practiceDate = '2026-03-17T14:00:00Z'
 
-    mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's1', topic_id: null, total: 1, correct: 1 }],
-      error: null,
+    setRpc({
+      mastery: [{ subject_id: 's1', topic_id: null, total: 1, correct: 1 }],
+      lastPracticed: [{ subject_id: 's1', last_practiced_at: practiceDate }],
     })
 
     mockFrom.mockImplementation((table: string) => {
@@ -417,15 +325,7 @@ describe('getDashboardData', () => {
         return buildChain({
           data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
         })
-      if (table === 'student_responses')
-        return buildChain({
-          count: 1,
-          data: [{ question_id: 'q1', created_at: practiceDate }],
-        })
-      if (table === 'questions')
-        return buildChain({
-          data: [{ id: 'q1', subject_id: 's1' }],
-        })
+      if (table === 'student_responses') return buildChain({ count: 1 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -440,18 +340,14 @@ describe('getDashboardData', () => {
     // subject showed 0% mastery (#540).
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's_tail', topic_id: null, total: 1366, correct: 1366 }],
-      error: null,
-    })
+    setRpc({ mastery: [{ subject_id: 's_tail', topic_id: null, total: 1366, correct: 1366 }] })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's_tail', code: 'AIRLAW', name: 'Air Law', short: 'AIR', sort_order: 1 }],
         })
-      if (table === 'student_responses') return buildChain({ count: 8395, data: [] })
-      if (table === 'questions') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 8395 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -470,49 +366,111 @@ describe('getDashboardData', () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({ data: null, error: { message: 'subjects db error' } })
-      if (table === 'student_responses') return buildChain({ count: 0, data: [] })
-      if (table === 'questions') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 0 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
     await expect(getDashboardData()).rejects.toThrow('Failed to fetch subjects: subjects db error')
   })
 
-  it('throws when the question-subject map read returns an error', async () => {
+  it('filters out all subjects when the mastery RPC returns null data without an error', async () => {
+    // Array.isArray(null) → false → masteryBySubject stays empty → every subject gets
+    // totalQuestions: 0, answeredCorrectly: 0, which fails the survival filter.
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+      if (fn === 'get_student_mastery_stats') {
+        return Promise.resolve({ data: null, error: null })
+      }
+      if (fn === 'get_student_streak') {
+        return Promise.resolve({ data: [{ current_streak: 0, best_streak: 0 }], error: null })
+      }
+      return Promise.resolve({ data: [], error: null })
+    })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
         })
-      if (table === 'student_responses') return buildChain({ count: 0, data: [] })
-      if (table === 'questions')
-        return buildChain({ data: null, error: { message: 'questions map error' } })
+      if (table === 'student_responses') return buildChain({ count: 1 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    await expect(getDashboardData()).rejects.toThrow(
-      'Failed to fetch question-subject map: questions map error',
-    )
+    const result = await getDashboardData()
+    // No mastery data means 0 total and 0 correct for all subjects → all filtered out.
+    expect(result.subjects).toHaveLength(0)
+    expect(result.totalQuestions).toBe(0)
   })
 
   it('throws when the mastery stats RPC returns an error', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
+    mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+      if (fn === 'get_student_mastery_stats') {
+        return Promise.resolve({ data: null, error: { message: 'boom' } })
+      }
+      return Promise.resolve({ data: [], error: null })
+    })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
         })
-      if (table === 'student_responses') return buildChain({ count: 0, data: [] })
-      if (table === 'questions') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 0 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
     await expect(getDashboardData()).rejects.toThrow('Failed to fetch mastery stats: boom')
+  })
+
+  it('throws when the streak RPC returns an error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+      if (fn === 'get_student_streak') {
+        return Promise.resolve({ data: null, error: { message: 'streak down' } })
+      }
+      return Promise.resolve({ data: [], error: null })
+    })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 0 })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await expect(getDashboardData()).rejects.toThrow('Failed to fetch streak: streak down')
+  })
+
+  it('throws when the last-practiced RPC returns an error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    // last-practiced only runs when there is at least one surviving subject.
+    mockRpc.mockImplementation((_supabase: unknown, fn: string): Promise<RpcResult> => {
+      if (fn === 'get_student_mastery_stats') {
+        return Promise.resolve({
+          data: [{ subject_id: 's1', topic_id: null, total: 1, correct: 1 }],
+          error: null,
+        })
+      }
+      if (fn === 'get_student_last_practiced') {
+        return Promise.resolve({ data: null, error: { message: 'lp down' } })
+      }
+      return Promise.resolve({ data: [{ current_streak: 0, best_streak: 0 }], error: null })
+    })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
+        })
+      if (table === 'student_responses') return buildChain({ count: 1 })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await expect(getDashboardData()).rejects.toThrow('Failed to fetch last-practiced: lp down')
   })
 
   it('coerces bigint-as-string total and correct from the RPC into numbers', async () => {
@@ -520,18 +478,14 @@ describe('getDashboardData', () => {
     // The MasteryRow type is `total: number | string` and production code calls Number().
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    mockRpc.mockResolvedValue({
-      data: [{ subject_id: 's1', topic_id: null, total: '6', correct: '3' }],
-      error: null,
-    })
+    setRpc({ mastery: [{ subject_id: 's1', topic_id: null, total: '6', correct: '3' }] })
 
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
         })
-      if (table === 'student_responses') return buildChain({ count: 3, data: [] })
-      if (table === 'questions') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 3 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -549,15 +503,14 @@ describe('getDashboardData', () => {
     // accidentally accumulated, totalQuestions and answeredCorrectly would be inflated.
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    mockRpc.mockResolvedValue({
-      data: [
+    setRpc({
+      mastery: [
         // Subject-level row: 10 total, 5 correct.
         { subject_id: 's1', topic_id: null, total: 10, correct: 5 },
         // Topic-level rows that must be ignored.
         { subject_id: 's1', topic_id: 't1', total: 6, correct: 3 },
         { subject_id: 's1', topic_id: 't2', total: 4, correct: 2 },
       ],
-      error: null,
     })
 
     mockFrom.mockImplementation((table: string) => {
@@ -565,8 +518,7 @@ describe('getDashboardData', () => {
         return buildChain({
           data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
         })
-      if (table === 'student_responses') return buildChain({ count: 5, data: [] })
-      if (table === 'questions') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 5 })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -584,12 +536,11 @@ describe('getDashboardData', () => {
     // (total: 0, correct: 1 — answered a now-draft question). Both must appear in the output.
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
-    mockRpc.mockResolvedValue({
-      data: [
+    setRpc({
+      mastery: [
         { subject_id: 's1', topic_id: null, total: 5, correct: 3 }, // active
         { subject_id: 's2', topic_id: null, total: 0, correct: 1 }, // orphan
       ],
-      error: null,
     })
 
     mockFrom.mockImplementation((table: string) => {
@@ -600,8 +551,7 @@ describe('getDashboardData', () => {
             { id: 's2', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 2 },
           ],
         })
-      if (table === 'student_responses') return buildChain({ count: 4, data: [] })
-      if (table === 'questions') return buildChain({ data: [] })
+      if (table === 'student_responses') return buildChain({ count: 4 })
       throw new Error(`Unexpected table: ${table}`)
     })
 

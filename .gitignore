@@ -43,6 +43,10 @@ Thumbs.db
 # Local notes (not part of project)
 performance-optimization-strategy.md
 
+# Throwaway operational scripts (prod probes, one-off migration applies, verifies).
+# Root-anchored so it does NOT match the tracked apps/web/scripts/.
+/scripts/
+
 # Logs
 *.log
 npm-debug.log*
