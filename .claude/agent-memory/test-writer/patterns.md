@@ -905,6 +905,30 @@ When production code has `Array.isArray(data) ? (data as T[]) : []`, the non-arr
 needs a dedicated test — `mockRpc.mockResolvedValue({ data: null, error: null })` covers it.
 Without this test, the defensive cast silently goes untested and reviewers flag it as dead code.
 
+### RPC `data ?? []` fallback path (2026-05-26)
+When production code iterates `for (const row of data ?? [])` (null-coalescing instead of
+`Array.isArray`), the `{ data: null, error: null }` case is still a genuine test gap because:
+- The error path (`error != null`) is tested separately.
+- The happy path (`data: [...]`) tests rows being mapped.
+- But `{ data: null, error: null }` (no responses at all) exercises the `??` arm — the map stays
+  empty and all outputs retain their defaults (e.g. `lastPracticedAt: null`).
+
+Test with two subjects so the assertion covers the entire slice, not just one element:
+```ts
+it('leaves all lastPracticedAt values null when the RPC returns null data without an error', async () => {
+  mockRpc.mockResolvedValue({ data: null, error: null })
+  const subjects = [
+    { id: 'subject-a', lastPracticedAt: null },
+    { id: 'subject-b', lastPracticedAt: null },
+  ]
+  ...
+  expect(result).toEqual([
+    { id: 'subject-a', lastPracticedAt: null },
+    { id: 'subject-b', lastPracticedAt: null },
+  ])
+})
+```
+
 ---
 
 ## Files tested in Phase 4
