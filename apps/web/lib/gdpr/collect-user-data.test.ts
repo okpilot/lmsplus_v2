@@ -41,6 +41,44 @@ const MOCK_ANSWER = {
 }
 
 /**
+ * Count/range-aware chain proxy.
+ * - `.select('*', { head: true })` → resolves `{ count, error }` (count call)
+ * - `.range(from, to)` → resolves `{ data: rows.slice(from, to+1), error }` (page call)
+ * - `.single()` → resolves `{ data: rows, error }` (used for the user row)
+ * - awaited directly → resolves `{ data: rows, error }` (legacy / non-paginated path)
+ */
+function makeChain(rows: unknown, error: unknown) {
+  const state = { head: false, from: 0, to: Number.MAX_SAFE_INTEGER }
+  const resolveValue = () => {
+    if (error) return state.head ? { count: null, error } : { data: null, error }
+    if (state.head) return { count: Array.isArray(rows) ? rows.length : 0, error: null }
+    if (Array.isArray(rows)) return { data: rows.slice(state.from, state.to + 1), error: null }
+    return { data: rows, error: null } // non-array (e.g. user object) or null
+  }
+  const handler: ProxyHandler<Record<string, unknown>> = {
+    get(target, prop) {
+      if (prop === 'then') return (resolve: (v: unknown) => void) => resolve(resolveValue())
+      if (prop === 'single') return vi.fn().mockResolvedValue({ data: rows, error })
+      if (prop === 'select') {
+        return (_col: unknown, opts?: { head?: boolean; count?: string }) => {
+          if (opts?.head) state.head = true
+          return new Proxy(target, handler)
+        }
+      }
+      if (prop === 'range') {
+        return (from: number, to: number) => {
+          state.from = from
+          state.to = to
+          return new Proxy(target, handler)
+        }
+      }
+      return () => new Proxy(target, handler)
+    },
+  }
+  return new Proxy({} as Record<string, unknown>, handler)
+}
+
+/**
  * Build a fake Supabase client that returns pre-configured data for each table.
  * Each call to `.from(tableName)` returns a chain that resolves to the supplied value.
  */
@@ -71,24 +109,6 @@ function buildSupabaseClient(
     answersData = [MOCK_ANSWER],
   } = overrides
 
-  function makeChain(result: { data: unknown; error: unknown }) {
-    const chain: Record<string, unknown> = {}
-    const terminal = vi.fn().mockResolvedValue(result)
-    // Build a Proxy that forwards any method call back to the same chain,
-    // terminating at `.single()` or an awaited promise.
-    const handler: ProxyHandler<Record<string, unknown>> = {
-      get(target, prop) {
-        if (prop === 'then') {
-          // Allow the chain itself to be awaited (returns result without .single())
-          return (resolve: (v: unknown) => void) => resolve(result)
-        }
-        if (prop === 'single') return terminal
-        return () => new Proxy(target, handler)
-      },
-    }
-    return new Proxy(chain, handler)
-  }
-
   const tableData: Record<string, { data: unknown; error: unknown }> = {
     users: { data: userData, error: userError },
     quiz_sessions: { data: sessionsData, error: null },
@@ -102,7 +122,11 @@ function buildSupabaseClient(
   }
 
   return {
-    from: (table: string) => makeChain(tableData[table] ?? { data: [], error: null }),
+    from: (table: string) =>
+      makeChain(
+        (tableData[table] ?? { data: [], error: null }).data,
+        (tableData[table] ?? { data: [], error: null }).error,
+      ),
   } as unknown as SupabaseClient<Database>
 }
 
@@ -121,19 +145,6 @@ function buildSupabaseClientWithErrors(
     answersError?: { message: string }
   } = {},
 ): SupabaseClient<Database> {
-  function makeChain(result: { data: unknown; error: unknown }) {
-    const chain: Record<string, unknown> = {}
-    const terminal = vi.fn().mockResolvedValue(result)
-    const handler: ProxyHandler<Record<string, unknown>> = {
-      get(target, prop) {
-        if (prop === 'then') return (resolve: (v: unknown) => void) => resolve(result)
-        if (prop === 'single') return terminal
-        return () => new Proxy(target, handler)
-      },
-    }
-    return new Proxy(chain, handler)
-  }
-
   const tableData: Record<string, { data: unknown; error: unknown }> = {
     users: { data: MOCK_USER, error: null },
     quiz_sessions: {
@@ -162,7 +173,11 @@ function buildSupabaseClientWithErrors(
   }
 
   return {
-    from: (table: string) => makeChain(tableData[table] ?? { data: [], error: null }),
+    from: (table: string) =>
+      makeChain(
+        (tableData[table] ?? { data: [], error: null }).data,
+        (tableData[table] ?? { data: [], error: null }).error,
+      ),
   } as unknown as SupabaseClient<Database>
 }
 
@@ -170,19 +185,6 @@ function buildSupabaseClientWithErrors(
  * Variant that returns null data for all non-user tables to exercise ?? [] fallbacks.
  */
 function buildSupabaseClientWithNulls(): SupabaseClient<Database> {
-  function makeChain(result: { data: unknown; error: unknown }) {
-    const chain: Record<string, unknown> = {}
-    const terminal = vi.fn().mockResolvedValue(result)
-    const handler: ProxyHandler<Record<string, unknown>> = {
-      get(target, prop) {
-        if (prop === 'then') return (resolve: (v: unknown) => void) => resolve(result)
-        if (prop === 'single') return terminal
-        return () => new Proxy(target, handler)
-      },
-    }
-    return new Proxy(chain, handler)
-  }
-
   const tableData: Record<string, { data: unknown; error: unknown }> = {
     users: { data: MOCK_USER, error: null },
     quiz_sessions: { data: null, error: null },
@@ -196,7 +198,11 @@ function buildSupabaseClientWithNulls(): SupabaseClient<Database> {
   }
 
   return {
-    from: (table: string) => makeChain(tableData[table] ?? { data: [], error: null }),
+    from: (table: string) =>
+      makeChain(
+        (tableData[table] ?? { data: [], error: null }).data,
+        (tableData[table] ?? { data: [], error: null }).error,
+      ),
   } as unknown as SupabaseClient<Database>
 }
 
@@ -397,6 +403,23 @@ describe('collectUserData', () => {
       expect(result.quiz_answers).toEqual([])
       expect(result.quiz_sessions).toHaveLength(1) // sessions exist, phase-2 fired
       consoleSpy.mockRestore()
+    })
+  })
+
+  describe('pagination', () => {
+    it('fetches all rows when a table exceeds one page', async () => {
+      const responsesData = Array.from({ length: 2500 }, (_, i) => ({
+        question_id: `q-${i}`,
+        selected_option_id: null,
+        is_correct: i % 2 === 0,
+        response_time_ms: 1000,
+        session_id: 'sess-1',
+        created_at: '2026-03-01T10:00:00Z',
+      }))
+      const supabase = buildSupabaseClient({ responsesData })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.student_responses).toHaveLength(2500)
     })
   })
 })
