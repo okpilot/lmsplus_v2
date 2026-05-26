@@ -1188,14 +1188,22 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
   - `applyLastPracticed()` + the coupled truncated `questionSubjectMap` read (deferred to PR #674).
 - Verification: staged for prod probes (task #6 of this sprint).
 
-### Instance #3: Deferred to PR #674
+### Instance #3: quiz.ts count functions (branch `fix/668-quiz-counts-rpc`, PR pending review)
 
-Per commit message: retires the `questionSubjectMap` questions read. Out of scope for this PR.
+**Commit:** `4646dff4` (not yet merged — open PR awaiting review)
+
+- Rewire 4 count functions (`getSubjectsWithCounts`, `getTopicsForSubject`, `getSubtopicsForTopic`, `getTopicsWithSubtopics`) from unpaginated `questions` reads (silently truncated at 1000 rows) to the existing `get_question_counts('active')` RPC (mig `20260520000001`).
+- **No migration** — reuses the existing `SECURITY INVOKER` RPC, whose result set is bounded by the fixed EASA taxonomy (~42 tuples now, low hundreds full-bank), so it cannot itself truncate.
+- Security: `questions` has one permissive SELECT policy, so security.md §11 explicit scoping is N/A; RLS `tenant_isolation` + `deleted_at IS NULL` already enforced in the RPC.
+- New `fetchActiveQuestionCounts()` helper guards the RPC payload with `Array.isArray` (code-style §5) and logs the error path (old reads dropped errors silently).
+- Covers #668 P0 (`quiz.ts:48`) + P1 (`quiz.ts:86,122,149-178`). `getRandomQuestionIds` biased sampling (`quiz.ts:229`) and `getFilteredCount` (`lookup-helpers.ts`) deferred to child issues.
 
 ### Status
 
-- **Complete:** instances #1–#2 (merged to master).
-- **Pending:** prod verification via synthetic + real student probes.
-- **Deferred:** instance #3 (PR #674, questions read simplification).
+- **Merged to master:** instance #1 (`get_student_mastery_stats`, `ae087c76`) and instance #2 (`get_student_streak` + `get_student_last_practiced`, `9f40caae`).
+- **PR pending review:** instance #3 (quiz.ts counts via `get_question_counts`, `4646dff4`).
+- **P0 progress:** 7 of 12 P0 sites fixed (dashboard ×3, dashboard-stats ×2, progress ×1, quiz subject counts ×1).
+- **Pending:** prod verification via synthetic + real student probes (instances #1–#2).
+- **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened — the umbrella stays open until all P0/P1/P2 sites land.
 
-*Last updated: 2026-05-26 — Instances #1–#2 landed; instance #3 deferred.*
+*Last updated: 2026-05-26 — Instance #3 implemented (PR pending); 7/12 P0 done.*

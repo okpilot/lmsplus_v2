@@ -38,6 +38,7 @@ type QuestionCountRow = {
   subject_id: string
   topic_id: string
   subtopic_id: string | null
+  // bigint COUNT(*) — PostgREST may serialize it as a string; coerce with Number() at every read site.
   n: number | string
 }
 type QuestionIdRow = { id: string }

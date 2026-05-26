@@ -657,7 +657,7 @@ verb_noun pattern:
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
   get_subject_scores         ← read, analytics: avg scores by subject
-  get_question_counts        ← read, per-(subject, topic, subtopic) question counts; replaces client-side counting that truncated at the PostgREST 1000-row cap (#614)
+  get_question_counts        ← read, per-(subject, topic, subtopic) question counts; used by admin/exam-config, admin/syllabus, and the student quiz builder (quiz.ts); replaces client-side counting that truncated at the PostgREST 1000-row cap (#614, #668)
   get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
@@ -2033,13 +2033,13 @@ Returns paginated session reports for the authenticated student with subject nam
 
 #### `get_question_counts` — per-(subject, topic, subtopic) question counts
 
-Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_id)`. Used by the admin exam-config and syllabus pages to show available-question totals per node without paging through the full question bank.
+Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_id)`. Used by the admin exam-config and syllabus pages, and by the student quiz builder (`lib/queries/quiz.ts` — the subject/topic/subtopic count functions), to show available-question totals per node without paging through the full question bank.
 
 **Security:** `SECURITY INVOKER` (caller-context). RLS scopes the result to the caller's organization via the existing `tenant_isolation` policy on `questions` — no manual `auth.uid()` check needed.
 
 **Parameters:** `p_status TEXT DEFAULT NULL`
 - `NULL` — count all non-deleted questions (active + draft); used by `admin/syllabus/queries.ts`.
-- `'active'` — count only active questions; used by `admin/exam-config/queries.ts` (drafts are not eligible for exams).
+- `'active'` — count only active questions; used by `admin/exam-config/queries.ts` (drafts are not eligible for exams) and by the student quiz builder (`lib/queries/quiz.ts`).
 
 **Returns:** `TABLE(subject_id UUID, topic_id UUID, subtopic_id UUID, n BIGINT)`
 
