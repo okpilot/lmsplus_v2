@@ -55,6 +55,12 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
     rpc<MasteryRow[]>(supabase, 'get_student_mastery_stats', {}),
   ])
 
+  if (subjectsRes.error) {
+    throw new Error(`Failed to fetch subjects: ${subjectsRes.error.message}`)
+  }
+  if (topicsRes.error) {
+    throw new Error(`Failed to fetch topics: ${topicsRes.error.message}`)
+  }
   if (masteryResult.error) {
     throw new Error(`Failed to fetch mastery stats: ${masteryResult.error.message}`)
   }

@@ -8,9 +8,13 @@ Migration `supabase/migrations/20260521000005_student_mastery_stats_rpc.sql`.
   `authenticated`. Mirrors `get_question_counts` (#614).
 - **Row shape:** `topic_id IS NULL` ⇒ subject-level aggregate; `topic_id NOT NULL` ⇒ topic-level.
   Unambiguous because `questions.topic_id` is `NOT NULL` (initial_schema.sql:110).
-- **Scoping via RLS** (no manual scoping, no auth preamble): `tenant_isolation` on `questions`
-  = org + `deleted_at IS NULL` (any status); `student_responses` RLS = `student_id = auth.uid()`.
-  Unauthenticated → `auth.uid()` NULL → zero rows → empty result.
+- **Scoping:** RLS + an explicit numerator predicate. `tenant_isolation` on `questions`
+  = org + `deleted_at IS NULL` (any status). The numerator (`correct_q`) additionally
+  self-scopes with an explicit `sr.student_id = auth.uid()` — `student_responses` has a
+  second SELECT policy (`instructors_read_students`) that would otherwise let an
+  instructor/admin aggregate org-wide, so RLS alone is not enough to keep it per-caller
+  (security.md §11). No auth preamble needed: unauthenticated → `auth.uid()` NULL → zero
+  rows → empty result.
 - **Aggregation:** CTE `active_q` (`status='active'`) = denominator; CTE `correct_q`
   (`DISTINCT` correct responses joined to questions, any status) = numerator. Subject-level and
   topic-level counts each combined with **`FULL JOIN`** + `COALESCE` zero-fill (FULL, not LEFT,

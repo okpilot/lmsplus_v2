@@ -82,10 +82,11 @@ type SubjectProgressResult = {
 }
 
 async function getSubjectProgressWithMap(supabase: SupabaseClient): Promise<SubjectProgressResult> {
-  const { data: subjectsData } = await supabase
+  const { data: subjectsData, error: subjectsError } = await supabase
     .from('easa_subjects')
     .select('id, code, name, short, sort_order')
     .order('sort_order')
+  if (subjectsError) throw new Error(`Failed to fetch subjects: ${subjectsError.message}`)
 
   const subjects = (subjectsData ?? []) as SubjectRow[]
   if (!subjects.length) return { subjects: [], questionSubjectMap: new Map() }
@@ -113,10 +114,13 @@ async function getSubjectProgressWithMap(supabase: SupabaseClient): Promise<Subj
   // Last-practiced attribution only (deferred #668 — this read is still truncated at the
   // 1000-row cap). NOT used for mastery. Any-status non-deleted reproduces the legacy map
   // (active ∪ non-deleted-answered) exactly, so lastPracticedAt does not regress.
-  const { data: questionMapData } = await supabase
+  const { data: questionMapData, error: questionMapError } = await supabase
     .from('questions')
     .select('id, subject_id')
     .is('deleted_at', null)
+  if (questionMapError) {
+    throw new Error(`Failed to fetch question-subject map: ${questionMapError.message}`)
+  }
 
   const questionSubjectMap = new Map<string, string>()
   for (const q of (questionMapData ?? []) as QuestionIdSubjectRow[]) {
