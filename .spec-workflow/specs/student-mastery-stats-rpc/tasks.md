@@ -16,6 +16,6 @@
 - [x] learner synthesis: promoted security.md §11 (multi-policy RLS → explicit auth.uid()
       scope); sweep clean repo-wide; coderabbit-sync mirrored §11 into .coderabbit.yaml
 - [x] /fullpush gates: lint (0 errors), check-types, 3388 tests, build, clean migration reset
-- [ ] CR-local (/crlocal) review loop
+- [x] CR-local (/crlocal) review loop — round 1 clean (0 findings) after PR #674 CR + PR-sweep fixes
 - [ ] security-auditor runs on pre-push (Lefthook) — pending push
 - [ ] Push (on user approval) + verify deployed RPC against affected student before closing #540
