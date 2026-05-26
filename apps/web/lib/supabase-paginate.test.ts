@@ -69,7 +69,7 @@ describe('fetchAllRows', () => {
     expect(getPage).not.toHaveBeenCalled()
   })
 
-  it('returns rows gathered so far plus the error when a page query fails mid-way', async () => {
+  it('discards partial pages and returns the error when a page query fails mid-way', async () => {
     const getCount = vi.fn().mockResolvedValue({ count: 5, error: null })
     const getPage = vi
       .fn()
@@ -78,7 +78,8 @@ describe('fetchAllRows', () => {
 
     const result = await fetchAllRows(getCount, getPage, 2)
 
-    expect(result.data).toEqual([1, 2])
+    // A half-fetched set must not masquerade as complete — return [] + the error, not [1,2].
+    expect(result.data).toEqual([])
     expect(result.error).toEqual({ message: 'page boom' })
     expect(getPage).toHaveBeenCalledTimes(2)
   })

@@ -159,7 +159,6 @@ export async function fetchUserSessionAnswers(
   // sessionIds may exceed 1000 rows (now fully paginated), so chunk into batches of 1000
   // to avoid URI length limits (414) on the .in() filter.
   let answers: AnswerRow[] = []
-  let answersError: { message: string } | null = null
 
   for (let i = 0; i < sessionIds.length; i += 1000) {
     const batch = sessionIds.slice(i, i + 1000)
@@ -180,12 +179,11 @@ export async function fetchUserSessionAnswers(
           .order('id')
           .range(from, to),
     )
-    if (error) {
-      answersError = error
-      break
-    }
+    // Discard partial answers on error (mirrors fetchAllRows): a half-fetched answer set must
+    // not masquerade as a complete GDPR export section. The caller logs the error.
+    if (error) return { data: [], error }
     answers = answers.concat(data)
   }
 
-  return { data: answers, error: answersError }
+  return { data: answers, error: null }
 }

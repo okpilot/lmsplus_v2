@@ -23,7 +23,11 @@ export async function fetchAllRows<T>(
   for (let from = 0; from < total; from += pageSize) {
     const to = Math.min(from + pageSize, total) - 1
     const { data, error } = await getPage(from, to)
-    if (error) return { data: all, error }
+    // Discard partial pages on error: a half-fetched set is worse than an empty one —
+    // callers treat an errored read as a failed (empty) section + log it, so returning the
+    // accumulated rows would masquerade as a complete result (e.g. a silently truncated
+    // GDPR export). Completeness is all-or-nothing per read.
+    if (error) return { data: [], error }
     if (data) all.push(...data)
   }
   return { data: all, error: null }

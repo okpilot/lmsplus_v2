@@ -48,7 +48,9 @@ export async function collectUserData(
     throw new Error('User not found')
   }
 
-  // Log query errors — GDPR export must be complete, not silently partial
+  // A failed read returns an EMPTY section (fetchAllRows discards partial pages on error) and is
+  // logged here; the export still returns rather than hard-failing. The #668 failure mode we must
+  // avoid is a silently TRUNCATED section that looks complete — an empty + logged section does not.
   const queryResults = [
     ['quiz_sessions', sessionsResult],
     ['student_responses', responsesResult],
