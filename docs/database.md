@@ -2053,7 +2053,7 @@ Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_i
 
 Returns mastery counts at two granularities in one result set: a subject-level row (`topic_id IS NULL`) and topic-level rows (`topic_id NOT NULL`) per `(subject_id[, topic_id])`. Used by the student dashboard (`lib/queries/dashboard.ts`) and progress page (`lib/queries/progress.ts`) to compute per-subject/topic mastery without paging through the student's full response history.
 
-**Security:** `SECURITY INVOKER` (caller-context). RLS scopes the result — `tenant_isolation` on `questions` (org + `deleted_at IS NULL`, any status) and the `student_responses` policy (`student_id = auth.uid()`) — so no manual `auth.uid()` check is needed. An unauthenticated caller resolves `auth.uid()` to NULL and receives an empty set.
+**Security:** `SECURITY INVOKER` (caller-context). The denominator is org-scoped by `tenant_isolation` on `questions` (org + `deleted_at IS NULL`, any status). `student_responses` has TWO SELECT policies — `students_read_responses` (`student_id = auth.uid()`) and `instructors_read_students` (org + instructor/admin role) — so RLS alone would let an instructor/admin caller aggregate org-wide. The numerator therefore self-scopes with an explicit `sr.student_id = auth.uid()` in `correct_q` (load-bearing, not redundant — matches the legacy client read's `.eq('student_id', userId)`). No `SECURITY DEFINER` auth preamble is needed: an unauthenticated caller resolves `auth.uid()` to NULL and receives an empty set.
 
 **Parameters:** none (caller is always self).
 

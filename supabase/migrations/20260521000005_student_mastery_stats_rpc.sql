@@ -113,10 +113,11 @@ AS $$
    AND tc.topic_id = tt.topic_id;
 $$;
 
--- Supabase's default function privileges also grant EXECUTE to anon (same as
--- get_question_counts and the other student-facing INVOKER RPCs). That is safe: an anon
--- caller resolves auth.uid() to NULL, and the RLS policies on questions/student_responses
--- yield an empty set. RLS — not the EXECUTE grant — is the access boundary here.
+-- This migration grants EXECUTE only to `authenticated` (same as get_question_counts).
+-- Supabase's platform defaults ALSO implicitly grant EXECUTE to `anon` on new functions — this
+-- migration does not add that, and it is safe to leave: an anon caller resolves auth.uid() to
+-- NULL and the RLS policies on questions/student_responses yield an empty set. RLS — not the
+-- EXECUTE grant — is the access boundary here.
 GRANT EXECUTE ON FUNCTION public.get_student_mastery_stats() TO authenticated;
 
 COMMENT ON FUNCTION public.get_student_mastery_stats() IS

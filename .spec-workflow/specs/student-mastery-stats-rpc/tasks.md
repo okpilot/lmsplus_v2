@@ -6,8 +6,13 @@
 - [x] Rewire `dashboard.ts` to the RPC; update `dashboard.test.ts` (+#540 regression, +RPC-error)
 - [x] Rewire `progress.ts` to the RPC; update `progress.test.ts` (+#540 regression, +RPC-error)
 - [x] `pnpm test` (3383 pass) + `pnpm check-types` green
-- [ ] implementation-critic on staged diff
-- [ ] Commit (NO `Closes #540`)
-- [ ] Post-commit agents: code-reviewer, semantic-reviewer, doc-updater (docs/database.md RPC
-      tables), test-writer; then red-team + security-auditor (migration touched); then learner
+- [x] implementation-critic on staged diff (added docs/database.md entry, removed dead param)
+- [x] Commit (NO `Closes #540`) — 3bb0b957
+- [x] Post-commit agents: code-reviewer (clean), semantic-reviewer (1 doc ISSUE → fixed),
+      doc-updater (clean), test-writer (+6 tests, d4d58940); then red-team
+- [x] red-team: found BW3 (instructor/admin numerator leak) → fixed in bf756480
+      (sr.student_id = auth.uid()); E2E coverage gaps filed as #673
+- [x] PR-level semantic sweep (master...HEAD): clean
+- [ ] security-auditor runs on pre-push (Lefthook) — pending push
+- [ ] learner synthesis
 - [ ] Push (on user approval) + verify deployed RPC against affected student before closing #540
