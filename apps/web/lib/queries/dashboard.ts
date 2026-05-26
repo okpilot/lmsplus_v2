@@ -91,8 +91,9 @@ async function getSubjectProgress(supabase: SupabaseClient): Promise<SubjectProg
     throw new Error(`Failed to fetch mastery stats: ${masteryError.message}`)
   }
 
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
   const masteryBySubject = new Map<string, { total: number; correct: number }>()
-  for (const row of masteryData ?? []) {
+  for (const row of Array.isArray(masteryData) ? masteryData : []) {
     if (row.topic_id !== null) continue
     if (!row.subject_id) continue
     masteryBySubject.set(row.subject_id, {

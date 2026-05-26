@@ -29,7 +29,9 @@ export async function getStreakData(
   // PostgREST truncated at the 1000-row cap, undercounting streaks for high-volume students (#668).
   const { data, error } = await rpc<StreakRow[]>(supabase, 'get_student_streak', {})
   if (error) throw new Error(`Failed to fetch streak: ${error.message}`)
-  const row = data?.[0] ?? { current_streak: 0, best_streak: 0 }
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
+  const rows = Array.isArray(data) ? data : []
+  const row = rows[0] ?? { current_streak: 0, best_streak: 0 }
   return {
     currentStreak: Number(row.current_streak),
     bestStreak: Number(row.best_streak),
@@ -50,8 +52,9 @@ export async function applyLastPracticed<T extends { id: string; lastPracticedAt
   const { data, error } = await rpc<LastPracticedRow[]>(supabase, 'get_student_last_practiced', {})
   if (error) throw new Error(`Failed to fetch last-practiced: ${error.message}`)
 
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
   const latestPerSubject = new Map<string, string>()
-  for (const row of data ?? []) {
+  for (const row of Array.isArray(data) ? data : []) {
     if (row.subject_id && row.last_practiced_at) {
       latestPerSubject.set(row.subject_id, row.last_practiced_at)
     }
