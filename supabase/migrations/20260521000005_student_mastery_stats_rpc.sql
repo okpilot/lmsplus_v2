@@ -18,7 +18,8 @@
 -- auth.uid() to NULL, the filters match zero rows, and the function returns an empty set.
 --
 -- Preserves the PR #665 / d1cd4770 semantics EXACTLY (behaviour-preserving TS->SQL move):
---   total   = COUNT(DISTINCT q.id) WHERE status = 'active'   (denominator; RLS already
+--   total   = COUNT(*) over the active_q CTE (status = 'active') — rows are unique by the
+--             questions.id PK, so this equals COUNT(DISTINCT q.id) (denominator; RLS already
 --             enforces org + deleted_at IS NULL).
 --   correct = count of DISTINCT questions answered correctly — the correct_q CTE dedups
 --             per question via SELECT DISTINCT q.id (so multiple correct attempts on the
