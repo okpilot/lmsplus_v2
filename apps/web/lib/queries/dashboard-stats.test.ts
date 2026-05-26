@@ -202,6 +202,24 @@ describe('applyLastPracticed', () => {
     expect(result).toEqual([{ id: 'subject-x', lastPracticedAt: null }])
   })
 
+  it('leaves all lastPracticedAt values null when the RPC returns null data without an error', async () => {
+    // PostgREST can return { data: null, error: null } when the student has no responses at all.
+    // The data ?? [] fallback must produce an empty map so no subject is incorrectly updated.
+    mockRpc.mockResolvedValue({ data: null, error: null })
+
+    const subjects = [
+      { id: 'subject-a', lastPracticedAt: null },
+      { id: 'subject-b', lastPracticedAt: null },
+    ]
+    const { createServerSupabaseClient } = await import('@repo/db/server')
+    const supabase = await createServerSupabaseClient()
+    const result = await applyLastPracticed(supabase, subjects)
+    expect(result).toEqual([
+      { id: 'subject-a', lastPracticedAt: null },
+      { id: 'subject-b', lastPracticedAt: null },
+    ])
+  })
+
   it('throws a sanitized error when the last-practiced RPC fails', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
 
