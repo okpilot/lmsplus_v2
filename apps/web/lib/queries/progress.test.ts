@@ -59,6 +59,29 @@ describe('getProgressData', () => {
     await expect(getProgressData()).rejects.toThrow('Auth error: session not found')
   })
 
+  it('throws when the easa_subjects read returns an error', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({ data: null, error: { message: 'subjects db error' } })
+      if (table === 'easa_topics') return buildChain({ data: [] })
+      return buildChain({ data: null })
+    })
+    await expect(getProgressData()).rejects.toThrow('Failed to fetch subjects: subjects db error')
+  })
+
+  it('throws when the easa_topics read returns an error', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
+        })
+      if (table === 'easa_topics')
+        return buildChain({ data: null, error: { message: 'topics db error' } })
+      return buildChain({ data: null })
+    })
+    await expect(getProgressData()).rejects.toThrow('Failed to fetch topics: topics db error')
+  })
+
   it('throws when the mastery-stats RPC returns an error', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects') return buildChain({ data: [] })

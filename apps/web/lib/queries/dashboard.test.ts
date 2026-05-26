@@ -464,6 +464,39 @@ describe('getDashboardData', () => {
     expect(subject.masteryPercentage).toBe(100)
   })
 
+  it('throws when the easa_subjects read returns an error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({ data: null, error: { message: 'subjects db error' } })
+      if (table === 'student_responses') return buildChain({ count: 0, data: [] })
+      if (table === 'questions') return buildChain({ data: [] })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await expect(getDashboardData()).rejects.toThrow('Failed to fetch subjects: subjects db error')
+  })
+
+  it('throws when the question-subject map read returns an error', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
+        })
+      if (table === 'student_responses') return buildChain({ count: 0, data: [] })
+      if (table === 'questions')
+        return buildChain({ data: null, error: { message: 'questions map error' } })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await expect(getDashboardData()).rejects.toThrow(
+      'Failed to fetch question-subject map: questions map error',
+    )
+  })
+
   it('throws when the mastery stats RPC returns an error', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 
