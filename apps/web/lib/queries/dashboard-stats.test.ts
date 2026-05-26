@@ -146,6 +146,15 @@ describe('getStreakData', () => {
     expect(result).toEqual({ currentStreak: 0, bestStreak: 0 })
   })
 
+  it('returns zero streaks when the RPC returns null data without an error', async () => {
+    // Array.isArray(null) → false → rows = [] → fallback to { current_streak: 0, best_streak: 0 }.
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    const { createServerSupabaseClient } = await import('@repo/db/server')
+    const supabase = await createServerSupabaseClient()
+    const result = await getStreakData(supabase)
+    expect(result).toEqual({ currentStreak: 0, bestStreak: 0 })
+  })
+
   it('throws a sanitized error when the streak RPC fails', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
     const { createServerSupabaseClient } = await import('@repo/db/server')
