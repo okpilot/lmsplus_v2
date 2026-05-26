@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { rpc } from '@/lib/supabase-rpc'
 
 export type SubjectDetail = {
   id: string
@@ -26,8 +27,15 @@ export type TopicDetail = {
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
 type TopicRow = { id: string; code: string; name: string; subject_id: string; sort_order: number }
-type QuestionRow = { id: string; subject_id: string; topic_id: string; status: string }
-type ResponseRow = { question_id: string }
+// Aggregated mastery counts from get_student_mastery_stats(). topic_id === null marks a
+// subject-level row; a non-null topic_id marks a topic-level row. bigint arrives as
+// string or number depending on driver — coerce with Number() before use.
+type MasteryRow = {
+  subject_id: string
+  topic_id: string | null
+  total: number | string
+  correct: number | string
+}
 
 export async function getProgressData(): Promise<SubjectDetail[]> {
   const supabase = await createServerSupabaseClient()
@@ -38,73 +46,53 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
   if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
-  const [subjectsRes, topicsRes, questionsRes, correctRes] = await Promise.all([
+  const [subjectsRes, topicsRes, masteryResult] = await Promise.all([
     supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
     supabase
       .from('easa_topics')
       .select('id, code, name, subject_id, sort_order')
       .order('sort_order'),
-    supabase.from('questions').select('id, subject_id, topic_id, status').is('deleted_at', null),
-    supabase
-      .from('student_responses')
-      .select('question_id')
-      .eq('student_id', user.id)
-      .eq('is_correct', true),
+    rpc<MasteryRow[]>(supabase, 'get_student_mastery_stats', {}),
   ])
+
+  if (masteryResult.error) {
+    throw new Error(`Failed to fetch mastery stats: ${masteryResult.error.message}`)
+  }
 
   const subjects = (subjectsRes.data ?? []) as SubjectRow[]
   const topics = (topicsRes.data ?? []) as TopicRow[]
-  const questions = (questionsRes.data ?? []) as QuestionRow[]
-  const correctIds = new Set(((correctRes.data ?? []) as ResponseRow[]).map((r) => r.question_id))
 
-  const qBySubject = new Map<string, string[]>()
-  const qByTopic = new Map<string, string[]>()
-  const subjectByQuestionId = new Map<string, string>()
-  const topicByQuestionId = new Map<string, string>()
-  for (const q of questions) {
-    subjectByQuestionId.set(q.id, q.subject_id)
-    if (q.topic_id) topicByQuestionId.set(q.id, q.topic_id)
-    if (q.status === 'active') {
-      const subjectArr = qBySubject.get(q.subject_id)
-      if (subjectArr) subjectArr.push(q.id)
-      else qBySubject.set(q.subject_id, [q.id])
-      if (q.topic_id) {
-        const topicArr = qByTopic.get(q.topic_id)
-        if (topicArr) topicArr.push(q.id)
-        else qByTopic.set(q.topic_id, [q.id])
-      }
-    }
-  }
-
-  const correctBySubject = new Map<string, number>()
-  const correctByTopic = new Map<string, number>()
-  for (const cid of correctIds) {
-    const sid = subjectByQuestionId.get(cid)
-    if (sid) correctBySubject.set(sid, (correctBySubject.get(sid) ?? 0) + 1)
-    const tid = topicByQuestionId.get(cid)
-    if (tid) correctByTopic.set(tid, (correctByTopic.get(tid) ?? 0) + 1)
+  // Partition the aggregated rows into subject-level (topic_id === null) and
+  // topic-level (topic_id !== null) count maps. Postgres aggregates well under the
+  // 1000-row PostgREST cap, so these counts are never truncated (#540).
+  const subjectMap = new Map<string, { total: number; correct: number }>()
+  const topicMap = new Map<string, { total: number; correct: number }>()
+  for (const row of masteryResult.data ?? []) {
+    if (!row.subject_id) continue
+    const counts = { total: Number(row.total), correct: Number(row.correct) }
+    if (row.topic_id === null) subjectMap.set(row.subject_id, counts)
+    else topicMap.set(row.topic_id, counts)
   }
 
   return subjects
     .map((s) => {
-      const sQuestions = qBySubject.get(s.id) ?? []
-      const sCorrect = correctBySubject.get(s.id) ?? 0
+      const { total: sTotal, correct: sCorrect } = subjectMap.get(s.id) ?? { total: 0, correct: 0 }
 
       const subjectTopics = topics
         .filter((t) => t.subject_id === s.id)
         .map((t) => {
-          const tQuestions = qByTopic.get(t.id) ?? []
-          const tCorrect = correctByTopic.get(t.id) ?? 0
+          const { total: tTotal, correct: tCorrect } = topicMap.get(t.id) ?? {
+            total: 0,
+            correct: 0,
+          }
           return {
             id: t.id,
             code: t.code,
             name: t.name,
-            totalQuestions: tQuestions.length,
+            totalQuestions: tTotal,
             answeredCorrectly: tCorrect,
             masteryPercentage:
-              tQuestions.length > 0
-                ? Math.min(Math.round((tCorrect / tQuestions.length) * 100), 100)
-                : 0,
+              tTotal > 0 ? Math.min(Math.round((tCorrect / tTotal) * 100), 100) : 0,
           }
         })
         .filter((t) => t.totalQuestions > 0 || t.answeredCorrectly > 0)
@@ -114,12 +102,9 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
         code: s.code,
         name: s.name,
         short: s.short,
-        totalQuestions: sQuestions.length,
+        totalQuestions: sTotal,
         answeredCorrectly: sCorrect,
-        masteryPercentage:
-          sQuestions.length > 0
-            ? Math.min(Math.round((sCorrect / sQuestions.length) * 100), 100)
-            : 0,
+        masteryPercentage: sTotal > 0 ? Math.min(Math.round((sCorrect / sTotal) * 100), 100) : 0,
         topics: subjectTopics,
       }
     })

@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -12,6 +13,10 @@ vi.mock('@repo/db/server', () => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
+}))
+
+vi.mock('@/lib/supabase-rpc', () => ({
+  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -36,6 +41,8 @@ function buildChain(returnValue: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+  mockRpc.mockResolvedValue({ data: [], error: null })
 })
 
 describe('getProgressData', () => {
@@ -52,14 +59,20 @@ describe('getProgressData', () => {
     await expect(getProgressData()).rejects.toThrow('Auth error: session not found')
   })
 
-  it('returns empty array when there are no subjects', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
+  it('throws when the mastery-stats RPC returns an error', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects') return buildChain({ data: [] })
       if (table === 'easa_topics') return buildChain({ data: [] })
-      if (table === 'questions') return buildChain({ data: [] })
-      if (table === 'student_responses') return buildChain({ data: [] })
+      return buildChain({ data: null })
+    })
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
+    await expect(getProgressData()).rejects.toThrow('Failed to fetch mastery stats: boom')
+  })
+
+  it('returns empty array when there are no subjects', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects') return buildChain({ data: [] })
+      if (table === 'easa_topics') return buildChain({ data: [] })
       return buildChain({ data: null })
     })
 
@@ -68,8 +81,6 @@ describe('getProgressData', () => {
   })
 
   it('calculates masteryPercentage per subject based on correct responses', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
@@ -79,20 +90,12 @@ describe('getProgressData', () => {
         return buildChain({
           data: [{ id: 't1', code: '050-01', name: 'Airframe', subject_id: 's1', sort_order: 1 }],
         })
-      if (table === 'questions')
-        return buildChain({
-          data: [
-            { id: 'q1', subject_id: 's1', topic_id: 't1', status: 'active' },
-            { id: 'q2', subject_id: 's1', topic_id: 't1', status: 'active' },
-            { id: 'q3', subject_id: 's1', topic_id: 't1', status: 'active' },
-            { id: 'q4', subject_id: 's1', topic_id: 't1', status: 'active' },
-          ],
-        })
-      if (table === 'student_responses')
-        return buildChain({
-          data: [{ question_id: 'q1' }, { question_id: 'q2' }], // 2 of 4 correct
-        })
       return buildChain({ data: null })
+    })
+    // 4 active questions, 2 answered correctly -> 50%
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's1', topic_id: null, total: 4, correct: 2 }],
+      error: null,
     })
 
     const result = await getProgressData()
@@ -104,8 +107,6 @@ describe('getProgressData', () => {
   })
 
   it('includes topic breakdown within each subject', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
@@ -118,15 +119,15 @@ describe('getProgressData', () => {
             { id: 't2', code: '050-02', name: 'Engines', subject_id: 's1', sort_order: 2 },
           ],
         })
-      if (table === 'questions')
-        return buildChain({
-          data: [
-            { id: 'q1', subject_id: 's1', topic_id: 't1', status: 'active' },
-            { id: 'q2', subject_id: 's1', topic_id: 't2', status: 'active' },
-          ],
-        })
-      if (table === 'student_responses') return buildChain({ data: [{ question_id: 'q1' }] })
       return buildChain({ data: null })
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: null, total: 2, correct: 1 },
+        { subject_id: 's1', topic_id: 't1', total: 1, correct: 1 },
+        { subject_id: 's1', topic_id: 't2', total: 1, correct: 0 },
+      ],
+      error: null,
     })
 
     const result = await getProgressData()
@@ -134,13 +135,11 @@ describe('getProgressData', () => {
     expect(result[0]!.topics).toHaveLength(2)
     const t1 = result[0]!.topics.find((t) => t.id === 't1')!
     const t2 = result[0]!.topics.find((t) => t.id === 't2')!
-    expect(t1.masteryPercentage).toBe(100) // q1 correct, 1 of 1
-    expect(t2.masteryPercentage).toBe(0) // q2 not correct, 0 of 1
+    expect(t1.masteryPercentage).toBe(100) // 1 of 1 correct
+    expect(t2.masteryPercentage).toBe(0) // 0 of 1 correct
   })
 
   it('filters out subjects with zero questions AND zero responses', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
@@ -150,12 +149,12 @@ describe('getProgressData', () => {
           ],
         })
       if (table === 'easa_topics') return buildChain({ data: [] })
-      if (table === 'questions')
-        return buildChain({
-          data: [{ id: 'q1', subject_id: 's1', topic_id: null, status: 'active' }],
-        })
-      if (table === 'student_responses') return buildChain({ data: [] })
       return buildChain({ data: null })
+    })
+    // Only s1 has counts; s2 has none and must be filtered out.
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's1', topic_id: null, total: 1, correct: 0 }],
+      error: null,
     })
 
     const result = await getProgressData()
@@ -164,20 +163,18 @@ describe('getProgressData', () => {
   })
 
   it('keeps subject when it has no active questions but the student has correct responses to it', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'AIRLAW', name: 'Air Law', short: 'AIR', sort_order: 1 }],
         })
       if (table === 'easa_topics') return buildChain({ data: [] })
-      if (table === 'questions')
-        return buildChain({
-          data: [{ id: 'q1', subject_id: 's1', topic_id: 't1', status: 'draft' }],
-        })
-      if (table === 'student_responses') return buildChain({ data: [{ question_id: 'q1' }] })
       return buildChain({ data: null })
+    })
+    // Orphan subject: 0 active questions but 1 correct response retained.
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's1', topic_id: null, total: 0, correct: 1 }],
+      error: null,
     })
 
     const result = await getProgressData()
@@ -189,8 +186,6 @@ describe('getProgressData', () => {
   })
 
   it('keeps topic when it has no active questions but the student has correct responses to it', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
@@ -203,15 +198,16 @@ describe('getProgressData', () => {
             { id: 't2', code: 'TOP2', name: 'Topic 2', subject_id: 's1', sort_order: 2 },
           ],
         })
-      if (table === 'questions')
-        return buildChain({
-          data: [
-            { id: 'q1', subject_id: 's1', topic_id: 't1', status: 'active' },
-            { id: 'q2', subject_id: 's1', topic_id: 't2', status: 'draft' },
-          ],
-        })
-      if (table === 'student_responses') return buildChain({ data: [{ question_id: 'q2' }] })
       return buildChain({ data: null })
+    })
+    // Subject has 1 active question; t2 is an orphan topic (0 active, 1 correct).
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: null, total: 1, correct: 1 },
+        { subject_id: 's1', topic_id: 't1', total: 1, correct: 0 },
+        { subject_id: 's1', topic_id: 't2', total: 0, correct: 1 },
+      ],
+      error: null,
     })
 
     const result = await getProgressData()
@@ -227,8 +223,6 @@ describe('getProgressData', () => {
   })
 
   it('counts active and draft question responses separately at the topic level', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
@@ -238,15 +232,15 @@ describe('getProgressData', () => {
         return buildChain({
           data: [{ id: 't1', code: 'MET-01', name: 'Atmosphere', subject_id: 's1', sort_order: 1 }],
         })
-      if (table === 'questions')
-        return buildChain({
-          data: [
-            { id: 'q_active', subject_id: 's1', topic_id: 't1', status: 'active' },
-            { id: 'q_draft', subject_id: 's1', topic_id: 't1', status: 'draft' },
-          ],
-        })
-      if (table === 'student_responses') return buildChain({ data: [{ question_id: 'q_draft' }] })
       return buildChain({ data: null })
+    })
+    // 1 active question, 1 correct response (to a now-draft question) -> 100%.
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: null, total: 1, correct: 1 },
+        { subject_id: 's1', topic_id: 't1', total: 1, correct: 1 },
+      ],
+      error: null,
     })
 
     const result = await getProgressData()
@@ -260,20 +254,18 @@ describe('getProgressData', () => {
   })
 
   it('sets masteryPercentage to 0 when a subject has questions but none answered correctly', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
           data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
         })
       if (table === 'easa_topics') return buildChain({ data: [] })
-      if (table === 'questions')
-        return buildChain({
-          data: [{ id: 'q1', subject_id: 's1', topic_id: 't1', status: 'active' }],
-        })
-      if (table === 'student_responses') return buildChain({ data: [] }) // no correct responses
       return buildChain({ data: null })
+    })
+    // 1 active question, no correct responses.
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's1', topic_id: null, total: 1, correct: 0 }],
+      error: null,
     })
 
     const result = await getProgressData()
@@ -286,8 +278,6 @@ describe('getProgressData', () => {
     // #540/#664: topic t1 has 1 active + 1 now-draft question; the student answered
     // BOTH correctly. answeredCorrectly (2) stays raw (orphan-retention signal), but
     // the derived percentage must not exceed 100.
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
         return buildChain({
@@ -297,16 +287,14 @@ describe('getProgressData', () => {
         return buildChain({
           data: [{ id: 't1', code: 'MET-01', name: 'Atmosphere', subject_id: 's1', sort_order: 1 }],
         })
-      if (table === 'questions')
-        return buildChain({
-          data: [
-            { id: 'q_active', subject_id: 's1', topic_id: 't1', status: 'active' },
-            { id: 'q_draft', subject_id: 's1', topic_id: 't1', status: 'draft' },
-          ],
-        })
-      if (table === 'student_responses')
-        return buildChain({ data: [{ question_id: 'q_active' }, { question_id: 'q_draft' }] })
       return buildChain({ data: null })
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: null, total: 1, correct: 2 },
+        { subject_id: 's1', topic_id: 't1', total: 1, correct: 2 },
+      ],
+      error: null,
     })
 
     const result = await getProgressData()
@@ -316,6 +304,31 @@ describe('getProgressData', () => {
     expect(topic.masteryPercentage).toBe(100)
     expect(result[0]!.totalQuestions).toBe(1)
     expect(result[0]!.answeredCorrectly).toBe(2)
+    expect(result[0]!.masteryPercentage).toBe(100)
+  })
+
+  it('surfaces a high-volume subject at full count without 1000-row truncation', async () => {
+    // #540 regression: under the old unpaginated client reads, a subject whose
+    // active questions / correct responses fell outside the first 1000 rows showed
+    // 0% mastery. The RPC aggregates in Postgres, so the full count survives.
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's_tail', code: 'AIRLAW', name: 'Air Law', short: 'AIR', sort_order: 1 }],
+        })
+      if (table === 'easa_topics') return buildChain({ data: [] })
+      return buildChain({ data: null })
+    })
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's_tail', topic_id: null, total: 1366, correct: 1366 }],
+      error: null,
+    })
+
+    const result = await getProgressData()
+    expect(result).toHaveLength(1)
+    expect(result[0]!.id).toBe('s_tail')
+    expect(result[0]!.totalQuestions).toBe(1366)
+    expect(result[0]!.answeredCorrectly).toBe(1366)
     expect(result[0]!.masteryPercentage).toBe(100)
   })
 })

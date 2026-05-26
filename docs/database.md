@@ -658,6 +658,7 @@ verb_noun pattern:
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
   get_subject_scores         ← read, analytics: avg scores by subject
   get_question_counts        ← read, per-(subject, topic, subtopic) question counts; replaces client-side counting that truncated at the PostgREST 1000-row cap (#614)
+  get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
 ```
 
 ### Security Model
@@ -2045,6 +2046,25 @@ Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_i
 **Migration:** `20260520000001_get_question_counts_rpc.sql`
 
 **Rationale:** Replaces client-side counting that silently truncated at the PostgREST 1000-row cap once the question bank crossed 1000 rows (#614).
+
+---
+
+#### `get_student_mastery_stats` — per-subject & per-topic mastery counts for the calling student
+
+Returns mastery counts at two granularities in one result set: a subject-level row (`topic_id IS NULL`) and topic-level rows (`topic_id NOT NULL`) per `(subject_id[, topic_id])`. Used by the student dashboard (`lib/queries/dashboard.ts`) and progress page (`lib/queries/progress.ts`) to compute per-subject/topic mastery without paging through the student's full response history.
+
+**Security:** `SECURITY INVOKER` (caller-context). RLS scopes the result — `tenant_isolation` on `questions` (org + `deleted_at IS NULL`, any status) and the `student_responses` policy (`student_id = auth.uid()`) — so no manual `auth.uid()` check is needed. An unauthenticated caller resolves `auth.uid()` to NULL and receives an empty set.
+
+**Parameters:** none (caller is always self).
+
+**Returns:** `TABLE(subject_id UUID, topic_id UUID, total BIGINT, correct BIGINT)`
+- `total` — `COUNT(DISTINCT)` of `status = 'active'` questions (denominator).
+- `correct` — `COUNT(DISTINCT)` of questions answered correctly, **any** status (numerator); can exceed `total` when the student answered a now-draft question (orphan retention, #540/#664). The percentage clamp and the `total>0 OR correct>0` orphan-retention filter stay in TypeScript, which consumes the raw counts.
+- `topic_id IS NULL` marks the subject-level aggregate row — a safe sentinel because `questions.topic_id` is `NOT NULL`.
+
+**Migration:** `20260521000005_student_mastery_stats_rpc.sql`
+
+**Rationale:** Replaces client-side numerator/denominator aggregation that silently truncated at the PostgREST 1000-row cap for students with >1000 responses or orgs with >1000 active questions (#540, instance #1 of umbrella #668).
 
 ---
 
