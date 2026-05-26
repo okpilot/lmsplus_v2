@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockFrom } = vi.hoisted(() => ({
+const { mockFrom, mockRpc } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -12,12 +13,15 @@ vi.mock('@repo/db/server', () => ({
   }),
 }))
 
+vi.mock('@/lib/supabase-rpc', () => ({
+  rpc: (...args: unknown[]) => mockRpc(...args),
+}))
+
 // ---- Subject under test ----------------------------------------------------
 
 import {
   applyLastPracticed,
   computeExamReadiness,
-  computeStreaks,
   getQuestionsToday,
   getStreakData,
 } from './dashboard-stats'
@@ -38,93 +42,12 @@ function buildChain(returnValue: unknown) {
   })
 }
 
-/** Returns an ISO date string N days offset from the pinned "today". */
-function isoDate(offsetDays: number, pinnedToday: string): string {
-  const d = new Date(pinnedToday)
-  d.setUTCDate(d.getUTCDate() + offsetDays)
-  return d.toISOString().slice(0, 10)
-}
-
-// Stable "today" used across all date-sensitive tests so they never flap at midnight.
-const PINNED_TODAY = '2026-03-18'
-const PINNED_TODAY_MS = new Date(PINNED_TODAY).getTime()
-
 // ---- Setup -----------------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
   vi.restoreAllMocks()
-})
-
-// ---- computeStreaks ---------------------------------------------------------
-
-describe('computeStreaks', () => {
-  beforeEach(() => {
-    vi.spyOn(Date, 'now').mockReturnValue(PINNED_TODAY_MS)
-  })
-
-  it('returns zero streak when no dates are provided', () => {
-    expect(computeStreaks([])).toEqual({ currentStreak: 0, bestStreak: 0 })
-  })
-
-  it('returns streak of 1 when only today is present', () => {
-    expect(computeStreaks([PINNED_TODAY])).toEqual({ currentStreak: 1, bestStreak: 1 })
-  })
-
-  it('returns streak of 1 when only yesterday is present', () => {
-    const yesterday = isoDate(-1, PINNED_TODAY)
-    expect(computeStreaks([yesterday])).toEqual({ currentStreak: 1, bestStreak: 1 })
-  })
-
-  it('returns zero current streak when the most recent date is two days ago', () => {
-    const twoDaysAgo = isoDate(-2, PINNED_TODAY)
-    expect(computeStreaks([twoDaysAgo])).toEqual({ currentStreak: 0, bestStreak: 1 })
-  })
-
-  it('counts consecutive days anchored to today', () => {
-    const dates = [PINNED_TODAY, isoDate(-1, PINNED_TODAY), isoDate(-2, PINNED_TODAY)]
-    expect(computeStreaks(dates)).toEqual({ currentStreak: 3, bestStreak: 3 })
-  })
-
-  it('counts consecutive days anchored to yesterday', () => {
-    const dates = [isoDate(-1, PINNED_TODAY), isoDate(-2, PINNED_TODAY), isoDate(-3, PINNED_TODAY)]
-    expect(computeStreaks(dates)).toEqual({ currentStreak: 3, bestStreak: 3 })
-  })
-
-  it('identifies best streak even when current streak is shorter', () => {
-    // Gap at -3, so current streak = 3, but older run was 4 long
-    const dates = [
-      PINNED_TODAY,
-      isoDate(-1, PINNED_TODAY),
-      isoDate(-2, PINNED_TODAY),
-      // gap at -3
-      isoDate(-4, PINNED_TODAY),
-      isoDate(-5, PINNED_TODAY),
-      isoDate(-6, PINNED_TODAY),
-      isoDate(-7, PINNED_TODAY),
-    ]
-    expect(computeStreaks(dates)).toEqual({ currentStreak: 3, bestStreak: 4 })
-  })
-
-  it('resets current streak to 0 when there is a gap before today', () => {
-    // Most recent practice was 5 days ago followed by a 3-day run
-    const dates = [isoDate(-5, PINNED_TODAY), isoDate(-6, PINNED_TODAY), isoDate(-7, PINNED_TODAY)]
-    const result = computeStreaks(dates)
-    expect(result.currentStreak).toBe(0)
-    expect(result.bestStreak).toBe(3)
-  })
-
-  it('handles a single-element list of a stale date', () => {
-    const stale = isoDate(-10, PINNED_TODAY)
-    expect(computeStreaks([stale])).toEqual({ currentStreak: 0, bestStreak: 1 })
-  })
-
-  it('handles duplicate dates gracefully when they are already deduplicated', () => {
-    // Caller (getStreakData) deduplicates before passing; test verifies non-consecutive pair
-    const dates = [PINNED_TODAY, isoDate(-2, PINNED_TODAY)]
-    // Gap on day -1 means current streak is only 1 (today), best streak is 1
-    expect(computeStreaks(dates)).toEqual({ currentStreak: 1, bestStreak: 1 })
-  })
+  mockRpc.mockResolvedValue({ data: [], error: null })
 })
 
 // ---- computeExamReadiness --------------------------------------------------
@@ -192,58 +115,64 @@ describe('getQuestionsToday', () => {
 // ---- getStreakData ----------------------------------------------------------
 
 describe('getStreakData', () => {
-  beforeEach(() => {
-    vi.spyOn(Date, 'now').mockReturnValue(PINNED_TODAY_MS)
-  })
-
-  it('returns zero streaks when there are no responses', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: null }))
+  it('surfaces the current and best streak from the streak RPC', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ current_streak: 4, best_streak: 9 }],
+      error: null,
+    })
     const { createServerSupabaseClient } = await import('@repo/db/server')
     const supabase = await createServerSupabaseClient()
-    const result = await getStreakData(supabase, 'user-1')
+    const result = await getStreakData(supabase)
+    expect(result).toEqual({ currentStreak: 4, bestStreak: 9 })
+  })
+
+  it('coerces string-encoded streak counts into numbers', async () => {
+    // PostgREST may serialize bigint columns as strings depending on the driver.
+    mockRpc.mockResolvedValue({
+      data: [{ current_streak: '3', best_streak: '7' }],
+      error: null,
+    })
+    const { createServerSupabaseClient } = await import('@repo/db/server')
+    const supabase = await createServerSupabaseClient()
+    const result = await getStreakData(supabase)
+    expect(result).toEqual({ currentStreak: 3, bestStreak: 7 })
+  })
+
+  it('returns zero streaks when the RPC returns no rows', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    const { createServerSupabaseClient } = await import('@repo/db/server')
+    const supabase = await createServerSupabaseClient()
+    const result = await getStreakData(supabase)
     expect(result).toEqual({ currentStreak: 0, bestStreak: 0 })
   })
 
-  it('deduplicates dates and computes streak from multiple responses on the same day', async () => {
-    // Three responses today and yesterday — should be a streak of 2, not 3
-    const yesterday = isoDate(-1, PINNED_TODAY)
-    const rows = [
-      { created_at: `${PINNED_TODAY}T10:00:00Z` },
-      { created_at: `${PINNED_TODAY}T14:00:00Z` },
-      { created_at: `${yesterday}T09:00:00Z` },
-    ]
-    mockFrom.mockReturnValue(buildChain({ data: rows }))
+  it('throws a sanitized error when the streak RPC fails', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
     const { createServerSupabaseClient } = await import('@repo/db/server')
     const supabase = await createServerSupabaseClient()
-    const result = await getStreakData(supabase, 'user-1')
-    expect(result).toEqual({ currentStreak: 2, bestStreak: 2 })
+    await expect(getStreakData(supabase)).rejects.toThrow('Failed to fetch streak: boom')
   })
 })
 
 // ---- applyLastPracticed ----------------------------------------------------
 
 describe('applyLastPracticed', () => {
-  it('returns the same list unchanged when subjects is empty', async () => {
+  it('returns the same list unchanged without calling the RPC when subjects is empty', async () => {
     const { createServerSupabaseClient } = await import('@repo/db/server')
     const supabase = await createServerSupabaseClient()
-    const result = await applyLastPracticed(supabase, 'user-1', [], new Map())
+    const result = await applyLastPracticed(supabase, [])
     expect(result).toEqual([])
-    expect(mockFrom).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('assigns lastPracticedAt from the latest response for each subject', async () => {
-    const rows = [
-      { question_id: 'q1', created_at: '2026-03-18T10:00:00Z' },
-      { question_id: 'q2', created_at: '2026-03-17T08:00:00Z' },
-      // older response for q1 — should be ignored since q1 is already set
-      { question_id: 'q1', created_at: '2026-03-10T10:00:00Z' },
-    ]
-    mockFrom.mockReturnValue(buildChain({ data: rows }))
-
-    const questionSubjectMap = new Map([
-      ['q1', 'subject-a'],
-      ['q2', 'subject-b'],
-    ])
+  it('assigns lastPracticedAt onto the matching subject from the RPC result', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 'subject-a', last_practiced_at: '2026-05-20T10:00:00Z' },
+        { subject_id: 'subject-b', last_practiced_at: '2026-05-17T08:00:00Z' },
+      ],
+      error: null,
+    })
     const subjects = [
       { id: 'subject-a', lastPracticedAt: null },
       { id: 'subject-b', lastPracticedAt: null },
@@ -251,37 +180,36 @@ describe('applyLastPracticed', () => {
 
     const { createServerSupabaseClient } = await import('@repo/db/server')
     const supabase = await createServerSupabaseClient()
-    const result = await applyLastPracticed(supabase, 'user-1', subjects, questionSubjectMap)
+    const result = await applyLastPracticed(supabase, subjects)
 
     expect(result).toEqual([
-      { id: 'subject-a', lastPracticedAt: '2026-03-18T10:00:00Z' },
-      { id: 'subject-b', lastPracticedAt: '2026-03-17T08:00:00Z' },
+      { id: 'subject-a', lastPracticedAt: '2026-05-20T10:00:00Z' },
+      { id: 'subject-b', lastPracticedAt: '2026-05-17T08:00:00Z' },
     ])
   })
 
-  it('leaves lastPracticedAt null for subjects with no responses', async () => {
-    mockFrom.mockReturnValue(buildChain({ data: [] }))
+  it('leaves lastPracticedAt null for subjects absent from the RPC result', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 'subject-a', last_practiced_at: '2026-05-20T10:00:00Z' }],
+      error: null,
+    })
 
     const subjects = [{ id: 'subject-x', lastPracticedAt: null }]
     const { createServerSupabaseClient } = await import('@repo/db/server')
     const supabase = await createServerSupabaseClient()
-    const result = await applyLastPracticed(supabase, 'user-1', subjects, new Map())
+    const result = await applyLastPracticed(supabase, subjects)
 
     expect(result).toEqual([{ id: 'subject-x', lastPracticedAt: null }])
   })
 
-  it('ignores responses whose question_id is not in the subject map', async () => {
-    const rows = [{ question_id: 'unknown-q', created_at: '2026-03-18T10:00:00Z' }]
-    mockFrom.mockReturnValue(buildChain({ data: rows }))
+  it('throws a sanitized error when the last-practiced RPC fails', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
 
     const subjects = [{ id: 'subject-a', lastPracticedAt: null }]
-    // 'unknown-q' is not in the map
-    const questionSubjectMap = new Map<string, string>()
-
     const { createServerSupabaseClient } = await import('@repo/db/server')
     const supabase = await createServerSupabaseClient()
-    const result = await applyLastPracticed(supabase, 'user-1', subjects, questionSubjectMap)
-
-    expect(result).toEqual([{ id: 'subject-a', lastPracticedAt: null }])
+    await expect(applyLastPracticed(supabase, subjects)).rejects.toThrow(
+      'Failed to fetch last-practiced: boom',
+    )
   })
 })

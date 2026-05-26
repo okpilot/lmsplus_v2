@@ -659,6 +659,8 @@ verb_noun pattern:
   get_subject_scores         ← read, analytics: avg scores by subject
   get_question_counts        ← read, per-(subject, topic, subtopic) question counts; replaces client-side counting that truncated at the PostgREST 1000-row cap (#614)
   get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
+  get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
+  get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
 ```
 
 ### Security Model
@@ -2065,6 +2067,42 @@ Returns mastery counts at two granularities in one result set: a subject-level r
 **Migration:** `20260521000005_student_mastery_stats_rpc.sql`
 
 **Rationale:** Replaces client-side numerator/denominator aggregation that silently truncated at the PostgREST 1000-row cap for students with >1000 responses or orgs with >1000 active questions (#540, instance #1 of umbrella #668).
+
+---
+
+#### `get_student_streak` — current + best daily-practice streak for the calling student
+
+Returns one row with the caller's current and best (all-time) daily-practice streak in days, computed entirely in Postgres via a gaps-and-islands query over the DISTINCT UTC calendar dates on which the student answered any question. Used by the student dashboard (`lib/queries/dashboard.ts` → `getStreakData`).
+
+**Security:** `SECURITY INVOKER`. `student_responses` has TWO permissive SELECT policies (`students_read_responses` = `student_id = auth.uid()`, and `instructors_read_students` = org + instructor/admin role), so RLS alone would let an instructor/admin caller streak over org-wide activity. The query self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11). Unauthenticated caller → `auth.uid()` NULL → zero dates → returns a single `{0, 0}` row.
+
+**Parameters:** none (caller is always self).
+
+**Returns:** `TABLE(current_streak INT, best_streak INT)` — exactly one row.
+- `current_streak` — length (days) of the consecutive-day run ending today or yesterday (UTC), else `0` (mirrors the legacy `anchoredToNow` guard).
+- `best_streak` — length (days) of the longest consecutive-day run, all-time.
+- UTC date derivation (`created_at AT TIME ZONE 'UTC'`) matches the legacy TS `computeStreaks`, which used `created_at.toISOString().slice(0,10)`.
+
+**Migration:** `20260521000006_dashboard_secondary_stats_rpcs.sql`
+
+**Rationale:** Replaces client-side `computeStreaks` over a `.limit(10000)` read (ignored above the PostgREST 1000-row cap) that undercounted streaks for students with >1000 responses (#668, instance #2 of the truncation class).
+
+---
+
+#### `get_student_last_practiced` — most recent response timestamp per subject for the calling student
+
+Returns one row per subject the caller has answered, with the most recent response timestamp, over ALL responses (any correctness). Used by the student dashboard (`lib/queries/dashboard.ts` → `applyLastPracticed`).
+
+**Security:** `SECURITY INVOKER`. The `questions` JOIN is org-scoped + `deleted_at IS NULL` via the `tenant_isolation` policy (reproducing the legacy `questionSubjectMap`, which was built from non-deleted questions). `student_responses` self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11, same two-policy reason as `get_student_streak`). Unauthenticated caller → empty set. No question text, options, or correct-answer data is selected — only `subject_id` and a timestamp.
+
+**Parameters:** none (caller is always self).
+
+**Returns:** `TABLE(subject_id UUID, last_practiced_at TIMESTAMPTZ)` — one row per practiced subject.
+- `last_practiced_at` — `MAX(created_at)` over all the caller's responses to questions in that subject (correct or not), matching the legacy `applyLastPracticed` (no `is_correct` filter).
+
+**Migration:** `20260521000006_dashboard_secondary_stats_rpcs.sql`
+
+**Rationale:** Replaces client-side last-practiced attribution over a `.limit(5000)` read (ignored above the 1000-row cap) that falsely NULLed `lastPracticedAt` for subjects answered outside the most-recent ~1000 responses, and retires the coupled truncated `questions` read (the `questionSubjectMap`) deferred from PR #674 (#668).
 
 ---
 
