@@ -13,6 +13,9 @@
 - [x] red-team: found BW3 (instructor/admin numerator leak) → fixed in bf756480
       (sr.student_id = auth.uid()); E2E coverage gaps filed as #673
 - [x] PR-level semantic sweep (master...HEAD): clean
+- [x] learner synthesis: promoted security.md §11 (multi-policy RLS → explicit auth.uid()
+      scope); sweep clean repo-wide; coderabbit-sync mirrored §11 into .coderabbit.yaml
+- [x] /fullpush gates: lint (0 errors), check-types, 3388 tests, build, clean migration reset
+- [ ] CR-local (/crlocal) review loop
 - [ ] security-auditor runs on pre-push (Lefthook) — pending push
-- [ ] learner synthesis
 - [ ] Push (on user approval) + verify deployed RPC against affected student before closing #540
