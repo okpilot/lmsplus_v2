@@ -5155,3 +5155,141 @@ Commitlint emitted "footer must have leading blank line" on 3 consecutive commit
 - **All findings addressed in-cycle before push**
 - **Pattern recurrence tracked: count 2 for "mockRpc insufficient for SQL logic"; monitor for count 3**
 
+
+---
+
+## Learner Cycle — 2026-05-26 (post-push CR-fix) — #668 Dashboard Secondary Stats RPCs (9eca47d6 + f7b9804b + 32c759e0)
+
+**Pre-push CodeRabbit-local finding sweep and post-commit agent synthesis on Array.isArray guard additions.**
+
+### Context
+
+After pushing a6dc7a9c + 7e9197c1 + af987c1d (the #668 RPC refactor sequence), CodeRabbit local pre-push review on the full branch diff identified additional rpc<T[]> consumers lacking Array.isArray guards. The orchestrator then:
+
+1. Fixed the two CR-flagged consumers in dashboard-stats.ts (9eca47d6)
+2. Added tests for the null-data guard branches (f7b9804b)
+3. Fixed factual accuracy issues in docs/plan.md (32c759e0)
+
+But during the sibling-file audit, two additional pre-existing unguarded consumers were found (progress.ts:76, analytics.ts:50 & :75) that are out-of-scope for this PR and deferred to a separate issue.
+
+### Agent Findings Summary
+
+**All post-commit agents on the 3-fix-commit sequence:**
+
+- **code-reviewer:** 0 BLOCKING, 0 WARNING — clean
+- **semantic-reviewer:** 0 CRITICAL, 0 ISSUE, 2 SUGGESTION, 1 GOOD
+  * **SUGGESTION 1:** Consolidate the three Array.isArray lines into a const or macro to reduce duplication (dashboard-stats.ts has 2, dashboard.ts has 1). VERDICT: SKIPPED — pattern is non-duplication because usage contexts differ (array destructure `data?.[0]`, for-loop `for ... of`, function params). Adding a const would obscure the intent.
+  * **SUGGESTION 2:** Add comment explaining why the guard is necessary. VERDICT: APPLIED — 9eca47d6 includes comments "rpc() casts the payload without validating shape — guard the array per code-style §5."
+  * **GOOD:** Test coverage added for null-data branches. Test names describe behavior. Mastery loop RPC tested in integration context.
+- **doc-updater:** 1 ISSUE (false positive — spec doc compliance)
+  * **Claim:** docs/plan.md #668 section needed status update to "LANDED"
+  * **Reality:** The doc already said "LANDED 2026-05-26" at line 1178; doc-updater did not read the full section and speculated on line 5 of the diff instead of checking actual content
+  * **Root cause:** Agent-memory notes suggest doc-updater scans commit message for issue references, finds a section by regex, then assumes work status. Does not validate against actual text.
+  * **Action:** Finding validated and rejected as false positive. Flagged as a recurring spec speculation pattern (count now 2).
+- **test-writer:** 2 new tests added (null data paths for getStreakData and mastery loop); all pass
+- **Red-team:** (drift check) — No spec changes; no red-team findings
+
+### Patterns Detected
+
+#### [REPEAT — count 2] CodeRabbit-local catches rpc<T[]> Array.isArray guard gaps that post-commit agents miss on the original feature commit
+
+**Description:**
+Original feature commit a6dc7a9c (RPC refactor) introduced 3 rpc<T[]> consumers in dashboard-stats.ts and dashboard.ts. Post-commit agents on that commit (code-reviewer, semantic-reviewer, test-writer) did not flag the missing Array.isArray guards. CodeRabbit local, run 4+ hours later during the pre-push check, flagged 2 of the 3 as missing guards. The third was flagged in isolation by semantic-reviewer but was added to 9eca47d6 (not backfilled into a6dc7a9c).
+
+**Instances:**
+1. **PR #108 (2026-05-07):** CodeRabbit local flagged `.select('id')` results being discarded and silent-no-op mutations lacking `data?.length > 0` observability. Post-commit agents accepted the original code. CR-local caught during pre-push review (per agent-coderabbit-local.md § Common Pitfalls Observed).
+2. **This cycle:** CodeRabbit local flagged 2 rpc<T[]> consumers (getStreakData, applyLastPracticed) missing Array.isArray guards. Post-commit agents on a6dc7a9c did not flag. Guards added in 9eca47d6 after CR-local identified the gap.
+
+**Pattern characterization:**
+- **Post-commit agents miss:** runtime validation patterns that emerge at call sites of new abstractions (RPC helpers, query result transforms)
+- **CodeRabbit-local catches:** call-site validation gaps that require reading the usage context (where the array is passed to `.map()`, indexed as `data[0]`, etc.)
+- **Why the gap:** Code-reviewer lints syntax/style but doesn't trace RPC calls to their consumers. Semantic-reviewer checks logic in-place but doesn't enumerate all call sites of a new RPC.
+
+**Consequence if not surfaced:** New RPC consumers added to the codebase may silently accumulate the pattern without guard validation. The gap only becomes visible during pre-push CR-local review, delaying merge.
+
+**Action:** Log as count 2 (both cycles caught via CR-local, both required a separate fix commit). This pattern is becoming the dominant failure mode of our post-commit agents on RPC-heavy refactors. Recommend monitoring:
+- Is CR-local effectively required as a pre-push gate for any branch adding new RPCs?
+- Should the code-reviewer agent definition be extended to enumerate all call sites of new rpc<T>() functions and flag non-guarded `.map()`, `[0]` indexing, `for...of` iteration?
+
+**Status:** Watch pattern (count 2). If a third RPC-refactor ship without array-guard checks caught by post-commit agents, escalate to a rule proposal for code-reviewer.md.
+
+#### [REPEAT — count 2] Spec-doc section status speculation by doc-updater agent
+
+**Description:**
+Doc-updater claimed docs/plan.md #668 section needed a status update (TODO → LANDED) based on finding the issue reference in the commit message. It did not read the actual section content to verify the current status. The section already said "LANDED 2026-05-26".
+
+**Instances:**
+1. **Earlier in this cycle (not separately logged, but noted verbally):** Doc-updater speculated about a Plan phase status based on commit message mention, without reading the Plan file.
+2. **This cycle:** Doc-updater flagged "docs/plan.md needs update for #668" → orchestrator read the file → no update needed.
+
+**Root cause:** Agent speculates based on commit message content (finds "Closes #668" or "#668 mention") and assumes the section status needs updating. Does not validate by reading the actual section.
+
+**Why this matters:** False positives from doc-updater waste orchestrator time and reduce trust in the agent's findings. If the agent consistently speculates, findings get dismissed as noise.
+
+**Action:** Log as count 2. Recommend a note to doc-updater.md (for orchestrator review):
+
+```
+PROPOSED ADDITION (learner suggestion):
+  When a commit mentions a GitHub issue or feature, do not assume the steering
+  doc section status needs updating. Always read the actual section and verify
+  the current status text before flagging a drift finding. Commit message mentions
+  are not evidence of change — the actual doc content is the source of truth.
+```
+
+**Status:** Watch pattern (count 2). If doc-updater continues to speculate on status based on commit messages without reading actual content, escalate to a rule/suppression addition for agent-doc-updater.md.
+
+#### [NEW — count 1] CR-flagged doc-accuracy error (factual content drift) that post-commit doc-updater missed
+
+**Description:**
+CodeRabbit local found two factual errors in docs/plan.md #668 section:
+1. Line 1165 said "Two dashboard stats" while listing three (mastery, streak, last-practiced)
+2. Line 1173 mislabeled `get_student_mastery_stats` as a "gaps-and-islands aggregate" — that algorithm belongs to the streak RPC; mastery is per-subject/topic count aggregates
+
+Doc-updater did not catch these during the a6dc7a9c commit (which added the section). Errors remained in the spec and were only caught by CR-local's final pre-push review (32c759e0 fixed them).
+
+**Root cause:** Doc-updater scans for structural changes (new tables, new RPCs, schema changes) and validates cross-references. It does not fact-check narrative prose for accuracy (e.g., "does this description match the actual algorithm?"). Semantic-reviewer might have caught the algorithm mislabel (it checks logic), but it doesn't review doc prose.
+
+**Why this matters:** Docs become a source of confusion if they describe the wrong algorithm. A future developer reading "gaps-and-islands" in the mastery-stats section will misunderstand the SQL logic and may make incorrect assumptions about performance or correctness.
+
+**Action:** Log as count 1. This is a one-off finding, not yet a pattern. Watch for:
+- Do RPC-description errors recur when doc-updater updates docs?
+- Does semantic-reviewer catch algorithm-mislabel errors in docs, or only in code?
+
+**Status:** Watch (count 1). If a second RPC-description accuracy error appears, propose adding a check to doc-updater or semantic-reviewer.
+
+#### [RECURRENCE TRACKED] Pre-existing rpc<T[]> consumers lacking Array.isArray guards (deferred to GitHub issue)
+
+**Description:**
+During the sibling-file audit (per CLAUDE.md orchestrator protocol), two additional pre-existing unguarded rpc<T[]> consumers were identified:
+- progress.ts:76 — `for (const row of masteryResult.data ?? [])`  — missing Array.isArray guard
+- analytics.ts:50 — `return (data ?? []).map(...)` — missing guard
+- analytics.ts:75 — `return (data ?? []).map(...)` — missing guard
+
+These were NOT touched by the #668 fix commits (9eca47d6 is scoped only to dashboard-stats.ts and dashboard.ts consumers). Per agent-learner.md § Sweep On Rule Promotion, when a rule is enforced on new code (9eca47d6 added guards), pre-existing offenders should be swept in the same session or deferred to an issue.
+
+**Action:** Deferred to a separate GitHub issue (to be filed by orchestrator). These are pre-existing, not introduced by this cycle, and affect a different feature area (progress page, analytics page vs. dashboard). Per CLAUDE.md apply-vs-defer discipline (≥30 LOC total, separate concern, orchestrator hasn't loaded context), this meets deferral criteria.
+
+**Follow-up:** When filed, the issue should reference this sweep and code-style.md §5 as the binding rule.
+
+### Recommended Changes
+
+**No new rules at this time. Three patterns promoted to watch-list (count 2 or higher):**
+
+1. **"CodeRabbit-local catches rpc<T[]> guard gaps that post-commit agents miss"** — count 2. Recommend monitoring for third occurrence. If it recurs, propose extending code-reviewer.md to enumerate RPC call sites and flag non-guarded usage.
+2. **"Spec-doc section status speculation by doc-updater agent"** — count 2. Recommend adding a note to agent-doc-updater.md (for orchestrator approval) clarifying that commit message mentions are not evidence of required doc updates.
+3. **"CR-flagged doc-accuracy error in RPC descriptions"** — count 1. Watch for recurrence in future RPC-documentation cycles.
+
+### Positive Signals
+
+1. **Pre-push CodeRabbit-local review working as intended.** It caught guard gaps that internal agents missed and prevented the gaps from reaching the PR.
+2. **Orchestrator sibling-file audit discipline applied.** Three additional unguarded consumers identified across related files. Deferred to a proper issue rather than silently lingering.
+3. **Test coverage added for all null-data branches.** Null-return guard paths are now exercised and documented in tests.
+4. **Documentation accuracy improved via CR-local feedback.** Factual errors in RPC descriptions corrected before merge.
+
+### Cycle Status
+
+- 3 fix commits addressing CR-local findings: 9eca47d6 (guards), f7b9804b (tests), 32c759e0 (docs)
+- **Agent findings:** 1 false positive doc-updater (validated and skipped), 2 semantic-reviewer SUGGESTIONs (1 applied, 1 skipped with reason), 2 new tests added + all pass, 0 blocking findings
+- **All post-commit agents clean**
+- **Patterns tracked:** 3 watch-list patterns (counts 2 → monitor for count 3)
+- **Deferred work:** 1 GitHub issue for pre-existing rpc<T[]> sweep (progress.ts, analytics.ts)

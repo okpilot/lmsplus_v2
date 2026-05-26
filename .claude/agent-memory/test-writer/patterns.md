@@ -905,6 +905,20 @@ When production code has `Array.isArray(data) ? (data as T[]) : []`, the non-arr
 needs a dedicated test — `mockRpc.mockResolvedValue({ data: null, error: null })` covers it.
 Without this test, the defensive cast silently goes untested and reviewers flag it as dead code.
 
+### Array.isArray guard: null-data behavior depends on downstream filter (2026-05-26)
+When `Array.isArray(data) ? data : []` guards a loop that builds a Map, and downstream code
+filters the result set based on Map-derived values, `{ data: null, error: null }` produces an
+**empty Map** — not zero-valued rows. Subjects with all-zero derived values are then filtered
+out entirely. Assert the correct observable output (empty subjects list, totalQuestions: 0) rather
+than asserting the subject survives with zero values.
+
+Compare with `applyLastPracticed`: there the Map populates `lastPracticedAt`; if the Map is empty
+every subject keeps its existing `null` value. The mastery loop is different because subjects are
+also filtered by `totalQuestions > 0 || answeredCorrectly > 0` — null mastery data zeros both
+fields and drops every subject.
+
+Always read the full pipeline (loop → map → filter) before asserting the test's expected output.
+
 ### RPC `data ?? []` fallback path (2026-05-26)
 When production code iterates `for (const row of data ?? [])` (null-coalescing instead of
 `Array.isArray`), the `{ data: null, error: null }` case is still a genuine test gap because:
