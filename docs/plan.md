@@ -1162,7 +1162,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 ## Umbrella #668 — PostgREST 1000-Row Truncation Fixes (IN PROGRESS)
 
-**Issue:** PostgREST silently truncates unpaginated reads at 1000 rows. Client-side aggregations using `.limit(10000)` and `.limit(5000)` to work around this cap were ineffective. Two dashboard stats (student mastery + daily-practice streak + per-subject last-practiced) undercount for students with high response volume.
+**Issue:** PostgREST silently truncates unpaginated reads at 1000 rows. Client-side aggregations using `.limit(10000)` and `.limit(5000)` to work around this cap were ineffective. Three dashboard metrics (student mastery, daily-practice streak, and per-subject last-practiced) undercount for students with high response volume.
 
 **Solution:** Move aggregations from client-side SQL to Postgres RPCs, which execute atomically without row-count limits.
 
@@ -1170,7 +1170,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 **Commit:** `ae087c76`
 
-- New RPC: `get_student_mastery_stats()` (mig 20260521000005) — per-(subject) and per-(subject,topic) mastery counts, gaps-and-islands aggregate.
+- New RPC: `get_student_mastery_stats()` (mig 20260521000005) — per-(subject) and per-(subject,topic) mastery counts from question/response aggregates.
 - Security: `SECURITY INVOKER` + explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11 — `student_responses` has 2 permissive SELECT policies).
 - Replaces: client-side `getMasteryStats()` over a `.select('*').eq('student_id', userId).limit(1000)` read that truncated for high-response students.
 - Verification: prod probes synthetic + real (2026-05-26).
