@@ -229,6 +229,18 @@ pnpm --filter @repo/web e2e:redteam
 
 This runs a suite of adversarial tests that exploit cross-tenant access, RLS bypass, session forgery, and other attack vectors. If a test fails, the defense doesn't hold — treat as blocking.
 
+### Multiple Permissive SELECT Policies — RPCs Must Scope Explicitly
+
+PostgreSQL combines multiple **permissive** RLS policies with **OR**. When a table carries more than one permissive `SELECT` policy — typically a narrow per-user policy plus a broader role policy — RLS alone does **not** restrict a read to the calling user. A `SECURITY INVOKER` or `SECURITY DEFINER` function meant to return the **caller's own** rows from such a table MUST add an explicit predicate (`WHERE <owner_col> = auth.uid()`, or an `auth.uid() = p_student_id` identity guard). The explicit filter is load-bearing, not redundant.
+
+**Why:** `student_responses` has both `students_read_responses` (`student_id = auth.uid()`) and `instructors_read_students` (org + role in instructor/admin). `get_student_mastery_stats` (SECURITY INVOKER) aggregated it relying on RLS, so an instructor/admin caller received **every** student's counts instead of their own (#540 / red-team BW3). Fix: explicit `WHERE sr.student_id = auth.uid()` in the numerator CTE.
+
+**Tables with multiple permissive SELECT policies** (audit when adding an RPC that reads one): `student_responses`, `quiz_sessions`, `exam_configs`, `audit_events`.
+
+**Migration discipline:** when porting a client-side Supabase query to an RPC, replicate the old query's explicit ownership filters (`.eq('student_id', userId)`) in SQL — do not assume RLS subsumes them. Admin/org-wide RPCs behind an `is_admin()` gate are intentionally broad and exempt.
+
+Verified repo-wide at promotion (2026-05-26): the only offender was `get_student_mastery_stats` (fixed); all other per-caller readers (`get_daily_activity`, `get_subject_scores`, `list_my_*`, report RPCs) already carry explicit `auth.uid()` scoping.
+
 ---
 
 ## 4. Correct Answer Stripping (Critical)

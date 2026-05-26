@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
   graphql_public: {
@@ -73,18 +67,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "audit_events_actor_id_fkey"
-            columns: ["actor_id"]
+            foreignKeyName: 'audit_events_actor_id_fkey'
+            columns: ['actor_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "audit_events_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'audit_events_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -127,25 +121,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "courses_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: 'courses_created_by_fkey'
+            columns: ['created_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "courses_deleted_by_fkey"
-            columns: ["deleted_by"]
+            foreignKeyName: 'courses_deleted_by_fkey'
+            columns: ['deleted_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "courses_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'courses_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -197,11 +191,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "easa_subtopics_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: 'easa_subtopics_topic_id_fkey'
+            columns: ['topic_id']
             isOneToOne: false
-            referencedRelation: "easa_topics"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_topics'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -229,11 +223,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "easa_topics_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: 'easa_topics_subject_id_fkey'
+            columns: ['subject_id']
             isOneToOne: false
-            referencedRelation: "easa_subjects"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_subjects'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -261,25 +255,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "exam_config_distributions_exam_config_id_fkey"
-            columns: ["exam_config_id"]
+            foreignKeyName: 'exam_config_distributions_exam_config_id_fkey'
+            columns: ['exam_config_id']
             isOneToOne: false
-            referencedRelation: "exam_configs"
-            referencedColumns: ["id"]
+            referencedRelation: 'exam_configs'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "exam_config_distributions_subtopic_id_fkey"
-            columns: ["subtopic_id"]
+            foreignKeyName: 'exam_config_distributions_subtopic_id_fkey'
+            columns: ['subtopic_id']
             isOneToOne: false
-            referencedRelation: "easa_subtopics"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_subtopics'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "exam_config_distributions_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: 'exam_config_distributions_topic_id_fkey'
+            columns: ['topic_id']
             isOneToOne: false
-            referencedRelation: "easa_topics"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_topics'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -322,18 +316,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "exam_configs_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'exam_configs_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "exam_configs_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: 'exam_configs_subject_id_fkey'
+            columns: ['subject_id']
             isOneToOne: false
-            referencedRelation: "easa_subjects"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_subjects'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -358,18 +352,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "flagged_questions_question_id_fkey"
-            columns: ["question_id"]
+            foreignKeyName: 'flagged_questions_question_id_fkey'
+            columns: ['question_id']
             isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "flagged_questions_student_id_fkey"
-            columns: ["student_id"]
+            foreignKeyName: 'flagged_questions_student_id_fkey'
+            columns: ['student_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -427,18 +421,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fsrs_cards_question_id_fkey"
-            columns: ["question_id"]
+            foreignKeyName: 'fsrs_cards_question_id_fkey'
+            columns: ['question_id']
             isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "fsrs_cards_student_id_fkey"
-            columns: ["student_id"]
+            foreignKeyName: 'fsrs_cards_student_id_fkey'
+            columns: ['student_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -493,46 +487,46 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "internal_exam_codes_consumed_session_id_fkey"
-            columns: ["consumed_session_id"]
+            foreignKeyName: 'internal_exam_codes_consumed_session_id_fkey'
+            columns: ['consumed_session_id']
             isOneToOne: false
-            referencedRelation: "quiz_sessions"
-            referencedColumns: ["id"]
+            referencedRelation: 'quiz_sessions'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "internal_exam_codes_issued_by_fkey"
-            columns: ["issued_by"]
+            foreignKeyName: 'internal_exam_codes_issued_by_fkey'
+            columns: ['issued_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "internal_exam_codes_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'internal_exam_codes_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "internal_exam_codes_student_id_fkey"
-            columns: ["student_id"]
+            foreignKeyName: 'internal_exam_codes_student_id_fkey'
+            columns: ['student_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "internal_exam_codes_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: 'internal_exam_codes_subject_id_fkey'
+            columns: ['subject_id']
             isOneToOne: false
-            referencedRelation: "easa_subjects"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_subjects'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "internal_exam_codes_voided_by_fkey"
-            columns: ["voided_by"]
+            foreignKeyName: 'internal_exam_codes_voided_by_fkey'
+            columns: ['voided_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -593,32 +587,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "lessons_course_id_fkey"
-            columns: ["course_id"]
+            foreignKeyName: 'lessons_course_id_fkey'
+            columns: ['course_id']
             isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
+            referencedRelation: 'courses'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "lessons_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: 'lessons_created_by_fkey'
+            columns: ['created_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "lessons_deleted_by_fkey"
-            columns: ["deleted_by"]
+            foreignKeyName: 'lessons_deleted_by_fkey'
+            columns: ['deleted_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "lessons_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'lessons_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -652,11 +646,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_organizations_deleted_by"
-            columns: ["deleted_by"]
+            foreignKeyName: 'fk_organizations_deleted_by'
+            columns: ['deleted_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -693,25 +687,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "question_banks_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: 'question_banks_created_by_fkey'
+            columns: ['created_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "question_banks_deleted_by_fkey"
-            columns: ["deleted_by"]
+            foreignKeyName: 'question_banks_deleted_by_fkey'
+            columns: ['deleted_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "question_banks_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'question_banks_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: true
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -742,18 +736,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "question_comments_question_id_fkey"
-            columns: ["question_id"]
+            foreignKeyName: 'question_comments_question_id_fkey'
+            columns: ['question_id']
             isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "question_comments_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: 'question_comments_user_id_fkey'
+            columns: ['user_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -829,53 +823,53 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "questions_bank_id_fkey"
-            columns: ["bank_id"]
+            foreignKeyName: 'questions_bank_id_fkey'
+            columns: ['bank_id']
             isOneToOne: false
-            referencedRelation: "question_banks"
-            referencedColumns: ["id"]
+            referencedRelation: 'question_banks'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "questions_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: 'questions_created_by_fkey'
+            columns: ['created_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "questions_deleted_by_fkey"
-            columns: ["deleted_by"]
+            foreignKeyName: 'questions_deleted_by_fkey'
+            columns: ['deleted_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "questions_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'questions_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "questions_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: 'questions_subject_id_fkey'
+            columns: ['subject_id']
             isOneToOne: false
-            referencedRelation: "easa_subjects"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_subjects'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "questions_subtopic_id_fkey"
-            columns: ["subtopic_id"]
+            foreignKeyName: 'questions_subtopic_id_fkey'
+            columns: ['subtopic_id']
             isOneToOne: false
-            referencedRelation: "easa_subtopics"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_subtopics'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "questions_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: 'questions_topic_id_fkey'
+            columns: ['topic_id']
             isOneToOne: false
-            referencedRelation: "easa_topics"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_topics'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -918,18 +912,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "quiz_drafts_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'quiz_drafts_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "quiz_drafts_student_id_fkey"
-            columns: ["student_id"]
+            foreignKeyName: 'quiz_drafts_student_id_fkey'
+            columns: ['student_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -963,18 +957,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "quiz_session_answers_question_id_fkey"
-            columns: ["question_id"]
+            foreignKeyName: 'quiz_session_answers_question_id_fkey'
+            columns: ['question_id']
             isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "quiz_session_answers_session_id_fkey"
-            columns: ["session_id"]
+            foreignKeyName: 'quiz_session_answers_session_id_fkey'
+            columns: ['session_id']
             isOneToOne: false
-            referencedRelation: "quiz_sessions"
-            referencedColumns: ["id"]
+            referencedRelation: 'quiz_sessions'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1035,32 +1029,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "quiz_sessions_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'quiz_sessions_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "quiz_sessions_student_id_fkey"
-            columns: ["student_id"]
+            foreignKeyName: 'quiz_sessions_student_id_fkey'
+            columns: ['student_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "quiz_sessions_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: 'quiz_sessions_subject_id_fkey'
+            columns: ['subject_id']
             isOneToOne: false
-            referencedRelation: "easa_subjects"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_subjects'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "quiz_sessions_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: 'quiz_sessions_topic_id_fkey'
+            columns: ['topic_id']
             isOneToOne: false
-            referencedRelation: "easa_topics"
-            referencedColumns: ["id"]
+            referencedRelation: 'easa_topics'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1100,32 +1094,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "student_responses_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'student_responses_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "student_responses_question_id_fkey"
-            columns: ["question_id"]
+            foreignKeyName: 'student_responses_question_id_fkey'
+            columns: ['question_id']
             isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "student_responses_session_id_fkey"
-            columns: ["session_id"]
+            foreignKeyName: 'student_responses_session_id_fkey'
+            columns: ['session_id']
             isOneToOne: false
-            referencedRelation: "quiz_sessions"
-            referencedColumns: ["id"]
+            referencedRelation: 'quiz_sessions'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "student_responses_student_id_fkey"
-            columns: ["student_id"]
+            foreignKeyName: 'student_responses_student_id_fkey'
+            columns: ['student_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1162,11 +1156,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "user_consents_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: 'user_consents_user_id_fkey'
+            columns: ['user_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1206,18 +1200,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_users_deleted_by"
-            columns: ["deleted_by"]
+            foreignKeyName: 'fk_users_deleted_by'
+            columns: ['deleted_by']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "users_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: 'users_organization_id_fkey'
+            columns: ['organization_id']
             isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1244,18 +1238,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "flagged_questions_question_id_fkey"
-            columns: ["question_id"]
+            foreignKeyName: 'flagged_questions_question_id_fkey'
+            columns: ['question_id']
             isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
+            referencedRelation: 'questions'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "flagged_questions_student_id_fkey"
-            columns: ["student_id"]
+            foreignKeyName: 'flagged_questions_student_id_fkey'
+            columns: ['student_id']
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: 'users'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1390,6 +1384,15 @@ export type Database = {
           total_questions: number
         }[]
       }
+      get_student_mastery_stats: {
+        Args: never
+        Returns: {
+          correct: number
+          subject_id: string
+          topic_id: string | null
+          total: number
+        }[]
+      }
       get_subject_scores: {
         Args: { p_limit?: number; p_student_id: string }
         Returns: {
@@ -1484,33 +1487,31 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -1519,23 +1520,23 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+    | keyof DefaultSchema['Tables']
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -1544,23 +1545,23 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+    | keyof DefaultSchema['Tables']
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -1569,36 +1570,36 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
+    | keyof DefaultSchema['Enums']
     | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
+    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
+    | keyof DefaultSchema['CompositeTypes']
     | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
+    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
@@ -1609,4 +1610,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

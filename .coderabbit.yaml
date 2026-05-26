@@ -117,6 +117,13 @@ reviews:
           question/membership FK lookup used to populate actor_id, actor_role, or
           session-derived columns. The outer auth guard does not cover these independent
           subqueries. Flag any INSERT INTO audit_events subquery missing AND deleted_at IS NULL.
+        - Multi-policy RLS table reads: when a SECURITY INVOKER/DEFINER function reads a
+          table with more than one permissive SELECT policy (student_responses, quiz_sessions,
+          exam_configs, audit_events) and returns the caller's OWN rows, it must scope
+          explicitly with WHERE <owner_col> = auth.uid() (or an auth.uid() = p_student_id
+          identity guard). Postgres ORs permissive policies, so RLS alone over-scopes to the
+          broader instructor/admin policy. Admin/org-wide RPCs behind is_admin() are exempt.
+          Flag any per-caller RPC reading these tables without an explicit auth.uid() filter.
 
     - path: "supabase/migrations/**/*.sql"
       instructions: |
