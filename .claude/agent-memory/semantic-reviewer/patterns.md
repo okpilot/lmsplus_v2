@@ -4612,3 +4612,28 @@ PreToolUse hooks in Claude Code can receive tool input via CLI arg (interpolated
 
 **Pattern — partial attribution fix can produce internally inconsistent output fields:**
 When a fix extends attribution coverage for field A (e.g., `answeredCorrectly`) but leaves field B (e.g., `lastPracticedAt`) on an older, narrower data source, the same record can simultaneously show A=nonzero and B=null. Audit all fields derived from the same logical set whenever attribution coverage changes. This is the pattern: the correctQuestions query was extended to include draft questions, but `questionSubjectMap` (the source for `lastPracticedAt`) was not. Count=1, watching.
+
+### 2026-05-26 — commit 4646dff4 (fix(quiz): aggregate question counts via get_question_counts RPC (#668 instance 3))
+- **Files reviewed:** apps/web/lib/queries/quiz.ts, apps/web/lib/queries/quiz.test.ts, supabase/migrations/20260520000001_get_question_counts_rpc.sql, apps/web/lib/supabase-rpc.ts
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 8
+
+**GOOD — behavioral equivalence verified across all four count functions**
+- null subtopic_id rows count toward topic totals but never create subtopic entries (correct in both getSubtopicsForTopic and getTopicsWithSubtopics).
+- Zero-count filtering (.filter(x => x.questionCount > 0)) preserved in all four functions.
+- Cross-subject isolation (`if (row.subject_id !== subjectId) continue`) in getTopicsForSubject and getTopicsWithSubtopics, tested with adversarial n:99 row from 's-other' that would dominate if the filter were missing.
+- Number(row.n) coercion correct for bigint-as-string PostgREST serialization; pattern consistent with dashboard-stats.ts reference.
+
+**GOOD — security.md §11 N/A claim verified**
+- Scanned all migrations chronologically. `questions` has exactly one permissive SELECT policy (`tenant_isolation` in 20260311000001). No second SELECT policy was ever added. Admin policies (052, 054) are FOR INSERT and FOR UPDATE only. §11 requirement (explicit scope for multi-permissive-SELECT tables) does not apply.
+
+**GOOD — bounded result-set argument holds**
+- The old code read one row per question (truncated at 1000); the new RPC returns one row per distinct (subject_id, topic_id, subtopic_id) — bounded by EASA taxonomy structure (~42 rows now, low hundreds full-bank). Truncation problem eliminated for this use case.
+
+**SUGGESTION — multiple independent RPC calls for the same data across sequential function calls**
+- getTopicsForSubject, getSubtopicsForTopic each call fetchActiveQuestionCounts independently. A page that renders both makes two separate RPC round-trips fetching identical data. Minor inefficiency (RPC is STABLE, ~42 rows). Could share via parameter. Count=1, watching.
+
+**SUGGESTION — QuestionCountRow.n typed as `number | string` creates a silent arithmetic footgun**
+- Correct usage (Number(row.n)) is consistent throughout. But future code reading row.n directly would get string concatenation, not a type error. Documentation/branded-type concern only. Count=1, watching.
+
+**Pattern — §11 verification shortcut for SECURITY INVOKER RPCs:**
+When a SECURITY INVOKER RPC reads a table, check the questions-table SELECT policy count before claiming §11 applies. For tables with exactly one permissive SELECT policy, §11 is N/A and no explicit `WHERE auth.uid() = ...` scope is needed at the RPC level — RLS handles it. For tables with multiple permissive SELECT policies (student_responses, quiz_sessions, exam_configs, audit_events), §11 requires explicit scope even inside SECURITY INVOKER RPCs.
