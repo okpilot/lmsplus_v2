@@ -2011,7 +2011,7 @@ Returns one page of the admin's student roster joined with each student's sessio
 
 **Returns:** `TABLE(id UUID, full_name TEXT, email TEXT, last_active_at TIMESTAMPTZ, deleted_at TIMESTAMPTZ, session_count BIGINT, avg_score NUMERIC, mastery NUMERIC, total_count BIGINT)`. `total_count` is `count(*) OVER()` — the full filtered roster size, identical on every row, and absent (caller reads 0) on an out-of-range page. **Always non-null:** `id`, `email`, `session_count` (COALESCE 0), `mastery` (CASE ELSE 0), `total_count`. **Nullable:** `full_name`, `last_active_at`, `deleted_at`, and `avg_score` (NULL for students with no completed sessions).
 
-**Mastery formula:** Org-wide — `ROUND(COUNT(DISTINCT correct active questions) / COUNT(DISTINCT active questions) * 100)`, where "active" means `status = 'active' AND deleted_at IS NULL`. Identical to the dropped `get_admin_student_stats`. The roster includes both active and soft-deleted students (per #487) so the admin can view historical stats for inactive users — the documented §9 exception (admin-only, org-scoped, visibility controlled by `p_status`).
+**Mastery formula:** Org-wide — `ROUND(COUNT(DISTINCT correct active questions) / COUNT(DISTINCT active questions) * 100)`, where "active" means `status = 'active' AND deleted_at IS NULL`. Identical to the dropped `get_admin_student_stats`. The roster includes both active and soft-deleted students (per #487) so the admin can view historical stats for inactive users — the documented `docs/security.md` §9 exception (admin-only, org-scoped, visibility controlled by `p_status`).
 
 **avg_score:** `NULL` for students with no completed sessions (not 0).
 

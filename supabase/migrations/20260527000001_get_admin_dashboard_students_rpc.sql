@@ -134,7 +134,7 @@ BEGIN
       FROM users u
       LEFT JOIN session_stats ss ON ss.student_id = u.id
       LEFT JOIN mastery_stats ms ON ms.student_id = u.id
-      -- §9 exception: the roster intentionally does NOT filter `deleted_at IS NULL` on
+      -- docs/security.md §9 exception: the roster intentionally does NOT filter `deleted_at IS NULL` on
       -- users, so the admin can view soft-deleted (inactive) students with their
       -- historical stats. Behaviour matches the dropped get_admin_student_stats
       -- (mig 20260408000007, #487). Visibility is controlled by p_status; the row
