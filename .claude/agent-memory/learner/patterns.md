@@ -5455,3 +5455,134 @@ All findings were either:
 - Prior watch patterns (count 2) with no new recurrence
 
 No patterns reached count 2 this cycle. **Prior patterns holding steady at count 2 (no escalation to promotion threshold yet).**
+
+---
+
+## Learner Cycle — 2026-05-27 (late) — #668 GDPR Export Pagination (CodeRabbit PR review fixes; commits 9fa82a9a, 2933015c, 31a76c2b)
+
+**Post-commit agent synthesis on CodeRabbit PR findings applied locally: defensive type-narrowing filter, observability fix, test assertion tightening.**
+
+### Context
+
+Three-commit sequence responding to CodeRabbit PR review on GDPR export feature (issue #668):
+1. **9fa82a9a** — `fix(gdpr): guard pageSize + narrow flagged-question rows at runtime (#668)` — applied 4 CodeRabbit findings:
+   * Added pageSize validation guard to `fetchAllRows` (prevent non-terminating loop on pageSize<=0 or >1000)
+   * Added `.it.each()` regression tests for invalid pageSize
+   * Replaced bare `as {...}[]` cast on `flagged_questions` with runtime type-guard filter (code-style.md §5)
+   * Renamed 3 test titles from impl-detail names (e.g., "calls fetchAllRows") to behavior-first wording (code-style.md §7)
+
+2. **2933015c** — `fix(gdpr): log when flagged-question rows are dropped by the null filter (#668)` — semantic-reviewer ISSUE fix
+   * The new type-guard filter could silently drop rows (null question_id or flagged_at) with no observability
+   * Reproduced the #668 silent-export failure mode (data present, truncation invisible)
+   * Fix: hoist filter to a named const, log `console.error` when rows are dropped
+   * Added test to assert drop count logged correctly
+
+3. **31a76c2b** — `test(gdpr): assert no drop-log on the normal flagged-questions path (#668)` — semantic-reviewer SUGGESTION applied
+   * Added `expect(consoleSpy).not.toHaveBeenCalled()` assertion to the "all valid rows" test
+   * Guarantees "no-drop normal path" behavior is machine-checkable (guards against filter-condition regression like `===` → `!==` typo)
+
+### Agent Findings Summary
+
+**Post-commit Agents:**
+
+- **code-reviewer:** Clean. No file-size, naming, or style violations flagged. pageSize guard is correct. Test titles now describe behavior, not implementation.
+
+- **semantic-reviewer:** **1 ISSUE** (data loss via silent filter drop)
+  * **Root:** `flagged_questions` rows with null question_id or flagged_at are filtered out (type-narrowing guard added per code-style.md §5) but no log signal when rows are dropped
+  * **Consequence:** GDPR export silently excludes flagged questions (looks complete, but isn't) — reproduces the #668 silent-export failure mode
+  * **Fix:** Hoist the filter, log drop count when `dropped > 0`, test that log is called
+  * **Re-review:** Clean on fix commit 2933015c. Remaining SUGGESTION on defensive `?? []` was skipped as unnecessary (types guarantee non-null).
+
+- **doc-updater:** No drift findings. No doc updates needed for this cycle.
+
+- **test-writer:** Tests added for chunking edge cases, null-field drop behavior, empty dataset, error recovery. All pass.
+
+### Patterns Detected
+
+#### [NEW PATTERN — count 1] Defensive type-narrowing filter (added per code-style.md §5) can silently drop rows when the filter criteria don't match the actual data
+
+**Description:**
+Code-style.md Section 5 requires runtime type guards on TypeScript casts from external data (e.g., `as unknown as T` paired with `Array.isArray(x)`, `typeof x === 'string'`). When applied as a **filter** (not just a guard), the filter implicitly drops rows that don't match the condition — with no signal that rows were dropped. This creates a silent data-loss path.
+
+**Instance (this cycle):**
+1. **9fa82a9a introduces the pattern:** `flagsResult.data.filter((f) => typeof f.question_id === 'string' && typeof f.flagged_at === 'string')` narrows view columns (typed nullable in Postgres) to non-null strings. The backing table enforces `NOT NULL`, so in practice no rows are dropped. **However,** if a future view change introduces nulls (e.g., LEFT JOIN), rows would be silently omitted from the export — no log, export looks complete, users don't realize they're missing records.
+
+2. **2933015c fixes the silent-loss path:** Hoist the filter to a named const, log `console.error` when `dropped > 0`. Now if rows are dropped (now or future), the export loss is observable via server logs.
+
+3. **31a76c2b tightens the guarantee:** Add `expect(consoleSpy).not.toHaveBeenCalled()` to the "all-valid" test. Future code changes that accidentally regress the filter condition (e.g., remove the `typeof` check, swap `&&` → `||`) will be caught by the test.
+
+**Root Cause:**
+Type-safety rules enforce runtime guards to prevent undefined-behavior crashes. A guard implemented as a filter is correct for type safety, but correct for type safety is not the same as correct for data completeness. GDPR exports require observability when data is excluded; the rule applies the guard, but does not mandate observability on the filtered-out rows.
+
+**Pattern Analysis:**
+- The filter is a **direct consequence of code-style.md §5** (cast + runtime guard).
+- The silent data loss is **incidental** to the rule, not intentional.
+- **Fix pattern:** Any runtime type-narrowing filter must log the drop count when rows are omitted. This is distinct from "silent error drops" (which should never happen) — this is "silent data-completeness degradation" (which needs visibility).
+
+**Why it matters:**
+GDPR exports, legal holds, audit reports, and other completeness-critical data exports can silently lose records if a type-narrowing filter runs without observability. The user's export looks valid (rows are present, structure is intact), but the record count has silently changed. Logs prevent this by making any row loss discoverable post-hoc.
+
+**Assessment:** This is a **first occurrence** of this specific pattern. The prior "silent data drop" patterns in memory (e.g., "silent error drop on non-critical secondary query") involve missing error handlers, not type-narrowing filters. This is conceptually related but distinct in root cause and fix.
+
+**Status:** **LOG AND WATCH.** If a second type-narrowing filter is added without observability logging (in a different feature area, different commit), promote to a code-style.md addition: "Any filter applied to external data (Supabase result, RPC result, client JSON) that drops rows must log the drop count when row count decreases, even if the filter is a no-op in normal operation. A future data source change should not silently skip records."
+
+**Frequency table entry:**
+| Pattern | First | Count | Last | Status |
+| --- | --- | --- | --- | --- |
+| Type-narrowing filter drops rows silently (guard-as-filter pattern) | 2026-05-27 (9fa82a9a→2933015c) | 1 | 2026-05-27 | Watch |
+
+#### [POSITIVE SIGNAL] Semantic-reviewer correctly identified data-integrity gap from cast-safety rules
+
+**Description:**
+Code-style.md §5 rule (runtime guards on external-data casts) is correct and necessary. But the rule focuses on preventing crashes, not on maintaining data completeness. Semantic-reviewer ran the code, saw the silent-filter behavior, and escalated it as ISSUE — not because the rule is wrong, but because the rule's application created an unintended consequence (silent data loss in exports). This is reviewer reasoning at the right level: understanding intent (safety) vs. side effects (completeness).
+
+**Instances:**
+1. Semantic-reviewer flagged that the filter could drop rows with no log (2933015c commit message cites "semantic-reviewer ISSUE").
+2. Orchestrator applied the fix (log + test assertion).
+3. Re-review on fix commit: clean.
+
+**Assessment:** Positive signal. The rule is correct, the reviewer correctly identified an unintended side effect, and the fix (observability) was appropriate. No rule change needed; this is how review should work.
+
+**Status:** Acknowledge in learner report. No action needed — semantic-review gate is functioning correctly.
+
+#### [POSITIVE SIGNAL] Test tightening (31a76c2b) prevents regression of filter-condition
+
+**Description:**
+The "all-valid rows kept" test was extended with `expect(consoleSpy).not.toHaveBeenCalled()`. This assertion machines-checks the "no-drop normal path" guarantee. A future typo like `typeof f.question_id !== 'string'` (inverted condition) would fail the test instead of silently inverting the filter.
+
+**Instances:**
+1. Commit 31a76c2b added the assertion as a SUGGESTION-level fix (per code-style.md §7: "Test Comments: Audit After Renaming").
+2. The assertion is minimal and valuable (1 line, high value).
+
+**Assessment:** Positive signal. Test-writer applied a SUGGESTION that strengthens the gate, preventing a common regression (condition inversion in filters). Good example of turning a suggestion into actionable test tightening.
+
+**Status:** Acknowledge in learner report. No action needed.
+
+### Watch-List Updates
+
+**Patterns at count 2+ (prior, no change this cycle):**
+
+1. **"RPC-backed SQL logic must be verified via real-SQL probe/E2E, NOT mockRpc Vitest tests"** — count 2. No recurrence this cycle. Continue watching.
+2. **"CodeRabbit-local catches rpc<T[]> guard gaps that post-commit agents miss"** — count 2. No recurrence this cycle. Continue watching.
+3. **"Spec-doc section status speculation by doc-updater agent"** — count 2. No recurrence this cycle. Continue watching.
+
+**Patterns at count 1 (new from this cycle):**
+
+4. **"Type-validation gap in new test files (dead code)"** — count 1 (from 2026-05-27 earlier cycle). No recurrence this cycle. Continue watching.
+5. **"Type-narrowing filter drops rows silently (guard-as-filter pattern)"** — count 1 (from this cycle, 9fa82a9a→2933015c). NEW. Watch for recurrence in future feature cycles using cast-safety filters.
+
+### Cycle Status
+
+- **3 commits:** guard addition + tests, observability fix, test assertion tightening
+- **Pre-commit critics:** Not run on this cycle (these were CodeRabbit PR findings, locally applied)
+- **Post-commit agents:** 1 semantic-reviewer ISSUE (silent filter drop), fixed in-cycle; 0 other critical findings; all agents clean on final commit
+- **All findings addressed in-cycle; all agents clean on final commit**
+- **Positive signals:** (1) semantic-reviewer identified data-integrity gap from an otherwise-correct rule application; (2) test-writer / orchestrator tightened test to prevent regression; (3) observability fix (logging) is minimal and effective
+
+### No Rule Promotions This Cycle
+
+The "type-narrowing filter drops rows silently" pattern appeared once this cycle. Per agent-learner.md, rule promotion requires 2+ occurrences across different commits. **Pattern logged and moved to watch-list.** If the pattern recurs in a different feature's cast-safety filter application (count 2), the learner will propose a code-style.md addition (e.g., Section 5 sub-rule: "Any filter applied to external data must log the drop count when rows are omitted").
+
+---
+
+*End of learner cycle 2026-05-27 (late)*

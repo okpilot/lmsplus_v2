@@ -209,6 +209,15 @@
 - Positive signal: count-query filters (deleted_at IS NULL, student_id equality) exactly mirror page-query filters in all 8 helpers — a count/page filter mismatch would cause pagination to fetch wrong or excess rows.
 - APPROVED — no findings.
 
+### 2026-05-27 — issue #668 PR #681 CodeRabbit fixes: pageSize guard + runtime type-guard + test titles — APPROVED
+
+- pageSize guard (`supabase-paginate.ts`): `!Number.isInteger(pageSize) || pageSize <= 0 || pageSize > 1000`. Boundary verified: 1000 passes (allowed), 1001 rejected, 0 rejected, -1 rejected. Returns empty-on-error `{ data: [], error: { message: '...' } }` shape — does not throw. Consistent with empty-on-error contract used by all other early-return paths.
+- Regression tests (`supabase-paginate.test.ts`): `it.each([0, -1, 1001])` — correct set. 1000 correctly absent (valid value). Both `getCount` and `getPage` asserted not called. Error message asserted via `/pageSize/i` regex — matches guard output.
+- Runtime type-guard (`collect-user-data.ts`): `.filter((f): f is { question_id: string; flagged_at: string } => typeof f.question_id === 'string' && typeof f.flagged_at === 'string')`. `FlagRow` source type has both fields as `string | null`. `typeof null === 'object'` so the `=== 'string'` check correctly excludes nulls. Result type assignable to `GdprExportPayload['flagged_questions']`. Predicate return type matches the narrowed element type exactly.
+- Test title renames (`collect-user-data-queries.test.ts`): all 3 internal-helper names (`fetchAllRows`) removed from `it(...)` titles. New titles describe observable batch-splitting behavior. Rule: code-style.md §7 prohibition on impl-detail names in it() titles.
+- Positive signal: pageSize=1000 boundary is the critical one (PostgREST cap) — implementation treats it as valid, which is correct. The guard's comment explains both failure modes (loop non-termination for <=0, silent truncation for >1000).
+- APPROVED — no findings.
+
 ### 2026-05-26 — issue #540 CodeRabbit doc+error-path fixes (PR #674) — APPROVED
 
 - design.md Scoping bullet: corrected from "no manual scoping, no auth preamble" to "RLS + an explicit numerator predicate" with `sr.student_id = auth.uid()`. Wording verified against migration `20260521000005_student_mastery_stats_rpc.sql` — correct_q CTE has `WHERE sr.student_id = auth.uid()` at line 68. security.md §11 reference is accurate (`student_responses` has `instructors_read_students` policy that OR-combines with the student policy).

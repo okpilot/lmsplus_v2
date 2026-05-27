@@ -4598,3 +4598,27 @@ vi.mock('@/lib/supabase-paginate', () => ({
 
 Applied in: `apps/web/lib/gdpr/collect-user-data-queries.test.ts` (2026-05-27, #668).
 
+### Runtime type-guard filter tests: mix valid + null-field rows (2026-05-27)
+
+When production code applies a `filter((row): row is T => typeof row.field === 'string' && ...)` to narrow a nullable view type to a non-nullable payload type, always add a test that supplies a mixed array containing: one fully-valid row, one row with the first field null, one row with the second field null, and one row with all fields null. Assert only the valid row survives.
+
+Also add a complementary test confirming that all rows are kept when all rows are valid (the filter must not accidentally drop good data).
+
+```ts
+it('drops flagged rows where question_id or flagged_at is null', async () => {
+  const supabase = buildSupabaseClient({
+    flagsData: [
+      { question_id: 'q-valid', flagged_at: '2026-03-01T10:00:00Z' }, // kept
+      { question_id: null,      flagged_at: '2026-03-01T10:00:00Z' }, // dropped
+      { question_id: 'q-no-date', flagged_at: null },                  // dropped
+      { question_id: null,      flagged_at: null },                    // dropped
+    ],
+  })
+  const result = await collectUserData(supabase, USER_ID)
+  expect(result.flagged_questions).toHaveLength(1)
+  expect(result.flagged_questions[0]!.question_id).toBe('q-valid')
+})
+```
+
+Applied in: `apps/web/lib/gdpr/collect-user-data.test.ts` (2026-05-27, #668 commit 9fa82a9).
+
