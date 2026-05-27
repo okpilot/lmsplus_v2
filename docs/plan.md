@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-05-26 — Umbrella #668: PostgREST 1000-row truncation fixes. Instance #1: get_student_mastery_stats (2026-05-26). Instance #2: get_student_streak + get_student_last_practiced (2026-05-26).
+> Last updated: 2026-05-27 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) implemented, pending merge. 12/12 P0 done.
 
 ---
 
@@ -1211,9 +1211,9 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 ### Status
 
 - **Merged to master:** instance #1 (`get_student_mastery_stats`, `ae087c76`), instance #2 (`get_student_streak` + `get_student_last_practiced`, `9f40caae`), instance #3 (quiz.ts counts via `get_question_counts`, `8b134663`), and instance #4 (GDPR export pagination, `4538c649`).
-- **P0 progress:** 10 of 12 P0 sites fixed (dashboard ×3, dashboard-stats ×2, progress ×1, quiz subject counts ×1, GDPR export ×3).
-- **Remaining P0:** admin roster + `get_admin_student_stats` (`admin/dashboard/queries.ts`) — needs a SECURITY DEFINER migration + join/sort/paginate refactor; tracked in **#682**.
+- **P0 progress:** 12 of 12 P0 sites fixed — 10 P0 sites merged across instances #1–#4, 2 implemented in **#682** (admin roster + `get_admin_student_stats` → new `get_admin_dashboard_students`), pending merge.
+- **Instance #5 (#682):** replaces the admin-roster fetch-all-merge-sort-slice and the `get_admin_student_stats` RPC with one `SECURITY DEFINER` RPC (`get_admin_dashboard_students`) that joins + filters + sorts + paginates + counts in Postgres; old RPC dropped. Validated on a clean `db reset`.
 - **Pending:** prod verification via synthetic + real student probes (instances #1–#2).
 - **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened — the umbrella stays open until all P0/P1/P2 sites land.
 
-*Last updated: 2026-05-27 — Instances #3 (#680) + #4 (#681) merged; 10/12 P0 done.*
+*Last updated: 2026-05-27 — Instance #5 (#682) implemented; 12/12 P0 done (10 merged, 2 pending merge).*

@@ -1997,19 +1997,25 @@ Returns the N weakest topics by average correct rate across all students in the 
 
 ---
 
-#### `get_admin_student_stats` — per-student session and mastery summary
+#### `get_admin_dashboard_students` — paginated, sorted student roster
 
-Returns one row per student in the admin's organisation with their session count, average score, and mastery percentage. Used by the admin dashboard student table.
+Returns one page of the admin's student roster joined with each student's session count, average score, and mastery percentage — sorted and paginated entirely in Postgres. Used by the admin dashboard student table. Replaces the former `get_admin_student_stats` + client-side merge/sort/slice, which truncated at PostgREST `max_rows = 1000` (#682 / #668).
 
-**Security:** Same as `get_admin_dashboard_kpis` (`SECURITY DEFINER`, `auth.uid()` check, `is_admin()` check, org-scoped).
+**Security:** Same as `get_admin_dashboard_kpis` (`SECURITY DEFINER`, `SET search_path = public`, `auth.uid()` check, `is_admin()` check, org derived from `auth.uid()`).
 
-**Parameters:** none
+**Parameters:** `p_status TEXT DEFAULT NULL`, `p_sort TEXT DEFAULT 'name'`, `p_dir TEXT DEFAULT 'asc'`, `p_limit INT DEFAULT 10`, `p_offset INT DEFAULT 0`.
 
-**Returns:** `TABLE(user_id UUID, session_count BIGINT, avg_score NUMERIC, mastery NUMERIC)`
+**Sort keys:** `name`, `lastActive`, `sessions`, `avgScore`, `mastery` (whitelisted via `CASE`; unknown keys fall back to a stable `id` sort). `p_dir` is normalised to `ASC`/`DESC` — no caller string reaches the dynamic `ORDER BY`. Sort parity with the prior TS code: `name` treats NULL as `''`, `avgScore` treats NULL as `-1`, `lastActive` is `NULLS LAST` in both directions, with `id` as the final tiebreak.
 
-**Mastery formula:** Matches `lib/queries/dashboard.ts` — `COUNT(DISTINCT correct active questions) / COUNT(DISTINCT active questions) * 100`, where "active" means `status = 'active' AND deleted_at IS NULL`. Returns stats for all students in the org (both active and soft-deleted) so the admin dashboard can show historical stats for inactive users.
+**Status filter:** `NULL` shows all students (active + soft-deleted); `'active'` → `deleted_at IS NULL`; `'inactive'` → `deleted_at IS NOT NULL`.
+
+**Returns:** `TABLE(id UUID, full_name TEXT, email TEXT, last_active_at TIMESTAMPTZ, deleted_at TIMESTAMPTZ, session_count BIGINT, avg_score NUMERIC, mastery NUMERIC, total_count BIGINT)`. `total_count` is `count(*) OVER()` — the full filtered roster size, identical on every row, and absent (caller reads 0) on an out-of-range page. **Always non-null:** `id`, `email`, `session_count` (COALESCE 0), `mastery` (CASE ELSE 0), `total_count`. **Nullable:** `full_name`, `last_active_at`, `deleted_at`, and `avg_score` (NULL for students with no completed sessions).
+
+**Mastery formula:** Org-wide — `ROUND(COUNT(DISTINCT correct active questions) / COUNT(DISTINCT active questions) * 100)`, where "active" means `status = 'active' AND deleted_at IS NULL`. Identical to the dropped `get_admin_student_stats`. The roster includes both active and soft-deleted students (per #487) so the admin can view historical stats for inactive users — the documented `docs/security.md` §9 exception (admin-only, org-scoped, visibility controlled by `p_status`).
 
 **avg_score:** `NULL` for students with no completed sessions (not 0).
+
+**Migration:** `20260527000001_get_admin_dashboard_students_rpc.sql`
 
 ---
 

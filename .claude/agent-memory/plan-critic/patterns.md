@@ -134,6 +134,14 @@ When a quiz.ts-style file imports `{ rpc }` from `@/lib/supabase-rpc` and the pl
 
 When a plan replaces one branch of a `Promise.all` with a private helper that returns an unwrapped array (not `{data: ...}`), the current destructuring `const [{ data: aData }, { data: bData }] = await Promise.all(...)` must change to `const [{ data: aData }, bData] = await Promise.all(...)`. Plans that describe the helper's return type but do not explicitly state the destructuring change leave implementers to infer it. For functions like `getSubjectsWithCounts` where the existing Promise.all destructures both arms as `{data: X}`, this must be called out explicitly. First seen: #668 instance 3 (quiz.ts refactor).
 
+### [2026-05-27] STABLE + EXECUTE is a PostgreSQL hard error — dynamic-SQL RPCs must be VOLATILE
+
+Plans that copy `STABLE` from a non-dynamic-SQL precedent RPC (like `get_admin_student_stats`) onto a new function that uses `RETURN QUERY EXECUTE` will produce a runtime error. PostgreSQL forbids EXECUTE inside STABLE/IMMUTABLE functions. The `get_session_reports` precedent (the correct model for dynamic-SQL RPCs) omits the stability modifier entirely (defaults to VOLATILE). Plans for new RPCs using `RETURN QUERY EXECUTE` must specify VOLATILE (or omit the keyword), never STABLE. First seen: #682 (`get_admin_dashboard_students` plan).
+
+### [2026-05-27] §9 soft-delete-omission on admin RPCs needs explicit migration comment citing precedent
+
+Plans for admin-facing SECURITY DEFINER RPCs that intentionally show soft-deleted rows (e.g. admin student roster showing inactive users) must include an inline SQL comment citing (a) the §9 rule, (b) why the omission is intentional (admin visibility of inactive records), and (c) the precedent RPC that established this pattern. Without this comment, the security auditor will flag the missing `deleted_at IS NULL` as a violation on every review cycle. The old `get_admin_student_stats` shipped without such a comment and was accepted — but the new RPC should be explicit.
+
 ## Positive Signals
 
 ### [2026-04-09] Base UI data attribute names correctly verified
