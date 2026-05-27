@@ -1198,11 +1198,22 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - New `fetchActiveQuestionCounts()` helper guards the RPC payload with `Array.isArray` (code-style §5) and logs the error path (old reads dropped errors silently).
 - Covers #668 P0 (`quiz.ts:48`) + P1 (`quiz.ts:86,122,149-178`). `getRandomQuestionIds` biased sampling (`quiz.ts:229`) and `getFilteredCount` (`lookup-helpers.ts`) deferred to child issues.
 
+### Instance #4: GDPR data-export pagination (merged via PR #681)
+
+**Commit:** `4538c649` (squash-merged via PR #681, 2026-05-27)
+
+- `collectUserData()` issued unpaginated reads → only the first 1000 rows per table, a legally incomplete GDPR data-subject export for high-volume users (`student_responses`, `fsrs_cards`, `audit_events`).
+- New reusable helper `lib/supabase-paginate.ts` `fetchAllRows(getCount, getPage)` — counts first, then loops `.range()` until every row is read; **empty-on-error** (discards partial pages so an incomplete export can't masquerade as complete); rejects invalid `pageSize` (≤0 / >1000 / non-integer).
+- All 8 list reads routed through it with a deterministic total order; `users` stays `.single()`; phase-2 `quiz_session_answers` chunks sessionIds by 1000 to avoid a 414. Per-table read builders extracted to `collect-user-data-queries.ts` (200-line limit).
+- **No migration.** `audit_events` read-only (immutability preserved); no correct-answer exposure. `flagged_questions` narrowed via a runtime type-guard filter that logs any dropped rows.
+- Covers the #668 P0 GDPR-export reads. `fetchAllRows` is the reusable pagination primitive for future #668 list/export fixes.
+
 ### Status
 
-- **Merged to master:** instance #1 (`get_student_mastery_stats`, `ae087c76`), instance #2 (`get_student_streak` + `get_student_last_practiced`, `9f40caae`), and instance #3 (quiz.ts counts via `get_question_counts`, `8b134663`).
-- **P0 progress:** 7 of 12 P0 sites fixed (dashboard ×3, dashboard-stats ×2, progress ×1, quiz subject counts ×1).
+- **Merged to master:** instance #1 (`get_student_mastery_stats`, `ae087c76`), instance #2 (`get_student_streak` + `get_student_last_practiced`, `9f40caae`), instance #3 (quiz.ts counts via `get_question_counts`, `8b134663`), and instance #4 (GDPR export pagination, `4538c649`).
+- **P0 progress:** 10 of 12 P0 sites fixed (dashboard ×3, dashboard-stats ×2, progress ×1, quiz subject counts ×1, GDPR export ×3).
+- **Remaining P0:** admin roster + `get_admin_student_stats` (`admin/dashboard/queries.ts`) — needs a SECURITY DEFINER migration + join/sort/paginate refactor; tracked in **#682**.
 - **Pending:** prod verification via synthetic + real student probes (instances #1–#2).
 - **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened — the umbrella stays open until all P0/P1/P2 sites land.
 
-*Last updated: 2026-05-27 — Instance #3 merged (PR #680); 7/12 P0 done.*
+*Last updated: 2026-05-27 — Instances #3 (#680) + #4 (#681) merged; 10/12 P0 done.*
