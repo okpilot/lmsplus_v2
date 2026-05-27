@@ -157,6 +157,7 @@ BEGIN
       r.session_count,
       r.avg_score,
       r.mastery,
+      -- Window evaluates before LIMIT: the full filtered roster size, not the page size.
       count(*) OVER() AS total_count
     FROM roster r
     ORDER BY %s, r.id ASC

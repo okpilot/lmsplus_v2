@@ -143,6 +143,15 @@ describe('getDashboardStudents', () => {
     })
   })
 
+  it('passes lastActiveAt through unchanged from the RPC row', async () => {
+    const isoDate = '2026-05-20T10:30:00.000Z'
+    mockStudentsRpc([makeRpcRow({ last_active_at: isoDate })])
+
+    const { students } = await getDashboardStudents(BASE_FILTERS)
+
+    expect(students[0]?.lastActiveAt).toBe(isoDate)
+  })
+
   it('maps a null avg_score to null and zero counts to zero', async () => {
     mockStudentsRpc([makeRpcRow({ session_count: 0, avg_score: null, mastery: 0 })])
 

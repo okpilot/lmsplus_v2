@@ -4,6 +4,31 @@
 
 ## Session Log
 
+### 2026-05-27 — commit f782ea0b (fix(admin): paginate student roster via get_admin_dashboard_students RPC (#682))
+- **Files reviewed:** supabase/migrations/20260527000001_get_admin_dashboard_students_rpc.sql, apps/web/app/app/admin/dashboard/queries.ts, queries.test.ts, packages/db/src/types.ts, docs/database.md, docs/plan.md
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 6
+
+**ISSUE — nullable columns typed as non-nullable in packages/db/src/types.ts**
+- `get_admin_dashboard_students` Returns type declares `avg_score: number`, `deleted_at: string`, `full_name: string`, `last_active_at: string` as non-nullable. All four are nullable in the actual Postgres RETURNS TABLE. The inline `Row` type in queries.ts correctly has `| null`, but the shared package types are wrong. Any future consumer reaching the RPC through the typed Supabase client will be misled. Pattern: when manually authoring types.ts entries for new RPCs, nullable Postgres columns (NUMERIC, TEXT, TIMESTAMPTZ without NOT NULL) must be reflected as `T | null`.
+
+**SUGGESTION — mastery_stats CTE counts correct responses from incomplete sessions**
+- The mastery CTE does not filter `student_responses` to completed sessions (`ended_at IS NOT NULL`). This is an intentional carry-over from the dropped `get_admin_student_stats` (identical CTE shape), not a regression. Flagged only for design-intent awareness if the formula needs revisiting.
+
+**SUGGESTION — count(*) OVER() before LIMIT: confirmed correct Postgres behavior**
+- Window functions evaluate before LIMIT in Postgres, so count(*) OVER() correctly counts the full filtered result set regardless of pagination. This is the intended pattern, matching the get_session_reports precedent (mig 20260429000011).
+
+**Positive pattern — dynamic SQL injection whitelist is complete and matches the TypeScript sort-key type**
+- Sort whitelist in the SQL CASE exactly matches the 5 values of `DashboardFilters['sort']`. ELSE branch uses a hardcoded fallback. p_dir normalized to literal before concatenation. All other inputs arrive via USING as parameterized values. Pattern: SQL whitelist and TypeScript type should always be validated against each other.
+
+**Positive pattern — cast+guard pairing correct (code-style.md §5)**
+- `Array.isArray(data) ? (data as Row[]) : []` pairs the cast with a runtime guard. Consistent with all other authRpc callers in the codebase.
+
+**Positive pattern — org derived from auth.uid() in RPC, no org param passed from caller**
+- Removed `organizationId` from `requireAdmin()` destructure entirely. Org derivation inside SECURITY DEFINER via `auth.uid()` is the correct pattern for admin RPCs — no org-id passed as user input.
+
+**Pattern to watch — manually authored types.ts entries for new RPCs must mirror Postgres nullability**
+- Count=1 (this commit). Nullable Postgres columns must map to `T | null` in the types.ts Returns definition, not `T`. The inline workaround in queries.ts masks the issue for the current caller but leaves the shared types incorrect.
+
 ### 2026-05-27 — PR #681 full-branch sweep (fix/668-gdpr-export-pagination) — GDPR pagination
 - **Files reviewed:** apps/web/lib/supabase-paginate.ts, apps/web/lib/gdpr/collect-user-data-queries.ts, apps/web/lib/gdpr/collect-user-data.ts, and 3 test files
 - **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 8
