@@ -1303,12 +1303,12 @@ export type Database = {
           p_status?: string
         }
         Returns: {
-          avg_score: number
-          deleted_at: string
+          avg_score: number | null
+          deleted_at: string | null
           email: string
-          full_name: string
+          full_name: string | null
           id: string
-          last_active_at: string
+          last_active_at: string | null
           mastery: number
           session_count: number
           total_count: number
