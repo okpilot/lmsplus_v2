@@ -5455,3 +5455,88 @@ Across instances 1–3 (PR #108 context, #674 RPC refactor, this cycle #668 Inst
 - `.claude/rules/code-style.md` — no changes (§5 array-guard rule already binding; proactive application suffices)
 - `.claude/rules/agent-doc-updater.md` — no changes proposed (agent performing well; precision high)
 - `.claude/rules/agent-test-writer.md` — no changes proposed (test patterns consistent; one new watch item on module-level mock consistency, not yet a rule)
+
+---
+
+## Learner Cycle — 2026-05-27 — CodeRabbit-triage + doc-fix session (PR #680, branch fix/668-quiz-counts-rpc)
+
+**Documentation-only cycle: CodeRabbit comment triage + one doc fix commit (c70aaf9a). Post-commit agents clean. Two candidate meta-patterns for tracking.**
+
+### Context
+
+This was a PR #680 comment-triage and docs-fix session:
+1. **CodeRabbit comment #1 (quiz.test.ts:498-502):** "paraphrasing comment" — flagged a comment in a test helper as restating the test title. TRIAGE: SKIPPED on merits. The comment documents a private helper's routing logic (not part of the public test), matches the file's comment convention (5-divider sections), and is coverage rationale, which code-style.md §7 explicitly exempts ("Omit narrative comments above an `it(...)` if the test name fully describes the behaviour. Comments that paraphrase the title rot when the title changes; reserve comments for non-obvious WHY"). CodeRabbit's premise ("restates titles") was inaccurate — comment is on a private helper, not a test title.
+
+2. **CodeRabbit comment #2 (docs/plan.md:1180):** "inconsistent instance-#2 commit hash" — flagged stale hash `a6dc7a9c` in the #668 Instance #2 section. TRIAGE: NEEDS CONTEXT. Git analysis revealed: `a6dc7a9c` was a pre-squash intermediate commit on the feature branch; master commit (the squash result) is `9f40caae`. CodeRabbit suggested "change `9f40caae` to `a6dc7a9c`" — the REVERSE of what was needed. FIX APPLIED: c70aaf9a corrected the drift by changing `a6dc7a9c` → `9f40caae` (the authoritative master commit per `git branch --contains`).
+
+### Post-Commit Agent Results (on c70aaf9a — doc-only commit)
+
+- **code-reviewer:** clean (doc file not linted)
+- **semantic-reviewer:** clean
+- **test-writer:** no-op (doc-only, skipped)
+- **doc-updater:** 1 ISSUE raised
+  * **Finding:** `.claude/agent-memory/learner/patterns.md` lines 5051, 5058, 5167 reference stale hashes `a6dc7a9c` and non-existent hashes `7e9197c1`, `af987c1d`.
+  * **VALIDATION:** FALSE POSITIVE. The patterns.md file is an append-only development journal documenting per-commit analytical claims. The pre-squash hashes (`a6dc7a9c`, etc.) are accurate historical records of the feature-branch development timeline, not claims about master-branch membership. The journal explicitly documents the squash mapping at line 5295 ("PR #676 merged to master (squash 9f40caae)"). Rewriting the historical hashes would make the journal's analytical narrative factually wrong — a hash stale as a current-master-membership claim is correct as a developmental record. Dismissed as false positive; no code change made.
+
+### Patterns Detected
+
+#### [NEW — count 1] CodeRabbit's suggested fix can run in the REVERSE direction — verify against authoritative source before applying
+
+**Description:**
+CodeRabbit comment on docs/plan.md:1180 suggested changing commit hash `9f40caae` to `a6dc7a9c`. The suggestion assumed one was wrong and one was right, but did not verify which was the authoritative master commit. Manual verification (git `branch --contains`) confirmed `9f40caae` is master and `a6dc7a9c` was an intermediate pre-squash commit. CodeRabbit's suggestion would have introduced a drift bug if applied blindly. The correct fix was to change IN THE OPPOSITE DIRECTION (`a6dc7a9c` → `9f40caae`).
+
+**Orchestrator step that caught this:** Reviewing CR comment before applying — saw the claim was about instance closure, checked git, verified the direction. If the orchestrator had applied the suggestion without validation (per the finding-validation discipline in agent-workflow.md), the incorrect hash would have landed and later cycles' cross-reference checks would flag it again. The fix had to go the opposite way from what CR suggested.
+
+**Why this matters:** CodeRabbit is an LLM without git-history context. It can produce well-reasoned-sounding suggestions that run in the wrong direction when the true authoritative claim requires checking against version control or schema. The safeguard is always the finding-validation step: analyze the claim, verify against the source before applying.
+
+**First occurrence — log and watch.** If a similar reverse-direction scenario surfaces again in a future cycle (CodeRabbit or any external reviewer suggesting an edit where the direction is wrong), this becomes a count-2 pattern justifying a clarification in agent-workflow.md § Finding Validation: "When a reviewer suggests a change to a value that exists in multiple forms (branch names, commit hashes, schema versions), always verify which form is the authoritative current state before applying the suggestion. Reviewers may suggest the wrong direction if they lack full context."
+
+**Status:** Watch (count 1).
+
+#### [NEW — count 1] doc-updater over-applies stale-hash detection to historical journals
+
+**Description:**
+doc-updater flagged `.claude/agent-memory/learner/patterns.md` as having stale hashes and proposed updates. The file is a development journal — an append-only record of analysis and learning across past sessions. Pre-squash feature-branch hashes (`a6dc7a9c`, `7e9197c1`, etc.) are correct historical records, not claims about current master membership. The journal documents the mapping ("squash 9f40caae") separately. Rewriting the historical hashes would corrupt the journal's narrative — you can't retroactively edit past analysis without breaking the record of what was thought at the time.
+
+**Root cause:** doc-updater's drift detection (checking commit hashes against current code state) is correct and valuable for steering docs, database.md, decisions.md, and plan.md. But it incorrectly applies the same check to files that are intentionally historical records — journals, version logs, past-session memory. The agent lacks context to distinguish between:
+  - **Drift to fix:** steering doc or roadmap claiming a fact that is now wrong (fix is to update the fact)
+  - **Historical accuracy to preserve:** a journal entry documenting what was analyzed or decided at a past timestamp (fix is to leave it alone; append new analysis instead)
+
+**Why it matters:** Agent-memory files exist to record learning over time. Rewriting history (deleting or changing past entries) defeats their purpose. The agent needs guidance or context to skip historical/journal files.
+
+**First occurrence — log and watch.** If doc-updater flags agent-memory files again with similar "stale" claims, this becomes a count-2 pattern justifying:
+  - An explicit note in agent-doc-updater.md: "Agent-memory files (`.claude/agent-memory/**`) are append-only journals. Do not propose edits to past entries even if they reference old hashes or paths. Append new analysis instead."
+  - OR a skip condition: "Skip drift checks on files in `.claude/agent-memory/` — they record history, not current truth."
+
+**Status:** Watch (count 1). The doc-updater's precision remains high (this is its first instance of over-application; prior cycles show correct behavior on steering docs and plan.md). Mark as a context-blindness watch item, not a quality issue.
+
+### Patterns Summary
+
+| Pattern | Count | Status | Action |
+|---------|-------|--------|--------|
+| CodeRabbit suggested fix can reverse direction | 1 | Watch | Verify authoritative source before applying; potential agent-workflow.md clarification at count 2 |
+| doc-updater applies stale-hash check to historical journals | 1 | Watch | If count 2, add skip condition for .claude/agent-memory files |
+
+### Recommended Changes
+
+**No rule changes. Both patterns are count-1 (first occurrence, watch only).**
+
+**Frequency table updates:**
+
+| Issue Type | Count | First | Last | Status |
+|-----------|-------|-------|------|--------|
+| CodeRabbit suggested fix direction requires verification | 1 | 2026-05-27 | 2026-05-27 | Watch |
+| doc-updater over-applies stale-hash to journal files | 1 | 2026-05-27 | 2026-05-27 | Watch |
+
+### Cycle Status
+
+- 1 commit: docs/plan.md hash correction (c70aaf9a)
+- **Agent findings on production code:** 0 CRITICAL, 0 ISSUE, 0 BLOCKING
+- **All post-commit agents clean**
+- **Patterns tracked:** 2 new count-1 watch items (both meta/external reviewer observations, not internal process gaps)
+- **Deferred work:** None. Doc fix committed. No PR filed (doc-only, already merged to PR #680).
+
+### File References
+
+- `.claude/agent-memory/learner/patterns.md` — updated (this file)
+- No rule files changed (count-1 patterns do not trigger rule updates per agent-learner.md)

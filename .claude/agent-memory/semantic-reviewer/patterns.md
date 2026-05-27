@@ -4637,3 +4637,38 @@ When a fix extends attribution coverage for field A (e.g., `answeredCorrectly`) 
 
 **Pattern — §11 verification shortcut for SECURITY INVOKER RPCs:**
 When a SECURITY INVOKER RPC reads a table, check the questions-table SELECT policy count before claiming §11 applies. For tables with exactly one permissive SELECT policy, §11 is N/A and no explicit `WHERE auth.uid() = ...` scope is needed at the RPC level — RLS handles it. For tables with multiple permissive SELECT policies (student_responses, quiz_sessions, exam_configs, audit_events), §11 requires explicit scope even inside SECURITY INVOKER RPCs.
+
+### 2026-05-27 — PR-level sweep: branch fix/668-quiz-counts-rpc (master...HEAD, 5 commits, PR #680)
+- **Files reviewed (full PR diff):** apps/web/lib/queries/quiz.ts, apps/web/lib/queries/quiz.test.ts, docs/database.md, docs/plan.md, .claude/agent-memory/*.md
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 7
+- **PR-level vs per-commit delta:** No cross-commit inconsistencies found. Per-commit review (4646dff4) conclusions hold at PR level.
+
+**GOOD — cross-commit consistency**
+- All 5 commits serve a single logical unit: fix commit (4646dff4) + test commit (9fd139d9) + docs (34c51507) + memory sync (840cdc02) + docs correction (c70aaf9a). No behavioral changes introduced in the doc/memory commits.
+
+**GOOD — security.md §9 (soft-delete filter in RPCs) N/A confirmed at PR level**
+- get_question_counts is SECURITY INVOKER. The tenant_isolation RLS policy already enforces `deleted_at IS NULL` on questions. The RPC body also includes `WHERE q.deleted_at IS NULL` explicitly. Double-covered.
+
+**GOOD — no answer exposure path introduced**
+- fetchActiveQuestionCounts returns (subject_id, topic_id, subtopic_id, n) — aggregate counts only. No question content, no correct/incorrect fields. Does not route through or bypass get_quiz_questions(). Correct for the student quiz builder context.
+
+**GOOD — test isolation: adversarial cross-subject/cross-topic rows**
+- getTopicsForSubject test includes n:99 row for 's-other' subject; getSubtopicsForTopic test includes n:99 row for 't-other' topic. Both are correctly filtered and neither appears in the result counts.
+
+**GOOD — n typed as `number | string`: Number() coercion is consistent across all 4 aggregation loops**
+- countMap accumulation at lines 76, 107, 137, 179, 183 all use Number(row.n). No raw row.n reads anywhere in the aggregation paths.
+
+**GOOD — docs/database.md cross-reference audit**
+- The doc update to get_question_counts section adds "student quiz builder" to the consumer list. The RPC definition, parameter semantics, and return type description are unchanged and accurate against migration 20260520000001.
+
+**GOOD — easa_* read error-drop is pre-existing, not a regression**
+- easa_subjects/topics/subtopics .select() error paths were already silently dropped in the master version of quiz.ts. The PR does not introduce new silent drops; it only changes the questions counting path (which now has explicit error logging in fetchActiveQuestionCounts).
+
+**SUGGESTION — bigint-as-string path (n as string) has no test coverage**
+- All test fixtures pass n as JS number literals (n: 1, n: 99). The comment at QuestionCountRow.n documents the PostgREST bigint-as-string risk, and Number() handles it correctly. But no test exercises n: '2' (string) to confirm the coercion path. Behavioral gap: if a future PostgREST version change were to serialize bigints differently, the test suite would not catch it. Count=1, watching.
+
+**SUGGESTION — multiple independent RPC round-trips still present (from per-commit review)**
+- A UI flow that calls fetchTopicsForSubject then fetchSubtopicsForTopic makes two separate get_question_counts RPC calls. Both return the full taxonomy. Could be unified via a shared cache or combined query call site. Count=1, watching. No regression from this PR.
+
+**Pattern — PR-level sweep catches no additional issues beyond per-commit review for single-module refactors:**
+When a PR is a clean single-module refactor (one helper replacing multiple direct calls, with behavioral equivalence), per-commit semantic review is sufficient. The PR-level sweep adds value mainly for cross-file/cross-commit consistency — which was already verified in this PR by the test suite structure (each function has its own RPC error test).
