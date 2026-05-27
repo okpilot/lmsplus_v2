@@ -243,6 +243,15 @@
 - No production logic changed (only a type comment); no `any`; tests co-located in quiz.test.ts (no __tests__/).
 - APPROVED — no findings.
 
+### 2026-05-27 — issue #668 PR #681 follow-up: comment/test-naming fixes (PR-sweep) — APPROVED
+
+- 6-line diff: 1 inline comment (`collect-user-data-queries.ts`), 2 JSDoc lines (`supabase-paginate.ts`), 1 `it(...)` title rename + 2 comment lines (`collect-user-data.test.ts`). Zero runtime/logic changes.
+- Renamed test title verified behavior-first: "returns empty quiz_answers when the phase-2 answers query fails" — names observable outcome + triggering condition, no internal helper names. Passes code-style.md §7.
+- `@returns` JSDoc verified against all 4 return paths of `fetchAllRows`: invalid-pageSize path, countError path, page-error path, success path — all return `data: T[]` (never null). Factually accurate.
+- `fsrs_cards` `.order('id')` comment verified: table has `id UUID PRIMARY KEY` and no stable temporal sort column (`updated_at` is mutable, not suitable for stable pagination order). Comment accurate.
+- No test assertions changed — only the `it(...)` title and two comment lines.
+- APPROVED — no findings.
+
 ### 2026-05-26 — issue #540 CodeRabbit doc+error-path fixes (PR #674) — APPROVED
 
 - design.md Scoping bullet: corrected from "no manual scoping, no auth preamble" to "RLS + an explicit numerator predicate" with `sr.student_id = auth.uid()`. Wording verified against migration `20260521000005_student_mastery_stats_rpc.sql` — correct_q CTE has `WHERE sr.student_id = auth.uid()` at line 68. security.md §11 reference is accurate (`student_responses` has `instructors_read_students` policy that OR-combines with the student policy).
