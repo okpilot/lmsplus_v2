@@ -9,6 +9,8 @@ type PageResult<T> = { data: T[] | null; error: { message: string } | null }
  * @param getCount builds a `.select('*', { count: 'exact', head: true })` query for the total.
  * @param getPage  builds the same filtered query with a deterministic total order + `.range(from, to)`.
  * @param pageSize must be <= 1000 (PostgREST's hard cap); defaults to 1000.
+ * @returns always resolves with a non-null `data` array; on any error (count, page, or invalid
+ *   pageSize) `data` is `[]` and `error` is non-null — callers never need to null-guard `.data`.
  */
 export async function fetchAllRows<T>(
   getCount: () => PromiseLike<CountResult>,

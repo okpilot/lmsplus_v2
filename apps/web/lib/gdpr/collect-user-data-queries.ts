@@ -73,6 +73,7 @@ export function fetchUserFsrsCards(supabase: SupabaseClient<Database>, userId: s
         .from('fsrs_cards')
         .select('question_id, state, due, stability, difficulty, reps, lapses, last_review')
         .eq('student_id', userId)
+        // fsrs_cards has no temporal sort column — its unique PK `id` alone is a sufficient total order
         .order('id')
         .range(from, to),
   )

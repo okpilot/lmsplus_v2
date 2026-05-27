@@ -393,13 +393,13 @@ describe('collectUserData', () => {
       expect(result.quiz_answers).toEqual([])
     })
 
-    it('falls back to empty quiz_answers when phase-2 query returns null data', async () => {
-      // Sessions exist (so phase-2 fires), but answers query returns null data
+    it('returns empty quiz_answers when the phase-2 answers query fails', async () => {
+      // Sessions exist (so phase-2 fires), but the answers query errors.
       const supabase = buildSupabaseClientWithErrors({ answersError: { message: 'timeout' } })
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const result = await collectUserData(supabase, USER_ID)
 
-      // answersResult.data is null, so ?? [] fallback is exercised
+      // fetchUserSessionAnswers returns { data: [], error } on failure (never null) — empty + logged.
       expect(result.quiz_answers).toEqual([])
       expect(result.quiz_sessions).toHaveLength(1) // sessions exist, phase-2 fired
       consoleSpy.mockRestore()
