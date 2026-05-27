@@ -51,96 +51,57 @@ export async function getDashboardKpis(range: TimeRange): Promise<DashboardKpis>
   }
 }
 
-// Merges RPC stats with user data, sorts + paginates in TypeScript.
-// Pragmatic for typical org size (10-50 students). For 500+ students, refactor to SQL.
+// Single SECURITY DEFINER RPC (get_admin_dashboard_students) does the join + filter +
+// sort + paginate + count entirely in Postgres, so no client read is capped at
+// PostgREST's max_rows=1000 (#682/#668). Org is derived from auth.uid() in the RPC.
 export async function getDashboardStudents(
   filters: DashboardFilters,
 ): Promise<{ students: DashboardStudent[]; totalCount: number }> {
-  const { supabase, organizationId } = await requireAdmin()
+  const { supabase } = await requireAdmin()
 
-  // RPC derives org from auth.uid() internally — no org param needed
-  const { data: statsData, error: statsError } = await authRpc(supabase)('get_admin_student_stats')
-  if (statsError) {
-    console.error('[getDashboardStudents] Stats RPC error:', statsError.message)
-    throw new Error('Failed to fetch student stats')
-  }
-
-  let query = adminClient
-    .from('users')
-    .select('id, full_name, email, last_active_at, deleted_at')
-    .eq('organization_id', organizationId)
-    .eq('role', 'student')
-
-  // "All" (status undefined) shows both active and inactive students.
-  // "active" filters to non-deleted; "inactive" filters to soft-deleted only.
-  if (filters.status === 'active') {
-    query = query.is('deleted_at', null)
-  } else if (filters.status === 'inactive') {
-    query = query.not('deleted_at', 'is', null)
-  }
-
-  const { data: usersData, error: usersError } = await query
-  if (usersError) {
-    console.error('[getDashboardStudents] Users query error:', usersError.message)
+  const { data, error } = await authRpc(supabase)('get_admin_dashboard_students', {
+    p_status: filters.status ?? null,
+    p_sort: filters.sort,
+    p_dir: filters.dir,
+    p_limit: STUDENTS_PAGE_SIZE,
+    p_offset: (filters.page - 1) * STUDENTS_PAGE_SIZE,
+  })
+  if (error) {
+    console.error('[getDashboardStudents] RPC error:', error.message)
     throw new Error('Failed to fetch students')
   }
 
-  type StatRow = {
-    user_id: string
+  type Row = {
+    id: string
+    full_name: string | null
+    email: string
+    last_active_at: string | null
+    deleted_at: string | null
     session_count: number
     avg_score: number | null
     mastery: number
-  } // prettier-ignore
-  const statsRows = Array.isArray(statsData) ? (statsData as StatRow[]) : []
-  const statsMap = new Map<string, StatRow>()
-  for (const s of statsRows) {
-    statsMap.set(s.user_id, s)
+    total_count: number
   }
+  const rows = Array.isArray(data) ? (data as Row[]) : []
 
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-  const userRows = Array.isArray(usersData) ? usersData : []
-  const merged: DashboardStudent[] = userRows.map((u) => {
-    const stats = statsMap.get(u.id)
-    return {
-      id: u.id,
-      fullName: u.full_name,
-      email: u.email,
-      lastActiveAt: u.last_active_at,
-      sessionCount: stats?.session_count ?? 0,
-      avgScore: stats?.avg_score ?? null,
-      mastery: stats?.mastery ?? 0,
-      isActive: u.deleted_at === null,
-      hasRecentActivity: u.last_active_at
-        ? new Date(u.last_active_at).getTime() > sevenDaysAgo
-        : false,
-    }
-  })
+  const students: DashboardStudent[] = rows.map((r) => ({
+    id: r.id,
+    fullName: r.full_name,
+    email: r.email,
+    lastActiveAt: r.last_active_at,
+    sessionCount: r.session_count ?? 0,
+    avgScore: r.avg_score ?? null,
+    mastery: r.mastery ?? 0,
+    isActive: r.deleted_at === null,
+    hasRecentActivity: r.last_active_at
+      ? new Date(r.last_active_at).getTime() > sevenDaysAgo
+      : false,
+  }))
 
-  const dir = filters.dir === 'desc' ? -1 : 1
-  merged.sort((a, b) => {
-    switch (filters.sort) {
-      case 'name':
-        return dir * (a.fullName ?? '').localeCompare(b.fullName ?? '') || a.id.localeCompare(b.id)
-      case 'lastActive': {
-        if (a.lastActiveAt === null && b.lastActiveAt === null) return a.id.localeCompare(b.id)
-        if (a.lastActiveAt === null) return 1
-        if (b.lastActiveAt === null) return -1
-        return dir * a.lastActiveAt.localeCompare(b.lastActiveAt) || a.id.localeCompare(b.id)
-      }
-      case 'sessions':
-        return dir * (a.sessionCount - b.sessionCount) || a.id.localeCompare(b.id)
-      case 'avgScore':
-        return dir * ((a.avgScore ?? -1) - (b.avgScore ?? -1)) || a.id.localeCompare(b.id)
-      case 'mastery':
-        return dir * (a.mastery - b.mastery) || a.id.localeCompare(b.id)
-      default:
-        return a.id.localeCompare(b.id)
-    }
-  })
-
-  const totalCount = merged.length
-  const start = (filters.page - 1) * STUDENTS_PAGE_SIZE
-  const students = merged.slice(start, start + STUDENTS_PAGE_SIZE)
+  // total_count is the count(*) OVER() window value — identical on every row, and absent
+  // (→ 0) on an out-of-range page that returns no rows.
+  const totalCount = Number(rows[0]?.total_count ?? 0)
 
   return { students, totalCount }
 }

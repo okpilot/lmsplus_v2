@@ -1294,20 +1294,31 @@ export type Database = {
         Args: { p_range_days?: number }
         Returns: Json
       }
+      get_admin_dashboard_students: {
+        Args: {
+          p_dir?: string
+          p_limit?: number
+          p_offset?: number
+          p_sort?: string
+          p_status?: string
+        }
+        Returns: {
+          avg_score: number
+          deleted_at: string
+          email: string
+          full_name: string
+          id: string
+          last_active_at: string
+          mastery: number
+          session_count: number
+          total_count: number
+        }[]
+      }
       get_admin_report_correct_options: {
         Args: { p_session_id: string }
         Returns: {
           correct_option_id: string
           question_id: string
-        }[]
-      }
-      get_admin_student_stats: {
-        Args: never
-        Returns: {
-          avg_score: number
-          mastery: number
-          session_count: number
-          user_id: string
         }[]
       }
       get_admin_weak_topics: {

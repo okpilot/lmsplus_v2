@@ -20,6 +20,7 @@ vi.mock('@repo/db/admin', () => ({
 // ---- Subject under test ---------------------------------------------------
 
 import { getDashboardKpis, getDashboardStudents, getRecentSessions, getWeakTopics } from './queries'
+import { type DashboardFilters, STUDENTS_PAGE_SIZE } from './types'
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -57,49 +58,48 @@ function makeFromChain(data: unknown[], error: { message: string } | null = null
   return chain
 }
 
-type StatRow = { user_id: string; session_count: number; avg_score: number | null; mastery: number }
-type UserRow = {
+const BASE_FILTERS: DashboardFilters = {
+  range: '30d',
+  page: 1,
+  sort: 'name',
+  dir: 'asc',
+  status: undefined,
+}
+
+// A row as returned by the get_admin_dashboard_students RPC (already sorted + paginated
+// in SQL). total_count is the count(*) OVER() window value — the same on every row.
+type RpcStudentRow = {
   id: string
   full_name: string | null
   email: string
   last_active_at: string | null
   deleted_at: string | null
+  session_count: number
+  avg_score: number | null
+  mastery: number
+  total_count: number
 }
 
-function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
+function makeRpcRow(overrides: Partial<RpcStudentRow> = {}): RpcStudentRow {
   return {
     id: 'u1',
     full_name: 'Alice',
     email: 'alice@example.com',
     last_active_at: null,
     deleted_at: null,
+    session_count: 0,
+    avg_score: null,
+    mastery: 0,
+    total_count: 1,
     ...overrides,
   }
 }
 
-function makeStatRow(overrides: Partial<StatRow> = {}): StatRow {
-  return { user_id: 'u1', session_count: 0, avg_score: null, mastery: 0, ...overrides }
-}
-
-/**
- * Sets up getDashboardStudents mocks: one adminRpc call (stats) + one adminClient.from call (users).
- * The RPC is called first, then the from chain.
- */
-function mockStudents(opts: {
-  statsData?: StatRow[]
-  statsError?: { message: string } | null
-  usersData?: UserRow[]
-  usersError?: { message: string } | null
-}) {
-  const statsData = opts.statsData ?? []
-  const statsError = opts.statsError ?? null
-  const usersData = opts.usersData ?? []
-  const usersError = opts.usersError ?? null
-
-  mockAuthRpc.mockResolvedValue({ data: statsData, error: statsError })
-  const chain = makeFromChain(usersData, usersError)
-  mockFrom.mockReturnValue(chain)
-  return chain
+// getDashboardStudents now makes a single get_admin_dashboard_students RPC call; sorting,
+// filtering, and pagination happen in SQL. These tests cover the row→DashboardStudent
+// mapping, the totalCount read, and the params the helper forwards to the RPC.
+function mockStudentsRpc(rows: RpcStudentRow[], error: { message: string } | null = null): void {
+  mockAuthRpc.mockResolvedValue({ data: error ? null : rows, error })
 }
 
 // ---- getDashboardStudents -------------------------------------------------
@@ -110,32 +110,27 @@ describe('getDashboardStudents', () => {
     mockRequireAdmin.mockResolvedValue(makeAdminContext())
   })
 
-  it('returns empty students and totalCount 0 when DB returns no users', async () => {
-    mockStudents({ usersData: [] })
+  it('returns empty students and totalCount 0 when the RPC returns no rows', async () => {
+    mockStudentsRpc([])
 
-    const result = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const result = await getDashboardStudents(BASE_FILTERS)
 
     expect(result).toEqual({ students: [], totalCount: 0 })
   })
 
-  it('merges user row with matching stat row', async () => {
-    const user = makeUserRow({ id: 'u1', full_name: 'Bob', email: 'bob@test.com' })
-    const stat = makeStatRow({ user_id: 'u1', session_count: 5, avg_score: 78.5, mastery: 60 })
-    mockStudents({ usersData: [user], statsData: [stat] })
+  it('maps an RPC row to a DashboardStudent', async () => {
+    mockStudentsRpc([
+      makeRpcRow({
+        id: 'u1',
+        full_name: 'Bob',
+        email: 'bob@test.com',
+        session_count: 5,
+        avg_score: 78.5,
+        mastery: 60,
+      }),
+    ])
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const { students } = await getDashboardStudents(BASE_FILTERS)
 
     expect(students).toHaveLength(1)
     expect(students[0]).toMatchObject({
@@ -148,366 +143,155 @@ describe('getDashboardStudents', () => {
     })
   })
 
-  it('defaults sessionCount to 0, avgScore to null, and mastery to 0 when no stat row exists', async () => {
-    const user = makeUserRow({ id: 'u1' })
-    mockStudents({ usersData: [user], statsData: [] })
+  it('maps a null avg_score to null and zero counts to zero', async () => {
+    mockStudentsRpc([makeRpcRow({ session_count: 0, avg_score: null, mastery: 0 })])
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const { students } = await getDashboardStudents(BASE_FILTERS)
 
     expect(students[0]).toMatchObject({ sessionCount: 0, avgScore: null, mastery: 0 })
   })
 
-  it('sets isActive true when deleted_at is null', async () => {
-    mockStudents({ usersData: [makeUserRow({ deleted_at: null })] })
+  it('marks a student active when deleted_at is null', async () => {
+    mockStudentsRpc([makeRpcRow({ deleted_at: null })])
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const { students } = await getDashboardStudents(BASE_FILTERS)
 
     expect(students[0]?.isActive).toBe(true)
   })
 
-  it('sets isActive false when deleted_at is set', async () => {
-    mockStudents({ usersData: [makeUserRow({ deleted_at: '2026-01-01T00:00:00Z' })] })
+  it('marks a student inactive when deleted_at is set', async () => {
+    mockStudentsRpc([makeRpcRow({ deleted_at: '2026-01-01T00:00:00Z' })])
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const { students } = await getDashboardStudents(BASE_FILTERS)
 
     expect(students[0]?.isActive).toBe(false)
   })
 
-  it('sets hasRecentActivity true when last_active_at is within the past 7 days', async () => {
+  it('flags recent activity when last_active_at is within the past 7 days', async () => {
     const recentDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-    mockStudents({ usersData: [makeUserRow({ last_active_at: recentDate })] })
+    mockStudentsRpc([makeRpcRow({ last_active_at: recentDate })])
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const { students } = await getDashboardStudents(BASE_FILTERS)
 
     expect(students[0]?.hasRecentActivity).toBe(true)
   })
 
-  it('sets hasRecentActivity false when last_active_at is older than 7 days', async () => {
+  it('does not flag recent activity when last_active_at is older than 7 days', async () => {
     const oldDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
-    mockStudents({ usersData: [makeUserRow({ last_active_at: oldDate })] })
+    mockStudentsRpc([makeRpcRow({ last_active_at: oldDate })])
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const { students } = await getDashboardStudents(BASE_FILTERS)
 
     expect(students[0]?.hasRecentActivity).toBe(false)
   })
 
-  it('sets hasRecentActivity false when last_active_at is null', async () => {
-    mockStudents({ usersData: [makeUserRow({ last_active_at: null })] })
+  it('does not flag recent activity when last_active_at is null', async () => {
+    mockStudentsRpc([makeRpcRow({ last_active_at: null })])
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const { students } = await getDashboardStudents(BASE_FILTERS)
 
     expect(students[0]?.hasRecentActivity).toBe(false)
   })
 
-  // -- sort --
+  // -- totalCount (count(*) OVER() window) --
 
-  it('sorts by name ascending', async () => {
-    const users = [
-      makeUserRow({ id: 'u1', full_name: 'Zelda', email: 'z@test.com' }),
-      makeUserRow({ id: 'u2', full_name: 'Alice', email: 'a@test.com' }),
-    ]
-    mockStudents({ usersData: users })
+  it('reads totalCount from the first row total_count, the same on every row', async () => {
+    mockStudentsRpc([
+      makeRpcRow({ id: 'u1', email: 'a@test.com', total_count: 42 }),
+      makeRpcRow({ id: 'u2', email: 'b@test.com', total_count: 42 }),
+    ])
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const { totalCount } = await getDashboardStudents(BASE_FILTERS)
 
-    expect(students.map((s) => s.fullName)).toEqual(['Alice', 'Zelda'])
+    expect(totalCount).toBe(42)
   })
 
-  it('sorts by name descending', async () => {
-    const users = [
-      makeUserRow({ id: 'u1', full_name: 'Alice', email: 'a@test.com' }),
-      makeUserRow({ id: 'u2', full_name: 'Zelda', email: 'z@test.com' }),
-    ]
-    mockStudents({ usersData: users })
+  it('returns totalCount 0 on an out-of-range page that yields no rows', async () => {
+    mockStudentsRpc([])
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'desc',
-      status: undefined,
-    })
+    const { students, totalCount } = await getDashboardStudents({ ...BASE_FILTERS, page: 99 })
 
-    expect(students.map((s) => s.fullName)).toEqual(['Zelda', 'Alice'])
-  })
-
-  it('sorts by mastery ascending', async () => {
-    const users = [
-      makeUserRow({ id: 'u1', email: 'a@test.com' }),
-      makeUserRow({ id: 'u2', email: 'b@test.com' }),
-    ]
-    const stats = [
-      makeStatRow({ user_id: 'u1', mastery: 80 }),
-      makeStatRow({ user_id: 'u2', mastery: 30 }),
-    ]
-    mockStudents({ usersData: users, statsData: stats })
-
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'mastery',
-      dir: 'asc',
-      status: undefined,
-    })
-
-    expect(students.map((s) => s.mastery)).toEqual([30, 80])
-  })
-
-  it('sorts by session count descending', async () => {
-    const users = [
-      makeUserRow({ id: 'u1', email: 'a@test.com' }),
-      makeUserRow({ id: 'u2', email: 'b@test.com' }),
-    ]
-    const stats = [
-      makeStatRow({ user_id: 'u1', session_count: 2 }),
-      makeStatRow({ user_id: 'u2', session_count: 9 }),
-    ]
-    mockStudents({ usersData: users, statsData: stats })
-
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'sessions',
-      dir: 'desc',
-      status: undefined,
-    })
-
-    expect(students.map((s) => s.sessionCount)).toEqual([9, 2])
-  })
-
-  it('sorts by avgScore ascending, treating null as lowest', async () => {
-    const users = [
-      makeUserRow({ id: 'u1', email: 'a@test.com' }),
-      makeUserRow({ id: 'u2', email: 'b@test.com' }),
-    ]
-    const stats = [
-      makeStatRow({ user_id: 'u1', avg_score: 55 }),
-      makeStatRow({ user_id: 'u2', avg_score: null }),
-    ]
-    mockStudents({ usersData: users, statsData: stats })
-
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'avgScore',
-      dir: 'asc',
-      status: undefined,
-    })
-
-    // null maps to -1, so null comes first in ascending
-    expect(students.map((s) => s.avgScore)).toEqual([null, 55])
-  })
-
-  // -- pagination --
-
-  it('returns first page of 10 students and correct totalCount', async () => {
-    const users = Array.from({ length: 30 }, (_, i) =>
-      makeUserRow({ id: `u${i}`, email: `u${i}@test.com` }),
-    )
-    mockStudents({ usersData: users })
-
-    const { students, totalCount } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
-
-    expect(totalCount).toBe(30)
-    expect(students).toHaveLength(10)
-  })
-
-  it('returns empty array for page past the last page', async () => {
-    const users = Array.from({ length: 30 }, (_, i) =>
-      makeUserRow({
-        id: `u${i}`,
-        email: `u${i}@test.com`,
-        full_name: `User ${String(i).padStart(2, '0')}`,
-      }),
-    )
-    mockStudents({ usersData: users })
-
-    const { students, totalCount } = await getDashboardStudents({
-      range: '30d',
-      page: 4,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
-
-    expect(totalCount).toBe(30)
     expect(students).toHaveLength(0)
+    expect(totalCount).toBe(0)
   })
 
-  it('returns empty students when page exceeds total pages', async () => {
-    const users = [makeUserRow()]
-    mockStudents({ usersData: users })
+  // -- error / guard paths --
 
-    const { students, totalCount } = await getDashboardStudents({
-      range: '30d',
-      page: 99,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
-
-    expect(totalCount).toBe(1)
-    expect(students).toHaveLength(0)
-  })
-
-  // -- error paths --
-
-  it('throws when the stats RPC fails', async () => {
+  it('throws and logs when the RPC fails', async () => {
     mockAuthRpc.mockResolvedValue({ data: null, error: { message: 'rpc failed' } })
-    mockFrom.mockReturnValue(makeFromChain([]))
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    await expect(
-      getDashboardStudents({ range: '30d', page: 1, sort: 'name', dir: 'asc', status: undefined }),
-    ).rejects.toThrow('Failed to fetch student stats')
-    expect(consoleSpy).toHaveBeenCalledWith('[getDashboardStudents] Stats RPC error:', 'rpc failed')
+    await expect(getDashboardStudents(BASE_FILTERS)).rejects.toThrow('Failed to fetch students')
+    expect(consoleSpy).toHaveBeenCalledWith('[getDashboardStudents] RPC error:', 'rpc failed')
     consoleSpy.mockRestore()
   })
 
-  it('throws when the users query fails', async () => {
-    mockAuthRpc.mockResolvedValue({ data: [], error: null })
-    mockFrom.mockReturnValue(makeFromChain([], { message: 'connection refused' }))
-
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    await expect(
-      getDashboardStudents({ range: '30d', page: 1, sort: 'name', dir: 'asc', status: undefined }),
-    ).rejects.toThrow('Failed to fetch students')
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[getDashboardStudents] Users query error:',
-      'connection refused',
-    )
-    consoleSpy.mockRestore()
-  })
-
-  it('treats stats as empty when RPC returns a non-array value with no error', async () => {
-    // Supabase RPC can return a scalar (e.g. null, object) instead of an array
-    // when the function signature changes. The Array.isArray guard must fall back to [].
+  it('treats a non-array RPC response as no students', async () => {
+    // Supabase RPC can return a scalar (e.g. null) instead of an array; the
+    // Array.isArray guard must fall back to an empty result.
     mockAuthRpc.mockResolvedValue({ data: null, error: null })
-    mockFrom.mockReturnValue(makeFromChain([makeUserRow({ id: 'u1' })]))
 
-    const { students } = await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    const { students, totalCount } = await getDashboardStudents(BASE_FILTERS)
 
-    // No stat row found → defaults applied
-    expect(students).toHaveLength(1)
-    expect(students[0]).toMatchObject({ sessionCount: 0, avgScore: null, mastery: 0 })
+    expect(students).toEqual([])
+    expect(totalCount).toBe(0)
   })
 
-  // -- status filter --
+  // -- params forwarded to the RPC (sort/filter/paginate now run in SQL) --
 
-  it('applies no deleted_at filter when status is undefined (shows all students)', async () => {
-    const chain = mockStudents({ usersData: [makeUserRow()] })
+  it('requests p_status null when no status filter is set', async () => {
+    mockStudentsRpc([])
 
-    await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: undefined,
-    })
+    await getDashboardStudents({ ...BASE_FILTERS, status: undefined })
 
-    // Neither .is() nor .not() should be called with 'deleted_at' filtering
-    const isCall = (chain.is as ReturnType<typeof vi.fn>).mock.calls.find(
-      (c: unknown[]) => c[0] === 'deleted_at',
+    expect(mockAuthRpc).toHaveBeenCalledWith(
+      'get_admin_dashboard_students',
+      expect.objectContaining({ p_status: null }),
     )
-    const notCall = (chain.not as ReturnType<typeof vi.fn>).mock.calls.find(
-      (c: unknown[]) => c[0] === 'deleted_at',
-    )
-    expect(isCall).toBeUndefined()
-    expect(notCall).toBeUndefined()
   })
 
-  it('filters to non-deleted students when status is "active"', async () => {
-    const chain = mockStudents({ usersData: [makeUserRow()] })
+  it('requests p_status "active" when filtering to active students', async () => {
+    mockStudentsRpc([])
 
-    await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: 'active',
-    })
+    await getDashboardStudents({ ...BASE_FILTERS, status: 'active' })
 
-    // .is('deleted_at', null) must be called
-    expect(chain.is).toHaveBeenCalledWith('deleted_at', null)
-    // .not() must NOT be called with deleted_at
-    const notCall = (chain.not as ReturnType<typeof vi.fn>).mock.calls.find(
-      (c: unknown[]) => c[0] === 'deleted_at',
+    expect(mockAuthRpc).toHaveBeenCalledWith(
+      'get_admin_dashboard_students',
+      expect.objectContaining({ p_status: 'active' }),
     )
-    expect(notCall).toBeUndefined()
   })
 
-  it('filters to soft-deleted students only when status is "inactive"', async () => {
-    const chain = mockStudents({ usersData: [] })
+  it('requests p_status "inactive" when filtering to inactive students', async () => {
+    mockStudentsRpc([])
 
-    await getDashboardStudents({
-      range: '30d',
-      page: 1,
-      sort: 'name',
-      dir: 'asc',
-      status: 'inactive',
-    })
+    await getDashboardStudents({ ...BASE_FILTERS, status: 'inactive' })
 
-    // .not('deleted_at', 'is', null) must be called
-    expect(chain.not).toHaveBeenCalledWith('deleted_at', 'is', null)
-    // .is() must NOT be called with deleted_at
-    const isCall = (chain.is as ReturnType<typeof vi.fn>).mock.calls.find(
-      (c: unknown[]) => c[0] === 'deleted_at',
+    expect(mockAuthRpc).toHaveBeenCalledWith(
+      'get_admin_dashboard_students',
+      expect.objectContaining({ p_status: 'inactive' }),
     )
-    expect(isCall).toBeUndefined()
+  })
+
+  it('requests the chosen sort column and direction from the RPC', async () => {
+    mockStudentsRpc([])
+
+    await getDashboardStudents({ ...BASE_FILTERS, sort: 'mastery', dir: 'desc' })
+
+    expect(mockAuthRpc).toHaveBeenCalledWith(
+      'get_admin_dashboard_students',
+      expect.objectContaining({ p_sort: 'mastery', p_dir: 'desc' }),
+    )
+  })
+
+  it('requests the page window as limit = page size and offset = (page - 1) * page size', async () => {
+    mockStudentsRpc([])
+
+    await getDashboardStudents({ ...BASE_FILTERS, page: 3 })
+
+    expect(mockAuthRpc).toHaveBeenCalledWith(
+      'get_admin_dashboard_students',
+      expect.objectContaining({ p_limit: STUDENTS_PAGE_SIZE, p_offset: 2 * STUDENTS_PAGE_SIZE }),
+    )
   })
 })
 
