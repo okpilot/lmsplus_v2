@@ -428,6 +428,7 @@ describe('collectUserData', () => {
     })
 
     it('keeps all flagged rows when every row has non-null question_id and flagged_at', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const supabase = buildSupabaseClient({
         flagsData: [
           { question_id: 'q-1', flagged_at: '2026-03-01T10:00:00Z' },
@@ -437,6 +438,9 @@ describe('collectUserData', () => {
       const result = await collectUserData(supabase, USER_ID)
 
       expect(result.flagged_questions).toHaveLength(2)
+      // No rows dropped → no drop log (guards against a `<` → `>=` regression).
+      expect(consoleSpy).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
   })
 
