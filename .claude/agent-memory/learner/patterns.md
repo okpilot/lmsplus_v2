@@ -5291,6 +5291,303 @@ These were NOT touched by the #668 fix commits (9eca47d6 is scoped only to dashb
 - 3 fix commits addressing CR-local findings: 9eca47d6 (guards), f7b9804b (tests), 32c759e0 (docs)
 - **Agent findings:** 1 false positive doc-updater (validated and skipped), 2 semantic-reviewer SUGGESTIONs (1 applied, 1 skipped with reason), 2 new tests added + all pass, 0 blocking findings
 - **All post-commit agents clean**
+---
+
+## Learner Cycle — 2026-05-27 — #668 GDPR Export Pagination (commits 9da1e069, ee6d646a, 431d930d)
+
+**Post-commit agent synthesis on GDPR export pagination + chunking test additions.**
+
+### Context
+
+Three-commit sequence implementing paginated GDPR export with error resilience:
+1. **9da1e069** — `feat(gdpr): paginated export-user-data with chunking + recovery (#668)` — orchestrator impl, collect-user-data.ts split into collect-user-data-queries.ts to fit 200-line limit, pagination logic added
+2. **ee6d646a** — `fix(gdpr): empty on error (discard partial, return {data:[], error}) (#668)` — semantic-reviewer ISSUE fix, fetchAllRows now returns empty on mid-pagination error
+3. **431d930d** — `test(gdpr): cover chunking edge cases + error recovery (#668)` — test-writer additions, comprehensive chunking tests
+
+### Agent Findings Summary
+
+**Pre-commit Critics (plan-critic + implementation-critic):**
+
+- **Plan-critic:** 2 ISSUEs, both pre-execution
+  * **ISSUE 1:** `.order('id')` on `active_flagged_questions` view → 400 error (composite PK view, no 'id' column). RESOLUTION: Plan revised to order by `flagged_at, question_id`. Re-run clean.
+  * **ISSUE 2:** Test mock count-vs-range dispatch underspecified → Promise.all call interleaving makes global call-order fragile. RESOLUTION: Orchestrator specified per-table head/range dispatch detail before execution. Re-run clean.
+  * **Finding:** Both ISSUEs were validation-stage problems (plan reviewed code without reading schema details). Orchestrator read schema and PostgREST docs before executing; both issues eliminated via thorough plan validation.
+
+- **Implementation-critic:** Clean on 9da1e069 and ee6d646a
+  * **BLOCKING on 431d930d (test commit):** 147 lines of dead code (unused `buildAnswersClient` helper) in new test file. Would trigger 7 biome noUnusedVariables errors at pre-commit. RESOLUTION: Test author deleted dead scaffolding before commit. Re-run clean.
+  * **Test title ISSUE:** One test name over-promising behavior. RESOLUTION: Clarified title to match assertion. Re-run clean.
+  * **Finding:** Implementation-critic caught blocking biome violations before commit, preventing pre-commit-hook failure. Positive signal for the every-commit critic policy.
+
+**Post-commit Agents:**
+
+- **code-reviewer:** 0 BLOCKING, 0 WARNING — clean
+  * File size: collect-user-data.ts split correctly (collect-user-data-queries.ts 180 lines, collect-user-data.ts 95 lines, both under 200 limit)
+  * No style violations; naming consistent
+
+- **semantic-reviewer:** 0 CRITICAL; **1 ISSUE** (logic error)
+  * **ISSUE:** `fetchAllRows()` returned **partial rows** on mid-pagination error → GDPR export orchestrator built a silently-incomplete export (data present, error silently dropped)
+  * **Root:** Outer try/catch swallowed errors; returned data up to the failure point without signaling truncation
+  * **RESOLUTION (ee6d646a):** Changed contract: fetchAllRows now returns `{data:[], error}` on ANY error. Empty-on-error semantics guarantee export consumers see either complete data or empty+error, never partial.
+  * **Re-review:** Clean. 1 non-blocking SUGGESTION (defensive `?? []` on concat) — SKIPPED (types statically guarantee non-null array from RPC).
+
+- **doc-updater:** 1 ISSUE flagged
+  * **Claim:** docs/plan.md #668 section needs update (not specified what)
+  * **Context:** Another branch (not 9da1e069/ee6d646a/431d930d) also edits the same #668 section. Cross-branch conflict; reconciliation deferred to merge conflict resolution.
+  * **Orchestrator action:** Noted conflict; #668 issue tracking remains source of truth. No doc update needed in this session.
+
+- **test-writer:** Added chunking test file
+  * Tests cover: edge cases (2 rows, 500 rows, 5000 rows), empty dataset, in-pagination error + recovery, request-timing boundaries
+  * All pass
+
+**Conditional Agents:**
+
+- **Red-team:** Not triggered (no security-sensitive file changes in diff; GDPR export is admin-only RPC, no new auth/RLS patterns)
+
+### Patterns Detected
+
+#### [POSITIVE SIGNAL] Every-commit implementation-critic policy validated
+
+**Description:**
+Implementation-critic ran on the test-file commit (431d930d) and caught 1 BLOCKING lint failure (7 unused-variable errors from dead `buildAnswersClient` helper) that would have triggered pre-commit-hook failure. The user noted this as a watch item last session: "impl-critic skipped on fix commits [concern about overhead]". This cycle confirms the policy has tangible value.
+
+**Instances (this cycle):**
+1. Test commit 431d930d had dead scaffolding that passed vitest (esbuild strips types), passed manual review (easy to miss in large test file), but would fail biome lint at pre-commit hook time.
+2. Implementation-critic caught it pre-commit, prevented merge of a commit that CI would reject.
+
+**Why this matters:**
+- Biome pre-commit hook is fast (< 1s); biome failures on PR branches waste 10+ minutes of CI/re-push cycles.
+- Dead code in tests is easy to miss because test-only code is not type-checked during development (esbuild runtime only).
+- Every-commit implementation-critic caught this without human code review.
+
+**Status:** Positive signal. **Watch item resolved.** Implementation-critic on every commit (even test-only) is justified. Policy continues.
+
+#### [POSITIVE SIGNAL] Plan-critic caught pre-execution validation gaps (schema + contract)
+
+**Description:**
+Plan-critic's 2 ISSUEs were both upstream of code-writing: (1) plan didn't read the actual view schema (active_flagged_questions has no 'id' column); (2) plan didn't detail per-table mock dispatch (fragile Promise.all ordering). Both RESOLVED during plan validation, before execution. This is the correct gate sequence — catch validation issues at plan time, not implementation time.
+
+**Instances (this cycle):**
+1. `.order('id')` on a view → pre-execution ISSUE detection. Orchestrator read schema, realized plan was wrong, revised plan. Implementation used the correct order clause.
+2. Mock dispatch underspecified → ISSUE caught. Orchestrator detailed the per-table dispatch rules. Tests written with correct mock structure.
+
+**Why this matters:**
+Plan-critic's role is to catch the shape of the approach before writing code. This cycle is textbook: plan was wrong, critic caught it, orchestrator fixed the plan, execution proceeded with correct approach. No wasted implementation time, no rework.
+
+**Status:** Positive signal. Plan-validation pipeline working as designed. No changes needed; continue disciplined approach.
+
+#### [POSITIVE SIGNAL] Semantic-reviewer ISSUE (partial-data export) correctly identified and fixed with contract change
+
+**Description:**
+Semantic-reviewer flagged that `fetchAllRows()` returned partial results on error, creating a silent-failure export. The fix was not a local guard (try/catch harder) but a **contract change**: move to empty-on-error semantics (`{data:[], error}` always, never partial data). This prevents downstream code from mistaking incomplete data for complete data.
+
+**Instances (this cycle):**
+1. Original implementation (9da1e069): fetchAllRows returned `data?.slice(0, pageNum)` on error, continuing to export partial.
+2. Fix (ee6d646a): Changed to return `{data:[], error}`, guaranteeing either all rows or none.
+
+**Why this matters:**
+- GDPR exports are legally sensitive (completeness required by regulation).
+- Silent partial-export is worse than visible error (user thinks they got everything, but didn't).
+- Contract clarity (empty vs. partial) prevents confusion at call sites.
+
+**Status:** Positive signal. Semantic-reviewer identified a data-integrity gap and suggested the right fix approach (not just error handling, but contract design). No rule change needed; this is how semantic review should work.
+
+#### [WATCH PATTERN — count 1] Type-validation gap: new test files aren't type-checked until pre-commit hook
+
+**Description:**
+Test file 431d930d was authored with dead scaffolding code (`buildAnswersClient` helper). Vitest run (via `pnpm test`) succeeds because vitest uses esbuild (strips types, doesn't run tsc). The code passes test execution. But `pnpm check-types` (tsc) would flag it immediately. Pre-commit hook runs biome (includes linting but not separate type check); biome's linter flagged the unused variable.
+
+**Root cause:** Workflow gap. Test authors run `pnpm test` to validate tests, not `pnpm check-types` which type-checks the files. Dead TypeScript (unused imports, unused helper functions) can hide in tests between `test` and the pre-commit hook.
+
+**Why this matters:**
+- Test files are code too; dead code is debt.
+- If implementation-critic hadn't caught the biome violation, the commit would have passed local checks, failed on pre-commit hook, required a fix commit, and delayed merge.
+- This is avoidable with a note in the test-writing workflow (run `pnpm check-types` after adding test files, not just `pnpm test`).
+
+**Assessment:** This is a **workflow note, not a rule violation**. Not promoted to a hard rule; just a discipline note for future test-writing cycles: after adding test files, run `pnpm check-types` alongside `pnpm test` to catch dead code early. Implementation-critic will still catch biome failures, but early detection by author saves review time.
+
+**Status:** Log and suggest. If dead code in tests recurs in a second cycle without `check-types` being run, propose adding a note to test-writer.md or CLAUDE.md about post-authorship type-checking.
+
+#### [REPEAT — count 2 now, but not actionable] CodeRabbit-local vs. post-commit agent rpc<T[]> guard gaps
+
+**Prior note (2026-05-26 post-push CR-fix):** CodeRabbit local caught rpc<T[]> guard gaps that post-commit agents missed on the original RPC feature commit (a6dc7a9c).
+
+**This cycle:** No new RPC additions in the GDPR export feature (it uses existing RPCs). No recurrence this cycle. Pattern remains at count 2 from the prior cycle. **No action this cycle; continue watching.**
+
+### Recommended Changes
+
+**No hard rule changes. One workflow note (non-binding) for test-writer context:**
+
+**Proposed addition to CLAUDE.md or team memory (not a binding rule, just process guidance):**
+
+> After adding test files (`.test.ts` / `.test.tsx`), run `pnpm check-types` alongside `pnpm test` to catch dead code and type errors early. Test-only code is not type-checked during development (esbuild runtime), so unused scaffolding can hide between test execution and pre-commit hook. Implementation-critic will catch biome failures, but early detection saves review cycles.
+
+This is a suggestion for orchestrator consideration, not a learner enforcement point. The binding gate is the pre-commit hook; this just optimizes workflow.
+
+### Watch-List Status
+
+**Patterns at count 2+ (monitor for count 3 or promotion):**
+
+1. **"RPC-backed SQL logic must be verified via real-SQL probe/E2E, NOT mockRpc Vitest tests"** — count 2 (from 2026-05-26). No recurrence this cycle (no complex-SQL RPCs added). Continue watching.
+2. **"CodeRabbit-local catches rpc<T[]> guard gaps that post-commit agents miss"** — count 2 (from 2026-05-26 post-push CR-fix). No recurrence this cycle (no new RPCs). Continue watching.
+3. **"Spec-doc section status speculation by doc-updater agent"** — count 2 (from 2026-05-26 post-push CR-fix). No recurrence this cycle (doc-updater flagged a real conflict, not speculation). Continue watching.
+
+**New watch pattern (count 1):**
+
+4. **"Type-validation gap in new test files (dead code hidden from test execution, caught at biome pre-commit)"** — count 1. If dead code in tests appears in a second cycle, propose a workflow note.
+
+### Cycle Status
+
+- **3 commits:** impl, error-contract fix, tests
+- **Pre-commit critics:** 2 plan-critic ISSUEs resolved pre-execution; 1 implementation-critic BLOCKING resolved pre-commit
+- **Post-commit agents:** 1 semantic-reviewer ISSUE (partial-data export) resolved with contract fix; 0 other critical findings
+- **All findings addressed in-cycle; all agents clean on final commits**
+- **Positive signals:** (1) every-commit impl-critic validated (caught biome failure pre-commit); (2) plan-validation pipeline working (caught schema gaps before execution); (3) semantic-reviewer identified data-integrity gap correctly
+
+### No Rule Promotions This Cycle
+
+All findings were either:
+- Pre-execution validation issues (fixed during plan revision, not rule-level)
+- Single-occurrence workflow observations (dead code in tests, type-checking discipline)
+- Positive signals on existing policies (impl-critic, plan-validation, semantic-review)
+- Prior watch patterns (count 2) with no new recurrence
+
+No patterns reached count 2 this cycle. **Prior patterns holding steady at count 2 (no escalation to promotion threshold yet).**
+
+---
+
+## Learner Cycle — 2026-05-27 (late) — #668 GDPR Export Pagination (CodeRabbit PR review fixes; commits 9fa82a9a, 2933015c, 31a76c2b)
+
+**Post-commit agent synthesis on CodeRabbit PR findings applied locally: defensive type-narrowing filter, observability fix, test assertion tightening.**
+
+### Context
+
+Three-commit sequence responding to CodeRabbit PR review on GDPR export feature (issue #668):
+1. **9fa82a9a** — `fix(gdpr): guard pageSize + narrow flagged-question rows at runtime (#668)` — applied 4 CodeRabbit findings:
+   * Added pageSize validation guard to `fetchAllRows` (prevent non-terminating loop on pageSize<=0 or >1000)
+   * Added `.it.each()` regression tests for invalid pageSize
+   * Replaced bare `as {...}[]` cast on `flagged_questions` with runtime type-guard filter (code-style.md §5)
+   * Renamed 3 test titles from impl-detail names (e.g., "calls fetchAllRows") to behavior-first wording (code-style.md §7)
+
+2. **2933015c** — `fix(gdpr): log when flagged-question rows are dropped by the null filter (#668)` — semantic-reviewer ISSUE fix
+   * The new type-guard filter could silently drop rows (null question_id or flagged_at) with no observability
+   * Reproduced the #668 silent-export failure mode (data present, truncation invisible)
+   * Fix: hoist filter to a named const, log `console.error` when rows are dropped
+   * Added test to assert drop count logged correctly
+
+3. **31a76c2b** — `test(gdpr): assert no drop-log on the normal flagged-questions path (#668)` — semantic-reviewer SUGGESTION applied
+   * Added `expect(consoleSpy).not.toHaveBeenCalled()` assertion to the "all valid rows" test
+   * Guarantees "no-drop normal path" behavior is machine-checkable (guards against filter-condition regression like `===` → `!==` typo)
+
+### Agent Findings Summary
+
+**Post-commit Agents:**
+
+- **code-reviewer:** Clean. No file-size, naming, or style violations flagged. pageSize guard is correct. Test titles now describe behavior, not implementation.
+
+- **semantic-reviewer:** **1 ISSUE** (data loss via silent filter drop)
+  * **Root:** `flagged_questions` rows with null question_id or flagged_at are filtered out (type-narrowing guard added per code-style.md §5) but no log signal when rows are dropped
+  * **Consequence:** GDPR export silently excludes flagged questions (looks complete, but isn't) — reproduces the #668 silent-export failure mode
+  * **Fix:** Hoist the filter, log drop count when `dropped > 0`, test that log is called
+  * **Re-review:** Clean on fix commit 2933015c. Remaining SUGGESTION on defensive `?? []` was skipped as unnecessary (types guarantee non-null).
+
+- **doc-updater:** No drift findings. No doc updates needed for this cycle.
+
+- **test-writer:** Tests added for chunking edge cases, null-field drop behavior, empty dataset, error recovery. All pass.
+
+### Patterns Detected
+
+#### [NEW PATTERN — count 1] Defensive type-narrowing filter (added per code-style.md §5) can silently drop rows when the filter criteria don't match the actual data
+
+**Description:**
+Code-style.md Section 5 requires runtime type guards on TypeScript casts from external data (e.g., `as unknown as T` paired with `Array.isArray(x)`, `typeof x === 'string'`). When applied as a **filter** (not just a guard), the filter implicitly drops rows that don't match the condition — with no signal that rows were dropped. This creates a silent data-loss path.
+
+**Instance (this cycle):**
+1. **9fa82a9a introduces the pattern:** `flagsResult.data.filter((f) => typeof f.question_id === 'string' && typeof f.flagged_at === 'string')` narrows view columns (typed nullable in Postgres) to non-null strings. The backing table enforces `NOT NULL`, so in practice no rows are dropped. **However,** if a future view change introduces nulls (e.g., LEFT JOIN), rows would be silently omitted from the export — no log, export looks complete, users don't realize they're missing records.
+
+2. **2933015c fixes the silent-loss path:** Hoist the filter to a named const, log `console.error` when `dropped > 0`. Now if rows are dropped (now or future), the export loss is observable via server logs.
+
+3. **31a76c2b tightens the guarantee:** Add `expect(consoleSpy).not.toHaveBeenCalled()` to the "all-valid" test. Future code changes that accidentally regress the filter condition (e.g., remove the `typeof` check, swap `&&` → `||`) will be caught by the test.
+
+**Root Cause:**
+Type-safety rules enforce runtime guards to prevent undefined-behavior crashes. A guard implemented as a filter is correct for type safety, but correct for type safety is not the same as correct for data completeness. GDPR exports require observability when data is excluded; the rule applies the guard, but does not mandate observability on the filtered-out rows.
+
+**Pattern Analysis:**
+- The filter is a **direct consequence of code-style.md §5** (cast + runtime guard).
+- The silent data loss is **incidental** to the rule, not intentional.
+- **Fix pattern:** Any runtime type-narrowing filter must log the drop count when rows are omitted. This is distinct from "silent error drops" (which should never happen) — this is "silent data-completeness degradation" (which needs visibility).
+
+**Why it matters:**
+GDPR exports, legal holds, audit reports, and other completeness-critical data exports can silently lose records if a type-narrowing filter runs without observability. The user's export looks valid (rows are present, structure is intact), but the record count has silently changed. Logs prevent this by making any row loss discoverable post-hoc.
+
+**Assessment:** This is a **first occurrence** of this specific pattern. The prior "silent data drop" patterns in memory (e.g., "silent error drop on non-critical secondary query") involve missing error handlers, not type-narrowing filters. This is conceptually related but distinct in root cause and fix.
+
+**Status:** **LOG AND WATCH.** If a second type-narrowing filter is added without observability logging (in a different feature area, different commit), promote to a code-style.md addition: "Any filter applied to external data (Supabase result, RPC result, client JSON) that drops rows must log the drop count when row count decreases, even if the filter is a no-op in normal operation. A future data source change should not silently skip records."
+
+**Frequency table entry:**
+| Pattern | First | Count | Last | Status |
+| --- | --- | --- | --- | --- |
+| Type-narrowing filter drops rows silently (guard-as-filter pattern) | 2026-05-27 (9fa82a9a→2933015c) | 1 | 2026-05-27 | Watch |
+
+#### [POSITIVE SIGNAL] Semantic-reviewer correctly identified data-integrity gap from cast-safety rules
+
+**Description:**
+Code-style.md §5 rule (runtime guards on external-data casts) is correct and necessary. But the rule focuses on preventing crashes, not on maintaining data completeness. Semantic-reviewer ran the code, saw the silent-filter behavior, and escalated it as ISSUE — not because the rule is wrong, but because the rule's application created an unintended consequence (silent data loss in exports). This is reviewer reasoning at the right level: understanding intent (safety) vs. side effects (completeness).
+
+**Instances:**
+1. Semantic-reviewer flagged that the filter could drop rows with no log (2933015c commit message cites "semantic-reviewer ISSUE").
+2. Orchestrator applied the fix (log + test assertion).
+3. Re-review on fix commit: clean.
+
+**Assessment:** Positive signal. The rule is correct, the reviewer correctly identified an unintended side effect, and the fix (observability) was appropriate. No rule change needed; this is how review should work.
+
+**Status:** Acknowledge in learner report. No action needed — semantic-review gate is functioning correctly.
+
+#### [POSITIVE SIGNAL] Test tightening (31a76c2b) prevents regression of filter-condition
+
+**Description:**
+The "all-valid rows kept" test was extended with `expect(consoleSpy).not.toHaveBeenCalled()`. This assertion machines-checks the "no-drop normal path" guarantee. A future typo like `typeof f.question_id !== 'string'` (inverted condition) would fail the test instead of silently inverting the filter.
+
+**Instances:**
+1. Commit 31a76c2b added the assertion as a SUGGESTION-level fix (per code-style.md §7: "Test Comments: Audit After Renaming").
+2. The assertion is minimal and valuable (1 line, high value).
+
+**Assessment:** Positive signal. Test-writer applied a SUGGESTION that strengthens the gate, preventing a common regression (condition inversion in filters). Good example of turning a suggestion into actionable test tightening.
+
+**Status:** Acknowledge in learner report. No action needed.
+
+### Watch-List Updates
+
+**Patterns at count 2+ (prior, no change this cycle):**
+
+1. **"RPC-backed SQL logic must be verified via real-SQL probe/E2E, NOT mockRpc Vitest tests"** — count 2. No recurrence this cycle. Continue watching.
+2. **"CodeRabbit-local catches rpc<T[]> guard gaps that post-commit agents miss"** — count 2. No recurrence this cycle. Continue watching.
+3. **"Spec-doc section status speculation by doc-updater agent"** — count 2. No recurrence this cycle. Continue watching.
+
+**Patterns at count 1 (new from this cycle):**
+
+4. **"Type-validation gap in new test files (dead code)"** — count 1 (from 2026-05-27 earlier cycle). No recurrence this cycle. Continue watching.
+5. **"Type-narrowing filter drops rows silently (guard-as-filter pattern)"** — count 1 (from this cycle, 9fa82a9a→2933015c). NEW. Watch for recurrence in future feature cycles using cast-safety filters.
+
+### Cycle Status
+
+- **3 commits:** guard addition + tests, observability fix, test assertion tightening
+- **Pre-commit critics:** Not run on this cycle (these were CodeRabbit PR findings, locally applied)
+- **Post-commit agents:** 1 semantic-reviewer ISSUE (silent filter drop), fixed in-cycle; 0 other critical findings; all agents clean on final commit
+- **All findings addressed in-cycle; all agents clean on final commit**
+- **Positive signals:** (1) semantic-reviewer identified data-integrity gap from an otherwise-correct rule application; (2) test-writer / orchestrator tightened test to prevent regression; (3) observability fix (logging) is minimal and effective
+
+### No Rule Promotions This Cycle
+
+The "type-narrowing filter drops rows silently" pattern appeared once this cycle. Per agent-learner.md, rule promotion requires 2+ occurrences across different commits. **Pattern logged and moved to watch-list.** If the pattern recurs in a different feature's cast-safety filter application (count 2), the learner will propose a code-style.md addition (e.g., Section 5 sub-rule: "Any filter applied to external data must log the drop count when rows are omitted").
+
+---
+
+*End of learner cycle 2026-05-27 (late)*
+
+---
+
+## Learner Cycle — 2026-05-26 — #668 instance 2 /fullpush (merged via PR #680)
+
 - **Patterns tracked:** 3 watch-list patterns (counts 2 → monitor for count 3) + 2 process-deviation watch items (count 1, below)
 - **Deferred work:** GitHub issue **#677** filed for pre-existing rpc<T[]> sweep (progress.ts:76, analytics.ts:50/:75). #673 extended to name the 2 new RPCs (BX1–BX7). PR #676 merged to master (squash 9f40caae), 17/17 CI green, zero CodeRabbit PR comments.
 
