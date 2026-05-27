@@ -98,6 +98,24 @@ describe('getSubjectsWithCounts', () => {
     expect(result.find((s) => s.id === 's2')?.questionCount).toBe(1)
   })
 
+  it('sums string-encoded bigint counts numerically, not by concatenation', async () => {
+    // PostgREST serializes COUNT(*)::bigint as a JSON string; the helper coerces
+    // with Number() so '1' + '2' must total 3, not the '12' string artifact.
+    mockFromSequence({
+      data: [{ id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 }],
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: '1' },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: '2' },
+      ],
+      error: null,
+    })
+
+    const result = await getSubjectsWithCounts()
+    expect(result.find((s) => s.id === 's1')?.questionCount).toBe(3)
+  })
+
   it('returns empty array when no subjects exist', async () => {
     mockFromSequence({ data: [] })
     const result = await getSubjectsWithCounts()
