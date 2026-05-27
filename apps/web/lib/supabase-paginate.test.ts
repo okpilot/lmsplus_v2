@@ -94,4 +94,18 @@ describe('fetchAllRows', () => {
     expect(result.error).toBeNull()
     expect(getPage).not.toHaveBeenCalled()
   })
+
+  it.each([
+    0, -1, 1001,
+  ])('rejects an invalid pageSize (%i) without counting or paging', async (pageSize) => {
+    const getCount = vi.fn()
+    const getPage = vi.fn()
+
+    const result = await fetchAllRows(getCount, getPage, pageSize)
+
+    expect(result.data).toEqual([])
+    expect(result.error?.message).toMatch(/pageSize/i)
+    expect(getCount).not.toHaveBeenCalled()
+    expect(getPage).not.toHaveBeenCalled()
+  })
 })

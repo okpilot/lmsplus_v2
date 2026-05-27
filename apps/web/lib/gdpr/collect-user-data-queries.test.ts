@@ -42,7 +42,7 @@ describe('fetchUserSessionAnswers', () => {
     expect(mockFetchAllRows).not.toHaveBeenCalled()
   })
 
-  it('issues a single fetchAllRows call when sessionIds fit in one batch of 1000', async () => {
+  it('fetches answers in a single batch when sessionIds fit within 1000', async () => {
     const ids = Array.from({ length: 1000 }, (_, i) => `sess-${i}`)
     mockFetchAllRows.mockResolvedValueOnce({ data: [makeAnswer('sess-0', 0)], error: null })
 
@@ -53,7 +53,7 @@ describe('fetchUserSessionAnswers', () => {
     expect(result.error).toBeNull()
   })
 
-  it('issues two fetchAllRows calls when sessionIds just exceed one batch (1001 ids)', async () => {
+  it('splits sessionIds into multiple batches when they exceed 1000 (1001 ids)', async () => {
     const ids = Array.from({ length: 1001 }, (_, i) => `sess-${i}`)
     mockFetchAllRows
       .mockResolvedValueOnce({ data: [makeAnswer('sess-0', 0)], error: null })
@@ -87,7 +87,7 @@ describe('fetchUserSessionAnswers', () => {
     expect(result.error).toBeNull()
   })
 
-  it('issues two fetchAllRows calls for 1500 sessionIds', async () => {
+  it('splits 1500 sessionIds across multiple batches', async () => {
     const ids = Array.from({ length: 1500 }, (_, i) => `sess-${i}`)
     mockFetchAllRows
       .mockResolvedValueOnce({ data: [], error: null })

@@ -15,6 +15,12 @@ export async function fetchAllRows<T>(
   getPage: (from: number, to: number) => PromiseLike<PageResult<T>>,
   pageSize = 1000,
 ): Promise<{ data: T[]; error: { message: string } | null }> {
+  // Guard before the loop: pageSize <= 0 never advances `from`, hanging the request path;
+  // pageSize > 1000 silently truncates at PostgREST's max_rows cap. Fail fast either way.
+  if (!Number.isInteger(pageSize) || pageSize <= 0 || pageSize > 1000) {
+    return { data: [], error: { message: 'Invalid pageSize: expected integer 1..1000' } }
+  }
+
   const { count, error: countError } = await getCount()
   if (countError) return { data: [], error: countError }
 

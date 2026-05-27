@@ -88,8 +88,12 @@ export async function collectUserData(
     quiz_answers: answers,
     student_responses: responsesResult.data,
     fsrs_cards: fsrsResult.data,
-    // View columns typed nullable (Postgres artifact); safe to cast — underlying table has NOT NULL constraints.
-    flagged_questions: flagsResult.data as { question_id: string; flagged_at: string }[],
+    // View columns are typed nullable (Postgres view artifact); the backing table enforces NOT NULL,
+    // so this filter drops nothing in practice — it's a runtime guard against future view drift.
+    flagged_questions: flagsResult.data.filter(
+      (f): f is { question_id: string; flagged_at: string } =>
+        typeof f.question_id === 'string' && typeof f.flagged_at === 'string',
+    ),
     question_comments: commentsResult.data,
     user_consents: consentsResult.data,
     audit_events: auditResult.data.map((e) => ({
