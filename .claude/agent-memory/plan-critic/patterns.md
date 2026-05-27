@@ -126,6 +126,14 @@ Plans that add a universal `.order('id')` tiebreak across multiple tables for pa
 
 When a `fetchAllRows` helper is introduced, each paginated table requires TWO calls to `supabase.from(table)`: one count (head=true) call and one or more range calls. The existing `buildSupabaseClient` mock in `collect-user-data.test.ts` uses a Proxy that returns a single pre-configured `{ data, error }` for any method chain on a given table. It cannot return `{ count: N, error: null }` for the count call and `{ data: [...], error: null }` for the range call. The plan acknowledges this, but MUST specify the exact `mockFromSequence` / call-order dispatch approach (matching `quiz-report-questions.test.ts` pattern) before the test rewrite is considered scoped. The existing `buildSupabaseClient` helper needs a full redesign — it cannot be extended incrementally.
 
+### [2026-05-26] RPC test mocks: plan specifies client-object rpc mock but codebase canonical pattern is module mock
+
+When a quiz.ts-style file imports `{ rpc }` from `@/lib/supabase-rpc` and the plan says "add `rpc: mockRpc` to the `{ auth, from }` client mock object", the test will technically function — the live `rpc()` helper calls `(supabase as unknown as { rpc: RpcFn }).rpc(fn, args)` internally, so a client-level `rpc` mock is reached. However, the established codebase pattern (dashboard-stats.test.ts) mocks `@/lib/supabase-rpc` as a separate `vi.mock()` call and keeps the client mock as `{ from: mockFrom }` only. Plans must specify the module mock approach (`vi.mock('@/lib/supabase-rpc', ...)`) rather than the client-object approach to maintain pattern consistency. Both work; the module mock is the convention. First seen: #668 instance 3 (quiz.ts count function refactor).
+
+### [2026-05-26] Promise.all destructuring changes are implicit when helper returns unwrapped array
+
+When a plan replaces one branch of a `Promise.all` with a private helper that returns an unwrapped array (not `{data: ...}`), the current destructuring `const [{ data: aData }, { data: bData }] = await Promise.all(...)` must change to `const [{ data: aData }, bData] = await Promise.all(...)`. Plans that describe the helper's return type but do not explicitly state the destructuring change leave implementers to infer it. For functions like `getSubjectsWithCounts` where the existing Promise.all destructures both arms as `{data: X}`, this must be called out explicitly. First seen: #668 instance 3 (quiz.ts refactor).
+
 ## Positive Signals
 
 ### [2026-04-09] Base UI data attribute names correctly verified
