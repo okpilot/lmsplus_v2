@@ -81,6 +81,20 @@ export async function collectUserData(
     console.error('[collectUserData] quiz_session_answers query failed:', answersError.message)
   }
 
+  // View columns are typed nullable (Postgres view artifact); the backing table enforces NOT NULL,
+  // so this filter drops nothing in practice. If a future view change (e.g. a LEFT JOIN) introduces
+  // nulls, the dropped rows would silently shorten a legal export — the #668 failure mode — so log
+  // the count when it happens rather than returning a short section that looks complete.
+  const flaggedQuestions = flagsResult.data.filter(
+    (f): f is { question_id: string; flagged_at: string } =>
+      typeof f.question_id === 'string' && typeof f.flagged_at === 'string',
+  )
+  if (flaggedQuestions.length < flagsResult.data.length) {
+    console.error(
+      `[collectUserData] flagged_questions: dropped ${flagsResult.data.length - flaggedQuestions.length} row(s) with null fields — view drift?`,
+    )
+  }
+
   return {
     exported_at: new Date().toISOString(),
     user: userResult.data,
@@ -88,12 +102,7 @@ export async function collectUserData(
     quiz_answers: answers,
     student_responses: responsesResult.data,
     fsrs_cards: fsrsResult.data,
-    // View columns are typed nullable (Postgres view artifact); the backing table enforces NOT NULL,
-    // so this filter drops nothing in practice — it's a runtime guard against future view drift.
-    flagged_questions: flagsResult.data.filter(
-      (f): f is { question_id: string; flagged_at: string } =>
-        typeof f.question_id === 'string' && typeof f.flagged_at === 'string',
-    ),
+    flagged_questions: flaggedQuestions,
     question_comments: commentsResult.data,
     user_consents: consentsResult.data,
     audit_events: auditResult.data.map((e) => ({

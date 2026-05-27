@@ -406,6 +406,40 @@ describe('collectUserData', () => {
     })
   })
 
+  describe('flagged_questions runtime filter', () => {
+    it('drops flagged rows where question_id or flagged_at is null and logs the drop', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const supabase = buildSupabaseClient({
+        flagsData: [
+          { question_id: 'q-valid', flagged_at: '2026-03-01T10:00:00Z' }, // valid — kept
+          { question_id: null, flagged_at: '2026-03-01T10:00:00Z' }, // null question_id — dropped
+          { question_id: 'q-no-date', flagged_at: null }, // null flagged_at — dropped
+          { question_id: null, flagged_at: null }, // both null — dropped
+        ],
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.flagged_questions).toHaveLength(1)
+      expect(result.flagged_questions[0]!.question_id).toBe('q-valid')
+      expect(result.flagged_questions[0]!.flagged_at).toBe('2026-03-01T10:00:00Z')
+      // A silently shortened legal export is the #668 failure mode — the drop must be logged.
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('dropped 3 row(s)'))
+      consoleSpy.mockRestore()
+    })
+
+    it('keeps all flagged rows when every row has non-null question_id and flagged_at', async () => {
+      const supabase = buildSupabaseClient({
+        flagsData: [
+          { question_id: 'q-1', flagged_at: '2026-03-01T10:00:00Z' },
+          { question_id: 'q-2', flagged_at: '2026-03-02T10:00:00Z' },
+        ],
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.flagged_questions).toHaveLength(2)
+    })
+  })
+
   describe('pagination', () => {
     it('fetches all rows when a table exceeds one page', async () => {
       const responsesData = Array.from({ length: 2500 }, (_, i) => ({
