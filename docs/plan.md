@@ -1177,7 +1177,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 ### Instance #2: get_student_streak + get_student_last_practiced (LANDED 2026-05-26)
 
-**Commit:** `a6dc7a9c`
+**Commit:** `9f40caae`
 
 - New RPCs (mig 20260521000006):
   - `get_student_streak()` — current + best daily-practice streak (in days), gaps-and-islands over DISTINCT UTC response dates.
