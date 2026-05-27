@@ -187,6 +187,32 @@
 - docs/database.md: 2 RPC summary rows added after mastery row (L661-663). 2 signature sections added after mastery section (L2073, L2092). Both accurate vs migration body.
 - APPROVED — no findings.
 
+### 2026-05-26 — issue #668 instance #3: quiz.ts counts → get_question_counts RPC — APPROVED
+
+- fetchActiveQuestionCounts helper: rpc<QuestionCountRow[]> wrapper, error logged + returns [], Array.isArray guard. All per plan and §5.
+- getSubjectsWithCounts: Promise.all([easa_subjects, fetchActiveQuestionCounts]); destructure `countsData` directly (not wrapped); `Number(row.n)` sum per subject_id. Correct.
+- getTopicsForSubject: sequential reads (metadata then counts); subject_id filter in JS; no null-subtopic concern here (topic_id is always non-null). Correct.
+- getSubtopicsForTopic: sequential reads; `row.topic_id !== topicId || row.subtopic_id === null` guard on countMap.set — null rows skipped. Correct.
+- getTopicsWithSubtopics: Promise.all([easa_subtopics, fetchActiveQuestionCounts]); single loop builds topicCounts (all rows, null or not) + subtopicCounts (null rows skipped). Null-subtopic rows correctly contribute to topicCounts but not subtopicCounts. Behavioral equivalence with old two-query approach verified.
+- Type: QuestionCountRow { subject_id, topic_id, subtopic_id: string|null, n: number|string }. Old QuestionRefRow/QuestionTopicRow/QuestionSubtopicRow removed. Correct.
+- Tests: mockRpc hoisted via vi.hoisted; vi.mock('@/lib/supabase-rpc'); beforeEach default {data:[],error:null}. All 4 count describe blocks use mockRpc for counts + mockFromSequence for metadata only. Assertions unchanged. getRandomQuestionIds describe blocks untouched.
+- getTopicsWithSubtopics questionCount assertion: `n:1` + `n:1` (null subtopic) → topicCounts.get('t1')=2 → correct match to old `{ topic_id:'t1' }, { topic_id:'t1' }` data.
+- Positive signal: null-subtopic guard (`if (row.subtopic_id !== null)`) correctly applied before Map.set in both getSubtopicsForTopic and getTopicsWithSubtopics.
+- APPROVED — no findings.
+
+### 2026-05-26 — issue #668 instance #3 follow-up: tests + comment + docs — APPROVED
+
+- 5 new Vitest tests: 4 × RPC-error-path (one per public count function) + 1 × non-array-payload guard (on getSubjectsWithCounts, shared guard).
+- Test names are behavior-focused ("returns empty array when the counts RPC fails", "returns empty array when the counts RPC returns a non-array payload") — no impl-detail leakage per code-style §7. RPC name in describe titles is integration-boundary contract — permitted.
+- consoleSpy prefix verified against production line 56: `'[fetchActiveQuestionCounts] get_question_counts error:'`. Second argument is `error.message` (`'rpc boom'`) — matches mock `{ message: 'rpc boom' }`. Exact.
+- Non-array guard test logic verified: `Array.isArray({ unexpected: true }) = false` → `fetchActiveQuestionCounts` returns `[]` → countMap empty → all subjects get questionCount 0 → filtered out → `[]`. Correct.
+- getTopicsWithSubtopics error test: two `mockFromSequence` calls (topics + subtopics via Promise.all), RPC fails → topicCounts empty → `.filter(t => t.questionCount > 0)` → `[]`. Correct.
+- QuestionCountRow.n comment accurate: BIGINT from PostgREST can serialize as string, Number() coercion required at every read site.
+- docs/database.md: RPC summary row updated to list quiz.ts as consumer; `get_question_counts` section prose updated to name quiz.ts at the `'active'` p_status bullet. No false claims.
+- docs/plan.md: instance #3 accurately described as PR-pending / not merged; 7/12 P0 count correct (dashboard ×3, dashboard-stats ×2, progress ×1, quiz subject counts ×1); no auto-close token in doc text.
+- No production logic changed (only a type comment); no `any`; tests co-located in quiz.test.ts (no __tests__/).
+- APPROVED — no findings.
+
 ### 2026-05-26 — issue #540 CodeRabbit doc+error-path fixes (PR #674) — APPROVED
 
 - design.md Scoping bullet: corrected from "no manual scoping, no auth preamble" to "RLS + an explicit numerator predicate" with `sr.student_id = auth.uid()`. Wording verified against migration `20260521000005_student_mastery_stats_rpc.sql` — correct_q CTE has `WHERE sr.student_id = auth.uid()` at line 68. security.md §11 reference is accurate (`student_responses` has `instructors_read_students` policy that OR-combines with the student policy).

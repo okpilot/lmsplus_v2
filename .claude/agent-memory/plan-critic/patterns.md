@@ -118,6 +118,14 @@ When a production function makes TWO calls to `supabase.from('questions')` seque
 
 Tests "computes current streak" (L321), "breaks streak on gap day" (L347), and "tracks best streak separately" (L372) in dashboard.test.ts all set streak-bearing `data` arrays inside the `student_responses` branch of mockFrom. After the refactor, `getStreakData` calls `get_student_streak` RPC — not `.from('student_responses')`. The `data` field in the student_responses mockFrom will be ignored (only `count` is used by getTotalAnswered/getQuestionsToday). These three tests will silently pass with whatever default mockRpc returns (currently `{ data: [], error: null }` → currentStreak: 0, bestStreak: 0), producing wrong assertions unless the tests are rewritten to supply streak data via mockRpc dispatch. The plan lists this as "remove dead questions branch" but does not name the three dead student_responses data arrays or state they must be converted to mockRpc entries.
 
+### [2026-05-26] RPC test mocks: plan specifies client-object rpc mock but codebase canonical pattern is module mock
+
+When a quiz.ts-style file imports `{ rpc }` from `@/lib/supabase-rpc` and the plan says "add `rpc: mockRpc` to the `{ auth, from }` client mock object", the test will technically function — the live `rpc()` helper calls `(supabase as unknown as { rpc: RpcFn }).rpc(fn, args)` internally, so a client-level `rpc` mock is reached. However, the established codebase pattern (dashboard-stats.test.ts) mocks `@/lib/supabase-rpc` as a separate `vi.mock()` call and keeps the client mock as `{ from: mockFrom }` only. Plans must specify the module mock approach (`vi.mock('@/lib/supabase-rpc', ...)`) rather than the client-object approach to maintain pattern consistency. Both work; the module mock is the convention. First seen: #668 instance 3 (quiz.ts count function refactor).
+
+### [2026-05-26] Promise.all destructuring changes are implicit when helper returns unwrapped array
+
+When a plan replaces one branch of a `Promise.all` with a private helper that returns an unwrapped array (not `{data: ...}`), the current destructuring `const [{ data: aData }, { data: bData }] = await Promise.all(...)` must change to `const [{ data: aData }, bData] = await Promise.all(...)`. Plans that describe the helper's return type but do not explicitly state the destructuring change leave implementers to infer it. For functions like `getSubjectsWithCounts` where the existing Promise.all destructures both arms as `{data: X}`, this must be called out explicitly. First seen: #668 instance 3 (quiz.ts refactor).
+
 ## Positive Signals
 
 ### [2026-04-09] Base UI data attribute names correctly verified
