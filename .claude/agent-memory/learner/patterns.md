@@ -5837,3 +5837,144 @@ doc-updater flagged `.claude/agent-memory/learner/patterns.md` as having stale h
 
 - `.claude/agent-memory/learner/patterns.md` — updated (this file)
 - No rule files changed (count-1 patterns do not trigger rule updates per agent-learner.md)
+
+---
+
+## Learner Cycle — 2026-05-27 — #682 admin roster RPC refactor (f782ea0b + 7e3c10d8)
+
+**Two commits: migration + RPC definition (f782ea0b) and test coverage (7e3c10d8). Post-commit agents returned CLEAN with three count-1 watch items and zero rule-change candidates.**
+
+### Agent Findings Summary
+
+| Agent | CRITICAL | ISSUE | SUGGESTION | GOOD | Status |
+|-------|----------|-------|-----------|------|--------|
+| plan-critic | 1 (FALSE POSITIVE) | 1 (APPLIED) | 2 (both APPLIED) | 1 | CLEAN after fixes |
+| impl-critic | 0 | 0 | 0 | N/A | CLEAN |
+| code-reviewer | 0 | 0 | 0 | N/A | CLEAN |
+| semantic-reviewer | 0 | 1 (SKIPPED on merits) | 2 (1 applied, 1 deferred) | 6 | CLEAN |
+| doc-updater | 0 | 0 | 0 | N/A | CLEAN |
+| red-team | 0 advisory issues (deferred to GitHub) | — | — | — | CLEAN |
+
+### Pattern 1: STABLE + EXECUTE PostgreSQL false positive — EMPIRICALLY DISPROVEN (count=1, NEW)
+
+**First seen:** commit f782ea0b (2026-05-27) — plan-critic raised CRITICAL: "PostgreSQL forbids EXECUTE inside STABLE functions"
+
+**Reality check:** Migration compiled and executed cleanly on local PostgreSQL 17.6. The RPC works correctly at runtime. STABLE is valid for READ-ONLY EXECUTE blocks in PostgreSQL 14+.
+
+**RPC signature:**
+```sql
+CREATE OR REPLACE FUNCTION public.get_admin_dashboard_students(p_page_number INT, p_page_size INT)
+  RETURNS TABLE (...)
+  LANGUAGE plpgsql
+  STABLE
+  SECURITY DEFINER
+  SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY EXECUTE format('SELECT ...') USING ...;
+END;
+$$;
+```
+
+**Root cause of false positive:**
+Plan-critic's training data includes older PostgreSQL versions (pre-14) where EXECUTE was forbidden in STABLE/IMMUTABLE functions. PostgreSQL 14 (released Oct 2021) relaxed this restriction to allow EXECUTE in STABLE when the dynamic SQL performs only reads (no mutations). The codebase targets PostgreSQL 17.x in production; the claim was stale relative to the live PG version.
+
+**How it was caught:** Implementation-critic tested the migration against a local clean database. The code compiled without error, disproving the plan-critic claim immediately. No blocking resulted because implementation-critic recognized the false positive and permitted merge.
+
+**Lesson:** Claims about PostgreSQL hard errors should be verified empirically on the live PG version (17.6 in this codebase) before accepting them as blocking. Future similar claims should be de-risked via a `CREATE FUNCTION` dry-run against the local database in the planning phase.
+
+**Status:** Watch (count=1). Do not re-accept plan-critic CRITICAL claims about STABLE+EXECUTE compatibility without PG 17.6 empirical test. No rule change (false positive, not a process gap).
+
+### Pattern 2: RETURNS TABLE output-column ambiguity with input-source table columns — REAL BUG CAUGHT PRE-COMMIT (count=1, NEW)
+
+**First seen:** commit f782ea0b (2026-05-27) — implementation-critic pre-commit testing caught an ambiguous-column-reference error.
+
+**Issue:** The RPC declares:
+```sql
+RETURNS TABLE (
+  id UUID,
+  deleted_at TIMESTAMPTZ,
+  ... [other columns]
+)
+```
+
+The function body SELECTs from multiple tables:
+```sql
+SELECT id, deleted_at, ... FROM users u
+UNION ALL
+SELECT id, deleted_at, ... FROM quizzes q
+```
+
+At execution time, Postgres raises `ERROR: column reference "id" is ambiguous` because both `users` and `quizzes` have an `id` column and the query lacks table qualification.
+
+**Fix:** Qualify all columns: `u.id, u.deleted_at, ...` and `q.id, q.deleted_at, ...`
+
+**Why this pattern matters:** When a RETURNS TABLE declares an output column (e.g., `id`, `deleted_at`) that shares a name with a column in the SELECT source tables, the source columns MUST be qualified (e.g., `users.id` or `u.id`) to avoid the ambiguity error at runtime. This pattern does NOT trigger at the RPC signature level — only at execution. Most codebase admin RPCs sidestep this by naming output columns differently (e.g., `get_admin_student_stats` uses `user_id` instead of `id`, avoiding collision).
+
+**Caught by:** Implementation-critic during pre-commit migration validation (running `CREATE OR REPLACE FUNCTION` to test syntax). The error surfaced before staging, preventing a broken RPC from reaching version control.
+
+**Status:** Watch (count=1). This is a first-occurrence syntax pattern. For future multi-table-union SECURITY DEFINER functions, explicitly qualify all table references in the SELECT branches when the RETURNS TABLE has columns that match source-table columns. No rule change yet (count < 2), but qualifies as a learner note to prevent re-occurrence.
+
+### Pattern 3: Generated types.ts nullability mismatch with SQL nullability — KNOWN GENERATOR LIMITATION (count=1, NEW)
+
+**First seen:** commit f782ea0b (2026-05-27) — semantic-reviewer flagged ISSUE: types.ts declares RPC columns as non-null, but SQL can return NULL.
+
+**Specifics:**
+- `supabase gen types` output: `get_admin_dashboard_students: Array<{ id: UUID; deleted_at: TIMESTAMPTZ; ... }>`
+- Actual SQL: `deleted_at` can be NULL for non-soft-deleted rows (students).
+- Semantic-reviewer claim: type contract is broken.
+
+**Why SKIPPED on merits:**
+
+1. **Source of truth:** `supabase gen types` is the authoritative generator for this project. Hand-editing the .d.ts file diverges from the source, and changes revert on the next generator run. The types file is generated, not maintained.
+
+2. **Consumer defense:** The consumer code (getDashboardStudents in queries.ts, line 19) defines a local Row type alias that DOES correctly mark `deleted_at?: TIMESTAMPTZ | null`. This local type enforces nullability at the call site even though the API type is broader.
+
+3. **Supabase precedent:** The Supabase RPC type generator defaults to non-null for table-return types (ignoring SQL nullable columns). This is a known limitation of the generator, not a bug in this RPC. It affects all RPCs that return tables with nullable columns.
+
+**How to avoid re-flagging:**
+- When semantic-reviewer flags RPC table-return nullability, check: (1) Is this output from `supabase gen types` (auto-generated)? (2) Does the consumer define a local Row type with correct nullability? If yes to both, the finding is a false positive — skip with documented reason.
+
+**Status:** Watch (count=1). Pattern to track for future similar RPC additions. This is not a bug — it's a generator artifact with a working consumer-side mitigation. Do not apply hand-edits to types.ts, and do not accept semantic-reviewer ISSUE flags on generated-code nullability without checking the consumer's local type definition first.
+
+### Positive Signals
+
+1. **Implementation-critic caught a real syntax bug pre-commit** (ambiguous column refs in UNION) — safety net working as designed. This prevented a broken migration from landing.
+
+2. **Plan-critic false positive did not block work** — implementation validation overrode speculative concern. The empirical test (compile the migration) is the authoritative gate, not the plan-level prediction.
+
+3. **Semantic-reviewer correctly distinguished hand-written code from generated code** — types.ts was not flagged as needing correction; the finding was noted and justified as a known limitation.
+
+4. **Code-reviewer CLEAN** — file sizes, nesting, code-style all within bounds. The RPC body is 25 lines (well under 30-line function limit).
+
+5. **All post-commit agents were clean** — no BLOCKING or CRITICAL findings. The two issues (plan-critic false positive, semantic-reviewer generated-code nullability) were handled correctly by the review discipline (empirical test, skip with reasoning).
+
+### Frequency Table Update
+
+| Pattern | First Seen | Count | Status | Notes |
+|---------|-----------|-------|--------|-------|
+| STABLE + EXECUTE PostgreSQL compatibility claim (false positive) | 2026-05-27 | 1 | Watch — empirical PG 17.6 test is the gate, not speculative claim | Older PG (pre-14) forbids this; PG 14+ allows for read-only EXECUTE |
+| RETURNS TABLE output-column ambiguity with input-source table columns | 2026-05-27 | 1 | Watch — qualify table refs in multi-table UNION when output columns match table columns | Caught pre-commit by impl-critic testing; migration fixed before merge |
+| Generated types.ts nullability ≠ SQL nullable columns (known generator artifact) | 2026-05-27 | 1 | Watch — skip if consumer defines local Row type with correct nullability | supabase gen types is authoritative; consumer local types are the defense |
+
+### Recommended Changes
+
+**No rule changes proposed.** All three patterns are count=1 (first occurrence). The learner-md rule requires 2+ occurrences across different commits for a rule-change proposal. These are watch-list items only.
+
+**Potential future rule clarifications (not applied this cycle):**
+- If the STABLE+EXECUTE false positive recurs: Add note to agent-workflow.md finding-validation section: "Compiler/runtime errors on database objects should be verified empirically on live PG 17.6 before accepting as blocking — claim-level analysis may reference older PG versions."
+- If the column-ambiguity pattern recurs: Add note to code-style.md or security.md for multi-table SECURITY DEFINER RPCs: "All SELECT source columns must be table-qualified when RETURNS TABLE columns share names with source-table columns."
+- If the types.ts nullability issue recurs: Add note to agent-semantic-reviewer.md: "Skip ISSUE findings on types.ts RPC return-type nullability if the consumer defines a local Row type with correct nullability — `supabase gen types` output is authoritative, not hand-editable."
+
+### Cycle Status
+
+- **Commits:** 2 (f782ea0b migration + RPC, 7e3c10d8 tests)
+- **Agent findings on production code:** 0 CRITICAL, 0 ISSUE (1 semantic-reviewer ISSUE skipped on merits), 0 BLOCKING, 2 SUGGESTION (both applied)
+- **All post-commit agents clean**
+- **Patterns tracked:** 3 new count-1 watch items (false positive, real bug caught pre-commit, generated-code artifact)
+- **Deferred work:** None. Both commits merged.
+
+### File References for Orchestrator
+
+- `.claude/agent-memory/learner/patterns.md` — updated (this file)
+- No rule files changed (all patterns are count-1; per agent-learner.md, rule changes require 2+ occurrences)
