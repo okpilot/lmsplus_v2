@@ -4,6 +4,28 @@
 
 ## Session Log
 
+### 2026-05-27 — PR #681 full-branch sweep (fix/668-gdpr-export-pagination) — GDPR pagination
+- **Files reviewed:** apps/web/lib/supabase-paginate.ts, apps/web/lib/gdpr/collect-user-data-queries.ts, apps/web/lib/gdpr/collect-user-data.ts, and 3 test files
+- **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 8
+
+**ISSUE — stale test comment describes null-guard that no longer exists**
+- `collect-user-data.test.ts:402`: `// answersResult.data is null, so ?? [] fallback is exercised` — the old production code had `answersResult.data ?? []`. New production code has `answers = answersResult.data` directly (no `?? []`) because `fetchUserSessionAnswers` always returns `data: AnswerRow[]`, never null. The test passes for the right reason (error → `data: []`) but the comment is stale and will confuse future readers or prompt a wrong re-addition of the `?? []` guard. Pattern: stale comments that describe removed fallbacks persist through refactors because they don't cause test failures. Lesson: when removing a `?? []` fallback, audit all test comments that mention the fallback.
+
+**SUGGESTION — fsrs_cards single-column order (id only) lacks explanatory comment**
+- Unlike other builders that use a semantic sort + id tiebreak, `fetchUserFsrsCards` orders by `id` only. Correct (id is UUID PK, total order), but deviates from the pattern of the other 7 builders. A comment explaining the deviation would prevent future "add created_at sort" changes that would be wrong.
+
+**SUGGESTION — fetchAllRows data:T[] non-null invariant is implicit**
+- `collectUserData` calls `.map()` and `.filter()` directly on results of fetchAllRows without null-guards. Safe because fetchAllRows always returns `data: T[]`, but this invariant is not documented. A JSDoc note or making the return type explicit (not `T[] | null`) would self-document the contract.
+
+**Positive pattern — count/page filter consistency across 8 builders: all correct**
+- All 8 builders pass count/page filter consistency. Soft-delete filters applied exactly where the column exists. No mismatch found. Pattern: building all reads from a single `fetchAllRows` abstraction enforces structural consistency.
+
+**Positive pattern — empty-on-error contract consistently enforced at all 3 layers**
+- fetchAllRows, fetchUserSessionAnswers, and collectUserData all return `data: []` on error and never return partial results. The GDPR "silently truncated" failure mode is addressed at every level.
+
+**Pattern to watch — test comments survive refactors that remove the code they describe**
+- Count=2 (PR #523 stale JSON.stringify/typeof guard comment survived round-9 rename; PR #681 stale `?? []` comment survived removal of the guard). Standard when refactoring removes a code path: audit nearby test comments for references to the removed path.
+
 ### 2026-05-26 — commit 5d1410c7 (fix(queries,docs): fail-fast on subject/topic read errors + correct scoping doc (#540))
 - **Files reviewed:** apps/web/lib/queries/progress.ts, apps/web/lib/queries/dashboard.ts, .spec-workflow/specs/student-mastery-stats-rpc/design.md, supabase/migrations/20260521000005_student_mastery_stats_rpc.sql
 - **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 5

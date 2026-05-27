@@ -187,6 +187,36 @@
 - docs/database.md: 2 RPC summary rows added after mastery row (L661-663). 2 signature sections added after mastery section (L2073, L2092). Both accurate vs migration body.
 - APPROVED — no findings.
 
+### 2026-05-27 — issue #668 PR C test file: dead buildAnswersClient helper causes Biome pre-commit failure — ISSUE
+
+- `buildAnswersClient` (147 lines, test file lines 35–181) built a full Supabase proxy to simulate `.in()` batch tracking, but was never called — all 7 tests switched to the simpler `vi.hoisted` + `mockFetchAllRows` mock approach.
+- Biome reported 7 lint errors (`noUnusedVariables` ×4, `noUnusedFunctionParameters` ×1, `useConst` ×1, format ×1) — would have failed the pre-commit hook.
+- Pattern: dead helper from an earlier design draft survives when the approach is refactored mid-implementation. Identical failure mode to session 2026-04-11 (queries.test.ts unused `buildChain`).
+- Watch for: any test file containing a large helper function (proxy-builder, client factory, chain-builder) — grep for call sites before committing. If the helper is only referenced in its own definition, delete it.
+- Count: 2 occurrences (2026-04-11 + 2026-05-27). Pattern is now confirmed recurring — add to pre-commit mental checklist.
+
+### 2026-05-27 — issue #668 PR C: GDPR export pagination (collect-user-data + supabase-paginate) — APPROVED
+
+- fetchAllRows loop: `for (from=0; from<total; from+=pageSize)` with `to=Math.min(from+pageSize,total)-1`. Exact-multiple boundary verified (total=4, pageSize=2 → 2 calls, no third). Can't infinite-loop (total is fixed, from grows by pageSize each iteration, loop terminates at from>=total).
+- All 8 list reads routed through fetchAllRows — quiz_sessions, student_responses, fsrs_cards, active_flagged_questions, question_comments, user_consents, audit_events (all via named fetchUser* helpers), quiz_session_answers (chunked in fetchUserSessionAnswers). users read stays .single(). No read left un-paginated.
+- active_flagged_questions: view already filters deleted_at IS NULL (migration 20260323000051). Count and page queries add no extra deleted_at filter — correct, consistent. Order uses .order('question_id') tiebreak (no id column on the composite-PK table/view).
+- student_responses / fsrs_cards / quiz_session_answers / user_consents: none have deleted_at — queries correctly omit the filter.
+- sessionsResult.data used directly (no ?? fallback) — correct; fetchAllRows return type guarantees data: T[] (never null).
+- Phase-2 chunk size = 1000 exactly matching the .in() URI limit; empty sessionIds guarded before the loop. An error in any batch breaks early and is logged.
+- Error logging: simplified from `'error' in result && result.error` to `result.error` — safe because fetchAllRows always returns the {data, error} envelope (data is never absent from the type). answers error logged separately.
+- audit_events: only SELECTed, never mutated. Immutability rule preserved.
+- File sizes: collect-user-data-queries.ts 191 lines (max 200), collect-user-data.ts 90 lines (max 200), supabase-paginate.ts 30 lines (max 200). All within limits.
+- Positive signal: count-query filters (deleted_at IS NULL, student_id equality) exactly mirror page-query filters in all 8 helpers — a count/page filter mismatch would cause pagination to fetch wrong or excess rows.
+- APPROVED — no findings.
+
+### 2026-05-27 — issue #668 PR #681 CodeRabbit fixes: pageSize guard + runtime type-guard + test titles — APPROVED
+
+- pageSize guard (`supabase-paginate.ts`): `!Number.isInteger(pageSize) || pageSize <= 0 || pageSize > 1000`. Boundary verified: 1000 passes (allowed), 1001 rejected, 0 rejected, -1 rejected. Returns empty-on-error `{ data: [], error: { message: '...' } }` shape — does not throw. Consistent with empty-on-error contract used by all other early-return paths.
+- Regression tests (`supabase-paginate.test.ts`): `it.each([0, -1, 1001])` — correct set. 1000 correctly absent (valid value). Both `getCount` and `getPage` asserted not called. Error message asserted via `/pageSize/i` regex — matches guard output.
+- Runtime type-guard (`collect-user-data.ts`): `.filter((f): f is { question_id: string; flagged_at: string } => typeof f.question_id === 'string' && typeof f.flagged_at === 'string')`. `FlagRow` source type has both fields as `string | null`. `typeof null === 'object'` so the `=== 'string'` check correctly excludes nulls. Result type assignable to `GdprExportPayload['flagged_questions']`. Predicate return type matches the narrowed element type exactly.
+- Test title renames (`collect-user-data-queries.test.ts`): all 3 internal-helper names (`fetchAllRows`) removed from `it(...)` titles. New titles describe observable batch-splitting behavior. Rule: code-style.md §7 prohibition on impl-detail names in it() titles.
+- Positive signal: pageSize=1000 boundary is the critical one (PostgREST cap) — implementation treats it as valid, which is correct. The guard's comment explains both failure modes (loop non-termination for <=0, silent truncation for >1000).
+
 ### 2026-05-26 — issue #668 instance #3: quiz.ts counts → get_question_counts RPC — APPROVED
 
 - fetchActiveQuestionCounts helper: rpc<QuestionCountRow[]> wrapper, error logged + returns [], Array.isArray guard. All per plan and §5.
@@ -211,6 +241,15 @@
 - docs/database.md: RPC summary row updated to list quiz.ts as consumer; `get_question_counts` section prose updated to name quiz.ts at the `'active'` p_status bullet. No false claims.
 - docs/plan.md: instance #3 accurately described as PR-pending / not merged; 7/12 P0 count correct (dashboard ×3, dashboard-stats ×2, progress ×1, quiz subject counts ×1); no auto-close token in doc text.
 - No production logic changed (only a type comment); no `any`; tests co-located in quiz.test.ts (no __tests__/).
+- APPROVED — no findings.
+
+### 2026-05-27 — issue #668 PR #681 follow-up: comment/test-naming fixes (PR-sweep) — APPROVED
+
+- 6-line diff: 1 inline comment (`collect-user-data-queries.ts`), 2 JSDoc lines (`supabase-paginate.ts`), 1 `it(...)` title rename + 2 comment lines (`collect-user-data.test.ts`). Zero runtime/logic changes.
+- Renamed test title verified behavior-first: "returns empty quiz_answers when the phase-2 answers query fails" — names observable outcome + triggering condition, no internal helper names. Passes code-style.md §7.
+- `@returns` JSDoc verified against all 4 return paths of `fetchAllRows`: invalid-pageSize path, countError path, page-error path, success path — all return `data: T[]` (never null). Factually accurate.
+- `fsrs_cards` `.order('id')` comment verified: table has `id UUID PRIMARY KEY` and no stable temporal sort column (`updated_at` is mutable, not suitable for stable pagination order). Comment accurate.
+- No test assertions changed — only the `it(...)` title and two comment lines.
 - APPROVED — no findings.
 
 ### 2026-05-26 — issue #540 CodeRabbit doc+error-path fixes (PR #674) — APPROVED

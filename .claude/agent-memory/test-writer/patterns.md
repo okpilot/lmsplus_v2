@@ -4563,3 +4563,62 @@ in production (`tQuestions.length`, which is built from `qByTopic` which only in
 
 Applied in: `apps/web/lib/queries/progress.test.ts` commit `efbc6c11`.
 
+### Testing sessionId-chunking in fetchUserSessionAnswers (2026-05-27)
+
+`fetchUserSessionAnswers` loops over `sessionIds` in batches of 1000 and calls `fetchAllRows`
+once per batch. To test the chunking without a full Supabase proxy:
+
+**Mock `@/lib/supabase-paginate` at module scope** so `fetchAllRows` is a `vi.fn()`. Then:
+- Assert `toHaveBeenCalledTimes(N)` to prove the correct number of batches were issued.
+- Use `mockResolvedValueOnce` chains to supply per-batch results.
+- Assert total `result.data.length` for accumulation correctness.
+- Assert early-exit on error: when batch K fails, `mockFetchAllRows` call count equals K+1
+  (not 3), and `result.data === []`.
+
+Boundary cases to cover:
+- `ids.length === 0` → 0 calls, empty result
+- `ids.length === 1000` → 1 call (exact boundary, no second batch)
+- `ids.length === 1001` → 2 calls (just over the boundary)
+- `ids.length === 2500` → 3 calls, 2500 accumulated rows
+- `ids.length === 2000` (two full batches) → 2 calls, 2000 rows
+- Mid-batch error → 0 accumulated rows, error propagated, no further batch calls
+
+```ts
+const { mockFetchAllRows } = vi.hoisted(() => ({
+  mockFetchAllRows: vi.fn<
+    Parameters<typeof import('../supabase-paginate').fetchAllRows>,
+    ReturnType<typeof import('../supabase-paginate').fetchAllRows>
+  >(),
+}))
+
+vi.mock('@/lib/supabase-paginate', () => ({
+  fetchAllRows: mockFetchAllRows,
+}))
+```
+
+Applied in: `apps/web/lib/gdpr/collect-user-data-queries.test.ts` (2026-05-27, #668).
+
+### Runtime type-guard filter tests: mix valid + null-field rows (2026-05-27)
+
+When production code applies a `filter((row): row is T => typeof row.field === 'string' && ...)` to narrow a nullable view type to a non-nullable payload type, always add a test that supplies a mixed array containing: one fully-valid row, one row with the first field null, one row with the second field null, and one row with all fields null. Assert only the valid row survives.
+
+Also add a complementary test confirming that all rows are kept when all rows are valid (the filter must not accidentally drop good data).
+
+```ts
+it('drops flagged rows where question_id or flagged_at is null', async () => {
+  const supabase = buildSupabaseClient({
+    flagsData: [
+      { question_id: 'q-valid', flagged_at: '2026-03-01T10:00:00Z' }, // kept
+      { question_id: null,      flagged_at: '2026-03-01T10:00:00Z' }, // dropped
+      { question_id: 'q-no-date', flagged_at: null },                  // dropped
+      { question_id: null,      flagged_at: null },                    // dropped
+    ],
+  })
+  const result = await collectUserData(supabase, USER_ID)
+  expect(result.flagged_questions).toHaveLength(1)
+  expect(result.flagged_questions[0]!.question_id).toBe('q-valid')
+})
+```
+
+Applied in: `apps/web/lib/gdpr/collect-user-data.test.ts` (2026-05-27, #668 commit 9fa82a9).
+
