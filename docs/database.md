@@ -2069,10 +2069,10 @@ Returns up to `p_count` random question IDs from the active, org-scoped, subject
 - `p_subject_id UUID` — required.
 - `p_topic_ids UUID[]` — `NULL` = unconstrained on topic dimension; `'{}'` (empty array) = matches nothing on topic dimension; non-empty array = `q.topic_id = ANY (p_topic_ids)`.
 - `p_subtopic_ids UUID[]` — same semantics as `p_topic_ids`. The two dimensions are combined with `OR`, so a question matching either is in the pool (this preserves leaf-topic questions whose `subtopic_id` is `NULL`).
-- `p_count INT` — maximum number of IDs to return. `LIMIT GREATEST(p_count, 0)` clamps negatives to zero.
+- `p_count INT` — maximum number of IDs to return. `LIMIT LEAST(GREATEST(p_count, 0), 500)` clamps negatives to zero AND caps at 500 (defense in depth — mirrors the Zod schema in `apps/web/app/app/quiz/actions/start.ts`; prevents a direct RPC caller from bypassing the Server Action with an arbitrarily large value).
 - `p_filters TEXT[]` — `NULL` or `'{}'` = no per-user filter; non-empty subset of `{'unseen', 'incorrect', 'flagged'}` = union of matches (a question passes if it matches ANY active filter).
 
-**Returns:** `TABLE(id UUID)` — up to `p_count` rows, sampled via `ORDER BY random() LIMIT p_count` over the helper's pool.
+**Returns:** `TABLE(id UUID)` — up to `LEAST(p_count, 500)` rows, sampled via `ORDER BY random() LIMIT LEAST(GREATEST(p_count, 0), 500)` over the helper's pool.
 
 **Volatility:** `VOLATILE` (because `random()` is volatile).
 

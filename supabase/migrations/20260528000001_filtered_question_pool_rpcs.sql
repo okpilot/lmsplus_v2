@@ -91,7 +91,12 @@ AS $$
   SELECT p.id
   FROM public._filtered_question_pool(p_subject_id, p_topic_ids, p_subtopic_ids, p_filters) p
   ORDER BY random()
-  LIMIT GREATEST(p_count, 0)
+  -- Server-side cap of 500 mirrors the Zod schema in apps/web/app/app/quiz/actions/start.ts.
+  -- Defense in depth: the RPC is GRANT EXECUTE TO authenticated, so a direct caller could
+  -- bypass the Server Action's Zod validation and pass an arbitrarily large p_count.
+  -- LEAST(..., 500) prevents an unbounded ORDER BY random() workload (CLAUDE.md "never
+  -- trust client input"). 500 matches the canonical max quiz size.
+  LIMIT LEAST(GREATEST(p_count, 0), 500)
 $$;
 
 ---------------------------------------------------------------------------
@@ -128,7 +133,7 @@ COMMENT ON FUNCTION public._filtered_question_pool(uuid, uuid[], uuid[], text[])
   'Internal: active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) question pool. SECURITY INVOKER; filters scope student_id = auth.uid() (§3). Used by get_random_question_ids and get_filtered_question_counts so count == quiz (#678/#679/#668). Prefer the wrapper RPCs over calling directly (direct calls may hit the PostgREST 1000-row cap).';
 
 COMMENT ON FUNCTION public.get_random_question_ids(uuid, uuid[], uuid[], int, text[]) IS
-  'Up to p_count random IDs from the filtered question pool. Server-side ORDER BY random() avoids the 1000-row cap that biased client-side sampling (#679/#668).';
+  'Up to LEAST(p_count, 500) random IDs from the filtered question pool. Server-side ORDER BY random() avoids the 1000-row cap that biased client-side sampling (#679/#668); the 500 cap (mirroring the Zod schema in start.ts) prevents a direct caller from bypassing the Server Action with an arbitrarily large p_count.';
 
 COMMENT ON FUNCTION public.get_filtered_question_counts(uuid, uuid[], uuid[], text[]) IS
   'Per-(topic, subtopic) counts over the filtered question pool. Total = sum(n). Replaces client-side counting that truncated at the 1000-row cap (#678/#668).';

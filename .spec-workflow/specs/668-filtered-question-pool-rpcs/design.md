@@ -76,7 +76,7 @@ AS $$
   SELECT p.id
   FROM public._filtered_question_pool(p_subject_id, p_topic_ids, p_subtopic_ids, p_filters) p
   ORDER BY random()
-  LIMIT GREATEST(p_count, 0)
+  LIMIT LEAST(GREATEST(p_count, 0), 500)  -- defense in depth: mirrors Zod cap in start.ts
 $$;
 ```
 
