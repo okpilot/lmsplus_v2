@@ -109,7 +109,7 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
   - File: `packages/db/tests/vfr-rt-exam.spec.ts` (new)
   - Cover every RPC error path + each acceptance criterion under R2/R3/R4/R6 from `requirements.md`. Include parity test for `normalize_answer` (SQL) vs `normalizeAnswer` (TS).
   - **Explicit diacritic test**: assert `SELECT normalize_answer('Č') = 'č'` (NOT `'c'`) — guards against accidental locale-driven diacritic folding (the Postgres `lower()` function folds differently under `tr_TR` than under `C.UTF-8` / `en_US.UTF-8`).
-  - **Idempotency re-submit test**: assert that submitting the same `batch_submit_quiz` payload twice returns DO NOTHING on the second call (no duplicate row) — guards mig 084/084b regression on the new constraint.
+  - **Constraint migration regression test**: assert that submitting the same `batch_submit_quiz` payload twice (existing PPL `mock_exam` / `internal_exam` / `smart_review` / `quick_quiz` modes) returns DO NOTHING on the second call (no duplicate row) — guards against mig 084/084b breaking existing answer-submission idempotency.
   - _Leverage: existing test infra patterns in `packages/db/tests/`_
   - _Requirements: R2, R3, R4, R6, NFR-Security, NFR-Reliability_
 
@@ -208,7 +208,7 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
 
 - [ ] **E.2 Red-team review + spec mapping**
   - Run the red-team agent post-commit (mig diffs trigger it). The agent maps changes to existing redteam specs; file GitHub Issues for any coverage gaps.
-  - Specifically verify: no `canonical_answer` / `blanks_config` leak via PostgREST SELECT for students; no cross-student `quiz_session_answers.response_text` read; vfr_rt_exam mode honors the existing #611-territory exam-score-forgery defenses (depends on mig 082 shipping first OR explicit acceptance of residual vector).
+  - Specifically verify: no `canonical_answer` / `blanks_config` leak via PostgREST SELECT for students; no cross-student `quiz_session_answers.response_text` read; vfr_rt_exam mode honors the existing #611-territory exam-score-forgery defenses (mig 082 will have shipped per the Prerequisites section — no other path is accepted).
   - _Requirements: NFR-Security_
 
 - [ ] **E.3 Pre-push PR sweep**

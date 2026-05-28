@@ -15,7 +15,7 @@ The only fundamentally new piece is the **grader** — a SECURITY DEFINER RPC th
 
 ### Technical Standards (`tech.md`)
 
-- **Mutation pattern**: Server Actions only (no API routes) for `submitVfrRtExamAnswers` and `startVfrRtExamSession`. `code-style.md` §6.
+- **Mutation pattern**: Server Actions only (no API routes) for `submitVfrRtExam` and `startVfrRtExam` (names match the architecture diagram and the Components section below). `code-style.md` §6.
 - **RPC requirements**: every new RPC SECURITY DEFINER, `SET search_path = public`, explicit `auth.uid()` check, every soft-deletable SELECT includes `deleted_at IS NULL` (`security.md` §9, §10).
 - **Migration size**: each migration ≤ 300 lines per `code-style.md` §1; complex changes split across multiple files.
 - **TypeScript**: discriminated unions for the question-type Zod schemas; no `any`; runtime `Array.isArray` guards on RPC results that arrive as `unknown[]`.
