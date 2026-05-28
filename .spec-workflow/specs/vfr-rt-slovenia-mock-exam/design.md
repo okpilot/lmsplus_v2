@@ -139,17 +139,21 @@ flowchart TD
     OR (selected_option_id IS NULL AND response_text IS NOT NULL)
   );
   ```
-- **UNIQUE widening — must NOT break the existing `ON CONFLICT (session_id, question_id)` callers.** `batch_submit_quiz` (latest body in `supabase/migrations/20260430000012_active_user_gate_batch_submit.sql`) and `submit_quiz_answer` (latest body in `supabase/migrations/20260316000040_submit_answer_track_last_was_correct.sql`) both rely on the existing `UNIQUE (session_id, question_id)` constraint via `ON CONFLICT (session_id, question_id) DO NOTHING`. The plan:
-  1. **Drop the old constraint** `UNIQUE (session_id, question_id)`.
-  2. **Add a new composite constraint with `NULLS NOT DISTINCT`** (Supabase runs Postgres 17 per `supabase/config.toml`; `NULLS NOT DISTINCT` is supported):
+- **UNIQUE widening — must NOT break the existing `ON CONFLICT (session_id, question_id)` callers, AND must widen on BOTH tables** (`quiz_session_answers` and `student_responses`). Both carry a `UNIQUE (session_id, question_id)` constraint today — `quiz_session_answers` since mig `001`, `student_responses` since `supabase/migrations/20260313000020_fix_student_responses_unique.sql` (constraint name `student_responses_session_question_unique`). `batch_submit_quiz` (latest body in `supabase/migrations/20260430000012_active_user_gate_batch_submit.sql`) and `submit_quiz_answer` (latest body in `supabase/migrations/20260316000040_submit_answer_track_last_was_correct.sql`) both rely on the `quiz_session_answers` constraint via `ON CONFLICT (session_id, question_id) DO NOTHING`. The plan:
+  1. **Drop the old constraint on each table** (`UNIQUE (session_id, question_id)` on `quiz_session_answers`, `student_responses_session_question_unique` on `student_responses`).
+  2. **Add a new composite constraint with `NULLS NOT DISTINCT` on each table** (Supabase runs Postgres 17 per `supabase/config.toml`; `NULLS NOT DISTINCT` is supported):
      ```sql
      ALTER TABLE quiz_session_answers
        ADD CONSTRAINT quiz_session_answers_session_question_blank_uniq
        UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index);
+
+     ALTER TABLE student_responses
+       ADD CONSTRAINT student_responses_session_question_blank_uniq
+       UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index);
      ```
-     With `NULLS NOT DISTINCT`, a row `(s1, q1, NULL)` inserted twice raises a conflict — preserving the original semantics for MC/short_answer rows where `blank_index IS NULL`.
-  3. **Update the two callers** (see mig `084b` below) to use `ON CONFLICT (session_id, question_id, blank_index) DO NOTHING`. Existing MC inserts pass NULL for `blank_index`, the inference clause matches the new constraint, and Postgres treats `NULL = NULL` under `NULLS NOT DISTINCT` — same behavior as before.
-- Index on `(session_id, question_id, blank_index)` for resume reads (the constraint above produces a backing index already; no separate explicit index needed).
+     With `NULLS NOT DISTINCT`, a row `(s1, q1, NULL)` inserted twice raises a conflict — preserving the original semantics for MC/short_answer rows where `blank_index IS NULL`. Without this widening on `student_responses`, every dialog_fill submission with 2+ blanks would fail at the second `student_responses` INSERT.
+  3. **Update the two `quiz_session_answers` callers** (see mig `084b` below) to use `ON CONFLICT (session_id, question_id, blank_index) DO NOTHING`. The `batch_submit_quiz` INSERT into `student_responses` uses bare `ON CONFLICT DO NOTHING` (no column list — see `packages/db/migrations/078` line 216) and works with any constraint; no update needed there.
+- Index on `(session_id, question_id, blank_index)` for resume reads (the constraint on each table produces a backing index automatically; no separate explicit index needed).
 
 ### Migration `084b_update_existing_inserters_for_blank_index.sql`
 
@@ -169,10 +173,10 @@ flowchart TD
 
 ### Migration `086_seed_vfr_rt_subject_and_topics.sql`
 
-- INSERT one `easa_subjects` row: `code='RT', name='VFR Radiotelephony (Slovenia)', short='RT', sort_order=...`.
+- INSERT one `easa_subjects` row: `code='RT', name='VFR Radiotelephony (Slovenia)', short='RT', sort_order=...`. Use `ON CONFLICT (code) DO NOTHING` — `easa_subjects` has `UNIQUE(code)` (mig 001).
 - INSERT three `easa_topics` rows under that subject: codes `'P1_ACRONYMS'`, `'P2_DIALOG'`, `'P3_MC'`, names matching the briefing PDF parts.
+- For the topics INSERT use `ON CONFLICT (subject_id, code) DO NOTHING` — `easa_topics` has `UNIQUE (subject_id, code)`, NOT `UNIQUE(code)` alone (mig 001 line 67). A bare `ON CONFLICT (code)` would fail at migration time with "there is no unique or exclusion constraint matching the ON CONFLICT specification". Resolve the subject's UUID first via a CTE or via `(SELECT id FROM easa_subjects WHERE code = 'RT')` subquery in each topic INSERT.
 - No subtopics in v1.
-- Use `ON CONFLICT (code) DO NOTHING` so re-running the migration is idempotent.
 - (Questions themselves are NOT inserted via migration — those are admin-authored via the editor or bulk-imported separately; the migration creates the syllabus skeleton.)
 
 ### Migration `087_exam_configs_parts_config.sql`
@@ -188,7 +192,7 @@ flowchart TD
 - Body sequence (mirrors `start_internal_exam_session` mig 060 + post-#611 hardening):
   1. `v_student_id := auth.uid();` — `IF NULL RAISE 'not_authenticated';`
   2. `v_org_id := (SELECT organization_id FROM users WHERE id = v_student_id AND deleted_at IS NULL);` — `IF NULL RAISE 'user_not_found_or_inactive';` (security.md §9)
-  3. Fetch `exam_configs` row for `(v_org_id, p_subject_id)` enabled + non-deleted; `IF NOT FOUND RAISE 'exam_config_not_found_or_disabled';`
+  3. Fetch `exam_configs` row for `(v_org_id, p_subject_id) WHERE enabled = true AND deleted_at IS NULL` (the soft-delete filter is mandatory per `security.md` §9); `IF NOT FOUND RAISE 'exam_config_required';` (matches the existing error code used by `start_internal_exam_session` and `issue_internal_exam_code` — see mig 060 line 107, mig 059 line 73; intentionally reused so the Server Action error-mapping pattern stays consistent across exam modes).
   4. Auto-complete in-flight + overdue: `PERFORM complete_overdue_exam_session(...)` for this student.
   5. Check for an active `vfr_rt_exam` for this student — if found, return its current state (idempotent resume).
   6. Sample 8 `short_answer` IDs from the VFR RT subject's Part 1 topic (`question_type = 'short_answer' AND topic_id = <P1>` ordered by `random()`).
@@ -276,7 +280,7 @@ flowchart TD
   | RPC raise | Server Action error string |
   |---|---|
   | `not_authenticated` | `'Not authenticated'` |
-  | `exam_config_not_found_or_disabled` | `'VFR RT mock exam is not enabled for your organization.'` |
+  | `exam_config_required` | `'VFR RT mock exam is not enabled for your organization.'` |
   | `insufficient_questions_for_vfr_rt_exam` | `'The VFR RT question pool is incomplete. Please contact your instructor.'` (DETAIL is logged server-side only) |
   | any other | `'Failed to start exam'` |
 - On success, `revalidatePath('/app/vfr-rt-exam')` + `redirect('/app/vfr-rt-exam/in-progress/<id>')`.
@@ -412,6 +416,7 @@ v1: the RPC reads counts/topics from `parts_config` if present, else falls back 
 - `submit_vfr_rt_exam_answers` — happy path; idempotent re-submit; invalid question ID; partial answers (some blanks blank); per-part scoring at threshold boundaries.
 - `complete_overdue_exam_session` (after mig 091) — vfr_rt_exam mode with partial answers; auto-grades and emits audit.
 - `normalize_answer(text)` parity test — same inputs → same outputs as the TS `normalizeAnswer()`.
+- **Diacritic preservation test** — explicit machine-verifiable assertion: `SELECT normalize_answer('Č') = 'č'` (i.e. NOT `'c'`). Prevents accidental locale switch (e.g. `tr_TR` would fold Slovenian diacritics differently) from silently degrading grader accuracy.
 - RLS: another student cannot SELECT this student's `vfr_rt_exam` session; another student cannot SELECT their `quiz_session_answers.response_text`.
 
 ### End-to-End Testing (Playwright)

@@ -28,9 +28,9 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
 - [ ] **A.2 Migration `084` — `quiz_session_answers` + `student_responses` schema shift for text responses & per-blank answers**
   - File: `packages/db/migrations/084_session_answers_for_text_responses.sql` (+ mirror)
   - On BOTH tables: `ALTER COLUMN selected_option_id DROP NOT NULL` (keep the existing `IN ('a','b','c','d')` CHECK — it permits NULL automatically). ADD `response_text TEXT NULL`, `blank_index INT NULL`. ADD a discriminator CHECK (do NOT replace the existing CHECK): exactly one of `selected_option_id` / `response_text` non-null per row; `blank_index` non-null only when `response_text` is set.
-  - DROP the existing `UNIQUE (session_id, question_id)` constraint and ADD `UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)` — Supabase runs Postgres 17, `NULLS NOT DISTINCT` is supported. This preserves the "no duplicate MC rows per session" semantics (NULL blank_index treated as equal) while allowing multiple dialog_fill blanks per (session, question).
-  - **HARD DEPENDENCY:** mig 084 and mig 084b MUST ship in the same release. Applying 084 alone breaks `batch_submit_quiz` and `submit_quiz_answer` (their `ON CONFLICT (session_id, question_id)` clauses no longer match any constraint after the DROP).
-  - _Leverage: existing schema in `001_initial_schema.sql`; `supabase/config.toml` for Postgres version_
+  - **Widen UNIQUE on BOTH tables.** `quiz_session_answers` carries `UNIQUE (session_id, question_id)` from mig 001; `student_responses` carries `student_responses_session_question_unique UNIQUE (session_id, question_id)` from `supabase/migrations/20260313000020_fix_student_responses_unique.sql`. Both must be widened — without the `student_responses` widening, every dialog_fill submission with 2+ blanks would fail at the second `student_responses` INSERT. Pattern (on each table): DROP the existing constraint, ADD `UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)`. Supabase Postgres 17 supports `NULLS NOT DISTINCT`. The NULL=NULL semantics preserve the "no duplicate MC rows per session" behavior for MC/short_answer rows where `blank_index IS NULL`.
+  - **HARD DEPENDENCY:** mig 084 and mig 084b MUST ship in the same release. Applying 084 alone breaks `batch_submit_quiz` and `submit_quiz_answer` (their `ON CONFLICT (session_id, question_id)` clauses on `quiz_session_answers` no longer match any constraint after the DROP). The `student_responses` INSERT inside `batch_submit_quiz` uses bare `ON CONFLICT DO NOTHING` (mig 078 line 216) — no column-list match — so it works against any constraint and needs no 084b update.
+  - _Leverage: existing schema in `001_initial_schema.sql`; `supabase/migrations/20260313000020_fix_student_responses_unique.sql`; `supabase/config.toml` for Postgres version_
   - _Requirements: R2, R3, R4_
 
 - [ ] **A.2b Migration `084b` — update `batch_submit_quiz` and `submit_quiz_answer` ON CONFLICT clauses for the new constraint**
@@ -54,8 +54,9 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
 
 - [ ] **A.4 Migration `086` — seed VFR RT subject + Part-1/2/3 topics**
   - File: `packages/db/migrations/086_seed_vfr_rt_subject_and_topics.sql` (+ mirror)
-  - INSERT one `easa_subjects` row (`code='RT', name='VFR Radiotelephony (Slovenia)'`). INSERT three `easa_topics` rows under it (`P1_ACRONYMS`, `P2_DIALOG`, `P3_MC`). Use `ON CONFLICT (code) DO NOTHING` for idempotency.
-  - _Leverage: existing seed pattern from initial schema_
+  - INSERT one `easa_subjects` row (`code='RT', name='VFR Radiotelephony (Slovenia)'`) with `ON CONFLICT (code) DO NOTHING` — `easa_subjects` has `UNIQUE(code)`.
+  - INSERT three `easa_topics` rows under it (`P1_ACRONYMS`, `P2_DIALOG`, `P3_MC`) with `ON CONFLICT (subject_id, code) DO NOTHING` — `easa_topics` has `UNIQUE (subject_id, code)` (mig 001 line 67), NOT `UNIQUE(code)` alone. A bare `ON CONFLICT (code)` would fail at migration time. Resolve the subject's UUID first (CTE or scalar subquery).
+  - _Leverage: existing seed pattern from initial schema; `packages/db/migrations/001_initial_schema.sql` lines 60–67 for `easa_topics` constraint shape_
   - _Requirements: R1, R4.3_
 
 - [ ] **A.5 Migration `087` — `exam_configs.parts_config` jsonb column**
@@ -104,6 +105,8 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
 - [ ] **A.11 SQL integration tests for new RPCs + extended RPCs**
   - File: `packages/db/tests/vfr-rt-exam.spec.ts` (new)
   - Cover every RPC error path + each acceptance criterion under R2/R3/R4/R6 from `requirements.md`. Include parity test for `normalize_answer` (SQL) vs `normalizeAnswer` (TS).
+  - **Explicit diacritic test**: assert `SELECT normalize_answer('Č') = 'č'` (NOT `'c'`) — guards against accidental locale-driven diacritic folding (the Postgres `lower()` function folds differently under `tr_TR` than under `C.UTF-8` / `en_US.UTF-8`).
+  - **Idempotency re-submit test**: assert that submitting the same `batch_submit_quiz` payload twice returns DO NOTHING on the second call (no duplicate row) — guards mig 084/084b regression on the new constraint.
   - _Leverage: existing test infra patterns in `packages/db/tests/`_
   - _Requirements: R2, R3, R4, R6, NFR-Security, NFR-Reliability_
 
