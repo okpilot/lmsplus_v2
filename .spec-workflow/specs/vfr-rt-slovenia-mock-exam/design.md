@@ -152,7 +152,7 @@ flowchart TD
        UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index);
      ```
      With `NULLS NOT DISTINCT`, a row `(s1, q1, NULL)` inserted twice raises a conflict — preserving the original semantics for MC/short_answer rows where `blank_index IS NULL`. Without this widening on `student_responses`, every dialog_fill submission with 2+ blanks would fail at the second `student_responses` INSERT.
-  3. **Update the two `quiz_session_answers` callers** (see mig `084b` below) to use `ON CONFLICT (session_id, question_id, blank_index) DO NOTHING`. The `batch_submit_quiz` INSERT into `student_responses` uses bare `ON CONFLICT DO NOTHING` (no column list — see `packages/db/migrations/078` line 216) and works with any constraint; no update needed there.
+  3. **Update the two `quiz_session_answers` callers** (see mig `084b` below) to use `ON CONFLICT (session_id, question_id, blank_index) DO NOTHING`. The `batch_submit_quiz` INSERT into `student_responses` uses bare `ON CONFLICT DO NOTHING` (no column list — see `packages/db/migrations/078` line 212) and works with any constraint; no update needed there.
 - Index on `(session_id, question_id, blank_index)` for resume reads (the constraint on each table produces a backing index automatically; no separate explicit index needed).
 
 ### Migration `084b_update_existing_inserters_for_blank_index.sql`
