@@ -21,7 +21,9 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
 - [ ] **A.1 Migration `083` — `question_type` enum, type-specific columns, CHECK constraint, index, `options` default**
   - File: `packages/db/migrations/083_question_type_enum_and_column.sql`
   - File: `supabase/migrations/<ts>_question_type_enum_and_column.sql` (mirror)
-  - ALTER `questions` ADD COLUMN `question_type TEXT NOT NULL DEFAULT 'multiple_choice' CHECK (...)`. ADD `canonical_answer TEXT NULL`, `accepted_synonyms TEXT[] NOT NULL DEFAULT '{}'`, `dialog_template TEXT NULL`, `blanks_config JSONB NOT NULL DEFAULT '[]'::jsonb`. **ALTER COLUMN `options` SET DEFAULT `'[]'::jsonb`** — the existing column is `NOT NULL` with no default; non-MC INSERTs would fail otherwise. Add type↔column population CHECK. Add partial index `(question_type, subject_id) WHERE deleted_at IS NULL AND status = 'active'`.
+  - ALTER `questions` ADD COLUMN `question_type TEXT NOT NULL DEFAULT 'multiple_choice' CHECK (...)`. ADD `canonical_answer TEXT NULL`, `accepted_synonyms TEXT[] NOT NULL DEFAULT '{}'`, `dialog_template TEXT NULL`, `blanks_config JSONB NOT NULL DEFAULT '[]'::jsonb`. **ALTER COLUMN `options` SET DEFAULT `'[]'::jsonb`** — the existing column is `NOT NULL` with no default; non-MC INSERTs would fail otherwise.
+  - Add type↔column population CHECK with EVERY column positively stated in EVERY branch — multiple_choice asserts `canonical_answer IS NULL AND dialog_template IS NULL AND jsonb_array_length(blanks_config) = 0`, short_answer asserts `canonical_answer IS NOT NULL AND dialog_template IS NULL AND jsonb_array_length(blanks_config) = 0`, dialog_fill asserts `canonical_answer IS NULL AND dialog_template IS NOT NULL AND jsonb_array_length(blanks_config) > 0`. This DB-level discriminator rejects accidental cross-contamination (e.g. an admin-form bug saving a canonical_answer on a dialog_fill question).
+  - Add partial index `(question_type, subject_id) WHERE deleted_at IS NULL AND status = 'active'`.
   - _Leverage: `packages/db/migrations/001_initial_schema.sql` (questions table shape, line 115 for the `options NOT NULL` constraint), `packages/db/migrations/058_quiz_session_modes.sql` (CHECK pattern)_
   - _Requirements: R1.1–R1.5_
 
@@ -85,8 +87,9 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
   - _Leverage: `batch_submit_quiz` for the answer-write pattern; `complete_quiz_session` for completion shape_
   - _Requirements: R3, R6_
 
-- [ ] **A.8 Migration `090` — `normalize_answer(text)` SQL helper**
+- [ ] **A.8 Migration `090` — `normalize_answer(text)` SQL helper + deploy-time locale guard**
   - File: `packages/db/migrations/090_normalize_answer_helper.sql` (+ mirror)
+  - **Deploy-time guard at the top of the migration:** `DO $$ BEGIN IF lower('Č') <> 'č' THEN RAISE EXCEPTION 'normalize_answer requires UTF-8 locale that preserves diacritics ...'; END IF; END $$;`. Forces a deploy to a fold-folding locale (e.g. `tr_TR` or `C`/POSIX) to fail at apply time instead of silently breaking grader accuracy after launch.
   - `CREATE OR REPLACE FUNCTION normalize_answer(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE`. Logic mirrors the TS `normalizeAnswer()` exactly.
   - _Leverage: `apps/web/lib/grading/normalize-answer.ts` (TS source of truth; mig 090 mirrors it)_
   - _Requirements: R6.1–R6.4_

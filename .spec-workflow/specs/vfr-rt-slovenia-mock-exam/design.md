@@ -115,12 +115,21 @@ flowchart TD
 - Add `dialog_template TEXT NULL` (used by `dialog_fill`; raw template with `[atc]`/`[pilot]` tags + `{{n|canonical; var1; var2}}` blanks).
 - Add `blanks_config JSONB NOT NULL DEFAULT '[]'::JSONB` (used by `dialog_fill`; ordered array of `{ index: int, canonical: text, synonyms: text[] }`).
 - **Add `DEFAULT '[]'::jsonb` to the existing `options` column** (`ALTER TABLE questions ALTER COLUMN options SET DEFAULT '[]'::jsonb`). The existing `options JSONB NOT NULL` constraint in `001_initial_schema.sql` has no default, so non-MC INSERTs would fail without this default. MC INSERTs continue to supply their own options array, unaffected.
-- Add a CHECK constraint enforcing the type↔column contract:
+- Add a CHECK constraint enforcing the type↔column contract — every branch must positively state which columns ARE and ARE NOT set, so accidental population (e.g. an admin form bug saving a `canonical_answer` on a `dialog_fill` question) is rejected at the database layer:
   ```sql
   CHECK (
-    (question_type = 'multiple_choice' AND canonical_answer IS NULL AND dialog_template IS NULL)
-    OR (question_type = 'short_answer' AND canonical_answer IS NOT NULL AND dialog_template IS NULL)
-    OR (question_type = 'dialog_fill' AND dialog_template IS NOT NULL AND jsonb_array_length(blanks_config) > 0)
+    (question_type = 'multiple_choice'
+       AND canonical_answer IS NULL
+       AND dialog_template IS NULL
+       AND jsonb_array_length(blanks_config) = 0)
+    OR (question_type = 'short_answer'
+       AND canonical_answer IS NOT NULL
+       AND dialog_template IS NULL
+       AND jsonb_array_length(blanks_config) = 0)
+    OR (question_type = 'dialog_fill'
+       AND canonical_answer IS NULL
+       AND dialog_template IS NOT NULL
+       AND jsonb_array_length(blanks_config) > 0)
   );
   ```
 - Index on `(question_type, subject_id) WHERE deleted_at IS NULL AND status = 'active'` — supports the sampler's `WHERE question_type = X AND subject_id = Y` filter.
@@ -263,6 +272,16 @@ flowchart TD
   );
   ```
 - Diacritics NOT folded — letters with diacritics survive `lower()` (we rely on Postgres UTF-8 default `lower` which preserves them for non-Turkish locales).
+- **Deploy-time guard.** Open the migration with an assertion block that raises if the deployment's locale would fold diacritics — catches misconfiguration at apply time instead of at first failing exam grading:
+  ```sql
+  DO $$
+  BEGIN
+    IF lower('Č') <> 'č' THEN
+      RAISE EXCEPTION 'normalize_answer requires a UTF-8 locale that preserves diacritics (lower(''Č'') returned %, expected ''č''). Set the database locale to en_US.UTF-8 or C.UTF-8 before applying this migration.', lower('Č');
+    END IF;
+  END $$;
+  ```
+  The runtime test at `A.11` covers the same contract from the test side; the migration-time assertion adds a deploy-time guarantee so a misconfigured environment fails to apply mig 090 rather than silently miscounting exam answers.
 
 ### Migration `091_extend_complete_overdue_exam_session.sql`
 
