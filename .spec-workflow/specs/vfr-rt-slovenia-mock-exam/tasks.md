@@ -11,7 +11,7 @@
 **`#611` / mig `082_quiz_sessions_immutable_score_columns.sql` MUST ship before any VFR RT migration applies.** The 5 mutable score columns on `quiz_sessions` (`ended_at`, `correct_count`, `score_percentage`, `passed`, `deleted_at`) are trigger-protected for write only after #611. Shipping `vfr_rt_exam` before then would expose a new exam mode that inherits the existing direct-UPDATE forgery vector documented in #611. Sequence:
 
 1. `redteam-quiz-session-bugs` PR 2 / mig `082` lands on master.
-2. Verify on prod: a direct PostgREST UPDATE on any of the five mutable columns (`ended_at`, `correct_count`, `score_percentage`, `passed`, `deleted_at`) from an authenticated student raises the trigger-block error.
+2. Verify on prod: a direct PostgREST UPDATE on any of the five mutable columns (`ended_at`, `correct_count`, `score_percentage`, `passed`, `deleted_at`) from an authenticated student raises the trigger-block error. **Verification procedure is owned by `redteam-quiz-session-bugs` / #611's spec**, not this one — see that spec's tasks.md for the exact red-team E2E spec / `pnpm --filter @repo/web e2e:redteam` invocation that asserts the trigger blocks all five columns. This spec only depends on the verification having passed; it does NOT redefine the procedure.
 3. Then begin Phase A of this spec.
 
 If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as a workaround — duplicates effort, fragments the immutability story, and will need to be removed once #611 lands.
@@ -32,6 +32,7 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
   - On BOTH tables: `ALTER COLUMN selected_option_id DROP NOT NULL` (keep the existing `IN ('a','b','c','d')` CHECK — it permits NULL automatically). ADD `response_text TEXT NULL`, `blank_index INT NULL`. ADD a discriminator CHECK (do NOT replace the existing CHECK): exactly one of `selected_option_id` / `response_text` non-null per row; `blank_index` non-null only when `response_text` is set.
   - **Widen UNIQUE on BOTH tables.** `quiz_session_answers` carries `UNIQUE (session_id, question_id)` from mig 001; `student_responses` carries `student_responses_session_question_unique UNIQUE (session_id, question_id)` from `supabase/migrations/20260313000020_fix_student_responses_unique.sql`. Both must be widened — without the `student_responses` widening, every dialog_fill submission with 2+ blanks would fail at the second `student_responses` INSERT. Pattern (on each table): DROP the existing constraint, ADD `UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)`. Supabase Postgres 17 supports `NULLS NOT DISTINCT`. The NULL=NULL semantics preserve the "no duplicate MC rows per session" behavior for MC/short_answer rows where `blank_index IS NULL`.
   - **HARD DEPENDENCY:** mig 084 and mig 084b MUST ship in the same release. Applying 084 alone breaks `batch_submit_quiz` and `submit_quiz_answer` (their `ON CONFLICT (session_id, question_id)` clauses on `quiz_session_answers` no longer match any constraint after the DROP). The `student_responses` INSERT inside `batch_submit_quiz` uses bare `ON CONFLICT DO NOTHING` (mig 078 line 212) — no column-list match — so it works against any constraint and needs no 084b update.
+  - **Why two files, not one:** combining the schema changes (mig 084) and the two `CREATE OR REPLACE FUNCTION` bodies (mig 084b) into a single migration file would exceed the 300-line cap in `code-style.md` §1 (each RPC body is ~150 lines verbatim). Supabase's transactional `db push` applies all migrations on a branch in a single deploy, so partial-apply risk is bounded to dev-time discipline (an implementer skipping 084b). The A.2 acceptance test (`batch_submit_quiz` idempotency under the new constraint) catches that discipline failure at PR time.
   - _Leverage: existing schema in `001_initial_schema.sql`; `supabase/migrations/20260313000020_fix_student_responses_unique.sql`; `supabase/config.toml` for Postgres version_
   - _Requirements: R2, R3, R4_
 
@@ -89,7 +90,7 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
 
 - [ ] **A.8 Migration `090` — `normalize_answer(text)` SQL helper + deploy-time locale guard**
   - File: `packages/db/migrations/090_normalize_answer_helper.sql` (+ mirror)
-  - **Deploy-time guard at the top of the migration:** `DO $$ BEGIN IF lower('Č') <> 'č' THEN RAISE EXCEPTION 'normalize_answer requires UTF-8 locale that preserves diacritics ...'; END IF; END $$;`. Forces a deploy to a fold-folding locale (e.g. `tr_TR` or `C`/POSIX) to fail at apply time instead of silently breaking grader accuracy after launch.
+  - **Deploy-time guard at the top of the migration:** `DO $$ BEGIN IF lower('Č') <> 'č' THEN RAISE EXCEPTION 'normalize_answer requires a UTF-8 locale that preserves diacritics. Current locale folds "Č" to "%". Use en_US.UTF-8 or C.UTF-8; check the database locale with: SHOW lc_ctype;', lower('Č'); END IF; END $$;`. Forces a deploy to a fold-folding locale (e.g. `tr_TR` or `C`/POSIX) to fail at apply time instead of silently breaking grader accuracy after launch. The error message embeds the offending folded value AND the fix instruction so ops doesn't have to guess.
   - `CREATE OR REPLACE FUNCTION normalize_answer(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE`. Logic mirrors the TS `normalizeAnswer()` exactly.
   - _Leverage: `apps/web/lib/grading/normalize-answer.ts` (TS source of truth; mig 090 mirrors it)_
   - _Requirements: R6.1–R6.4_
@@ -101,7 +102,7 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
   - _Requirements: R2.3, NFR-Reliability_
 
 - [ ] **A.10 Apply migrations, regen types, baseline tests**
-  - Operations: `npx supabase db reset` → `npx supabase gen types typescript --linked > packages/db/src/types.ts` → `pnpm test` → `pnpm check-types`.
+  - Operations (run from the monorepo root so relative paths resolve correctly): `npx supabase db reset` → `npx supabase gen types typescript --linked > packages/db/src/types.ts` → `pnpm test` → `pnpm check-types`.
   - Confirm `Database['public']['Functions']['start_vfr_rt_exam_session']` exists; the new `question_type` enum union types reflect three values.
   - _Acceptance: All migrations apply clean; `pnpm test` and `pnpm check-types` exit 0._
 
@@ -207,7 +208,7 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
   - _Requirements: R2, R3, R4, R5, NFR-Reliability, NFR-Usability_
 
 - [ ] **E.2 Red-team review + spec mapping**
-  - Run the red-team agent post-commit (mig diffs trigger it). The agent maps changes to existing redteam specs; file GitHub Issues for any coverage gaps.
+  - The orchestrator invokes the red-team agent manually when the post-commit diff touches migrations / RLS / SECURITY DEFINER RPCs (see `.claude/rules/agent-red-team.md § Trigger Conditions`). The agent maps changes to existing redteam specs; the orchestrator files GitHub Issues for any coverage gaps the agent identifies.
   - Specifically verify: no `canonical_answer` / `blanks_config` leak via PostgREST SELECT for students; no cross-student `quiz_session_answers.response_text` read; vfr_rt_exam mode honors the existing #611-territory exam-score-forgery defenses (mig 082 will have shipped per the Prerequisites section — no other path is accepted).
   - _Requirements: NFR-Security_
 
@@ -227,7 +228,7 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
 - VFR RT content authoring beyond what's bulk-import-able via the admin editor (no rich-text dialog editor; textarea + parser is v1).
 - Multiple jurisdictions (the courses.jurisdiction column). v1 is Slovenia-only.
 - Bulk question import for VFR RT (admin manually creates or pastes a JSON import path; defer richer import).
-- Exam_configs admin UI for VFR RT (config is seeded; if not, ops inserts the row).
+- Exam_configs admin UI for VFR RT (v1 has NO admin UI for VFR RT exam_configs). Ops inserts one `exam_configs` row per org that needs VFR RT enabled, using the seed SQL template documented inline in mig 087's `-- POST-DEPLOY SEED EXAMPLE` comment block. Until that row is inserted for a given org, `start_vfr_rt_exam_session` raises `exam_config_required` and the feature is effectively disabled for that org — the migrations apply cleanly without it. No automated migration seeds this row, because tenant-scoped UUIDs vary per environment.
 
 ---
 

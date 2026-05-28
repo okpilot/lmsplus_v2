@@ -273,12 +273,12 @@ flowchart TD
   );
   ```
 - Diacritics NOT folded — letters with diacritics survive `lower()` (we rely on Postgres UTF-8 default `lower` which preserves them for non-Turkish locales).
-- **Deploy-time guard.** Open the migration with an assertion block that raises if the deployment's locale would fold diacritics — catches misconfiguration at apply time instead of at first failing exam grading:
+- **Deploy-time guard.** Open the migration with an assertion block that raises if the deployment's locale would fold diacritics — catches misconfiguration at apply time instead of at first failing exam grading. Error embeds both the offending value and the corrective action:
   ```sql
   DO $$
   BEGIN
     IF lower('Č') <> 'č' THEN
-      RAISE EXCEPTION 'normalize_answer requires a UTF-8 locale that preserves diacritics (lower(''Č'') returned %, expected ''č''). Set the database locale to en_US.UTF-8 or C.UTF-8 before applying this migration.', lower('Č');
+      RAISE EXCEPTION 'normalize_answer requires a UTF-8 locale that preserves diacritics. Current locale folds "Č" to "%". Use en_US.UTF-8 or C.UTF-8; check the database locale with: SHOW lc_ctype;', lower('Č');
     END IF;
   END $$;
   ```
