@@ -1,5 +1,12 @@
 # Requirements Document — Quiz Sessions RPC-Only Immutability
 
+> **STATUS: SUPERSEDED (2026-05-28).** These requirements are not being delivered as a single spec. The work was split:
+> - **R1 (block all client UPDATEs via trigger column extension)** — partially in progress; the 5 score-related columns are tracked under the `redteam-quiz-session-bugs` spec (PR 2) / issue #611 as migration `082_quiz_sessions_immutable_score_columns.sql`. Initial 10-column trigger shipped as mig `079`.
+> - **R2 (`discard_quiz_session` SECURITY DEFINER RPC)** — not currently planned. `apps/web/app/app/quiz/actions/discard.ts` continues to write `quiz_sessions.deleted_at` directly under RLS.
+> - **R3 (write-handshake on completion RPCs)** — not currently planned (depends on R2's session-variable mechanism).
+>
+> Do not use this document to drive new implementation. See `tasks.md` for the full split list and `design.md` for invalid premises (e.g. `quiz_drafts.UNIQUE(student_id)` was dropped by mig `20260313000018`). Live successor: `.spec-workflow/specs/redteam-quiz-session-bugs/`.
+
 ## Introduction
 
 Issue #611 (HIGH severity) describes an exam-score forgery vector: an authenticated student can directly UPDATE their own active `quiz_sessions` row via PostgREST and forge `correct_count`, `score_percentage`, `passed`, and `ended_at` — completing the session with arbitrary scores and bypassing `batch_submit_quiz` entirely. The vector is exploitable today because the `students_update_sessions` RLS policy (mig `20260313000023`) permits broad UPDATE on the row owner's own active sessions without column restrictions, and the `trg_quiz_sessions_immutable_columns` trigger (mig `079` / `20260502000001`) explicitly leaves these columns mutable for the SECURITY DEFINER completion RPCs.
