@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockGetTopicsForSubject, mockGetSubtopicsForTopic } = vi.hoisted(
+const { mockGetUser, mockRpc, mockGetTopicsForSubject, mockGetSubtopicsForTopic } = vi.hoisted(
   () => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
+    mockRpc: vi.fn(),
     mockGetTopicsForSubject: vi.fn(),
     mockGetSubtopicsForTopic: vi.fn(),
   }),
@@ -14,8 +14,11 @@ const { mockGetUser, mockFrom, mockGetTopicsForSubject, mockGetSubtopicsForTopic
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     auth: { getUser: mockGetUser },
-    from: mockFrom,
   }),
+}))
+
+vi.mock('@/lib/supabase-rpc', () => ({
+  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 const { mockGetTopicsWithSubtopics } = vi.hoisted(() => ({
@@ -48,10 +51,9 @@ import {
 const USER_ID = '00000000-0000-4000-a000-000000000001'
 const SUBJECT_ID = '00000000-0000-4000-a000-000000000010'
 const TOPIC_ID = '00000000-0000-4000-a000-000000000020'
+const TOPIC_ID_2 = '00000000-0000-4000-a000-000000000021'
 const SUBTOPIC_ID = '00000000-0000-4000-a000-000000000030'
-const Q1_ID = '00000000-0000-4000-a000-000000000011'
-const Q2_ID = '00000000-0000-4000-a000-000000000022'
-const Q3_ID = '00000000-0000-4000-a000-000000000033'
+const SUBTOPIC_ID_2 = '00000000-0000-4000-a000-000000000031'
 
 const TOPIC_OPTIONS = [{ id: TOPIC_ID, name: 'Aerodynamics', code: 'AERO' }]
 
@@ -67,27 +69,11 @@ function setupUnauthenticated() {
   mockGetUser.mockResolvedValue({ data: { user: null } })
 }
 
-/**
- * Build a chainable Supabase from() mock.
- * The chain is thenable — awaiting it resolves to `{ data, error }`.
- */
-function buildQueryChain(terminalData: unknown[], terminalError: unknown = null) {
-  const terminal = { data: terminalData, error: terminalError }
-  const chain: Record<string, unknown> = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    is: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
-    or: vi.fn().mockReturnThis(),
-    // biome-ignore lint/suspicious/noThenProperty: Supabase query builders are thenable — mock must implement .then() to be awaitable
-    then: vi.fn((resolve: (v: unknown) => unknown) => Promise.resolve(resolve(terminal))),
-  }
-  return chain
-}
-
 beforeEach(() => {
   vi.resetAllMocks()
   mockRequireAuthUser.mockResolvedValue({ id: USER_ID })
+  // Default to empty count rows so tests that don't override don't crash on undefined.
+  mockRpc.mockResolvedValue({ data: [], error: null })
 })
 
 // ---- fetchTopicsForSubject ------------------------------------------------
@@ -173,6 +159,8 @@ describe('getFilteredCount — auth and validation', () => {
     setupUnauthenticated()
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
     expect(result).toMatchObject({ count: 0, error: 'auth' })
+    // RPC must not be called when auth gate fails.
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('returns auth error when authentication fails', async () => {
@@ -216,286 +204,209 @@ describe('getFilteredCount — auth and validation', () => {
   })
 })
 
-// ---- getFilteredCount — filters: ['all'] ---------------------------------
+// ---- getFilteredCount — aggregation contract -----------------------------
 
-describe("getFilteredCount — filters: ['all']", () => {
-  it('returns the total question count without further filtering', async () => {
+describe('getFilteredCount — aggregation from grouped rpc rows', () => {
+  it('sums total count and groups counts by topic and subtopic', async () => {
     setupAuthenticatedUser()
-    const chain = buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }, { id: Q3_ID }])
-    mockFrom.mockReturnValue(chain)
+    mockRpc.mockResolvedValueOnce({
+      data: [
+        { topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID, n: 2 },
+        { topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID_2, n: 3 },
+        { topic_id: TOPIC_ID_2, subtopic_id: null, n: 1 },
+      ],
+      error: null,
+    })
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
-    expect(result).toMatchObject({ count: 3 })
+    expect(result).toEqual({
+      count: 6,
+      byTopic: { [TOPIC_ID]: 5, [TOPIC_ID_2]: 1 },
+      bySubtopic: { [SUBTOPIC_ID]: 2, [SUBTOPIC_ID_2]: 3 },
+    })
   })
 
-  it('returns count 0 when no questions match the subject', async () => {
+  it('coerces string-encoded bigint n to a number when summing', async () => {
+    // PostgREST serializes COUNT(*)::bigint as a JSON string; Number(r.n) ensures '1' + '2' = 3, not '12'.
     setupAuthenticatedUser()
-    const chain = buildQueryChain([])
-    mockFrom.mockReturnValue(chain)
+    mockRpc.mockResolvedValueOnce({
+      data: [
+        { topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID, n: '1' },
+        { topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID, n: '2' },
+      ],
+      error: null,
+    })
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
-    expect(result).toMatchObject({ count: 0 })
+    expect(result.count).toBe(3)
+    expect(result.byTopic[TOPIC_ID]).toBe(3)
+    expect(result.bySubtopic[SUBTOPIC_ID]).toBe(3)
   })
 
-  it('filters by topicIds when provided', async () => {
+  it("strips 'all' from p_filters and passes the remaining filters through", async () => {
     setupAuthenticatedUser()
-    const chain = buildQueryChain([{ id: Q1_ID }])
-    mockFrom.mockReturnValue(chain)
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
-    const result = await getFilteredCount({
+    await getFilteredCount({
       subjectId: SUBJECT_ID,
-      topicIds: [TOPIC_ID],
-      filters: ['all'],
+      filters: ['all', 'unseen'],
     })
 
-    expect(result).toMatchObject({ count: 1 })
-    // in() called for topicIds
-    expect((chain.in as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(1)
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({
+        p_subject_id: SUBJECT_ID,
+        p_filters: ['unseen'],
+      }),
+    )
   })
 
-  it('filters by subtopicIds when provided', async () => {
+  it('sends p_topic_ids and p_subtopic_ids as null when callers omit them', async () => {
     setupAuthenticatedUser()
-    const chain = buildQueryChain([{ id: Q1_ID }])
-    mockFrom.mockReturnValue(chain)
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
-    const result = await getFilteredCount({
-      subjectId: SUBJECT_ID,
-      topicIds: [TOPIC_ID],
-      subtopicIds: [SUBTOPIC_ID],
-      filters: ['all'],
-    })
+    await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
 
-    expect(result).toMatchObject({ count: 1 })
-    expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('topic_id.in.'))
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_topic_ids: null, p_subtopic_ids: null }),
+    )
+  })
+
+  it('returns empty result and logs when the rpc returns an error', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc boom' } })
+
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
+
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[getFilteredCount]'),
+      'rpc boom',
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('returns empty result when the rpc data is not an array', async () => {
+    setupAuthenticatedUser()
+    mockRpc.mockResolvedValueOnce({ data: null, error: null })
+
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
+
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
   })
 })
 
 // ---- getFilteredCount — filters: ['unseen'] ------------------------------
 
 describe("getFilteredCount — filters: ['unseen']", () => {
-  it('returns count of questions not yet answered by the student', async () => {
+  it('returns the rpc-aggregated count for unseen questions', async () => {
     setupAuthenticatedUser()
-
-    let callIndex = 0
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) {
-        return buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }, { id: Q3_ID }])
-      }
-      // student_responses
-      return buildQueryChain([{ question_id: Q1_ID }])
+    mockRpc.mockResolvedValueOnce({
+      data: [{ topic_id: TOPIC_ID, subtopic_id: null, n: 2 }],
+      error: null,
     })
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['unseen'] })
 
     expect(result).toMatchObject({ count: 2 })
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_filters: ['unseen'] }),
+    )
   })
 
-  it('returns all questions when the student has no answered questions', async () => {
+  it('returns count 0 when the rpc yields no rows', async () => {
     setupAuthenticatedUser()
-
-    let callIndex = 0
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) {
-        return buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }])
-      }
-      return buildQueryChain([])
-    })
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['unseen'] })
 
-    expect(result).toMatchObject({ count: 2 })
-  })
-
-  it('returns 0 when student has answered all questions', async () => {
-    setupAuthenticatedUser()
-
-    let callIndex = 0
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) {
-        return buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }])
-      }
-      return buildQueryChain([{ question_id: Q1_ID }, { question_id: Q2_ID }])
-    })
-
-    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['unseen'] })
-
-    expect(result).toMatchObject({ count: 0 })
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
   })
 })
 
 // ---- getFilteredCount — filters: ['incorrect'] ---------------------------
 
 describe("getFilteredCount — filters: ['incorrect']", () => {
-  it('returns count of questions the student last answered incorrectly', async () => {
+  it('returns the rpc-aggregated count for incorrectly-answered questions', async () => {
     setupAuthenticatedUser()
-
-    let callIndex = 0
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) {
-        return buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }, { id: Q3_ID }])
-      }
-      // fsrs_cards with last_was_correct = false
-      return buildQueryChain([{ question_id: Q1_ID }, { question_id: Q3_ID }])
+    mockRpc.mockResolvedValueOnce({
+      data: [
+        { topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID, n: 1 },
+        { topic_id: TOPIC_ID, subtopic_id: null, n: 1 },
+      ],
+      error: null,
     })
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['incorrect'] })
 
-    expect(result).toMatchObject({ count: 2 })
-  })
-
-  it('returns 0 when no incorrectly-answered cards exist for the student', async () => {
-    setupAuthenticatedUser()
-
-    let callIndex = 0
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) {
-        return buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }])
-      }
-      return buildQueryChain([])
-    })
-
-    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['incorrect'] })
-
-    expect(result).toMatchObject({ count: 0 })
-  })
-
-  it('only counts questions that are in the base subject set (intersection)', async () => {
-    setupAuthenticatedUser()
-
-    // Only Q1 is in the subject; Q2 is in fsrs_cards but not in this subject
-    let callIndex = 0
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) {
-        return buildQueryChain([{ id: Q1_ID }])
-      }
-      return buildQueryChain([{ question_id: Q1_ID }, { question_id: Q2_ID }])
-    })
-
-    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['incorrect'] })
-
-    expect(result).toMatchObject({ count: 1 })
-  })
-})
-
-// ---- getFilteredCount — questions query error ----------------------------
-
-describe('getFilteredCount — questions query error', () => {
-  it('returns count 0 when the questions query itself returns an error', async () => {
-    setupAuthenticatedUser()
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    mockFrom.mockImplementation(() => buildQueryChain([], { message: 'questions DB error' }))
-
-    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
-
-    expect(result).toMatchObject({ count: 0 })
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[getFilteredCount] Questions query error:',
-      'questions DB error',
+    expect(result).toMatchObject({ count: 2, byTopic: { [TOPIC_ID]: 2 } })
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_filters: ['incorrect'] }),
     )
-    consoleSpy.mockRestore()
   })
 
-  it('returns count 0 for unseen filter when questions query errors', async () => {
+  it('returns count 0 when no incorrectly-answered questions exist', async () => {
     setupAuthenticatedUser()
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
-    mockFrom.mockImplementation(() => buildQueryChain([], { message: 'questions DB error' }))
-
-    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['unseen'] })
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['incorrect'] })
 
     expect(result).toMatchObject({ count: 0 })
-    consoleSpy.mockRestore()
   })
 })
 
-// ---- getFilteredCount — filters: ['flagged'] --------------------------------
+// ---- getFilteredCount — filters: ['flagged'] -----------------------------
 
 describe("getFilteredCount — filters: ['flagged']", () => {
-  it('returns count of questions flagged by the student', async () => {
+  it('returns the rpc-aggregated count for flagged questions', async () => {
     setupAuthenticatedUser()
-
-    let callIndex = 0
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) {
-        return buildQueryChain([
-          { id: Q1_ID, topic_id: TOPIC_ID, subtopic_id: null },
-          { id: Q2_ID, topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID },
-          { id: Q3_ID, topic_id: TOPIC_ID, subtopic_id: null },
-        ])
-      }
-      // flagged_questions — only Q2 is flagged
-      return buildQueryChain([{ question_id: Q2_ID }])
+    mockRpc.mockResolvedValueOnce({
+      data: [{ topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID, n: 1 }],
+      error: null,
     })
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['flagged'] })
 
-    expect(result).toMatchObject({ count: 1 })
+    expect(result).toMatchObject({ count: 1, bySubtopic: { [SUBTOPIC_ID]: 1 } })
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_filters: ['flagged'] }),
+    )
   })
 
   it('returns count 0 when student has no flagged questions', async () => {
     setupAuthenticatedUser()
-
-    let callIndex = 0
-    mockFrom.mockImplementation(() => {
-      callIndex++
-      if (callIndex === 1) {
-        return buildQueryChain([{ id: Q1_ID, topic_id: TOPIC_ID, subtopic_id: null }])
-      }
-      return buildQueryChain([])
-    })
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
     const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['flagged'] })
 
     expect(result).toMatchObject({ count: 0 })
   })
-
-  it('returns count 0 when topicIds is empty (short-circuit before DB query)', async () => {
-    setupAuthenticatedUser()
-    // Must provide a chain so the query builder can chain .from().select()...
-    // The empty topicIds guard fires before the chain is awaited.
-    mockFrom.mockReturnValue(buildQueryChain([]))
-
-    const result = await getFilteredCount({
-      subjectId: SUBJECT_ID,
-      topicIds: [],
-      filters: ['flagged'],
-    })
-
-    expect(result).toMatchObject({ count: 0 })
-  })
-
-  it('returns count 0 when both topicIds and subtopicIds are empty', async () => {
-    setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildQueryChain([]))
-
-    const result = await getFilteredCount({
-      subjectId: SUBJECT_ID,
-      topicIds: [],
-      subtopicIds: [],
-      filters: ['flagged'],
-    })
-
-    expect(result).toMatchObject({ count: 0 })
-  })
 })
 
-// ---- getFilteredCount — bail logic (AND semantics) -----------------------
+// ---- getFilteredCount — empty-array semantics ----------------------------
 
-describe('getFilteredCount — bail logic (both arrays must be empty to short-circuit)', () => {
-  it('does NOT bail when topicIds is empty but subtopicIds is undefined', async () => {
+describe('getFilteredCount — empty-array semantics (empty array = match nothing, aligned to quiz selection)', () => {
+  // #668/#678/#679: the count RPC and the random-id RPC share `_filtered_question_pool`,
+  // so an empty `p_topic_ids` (or `p_subtopic_ids`) matches nothing in BOTH paths.
+  // This restores count == quiz consistency: the count badge can no longer claim
+  // there are questions to start, when the same selection would actually start zero.
+
+  it('returns count 0 when topicIds is empty and subtopicIds is undefined (RPC matches nothing)', async () => {
     setupAuthenticatedUser()
-    // subtopicIds undefined means "no subtopic filter" — subject-level fallback applies
-    mockFrom.mockReturnValue(buildQueryChain([{ id: Q1_ID }, { id: Q2_ID }]))
+    // RPC is now always called; with topic_id = ANY('{}') the DB returns zero rows.
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
     const result = await getFilteredCount({
       subjectId: SUBJECT_ID,
@@ -504,13 +415,17 @@ describe('getFilteredCount — bail logic (both arrays must be empty to short-ci
       filters: ['all'],
     })
 
-    // Query proceeds; result depends on what the DB returns, not the bail guard
-    expect(result).toMatchObject({ count: 2 })
+    expect(result).toMatchObject({ count: 0 })
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_topic_ids: [], p_subtopic_ids: null }),
+    )
   })
 
-  it('does NOT bail when subtopicIds is empty but topicIds is undefined', async () => {
+  it('returns count 0 when subtopicIds is empty and topicIds is undefined (RPC matches nothing)', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildQueryChain([{ id: Q1_ID }]))
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
     const result = await getFilteredCount({
       subjectId: SUBJECT_ID,
@@ -519,13 +434,17 @@ describe('getFilteredCount — bail logic (both arrays must be empty to short-ci
       filters: ['all'],
     })
 
-    expect(result).toMatchObject({ count: 1 })
+    expect(result).toMatchObject({ count: 0 })
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_topic_ids: null, p_subtopic_ids: [] }),
+    )
   })
 
-  it('bails immediately when both topicIds and subtopicIds are empty arrays', async () => {
+  it('returns count 0 when both topicIds and subtopicIds are empty arrays (RPC called with empty arrays)', async () => {
     setupAuthenticatedUser()
-    // mockFrom should never be called if bail fires before the query
-    mockFrom.mockReturnValue(buildQueryChain([{ id: Q1_ID }]))
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
     const result = await getFilteredCount({
       subjectId: SUBJECT_ID,
@@ -535,10 +454,15 @@ describe('getFilteredCount — bail logic (both arrays must be empty to short-ci
     })
 
     expect(result).toMatchObject({ count: 0 })
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_topic_ids: [], p_subtopic_ids: [] }),
+    )
   })
 })
 
-// ---- fetchTopicsWithSubtopics -----------------------------------------------
+// ---- fetchTopicsWithSubtopics ---------------------------------------------
 
 const TOPIC_WITH_SUBTOPICS = [
   {

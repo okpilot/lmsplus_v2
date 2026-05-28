@@ -9,8 +9,7 @@ import {
   getTopicsForSubject,
   getTopicsWithSubtopics,
 } from '@/lib/queries/quiz'
-import { applyFilters } from './filter-helpers'
-import { buildQuestionQuery, groupCounts } from './lookup-helpers'
+import { rpc } from '@/lib/supabase-rpc'
 
 const IdSchema = z.uuid()
 
@@ -83,31 +82,31 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
   }
   const { subjectId, topicIds, subtopicIds, filters } = parsed
 
-  // undefined = no scoping restriction (query all); [] = explicitly nothing selected.
-  // Only bail when BOTH arrays are explicitly empty — no topics AND no subtopics.
-  const hasTopics = topicIds === undefined || topicIds.length > 0
-  const hasSubtopics = subtopicIds === undefined || subtopicIds.length > 0
-  if (!hasTopics && !hasSubtopics) {
-    return empty
-  }
-
-  const { data, error } = await buildQuestionQuery(supabase, subjectId, topicIds, subtopicIds)
-  if (error) {
-    console.error('[getFilteredCount] Questions query error:', error.message)
-    return empty
-  }
-  if (!data.length) return empty
-
-  const activeFilters = filters.filter((f) => f !== 'all')
-  if (!activeFilters.length) return { count: data.length, ...groupCounts(data) }
-
-  const result = await applyFilters({
-    supabase,
-    userId: user.id,
-    questions: data,
-    filters: activeFilters,
+  // undefined → null to RPC = unconstrained (whole subject pool); [] → empty array = match nothing (topic_id = ANY('{}') is always false).
+  const { data, error } = await rpc<
+    { topic_id: string; subtopic_id: string | null; n: number | string }[]
+  >(supabase, 'get_filtered_question_counts', {
+    p_subject_id: subjectId,
+    p_topic_ids: topicIds ?? null,
+    p_subtopic_ids: subtopicIds ?? null,
+    p_filters: filters.filter((f) => f !== 'all'),
   })
-  const filteredIds = new Set(result.map((q) => q.id))
-  const filtered = data.filter((q) => filteredIds.has(q.id))
-  return { count: filtered.length, ...groupCounts(filtered) }
+  if (error) {
+    console.error('[getFilteredCount] get_filtered_question_counts error:', error.message)
+    return empty
+  }
+  if (!Array.isArray(data)) return empty
+
+  let count = 0
+  const byTopic: Record<string, number> = {}
+  const bySubtopic: Record<string, number> = {}
+  for (const r of data) {
+    const n = Number(r.n)
+    count += n
+    byTopic[r.topic_id] = (byTopic[r.topic_id] ?? 0) + n
+    if (r.subtopic_id) {
+      bySubtopic[r.subtopic_id] = (bySubtopic[r.subtopic_id] ?? 0) + n
+    }
+  }
+  return { count, byTopic, bySubtopic }
 }

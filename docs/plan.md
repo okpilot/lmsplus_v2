@@ -1198,6 +1198,25 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - New `fetchActiveQuestionCounts()` helper guards the RPC payload with `Array.isArray` (code-style §5) and logs the error path (old reads dropped errors silently).
 - Covers #668 P0 (`quiz.ts:48`) + P1 (`quiz.ts:86,122,149-178`). `getRandomQuestionIds` biased sampling (`quiz.ts:229`) and `getFilteredCount` (`lookup-helpers.ts`) deferred to child issues.
 
+### Instance #6: filtered-question-pool RPCs — #678 + #679 (IN PROGRESS — this branch)
+
+**Branch:** `fix/668-678-679-filtered-question-pool` (Wave 1 production code landed; Wave 2 test rewrites pending)
+
+- New migration `20260528000001_filtered_question_pool_rpcs.sql` adds:
+  - `_filtered_question_pool` — internal `STABLE SECURITY INVOKER` SQL helper. Defines the active, org-scoped, subject + topic/subtopic OR + per-user UNION filter pool. Single source of truth so the two wrapper RPCs are structurally guaranteed to agree (count == quiz).
+  - `get_random_question_ids` (#679) — `VOLATILE SECURITY INVOKER`; `ORDER BY random() LIMIT GREATEST(p_count, 0)` over the helper's pool. Replaces a client-side fetch-then-shuffle that hit the 1000-row cap → biased sampling past row 1000.
+  - `get_filtered_question_counts` (#678) — `STABLE SECURITY INVOKER`; per-(topic, subtopic) `count(*)::bigint`. Replaces a client-side `SELECT id, topic_id, subtopic_id FROM questions` whose total truncated at the 1000-row cap.
+- Security: `tenant_isolation` on `questions` (single permissive SELECT policy) auto-scopes org + `deleted_at IS NULL`. The per-user filter subqueries self-scope with `sr.student_id = auth.uid()` on `student_responses` — LOAD-BEARING per security.md §11 (two permissive SELECT policies on that table). Filters on `fsrs_cards` and `active_flagged_questions` are defense-in-depth. No correct-answer columns selected.
+- TypeScript rewrites:
+  - `lib/queries/quiz.ts:getRandomQuestionIds` — now a thin `rpc<{id}[]>(supabase, 'get_random_question_ids', …)` caller with `Array.isArray` guard + error→`[]` + `console.error`. The `userId` opt is dropped (RPC uses `auth.uid()`); the local `filterUnseen` / `filterIncorrect` / `filterFlagged` helpers + the `UntypedClient` / `UntypedQuery` / `QuestionIdRow` / `QuestionFilterRef` types are deleted.
+  - `app/app/quiz/actions/start.ts` — drops the `userId` arg from the `getRandomQuestionIds` call.
+  - `app/app/quiz/actions/lookup.ts:getFilteredCount` — now an `rpc<{topic_id, subtopic_id, n}[]>(supabase, 'get_filtered_question_counts', …)` caller; aggregates `count / byTopic / bySubtopic` with `Number(r.n)` coercion. Auth gate + `FilteredCountSchema.parse` kept. The `hasTopics / hasSubtopics` empty-array bail is removed — SQL handles empties consistently (an explicit empty array = match nothing on that dimension; `count: 0`).
+  - `app/app/quiz/actions/lookup-helpers.ts` and `app/app/quiz/actions/filter-helpers.ts` deleted (functions removed; no other callers).
+- Behaviour change (intentional, count == quiz alignment):
+  - Filter semantics align to **OR / union** in both call sites. Fixes the long-standing AND-vs-OR mismatch and the `unseen + incorrect = ∅` mutex-then-AND bug (badge was permanently 0 for that combo).
+  - Test-only case: explicit empty `topicIds` with `undefined` `subtopicIds` now yields `count: 0` in both functions (previously `getFilteredCount` counted the whole subject). UI never sends this combination.
+- Wave 2 (pending): rewrite `quiz.test.ts` `getRandomQuestionIds` suite (≈5 describe blocks, L189–513) to mock the `rpc` wrapper; rewrite the 8 filter-behavior tests in `lookup.test.ts` to `mockRpc` grouped rows; flip the bail-logic block to the new empty-array=match-nothing semantics with comments; delete the now-obsolete `lookup-helpers.test.ts` + `filter-helpers.test.ts`. Until Wave 2 lands, `quiz.test.ts` and the two helper test files break `pnpm check-types` (test files import deleted source modules and pass the now-removed `userId` opt).
+
 ### Instance #4: GDPR data-export pagination (merged via PR #681)
 
 **Commit:** `4538c649` (squash-merged via PR #681, 2026-05-27)
