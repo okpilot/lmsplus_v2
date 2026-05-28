@@ -261,6 +261,29 @@
 - docs: RPC section replaced (old get_admin_student_stats → new get_admin_dashboard_students). Returns signature matches migration RETURNS TABLE exactly. Naming convention list at L635 did not include get_admin_student_stats (confirmed in HEAD) so no update needed there. plan.md instance #5 accurately described.
 - Positive signal: no unused helpers, no raw DB error leaks, no missing §9 filters. Full plan checklist satisfied.
 
+### 2026-05-27 — Dependabot #28 postcss XSS fix (pnpm override) — APPROVED
+
+- `pnpm.overrides` entry `"postcss": ">=8.5.10 <9"` matches the advisory floor exactly (GHSA fix is in 8.5.10) and caps at major 8, consistent with the existing `undici`, `next`, `fast-uri` override style.
+- Lockfile regen: net -314 lines (10 added, 324 removed) — pruning, not expansion. Vulnerable `postcss@8.4.31` fully removed (both `packages:` and `snapshots:` blocks). Resolved version is `postcss@8.5.15`.
+- Incidental churn verified expected: `@rolldown/binding-*` 1.0.1→1.0.2 (devDep, orphaned by vite 8.0.13→8.0.14), `vite@8.0.13→8.0.14` (devDep, vitest peer), `react-dom@19.2.4→19.2.6` importer entry (stale lockfile artifact corrected to match declared `"react-dom": "19.2.6"` in package.json), `lru-cache@11.3.5→11.5.0`, `semver@7.7.4→7.8.0`, `caniuse-lite@1.0.30001791→1.0.30001793`, `@types/estree@1.0.8→1.0.9` (dep reference update only, both versions retained). All devDep/transitive, within declared ranges, no major bumps.
+- No production dependency changed. Override is scoped only to postcss. All other prod packages in importers block untouched.
+- Positive pattern: `>=floor <major` range style is consistent across all 4 security overrides. One line in package.json + lockfile regen = minimal blast radius for a security patch.
+
+### 2026-05-28 — #668 instance #6: filtered-question-pool RPCs (#678 + #679) — APPROVED
+
+- SQL migration verified against design.md exactly: all three functions match signatures, volatility (`_filtered_question_pool` STABLE, `get_random_question_ids` VOLATILE, `get_filtered_question_counts` STABLE), `SECURITY INVOKER` on all three, `SET search_path = public` on all three, grants to `authenticated` on all three, comments present on all three.
+- auth.uid() scoping in `_filtered_question_pool`: `student_responses` uses load-bearing `sr.student_id = auth.uid()` per §11 (two permissive SELECT policies). `fsrs_cards` and `active_flagged_questions` also scoped (defense-in-depth). Correct.
+- `getRandomQuestionIds` (quiz.ts): thin `rpc<{id}[]>` caller, `activeFilters = filters?.filter(f => f !== 'all') ?? []`, `topicIds ?? null` / `subtopicIds ?? null` mapping, `Array.isArray(data) ? data.map(r => r.id) : []` guard, `console.error` + `return []` on error. `userId` opt removed. Dead helpers (`filterUnseen`, `filterIncorrect`, `filterFlagged`, `UntypedClient`, `UntypedQuery`, `QuestionIdRow`, `QuestionFilterRef`) all deleted.
+- `getFilteredCount` (lookup.ts): thin `rpc<{topic_id, subtopic_id, n}[]>` caller, `Number(r.n)` coercion, `Array.isArray(data)` guard, `empty` return on error + non-array. `hasTopics/hasSubtopics` bail removed; SQL handles empty arrays. Auth gate and `FilteredCountSchema.parse` preserved.
+- `start.ts`: `userId` arg drop confirmed, single-line change.
+- Dead files deleted: `filter-helpers.ts`, `filter-helpers.test.ts`, `lookup-helpers.ts`, `lookup-helpers.test.ts`. No callers in production remain (grep confirmed clean).
+- Tests: `quiz.test.ts` `getRandomQuestionIds` suite rewrites to `mockRpc`; surviving `getSubjectsWithCounts` etc. suites keep `mockFrom` in `vi.hoisted()` — correct. `lookup.test.ts` bail-logic block correctly flips `count:2→0` and `count:1→0` with comments; `mockFrom` dropped and replaced with `mockRpc` throughout the `getFilteredCount` block.
+- Error sanitization: `error.message` only in `console.error` server-side; never returned to client. `getFilteredCount` returns `empty` (not `error.message`) on error path. Correct.
+- No hard DELETEs, no SELECT *, no service role key, no immutable table mutations.
+- tasks.md migration filename stale (`20260527000002` in tasks.md vs actual `20260528000001`). Not a blocker — tasks.md is a planning artifact, not production code; the actual file is correctly named. Minor discrepancy logged.
+- plan.md `Wave 2 (pending)` note accurately describes what is still to come (it IS this commit — Wave 1 + Wave 2 landed together). The note is slightly stale internally but acceptable since the commit resolves all tasks simultaneously.
+- Positive signal: clean separation of SECURITY INVOKER concerns; §11 comment is load-bearing and present; all dead code removed with zero production file stubs remaining.
+
 ### 2026-05-26 — issue #540 CodeRabbit doc+error-path fixes (PR #674) — APPROVED
 
 - design.md Scoping bullet: corrected from "no manual scoping, no auth preamble" to "RLS + an explicit numerator predicate" with `sr.student_id = auth.uid()`. Wording verified against migration `20260521000005_student_mastery_stats_rpc.sql` — correct_q CTE has `WHERE sr.student_id = auth.uid()` at line 68. security.md §11 reference is accurate (`student_responses` has `instructors_read_students` policy that OR-combines with the student policy).

@@ -142,6 +142,14 @@ Plans that copy `STABLE` from a non-dynamic-SQL precedent RPC (like `get_admin_s
 
 Plans for admin-facing SECURITY DEFINER RPCs that intentionally show soft-deleted rows (e.g. admin student roster showing inactive users) must include an inline SQL comment citing (a) the §9 rule, (b) why the omission is intentional (admin visibility of inactive records), and (c) the precedent RPC that established this pattern. Without this comment, the security auditor will flag the missing `deleted_at IS NULL` as a violation on every review cycle. The old `get_admin_student_stats` shipped without such a comment and was accepted — but the new RPC should be explicit.
 
+### [2026-05-27] Test rewrite plans for RPC refactors that delete a `userId` opt must enumerate exact test blocks deleted vs. kept
+
+When a function that takes a `userId` opt is replaced with a server-side RPC that uses `auth.uid()`, the test file for that function contains test blocks that (a) pass `userId: 'u1'` as an opt — these become TypeScript errors and must be listed as deleted, and (b) use multi-call `mockFrom` patterns to mock per-user filter reads — these also become dead and must be listed as deleted. Plans that say "rewrite X suites to mock `rpc`" without enumerating deleted vs. kept blocks leave the implementer unable to determine scope. Must also confirm whether `mockFrom` in `vi.hoisted()` is still needed by surviving functions in the same file. First seen: #668 instances #678/#679 (`getRandomQuestionIds` quiz.test.ts).
+
+### [2026-05-27] Bail-logic removal in a Server Action changes test *assertions*, not just test *infrastructure*
+
+When a plan removes a short-circuit bail (e.g., `hasTopics/hasSubtopics` check in `getFilteredCount`) and replaces it with SQL semantics, existing tests for the bail behavior have two outcomes: (a) same end result (count: 0), now via SQL path — these need only mock change; (b) DIFFERENT end result (previously bailed and returned 0, now queries and gets N > 0, OR previously returned N now returns 0 because `ANY([])` matches nothing). Plans must classify each bail-path test into category (a) or (b). Category (b) tests must be listed as "semantics-changing rewrites," not just "mock infra changes." First seen: #668 instances #678/#679 (`getFilteredCount` lookup.test.ts bail-logic describe block).
+
 ## Positive Signals
 
 ### [2026-04-09] Base UI data attribute names correctly verified

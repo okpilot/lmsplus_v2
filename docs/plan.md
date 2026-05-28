@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-05-27 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686. 12/12 P0 merged.
+> Last updated: 2026-05-28 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686. Instance #6 (#678 + #679, filtered-question-pool RPCs) landed on `fix/668-678-679-filtered-question-pool`, awaiting merge. 12/12 P0 merged.
 
 ---
 
@@ -1171,7 +1171,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 **Commit:** `ae087c76`
 
 - New RPC: `get_student_mastery_stats()` (mig 20260521000005) — per-(subject) and per-(subject,topic) mastery counts from question/response aggregates.
-- Security: `SECURITY INVOKER` + explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11 — `student_responses` has 2 permissive SELECT policies).
+- Security: `SECURITY INVOKER` + explicit `sr.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies) — `student_responses` has 2 permissive SELECT policies).
 - Replaces: client-side `getMasteryStats()` over a `.select('*').eq('student_id', userId).limit(1000)` read that truncated for high-response students.
 - Verification: prod probes synthetic + real (2026-05-26).
 
@@ -1194,9 +1194,28 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 - Rewire 4 count functions (`getSubjectsWithCounts`, `getTopicsForSubject`, `getSubtopicsForTopic`, `getTopicsWithSubtopics`) from unpaginated `questions` reads (silently truncated at 1000 rows) to the existing `get_question_counts('active')` RPC (mig `20260520000001`).
 - **No migration** — reuses the existing `SECURITY INVOKER` RPC, whose result set is bounded by the fixed EASA taxonomy (~42 tuples now, low hundreds full-bank), so it cannot itself truncate.
-- Security: `questions` has one permissive SELECT policy, so security.md §11 explicit scoping is N/A; RLS `tenant_isolation` + `deleted_at IS NULL` already enforced in the RPC.
+- Security: `questions` has one permissive SELECT policy, so security.md §3 (Multiple Permissive SELECT Policies) explicit scoping is N/A; RLS `tenant_isolation` + `deleted_at IS NULL` already enforced in the RPC.
 - New `fetchActiveQuestionCounts()` helper guards the RPC payload with `Array.isArray` (code-style §5) and logs the error path (old reads dropped errors silently).
 - Covers #668 P0 (`quiz.ts:48`) + P1 (`quiz.ts:86,122,149-178`). `getRandomQuestionIds` biased sampling (`quiz.ts:229`) and `getFilteredCount` (`lookup-helpers.ts`) deferred to child issues.
+
+### Instance #6: filtered-question-pool RPCs — #678 + #679 (this branch, awaiting merge)
+
+**Branch:** `fix/668-678-679-filtered-question-pool` (Wave 1 production code + Wave 2 test rewrites both landed; 3374 tests passing)
+
+- New migration `20260528000001_filtered_question_pool_rpcs.sql` adds:
+  - `_filtered_question_pool` — internal `STABLE SECURITY INVOKER` SQL helper. Defines the active, org-scoped, subject + topic/subtopic OR + per-user UNION filter pool. Single source of truth so the two wrapper RPCs are structurally guaranteed to agree (count == quiz).
+  - `get_random_question_ids` (#679) — `VOLATILE SECURITY INVOKER`; `ORDER BY random() LIMIT LEAST(GREATEST(p_count, 0), 500)` over the helper's pool (500 cap mirrors the Zod schema in `start.ts` — defense in depth for direct RPC callers). Replaces a client-side fetch-then-shuffle that hit the 1000-row cap → biased sampling past row 1000.
+  - `get_filtered_question_counts` (#678) — `STABLE SECURITY INVOKER`; per-(topic, subtopic) `count(*)::bigint`. Replaces a client-side `SELECT id, topic_id, subtopic_id FROM questions` whose total truncated at the 1000-row cap.
+- Security: `tenant_isolation` on `questions` (single permissive SELECT policy) auto-scopes org + `deleted_at IS NULL`. The per-user filter subqueries self-scope with `sr.student_id = auth.uid()` on `student_responses` — LOAD-BEARING per security.md §3 (Multiple Permissive SELECT Policies) (two permissive SELECT policies on that table). Filters on `fsrs_cards` and `active_flagged_questions` are defense-in-depth. No correct-answer columns selected.
+- TypeScript rewrites:
+  - `lib/queries/quiz.ts:getRandomQuestionIds` — now a thin `rpc<{id}[]>(supabase, 'get_random_question_ids', …)` caller with `Array.isArray` guard + error→`[]` + `console.error`. The `userId` opt is dropped (RPC uses `auth.uid()`); the local `filterUnseen` / `filterIncorrect` / `filterFlagged` helpers + the `UntypedClient` / `UntypedQuery` / `QuestionIdRow` / `QuestionFilterRef` types are deleted.
+  - `app/app/quiz/actions/start.ts` — drops the `userId` arg from the `getRandomQuestionIds` call.
+  - `app/app/quiz/actions/lookup.ts:getFilteredCount` — now an `rpc<{topic_id, subtopic_id, n}[]>(supabase, 'get_filtered_question_counts', …)` caller; aggregates `count / byTopic / bySubtopic` with `Number(r.n)` coercion. Auth gate + `FilteredCountSchema.parse` kept. The `hasTopics / hasSubtopics` empty-array bail is removed — SQL handles empties consistently (an explicit empty array = match nothing on that dimension; `count: 0`).
+  - `app/app/quiz/actions/lookup-helpers.ts` and `app/app/quiz/actions/filter-helpers.ts` deleted (functions removed; no other callers).
+- Behaviour change (intentional, count == quiz alignment):
+  - Filter semantics align to **OR / union** in both call sites. Fixes the long-standing AND-vs-OR mismatch and the `unseen + incorrect = ∅` mutex-then-AND bug (badge was permanently 0 for that combo).
+  - Test-only case: explicit empty `topicIds` with `undefined` `subtopicIds` now yields `count: 0` in both functions (previously `getFilteredCount` counted the whole subject). UI never sends this combination.
+- Tests rewritten in the same commit (Wave 2): `quiz.test.ts` `getRandomQuestionIds` suite (5 describe blocks, L189–513) rewritten to mock the `rpc` wrapper; the 8 filter-behavior tests in `lookup.test.ts` switched to `mockRpc` grouped rows; the bail-logic block retitled "empty-array semantics" with the intentional `count: 2→0` / `1→0` flips commented as the count==quiz alignment from #668; `lookup-helpers.test.ts` and `filter-helpers.test.ts` deleted. Full suite: 247 files / 3374 tests pass; `check-types`/`lint`/`build` clean; migration applied to local DB with 3 functions created (verified via `pg_proc`).
 
 ### Instance #4: GDPR data-export pagination (merged via PR #681)
 
@@ -1216,4 +1235,4 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - **Pending:** prod verification via synthetic + real student probes (instances #1–#2).
 - **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened — the umbrella stays open until all P0/P1/P2 sites land.
 
-*Last updated: 2026-05-27 — Instance #5 (#682) merged via PR #686; 12/12 P0 done and merged.*
+*Last updated: 2026-05-28 — Instance #6 (#678 + #679) implementation + tests landed on `fix/668-678-679-filtered-question-pool`; awaiting merge. 12/12 P0 merged.*

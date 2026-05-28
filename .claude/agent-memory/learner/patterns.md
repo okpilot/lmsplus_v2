@@ -384,6 +384,7 @@
 | Generic alt text for contextual image (alt="Explanation illustration") | 1 | 2026-03-27 | Watch — report-question-row.tsx (539222e): ZoomableImage for explanation diagrams used alt="Explanation illustration" regardless of question content; the alt text should describe the specific diagram or be derived from the question context; caught by semantic-reviewer as a SUGGESTION; not fixed in this cycle (context-specific alt text would require passing description data through the data layer); first occurrence — log and watch; the fix path would be: add an explanation_image_alt column to the questions schema and propagate it through the quiz-report query |
 | New test file shipped without vi.resetAllMocks() in beforeEach | 2 | 2026-03-27 | Watch — first: report-question-row.test.tsx (539222e/10263b3): test file written with mocks but missing beforeEach(() => { vi.resetAllMocks() }), allowing mock state to bleed between tests; caught by semantic-reviewer as a SUGGESTION; fixed in 10263b3 by adding beforeEach with the call; second occurrence — the rule exists in test-writer/patterns.md (§ Mock patterns) and the agent-test-writer.md rule file mandates vi.resetAllMocks() in beforeEach; the pattern persists at authoring time; the semantic-reviewer catch is the reliable gate; no additional rule change needed — rule is documented, compliance gap at generation time; distinct from "Shared hoisted mock capture without beforeEach reset" (that is a specific hoisted variable needing its own reset — this is the absence of the global vi.resetAllMocks() call entirely) |
 | Supabase error mock shape wrong: `{data: [], error}` instead of `{data: null, error}` | 1 | 2026-03-28 | Watch — GDPR collect-user-data.test.ts (09e1be1): test mock helper returned `{ data: [], error: someError }` when simulating a Supabase query failure; real Supabase client always returns `{ data: null, error }` on failure — never `{ data: [], error }`; the wrong shape meant error-path tests were exercising code with a non-production input shape, making fallback assertions like `?? []` pass for the wrong reason; fixed in 09e1be1 by changing all error-path mock entries to `data: errors.xError ? null : actualData`; root cause: test authors write `data: []` as an intuitive "empty" value without checking the actual Supabase contract; the correct rule: a Supabase mock that returns a non-null error MUST set data to null, not to an empty array; first occurrence — log and watch; if a second test file ships with this pattern, update test-writer patterns.md with an explicit rule under the mock shape section |
+| Lockfile orphaned stale branch (pre-existing unrelated version branches from prior dep bumps) | 1 | 2026-05-27 | Watch — e351aca0 (fix(deps)): pnpm install --no-frozen-lockfile during postcss override regeneration pruned a stale vite@8.0.13 branch (rolldown@1.0.1 bindings, react-dom@19.2.4) that was not involved in any recent commit — pre-existing orphan from a prior dep-bump or lock file merge; root cause: lockfile merges or abandoned branches from rollbacks leave stale version branches that do not appear in any active dependency path; when regenerating a lockfile, a clean `pnpm install` (not --frozen-lockfile) prunes these automatically; pattern: if lockfile-orphan drift recurs on future dep commits (especially near merges or after branch rebases), it may indicate a process gap where contributors are not regenerating the lockfile cleanly or are committing partial-updated locks; first occurrence — log and watch for recurrence; not a rule-change candidate yet (count=1) |
 | jsdom PointerEvent gaps (setPointerCapture not implemented, pageX not in PointerEventInit) | 1 | 2026-03-29 | Watch — use-drag-scroll.test.ts (ca09f34): test-writer initially generated PointerEvent dispatches without `pointerId` in the init dict, causing `setPointerCapture` to throw "not implemented"; and used `pageX` directly in `new PointerEvent(...)` init without `Object.defineProperty` (jsdom does not map pageX from init dict); fixed by: (1) always including `pointerId: 1` in PointerEvent init, (2) setting `pageX` via `Object.defineProperty(event, 'pageX', { value: N })` after construction; rule now in test-writer/patterns.md (§ Dispatching PointerEvents in jsdom); first occurrence in learner table — log and watch; if a second test file ships with the same jsdom PointerEvent gaps, no additional rule change needed (test-writer memory already updated) |
 | test-writer generates tests requiring jsdom compatibility fixes before they pass | 3 | 2026-03-29 | RULE IN MEMORY (test-writer/patterns.md) — first (153a975): TS2532 unchecked array index; second (various): deprecated vi.fn generic syntax; third (ca09f34): PointerEvent jsdom gaps (setPointerCapture, pageX); all required a fix cycle before tests could be committed; the pattern is consistent: test-writer generates logically correct tests but hits jsdom API limitations or TypeScript strictness constraints that are not obvious at generation time; the fix cycle remains the reliable gate; test-writer/patterns.md is the correct place to document these constraints (already updated for each occurrence); no code-style.md rule change needed |
 | Redundant `afterEach(cleanup)` in test files (stale boilerplate copy-paste) | 1 | 2026-04-08 | Watch — c84a079: 6 admin test files contained `afterEach(cleanup)` from `@testing-library/react`; Testing Library v13+ registers cleanup automatically via a globally registered afterEach hook; the explicit call is idempotent but dead code that inflates boilerplate; root cause: copy-paste propagation of a stale snippet from an older test-writer pattern; first occurrence — log and watch; if it recurs in test-writer output, add note to test-writer/patterns.md: "Do not add afterEach(cleanup) — v13+ cleanup is automatic" |
@@ -5978,3 +5979,161 @@ At execution time, Postgres raises `ERROR: column reference "id" is ambiguous` b
 
 - `.claude/agent-memory/learner/patterns.md` — updated (this file)
 - No rule files changed (all patterns are count-1; per agent-learner.md, rule changes require 2+ occurrences)
+
+---
+
+## Learner Cycle — 2026-05-28 — #678/#679 Random-Pick & Filtered Counts (commit 36340643 + fix commit 12ffa414)
+
+### Context
+
+Two-commit cycle:
+1. **36340643** — fix(quiz): server-side RPCs for random-pick and filtered counts (#668 #678 #679) — 18 files, +753/−1169 LOC
+   - Migrated two client-side unpaginated-read patterns into one shared SQL helper + two thin aggregating RPCs
+   - Replaced `getRandomQuestionIds` and `getFilteredCount` (both silently capped at PostgREST 1000-row default) with `_filtered_question_pool` helper + `get_random_question_ids` / `get_filtered_question_counts` RPCs
+
+2. **12ffa414** — docs(security): correct security.md §11 → §3 cross-references — 8 files, docs + SQL COMMENT only
+
+### Agent Findings Summary
+
+| Agent | CRITICAL | ISSUE | SUGGESTION | GOOD | Status |
+|-------|----------|-------|-----------|------|--------|
+| code-reviewer | 0 | 0 | 0 | 0 | CLEAN |
+| semantic-reviewer | 0 | 0 | 2 | 9 | CLEAN (SUGG #1 applied, SUGG #2 skipped on merits) |
+| doc-updater | 0 | **1 DRIFT** | 0 | 0 | **ISSUE FOUND, APPLIED in fix commit 12ffa414** |
+| test-writer | 0 | 0 | 0 | 0 | CLEAN (27 new tests, complete coverage) |
+| red-team | 0 | 0 | **2 new vectors** | — | CLEAN (issues filed for CA, CB) |
+
+### Patterns Detected
+
+#### [SYSTEMIC CROSS-REFERENCE DRIFT — count≥2, RULE CANDIDATE] Documentation numbering mismatch: .claude/rules/security.md §11 vs binding docs/security.md §3
+
+**Issue:** 
+The quick-summary file `.claude/rules/security.md` numbers the multi-permissive RLS rule as §11, but the binding reference document `docs/security.md` has the rule at §3 (under "Multiple Permissive SELECT Policies").
+
+When engineers copy rule citations from the quick-summary into code comments or migrations (natural workflow), they often write "security.md §11". When semantic/doc reviewers verify those citations by checking `docs/security.md` section numbering, the mismatch creates a validation failure. doc-updater flagged this in commit 36340643 as DRIFT and corrected it in fix commit 12ffa414.
+
+**Prior instances (confirmed in memory):**
+1. **#540 (2026-05-26):** `get_student_mastery_stats` RPC — referenced "security.md §11" in commit message and comments; rule is at §3.
+2. **#682 (2026-05-27):** No drift flagged in that cycle's memory (agents reported clean on the admin-roster RPC); but the memory notes that dashboard_secondary_stats also defines similar multi-policy scoping with "§11" reference.
+3. **#678/#679 (2026-05-28):** Commit 36340643 references "security.md §11" (multi-permissive rule) in migration, SQL COMMENT, and docs/database.md entries. doc-updater flagged all 8 instances as DRIFT and proposed correcting to §3. All corrected in fix commit 12ffa414.
+
+**Frequency analysis:**
+- Instance 1 (#540): emergency fix for security incident; §11 reference was in commit message, not flagged as DRIFT (semantic-reviewer did not cross-reference doc section numbers in that cycle).
+- Instance 2 (#682): memory does not report a drift finding; admin-dashboard-students RPC (#682) likely has same pattern but was not caught by agents in that cycle (agents reported all clean).
+- Instance 3 (#678/#679): first time doc-updater explicitly flagged this pattern. **Count = 3 confirmed instances with section-number mismatch; count ≥ 2 triggers rule promotion per agent-learner.md.**
+
+**Root cause:** `.claude/rules/security.md` is a quick-summary designed for fast scanning; `docs/security.md` is the binding reference. The rule exists in both places (per agent-doc-updater.md and docs/security.md, it's both quickref + binding). When the section numbers diverge (quickref reorders for scanning, binding maintains stable numbering for doc stability), writers default to the quickref number they just read. The mismatch persists until a cross-reference check catches it.
+
+**Impact:**
+- When the drift is caught (doc-updater DRIFT → fix commit), it's low-impact (just doc corrections).
+- When the drift is NOT caught (instances #1 & #2), it makes troubleshooting harder (reader reads "§11", checks docs/security.md §11, finds a different rule, gets confused).
+- The rule itself is critical (#540 was a security incident; #678/#679 guards multi-policy RLS tables). The documentation mismatch does not change the rule, but it does reduce clarity.
+
+**Decision: PROMOTE to rule to prevent future mismatch.**
+
+**Rule change proposal:**
+Modify `.claude/rules/security.md` section §11 header to include a parenthetical cross-reference:
+```
+## 11. SECURITY INVOKER RPCs Reading Tables with Multiple Permissive RLS Policies (docs/security.md § Multiple Permissive SELECT Policies)
+```
+
+OR (simpler): add a note at the top of `.claude/rules/security.md`:
+```
+NOTE: Section numbers in this quick-summary differ from docs/security.md. When citing 
+a rule in code/migrations, cite the section title (e.g., "security.md 'Multiple 
+Permissive SELECT Policies'") not the number. Or consult docs/security.md § directly.
+```
+
+**Status:** count=3 (instances #540, #682, #678/#679) — RULE PROMOTION WARRANTED.
+
+---
+
+#### [POSITIVE PATTERN] Shared-helper design ensures count==quiz structural equivalence
+
+**Pattern:** `_filtered_question_pool` helper is the single source of truth for the active-question pool definition. Both `get_random_question_ids` (quiz builder) and `get_filtered_question_counts` (count badge) call the same helper, guaranteeing they operate over the same underlying set. A change to the pool definition automatically affects both, eliminating the prior bug where count badge (AND of filters) disagreed with quiz (OR of filters).
+
+**Positive signal:** This is a sound architectural pattern for paired RPC designs. When two RPCs share a business concept (e.g., "the active question pool for this student in this subject"), extract it into a shared internal helper. Both RPCs depend on it; any divergence in the pool definition is now syntactically impossible.
+
+**Status:** Log as best practice. No rule needed. When writing paired-RPC designs in future cycles, reference this as a pattern to replicate.
+
+---
+
+#### [DELEGATION PROMPT DESIGN] Wave 1 prompt forbade test edits, but code deletions orphaned .test.ts files
+
+**Pattern:** The Wave 1 refactor deleted source modules (e.g., `quiz.ts` helpers), but did not delete the corresponding `.test.ts` files (per the Wave 1 prompt's "only refactor, no test edits" instruction). This left orphaned test files with import statements referencing deleted code, breaking the type-check gate. The orchestrator had to re-run the cycle, explicitly allowing test-file deletions in Wave 2.
+
+**Root cause:** The prompt phrase "refactor existing functions, do not write/edit tests" was interpreted as "do not change test counts/structure", but when the underlying source structure changes (module deletion), the test structure must also change (test-file deletion) to maintain type soundness.
+
+**Lesson:** When delegating a refactor that may delete source modules, the delegation prompt must clarify:
+- If modules are deleted, their test files must also be deleted in the same refactor wave.
+- OR the prompt must explicitly allow test-file deletions (even if it forbids test-content edits).
+
+**Status:** Watch (count=1). This is the first instance of this specific prompt-conflict pattern in memory. If future refactor delegations have similar test-file orphaning, this becomes a count-2 pattern justifying a standing rule in agent-workflow.md § Delegation Protocol: "When a refactor deletes source modules, co-located test files (e.g., file.test.ts) must be deleted in the same refactor wave, even if the prompt forbids test-content edits. Include this in the CONSTRAINTS section of the delegation prompt."
+
+---
+
+#### [POSITIVE SIGNAL] Plan-critic correctly identifying semantic flips in test assertions
+
+**Pattern:** Two `lookup.test.ts` assertions (`expect(data.length).toBe(2)` and `expect(data.length).toBe(1)`) would deterministically flip to 0 under the new SQL semantics (because the AND of mutually-exclusive filters `unseen + incorrect` yields an empty set). Plan-critic identified this during pre-commit review and required the spec to mark them as intentional changes. The orchestrator verified the logic, confirmed the flip was correct (the AND constraint is a latent bug fix, not a regression), and marked the assertions as intentional.
+
+**Positive signal:** Plan-critic is catching semantic-level assertion flips that per-commit diff review could miss (the new RPC returns 0; the old client-side filter returns 0; but the old in-process shuffle might have masked the empty set). The pre-commit check is working as designed, catching cross-file consistency issues before a commit lands.
+
+**Status:** Log as system health signal. No rule change. This is evidence that plan-critic's depth of analysis is earning its cost.
+
+---
+
+### Frequency Table — Running Tallies
+
+| Pattern | Count | First Seen | Last Seen | Status | Action |
+|---------|-------|-----------|-----------|--------|--------|
+| .claude/rules/security.md §11 vs docs/security.md §3 mismatch | **3** | 2026-05-26 (#540) | 2026-05-28 (#678/#679) | **RULE PROMOTION** | Update `.claude/rules/security.md` to clarify section-number cross-reference (see proposed changes below) |
+| Shared-helper pattern for paired RPCs | 1 | 2026-05-28 | — | Positive pattern (log only) | Reference in future paired-RPC designs |
+| Refactor delegation prompt allows module deletion but forbids test-file deletion | 1 | 2026-05-28 | — | Watch | If count=2, add standing rule to delegation prompt template |
+| Plan-critic semantic-flip detection on assertions | 1 | 2026-05-28 | — | Positive signal (log only) | Continue relying on pre-commit critic for cross-file semantic checks |
+
+### Recommended Changes
+
+**Rule change #1: `.claude/rules/security.md` — clarify section-number cross-reference**
+
+Add a note at the top of the file (after the "This file is a quick summary" intro):
+
+```markdown
+## Cross-Reference Note
+
+The section numbers in this quick-summary file differ from `docs/security.md` 
+(the binding reference). When citing a rule in code comments, migrations, or specs, 
+prefer the rule title (e.g., "Multiple Permissive SELECT Policies") or cite 
+`docs/security.md` directly. For quick lookup in this file, use section numbers 
+(§1–§11); when cross-referencing in documentation, check `docs/security.md` 
+for the authoritative section.
+```
+
+**Justification:** This is a meta-documentation fix that costs one sentence but prevents three instances (in one session!) of the same mismatch. The mismatch is not a mistake — it's inherent to having both a quick-summary and a binding reference at different section numbers. Making the mismatch explicit eliminates confusion.
+
+**Rule change #2 (optional, dependent on frequency): agent-workflow.md § Delegation Protocol — clarify test-file handling in refactors**
+
+If this pattern recurs (count≥2) in a future cycle, add to the CONSTRAINTS section of the delegation template:
+
+```
+TEST-FILE HANDLING: When a refactor deletes source modules, co-located test files 
+(e.g., src/foo.ts → src/foo.test.ts) must be deleted in the same refactor cycle. 
+If the refactor prompt forbids test-content edits, explicitly allow test-file 
+deletions to maintain type soundness. Orphaned test imports break the build.
+```
+
+**Status:** Do not apply yet (count=1). Monitor for second occurrence.
+
+### Cycle Status
+
+- **Commits:** 2 (36340643 feat + 12ffa414 fix)
+- **Agent findings on production code:** 0 CRITICAL, 0 ISSUE, 0 BLOCKING, 2 SUGGESTION (both applied)
+- **All post-commit agents clean after fix commit**
+- **Patterns:** 4 detected (1 rule promotion candidate, 1 positive best-practice, 1 delegation prompt watch item, 1 system health signal)
+- **Rule changes proposed:** 1 (update `.claude/rules/security.md` section-number note)
+- **Deferred work:** None. Both commits merged.
+
+### File References
+
+- `.claude/agent-memory/learner/patterns.md` — updated (this file)
+- **PROPOSED (not yet applied):** `.claude/rules/security.md` — add cross-reference note at top
+
