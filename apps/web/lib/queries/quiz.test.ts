@@ -305,7 +305,7 @@ describe('getRandomQuestionIds', () => {
     expect(await getRandomQuestionIds({ subjectId: 's1', count: 5 })).toEqual([])
   })
 
-  it('drops rpc rows without a string id (code-style §5 per-row guard)', async () => {
+  it('drops rows without a string id from the result', async () => {
     // Defensive per-row filter — if the RPC ever returns malformed rows, undefined
     // must not leak into start_quiz_session's uuid[] argument.
     mockRpc.mockResolvedValueOnce({

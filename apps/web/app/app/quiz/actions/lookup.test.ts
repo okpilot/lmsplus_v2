@@ -301,7 +301,7 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
     expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
   })
 
-  it('skips rows with non-string topic_id or non-finite n (code-style §5 per-row guard)', async () => {
+  it('excludes malformed rows from aggregation totals', async () => {
     // Defensive per-row filter — if the RPC ever returns malformed rows, NaN
     // must not poison count/byTopic and non-string topic_id keys must not
     // index into the record under a coerced key like "undefined".

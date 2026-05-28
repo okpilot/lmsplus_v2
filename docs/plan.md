@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-05-27 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686. 12/12 P0 merged.
+> Last updated: 2026-05-28 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686. Instance #6 (#678 + #679, filtered-question-pool RPCs) landed on `fix/668-678-679-filtered-question-pool`, awaiting merge. 12/12 P0 merged.
 
 ---
 
@@ -1204,7 +1204,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 - New migration `20260528000001_filtered_question_pool_rpcs.sql` adds:
   - `_filtered_question_pool` — internal `STABLE SECURITY INVOKER` SQL helper. Defines the active, org-scoped, subject + topic/subtopic OR + per-user UNION filter pool. Single source of truth so the two wrapper RPCs are structurally guaranteed to agree (count == quiz).
-  - `get_random_question_ids` (#679) — `VOLATILE SECURITY INVOKER`; `ORDER BY random() LIMIT GREATEST(p_count, 0)` over the helper's pool. Replaces a client-side fetch-then-shuffle that hit the 1000-row cap → biased sampling past row 1000.
+  - `get_random_question_ids` (#679) — `VOLATILE SECURITY INVOKER`; `ORDER BY random() LIMIT LEAST(GREATEST(p_count, 0), 500)` over the helper's pool (500 cap mirrors the Zod schema in `start.ts` — defense in depth for direct RPC callers). Replaces a client-side fetch-then-shuffle that hit the 1000-row cap → biased sampling past row 1000.
   - `get_filtered_question_counts` (#678) — `STABLE SECURITY INVOKER`; per-(topic, subtopic) `count(*)::bigint`. Replaces a client-side `SELECT id, topic_id, subtopic_id FROM questions` whose total truncated at the 1000-row cap.
 - Security: `tenant_isolation` on `questions` (single permissive SELECT policy) auto-scopes org + `deleted_at IS NULL`. The per-user filter subqueries self-scope with `sr.student_id = auth.uid()` on `student_responses` — LOAD-BEARING per security.md §3 (Multiple Permissive SELECT Policies) (two permissive SELECT policies on that table). Filters on `fsrs_cards` and `active_flagged_questions` are defense-in-depth. No correct-answer columns selected.
 - TypeScript rewrites:
