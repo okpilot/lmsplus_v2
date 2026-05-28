@@ -11,8 +11,8 @@
 
 ## 2. Verify integration
 - [x] 2.1 Confirm `quiz-config-form.tsx` needs zero changes (same props interface)
-- [ ] 2.2 Manual test: select subject -> topics load, filters reset, count resets
-- [ ] 2.3 Manual test: change subject -> previous state clears correctly
+- [x] 2.2 Manual test: select subject -> topics load, filters reset, count resets
+- [x] 2.3 Manual test: change subject -> previous state clears correctly
 
 ## 3. Testing
 - [x] 3.1 Write unit test for SubjectSelect component (collapsed/expanded states, selection)
