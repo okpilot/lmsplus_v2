@@ -138,7 +138,7 @@ flowchart TD
 
 - Add `response_text TEXT NULL` to `quiz_session_answers` and to `student_responses`.
 - Add `blank_index INT NULL` to both tables (NULL for MC and short_answer; 0..N-1 for dialog_fill blanks).
-- Make `selected_option_id` nullable (`ALTER COLUMN selected_option_id DROP NOT NULL`). The existing `CHECK (selected_option_id IN ('a','b','c','d'))` is satisfied by NULL automatically (Postgres CHECKs evaluate to true when any operand is NULL) — **do NOT drop the existing CHECK; it continues to protect MC rows from invalid option letters**.
+- Make `selected_option_id` nullable (`ALTER COLUMN selected_option_id DROP NOT NULL`). The existing `CHECK (selected_option_id IN ('a','b','c','d'))` is satisfied by NULL automatically (Postgres CHECK constraints pass when the expression evaluates to TRUE or UNKNOWN; NULL operands produce UNKNOWN, which passes — the constraint fails only on FALSE) — **do NOT drop the existing CHECK; it continues to protect MC rows from invalid option letters**.
 - **Add (do not replace) a discriminator CHECK on BOTH tables** (`quiz_session_answers` AND `student_responses`):
   ```sql
   -- Exactly one of (selected_option_id, response_text) must be set per row.

@@ -231,4 +231,4 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
 
 ---
 
-**Estimated scope:** 9 migrations (A.1–A.9) + 1 SQL test file + 5 Server Action files + 8 new component files + 1 E2E spec + helpers. Roughly mid-sized — comparable to internal-exam-mode.
+**Estimated scope:** 11 migrations (083–091, including 084b and 088b) + 1 SQL test file + 5 Server Action files + 8 new component files + 1 E2E spec + helpers. Roughly mid-sized — comparable to internal-exam-mode.

@@ -69,7 +69,7 @@ Steering doc `product.md` lists "in-house mock exam fidelity" as a foundational 
 
 1. WHEN a `vfr_rt_exam` session starts THEN the RPC samples exactly 8 `short_answer` questions, 9 `dialog_fill` questions, and 8 `multiple_choice` questions from the VFR RT subject, mode `random()` per attempt.
 2. WHEN sampling THEN duplicate question IDs across the three parts are prevented at the SQL level (per-part DISTINCT is guaranteed by `ORDER BY random() LIMIT`).
-3. WHEN the sample is complete THEN the IDs are stored in `quiz_sessions.config.question_ids` as a flat ordered array (Part 1 first, then Part 2, then Part 3) for `get_quiz_questions()` lookup — and `config.parts` records the index boundaries (`{p1_end: 8, p2_end: 17, p3_end: 25}`).
+3. WHEN the sample is complete THEN the IDs are stored in `quiz_sessions.config.question_ids` as a flat ordered array (Part 1 first, then Part 2, then Part 3) for `get_quiz_questions()` lookup — and `config.parts` records the **exclusive** end-index boundaries (`{p1_end: 8, p2_end: 17, p3_end: 25}` where Part 1 = `question_ids.slice(0, 8)`, Part 2 = `slice(8, 17)`, Part 3 = `slice(17, 25)`).
 4. WHEN the pool for any part is smaller than the required count THEN the RPC raises `insufficient_questions_for_vfr_rt_exam` with a structured detail (which part was short, how many were available) — mirrors the existing `insufficient_questions_for_exam` pattern from `start_internal_exam_session`.
 5. WHEN the session resumes after a page reload THEN the same `question_ids` and the same Part-1/Part-2/Part-3 grouping are returned (no re-sampling).
 
