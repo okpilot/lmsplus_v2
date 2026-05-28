@@ -300,6 +300,33 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
 
     expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
   })
+
+  it('skips rows with non-string topic_id or non-finite n (code-style §5 per-row guard)', async () => {
+    // Defensive per-row filter — if the RPC ever returns malformed rows, NaN
+    // must not poison count/byTopic and non-string topic_id keys must not
+    // index into the record under a coerced key like "undefined".
+    setupAuthenticatedUser()
+    mockRpc.mockResolvedValueOnce({
+      data: [
+        { topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID, n: 2 },
+        null,
+        { topic_id: TOPIC_ID, subtopic_id: SUBTOPIC_ID, n: 'not-a-number' },
+        { topic_id: 42, subtopic_id: SUBTOPIC_ID, n: 5 },
+        { topic_id: TOPIC_ID_2, subtopic_id: 99, n: 3 },
+      ],
+      error: null,
+    })
+
+    const result = await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
+
+    // Only the first and fifth rows are well-formed (the fifth's numeric
+    // subtopic_id is dropped from bySubtopic by the typeof string guard).
+    expect(result).toEqual({
+      count: 5,
+      byTopic: { [TOPIC_ID]: 2, [TOPIC_ID_2]: 3 },
+      bySubtopic: { [SUBTOPIC_ID]: 2 },
+    })
+  })
 })
 
 // ---- getFilteredCount — filters: ['unseen'] ------------------------------

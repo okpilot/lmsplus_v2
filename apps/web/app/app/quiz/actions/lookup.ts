@@ -97,15 +97,23 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
   }
   if (!Array.isArray(data)) return empty
 
+  // Per-row guard required by code-style.md §5 — the `rpc<…>` cast is a TS
+  // assertion only. Skip rows whose topic_id isn't a string or whose n doesn't
+  // coerce to a finite number; otherwise NaN would poison count/byTopic and a
+  // non-string topic_id would index into the record under a coerced key.
   let count = 0
   const byTopic: Record<string, number> = {}
   const bySubtopic: Record<string, number> = {}
   for (const r of data) {
-    const n = Number(r.n)
+    if (!r || typeof r !== 'object') continue
+    const topicId = (r as { topic_id?: unknown }).topic_id
+    const subtopicId = (r as { subtopic_id?: unknown }).subtopic_id
+    const n = Number((r as { n?: unknown }).n)
+    if (typeof topicId !== 'string' || !Number.isFinite(n)) continue
     count += n
-    byTopic[r.topic_id] = (byTopic[r.topic_id] ?? 0) + n
-    if (r.subtopic_id) {
-      bySubtopic[r.subtopic_id] = (bySubtopic[r.subtopic_id] ?? 0) + n
+    byTopic[topicId] = (byTopic[topicId] ?? 0) + n
+    if (typeof subtopicId === 'string') {
+      bySubtopic[subtopicId] = (bySubtopic[subtopicId] ?? 0) + n
     }
   }
   return { count, byTopic, bySubtopic }

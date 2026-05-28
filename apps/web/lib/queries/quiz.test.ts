@@ -305,6 +305,19 @@ describe('getRandomQuestionIds', () => {
     expect(await getRandomQuestionIds({ subjectId: 's1', count: 5 })).toEqual([])
   })
 
+  it('drops rpc rows without a string id (code-style §5 per-row guard)', async () => {
+    // Defensive per-row filter — if the RPC ever returns malformed rows, undefined
+    // must not leak into start_quiz_session's uuid[] argument.
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'a' }, null, { foo: 'bar' }, { id: 123 }, { id: 'b' }],
+      error: null,
+    })
+
+    const result = await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
+    expect(result).toEqual(['a', 'b'])
+  })
+
   it('returns an empty array and logs when the rpc errors', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc boom' } })

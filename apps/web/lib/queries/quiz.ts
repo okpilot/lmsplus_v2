@@ -226,5 +226,12 @@ export async function getRandomQuestionIds(opts: {
     console.error('[getRandomQuestionIds] get_random_question_ids error:', error.message)
     return []
   }
-  return Array.isArray(data) ? data.map((r) => r.id) : []
+  if (!Array.isArray(data)) return []
+  // Per-row guard required by code-style.md §5 — the `rpc<{id: string}[]>` cast is
+  // a TypeScript assertion only, not a runtime guarantee. Drop rows that don't
+  // carry a string id; otherwise `undefined` would leak into start_quiz_session's
+  // uuid[] arg and trigger a Postgres type error.
+  return data
+    .map((r) => (r && typeof r === 'object' ? (r as { id?: unknown }).id : undefined))
+    .filter((id): id is string => typeof id === 'string')
 }
