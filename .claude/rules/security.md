@@ -3,6 +3,8 @@
 > Full binding security reference: `docs/security.md`
 > This file is a quick summary. When writing any DB/auth/API code, read `docs/security.md` first.
 
+> **Citing these rules in code, docs, or migrations:** the §N section numbers in *this* file are local to this quick-summary and do **not** match `docs/security.md`. When citing a rule outside this file, use the rule **title** (e.g., "Multiple Permissive RLS SELECT Policies") or cite `docs/security.md §N` directly — never `security.md §N` pulled from here. Several rules below already end with a "See `docs/security.md §N`" mapping; prefer that.
+
 ## Critical rules (memorise these)
 
 1. **Correct answers** — strip via `get_quiz_questions()` RPC only. Never SELECT * questions for students.
