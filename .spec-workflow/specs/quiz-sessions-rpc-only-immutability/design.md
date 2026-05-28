@@ -1,5 +1,7 @@
 # Design Document — Quiz Sessions RPC-Only Immutability
 
+> **STATUS: SUPERSEDED (2026-05-28).** This design was not implemented as a single migration. Several premises here no longer hold against current schema — in particular, `quiz_drafts.UNIQUE(student_id)` was dropped by migration `20260313000018_multiple_quiz_drafts.sql` (multiple drafts per student, up to 20, are now app-enforced), so the "look up draft by student_id alone" cleanup model in §"Component 3" and §"Component 4" would mis-target multi-draft cases. The remaining live work moved to the `redteam-quiz-session-bugs` spec / issue #611 (trigger column extension as mig `082`); the `discard_quiz_session` RPC + handshake design is not currently planned — `discard.ts` continues writing `quiz_sessions.deleted_at` directly under RLS. Do not use this document as the basis for new implementation work. See `tasks.md` for the full split list and replacement scope.
+
 ## Overview
 
 This design closes red-team Vectors BL / BM / BN by collapsing the `quiz_sessions` write surface from "RLS-gated PostgREST UPDATE on owned rows" to **"SECURITY DEFINER RPC writes, period"**. After the migration lands:
