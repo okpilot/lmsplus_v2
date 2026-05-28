@@ -38,7 +38,7 @@ A question is in the pool if it matches ANY active filter (`unseen` OR `incorrec
 
 ### R5 — Security
 - SECURITY INVOKER; RLS on `questions` (`tenant_isolation`) provides org scoping + `deleted_at IS NULL`.
-- Per-user filter subqueries scope explicitly with `student_id = auth.uid()` (security.md §11 — `student_responses` has multiple permissive SELECT policies).
+- Per-user filter subqueries scope explicitly with `student_id = auth.uid()` (security.md §3 — `student_responses` has multiple permissive SELECT policies).
 - No correct-answer columns selected (only `id`, `topic_id`, `subtopic_id`).
 - `SET search_path = public` on every function.
 

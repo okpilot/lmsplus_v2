@@ -2063,7 +2063,7 @@ Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_i
 
 Returns up to `p_count` random question IDs from the active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) pool. Used by the student quiz builder (`apps/web/app/app/quiz/actions/start.ts` → `lib/queries/quiz.ts:getRandomQuestionIds`) to seed `start_quiz_session` with a uniformly sampled question set, regardless of pool size.
 
-**Security:** `SECURITY INVOKER`. The underlying `questions` table has a single permissive SELECT policy (`tenant_isolation`), so RLS alone gives correct org + `deleted_at IS NULL` scoping. The shared internal helper `_filtered_question_pool` additionally self-scopes the per-user filter subqueries with `sr.student_id = auth.uid()` on `student_responses` (LOAD-BEARING per security.md §11 — `student_responses` has TWO permissive SELECT policies, `students_read_responses` + `instructors_read_students`, so RLS alone would over-scope to the instructor policy). The `fsrs_cards` and `active_flagged_questions` student_id filters are defense-in-depth (single policy each). No correct-answer columns are exposed — the RPC returns only `id`.
+**Security:** `SECURITY INVOKER`. The underlying `questions` table has a single permissive SELECT policy (`tenant_isolation`), so RLS alone gives correct org + `deleted_at IS NULL` scoping. The shared internal helper `_filtered_question_pool` additionally self-scopes the per-user filter subqueries with `sr.student_id = auth.uid()` on `student_responses` (LOAD-BEARING per security.md §3 (Multiple Permissive SELECT Policies) — `student_responses` has TWO permissive SELECT policies, `students_read_responses` + `instructors_read_students`, so RLS alone would over-scope to the instructor policy). The `fsrs_cards` and `active_flagged_questions` student_id filters are defense-in-depth (single policy each). No correct-answer columns are exposed — the RPC returns only `id`.
 
 **Parameters:**
 - `p_subject_id UUID` — required.
@@ -2088,7 +2088,7 @@ Returns up to `p_count` random question IDs from the active, org-scoped, subject
 
 Returns one row per distinct `(topic_id, subtopic_id)` in the same filtered pool as `get_random_question_ids`. Used by the student quiz builder (`apps/web/app/app/quiz/actions/lookup.ts:getFilteredCount`) to populate the count badge and per-topic/subtopic breakdowns alongside the subject filter UI.
 
-**Security:** `SECURITY INVOKER`. Same scoping model as `get_random_question_ids` (shared `_filtered_question_pool` helper): `tenant_isolation` on `questions` + load-bearing `sr.student_id = auth.uid()` on `student_responses` per security.md §11. No correct-answer columns selected.
+**Security:** `SECURITY INVOKER`. Same scoping model as `get_random_question_ids` (shared `_filtered_question_pool` helper): `tenant_isolation` on `questions` + load-bearing `sr.student_id = auth.uid()` on `student_responses` per security.md §3 (Multiple Permissive SELECT Policies). No correct-answer columns selected.
 
 **Parameters:** identical to `get_random_question_ids` except for the omitted `p_count`. Same NULL-vs-empty-array semantics on `p_topic_ids` / `p_subtopic_ids` / `p_filters`.
 
@@ -2127,7 +2127,7 @@ Returns mastery counts at two granularities in one result set: a subject-level r
 
 Returns one row with the caller's current and best (all-time) daily-practice streak in days, computed entirely in Postgres via a gaps-and-islands query over the DISTINCT UTC calendar dates on which the student answered any question. Used by the student dashboard (`lib/queries/dashboard.ts` → `getStreakData`).
 
-**Security:** `SECURITY INVOKER`. `student_responses` has TWO permissive SELECT policies (`students_read_responses` = `student_id = auth.uid()`, and `instructors_read_students` = org + instructor/admin role), so RLS alone would let an instructor/admin caller streak over org-wide activity. The query self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11). Unauthenticated caller → `auth.uid()` NULL → zero dates → returns a single `{0, 0}` row.
+**Security:** `SECURITY INVOKER`. `student_responses` has TWO permissive SELECT policies (`students_read_responses` = `student_id = auth.uid()`, and `instructors_read_students` = org + instructor/admin role), so RLS alone would let an instructor/admin caller streak over org-wide activity. The query self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies)). Unauthenticated caller → `auth.uid()` NULL → zero dates → returns a single `{0, 0}` row.
 
 **Parameters:** none (caller is always self).
 
@@ -2146,7 +2146,7 @@ Returns one row with the caller's current and best (all-time) daily-practice str
 
 Returns one row per subject the caller has answered, with the most recent response timestamp, over ALL responses (any correctness). Used by the student dashboard (`lib/queries/dashboard.ts` → `applyLastPracticed`).
 
-**Security:** `SECURITY INVOKER`. The `questions` JOIN is org-scoped + `deleted_at IS NULL` via the `tenant_isolation` policy (reproducing the legacy `questionSubjectMap`, which was built from non-deleted questions). `student_responses` self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11, same two-policy reason as `get_student_streak`). Unauthenticated caller → empty set. No question text, options, or correct-answer data is selected — only `subject_id` and a timestamp.
+**Security:** `SECURITY INVOKER`. The `questions` JOIN is org-scoped + `deleted_at IS NULL` via the `tenant_isolation` policy (reproducing the legacy `questionSubjectMap`, which was built from non-deleted questions). `student_responses` self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same two-policy reason as `get_student_streak`). Unauthenticated caller → empty set. No question text, options, or correct-answer data is selected — only `subject_id` and a timestamp.
 
 **Parameters:** none (caller is always self).
 

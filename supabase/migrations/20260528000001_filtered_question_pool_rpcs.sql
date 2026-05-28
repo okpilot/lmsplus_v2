@@ -50,7 +50,7 @@ AS $$
     -- Per-user filters, UNION semantics. NULL or empty p_filters = whole scoped pool.
     -- student_responses has TWO permissive SELECT policies (students_read_responses +
     -- instructors_read_students), so the explicit student_id = auth.uid() scope is
-    -- LOAD-BEARING per security.md §11. fsrs_cards / active_flagged_questions have a
+    -- LOAD-BEARING per security.md §3. fsrs_cards / active_flagged_questions have a
     -- single applicable policy each — the explicit scope there is defense-in-depth.
     AND (
       p_filters IS NULL
@@ -125,7 +125,7 @@ GRANT EXECUTE ON FUNCTION public.get_filtered_question_counts(uuid, uuid[], uuid
 -- Comments
 ---------------------------------------------------------------------------
 COMMENT ON FUNCTION public._filtered_question_pool(uuid, uuid[], uuid[], text[]) IS
-  'Internal: active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) question pool. SECURITY INVOKER; filters scope student_id = auth.uid() (§11). Used by get_random_question_ids and get_filtered_question_counts so count == quiz (#678/#679/#668). Prefer the wrapper RPCs over calling directly (direct calls may hit the PostgREST 1000-row cap).';
+  'Internal: active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) question pool. SECURITY INVOKER; filters scope student_id = auth.uid() (§3). Used by get_random_question_ids and get_filtered_question_counts so count == quiz (#678/#679/#668). Prefer the wrapper RPCs over calling directly (direct calls may hit the PostgREST 1000-row cap).';
 
 COMMENT ON FUNCTION public.get_random_question_ids(uuid, uuid[], uuid[], int, text[]) IS
   'Up to p_count random IDs from the filtered question pool. Server-side ORDER BY random() avoids the 1000-row cap that biased client-side sampling (#679/#668).';

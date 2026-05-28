@@ -102,6 +102,28 @@ The error.message sanitization rule (code-style.md §5 + code-style.md "Sanitize
 - `get_student_streak`: empty `days` CTE → empty `islands` → empty `runs` → scalar subqueries COALESCE to 0 → returns single `{0, 0}` row. `getStreakData` reads `data?.[0] ?? { current_streak: 0, best_streak: 0 }` — fallback unreachable but harmless.
 - `get_student_last_practiced`: `sr.student_id = NULL` matches no rows → empty set returned. `applyLastPracticed` `latestPerSubject` is empty → all subjects get `lastPracticedAt: null`. Correct.
 
+### 2026-05-28 — commit 36340643 (fix(quiz): server-side RPCs for random-pick and filtered counts (#668 #678 #679))
+- **Files reviewed:** supabase/migrations/20260528000001_filtered_question_pool_rpcs.sql, apps/web/lib/queries/quiz.ts, apps/web/app/app/quiz/actions/lookup.ts, apps/web/app/app/quiz/actions/start.ts, apps/web/lib/queries/quiz.test.ts, apps/web/app/app/quiz/actions/lookup.test.ts, docs/database.md, docs/plan.md
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 2 | **GOOD:** 9
+
+**SUGGESTION — plan.md Instance #6 section still describes a two-wave rollout that was completed in this commit**
+- The Wave 2 "(pending)" paragraph in plan.md describes work already landed in this commit. Plan.md date was set to 2026-05-27 (before this commit). Should be updated to reflect that both waves are complete and #678/#679 are closed. Minor doc drift, non-blocking.
+
+**SUGGESTION — internal `_filtered_question_pool` helper has GRANT EXECUTE TO authenticated**
+- The `_` prefix signals an internal helper. Direct PostgREST calls return `(id, topic_id, subtopic_id)` rows — no correct-answer exposure. Under INVOKER the caller's own RLS still applies. Granting execute on the helper is not a security violation but is inconsistent with the "internal" convention documented in its comment. Count=1, watching.
+
+**Positive pattern — SECURITY INVOKER + §11 compliance for dual-policy table**
+- `student_responses` has two permissive SELECT policies (`students_read_responses` + `instructors_read_students`). The `_filtered_question_pool` helper explicitly scopes `sr.student_id = auth.uid()` — load-bearing per security.md §11. Pattern correctly applied and annotated both in the SQL comment and in docs/database.md security paragraphs. Count=3 (ae087c76, 5d1410c7, 36340643) — pattern is now well-established; it appears in the SQL comment for every function touching `student_responses`.
+
+**Positive pattern — NULL/empty-array semantics traced and verified for all combinations**
+- The OR-based topic/subtopic scope clause in `_filtered_question_pool` handles 5 distinct input combinations correctly. The `(p_topic_ids IS NULL AND p_subtopic_ids IS NULL)` arm is the critical unconstrained-pool arm; the `IS NOT NULL AND = ANY(p_ids)` arms correctly evaluate to FALSE for empty arrays (since `ANY('{}')` is always false). All cases verified by manual trace against the spec contract.
+
+**Positive pattern — shared single pool definition eliminates count-vs-quiz divergence structurally**
+- Using one SQL helper called by both the random-pick and count RPCs makes count==quiz a structural property, not a behavioral contract. This is a strong architectural choice that eliminates an entire class of future divergence bugs. Good pattern to follow for similar dual-consumer aggregation problems.
+
+**Pattern to watch — plan.md "IN PROGRESS" markers not updated when a multi-wave commit completes all waves**
+- Count=1. When a commit completes what the plan describes as a multi-wave task, the plan section status should be updated in the same commit. Plan.md drift of this form is low-risk but creates confusion for session-resume reads.
+
 **No answer exposure from get_student_last_practiced (GOOD)**
 - The SELECT clause is `q.subject_id, MAX(sr.created_at)`. No question text, option content, correct-answer flag, or any other sensitive column is returned. The JOIN on `questions` only uses `q.subject_id` for grouping and is scoped to `tenant_isolation` (org + `deleted_at IS NULL`).
 

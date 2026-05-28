@@ -54,7 +54,7 @@ $$;
 
 Notes:
 - SECURITY INVOKER → `questions` RLS (`tenant_isolation`) auto-scopes org + `deleted_at IS NULL`; the explicit `status='active' AND deleted_at IS NULL` mirror `get_question_counts`/`start_exam_session` (defense in depth).
-- Explicit `student_id = auth.uid()` on `student_responses` is **required** by §11 (two permissive SELECT policies: `students_read_responses` + `instructors_read_students` → RLS alone would over-scope to the instructor policy). On `fsrs_cards` (single `students_own_cards` policy) and `active_flagged_questions` (security_invoker view, single underlying policy, already filters `deleted_at IS NULL`), the explicit scope is defense-in-depth, **not** §11-mandated.
+- Explicit `student_id = auth.uid()` on `student_responses` is **required** by §3 (two permissive SELECT policies: `students_read_responses` + `instructors_read_students` → RLS alone would over-scope to the instructor policy). On `fsrs_cards` (single `students_own_cards` policy) and `active_flagged_questions` (security_invoker view, single underlying policy, already filters `deleted_at IS NULL`), the explicit scope is defense-in-depth, **not** §3-mandated.
 - `auth.uid()` NULL (unauthenticated) → `questions` RLS returns no rows → empty pool. Safe.
 
 ### `get_random_question_ids` (#679)
@@ -109,7 +109,7 @@ GRANT EXECUTE ON FUNCTION public.get_random_question_ids(uuid, uuid[], uuid[], i
 GRANT EXECUTE ON FUNCTION public.get_filtered_question_counts(uuid, uuid[], uuid[], text[]) TO authenticated;
 
 COMMENT ON FUNCTION public._filtered_question_pool(uuid, uuid[], uuid[], text[]) IS
-  'Internal: active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) question pool. SECURITY INVOKER; filters scope student_id = auth.uid() (§11). Used by get_random_question_ids and get_filtered_question_counts so count == quiz (#678/#679/#668). Prefer the wrapper RPCs over calling directly (direct calls may hit the PostgREST 1000-row cap).';
+  'Internal: active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) question pool. SECURITY INVOKER; filters scope student_id = auth.uid() (§3). Used by get_random_question_ids and get_filtered_question_counts so count == quiz (#678/#679/#668). Prefer the wrapper RPCs over calling directly (direct calls may hit the PostgREST 1000-row cap).';
 COMMENT ON FUNCTION public.get_random_question_ids(uuid, uuid[], uuid[], int, text[]) IS
   'Up to p_count random IDs from the filtered question pool. Server-side ORDER BY random() avoids the 1000-row cap that biased client-side sampling (#679/#668).';
 COMMENT ON FUNCTION public.get_filtered_question_counts(uuid, uuid[], uuid[], text[]) IS
@@ -163,7 +163,7 @@ COMMENT ON FUNCTION public.get_filtered_question_counts(uuid, uuid[], uuid[], te
 - Delete `lookup-helpers.test.ts` and `filter-helpers.test.ts` (their functions are removed).
 
 ## Docs
-- `docs/database.md` — RPC summary rows + full entries for the two public RPCs (params, returns, INVOKER + §11 note, migration ref, #678/#679/#668 rationale); note the internal `_filtered_question_pool`.
+- `docs/database.md` — RPC summary rows + full entries for the two public RPCs (params, returns, INVOKER + §3 note, migration ref, #678/#679/#668 rationale); note the internal `_filtered_question_pool`.
 - `docs/plan.md` — mark #678 + #679 fixed under #668.
 
 ## Risks / edge cases
