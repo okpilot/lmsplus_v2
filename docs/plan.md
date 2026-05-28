@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-05-28 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686. Instance #6 (#678 + #679, filtered-question-pool RPCs) landed on `fix/668-678-679-filtered-question-pool`, awaiting merge. 12/12 P0 merged.
+> Last updated: 2026-05-28 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686; instance #6 (#678 + #679, filtered-question-pool RPCs) merged via #691 (squash `67b9fcf9`). 12/12 P0 merged.
 
 ---
 
@@ -1198,9 +1198,9 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - New `fetchActiveQuestionCounts()` helper guards the RPC payload with `Array.isArray` (code-style §5) and logs the error path (old reads dropped errors silently).
 - Covers #668 P0 (`quiz.ts:48`) + P1 (`quiz.ts:86,122,149-178`). `getRandomQuestionIds` biased sampling (`quiz.ts:229`) and `getFilteredCount` (`lookup-helpers.ts`) deferred to child issues.
 
-### Instance #6: filtered-question-pool RPCs — #678 + #679 (this branch, awaiting merge)
+### Instance #6: filtered-question-pool RPCs — #678 + #679 (merged via PR #691)
 
-**Branch:** `fix/668-678-679-filtered-question-pool` (Wave 1 production code + Wave 2 test rewrites both landed; 3374 tests passing)
+**Commit:** `67b9fcf9` (squash-merged via PR #691, 2026-05-28; closes #678 + #679)
 
 - New migration `20260528000001_filtered_question_pool_rpcs.sql` adds:
   - `_filtered_question_pool` — internal `STABLE SECURITY INVOKER` SQL helper. Defines the active, org-scoped, subject + topic/subtopic OR + per-user UNION filter pool. Single source of truth so the two wrapper RPCs are structurally guaranteed to agree (count == quiz).
@@ -1229,10 +1229,10 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 ### Status
 
-- **Merged to master:** instance #1 (`get_student_mastery_stats`, `ae087c76`), instance #2 (`get_student_streak` + `get_student_last_practiced`, `9f40caae`), instance #3 (quiz.ts counts via `get_question_counts`, `8b134663`), instance #4 (GDPR export pagination, `4538c649`), and instance #5 (admin roster → `get_admin_dashboard_students`, PR #686).
+- **Merged to master:** instance #1 (`get_student_mastery_stats`, `ae087c76`), instance #2 (`get_student_streak` + `get_student_last_practiced`, `9f40caae`), instance #3 (quiz.ts counts via `get_question_counts`, `8b134663`), instance #4 (GDPR export pagination, `4538c649`), instance #5 (admin roster → `get_admin_dashboard_students`, PR #686), and instance #6 (filtered-question-pool RPCs `get_random_question_ids` + `get_filtered_question_counts`, `67b9fcf9`, PR #691).
 - **P0 progress:** 12 of 12 P0 sites fixed and merged — 10 across instances #1–#4, 2 in **#682** (admin roster + `get_admin_student_stats` → new `get_admin_dashboard_students`, PR #686).
 - **Instance #5 (#682):** replaces the admin-roster fetch-all-merge-sort-slice and the `get_admin_student_stats` RPC with one `SECURITY DEFINER` RPC (`get_admin_dashboard_students`) that joins + filters + sorts + paginates + counts in Postgres; old RPC dropped. Validated on a clean `db reset`; merged via PR #686.
 - **Pending:** prod verification via synthetic + real student probes (instances #1–#2).
 - **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened — the umbrella stays open until all P0/P1/P2 sites land.
 
-*Last updated: 2026-05-28 — Instance #6 (#678 + #679) implementation + tests landed on `fix/668-678-679-filtered-question-pool`; awaiting merge. 12/12 P0 merged.*
+*Last updated: 2026-05-28 — Instance #6 (#678 + #679) merged via PR #691 (squash `67b9fcf9`). 12/12 P0 merged.*
