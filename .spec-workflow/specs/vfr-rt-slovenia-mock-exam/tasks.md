@@ -11,7 +11,7 @@
 **`#611` / mig `082_quiz_sessions_immutable_score_columns.sql` MUST ship before any VFR RT migration applies.** The 5 mutable score columns on `quiz_sessions` (`ended_at`, `correct_count`, `score_percentage`, `passed`, `deleted_at`) are trigger-protected for write only after #611. Shipping `vfr_rt_exam` before then would expose a new exam mode that inherits the existing direct-UPDATE forgery vector documented in #611. Sequence:
 
 1. `redteam-quiz-session-bugs` PR 2 / mig `082` lands on master.
-2. Verify on prod: a direct PostgREST UPDATE on `quiz_sessions.passed` from an authenticated student raises the trigger-block error for all five mutable columns.
+2. Verify on prod: a direct PostgREST UPDATE on any of the five mutable columns (`ended_at`, `correct_count`, `score_percentage`, `passed`, `deleted_at`) from an authenticated student raises the trigger-block error.
 3. Then begin Phase A of this spec.
 
 If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as a workaround — duplicates effort, fragments the immutability story, and will need to be removed once #611 lands.
@@ -155,7 +155,7 @@ If #611 stalls, this spec also stalls. Do NOT add an interim per-mode trigger as
 - [ ] **C.3 Per-question-type renderers**
   - Files: `_components/short-answer-renderer.tsx` (≤ 80), `_components/dialog-fill-renderer.tsx` (≤ 150), `_components/mc-renderer.tsx` (≤ 80; may reuse existing) + co-located tests
   - dialog-fill-renderer: parse the template's `[atc]`/`[pilot]` speaker tags + `{{n|canonical;...}}` blanks; render with inline `<input>` per blank. **Correct answers must NOT appear in client props** — only the template skeleton + blank index.
-  - _Test_: snapshot of rendered template; no `canonical_answer` string in the rendered HTML.
+  - _Test_: snapshot of rendered template; verify neither the `canonical_answer` prop name nor any canonical answer values from `blanks_config` (test fixture seeds known canonical strings like "S5-ABC", "descending to 2500 feet" — assert each is absent) appear in client props or rendered HTML.
   - _Requirements: R1, R5, NFR-Security_
 
 - [ ] **C.4 Part progress bar**

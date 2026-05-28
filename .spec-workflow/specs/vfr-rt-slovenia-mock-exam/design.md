@@ -182,9 +182,9 @@ flowchart TD
 ### Migration `087_exam_configs_parts_config.sql`
 
 - Add `parts_config JSONB NOT NULL DEFAULT '{}'::JSONB` to `exam_configs`.
-- Document the shape: `{ part1: { topic_code: text, count: int }, part2: { topic_code: text, count: int }, part3: { topic_code: text, count: int } }`.
+- Document the shape via `COMMENT ON COLUMN exam_configs.parts_config IS '...'`: `{ part1: { topic_code: text, count: int }, part2: { topic_code: text, count: int }, part3: { topic_code: text, count: int } }`.
 - Existing rows have empty `{}`; they continue to work with the existing `mock_exam` flow which doesn't read `parts_config`.
-- INSERT the VFR RT exam config (one row per org via a separate seed step, OR via the admin UI at deploy time; v1 default: seed via this migration scoped to a known org if testing locally, otherwise leave for ops to insert post-deploy).
+- **The migration does NOT seed any `exam_configs` row.** Per-org `exam_configs` rows are tenant-scoped (organization_id is part of the UNIQUE key) — the migration runs once at the database level and can't pick the right org-specific UUIDs without conditional logic that's brittle across environments. Instead, seeding the VFR RT exam config for a given org is a **post-deploy ops step**: a small TypeScript script (or one-off SQL run via the Supabase SQL editor) executed once per org that needs VFR RT enabled. Document the seed SQL inline in the migration as a `-- POST-DEPLOY SEED EXAMPLE (do not auto-run):` comment block so ops can copy-paste. The RPC in mig 088 has hardcoded 8/9/8 defaults that work even when no row is inserted, so the migration is functionally complete without the seed — the seed is only required when an org wants to override the defaults.
 
 ### Migration `088_start_vfr_rt_exam_session_rpc.sql`
 
