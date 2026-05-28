@@ -6,7 +6,7 @@ This design adds a new timed exam mode (`vfr_rt_exam`) to the LMS, two new `ques
 
 The work reuses three proven patterns from existing modes:
 - **Sampling + freeze-on-start** from `start_internal_exam_session` (mig `060`) — `random() LIMIT N` per part, IDs stored in `quiz_sessions.config.question_ids`.
-- **Auto-complete on overdue** from `complete_overdue_exam_session` (mig `063`, last touched by `redteam-quiz-session-bugs`/#611's mig `082`) — extended to include the new mode in its WHERE clause.
+- **Auto-complete on overdue** from `complete_overdue_exam_session` (mig `063`, last touched by `redteam-quiz-session-bugs`/#611's mig `082`) — extended to include the new mode in its `IF v_mode NOT IN (...)` guard and `v_event_type` CASE branch (see Reuse/Extend table below).
 - **Audit-event INSERT pattern** from every completion RPC since mig `049` — `event_type = 'vfr_rt_exam.completed'`, `actor_role` subquery filtering `deleted_at IS NULL` (security.md rule 10).
 
 The only fundamentally new piece is the **grader** — a SECURITY DEFINER RPC that normalizes string answers, compares them to canonical+synonyms lists, and computes per-part scores. Everything else (timer, freeze, sampling, audit, discard-protection, RLS) is a near-copy of `internal_exam`'s shape.
@@ -49,7 +49,7 @@ The only fundamentally new piece is the **grader** — a SECURITY DEFINER RPC th
 |---|---|
 | `apps/web/lib/constants/exam-modes.ts` | Add `'vfr_rt_exam'` to `EXAM_MODES` array. Add `MODE_LABELS['vfr_rt_exam']` and `isExamMode()` already returns `true` for any string in the array — no separate branch. |
 | `apps/web/app/app/quiz/actions/discard.ts` | Add `existing.mode === 'vfr_rt_exam'` to the existing `internal_exam` rejection branch. Return new error code `'cannot_discard_vfr_rt_exam'`. |
-| `complete_overdue_exam_session` RPC (latest = `packages/db/migrations/063_extend_overdue_for_internal_exam.sql`; verify via Pre-Flag Verification at implementation time) | Widen the WHERE clause to include `mode IN ('mock_exam','internal_exam','vfr_rt_exam')`. Audit-event INSERT pattern unchanged. |
+| `complete_overdue_exam_session` RPC (latest = `packages/db/migrations/063_extend_overdue_for_internal_exam.sql`; verify via Pre-Flag Verification at implementation time) | Widen the mode guard `IF v_mode NOT IN ('mock_exam','internal_exam')` (mig 063 L54 + L191) to also accept `'vfr_rt_exam'`, and extend the `v_event_type := CASE v_mode` branch (L112, L228, L234) to emit `'vfr_rt_exam.expired'`. There is no mode-based WHERE clause — the WHERE filters are scoped by `qs.id = p_session_id`. Audit-event INSERT pattern otherwise unchanged. |
 | `apps/web/app/app/admin/questions/_components/question-form-fields.tsx` | Add type selector (segmented control) above the existing fields. Conditionally render either the existing 4-option editor, the short-answer field group, OR the dialog template editor. |
 | `packages/db/src/schema.ts` `UpsertQuestionSchema` | Convert from a flat `z.object` to `z.discriminatedUnion('question_type', [multipleChoiceSchema, shortAnswerSchema, dialogFillSchema])`. |
 | `packages/db/src/types.ts` | Regenerated after migrations; no manual edit. |

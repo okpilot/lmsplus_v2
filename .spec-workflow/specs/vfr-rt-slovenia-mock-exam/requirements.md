@@ -102,7 +102,7 @@ Steering doc `product.md` lists "in-house mock exam fidelity" as a foundational 
 
 ### Code Architecture and Modularity
 
-- **Single File Responsibility**: each new migration does exactly one architectural thing — one for the `question_type` enum + column, one for the `quiz_sessions.mode` CHECK extension, one for the `start_vfr_rt_exam_session` RPC, one for `submit_vfr_rt_exam_answers` RPC, one for `get_vfr_rt_exam_question` if needed.
+- **Single File Responsibility**: each new migration does exactly one architectural thing — one for the `question_type` enum + column, one for the `quiz_sessions.mode` CHECK extension, one for the `start_vfr_rt_exam_session` RPC, one for `submit_vfr_rt_exam_answers` RPC, one for `get_vfr_rt_exam_questions` if needed.
 - **File size limits** (`code-style.md` §1): page.tsx ≤ 80 lines, components ≤ 150, hooks ≤ 80, utility ≤ 200, SQL migration ≤ 300.
 - **No `any`** (`code-style.md` §5): question-type discriminated unions use Zod `.discriminatedUnion('question_type', ...)`.
 - **No `useEffect` for data fetching**: exam-progress UI uses Server Components + Server Action submissions, identical pattern to existing `internal_exam` and `mock_exam`.
@@ -121,7 +121,7 @@ Steering doc `product.md` lists "in-house mock exam fidelity" as a foundational 
 - **`vfr_rt_exam` mode added to `quiz_sessions.mode` CHECK** with the existing 4 values preserved.
 - **All new RPCs**: SECURITY DEFINER, `SET search_path = public`, manual `auth.uid()` check + RAISE if null (`docs/security.md` rule 7), `users.deleted_at IS NULL` filter on every actor/student lookup (rule 9), audit-event INSERT filters `deleted_at IS NULL` on `actor_role` subquery (rule 10).
 - **No new permissive RLS SELECT policies** on `quiz_sessions` (rule 11). The existing student + admin + instructor policies cover the new mode.
-- **Soft-delete** on every new table column (`deleted_at`); never hard DELETE (`docs/security.md` rule 6).
+- **Soft-delete**: never hard DELETE (`docs/security.md` rule 6). This spec adds no new tables — it adds columns to existing `quiz_session_answers` / `student_responses`, which already carry row-level `deleted_at`. Any new table introduced later must include a row-level `deleted_at` column.
 - **Zod parse** on every new Server Action input (`docs/security.md` rule 4), including the discriminated-union `submit_vfr_rt_exam_answers` payload.
 - **No `any` cast on RPC results** without runtime guards (`code-style.md` §5).
 - **No raw error.message returned to client** — log server-side, return generic string (`code-style.md` §5 + `docs/security.md`).
