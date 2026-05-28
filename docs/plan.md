@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-05-28 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686; instance #6 (#678 + #679, filtered-question-pool RPCs) merged via #691 (squash `67b9fcf9`). 12/12 P0 merged.
+> Last updated: 2026-05-28 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686 — completing all 12/12 P0 sites. Instance #6 (#678 + #679, filtered-question-pool RPCs — **P1** sites) merged via #691 (squash `67b9fcf9`); P1/P2 sites continue.
 
 ---
 
