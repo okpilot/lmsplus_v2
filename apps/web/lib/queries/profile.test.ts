@@ -187,6 +187,29 @@ describe('getProfileData', () => {
       expect(result.stats.averageScore).toBe(0)
     })
 
+    it('returns totalSessions 0 and averageScore 0 when the RPC returns an empty array', async () => {
+      mockAuthenticatedUser()
+      setupMocks()
+      // Empty array: row is undefined, both values fall back to 0.
+      mockRpc.mockResolvedValue({ data: [], error: null })
+
+      const result = await getProfileData()
+
+      expect(result.stats.totalSessions).toBe(0)
+      expect(result.stats.averageScore).toBe(0)
+    })
+
+    it('returns averageScore of 0 when sessions exist but avg_score is null', async () => {
+      mockAuthenticatedUser()
+      // total_sessions > 0 but avg_score is null — the score guard short-circuits to 0.
+      setupMocks({ statsRow: { total_sessions: 5, avg_score: null } })
+
+      const result = await getProfileData()
+
+      expect(result.stats.totalSessions).toBe(5)
+      expect(result.stats.averageScore).toBe(0)
+    })
+
     it('throws when the stats RPC returns an error', async () => {
       mockAuthenticatedUser()
       setupMocks()
