@@ -663,6 +663,7 @@ verb_noun pattern:
   get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
+  get_student_profile_stats  ← read, student: completed-session count + average score (single-row COUNT + AVG over own non-deleted, ended, non-null-score quiz_sessions); replaces the client-side count/average that truncated at the PostgREST 1000-row cap (#668 P2, profile.ts)
 ```
 
 ### Security Model
@@ -2156,6 +2157,24 @@ Returns one row per subject the caller has answered, with the most recent respon
 **Migration:** `20260521000006_dashboard_secondary_stats_rpcs.sql`
 
 **Rationale:** Replaces client-side last-practiced attribution over a `.limit(5000)` read (ignored above the 1000-row cap) that falsely NULLed `lastPracticedAt` for subjects answered outside the most-recent ~1000 responses, and retires the coupled truncated `questions` read (the `questionSubjectMap`) deferred from PR #674 (#668).
+
+---
+
+#### `get_student_profile_stats` — completed-session count + average score for the calling student
+
+Returns a single aggregate row with the caller's completed-session count and average score, computed in Postgres via `COUNT(*)` + `AVG(score_percentage)`. Used by the settings/profile page (`lib/queries/profile.ts` → `getProfileStats`).
+
+**Security:** `SECURITY INVOKER`. `quiz_sessions` has MORE THAN ONE permissive SELECT policy (`students_select_sessions` = `student_id = auth.uid()`, and `instructors_read_sessions` = org + instructor/admin role), so RLS alone would let an instructor/admin caller average org-wide. The query self-scopes with an explicit `qs.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same multi-policy reason as `get_student_mastery_stats`). Unauthenticated caller → `auth.uid()` NULL → zero rows → `{0, NULL}`.
+
+**Parameters:** none (caller is always self).
+
+**Returns:** `TABLE(total_sessions BIGINT, avg_score NUMERIC)` — a no-`GROUP BY` aggregate always yields exactly one row.
+- `total_sessions` — `COUNT(*)` of the caller's `quiz_sessions` with `ended_at IS NOT NULL`, `deleted_at IS NULL`, and `score_percentage IS NOT NULL`. The non-null-score predicate makes the count match the legacy `.filter(s => s.score_percentage !== null)` set.
+- `avg_score` — raw `AVG(score_percentage)` over the same filtered set (`NULL` when none). `Math.round()` and the `totalSessions > 0 ? .. : 0` guard stay in TypeScript, which consumes the raw value (`avg_score` arrives as a JSON string because `score_percentage` is `NUMERIC(5,2)`; the caller coerces with `Number()`).
+
+**Migration:** `20260529000001_student_profile_stats_rpc.sql`
+
+**Rationale:** Replaces a client-side count/average over an unpaginated `quiz_sessions` read that silently truncated at the PostgREST 1000-row cap, skewing `totalSessions` and `averageScore` for high-volume students (#668 P2, profile.ts).
 
 ---
 
