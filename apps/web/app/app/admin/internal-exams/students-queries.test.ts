@@ -112,6 +112,22 @@ describe('listOrgStudents', () => {
       }
     })
 
+    it('throws when a page query fails after the count succeeds', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        mockAdmin()
+        // count succeeds with a non-zero total, then the first page query errors
+        mockAdminFrom
+          .mockReturnValueOnce(buildChain(null, null, 5))
+          .mockReturnValueOnce(buildChain(null, { message: 'page timeout' }, null))
+
+        await expect(listOrgStudents()).rejects.toThrow('Failed to load students')
+        expect(consoleErrorSpy).toHaveBeenCalledWith('[listOrgStudents] DB error:', 'page timeout')
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
+    })
+
     it('propagates errors from requireAdmin', async () => {
       mockRequireAdmin.mockRejectedValue(new Error('Forbidden'))
 

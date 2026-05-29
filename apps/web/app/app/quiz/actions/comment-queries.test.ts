@@ -84,7 +84,18 @@ describe('fetchQuestionComments', () => {
     expect(result).toEqual({ data: [], error: { message: 'boom' } })
   })
 
-  it('queries the question_comments table and forwards the questionId', async () => {
+  it('surfaces a page-level error after the count succeeds', async () => {
+    // count succeeds with a non-zero total, then the first page query errors
+    mockFrom
+      .mockReturnValueOnce(buildChain({ count: 3, data: null, error: null }))
+      .mockReturnValueOnce(buildChain({ count: null, data: null, error: { message: 'page fail' } }))
+
+    const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
+
+    expect(result).toEqual({ data: [], error: { message: 'page fail' } })
+  })
+
+  it('reads from the question_comments table', async () => {
     mockFrom.mockReturnValue(buildChain({ count: 1, data: [COMMENT_ROW], error: null }))
 
     await fetchQuestionComments(mockSupabase, QUESTION_ID)
