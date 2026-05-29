@@ -7,7 +7,6 @@ import type {
   InternalExamCodeStatus,
   ListAttemptsFilters,
   ListCodesFilters,
-  OrgStudentOption,
 } from './types'
 
 const DEFAULT_LIMIT = 50
@@ -239,34 +238,6 @@ export async function listInternalExamAttempts(
   const nextCursor = hasMore ? (rows[rows.length - 1]?.startedAt ?? null) : null
 
   return { rows, nextCursor }
-}
-
-type StudentRowRaw = { id: string; full_name: string | null; email: string | null }
-
-export async function listOrgStudents(): Promise<OrgStudentOption[]> {
-  const { organizationId } = await requireAdmin()
-
-  // Cross-row reads on `users` are unreliable under tenant_isolation RLS
-  // (self-referential subquery). Mirrors apps/web/app/app/admin/students/queries.ts.
-  const { data, error } = await adminClient
-    .from('users')
-    .select('id, full_name, email')
-    .eq('organization_id', organizationId)
-    .eq('role', 'student')
-    .is('deleted_at', null)
-    .order('full_name', { ascending: true })
-
-  if (error) {
-    console.error('[listOrgStudents] DB error:', error.message)
-    throw new Error('Failed to load students')
-  }
-
-  const rows = (data ?? []) as StudentRowRaw[]
-  return rows.map((r) => ({
-    id: r.id,
-    fullName: r.full_name ?? '',
-    email: r.email ?? '',
-  }))
 }
 
 type SubjectRowRaw = { id: string; code: string; name: string }

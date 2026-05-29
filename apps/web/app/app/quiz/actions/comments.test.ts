@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockFetchQuestionComments } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockFrom: vi.fn(),
+  mockFetchQuestionComments: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -12,6 +13,11 @@ vi.mock('@repo/db/server', () => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
+}))
+
+vi.mock('./comment-queries', () => ({
+  fetchQuestionComments: mockFetchQuestionComments,
+  COMMENT_SELECT: 'id, question_id, user_id, body, created_at, users(full_name, role)',
 }))
 
 // ---- Subject under test ----------------------------------------------------
@@ -109,7 +115,7 @@ describe('getComments', () => {
 
   it('returns comments for the given question when the query succeeds', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain({ data: [COMMENT_ROW], error: null }))
+    mockFetchQuestionComments.mockResolvedValue({ data: [COMMENT_ROW], error: null })
 
     const result = await getComments({ questionId: QUESTION_ID })
 
@@ -118,27 +124,30 @@ describe('getComments', () => {
 
   it('returns an empty array when the question has no comments', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    mockFetchQuestionComments.mockResolvedValue({ data: [], error: null })
 
     const result = await getComments({ questionId: QUESTION_ID })
 
     expect(result).toEqual({ success: true, comments: [] })
   })
 
-  it('queries the question_comments table', async () => {
+  it('forwards the parsed questionId to the query helper', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain({ data: [], error: null }))
+    mockFetchQuestionComments.mockResolvedValue({ data: [], error: null })
 
     await getComments({ questionId: QUESTION_ID })
 
-    expect(mockFrom).toHaveBeenCalledWith('question_comments')
+    expect(mockFetchQuestionComments).toHaveBeenCalledWith(expect.anything(), QUESTION_ID)
   })
 
   // ---- error handling ------------------------------------------------------
 
   it('returns a failure when the database query errors', async () => {
     setupAuthenticatedUser()
-    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection timeout' } }))
+    mockFetchQuestionComments.mockResolvedValue({
+      data: [],
+      error: { message: 'connection timeout' },
+    })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const result = await getComments({ questionId: QUESTION_ID })

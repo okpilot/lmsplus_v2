@@ -1,9 +1,5 @@
-import {
-  listExamSubjects,
-  listInternalExamAttempts,
-  listInternalExamCodes,
-  listOrgStudents,
-} from '../queries'
+import { listExamSubjects, listInternalExamAttempts, listInternalExamCodes } from '../queries'
+import { listOrgStudents } from '../students-queries'
 import { InternalExamsTabs } from './internal-exams-tabs'
 
 export async function InternalExamsContent() {
