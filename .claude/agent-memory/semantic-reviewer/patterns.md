@@ -4,6 +4,77 @@
 
 ## Session Log
 
+### 2026-05-29 — PR-level sweep (full diff master...HEAD, PR #700, fix/668-instance-7-p1-pagination)
+- **Files reviewed (full PR diff, 6 commits):** students-queries.ts, students-queries.test.ts, comment-queries.ts, comment-queries.test.ts, comments.ts, comments.test.ts, queries.ts (deletion diff), internal-exams-content.tsx, docs/plan.md
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 0 | **GOOD:** 5
+- **All 3385 tests pass.**
+
+**GOOD — Suggestion from per-commit review (0010bca7) resolved in a later commit (4357231d)**
+- Per-commit review flagged missing page-error coverage for both callers. `4357231d` added these tests. PR sweep confirms the fix landed correctly and both test assertions match production behavior.
+
+**GOOD — Filter consistency between count/page verified at PR scope**
+- Both count and page queries in each module carry the same filters. Verified across 4 query functions. No divergence risk from cross-commit changes.
+
+**GOOD — COMMENT_SELECT FK-hint `users!user_id` cleanly replaces old `users(full_name, role)` bare embed**
+- Old COMMENT_SELECT in comments.ts (pre-PR): `'id, question_id, user_id, body, created_at, users(full_name, role)'` — bare embed, silently returns null on FK resolution failure.
+- New COMMENT_SELECT in comment-queries.ts: `'id, question_id, user_id, body, created_at, users!user_id(full_name, role)'` — FK-hint, fails loudly. Used consistently in both fetchQuestionComments and createComment (via import).
+
+**GOOD — vi.importActual partial mock prevents COMMENT_SELECT drift in comments.test.ts**
+- createComment uses COMMENT_SELECT from comment-queries.ts at line 55. The partial mock in comments.test.ts imports the real COMMENT_SELECT. If the constant changes in production, tests pick it up automatically without test maintenance.
+
+**Pattern — PR-level sweep adds value over per-commit reviews on #668 extractions**
+- Per-commit reviews on pagination extractions catch individual commit issues. PR sweep confirms that the earlier SUGGESTION (page-error tests) was resolved before push, consistent filter application holds across the full branch, and no cross-commit regression was introduced.
+
+### 2026-05-29 — commit 1bc940c9 (test(quiz): behavior-first titles + partial comment-queries mock)
+- **Files reviewed:** apps/web/app/app/admin/internal-exams/students-queries.test.ts, apps/web/app/app/quiz/actions/comments.test.ts, comment-queries.ts, comments.ts
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 0 | **GOOD:** 4
+- **Scope:** Test-only commit (CodeRabbit fixes on PR #700). No production code changed.
+
+**Positive pattern — vi.importActual partial mock eliminates projection drift risk**
+- Previous: `vi.mock('./comment-queries', () => ({ fetchQuestionComments: mock, COMMENT_SELECT: 'hardcoded string' }))`. Risk: string drifts silently from source.
+- New: `vi.importActual` spreads real module, overrides only `fetchQuestionComments`. `COMMENT_SELECT` is live from source. If the projection changes in comment-queries.ts, both production code and test pick it up automatically.
+- Pattern: when a test mocks a module that exports both a function and a constant used by the subject under test, prefer `vi.importActual` partial mock over full mock with hardcoded constant. Full mock of constants creates drift vectors.
+
+**Positive pattern — later key wins in partial mock object literal; real function body never leaks**
+- `{ ...actual, fetchQuestionComments: mockFn }` — the explicit `fetchQuestionComments` key overwrites the spread value. vi.importActual evaluates the module (no side effects in comment-queries.ts), but the actual function body is never invoked during tests. Partial mock isolation is complete.
+
+**Positive pattern — it() title renames correctly remove internal-symbol leakage**
+- "OrgStudentOption" (internal type) and "requireAdmin" (internal helper) removed from test titles. New titles describe caller-observable outcomes, per code-style.md §7. No body changes accompanying pure renames; no title/body divergence introduced.
+
+### 2026-05-29 — commit 0010bca7 (fix(reads): paginate listOrgStudents + getComments (#668 instance #7))
+- **Files reviewed:** apps/web/app/app/admin/internal-exams/students-queries.ts, students-queries.test.ts, apps/web/app/app/quiz/actions/comment-queries.ts, comment-queries.test.ts, comments.ts, comments.test.ts, apps/web/lib/supabase-paginate.ts, apps/web/app/app/admin/internal-exams/queries.ts (deletion diff)
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 10
+
+**SUGGESTION — getPage error path not covered by either test suite**
+- Both `students-queries.test.ts` and `comment-queries.test.ts` test the `getCount` error path (count query fails → short-circuit). Neither tests the `getPage` error path (count succeeds → first page query returns an error). The `fetchAllRows` helper correctly returns `{ data: [], error }` on a page-level error per its own unit test, but the callers have no test asserting this propagation.
+
+**Positive pattern — count/page filter consistency: perfect across both new sites**
+- `listOrgStudents`: count and page apply identical `.eq('organization_id', organizationId)` + `.eq('role', 'student')` + `.is('deleted_at', null)`. No filter divergence.
+- `fetchQuestionComments`: count and page apply identical `.eq('question_id', questionId)` + `.is('deleted_at', null)`. No filter divergence.
+
+**Positive pattern — deterministic ordering with unique tiebreaker at both sites**
+- `listOrgStudents`: `.order('full_name', { ascending: true }).order('id', { ascending: true })`. Natural sort + UUID tiebreaker.
+- `fetchQuestionComments`: `.order('created_at', { ascending: true }).order('id', { ascending: true })`. Natural sort + UUID tiebreaker.
+- Both match the precedent established in collect-user-data-queries.ts.
+
+**Positive pattern — fetchAllRows non-null data contract respected; no redundant null-guards**
+- `listOrgStudents` calls `data.map(...)` directly without `?? []` guard. Correct.
+- `getComments` in comments.ts uses `data` directly in `return { success: true, comments: data }`. Correct.
+- No redundant null-guards added anywhere.
+
+**Positive pattern — adminClient org scoping intact across both queries in listOrgStudents**
+- `organizationId` from `requireAdmin()` applied to both count and page queries. No path to cross-org data exposure.
+
+**Positive pattern — RLS-scoped server client used for both count and page in fetchQuestionComments**
+- `supabase` (server client, RLS-enforced) is passed through from `getComments` and used consistently for both queries. Row visibility is identical across count and page calls.
+
+**Positive pattern — test mock strategy correctly matches fetchAllRows two-call pattern**
+- `students-queries.test.ts` uses two sequential `mockReturnValueOnce` calls: first for count, second for page. The `buildChain` helper cleanly separates the two calls.
+- `comment-queries.test.ts` uses a Proxy-based `buildChain` that returns the same object for all calls — correct because `fetchAllRows` reads `count` from the first call's result and `data` from the second call's result; the proxy-based approach is valid since both fields coexist on the return object.
+
+**Pattern — getPage error path coverage gap persists across #668 instances**
+- This is the second #668 pagination instance reviewed. Neither the GDPR export tests (PR #681 sweep) nor these new tests cover the page-level error path directly (all test getCount errors). The fetchAllRows unit test does cover this path, so the gap is in caller-level propagation tests only. Count=2. Worth noting as a pattern in new pagination test suites.
+
 ### 2026-05-27 — commit f782ea0b (fix(admin): paginate student roster via get_admin_dashboard_students RPC (#682))
 - **Files reviewed:** supabase/migrations/20260527000001_get_admin_dashboard_students_rpc.sql, apps/web/app/app/admin/dashboard/queries.ts, queries.test.ts, packages/db/src/types.ts, docs/database.md, docs/plan.md
 - **CRITICAL:** 0 | **ISSUE:** 1 | **SUGGESTION:** 2 | **GOOD:** 6
@@ -4741,3 +4812,19 @@ When a SECURITY INVOKER RPC reads a table, check the questions-table SELECT poli
 
 **Pattern — PR-level sweep catches no additional issues beyond per-commit review for single-module refactors:**
 When a PR is a clean single-module refactor (one helper replacing multiple direct calls, with behavioral equivalence), per-commit semantic review is sufficient. The PR-level sweep adds value mainly for cross-file/cross-commit consistency — which was already verified in this PR by the test suite structure (each function has its own RPC error test).
+
+### 2026-05-29 — commit 94ec4c72 (fix(profile): aggregate averageScore via get_student_profile_stats RPC (#668 instance #8))
+- **Files reviewed:** apps/web/lib/queries/profile.ts, profile.test.ts, supabase/migrations/20260529000001_student_profile_stats_rpc.sql, docs/database.md, docs/plan.md
+- **CRITICAL:** 0 | **ISSUE:** 0 | **SUGGESTION:** 1 | **GOOD:** 8
+
+**SUGGESTION — `userId` parameter received by `getProfileStats` but unused in the RPC path (count=1, watching)**
+- `getProfileStats(supabase, userId)` accepts userId but the RPC self-scopes to auth.uid() and takes no args. userId is only consumed by the subsequent `student_responses` count query. The parameter is correct for the non-RPC half of the function but its relationship to the RPC call is non-obvious. Minor readability concern only — not a behavioral gap. Fix: comment at the call site or parameter rename.
+
+**GOOD — security.md §11 multi-permissive SELECT: second application of the pattern after #540**
+- `quiz_sessions` has two permissive SELECT policies (student-own + instructor/admin org-read). `qs.student_id = auth.uid()` is load-bearing in the RPC body for the same reason it is in `get_student_mastery_stats` (student_responses). Pattern is now confirmed at count=2 across two different multi-permissive tables, establishing it as a reliable template.
+
+**GOOD — Number() coercion for NUMERIC AVG + bigint COUNT serialized as strings now tested at two sites**
+- profile.ts "coerces a string avg_score" test, quiz.ts "bigint-as-string" suggestion (count=1 from PR #680): two sites now exercise this coercion path. Count=2 — the PostgREST string-serialization of numeric/bigint is a confirmed reality that every new aggregation RPC consumer must handle.
+
+**Pattern — zero-parameter self-scoped RPCs: userId param in TS wrapper is for sibling queries, not for the RPC**
+- When a module function wraps a zero-parameter self-scoped RPC alongside a direct table query that IS userId-parameterized, the userId param belongs to the table query — not the RPC. This is correct and safe (both scoped to the same user). Future readers should not interpret the unused userId as a missing arg to the RPC.

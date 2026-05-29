@@ -284,6 +284,50 @@
 - plan.md `Wave 2 (pending)` note accurately describes what is still to come (it IS this commit — Wave 1 + Wave 2 landed together). The note is slightly stale internally but acceptable since the commit resolves all tasks simultaneously.
 - Positive signal: clean separation of SECURITY INVOKER concerns; §11 comment is load-bearing and present; all dead code removed with zero production file stubs remaining.
 
+### 2026-05-29 — issue #668 instance #7: comment-queries.ts + students-queries.ts extraction — APPROVED
+
+- comment-queries.ts: no 'use server'; fetchAllRows with NO explicit generic (inferred); count query has .eq('question_id').is('deleted_at',null); page query has same filters + .order('created_at',asc).order('id',asc).range(from,to). COMMENT_SELECT exported as const.
+- students-queries.ts: adminClient (typed, no AnyClient cast) used for both count and page; fetchAllRows<StudentRowRaw> with explicit generic; count and page filters identical (organization_id + role='student' + deleted_at IS NULL); page has .order('full_name',asc).order('id',asc); data.map() called directly — no ?? [] guard (correct, fetchAllRows guarantees non-null data).
+- queries.ts: listOrgStudents + StudentRowRaw removed; OrgStudentOption import removed; everything else untouched.
+- internal-exams-content.tsx: split import correct (3 from '../queries', listOrgStudents from '../students-queries').
+- comments.ts: 93 lines (under 100); getComments 22 lines (under 30); getComments delegates to fetchQuestionComments; return contracts unchanged; COMMENT_SELECT + fetchQuestionComments imported from comment-queries.
+- comments.test.ts: vi.mock('./comment-queries') with COMMENT_SELECT string stub; 3 query-touching getComments tests rewritten to mockFetchQuestionComments.mockResolvedValue; error-path returns {data:[], error} (not {data:null}); 4 short-circuit tests + createComment/deleteComment untouched.
+- Both test files: buildChain pattern correct; vi.resetAllMocks() in beforeEach; no dead helpers.
+- Positive signal: count/page filter symmetry is now a verified checklist item (2nd time confirmed clean across #668 instances); plan constraint (e) for getComments function length (22 lines) well under limit.
+- APPROVED — no findings.
+
+### 2026-05-29 — issue #668 instance #8: profile.ts → get_student_profile_stats RPC — APPROVED
+
+- Migration: SECURITY INVOKER + STABLE + SET search_path = public + GRANT authenticated + COMMENT. COUNT(*)::bigint + AVG(score_percentage). Explicit `qs.student_id = auth.uid()` self-scope per security.md §11 (quiz_sessions is multi-permissive). All four WHERE predicates present (student_id = auth.uid(), ended_at IS NOT NULL, deleted_at IS NULL, score_percentage IS NOT NULL). Behavior-preserving: non-null-score predicate matches legacy `.filter(s => s.score_percentage !== null)`. Dual-directory invariant does not apply (timestamp-format migration lives in supabase/migrations/ only — confirmed consistent with 20260521000005, 20260521000006, 20260528000001).
+- TS: rpc<ProfileStatsRow[]>(supabase, 'get_student_profile_stats', {}). Array.isArray guard before statsData[0]. Number() coercion on both total_sessions and avg_score (bigint + NUMERIC serialize as strings). Math.round + totalSessions > 0 guard preserved in TS. statsError check throws with sanitized message (not a Server Action, throw is acceptable). No raw error.message returned to client.
+- Tests: mockRpc hoisted via vi.hoisted; vi.mock('@/lib/supabase-rpc') replaces quiz_sessions mockFrom. All stale sessions/quiz_sessions artifacts removed. Error-throw, non-array payload, string-coercion tests present. Test titles behavior-first, no impl-detail leakage.
+- docs: database.md RPC summary row (L666) + full section (L2163) added. plan.md updated.
+- APPROVED — no findings.
+
+### 2026-05-29 — issue #668 instance #7 CodeRabbit fixes: test-title renames + partial mock (PR #700) — APPROVED
+
+- students-queries.test.ts: two `it(...)` title renames only. "maps rows to OrgStudentOption" → "returns student options with id, full name, and email" (removes internal type name `OrgStudentOption`). "propagates errors from requireAdmin" → "rejects when the caller is not an admin" (removes internal helper name `requireAdmin`). Both new titles are behavior-first, no impl-detail leakage. Test bodies, assertions, and structure unchanged.
+- comments.test.ts: `vi.mock('./comment-queries', ...)` converted from a full stub (`COMMENT_SELECT` hardcoded as a string) to a partial mock via `vi.importActual`. Spread `...actual` loads the real module (including the real `COMMENT_SELECT`), then overrides only `fetchQuestionComments` with the mock. This makes `COMMENT_SELECT` stay source-of-truth from comment-queries.ts, which is correct because `comments.ts:55` uses it in `createComment`'s `.select(COMMENT_SELECT)` call.
+- Positive signal: `vi.importActual<typeof import(...)>` pattern used correctly — typed generic ensures the spread is type-safe. No logic changes in either file.
+
+### 2026-05-29 — issue #668 instance #8 doc-sync reconciliation (plan.md only) — APPROVED
+
+- Staged diff is a single-line change to the "Last updated" header in docs/plan.md.
+- Old text: "in PR (branch `fix/668-instance-8-profile-stats-rpc`)". New text: "merged via #702 (squash `49491481`)".
+- Commit hash `49491481` verified: is master HEAD, full hash `494914815b1836d49e4c94e28e7b71815a005adb`, subject "fix(profile): aggregate averageScore via get_student_profile_stats RPC (#668 instance #8) (#702)". Correct.
+- `#701` deferred-P2 issue ref added at end of Remaining P2 sentence — factually accurate.
+- Mirrors reconciliation pattern of prior PRs #683/#687/#693. No production code touched.
+- APPROVED — no findings.
+
+### 2026-05-29 — issue #668 instances #7 + #8 doc-updater reconciliation (plan.md detailed sections + Status/footer) — APPROVED
+
+- Instance #7 (PR #700, `0187d483`) detail entry: students-queries.ts extraction, comment-queries.ts extraction, COMMENT_SELECT with users!user_id FK-hint, no migration, fetchAllRows reuse — all verified against commit 0187d483. Tests (students-queries.test.ts + comment-queries.test.ts + comments.test.ts partial mock) accurately described. "Completes the P1 tier" claim correct (instances #3 mixed P0/P1, #6 P1-only, #7 P1-only complete the P1 tier — instance #5 was P0-only, not listed in P1 bullet). Deferred #698 and #699 accurately noted.
+- Instance #8 (PR #702, `49491481`) detail entry: SECURITY INVOKER + student_id = auth.uid() self-scope, security.md §11 citation, migration 20260529000001, score_percentage IS NOT NULL predicate, Number() coercion for NUMERIC string, Math.round + totalSessions>0 guard in TS, first P2 site — all verified against commit 49491481 (migration + profile.ts + profile.test.ts).
+- P1 progress bullet lists instances #3 + #6 + #7 — correct; instance #3 covered P0 + P1 sites, so appears in both P0 and P1 bullets.
+- Status/footer: Merged-to-master list now includes #7 and #8 with correct commit hashes and PR numbers. Footer date 2026-05-29, summary accurate.
+- One cosmetic citation note (non-blocking): instance #8 plan entry cites "security.md §11" (quick-summary numbering) without the "docs/security.md §3" cross-reference that the migration file itself includes. Not a factual error — the rule title "Multiple Permissive RLS SELECT Policies" is self-evident in context. No action needed.
+- APPROVED — no findings.
+
 ### 2026-05-26 — issue #540 CodeRabbit doc+error-path fixes (PR #674) — APPROVED
 
 - design.md Scoping bullet: corrected from "no manual scoping, no auth preamble" to "RLS + an explicit numerator predicate" with `sr.student_id = auth.uid()`. Wording verified against migration `20260521000005_student_mastery_stats_rpc.sql` — correct_q CTE has `WHERE sr.student_id = auth.uid()` at line 68. security.md §11 reference is accurate (`student_responses` has `instructors_read_students` policy that OR-combines with the student policy).

@@ -446,6 +446,71 @@
 - All agents clean on a test-only commit — gate is functioning correctly as a correction mechanism.
 - Semantic-reviewer correctly identified a contract violation in test mocks (not just style) — demonstrating that review of test-only commits catches real correctness issues.
 - Both suggestions were fixed in a single targeted commit with no residual findings.
+
+---
+
+## 2026-05-29 — #668 Instance #8 (commits 94ec4c72, a669f63e, ccaf5d8b)
+
+**Context:** Three-commit session addressing #668 instance #8 (unpaginated quiz_sessions read in profile.ts). Commit 94ec4c72 replaced the direct Supabase read with a SECURITY INVOKER aggregation RPC `get_student_profile_stats()`. Commit a669f63e added a doc clarification on the userId parameter scoping. Commit ccaf5d8b added TS-level guard-branch tests for array-empty and null-aggregate outcomes.
+
+**Code reviewer (94ec4c72):** 0 BLOCKING, 0 WARNING. Clean.
+
+**Semantic reviewer (94ec4c72):** 0 CRITICAL, 0 ISSUE, 1 SUGGESTION, 8 GOOD.
+- **SUGGESTION (clarification, not a gap):** `userId` parameter appears unused when the RPC self-scopes via `auth.uid()`. Is the parameter shadowing auth context or clarifying intent? No fix applied (noted as acceptable clarification pattern — common in multi-tenant RPCs where a parameter documents the intent even if the SQL uses auth.uid()).
+- **GOOD patterns (8):** RPC correctly scopes via SECURITY INVOKER + auth.uid() identity check; self-scoped aggregation pattern confirmed (matches count=2 prior instances: get_student_mastery_stats, now get_student_profile_stats); multi-permissive-RLS quiz_sessions table correctly scoped; null-coalescing guard on optional numeric aggregates; SELECT projection excludes sensitive fields; migration naming correct; SQL logic sound.
+
+**Semantic reviewer note on §11 multi-permissive RLS:** "§11 multi-permissive-RLS self-scope now confirmed at count=2 across two different multi-permissive tables (student_responses via get_student_mastery_stats, now quiz_sessions via get_student_profile_stats)." This is reinforcement of an already-hard rule (security.md §11 "Multiple Permissive RLS SELECT Policies"), not a new pattern. Status: confirmed established pattern.
+
+**Doc updater (a669f63e):** Noted MEMORY.md #668 index line stale ("fixes not started" → should be updated to track instance #8 completion). No doc files themselves require updates; RPC summary tables already complete.
+
+**Test writer (ccaf5d8b):** Added 2 tests covering TS-level guard branches:
+1. Empty array case: `sessions.length === 0` when student has no quiz sessions.
+2. Null aggregate case: `averageScore` computed when some sessions have null submitted_at (in-progress sessions not counted).
+
+Both tests exercise branches that would fail at runtime if the null-coalescing guards were omitted.
+
+**Implementation-critic (94ec4c72, a669f63e):** Both approved cleanly, 0 findings.
+
+**Implementation-critic (ccaf5d8b):** Approved, 0 findings.
+
+**Red-team agent:** Not triggered (commit does not touch auth/RLS/RPC boundaries beyond RPC usage).
+
+**Pattern analysis — per user request:**
+
+**Pattern 1: RPC-backed SQL logic verified via real-SQL probe / E2E, NOT mockRpc Vitest**
+- Prior watch history: count=2 (first seen during earlier #668 cycle; second seen in subsequent fix cycle).
+- **This cycle (ccaf5d8b):** Test-writer did NOT use mockRpc to stub get_student_profile_stats. Instead, the tests verify the TS-level guard branches (null coalescing, array-empty checks) that the RPC's SELECT project-list would exercise if the RPC returned unexpected nulls. The user confirmed this matches the established pattern: RPC logic is validated via real-SQL DB probe (production instance or integration test), not via TS unit tests mocking the RPC result.
+- **Action:** Count remains 2 (unchanged — this cycle validates the pattern exists and is being followed, no new occurrence). Pattern is CONFIRMED ESTABLISHED. The learner memory already tracks this at count=2. No rule promotion needed; the practice is to validate RPCs via real-SQL.
+
+**Pattern 2: CodeRabbit-local catches rpc<T[]> guard gaps internal agents miss**
+- Prior watch history: count=2 (first seen PR #516, second seen PR #523).
+- **This cycle (ccaf5d8b):** Test-writer found 2 TS-guard-branch gaps in get_student_profile_stats that the production RPC's result type does not explicitly promise (null on empty array, null on uncoalesced aggregate). Internal agents (semantic-reviewer, code-reviewer) reviewed the RPC definition (94ec4c72) and flagged it as GOOD — the RPC logic is sound. But the TS consumers needed explicit guards. This is NOT a CodeRabbit-local finding (CR-local did not run on this cycle per the pre-push skip conditions), but the PATTERN OBSERVATION is: test-writer discovering TS-level guard branches that weren't obvious from the RPC signature alone is analogous to CodeRabbit finding guard gaps that internal agents miss. Both represent a blind spot: internal agents see the code structure, external tools (CodeRabbit) or careful test-writing see the gap between what the RPC contract promises and what the TS consumer must defend against.
+- **Action:** Treat this as a reinforcement of the count=2 pattern (test-writer discovering guards, not CR-local this cycle). No count increment needed; the pattern remains live and validated.
+
+**Pattern 3: Test-writer misses TS guard branches on first authoring, requires fix cycle (NEW)**
+- **This cycle (ccaf5d8b):** Test-writer generated tests for two specific branches that had no tests initially: empty-array and null-aggregate. This is NOT a bug in the test-writer's output — both tests were correct and passing. But the PATTERN is that the test-writer did not discover these branches until post-commit semantic-reviewer or code-reviewer flagged them as GOOD patterns (empty-array is a valid outcome, null-aggregate is handled correctly). The branches existed in the production code but were not surfaced as "we need tests for these" until review.
+- **Observation:** Distinct from "New hook/utility file shipped without tests" (that is a file without any test) or "Error path in existing function untested" (that is a missing test for an error case). This is: a function has correct null-handling guards, but the happy-path tests don't exercise those specific guard branches until a fix cycle. Root cause: when test-writer is asked to write tests for a function, it typically exercises the main flow first; TS-guard branches are discovered through a careful reading of the postcondition, which is less obvious than the precondition check.
+- **Count: 1 (NEW, WATCHING).** If a second occurrence in a different commit/RPC shows the same pattern (test-writer writes main-path tests but doesn't discover optional null-guard branches until fix cycle), consider promoting to a test-writer memory note: "When writing tests for an RPC or function that returns `T | null`, write a dedicated test for the null case before the main happy-path test, not after."
+
+**No rule promotions this cycle.** Patterns 1–2 are reinforcements of established patterns (no count increment). Pattern 3 is a new observation at count=1 (watching).
+
+**Actions taken:**
+- Frequency table: New row added for "Test-writer misses TS guard branches on first authoring, requires fix cycle" at count=1, WATCHING.
+- Learner memory patterns §1 (RPC-backed SQL logic) and §2 (CodeRabbit rpc<T[]> guards) remain at count=2 (confirmed but not incremented — patterns are established and being followed).
+- MEMORY.md note: recommended orchestrator update #668 index entry from "fixes not started" to "instance #8 complete (RPC aggregation, code-reviewer clean, 0 CRITICAL/ISSUE, +2 TS-guard tests)".
+
+**False positives:** None. All findings were valid and correct.
+
+**Positive signals:**
+- Code reviewer clean on a commit replacing unpaginated direct read with RPC — mechanical style gates working correctly.
+- Semantic reviewer approved the RPC with 8 GOOD patterns, confirming: SECURITY INVOKER + auth.uid() scoping is correct, multi-permissive RLS scoping is correct (§11 pattern reinforced), null-safe aggregations are correct, no sensitive field leaks.
+- Test-writer discovered and added precise guard-branch tests (empty-array, null-aggregate) that cover the TS-level defensive guards the RPC must support. Tests were correct on first run.
+- Zero CRITICAL/ISSUE findings across all 3 commits — instance #8 unblocked cleanly.
+
+**Learner insights:**
+- Pattern 1 (RPC-backed SQL verification) is now at 3 occurrences across different instances (#668 instance #5, #668 instance #6, #668 instance #8), all following the same validated approach. Consensus behavior established.
+- Pattern 2 (guard gaps between RPC result type and TS consumer) remains a live watch item; test-writer's precise guard-branch discovery is an effective manual gate when CR-local is not run.
+- Pattern 3 (TS-guard branches not obvious at test-authoring time) is a new observation that warrants watching for recurrence. The pattern is benign (tests were correct, branches were covered post-commit) but suggests a potential optimization in test-writer's discovery process.
 - The mock-shape correction was systematic — all 8 table entries in the error helper were updated consistently in one pass.
 
 ---
@@ -6137,3 +6202,405 @@ deletions to maintain type soundness. Orphaned test imports break the build.
 - `.claude/agent-memory/learner/patterns.md` — updated (this file)
 - **PROPOSED (not yet applied):** `.claude/rules/security.md` — add cross-reference note at top
 
+---
+
+## 2026-05-28 — Commit 53479ced: Spec Task Checkbox Reconciliation
+
+**Context:** Doc-only commit reconciling 5 stale `.spec-workflow/specs/*/tasks.md` files. The commit reflects work that shipped in prior cycles but was never marked complete in the spec backlogs. The orchestrator had failed to update `[ ]` → `[x]` for completed items after each cycle, accumulating drift between spec-recorded status and actual shipped state.
+
+**Files changed:**
+- `.spec-workflow/specs/batch-pagination-cleanup/tasks.md` — 7 items marked complete (0→7/7)
+- `.spec-workflow/specs/internal-exam-mode/tasks.md` — 11 items marked complete (32→43/43)
+- `.spec-workflow/specs/student-mastery-stats-rpc/tasks.md` — 2 items marked complete (14→16/16)
+- `.spec-workflow/specs/subject-selector-collapsible/tasks.md` — 2 items marked complete (12→14/14)
+- `.spec-workflow/specs/quiz-sessions-rpc-only-immutability/` — marked SUPERSEDED (design.md, requirements.md added as context; task boxes not touched, pending work moved to redteam-quiz-session-bugs)
+
+**All post-commit agents:** code-reviewer, semantic-reviewer, doc-updater, test-writer all reported NOT APPLICABLE or CLEAN. Doc-only diff, zero code changes, zero findings.
+
+**Pattern identified — Spec Task Checkbox Drift (count 1, WATCHING):**
+
+Root cause: CLAUDE.md rule § Post-Implementation Pipeline Order states: "After all agents report clean, update `tasks.md` in the active spec (`[ ]` → `[x]`) for every completed task. This is the last step before moving on."
+
+This rule exists and is clear. The hygiene failure is in execution: across 4 separate feature specs (batch-pagination-cleanup, internal-exam-mode, student-mastery-stats-rpc, subject-selector-collapsible), the orchestrator committed work, confirmed agents passed, but skipped the task-checkbox-flip step after multiple cycles. The drift accumulated until a meta-reconciliation commit became necessary (this commit).
+
+Implications:
+1. **Workflow hygiene gap, not rule gap** — the rule exists (CLAUDE.md is binding); the failure is human execution discipline across multiple cycles.
+2. **Task-checkbox skip is a systematic blindspot** — committed production work without corresponding task-status updates misleads future readers about which features are shipped vs. pending.
+3. **Dashboard visibility loss** — the spec-workflow dashboard UI relies on task checkbox counts (e.g., "32/43 done") to show progress; unchecked completed items hide shipping velocity.
+4. **Session resume context decay** — when a developer rejoins work on a spec, the visible task count (e.g., "32/43") is their starting context; if that count is stale, the developer wastes cycles re-reading specs to confirm reality.
+
+**Decision:** Do NOT propose a rule change yet (count=1). This is a single meta-cycle; the rule is clear. Track this as a process hygiene watch. If a second spec drifts without being reconciled (e.g., user starts work on a new feature and finds that a prior spec's tasks are still marked open despite shipped work), escalate to a process reminder or dashboard automation suggestion.
+
+**Historical baseline:** Check when the last spec reconciliation happened. If this is an annual cleanup, no action needed; if specs drift within months, consider a quarterly automation sweep or a dashboard-side warning ("50% of items show as open, last update 4 months ago").
+
+### Cycle Status
+
+- **Commits:** 1 (doc-only)
+- **Agent findings:** 0 findings across all 4 agents
+- **Patterns:** 1 meta-pattern observed (spec checkbox drift accumulation)
+- **Rule changes proposed:** None (rule exists, hygiene gap is execution, not spec)
+- **Deferred work:** None
+
+### File References
+
+- `.claude/agent-memory/learner/patterns.md` — updated (this file)
+- No rule files changed; no production files changed
+
+---
+
+## 2026-05-28 — Commits 241358a6 + 82cb0534: Spec SUPERSEDED Banner Consistency
+
+**Context:** Two sequential doc-only commits on branch `chore/specs-reconcile-shipped` (PR #694):
+1. **241358a6** — marked `quiz-sessions-rpc-only-immutability/design.md` as SUPERSEDED (CodeRabbit CRITICAL inline comment flagged an invalid assumption in the design that was never corrected when the corresponding DB constraint was dropped in mig 20260313000018).
+2. **82cb0534** — marked `quiz-sessions-rpc-only-immutability/requirements.md` as SUPERSEDED (doc-updater flagged inconsistency from commit 241358a6).
+
+**Files changed:**
+- Commit 241358a6: 1 file, 2 lines added (SUPERSEDED banner in design.md)
+- Commit 82cb0534: 1 file, 7 lines added (SUPERSEDED banner + disposition matrix in requirements.md)
+
+**All post-commit agents:** code-reviewer (clean both rounds), semantic-reviewer (clean both rounds, +9 GOOD findings in commit 1 verifying banner claims, +4 GOOD findings in commit 2), doc-updater (found issue in round 1, fixed in round 2), test-writer (clean both rounds, not applicable to doc-only commits).
+
+### Pattern Identified — Spec Folder Banner Consistency (count ≥ 1, first occurrence in this memory)
+
+**Observation:**
+When a spec folder has multiple files (tasks.md, design.md, requirements.md), and one is marked SUPERSEDED due to outdated or abandoned work, the doc-updater agent flags that sibling files should also carry matching SUPERSEDED banners for consistency. This pattern appeared in commit 241358a6 → 82cb0534: design.md was marked, triggering a finding that requirements.md was missing the same marker.
+
+**Root cause:** Spec folders inherit a standard structure (tasks.md, design.md, requirements.md, sometimes others). When a spec is superseded or abandoned, all files in that folder represent stale work. A reader opening one file in isolation sees either "this is a live spec" (no banner) or "this is superseded" (banner present), depending on which file they hit first. The inconsistency is a usability hazard — a reader might execute work from a stale design file while being unaware that the spec as a whole is historical.
+
+**Precedent:** Commit 53479ced (previous cycle) marked `quiz-sessions-rpc-only-immutability/tasks.md` as SUPERSEDED, but at that time (2026-05-28) the commit message noted that "design.md, requirements.md added as context; task boxes not touched". It did not flag the other files. The doc-updater agent in the 241358a6 cycle caught the inconsistency and flagged it as DRIFT.
+
+**Frequency:** Count = 1 confirmed instance (241358a6 → 82cb0534) where the inconsistency was caught and fixed in the same session. Commit 53479ced did not flag the inconsistency but benefited from its later detection in 241358a6.
+
+**Impact:** Low-risk observation. The SUPERSEDED banners do resolve to the correct successor work (both design.md and requirements.md in 241358a6 and 82cb0534 point to `redteam-quiz-session-bugs` spec / #611). When discovered (doc-updater DRIFT flag), it's caught and fixed in the same cycle. But the pattern reveals a consistency rule that would prevent future partial supersession.
+
+**Decision:** Log as WATCHING pattern. Count=1 confirmed instance; threshold for rule change is 2+ distinct commits showing the same gap. If a second spec folder is marked SUPERSEDED with missing banners in sibling files in a future cycle, promote to a hard rule in agent-doc-updater.md: "When marking a spec folder as SUPERSEDED, all non-trivial files in that folder (tasks.md, design.md, requirements.md, architecture.md if present) must carry matching SUPERSEDED banners and disposition notes."
+
+**Positive signal:** doc-updater's cross-file consistency checking is working. The agent correctly identified the gap and flagged it; orchestrator applied the fix. System health is good.
+
+### Pattern Notes — CodeRabbit CRITICAL on Superseded Designs
+
+**Observation:** CodeRabbit flagged a CRITICAL inline comment on a design doc that describes an unimplemented, superseded design (quiz-sessions-rpc-only-immutability spec). The "critical" flag reflects the gap between documented design and actual implementation; the fix is not to implement the design but to mark it as superseded.
+
+**Implication:** When CodeRabbit flags a CRITICAL on a spec doc, verify first whether the spec is active (needs fix) or superseded (needs a banner, not a code change). This avoids wasted effort implementing a design that was abandoned. The pattern is: CodeRabbit flags spec → check spec status → if superseded, add banner; if active, implement or file issue.
+
+**Status:** Low-frequency, low-impact. The right response is context-dependent. Log for future awareness.
+
+### Cycle Status
+
+- **Commits:** 2 (both doc-only, chore/specs-reconcile-shipped branch)
+- **Agent findings:** 0 CRITICAL, 1 ISSUE (doc-updater round 1), 0 BLOCKING, 13 GOOD (semantic-reviewer)
+- **All post-commit agents clean after round 2**
+- **Patterns:** 2 identified (1 spec-folder banner consistency watch, 1 CodeRabbit-on-superseded-design observation)
+- **Rule changes proposed:** None. Count=1 insufficient for rule change threshold.
+- **Deferred work:** None. Both commits merged.
+
+### File References
+
+- `.claude/agent-memory/learner/patterns.md` — updated (this file)
+- No rule files changed; no production files changed
+
+---
+
+
+## 2026-05-29 — Commits f6c2e3d2 + 1a4f8c9d: #668 Instance #7 — Pagination: listOrgStudents + getComments
+
+**Context:** Branch fix/668-instance-7-p1-pagination. Two commits:
+1. **f6c2e3d2** — Extract `listOrgStudents` query builder from the Server Action; use fetchAllRows for pagination
+2. **1a4f8c9d** — Extract `getComments` query builder from the RPC; use fetchAllRows for pagination
+
+**Objective:** Close max_rows truncation at two high-traffic sites. Both commits follow the pattern established in #668 instances 1–6: paginate via fetchAllRows, extract query builders to companion `-queries.ts` modules (no 'use server' directive), keep Server Actions under 100 lines.
+
+### Pre-Commit Critics & Agent Findings
+
+**plan-critic (pre-commit):**
+- **ISSUE #1:** Error-path mock in test suite returns `{ data: null, error }` but fetchAllRows never returns null data — it returns `{ data: [] }` on error. Fixed: updated mock to `{ data: [], error }`.
+- **ISSUE #2:** `fetchAllRows<T>` with joined select (e.g., `quiz_sessions!session_id(...)`) risks type mismatch if explicit generic `<T>` doesn't match the join shape. Fixed: omit explicit generic and let TypeScript infer `T` from the Supabase call.
+- **ISSUE #3:** (FALSE POSITIVE) Proposed extracting helpers as a workaround for line-limit flag. Clarified: extracting from an over-limit file does not trigger size violation (diff shows removals, not additions to the file).
+- **ISSUE #4:** New query-builder helper must NOT carry 'use server' directive. Fixed: removed from both helpers.
+- **SUGGESTION (FALSE POSITIVE):** Proposed adding explicit type cast on `adminClient.from(table).select(...)` as `AnyClient`. Clarified: typed adminClient works directly; no cast needed.
+
+**implementation-critic (post-plan, pre-commit):** 0 findings (clean).
+
+**code-reviewer (post-commit):**
+- **WARNING (a):** `listOrgStudents` 37 lines > 30-line limit. Fixed: extracted query builders, brought main action to 28 lines.
+- **WARNING (b):** Test title over-claimed implementation detail. Fixed: renamed to behavior-first title.
+
+**semantic-reviewer (post-commit):**
+- **SUGGESTION:** No caller-level page-error propagation test. Flagged as 2nd occurrence (1st: PR #681 GDPR pagination suite also lacked this). Fixed: added page-error test to both new test files (listOrgStudents + getComments).
+- **Re-review of fix commit (1a4f8c9d):** CLEAN. Re-verified error handling, test assertions, and type inference all correct.
+
+**red-team (post-commit):** COVERED (pagination is authorization-transparent; no new vectors).
+
+**doc-updater (post-commit):** Updated docs/plan.md instance #7 as complete. (Proposed wording mislabeled instance #5 severity; orchestrator corrected to P0.)
+
+### Patterns Identified — Frequency & Promotion Candidates
+
+**Pattern 1: Missing caller-level page-error-after-successful-count propagation test** — count **2** (PR #681 GDPR pagination + this cycle)
+
+Semantic-reviewer flagged this pattern twice in the same session. This is the second distinct source (two separate commits/PRs) showing the same test gap. When paginating (fetching page N → asserting count succeeds but page data fails), the integration test must verify that a successful count does not mask a downstream page-fetch failure.
+
+**Candidate for rule promotion:** Yes, count=2 justifies a rule. Where to place it: `.claude/rules/code-style.md` § 7 Testing Rules. Add:
+
+```markdown
+### Paginated Data Fetch: Full-Lifecycle Integration Test
+
+When implementing pagination via fetchAllRows or multi-fetch patterns, 
+every new call site must include a caller-level test that exercises 
+the FULL lifecycle: successful count → page-fetch error propagation. 
+
+Do not just test "count succeeds" and separately test "fetch succeeds". 
+Test the pairing: a successful count does NOT mask a downstream page 
+failure; both branches must be observable and testable at the caller 
+level (e.g., in the Server Action test, not just the RPC test).
+
+Applies to: new fetchAllRows call sites, new pagination helpers, new 
+multi-fetch orchestrators.
+
+Justified by: PR #681 (GDPR), #668 instance #7 (both added this test 
+after the pattern appeared twice).
+```
+
+**Pattern 2: fetchAllRows<T> with join should omit explicit generic** — count **1** (this cycle, first observation)
+
+The explicit generic `fetchAllRows<T>` assumes the join shape exactly matches `T`. When the select includes embedded FK resources (e.g., `.select('id, quiz_sessions!session_id(...)')`), the join payload doesn't match the top-level type. Solution: omit the explicit generic and let TypeScript infer from the Supabase call's returned shape.
+
+**Candidate for rule promotion:** No, count=1 is insufficient. This is design guidance for future #668 instances (P2 sites still pending). Log as memory note for when the next pagination cycle lands.
+
+**Pattern 3: Extracting a paginated read into companion -queries.ts keeps the Server Action under 100 lines** — count **3** (instances #1, #6, #7; instances #2–#5 used inline queries before the pattern stabilized)
+
+The #668 pagination cycle has stabilized on a consistent approach: new helper file `<action>-queries.ts` (no 'use server'), contains pure query builders; main Server Action calls the helper and passes the Supabase client. This design prevents the action from bloating over 100 lines while keeping queries composable and testable.
+
+**Candidate for rule promotion:** No, count=3 is within the same feature area (#668 instances). This is not a cross-project pattern (not appearing in unrelated PRs). Log as best practice for #668 P2 instances and future paginated-read refactors.
+
+**Pattern 4: plan-critic false positives on type inference** — count **1** (this cycle)
+
+Plan-critic suggested explicit type casting on a Supabase client call. Validated: the typed client already provides the correct type without casting. This is a false positive due to plan-critic's conservative stance on types.
+
+**Implication:** When plan-critic flags a type-safety suggestion, validate by reading the code first. The suggestion may be overly cautious. Log for future type-related critic findings.
+
+### Frequency Table Update
+
+| Pattern | Count | First Seen | Last Seen | Status | Action |
+|---------|-------|-----------|-----------|--------|--------|
+| .claude/rules/security.md §11 vs docs/security.md §3 mismatch | 3 | 2026-05-26 | 2026-05-28 | RULE PROMOTION | Apply (see PROPOSED section below) |
+| Missing caller-level page-error test on pagination (count=2 NOW) | **2** | 2026-05-28 (#681) | 2026-05-29 (#668-7) | **RULE PROMOTION** | Promote to code-style.md §7 (see PROPOSED section below) |
+| fetchAllRows<T> with join should omit explicit generic | 1 | 2026-05-29 | — | Memory note | Reference in next #668 cycle |
+| Extracting paginated reads into -queries.ts keeps action under limit | 3 (within #668) | 2026-05-29 | — | Best practice (log only) | Reference in next #668 P2 cycle |
+| Plan-critic false positive on type inference | 1 | 2026-05-29 | — | Watch (validate first) | If count≥2, add note to agent-critic.md about conservative type suggestions |
+| Shared-helper pattern for paired RPCs | 1 | 2026-05-28 | — | Positive pattern | Reference in future paired-RPC designs |
+| Refactor delegation prompt allows module deletion but forbids test-file deletion | 1 | 2026-05-28 | — | Watch | If count=2, add standing rule to delegation prompt template |
+| Plan-critic semantic-flip detection on assertions | 1 | 2026-05-28 | — | Positive signal | Continue relying on pre-commit critic |
+| Spec-folder banner consistency (SUPERSEDED marker) | 1 | 2026-05-28 | — | Watch | If count=2, promote to agent-doc-updater.md rule |
+| CodeRabbit-on-superseded-design context switching | 1 | 2026-05-28 | — | Observation | When CR flags spec doc CRITICAL, verify spec status first |
+
+### Recommended Changes
+
+**Rule change #1: `.claude/rules/code-style.md` § 7 Testing Rules — add paginated-data lifecycle test rule**
+
+(See proposed text above in Pattern 1.)
+
+**Status:** count=2 (PR #681 + this cycle) justifies promotion. Apply before next pagination cycle.
+
+**Rule change #2: `.claude/rules/security.md` — clarify section-number cross-reference** (already tracked in prior cycle, count=3)
+
+Apply the proposed note from the 2026-05-28 cycle findings if not already applied.
+
+### Cycle Status
+
+- **Commits:** 2 (f6c2e3d2 feat + 1a4f8c9d feat)
+- **Agent findings on production code:** 0 CRITICAL, 0 ISSUE, 0 BLOCKING, 4 pre-commit issues (all applied), 2 post-commit SUGGESTIONs (both applied)
+- **All post-commit agents clean after fixes**
+- **Patterns detected:** 5 (1 new promotion candidate at count=2, 4 watch/observation items)
+- **Rule changes proposed:** 1 new promotion (code-style.md pagination test rule), 1 prior (security.md cross-reference note)
+- **Deferred work:** None. Both commits merged.
+
+### File References
+
+- `.claude/agent-memory/learner/patterns.md` — updated (this file)
+- **PROPOSED (not yet applied):** `.claude/rules/code-style.md` § 7 — add paginated-data lifecycle test rule
+- **PROPOSED (not yet applied):** `.claude/rules/security.md` — add cross-reference note (from prior cycle if not applied)
+
+
+---
+
+## Learner Cycle — 2026-05-29 — Commit 1bc940c9 (PR #700 CodeRabbit Fixes)
+
+### Context
+
+Single commit (test-only fixes, no production code changes):
+- **students-queries.test.ts** — renamed two test titles from internal-symbol names to behavior-first per code-style.md §7 promotion.
+- **comments.test.ts** — switched mock strategy from hardcoded COMMENT_SELECT string to `vi.importActual` partial mock to keep real constant as source-of-truth.
+
+All 4 post-commit agents: code-reviewer, semantic-reviewer, doc-updater, test-writer all reported CLEAN.
+
+### Agent Findings Summary
+
+| Agent | CRITICAL | ISSUE | SUGGESTION | GOOD | Status |
+|-------|----------|-------|-----------|------|--------|
+| code-reviewer | 0 | 0 | 0 | 0 | CLEAN |
+| semantic-reviewer | 0 | 0 | 0 | 0 | CLEAN |
+| doc-updater | 0 | 0 | 0 | 0 | CLEAN (doc-only commit, no drift) |
+| test-writer | 0 | 0 | 0 | 0 | CLEAN |
+| impl-critic (pre-commit) | 0 | 0 | 0 | 0 | CLEAN |
+
+### Patterns Detected
+
+#### [RECURRENCE — POSITIVE SIGNAL] Internal-symbol test-title leakage (code-style.md §7)
+
+**Pattern:** Test titles named internal types or helper functions instead of describing behavior.
+- `it('maps rows to OrgStudentOption with id, fullName, and email', ...)` → `it('returns student options with id, full name, and email', ...)`
+- `it('propagates errors from requireAdmin', ...)` → `it('rejects when the caller is not an admin', ...)`
+
+**Prior instances:**
+1. **2026-04-28 (PR #523):** Pattern promoted to code-style.md §7 after hitting count≥2 in that cycle. Rule now binding.
+2. **2026-05-29 (this commit):** Two more instances caught post-promotion.
+
+**Status:** count=3 (pre-promotion + post-promotion instances). This is a POSITIVE SIGNAL. The rule IS working — violations are still being caught, but now they are caught by the rule, not by repeated pattern analysis. No further rule changes needed. Log for quarterly rule-enforcement audit (to verify the rule is consistently applied across the codebase over time).
+
+---
+
+#### [NEW PATTERN — WATCH] Test mock duplicates production constant instead of importing it
+
+**Pattern:** Mock definition hardcodes a constant value (COMMENT_SELECT) that is also defined in production code, creating a divergence risk.
+
+Before:
+```typescript
+vi.mock('./comment-queries', () => ({
+  fetchQuestionComments: mockFetchQuestionComments,
+  COMMENT_SELECT: 'id, question_id, user_id, body, created_at, users!user_id(full_name, role)',
+}))
+```
+
+After (partial mock via `vi.importActual`):
+```typescript
+vi.mock('./comment-queries', async () => {
+  const actual = await vi.importActual<typeof import('./comment-queries')>('./comment-queries')
+  return {
+    ...actual,
+    fetchQuestionComments: mockFetchQuestionComments,
+  }
+})
+```
+
+**Rationale:** The real COMMENT_SELECT is used by `createComment` in comments.ts. If the test mocks a different COMMENT_SELECT and the test passes, silent projection drift is possible: test verifies against mock projection, but production uses real projection. Using `vi.importActual` with a partial override ensures the mock uses the real constant as source-of-truth.
+
+**Related pattern:** Hardcoded cookie/constant values in tests instead of importing source constants (logged 2026-03-27, count=3). This is a specialization: instead of a hardcoded literal in a test assertion, it's a hardcoded literal in a mock definition. Same root cause: duplication of a production value. Same fix: import or re-export from source.
+
+**Count:** 1 (this is the first explicit instance in this specialized form). The broader "hardcoded constants instead of importing" pattern is count=3, but this test-mock variant is count=1.
+
+**Recommendation:** Log as memory note. Watch for a second occurrence. If count reaches 2 (another test mock with a hardcoded constant instead of vi.importActual), propose a rule addition to test-writer/patterns.md: "When mocking a module that exports a constant used in production, use `vi.importActual` to re-export the real constant rather than hardcoding a duplicate string."
+
+---
+
+### Frequency Table Update
+
+| Pattern | Count | First Seen | Last Seen | Status | Action |
+|---------|-------|-----------|-----------|--------|--------|
+| Internal-symbol test-title leakage (code-style.md §7) | 3 (all instances post-promotion now) | 2026-04-28 (promoted) | 2026-05-29 | RULE ACTIVE (log for audit) | Continue monitoring; no rule change needed |
+| Test mock hardcodes constant instead of importing (vi.importActual variant) | 1 | 2026-05-29 | — | Watch | Propose rule if count=2 |
+| Hardcoded constants in tests vs. importing (broader pattern) | 3 | 2026-03-27 | 2026-04-26 | Documented (no rule yet) | Already tracked separately; this commit is a new variant (mock definition, not assertion) |
+
+### Recommended Changes
+
+**No rule changes proposed.** 
+
+- Pattern 1 (internal-symbol titles) is count=3 **all post-promotion**. The rule is working. Log a positive signal instead of proposing a change.
+- Pattern 2 (test mock constants) is count=1. Watch for second occurrence before proposing.
+
+### Cycle Status
+
+- **Commits:** 1 (1bc940c9 test-only fixes)
+- **Agent findings on production code:** 0 CRITICAL, 0 ISSUE, 0 BLOCKING, 0 SUGGESTION (all 4 agents CLEAN)
+- **Patterns detected:** 2 (1 recurrence/positive signal, 1 new watch item)
+- **Rule changes proposed:** None.
+- **Deferred work:** None. Commit merged.
+
+### File References
+
+- `.claude/agent-memory/learner/patterns.md` — updated (this file)
+- No rule changes proposed.
+
+---
+
+## Learner Cycle — 2026-05-29 — Commits fb306b01 + 7ede6a58 (Doc Sync: #668 Instance #8)
+
+### Context
+
+Two-commit sequence for documenting #668 instance #8 completion:
+1. **fb306b01** (`docs(plan): mark #668 instance #8 merged via PR #702`) — Updated top-of-file "Last updated" summary line to mark instance #8 as merged. Did NOT update the detailed Umbrella #668 section below (starting ~line 1227).
+2. **7ede6a58** (`docs(plan): backfill #668 instances #7 + #8 in umbrella section`) — Backfilled the detailed section with Instance #7 and #8 subsections, section Status block, and section footer "Last updated" line.
+
+Both commits are doc-only (no production code).
+
+### Agent Findings Summary
+
+| Agent | CRITICAL | ISSUE | SUGGESTION | GOOD | Status |
+|-------|----------|-------|-----------|------|--------|
+| code-reviewer | 0 | 0 | 0 | 0 | CLEAN (doc-only) |
+| semantic-reviewer | N/A | N/A | N/A | N/A | (not run on doc-only commits) |
+| doc-updater (fb306b01) | 0 | 0 | 0 | 0 | CLEAN (but missed drift) |
+| doc-updater (7ede6a58) | 0 | 0 | 0 | 0 | CLEAN |
+| test-writer | N/A | N/A | N/A | N/A | (not run on doc-only) |
+
+### Pattern Detected
+
+#### [PATTERN — CROSS-REFERENCE AUDIT RULE UNDERENFORCED] Top-level summary updated but dependent detailed section left stale
+
+**What happened:**
+- Commit fb306b01 updated the top-of-file "Last updated: 2026-05-29" line to include instance #8 merged status.
+- The detailed Umbrella #668 section (lines ~1227–1260) was NOT updated in the same commit.
+- The section documented up to instance #6. Instances #7 and #8 were missing from the detailed subsections, Status block, and footer.
+- Commit 7ede6a58 (next commit) backfilled the missing subsections and section footer.
+
+**Root cause:** The Cross-Reference Audit Rule exists in `agent-doc-updater.md` (promoted from PR #605 findings):
+
+> "When a doc commit adds a **structural** cross-reference to an existing section — a row added to a summary table or RPC index that points at an existing function/section, or a TOC/anchor entry pointing at an existing target — the doc-updater audits the **entire referenced section** AND any related summary tables, matrices, or RPC indexes — not just lines marked `+` in the diff."
+
+The top-of-file "Last updated" line in docs/plan.md is a structural summary. Updating it to mention instance #8 creates an implicit cross-reference: "the reader expects the detailed Umbrella section to be up-to-date with this summary claim." The rule requires reading the entire detailed section, not just the `+` lines in the diff.
+
+**Why it was missed:** The diff for fb306b01 showed only the `+` lines on line 5 (the summary). The doc-updater did not apply the Cross-Reference Audit Rule to the summary-line update. The rule was designed to catch exactly this scenario (PR #605 had four stale claims in a detailed section after a summary update), but it was not triggered on this commit.
+
+**Related prior occurrence:** PR #605 (same root cause, different document):
+- `docs/database.md` `complete_overdue_exam_session` section had four stale claims that survived after a migration widened the function's mode guard.
+- The Cross-Reference Audit Rule was documented **as a result** of that cycle.
+- This cycle is a **direct replication** of the scenario the rule was designed to prevent.
+
+**Count:** This is the **1st clear occurrence** of this specific pattern in the current learner memory table (the broader "footer drift" pattern row 195 is distinct; PR #605 is a prior cycle now referenced in agent-doc-updater.md).
+
+**Implication:** The Cross-Reference Audit Rule exists but was not applied. This is a doc-updater enforcement gap, not a rule-definition gap.
+
+### Frequency Table Update
+
+| Pattern | Count | First Seen | Last Seen | Status | Action |
+|---------|-------|-----------|-----------|--------|--------|
+| Top-level summary updated but dependent detailed section left stale (Cross-Reference Audit Rule unapplied) | 1 | 2026-05-29 | — | Watch | If count≥2 across different commits, propose a tooling or procedural improvement to enforce the existing rule |
+
+### Recommended Changes
+
+**No rule changes proposed.**
+
+The rule already exists and is well-documented in `agent-doc-updater.md` § Cross-Reference Audit Rule. This is count=1, so the pattern does not yet meet the threshold for a new rule.
+
+**Observation:** The rule was designed to prevent exactly this scenario (PR #605), yet it was not applied this cycle. If a second instance appears, the pattern suggests either:
+1. The rule is not clearly enough stated in the agent definition (clarification may be needed).
+2. The doc-updater agent did not recognize the top-of-file summary line as a "structural cross-reference" (training/examples in agent-doc-updater.md may need expansion).
+
+**Watch for:** The next instance where a summary line is updated in a doc file with a detailed section below. Verify whether the doc-updater applies the full-section audit rule or only audits the `+` lines.
+
+### Cycle Status
+
+- **Commits:** 2 (fb306b01 summary update, 7ede6a58 detail backfill)
+- **Agent findings:** 0 CRITICAL, 0 ISSUE, 0 BLOCKING, 0 SUGGESTION (all agents clean; note: semantic-reviewer and test-writer do not run on doc-only commits)
+- **Patterns detected:** 1 (rule-enforcement gap observation, count=1, watching)
+- **Rule changes proposed:** None.
+- **Deferred work:** None. Both commits merged.
+
+### File References
+
+- `.claude/agent-memory/learner/patterns.md` — updated (this file)
+- `.claude/rules/agent-doc-updater.md` § Cross-Reference Audit Rule — existing rule that was not applied this cycle
+- PR #605 findings and the rule-promotion cycle that resulted in the current Cross-Reference Audit Rule in agent-doc-updater.md
+
+---
+
+*Last updated: 2026-05-29*
