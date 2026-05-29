@@ -17,7 +17,7 @@ vi.mock('@repo/db/server', () => ({
 
 vi.mock('./comment-queries', () => ({
   fetchQuestionComments: mockFetchQuestionComments,
-  COMMENT_SELECT: 'id, question_id, user_id, body, created_at, users(full_name, role)',
+  COMMENT_SELECT: 'id, question_id, user_id, body, created_at, users!user_id(full_name, role)',
 }))
 
 // ---- Subject under test ----------------------------------------------------

@@ -74,13 +74,12 @@ describe('fetchQuestionComments', () => {
   })
 
   it('surfaces a database error and returns no rows', async () => {
-    // getCount returns the error — fetchAllRows short-circuits to { data: [], error }
+    // getCount returns the error — fetchAllRows short-circuits to { data: [], error }.
+    // The helper does not log (logging is the caller's job in comments.ts).
     mockFrom.mockReturnValue(buildChain({ count: null, data: null, error: { message: 'boom' } }))
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const result = await fetchQuestionComments(mockSupabase, QUESTION_ID)
 
-    consoleSpy.mockRestore()
     expect(result).toEqual({ data: [], error: { message: 'boom' } })
   })
 
