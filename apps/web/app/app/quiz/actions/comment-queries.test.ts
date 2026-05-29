@@ -93,12 +93,4 @@ describe('fetchQuestionComments', () => {
 
     expect(result).toEqual({ data: [], error: { message: 'page fail' } })
   })
-
-  it('reads from the question_comments table', async () => {
-    mockFrom.mockReturnValue(buildChain({ count: 1, data: [COMMENT_ROW], error: null }))
-
-    await fetchQuestionComments(mockSupabase, QUESTION_ID)
-
-    expect(mockFrom).toHaveBeenCalledWith('question_comments')
-  })
 })

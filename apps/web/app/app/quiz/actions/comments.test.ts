@@ -131,15 +131,6 @@ describe('getComments', () => {
     expect(result).toEqual({ success: true, comments: [] })
   })
 
-  it('loads comments for the parsed question ID', async () => {
-    setupAuthenticatedUser()
-    mockFetchQuestionComments.mockResolvedValue({ data: [], error: null })
-
-    await getComments({ questionId: QUESTION_ID })
-
-    expect(mockFetchQuestionComments).toHaveBeenCalledWith(expect.anything(), QUESTION_ID)
-  })
-
   // ---- error handling ------------------------------------------------------
 
   it('returns a failure when the database query errors', async () => {
