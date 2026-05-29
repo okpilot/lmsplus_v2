@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe('listOrgStudents', () => {
   describe('happy path', () => {
-    it('maps rows to OrgStudentOption with id, fullName, and email', async () => {
+    it('returns student options with id, full name, and email', async () => {
       mockAdmin()
       const rows = [
         { id: 'stu-1', full_name: 'Alice Smith', email: 'alice@example.com' },
@@ -128,7 +128,7 @@ describe('listOrgStudents', () => {
       }
     })
 
-    it('propagates errors from requireAdmin', async () => {
+    it('rejects when the caller is not an admin', async () => {
       mockRequireAdmin.mockRejectedValue(new Error('Forbidden'))
 
       await expect(listOrgStudents()).rejects.toThrow('Forbidden')
