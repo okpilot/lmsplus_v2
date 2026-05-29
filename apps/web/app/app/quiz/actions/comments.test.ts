@@ -131,7 +131,7 @@ describe('getComments', () => {
     expect(result).toEqual({ success: true, comments: [] })
   })
 
-  it('forwards the parsed questionId to the query helper', async () => {
+  it('loads comments for the parsed question ID', async () => {
     setupAuthenticatedUser()
     mockFetchQuestionComments.mockResolvedValue({ data: [], error: null })
 
