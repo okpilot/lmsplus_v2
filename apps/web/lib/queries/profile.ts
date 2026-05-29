@@ -97,6 +97,8 @@ async function getProfileStats(supabase: SupabaseClient, userId: string): Promis
   const averageScore =
     totalSessions > 0 && row?.avg_score != null ? Math.round(Number(row.avg_score)) : 0
 
+  // `userId` is only needed here: the head-count of answered questions is a safe
+  // count (no truncation). The stats RPC above takes no args and self-scopes via auth.uid().
   const { count } = await supabase
     .from('student_responses')
     .select('*', { count: 'exact', head: true })
