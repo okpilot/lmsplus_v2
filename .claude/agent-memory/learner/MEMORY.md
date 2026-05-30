@@ -6,7 +6,7 @@
 
 ## Issue Frequency Tracker (live — count≥2)
 
-Curated VIEW of the count≥2 rows. **The full, lossless record (all 183 rows, every count) lives in `topics/tracker-archive.md` — that is the source of truth, not this table.** Counts drive rule-promotion (≥2) and the Sweep-On-Rule-Promotion trigger (`agent-learner.md`). Rows transition state, never deleted (`agent-memory.md`). Schema: `Issue Type | Count | Last Seen | Status`. A count≥2 row still marked "Watch" is rendered RULE CANDIDATE here per the state machine; its original wording is preserved in the archive.
+Curated VIEW of the count≥2 rows. **The fuller record (the pre-migration tracker + the 2026-05-28/29 late-cycle rows) lives in `topics/tracker-archive.md`; the complete original journal is in git at `2e87c3e6`.** Counts drive rule-promotion (≥2) and the Sweep-On-Rule-Promotion trigger (`agent-learner.md`). Rows transition state, never deleted (`agent-memory.md`). Schema: `Issue Type | Count | Last Seen | Status`. A count≥2 row still marked "Watch" is rendered RULE CANDIDATE here per the state machine; its original wording is preserved in the archive.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
@@ -20,7 +20,7 @@ Curated VIEW of the count≥2 rows. **The full, lossless record (all 183 rows, e
 | Partial fix applied to sibling file group (cross-cutting concern) | 5 | 2026-04-14 | RULE CANDIDATE (count 5, active) — fix applied to the instance seen, not all instances in file + siblings; grep all sites before commit |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE — isPending + manual isLoading can both be false mid-fetch, flashing idle button; suggestion-level, not yet fixed |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE — fallback to 0/min on empty/malformed data with no server signal; always console.warn before the fallback value |
-| test-writer produces TS2532 (unchecked array index) errors | 3 | 2026-03-23 | RULE IN MEMORY → test-writer/patterns.md §Array index safety — agent generates wrong form first; fix cycle is the gate |
+| test-writer produces TS2532 (unchecked array index) errors | 3 | 2026-03-23 | RULE IN MEMORY → test-writer/MEMORY.md §Array index safety — agent generates wrong form first; fix cycle is the gate |
 | Direct SELECT from `questions` bypassing RPC (answer exposure) | 2 | 2026-03-13 | RULE EXISTS → security.md rule 1 / CLAUDE.md — checkAnswer queried correct flag; fixed via check_quiz_answer RPC; compliance gap |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (propose on 3rd) — auth check ≠ ownership scoping; student-owned tables must scope to student_id |
 | UI event handler missing re-entry guard (double-fire) | 2 | 2026-03-16 | RULE CANDIDATE — async lock + event-propagation mechanisms; any close/submit action must be audited for re-entry at authoring time |
@@ -29,10 +29,10 @@ Curated VIEW of the count≥2 rows. **The full, lossless record (all 183 rows, e
 | Type cast bypassing runtime validation (`as unknown as T` no guard) | 2 | 2026-03-13 | RULE ADDED → code-style.md §5 + .coderabbit.yaml — pair `as unknown as T` with a runtime type guard |
 | New hook/utility file extracted without shipping tests in same commit | 7 | 2026-03-27 | RULE EXISTS → code-style.md §7 — 7th recurrence; authoring habit absent; code-reviewer BLOCKING + test-writer is the reliable gate |
 | Derived value correct by coincidence (index used as count proxy) | 2 | 2026-03-13 | RULE CANDIDATE — value co-varies with metric but diverges on edge cases; use a dedicated state var incremented at the domain event |
-| consoleSpy created without try/finally cleanup (spy leaks on failure) | 3 | 2026-03-14 | RULE ADDED → test-writer/patterns.md — always wrap consoleSpy in try { } finally { consoleSpy.mockRestore() } |
+| consoleSpy created without try/finally cleanup (spy leaks on failure) | 3 | 2026-03-14 | RULE ADDED → test-writer/MEMORY.md — always wrap consoleSpy in try { } finally { consoleSpy.mockRestore() } |
 | Red-team spec written against wrong schema column / RPC signature | 2 | 2026-03-14 | RULE CANDIDATE → red-team agent (on 3rd) — specs written from memory; always read the migration file before writing DB assertions |
 | Auth callback guard ordering error (guards in wrong order → bypass) | 2 | 2026-03-17 | RULE CANDIDATE — session actions must precede existence/registration checks; all post-session failure paths must signOut() before redirect |
-| test-writer generates deprecated vi.fn generic syntax (two-arg form) | 2 | 2026-03-15 | RULE ADDED → test-writer/patterns.md — correct form `vi.fn<(arg: A) => R>()` (single function-type arg, Vitest v4) |
+| test-writer generates deprecated vi.fn generic syntax (two-arg form) | 2 | 2026-03-15 | RULE ADDED → test-writer/MEMORY.md — correct form `vi.fn<(arg: A) => R>()` (single function-type arg, Vitest v4) |
 | Supabase SELECT error swallowed in auth helper (distinct from mutation) | 2 | 2026-03-15 | RULE CANDIDATE → code-style.md §5 (extension) — auth-path SELECTs must destructure `{ data, error }` and log before the guard decision |
 | Zod error message pinned to exact internal text | 2 | 2026-03-16 | RULE CANDIDATE — Zod internal messages aren't public API; assert `error instanceof ZodError` or `.issues[0].code`, never `.message` |
 | Defensive fix for race/stale-state that does not materialize today | 2 | 2026-04-26 | RESOLVED (intentional hardening) — mirror parent invariant in child render guard/effect; deliberate hardening, not unclear spec |
@@ -45,15 +45,18 @@ Curated VIEW of the count≥2 rows. **The full, lossless record (all 183 rows, e
 | Function exceeding 30-line limit in Server Action file | 3 | 2026-04-10 | RULE CANDIDATE (count 3) → code-style.md §3 — extract row-transform/business logic as named `mapXxxRow()` helper; existing gate working |
 | Hook file exceeding 80-line limit | 5 | 2026-03-23 | RULE EXISTS → code-style.md §1 — use-quiz-config.ts at 110 lines; hooks grow incrementally; post-commit code-reviewer is the catch |
 | ZodError escaping Server Action via parse() without try/catch or safeParse | 2 | 2026-03-26 | RULE CANDIDATE → code-style.md — use `Schema.safeParse()` (or wrap `.parse()` in try/catch) so invalid input returns a typed error |
-| Hardcoded constant values in tests instead of importing source constants | 2 | 2026-03-27 | RULE CANDIDATE → test-writer/patterns.md — import production constants, never duplicate literal values that drift on rename |
-| New test file shipped without vi.resetAllMocks() in beforeEach | 2 | 2026-03-27 | PROMOTED → test-writer/patterns.md §Mock patterns — rule exists; compliance gap at authoring time; semantic-reviewer is the gate |
-| test-writer generates tests needing jsdom-compat fixes before they pass | 3 | 2026-03-29 | RULE IN MEMORY → test-writer/patterns.md — TS2532 / vi.fn syntax / PointerEvent jsdom gaps; fix cycle is the reliable gate |
+| Hardcoded constant values in tests instead of importing source constants | 3 | 2026-05-29 | RULE CANDIDATE → test-writer/MEMORY.md — import production constants, never duplicate literal values that drift on rename; broader mock-definition variant recurred 2026-05-29 (#668) |
+| New test file shipped without vi.resetAllMocks() in beforeEach | 2 | 2026-03-27 | PROMOTED → test-writer/MEMORY.md §Mock patterns — rule exists; compliance gap at authoring time; semantic-reviewer is the gate |
+| test-writer generates tests needing jsdom-compat fixes before they pass | 3 | 2026-03-29 | RULE IN MEMORY → test-writer/MEMORY.md — TS2532 / vi.fn syntax / PointerEvent jsdom gaps; fix cycle is the reliable gate |
 | CodeRabbit false-positive rate elevated on exam-mode PRs | 2 | 2026-04-14 | RULE CANDIDATE → .coderabbit.yaml — CR lacks project context (hard-delete exceptions, DB-level constraints); consider suppression notes |
-| TS strict mode requires `!` non-null assertion on array index in test files | 2 | 2026-04-11 | RULE IN MEMORY → test-writer/patterns.md §Array index safety — assert `arr[0]!` after `toHaveLength(N)`; pre-commit tsc is the catch |
+| TS strict mode requires `!` non-null assertion on array index in test files | 2 | 2026-04-11 | RULE IN MEMORY → test-writer/MEMORY.md §Array index safety — assert `arr[0]!` after `toHaveLength(N)`; pre-commit tsc is the catch |
 | audit-actor-subquery-soft-delete (audit_events INSERT subqueries missing deleted_at) | 3 | 2026-04-27 | PROMOTED → security.md §10 (count 3) — same pattern as the actor-role row; INSERT INTO audit_events must filter deleted_at on FK lookups |
 | Manual-eval bug invisible to unit tests (dual-source UI only in full app) | 2 | 2026-04-28 | RULE CANDIDATE → code-style.md §7 (extends Refresh/Reload) — dual server+client surfaces need an integration/E2E test mounting both |
 | Stale `why` annotations on test payloads after guard mechanism change | 2 | 2026-05-07 | RULE CANDIDATE (promotion deferred — both in same file/migration, not distinct mechanism) — payloads.ts notes drift after guard swap |
 | Server Action ERROR_MESSAGES not synced with new RPC `RAISE EXCEPTION` literals | 2 | 2026-05-07 | RULE CANDIDATE (held for 3rd in a different RPC/Action family; sweep would push defer-budget to red) — UX gap, generic fallback message |
+| security.md §11 vs docs/security.md §3 section-number mismatch | 3 | 2026-05-28 | RULE PROMOTION — cross-reference section numbers between the security.md quick-summary and docs/security.md don't align; clarify in security.md (first 2026-05-26 #540) |
+| Missing caller-level page-error test on pagination | 2 | 2026-05-29 | RULE PROMOTION → code-style.md §7 — paginated query reads need a caller-level page-error test (first 2026-05-28 #681) |
+| Internal-symbol test-title leakage | 3 | 2026-05-29 | RULE ACTIVE → code-style.md §7 (promoted 2026-04-28) — recurrence after promotion; monitor, no rule change |
 
 ## Durable knowledge (cross-agent)
 
@@ -65,4 +68,4 @@ Curated VIEW of the count≥2 rows. **The full, lossless record (all 183 rows, e
 ## Topic pointers
 
 - [cross-agent-lessons](topics/cross-agent-lessons.md) — durable rule-promotion record, false-positive catalog, recurring meta-lessons.
-- [tracker-archive](topics/tracker-archive.md) — lossless full record of ALL 183 tracker rows (every count, full original Status text). The live table above is a count≥2 view of this archive. **Before adding a NEW tracker row, grep `topics/tracker-archive.md` for the pattern — if it exists there, increment that row and lift it back into the live table instead of creating a duplicate.**
+- [tracker-archive](topics/tracker-archive.md) — full tracker record (pre-migration rows + the 2026-05-28/29 late-cycle reconciliation); the complete original journal is in git at `2e87c3e6`. The live table above is a count≥2 view of this archive. **Before adding a NEW tracker row, grep `topics/tracker-archive.md` for the pattern — if it exists there, increment that row and lift it back into the live table instead of creating a duplicate.**

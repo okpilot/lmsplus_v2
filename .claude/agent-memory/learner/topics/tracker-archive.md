@@ -190,3 +190,23 @@
 | Test fixture helper computes derived field without mirroring production transform (clamp/normalize) | 1 | 2026-05-25 | WATCH — 23cffad9 (PR #665): semantic-reviewer ISSUE — `makeSubject` fixture's `masteryPercentage` lacked the `Math.min(..., 100)` clamp production applies; fixed in 333bb1a7 by adding clamp to fixture. Root cause: fixture synthesis diverged from production shape. If a second test helper computes a derived field without matching production's transform, promote: "test fixtures computing derived values must apply the same normalization/clamp/transform as production." |
 | CodeRabbit suggested fix can reverse direction (must verify authoritative source before applying) | 1 | 2026-05-27 | Watch — PR #680 doc-fix cycle (appeared in two summary tables same session — reconciled to count=1, not 2). Verify authoritative source before applying a CR suggestion; potential agent-workflow.md clarification if count≥2. |
 | doc-updater applies stale-hash check to historical journal files | 1 | 2026-05-27 | Watch — PR #680 doc-fix cycle (appeared in two summary tables same session — reconciled to count=1, not 2). If count≥2, add a skip condition for `.claude/agent-memory/**` files. |
+
+## Late-cycle rows (2026-05-28 / 2026-05-29) — reconciled into the archive post-migration
+
+> The first extraction pass dropped the most-recent per-cycle "Frequency Table Update" blocks; these rows are restored here. Source: original `patterns.md` lines ~6149–6606 at `git show 2e87c3e6`.
+
+| Issue Type | Count | Last Seen | Status |
+|-----------|-------|-----------|--------|
+| .claude/rules/security.md §11 vs docs/security.md §3 section-number mismatch | 3 | 2026-05-28 (#678/#679) | RULE PROMOTION — first 2026-05-26 (#540); cross-reference section numbers between the security.md quick-summary and docs/security.md don't align; clarify in security.md |
+| Missing caller-level page-error test on pagination | 2 | 2026-05-29 (#668-7) | RULE PROMOTION → code-style.md §7 — first 2026-05-28 (#681); paginated query reads need a caller-level page-error test |
+| fetchAllRows<T> with join should omit explicit generic | 1 | 2026-05-29 | Memory note — reference in next #668 cycle |
+| Extracting paginated reads into -queries.ts keeps action file under size limit | 3 (within #668) | 2026-05-29 | Best practice (log only) — reference in next #668 P2 cycle |
+| Plan-critic false positive on type inference | 1 | 2026-05-29 | Watch (validate first) — if count≥2, note in agent-critic.md re conservative type suggestions |
+| Shared-helper pattern for paired RPCs | 1 | 2026-05-28 | Positive pattern (log only) — reference in future paired-RPC designs |
+| Refactor delegation prompt allows module deletion but forbids test-file deletion | 1 | 2026-05-28 | Watch — if count=2, add a standing rule to the delegation prompt template |
+| Spec-folder banner consistency (SUPERSEDED marker) | 1 | 2026-05-28 | Watch — if count=2, promote to agent-doc-updater.md rule |
+| CodeRabbit-on-superseded-design context switching | 1 | 2026-05-28 | Observation — when CR flags a spec doc CRITICAL, verify spec status first |
+| Internal-symbol test-title leakage (code-style.md §7) | 3 | 2026-05-29 | RULE ACTIVE (promoted 2026-04-28) — recurrence after promotion; continue monitoring, no rule change needed |
+| Test mock hardcodes constant instead of importing (vi.importActual variant) | 1 | 2026-05-29 | Watch — propose rule if count=2 |
+| Hardcoded constants in tests vs. importing (broader pattern; mock-definition variant) | 3 | 2026-05-29 | Documented (no rule yet) — broader variant of the count-2 "Hardcoded constant values in tests" row; this variant is a mock definition, not an assertion |
+| Top-level summary updated but dependent detailed section left stale (Cross-Reference Audit Rule unapplied) | 1 | 2026-05-29 | Watch — if count≥2 across commits, propose tooling/procedural enforcement of the existing rule |
