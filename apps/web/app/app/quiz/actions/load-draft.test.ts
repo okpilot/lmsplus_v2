@@ -16,6 +16,7 @@ vi.mock('@repo/db/server', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
+import { MAX_DRAFTS } from './draft-helpers'
 import { loadDrafts } from './load-draft'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -111,6 +112,16 @@ describe('loadDrafts', () => {
       subjectCode: 'MET',
       createdAt: '2026-03-12T10:00:00Z',
     })
+  })
+
+  it('bounds the read to the MAX_DRAFTS cap', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: USER_ID } } })
+    const chain = buildSelectChain({ data: [buildDraftRow()], error: null })
+    mockFrom.mockReturnValue(chain)
+
+    await loadDrafts()
+
+    expect(chain.limit).toHaveBeenCalledWith(MAX_DRAFTS)
   })
 
   it('maps feedback column to DraftData.feedback when present', async () => {
