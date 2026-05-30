@@ -17,7 +17,7 @@ Weekly self-review: analyse project health, audit agent system, and update memor
    - `.claude/agent-memory/implementation-critic/MEMORY.md`
 7. Cross-reference agent health:
    - **Memory budget**: run `wc -l .claude/agent-memory/*/MEMORY.md` — flag any MEMORY.md over 200 lines. Native injection truncates at 200 lines / 25 KB, so an over-budget index silently loses its tail. Spill detail into `topics/` files per `.claude/rules/agent-memory.md` (the tracker stays; verbose prose moves out).
-   - **Red-team**: list spec files in `apps/web/e2e/redteam/` vs mentions in attack-surface.md — flag orphans and stale mappings
+   - **Red-team**: list spec files in `apps/web/e2e/redteam/` vs mentions in `topics/attack-surface.md` — flag orphans and stale mappings
    - **Learner**: scan frequency table for entries with count >= 2 still at "Watch" — these should be "Rule Candidate"
    - **Semantic-reviewer**: note false positive patterns, check if any flagged patterns stopped recurring
    - **Test-writer**: verify mock patterns still match codebase (Supabase client shape, auth helpers)

@@ -49,7 +49,7 @@ WATCHING ──(count reaches 2)──▶ RULE CANDIDATE ──(rule written)─
    └──(turned out not to be a real issue)───────────────────────▶ FALSE POSITIVE
 ```
 
-Tracker columns: `Issue Type | Count | Last Seen | Status` (the deployed schema across the MEMORY.md files; `First Seen` and the `→ rule loc` are folded into the Status cell). Column order may vary slightly by agent — agents read by header name, not position. Count increments only for a **distinct** mechanism/occurrence — not a re-mention of the same one. When a recurrence proves a count was mis-attributed, fix the count and note the reconciliation in the row (this is the one legitimate way a count changes other than incrementing).
+Tracker columns vary by agent — agents read by header name, not position, so both deployed shapes are valid: **learner** uses `Issue Type | Count | Last Seen | Status` (`First Seen` and the `→ rule loc` folded into the Status cell); the **other trackers** (code-reviewer, semantic-reviewer, test-writer, plan-critic, implementation-critic) use `Pattern | First Seen | Count | Last Seen | Status (→ rule loc)`. Count increments only for a **distinct** mechanism/occurrence — not a re-mention of the same one. When a recurrence proves a count was mis-attributed, fix the count and note the reconciliation in the row (this is the one legitimate way a count changes other than incrementing).
 
 > The tracker requirement for **code-reviewer** comes from its own agent definition (`.claude/agents/code-reviewer.md`) and the `## Recurring Issues Tracker` table it already maintains — **not** from `docs/security.md` (which has no such reference). The requirement for **learner** comes from `.claude/rules/agent-learner.md`.
 
