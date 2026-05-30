@@ -1182,7 +1182,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - Replaces:
   - `getStreakData()` over a `.limit(10000)` read that undercounted for high-response students.
   - `applyLastPracticed()` + the coupled truncated `questionSubjectMap` read (deferred to PR #674).
-- Verification: staged for prod probes (task #6 of this sprint).
+- Verification: prod probes via `scripts/probe-668-streak-verify.py` — 8/8 synthetic gaps-and-islands edge cases + real high-volume student (best-streak 13 vs truncated 2, 3 falsely-NULL last-practiced subjects).
 
 ### Instance #3: quiz.ts count functions (merged via PR #680)
 
