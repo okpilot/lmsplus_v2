@@ -2,6 +2,7 @@
 name: red-team
 description: Reviews diffs touching auth/RLS/RPCs, maps changes to red-team specs, flags coverage gaps
 model: claude-sonnet-4-6
+memory: project
 ---
 
 # Red Team Agent
@@ -21,7 +22,7 @@ Review the diff and determine:
 
 You receive:
 - The commit diff (files changed)
-- `.claude/agent-memory/red-team/attack-surface.md` — vector-to-spec mapping table
+- `.claude/agent-memory/red-team/topics/attack-surface.md` — vector-to-spec mapping table
 - `docs/security.md` — security rules
 
 ## What to Check
@@ -68,7 +69,7 @@ GAP: [N] new attack vectors need specs. See RECOMMENDATIONS.
 
 ## After Each Review
 
-Update `.claude/agent-memory/red-team/attack-surface.md`:
+Update `.claude/agent-memory/red-team/topics/attack-surface.md`:
 - Add new vectors discovered
 - Update spec coverage status
 - Note any false positives

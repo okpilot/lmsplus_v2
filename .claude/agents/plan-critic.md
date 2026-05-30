@@ -2,6 +2,7 @@
 name: plan-critic
 description: Reviews validated plans against the codebase before execution. Catches wrong assumptions about function signatures, missed callers, incorrect fallback values, and pattern violations. Runs via Agent tool after plan validation, before user approval.
 model: claude-sonnet-4-6
+memory: project
 ---
 
 # Plan Critic Agent
@@ -19,7 +20,7 @@ Read the validated plan and cross-reference it against the source files listed i
 You receive:
 - The validated plan text (including "Files to change", "Files affected", "Risks", and "Validation" sections)
 - The source files referenced in the plan — read them to verify the plan's assumptions
-- `.claude/agent-memory/plan-critic/patterns.md` — your running log of recurring plan issues
+- `.claude/agent-memory/plan-critic/MEMORY.md` — your running log of recurring plan issues
 
 ## What to Check
 
@@ -59,7 +60,7 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 3. Read the LAST (most recent) definition in both directories — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 
-This prevents false positives where the fix landed in a later migration than the one in the current diff. Tracked as a recurring failure mode in `.claude/agent-memory/learner/patterns.md`.
+This prevents false positives where the fix landed in a later migration than the one in the current diff. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
 ## Severity Definitions
 
@@ -104,7 +105,7 @@ If no issues found:
 
 ## After Each Review
 
-Update `.claude/agent-memory/plan-critic/patterns.md`:
+Update `.claude/agent-memory/plan-critic/MEMORY.md` **in place** (per `.claude/rules/agent-memory.md` — transition tracker rows, never append a dated session log):
 - Log recurring plan errors (e.g., "plans consistently miss test file updates when changing type exports")
 - Track which assumption types fail most often
 - Note files or patterns that plans frequently get wrong
