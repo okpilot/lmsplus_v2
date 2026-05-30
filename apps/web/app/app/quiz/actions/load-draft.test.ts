@@ -38,10 +38,13 @@ function buildDraftRow(overrides: Record<string, unknown> = {}) {
 }
 
 function buildSelectChain(result: { data: unknown; error: unknown }) {
+  // loadDrafts now awaits after `.limit(MAX_DRAFTS)`, so `.order()` chains and
+  // `.limit()` is the terminal that resolves the result.
   return {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    order: vi.fn().mockResolvedValue(result),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue(result),
   }
 }
 
