@@ -73,7 +73,8 @@ export async function getProgressData(): Promise<SubjectDetail[]> {
   // 1000-row PostgREST cap, so these counts are never truncated (#540).
   const subjectMap = new Map<string, { total: number; correct: number }>()
   const topicMap = new Map<string, { total: number; correct: number }>()
-  for (const row of masteryResult.data ?? []) {
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
+  for (const row of Array.isArray(masteryResult.data) ? masteryResult.data : []) {
     if (!row.subject_id) continue
     const counts = { total: Number(row.total), correct: Number(row.correct) }
     if (row.topic_id === null) subjectMap.set(row.subject_id, counts)
