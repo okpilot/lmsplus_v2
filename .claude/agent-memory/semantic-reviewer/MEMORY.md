@@ -1,7 +1,7 @@
 # Semantic Reviewer — Memory
 
 > Native subagent memory index. Tracker first, durable knowledge second, topic pointers last.
-> Update rows/bullets IN PLACE. No session logs — git holds history (`git log -p -- patterns.md` pre-migration; `git log` after).
+> Update rows/bullets IN PLACE. No session logs — git holds history (`git log -p -- .claude/agent-memory/semantic-reviewer/patterns.md` for pre-migration body; `git log` after).
 > Scope: logic / security / RLS / query-correctness at CodeRabbit depth. Style & file-size belong to code-reviewer — don't overlap.
 
 ## Recurring Issues Tracker
