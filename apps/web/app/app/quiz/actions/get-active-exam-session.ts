@@ -2,7 +2,12 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { rpc } from '@/lib/supabase-rpc'
-import { extractPassMark, extractQuestionIds, isExamOverdue } from './_overdue-helpers'
+import {
+  extractPassMark,
+  extractQuestionIds,
+  isExamOverdue,
+  MAX_ACTIVE_EXAM_SESSIONS,
+} from './_overdue-helpers'
 
 export type ActiveExamSession = {
   sessionId: string
@@ -41,6 +46,8 @@ export async function getActiveExamSession(): Promise<GetActiveExamSessionResult
       .is('deleted_at', null)
       .eq('mode', 'mock_exam')
       .order('started_at', { ascending: false })
+      // Deliberate bound — active sessions are structurally ~0–2; see MAX_ACTIVE_EXAM_SESSIONS.
+      .limit(MAX_ACTIVE_EXAM_SESSIONS)
 
     if (error) {
       console.error('[getActiveExamSession] Query error:', error.message)

@@ -24,6 +24,11 @@ type SaveDraftParsed = {
   subjectCode?: string
 }
 
+// Single source of truth for the saved-draft cap. Enforced at THREE points that
+// must stay in sync: (1) insertNewDraft below (TS count gate), (2) the
+// enforce_draft_limit DB trigger (mig 20260430000011, advisory-locked — hardcodes
+// 20), and (3) the loadDrafts read bound (load-draft.ts: `.limit(MAX_DRAFTS)`).
+// If this value changes, update the trigger migration's hardcoded 20 as well.
 export const MAX_DRAFTS = 20
 
 function sessionConfig(i: SaveDraftParsed) {
