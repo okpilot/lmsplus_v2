@@ -54,7 +54,7 @@ Post-commit review agents (code-reviewer, doc-updater, test-writer) run as in-se
 ### Claude Code Automation (confirmed 2026-03-11)
 - **Approach:** Cherry-pick patterns, write our own lean config (~200 lines). No bloated framework installs.
 - **References:** Trail of Bits claude-code-config, tdd-guard, VoltAgent awesome-claude-code-subagents
-- **Hooks:** PreToolUse (block rm-rf, block push to main, protect .env) + Stop (format + test + verify + notify) + PreCompact (HANDOVER summary before context compression)
+- **Hooks:** PreToolUse (block rm-rf, block push to main, protect .env) + Stop (format + test + verify + notify)
 - **Format on Stop** (not PostToolUse) — avoids "files changed" context bloat
 - **Windows notifications:** PowerShell toast (not notify-send — Linux only)
 
@@ -129,10 +129,13 @@ Full security reference: `docs/security.md` — binding rules, covers:
 ```
 .claude/
 ├── settings.json           ← hooks: block rm-rf, push-to-main, .env protection,
-│                              format on Stop, test on Stop, notify on Stop, PreCompact handover
+│                              format on Stop, test on Stop, notify on Stop
 ├── settings.local.json     ← local overrides (gitignored)
 ├── hooks/
-│   └── pre-compact-handover.sh  ← saves HANDOVER-YYYY-MM-DD.md before compaction
+│   ├── guard-bash.js        ← PreToolUse Bash: blocks dangerous patterns (rm-rf, push-to-main, .env)
+│   ├── review-gate.js       ← PreToolUse Edit/Write: blocks edits while reviewer findings are open
+│   ├── cr-local-plan-reminder.sh ← PostToolUse Bash: reminder to run crlocal
+│   └── on-stop.sh           ← Stop: biome format + vitest
 ├── agents/
 │   ├── code-reviewer.md    ← haiku, read-only, memory: project, proactive after commits
 │   ├── security-auditor.md ← sonnet, CREATED, scans diffs for vulns/secrets, memory: project
@@ -154,10 +157,11 @@ CLAUDE.md                   ← root, 50-80 lines max
 .claudeignore               ← node_modules, dist, .next, *.lock, coverage
 ```
 
-### Self-Improving Memory System (3 layers)
+### Self-Improving Memory System (2 layers)
 1. **Auto Memory** — Claude's native MEMORY.md at `~/.claude/projects/.../memory/`. Loads first 200 lines every session. Topic files on demand.
-2. **PreCompact Hook** — fires before context compression. Separate Claude instance reads full transcript, saves `HANDOVER-YYYY-MM-DD.md`. Nothing lost when context fills.
-3. **Agent memory** — each subagent has `memory: project` → writes to `.claude/agent-memory/<name>/`. Builds institutional knowledge: patterns found, recurring bugs, project conventions.
+2. **Agent memory** — each subagent has `memory: project` → writes to `.claude/agent-memory/<name>/`. Builds institutional knowledge: patterns found, recurring bugs, project conventions.
+
+> A PreCompact "handover" hook was originally planned as a third layer but removed 2026-05-30: a shell hook has no transcript access (it could only ever write a static stub), and Claude Code's native context-summary carryover already preserves state across compaction.
 
 ### Code Reviewer Strategy
 - **Now:** Custom local subagent (haiku, read-only, memory: project, runs proactively after commits)

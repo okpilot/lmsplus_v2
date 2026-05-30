@@ -703,7 +703,6 @@ Files to create (✅ = already created):
 - `CLAUDE.md` (root, 50-80 lines)
 - `.claudeignore`
 - `.claude/settings.json` (all hooks)
-- `.claude/hooks/pre-compact-handover.sh`
 - ✅ `.claude/settings.json` — mcpServers (Supabase, Context7, shadcn) + hook stubs
 - ✅ `.claude/agents/code-reviewer.md` — haiku, post-commit, quality + structure
 - ✅ `.claude/agents/security-auditor.md` — sonnet, pre-push, vulns + secrets
@@ -936,9 +935,6 @@ GitHub PR
     → [GitHub Actions ci.yml] lint + types + unit tests
     → [GitHub Actions e2e.yml] integration + E2E tests (PRs + master)
     → [GitHub Actions redteam.yml] red-team security tests (triggered on security-sensitive paths)
-
-Context approaching limit
-    → [PreCompact hook] saves HANDOVER-YYYY-MM-DD.md before compression
 
 Weekly
     → /project:insights → reads git log + test failures + agent memories
