@@ -46,6 +46,9 @@ Curated VIEW of the count≥2 rows. **The fuller record (the pre-migration track
 | Hook file exceeding 80-line limit | 5 | 2026-03-23 | RULE EXISTS → code-style.md §1 — use-quiz-config.ts at 110 lines; hooks grow incrementally; post-commit code-reviewer is the catch |
 | ZodError escaping Server Action via parse() without try/catch or safeParse | 2 | 2026-03-26 | RULE CANDIDATE → code-style.md — use `Schema.safeParse()` (or wrap `.parse()` in try/catch) so invalid input returns a typed error |
 | Hardcoded constant values in tests instead of importing source constants | 3 | 2026-05-29 | RULE CANDIDATE → test-writer/MEMORY.md — import production constants, never duplicate literal values that drift on rename; broader mock-definition variant recurred 2026-05-29 (#668) |
+| Hardcoded constant in DB migration diverging from TS source-of-truth | 1 | 2026-05-30 | WATCHING — mig 20260430000011 hardcodes limit `20` while MAX_DRAFTS is the TS source; distinct from test-fixture drift; watch for recurrence in config/parameter drifts |
+| Missing assertion on parameterized query bound value in test | 1 | 2026-05-30 | WATCHING — loadDrafts() `.limit()` bound not asserted; coverage gap on RPC param behavior; distinct from error-path untested (row 28) |
+| Plan-critic false positive: mock chain `this` binding | 1 | 2026-05-30 | FALSE POSITIVE — claimed vi.fn().mockReturnThis() doesn't bind this on POJO method; incorrect (existing select/eq chain proves it works); rejected by orchestrator, code passed |
 | New test file shipped without vi.resetAllMocks() in beforeEach | 2 | 2026-03-27 | PROMOTED → test-writer/MEMORY.md §Mock patterns — rule exists; compliance gap at authoring time; semantic-reviewer is the gate |
 | test-writer generates tests needing jsdom-compat fixes before they pass | 3 | 2026-03-29 | RULE IN MEMORY → test-writer/MEMORY.md — TS2532 / vi.fn syntax / PointerEvent jsdom gaps; fix cycle is the reliable gate |
 | CodeRabbit false-positive rate elevated on exam-mode PRs | 2 | 2026-04-14 | RULE CANDIDATE → .coderabbit.yaml — CR lacks project context (hard-delete exceptions, DB-level constraints); consider suppression notes |
@@ -57,6 +60,7 @@ Curated VIEW of the count≥2 rows. **The fuller record (the pre-migration track
 | security.md §11 vs docs/security.md §3 section-number mismatch | 3 | 2026-05-28 | RULE PROMOTION — cross-reference section numbers between the security.md quick-summary and docs/security.md don't align; clarify in security.md (first 2026-05-26 #540) |
 | Missing caller-level page-error test on pagination | 2 | 2026-05-29 | RULE PROMOTION → code-style.md §7 — paginated query reads need a caller-level page-error test (first 2026-05-28 #681) |
 | Internal-symbol test-title leakage | 3 | 2026-05-29 | RULE ACTIVE → code-style.md §7 (promoted 2026-04-28) — recurrence after promotion; monitor, no rule change |
+| Doc config-tree / inventory missing items wired in settings.json | 1 | 2026-05-30 | WATCHING — docs/decisions.md config-tree + docs/setup-audit.md hooks-list omitted review-gate.js and cr-local-plan-reminder.sh (both active in settings.json); surfaced when semantic-reviewer reviewed the doc-completeness commit; distinct from "missing route entry" (that is new routes; this is pre-existing untracked items) |
 
 ## Durable knowledge (cross-agent)
 
