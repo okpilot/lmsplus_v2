@@ -115,6 +115,9 @@ describe('getProgressData', () => {
     })
     mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
 
+    // Without the guard the for..of would throw "not iterable"; with it the loop is
+    // skipped, leaving subjectMap empty so s1 (0/0 counts) is dropped by the trailing
+    // zero-count filter — hence []. The point is no throw on a non-array payload.
     const result = await getProgressData()
     expect(result).toEqual([])
   })
