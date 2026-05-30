@@ -47,11 +47,12 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `packages/db/tsconfig.json` — extends base
 - `packages/ui/tsconfig.json` — extends react-library
 
-### Claude Code Setup (19 files) — excellent
+### Claude Code Setup (20 files) — excellent
 - `.mcp.json` — MCP servers (Supabase, Context7, shadcn, SonarQube)
-- `.claude/hooks/guard-bash.js` — blocks 9 dangerous patterns
-- `.claude/hooks/on-stop.sh` — biome format + vitest + Windows toast
-- `.claude/hooks/pre-compact-handover.sh` — saves context before compression
+- `.claude/hooks/guard-bash.js` — PreToolUse Bash: blocks 9 dangerous patterns
+- `.claude/hooks/review-gate.js` — PreToolUse Edit/Write: blocks edits while reviewer findings open
+- `.claude/hooks/cr-local-plan-reminder.sh` — PostToolUse Bash: crlocal reminder
+- `.claude/hooks/on-stop.sh` — Stop: biome format + vitest + Windows toast
 - `.claude/agents/code-reviewer.md` — haiku, post-commit, read-only
 - `.claude/agents/security-auditor.md` — sonnet, pre-push, blocking on CRITICAL/HIGH
 - `.claude/agents/test-writer.md` — sonnet, writes Vitest tests
@@ -64,7 +65,7 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `.claude/skills/supabase-rls.md` — RLS USING + WITH CHECK patterns
 - `.claude/rules/code-style.md` — file limits, function limits, naming, org
 - `.claude/rules/security.md` — quick reference pointing to docs/security.md
-- `.claude/agent-memory/*` — 4 memory files (empty, will populate as work progresses)
+- `.claude/agent-memory/*` — 9 agent memory dirs (native `memory: project`, MEMORY.md index per agent, populated; security-auditor deferred)
 
 ### Documentation (5 files) — comprehensive
 - `CLAUDE.md` — project guide (see file for current size)
