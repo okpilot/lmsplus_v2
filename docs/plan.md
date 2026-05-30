@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-05-29 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686 — completing all 12/12 P0 sites. Instance #6 (#678 + #679, filtered-question-pool RPCs — **P1** sites) merged via #691 (squash `67b9fcf9`). Instance #7 (listOrgStudents + getComments — **P1** list reads, paginated via `fetchAllRows`) merged via #700 (squash `0187d483`) — completing the P1 tier. Instance #8 (profile.ts averageScore → `get_student_profile_stats` aggregation RPC — first **P2** site) merged via #702 (squash `49491481`). Remaining P2: 3 practically-bounded sites (active mock/internal exam lookups, drafts) deferred to a tracked follow-up (#701).
+> Last updated: 2026-05-30 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686 — completing all 12/12 P0 sites. Instance #6 (#678 + #679, filtered-question-pool RPCs — **P1** sites) merged via #691 (squash `67b9fcf9`). Instance #7 (listOrgStudents + getComments — **P1** list reads, paginated via `fetchAllRows`) merged via #700 (squash `0187d483`) — completing the P1 tier. Instance #8 (profile.ts averageScore → `get_student_profile_stats` aggregation RPC — first **P2** site) merged via #702 (squash `49491481`). Instance #9 (#701, the 3 practically-bounded P2 sites — active mock/internal exam lookups + drafts — given explicit `.limit()` bounds) implemented and in review on `fix/668-instance-9-bounded-reads`, completing the P2 tier on merge.
 
 ---
 
@@ -1245,16 +1245,26 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - New RPC `get_student_profile_stats()` (mig `20260529000001`) — `COUNT + AVG` over the caller's own non-deleted, ended, non-null-score `quiz_sessions`. Replaces the unpaginated `getProfileStats` read that computed `totalSessions` + `averageScore` from an arbitrary first-1000-session subset for high-volume students (the #540 profile).
 - Security: `SECURITY INVOKER` + explicit `student_id = auth.uid()` self-scope — LOAD-BEARING per the Multiple Permissive RLS SELECT Policies rule (`docs/security.md §3`): `quiz_sessions` has two permissive SELECT policies (`students_select_sessions` + `instructors_read_sessions`), so RLS alone would let an instructor/admin caller average org-wide. Verified on local DB with a spoofed JWT (instructor with no own sessions → 0/NULL, not org-wide).
 - Behaviour-preserving: the `score_percentage IS NOT NULL` predicate reproduces the legacy `.filter(non-null)` set; `Math.round` + `totalSessions>0` guard stay in TS; `avg_score` arrives as a JSON string (NUMERIC(5,2)) coerced via `Number()`. The safe `student_responses` head-count (`totalAnswered`) is unchanged. `userId` arg now scopes only that head-count (RPC self-scopes via `auth.uid()`).
-- First **P2** site. The 3 practically-bounded P2 sites (active mock/internal exam lookups, drafts) are deferred to **#701**.
+- First **P2** site. The 3 practically-bounded P2 sites (active mock/internal exam lookups, drafts) are deferred to **#701** (instance #9 below).
+
+### Instance #9: active-exam + active-internal-exam + load-draft read bounds — P2 tail (#701, in review)
+
+**Commits:** `cd0add36` + `a6272d61` (branch `fix/668-instance-9-bounded-reads`)
+
+- The 3 remaining **P2** sites — all bounded by business invariants but querying unbounded, so silently relying on PostgREST's implicit `max_rows=1000` cap. Each gets an explicit, documented `.limit()` so the bound is deliberate (chosen over `fetchAllRows`: these are structurally tiny reads on hot page-load paths, and a count round-trip would defend a scenario the invariants already prevent):
+  - `get-active-exam-session.ts` + `get-active-internal-exam-session.ts`: `.limit(MAX_ACTIVE_EXAM_SESSIONS)` (=50, exported from `_overdue-helpers.ts`). Active (`ended_at IS NULL`) sessions per student are ~0–2; 50 ≫ realistic, ≪ 1000. Also bounds the per-row `complete_overdue_exam_session` RPC loop in both readers.
+  - `load-draft.ts`: `.limit(MAX_DRAFTS)` (=20), aligned with the insert-time `insertNewDraft` count gate and the advisory-locked `enforce_draft_limit` DB trigger (mig `20260430000011`). `MAX_DRAFTS` doc-comment now records all three sync points.
+- **No migration** — application-layer read bounding only. No behavior change for in-range data. `load-draft.test.ts` mock chain updated for the new `.limit()` terminal + an assertion that the cap is applied.
+- Closes **#701**. Completes the P2 tier — once merged, all P0/P1/P2 sites of umbrella #668 are addressed (`get_question_counts()` was already aggregated/bounded; no action).
 
 ### Status
 
 - **Merged to master:** instance #1 (`get_student_mastery_stats`, `ae087c76`), instance #2 (`get_student_streak` + `get_student_last_practiced`, `9f40caae`), instance #3 (quiz.ts counts via `get_question_counts`, `8b134663`), instance #4 (GDPR export pagination, `4538c649`), instance #5 (admin roster → `get_admin_dashboard_students`, PR #686), instance #6 (filtered-question-pool RPCs `get_random_question_ids` + `get_filtered_question_counts`, `67b9fcf9`, PR #691), instance #7 (`listOrgStudents` + `getComments` paginated, `0187d483`, PR #700), and instance #8 (`get_student_profile_stats`, `49491481`, PR #702).
 - **P0 progress:** 12 of 12 P0 sites fixed and merged — 10 across instances #1–#4, 2 in **#682** (admin roster + `get_admin_student_stats` → new `get_admin_dashboard_students`, PR #686).
 - **P1 progress:** complete — instances #3 (quiz.ts counts) + #6 (filtered-pool RPCs) + #7 (`listOrgStudents` + `getComments` list reads).
-- **P2 progress:** instance #8 (profile stats RPC) merged — first P2 site. 3 practically-bounded P2 sites (active mock/internal exam lookups, drafts) tracked in **#701**.
+- **P2 progress:** instance #8 (profile stats RPC) merged — first P2 site. Instance #9 (#701 — `.limit()` read bounds on active mock/internal exam lookups + drafts) implemented and in review on `fix/668-instance-9-bounded-reads`; completes the P2 tier on merge.
 - **Instance #5 (#682):** replaces the admin-roster fetch-all-merge-sort-slice and the `get_admin_student_stats` RPC with one `SECURITY DEFINER` RPC (`get_admin_dashboard_students`) that joins + filters + sorts + paginates + counts in Postgres; old RPC dropped. Validated on a clean `db reset`; merged via PR #686.
 - **Pending:** prod verification via synthetic + real student probes (instances #1–#2).
 - **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened — the umbrella stays open until all P0/P1/P2 sites land.
 
-*Last updated: 2026-05-29 — Instances #7 (`0187d483`, PR #700) + #8 (`49491481`, PR #702) merged. 12/12 P0 + full P1 tier merged; first P2 site (#8) done; P2 tail tracked in #701.*
+*Last updated: 2026-05-30 — Instance #9 (#701, `.limit()` read bounds) implemented + in review on `fix/668-instance-9-bounded-reads`. 12/12 P0 + full P1 tier merged; P2 = #8 merged + #9 in review (completes the tier on merge).*

@@ -5,6 +5,7 @@ import {
   extractPassMark,
   extractQuestionIds,
   isExamOverdue,
+  MAX_ACTIVE_EXAM_SESSIONS,
 } from '@/app/app/quiz/actions/_overdue-helpers'
 import { rpc } from '@/lib/supabase-rpc'
 
@@ -57,6 +58,8 @@ export async function getActiveInternalExamSession(): Promise<GetActiveInternalE
       .is('deleted_at', null)
       .eq('mode', 'internal_exam')
       .order('started_at', { ascending: false })
+      // Deliberate bound — active sessions are structurally ~0–2; see MAX_ACTIVE_EXAM_SESSIONS.
+      .limit(MAX_ACTIVE_EXAM_SESSIONS)
 
     if (error) {
       console.error('[getActiveInternalExamSession] Query error:', error.message)
