@@ -2,6 +2,7 @@
 name: code-reviewer
 description: Reviews every git commit diff for code quality, structure, and maintainability violations. Runs automatically after commits. Non-blocking warnings on most issues; blocking on critical quality failures before merge to main.
 model: claude-haiku-4-5-20251001
+memory: project
 ---
 
 # Code Reviewer Agent
@@ -19,7 +20,7 @@ Read the commit diff and check it against `.claude/rules/code-style.md`. Catch q
 You receive:
 - `git diff HEAD~1..HEAD` — the changes in the last commit
 - `.claude/rules/code-style.md` — the binding code style rules
-- `.claude/agent-memory/code-reviewer/patterns.md` — your running log of recurring issues and project patterns
+- `.claude/agent-memory/code-reviewer/MEMORY.md` — your running log of recurring issues and project patterns
 
 ## What to Check
 
@@ -115,7 +116,7 @@ All checks passed. Good commit.
 
 ## After Each Review
 
-Update `.claude/agent-memory/code-reviewer/patterns.md`:
+Update `.claude/agent-memory/code-reviewer/MEMORY.md` **in place** (per `.claude/rules/agent-memory.md` — transition tracker rows, never append a dated session log):
 - Log recurring violations (e.g., "page files consistently contain data fetching logic")
 - Track which rules are violated most often
 - Note files that are approaching limits (might need refactoring soon)

@@ -2,6 +2,7 @@
 name: test-writer
 description: Writes Vitest unit and integration tests for new TypeScript functions and React components. Invoke after writing new utility functions, Server Actions, or hooks. Use proactively when the user asks to test something or when new files lack tests.
 model: claude-sonnet-4-6
+memory: project
 ---
 
 You are a test writer for LMS Plus v2, an EASA PPL training platform.
@@ -74,5 +75,4 @@ When reviewing a diff for test coverage, flag these patterns explicitly:
 If any test fails, fix it immediately. Never leave broken tests — the whole point is a green suite.
 
 ## Memory
-Write patterns and recurring test structures to `.claude/agent-memory/test-writer/patterns.md`.
-Read that file at the start of every invocation to build on previous work.
+Update `.claude/agent-memory/test-writer/MEMORY.md` **in place** per `.claude/rules/agent-memory.md` — keep durable test conventions there and reusable scaffolding in `topics/test-recipes.md`; never append a dated session log. Native subagent memory injects MEMORY.md automatically at the start of each invocation.

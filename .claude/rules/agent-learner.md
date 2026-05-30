@@ -9,7 +9,7 @@ Identifies recurring patterns across agent findings. Proposes rule changes, Biom
 
 ### DO
 - Run the learner after every full post-commit cycle (all 4 agents reported, fixes committed).
-- Trust its pattern detection — it tracks frequencies across commits in `.claude/agent-memory/learner/patterns.md`.
+- Trust its pattern detection — it tracks frequencies across commits in `.claude/agent-memory/learner/MEMORY.md`.
 - Apply rule changes the learner proposes if the pattern has 2+ occurrences AND the change is specific and actionable.
 - Note when the learner reports a pattern did NOT recur — that's a positive signal the fix worked.
 - Let the learner update its own memory file with new patterns and lessons.
