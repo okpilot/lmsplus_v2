@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-05-30 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686 — completing all 12/12 P0 sites. Instance #6 (#678 + #679, filtered-question-pool RPCs — **P1** sites) merged via #691 (squash `67b9fcf9`). Instance #7 (listOrgStudents + getComments — **P1** list reads, paginated via `fetchAllRows`) merged via #700 (squash `0187d483`) — completing the P1 tier. Instance #8 (profile.ts averageScore → `get_student_profile_stats` aggregation RPC — first **P2** site) merged via #702 (squash `49491481`). Instance #9 (#701, the 3 practically-bounded P2 sites — active mock/internal exam lookups + drafts — given explicit `.limit()` bounds) merged via #705 (squash `7070c8af`), completing the P2 tier — all 25 sites now addressed (24 fixed + 1 exempt). #668 stays open pending the §5 cast-guard sweep (#677) and red-team E2E coverage (#673).
+> Last updated: 2026-05-30 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686 — completing all 12/12 P0 sites. Instance #6 (#678 + #679, filtered-question-pool RPCs — **P1** sites) merged via #691 (squash `67b9fcf9`). Instance #7 (listOrgStudents + getComments — **P1** list reads, paginated via `fetchAllRows`) merged via #700 (squash `0187d483`) — completing the P1 tier. Instance #8 (profile.ts averageScore → `get_student_profile_stats` aggregation RPC — first **P2** site) merged via #702 (squash `49491481`). Instance #9 (#701, the 3 practically-bounded P2 sites — active mock/internal exam lookups + drafts — given explicit `.limit()` bounds) merged via #705 (squash `7070c8af`), completing the P2 tier — all 25 sites now addressed (24 fixed + 1 exempt). **#668 CLOSED 2026-05-31** — final follow-ups merged: §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
 
 ---
 
@@ -1156,7 +1156,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 ---
 
-## Umbrella #668 — PostgREST 1000-Row Truncation Fixes (IN PROGRESS)
+## Umbrella #668 — PostgREST 1000-Row Truncation Fixes (CLOSED 2026-05-31)
 
 **Issue:** PostgREST silently truncates unpaginated reads at 1000 rows. Client-side aggregations using `.limit(10000)` and `.limit(5000)` to work around this cap were ineffective. Three dashboard metrics (student mastery, daily-practice streak, and per-subject last-practiced) undercount for students with high response volume.
 
@@ -1261,7 +1261,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - **P2 progress:** complete — instance #8 (profile stats RPC, PR #702) + instance #9 (active mock/internal exam lookups + draft loader `.limit()` bounds, PR #705). `get_question_counts()` is exempt (already DB-aggregated/bounded). **All 25 sites addressed: 24 fixed + 1 exempt.**
 - **Instance #5 (#682):** replaces the admin-roster fetch-all-merge-sort-slice and the `get_admin_student_stats` RPC with one `SECURITY DEFINER` RPC (`get_admin_dashboard_students`) that joins + filters + sorts + paginates + counts in Postgres; old RPC dropped. Validated on a clean `db reset`; merged via PR #686.
 - **Prod-verified:** instance #1 (#540) verified post-deploy on prod (deployed `get_student_mastery_stats` run as the affected student under RLS → completed subjects 100%; `scripts/probe-540-verify-deploy.py`); instance #2 verified against prod data via read-only probe (`scripts/probe-668-streak-verify.py` — 8/8 synthetic gaps-and-islands edge cases + the real high-volume student recovers best-streak 13 vs truncated 2, and 3 falsely-NULL last-practiced subjects).
-- **Still open:** umbrella #668 stays open pending the §5 cast-guard sweep (**#677**, P2/S) and red-team E2E coverage for the aggregation RPCs (**#673**) — not because of any unfixed truncation site.
-- **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened — the umbrella stays open until #677 + #673 land.
+- **CLOSED 2026-05-31:** umbrella #668 closed — both remaining follow-ups landed: the §5 cast-guard sweep (**#677**, merged via PR #707, squash `bb813d1b`) and red-team E2E coverage for the aggregation RPCs (**#673**, merged via PR #709, squash `fa857892`). All 25 truncation sites addressed (24 fixed + 1 exempt), all tiers prod-re-verified 2026-05-31 (40/0).
+- **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened; it was deliberately kept open until #677 + #673 landed, then closed manually on 2026-05-31 (PR #709 used `Closes #673` only, not `Closes #668`, to retain manual control).
 
-*Last updated: 2026-05-30 — Instance #9 (#701) merged via PR #705 (`7070c8af`). All 25 #668 sites addressed (24 fixed + 1 exempt); instances #1–#2 prod-verified. #668 stays open only for the §5 cast-guard sweep (#677) and red-team E2E (#673).*
+*Last updated: 2026-05-31 — Umbrella #668 CLOSED. Final follow-ups #677 (PR #707) + #673 (PR #709) merged; all 25 sites addressed (24 fixed + 1 exempt), prod-re-verified 40/0.*
