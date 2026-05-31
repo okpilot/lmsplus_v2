@@ -350,6 +350,23 @@ The `:` operator in `.select()` aliases the result key but does NOT expand a for
 
 Same shape applies to nested resources, joined columns, and renamed embeds. Reserve `:` for genuine column-rename in the result, never as a substitute for `!` on FK expansion.
 
+### Coerce BIGINT / NUMERIC Columns with `Number()`
+PostgREST serializes `BIGINT` (`int8`), `NUMERIC`, and `DECIMAL` columns as JSON **strings**, not numbers — to preserve precision. Reading them into a `number`-typed field without coercion produces silent bugs: `===`/`<`/`>` comparisons fail (`"1" === 1` is `false`), arithmetic yields `NaN`, and `.toFixed()` throws. Coerce with `Number()` at the read site, before any comparison, arithmetic, or method call. Preserve `null` explicitly (`Number(null)` is `0`, not `null`).
+
+```ts
+// ❌ WRONG — total_count is BIGINT, arrives as "42"; the singular check never fires
+const totalCount = rows[0]?.total_count ?? 0
+if (totalCount === 1) renderSingular()        // "1" === 1 is false
+
+// ✅ CORRECT — coerce at the read site
+const totalCount = Number(rows[0]?.total_count ?? 0)
+
+// ✅ CORRECT — NUMERIC with null preserved
+scorePercentage: r.score_percentage === null ? null : Number(r.score_percentage)
+```
+
+Type the wire shape honestly (`count: number | string`) so a future reader can't strip the coercion thinking TypeScript already guarantees a number. **Precedent:** `quiz.ts` (total_time_ms), `profile.ts` (avg_score), `dashboard-stats.ts` (subject_count), `reports.ts` (total_count, answered_count, score_percentage).
+
 ### Sanitize Error Messages in Server Actions
 Every `if (error)` block in a Server Action must either match a known error code (e.g. `23505`, `PGRST116`) and return a domain-specific message, or log server-side with `console.error` and return a generic string. Never return `error.message` directly — Postgres error strings can expose connection details, schema names, and internal state.
 
