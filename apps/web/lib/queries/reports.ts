@@ -36,8 +36,9 @@ type RpcRow = {
   ended_at: string
   subject_id: string | null
   subject_name: string | null
-  answered_count: number
-  total_count: number
+  // BIGINT columns: PostgREST serializes them as strings — coerce with Number() before use.
+  answered_count: number | string
+  total_count: number | string
 }
 
 export const PAGE_SIZE = 10
@@ -92,32 +93,40 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
   const rows = allRows.filter((r) => r.mode !== 'internal_exam')
 
   if (rows.length === 0) {
-    if (page <= 1) {
-      // Genuinely empty list — no sessions exist for this user.
-      return { ok: true, sessions: [], totalCount: 0 }
-    }
-    // Out-of-range page: the paged fetch returned nothing but sessions may exist on earlier
-    // pages. Issue a probe at offset 0 to recover the real total_count so the caller can
-    // redirect to the true last page instead of page 1.
-    const { data: probeData, error: probeError } = (await supabase.rpc('get_session_reports', {
-      p_sort: sortColumn,
-      p_dir: dir,
-      p_limit: 1,
-      p_offset: 0,
-    })) as { data: unknown; error: { message: string } | null }
-    if (probeError) {
-      console.error('[getSessionReports] Probe RPC error:', probeError.message)
-      return { ok: false, error: 'Failed to load reports' }
-    }
-    const probeRows = Array.isArray(probeData) ? (probeData as RpcRow[]) : []
-    const probedTotal = probeRows[0]?.total_count ?? 0
-    return { ok: true, sessions: [], totalCount: probedTotal }
+    // page <= 1 → genuinely empty list. page > 1 → out-of-range: probe for the true total
+    // so the caller can redirect to the real last page instead of page 1.
+    if (page <= 1) return { ok: true, sessions: [], totalCount: 0 }
+    return probeOutOfRangeTotal(supabase, sortColumn, dir)
   }
 
-  // total_count comes from the window function — same on every row
-  const totalCount = rows[0]?.total_count ?? 0
+  // total_count comes from the window function — same on every row. It is a BIGINT, which
+  // PostgREST serializes as a string, so coerce with Number() before the caller divides by it.
+  const totalCount = Number(rows[0]?.total_count ?? 0)
 
   return { ok: true, sessions: rows.map(mapRpcRow), totalCount }
+}
+
+/**
+ * Recover the true total via a probe at offset 0, used when an out-of-range page (page > 1)
+ * returns no rows. `total_count` is a BIGINT (string over the wire) — coerced with Number().
+ */
+async function probeOutOfRangeTotal(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  sortColumn: string,
+  dir: SortDir,
+): Promise<SessionReportsResult> {
+  const { data, error } = (await supabase.rpc('get_session_reports', {
+    p_sort: sortColumn,
+    p_dir: dir,
+    p_limit: 1,
+    p_offset: 0,
+  })) as { data: unknown; error: { message: string } | null }
+  if (error) {
+    console.error('[getSessionReports] Probe RPC error:', error.message)
+    return { ok: false, error: 'Failed to load reports' }
+  }
+  const probeRows = Array.isArray(data) ? (data as RpcRow[]) : []
+  return { ok: true, sessions: [], totalCount: Number(probeRows[0]?.total_count ?? 0) }
 }
 
 function mapRpcRow(r: RpcRow): SessionReport {
@@ -128,7 +137,8 @@ function mapRpcRow(r: RpcRow): SessionReport {
     mode: r.mode,
     subjectName: r.subject_name ?? null,
     totalQuestions: r.total_questions,
-    answeredCount: r.answered_count,
+    // answered_count is a BIGINT (string over the PostgREST wire) — coerce to a number.
+    answeredCount: Number(r.answered_count),
     correctCount: r.correct_count,
     scorePercentage: r.score_percentage,
     startedAt: r.started_at,

@@ -145,12 +145,44 @@ describe('getSessionReports', () => {
     expect(result.totalCount).toBe(42)
   })
 
+  it('coerces BIGINT total_count and answered_count from string to number', async () => {
+    // PostgREST serializes BIGINT columns as strings. Without Number() coercion,
+    // result.totalCount would be "1" and the caller's `=== 1` singular check would break.
+    mockRpc.mockResolvedValue({
+      data: [makeRpcRow({ total_count: '1', answered_count: '7' })],
+      error: null,
+    })
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.totalCount).toBe(1)
+    expect(result.sessions[0]!.answeredCount).toBe(7)
+  })
+
+  it('coerces a string total_count returned by the out-of-range probe', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [{ total_count: '42' }], error: null })
+    const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 42 })
+  })
+
   it('probes for the true total when an out-of-range page returns no rows', async () => {
     mockRpc
       .mockResolvedValueOnce({ data: [], error: null })
       .mockResolvedValueOnce({ data: [{ total_count: 42 }], error: null })
     const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 42 })
+  })
+
+  it('returns totalCount 0 when the probe also returns no rows (genuinely zero sessions)', async () => {
+    // Out-of-range page AND the probe at offset 0 also returns empty — the user
+    // truly has no sessions.  probeRows[0]?.total_count ?? 0 must resolve to 0.
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null }) // paged fetch — no rows
+      .mockResolvedValueOnce({ data: [], error: null }) // probe — also no rows
+    const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
   })
 
   it('returns ok: false when the probe RPC errors on an out-of-range page', async () => {
