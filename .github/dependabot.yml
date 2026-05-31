@@ -17,7 +17,26 @@ updates:
           - minor
           - patch
 
-  # npm — root
+  # npm — whole pnpm workspace, managed from the root.
+  #
+  # The root "/" entry is pnpm-workspace-aware: it updates the dependency
+  # manifests of all workspace members declared in pnpm-workspace.yaml AND
+  # the single shared root pnpm-lock.yaml together, in one PR. (Verified by
+  # PR #692, which bumped @sentry/nextjs + shadcn in apps/web and
+  # @supabase/supabase-js in BOTH apps/web and packages/db, with a synced
+  # lockfile, in one green PR.)
+  #
+  # Why this is a single entry (not one per package): per-directory npm
+  # entries made dependabot open a SEPARATE PR per package for the same
+  # shared dependency. One @supabase/supabase-js 2.106.1 -> 2.106.2 bump
+  # produced #669 (packages/db) and #670 (apps/web) as separate PRs — each
+  # touched only its own package.json and neither updated the shared root
+  # pnpm-lock.yaml. Result: `pnpm install --frozen-lockfile` failed in CI on
+  # both, and the half-applied bump left a workspace version skew that split
+  # SupabaseClient<Database> into two incompatible copies (TS2345). The same
+  # bump was ALSO carried by the root entry's #692, so it existed in three
+  # overlapping PRs at once. Consolidating to the root entry makes every
+  # workspace-wide dependency move atomically with a synced lockfile.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -28,71 +47,15 @@ updates:
     labels:
       - tech-debt
     groups:
-      npm-root-minor-patch:
+      # Low-risk: batch into one PR meant to merge quickly.
+      npm-all-minor-patch:
         update-types:
           - minor
           - patch
-
-  # npm — apps/web
-  - package-ecosystem: npm
-    directory: /apps/web
-    schedule:
-      interval: weekly
-      day: monday
-    commit-message:
-      prefix: "chore"
-    labels:
-      - tech-debt
-    groups:
-      npm-web-minor-patch:
+      # Higher-risk: batch majors into their own PR for deliberate review /
+      # migration, so they don't block the minor/patch batch above. Both
+      # groups are workspace-wide (no patterns), so every update lands in a
+      # grouped PR — never a per-package one.
+      npm-all-major:
         update-types:
-          - minor
-          - patch
-
-  # npm — packages/db
-  - package-ecosystem: npm
-    directory: /packages/db
-    schedule:
-      interval: weekly
-      day: monday
-    commit-message:
-      prefix: "chore"
-    labels:
-      - tech-debt
-    groups:
-      npm-db-minor-patch:
-        update-types:
-          - minor
-          - patch
-
-  # npm — packages/ui
-  - package-ecosystem: npm
-    directory: /packages/ui
-    schedule:
-      interval: weekly
-      day: monday
-    commit-message:
-      prefix: "chore"
-    labels:
-      - tech-debt
-    groups:
-      npm-ui-minor-patch:
-        update-types:
-          - minor
-          - patch
-
-  # npm — packages/typescript-config
-  - package-ecosystem: npm
-    directory: /packages/typescript-config
-    schedule:
-      interval: weekly
-      day: monday
-    commit-message:
-      prefix: "chore"
-    labels:
-      - tech-debt
-    groups:
-      npm-tsconfig-minor-patch:
-        update-types:
-          - minor
-          - patch
+          - major
