@@ -182,7 +182,7 @@ describe('getSessionReports', () => {
     expect(result.sessions[0]!.scorePercentage).toBeNull()
   })
 
-  it('coerces a string total_count returned by the out-of-range probe', async () => {
+  it('returns a numeric totalCount when an out-of-range page reports its total as a string', async () => {
     mockRpc
       .mockResolvedValueOnce({ data: [], error: null })
       .mockResolvedValueOnce({ data: [{ total_count: '42' }], error: null })
@@ -190,7 +190,7 @@ describe('getSessionReports', () => {
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 42 })
   })
 
-  it('probes for the true total when an out-of-range page returns no rows', async () => {
+  it('recovers the true total when an out-of-range page returns no rows', async () => {
     mockRpc
       .mockResolvedValueOnce({ data: [], error: null })
       .mockResolvedValueOnce({ data: [{ total_count: 42 }], error: null })
@@ -198,9 +198,9 @@ describe('getSessionReports', () => {
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 42 })
   })
 
-  it('returns totalCount 0 when the probe also returns no rows (genuinely zero sessions)', async () => {
-    // Out-of-range page AND the probe at offset 0 also returns empty — the user
-    // truly has no sessions.  probeRows[0]?.total_count ?? 0 must resolve to 0.
+  it('returns totalCount 0 when an out-of-range page belongs to a user with no sessions', async () => {
+    // Out-of-range page AND the offset-0 recovery fetch also returns empty — the user
+    // truly has no sessions, so the total resolves to 0.
     mockRpc
       .mockResolvedValueOnce({ data: [], error: null }) // paged fetch — no rows
       .mockResolvedValueOnce({ data: [], error: null }) // probe — also no rows
@@ -208,7 +208,7 @@ describe('getSessionReports', () => {
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
   })
 
-  it('returns ok: false when the probe RPC errors on an out-of-range page', async () => {
+  it('returns an error when the total recovery fails on an out-of-range page', async () => {
     mockRpc
       .mockResolvedValueOnce({ data: [], error: null })
       .mockResolvedValueOnce({ data: null, error: { message: 'boom' } })
@@ -246,10 +246,10 @@ describe('getSessionReports', () => {
     expect(result.totalCount).toBe(1)
   })
 
-  it('does not fire the out-of-range probe when a non-empty page filters down to nothing', async () => {
+  it('issues a single RPC call when a non-empty page filters down to no visible rows', async () => {
     // Belt-and-suspenders: if the RPC ever returns only internal_exam rows on page>1 (it
     // excludes them server-side today), allRows is non-empty so this is a FILTERED page, not an
-    // out-of-range one — the probe must NOT fire, and the empty visible list reports total 0.
+    // out-of-range one — no second recovery fetch is needed, and the empty list reports total 0.
     mockRpc.mockResolvedValue({
       data: [
         makeRpcRow({ id: 'sess-i1', mode: 'internal_exam' }),
@@ -259,7 +259,7 @@ describe('getSessionReports', () => {
     })
     const result = await getSessionReports({ page: 2, sort: 'date', dir: 'desc' })
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
-    // only the single paged fetch was issued — no probe
+    // only the single paged fetch was issued — no second RPC call
     expect(mockRpc).toHaveBeenCalledTimes(1)
   })
 
