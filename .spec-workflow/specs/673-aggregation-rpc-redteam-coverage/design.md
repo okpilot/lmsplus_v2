@@ -87,9 +87,9 @@ graph TD
   ```ts
   type VictimResponseFixture = {
     victimUserId: string
-    correctCount: number          // 8
+    correctCount: number          // distinct questions seeded (8 when >=8 available; fewer on a small seed)
     subjectIds: string[]          // distinct subjects covered (>= 1)
-    questionIds: string[]         // the 8 distinct questions used
+    questionIds: string[]         // the 8 seeded rows' question ids (round-robin; may repeat if <8 questions)
     expected: { current: 3; best: 5 }
   }
   seedVictimResponses(): Promise<VictimResponseFixture>
