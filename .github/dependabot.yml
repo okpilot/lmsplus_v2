@@ -47,7 +47,15 @@ updates:
     labels:
       - tech-debt
     groups:
+      # Low-risk: batch into one PR meant to merge quickly.
       npm-all-minor-patch:
         update-types:
           - minor
           - patch
+      # Higher-risk: batch majors into their own PR for deliberate review /
+      # migration, so they don't block the minor/patch batch above. Both
+      # groups are workspace-wide (no patterns), so every update lands in a
+      # grouped PR — never a per-package one.
+      npm-all-major:
+        update-types:
+          - major
