@@ -23,6 +23,13 @@
 - **Count/page filter symmetry (pagination).** When a read is split into a count query + paginated page query, the WHERE filters must be byte-identical between the two — a mismatch fetches wrong/excess rows. Verified clean repeatedly across #668 instances; keep it a checklist item.
 - **Test title impl-detail leakage (code-style §7).** `it(...)` titles must not name internal helpers/types/validator branches (`forwards X to fetchAllRows`, `from FooOpts`, `typeof guard`). Public props, public SDK methods, and integration-boundary RPC names ARE permitted (they're contracts). Audit inline comments after a title rename — they often go stale.
 
+## Durable knowledge — tooling/config
+
+- **knip `ignoreDependencies` is workspace-scoped.** The correct knip schema uses `ignoreDependencies` inside the workspace key (not at top level) for per-workspace suppressions; `ignoreBinaries` + `ignore` live at top level. Verified clean on #325. Don't flag this pattern as incorrect.
+- **`@repo/ui` is listed as a dep in `apps/web/package.json` even though no `@repo/ui` import exists in TypeScript source** — `packages/ui/src/index.ts` exports `{}` (Phase 5 placeholder). Ignoring it in knip is intentional; it is a forward-declared workspace dep. Do not flag as a dead dep.
+- **Broad grep for component names (e.g. "Separator", "Progress", "Tooltip") returns false-positive file matches** when sibling components use same-named primitives from `@base-ui/react` directly (e.g., `SelectSeparator` in `select.tsx` uses `SelectPrimitive.Separator`, not the deleted `components/ui/separator.tsx`). Always verify import path, not just symbol name.
+- **Tailwind v4 `@plugin` directive placement** — place after all `@import` lines, before `@custom-variant`/`@theme`. Verified correct on #325 (globals.css lines 1–6).
+
 ## False positives (do not re-raise)
 
 - `avg_score` / mastery RPCs return NULL (no COALESCE) for students with no sessions — intentional; app type is `number | null`, UI guards `!== null`.
