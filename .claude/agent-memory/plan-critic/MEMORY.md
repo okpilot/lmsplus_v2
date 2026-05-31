@@ -7,7 +7,7 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| Multi-query test mocks: single `mockFrom` keyed by table name can't distinguish N parallel `.from()` calls, two sequential calls to the SAME table with different filters, or count-head vs range-data calls. Plan must scope `mockImplementation`/`mockFromSequence`/call-order dispatch as in-scope. | 2026-04-11 | 5 | 2026-05-26 | WATCHING |
+| Multi-query test mocks: single `mockFrom`/`mockRpc` keyed by name can't distinguish N sequential calls to the SAME endpoint with different results (e.g. page-fetch then probe). Plan must scope call-order dispatch (e.g. `mockRpc.mockResolvedValueOnce(…).mockResolvedValueOnce(…)`) as in-scope; and must name which specific existing test cases will BREAK (not just "verify/keep"). | 2026-04-11 | 6 | 2026-05-31 | WATCHING |
 | Test-rewrite plans for query→RPC (or Server-Action delegation) refactors underspecify scope: must enumerate which test blocks survive unchanged, which collapse (dead paths), which change *assertions* (not just mocks). Vague "rewrite N tests" leaves implementer to over/under-mock. | 2026-04-11 | 7 | 2026-05-29 | WATCHING |
 | SECURITY DEFINER RPC plans omit project SQL conventions: `is_admin()` over inline role lookup; `AND deleted_at IS NULL` on user/session lookups (§9); §9-omission needs inline comment citing rule + precedent. | 2026-04-11 | 4 | 2026-05-27 | WATCHING |
 | Sibling-file audit missed: defensive pattern (error destructure, null guard) added to one action/query file, identical pattern in sibling in same folder untouched. (CLAUDE.md sibling-audit rule.) | 2026-04-11 | 2 | 2026-05-22 | RULE CANDIDATE → CLAUDE.md sibling-audit |
@@ -66,6 +66,9 @@
 | `get_question_counts` is org-scoped via RLS (not student-scoped): cross-org student gets empty set because tenant_isolation on questions scopes by org, not by student_id. It does NOT have an explicit `student_id = auth.uid()` predicate. An anon caller also gets empty. The cross-org isolation guarantee is at the org level, not per-student. | 2026-05-31 | 1 | 2026-05-31 | WATCHING |
 | SECURITY INVOKER mastery RPC instructor non-vacuity: the denominator (active_q CTE) reads questions via tenant_isolation RLS (org-scoped), so an instructor in the same org gets `total > 0` rows. Correct_q reads student_responses with explicit `sr.student_id = auth.uid()` so instructor with no responses gets correct=0. The instructor assertion `every(r => r.correct===0) AND data.length>0` is valid and non-vacuous. | 2026-05-31 | 1 | 2026-05-31 | WATCHING — positive signal, design verified correctly |
 | UNIQUE(session_id, question_id) with session_id=NULL: Postgres standard NULL distinctness means each NULL is distinct, so duplicate rows with session_id=NULL never conflict (no 23505). Re-run after partial seed inserts a second set of 8 — harmless only if consuming RPCs collapse duplicates (mastery: DISTINCT qid; streak: DISTINCT date; last-practiced: MAX per subject — all correct). | 2026-05-31 | 1 | 2026-05-31 | WATCHING |
+
+### Return-type contract for incremental additions to query functions
+When a plan adds a new code path to a function that returns a discriminated-union result type (e.g. `{ ok:false; error:string } | { ok:true; ... }`), verify every new `return` statement satisfies ALL fields of the matching union arm. Plans consistently specify `{ ok:false }` for new error paths but omit the mandatory `error: string` field — the TypeScript build fails. Always check the full type definition before specifying return values.
 
 ## Positive signals (what good plans got right)
 - Verified real Base UI 1.3.0 data attributes (`data-panel-open`, `data-starting-style`) against type defs rather than guessing.
