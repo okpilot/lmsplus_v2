@@ -31,12 +31,12 @@ type RpcRow = {
   mode: string
   total_questions: number
   correct_count: number
-  score_percentage: number | null
   started_at: string
   ended_at: string
   subject_id: string | null
   subject_name: string | null
-  // BIGINT columns: PostgREST serializes them as strings — coerce with Number() before use.
+  // BIGINT / NUMERIC columns: PostgREST serializes them as strings — coerce with Number() before use.
+  score_percentage: number | string | null
   answered_count: number | string
   total_count: number | string
 }
@@ -140,7 +140,7 @@ function mapRpcRow(r: RpcRow): SessionReport {
     // answered_count is a BIGINT (string over the PostgREST wire) — coerce to a number.
     answeredCount: Number(r.answered_count),
     correctCount: r.correct_count,
-    scorePercentage: r.score_percentage,
+    scorePercentage: r.score_percentage === null ? null : Number(r.score_percentage),
     startedAt: r.started_at,
     endedAt: r.ended_at,
     durationMinutes: Math.max(0, Math.round((end - start) / 60000)),

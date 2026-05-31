@@ -159,6 +159,29 @@ describe('getSessionReports', () => {
     expect(result.sessions[0]!.answeredCount).toBe(7)
   })
 
+  it('coerces a fractional NUMERIC score_percentage from string to number', async () => {
+    // NUMERIC columns also arrive as strings over the PostgREST wire (e.g. '73.33').
+    mockRpc.mockResolvedValue({
+      data: [makeRpcRow({ score_percentage: '73.33' })],
+      error: null,
+    })
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.sessions[0]!.scorePercentage).toBe(73.33)
+  })
+
+  it('keeps a null score_percentage as null', async () => {
+    mockRpc.mockResolvedValue({
+      data: [makeRpcRow({ score_percentage: null })],
+      error: null,
+    })
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.sessions[0]!.scorePercentage).toBeNull()
+  })
+
   it('coerces a string total_count returned by the out-of-range probe', async () => {
     mockRpc
       .mockResolvedValueOnce({ data: [], error: null })
