@@ -140,7 +140,7 @@ graph TD
 - victimUserId: uuid
 - correctCount: number (distinct seeded questions; 8 when >=8 available, fewer on a small seed)
 - subjectIds: uuid[]   (distinct, >=1)
-- questionIds: uuid[]  (8 rows; distinct only when >=8 questions available, else round-robin repeats)
+- questionIds: uuid[]  (seeded question_ids — 8 on first seed, >=8 on re-derive since all sentinel rows are returned; distinct only when >=8 questions available, else round-robin repeats)
 - expected: { current: 3, best: 5 }
 ```
 
