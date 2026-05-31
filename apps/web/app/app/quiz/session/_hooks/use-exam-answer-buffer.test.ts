@@ -150,7 +150,10 @@ describe('useExamAnswerBuffer — initialAnswers hydration', () => {
     }
     const { result } = renderHook(() => useExamAnswerBuffer(opts))
     expect(result.current.answers.size).toBe(1)
-    expect(result.current.answers.get(Q1)).toEqual({ selectedOptionId: 'opt-a', responseTimeMs: 500 })
+    expect(result.current.answers.get(Q1)).toEqual({
+      selectedOptionId: 'opt-a',
+      responseTimeMs: 500,
+    })
   })
 
   it('does not overwrite a hydrated (locked) answer', async () => {
@@ -169,7 +172,7 @@ describe('useExamAnswerBuffer — initialAnswers hydration', () => {
   })
 
   it('still records a fresh answer for a question not in initialAnswers', async () => {
-    let currentQuestion = Q2
+    const currentQuestion = Q2
     const opts = {
       getQuestionId: () => currentQuestion,
       getAnswerStartTime: vi.fn(() => Date.now() - 100),

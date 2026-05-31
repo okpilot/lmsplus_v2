@@ -88,16 +88,22 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
 
   const allRows = Array.isArray(data) ? (data as RpcRow[]) : []
 
-  // Internal exam attempts live in the dedicated student "My Reports" tab and the
-  // admin attempts table — they must NOT pollute the practice/quiz session reports list.
-  const rows = allRows.filter((r) => r.mode !== 'internal_exam')
-
-  if (rows.length === 0) {
-    // page <= 1 → genuinely empty list. page > 1 → out-of-range: probe for the true total
-    // so the caller can redirect to the real last page instead of page 1.
+  if (allRows.length === 0) {
+    // The RPC returned no rows for this offset — gate the probe on allRows (pre-filter), the
+    // true "is this page out of range?" signal. page <= 1 → genuinely empty list; page > 1 →
+    // out-of-range, so probe for the real total to redirect to the actual last page, not page 1.
     if (page <= 1) return { ok: true, sessions: [], totalCount: 0 }
     return probeOutOfRangeTotal(supabase, sortColumn, dir)
   }
+
+  // Internal exam attempts live in the dedicated student "My Reports" tab and the admin
+  // attempts table — they must NOT pollute the practice/quiz session reports list. The live
+  // RPC already excludes them server-side; this filter is belt-and-suspenders against drift.
+  const rows = allRows.filter((r) => r.mode !== 'internal_exam')
+
+  // Every returned row was filtered out → the visible list is empty, so report 0 to match.
+  // No probe here: allRows was non-empty, so this is a filtered page, not an out-of-range one.
+  if (rows.length === 0) return { ok: true, sessions: [], totalCount: 0 }
 
   // total_count comes from the window function — same on every row. It is a BIGINT, which
   // PostgREST serializes as a string, so coerce with Number() before the caller divides by it.

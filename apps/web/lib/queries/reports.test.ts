@@ -246,6 +246,23 @@ describe('getSessionReports', () => {
     expect(result.totalCount).toBe(1)
   })
 
+  it('does not fire the out-of-range probe when a non-empty page filters down to nothing', async () => {
+    // Belt-and-suspenders: if the RPC ever returns only internal_exam rows on page>1 (it
+    // excludes them server-side today), allRows is non-empty so this is a FILTERED page, not an
+    // out-of-range one — the probe must NOT fire, and the empty visible list reports total 0.
+    mockRpc.mockResolvedValue({
+      data: [
+        makeRpcRow({ id: 'sess-i1', mode: 'internal_exam' }),
+        makeRpcRow({ id: 'sess-i2', mode: 'internal_exam' }),
+      ],
+      error: null,
+    })
+    const result = await getSessionReports({ page: 2, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
+    // only the single paged fetch was issued — no probe
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+  })
+
   it('retains mock_exam, quick_quiz, and smart_review rows when filtering', async () => {
     mockRpc.mockResolvedValue({
       data: [
