@@ -43,7 +43,7 @@
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@repo/typescript-config": "workspace:*",
-    "@supabase/supabase-js": "^2.106.1",
+    "@supabase/supabase-js": "^2.106.2",
     "@tailwindcss/postcss": "^4.3.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
