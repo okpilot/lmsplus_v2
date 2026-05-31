@@ -17,6 +17,17 @@ export const E2E_XSS_MARKER = '[E2E_XSS]'
 
 const OTHER_ORG_SLUG = 'redteam-other-org'
 
+/** Resolve the egmont-aviation org id, throwing loudly if absent. */
+async function getEgmontOrgId(admin: ReturnType<typeof getAdminClient>): Promise<string> {
+  const { data: org, error } = await admin
+    .from('organizations')
+    .select('id')
+    .eq('slug', 'egmont-aviation')
+    .single()
+  if (error || !org) throw new Error(`Could not find egmont-aviation org: ${error?.message}`)
+  return org.id
+}
+
 export async function seedRedTeamUsers(): Promise<{
   attackerUserId: string
   victimUserId: string
@@ -25,14 +36,7 @@ export async function seedRedTeamUsers(): Promise<{
 }> {
   const admin = getAdminClient()
 
-  // Resolve egmont-aviation org
-  const { data: org, error: orgError } = await admin
-    .from('organizations')
-    .select('id')
-    .eq('slug', 'egmont-aviation')
-    .single()
-  if (orgError || !org) throw new Error(`Could not find egmont-aviation org: ${orgError?.message}`)
-  const orgId = org.id
+  const orgId = await getEgmontOrgId(admin)
 
   // Create redteam-other-org (idempotent)
   const { data: existingOtherOrg } = await admin
@@ -111,13 +115,7 @@ export async function seedRedTeamAdmin(): Promise<{
   password: string
 }> {
   const admin = getAdminClient()
-  const { data: org, error: orgError } = await admin
-    .from('organizations')
-    .select('id')
-    .eq('slug', 'egmont-aviation')
-    .single()
-  if (orgError || !org) throw new Error(`Could not find egmont-aviation org: ${orgError?.message}`)
-  const orgId = org.id
+  const orgId = await getEgmontOrgId(admin)
 
   const adminUserId = await upsertUser(admin, ADMIN_EMAIL, ADMIN_PASSWORD, orgId, 'admin')
   return { adminUserId, orgId, email: ADMIN_EMAIL, password: ADMIN_PASSWORD }
@@ -349,13 +347,7 @@ export async function seedRedTeamInstructor(): Promise<{
   password: string
 }> {
   const admin = getAdminClient()
-  const { data: org, error: orgError } = await admin
-    .from('organizations')
-    .select('id')
-    .eq('slug', 'egmont-aviation')
-    .single()
-  if (orgError || !org) throw new Error(`Could not find egmont-aviation org: ${orgError?.message}`)
-  const orgId = org.id
+  const orgId = await getEgmontOrgId(admin)
 
   const instructorUserId = await upsertUser(
     admin,
@@ -380,13 +372,7 @@ export async function seedRedTeamStudent(): Promise<{
   password: string
 }> {
   const admin = getAdminClient()
-  const { data: org, error: orgError } = await admin
-    .from('organizations')
-    .select('id')
-    .eq('slug', 'egmont-aviation')
-    .single()
-  if (orgError || !org) throw new Error(`Could not find egmont-aviation org: ${orgError?.message}`)
-  const orgId = org.id
+  const orgId = await getEgmontOrgId(admin)
 
   const victimUserId = await upsertUser(admin, VICTIM_EMAIL, VICTIM_PASSWORD, orgId)
   return { victimUserId, orgId, email: VICTIM_EMAIL, password: VICTIM_PASSWORD }
