@@ -89,7 +89,7 @@ graph TD
     victimUserId: string
     correctCount: number          // distinct questions seeded (8 when >=8 available; fewer on a small seed)
     subjectIds: string[]          // distinct subjects covered (>= 1)
-    questionIds: string[]         // the 8 seeded rows' question ids (round-robin; may repeat if <8 questions)
+    questionIds: string[]         // seeded question_ids — 8 on first seed, >=8 on re-derive (all sentinel rows); may repeat if <8 questions
     expected: { current: 3; best: 5 }
   }
   seedVictimResponses(): Promise<VictimResponseFixture>
