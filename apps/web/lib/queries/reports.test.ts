@@ -93,11 +93,13 @@ describe('getSessionReports', () => {
   })
 
   it('passes correct RPC parameters for page 2', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null })
+    // Return a row so the paged fetch is non-empty and the out-of-range probe never fires —
+    // this test verifies parameter routing for the first (paged) call only.
+    mockRpc.mockResolvedValue({ data: [makeRpcRow()], error: null })
 
     await getSessionReports({ page: 2, sort: 'date', dir: 'desc' })
 
-    expect(mockRpc).toHaveBeenCalledWith('get_session_reports', {
+    expect(mockRpc).toHaveBeenNthCalledWith(1, 'get_session_reports', {
       p_sort: 'started_at',
       p_dir: 'desc',
       p_limit: 10,
@@ -143,10 +145,20 @@ describe('getSessionReports', () => {
     expect(result.totalCount).toBe(42)
   })
 
-  it('returns empty sessions with totalCount 0 when page exceeds results', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null })
+  it('probes for the true total when an out-of-range page returns no rows', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [{ total_count: 42 }], error: null })
     const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
-    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 42 })
+  })
+
+  it('returns ok: false when the probe RPC errors on an out-of-range page', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'boom' } })
+    const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: false, error: 'Failed to load reports' })
   })
 
   it('treats non-array RPC data as empty result', async () => {

@@ -51,9 +51,9 @@ const SORT_COLUMN_MAP: Record<SortKey, string> = {
 /**
  * Fetch paginated session reports for the current user via `get_session_reports` RPC.
  *
- * **Note:** When `sessions` is empty, `totalCount` is `0` regardless of whether
- * sessions exist on other pages. Callers must treat `totalCount: 0` as "unknown
- * total for this page" and handle out-of-range pages independently (e.g. redirect).
+ * When the requested page is out of range (page > 1 and no rows returned), a probe
+ * call is issued at offset 0 to recover the true `total_count` so that callers can
+ * redirect to the real last page instead of falling back to page 1.
  */
 export async function getSessionReports(opts: SessionReportsOpts): Promise<SessionReportsResult> {
   const supabase = await createServerSupabaseClient()
@@ -92,9 +92,26 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
   const rows = allRows.filter((r) => r.mode !== 'internal_exam')
 
   if (rows.length === 0) {
-    // Could be empty result or out-of-range page — for out-of-range we need to know totalCount.
-    // If page > 1 and no rows, total_count is unknown. Return 0 and let caller handle redirect.
-    return { ok: true, sessions: [], totalCount: 0 }
+    if (page <= 1) {
+      // Genuinely empty list — no sessions exist for this user.
+      return { ok: true, sessions: [], totalCount: 0 }
+    }
+    // Out-of-range page: the paged fetch returned nothing but sessions may exist on earlier
+    // pages. Issue a probe at offset 0 to recover the real total_count so the caller can
+    // redirect to the true last page instead of page 1.
+    const { data: probeData, error: probeError } = (await supabase.rpc('get_session_reports', {
+      p_sort: sortColumn,
+      p_dir: dir,
+      p_limit: 1,
+      p_offset: 0,
+    })) as { data: unknown; error: { message: string } | null }
+    if (probeError) {
+      console.error('[getSessionReports] Probe RPC error:', probeError.message)
+      return { ok: false, error: 'Failed to load reports' }
+    }
+    const probeRows = Array.isArray(probeData) ? (probeData as RpcRow[]) : []
+    const probedTotal = probeRows[0]?.total_count ?? 0
+    return { ok: true, sessions: [], totalCount: probedTotal }
   }
 
   // total_count comes from the window function — same on every row

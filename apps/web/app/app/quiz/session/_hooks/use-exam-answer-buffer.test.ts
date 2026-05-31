@@ -140,6 +140,52 @@ describe('useExamAnswerBuffer — lock semantics', () => {
   })
 })
 
+// ---- initialAnswers hydration -----------------------------------------------
+
+describe('useExamAnswerBuffer — initialAnswers hydration', () => {
+  it('hydrates from initialAnswers on mount', () => {
+    const opts = {
+      ...makeOpts(Q1),
+      initialAnswers: { [Q1]: { selectedOptionId: 'opt-a', responseTimeMs: 500 } },
+    }
+    const { result } = renderHook(() => useExamAnswerBuffer(opts))
+    expect(result.current.answers.size).toBe(1)
+    expect(result.current.answers.get(Q1)).toEqual({ selectedOptionId: 'opt-a', responseTimeMs: 500 })
+  })
+
+  it('does not overwrite a hydrated (locked) answer', async () => {
+    const opts = {
+      ...makeOpts(Q1),
+      initialAnswers: { [Q1]: { selectedOptionId: 'opt-a', responseTimeMs: 500 } },
+    }
+    const { result } = renderHook(() => useExamAnswerBuffer(opts))
+    let returned: boolean | undefined
+    await act(async () => {
+      returned = result.current.confirmAnswer('opt-b')
+    })
+    expect(returned).toBe(false)
+    expect(result.current.answers.get(Q1)?.selectedOptionId).toBe('opt-a')
+    expect(result.current.answers.size).toBe(1)
+  })
+
+  it('still records a fresh answer for a question not in initialAnswers', async () => {
+    let currentQuestion = Q2
+    const opts = {
+      getQuestionId: () => currentQuestion,
+      getAnswerStartTime: vi.fn(() => Date.now() - 100),
+      initialAnswers: { [Q1]: { selectedOptionId: 'opt-a', responseTimeMs: 500 } },
+    }
+    const { result } = renderHook(() => useExamAnswerBuffer(opts))
+    let returned: boolean | undefined
+    await act(async () => {
+      returned = result.current.confirmAnswer('opt-c')
+    })
+    expect(returned).toBe(true)
+    expect(result.current.answers.size).toBe(2)
+    expect(result.current.answers.get(Q2)?.selectedOptionId).toBe('opt-c')
+  })
+})
+
 // ---- answersRef sync -------------------------------------------------------
 
 describe('useExamAnswerBuffer — answersRef stays in sync with answers state', () => {
