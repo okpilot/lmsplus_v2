@@ -658,9 +658,12 @@ verb_noun pattern:
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
   get_subject_scores         ← read, analytics: avg scores by subject
   get_question_counts        ← read, per-(subject, topic, subtopic) question counts; used by admin/exam-config, admin/syllabus, and the student quiz builder (quiz.ts); replaces client-side counting that truncated at the PostgREST 1000-row cap (#614, #668)
+  get_random_question_ids    ← read, student: up to N random IDs from the filtered question pool (subject + topic/subtopic OR + unseen/incorrect/flagged UNION); used by start_quiz_session seeding; replaces client-side fetch-shuffle-slice that biased sampling past row 1000 (#679, umbrella #668)
+  get_filtered_question_counts ← read, student: per-(topic, subtopic) counts over the same filtered pool as get_random_question_ids; structurally guaranteed count == quiz (shared _filtered_question_pool helper); replaces client-side counting that truncated at 1000 rows (#678, umbrella #668)
   get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
+  get_student_profile_stats  ← read, student: completed-session count + average score (single-row COUNT + AVG over own non-deleted, ended, non-null-score quiz_sessions); replaces the client-side count/average that truncated at the PostgREST 1000-row cap (#668 P2, profile.ts)
 ```
 
 ### Security Model
@@ -2057,6 +2060,51 @@ Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_i
 
 ---
 
+#### `get_random_question_ids` — random sample from the filtered question pool
+
+Returns up to `p_count` random question IDs from the active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) pool. Used by the student quiz builder (`apps/web/app/app/quiz/actions/start.ts` → `lib/queries/quiz.ts:getRandomQuestionIds`) to seed `start_quiz_session` with a uniformly sampled question set, regardless of pool size.
+
+**Security:** `SECURITY INVOKER`. The underlying `questions` table has a single permissive SELECT policy (`tenant_isolation`), so RLS alone gives correct org + `deleted_at IS NULL` scoping. The shared internal helper `_filtered_question_pool` additionally self-scopes the per-user filter subqueries with `sr.student_id = auth.uid()` on `student_responses` (LOAD-BEARING per security.md §3 (Multiple Permissive SELECT Policies) — `student_responses` has TWO permissive SELECT policies, `students_read_responses` + `instructors_read_students`, so RLS alone would over-scope to the instructor policy). The `fsrs_cards` and `active_flagged_questions` student_id filters are defense-in-depth (single policy each). No correct-answer columns are exposed — the RPC returns only `id`.
+
+**Parameters:**
+- `p_subject_id UUID` — required.
+- `p_topic_ids UUID[]` — `NULL` = unconstrained on topic dimension; `'{}'` (empty array) = matches nothing on topic dimension; non-empty array = `q.topic_id = ANY (p_topic_ids)`.
+- `p_subtopic_ids UUID[]` — same semantics as `p_topic_ids`. The two dimensions are combined with `OR`, so a question matching either is in the pool (this preserves leaf-topic questions whose `subtopic_id` is `NULL`).
+- `p_count INT` — maximum number of IDs to return. `LIMIT LEAST(GREATEST(p_count, 0), 500)` clamps negatives to zero AND caps at 500 (defense in depth — mirrors the Zod schema in `apps/web/app/app/quiz/actions/start.ts`; prevents a direct RPC caller from bypassing the Server Action with an arbitrarily large value).
+- `p_filters TEXT[]` — `NULL` or `'{}'` = no per-user filter; non-empty subset of `{'unseen', 'incorrect', 'flagged'}` = union of matches (a question passes if it matches ANY active filter).
+
+**Returns:** `TABLE(id UUID)` — up to `LEAST(p_count, 500)` rows, sampled via `ORDER BY random() LIMIT LEAST(GREATEST(p_count, 0), 500)` over the helper's pool.
+
+**Volatility:** `VOLATILE` (because `random()` is volatile).
+
+**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`
+
+**Rationale:** Replaces a client-side fetch-then-shuffle that hit the PostgREST 1000-row cap once the active pool crossed 1000 rows — questions past row 1000 were never sampled, biasing the quiz toward the first 1000 by insertion order (#679, instance of umbrella #668). Sampling now happens server-side so every active, in-scope question has equal probability.
+
+**Internal helper:** `_filtered_question_pool(p_subject_id, p_topic_ids, p_subtopic_ids, p_filters)` — shared `STABLE SECURITY INVOKER` SQL function. Same migration. Defines the filtered pool exactly once so `get_random_question_ids` and `get_filtered_question_counts` are structurally guaranteed to agree (count == quiz). Prefer the wrapper RPCs over calling the helper directly: a direct call returns one row per pool member and can hit the 1000-row cap.
+
+---
+
+#### `get_filtered_question_counts` — per-(topic, subtopic) counts over the filtered question pool
+
+Returns one row per distinct `(topic_id, subtopic_id)` in the same filtered pool as `get_random_question_ids`. Used by the student quiz builder (`apps/web/app/app/quiz/actions/lookup.ts:getFilteredCount`) to populate the count badge and per-topic/subtopic breakdowns alongside the subject filter UI.
+
+**Security:** `SECURITY INVOKER`. Same scoping model as `get_random_question_ids` (shared `_filtered_question_pool` helper): `tenant_isolation` on `questions` + load-bearing `sr.student_id = auth.uid()` on `student_responses` per security.md §3 (Multiple Permissive SELECT Policies). No correct-answer columns selected.
+
+**Parameters:** identical to `get_random_question_ids` except for the omitted `p_count`. Same NULL-vs-empty-array semantics on `p_topic_ids` / `p_subtopic_ids` / `p_filters`.
+
+**Returns:** `TABLE(topic_id UUID, subtopic_id UUID, n BIGINT)` — one row per `(topic_id, subtopic_id)` group present in the pool. Total count is `sum(n)`. Per-subtopic counts ignore rows where `subtopic_id IS NULL` at the TypeScript aggregation site.
+
+**Volatility:** `STABLE`.
+
+**Result-set size:** bounded by syllabus shape (one row per `(topic, subtopic)` present in the pool — low hundreds in production), so the result itself cannot hit the 1000-row cap that the legacy client-side counting was vulnerable to.
+
+**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`
+
+**Rationale:** Replaces a client-side `SELECT id, topic_id, subtopic_id FROM questions WHERE …` read whose total truncated at the PostgREST 1000-row cap for any pool larger than 1000 rows, causing the badge count and per-(topic, subtopic) breakdown to under-report. The new RPC computes counts in SQL and reuses the same `_filtered_question_pool` definition as `get_random_question_ids`, so the badge is structurally guaranteed to equal the size of the pool the quiz samples from (count == quiz). Also fixes the prior AND-vs-OR mismatch between the badge and the quiz, and the `unseen + incorrect` mutex-then-AND-bug that produced a permanently-zero badge for any combination of those two filters (#678, instance of umbrella #668).
+
+---
+
 #### `get_student_mastery_stats` — per-subject & per-topic mastery counts for the calling student
 
 Returns mastery counts at two granularities in one result set: a subject-level row (`topic_id IS NULL`) and topic-level rows (`topic_id NOT NULL`) per `(subject_id[, topic_id])`. Used by the student dashboard (`lib/queries/dashboard.ts`) and progress page (`lib/queries/progress.ts`) to compute per-subject/topic mastery without paging through the student's full response history.
@@ -2080,7 +2128,7 @@ Returns mastery counts at two granularities in one result set: a subject-level r
 
 Returns one row with the caller's current and best (all-time) daily-practice streak in days, computed entirely in Postgres via a gaps-and-islands query over the DISTINCT UTC calendar dates on which the student answered any question. Used by the student dashboard (`lib/queries/dashboard.ts` → `getStreakData`).
 
-**Security:** `SECURITY INVOKER`. `student_responses` has TWO permissive SELECT policies (`students_read_responses` = `student_id = auth.uid()`, and `instructors_read_students` = org + instructor/admin role), so RLS alone would let an instructor/admin caller streak over org-wide activity. The query self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11). Unauthenticated caller → `auth.uid()` NULL → zero dates → returns a single `{0, 0}` row.
+**Security:** `SECURITY INVOKER`. `student_responses` has TWO permissive SELECT policies (`students_read_responses` = `student_id = auth.uid()`, and `instructors_read_students` = org + instructor/admin role), so RLS alone would let an instructor/admin caller streak over org-wide activity. The query self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies)). Unauthenticated caller → `auth.uid()` NULL → zero dates → returns a single `{0, 0}` row.
 
 **Parameters:** none (caller is always self).
 
@@ -2099,7 +2147,7 @@ Returns one row with the caller's current and best (all-time) daily-practice str
 
 Returns one row per subject the caller has answered, with the most recent response timestamp, over ALL responses (any correctness). Used by the student dashboard (`lib/queries/dashboard.ts` → `applyLastPracticed`).
 
-**Security:** `SECURITY INVOKER`. The `questions` JOIN is org-scoped + `deleted_at IS NULL` via the `tenant_isolation` policy (reproducing the legacy `questionSubjectMap`, which was built from non-deleted questions). `student_responses` self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11, same two-policy reason as `get_student_streak`). Unauthenticated caller → empty set. No question text, options, or correct-answer data is selected — only `subject_id` and a timestamp.
+**Security:** `SECURITY INVOKER`. The `questions` JOIN is org-scoped + `deleted_at IS NULL` via the `tenant_isolation` policy (reproducing the legacy `questionSubjectMap`, which was built from non-deleted questions). `student_responses` self-scopes with an explicit `sr.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same two-policy reason as `get_student_streak`). Unauthenticated caller → empty set. No question text, options, or correct-answer data is selected — only `subject_id` and a timestamp.
 
 **Parameters:** none (caller is always self).
 
@@ -2109,6 +2157,24 @@ Returns one row per subject the caller has answered, with the most recent respon
 **Migration:** `20260521000006_dashboard_secondary_stats_rpcs.sql`
 
 **Rationale:** Replaces client-side last-practiced attribution over a `.limit(5000)` read (ignored above the 1000-row cap) that falsely NULLed `lastPracticedAt` for subjects answered outside the most-recent ~1000 responses, and retires the coupled truncated `questions` read (the `questionSubjectMap`) deferred from PR #674 (#668).
+
+---
+
+#### `get_student_profile_stats` — completed-session count + average score for the calling student
+
+Returns a single aggregate row with the caller's completed-session count and average score, computed in Postgres via `COUNT(*)` + `AVG(score_percentage)`. Used by the settings/profile page (`lib/queries/profile.ts` → `getProfileStats`).
+
+**Security:** `SECURITY INVOKER`. `quiz_sessions` has MORE THAN ONE permissive SELECT policy (`students_select_sessions` = `student_id = auth.uid()`, and `instructors_read_sessions` = org + instructor/admin role), so RLS alone would let an instructor/admin caller average org-wide. The query self-scopes with an explicit `qs.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies), same multi-policy reason as `get_student_mastery_stats`). Unauthenticated caller → `auth.uid()` NULL → zero rows → `{0, NULL}`.
+
+**Parameters:** none (caller is always self).
+
+**Returns:** `TABLE(total_sessions BIGINT, avg_score NUMERIC)` — a no-`GROUP BY` aggregate always yields exactly one row.
+- `total_sessions` — `COUNT(*)` of the caller's `quiz_sessions` with `ended_at IS NOT NULL`, `deleted_at IS NULL`, and `score_percentage IS NOT NULL`. The non-null-score predicate makes the count match the legacy `.filter(s => s.score_percentage !== null)` set.
+- `avg_score` — raw `AVG(score_percentage)` over the same filtered set (`NULL` when none). `Math.round()` and the `totalSessions > 0 ? .. : 0` guard stay in TypeScript, which consumes the raw value (`avg_score` arrives as a JSON string because `score_percentage` is `NUMERIC(5,2)`; the caller coerces with `Number()`).
+
+**Migration:** `20260529000001_student_profile_stats_rpc.sql`
+
+**Rationale:** Replaces a client-side count/average over an unpaginated `quiz_sessions` read that silently truncated at the PostgREST 1000-row cap, skewing `totalSessions` and `averageScore` for high-volume students (#668 P2, profile.ts).
 
 ---
 

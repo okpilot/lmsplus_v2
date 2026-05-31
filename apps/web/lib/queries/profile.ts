@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
+import { rpc } from '@/lib/supabase-rpc'
 
 export type ProfileData = {
   fullName: string | null
@@ -72,24 +73,32 @@ async function getProfile(supabase: SupabaseClient, userId: string) {
   }
 }
 
-type SessionRow = { score_percentage: number | null }
+// Postgres serializes numeric AVG (and bigint COUNT) as JSON strings, so accept both.
+type ProfileStatsRow = { total_sessions: number | string; avg_score: number | string | null }
 
 async function getProfileStats(supabase: SupabaseClient, userId: string): Promise<ProfileStats> {
-  const { data: sessions } = await supabase
-    .from('quiz_sessions')
-    .select('score_percentage')
-    .eq('student_id', userId)
-    .not('ended_at', 'is', null)
-    .is('deleted_at', null)
+  // Completed-session count + average score aggregated in Postgres (#668 P2): the prior
+  // client read fetched every session's score_percentage and counted/averaged in JS, which
+  // truncated at the PostgREST 1000-row cap for high-volume students. The RPC self-scopes to
+  // the caller (quiz_sessions is multi-permissive, security.md §11).
+  const { data: statsData, error: statsError } = await rpc<ProfileStatsRow[]>(
+    supabase,
+    'get_student_profile_stats',
+    {},
+  )
+  if (statsError) {
+    throw new Error(`Failed to fetch profile stats: ${statsError.message}`)
+  }
 
-  const completed = ((sessions ?? []) as SessionRow[]).filter((s) => s.score_percentage !== null)
-
-  const totalSessions = completed.length
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
+  const row = Array.isArray(statsData) ? statsData[0] : undefined
+  const totalSessions = Number(row?.total_sessions ?? 0)
+  // avg_score is the raw numeric mean; Math.round stays here to preserve the legacy rounding.
   const averageScore =
-    totalSessions > 0
-      ? Math.round(completed.reduce((sum, s) => sum + (s.score_percentage ?? 0), 0) / totalSessions)
-      : 0
+    totalSessions > 0 && row?.avg_score != null ? Math.round(Number(row.avg_score)) : 0
 
+  // `userId` is only needed here: the head-count of answered questions is a safe
+  // count (no truncation). The stats RPC above takes no args and self-scopes via auth.uid().
   const { count } = await supabase
     .from('student_responses')
     .select('*', { count: 'exact', head: true })

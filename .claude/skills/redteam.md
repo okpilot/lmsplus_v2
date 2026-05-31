@@ -31,7 +31,7 @@ Run the adversarial security test suite against local Supabase.
    - Read the failing spec to understand the attack vector
    - Report to the user with the exact vector and recommended fix
 
-4. Update `.claude/agent-memory/red-team/attack-surface.md` with current status.
+4. Update `.claude/agent-memory/red-team/topics/attack-surface.md` with current status.
 
 ## Expected Results
 

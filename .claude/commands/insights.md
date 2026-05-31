@@ -2,21 +2,22 @@ Weekly self-review: analyse project health, audit agent system, and update memor
 
 ## Part 1 — Project Health
 1. Run `git log --oneline --since="7 days ago"` — what was built this week
-2. Read `.claude/agent-memory/code-reviewer/patterns.md` — recurring issues
+2. Read `.claude/agent-memory/code-reviewer/MEMORY.md` — recurring issues
 3. Read `.claude/agent-memory/security-auditor/findings.md` — security patterns
-4. Read `.claude/agent-memory/test-writer/patterns.md` — test coverage gaps
+4. Read `.claude/agent-memory/test-writer/MEMORY.md` — test coverage gaps
 5. Check open questions in `docs/decisions.md` — any resolved?
 
 ## Part 2 — Agent System Health
 6. Read ALL agent memory files:
-   - `.claude/agent-memory/doc-updater/patterns.md`
-   - `.claude/agent-memory/semantic-reviewer/patterns.md`
-   - `.claude/agent-memory/red-team/attack-surface.md`
-   - `.claude/agent-memory/learner/patterns.md`
-   - `.claude/agent-memory/plan-critic/patterns.md`
-   - `.claude/agent-memory/implementation-critic/patterns.md`
+   - `.claude/agent-memory/doc-updater/MEMORY.md`
+   - `.claude/agent-memory/semantic-reviewer/MEMORY.md`
+   - `.claude/agent-memory/red-team/topics/attack-surface.md`
+   - `.claude/agent-memory/learner/MEMORY.md`
+   - `.claude/agent-memory/plan-critic/MEMORY.md`
+   - `.claude/agent-memory/implementation-critic/MEMORY.md`
 7. Cross-reference agent health:
-   - **Red-team**: list spec files in `apps/web/e2e/redteam/` vs mentions in attack-surface.md — flag orphans and stale mappings
+   - **Memory budget**: run `wc -l .claude/agent-memory/*/MEMORY.md` — flag any MEMORY.md over 200 lines. Native injection truncates at 200 lines / 25 KB, so an over-budget index silently loses its tail. Spill detail into `topics/` files per `.claude/rules/agent-memory.md` (the tracker stays; verbose prose moves out).
+   - **Red-team**: list spec files in `apps/web/e2e/redteam/` vs mentions in `topics/attack-surface.md` — flag orphans and stale mappings
    - **Learner**: scan frequency table for entries with count >= 2 still at "Watch" — these should be "Rule Candidate"
    - **Semantic-reviewer**: note false positive patterns, check if any flagged patterns stopped recurring
    - **Test-writer**: verify mock patterns still match codebase (Supabase client shape, auth helpers)

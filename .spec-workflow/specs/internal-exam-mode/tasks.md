@@ -64,7 +64,7 @@
   - `npx supabase db push` (or equivalent) → `npx supabase gen types typescript --linked > packages/db/src/types.ts`
   - _Acceptance: type for `quiz_sessions.mode` includes `'internal_exam'`; new RPCs appear in generated types._
 
-- [ ] **2.9 SQL integration tests for new + extended RPCs**
+- [x] **2.9 SQL integration tests for new + extended RPCs**
   - File: `packages/db/tests/internal-exam-mode.spec.ts` (or wherever existing SQL tests live — check first)
   - Coverage: every RPC error path, race conditions for code consumption, RLS enforcement (student cannot SELECT others' codes; cannot INSERT directly).
   - _Requirements: NFR-Reliability, NFR-Security_
@@ -173,37 +173,37 @@
 
 ## 7. Recovery + auto-submit verification (lifecycle E2E)
 
-- [ ] **7.1 Playwright: full lifecycle**
+- [x] **7.1 Playwright: full lifecycle**
   - File: `apps/web/e2e/internal-exam.spec.ts`
   - admin issues → student starts → answers some → submits → report shows "Internal Exam" badge + pass/fail → My Reports lists it.
   - _Requirements: 1, 2, 3.3, 5.2_
 
-- [ ] **7.2 Playwright: refresh-resume mid-session**
+- [x] **7.2 Playwright: refresh-resume mid-session**
   - File: `apps/web/e2e/internal-exam-resume.spec.ts`
   - Per `agent-test-writer.md` rule 2026-04-27.
   - _Requirements: 3.4, NFR-Reliability_
 
-- [ ] **7.3 Playwright: discard blocked + void mid-session**
+- [x] **7.3 Playwright: discard blocked + void mid-session**
   - File: `apps/web/e2e/internal-exam-no-discard-and-void.spec.ts`
   - _Requirements: 3.1, 4.2_
 
-- [ ] **7.4 Playwright: reports separation**
+- [x] **7.4 Playwright: reports separation**
   - File: `apps/web/e2e/internal-exam-reports-separation.spec.ts`
   - Practice reports exclude internal; My Reports shows only internal.
   - _Requirements: 5.1, 5.2_
 
 ## 8. Red-team specs (security defense)
 
-- [ ] **8.1 Cross-student code-use rejection**
+- [x] **8.1 Cross-student code-use rejection**
   - File: `apps/web/e2e/redteam/internal-exam-cross-student.spec.ts`
   - Student B attempts to start with code issued to student A.
   - _Requirements: 2.4, NFR-Security_
 
-- [ ] **8.2 Cross-org admin void rejection**
+- [x] **8.2 Cross-org admin void rejection**
   - File: `apps/web/e2e/redteam/internal-exam-cross-org-void.spec.ts`
   - _Requirements: 4.4, NFR-Security_
 
-- [ ] **8.3 Direct table-write attempts blocked by RLS**
+- [x] **8.3 Direct table-write attempts blocked by RLS**
   - File: `apps/web/e2e/redteam/internal-exam-rls-writes.spec.ts`
   - Student tries direct INSERT on `internal_exam_codes`; UPDATE to clear `consumed_at`. Both must fail.
   - _Requirements: NFR-Security_
@@ -222,9 +222,9 @@
 
 ## 10. Closing
 
-- [ ] **10.1 Run `pnpm check`, `pnpm check-types`, `pnpm test`, `pnpm e2e:redteam` — all green**
-- [ ] **10.2 PR-level semantic review against full diff (`git diff master...HEAD`)** before push, per `agent-workflow.md § Pre-Push PR Sweep`.
-- [ ] **10.3 Update spec `tasks.md` checkboxes `[x]` after each completed task** — per `feedback_update_spec_tasks` rule.
+- [x] **10.1 Run `pnpm check`, `pnpm check-types`, `pnpm test`, `pnpm e2e:redteam` — all green**
+- [x] **10.2 PR-level semantic review against full diff (`git diff master...HEAD`)** before push, per `agent-workflow.md § Pre-Push PR Sweep`.
+- [x] **10.3 Update spec `tasks.md` checkboxes `[x]` after each completed task** — per `feedback_update_spec_tasks` rule.
 
 ---
 

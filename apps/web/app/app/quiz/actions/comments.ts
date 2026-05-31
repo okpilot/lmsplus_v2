@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import { COMMENT_SELECT, fetchQuestionComments } from './comment-queries'
 
 const GetCommentsSchema = z.object({ questionId: z.uuid() })
 const CreateCommentSchema = z.object({
@@ -9,8 +10,6 @@ const CreateCommentSchema = z.object({
   body: z.string().min(1).max(2000),
 })
 const DeleteCommentSchema = z.object({ commentId: z.uuid() })
-
-const COMMENT_SELECT = 'id, question_id, user_id, body, created_at, users(full_name, role)' as const
 
 export async function getComments(raw: unknown) {
   const supabase = await createServerSupabaseClient()
@@ -26,12 +25,7 @@ export async function getComments(raw: unknown) {
     return { success: false as const, error: 'Invalid input' }
   }
 
-  const { data, error } = await supabase
-    .from('question_comments')
-    .select(COMMENT_SELECT)
-    .eq('question_id', parsed.questionId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
+  const { data, error } = await fetchQuestionComments(supabase, parsed.questionId)
 
   if (error) {
     console.error('[getComments]', error.message)

@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-05-27 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686. 12/12 P0 merged.
+> Last updated: 2026-05-30 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686 — completing all 12/12 P0 sites. Instance #6 (#678 + #679, filtered-question-pool RPCs — **P1** sites) merged via #691 (squash `67b9fcf9`). Instance #7 (listOrgStudents + getComments — **P1** list reads, paginated via `fetchAllRows`) merged via #700 (squash `0187d483`) — completing the P1 tier. Instance #8 (profile.ts averageScore → `get_student_profile_stats` aggregation RPC — first **P2** site) merged via #702 (squash `49491481`). Instance #9 (#701, the 3 practically-bounded P2 sites — active mock/internal exam lookups + drafts — given explicit `.limit()` bounds) merged via #705 (squash `7070c8af`), completing the P2 tier — all 25 sites now addressed (24 fixed + 1 exempt). **#668 CLOSED 2026-05-31** — final follow-ups merged: §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
 
 ---
 
@@ -703,7 +703,6 @@ Files to create (✅ = already created):
 - `CLAUDE.md` (root, 50-80 lines)
 - `.claudeignore`
 - `.claude/settings.json` (all hooks)
-- `.claude/hooks/pre-compact-handover.sh`
 - ✅ `.claude/settings.json` — mcpServers (Supabase, Context7, shadcn) + hook stubs
 - ✅ `.claude/agents/code-reviewer.md` — haiku, post-commit, quality + structure
 - ✅ `.claude/agents/security-auditor.md` — sonnet, pre-push, vulns + secrets
@@ -937,9 +936,6 @@ GitHub PR
     → [GitHub Actions e2e.yml] integration + E2E tests (PRs + master)
     → [GitHub Actions redteam.yml] red-team security tests (triggered on security-sensitive paths)
 
-Context approaching limit
-    → [PreCompact hook] saves HANDOVER-YYYY-MM-DD.md before compression
-
 Weekly
     → /project:insights → reads git log + test failures + agent memories
                         → updates MEMORY.md + suggests rule improvements
@@ -1160,7 +1156,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 ---
 
-## Umbrella #668 — PostgREST 1000-Row Truncation Fixes (IN PROGRESS)
+## Umbrella #668 — PostgREST 1000-Row Truncation Fixes (CLOSED 2026-05-31)
 
 **Issue:** PostgREST silently truncates unpaginated reads at 1000 rows. Client-side aggregations using `.limit(10000)` and `.limit(5000)` to work around this cap were ineffective. Three dashboard metrics (student mastery, daily-practice streak, and per-subject last-practiced) undercount for students with high response volume.
 
@@ -1171,7 +1167,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 **Commit:** `ae087c76`
 
 - New RPC: `get_student_mastery_stats()` (mig 20260521000005) — per-(subject) and per-(subject,topic) mastery counts from question/response aggregates.
-- Security: `SECURITY INVOKER` + explicit `sr.student_id = auth.uid()` (load-bearing per security.md §11 — `student_responses` has 2 permissive SELECT policies).
+- Security: `SECURITY INVOKER` + explicit `sr.student_id = auth.uid()` (load-bearing per security.md §3 (Multiple Permissive SELECT Policies) — `student_responses` has 2 permissive SELECT policies).
 - Replaces: client-side `getMasteryStats()` over a `.select('*').eq('student_id', userId).limit(1000)` read that truncated for high-response students.
 - Verification: prod probes synthetic + real (2026-05-26).
 
@@ -1186,7 +1182,7 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - Replaces:
   - `getStreakData()` over a `.limit(10000)` read that undercounted for high-response students.
   - `applyLastPracticed()` + the coupled truncated `questionSubjectMap` read (deferred to PR #674).
-- Verification: staged for prod probes (task #6 of this sprint).
+- Verification: prod probes via `scripts/probe-668-streak-verify.py` — 8/8 synthetic gaps-and-islands edge cases + real high-volume student (best-streak 13 vs truncated 2, 3 falsely-NULL last-practiced subjects).
 
 ### Instance #3: quiz.ts count functions (merged via PR #680)
 
@@ -1194,9 +1190,28 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 
 - Rewire 4 count functions (`getSubjectsWithCounts`, `getTopicsForSubject`, `getSubtopicsForTopic`, `getTopicsWithSubtopics`) from unpaginated `questions` reads (silently truncated at 1000 rows) to the existing `get_question_counts('active')` RPC (mig `20260520000001`).
 - **No migration** — reuses the existing `SECURITY INVOKER` RPC, whose result set is bounded by the fixed EASA taxonomy (~42 tuples now, low hundreds full-bank), so it cannot itself truncate.
-- Security: `questions` has one permissive SELECT policy, so security.md §11 explicit scoping is N/A; RLS `tenant_isolation` + `deleted_at IS NULL` already enforced in the RPC.
+- Security: `questions` has one permissive SELECT policy, so security.md §3 (Multiple Permissive SELECT Policies) explicit scoping is N/A; RLS `tenant_isolation` + `deleted_at IS NULL` already enforced in the RPC.
 - New `fetchActiveQuestionCounts()` helper guards the RPC payload with `Array.isArray` (code-style §5) and logs the error path (old reads dropped errors silently).
 - Covers #668 P0 (`quiz.ts:48`) + P1 (`quiz.ts:86,122,149-178`). `getRandomQuestionIds` biased sampling (`quiz.ts:229`) and `getFilteredCount` (`lookup-helpers.ts`) deferred to child issues.
+
+### Instance #6: filtered-question-pool RPCs — #678 + #679 (merged via PR #691)
+
+**Commit:** `67b9fcf9` (squash-merged via PR #691, 2026-05-28; closes #678 + #679)
+
+- New migration `20260528000001_filtered_question_pool_rpcs.sql` adds:
+  - `_filtered_question_pool` — internal `STABLE SECURITY INVOKER` SQL helper. Defines the active, org-scoped, subject + topic/subtopic OR + per-user UNION filter pool. Single source of truth so the two wrapper RPCs are structurally guaranteed to agree (count == quiz).
+  - `get_random_question_ids` (#679) — `VOLATILE SECURITY INVOKER`; `ORDER BY random() LIMIT LEAST(GREATEST(p_count, 0), 500)` over the helper's pool (500 cap mirrors the Zod schema in `start.ts` — defense in depth for direct RPC callers). Replaces a client-side fetch-then-shuffle that hit the 1000-row cap → biased sampling past row 1000.
+  - `get_filtered_question_counts` (#678) — `STABLE SECURITY INVOKER`; per-(topic, subtopic) `count(*)::bigint`. Replaces a client-side `SELECT id, topic_id, subtopic_id FROM questions` whose total truncated at the 1000-row cap.
+- Security: `tenant_isolation` on `questions` (single permissive SELECT policy) auto-scopes org + `deleted_at IS NULL`. The per-user filter subqueries self-scope with `sr.student_id = auth.uid()` on `student_responses` — LOAD-BEARING per security.md §3 (Multiple Permissive SELECT Policies) (two permissive SELECT policies on that table). Filters on `fsrs_cards` and `active_flagged_questions` are defense-in-depth. No correct-answer columns selected.
+- TypeScript rewrites:
+  - `lib/queries/quiz.ts:getRandomQuestionIds` — now a thin `rpc<{id}[]>(supabase, 'get_random_question_ids', …)` caller with `Array.isArray` guard + error→`[]` + `console.error`. The `userId` opt is dropped (RPC uses `auth.uid()`); the local `filterUnseen` / `filterIncorrect` / `filterFlagged` helpers + the `UntypedClient` / `UntypedQuery` / `QuestionIdRow` / `QuestionFilterRef` types are deleted.
+  - `app/app/quiz/actions/start.ts` — drops the `userId` arg from the `getRandomQuestionIds` call.
+  - `app/app/quiz/actions/lookup.ts:getFilteredCount` — now an `rpc<{topic_id, subtopic_id, n}[]>(supabase, 'get_filtered_question_counts', …)` caller; aggregates `count / byTopic / bySubtopic` with `Number(r.n)` coercion. Auth gate + `FilteredCountSchema.parse` kept. The `hasTopics / hasSubtopics` empty-array bail is removed — SQL handles empties consistently (an explicit empty array = match nothing on that dimension; `count: 0`).
+  - `app/app/quiz/actions/lookup-helpers.ts` and `app/app/quiz/actions/filter-helpers.ts` deleted (functions removed; no other callers).
+- Behaviour change (intentional, count == quiz alignment):
+  - Filter semantics align to **OR / union** in both call sites. Fixes the long-standing AND-vs-OR mismatch and the `unseen + incorrect = ∅` mutex-then-AND bug (badge was permanently 0 for that combo).
+  - Test-only case: explicit empty `topicIds` with `undefined` `subtopicIds` now yields `count: 0` in both functions (previously `getFilteredCount` counted the whole subject). UI never sends this combination.
+- Tests rewritten in the same commit (Wave 2): `quiz.test.ts` `getRandomQuestionIds` suite (5 describe blocks, L189–513) rewritten to mock the `rpc` wrapper; the 8 filter-behavior tests in `lookup.test.ts` switched to `mockRpc` grouped rows; the bail-logic block retitled "empty-array semantics" with the intentional `count: 2→0` / `1→0` flips commented as the count==quiz alignment from #668; `lookup-helpers.test.ts` and `filter-helpers.test.ts` deleted. Full suite: 247 files / 3374 tests pass; `check-types`/`lint`/`build` clean; migration applied to local DB with 3 functions created (verified via `pg_proc`).
 
 ### Instance #4: GDPR data-export pagination (merged via PR #681)
 
@@ -1208,12 +1223,45 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - **No migration.** `audit_events` read-only (immutability preserved); no correct-answer exposure. `flagged_questions` narrowed via a runtime type-guard filter that logs any dropped rows.
 - Covers the #668 P0 GDPR-export reads. `fetchAllRows` is the reusable pagination primitive for future #668 list/export fixes.
 
+### Instance #7: listOrgStudents + getComments — P1 list reads (merged via PR #700)
+
+**Commit:** `0187d483` (squash-merged via PR #700, 2026-05-29)
+
+- Two unpaginated **P1** list reads routed through `fetchAllRows`:
+  - `listOrgStudents` (admin service-role) extracted into `students-queries.ts`, removed from `queries.ts`, caller updated.
+  - `fetchQuestionComments` extracted into `comment-queries.ts` (paginated, `COMMENT_SELECT` with `users!user_id` FK-hint per code-style §5); `getComments` delegates to it.
+- **No migration** — pagination-only fix reusing the `fetchAllRows` primitive from instance #4.
+- Co-located tests incl. caller-level page-error coverage; behavior-first titles; partial `vi.importActual` mock keeps `COMMENT_SELECT` in sync.
+- Completes the **P1 tier**. Does not close #698 (`queries.ts` still >200 lines) or #699 (rule promotion + `fetchAllRows` sweep) — deferred follow-ups.
+
+### Instance #8: profile.ts averageScore → get_student_profile_stats — first P2 site (merged via PR #702)
+
+**Commit:** `49491481` (squash-merged via PR #702, 2026-05-29)
+
+- New RPC `get_student_profile_stats()` (mig `20260529000001`) — `COUNT + AVG` over the caller's own non-deleted, ended, non-null-score `quiz_sessions`. Replaces the unpaginated `getProfileStats` read that computed `totalSessions` + `averageScore` from an arbitrary first-1000-session subset for high-volume students (the #540 profile).
+- Security: `SECURITY INVOKER` + explicit `student_id = auth.uid()` self-scope — LOAD-BEARING per the Multiple Permissive RLS SELECT Policies rule (`docs/security.md §3`): `quiz_sessions` has two permissive SELECT policies (`students_select_sessions` + `instructors_read_sessions`), so RLS alone would let an instructor/admin caller average org-wide. Verified on local DB with a spoofed JWT (instructor with no own sessions → 0/NULL, not org-wide).
+- Behaviour-preserving: the `score_percentage IS NOT NULL` predicate reproduces the legacy `.filter(non-null)` set; `Math.round` + `totalSessions>0` guard stay in TS; `avg_score` arrives as a JSON string (NUMERIC(5,2)) coerced via `Number()`. The safe `student_responses` head-count (`totalAnswered`) is unchanged. `userId` arg now scopes only that head-count (RPC self-scopes via `auth.uid()`).
+- First **P2** site. The 3 practically-bounded P2 sites (active mock/internal exam lookups, drafts) are deferred to **#701** (instance #9 below).
+
+### Instance #9: active-exam + active-internal-exam + load-draft read bounds — P2 tail (#701, MERGED)
+
+**Merged:** PR #705, squash `7070c8af` (was branch `fix/668-instance-9-bounded-reads`, commits `cd0add36` + `a6272d61` + `4847a05f`)
+
+- The 3 remaining **P2** sites — all bounded by business invariants but querying unbounded, so silently relying on PostgREST's implicit `max_rows=1000` cap. Each gets an explicit, documented `.limit()` so the bound is deliberate (chosen over `fetchAllRows`: these are structurally tiny reads on hot page-load paths, and a count round-trip would defend a scenario the invariants already prevent):
+  - `get-active-exam-session.ts` + `get-active-internal-exam-session.ts`: `.limit(MAX_ACTIVE_EXAM_SESSIONS)` (=50, exported from `_overdue-helpers.ts`). Active (`ended_at IS NULL`) sessions per student are ~0–2; 50 ≫ realistic, ≪ 1000. Also bounds the per-row `complete_overdue_exam_session` RPC loop in both readers.
+  - `load-draft.ts`: `.limit(MAX_DRAFTS)` (=20), aligned with the insert-time `insertNewDraft` count gate and the advisory-locked `enforce_draft_limit` DB trigger (mig `20260430000011`). `MAX_DRAFTS` doc-comment now records all three sync points.
+- **No migration** — application-layer read bounding only. No behavior change for in-range data. `load-draft.test.ts` mock chain updated for the new `.limit()` terminal + an assertion that the cap is applied.
+- Closed **#701**. Completes the P2 tier — all P0/P1/P2 sites of umbrella #668 are now addressed (`get_question_counts()` was already aggregated/bounded → exempt, no action).
+
 ### Status
 
-- **Merged to master:** instance #1 (`get_student_mastery_stats`, `ae087c76`), instance #2 (`get_student_streak` + `get_student_last_practiced`, `9f40caae`), instance #3 (quiz.ts counts via `get_question_counts`, `8b134663`), instance #4 (GDPR export pagination, `4538c649`), and instance #5 (admin roster → `get_admin_dashboard_students`, PR #686).
+- **Merged to master:** instance #1 (`get_student_mastery_stats`, `ae087c76`), instance #2 (`get_student_streak` + `get_student_last_practiced`, `9f40caae`), instance #3 (quiz.ts counts via `get_question_counts`, `8b134663`), instance #4 (GDPR export pagination, `4538c649`), instance #5 (admin roster → `get_admin_dashboard_students`, PR #686), instance #6 (filtered-question-pool RPCs `get_random_question_ids` + `get_filtered_question_counts`, `67b9fcf9`, PR #691), instance #7 (`listOrgStudents` + `getComments` paginated, `0187d483`, PR #700), instance #8 (`get_student_profile_stats`, `49491481`, PR #702), and instance #9 (active-exam/internal-exam/draft `.limit()` bounds, `7070c8af`, PR #705).
 - **P0 progress:** 12 of 12 P0 sites fixed and merged — 10 across instances #1–#4, 2 in **#682** (admin roster + `get_admin_student_stats` → new `get_admin_dashboard_students`, PR #686).
+- **P1 progress:** complete — instances #3 (quiz.ts counts) + #6 (filtered-pool RPCs) + #7 (`listOrgStudents` + `getComments` list reads).
+- **P2 progress:** complete — instance #8 (profile stats RPC, PR #702) + instance #9 (active mock/internal exam lookups + draft loader `.limit()` bounds, PR #705). `get_question_counts()` is exempt (already DB-aggregated/bounded). **All 25 sites addressed: 24 fixed + 1 exempt.**
 - **Instance #5 (#682):** replaces the admin-roster fetch-all-merge-sort-slice and the `get_admin_student_stats` RPC with one `SECURITY DEFINER` RPC (`get_admin_dashboard_students`) that joins + filters + sorts + paginates + counts in Postgres; old RPC dropped. Validated on a clean `db reset`; merged via PR #686.
-- **Pending:** prod verification via synthetic + real student probes (instances #1–#2).
-- **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened — the umbrella stays open until all P0/P1/P2 sites land.
+- **Prod-verified:** instance #1 (#540) verified post-deploy on prod (deployed `get_student_mastery_stats` run as the affected student under RLS → completed subjects 100%; `scripts/probe-540-verify-deploy.py`); instance #2 verified against prod data via read-only probe (`scripts/probe-668-streak-verify.py` — 8/8 synthetic gaps-and-islands edge cases + the real high-volume student recovers best-streak 13 vs truncated 2, and 3 falsely-NULL last-practiced subjects).
+- **CLOSED 2026-05-31:** umbrella #668 closed — both remaining follow-ups landed: the §5 cast-guard sweep (**#677**, merged via PR #707, squash `bb813d1b`) and red-team E2E coverage for the aggregation RPCs (**#673**, merged via PR #709, squash `fa857892`). All 25 truncation sites addressed (24 fixed + 1 exempt), all tiers prod-re-verified 2026-05-31 (40/0).
+- **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened; it was deliberately kept open until #677 + #673 landed, then closed manually on 2026-05-31 (PR #709 used `Closes #673` only, not `Closes #668`, to retain manual control).
 
-*Last updated: 2026-05-27 — Instance #5 (#682) merged via PR #686; 12/12 P0 done and merged.*
+*Last updated: 2026-05-31 — Umbrella #668 CLOSED. Final follow-ups #677 (PR #707) + #673 (PR #709) merged; all 25 sites addressed (24 fixed + 1 exempt), prod-re-verified 40/0.*
