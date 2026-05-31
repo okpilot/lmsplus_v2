@@ -426,8 +426,13 @@ export async function seedVictimResponses(): Promise<VictimResponseFixture> {
   const { victimUserId, orgId } = await seedRedTeamStudent()
   const admin = getAdminClient()
 
-  // Idempotency guard: if exactly 8 sentinel rows exist, skip the insert and
-  // re-derive the fixture from those existing rows.
+  // Idempotency guard: if a complete prior seed already exists, skip the insert
+  // and re-derive the fixture from those rows. Use >= 8 (not === 8): a partial
+  // prior run leaves 1-7 rows, but once a full run lands the count is 8+, and a
+  // strict === 8 would let any over-count (e.g. partial-then-full = 9-15) fall
+  // through and insert AGAIN, accumulating unboundedly. Duplicates are otherwise
+  // harmless (see the duplicate-tolerance note above), so >= 8 short-circuits
+  // correctly on any complete-or-over-complete prior seed.
   const { count, error: countError } = await admin
     .from('student_responses')
     .select('id', { head: true, count: 'exact' })
@@ -435,7 +440,7 @@ export async function seedVictimResponses(): Promise<VictimResponseFixture> {
     .eq('response_time_ms', SENTINEL_RESPONSE_TIME_MS)
   if (countError) throw new Error(`seedVictimResponses count: ${countError.message}`)
 
-  if (count === 8) {
+  if ((count ?? 0) >= 8) {
     // Re-derive fixture from the existing sentinel rows.
     const { data: existingRows, error: rowsError } = await admin
       .from('student_responses')
@@ -457,7 +462,9 @@ export async function seedVictimResponses(): Promise<VictimResponseFixture> {
 
     return {
       victimUserId,
-      correctCount: 8,
+      // Distinct questions the mastery RPC will count as correct (COUNT(DISTINCT
+      // question_id)) — not the raw row count, which round-robin may repeat.
+      correctCount: uniqueQuestionIds.length,
       subjectIds,
       questionIds,
       expected: { current: 3, best: 5 },
@@ -507,7 +514,9 @@ export async function seedVictimResponses(): Promise<VictimResponseFixture> {
 
   return {
     victimUserId,
-    correctCount: 8,
+    // Distinct questions the mastery RPC will count as correct (COUNT(DISTINCT
+    // question_id)) — not the raw row count, which round-robin may repeat.
+    correctCount: new Set(questionIds).size,
     subjectIds,
     questionIds,
     expected: { current: 3, best: 5 },
