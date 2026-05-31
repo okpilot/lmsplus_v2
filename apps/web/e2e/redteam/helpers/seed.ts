@@ -14,6 +14,7 @@ export const CROSS_ORG_ADMIN_PASSWORD = 'redteam-crossorg-admin-2026!'
 // in any spec or maintenance script can target the rows these tests create.
 export const E2E_REDTEAM_CODE_PREFIX = 'RT'
 export const E2E_XSS_MARKER = '[E2E_XSS]'
+export const E2E_REDTEAM_UNAUTH_COMMENT_MARKER = '[E2E_REDTEAM] unauth-read fixture'
 
 const OTHER_ORG_SLUG = 'redteam-other-org'
 
