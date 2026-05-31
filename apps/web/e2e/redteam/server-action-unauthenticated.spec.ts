@@ -28,14 +28,18 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
   let knownTopicId: string
   let knownSessionId: string
   let knownQuestionId: string
+  let victimUserId: string
+  let seededCommentId: string | null = null
+  let seededFlagQuestionId: string | null = null
 
   test.beforeAll(async () => {
     adminClient = getAdminClient()
 
     // Resolve real IDs to use as attack inputs — these represent data an
     // attacker might enumerate from leaked IDs or guessing UUIDs.
-    const { orgId } = await seedRedTeamUsers()
-    const picked = await pickSubjectWithQuestions(adminClient, { orgId })
+    const seed = await seedRedTeamUsers()
+    victimUserId = seed.victimUserId
+    const picked = await pickSubjectWithQuestions(adminClient, { orgId: seed.orgId })
     knownSubjectId = picked.subjectId
     knownTopicId = picked.topicId
 
@@ -44,6 +48,34 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
 
     const { data: questions } = await adminClient.from('questions').select('id').limit(1)
     knownQuestionId = questions?.[0]?.id ?? '00000000-0000-4000-a000-000000000002'
+
+    // Seed victim-owned rows so the anon SELECT tests below prove RLS blocks
+    // EXISTING data (not mere table emptiness). These are self-contained — they
+    // do not rely on any other spec's seeding or execution order. Cleaned up in
+    // afterAll. (Soft-delete keeps them queryable by id/PK for teardown.)
+    const { data: comment, error: commentErr } = await adminClient
+      .from('question_comments')
+      .insert({
+        question_id: knownQuestionId,
+        user_id: victimUserId,
+        body: '[E2E_REDTEAM] unauth-read fixture',
+      })
+      .select('id')
+      .single()
+    if (commentErr || !comment)
+      throw new Error(
+        `unauth seed: failed to seed question_comment: ${commentErr?.message ?? 'none'}`,
+      )
+    seededCommentId = comment.id
+
+    const { error: flagErr } = await adminClient
+      .from('flagged_questions')
+      .upsert(
+        { student_id: victimUserId, question_id: knownQuestionId, deleted_at: null },
+        { onConflict: 'student_id,question_id' },
+      )
+    if (flagErr) throw new Error(`unauth seed: failed to seed flagged_question: ${flagErr.message}`)
+    seededFlagQuestionId = knownQuestionId
   })
 
   // --- RPC vectors ---
@@ -201,11 +233,45 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
   })
 
   test('unauthenticated client cannot insert into question_comments', async () => {
-    // user_id intentionally wrong (question UUID used as user UUID) — RLS fires before the FK check.
-    const { error } = await unauthClient
-      .from('question_comments')
-      .insert({ question_id: knownQuestionId, user_id: knownQuestionId, body: 'redteam-unauth-insert' })
-    // RLS WITH CHECK (user_id = auth.uid()) rejects the anon insert (auth.uid() is NULL → 42501).
-    expect(error).not.toBeNull()
+    // user_id is a syntactically valid but non-existent user. RLS WITH CHECK
+    // (user_id = auth.uid()) fires first (auth.uid() is NULL for anon), so the
+    // rejection carries the RLS code 42501 — not a downstream FK violation.
+    const { error } = await unauthClient.from('question_comments').insert({
+      question_id: knownQuestionId,
+      user_id: '00000000-0000-4000-a000-0000000000ff',
+      body: 'redteam-unauth-insert',
+    })
+    expect(error?.code).toBe('42501')
+  })
+
+  test.afterAll(async () => {
+    // Hermetic cleanup (code-style.md §7): soft-delete the seeded victim fixtures.
+    if (seededCommentId) {
+      const { data: discarded, error } = await adminClient
+        .from('question_comments')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', seededCommentId)
+        .is('deleted_at', null)
+        .select('id')
+      if (error) {
+        console.error(`[unauth cleanup] question_comments soft-delete error: ${error.message}`)
+      } else if ((discarded?.length ?? 0) > 0) {
+        console.log(`[unauth cleanup] soft-deleted ${discarded?.length} fixture comment(s)`)
+      }
+    }
+    if (seededFlagQuestionId) {
+      const { data: discarded, error } = await adminClient
+        .from('flagged_questions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('student_id', victimUserId)
+        .eq('question_id', seededFlagQuestionId)
+        .is('deleted_at', null)
+        .select('student_id')
+      if (error) {
+        console.error(`[unauth cleanup] flagged_questions soft-delete error: ${error.message}`)
+      } else if ((discarded?.length ?? 0) > 0) {
+        console.log(`[unauth cleanup] soft-deleted ${discarded?.length} fixture flag(s)`)
+      }
+    }
   })
 })

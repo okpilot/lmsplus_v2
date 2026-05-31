@@ -39,7 +39,9 @@ test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
       .limit(1)
       .single()
     if (qErr || !q)
-      throw new Error(`flag-idor seed: no active question in org ${seed.orgId}: ${qErr?.message ?? 'none'}`)
+      throw new Error(
+        `flag-idor seed: no active question in org ${seed.orgId}: ${qErr?.message ?? 'none'}`,
+      )
     seededQuestionId = q.id
 
     // Seed a victim-owned flag using the admin (service-role) client so the isolation
@@ -76,8 +78,8 @@ test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
     const { error } = await attackerClient
       .from('flagged_questions')
       .insert({ student_id: victimUserId, question_id: seededQuestionId, deleted_at: null })
-    // PostgREST returns 42501 on an RLS WITH CHECK violation.
-    expect(error).not.toBeNull()
+    // RLS WITH CHECK (student_id = auth.uid()) rejects the cross-student insert with code 42501.
+    expect(error?.code).toBe('42501')
   })
 
   test.afterAll(async () => {
