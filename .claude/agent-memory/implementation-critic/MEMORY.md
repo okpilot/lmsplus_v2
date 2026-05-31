@@ -29,3 +29,4 @@
 - Hard DELETE on `exam_config_distributions` inside `upsert_exam_config` — intentional, documented in migration 043 + docs/database.md (ephemeral config table, same precedent as `quiz_drafts`).
 - Adjacent conditional JSX guard blocks (`{canDismiss && (`) are not "duplicate buttons" — one state-driven trigger + one prop-guarded confirm-panel button are distinct.
 - `_userId` / dropped-param on caller-scoped RPCs — the RPC is scoped via RLS + `auth.uid()`, so an unused student-id param is dead but harmless (SUGGESTION at most).
+- Red-team seed `selected_option_id: 'a'` with `is_correct: true` — intentional; `get_student_mastery_stats` reads `sr.is_correct` directly, never re-derives correctness from `selected_option_id` vs the question's correct option. 'a' is cosmetic (#673 confirmed).

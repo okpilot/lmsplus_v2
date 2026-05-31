@@ -6,7 +6,7 @@
 
 ## Issue Frequency Tracker (live — count≥2)
 
-Curated VIEW of the count≥2 rows. **The fuller record (the pre-migration tracker + the 2026-05-28/29 late-cycle rows) lives in `topics/tracker-archive.md`; the complete original journal is in git at `2e87c3e6`.** Counts drive rule-promotion (≥2) and the Sweep-On-Rule-Promotion trigger (`agent-learner.md`). Rows transition state, never deleted (`agent-memory.md`). Schema: `Issue Type | Count | Last Seen | Status`. A count≥2 row still marked "Watch" is rendered RULE CANDIDATE here per the state machine; its original wording is preserved in the archive.
+Curated VIEW of the count≥2 rows. **The fuller record (the pre-migration tracker + the 2026-05-28/29 late-cycle rows + post-#673 updates) lives in `topics/tracker-archive.md`; the complete original journal is in git at `2e87c3e6`.** Counts drive rule-promotion (≥2) and the Sweep-On-Rule-Promotion trigger (`agent-learner.md`). Rows transition state, never deleted (`agent-memory.md`). Schema: `Issue Type | Count | Last Seen | Status`. A count≥2 row still marked "Watch" is rendered RULE CANDIDATE here per the state machine; its original wording is preserved in the archive.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
@@ -62,6 +62,9 @@ Curated VIEW of the count≥2 rows. **The fuller record (the pre-migration track
 | Missing caller-level page-error test on pagination | 2 | 2026-05-29 | RULE PROMOTION → code-style.md §7 — paginated query reads need a caller-level page-error test (first 2026-05-28 #681) |
 | Internal-symbol test-title leakage | 3 | 2026-05-29 | RULE ACTIVE → code-style.md §7 (promoted 2026-04-28) — recurrence after promotion; monitor, no rule change |
 | Doc config-tree / inventory missing items wired in settings.json | 1 | 2026-05-30 | WATCHING — docs/decisions.md config-tree + docs/setup-audit.md hooks-list omitted review-gate.js and cr-local-plan-reminder.sh (both active in settings.json); surfaced when semantic-reviewer reviewed the doc-completeness commit; distinct from "missing route entry" (that is new routes; this is pre-existing untracked items) |
+| Shared-reference table (easa_subjects/easa_topics) lacks organization_id column, requiring org-isolation keying on other predicates | 1 | 2026-05-31 | WATCHING — #673 plan-critic cycle: red-team specs wanted to assert subject_id ∈ org, but easa_subjects has no org_id; org membership keyed on easa_subjects.subject_id ∉ student_id universe; plan revised to isolation via response rows + cross-subject aggregate scope; if recurs on a different table/predicate, may indicate missing data model for org-scoped reference tables |
+| Red-team fixture determinism: compute all backdated dates from single now-snapshot | 1 | 2026-05-31 | WATCHING — #673 design-critic: seed had fixed question dates, fixture computed answers against those → test coverage non-vacuous only if seed volumes match expectations (1 subj/20 Qs); critic recommended parametric backdating from a single snapshot so coverage is deterministic regardless of seed state; first occurrence |
+| Shared-seed red-team fixture non-vacuous only against expected seed volume, not actual | 1 | 2026-05-31 | WATCHING — #673 design-critic: when test asserts an aggregate behavior (e.g., mastery ≥50%), verify the fixture's expected row count supports that assert (e.g., ≥4 responses for ≥2/4=50%); asserts may be vacuously true or false if seed is smaller than expected; first occurrence |
 
 ## Durable knowledge (cross-agent)
 
