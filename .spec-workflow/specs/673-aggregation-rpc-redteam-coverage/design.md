@@ -138,9 +138,9 @@ graph TD
 ### VictimResponseFixture (returned by `seedVictimResponses`)
 ```
 - victimUserId: uuid
-- correctCount: number (8)
+- correctCount: number (distinct seeded questions; 8 when >=8 available, fewer on a small seed)
 - subjectIds: uuid[]   (distinct, >=1)
-- questionIds: uuid[]  (8 distinct)
+- questionIds: uuid[]  (8 rows; distinct only when >=8 questions available, else round-robin repeats)
 - expected: { current: 3, best: 5 }
 ```
 
