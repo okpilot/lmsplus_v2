@@ -17,6 +17,7 @@ import {
   E2E_REDTEAM_CODE_PREFIX,
   pickSubjectWithQuestions,
   seedRedTeamUsers,
+  seedVictimResponses,
 } from './helpers/seed'
 
 test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
@@ -37,6 +38,10 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     const crossOrgUser = await createCrossOrgUser()
     crossOrgClient = await createAuthenticatedClient(crossOrgUser.email, crossOrgUser.password)
     adminClient = getAdminClient()
+
+    // Seed the egmont victim with 8 correct responses so that the cross-org
+    // RPC assertions prove isolation (empty/zeroed) rather than absence of data.
+    await seedVictimResponses()
 
     // Resolve a real subject from egmont-aviation for use in attack vectors
     const { data: subjects, error } = await adminClient.from('easa_subjects').select('id').limit(1)
@@ -217,6 +222,53 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     expect(error).toBeNull()
     const rows = (data ?? []) as Array<{ id: string }>
     expect(rows.find((r) => r.id === seededVictimSessionId)).toBeUndefined()
+  })
+
+  // -------------------------------------------------------------------------
+  // #673 — Aggregation RPC cross-org isolation (four vectors, issue #668 RPC layer)
+  // -------------------------------------------------------------------------
+
+  test('cross-org student sees no correct-answer counts from egmont victim in get_student_mastery_stats', async () => {
+    // get_student_mastery_stats scopes correct-answer numerators to auth.uid().
+    // A cross-org caller with no responses must see every row with correct===0
+    // (or an empty result set). A row with correct>0 would mean the egmont
+    // victim's response counts leaked across organization boundaries.
+    const { data, error } = await crossOrgClient.rpc('get_student_mastery_stats')
+    expect(error).toBeNull()
+    expect(
+      (data ?? []).every((r: { correct: number }) => r.correct === 0),
+    ).toBe(true)
+  })
+
+  test('cross-org student sees no egmont question counts from get_question_counts', async () => {
+    // get_question_counts is org-scoped via RLS on questions.
+    // redteam-other-org has no seeded questions, so a non-empty result would
+    // indicate an egmont question count leaked to another tenant.
+    const { data, error } = await crossOrgClient.rpc('get_question_counts', {
+      p_status: 'active',
+    })
+    expect(error).toBeNull()
+    expect(data ?? []).toHaveLength(0)
+  })
+
+  test('cross-org student sees no practice history from egmont victim in get_student_last_practiced', async () => {
+    // get_student_last_practiced is self-scoped to auth.uid(); the cross-org
+    // caller has zero responses, so the result must be empty. Any row would
+    // mean the egmont victim's last-practiced timestamps leaked.
+    const { data, error } = await crossOrgClient.rpc('get_student_last_practiced')
+    expect(error).toBeNull()
+    expect(data ?? []).toHaveLength(0)
+  })
+
+  test('cross-org student sees zero streak counts from get_student_streak', async () => {
+    // get_student_streak always returns exactly one row {current_streak, best_streak}.
+    // A cross-org caller with no responses must see {0, 0}. Non-zero values
+    // would indicate the egmont victim's streak data leaked across orgs.
+    const { data, error } = await crossOrgClient.rpc('get_student_streak')
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(data?.[0]?.current_streak).toBe(0)
+    expect(data?.[0]?.best_streak).toBe(0)
   })
 
   test.afterAll(async () => {

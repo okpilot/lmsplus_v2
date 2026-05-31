@@ -111,6 +111,37 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
+  test('get_student_mastery_stats returns an empty set for an unauthenticated caller', async () => {
+    // BW1: anon-key client has no JWT → RLS scopes to empty; RPC must not raise.
+    const { data, error } = await unauthClient.rpc('get_student_mastery_stats')
+    expect(error).toBeNull()
+    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+  })
+
+  test('get_question_counts returns an empty set for an unauthenticated caller', async () => {
+    // CA: named param required; anon → RLS returns empty, no error.
+    const { data, error } = await unauthClient.rpc('get_question_counts', { p_status: 'active' })
+    expect(error).toBeNull()
+    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+  })
+
+  test('get_student_last_practiced returns an empty set for an unauthenticated caller', async () => {
+    // BX2: anon → RLS filters out all student_responses rows; array must be empty.
+    const { data, error } = await unauthClient.rpc('get_student_last_practiced')
+    expect(error).toBeNull()
+    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+  })
+
+  test('get_student_streak returns a single zeroed row for an unauthenticated caller', async () => {
+    // BX1: this RPC always returns exactly ONE {current_streak, best_streak} row via a
+    // scalar-subquery shape — it is NOT empty even for anon. Anon gets {0, 0}.
+    const { data, error } = await unauthClient.rpc('get_student_streak')
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(data?.[0]?.current_streak).toBe(0)
+    expect(data?.[0]?.best_streak).toBe(0)
+  })
+
   // --- Direct table SELECT vectors ---
 
   test('unauthenticated client sees 0 rows from student_responses', async () => {
