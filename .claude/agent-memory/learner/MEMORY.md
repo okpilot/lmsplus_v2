@@ -72,6 +72,7 @@ Curated VIEW of the count≥2 rows. **The fuller record (the pre-migration track
 - A count reaches promotion threshold at **2 distinct mechanisms** across different commits; same-file/same-migration repeats are NOT distinct (several count=2 rows above are held below promotion for this reason — noted inline).
 - On any rule promotion, schedule the **Sweep-On-Rule-Promotion** (`agent-learner.md`): fix or file issues for ALL existing offenders, not just the triggering sites (lesson from issue #573).
 - The biggest recurring defect class is **partial fix to a sibling-file group** (tracker count 5) — always grep all instances of a pattern in the file AND sibling files before committing.
+- **Post-agent-memory-refactor (Step 8) watch:** Cycles 1–4 post-merge: #705=3, #677=3, #673=0, **#709=0** (running median ~1.5 vs. pre-mig baseline ~9). All cycles except #705 are non-substantive (tests-only, tiny refactors). No bump from haiku→sonnet yet; continue 1+ more substantive feature cycle to confirm the lower baseline.
 
 ## Topic pointers
 
