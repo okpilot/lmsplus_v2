@@ -47,7 +47,8 @@ export async function getDailyActivity(days = 30): Promise<DailyActivity[]> {
 
   if (error) throw new Error(`Failed to fetch daily activity: ${error.message}`)
 
-  return (data ?? []).map((row) => ({
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
+  return (Array.isArray(data) ? data : []).map((row) => ({
     day: row.day,
     total: Number(row.total),
     correct: Number(row.correct),
@@ -72,7 +73,8 @@ export async function getSubjectScores(limit = 5): Promise<SubjectScore[]> {
 
   if (error) throw new Error(`Failed to fetch subject scores: ${error.message}`)
 
-  return (data ?? []).map((row) => ({
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
+  return (Array.isArray(data) ? data : []).map((row) => ({
     subjectId: row.subject_id,
     subjectName: row.subject_name,
     subjectShort: row.subject_short,

@@ -103,6 +103,25 @@ describe('getProgressData', () => {
     expect(result).toEqual([])
   })
 
+  it('returns an empty array when the mastery RPC data is not an array', async () => {
+    // rpc() casts without validating shape; the §5 guard must not throw on a non-array payload.
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
+        })
+      if (table === 'easa_topics') return buildChain({ data: [] })
+      return buildChain({ data: null })
+    })
+    mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
+
+    // Without the guard the for..of would throw "not iterable"; with it the loop is
+    // skipped, leaving subjectMap empty so s1 (0/0 counts) is dropped by the trailing
+    // zero-count filter — hence []. The point is no throw on a non-array payload.
+    const result = await getProgressData()
+    expect(result).toEqual([])
+  })
+
   it('calculates masteryPercentage per subject based on correct responses', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'easa_subjects')
