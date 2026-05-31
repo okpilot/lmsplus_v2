@@ -12,6 +12,7 @@
 | Error message refactor breaks paired test assertion regex | 2026-05-06 | 1 | 2026-05-06 | WATCHING. #628 `pickSubjectWithQuestions` dropped "in org" suffix; seed.test.ts:152 regex stale. Grep test files for old message substring when context strings (orgId, table name, filter clause) change. Note: #709 helper extraction kept error message byte-identical across all 4 call sites — no recurrence. |
 | TRANSPORT_LAYER/payload-group loop applied to fewer RPCs than plan states | 2026-05-07 | 1 | 2026-05-07 | WATCHING. #108 `void_internal_exam_code` got DB_LAYER only. When plan documents a payload group across N RPCs, count loops in each describe block before approving. |
 | Conditional redirect regression when helper return value discarded | 2026-04-14 | 1 | 2026-04-14 | WATCHING. `handleSubmitSession` discarded `discardQuizSession` result; `router.push` fires only on success → stranded user. Check callers of helpers that made an unconditional side-effect conditional. |
+| Too-lenient INSERT rejection assertion in red-team specs | 2026-05-31 | 1 | 2026-05-31 | WATCHING. #314 flag-idor + server-action-unauthenticated used `expect(error !== null \|\| (data?.length ?? 0) === 0).toBe(true)` instead of established `expect(error).not.toBeNull()`. RLS WITH CHECK violations always produce a non-null error in PostgREST; the OR-branch allows vacuous pass if RLS is misconfigured. Pattern observed in 2 places simultaneously. |
 
 ## Durable knowledge
 

@@ -1,6 +1,6 @@
 # Red Team — Attack Surface Map
 
-> Last updated: 2026-05-31 (#673 coverage cycle — commit 5e4d426 adds dashboard-stats-rpc-isolation.spec.ts + 4 cases in server-action-unauthenticated.spec.ts + 4 cases in rpc-cross-tenant.spec.ts; BW1/BW2/BW3/BX1–BX6 flipped COVERED; BX7 new row added; CA/CB marked partial-COVERED for get_question_counts only — get_random_question_ids portions remain GAP; pnpm e2e:redteam NOT run locally — docker/Supabase down, CI Red Team workflow is the gate)
+> Last updated: 2026-05-31 (#314 coverage cycle — branch test/314-redteam-comment-flag-specs, commits eb1953c9+f841f3c1: flag-idor.spec.ts (Vector S — 3 cases), server-action-unauthenticated.spec.ts (Vectors Q+T — 3 new cases + non-vacuous seed); Q/S/T flipped PASSING; R upgraded to COVERED (unit); 21 specs green; Vector P (deleteComment cross-user IDOR) and Vectors W/V/X/Y/Z/AA remain GAP)
 
 ## Vector-to-Spec Mapping
 
