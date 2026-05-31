@@ -56,6 +56,19 @@ describe('getDailyActivity', () => {
     await expect(getDailyActivity()).rejects.toThrow('Failed to fetch daily activity')
   })
 
+  it('returns an empty array when RPC data is null', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    const result = await getDailyActivity()
+    expect(result).toEqual([])
+  })
+
+  it('returns an empty array when RPC data is not an array', async () => {
+    // rpc() casts without validating shape; the §5 guard must not throw on a non-array payload.
+    mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
+    const result = await getDailyActivity()
+    expect(result).toEqual([])
+  })
+
   it('clamps days above 365 to 365', async () => {
     await getDailyActivity(500)
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'get_daily_activity', {
@@ -202,6 +215,13 @@ describe('getSubjectScores', () => {
 
   it('returns an empty array when RPC data is null', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
+    const result = await getSubjectScores()
+    expect(result).toEqual([])
+  })
+
+  it('returns an empty array when RPC data is not an array', async () => {
+    // rpc() casts without validating shape; the §5 guard must not throw on a non-array payload.
+    mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
     const result = await getSubjectScores()
     expect(result).toEqual([])
   })
