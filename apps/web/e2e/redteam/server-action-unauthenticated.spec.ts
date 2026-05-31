@@ -12,7 +12,11 @@
 import { expect, test } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
-import { pickSubjectWithQuestions, seedRedTeamUsers } from './helpers/seed'
+import {
+  E2E_REDTEAM_UNAUTH_COMMENT_MARKER,
+  pickSubjectWithQuestions,
+  seedRedTeamUsers,
+} from './helpers/seed'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -58,7 +62,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
       .insert({
         question_id: knownQuestionId,
         user_id: victimUserId,
-        body: '[E2E_REDTEAM] unauth-read fixture',
+        body: E2E_REDTEAM_UNAUTH_COMMENT_MARKER,
       })
       .select('id')
       .single()
