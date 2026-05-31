@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { getAdminOrganizationId } from './helpers/admin-supabase'
 import { getAdminClient } from './helpers/supabase'
 
 // Use admin auth state from admin-auth.setup.ts
@@ -201,15 +202,10 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
     const email = uniqueEmail()
     const fullName = `E2E Reactivate ${Date.now()}`
 
-    // Create and immediately deactivate via DB helper to set up test state
+    // Create and immediately deactivate via DB helper to set up test state.
+    // Derive the org from the logged-in admin rather than hardcoding the slug.
     const admin = getAdminClient()
-    const { data: org } = await admin
-      .from('organizations')
-      .select('id')
-      .eq('slug', 'egmont-aviation')
-      .single()
-
-    if (!org) throw new Error('Org not found — run seed-admin-eval.ts first')
+    const orgId = await getAdminOrganizationId()
 
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
       email,
@@ -221,13 +217,27 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
 
     const { error: insertError } = await admin.from('users').insert({
       id: userId,
-      organization_id: org.id,
+      organization_id: orgId,
       email,
       full_name: fullName,
       role: 'student',
       deleted_at: new Date().toISOString(),
     })
     if (insertError) throw new Error(`reactivate test setup insert: ${insertError.message}`)
+
+    // Deactivation bans the auth user (ban_duration '876600h') in addition to the
+    // deleted_at row — mirror that here so the test exercises the UNBAN path on
+    // reactivation, not just the DB restore.
+    const { error: banErr } = await admin.auth.admin.updateUserById(userId, {
+      ban_duration: '876600h',
+    })
+    if (banErr) throw new Error(`reactivate test setup ban: ${banErr.message}`)
+
+    // Confirm the ban took effect, so the post-reactivation unban assertion is not vacuous.
+    const { data: bannedCheck, error: banCheckErr } = await admin.auth.admin.getUserById(userId)
+    if (banCheckErr) throw new Error(`reactivate test setup getUserById: ${banCheckErr.message}`)
+    // user is non-null here: getUserById only nulls `user` on the error branch (thrown above).
+    expect(bannedCheck.user.banned_until ?? null).not.toBeNull()
 
     // Navigate to the page and filter by inactive to find the student
     await page.goto('/app/admin/students?status=inactive')
@@ -255,6 +265,12 @@ test.describe('Admin Student Management — Deactivate / Reactivate', () => {
     await page.goto('/app/admin/students')
     const restoredRow = page.locator('tbody tr').filter({ hasText: fullName })
     await expect(restoredRow.getByText('Active')).toBeVisible({ timeout: 10_000 })
+
+    // Reactivation must also UNBAN the auth user, not just clear deleted_at. Without
+    // this check the test would pass even if reactivation stopped unbanning accounts.
+    const { data: reactivatedAuth, error: getErr } = await admin.auth.admin.getUserById(userId)
+    if (getErr) throw new Error(`reactivate test verify getUserById: ${getErr.message}`)
+    expect(reactivatedAuth.user.banned_until ?? null).toBeNull()
   })
 })
 

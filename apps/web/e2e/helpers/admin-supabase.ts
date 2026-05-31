@@ -4,6 +4,24 @@ import { ensureConsentRecords, getAdminClient } from './supabase'
 export const ADMIN_TEST_EMAIL = 'admin@lmsplus.local'
 export const ADMIN_TEST_PASSWORD = 'admin123!'
 
+/**
+ * Resolve the E2E admin's organization_id from the admin's users row, instead of
+ * hardcoding the 'egmont-aviation' slug. Mirrors the org the admin-e2e UI operates in.
+ */
+export async function getAdminOrganizationId(): Promise<string> {
+  const admin = getAdminClient()
+  const { data, error } = await admin
+    .from('users')
+    .select('organization_id')
+    .eq('email', ADMIN_TEST_EMAIL)
+    .is('deleted_at', null)
+    .single()
+  if (error || !data?.organization_id) {
+    throw new Error(`getAdminOrganizationId: ${error?.message ?? 'admin user not found'}`)
+  }
+  return data.organization_id
+}
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 if (!SUPABASE_ANON_KEY) throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required for E2E tests')
