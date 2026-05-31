@@ -20,11 +20,11 @@ updates:
   # npm — whole pnpm workspace, managed from the root.
   #
   # The root "/" entry is pnpm-workspace-aware: it updates the dependency
-  # manifests in apps/web, packages/db, packages/ui and
-  # packages/typescript-config AND the single shared root pnpm-lock.yaml
-  # together, in one PR. (Verified by PR #692, which bumped @sentry/nextjs +
-  # shadcn in apps/web and @supabase/supabase-js in BOTH apps/web and
-  # packages/db, with a synced lockfile, in one green PR.)
+  # manifests of all workspace members declared in pnpm-workspace.yaml AND
+  # the single shared root pnpm-lock.yaml together, in one PR. (Verified by
+  # PR #692, which bumped @sentry/nextjs + shadcn in apps/web and
+  # @supabase/supabase-js in BOTH apps/web and packages/db, with a synced
+  # lockfile, in one green PR.)
   #
   # Why this is a single entry (not one per package): per-directory npm
   # entries made dependabot open a SEPARATE PR per package for the same

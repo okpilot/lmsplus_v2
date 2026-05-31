@@ -131,7 +131,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 | 6 | #212 | Migrate Zod 3→4 (breaking API changes) | P0 | L | Done |
 
 **Scope:** 2S + 3M + 2L
-**Context:** Dependabot opened 16 PRs on first run. GH Actions PR #194 merged. Remaining 15 closed — Dependabot can't regenerate pnpm-lock.yaml for monorepos. All updates will be done manually.
+**Context:** Dependabot opened 16 PRs on first run. GH Actions PR #194 merged. Remaining 15 closed — at the time, the per-package npm entries couldn't keep the shared root `pnpm-lock.yaml` in sync, so those updates were done manually. **Correction (2026-05-31, #715):** the root `/` npm entry *is* pnpm-workspace-aware and regenerates the shared lockfile in one PR (proven by #692). The per-package entries were the problem (they caused the split lockfile failures in #669/#670) and were consolidated into the single root entry — Dependabot now syncs `pnpm-lock.yaml` automatically for workspace-wide bumps.
 
 **Tech Debt: Biome 1→2 Migration done (2026-03-16, commit a9930ac):**
 - Upgraded @biomejs/biome from ^1.9.0 to ^2.4.7
@@ -574,8 +574,8 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
     - Audits homepage + forgot-password page
     - Artifacts uploaded to GitHub (14-day retention)
   - `codeql.yml` — weekly security scan (Monday 05:30 UTC) for JavaScript/TypeScript via GitHub CodeQL action, logs to Security tab
-  - `dependabot.yml` — automated dependency updates with auto-grouping by ecosystem/directory, weekly schedule, `tech-debt` label, commits with `ci` or `chore` prefix
-    - Scopes: GitHub Actions + npm root + apps/web + packages/{db,ui,typescript-config}
+  - `dependabot.yml` — automated dependency updates, weekly schedule, `tech-debt` label, commits with `ci` or `chore` prefix. npm updates are grouped into minor/patch + major batches via a single pnpm-workspace-aware root entry (consolidated in #715; per-directory entries previously caused lockfile-sync failures — see #669/#670)
+    - Scopes: GitHub Actions (`/`) + npm (whole pnpm workspace, via the root `/` entry)
   - `health-monitoring.yml` — weekly workflows: dependency audit, security audit, codeql scan (added 2026-03-15, moved to separate weekly schedule for visibility)
   - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
   - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 20 questions for E2E (expanded from 5 to support review flow after quiz)
