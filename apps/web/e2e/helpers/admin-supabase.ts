@@ -14,6 +14,7 @@ export async function getAdminOrganizationId(): Promise<string> {
     .from('users')
     .select('organization_id')
     .eq('email', ADMIN_TEST_EMAIL)
+    .is('deleted_at', null)
     .single()
   if (error || !data?.organization_id) {
     throw new Error(`getAdminOrganizationId: ${error?.message ?? 'admin user not found'}`)
