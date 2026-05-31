@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
@@ -12,6 +13,10 @@ vi.mock('@repo/db/server', () => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
+}))
+
+vi.mock('@/lib/supabase-rpc', () => ({
+  rpc: (...args: unknown[]) => mockRpc(...args),
 }))
 
 // ---- Subject under test ---------------------------------------------------
@@ -61,30 +66,54 @@ function mockFromSequence(...responses: unknown[]) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockRpc.mockResolvedValue({ data: [], error: null })
 })
 
 describe('getSubjectsWithCounts', () => {
   it('returns subjects with question counts aggregated by subject_id', async () => {
-    mockFromSequence(
-      {
-        data: [
-          {
-            id: 's1',
-            code: 'AGK',
-            name: 'Aircraft General Knowledge',
-            short: 'AGK',
-            sort_order: 1,
-          },
-          { id: 's2', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 2 },
-        ],
-      },
-      { data: [{ subject_id: 's1' }, { subject_id: 's1' }, { subject_id: 's2' }] },
-    )
+    mockFromSequence({
+      data: [
+        {
+          id: 's1',
+          code: 'AGK',
+          name: 'Aircraft General Knowledge',
+          short: 'AGK',
+          sort_order: 1,
+        },
+        { id: 's2', code: 'MET', name: 'Meteorology', short: 'MET', sort_order: 2 },
+      ],
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: 1 },
+        { subject_id: 's2', topic_id: 't2', subtopic_id: null, n: 1 },
+      ],
+      error: null,
+    })
 
     const result = await getSubjectsWithCounts()
     expect(result).toHaveLength(2)
     expect(result.find((s) => s.id === 's1')?.questionCount).toBe(2)
     expect(result.find((s) => s.id === 's2')?.questionCount).toBe(1)
+  })
+
+  it('sums string-encoded bigint counts numerically, not by concatenation', async () => {
+    // PostgREST serializes COUNT(*)::bigint as a JSON string; the helper coerces
+    // with Number() so '1' + '2' must total 3, not the '12' string artifact.
+    mockFromSequence({
+      data: [{ id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 }],
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: '1' },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: '2' },
+      ],
+      error: null,
+    })
+
+    const result = await getSubjectsWithCounts()
+    expect(result.find((s) => s.id === 's1')?.questionCount).toBe(3)
   })
 
   it('returns empty array when no subjects exist', async () => {
@@ -94,15 +123,16 @@ describe('getSubjectsWithCounts', () => {
   })
 
   it('filters out subjects with zero questions', async () => {
-    mockFromSequence(
-      {
-        data: [
-          { id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 },
-          { id: 's2', code: 'MET', name: 'MET', short: 'MET', sort_order: 2 },
-        ],
-      },
-      { data: [{ subject_id: 's1' }] }, // s2 has no questions
-    )
+    mockFromSequence({
+      data: [
+        { id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 },
+        { id: 's2', code: 'MET', name: 'MET', short: 'MET', sort_order: 2 },
+      ],
+    })
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's1', topic_id: 't1', subtopic_id: null, n: 1 }],
+      error: null,
+    })
 
     const result = await getSubjectsWithCounts()
     expect(result).toHaveLength(1)
@@ -119,15 +149,21 @@ describe('getSubjectsWithCounts', () => {
 
 describe('getTopicsForSubject', () => {
   it('returns topics with question counts for the given subject', async () => {
-    mockFromSequence(
-      {
-        data: [
-          { id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 },
-          { id: 't2', code: '050-02', name: 'Engines', sort_order: 2 },
-        ],
-      },
-      { data: [{ topic_id: 't1' }, { topic_id: 't1' }, { topic_id: 't2' }] },
-    )
+    mockFromSequence({
+      data: [
+        { id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 },
+        { id: 't2', code: '050-02', name: 'Engines', sort_order: 2 },
+      ],
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: 1 },
+        { subject_id: 's1', topic_id: 't2', subtopic_id: null, n: 1 },
+        { subject_id: 's-other', topic_id: 't1', subtopic_id: null, n: 99 },
+      ],
+      error: null,
+    })
 
     const result = await getTopicsForSubject('s1')
     expect(result).toHaveLength(2)
@@ -142,10 +178,8 @@ describe('getTopicsForSubject', () => {
   })
 
   it('filters out topics with zero questions', async () => {
-    mockFromSequence(
-      { data: [{ id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 }] },
-      { data: [] }, // no active questions for any topic
-    )
+    mockFromSequence({ data: [{ id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 }] })
+    // rpc default → no counts → t1 filtered out
 
     const result = await getTopicsForSubject('s1')
     expect(result).toHaveLength(0)
@@ -153,111 +187,169 @@ describe('getTopicsForSubject', () => {
 })
 
 describe('getRandomQuestionIds', () => {
-  it('returns up to count shuffled question IDs', async () => {
-    mockFromSequence({
-      data: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }, { id: 'q4' }, { id: 'q5' }],
+  // Thin wrapper around get_random_question_ids RPC; pool selection lives in SQL (#678/#679/#668).
+  it('returns mapped ids when rpc resolves with rows', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'a' }, { id: 'b' }],
+      error: null,
     })
 
-    const result = await getRandomQuestionIds({ subjectId: 's1', count: 3 })
-    expect(result).toHaveLength(3)
-    // All returned IDs should be from the source pool
-    for (const id of result) {
-      expect(['q1', 'q2', 'q3', 'q4', 'q5']).toContain(id)
-    }
-  })
+    const result = await getRandomQuestionIds({ subjectId: 's1', count: 2 })
 
-  it('returns all IDs when count exceeds available questions', async () => {
-    mockFromSequence({ data: [{ id: 'q1' }, { id: 'q2' }] })
-    const result = await getRandomQuestionIds({ subjectId: 's1', count: 10 })
-    expect(result).toHaveLength(2)
-  })
-
-  it('returns empty array when no questions are available', async () => {
-    mockFromSequence({ data: [] })
-    const result = await getRandomQuestionIds({ subjectId: 's1', count: 5 })
-    expect(result).toEqual([])
-  })
-
-  it('returns empty array when data is null', async () => {
-    mockFromSequence({ data: null })
-    const result = await getRandomQuestionIds({ subjectId: 's1', count: 5 })
-    expect(result).toEqual([])
-  })
-
-  it('returns only questions with last_was_correct=false when filter is incorrect', async () => {
-    // First call: questions pool
-    // Second call: fsrs_cards with last_was_correct=false scoped to those question IDs
-    mockFromSequence(
-      { data: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }] },
-      { data: [{ question_id: 'q2' }] }, // only q2 was answered incorrectly
+    expect(result).toEqual(['a', 'b'])
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({
+        p_subject_id: 's1',
+        p_count: 2,
+      }),
     )
-
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      count: 10,
-      filters: ['incorrect'],
-      userId: 'u1',
-    })
-    expect(result).toEqual(['q2'])
   })
 
-  it('returns empty array when no incorrect questions exist for the filter', async () => {
-    mockFromSequence(
-      { data: [{ id: 'q1' }, { id: 'q2' }] },
-      { data: [] }, // no incorrect cards
+  it("strips 'all' from p_filters and keeps the remaining filter values", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({
+      subjectId: 's1',
+      count: 5,
+      filters: ['all', 'unseen'],
+    })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_filters: ['unseen'] }),
     )
-
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      count: 10,
-      filters: ['incorrect'],
-      userId: 'u1',
-    })
-    expect(result).toEqual([])
   })
 
-  it('skips incorrect filter and returns all questions when userId is not provided', async () => {
-    mockFromSequence({ data: [{ id: 'q1' }, { id: 'q2' }] })
+  it("passes p_filters as an empty array when filters is ['all']", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      count: 10,
-      filters: ['incorrect'],
-      // no userId
-    })
-    // Without userId, filter is bypassed — all questions returned
-    expect(result).toHaveLength(2)
+    await getRandomQuestionIds({ subjectId: 's1', count: 5, filters: ['all'] })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_filters: [] }),
+    )
   })
 
-  it('returns empty array without querying fsrs_cards when question pool is empty and filter is incorrect', async () => {
-    // Only one from() call should happen (questions pool returns empty).
-    // The early-return guard in filterIncorrect must prevent a second fsrs_cards query.
-    mockFromSequence({ data: [] })
+  it('passes p_filters as an empty array when filters is undefined', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
-    const result = await getRandomQuestionIds({
+    await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_filters: [] }),
+    )
+  })
+
+  it('sends p_topic_ids and p_subtopic_ids as null when the caller omits them', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_topic_ids: null, p_subtopic_ids: null }),
+    )
+  })
+
+  it('passes p_topic_ids and p_subtopic_ids through when arrays are provided', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({
       subjectId: 's1',
-      count: 10,
-      filters: ['incorrect'],
-      userId: 'u1',
+      topicIds: ['t1', 't2'],
+      subtopicIds: ['st1'],
+      count: 5,
     })
 
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({
+        p_topic_ids: ['t1', 't2'],
+        p_subtopic_ids: ['st1'],
+      }),
+    )
+  })
+
+  it('passes empty arrays through (empty array = match nothing in SQL)', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({
+      subjectId: 's1',
+      topicIds: [],
+      subtopicIds: [],
+      count: 5,
+    })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_topic_ids: [], p_subtopic_ids: [] }),
+    )
+  })
+
+  it('returns an empty array when rpc data is not an array', async () => {
+    mockRpc.mockResolvedValueOnce({ data: null, error: null })
+    expect(await getRandomQuestionIds({ subjectId: 's1', count: 5 })).toEqual([])
+
+    mockRpc.mockResolvedValueOnce({ data: { unexpected: true }, error: null })
+    expect(await getRandomQuestionIds({ subjectId: 's1', count: 5 })).toEqual([])
+  })
+
+  it('drops rows without a string id from the result', async () => {
+    // Defensive per-row filter — if the RPC ever returns malformed rows, undefined
+    // must not leak into start_quiz_session's uuid[] argument.
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'a' }, null, { foo: 'bar' }, { id: 123 }, { id: 'b' }],
+      error: null,
+    })
+
+    const result = await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
+    expect(result).toEqual(['a', 'b'])
+  })
+
+  it('returns an empty array and logs when the rpc errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc boom' } })
+
+    const result = await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
     expect(result).toEqual([])
-    // Only one DB call was made (the questions pool) — fsrs_cards was never queried
-    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[getRandomQuestionIds]'),
+      'rpc boom',
+    )
+    consoleSpy.mockRestore()
   })
 })
 
 describe('getSubtopicsForTopic', () => {
   it('returns subtopics with question counts for the given topic', async () => {
-    mockFromSequence(
-      {
-        data: [
-          { id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 },
-          { id: 'st2', code: '050-01-02', name: 'Drag', sort_order: 2 },
-        ],
-      },
-      { data: [{ subtopic_id: 'st1' }, { subtopic_id: 'st1' }, { subtopic_id: 'st2' }] },
-    )
+    mockFromSequence({
+      data: [
+        { id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 },
+        { id: 'st2', code: '050-01-02', name: 'Drag', sort_order: 2 },
+      ],
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st2', n: 1 },
+        { subject_id: 's1', topic_id: 't-other', subtopic_id: 'st1', n: 99 },
+      ],
+      error: null,
+    })
 
     const result = await getSubtopicsForTopic('t1')
     expect(result).toHaveLength(2)
@@ -272,10 +364,8 @@ describe('getSubtopicsForTopic', () => {
   })
 
   it('filters out subtopics with zero questions', async () => {
-    mockFromSequence(
-      { data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 }] },
-      { data: [] }, // no active questions for any subtopic
-    )
+    mockFromSequence({ data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 }] })
+    // rpc default → st1 filtered out
 
     const result = await getSubtopicsForTopic('t1')
     expect(result).toHaveLength(0)
@@ -284,15 +374,17 @@ describe('getSubtopicsForTopic', () => {
 
 describe('getTopicsWithSubtopics', () => {
   it('returns topics with their subtopics and question counts', async () => {
-    // Call sequence: topics → [subtopics, question topic_ids, question subtopic_ids]
     mockFromSequence(
       { data: [{ id: 't1', code: '050-01', name: 'Aerodynamics', sort_order: 1 }] },
-      {
-        data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1, topic_id: 't1' }],
-      },
-      { data: [{ topic_id: 't1' }, { topic_id: 't1' }] },
-      { data: [{ subtopic_id: 'st1' }] },
+      { data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1, topic_id: 't1' }] },
     )
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 },
+        { subject_id: 's1', topic_id: 't1', subtopic_id: null, n: 1 },
+      ],
+      error: null,
+    })
 
     const result = await getTopicsWithSubtopics('s1')
     expect(result).toHaveLength(1)
@@ -312,10 +404,9 @@ describe('getTopicsWithSubtopics', () => {
   it('filters out topics with zero questions', async () => {
     mockFromSequence(
       { data: [{ id: 't1', code: '050-01', name: 'Aerodynamics', sort_order: 1 }] },
-      { data: [] }, // no subtopics
-      { data: [] }, // no question topic refs
-      { data: [] }, // no question subtopic refs
+      { data: [] },
     )
+    // rpc default → t1 count 0 → filtered
 
     const result = await getTopicsWithSubtopics('s1')
     expect(result).toHaveLength(0)
@@ -330,9 +421,11 @@ describe('getTopicsWithSubtopics', () => {
           { id: 'st2', code: '050-01-02', name: 'Drag', sort_order: 2, topic_id: 't1' },
         ],
       },
-      { data: [{ topic_id: 't1' }] },
-      { data: [{ subtopic_id: 'st1' }] }, // st2 has no questions
     )
+    mockRpc.mockResolvedValue({
+      data: [{ subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: 1 }],
+      error: null,
+    })
 
     const result = await getTopicsWithSubtopics('s1')
     expect(result).toHaveLength(1)
@@ -341,132 +434,95 @@ describe('getTopicsWithSubtopics', () => {
   })
 })
 
-describe('getRandomQuestionIds — empty topic/subtopic arrays short-circuit', () => {
-  it('returns empty array immediately when topicIds is an empty array', async () => {
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      topicIds: [],
-      count: 10,
-    })
-    expect(result).toEqual([])
-    expect(mockFrom).not.toHaveBeenCalled()
-  })
+// ---- fetchActiveQuestionCounts error / guard paths -------------------------
+// These tests exercise the shared helper via the 4 public count functions.
+// One RPC-error test per function (each exercises a distinct call site) and
+// one non-array-payload test on getSubjectsWithCounts (the guard is shared).
 
-  it('returns empty array immediately when subtopicIds is an empty array', async () => {
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      subtopicIds: [],
-      count: 10,
-    })
-    expect(result).toEqual([])
-    expect(mockFrom).not.toHaveBeenCalled()
-  })
-})
-
-describe('getRandomQuestionIds — OR logic for topicIds + subtopicIds', () => {
-  it('uses OR filter when both topicIds and subtopicIds are provided', async () => {
-    // The chain mock must capture the `or()` call — use a spy-based buildChain
-    const chain = {
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      is: vi.fn().mockReturnThis(),
-      in: vi.fn().mockReturnThis(),
-      or: vi.fn().mockReturnThis(),
-      // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
-      then: vi.fn((resolve: (v: unknown) => unknown) =>
-        Promise.resolve(resolve({ data: [{ id: 'q1' }] })),
-      ),
-    }
-    mockFrom.mockReturnValue(chain)
-
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      topicIds: ['t1'],
-      subtopicIds: ['st1'],
-      count: 10,
-    })
-
-    expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('topic_id.in.'))
-    expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('subtopic_id.in.'))
-    expect(result).toContain('q1')
-  })
-})
-
-describe('getRandomQuestionIds — flagged filter', () => {
-  it('returns only flagged questions for the student', async () => {
-    mockFromSequence(
-      { data: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }] },
-      { data: [{ question_id: 'q2' }] }, // only q2 is flagged
-    )
-
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      count: 10,
-      filters: ['flagged'],
-      userId: 'u1',
-    })
-    expect(result).toEqual(['q2'])
-  })
-
-  it('returns empty array when no flagged questions exist', async () => {
-    mockFromSequence(
-      { data: [{ id: 'q1' }, { id: 'q2' }] },
-      { data: [] }, // no flagged questions
-    )
-
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      count: 10,
-      filters: ['flagged'],
-      userId: 'u1',
-    })
-    expect(result).toEqual([])
-  })
-})
-
-describe('getRandomQuestionIds — filter error paths', () => {
-  it('returns empty array when filterUnseen query errors', async () => {
+describe('getSubjectsWithCounts — RPC error from get_question_counts', () => {
+  it('returns empty array when the counts RPC fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    mockFromSequence(
-      { data: [{ id: 'q1' }] },
-      { data: null, error: { message: 'student_responses error' } },
-    )
-
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      count: 10,
-      filters: ['unseen'],
-      userId: 'u1',
+    mockFromSequence({
+      data: [{ id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 }],
     })
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
 
+    const result = await getSubjectsWithCounts()
     expect(result).toEqual([])
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[filterUnseen] student_responses query error:',
-      'student_responses error',
+      '[fetchActiveQuestionCounts] get_question_counts error:',
+      'rpc boom',
     )
     consoleSpy.mockRestore()
   })
 
-  it('returns empty array when filterIncorrect query errors', async () => {
+  it('returns empty array when the counts RPC returns a non-array payload', async () => {
+    mockFromSequence({
+      data: [{ id: 's1', code: 'AGK', name: 'AGK', short: 'AGK', sort_order: 1 }],
+    })
+    // data is a plain object (not an array) — the Array.isArray guard yields []
+    mockRpc.mockResolvedValue({ data: { unexpected: true }, error: null })
+
+    const result = await getSubjectsWithCounts()
+    // countMap stays empty → all subjects get questionCount 0 → filtered out
+    expect(result).toEqual([])
+  })
+})
+
+describe('getTopicsForSubject — RPC error from get_question_counts', () => {
+  it('returns empty array when the counts RPC fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mockFromSequence({
+      data: [{ id: 't1', code: '050-01', name: 'Airframe', sort_order: 1 }],
+    })
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
+
+    const result = await getTopicsForSubject('s1')
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchActiveQuestionCounts] get_question_counts error:',
+      'rpc boom',
+    )
+    consoleSpy.mockRestore()
+  })
+})
+
+describe('getSubtopicsForTopic — RPC error from get_question_counts', () => {
+  it('returns empty array when the counts RPC fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    mockFromSequence({
+      data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1 }],
+    })
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
+
+    const result = await getSubtopicsForTopic('t1')
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchActiveQuestionCounts] get_question_counts error:',
+      'rpc boom',
+    )
+    consoleSpy.mockRestore()
+  })
+})
+
+describe('getTopicsWithSubtopics — RPC error from get_question_counts', () => {
+  it('returns empty array when the counts RPC fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     mockFromSequence(
-      { data: [{ id: 'q1' }] },
-      { data: null, error: { message: 'fsrs_cards error' } },
+      { data: [{ id: 't1', code: '050-01', name: 'Aerodynamics', sort_order: 1 }] },
+      { data: [{ id: 'st1', code: '050-01-01', name: 'Lift', sort_order: 1, topic_id: 't1' }] },
     )
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc boom' } })
 
-    const result = await getRandomQuestionIds({
-      subjectId: 's1',
-      count: 10,
-      filters: ['incorrect'],
-      userId: 'u1',
-    })
-
+    const result = await getTopicsWithSubtopics('s1')
     expect(result).toEqual([])
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[filterIncorrect] fsrs_cards query error:',
-      'fsrs_cards error',
+      '[fetchActiveQuestionCounts] get_question_counts error:',
+      'rpc boom',
     )
     consoleSpy.mockRestore()
   })

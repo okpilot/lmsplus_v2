@@ -1,5 +1,14 @@
-// Helpers for getActiveExamSession. Extracted so the action stays under the
-// 100-line cap from .claude/rules/code-style.md §1 after Layer 1 partitioning.
+// Helpers and bounds for the active-exam-session reads (mock_exam +
+// internal_exam). Extracted so the actions stay under the 100-line cap from
+// .claude/rules/code-style.md §1 after Layer 1 partitioning.
+
+// Deliberate read bound for getActiveExamSession / getActiveInternalExamSession
+// (#668 instance #9). Active (ended_at IS NULL) exam sessions per student are
+// structurally ~0–2; >this signals data corruption, not normal usage. The cap
+// makes the bound explicit instead of relying on PostgREST's implicit max_rows
+// (1000) silent truncation, and bounds the per-row complete_overdue_exam_session
+// RPC loop in both readers. 50 ≫ any real count, ≪ 1000.
+export const MAX_ACTIVE_EXAM_SESSIONS = 50
 
 export function extractQuestionIds(config: unknown): string[] | null {
   if (typeof config !== 'object' || config === null) return null

@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import type { Database } from '@repo/db/types'
 import type { AnswerFeedback, DraftData, LoadDraftsResult } from '../types'
+import { MAX_DRAFTS } from './draft-helpers'
 
 type QuizDraftRow = Database['public']['Tables']['quiz_drafts']['Row']
 type SessionConfig = { sessionId: string; subjectName?: string; subjectCode?: string }
@@ -72,6 +73,10 @@ export async function loadDrafts(): Promise<LoadDraftsResult> {
       .select('*')
       .eq('student_id', user.id)
       .order('updated_at', { ascending: false })
+      // Deliberate bound matching the insert-time cap enforced in insertNewDraft
+      // (draft-helpers.ts: rejects count >= MAX_DRAFTS). Makes the read bound
+      // explicit instead of relying on PostgREST's implicit max_rows truncation.
+      .limit(MAX_DRAFTS)
 
     if (error) {
       console.error('[loadDrafts] Query error:', error.message)

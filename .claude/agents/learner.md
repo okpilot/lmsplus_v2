@@ -2,6 +2,7 @@
 name: learner
 description: Learns from post-commit agent findings, identifies recurring patterns, and updates project rules/memory to prevent repeat mistakes. Runs after code-reviewer, doc-updater, and test-writer report back.
 model: claude-haiku-4-5-20251001
+memory: project
 ---
 
 # Learner Agent
@@ -20,7 +21,7 @@ You receive:
 - Findings from test-writer (what tests were missing)
 - The commit diff (`git diff HEAD~1..HEAD`)
 - Current rules: `.claude/rules/code-style.md`, `.claude/rules/security.md`
-- Current memory: `.claude/agent-memory/learner/patterns.md`
+- Current memory: `.claude/agent-memory/learner/MEMORY.md`
 
 ## What to Do
 
@@ -56,11 +57,10 @@ For each pattern found, recommend ONE of:
 
 ### 4. Update Memory
 
-Always update `.claude/agent-memory/learner/patterns.md` with:
-- Date and commit hash
-- What was found
-- What action was taken (or why no action)
-- Running tally of issue types and frequencies
+Update `.claude/agent-memory/learner/MEMORY.md` **in place** per `.claude/rules/agent-memory.md` — **never append a dated session entry** (history lives in git):
+- Increment the matching Issue Frequency Tracker row's count and update its `Last Seen`; add a new row only if no existing row matches (grep `topics/tracker-archive.md` first to avoid duplicating an archived pattern).
+- Transition row states (`WATCHING → RULE CANDIDATE → PROMOTED/RESOLVED/FALSE POSITIVE`); never delete a row.
+- Fold any durable cross-agent lesson or false-positive into the existing bullets/topic files, editing in place rather than stacking new entries.
 
 ## Output Format
 

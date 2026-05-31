@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cache } from 'react'
+import { rpc } from '@/lib/supabase-rpc'
 import {
   applyLastPracticed,
   computeExamReadiness,
@@ -37,20 +38,14 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   if (authError) throw new Error(`Auth error: ${authError.message}`)
   if (!user) throw new Error('Not authenticated')
 
-  const [subjectResult, responses, questionsToday, streakData] = await Promise.all([
-    getSubjectProgressWithMap(supabase, user.id),
+  const [subjects, responses, questionsToday, streakData] = await Promise.all([
+    getSubjectProgress(supabase),
     getTotalAnswered(supabase, user.id),
     getQuestionsToday(supabase, user.id),
-    getStreakData(supabase, user.id),
+    getStreakData(supabase),
   ])
 
-  const { subjects, questionSubjectMap } = subjectResult
-  const subjectsWithDates = await applyLastPracticed(
-    supabase,
-    user.id,
-    subjects,
-    questionSubjectMap,
-  )
+  const subjectsWithDates = await applyLastPracticed(supabase, subjects)
   const examReadiness = computeExamReadiness(subjectsWithDates)
 
   return {
@@ -67,79 +62,50 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 type SubjectRow = { id: string; code: string; name: string; short: string; sort_order: number }
-type QuestionIdSubjectRow = { id: string; subject_id: string }
-type ResponseRow = { question_id: string }
-
-type SubjectProgressResult = {
-  subjects: SubjectProgress[]
-  questionSubjectMap: Map<string, string>
+type MasteryRow = {
+  subject_id: string
+  topic_id: string | null
+  total: number | string
+  correct: number | string
 }
 
-async function getSubjectProgressWithMap(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<SubjectProgressResult> {
-  const { data: subjectsData } = await supabase
+async function getSubjectProgress(supabase: SupabaseClient): Promise<SubjectProgress[]> {
+  const { data: subjectsData, error: subjectsError } = await supabase
     .from('easa_subjects')
     .select('id, code, name, short, sort_order')
     .order('sort_order')
+  if (subjectsError) throw new Error(`Failed to fetch subjects: ${subjectsError.message}`)
 
   const subjects = (subjectsData ?? []) as SubjectRow[]
-  if (!subjects.length) return { subjects: [], questionSubjectMap: new Map() }
+  if (!subjects.length) return []
 
-  const { data: questionCountsData } = await supabase
-    .from('questions')
-    .select('id, subject_id')
-    .eq('status', 'active')
-    .is('deleted_at', null)
-
-  const questionCounts = (questionCountsData ?? []) as QuestionIdSubjectRow[]
-
-  const { data: correctResponsesData } = await supabase
-    .from('student_responses')
-    .select('question_id')
-    .eq('student_id', userId)
-    .eq('is_correct', true)
-
-  const correctResponses = (correctResponsesData ?? []) as ResponseRow[]
-
-  const qCountMap = new Map<string, number>()
-  const questionSubjectMap = new Map<string, string>()
-  for (const q of questionCounts) {
-    qCountMap.set(q.subject_id, (qCountMap.get(q.subject_id) ?? 0) + 1)
-    questionSubjectMap.set(q.id, q.subject_id)
+  // Per-subject mastery counts aggregated in Postgres (#540): the prior client-side
+  // numerator/denominator reads truncated at the PostgREST 1000-row cap. The RPC returns
+  // both subject-level (topic_id === null) and topic-level rows; we use the subject rows.
+  const { data: masteryData, error: masteryError } = await rpc<MasteryRow[]>(
+    supabase,
+    'get_student_mastery_stats',
+    {},
+  )
+  if (masteryError) {
+    throw new Error(`Failed to fetch mastery stats: ${masteryError.message}`)
   }
 
-  const correctQuestionIds = new Set(correctResponses.map((r) => r.question_id))
-
-  // Guard the empty-array case: PostgREST rejects `.in('id', [])`. Also short-circuits
-  // the query entirely when the student has no correct responses yet.
-  const { data: correctQuestionsData } =
-    correctQuestionIds.size > 0
-      ? await supabase
-          .from('questions')
-          .select('id, subject_id')
-          .is('deleted_at', null)
-          .in('id', [...correctQuestionIds])
-      : { data: [] }
-
-  const correctQuestions = (correctQuestionsData ?? []) as QuestionIdSubjectRow[]
-
-  const correctPerSubject = new Map<string, Set<string>>()
-  for (const q of correctQuestions) {
-    let set = correctPerSubject.get(q.subject_id)
-    if (!set) {
-      set = new Set()
-      correctPerSubject.set(q.subject_id, set)
-    }
-    set.add(q.id)
-    questionSubjectMap.set(q.id, q.subject_id)
+  // rpc() casts the payload without validating shape — guard the array per code-style §5.
+  const masteryBySubject = new Map<string, { total: number; correct: number }>()
+  for (const row of Array.isArray(masteryData) ? masteryData : []) {
+    if (row.topic_id !== null) continue
+    if (!row.subject_id) continue
+    masteryBySubject.set(row.subject_id, {
+      total: Number(row.total),
+      correct: Number(row.correct),
+    })
   }
 
-  const result = subjects
+  return subjects
     .map((s) => {
-      const total = qCountMap.get(s.id) ?? 0
-      const correct = correctPerSubject.get(s.id)?.size ?? 0
+      const counts = masteryBySubject.get(s.id) ?? { total: 0, correct: 0 }
+      const { total, correct } = counts
       return {
         id: s.id,
         code: s.code,
@@ -155,8 +121,6 @@ async function getSubjectProgressWithMap(
       }
     })
     .filter((s) => s.totalQuestions > 0 || s.answeredCorrectly > 0)
-
-  return { subjects: result, questionSubjectMap }
 }
 
 async function getTotalAnswered(supabase: SupabaseClient, userId: string): Promise<number> {

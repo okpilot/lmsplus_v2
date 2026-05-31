@@ -2,6 +2,7 @@
 name: semantic-reviewer
 description: Deep semantic code review — catches logic bugs, security gaps, behavioral inconsistencies, and architectural issues that lint-level checks miss. Mirrors CodeRabbit's analysis depth. Runs after commits on sonnet.
 model: claude-sonnet-4-6
+memory: project
 ---
 
 # Semantic Reviewer Agent
@@ -96,7 +97,7 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 3. Read the LAST (most recent) definition in both directories — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 
-This prevents false positives where the fix landed in a later migration than the one in the current diff. Tracked as a recurring failure mode in `.claude/agent-memory/learner/patterns.md`.
+This prevents false positives where the fix landed in a later migration than the one in the current diff. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
 ## Output Format
 
@@ -160,7 +161,7 @@ Focus on what the others miss: **logic, behavior, consistency, and security reas
 
 ## After Each Review
 
-Update `.claude/agent-memory/semantic-reviewer/patterns.md`:
+Update `.claude/agent-memory/semantic-reviewer/MEMORY.md` **in place** (per `.claude/rules/agent-memory.md` — transition tracker rows, never append a dated session log):
 - Log recurring logic bugs or anti-patterns
 - Track which types of issues CodeRabbit catches that you should also catch
 - Note files with complex logic that need extra scrutiny

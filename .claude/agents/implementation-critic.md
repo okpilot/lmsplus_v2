@@ -2,6 +2,7 @@
 name: implementation-critic
 description: Reviews staged changes against the validated plan and requirements before commit. Catches deviations from the approved plan, logic errors, missed requirements, and pattern violations. Always runs — no skip condition.
 model: claude-sonnet-4-6
+memory: project
 ---
 
 # Implementation Critic Agent
@@ -20,7 +21,7 @@ You receive:
 - `git diff --staged` — the changes about to be committed
 - The validated plan (from the orchestrator's plan output)
 - Requirements (from the spec if one exists via spec-workflow, or from the plan output)
-- `.claude/agent-memory/implementation-critic/patterns.md` — your running log of recurring deviations and project patterns
+- `.claude/agent-memory/implementation-critic/MEMORY.md` — your running log of recurring deviations and project patterns
 
 ## What to Check
 
@@ -78,7 +79,7 @@ Before flagging a missing pattern (e.g., "missing AND deleted_at IS NULL", "miss
 3. Read the LAST (most recent) definition in both directories — that is the binding body.
 4. If the latest definition already contains the pattern, do NOT report it as missing.
 
-This prevents false positives where a multi-migration commit adds the missing-pattern fix in a later migration than the one being reviewed in isolation. Tracked as a recurring failure mode in `.claude/agent-memory/learner/patterns.md`.
+This prevents false positives where a multi-migration commit adds the missing-pattern fix in a later migration than the one being reviewed in isolation. Tracked as a recurring failure mode in `.claude/agent-memory/learner/MEMORY.md`.
 
 ## Severity Definitions
 
@@ -148,7 +149,7 @@ See `.claude/rules/agent-critic.md` for the orchestrator's handling protocol for
 
 ## After Each Review
 
-Update `.claude/agent-memory/implementation-critic/patterns.md`:
+Update `.claude/agent-memory/implementation-critic/MEMORY.md` **in place** (per `.claude/rules/agent-memory.md` — transition tracker rows, never append a dated session log):
 - Log recurring deviations (e.g., "fallback values frequently differ from plan")
 - Track which plan items are most often missed or incorrectly implemented
 - Note positive patterns (e.g., "error handling consistently matches plan since session X")

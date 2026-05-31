@@ -37,7 +37,6 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
       subtopicIds: input.subtopicIds,
       count: input.count,
       filters: input.filters,
-      userId: user.id,
     })
 
     if (questionIds.length === 0) {

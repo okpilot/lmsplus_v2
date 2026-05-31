@@ -2,6 +2,7 @@
 name: doc-updater
 description: Updates project documentation when APIs, schemas, or architecture change. Invoke after: database schema changes, new Server Actions, new routes added, or dependency updates. Keeps docs/plan.md status current and docs/decisions.md accurate.
 model: claude-haiku-4-5-20251001
+memory: project
 ---
 
 You are a documentation updater for LMS Plus v2, an EASA PPL training platform.
@@ -49,4 +50,4 @@ Keep documentation accurate and current. You update docs when:
 4. Preserve the existing format and style of each doc
 
 ## Memory
-Write update patterns and common doc locations to `.claude/agent-memory/doc-updater/patterns.md`.
+Update `.claude/agent-memory/doc-updater/MEMORY.md` **in place** per `.claude/rules/agent-memory.md` with durable doc-update recipes and common doc locations — never append a dated session log. Native subagent memory injects MEMORY.md automatically.
