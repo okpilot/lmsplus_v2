@@ -185,4 +185,27 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(error).toBeNull()
     expect(data?.length ?? 0).toBe(0)
   })
+
+  test('unauthenticated client sees 0 rows from question_comments', async () => {
+    const { data, error } = await unauthClient.from('question_comments').select('*').limit(10)
+
+    expect(error).toBeNull() // RLS returns empty, not an error
+    expect(data?.length ?? 0).toBe(0)
+  })
+
+  test('unauthenticated client sees 0 rows from flagged_questions', async () => {
+    const { data, error } = await unauthClient.from('flagged_questions').select('*').limit(10)
+
+    expect(error).toBeNull()
+    expect(data?.length ?? 0).toBe(0)
+  })
+
+  test('unauthenticated client cannot insert into question_comments', async () => {
+    // user_id intentionally wrong (question UUID used as user UUID) — RLS fires before the FK check.
+    const { error } = await unauthClient
+      .from('question_comments')
+      .insert({ question_id: knownQuestionId, user_id: knownQuestionId, body: 'redteam-unauth-insert' })
+    // RLS WITH CHECK (user_id = auth.uid()) rejects the anon insert (auth.uid() is NULL → 42501).
+    expect(error).not.toBeNull()
+  })
 })
