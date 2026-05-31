@@ -62,6 +62,7 @@
 - **Mocked-client unit tests can't catch JSONB-key drift or PostgREST string-serialization** — call out the integration-test gap.
 - **`vi.importActual` partial mock** (spread real module, override only the fn) keeps exported constants (e.g. `COMMENT_SELECT`) live from source — prefer over full mock with a hardcoded constant string (drift vector).
 - **Proxy-based `buildChain` absorbs `.limit()` silently** — `get-active-exam-session.test.ts` + `get-active-internal-exam-session.test.ts` use a `Proxy` that returns itself on any method call. Adding `.limit()` to production code never breaks these tests, but also means no assertion is possible that the cap value is applied. If adding a call-chain assertion to these files, first replace `buildChain` with a per-method `vi.fn()` chain (the `load-draft.test.ts` pattern). Flagged as SUGGESTION on PR #701 (2026-05-30).
+- **GoTrue `ban_duration: 'none'` omits `banned_until` from response (undefined, not null):** The SDK `User.banned_until` is typed `string | undefined` (optional field). After an unban, GoTrue omits the field entirely; the JS SDK surfaces `undefined`. The `?? null` coercion maps this to `null` for `.toBeNull()` assertions. A past-date leftover string would also fail the assertion — that failure is correct regression detection behavior. Confirmed PR #372 (ccc1cdf5).
 
 ### Process
 - **PR-level sweep** (`git diff master...HEAD`) adds value on multi-commit extraction PRs (confirms earlier SUGGESTIONs landed, filter consistency holds cross-commit) but finds nothing extra on single-module refactors.
