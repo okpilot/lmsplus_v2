@@ -22,6 +22,8 @@
 | Client timer initialized at mount shows more time than server has (mount latency: nav+fetch+render) | 2026 | 2 | 2026-04 | WATCHING — fix = return `started_at` from start RPC, thread through SessionData. Escalate to ISSUE on next occurrence |
 | Storage converter (`toSessionData`) drops new fields added to the target type but not the source type | 2026 | 2 | 2026-04 (PR #523) | WATCHING — when adding a field to SessionData, audit ALL its producers (`readSessionHandoff`, `toSessionData`) |
 | Paginated read test suites cover the getCount error path but not the getPage error path (caller-level propagation) | 2026-05-27 (PR #681) | 2 | 2026-05-29 (#668 #7) | WATCHING — `fetchAllRows` unit test covers it; caller suites don't. Test-writer gap |
+| E2E sentinel idempotency guard uses strict `count === 8` — a partial prior run that left 1–7 rows bypasses the guard and inserts another full batch (duplicate dates → still harmless for DISTINCT-based RPCs, but the guard is brittle; `count >= 8` or a `count > 0` bail-out would be more robust) | 2026-05-31 (PR #673) | 1 | 2026-05-31 | RESOLVED — fixed to `(count ?? 0) >= 8` in commit 52e7020e (#673 PR-level sweep confirmed) |
+| Cross-org mastery test `every(correct === 0)` is vacuously true when the cross-org org has zero questions (empty array returns true for `.every()`) — assert `data !== null` or add a positive control that proves data is non-empty when the subject org has questions | 2026-05-31 (PR #673) | 1 | 2026-05-31 | RESOLVED — fixed in commit f2cb9a5d: `expect(data ?? []).toHaveLength(0)` added before the every() guard; vacuity clearly documented in comment (the non-vacuous self-scope proof delegates to BW3 in dashboard-stats-rpc-isolation.spec.ts) |
 
 ## Durable knowledge
 
