@@ -357,7 +357,13 @@ export async function seedRedTeamInstructor(): Promise<{
   if (orgError || !org) throw new Error(`Could not find egmont-aviation org: ${orgError?.message}`)
   const orgId = org.id
 
-  const instructorUserId = await upsertUser(admin, INSTRUCTOR_EMAIL, INSTRUCTOR_PASSWORD, orgId, 'instructor')
+  const instructorUserId = await upsertUser(
+    admin,
+    INSTRUCTOR_EMAIL,
+    INSTRUCTOR_PASSWORD,
+    orgId,
+    'instructor',
+  )
   return { instructorUserId, orgId, email: INSTRUCTOR_EMAIL, password: INSTRUCTOR_PASSWORD }
 }
 
