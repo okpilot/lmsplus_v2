@@ -22,6 +22,14 @@ describe('clampLimit', () => {
     expect(clampLimit('100' as unknown as number)).toBe(DEFAULT_LIMIT)
   })
 
+  it('returns DEFAULT_LIMIT for NaN instead of leaking NaN downstream', () => {
+    expect(clampLimit(Number.NaN)).toBe(DEFAULT_LIMIT)
+  })
+
+  it('returns DEFAULT_LIMIT for a non-integer limit', () => {
+    expect(clampLimit(25.5)).toBe(DEFAULT_LIMIT)
+  })
+
   it('returns the value unchanged for a valid limit within range', () => {
     expect(clampLimit(25)).toBe(25)
     expect(clampLimit(DEFAULT_LIMIT)).toBe(DEFAULT_LIMIT)

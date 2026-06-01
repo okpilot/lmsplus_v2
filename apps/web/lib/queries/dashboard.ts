@@ -77,10 +77,11 @@ function buildMasteryBySubject(
   for (const row of Array.isArray(masteryData) ? (masteryData as MasteryRow[]) : []) {
     if (row.topic_id !== null) continue
     if (!row.subject_id) continue
-    map.set(row.subject_id, {
-      total: Number(row.total),
-      correct: Number(row.correct),
-    })
+    const total = Number(row.total)
+    const correct = Number(row.correct)
+    // Skip malformed rows rather than store NaN, which would poison the mastery percentage.
+    if (!Number.isFinite(total) || !Number.isFinite(correct)) continue
+    map.set(row.subject_id, { total, correct })
   }
   return map
 }
