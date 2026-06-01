@@ -67,6 +67,18 @@ describe('InternalExamContent', () => {
     expect(screen.getByRole('alert')).toHaveTextContent("couldn't load your internal exams")
   })
 
+  it('shows the error banner when the active-session fetch fails', async () => {
+    // A failed active-session fetch must not degrade silently — without this,
+    // a mid-exam recovery failure would leave the student no signal at all.
+    mockGetActiveSession.mockResolvedValue({ success: false, error: 'rpc failed' })
+
+    const jsx = await InternalExamContent({ userId: 'u1' })
+    render(jsx)
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent("couldn't load your internal exams")
+  })
+
   it('does not show the error banner when all data loads successfully', async () => {
     const jsx = await InternalExamContent({ userId: 'u1' })
     render(jsx)

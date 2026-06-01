@@ -15,7 +15,10 @@ export async function InternalExamContent({ userId }: Readonly<Props>) {
   ])
 
   const activeSessions = activeResult.success ? activeResult.sessions : []
-  const loadFailed = !availableResult.success || !historyResult.success
+  // A failed active-session fetch also degrades silently (no recovery banner shown),
+  // so surface it in the error banner too — otherwise a mid-exam recovery failure
+  // would leave the student with no signal at all.
+  const loadFailed = !availableResult.success || !historyResult.success || !activeResult.success
 
   return (
     <div className="space-y-4">
