@@ -115,14 +115,17 @@ describe('upsertTopic', () => {
     })
 
     it('returns failure when insert fails with a generic DB error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockAdminWithResult({ error: { message: 'DB write error' } })
 
       const result = await upsertTopic(validInput)
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('DB write error')
+      expect(result.error).toBe('Failed to create topic')
+      expect(consoleSpy).toHaveBeenCalledWith('[upsertTopic] insert error:', 'DB write error')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
 
     it('returns a duplicate-code message when insert violates unique constraint', async () => {
@@ -180,14 +183,17 @@ describe('upsertTopic', () => {
     })
 
     it('returns failure when update fails with a DB error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockAdminWithResult({ error: { message: 'update failed' } })
 
       const result = await upsertTopic({ ...validInput, id: VALID_UUID })
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('update failed')
+      expect(result.error).toBe('Failed to update topic')
+      expect(consoleSpy).toHaveBeenCalledWith('[upsertTopic] update error:', 'update failed')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
   })
 

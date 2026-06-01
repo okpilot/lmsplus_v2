@@ -115,14 +115,20 @@ describe('upsertSubtopic', () => {
     })
 
     it('returns failure when insert fails with a generic DB error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockAdminWithResult({ error: { message: 'constraint violation' } })
 
       const result = await upsertSubtopic(validInput)
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('constraint violation')
+      expect(result.error).toBe('Failed to create subtopic')
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[upsertSubtopic] insert error:',
+        'constraint violation',
+      )
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
 
     it('returns a duplicate-code message when insert violates unique constraint', async () => {
@@ -180,14 +186,17 @@ describe('upsertSubtopic', () => {
     })
 
     it('returns failure when update fails with a DB error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockAdminWithResult({ error: { message: 'update error' } })
 
       const result = await upsertSubtopic({ ...validInput, id: VALID_UUID })
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('update error')
+      expect(result.error).toBe('Failed to update subtopic')
+      expect(consoleSpy).toHaveBeenCalledWith('[upsertSubtopic] update error:', 'update error')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
   })
 

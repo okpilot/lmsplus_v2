@@ -52,7 +52,7 @@ type FromSetup = {
   profileError?: { message: string } | null
   profileData?: Record<string, unknown> | null
   orgData?: Record<string, unknown> | null
-  orgError?: { message: string } | null
+  orgError?: { message: string; code?: string } | null
   statsRow?: StatsRow | null
   answeredCount?: number | null
   answeredCountError?: { message: string } | null
@@ -258,7 +258,7 @@ describe('getProfileData', () => {
     it('logs the error and returns organizationName as null when the org query errors', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       mockAuthenticatedUser()
-      setupMocks({ orgError: { message: 'org read failed' } })
+      setupMocks({ orgError: { message: 'org read failed', code: '42501' } })
 
       const result = await getProfileData()
 
@@ -267,6 +267,18 @@ describe('getProfileData', () => {
       // Profile fields are still populated despite the org error
       expect(result.fullName).toBe('Alice Pilot')
       expect(result.email).toBe('alice@example.com')
+      consoleSpy.mockRestore()
+    })
+
+    it('does not log and returns organizationName as null when org is soft-deleted (PGRST116)', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockAuthenticatedUser()
+      setupMocks({ orgError: { message: 'no rows', code: 'PGRST116' } })
+
+      const result = await getProfileData()
+
+      expect(result.organizationName).toBeNull()
+      expect(consoleSpy).not.toHaveBeenCalled()
       consoleSpy.mockRestore()
     })
   })

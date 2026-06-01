@@ -64,7 +64,8 @@ async function getProfile(supabase: SupabaseClient, userId: string) {
     .eq('id', data.organization_id)
     .is('deleted_at', null)
     .single<OrgRow>()
-  if (orgError) console.error('[getProfile] org lookup error:', orgError.message)
+  if (orgError && orgError.code !== 'PGRST116')
+    console.error('[getProfile] org lookup error:', orgError.message)
 
   return {
     fullName: data.full_name,

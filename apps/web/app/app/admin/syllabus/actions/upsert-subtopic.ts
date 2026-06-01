@@ -18,7 +18,8 @@ export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
   if (id) {
     const { error } = await supabase.from('easa_subtopics').update(data).eq('id', id)
     if (error) {
-      return { success: false, error: error.message }
+      console.error('[upsertSubtopic] update error:', error.message)
+      return { success: false, error: 'Failed to update subtopic' }
     }
   } else {
     // Compute sort_order server-side to avoid stale-prop collisions on rapid adds
@@ -42,7 +43,8 @@ export async function upsertSubtopic(input: unknown): Promise<ActionResult> {
       if (error.code === '23505') {
         return { success: false, error: 'A subtopic with this code already exists in this topic' }
       }
-      return { success: false, error: error.message }
+      console.error('[upsertSubtopic] insert error:', error.message)
+      return { success: false, error: 'Failed to create subtopic' }
     }
   }
 

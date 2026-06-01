@@ -18,7 +18,8 @@ export async function upsertTopic(input: unknown): Promise<ActionResult> {
   if (id) {
     const { error } = await supabase.from('easa_topics').update(data).eq('id', id)
     if (error) {
-      return { success: false, error: error.message }
+      console.error('[upsertTopic] update error:', error.message)
+      return { success: false, error: 'Failed to update topic' }
     }
   } else {
     // Compute sort_order server-side to avoid stale-prop collisions on rapid adds
@@ -42,7 +43,8 @@ export async function upsertTopic(input: unknown): Promise<ActionResult> {
       if (error.code === '23505') {
         return { success: false, error: 'A topic with this code already exists in this subject' }
       }
-      return { success: false, error: error.message }
+      console.error('[upsertTopic] insert error:', error.message)
+      return { success: false, error: 'Failed to create topic' }
     }
   }
 

@@ -108,14 +108,17 @@ describe('upsertSubject', () => {
     })
 
     it('returns failure when insert fails with a generic DB error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockAdminWithResult({ error: { message: 'connection timeout' } })
 
       const result = await upsertSubject(validInput)
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('connection timeout')
+      expect(result.error).toBe('Failed to create subject')
+      expect(consoleSpy).toHaveBeenCalledWith('[upsertSubject] insert error:', 'connection timeout')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
 
     it('returns a duplicate-code message when insert violates unique constraint', async () => {
@@ -173,14 +176,17 @@ describe('upsertSubject', () => {
     })
 
     it('returns failure when update fails with a DB error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockAdminWithResult({ error: { message: 'update failed' } })
 
       const result = await upsertSubject({ ...validInput, id: VALID_UUID })
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('update failed')
+      expect(result.error).toBe('Failed to update subject')
+      expect(consoleSpy).toHaveBeenCalledWith('[upsertSubject] update error:', 'update failed')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
   })
 
