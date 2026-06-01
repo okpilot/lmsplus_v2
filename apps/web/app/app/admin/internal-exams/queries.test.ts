@@ -571,6 +571,53 @@ describe('listInternalExamAttempts', () => {
     })
   })
 
+  describe('pagination', () => {
+    it('returns nextCursor when there are more rows than the limit', async () => {
+      mockAdmin()
+      // 3 rows when limit is 2 → fetched limit+1 (3), so hasMore=true, return 2 rows
+      const rows = [1, 2, 3].map((n) => ({
+        id: `sess-${n}`,
+        student_id: 'stu-1',
+        subject_id: 'sub-1',
+        started_at: `2026-04-2${n}T00:00:00.000Z`,
+        ended_at: `2026-04-2${n}T01:00:00.000Z`,
+        total_questions: 20,
+        correct_count: 10,
+        score_percentage: 50,
+        passed: false,
+        easa_subjects: null,
+        users: null,
+        internal_exam_codes: null,
+      }))
+      mockAdminFrom.mockReturnValue(buildChain(rows))
+
+      const result = await listInternalExamAttempts({ limit: 2 })
+
+      expect(result.rows).toHaveLength(2)
+      expect(result.nextCursor).toBe('2026-04-22T00:00:00.000Z')
+    })
+
+    it('returns null nextCursor when no more rows remain', async () => {
+      mockAdmin()
+      mockAdminFrom.mockReturnValue(buildChain([]))
+
+      const result = await listInternalExamAttempts()
+
+      expect(result.rows).toHaveLength(0)
+      expect(result.nextCursor).toBeNull()
+    })
+
+    it('returns an empty rows array when the DB returns null data', async () => {
+      mockAdmin()
+      mockAdminFrom.mockReturnValue(buildChain(null))
+
+      const result = await listInternalExamAttempts()
+
+      expect(result.rows).toEqual([])
+      expect(result.nextCursor).toBeNull()
+    })
+  })
+
   describe('error propagation', () => {
     it('throws a sanitized message and logs the raw error when the attempts query fails', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

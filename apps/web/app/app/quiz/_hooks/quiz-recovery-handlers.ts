@@ -17,7 +17,6 @@ export function buildResumeHandler(
   userId: string,
   session: ActiveSession | null,
   setError: SetState<string | null>,
-  setSession: SetState<ActiveSession | null>,
   router: AppRouterInstance,
 ) {
   return function handleResume() {

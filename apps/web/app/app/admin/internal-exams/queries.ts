@@ -1,19 +1,12 @@
 import { adminClient } from '@repo/db/admin'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { clampLimit } from './pagination'
 import type {
   ExamSubjectOption,
   InternalExamCodeRow,
   InternalExamCodeStatus,
   ListCodesFilters,
 } from './types'
-
-const DEFAULT_LIMIT = 50
-const MAX_LIMIT = 200
-
-function clampLimit(limit?: number): number {
-  if (typeof limit !== 'number' || limit <= 0) return DEFAULT_LIMIT
-  return Math.min(limit, MAX_LIMIT)
-}
 
 function deriveStatus(row: {
   consumed_at: string | null

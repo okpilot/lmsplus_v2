@@ -53,7 +53,7 @@ let setSession: ReturnType<typeof vi.fn<(v: ActiveSession | null) => void>>
 let setLoading: ReturnType<typeof vi.fn<(v: boolean) => void>>
 // Router param type taken straight from the builder so the mock satisfies the full
 // AppRouterInstance shape (push/refresh are used; back/forward/replace/prefetch are stubs).
-let router: Parameters<typeof buildResumeHandler>[4]
+let router: Parameters<typeof buildResumeHandler>[3]
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -85,7 +85,7 @@ beforeEach(() => {
 
 describe('buildResumeHandler', () => {
   it('does nothing when there is no active session', () => {
-    const handle = buildResumeHandler('user-1', null, setError, setSession, router)
+    const handle = buildResumeHandler('user-1', null, setError, router)
     handle()
     expect(mockClearActiveSession).not.toHaveBeenCalled()
     expect(router.push).not.toHaveBeenCalled()
@@ -98,7 +98,7 @@ describe('buildResumeHandler', () => {
     })
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    const handle = buildResumeHandler('user-1', session, setError, setSession, router)
+    const handle = buildResumeHandler('user-1', session, setError, router)
     handle()
 
     expect(setError).toHaveBeenCalledWith('Unable to resume right now. Please try again.')
@@ -109,7 +109,7 @@ describe('buildResumeHandler', () => {
 
   it('clears the active session and navigates to the quiz session page on success', () => {
     const session = makeSession()
-    const handle = buildResumeHandler('user-1', session, setError, setSession, router)
+    const handle = buildResumeHandler('user-1', session, setError, router)
     handle()
 
     expect(mockClearActiveSession).toHaveBeenCalledWith('user-1')
@@ -118,7 +118,7 @@ describe('buildResumeHandler', () => {
 
   it('does not set an error on success', () => {
     const session = makeSession()
-    const handle = buildResumeHandler('user-1', session, setError, setSession, router)
+    const handle = buildResumeHandler('user-1', session, setError, router)
     handle()
 
     expect(setError).not.toHaveBeenCalled()
@@ -127,7 +127,7 @@ describe('buildResumeHandler', () => {
   it('writes the handoff payload under the user-scoped key', () => {
     const session = makeSession({ userId: 'user-42' })
 
-    buildResumeHandler('user-42', session, setError, setSession, router)()
+    buildResumeHandler('user-42', session, setError, router)()
 
     // Key must be scoped to the user
     expect(mockSessionStorageSetItem.mock.calls[0]?.[0]).toBe('quiz-session:user-42')

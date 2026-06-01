@@ -18,7 +18,7 @@ export function useQuizRecovery(userId: string) {
     setSession(active?.mode === 'exam' ? null : active)
   }, [userId])
 
-  const handleResume = buildResumeHandler(userId, session, setError, setSession, router)
+  const handleResume = buildResumeHandler(userId, session, setError, router)
   const handleSave = buildSaveHandler(
     userId,
     session,
