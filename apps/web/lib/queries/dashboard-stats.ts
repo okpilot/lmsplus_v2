@@ -10,11 +10,12 @@ type SupabaseClient = Awaited<ReturnType<typeof createServerSupabaseClient>>
 
 export async function getQuestionsToday(supabase: SupabaseClient, userId: string): Promise<number> {
   const todayStart = new Date(Date.now()).toISOString().slice(0, 10)
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from('student_responses')
     .select('*', { count: 'exact', head: true })
     .eq('student_id', userId)
     .gte('created_at', todayStart)
+  if (error) throw new Error(`Failed to fetch questions answered today: ${error.message}`)
   return count ?? 0
 }
 
