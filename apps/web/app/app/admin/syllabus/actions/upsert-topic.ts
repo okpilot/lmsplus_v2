@@ -22,13 +22,18 @@ export async function upsertTopic(input: unknown): Promise<ActionResult> {
     }
   } else {
     // Compute sort_order server-side to avoid stale-prop collisions on rapid adds
-    const { data: maxRow } = await supabase
+    const { data: maxRow, error: maxRowError } = await supabase
       .from('easa_topics')
       .select('sort_order')
       .eq('subject_id', data.subject_id)
       .order('sort_order', { ascending: false })
       .limit(1)
       .single<{ sort_order: number }>()
+    // PGRST116 (no rows) is the expected first-insert case — only a real error is a failure.
+    if (maxRowError && maxRowError.code !== 'PGRST116') {
+      console.error('[upsertTopic] sort_order lookup error:', maxRowError.message)
+      return { success: false, error: 'Failed to create topic' }
+    }
     data.sort_order = (maxRow?.sort_order ?? -1) + 1
 
     // @ts-expect-error TS2769: row type resolves to `never` due to TypeScript inference depth limit

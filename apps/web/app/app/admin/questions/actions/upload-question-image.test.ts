@@ -178,6 +178,39 @@ describe('uploadQuestionImage', () => {
       if (result.success) return
       expect(result.error).toBe('Image upload failed')
     })
+
+    it('returns failure and logs when the org lookup query returns an error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const mocks = buildStorageMock({ error: null })
+      // Override: org lookup returns an error
+      const fromTable = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'relation not found' },
+            }),
+          }),
+        }),
+      })
+      mockRequireAdmin.mockResolvedValue({
+        supabase: { storage: mocks.storage, from: fromTable },
+        userId: 'admin-user-1',
+      })
+
+      const file = makeFile()
+      const result = await uploadQuestionImage(makeFormData(file))
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Could not resolve organization')
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[uploadQuestionImage] org lookup error:',
+        'relation not found',
+      )
+      consoleSpy.mockRestore()
+    })
   })
 
   describe('auth guard', () => {
