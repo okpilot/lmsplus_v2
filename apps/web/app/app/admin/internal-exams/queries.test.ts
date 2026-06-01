@@ -10,7 +10,8 @@ vi.mock('@repo/db/admin', () => ({ adminClient: { from: mockAdminFrom } }))
 
 // ---- Subject under test ---------------------------------------------------
 
-import { listInternalExamAttempts, listInternalExamCodes } from './queries'
+import { listInternalExamAttempts } from './attempts-queries'
+import { listInternalExamCodes } from './queries'
 
 // ---- Helpers ---------------------------------------------------------------
 
