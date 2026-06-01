@@ -77,10 +77,10 @@ export async function getDashboardStudents(
     email: string
     last_active_at: string | null
     deleted_at: string | null
-    session_count: number
-    avg_score: number | null
-    mastery: number
-    total_count: number
+    session_count: number | string
+    avg_score: number | string | null
+    mastery: number | string
+    total_count: number | string
   }
   const rows = Array.isArray(data) ? (data as Row[]) : []
 
@@ -90,9 +90,9 @@ export async function getDashboardStudents(
     fullName: r.full_name,
     email: r.email,
     lastActiveAt: r.last_active_at,
-    sessionCount: r.session_count ?? 0,
-    avgScore: r.avg_score ?? null,
-    mastery: r.mastery ?? 0,
+    sessionCount: Number(r.session_count ?? 0),
+    avgScore: r.avg_score != null ? Number(r.avg_score) : null,
+    mastery: Number(r.mastery ?? 0),
     isActive: r.deleted_at === null,
     hasRecentActivity: r.last_active_at
       ? new Date(r.last_active_at).getTime() > sevenDaysAgo
@@ -121,8 +121,8 @@ export async function getWeakTopics(): Promise<WeakTopic[]> {
         topic_name: string
         subject_name: string
         subject_short: string
-        avg_score: number
-        student_count: number
+        avg_score: number | string
+        student_count: number | string
       }>)
     : []
 
@@ -131,8 +131,8 @@ export async function getWeakTopics(): Promise<WeakTopic[]> {
     topicName: row.topic_name,
     subjectName: row.subject_name,
     subjectShort: row.subject_short,
-    avgScore: row.avg_score,
-    studentCount: row.student_count,
+    avgScore: Number(row.avg_score),
+    studentCount: Number(row.student_count),
   }))
 }
 
@@ -163,7 +163,7 @@ export async function getRecentSessions(range: TimeRange): Promise<RecentSession
     ? (data as Array<{
         id: string
         mode: string
-        score_percentage: number | null
+        score_percentage: number | string | null
         ended_at: string
         users: { full_name: string | null } | null
         easa_subjects: { name: string } | null
@@ -175,7 +175,7 @@ export async function getRecentSessions(range: TimeRange): Promise<RecentSession
     studentName: row.users?.full_name ?? null,
     subjectName: row.easa_subjects?.name ?? null,
     mode: row.mode,
-    scorePercentage: row.score_percentage,
+    scorePercentage: row.score_percentage != null ? Number(row.score_percentage) : null,
     endedAt: row.ended_at,
   }))
 }

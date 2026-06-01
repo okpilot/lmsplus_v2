@@ -192,6 +192,27 @@ describe('getSyllabusTree', () => {
     }
   })
 
+  it('coerces string wire value for n to number in question counts', async () => {
+    // PostgREST serialises BIGINT/NUMERIC as JSON strings; verify coercion
+    // in the + Number(row.n) arithmetic so counts accumulate correctly.
+    const subjects = [{ id: 's1', code: '010', name: 'Air Law', short: 'AL', sort_order: 1 }]
+    const topics = [{ id: 't1', subject_id: 's1', code: '010-01', name: 'ICAO', sort_order: 1 }]
+    const subtopics = [
+      { id: 'st1', topic_id: 't1', code: '010-01-01', name: 'Aims', sort_order: 1 },
+    ]
+    // Simulate PostgREST returning n as a string '5'
+    const countRows = [{ subject_id: 's1', topic_id: 't1', subtopic_id: 'st1', n: '5' }]
+
+    mockAllFrom(subjects, topics, subtopics, countRows)
+
+    const tree = await getSyllabusTree()
+
+    expect(tree[0]!.questionCount).toBe(5)
+    expect(typeof tree[0]!.questionCount).toBe('number')
+    expect(tree[0]!.topics[0]!.questionCount).toBe(5)
+    expect(tree[0]!.topics[0]!.subtopics[0]!.questionCount).toBe(5)
+  })
+
   it('reflects the full question count when the bank exceeds the PostgREST 1000-row cap', async () => {
     const subjects = [
       { id: 's1', code: '010', name: 'Air Law', short: 'AL', sort_order: 1 },

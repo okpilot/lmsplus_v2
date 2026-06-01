@@ -54,7 +54,7 @@ type AttemptRowRaw = {
   ended_at: string | null
   total_questions: number | null
   correct_count: number | null
-  score_percentage: number | null
+  score_percentage: number | string | null
   passed: boolean | null
   easa_subjects: { name: string | null } | null
   users: { full_name: string | null; email: string | null } | null
@@ -224,7 +224,7 @@ export async function listInternalExamAttempts(
     endedAt: r.ended_at,
     totalQuestions: r.total_questions,
     correctCount: r.correct_count,
-    scorePercentage: r.score_percentage,
+    scorePercentage: r.score_percentage != null ? Number(r.score_percentage) : null,
     passed: r.passed,
     voidReason: r.internal_exam_codes?.[0]?.void_reason ?? null,
   }))
