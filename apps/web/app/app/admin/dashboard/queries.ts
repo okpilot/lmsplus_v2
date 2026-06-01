@@ -39,7 +39,12 @@ export async function getDashboardKpis(range: TimeRange): Promise<DashboardKpis>
   const ws = json.weakestSubject
   const weakestSubject =
     ws !== null && typeof ws === 'object' && 'name' in ws && 'short' in ws && 'avgMastery' in ws
-      ? (ws as { name: string; short: string; avgMastery: number })
+      ? {
+          name: ws.name as string,
+          short: ws.short as string,
+          // avgMastery is a NUMERIC inside the JSON payload → arrives as a string; coerce it.
+          avgMastery: Number((ws as { avgMastery: unknown }).avgMastery) || 0,
+        }
       : null
   return {
     activeStudents: Number(json.activeStudents) || 0,

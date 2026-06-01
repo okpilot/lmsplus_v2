@@ -368,6 +368,27 @@ describe('getDashboardKpis', () => {
     })
   })
 
+  it('coerces a string weakestSubject.avgMastery wire value to a number', async () => {
+    // PostgREST serializes the NUMERIC avgMastery inside the JSON payload as a string.
+    mockAuthRpc.mockResolvedValue({
+      data: {
+        activeStudents: 10,
+        totalStudents: 20,
+        avgMastery: '65.5',
+        sessionsThisPeriod: 42,
+        weakestSubject: { name: 'Meteorology', short: 'MET', avgMastery: '45' },
+        examReadyStudents: 3,
+      },
+      error: null,
+    })
+
+    const result = await getDashboardKpis('30d')
+
+    expect(result.avgMastery).toBe(65.5)
+    expect(result.weakestSubject?.avgMastery).toBe(45)
+    expect(typeof result.weakestSubject?.avgMastery).toBe('number')
+  })
+
   it('defaults numeric fields to 0 and weakestSubject to null when RPC returns empty object', async () => {
     mockAuthRpc.mockResolvedValue({ data: {}, error: null })
 
