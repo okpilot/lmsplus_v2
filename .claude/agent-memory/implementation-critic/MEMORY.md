@@ -45,6 +45,10 @@
 
 - **GROUP 1 real-error tests omit console.error assertion.** upsert-subject/topic/subtopic real-error tests assert `result.success === false` + `result.error` message but don't spy on/assert `console.error`. Production code does call it. Not flagged as ISSUE (plan only required the two behavioral outcomes); flagged as SUGGESTION. Pattern: when production code has a side-effect (logging), tests covering that path may not verify the side-effect. Consider whether this is a recurring blind spot.
 
+## Positive patterns
+
+- **Migration metadata-key rename via CREATE OR REPLACE copy (#570, 2026-06-01).** The plan specified: full byte-copy of the latest migration, change only the header comment + the two metadata keys, mirror to both dirs. Implementation was exact — diff 078→082 showed only 3 lines changed, mirror diff was empty. Zero-deviation execution on a "surgical change to a large SQL function" plan. The minimal-change plan approach (vs in-place edit of 078) is a sound strategy for audit-sensitive RPCs; reinforces that the migration copy approach is the right pattern for this class of fix.
+
 ## False positives (do not re-raise)
 
 - `avg_score` / mastery RPCs return NULL (no COALESCE) for students with no sessions — intentional; app type is `number | null`, UI guards `!== null`.
