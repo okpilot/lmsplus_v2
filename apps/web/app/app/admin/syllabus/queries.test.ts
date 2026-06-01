@@ -213,6 +213,21 @@ describe('getSyllabusTree', () => {
     expect(tree[0]!.topics[0]!.subtopics[0]!.questionCount).toBe(5)
   })
 
+  it('accumulates multiple string count rows by numeric addition, not string concat', async () => {
+    // Two string-n rows for the same subject must sum to 5 (Number), not '32' (concat) or NaN.
+    const subjects = [{ id: 's1', code: '010', name: 'Air Law', short: 'AL', sort_order: 1 }]
+    const countRows = [
+      { subject_id: 's1', topic_id: null, subtopic_id: null, n: '3' },
+      { subject_id: 's1', topic_id: null, subtopic_id: null, n: '2' },
+    ]
+
+    mockAllFrom(subjects, [], [], countRows)
+
+    const tree = await getSyllabusTree()
+
+    expect(tree[0]!.questionCount).toBe(5)
+  })
+
   it('reflects the full question count when the bank exceeds the PostgREST 1000-row cap', async () => {
     const subjects = [
       { id: 's1', code: '010', name: 'Air Law', short: 'AL', sort_order: 1 },
