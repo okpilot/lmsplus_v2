@@ -188,7 +188,7 @@ reviews:
         - Paginated-fetch page-error test: any caller of fetchAllRows (or a multi-fetch
           / .range() pagination helper) must have a co-located test asserting a page-fetch
           error AFTER a successful count propagates. Two setups: (1) real helper with mocked
-          queries (count succeeds, first page returns { data: null, error }), or (2) fetchAllRows
+          queries (count succeeds with a non-zero total, first page returns { data: null, error }), or (2) fetchAllRows
           mocked as a dependency returning { data: [], error }. Assert the caller surfaces the
           error (returns { data: [], error }, throws, or logs + degrades). Guards against a
           silently-truncated result that looks complete (e.g. an incomplete GDPR export).
