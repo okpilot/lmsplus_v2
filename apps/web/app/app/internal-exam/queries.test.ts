@@ -306,7 +306,7 @@ describe('listMyInternalExamHistory', () => {
     expect(result).toEqual([])
   })
 
-  it('coerces string wire value for score_percentage to number via asNullableNumber', async () => {
+  it('converts a numeric-string score_percentage from the wire into a JavaScript number', async () => {
     // PostgREST serialises NUMERIC as a JSON string; asNullableNumber must accept
     // a numeric string and return the parsed float.
     mockRpc.mockResolvedValue({
