@@ -73,13 +73,7 @@ function buildChain(returnValue: unknown) {
   return new Proxy(awaitable, {
     get(target, prop) {
       if (prop === 'then') return target.then
-      return (..._args: unknown[]) =>
-        new Proxy(awaitable, {
-          get(t, p) {
-            if (p === 'then') return t.then
-            return (...__args: unknown[]) => buildChain(returnValue)
-          },
-        })
+      return (..._args: unknown[]) => buildChain(returnValue)
     },
   })
 }
