@@ -21,7 +21,7 @@ type Props = {
   onOpenChange: (open: boolean) => void
 }
 
-export function VoidCodeDialog({ codeId, open, onOpenChange }: Readonly<Props>) {
+export function VoidCodeDialog({ codeId, open, onOpenChange }: Props) {
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
