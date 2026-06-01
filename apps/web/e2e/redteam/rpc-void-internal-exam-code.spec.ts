@@ -7,6 +7,8 @@
  *  - BN(2) student → not_admin
  *  - BO    cross-org admin → code_not_found (existence-hiding)
  *  - BP    consumed + finished session → cannot_void_finished_attempt
+ *  - CD    consumed code, linked session soft-deleted before void →
+ *          session_state_changed (fail-fast, code NOT voided — mig 084)
  *  - positive — consumed + active session ends with passed=false.
  */
 
@@ -250,5 +252,40 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     expect(codeRow?.voided_at).not.toBeNull()
     expect(codeRow?.voided_by).toBe(adminUserId)
     expect(codeRow?.void_reason).toBe('positive path')
+  })
+
+  test('voiding a consumed code whose session was soft-deleted raises session_state_changed (Vector CD)', async () => {
+    const sessionId = await session()
+    const code = await codeForSession(sessionId)
+
+    // Session vanishes between consume and void (service-role soft-delete
+    // simulates an admin/cleanup path or org drift). The org-scoped
+    // SELECT ... FOR UPDATE then finds no row → fail-fast (mig 084) instead
+    // of silently voiding the code on a phantom session.
+    const { data: deleted, error: delErr } = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', sessionId)
+      .is('deleted_at', null)
+      .select('id')
+    if (delErr) throw new Error(`soft-delete session: ${delErr.message}`)
+    expect(deleted?.length ?? 0).toBe(1)
+
+    const { data, error } = await adminClientAuthed.rpc('void_internal_exam_code', {
+      p_code_id: code.id,
+      p_reason: 'void on soft-deleted session',
+    })
+
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/session_state_changed/i)
+    expect(data).toBeNull()
+
+    // Fail-fast aborts the whole RPC — the code must NOT have been voided.
+    const { data: codeRow } = await admin
+      .from('internal_exam_codes')
+      .select('voided_at')
+      .eq('id', code.id)
+      .single()
+    expect(codeRow?.voided_at ?? null).toBeNull()
   })
 })
