@@ -651,4 +651,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-04-30*
+*Last updated: 2026-06-01*
