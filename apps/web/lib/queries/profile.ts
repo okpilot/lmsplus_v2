@@ -58,6 +58,11 @@ async function getProfile(supabase: SupabaseClient, userId: string) {
 
   if (error || !data) throw new Error('Failed to load profile')
 
+  // Org name is a non-critical display field (nullable). Unlike the page-critical
+  // reads above, an org lookup failure logs + degrades to `organizationName: null`
+  // rather than throwing — a missing org must not break the whole profile page.
+  // PGRST116 (org soft-deleted → no row after the deleted_at filter) is a valid
+  // empty state, not an error, so it is exempt from the log.
   const { data: org, error: orgError } = await supabase
     .from('organizations')
     .select('name')

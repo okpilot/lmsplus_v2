@@ -366,7 +366,7 @@ if (error && error.code !== 'PGRST116') {
   console.error('[upsertSubject] sort_order lookup error:', error.message)
   return { success: false, error: 'Failed to create subject' }
 }
-data.sort_order = (maxRow?.sort_order ?? -1) + 1
+const sortOrder = (maxRow?.sort_order ?? -1) + 1
 ```
 
 **Exception:** read-only test/setup helpers may wrap multiple chained reads in a single try/catch when the entire setup is atomic.
