@@ -390,6 +390,8 @@ describe('getDashboardData', () => {
       streak: [{ current_streak: 0, best_streak: 0 }],
       lastPracticed: [],
     })
+    // getTotalAnswered and getQuestionsToday both read student_responses under the same
+    // Promise.all, so either may reject first — match the shared prefix, not a specific message.
     await expect(getDashboardData()).rejects.toThrow(/Failed to fetch/)
   })
 

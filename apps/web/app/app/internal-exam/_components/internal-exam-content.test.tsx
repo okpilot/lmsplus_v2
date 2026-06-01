@@ -74,4 +74,15 @@ describe('InternalExamContent', () => {
 
     expect(screen.queryByRole('alert')).toBeNull()
   })
+
+  it('still renders the tabs when both queries succeed with empty data', async () => {
+    // success:true, data:[] — genuinely empty result must not suppress the tabs
+    // (the tabs render an "enrol" prompt for the student when there are no exams)
+
+    const jsx = await InternalExamContent({ userId: 'u1' })
+    render(jsx)
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByTestId('internal-exam-tabs')).toBeInTheDocument()
+  })
 })
