@@ -198,6 +198,40 @@ test.describe('Red Team: Audit Event Completeness', () => {
     ).toBeGreaterThan(0)
   }
 
+  // #570: batch_submit_quiz writes ONE shared metadata object for both its
+  // completion event_types (exam.completed / internal_exam.completed). Locks
+  // the canonical *_count key schema so a future CREATE OR REPLACE can't
+  // silently revert either branch to the bare 'answered'/'correct' keys.
+  async function expectCompletionMetadata(opts: {
+    eventType: string
+    actorId: string
+    testStart: string
+    sessionId: string
+  }) {
+    const { eventType, actorId, testStart, sessionId } = opts
+    const { data, error } = await admin
+      .from('audit_events')
+      .select('metadata')
+      .eq('event_type', eventType)
+      .eq('actor_id', actorId)
+      .eq('resource_id', sessionId)
+      .gte('created_at', testStart)
+    expect(error, `${eventType} metadata query error`).toBeNull()
+    const meta = (data?.[0]?.metadata ?? {}) as Record<string, unknown>
+    expect(meta, `${eventType} metadata should expose answered_count`).toHaveProperty(
+      'answered_count',
+    )
+    expect(meta, `${eventType} metadata should expose correct_count`).toHaveProperty(
+      'correct_count',
+    )
+    expect(meta, `${eventType} metadata must not use the legacy 'answered' key`).not.toHaveProperty(
+      'answered',
+    )
+    expect(meta, `${eventType} metadata must not use the legacy 'correct' key`).not.toHaveProperty(
+      'correct',
+    )
+  }
+
   async function backdateSession(sessionId: string): Promise<void> {
     // 60s time_limit, started 91s ago → past the 30s grace, on next
     // batch_submit_quiz the RPC writes the *expired audit and ends the session.
@@ -292,33 +326,12 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(submitErr).toBeNull()
 
     await expectAuditRow('exam.completed', studentUserId, testStart, sessionId)
-
-    // #570: the completion audit metadata must use the canonical *_count keys,
-    // aligned with the other exam-lifecycle RPCs. Lock the schema so a future
-    // CREATE OR REPLACE can't silently revert to the bare 'answered'/'correct'.
-    const { data: completedRows, error: completedErr } = await admin
-      .from('audit_events')
-      .select('metadata')
-      .eq('event_type', 'exam.completed')
-      .eq('actor_id', studentUserId)
-      .eq('resource_id', sessionId)
-      .gte('created_at', testStart)
-    expect(completedErr, 'exam.completed metadata query error').toBeNull()
-    const completedMeta = (completedRows?.[0]?.metadata ?? {}) as Record<string, unknown>
-    expect(completedMeta, 'exam.completed metadata should expose answered_count').toHaveProperty(
-      'answered_count',
-    )
-    expect(completedMeta, 'exam.completed metadata should expose correct_count').toHaveProperty(
-      'correct_count',
-    )
-    expect(
-      completedMeta,
-      "exam.completed metadata must not use the legacy 'answered' key",
-    ).not.toHaveProperty('answered')
-    expect(
-      completedMeta,
-      "exam.completed metadata must not use the legacy 'correct' key",
-    ).not.toHaveProperty('correct')
+    await expectCompletionMetadata({
+      eventType: 'exam.completed',
+      actorId: studentUserId,
+      testStart,
+      sessionId,
+    })
   })
 
   test('writes exam.expired when mock_exam session is past the grace period', async () => {
@@ -410,6 +423,12 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect((submitData as { expired?: boolean } | null)?.expired).not.toBe(true)
 
     await expectAuditRow('internal_exam.completed', studentUserId, testStart, sessionId)
+    await expectCompletionMetadata({
+      eventType: 'internal_exam.completed',
+      actorId: studentUserId,
+      testStart,
+      sessionId,
+    })
   })
 
   test('writes internal_exam.expired when internal_exam session is past the grace period', async () => {

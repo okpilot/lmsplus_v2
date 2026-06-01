@@ -1255,7 +1255,7 @@ END;
 $$;
 ```
 
-**Audit metadata keys (migration 082):** The completion audit event records `answered_count` and `correct_count` — aligned with `complete_overdue_exam_session`, `start_exam_session`, and `complete_empty_exam_session`, which all use the `*_count` form. Migrations before 082 wrote the bare keys `answered` / `correct` for this one RPC; historical `audit_events` rows retain those keys (the table is append-only — security.md rule 5 — so they are not rewritten). No code or red-team spec reads either key.
+**Audit metadata keys (migration 082):** The completion audit event records `answered_count` and `correct_count` — aligned with the other exam-outcome events `complete_overdue_exam_session` and `complete_empty_exam_session`, which use the `*_count` form. (`start_exam_session` emits `exam.started` with pre-answer metadata only — no answer counts.) Migrations before 082 wrote the bare keys `answered` / `correct` for this one RPC; historical `audit_events` rows retain those keys (the table is append-only — security.md rule 5 — so they are not rewritten). No code or red-team spec reads either key.
 
 **`exam.completed` event_type disambiguation (#571):** `exam.completed` is emitted by **two** RPCs and one event_type covers two distinct outcomes:
 - `batch_submit_quiz` — a full answer submission. Metadata carries real `answered_count` / `correct_count` / `score` and has **no** `reason` key.
