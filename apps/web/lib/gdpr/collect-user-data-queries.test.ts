@@ -1,7 +1,17 @@
 import type { Database } from '@repo/db/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { type AnswerRow, fetchUserSessionAnswers } from './collect-user-data-queries'
+import {
+  type AnswerRow,
+  fetchUserAuditEvents,
+  fetchUserComments,
+  fetchUserConsents,
+  fetchUserFlaggedQuestions,
+  fetchUserFsrsCards,
+  fetchUserResponses,
+  fetchUserSessionAnswers,
+  fetchUserSessions,
+} from './collect-user-data-queries'
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -133,5 +143,90 @@ describe('fetchUserSessionAnswers', () => {
     expect(mockFetchAllRows).toHaveBeenCalledTimes(2)
     expect(result.data).toHaveLength(2000)
     expect(result.error).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Page-error propagation tests for the seven simple fetchUser* functions
+// (code-style.md §7 "Paginated Fetch Needs a Caller-Level Page-Error Test").
+//
+// These tests use the module-level mockFetchAllRows mock. Each test simulates
+// the page-error path: fetchAllRows returns { data: [], error } (which is what
+// it returns when a page query fails after a successful count — see
+// supabase-paginate.test.ts for the full internal path). The caller-level
+// assertion is that the error propagates unchanged and data is empty.
+// ---------------------------------------------------------------------------
+
+const USER_ID = 'bbbbbbbb-0000-4000-b000-000000000001'
+
+const PAGE_ERROR = { message: 'page-level DB timeout' }
+
+describe('fetchUserSessions', () => {
+  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
+
+    const result = await fetchUserSessions(fakeClient, USER_ID)
+
+    expect(result).toEqual({ data: [], error: PAGE_ERROR })
+  })
+})
+
+describe('fetchUserResponses', () => {
+  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
+
+    const result = await fetchUserResponses(fakeClient, USER_ID)
+
+    expect(result).toEqual({ data: [], error: PAGE_ERROR })
+  })
+})
+
+describe('fetchUserFsrsCards', () => {
+  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
+
+    const result = await fetchUserFsrsCards(fakeClient, USER_ID)
+
+    expect(result).toEqual({ data: [], error: PAGE_ERROR })
+  })
+})
+
+describe('fetchUserFlaggedQuestions', () => {
+  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
+
+    const result = await fetchUserFlaggedQuestions(fakeClient, USER_ID)
+
+    expect(result).toEqual({ data: [], error: PAGE_ERROR })
+  })
+})
+
+describe('fetchUserComments', () => {
+  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
+
+    const result = await fetchUserComments(fakeClient, USER_ID)
+
+    expect(result).toEqual({ data: [], error: PAGE_ERROR })
+  })
+})
+
+describe('fetchUserConsents', () => {
+  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
+
+    const result = await fetchUserConsents(fakeClient, USER_ID)
+
+    expect(result).toEqual({ data: [], error: PAGE_ERROR })
+  })
+})
+
+describe('fetchUserAuditEvents', () => {
+  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
+    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
+
+    const result = await fetchUserAuditEvents(fakeClient, USER_ID)
+
+    expect(result).toEqual({ data: [], error: PAGE_ERROR })
   })
 })
