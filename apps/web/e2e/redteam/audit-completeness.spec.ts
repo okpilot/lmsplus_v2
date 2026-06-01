@@ -6,7 +6,8 @@
  * internal_exam.started/.code_issued/.code_voided/.expired. Negative gates
  * (forgery, tamper, delete) live in audit-event-forgery.spec.ts.
  *
- * Scope: event_type + actor_id only (metadata-shape coupling tracked in #570).
+ * Scope: event_type + actor_id, plus the exam.completed metadata-key schema
+ * (answered_count/correct_count, not the legacy answered/correct — #570).
  * Each test captures testStart BEFORE the trigger, filters created_at >= testStart
  * so parallel specs don't pollute counts. Backdating uses service-role
  * (exempt from quiz_sessions immutable-columns trigger, mig 20260502000001).
@@ -291,6 +292,33 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(submitErr).toBeNull()
 
     await expectAuditRow('exam.completed', studentUserId, testStart, sessionId)
+
+    // #570: the completion audit metadata must use the canonical *_count keys,
+    // aligned with the other exam-lifecycle RPCs. Lock the schema so a future
+    // CREATE OR REPLACE can't silently revert to the bare 'answered'/'correct'.
+    const { data: completedRows, error: completedErr } = await admin
+      .from('audit_events')
+      .select('metadata')
+      .eq('event_type', 'exam.completed')
+      .eq('actor_id', studentUserId)
+      .eq('resource_id', sessionId)
+      .gte('created_at', testStart)
+    expect(completedErr, 'exam.completed metadata query error').toBeNull()
+    const completedMeta = (completedRows?.[0]?.metadata ?? {}) as Record<string, unknown>
+    expect(completedMeta, 'exam.completed metadata should expose answered_count').toHaveProperty(
+      'answered_count',
+    )
+    expect(completedMeta, 'exam.completed metadata should expose correct_count').toHaveProperty(
+      'correct_count',
+    )
+    expect(
+      completedMeta,
+      "exam.completed metadata must not use the legacy 'answered' key",
+    ).not.toHaveProperty('answered')
+    expect(
+      completedMeta,
+      "exam.completed metadata must not use the legacy 'correct' key",
+    ).not.toHaveProperty('correct')
   })
 
   test('writes exam.expired when mock_exam session is past the grace period', async () => {
