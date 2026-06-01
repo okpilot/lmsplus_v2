@@ -193,8 +193,7 @@ describe('getSyllabusTree', () => {
   })
 
   it('coerces string wire value for n to number in question counts', async () => {
-    // PostgREST serialises BIGINT/NUMERIC as JSON strings; verify coercion
-    // in the + Number(row.n) arithmetic so counts accumulate correctly.
+    // PostgREST serialises BIGINT/NUMERIC as JSON strings.
     const subjects = [{ id: 's1', code: '010', name: 'Air Law', short: 'AL', sort_order: 1 }]
     const topics = [{ id: 't1', subject_id: 's1', code: '010-01', name: 'ICAO', sort_order: 1 }]
     const subtopics = [
@@ -214,7 +213,6 @@ describe('getSyllabusTree', () => {
   })
 
   it('accumulates multiple string count rows by numeric addition, not string concat', async () => {
-    // Two string-n rows for the same subject must sum to 5 (Number), not '32' (concat) or NaN.
     const subjects = [{ id: 's1', code: '010', name: 'Air Law', short: 'AL', sort_order: 1 }]
     const countRows = [
       { subject_id: 's1', topic_id: null, subtopic_id: null, n: '3' },
