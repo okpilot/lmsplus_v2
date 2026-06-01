@@ -161,71 +161,21 @@ const USER_ID = 'bbbbbbbb-0000-4000-b000-000000000001'
 
 const PAGE_ERROR = { message: 'page-level DB timeout' }
 
-describe('fetchUserSessions', () => {
+// All seven are pure `return fetchAllRows(...)` pass-throughs, so one parameterized
+// suite proves the shared propagation contract (the function name is in describe()).
+describe.each([
+  ['fetchUserSessions', fetchUserSessions],
+  ['fetchUserResponses', fetchUserResponses],
+  ['fetchUserFsrsCards', fetchUserFsrsCards],
+  ['fetchUserFlaggedQuestions', fetchUserFlaggedQuestions],
+  ['fetchUserComments', fetchUserComments],
+  ['fetchUserConsents', fetchUserConsents],
+  ['fetchUserAuditEvents', fetchUserAuditEvents],
+] as const)('%s', (_name, fetchFn) => {
   it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
     mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
 
-    const result = await fetchUserSessions(fakeClient, USER_ID)
-
-    expect(result).toEqual({ data: [], error: PAGE_ERROR })
-  })
-})
-
-describe('fetchUserResponses', () => {
-  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
-    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
-
-    const result = await fetchUserResponses(fakeClient, USER_ID)
-
-    expect(result).toEqual({ data: [], error: PAGE_ERROR })
-  })
-})
-
-describe('fetchUserFsrsCards', () => {
-  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
-    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
-
-    const result = await fetchUserFsrsCards(fakeClient, USER_ID)
-
-    expect(result).toEqual({ data: [], error: PAGE_ERROR })
-  })
-})
-
-describe('fetchUserFlaggedQuestions', () => {
-  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
-    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
-
-    const result = await fetchUserFlaggedQuestions(fakeClient, USER_ID)
-
-    expect(result).toEqual({ data: [], error: PAGE_ERROR })
-  })
-})
-
-describe('fetchUserComments', () => {
-  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
-    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
-
-    const result = await fetchUserComments(fakeClient, USER_ID)
-
-    expect(result).toEqual({ data: [], error: PAGE_ERROR })
-  })
-})
-
-describe('fetchUserConsents', () => {
-  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
-    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
-
-    const result = await fetchUserConsents(fakeClient, USER_ID)
-
-    expect(result).toEqual({ data: [], error: PAGE_ERROR })
-  })
-})
-
-describe('fetchUserAuditEvents', () => {
-  it('surfaces a page-fetch error as { data: [], error } when count succeeds but page fails', async () => {
-    mockFetchAllRows.mockResolvedValueOnce({ data: [], error: PAGE_ERROR })
-
-    const result = await fetchUserAuditEvents(fakeClient, USER_ID)
+    const result = await fetchFn(fakeClient, USER_ID)
 
     expect(result).toEqual({ data: [], error: PAGE_ERROR })
   })
