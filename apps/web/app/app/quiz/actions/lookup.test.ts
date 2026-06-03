@@ -108,6 +108,18 @@ describe('fetchTopicsForSubject', () => {
     consoleSpy.mockRestore()
   })
 
+  it('returns empty array and logs when the underlying helper throws', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetTopicsForSubject.mockRejectedValue(new Error('DB connection lost'))
+    const result = await fetchTopicsForSubject(SUBJECT_ID)
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchTopicsForSubject] query error:',
+      'DB connection lost',
+    )
+    consoleSpy.mockRestore()
+  })
+
   it('redirects to login when unauthenticated', async () => {
     mockRequireAuthUser.mockRejectedValue(new Error('NEXT_REDIRECT:/auth/login'))
     await expect(fetchTopicsForSubject(SUBJECT_ID)).rejects.toThrow('NEXT_REDIRECT')
@@ -143,6 +155,15 @@ describe('fetchSubtopicsForTopic', () => {
     const result = await fetchSubtopicsForTopic(null)
     expect(result).toEqual([])
     expect(consoleSpy).toHaveBeenCalledWith('[fetchSubtopicsForTopic] Invalid input')
+    consoleSpy.mockRestore()
+  })
+
+  it('returns empty array and logs when the underlying helper throws', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetSubtopicsForTopic.mockRejectedValue(new Error('RPC timeout'))
+    const result = await fetchSubtopicsForTopic(TOPIC_ID)
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith('[fetchSubtopicsForTopic] query error:', 'RPC timeout')
     consoleSpy.mockRestore()
   })
 
@@ -528,6 +549,18 @@ describe('fetchTopicsWithSubtopics', () => {
     const result = await fetchTopicsWithSubtopics(null)
     expect(result).toEqual([])
     expect(consoleSpy).toHaveBeenCalledWith('[fetchTopicsWithSubtopics] Invalid input')
+    consoleSpy.mockRestore()
+  })
+
+  it('returns empty array and logs when the underlying helper throws', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetTopicsWithSubtopics.mockRejectedValue(new Error('subtopics query failed'))
+    const result = await fetchTopicsWithSubtopics(SUBJECT_ID)
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[fetchTopicsWithSubtopics] query error:',
+      'subtopics query failed',
+    )
     consoleSpy.mockRestore()
   })
 

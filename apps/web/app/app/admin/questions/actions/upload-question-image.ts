@@ -25,12 +25,16 @@ export async function uploadQuestionImage(formData: FormData): Promise<UploadRes
   const { supabase, userId } = await requireAdmin()
 
   // Resolve org for path-based tenant isolation in storage policies
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('organization_id')
     .eq('id', userId)
     .single<{ organization_id: string }>()
 
+  if (profileError) {
+    console.error('[uploadQuestionImage] org lookup error:', profileError.message)
+    return { success: false, error: 'Could not resolve organization' }
+  }
   if (!profile?.organization_id) {
     return { success: false, error: 'Could not resolve organization' }
   }
