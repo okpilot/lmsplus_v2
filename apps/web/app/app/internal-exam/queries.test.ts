@@ -37,7 +37,7 @@ describe('listAvailableInternalExams', () => {
   it('returns an empty array when no user is authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
     const result = await listAvailableInternalExams()
-    expect(result).toEqual([])
+    expect(result).toEqual({ success: true, data: [] })
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
@@ -58,18 +58,21 @@ describe('listAvailableInternalExams', () => {
 
     const result = await listAvailableInternalExams()
 
-    expect(result).toEqual([
-      {
-        id: 'code-1',
-        subjectId: 'sub-1',
-        subjectName: 'Air Law',
-        subjectShort: 'ALW',
-        expiresAt: '2026-05-01T12:00:00.000Z',
-        issuedAt: '2026-04-29T12:00:00.000Z',
-      },
-    ])
+    expect(result).toEqual({
+      success: true,
+      data: [
+        {
+          id: 'code-1',
+          subjectId: 'sub-1',
+          subjectName: 'Air Law',
+          subjectShort: 'ALW',
+          expiresAt: '2026-05-01T12:00:00.000Z',
+          issuedAt: '2026-04-29T12:00:00.000Z',
+        },
+      ],
+    })
     // Privileged: code value must never be on the returned objects
-    for (const entry of result) {
+    for (const entry of result.data) {
       expect(Object.keys(entry)).not.toContain('code')
     }
   })
@@ -94,10 +97,10 @@ describe('listAvailableInternalExams', () => {
 
     const result = await listAvailableInternalExams()
 
-    expect(result).toHaveLength(1)
+    expect(result.data).toHaveLength(1)
     // The privileged code value must NOT appear anywhere in the serialized result.
     expect(JSON.stringify(result)).not.toContain('SECRET-XYZ')
-    const entry = result[0]
+    const entry = result.data[0]
     expect(entry).toBeDefined()
     if (!entry) return
     // The returned shape is fixed and intentionally omits `code`.
@@ -128,26 +131,27 @@ describe('listAvailableInternalExams', () => {
     })
 
     const result = await listAvailableInternalExams()
-    expect(result[0]?.subjectName).toBe('Unknown subject')
-    expect(result[0]?.subjectShort).toBe('')
+    expect(result.data[0]?.subjectName).toBe('Unknown subject')
+    expect(result.data[0]?.subjectShort).toBe('')
   })
 
-  it('returns an empty array on RPC error and logs', async () => {
+  it('returns success:false on RPC error and logs', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
       mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
       const result = await listAvailableInternalExams()
-      expect(result).toEqual([])
+      expect(result.success).toBe(false)
+      expect(result.data).toEqual([])
       expect(consoleSpy).toHaveBeenCalledWith('[listAvailableInternalExams] Query error:', 'boom')
     } finally {
       consoleSpy.mockRestore()
     }
   })
 
-  it('returns an empty array when data is null', async () => {
+  it('returns success:true with empty data when data is null', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
     const result = await listAvailableInternalExams()
-    expect(result).toEqual([])
+    expect(result).toEqual({ success: true, data: [] })
   })
 })
 
@@ -157,7 +161,7 @@ describe('listMyInternalExamHistory', () => {
   it('returns an empty array when no user is authenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
     const result = await listMyInternalExamHistory()
-    expect(result).toEqual([])
+    expect(result).toEqual({ success: true, data: [] })
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
@@ -211,8 +215,8 @@ describe('listMyInternalExamHistory', () => {
 
     const result = await listMyInternalExamHistory()
 
-    expect(result.map((r) => r.id)).toEqual(['sess-3', 'sess-2', 'sess-1'])
-    const byId = new Map(result.map((r) => [r.id, r]))
+    expect(result.data.map((r) => r.id)).toEqual(['sess-3', 'sess-2', 'sess-1'])
+    const byId = new Map(result.data.map((r) => [r.id, r]))
     expect(byId.get('sess-1')?.attemptNumber).toBe(1)
     expect(byId.get('sess-3')?.attemptNumber).toBe(2)
     expect(byId.get('sess-2')?.attemptNumber).toBe(1)
@@ -246,23 +250,24 @@ describe('listMyInternalExamHistory', () => {
     })
 
     const result = await listMyInternalExamHistory()
-    expect(result).toHaveLength(1)
-    expect(result[0]?.answeredCount).toBe(0)
-    expect(result[0]?.passed).toBe(null)
+    expect(result.data).toHaveLength(1)
+    expect(result.data[0]?.answeredCount).toBe(0)
+    expect(result.data[0]?.passed).toBe(null)
   })
 
   it('returns an empty array when no internal exam sessions exist', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null })
     const result = await listMyInternalExamHistory()
-    expect(result).toEqual([])
+    expect(result).toEqual({ success: true, data: [] })
   })
 
-  it('returns an empty array on RPC error', async () => {
+  it('returns success:false on RPC error and logs', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
       mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } })
       const result = await listMyInternalExamHistory()
-      expect(result).toEqual([])
+      expect(result.success).toBe(false)
+      expect(result.data).toEqual([])
       expect(consoleSpy).toHaveBeenCalledWith('[listMyInternalExamHistory] Query error:', 'boom')
     } finally {
       consoleSpy.mockRestore()
@@ -296,14 +301,14 @@ describe('listMyInternalExamHistory', () => {
     })
 
     const result = await listMyInternalExamHistory()
-    expect(result[0]?.subjectName).toBe('Unknown subject')
-    expect(result[0]?.subjectShort).toBe('')
+    expect(result.data[0]?.subjectName).toBe('Unknown subject')
+    expect(result.data[0]?.subjectShort).toBe('')
   })
 
-  it('returns an empty array when data is null and there is no error', async () => {
+  it('returns success:true with empty data when data is null and there is no error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null })
     const result = await listMyInternalExamHistory()
-    expect(result).toEqual([])
+    expect(result).toEqual({ success: true, data: [] })
   })
 
   it('converts a numeric-string score_percentage from the wire into a JavaScript number', async () => {
@@ -330,8 +335,8 @@ describe('listMyInternalExamHistory', () => {
 
     const result = await listMyInternalExamHistory()
 
-    expect(result[0]!.scorePercentage).toBe(73.33)
-    expect(typeof result[0]!.scorePercentage).toBe('number')
+    expect(result.data[0]?.scorePercentage).toBe(73.33)
+    expect(typeof result.data[0]?.scorePercentage).toBe('number')
   })
 
   it('defaults attemptNumber to 1 when the RPC returns 0 for attempt_number', async () => {
@@ -356,6 +361,6 @@ describe('listMyInternalExamHistory', () => {
 
     const result = await listMyInternalExamHistory()
     // asNumber(0) returns 0, then || 1 coerces to 1
-    expect(result[0]?.attemptNumber).toBe(1)
+    expect(result.data[0]?.attemptNumber).toBe(1)
   })
 })
