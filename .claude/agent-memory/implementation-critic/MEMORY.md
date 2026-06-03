@@ -50,6 +50,10 @@
 - **Cached role variable prevents NOT NULL abort on delayed soft-delete.** When a SECURITY DEFINER RPC inserts into `audit_events` (actor_role TEXT NOT NULL), the actor's role must be fetched once into a local variable at authz time — not via repeated inline subqueries later. An inline `(SELECT u.role ... WHERE u.id = v_admin_id AND u.deleted_at IS NULL)` in the INSERT VALUES clause returns NULL if the admin is soft-deleted between the authz check and the audit insert, aborting the whole transaction on the NOT NULL constraint and rolling back an already-authorized mutation. Pattern established in mig 078 (batch_submit), applied to mig 084 (void_internal_exam_code) in PR #731. security.md §10 deleted_at filter is still required on the capturing SELECT — the fix does not relax it, it consolidates it.
 - **NULL-org guard doubles as NULL-role guard when role is fetched on the same SELECT.** After `SELECT u.organization_id, u.role INTO v_admin_org, v_admin_role`, the `IF v_admin_org IS NULL` guard also ensures v_admin_role is non-null (the SELECT either populates both columns from a matching row or yields NULL for both). No separate v_admin_role IS NULL guard is needed.
 
+## Positive patterns
+
+- **Migration metadata-key rename via CREATE OR REPLACE copy (#570, 2026-06-01).** The plan specified: full byte-copy of the latest migration, change only the header comment + the two metadata keys, mirror to both dirs. Implementation was exact — diff 078→082 showed only 3 lines changed, mirror diff was empty. Zero-deviation execution on a "surgical change to a large SQL function" plan. The minimal-change plan approach (vs in-place edit of 078) is a sound strategy for audit-sensitive RPCs; reinforces that the migration copy approach is the right pattern for this class of fix.
+
 ## False positives (do not re-raise)
 
 - `avg_score` / mastery RPCs return NULL (no COALESCE) for students with no sessions — intentional; app type is `number | null`, UI guards `!== null`.

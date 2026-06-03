@@ -1236,8 +1236,8 @@ BEGIN
     p_session_id,
     jsonb_build_object(
       'total_questions', v_total,
-      'answered', v_answered,
-      'correct', v_correct_count,
+      'answered_count', v_answered,
+      'correct_count', v_correct_count,
       'score', v_score,
       'passed', v_passed
     )
@@ -1254,6 +1254,14 @@ BEGIN
 END;
 $$;
 ```
+
+**Audit metadata keys (migration 082):** The completion audit event records `answered_count` and `correct_count` — aligned with the other exam-outcome events `complete_overdue_exam_session` and `complete_empty_exam_session`, which use the `*_count` form. (`start_exam_session` emits `exam.started` with pre-answer metadata only — no answer counts.) Migrations before 082 wrote the bare keys `answered` / `correct` for this one RPC; historical `audit_events` rows retain those keys (the table is append-only — security.md rule 5 — so they are not rewritten). No code or red-team spec reads either key.
+
+**`exam.completed` event_type disambiguation (#571):** `exam.completed` is emitted by **two** RPCs and one event_type covers two distinct outcomes:
+- `batch_submit_quiz` — a full answer submission. Metadata carries real `answered_count` / `correct_count` / `score` and has **no** `reason` key.
+- `complete_empty_exam_session` — a zero-answer finish within the +30s grace window (see that RPC below; once the deadline passes, that RPC emits `exam.expired` with `reason = 'timed out with no answers'` instead, so the overdue case never reaches `exam.completed`). Metadata carries `answered_count = 0`, `correct_count = 0`, and `reason = 'completed with no answers'`.
+
+A consumer filtering `event_type = 'exam.completed'` must inspect metadata to separate them: the presence of the `reason` key (equivalently `answered_count = 0`) marks the zero-answer in-grace path. No distinct event_type was introduced because no current consumer depends on the distinction; revisit if an analytics or red-team query later needs to query the two outcomes separately.
 
 #### `start_exam_session` — initiate a `mock_exam` session for a subject
 
