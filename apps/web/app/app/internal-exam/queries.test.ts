@@ -335,8 +335,8 @@ describe('listMyInternalExamHistory', () => {
 
     const result = await listMyInternalExamHistory()
 
-    expect(result[0]!.scorePercentage).toBe(73.33)
-    expect(typeof result[0]!.scorePercentage).toBe('number')
+    expect(result.data[0]?.scorePercentage).toBe(73.33)
+    expect(typeof result.data[0]?.scorePercentage).toBe('number')
   })
 
   it('defaults attemptNumber to 1 when the RPC returns 0 for attempt_number', async () => {
