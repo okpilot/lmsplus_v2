@@ -641,6 +641,18 @@ test.describe('Admin Student Management — Create', () => {
 
 Reason: issue #587 — `admin-questions.spec.ts`'s bulk-Deactivate test flipped every visible MET question to `status='draft'` and never restored. Within Playwright's `admin-e2e` project, admin-questions runs alphabetically before `internal-exam-*.spec.ts`, so `start_internal_exam_session` raised `insufficient_questions_for_exam` and 6 internal-exam specs timed out in CI. Promoted to a rule at count=2 (`admin-students.spec.ts` was already hermetic; `admin-questions.spec.ts` is the second).
 
+### Paginated Fetch Needs a Caller-Level Page-Error Test (from 2026-06-01)
+
+Any caller of `fetchAllRows` (or any multi-fetch / `.range()` pagination helper) must have a co-located test asserting that a **page-fetch error after a successful count** propagates correctly. Set it up one of two ways depending on how the suite mocks the helper:
+- **Real helper, mocked queries:** mock the count query to succeed with a non-zero total AND the first page query to return `{ data: null, error }`.
+- **Helper mocked as a dependency:** mock `fetchAllRows` to return its page-error result `{ data: [], error }` (the shape it returns after discarding partial pages).
+
+Either way, assert the caller surfaces the error (returns `{ data: [], error }`, throws, or logs + degrades per its contract).
+
+`fetchAllRows` discards partial pages on a page error and returns `{ data: [], error }`, so the failure mode this guards against is a **silently-truncated result that looks complete** (e.g. a GDPR export section missing rows with no signal). A test that only mocks the count error is insufficient — the page-error path is the one that regresses silently.
+
+Promoted at count=2 (PR #681 GDPR pagination + #668 instance #7 `listOrgStudents`/`getComments`).
+
 ---
 
 ## 8. What the Code Reviewer Checks Automatically
@@ -674,4 +686,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-04-30*
+*Last updated: 2026-06-01*

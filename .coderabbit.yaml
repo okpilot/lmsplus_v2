@@ -193,6 +193,13 @@ reviews:
         - Reload test for stateful UI: if the diff adds a hook or component holding
           state in localStorage or in-memory across renders, verify a test simulates
           reload with empty local state against an active server session.
+        - Paginated-fetch page-error test: any caller of fetchAllRows (or a multi-fetch
+          / .range() pagination helper) must have a co-located test asserting a page-fetch
+          error AFTER a successful count propagates. Two setups: (1) real helper with mocked
+          queries (count succeeds with a non-zero total, first page returns { data: null, error }), or (2) fetchAllRows
+          mocked as a dependency returning { data: [], error }. Assert the caller surfaces the
+          error (returns { data: [], error }, throws, or logs + degrades). Guards against a
+          silently-truncated result that looks complete (e.g. an incomplete GDPR export).
 
     # E2E Playwright specs — hermiticity (cross-spec state pollution)
     - path: "apps/web/e2e/**/*.spec.ts"
