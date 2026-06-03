@@ -18,7 +18,16 @@ import { upsertTopic } from './upsert-topic'
 const VALID_UUID = '00000000-0000-4000-a000-000000000001'
 const SUBJECT_UUID = '00000000-0000-4000-a000-000000000002'
 
-function buildChain(leafResult: { error: { message: string; code?: string } | null }) {
+function buildChain(
+  leafResult: { error: { message: string; code?: string } | null },
+  sortOrderResult: {
+    data: { sort_order: number } | null
+    error: { message: string; code?: string } | null
+  } = {
+    data: { sort_order: 5 },
+    error: null,
+  },
+) {
   const chain = {
     insert: vi.fn().mockResolvedValue(leafResult),
     update: vi.fn().mockReturnValue({
@@ -28,7 +37,7 @@ function buildChain(leafResult: { error: { message: string; code?: string } | nu
       eq: vi.fn().mockReturnValue({
         order: vi.fn().mockReturnValue({
           limit: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: { sort_order: 5 }, error: null }),
+            single: vi.fn().mockResolvedValue(sortOrderResult),
           }),
         }),
       }),
@@ -37,8 +46,14 @@ function buildChain(leafResult: { error: { message: string; code?: string } | nu
   return chain
 }
 
-function mockAdminWithResult(leafResult: { error: { message: string; code?: string } | null }) {
-  const chain = buildChain(leafResult)
+function mockAdminWithResult(
+  leafResult: { error: { message: string; code?: string } | null },
+  sortOrderResult?: {
+    data: { sort_order: number } | null
+    error: { message: string; code?: string } | null
+  },
+) {
+  const chain = buildChain(leafResult, sortOrderResult)
   mockFrom.mockReturnValue(chain)
   mockRequireAdmin.mockResolvedValue({ supabase: { from: mockFrom }, userId: 'admin-1' })
   return chain
@@ -100,14 +115,17 @@ describe('upsertTopic', () => {
     })
 
     it('returns failure when insert fails with a generic DB error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockAdminWithResult({ error: { message: 'DB write error' } })
 
       const result = await upsertTopic(validInput)
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('DB write error')
+      expect(result.error).toBe('Failed to create topic')
+      expect(consoleSpy).toHaveBeenCalledWith('[upsertTopic] insert error:', 'DB write error')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
 
     it('returns a duplicate-code message when insert violates unique constraint', async () => {
@@ -118,6 +136,38 @@ describe('upsertTopic', () => {
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('A topic with this code already exists in this subject')
+    })
+
+    it('returns failure when the sort_order lookup returns a real DB error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      mockAdminWithResult(
+        { error: null },
+        { data: null, error: { message: 'permission denied', code: '42501' } },
+      )
+
+      const result = await upsertTopic(validInput)
+
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to create topic')
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[upsertTopic] sort_order lookup error:',
+        'permission denied',
+      )
+      expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
+    })
+
+    it('succeeds and falls back to sort_order 0 when the subject has no topics yet (PGRST116)', async () => {
+      mockAdminWithResult(
+        { error: null },
+        { data: null, error: { message: 'no rows', code: 'PGRST116' } },
+      )
+
+      const result = await upsertTopic(validInput)
+
+      expect(result.success).toBe(true)
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/syllabus')
     })
   })
 
@@ -133,14 +183,17 @@ describe('upsertTopic', () => {
     })
 
     it('returns failure when update fails with a DB error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockAdminWithResult({ error: { message: 'update failed' } })
 
       const result = await upsertTopic({ ...validInput, id: VALID_UUID })
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('update failed')
+      expect(result.error).toBe('Failed to update topic')
+      expect(consoleSpy).toHaveBeenCalledWith('[upsertTopic] update error:', 'update failed')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
   })
 

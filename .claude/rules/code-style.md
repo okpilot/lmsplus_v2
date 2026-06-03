@@ -337,6 +337,40 @@ if ((discarded?.length ?? 0) > 0) {
 }
 ```
 
+### Destructure SELECT Query Results Too
+
+`.select()` reads are subject to the same rule as mutations: destructure `{ error }` and check it before consuming `data`. Supabase does not throw on query errors — errors live in `result.error`. A read that destructures only `{ data }` silently treats an RLS-blocked or transport-failed query as an empty result (PostgREST returns `200 OK` with `null`/`[]`).
+
+Match the surrounding error posture:
+- **Server Component query helpers** (e.g. `lib/queries/*`) — `throw new Error(\`Failed to fetch X: ${error.message}\`)`, mirroring the sibling reads in the same file. The throw surfaces via `app/error.tsx` + Sentry.
+- **Server Actions** — `console.error` server-side and return a generic domain message (never return `error.message` — see *Sanitize Error Messages*).
+
+```ts
+// ❌ WRONG — RLS-blocked read looks like an empty list
+const { data: topics } = await supabase.from('easa_topics').select('id').eq('subject_id', id)
+return (topics ?? []).map(...)
+
+// ✅ CORRECT — query helper throws
+const { data: topics, error } = await supabase.from('easa_topics').select('id').eq('subject_id', id)
+if (error) throw new Error(`Failed to fetch topics: ${error.message}`)
+return (topics ?? []).map(...)
+```
+
+**`.single()` / `.maybeSingle()` exception:** when a "no rows" result is an expected branch (e.g. computing the next `sort_order` on the first insert), `PGRST116` is not a failure — exempt it explicitly and handle real errors only:
+
+```ts
+const { data: maxRow, error } = await supabase
+  .from('easa_subjects').select('sort_order').order('sort_order', { ascending: false }).limit(1).single<{ sort_order: number }>()
+// PGRST116 (no rows) is the expected first-insert case — only a real error is a failure.
+if (error && error.code !== 'PGRST116') {
+  console.error('[upsertSubject] sort_order lookup error:', error.message)
+  return { success: false, error: 'Failed to create subject' }
+}
+const sortOrder = (maxRow?.sort_order ?? -1) + 1
+```
+
+**Exception:** read-only test/setup helpers may wrap multiple chained reads in a single try/catch when the entire setup is atomic.
+
 ### PostgREST Embedded Resources: Use `!` (FK-hint), Not `:` (alias)
 The `:` operator in `.select()` aliases the result key but does NOT expand a foreign key. PostgREST may resolve the embedded resource by table name when there's a single FK, but on resolution failure (FK ambiguous, schema drift) it returns null silently — and downstream code that expected an object then operates on null. Use `!fk_column_name` to explicitly hint the FK; resolution failures error loudly.
 
@@ -636,6 +670,7 @@ The `code-reviewer` agent flags these after every commit:
 - Barrel `index.ts` files
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6)
 - Missing tests for new utility functions
+- `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception)
 
 ---
 

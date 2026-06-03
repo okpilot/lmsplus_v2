@@ -26,6 +26,8 @@ export type InternalExamHistoryEntry = {
   attemptNumber: number
 }
 
+export type InternalExamQueryResult<T> = { success: boolean; data: T[] }
+
 // RPC row shapes. These match the SECURITY DEFINER functions
 // list_my_active_internal_exam_codes() and list_my_internal_exam_history().
 // They are not in the generated types yet, so we cast and runtime-guard.
@@ -62,12 +64,15 @@ function asNullableString(v: unknown): string | null {
 }
 
 function asNumber(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : 0
+  if (v === null || v === undefined) return 0
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
 }
 
 function asNullableNumber(v: unknown): number | null {
   if (v === null || v === undefined) return null
-  return typeof v === 'number' && Number.isFinite(v) ? v : null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
 }
 
 function asNullableBoolean(v: unknown): boolean | null {
@@ -81,12 +86,14 @@ function asNullableBoolean(v: unknown): boolean | null {
  * NEVER returns the code value itself — that is a privileged secret the admin
  * gives to the student out-of-band.
  */
-export async function listAvailableInternalExams(): Promise<AvailableInternalExam[]> {
+export async function listAvailableInternalExams(): Promise<
+  InternalExamQueryResult<AvailableInternalExam>
+> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return []
+  if (!user) return { success: true, data: [] }
 
   const { data, error } = await rpc<AvailableRpcRow[]>(
     supabase,
@@ -95,19 +102,22 @@ export async function listAvailableInternalExams(): Promise<AvailableInternalExa
   )
   if (error) {
     console.error('[listAvailableInternalExams] Query error:', error.message)
-    return []
+    return { success: false, data: [] }
   }
 
-  if (!Array.isArray(data)) return []
+  if (!Array.isArray(data)) return { success: true, data: [] }
 
-  return data.map((row) => ({
-    id: asString(row.id),
-    subjectId: asString(row.subject_id),
-    subjectName: asString(row.subject_name) || 'Unknown subject',
-    subjectShort: asString(row.subject_short),
-    expiresAt: asString(row.expires_at),
-    issuedAt: asString(row.issued_at),
-  }))
+  return {
+    success: true,
+    data: data.map((row) => ({
+      id: asString(row.id),
+      subjectId: asString(row.subject_id),
+      subjectName: asString(row.subject_name) || 'Unknown subject',
+      subjectShort: asString(row.subject_short),
+      expiresAt: asString(row.expires_at),
+      issuedAt: asString(row.issued_at),
+    })),
+  }
 }
 
 /**
@@ -115,32 +125,37 @@ export async function listAvailableInternalExams(): Promise<AvailableInternalExa
  * SECURITY DEFINER RPC list_my_internal_exam_history. Newest first.
  * attempt_number is computed in SQL (1 = oldest attempt for that subject).
  */
-export async function listMyInternalExamHistory(): Promise<InternalExamHistoryEntry[]> {
+export async function listMyInternalExamHistory(): Promise<
+  InternalExamQueryResult<InternalExamHistoryEntry>
+> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return []
+  if (!user) return { success: true, data: [] }
 
   const { data, error } = await rpc<HistoryRpcRow[]>(supabase, 'list_my_internal_exam_history', {})
   if (error) {
     console.error('[listMyInternalExamHistory] Query error:', error.message)
-    return []
+    return { success: false, data: [] }
   }
 
-  if (!Array.isArray(data)) return []
+  if (!Array.isArray(data)) return { success: true, data: [] }
 
-  return data.map((row) => ({
-    id: asString(row.id),
-    subjectId: asString(row.subject_id),
-    subjectName: asString(row.subject_name) || 'Unknown subject',
-    subjectShort: asString(row.subject_short),
-    startedAt: asString(row.started_at),
-    endedAt: asNullableString(row.ended_at),
-    scorePercentage: asNullableNumber(row.score_percentage),
-    passed: asNullableBoolean(row.passed),
-    totalQuestions: asNumber(row.total_questions),
-    answeredCount: asNumber(row.answered_count),
-    attemptNumber: asNumber(row.attempt_number) || 1,
-  }))
+  return {
+    success: true,
+    data: data.map((row) => ({
+      id: asString(row.id),
+      subjectId: asString(row.subject_id),
+      subjectName: asString(row.subject_name) || 'Unknown subject',
+      subjectShort: asString(row.subject_short),
+      startedAt: asString(row.started_at),
+      endedAt: asNullableString(row.ended_at),
+      scorePercentage: asNullableNumber(row.score_percentage),
+      passed: asNullableBoolean(row.passed),
+      totalQuestions: asNumber(row.total_questions),
+      answeredCount: asNumber(row.answered_count),
+      attemptNumber: asNumber(row.attempt_number) || 1,
+    })),
+  }
 }

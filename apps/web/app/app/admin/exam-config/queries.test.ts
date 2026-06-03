@@ -301,6 +301,25 @@ describe('getExamConfigData', () => {
       expect(dist?.availableQuestions).toBe(2)
     })
 
+    it('coerces string wire value for n to number in question counts', async () => {
+      // PostgREST serialises BIGINT/NUMERIC as JSON strings; verify coercion
+      // in the + Number(row.n) arithmetic so counts accumulate correctly.
+      mockAdmin()
+      buildTableMocks({
+        questionCountsData: [
+          { subject_id: 'sub-1', topic_id: 'top-1', subtopic_id: null, n: '3' },
+          { subject_id: 'sub-1', topic_id: 'top-1', subtopic_id: 'stp-1', n: '2' },
+        ],
+      })
+
+      const result = await getExamConfigData()
+      const topic1 = result[0]!.topics[0]!
+
+      // n='3' + n='2' should sum to 5 (not NaN from '3' + '2' string concat)
+      expect(topic1.availableQuestions).toBe(5)
+      expect(typeof topic1.availableQuestions).toBe('number')
+    })
+
     it('uses subtopic-level count on a distribution when subtopic_id is set', async () => {
       mockAdmin()
       const distWithSubtopic = { ...DISTRIBUTION_1, subtopic_id: 'stp-1' }
