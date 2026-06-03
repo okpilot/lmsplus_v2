@@ -11,10 +11,14 @@
 -- `IF NOT FOUND THEN RAISE session_state_changed` immediately after the lock,
 -- then drop the now-redundant FOUND check from the two following branches.
 --
--- Function body otherwise identical to the canonical latest definition,
+-- Function body otherwise tracks the canonical latest definition,
 -- `20260507000001_void_internal_exam_code_strict_blank_check.sql` (the strict
--- POSIX blank-reason check). This migration also converges the packages/db
--- mirror, whose previous latest (072) predates the strict-blank check.
+-- POSIX blank-reason check), with one further hardening: the admin role is
+-- captured once at authorization time and reused in both audit inserts, rather
+-- than re-queried inline (which would NULL-abort the void on a mid-call admin
+-- soft-delete — audit_events.actor_role is NOT NULL). This migration also
+-- converges the packages/db mirror, whose previous latest (072) predates the
+-- strict-blank check.
 
 CREATE OR REPLACE FUNCTION public.void_internal_exam_code(
   p_code_id uuid,
@@ -28,6 +32,7 @@ AS $$
 DECLARE
   v_admin_id        uuid := auth.uid();
   v_admin_org       uuid;
+  v_admin_role      text;
   v_code_org        uuid;
   v_code_consumed   timestamptz;
   v_code_voided     timestamptz;
@@ -56,7 +61,13 @@ BEGIN
     RAISE EXCEPTION 'invalid_reason';
   END IF;
 
-  SELECT u.organization_id INTO v_admin_org
+  -- Capture the admin's org AND role once, at authorization time, from a
+  -- single deleted_at-filtered read. The two audit inserts below reuse the
+  -- cached role instead of re-querying users.role — a re-query would return
+  -- NULL (and abort the whole RPC on audit_events.actor_role NOT NULL) if the
+  -- admin row is soft-deleted mid-call, rolling back an already-authorized
+  -- void. Mirrors the cached-role pattern in mig 078 (batch_submit).
+  SELECT u.organization_id, u.role INTO v_admin_org, v_admin_role
   FROM public.users u
   WHERE u.id = v_admin_id AND u.deleted_at IS NULL;
   IF v_admin_org IS NULL THEN
@@ -144,8 +155,7 @@ BEGIN
       VALUES (
         v_admin_org,
         v_admin_id,
-        (SELECT u.role FROM public.users u
-         WHERE u.id = v_admin_id AND u.deleted_at IS NULL),
+        v_admin_role,
         'internal_exam.expired',
         'quiz_session',
         v_code_session_id,
@@ -173,8 +183,7 @@ BEGIN
   VALUES (
     v_admin_org,
     v_admin_id,
-    (SELECT u.role FROM public.users u
-     WHERE u.id = v_admin_id AND u.deleted_at IS NULL),
+    v_admin_role,
     'internal_exam.code_voided',
     'internal_exam_code',
     p_code_id,
