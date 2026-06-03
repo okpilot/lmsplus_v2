@@ -69,6 +69,43 @@ type MasteryRow = {
   correct: number | string
 }
 
+// rpc() casts the payload without validating shape — guard the array per code-style §5.
+function buildMasteryBySubject(
+  masteryData: unknown,
+): Map<string, { total: number; correct: number }> {
+  const map = new Map<string, { total: number; correct: number }>()
+  for (const row of Array.isArray(masteryData) ? (masteryData as MasteryRow[]) : []) {
+    if (row.topic_id !== null) continue
+    if (!row.subject_id) continue
+    const total = Number(row.total)
+    const correct = Number(row.correct)
+    // Skip malformed rows rather than store NaN, which would poison the mastery percentage.
+    if (!Number.isFinite(total) || !Number.isFinite(correct)) continue
+    map.set(row.subject_id, { total, correct })
+  }
+  return map
+}
+
+function toSubjectProgress(
+  s: SubjectRow,
+  counts: { total: number; correct: number },
+): SubjectProgress {
+  const { total, correct } = counts
+  return {
+    id: s.id,
+    code: s.code,
+    name: s.name,
+    short: s.short,
+    totalQuestions: total,
+    answeredCorrectly: correct,
+    // correct counts correct responses to non-deleted questions of any status,
+    // so it can exceed total (active-only) when the student answered a now-draft
+    // question (#540/#664). Clamp the displayed percentage to 100.
+    masteryPercentage: total > 0 ? Math.min(Math.round((correct / total) * 100), 100) : 0,
+    lastPracticedAt: null as string | null,
+  }
+}
+
 async function getSubjectProgress(supabase: SupabaseClient): Promise<SubjectProgress[]> {
   const { data: subjectsData, error: subjectsError } = await supabase
     .from('easa_subjects')
@@ -91,35 +128,10 @@ async function getSubjectProgress(supabase: SupabaseClient): Promise<SubjectProg
     throw new Error(`Failed to fetch mastery stats: ${masteryError.message}`)
   }
 
-  // rpc() casts the payload without validating shape — guard the array per code-style §5.
-  const masteryBySubject = new Map<string, { total: number; correct: number }>()
-  for (const row of Array.isArray(masteryData) ? masteryData : []) {
-    if (row.topic_id !== null) continue
-    if (!row.subject_id) continue
-    masteryBySubject.set(row.subject_id, {
-      total: Number(row.total),
-      correct: Number(row.correct),
-    })
-  }
+  const masteryBySubject = buildMasteryBySubject(masteryData)
 
   return subjects
-    .map((s) => {
-      const counts = masteryBySubject.get(s.id) ?? { total: 0, correct: 0 }
-      const { total, correct } = counts
-      return {
-        id: s.id,
-        code: s.code,
-        name: s.name,
-        short: s.short,
-        totalQuestions: total,
-        answeredCorrectly: correct,
-        // correct counts correct responses to non-deleted questions of any status,
-        // so it can exceed total (active-only) when the student answered a now-draft
-        // question (#540/#664). Clamp the displayed percentage to 100.
-        masteryPercentage: total > 0 ? Math.min(Math.round((correct / total) * 100), 100) : 0,
-        lastPracticedAt: null as string | null,
-      }
-    })
+    .map((s) => toSubjectProgress(s, masteryBySubject.get(s.id) ?? { total: 0, correct: 0 }))
     .filter((s) => s.totalQuestions > 0 || s.answeredCorrectly > 0)
 }
 
