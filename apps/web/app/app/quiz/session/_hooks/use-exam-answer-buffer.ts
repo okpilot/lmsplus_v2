@@ -4,10 +4,13 @@ import type { DraftAnswer } from '../../types'
 type UseExamAnswerBufferOpts = {
   getQuestionId: () => string
   getAnswerStartTime: () => number
+  initialAnswers?: Record<string, DraftAnswer>
 }
 
 export function useExamAnswerBuffer(opts: UseExamAnswerBufferOpts) {
-  const [answers, setAnswers] = useState<Map<string, DraftAnswer>>(new Map())
+  const [answers, setAnswers] = useState<Map<string, DraftAnswer>>(() =>
+    opts.initialAnswers ? new Map(Object.entries(opts.initialAnswers)) : new Map(),
+  )
   const answersRef = useRef(answers)
 
   const confirmAnswer = useCallback(

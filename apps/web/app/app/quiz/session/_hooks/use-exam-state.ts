@@ -24,9 +24,12 @@ export function useExamPipeline(opts: {
 
   const { checkpoint } = useQuizPersistence({ ...opts.quizOpts, mode: 'exam' })
 
+  // initialAnswers flows to both study and exam pipelines (both instantiated in use-quiz-state.ts);
+  // p = isExam ? exam : study gates which is surfaced, so seeding the unused pipeline is harmless.
   const { answers, answersRef, confirmAnswer } = useExamAnswerBuffer({
     getQuestionId: opts.getQuestionId,
     getAnswerStartTime: opts.getAnswerStartTime,
+    initialAnswers: opts.quizOpts.initialAnswers,
   })
 
   const submit = useQuizSubmit({

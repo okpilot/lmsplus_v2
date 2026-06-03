@@ -122,9 +122,15 @@ describe('SessionRecoveryPrompt — button callbacks', () => {
 // ---- Exam mode ------------------------------------------------------------
 
 describe('SessionRecoveryPrompt — exam mode', () => {
-  it('shows Practice Exam heading', () => {
-    render(<SessionRecoveryPrompt {...makeProps({ mode: 'exam' })} />)
+  it('shows Practice Exam heading for mock_exam', () => {
+    render(<SessionRecoveryPrompt {...makeProps({ mode: 'exam', examMode: 'mock_exam' })} />)
     expect(screen.getByText(/resume your practice exam\?/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^resume your quiz\?/i)).not.toBeInTheDocument()
+  })
+
+  it('shows Internal Exam heading for internal_exam', () => {
+    render(<SessionRecoveryPrompt {...makeProps({ mode: 'exam', examMode: 'internal_exam' })} />)
+    expect(screen.getByText(/resume your internal exam\?/i)).toBeInTheDocument()
     expect(screen.queryByText(/^resume your quiz\?/i)).not.toBeInTheDocument()
   })
 
@@ -134,7 +140,7 @@ describe('SessionRecoveryPrompt — exam mode', () => {
   })
 
   it('uses Practice Exam discard copy in the confirm dialog', async () => {
-    render(<SessionRecoveryPrompt {...makeProps({ mode: 'exam' })} />)
+    render(<SessionRecoveryPrompt {...makeProps({ mode: 'exam', examMode: 'mock_exam' })} />)
     await userEvent.click(screen.getByRole('button', { name: /^discard$/i }))
     expect(screen.getByText(/discard practice exam\?/i)).toBeInTheDocument()
     expect(screen.getByText(/practice exam session\. you cannot undo/i)).toBeInTheDocument()

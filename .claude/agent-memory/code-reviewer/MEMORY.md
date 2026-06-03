@@ -13,6 +13,7 @@
 | React component > 150-line limit | 2026-03-21 (8771aa2) | 4 | 2026-04-13 (exam PR2) | PROMOTED → code-style.md §1 (comments-tab 155L; finish-quiz-dialog 243L; quiz-session 176/204L; quiz-controls 152L). Fix = extract sub-component/helper component |
 | Feature modes (study/exam, draft/live) conditionally wired into one hook/component | 2026-04-13 (exam PR2) | 2 | 2026-04-26 (34194aa) | RULE CANDIDATE — extract mode-specific logic to its own hook/component once a file passes 120L (hook) or trends toward 200L (component). Single component switching render on an `isExam` prop is acceptable at small scale |
 | Server Action file > 100-line limit | 2026-03-20 (d93f924) | 1 | 2026-03-20 | WATCHING (lookup.ts 112L — extract `buildQuestionQuery` helper). Note: flag.ts 118L is the documented 3+-focused-functions exception, not a hit |
+| Utility function > 30 lines (single query RPC) | 2026-05-31 (c879a259) | 1 | 2026-05-31 | WATCHING (getSessionReports 47→64L, out-of-range probe logic added 17 lines, grew from under-30 to over-30). Fix = extract probe helper into separate function |
 | Component deep nesting > 3 levels | 2026-03-27 (75ffa51) | 1 | 2026-03-27 | WATCHING (ConsentForm: form→div→div→Checkbox+span→a, repeated 3×; fix = extract ConsentCheckbox sub-component) |
 | Utility file > 200-line limit | 2026-04-27 (c656868) | 1 | 2026-04-27 | WATCHING (quiz-session-storage.ts 226→251L; split tracked in issue #552) |
 

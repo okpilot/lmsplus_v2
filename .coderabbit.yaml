@@ -92,6 +92,10 @@ reviews:
         - PostgREST embedded resources MUST use `!fk_column` (FK-hint), NOT `:fk_column` (alias).
           The `:` form silently returns null on resolution failure; `!` errors loudly. Reserve `:`
           for genuine column-rename only, never as a substitute for FK expansion.
+        - BIGINT / NUMERIC / DECIMAL columns from PostgREST arrive as JSON strings, not numbers.
+          Coerce with Number() at the read site before any comparison, arithmetic, or method call.
+          Type the wire shape as `count: number | string` to signal the coercion is required.
+          Preserve null explicitly: `r.score === null ? null : Number(r.score)`.
         - All Supabase `.select()` reads must destructure { error } and check it before consuming data
           (Supabase returns 200 OK with null/[] on RLS-blocked or transport-failed reads). Server Component
           query helpers throw `Failed to fetch X: ${error.message}`; Server Actions console.error + return a

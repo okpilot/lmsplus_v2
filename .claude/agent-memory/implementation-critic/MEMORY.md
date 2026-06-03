@@ -56,6 +56,13 @@
 
 ## False positives (do not re-raise)
 
+- **Probe-gate keyed on allRows (pre-filter) is correct.** After the reports.ts probe-gate fix, `probeOutOfRangeTotal` is triggered only when `allRows.length === 0 && page > 1`. When `allRows` is non-empty but `rows` (post-filter) is empty, the code returns `totalCount: 0` without probing — this is correct (filtered page, not out-of-range). Do not flag `rows.length === 0 → totalCount: 0` path as "missing probe". Verified clean 2026-06-01.
+- **Fix 1 probe + `count(*) OVER()` window function** — `p_limit: 1` on the probe RPC still returns the correct `total_count` because PostgreSQL evaluates the window function `count(*) OVER()` before applying the `LIMIT`/`OFFSET` clause; it counts all rows matching the WHERE predicate. Verified by reading migration `20260429000011_get_session_reports_exclude_internal_exam.sql` line 64. Do not flag probe-limit as "may return wrong total".
+- **Fix 1 probe fires on page=2 empty** — `toHaveBeenCalledWith` in the "passes correct RPC parameters for page 2" test still passes because it asserts the first call's args; the probe's second call is unmocked (returns `{ data: [], error: null }`) and resolves with `totalCount: 0`. The test doesn't assert the result value, so no failure. Not a test correctness issue.
+- **`getSessionReports` remaining body ~39 non-blank lines after `probeOutOfRangeTotal` extraction** — pre-existing auth/RPC/filter preamble (lines 59-92) cannot be meaningfully split further without artificial helpers; the extraction moved ~14 lines out. The code-reviewer BLOCKING finding was about the inline probe bloat; that bloat is now gone. Accept the residual >30 body lines as an orchestrator-pattern exception (auth + RPC call + filter + branch = one cohesive flow). Do not re-flag.
+
+
+
 - `avg_score` / mastery RPCs return NULL (no COALESCE) for students with no sessions — intentional; app type is `number | null`, UI guards `!== null`.
 - Hard DELETE on `exam_config_distributions` inside `upsert_exam_config` — intentional, documented in migration 043 + docs/database.md (ephemeral config table, same precedent as `quiz_drafts`).
 - Adjacent conditional JSX guard blocks (`{canDismiss && (`) are not "duplicate buttons" — one state-driven trigger + one prop-guarded confirm-panel button are distinct.

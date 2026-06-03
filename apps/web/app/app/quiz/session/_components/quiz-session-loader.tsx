@@ -16,6 +16,7 @@ export function QuizSessionLoader({ userId }: { userId: string }) {
         answeredCount={Object.keys(bs.recovery.answers).length}
         totalCount={bs.recovery.questionIds.length}
         mode={bs.recovery.mode}
+        examMode={bs.recovery.examMode}
         onResume={bs.handleRecoveryResume}
         onSave={() => {
           bs.clearResumeError()
