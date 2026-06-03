@@ -64,12 +64,15 @@ function asNullableString(v: unknown): string | null {
 }
 
 function asNumber(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : 0
+  if (v === null || v === undefined) return 0
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
 }
 
 function asNullableNumber(v: unknown): number | null {
   if (v === null || v === undefined) return null
-  return typeof v === 'number' && Number.isFinite(v) ? v : null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
 }
 
 function asNullableBoolean(v: unknown): boolean | null {

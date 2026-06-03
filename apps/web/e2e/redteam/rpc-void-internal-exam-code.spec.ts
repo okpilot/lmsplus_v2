@@ -7,6 +7,8 @@
  *  - BN(2) student → not_admin
  *  - BO    cross-org admin → code_not_found (existence-hiding)
  *  - BP    consumed + finished session → cannot_void_finished_attempt
+ *  - CD    consumed code, linked session soft-deleted before void →
+ *          session_state_changed (fail-fast, code NOT voided — mig 084)
  *  - positive — consumed + active session ends with passed=false.
  */
 
@@ -17,6 +19,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  E2E_REDTEAM_CODE_PREFIX,
   ensureExamConfig,
   pickSubjectWithQuestions,
   seedCrossOrgAdmin,
@@ -45,7 +48,7 @@ async function seedCode(
 ): Promise<{ id: string; code: string }> {
   // crypto.randomUUID() is collision-resistant; Math.random() can collide
   // across rapid test runs in the same describe block.
-  const code = `RT${crypto
+  const code = `${E2E_REDTEAM_CODE_PREFIX}${crypto
     .randomUUID()
     .replace(/-/g, '')
     .toUpperCase()
@@ -135,19 +138,85 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     await ensureExamConfig(orgId, subjectId, topicId)
   })
 
+  // Rows created per test hang off the shared victim seed user; track their
+  // ids so afterEach can soft-delete them and keep the spec hermetic
+  // (code-style.md §7) — otherwise consumed codes / sessions accumulate
+  // across runs and could skew counts in downstream specs.
+  const createdCodeIds = new Set<string>()
+  const createdSessionIds = new Set<string>()
+
   // Compact factories — every test uses the same victim+subject+org+issuer.
-  const validCode = () =>
-    seedCode(admin, { studentId: victimUserId, subjectId, orgId, issuedBy: adminUserId })
-  const codeForSession = (consumedSessionId: string) =>
-    seedCode(admin, {
+  const validCode = async () => {
+    const code = await seedCode(admin, {
+      studentId: victimUserId,
+      subjectId,
+      orgId,
+      issuedBy: adminUserId,
+    })
+    createdCodeIds.add(code.id)
+    return code
+  }
+  const codeForSession = async (consumedSessionId: string) => {
+    const code = await seedCode(admin, {
       studentId: victimUserId,
       subjectId,
       orgId,
       issuedBy: adminUserId,
       consumedSessionId,
     })
-  const session = (ended?: boolean) =>
-    seedSession(admin, { studentId: victimUserId, subjectId, orgId, ended })
+    createdCodeIds.add(code.id)
+    return code
+  }
+  const session = async (ended?: boolean) => {
+    const id = await seedSession(admin, { studentId: victimUserId, subjectId, orgId, ended })
+    createdSessionIds.add(id)
+    return id
+  }
+
+  test.afterEach(async () => {
+    // Service-role soft-delete of rows created this test. Accumulate errors so
+    // both cleanups run even if the first throws; clear the sets in finally so
+    // a failed delete can't replay stale ids into the next test's cleanup.
+    const errors: string[] = []
+    const now = new Date().toISOString()
+    if (createdCodeIds.size > 0) {
+      try {
+        const { data, error } = await admin
+          .from('internal_exam_codes')
+          .update({ deleted_at: now })
+          .in('id', Array.from(createdCodeIds))
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`afterEach soft-delete codes: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[void-code] soft-deleted ${data?.length} internal_exam_code(s)`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        createdCodeIds.clear()
+      }
+    }
+    if (createdSessionIds.size > 0) {
+      try {
+        const { data, error } = await admin
+          .from('quiz_sessions')
+          .update({ deleted_at: now })
+          .in('id', Array.from(createdSessionIds))
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`afterEach soft-delete sessions: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[void-code] soft-deleted ${data?.length} quiz_session(s)`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        createdSessionIds.clear()
+      }
+    }
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
+  })
 
   test('unauthenticated call returns not_authenticated (Vector BN-1)', async () => {
     const code = await validCode()
@@ -226,9 +295,16 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     })
 
     expect(error).toBeNull()
-    const result = (
-      data as Array<{ code_id: string; session_id: string; session_ended: boolean }> | null
-    )?.[0]
+    // Runtime guard before the cast (code-style.md §5): the RPC returns a
+    // SETOF row, so assert the array shape before narrowing + indexing it.
+    expect(Array.isArray(data)).toBe(true)
+    const [result] = data as Array<{
+      code_id: string
+      session_id: string
+      session_ended: boolean
+    }>
+    // Distinguish an empty-array RPC return from a wrong-value field below.
+    expect(result).toBeDefined()
     expect(result?.code_id).toBe(code.id)
     expect(result?.session_id).toBe(sessionId)
     expect(result?.session_ended).toBe(true)
@@ -250,5 +326,40 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     expect(codeRow?.voided_at).not.toBeNull()
     expect(codeRow?.voided_by).toBe(adminUserId)
     expect(codeRow?.void_reason).toBe('positive path')
+  })
+
+  test('voiding a consumed code whose session was soft-deleted raises session_state_changed (Vector CD)', async () => {
+    const sessionId = await session()
+    const code = await codeForSession(sessionId)
+
+    // Session vanishes between consume and void (service-role soft-delete
+    // simulates an admin/cleanup path or org drift). The org-scoped
+    // SELECT ... FOR UPDATE then finds no row → fail-fast (mig 084) instead
+    // of silently voiding the code on a phantom session.
+    const { data: deleted, error: delErr } = await admin
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', sessionId)
+      .is('deleted_at', null)
+      .select('id')
+    if (delErr) throw new Error(`soft-delete session: ${delErr.message}`)
+    expect(deleted?.length ?? 0).toBe(1)
+
+    const { data, error } = await adminClientAuthed.rpc('void_internal_exam_code', {
+      p_code_id: code.id,
+      p_reason: 'void on soft-deleted session',
+    })
+
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/session_state_changed/i)
+    expect(data).toBeNull()
+
+    // Fail-fast aborts the whole RPC — the code must NOT have been voided.
+    const { data: codeRow } = await admin
+      .from('internal_exam_codes')
+      .select('voided_at')
+      .eq('id', code.id)
+      .single()
+    expect(codeRow?.voided_at ?? null).toBeNull()
   })
 })

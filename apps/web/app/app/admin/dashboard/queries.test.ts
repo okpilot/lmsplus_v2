@@ -246,6 +246,37 @@ describe('getDashboardStudents', () => {
     expect(totalCount).toBe(0)
   })
 
+  it('coerces string wire values for bigint/numeric columns to numbers', async () => {
+    // PostgREST serialises BIGINT/NUMERIC as JSON strings; verify coercion to number.
+    mockStudentsRpc([
+      makeRpcRow({
+        session_count: '7' as unknown as number,
+        avg_score: '65.5' as unknown as number,
+        mastery: '80' as unknown as number,
+        total_count: '99' as unknown as number,
+      }),
+    ])
+
+    const { students, totalCount } = await getDashboardStudents(BASE_FILTERS)
+
+    expect(totalCount).toBe(99)
+    expect(typeof totalCount).toBe('number')
+    expect(students[0]!.sessionCount).toBe(7)
+    expect(typeof students[0]!.sessionCount).toBe('number')
+    expect(students[0]!.avgScore).toBe(65.5)
+    expect(typeof students[0]!.avgScore).toBe('number')
+    expect(students[0]!.mastery).toBe(80)
+    expect(typeof students[0]!.mastery).toBe('number')
+  })
+
+  it('preserves null avgScore when wire value is null', async () => {
+    mockStudentsRpc([makeRpcRow({ avg_score: null })])
+
+    const { students } = await getDashboardStudents(BASE_FILTERS)
+
+    expect(students[0]!.avgScore).toBeNull()
+  })
+
   // -- params forwarded to the RPC (sort/filter/paginate now run in SQL) --
 
   it('requests p_status null when no status filter is set', async () => {
@@ -335,6 +366,27 @@ describe('getDashboardKpis', () => {
       weakestSubject: { name: 'Meteorology', short: 'MET', avgMastery: 45 },
       examReadyStudents: 3,
     })
+  })
+
+  it('coerces a string weakestSubject.avgMastery wire value to a number', async () => {
+    // PostgREST serializes the NUMERIC avgMastery inside the JSON payload as a string.
+    mockAuthRpc.mockResolvedValue({
+      data: {
+        activeStudents: 10,
+        totalStudents: 20,
+        avgMastery: '65.5',
+        sessionsThisPeriod: 42,
+        weakestSubject: { name: 'Meteorology', short: 'MET', avgMastery: '45' },
+        examReadyStudents: 3,
+      },
+      error: null,
+    })
+
+    const result = await getDashboardKpis('30d')
+
+    expect(result.avgMastery).toBe(65.5)
+    expect(result.weakestSubject?.avgMastery).toBe(45)
+    expect(typeof result.weakestSubject?.avgMastery).toBe('number')
   })
 
   it('defaults numeric fields to 0 and weakestSubject to null when RPC returns empty object', async () => {
@@ -434,6 +486,30 @@ describe('getWeakTopics', () => {
 
     expect(result).toEqual([])
   })
+
+  it('coerces string wire values for avg_score and student_count to numbers', async () => {
+    // PostgREST serialises NUMERIC/BIGINT as JSON strings; verify coercion.
+    mockAuthRpc.mockResolvedValue({
+      data: [
+        {
+          topic_id: 't1',
+          topic_name: 'Pressure',
+          subject_name: 'Meteorology',
+          subject_short: 'MET',
+          avg_score: '42.75',
+          student_count: '12',
+        },
+      ],
+      error: null,
+    })
+
+    const result = await getWeakTopics()
+
+    expect(result[0]!.avgScore).toBe(42.75)
+    expect(typeof result[0]!.avgScore).toBe('number')
+    expect(result[0]!.studentCount).toBe(12)
+    expect(typeof result[0]!.studentCount).toBe('number')
+  })
 })
 
 // ---- getRecentSessions ----------------------------------------------------
@@ -523,5 +599,43 @@ describe('getRecentSessions', () => {
     const result = await getRecentSessions('7d')
 
     expect(result).toEqual([])
+  })
+
+  it('coerces string wire value for score_percentage to number', async () => {
+    // PostgREST serialises NUMERIC as a JSON string; verify coercion to number.
+    const chain = makeFromChain([
+      {
+        id: 's3',
+        mode: 'mock_exam',
+        score_percentage: '88.50',
+        ended_at: '2026-05-01T12:00:00Z',
+        users: { full_name: 'Bob' },
+        easa_subjects: { name: 'Navigation' },
+      },
+    ])
+    mockFrom.mockReturnValue(chain)
+
+    const result = await getRecentSessions('30d')
+
+    expect(result[0]!.scorePercentage).toBe(88.5)
+    expect(typeof result[0]!.scorePercentage).toBe('number')
+  })
+
+  it('preserves null scorePercentage when wire value is null', async () => {
+    const chain = makeFromChain([
+      {
+        id: 's4',
+        mode: 'quick_quiz',
+        score_percentage: null,
+        ended_at: '2026-05-01T12:00:00Z',
+        users: null,
+        easa_subjects: null,
+      },
+    ])
+    mockFrom.mockReturnValue(chain)
+
+    const result = await getRecentSessions('all')
+
+    expect(result[0]!.scorePercentage).toBeNull()
   })
 })

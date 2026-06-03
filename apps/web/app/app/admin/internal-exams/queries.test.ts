@@ -597,4 +597,54 @@ describe('listInternalExamAttempts', () => {
       await expect(listInternalExamAttempts()).rejects.toThrow('Forbidden')
     })
   })
+
+  describe('bigint/numeric wire-value coercion', () => {
+    it('coerces string wire value for score_percentage to number', async () => {
+      // PostgREST serialises NUMERIC as a JSON string; verify coercion to number.
+      mockAdmin()
+      const row = {
+        id: 'sess-coerce',
+        student_id: 'stu-1',
+        subject_id: 'sub-1',
+        started_at: PAST,
+        ended_at: PAST,
+        total_questions: 20,
+        correct_count: 15,
+        score_percentage: '73.33',
+        passed: true,
+        easa_subjects: { name: 'Navigation' },
+        users: { full_name: 'Alice', email: 'alice@example.com' },
+        internal_exam_codes: null,
+      }
+      mockAdminFrom.mockReturnValue(buildChain([row]))
+
+      const result = await listInternalExamAttempts()
+
+      expect(result.rows[0]!.scorePercentage).toBe(73.33)
+      expect(typeof result.rows[0]!.scorePercentage).toBe('number')
+    })
+
+    it('preserves null scorePercentage when wire value is null', async () => {
+      mockAdmin()
+      const row = {
+        id: 'sess-null',
+        student_id: 'stu-1',
+        subject_id: 'sub-1',
+        started_at: PAST,
+        ended_at: PAST,
+        total_questions: 20,
+        correct_count: 0,
+        score_percentage: null,
+        passed: null,
+        easa_subjects: null,
+        users: null,
+        internal_exam_codes: null,
+      }
+      mockAdminFrom.mockReturnValue(buildChain([row]))
+
+      const result = await listInternalExamAttempts()
+
+      expect(result.rows[0]!.scorePercentage).toBeNull()
+    })
+  })
 })
