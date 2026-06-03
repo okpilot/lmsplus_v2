@@ -31,13 +31,13 @@ type RpcRow = {
   mode: string
   total_questions: number
   correct_count: number
-  score_percentage: number | null
+  score_percentage: number | string | null
   started_at: string
   ended_at: string
   subject_id: string | null
   subject_name: string | null
-  answered_count: number
-  total_count: number
+  answered_count: number | string
+  total_count: number | string
 }
 
 export const PAGE_SIZE = 10
@@ -98,7 +98,7 @@ export async function getSessionReports(opts: SessionReportsOpts): Promise<Sessi
   }
 
   // total_count comes from the window function — same on every row
-  const totalCount = rows[0]?.total_count ?? 0
+  const totalCount = Number(rows[0]?.total_count ?? 0)
 
   return { ok: true, sessions: rows.map(mapRpcRow), totalCount }
 }
@@ -111,9 +111,9 @@ function mapRpcRow(r: RpcRow): SessionReport {
     mode: r.mode,
     subjectName: r.subject_name ?? null,
     totalQuestions: r.total_questions,
-    answeredCount: r.answered_count,
+    answeredCount: Number(r.answered_count),
     correctCount: r.correct_count,
-    scorePercentage: r.score_percentage,
+    scorePercentage: r.score_percentage != null ? Number(r.score_percentage) : null,
     startedAt: r.started_at,
     endedAt: r.ended_at,
     durationMinutes: Math.max(0, Math.round((end - start) / 60000)),

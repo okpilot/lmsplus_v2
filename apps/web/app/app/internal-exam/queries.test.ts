@@ -306,6 +306,34 @@ describe('listMyInternalExamHistory', () => {
     expect(result).toEqual([])
   })
 
+  it('converts a numeric-string score_percentage from the wire into a JavaScript number', async () => {
+    // PostgREST serialises NUMERIC as a JSON string; asNullableNumber must accept
+    // a numeric string and return the parsed float.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          id: 'sess-coerce',
+          subject_id: 'sub-A',
+          subject_name: 'Air Law',
+          subject_short: 'ALW',
+          started_at: '2026-04-29T15:00:00.000Z',
+          ended_at: '2026-04-29T16:00:00.000Z',
+          score_percentage: '73.33',
+          passed: true,
+          total_questions: 10,
+          answered_count: 8,
+          attempt_number: 1,
+        },
+      ],
+      error: null,
+    })
+
+    const result = await listMyInternalExamHistory()
+
+    expect(result[0]!.scorePercentage).toBe(73.33)
+    expect(typeof result[0]!.scorePercentage).toBe('number')
+  })
+
   it('defaults attemptNumber to 1 when the RPC returns 0 for attempt_number', async () => {
     mockRpc.mockResolvedValue({
       data: [
