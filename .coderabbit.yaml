@@ -65,7 +65,10 @@ reviews:
         - No service role key (adminClient) — that lives in packages/db/src/admin.ts only.
         - Explicit return types on all exported functions.
         - No `any` type — use `unknown` with narrowing.
-        - Destructure { error } from ALL Supabase mutation calls (.insert/.update/.delete/.upsert).
+        - Destructure { error } from ALL Supabase calls — mutations (.insert/.update/.delete/.upsert)
+          AND reads (.select()) — and check it before consuming data. Supabase does not throw on query
+          errors. For .single()/.maybeSingle() where "no rows" is an expected branch (e.g. first-insert
+          sort_order), exempt PGRST116 explicitly (error.code !== 'PGRST116'); only a real error fails.
         - For ANY DELETE or UPDATE expected to mutate rows (RLS-scoped, admin-context, or test-cleanup),
           chain .select('id') and verify data?.length. Supabase returns 200 OK with zero rows when the
           filter matches nothing or RLS blocks — no error is thrown.
@@ -93,6 +96,11 @@ reviews:
           Coerce with Number() at the read site before any comparison, arithmetic, or method call.
           Type the wire shape as `count: number | string` to signal the coercion is required.
           Preserve null explicitly: `r.score === null ? null : Number(r.score)`.
+        - All Supabase `.select()` reads must destructure { error } and check it before consuming data
+          (Supabase returns 200 OK with null/[] on RLS-blocked or transport-failed reads). Server Component
+          query helpers throw `Failed to fetch X: ${error.message}`; Server Actions console.error + return a
+          generic message. Exempt PGRST116 (no rows) on .single()/.maybeSingle() expected-empty branches.
+          Read-only test/setup helpers may wrap atomic chained reads in one try/catch.
 
     # Database package — security critical
     - path: "packages/db/src/**/*.ts"
@@ -189,6 +197,13 @@ reviews:
         - Reload test for stateful UI: if the diff adds a hook or component holding
           state in localStorage or in-memory across renders, verify a test simulates
           reload with empty local state against an active server session.
+        - Paginated-fetch page-error test: any caller of fetchAllRows (or a multi-fetch
+          / .range() pagination helper) must have a co-located test asserting a page-fetch
+          error AFTER a successful count propagates. Two setups: (1) real helper with mocked
+          queries (count succeeds with a non-zero total, first page returns { data: null, error }), or (2) fetchAllRows
+          mocked as a dependency returning { data: [], error }. Assert the caller surfaces the
+          error (returns { data: [], error }, throws, or logs + degrades). Guards against a
+          silently-truncated result that looks complete (e.g. an incomplete GDPR export).
 
     # E2E Playwright specs — hermiticity (cross-spec state pollution)
     - path: "apps/web/e2e/**/*.spec.ts"

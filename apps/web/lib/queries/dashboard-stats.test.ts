@@ -110,6 +110,15 @@ describe('getQuestionsToday', () => {
     const result = await getQuestionsToday(supabase, 'user-1')
     expect(result).toBe(0)
   })
+
+  it('throws when the questions-today count read errors instead of degrading to 0', async () => {
+    mockFrom.mockReturnValue(buildChain({ count: null, error: { message: 'boom' } }))
+    const { createServerSupabaseClient } = await import('@repo/db/server')
+    const supabase = await createServerSupabaseClient()
+    await expect(getQuestionsToday(supabase, 'user-1')).rejects.toThrow(
+      'Failed to fetch questions answered today: boom',
+    )
+  })
 })
 
 // ---- getStreakData ----------------------------------------------------------

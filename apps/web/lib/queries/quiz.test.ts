@@ -69,6 +69,16 @@ beforeEach(() => {
   mockRpc.mockResolvedValue({ data: [], error: null })
 })
 
+describe('getSubjectsWithCounts — subjects read error', () => {
+  it('throws when the easa_subjects read returns a DB error', async () => {
+    mockFromSequence({ data: null, error: { message: 'subjects read failed' } })
+
+    await expect(getSubjectsWithCounts()).rejects.toThrow(
+      'Failed to fetch subjects: subjects read failed',
+    )
+  })
+})
+
 describe('getSubjectsWithCounts', () => {
   it('returns subjects with question counts aggregated by subject_id', async () => {
     mockFromSequence({
@@ -144,6 +154,16 @@ describe('getSubjectsWithCounts', () => {
     mockFromSequence({ data: null })
     const result = await getSubjectsWithCounts()
     expect(result).toEqual([])
+  })
+})
+
+describe('getTopicsForSubject — topics read error', () => {
+  it('throws when the easa_topics read returns a DB error', async () => {
+    mockFromSequence({ data: null, error: { message: 'topics read failed' } })
+
+    await expect(getTopicsForSubject('s1')).rejects.toThrow(
+      'Failed to fetch topics: topics read failed',
+    )
   })
 })
 
@@ -333,6 +353,16 @@ describe('getRandomQuestionIds', () => {
   })
 })
 
+describe('getSubtopicsForTopic — subtopics read error', () => {
+  it('throws when the easa_subtopics read returns a DB error', async () => {
+    mockFromSequence({ data: null, error: { message: 'subtopics read failed' } })
+
+    await expect(getSubtopicsForTopic('t1')).rejects.toThrow(
+      'Failed to fetch subtopics: subtopics read failed',
+    )
+  })
+})
+
 describe('getSubtopicsForTopic', () => {
   it('returns subtopics with question counts for the given topic', async () => {
     mockFromSequence({
@@ -369,6 +399,28 @@ describe('getSubtopicsForTopic', () => {
 
     const result = await getSubtopicsForTopic('t1')
     expect(result).toHaveLength(0)
+  })
+})
+
+describe('getTopicsWithSubtopics — read errors', () => {
+  it('throws when the easa_topics read returns a DB error', async () => {
+    mockFromSequence({ data: null, error: { message: 'topics read failed' } })
+
+    await expect(getTopicsWithSubtopics('s1')).rejects.toThrow(
+      'Failed to fetch topics: topics read failed',
+    )
+  })
+
+  it('throws when the easa_subtopics read returns a DB error', async () => {
+    // First from() → topics success; second from() (in Promise.all) → subtopics error
+    mockFromSequence(
+      { data: [{ id: 't1', code: '050-01', name: 'Aerodynamics', sort_order: 1 }] },
+      { data: null, error: { message: 'subtopics read failed' } },
+    )
+
+    await expect(getTopicsWithSubtopics('s1')).rejects.toThrow(
+      'Failed to fetch subtopics: subtopics read failed',
+    )
   })
 })
 
