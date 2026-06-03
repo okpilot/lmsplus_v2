@@ -610,7 +610,7 @@ ORDER BY deleted_at DESC;
 | `quiz_drafts` | Hard DELETE (approved exception) | Disposable temp storage; no recovery value |
 | `flagged_questions` | Yes (soft) | Unflag = set deleted_at; flags referenced in quiz filter queries |
 | `exam_configs` | Yes | Per-subject exam configuration; soft-deleted when org removes exam mode |
-| `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE` |
+| `exam_config_distributions` | Hard DELETE (approved exception) | No `deleted_at`; replaced atomically by `upsert_exam_config` RPC. Also cascades from parent `exam_configs` via `ON DELETE CASCADE`. RLS policies (admin SELECT/INSERT/DELETE) filter `ec.deleted_at IS NULL` on the parent join (mig 083), so direct PostgREST access to distributions of a soft-deleted exam config is blocked at the policy layer; `upsert_exam_config` is SECURITY DEFINER and bypasses RLS, so the replace-on-save flow is unaffected |
 | `question_comments` | Hard DELETE (explicit exception — low audit value) | deleted_at exists as safety net but not used by application code |
 | `internal_exam_codes` | Yes | Issued codes form an audit trail; admin void uses `voided_at`/`void_reason`, soft-delete reserved for compliance archival |
 
@@ -1236,8 +1236,8 @@ BEGIN
     p_session_id,
     jsonb_build_object(
       'total_questions', v_total,
-      'answered', v_answered,
-      'correct', v_correct_count,
+      'answered_count', v_answered,
+      'correct_count', v_correct_count,
       'score', v_score,
       'passed', v_passed
     )
@@ -1254,6 +1254,14 @@ BEGIN
 END;
 $$;
 ```
+
+**Audit metadata keys (migration 082):** The completion audit event records `answered_count` and `correct_count` — aligned with the other exam-outcome events `complete_overdue_exam_session` and `complete_empty_exam_session`, which use the `*_count` form. (`start_exam_session` emits `exam.started` with pre-answer metadata only — no answer counts.) Migrations before 082 wrote the bare keys `answered` / `correct` for this one RPC; historical `audit_events` rows retain those keys (the table is append-only — security.md rule 5 — so they are not rewritten). No code or red-team spec reads either key.
+
+**`exam.completed` event_type disambiguation (#571):** `exam.completed` is emitted by **two** RPCs and one event_type covers two distinct outcomes:
+- `batch_submit_quiz` — a full answer submission. Metadata carries real `answered_count` / `correct_count` / `score` and has **no** `reason` key.
+- `complete_empty_exam_session` — a zero-answer finish within the +30s grace window (see that RPC below; once the deadline passes, that RPC emits `exam.expired` with `reason = 'timed out with no answers'` instead, so the overdue case never reaches `exam.completed`). Metadata carries `answered_count = 0`, `correct_count = 0`, and `reason = 'completed with no answers'`.
+
+A consumer filtering `event_type = 'exam.completed'` must inspect metadata to separate them: the presence of the `reason` key (equivalently `answered_count = 0`) marks the zero-answer in-grace path. No distinct event_type was introduced because no current consumer depends on the distinction; revisit if an analytics or red-team query later needs to query the two outcomes separately.
 
 #### `start_exam_session` — initiate a `mock_exam` session for a subject
 
@@ -1375,7 +1383,7 @@ Admin-only. Three branches:
 2. **Consumed + active session** — locks the linked `quiz_sessions` row, computes a final score from existing `quiz_session_answers` (unanswered = wrong, identical to `complete_overdue_exam_session`), forces `passed = false`, sets `ended_at`, then voids the code. Writes **two** audit events: `internal_exam.expired` (session) and `internal_exam.code_voided` (code).
 3. **Consumed + finished session** — refuses with `cannot_void_finished_attempt`. The RPC never retroactively changes a closed attempt.
 
-**Guards:** `not_authenticated`, `not_admin`, `invalid_reason` (NULL or whitespace-only — POSIX `^[[:space:]]*$` — or > 500 chars), `admin_not_found`, `code_not_found` (also raised for cross-org access — same error to avoid leaking existence), `code_voided` (already voided), `cannot_void_finished_attempt`.
+**Guards:** `not_authenticated`, `not_admin`, `invalid_reason` (NULL or whitespace-only — POSIX `^[[:space:]]*$` — or > 500 chars), `admin_not_found`, `code_not_found` (also raised for cross-org access — same error to avoid leaking existence), `code_voided` (already voided), `cannot_void_finished_attempt`, `session_state_changed`. The last is raised in two cases for a consumed code: the org-scoped `SELECT ... FOR UPDATE` on the linked session finds no row (soft-deleted after consume, or cross-org — mig 084 fail-fast), or the subsequent `UPDATE` matches zero rows (a concurrent writer changed the session between SELECT and UPDATE). Both fail loudly rather than voiding the code on a phantom or mutated session.
 
 **Returns:** `(code_id uuid, session_id uuid, session_ended boolean)`.
 

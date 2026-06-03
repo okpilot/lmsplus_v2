@@ -25,7 +25,7 @@ function formatScore(score: number | null): string {
   return `${Math.round(score)}%`
 }
 
-export function AttemptsTable({ rows }: Readonly<Props>) {
+export function AttemptsTable({ rows }: Props) {
   return (
     <div className="rounded-md border">
       <Table>

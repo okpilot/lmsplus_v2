@@ -52,8 +52,10 @@ type FromSetup = {
   profileError?: { message: string } | null
   profileData?: Record<string, unknown> | null
   orgData?: Record<string, unknown> | null
+  orgError?: { message: string; code?: string } | null
   statsRow?: StatsRow | null
   answeredCount?: number | null
+  answeredCountError?: { message: string } | null
 }
 
 /**
@@ -70,18 +72,24 @@ function setupMocks({
     organization_id: ORG_ID,
   },
   orgData = { name: 'Sky Academy' },
+  orgError = null,
   statsRow = { total_sessions: 2, avg_score: 70 },
   answeredCount = 42,
+  answeredCountError = null,
 }: FromSetup = {}) {
   mockFrom.mockImplementation((table: string) => {
     if (table === 'users') {
       return buildChain({ data: profileError ? null : profileData, error: profileError })
     }
     if (table === 'organizations') {
-      return buildChain({ data: orgData, error: null })
+      return buildChain({ data: orgError ? null : orgData, error: orgError })
     }
     if (table === 'student_responses') {
-      return buildChain({ count: answeredCount, data: null })
+      return buildChain({
+        count: answeredCountError ? null : answeredCount,
+        data: null,
+        error: answeredCountError,
+      })
     }
     return buildChain({ data: null, error: null })
   })
@@ -226,6 +234,15 @@ describe('getProfileData', () => {
 
       expect(result.stats.totalAnswered).toBe(0)
     })
+
+    it('throws when the answered-count query returns a DB error', async () => {
+      mockAuthenticatedUser()
+      setupMocks({ answeredCountError: { message: 'count query failed' } })
+
+      await expect(getProfileData()).rejects.toThrow(
+        'Failed to fetch answered count: count query failed',
+      )
+    })
   })
 
   describe('organization lookup', () => {
@@ -236,6 +253,33 @@ describe('getProfileData', () => {
       const result = await getProfileData()
 
       expect(result.organizationName).toBeNull()
+    })
+
+    it('logs the error and returns organizationName as null when the org query errors', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockAuthenticatedUser()
+      setupMocks({ orgError: { message: 'org read failed', code: '42501' } })
+
+      const result = await getProfileData()
+
+      expect(result.organizationName).toBeNull()
+      expect(consoleSpy).toHaveBeenCalledWith('[getProfile] org lookup error:', 'org read failed')
+      // Profile fields are still populated despite the org error
+      expect(result.fullName).toBe('Alice Pilot')
+      expect(result.email).toBe('alice@example.com')
+      consoleSpy.mockRestore()
+    })
+
+    it('does not log and returns organizationName as null when org is soft-deleted (PGRST116)', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockAuthenticatedUser()
+      setupMocks({ orgError: { message: 'no rows', code: 'PGRST116' } })
+
+      const result = await getProfileData()
+
+      expect(result.organizationName).toBeNull()
+      expect(consoleSpy).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
   })
 

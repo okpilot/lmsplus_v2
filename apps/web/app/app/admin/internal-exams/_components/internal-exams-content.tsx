@@ -1,4 +1,5 @@
-import { listExamSubjects, listInternalExamAttempts, listInternalExamCodes } from '../queries'
+import { listInternalExamAttempts } from '../attempts-queries'
+import { listExamSubjects, listInternalExamCodes } from '../queries'
 import { listOrgStudents } from '../students-queries'
 import { InternalExamsTabs } from './internal-exams-tabs'
 

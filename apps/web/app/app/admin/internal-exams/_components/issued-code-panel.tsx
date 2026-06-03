@@ -3,17 +3,12 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { formatExpiry } from '../_utils/format-expiry'
 
 type Props = {
   code: string
   expiresAt: string
   onDismiss: () => void
-}
-
-export function formatExpiry(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 export function IssuedCodePanel({ code, expiresAt, onDismiss }: Props) {

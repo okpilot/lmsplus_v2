@@ -388,4 +388,34 @@ describe('getStudentSessions', () => {
     expect(consoleSpy).toHaveBeenCalledWith('[getStudentSessions] Query error:', 'timeout')
     consoleSpy.mockRestore()
   })
+
+  it('coerces string wire value for score_percentage to number', async () => {
+    // PostgREST serialises NUMERIC as a JSON string; verify coercion to number.
+    const row = makeSessionRow({ score_percentage: '73.33' as unknown as number })
+    mockFrom.mockReturnValue(makeSessionChain([row], 1))
+
+    const { sessions } = await getStudentSessions(STUDENT_ID, {
+      range: 'all',
+      page: 1,
+      sort: 'date',
+      dir: 'desc',
+    })
+
+    expect(sessions[0]!.scorePercentage).toBe(73.33)
+    expect(typeof sessions[0]!.scorePercentage).toBe('number')
+  })
+
+  it('preserves null scorePercentage when wire value is null', async () => {
+    const row = makeSessionRow({ score_percentage: null })
+    mockFrom.mockReturnValue(makeSessionChain([row], 1))
+
+    const { sessions } = await getStudentSessions(STUDENT_ID, {
+      range: 'all',
+      page: 1,
+      sort: 'date',
+      dir: 'desc',
+    })
+
+    expect(sessions[0]!.scorePercentage).toBeNull()
+  })
 })

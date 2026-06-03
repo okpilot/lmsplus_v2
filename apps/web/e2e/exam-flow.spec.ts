@@ -35,15 +35,15 @@ test.describe('practice exam — auto-submit on timer expiry', () => {
   // 60s in-page timer + 75s post-submit waitForURL + ~15s setup margin = 150s.
   test.setTimeout(150_000)
 
-  // Skipped: 0-answer auto-submit reproducibly hangs on /app/quiz/session.
-  // Server side completes correctly (DB row gets ended_at, score=0%, passed=false),
-  // and the trace shows Next.js fetches the /app/quiz/report RSC payload (200 OK)
-  // — but the frame URL never transitions, so the user stays on the session page
-  // with "Submitting…" stuck. Reproduces in real browser, not just under Playwright.
-  // Submitting WITH answers works (batch_submit_quiz path); only the 0-answer path
-  // (submitEmptyExamSession → complete_empty_exam_session RPC) hangs the client.
-  // Tracked in #568 — re-enable this spec when the bug is fixed.
-  test.fixme('lands on the report page with 0% / FAIL when the timer expires with no answers', async ({
+  // Regression for #568: a 0-answer auto-submit used to hang on /app/quiz/session.
+  // Server side completed correctly (ended_at set, score=0%, passed=false) and the
+  // report RSC rendered 200 OK, but the frame URL never transitioned to
+  // /app/quiz/report. Root cause: clearDeploymentPin() (a Server Action) was invoked
+  // AFTER router.push in the empty-exam path; the Server Action's App Router
+  // revalidation cancelled the pending soft navigation. Fixed by firing
+  // clearDeploymentPin BEFORE push (quiz-submit.ts), matching the batch_submit_quiz
+  // path that always navigated correctly.
+  test('lands on the report page with 0% / FAIL when the timer expires with no answers', async ({
     page,
   }) => {
     // ── 1. Navigate to quiz config ──────────────────────────────────────────
@@ -131,7 +131,8 @@ test.describe('practice exam — auto-submit on timer expiry', () => {
     // FAILED badge — 0 correct out of 10, pass mark 70%
     await expect(page.getByText('FAILED')).toBeVisible()
 
-    // Score ring shows 0% (the ScoreRing renders the percentage as visible text)
-    await expect(page.getByText('0%')).toBeVisible()
+    // Score ring shows 0% — assert the labelled ScoreRing (role=img, "Score: 0%"),
+    // not raw getByText('0%') which matches the ring's duplicated SVG <text> nodes.
+    await expect(page.getByRole('img', { name: 'Score: 0%' })).toBeVisible()
   })
 })

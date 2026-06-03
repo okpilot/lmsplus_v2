@@ -8,7 +8,8 @@ vi.mock('sonner', () => ({
   toast: { success: mockToastSuccess, error: mockToastError },
 }))
 
-import { formatExpiry, IssuedCodePanel } from './issued-code-panel'
+import { formatExpiry } from '../_utils/format-expiry'
+import { IssuedCodePanel } from './issued-code-panel'
 
 const PROPS = {
   code: 'ABCD2345',

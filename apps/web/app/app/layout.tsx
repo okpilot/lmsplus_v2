@@ -12,11 +12,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (authError || !user) redirect('/')
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('full_name, email, role')
     .eq('id', user.id)
     .single<{ full_name: string | null; email: string; role: string }>()
+
+  if (profileError) {
+    // Role is used for UI/nav display only — access control lives in proxy.ts.
+    // A failed read degrades gracefully to the 'student' fallback rather than
+    // breaking the shell render for a transient DB hiccup.
+    console.error('[AppLayout] profile lookup error:', profileError.message)
+  }
 
   const displayName = profile?.full_name ?? profile?.email ?? user.email ?? 'Student'
 
