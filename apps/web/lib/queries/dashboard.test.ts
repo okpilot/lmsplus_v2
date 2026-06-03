@@ -373,6 +373,28 @@ describe('getDashboardData', () => {
     await expect(getDashboardData()).rejects.toThrow('Failed to fetch subjects: subjects db error')
   })
 
+  it('throws when the student_responses count read errors instead of degrading to 0', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'student_responses')
+        return buildChain({ count: null, error: { message: 'boom' } })
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AIR', name: 'Air Law', short: 'AL', sort_order: 1 }],
+        })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    // mastery/streak/last-practiced RPCs succeed so the only failure is the count read
+    setRpc({
+      mastery: [],
+      streak: [{ current_streak: 0, best_streak: 0 }],
+      lastPracticed: [],
+    })
+    // getTotalAnswered and getQuestionsToday both read student_responses under the same
+    // Promise.all, so either may reject first — match the shared prefix, not a specific message.
+    await expect(getDashboardData()).rejects.toThrow(/Failed to fetch/)
+  })
+
   it('filters out all subjects when the mastery RPC returns null data without an error', async () => {
     // Array.isArray(null) → false → masteryBySubject stays empty → every subject gets
     // totalQuestions: 0, answeredCorrectly: 0, which fails the survival filter.
@@ -401,6 +423,29 @@ describe('getDashboardData', () => {
     // No mastery data means 0 total and 0 correct for all subjects → all filtered out.
     expect(result.subjects).toHaveLength(0)
     expect(result.totalQuestions).toBe(0)
+  })
+
+  it('skips a malformed mastery row instead of storing NaN mastery', async () => {
+    // A row whose total/correct do not coerce to finite numbers must be dropped, not
+    // stored as NaN (which would poison masteryPercentage). The subject then has no
+    // mastery counts and is filtered out.
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    setRpc({
+      mastery: [{ subject_id: 's1', topic_id: null, total: 'abc', correct: 'def' }],
+    })
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AGK', name: 'Aircraft General', short: 'AGK', sort_order: 1 }],
+        })
+      if (table === 'student_responses') return buildChain({ count: 1 })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const result = await getDashboardData()
+    expect(result.subjects).toHaveLength(0)
   })
 
   it('throws when the mastery stats RPC returns an error', async () => {

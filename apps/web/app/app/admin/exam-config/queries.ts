@@ -55,9 +55,13 @@ export async function getExamConfigData(): Promise<SubjectWithConfig[]> {
   const topicCounts = new Map<string, number>()
   const subtopicCounts = new Map<string, number>()
   for (const row of questionCounts) {
-    if (row.topic_id) topicCounts.set(row.topic_id, (topicCounts.get(row.topic_id) ?? 0) + row.n)
+    if (row.topic_id)
+      topicCounts.set(row.topic_id, (topicCounts.get(row.topic_id) ?? 0) + Number(row.n))
     if (row.subtopic_id)
-      subtopicCounts.set(row.subtopic_id, (subtopicCounts.get(row.subtopic_id) ?? 0) + row.n)
+      subtopicCounts.set(
+        row.subtopic_id,
+        (subtopicCounts.get(row.subtopic_id) ?? 0) + Number(row.n),
+      )
   }
 
   // Build config map

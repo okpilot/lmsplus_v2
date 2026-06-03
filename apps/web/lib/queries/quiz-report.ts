@@ -41,7 +41,7 @@ type SessionRow = {
   ended_at: string | null
   total_questions: number
   correct_count: number
-  score_percentage: number | null
+  score_percentage: number | string | null
   passed: boolean | null
   time_limit_seconds: number | null
 }
@@ -109,7 +109,8 @@ export async function getQuizReportSummary(sessionId: string): Promise<QuizRepor
     totalQuestions: session.total_questions,
     answeredCount: answeredCount ?? session.total_questions,
     correctCount: session.correct_count,
-    scorePercentage: session.score_percentage ?? 0,
+    scorePercentage:
+      (session.score_percentage != null ? Number(session.score_percentage) : null) ?? 0,
     startedAt: session.started_at,
     endedAt: session.ended_at,
     passed: session.passed,

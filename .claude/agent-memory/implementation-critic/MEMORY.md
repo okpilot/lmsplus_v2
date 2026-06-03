@@ -13,6 +13,9 @@
 | TRANSPORT_LAYER/payload-group loop applied to fewer RPCs than plan states | 2026-05-07 | 1 | 2026-05-07 | WATCHING. #108 `void_internal_exam_code` got DB_LAYER only. When plan documents a payload group across N RPCs, count loops in each describe block before approving. |
 | Conditional redirect regression when helper return value discarded | 2026-04-14 | 1 | 2026-04-14 | WATCHING. `handleSubmitSession` discarded `discardQuizSession` result; `router.push` fires only on success → stranded user. Check callers of helpers that made an unconditional side-effect conditional. |
 | Too-lenient INSERT rejection assertion in red-team specs | 2026-05-31 | 1 | 2026-05-31 | WATCHING. #314 flag-idor + server-action-unauthenticated used `expect(error !== null \|\| (data?.length ?? 0) === 0).toBe(true)` instead of established `expect(error).not.toBeNull()`. RLS WITH CHECK violations always produce a non-null error in PostgREST; the OR-branch allows vacuous pass if RLS is misconfigured. Pattern observed in 2 places simultaneously. |
+| Thin-wrapper page-error tests: mock-dependency form is valid when SUT is pure pass-through | 2026-06-01 | 1 | 2026-06-01 | WATCHING. PR-A4 (#699) 7 fetchUser* functions are pure `return fetchAllRows(...)` — no mapping/filtering between fetchAllRows and the return. Mock-the-dependency (`vi.mock('@/lib/supabase-paginate')`) proves propagation completely. Non-vacuous because fetchAllRows is the ONLY code path. Do NOT flag these as "bypassing production logic" — there is no production logic to bypass. |
+| New _hooks/ util extracted without co-located test | 2026-06-01 | 1 | 2026-06-01 | WATCHING. PR-B1 (#565) quiz-recovery-handlers.ts (95 lines, 3 builder fns) added to _hooks/ without a .test.ts. code-style.md §7 requires tests for new utilities in _hooks/. Sibling quiz-config-handlers.test.ts confirms the precedent. Flag as ISSUE on all future _hooks/ util additions lacking a test. |
+| #582 Readonly<Props> sweep: plan said "5 exist", reconciled to 3 | 2026-06-01 | 1 | 2026-06-01 | WATCHING. Issue originally stated 5 occurrences; 3 were the named `Readonly<Props>` pattern; 1 remaining is an inline `Readonly<{...}>` in `admin-internal-exam-report-header.tsx` which is a different idiom (not a named Props alias). The distinction matters: plan explicitly reconciled to 3 before execution. No false positive — reconciliation was correct. Track whether inline Readonly<{...}> should also be normalised. |
 
 ## Durable knowledge
 
@@ -31,6 +34,26 @@
 - **Broad grep for component names (e.g. "Separator", "Progress", "Tooltip") returns false-positive file matches** when sibling components use same-named primitives from `@base-ui/react` directly (e.g., `SelectSeparator` in `select.tsx` uses `SelectPrimitive.Separator`, not the deleted `components/ui/separator.tsx`). Always verify import path, not just symbol name.
 - **Tailwind v4 `@plugin` directive placement** — place after all `@import` lines, before `@custom-variant`/`@theme`. Verified correct on #325 (globals.css lines 1–6).
 
+- **Dead mock branches in test helpers — ISSUE class, not cosmetic.** When a test mocks `mockFrom` with a per-table dispatcher, any `if (table === 'X')` branch for a table that the SUT no longer reads is dead code. The `throw new Error('Unexpected table: X')` guard at the bottom means the dead branch was written defensively to avoid that throw — but it also silently masks future regressions where the SUT unexpectedly reads the dead table. Remove dead branches so the guard fires if assumptions are violated. First seen: PR-A1 dashboard.test.ts:383 `easa_topics` branch — dashboard.ts has not read `easa_topics` since the mastery-RPC refactor.
+
+## Notes on PR-A3 sweep pattern
+
+- **Type-widening for DB-typed RPC columns (`n: number` in `get_question_counts`).** `exam-config/queries.ts` and `syllabus/queries.ts` apply `Number(row.n)` where the DB types.ts already declares `n: number`. No local Row type is declared; TypeScript sees a `number`. `Number(n)` on a `number` is a harmless identity but correct at runtime if PostgREST ever sends a string. Do NOT flag the missing local type widening for these files — the DB types are the contract, and the coercion is the defensive fix.
+- **`(x != null ? Number(x) : null) ?? 0` is the correct pattern for nullable NUMERIC with a non-null fallback.** `quiz-report.ts` and `admin-quiz-report.ts` both use this two-step form. The inner ternary handles null→null; the outer `?? 0` is the pre-existing non-null default for `QuizReportSummary.scorePercentage: number`. Pattern is correct — verified PR-A3.
+
+## Notes on PR-A2 sweep pattern
+
+- **GROUP 1 real-error tests omit console.error assertion.** upsert-subject/topic/subtopic real-error tests assert `result.success === false` + `result.error` message but don't spy on/assert `console.error`. Production code does call it. Not flagged as ISSUE (plan only required the two behavioral outcomes); flagged as SUGGESTION. Pattern: when production code has a side-effect (logging), tests covering that path may not verify the side-effect. Consider whether this is a recurring blind spot.
+
+## Durable knowledge — cached-role pattern in SECURITY DEFINER RPCs
+
+- **Cached role variable prevents NOT NULL abort on delayed soft-delete.** When a SECURITY DEFINER RPC inserts into `audit_events` (actor_role TEXT NOT NULL), the actor's role must be fetched once into a local variable at authz time — not via repeated inline subqueries later. An inline `(SELECT u.role ... WHERE u.id = v_admin_id AND u.deleted_at IS NULL)` in the INSERT VALUES clause returns NULL if the admin is soft-deleted between the authz check and the audit insert, aborting the whole transaction on the NOT NULL constraint and rolling back an already-authorized mutation. Pattern established in mig 078 (batch_submit), applied to mig 084 (void_internal_exam_code) in PR #731. security.md §10 deleted_at filter is still required on the capturing SELECT — the fix does not relax it, it consolidates it.
+- **NULL-org guard doubles as NULL-role guard when role is fetched on the same SELECT.** After `SELECT u.organization_id, u.role INTO v_admin_org, v_admin_role`, the `IF v_admin_org IS NULL` guard also ensures v_admin_role is non-null (the SELECT either populates both columns from a matching row or yields NULL for both). No separate v_admin_role IS NULL guard is needed.
+
+## Positive patterns
+
+- **Migration metadata-key rename via CREATE OR REPLACE copy (#570, 2026-06-01).** The plan specified: full byte-copy of the latest migration, change only the header comment + the two metadata keys, mirror to both dirs. Implementation was exact — diff 078→082 showed only 3 lines changed, mirror diff was empty. Zero-deviation execution on a "surgical change to a large SQL function" plan. The minimal-change plan approach (vs in-place edit of 078) is a sound strategy for audit-sensitive RPCs; reinforces that the migration copy approach is the right pattern for this class of fix.
+
 ## False positives (do not re-raise)
 
 - `avg_score` / mastery RPCs return NULL (no COALESCE) for students with no sessions — intentional; app type is `number | null`, UI guards `!== null`.
@@ -38,3 +61,4 @@
 - Adjacent conditional JSX guard blocks (`{canDismiss && (`) are not "duplicate buttons" — one state-driven trigger + one prop-guarded confirm-panel button are distinct.
 - `_userId` / dropped-param on caller-scoped RPCs — the RPC is scoped via RLS + `auth.uid()`, so an unused student-id param is dead but harmless (SUGGESTION at most).
 - Red-team seed `selected_option_id: 'a'` with `is_correct: true` — intentional; `get_student_mastery_stats` reads `sr.is_correct` directly, never re-derives correctness from `selected_option_id` vs the question's correct option. 'a' is cosmetic (#673 confirmed).
+- Red-team spec with no `afterEach` is hermetic when each test seeds NEW unique rows and does not mutate shared beforeAll state — confirmed for rpc-void-internal-exam-code.spec.ts (#518/#638): every test creates fresh code+session rows; BN-1/BN-2 leave their code rows un-voided (RPC rejects before write); BO/BP/CD/positive each touch only their own freshly-seeded rows. No shared seed mutation → no afterEach needed. Do not flag as a hermiticity violation.

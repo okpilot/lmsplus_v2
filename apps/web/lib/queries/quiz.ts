@@ -61,12 +61,18 @@ async function fetchActiveQuestionCounts(
 export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
   const supabase = await createServerSupabaseClient()
 
-  const [{ data: subjectsData }, countsData] = await Promise.all([
+  // Intentional asymmetry: a subjects read error throws (page-critical data), while
+  // fetchActiveQuestionCounts degrades to [] internally (counts are non-fatal).
+  const [subjectsRes, countsData] = await Promise.all([
     supabase.from('easa_subjects').select('id, code, name, short, sort_order').order('sort_order'),
     fetchActiveQuestionCounts(supabase),
   ])
 
-  const subjects = (subjectsData ?? []) as SubjectRow[]
+  if (subjectsRes.error) {
+    throw new Error(`Failed to fetch subjects: ${subjectsRes.error.message}`)
+  }
+
+  const subjects = (subjectsRes.data ?? []) as SubjectRow[]
   if (!subjects.length) return []
 
   const countMap = new Map<string, number>()
@@ -88,13 +94,17 @@ export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
 export async function getTopicsForSubject(subjectId: string): Promise<TopicOption[]> {
   const supabase = await createServerSupabaseClient()
 
-  const { data: topicsData } = await supabase
+  const topicsRes = await supabase
     .from('easa_topics')
     .select('id, code, name, sort_order')
     .eq('subject_id', subjectId)
     .order('sort_order')
 
-  const topics = (topicsData ?? []) as TopicRow[]
+  if (topicsRes.error) {
+    throw new Error(`Failed to fetch topics: ${topicsRes.error.message}`)
+  }
+
+  const topics = (topicsRes.data ?? []) as TopicRow[]
   if (!topics.length) return []
 
   const countsData = await fetchActiveQuestionCounts(supabase)
@@ -118,13 +128,17 @@ export async function getTopicsForSubject(subjectId: string): Promise<TopicOptio
 export async function getSubtopicsForTopic(topicId: string): Promise<SubtopicOption[]> {
   const supabase = await createServerSupabaseClient()
 
-  const { data: subtopicsData } = await supabase
+  const subtopicsRes = await supabase
     .from('easa_subtopics')
     .select('id, code, name, sort_order')
     .eq('topic_id', topicId)
     .order('sort_order')
 
-  const subtopics = (subtopicsData ?? []) as SubtopicRow[]
+  if (subtopicsRes.error) {
+    throw new Error(`Failed to fetch subtopics: ${subtopicsRes.error.message}`)
+  }
+
+  const subtopics = (subtopicsRes.data ?? []) as SubtopicRow[]
   if (!subtopics.length) return []
 
   const countsData = await fetchActiveQuestionCounts(supabase)
@@ -148,18 +162,22 @@ export async function getSubtopicsForTopic(topicId: string): Promise<SubtopicOpt
 export async function getTopicsWithSubtopics(subjectId: string): Promise<TopicWithSubtopics[]> {
   const supabase = await createServerSupabaseClient()
 
-  const { data: topicsData } = await supabase
+  const topicsRes = await supabase
     .from('easa_topics')
     .select('id, code, name, sort_order')
     .eq('subject_id', subjectId)
     .order('sort_order')
 
-  const topics = (topicsData ?? []) as TopicRow[]
+  if (topicsRes.error) {
+    throw new Error(`Failed to fetch topics: ${topicsRes.error.message}`)
+  }
+
+  const topics = (topicsRes.data ?? []) as TopicRow[]
   if (!topics.length) return []
 
   const topicIds = topics.map((t) => t.id)
 
-  const [{ data: subtopicsData }, countsData] = await Promise.all([
+  const [subtopicsRes, countsData] = await Promise.all([
     supabase
       .from('easa_subtopics')
       .select('id, code, name, sort_order, topic_id')
@@ -168,7 +186,11 @@ export async function getTopicsWithSubtopics(subjectId: string): Promise<TopicWi
     fetchActiveQuestionCounts(supabase),
   ])
 
-  const subtopics = (subtopicsData ?? []) as SubtopicRow[]
+  if (subtopicsRes.error) {
+    throw new Error(`Failed to fetch subtopics: ${subtopicsRes.error.message}`)
+  }
+
+  const subtopics = (subtopicsRes.data ?? []) as SubtopicRow[]
 
   const topicCounts = new Map<string, number>()
   const subtopicCounts = new Map<string, number>()

@@ -337,6 +337,40 @@ if ((discarded?.length ?? 0) > 0) {
 }
 ```
 
+### Destructure SELECT Query Results Too
+
+`.select()` reads are subject to the same rule as mutations: destructure `{ error }` and check it before consuming `data`. Supabase does not throw on query errors — errors live in `result.error`. A read that destructures only `{ data }` silently treats an RLS-blocked or transport-failed query as an empty result (PostgREST returns `200 OK` with `null`/`[]`).
+
+Match the surrounding error posture:
+- **Server Component query helpers** (e.g. `lib/queries/*`) — `throw new Error(\`Failed to fetch X: ${error.message}\`)`, mirroring the sibling reads in the same file. The throw surfaces via `app/error.tsx` + Sentry.
+- **Server Actions** — `console.error` server-side and return a generic domain message (never return `error.message` — see *Sanitize Error Messages*).
+
+```ts
+// ❌ WRONG — RLS-blocked read looks like an empty list
+const { data: topics } = await supabase.from('easa_topics').select('id').eq('subject_id', id)
+return (topics ?? []).map(...)
+
+// ✅ CORRECT — query helper throws
+const { data: topics, error } = await supabase.from('easa_topics').select('id').eq('subject_id', id)
+if (error) throw new Error(`Failed to fetch topics: ${error.message}`)
+return (topics ?? []).map(...)
+```
+
+**`.single()` / `.maybeSingle()` exception:** when a "no rows" result is an expected branch (e.g. computing the next `sort_order` on the first insert), `PGRST116` is not a failure — exempt it explicitly and handle real errors only:
+
+```ts
+const { data: maxRow, error } = await supabase
+  .from('easa_subjects').select('sort_order').order('sort_order', { ascending: false }).limit(1).single<{ sort_order: number }>()
+// PGRST116 (no rows) is the expected first-insert case — only a real error is a failure.
+if (error && error.code !== 'PGRST116') {
+  console.error('[upsertSubject] sort_order lookup error:', error.message)
+  return { success: false, error: 'Failed to create subject' }
+}
+const sortOrder = (maxRow?.sort_order ?? -1) + 1
+```
+
+**Exception:** read-only test/setup helpers may wrap multiple chained reads in a single try/catch when the entire setup is atomic.
+
 ### PostgREST Embedded Resources: Use `!` (FK-hint), Not `:` (alias)
 The `:` operator in `.select()` aliases the result key but does NOT expand a foreign key. PostgREST may resolve the embedded resource by table name when there's a single FK, but on resolution failure (FK ambiguous, schema drift) it returns null silently — and downstream code that expected an object then operates on null. Use `!fk_column_name` to explicitly hint the FK; resolution failures error loudly.
 
@@ -607,6 +641,18 @@ test.describe('Admin Student Management — Create', () => {
 
 Reason: issue #587 — `admin-questions.spec.ts`'s bulk-Deactivate test flipped every visible MET question to `status='draft'` and never restored. Within Playwright's `admin-e2e` project, admin-questions runs alphabetically before `internal-exam-*.spec.ts`, so `start_internal_exam_session` raised `insufficient_questions_for_exam` and 6 internal-exam specs timed out in CI. Promoted to a rule at count=2 (`admin-students.spec.ts` was already hermetic; `admin-questions.spec.ts` is the second).
 
+### Paginated Fetch Needs a Caller-Level Page-Error Test (from 2026-06-01)
+
+Any caller of `fetchAllRows` (or any multi-fetch / `.range()` pagination helper) must have a co-located test asserting that a **page-fetch error after a successful count** propagates correctly. Set it up one of two ways depending on how the suite mocks the helper:
+- **Real helper, mocked queries:** mock the count query to succeed with a non-zero total AND the first page query to return `{ data: null, error }`.
+- **Helper mocked as a dependency:** mock `fetchAllRows` to return its page-error result `{ data: [], error }` (the shape it returns after discarding partial pages).
+
+Either way, assert the caller surfaces the error (returns `{ data: [], error }`, throws, or logs + degrades per its contract).
+
+`fetchAllRows` discards partial pages on a page error and returns `{ data: [], error }`, so the failure mode this guards against is a **silently-truncated result that looks complete** (e.g. a GDPR export section missing rows with no signal). A test that only mocks the count error is insufficient — the page-error path is the one that regresses silently.
+
+Promoted at count=2 (PR #681 GDPR pagination + #668 instance #7 `listOrgStudents`/`getComments`).
+
 ---
 
 ## 8. What the Code Reviewer Checks Automatically
@@ -624,6 +670,7 @@ The `code-reviewer` agent flags these after every commit:
 - Barrel `index.ts` files
 - `useEffect` used for data fetching (hydration guards are exempt — see Section 6)
 - Missing tests for new utility functions
+- `.select()` reads that destructure only `{ data }` without checking `{ error }` (see Section 5 — `.single()` PGRST116 no-rows is an allowed exception)
 
 ---
 
@@ -639,4 +686,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-04-30*
+*Last updated: 2026-06-01*
