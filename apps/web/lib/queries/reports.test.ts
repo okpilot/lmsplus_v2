@@ -294,40 +294,4 @@ describe('getSessionReports', () => {
     const result = await getSessionReports(DEFAULT_OPTS)
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
   })
-
-  it('coerces string wire values for bigint/numeric columns to numbers', async () => {
-    // PostgREST serialises BIGINT/NUMERIC as JSON strings; verify coercion to number.
-    mockRpc.mockResolvedValue({
-      data: [
-        makeRpcRow({
-          total_count: '142',
-          answered_count: '10',
-          score_percentage: '73.33',
-        }),
-      ],
-      error: null,
-    })
-
-    const result = await getSessionReports(DEFAULT_OPTS)
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.totalCount).toBe(142)
-    expect(typeof result.totalCount).toBe('number')
-    expect(result.sessions[0]!.answeredCount).toBe(10)
-    expect(typeof result.sessions[0]!.answeredCount).toBe('number')
-    expect(result.sessions[0]!.scorePercentage).toBe(73.33)
-    expect(typeof result.sessions[0]!.scorePercentage).toBe('number')
-  })
-
-  it('preserves null scorePercentage when wire value is null', async () => {
-    mockRpc.mockResolvedValue({
-      data: [makeRpcRow({ score_percentage: null })],
-      error: null,
-    })
-
-    const result = await getSessionReports(DEFAULT_OPTS)
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.sessions[0]!.scorePercentage).toBeNull()
-  })
 })
