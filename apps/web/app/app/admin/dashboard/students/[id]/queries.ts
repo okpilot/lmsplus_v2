@@ -79,7 +79,7 @@ export async function getStudentSessions(
   type SessionRow = {
     id: string
     mode: string
-    score_percentage: number | null
+    score_percentage: number | string | null
     total_questions: number
     correct_count: number
     started_at: string
@@ -93,7 +93,7 @@ export async function getStudentSessions(
     subjectName: row.easa_subjects?.name ?? null,
     topicName: row.easa_topics?.name ?? null,
     mode: row.mode,
-    scorePercentage: row.score_percentage,
+    scorePercentage: row.score_percentage != null ? Number(row.score_percentage) : null,
     totalQuestions: row.total_questions,
     correctCount: row.correct_count,
     startedAt: row.started_at,

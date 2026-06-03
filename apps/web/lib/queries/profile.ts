@@ -58,12 +58,19 @@ async function getProfile(supabase: SupabaseClient, userId: string) {
 
   if (error || !data) throw new Error('Failed to load profile')
 
-  const { data: org } = await supabase
+  // Org name is a non-critical display field (nullable). Unlike the page-critical
+  // reads above, an org lookup failure logs + degrades to `organizationName: null`
+  // rather than throwing — a missing org must not break the whole profile page.
+  // PGRST116 (org soft-deleted → no row after the deleted_at filter) is a valid
+  // empty state, not an error, so it is exempt from the log.
+  const { data: org, error: orgError } = await supabase
     .from('organizations')
     .select('name')
     .eq('id', data.organization_id)
     .is('deleted_at', null)
     .single<OrgRow>()
+  if (orgError && orgError.code !== 'PGRST116')
+    console.error('[getProfile] org lookup error:', orgError.message)
 
   return {
     fullName: data.full_name,
@@ -99,10 +106,13 @@ async function getProfileStats(supabase: SupabaseClient, userId: string): Promis
 
   // `userId` is only needed here: the head-count of answered questions is a safe
   // count (no truncation). The stats RPC above takes no args and self-scopes via auth.uid().
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from('student_responses')
     .select('*', { count: 'exact', head: true })
     .eq('student_id', userId)
+  if (countError) {
+    throw new Error(`Failed to fetch answered count: ${countError.message}`)
+  }
 
   return {
     totalSessions,
