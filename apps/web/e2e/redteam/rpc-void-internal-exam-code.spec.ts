@@ -19,6 +19,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  E2E_REDTEAM_CODE_PREFIX,
   ensureExamConfig,
   pickSubjectWithQuestions,
   seedCrossOrgAdmin,
@@ -47,7 +48,7 @@ async function seedCode(
 ): Promise<{ id: string; code: string }> {
   // crypto.randomUUID() is collision-resistant; Math.random() can collide
   // across rapid test runs in the same describe block.
-  const code = `RT${crypto
+  const code = `${E2E_REDTEAM_CODE_PREFIX}${crypto
     .randomUUID()
     .replace(/-/g, '')
     .toUpperCase()
@@ -294,9 +295,14 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     })
 
     expect(error).toBeNull()
-    const result = (
-      data as Array<{ code_id: string; session_id: string; session_ended: boolean }> | null
-    )?.[0]
+    // Runtime guard before the cast (code-style.md §5): the RPC returns a
+    // SETOF row, so assert the array shape before narrowing + indexing it.
+    expect(Array.isArray(data)).toBe(true)
+    const [result] = data as Array<{
+      code_id: string
+      session_id: string
+      session_ended: boolean
+    }>
     expect(result?.code_id).toBe(code.id)
     expect(result?.session_id).toBe(sessionId)
     expect(result?.session_ended).toBe(true)
