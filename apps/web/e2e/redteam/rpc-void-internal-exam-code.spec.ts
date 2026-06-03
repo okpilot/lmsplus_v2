@@ -303,6 +303,8 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
       session_id: string
       session_ended: boolean
     }>
+    // Distinguish an empty-array RPC return from a wrong-value field below.
+    expect(result).toBeDefined()
     expect(result?.code_id).toBe(code.id)
     expect(result?.session_id).toBe(sessionId)
     expect(result?.session_ended).toBe(true)
