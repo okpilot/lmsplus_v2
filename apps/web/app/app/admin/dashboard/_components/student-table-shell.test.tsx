@@ -41,8 +41,8 @@ vi.mock('./student-status-filter', () => ({
   ),
 }))
 
-// Stub SortableTableHead — tested separately in _lib/sortable-head.test.tsx.
-vi.mock('../_lib/sortable-head', () => ({
+// Stub SortableTableHead — tested separately in components/sortable-table-head.test.tsx.
+vi.mock('@/components/sortable-table-head', () => ({
   SortableTableHead: ({
     field,
     label,
