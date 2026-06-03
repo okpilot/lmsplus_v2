@@ -6,7 +6,8 @@
  * internal_exam.started/.code_issued/.code_voided/.expired. Negative gates
  * (forgery, tamper, delete) live in audit-event-forgery.spec.ts.
  *
- * Scope: event_type + actor_id only (metadata-shape coupling tracked in #570).
+ * Scope: event_type + actor_id, plus the exam.completed metadata-key schema
+ * (answered_count/correct_count, not the legacy answered/correct — #570).
  * Each test captures testStart BEFORE the trigger, filters created_at >= testStart
  * so parallel specs don't pollute counts. Backdating uses service-role
  * (exempt from quiz_sessions immutable-columns trigger, mig 20260502000001).
@@ -197,6 +198,40 @@ test.describe('Red Team: Audit Event Completeness', () => {
     ).toBeGreaterThan(0)
   }
 
+  // #570: batch_submit_quiz writes ONE shared metadata object for both its
+  // completion event_types (exam.completed / internal_exam.completed). Locks
+  // the canonical *_count key schema so a future CREATE OR REPLACE can't
+  // silently revert either branch to the bare 'answered'/'correct' keys.
+  async function expectCompletionMetadata(opts: {
+    eventType: string
+    actorId: string
+    testStart: string
+    sessionId: string
+  }) {
+    const { eventType, actorId, testStart, sessionId } = opts
+    const { data, error } = await admin
+      .from('audit_events')
+      .select('metadata')
+      .eq('event_type', eventType)
+      .eq('actor_id', actorId)
+      .eq('resource_id', sessionId)
+      .gte('created_at', testStart)
+    expect(error, `${eventType} metadata query error`).toBeNull()
+    const meta = (data?.[0]?.metadata ?? {}) as Record<string, unknown>
+    expect(meta, `${eventType} metadata should expose answered_count`).toHaveProperty(
+      'answered_count',
+    )
+    expect(meta, `${eventType} metadata should expose correct_count`).toHaveProperty(
+      'correct_count',
+    )
+    expect(meta, `${eventType} metadata must not use the legacy 'answered' key`).not.toHaveProperty(
+      'answered',
+    )
+    expect(meta, `${eventType} metadata must not use the legacy 'correct' key`).not.toHaveProperty(
+      'correct',
+    )
+  }
+
   async function backdateSession(sessionId: string): Promise<void> {
     // 60s time_limit, started 91s ago → past the 30s grace, on next
     // batch_submit_quiz the RPC writes the *expired audit and ends the session.
@@ -291,6 +326,12 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(submitErr).toBeNull()
 
     await expectAuditRow('exam.completed', studentUserId, testStart, sessionId)
+    await expectCompletionMetadata({
+      eventType: 'exam.completed',
+      actorId: studentUserId,
+      testStart,
+      sessionId,
+    })
   })
 
   test('writes exam.expired when mock_exam session is past the grace period', async () => {
@@ -382,6 +423,12 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect((submitData as { expired?: boolean } | null)?.expired).not.toBe(true)
 
     await expectAuditRow('internal_exam.completed', studentUserId, testStart, sessionId)
+    await expectCompletionMetadata({
+      eventType: 'internal_exam.completed',
+      actorId: studentUserId,
+      testStart,
+      sessionId,
+    })
   })
 
   test('writes internal_exam.expired when internal_exam session is past the grace period', async () => {
