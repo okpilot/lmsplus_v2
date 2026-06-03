@@ -136,9 +136,10 @@ async function getSubjectProgress(supabase: SupabaseClient): Promise<SubjectProg
 }
 
 async function getTotalAnswered(supabase: SupabaseClient, userId: string): Promise<number> {
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from('student_responses')
     .select('*', { count: 'exact', head: true })
     .eq('student_id', userId)
+  if (error) throw new Error(`Failed to fetch answered count: ${error.message}`)
   return count ?? 0
 }

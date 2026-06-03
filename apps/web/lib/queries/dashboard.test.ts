@@ -373,6 +373,28 @@ describe('getDashboardData', () => {
     await expect(getDashboardData()).rejects.toThrow('Failed to fetch subjects: subjects db error')
   })
 
+  it('throws when the student_responses count read errors instead of degrading to 0', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'student_responses')
+        return buildChain({ count: null, error: { message: 'boom' } })
+      if (table === 'easa_subjects')
+        return buildChain({
+          data: [{ id: 's1', code: 'AIR', name: 'Air Law', short: 'AL', sort_order: 1 }],
+        })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    // mastery/streak/last-practiced RPCs succeed so the only failure is the count read
+    setRpc({
+      mastery: [],
+      streak: [{ current_streak: 0, best_streak: 0 }],
+      lastPracticed: [],
+    })
+    // getTotalAnswered and getQuestionsToday both read student_responses under the same
+    // Promise.all, so either may reject first — match the shared prefix, not a specific message.
+    await expect(getDashboardData()).rejects.toThrow(/Failed to fetch/)
+  })
+
   it('filters out all subjects when the mastery RPC returns null data without an error', async () => {
     // Array.isArray(null) → false → masteryBySubject stays empty → every subject gets
     // totalQuestions: 0, answeredCorrectly: 0, which fails the survival filter.
