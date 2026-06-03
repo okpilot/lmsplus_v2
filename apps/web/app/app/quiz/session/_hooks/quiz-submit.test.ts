@@ -558,6 +558,32 @@ describe('handleSubmitSession', () => {
     expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
   })
 
+  it('fires clearDeploymentPin when submitEmptyExamSession fails so the next session is not blocked', async () => {
+    mockSubmitEmptyExamSession.mockResolvedValue({ success: false, error: 'Session not found.' })
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const opts = makeOpts({ answers: new Map(), isExam: true })
+      await handleSubmitSession(opts)
+      expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
+  it('fires clearDeploymentPin when submitEmptyExamSession rejects so the next session is not blocked', async () => {
+    mockSubmitEmptyExamSession.mockRejectedValue(new Error('network'))
+    mockDiscardQuiz.mockResolvedValue({ success: true })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const opts = makeOpts({ answers: new Map(), isExam: true })
+      await handleSubmitSession(opts)
+      expect(mockClearDeploymentPin).toHaveBeenCalledTimes(1)
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
   it('does not call discardQuiz on successful zero-answer exam completion', async () => {
     const opts = makeOpts({ answers: new Map(), isExam: true })
     await handleSubmitSession(opts)

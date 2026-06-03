@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
 
 type SessionRecoveryPromptProps = Readonly<{
   subjectName?: string
@@ -22,6 +23,7 @@ type SessionRecoveryPromptProps = Readonly<{
   loading: boolean
   error: string | null
   mode?: 'study' | 'exam'
+  examMode?: DbQuizMode
 }>
 
 export function SessionRecoveryPrompt({
@@ -34,12 +36,14 @@ export function SessionRecoveryPrompt({
   loading,
   error,
   mode,
+  examMode,
 }: SessionRecoveryPromptProps) {
   const isExam = mode === 'exam'
+  const examLabel = MODE_LABELS[examMode ?? 'mock_exam'] ?? 'Exam'
   return (
     <div className="mx-auto mt-16 max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
       <h2 className="text-base font-semibold text-foreground">
-        {isExam ? 'Resume your Practice Exam?' : 'Resume your quiz?'}
+        {isExam ? `Resume your ${examLabel}?` : 'Resume your quiz?'}
       </h2>
       {subjectName && (
         <p className="mt-1 text-sm text-muted-foreground">You were answering {subjectName}.</p>
@@ -88,11 +92,11 @@ export function SessionRecoveryPrompt({
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
-                {isExam ? 'Discard Practice Exam?' : 'Discard quiz session?'}
+                {isExam ? `Discard ${examLabel}?` : 'Discard quiz session?'}
               </AlertDialogTitle>
               <AlertDialogDescription>
                 {isExam
-                  ? 'This will permanently discard your Practice Exam session. You cannot undo this action.'
+                  ? `This will permanently discard your ${examLabel} session. You cannot undo this action.`
                   : 'This will permanently discard your progress. You cannot undo this action.'}
               </AlertDialogDescription>
             </AlertDialogHeader>

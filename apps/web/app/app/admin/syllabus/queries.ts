@@ -34,13 +34,16 @@ export async function getSyllabusTree(): Promise<SyllabusTree> {
 
   for (const row of countRows) {
     if (row.subject_id) {
-      subjectCounts.set(row.subject_id, (subjectCounts.get(row.subject_id) ?? 0) + row.n)
+      subjectCounts.set(row.subject_id, (subjectCounts.get(row.subject_id) ?? 0) + Number(row.n))
     }
     if (row.topic_id) {
-      topicCounts.set(row.topic_id, (topicCounts.get(row.topic_id) ?? 0) + row.n)
+      topicCounts.set(row.topic_id, (topicCounts.get(row.topic_id) ?? 0) + Number(row.n))
     }
     if (row.subtopic_id) {
-      subtopicCounts.set(row.subtopic_id, (subtopicCounts.get(row.subtopic_id) ?? 0) + row.n)
+      subtopicCounts.set(
+        row.subtopic_id,
+        (subtopicCounts.get(row.subtopic_id) ?? 0) + Number(row.n),
+      )
     }
   }
 

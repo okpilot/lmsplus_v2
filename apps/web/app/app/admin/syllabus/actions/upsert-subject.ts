@@ -19,16 +19,22 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
     // Update: sort_order is client-supplied (preserves existing order during code/name edits)
     const { error } = await supabase.from('easa_subjects').update(data).eq('id', id)
     if (error) {
-      return { success: false, error: error.message }
+      console.error('[upsertSubject] update error:', error.message)
+      return { success: false, error: 'Failed to update subject' }
     }
   } else {
     // Compute sort_order server-side to avoid stale-prop collisions on rapid adds
-    const { data: maxRow } = await supabase
+    const { data: maxRow, error: maxRowError } = await supabase
       .from('easa_subjects')
       .select('sort_order')
       .order('sort_order', { ascending: false })
       .limit(1)
       .single<{ sort_order: number }>()
+    // PGRST116 (no rows) is the expected first-insert case — only a real error is a failure.
+    if (maxRowError && maxRowError.code !== 'PGRST116') {
+      console.error('[upsertSubject] sort_order lookup error:', maxRowError.message)
+      return { success: false, error: 'Failed to create subject' }
+    }
     data.sort_order = (maxRow?.sort_order ?? -1) + 1
 
     // @ts-expect-error TS2769: row type resolves to `never` due to TypeScript inference depth limit
@@ -37,7 +43,8 @@ export async function upsertSubject(input: unknown): Promise<ActionResult> {
       if (error.code === '23505') {
         return { success: false, error: 'A subject with this code already exists' }
       }
-      return { success: false, error: error.message }
+      console.error('[upsertSubject] insert error:', error.message)
+      return { success: false, error: 'Failed to create subject' }
     }
   }
 

@@ -234,6 +234,16 @@ describe('getAdminQuizReportSummary', () => {
     const result = await getAdminQuizReportSummary('sess-1')
     expect(result).toBeNull()
   })
+
+  it('coerces string wire value for score_percentage to number', async () => {
+    // PostgREST serialises NUMERIC as a JSON string; verify coercion to number.
+    const sessionWithStringScore = { ...completedSession, score_percentage: '73.33' }
+    mockFromSequence({ data: sessionWithStringScore }, { count: 4, data: null }, { data: null })
+    const result = await getAdminQuizReportSummary('sess-1')
+    expect(result).not.toBeNull()
+    expect(result!.scorePercentage).toBe(73.33)
+    expect(typeof result!.scorePercentage).toBe('number')
+  })
 })
 
 // ---------------------------------------------------------------------------

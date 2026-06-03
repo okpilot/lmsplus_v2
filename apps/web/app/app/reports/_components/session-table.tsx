@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { SortableTableHead } from '@/app/app/admin/dashboard/_lib/sortable-head'
+import { SortableTableHead } from '@/components/sortable-table-head'
 import { isExamMode } from '@/lib/constants/exam-modes'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { scoreColor } from '@/lib/utils/score-color'

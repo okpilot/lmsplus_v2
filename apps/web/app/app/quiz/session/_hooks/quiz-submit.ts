@@ -133,8 +133,13 @@ export async function handleSubmitSession(opts: {
     if (result.success) {
       opts.onSuccess()
       clearActiveSession(opts.userId)
-      opts.router.push(`${reportPath}?session=${opts.sessionId}`)
+      // clearDeploymentPin is a Server Action — its response triggers an App Router
+      // revalidation. Firing it AFTER router.push cancels the pending soft navigation,
+      // stranding the student on the session page with "Submitting…" (#568). Fire it
+      // before push so push is the last statement — matching the batch-submit path
+      // (submitQuizSession), which navigates to the report correctly.
       clearDeploymentPin().catch(() => {})
+      opts.router.push(`${reportPath}?session=${opts.sessionId}`)
     } else {
       console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
       clearActiveSession(opts.userId)

@@ -553,6 +553,59 @@ describe('useQuizState — showFinishDialog', () => {
   })
 })
 
+// ---- Exam mode — initial answer recovery (#575) --------------------------------
+
+describe('useQuizState — exam mode initial answer recovery', () => {
+  it('reflects pre-loaded answers in answeredCount when mode is exam', () => {
+    // This is the reload/recovery regression guard for #575.
+    // On page reload the session-recovery flow passes initialAnswers back to useQuizState
+    // with mode="exam". Before the fix, useExamAnswerBuffer ignored initialAnswers and
+    // answeredCount was always 0, causing the answer buffer to reset on every refresh.
+    const { result } = renderHook(() =>
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        mode: 'exam',
+        initialAnswers: {
+          [Q1_ID]: { selectedOptionId: 'opt-a', responseTimeMs: 800 },
+          [Q2_ID]: { selectedOptionId: 'opt-b', responseTimeMs: 1200 },
+        },
+      }),
+    )
+    // answeredCount must reflect the two hydrated answers — not 0
+    expect(result.current.answeredCount).toBe(2)
+  })
+
+  it('reports answeredCount 0 in exam mode when no initialAnswers are provided (fresh session)', () => {
+    const { result } = renderHook(() =>
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        mode: 'exam',
+      }),
+    )
+    expect(result.current.answeredCount).toBe(0)
+  })
+
+  it('pre-loaded exam answers are visible as existingAnswer on the recovered question', () => {
+    const { result } = renderHook(() =>
+      useQuizState({
+        userId: 'test-user-id',
+        sessionId: SESSION_ID,
+        questions: THREE_QUESTIONS,
+        mode: 'exam',
+        initialIndex: 0,
+        initialAnswers: {
+          [Q1_ID]: { selectedOptionId: 'opt-c', responseTimeMs: 500 },
+        },
+      }),
+    )
+    expect(result.current.existingAnswer?.selectedOptionId).toBe('opt-c')
+  })
+})
+
 // ---- Navigation guard -------------------------------------------------------
 
 describe('useQuizState — navigation guard condition', () => {

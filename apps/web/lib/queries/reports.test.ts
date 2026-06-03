@@ -93,11 +93,13 @@ describe('getSessionReports', () => {
   })
 
   it('passes correct RPC parameters for page 2', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null })
+    // Return a row so the paged fetch is non-empty and the out-of-range probe never fires —
+    // this test verifies parameter routing for the first (paged) call only.
+    mockRpc.mockResolvedValue({ data: [makeRpcRow()], error: null })
 
     await getSessionReports({ page: 2, sort: 'date', dir: 'desc' })
 
-    expect(mockRpc).toHaveBeenCalledWith('get_session_reports', {
+    expect(mockRpc).toHaveBeenNthCalledWith(1, 'get_session_reports', {
       p_sort: 'started_at',
       p_dir: 'desc',
       p_limit: 10,
@@ -143,10 +145,75 @@ describe('getSessionReports', () => {
     expect(result.totalCount).toBe(42)
   })
 
-  it('returns empty sessions with totalCount 0 when page exceeds results', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null })
+  it('coerces BIGINT total_count and answered_count from string to number', async () => {
+    // PostgREST serializes BIGINT columns as strings. Without Number() coercion,
+    // result.totalCount would be "1" and the caller's `=== 1` singular check would break.
+    mockRpc.mockResolvedValue({
+      data: [makeRpcRow({ total_count: '1', answered_count: '7' })],
+      error: null,
+    })
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.totalCount).toBe(1)
+    expect(result.sessions[0]!.answeredCount).toBe(7)
+  })
+
+  it('coerces a fractional NUMERIC score_percentage from string to number', async () => {
+    // NUMERIC columns also arrive as strings over the PostgREST wire (e.g. '73.33').
+    mockRpc.mockResolvedValue({
+      data: [makeRpcRow({ score_percentage: '73.33' })],
+      error: null,
+    })
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.sessions[0]!.scorePercentage).toBe(73.33)
+  })
+
+  it('keeps a null score_percentage as null', async () => {
+    mockRpc.mockResolvedValue({
+      data: [makeRpcRow({ score_percentage: null })],
+      error: null,
+    })
+    const result = await getSessionReports(DEFAULT_OPTS)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.sessions[0]!.scorePercentage).toBeNull()
+  })
+
+  it('returns a numeric totalCount when an out-of-range page reports its total as a string', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [{ total_count: '42' }], error: null })
+    const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 42 })
+  })
+
+  it('recovers the true total when an out-of-range page returns no rows', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [{ total_count: 42 }], error: null })
+    const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 42 })
+  })
+
+  it('returns totalCount 0 when an out-of-range page belongs to a user with no sessions', async () => {
+    // Out-of-range page AND the offset-0 recovery fetch also returns empty — the user
+    // truly has no sessions, so the total resolves to 0.
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null }) // paged fetch — no rows
+      .mockResolvedValueOnce({ data: [], error: null }) // probe — also no rows
     const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
     expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
+  })
+
+  it('returns an error when the total recovery fails on an out-of-range page', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'boom' } })
+    const result = await getSessionReports({ page: 99, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: false, error: 'Failed to load reports' })
   })
 
   it('treats non-array RPC data as empty result', async () => {
@@ -177,6 +244,23 @@ describe('getSessionReports', () => {
     // totalCount comes from the RPC window function (total_count field on the
     // first surviving row); makeRpcRow seeds it as 1.
     expect(result.totalCount).toBe(1)
+  })
+
+  it('issues a single RPC call when a non-empty page filters down to no visible rows', async () => {
+    // Belt-and-suspenders: if the RPC ever returns only internal_exam rows on page>1 (it
+    // excludes them server-side today), allRows is non-empty so this is a FILTERED page, not an
+    // out-of-range one — no second recovery fetch is needed, and the empty list reports total 0.
+    mockRpc.mockResolvedValue({
+      data: [
+        makeRpcRow({ id: 'sess-i1', mode: 'internal_exam' }),
+        makeRpcRow({ id: 'sess-i2', mode: 'internal_exam' }),
+      ],
+      error: null,
+    })
+    const result = await getSessionReports({ page: 2, sort: 'date', dir: 'desc' })
+    expect(result).toMatchObject({ ok: true, sessions: [], totalCount: 0 })
+    // only the single paged fetch was issued — no second RPC call
+    expect(mockRpc).toHaveBeenCalledTimes(1)
   })
 
   it('retains mock_exam, quick_quiz, and smart_review rows when filtering', async () => {
