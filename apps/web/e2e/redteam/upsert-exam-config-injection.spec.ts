@@ -28,8 +28,11 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
   pickSubjectWithQuestions,
   seedRedTeamAdmin,
+  seedRedTeamUsers,
 } from './helpers/seed'
 
 // A syntactically valid UUID that need not exist in easa_topics: used for cases
@@ -41,13 +44,16 @@ type DistRow = { topic_id?: unknown; subtopic_id?: unknown; question_count?: unk
 
 test.describe('Red Team: upsert_exam_config p_distributions injection', () => {
   let adminClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  let studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let subjectId: string
   let validTopicId: string
 
   test.beforeAll(async () => {
     const admin = getAdminClient()
     const { orgId } = await seedRedTeamAdmin()
+    await seedRedTeamUsers()
     adminClient = await createAuthenticatedClient(ADMIN_EMAIL, ADMIN_PASSWORD)
+    studentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     // A real subject (so the exam_configs upsert succeeds and execution reaches the
     // distribution loop) and a real topic (so the FK passes and the CHECK is what
@@ -65,7 +71,9 @@ test.describe('Red Team: upsert_exam_config p_distributions injection', () => {
   const CASES: { name: string; expectedCode: string; dist: () => DistRow[] }[] = [
     {
       name: 'a SQL-injection string as topic_id (cast rejects it as data, not SQL)',
-      expectedCode: '22P02', // invalid_text_representation — uuid cast
+      // invalid_text_representation — the uuid cast is the guard; the string is
+      // treated as a value to cast, never parsed/executed as SQL.
+      expectedCode: '22P02',
       dist: () => [{ topic_id: "'; DROP TABLE exam_config_distributions; --", question_count: 1 }],
     },
     {
@@ -85,7 +93,10 @@ test.describe('Red Team: upsert_exam_config p_distributions injection', () => {
     },
     {
       name: 'a missing topic_id key (NOT NULL)',
-      expectedCode: '23502', // not_null_violation
+      // not_null_violation on the topic_id column: an absent key makes
+      // `v_dist->>'topic_id'` SQL NULL, NULL::uuid is NULL (no cast error), so the
+      // `topic_id UUID NOT NULL` constraint is what rejects the row.
+      expectedCode: '23502',
       dist: () => [{ question_count: 1 }],
     },
   ]
@@ -108,6 +119,24 @@ test.describe('Red Team: upsert_exam_config p_distributions injection', () => {
       expect(data).toBeNull()
     })
   }
+
+  test('rejects an authenticated non-admin caller (Vector BV2 — privilege escalation)', async () => {
+    // The student is authenticated (passes auth.uid()), so this pins the is_admin
+    // role guard specifically, not the unauthenticated path (which belongs to
+    // server-action-unauthenticated.spec.ts). A well-formed payload is used so the
+    // ONLY reason to reject is the role — proving the admin gate, not input shape.
+    const { data, error } = await studentClient.rpc('upsert_exam_config', {
+      p_subject_id: subjectId,
+      p_enabled: true,
+      p_total_questions: 5,
+      p_time_limit_seconds: 3600,
+      p_pass_mark: 75,
+      p_distributions: [{ topic_id: validTopicId, subtopic_id: null, question_count: 5 }],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/admin access required/i)
+    expect(data).toBeNull()
+  })
 
   // No hermetic cleanup is needed: every case above raises inside the single-
   // transaction RPC, so the config upsert + distribution DELETE that precede the
