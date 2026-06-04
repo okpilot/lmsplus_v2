@@ -2279,4 +2279,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-05-08 (migration 20260508000001: start_quiz_session p_mode whitelist — rejects mock_exam and internal_exam with mode_not_allowed before the active-user gate; closes #629) | Previous: 2026-05-06 (migration 20260506000001: start_quiz_session input hardening — closes #622) | Companion: docs/security.md*
+*Last updated: 2026-06-05 (migration 20260605000001: quiz_sessions column GRANT — REVOKE blanket UPDATE from authenticated, re-GRANT every column except the 4 scoring columns + id PK, closing the student score-forgery vector; closes #611) | Previous: 2026-05-08 (migration 20260508000001: start_quiz_session p_mode whitelist; closes #629) | Companion: docs/security.md*
