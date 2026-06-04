@@ -233,4 +233,32 @@ test.describe('Vector AM — quiz_sessions config injection (issue #554)', () =>
 
     await assertSessionStillLocked()
   })
+
+  // #615 — the remaining 6 frozen columns guarded by the BEFORE UPDATE OF
+  // trigger (mig 20260502000001). Parametrized to avoid 6 near-identical
+  // copies; each asserts the student UPDATE is rejected with the column name +
+  // "immutable", then re-verifies all frozen columns are byte-identical.
+  const REMAINING_FROZEN_COLUMNS: { column: string; value: unknown }[] = [
+    { column: 'time_limit_seconds', value: 99_999 },
+    { column: 'organization_id', value: '00000000-0000-0000-0000-000000000002' },
+    { column: 'student_id', value: '00000000-0000-0000-0000-000000000003' },
+    { column: 'subject_id', value: '00000000-0000-0000-0000-000000000004' },
+    { column: 'topic_id', value: '00000000-0000-0000-0000-000000000005' },
+    { column: 'created_at', value: '2020-01-01T00:00:00Z' },
+  ]
+
+  for (const { column, value } of REMAINING_FROZEN_COLUMNS) {
+    test(`Attack — ${column} mutation is blocked by trigger`, async () => {
+      const { error } = await attackerClient
+        .from('quiz_sessions')
+        .update({ [column]: value })
+        .eq('id', sessionId)
+
+      expect(error).not.toBeNull()
+      expect(error?.message ?? '').toContain(column)
+      expect(error?.message ?? '').toContain('immutable')
+
+      await assertSessionStillLocked()
+    })
+  }
 })

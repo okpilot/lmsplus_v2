@@ -670,6 +670,34 @@ Either way, assert the caller surfaces the error (returns `{ data: [], error }`,
 
 Promoted at count=2 (PR #681 GDPR pagination + #668 instance #7 `listOrgStudents`/`getComments`).
 
+### Red-Team Isolation/Negative Assertions Must Be Non-Vacuous (from 2026-06-04)
+
+A red-team test that asserts a **negative** — `expect(...).not.toContain(victim)`, `expect(rows).toHaveLength(0)`, "the row still exists / was not modified", an empty cross-tenant result — must first assert that the **protected state genuinely exists**, or the negative passes vacuously when the collection is empty for an unrelated reason.
+
+- **Isolation (cross-user / cross-org):** before asserting the attacker sees zero of the victim's rows, assert the attacker's *own* result is non-empty (`expect(rows.length).toBeGreaterThan(0)`) AND/OR that the victim's row exists via the service-role client. Seed a victim-owned row so that "0 rows" proves RLS rejection, not an empty table.
+- **State-flip / no-op (delete/update blocked):** read the protected value *before* the blocked mutation and assert it is unchanged *after* — and confirm the row existed in the first place.
+
+```ts
+// ❌ WRONG — vacuous if the cross-org admin simply has no students
+expect(rows.map((r) => r.id)).not.toContain(victimUserId)
+
+// ✅ CORRECT — non-vacuous: the admin sees their own org's students, just not the victim
+expect(rows.length).toBeGreaterThan(0)
+expect(rows.map((r) => r.id)).not.toContain(victimUserId)
+```
+
+Promoted at count=3 (#314 RLS-isolation on unseeded tables; #372 state-flip without pre-flip check; PR-B BZ1 `get_admin_dashboard_students` cross-org).
+
+### Red-Team RPC Specs Must Assert the Full Output Contract (from 2026-06-04)
+
+A red-team spec exercising an RPC's **success or idempotent-replay** path must assert the RPC's documented **return payload**, not merely that it executed without error:
+
+1. **Output shape** — assert the returned fields (names + values) match the documented contract (e.g. `score_percentage`, `passed`, `total_questions`, `answered_count`), not just `error === null`.
+2. **Idempotent / re-read paths** — seed **≥2 distinct fixture values** (e.g. one passing `75/true` AND one sub-pass `50/false`) so a regression that hardcodes a single return value fails at least one case. A single seed can't distinguish "re-reads from the DB" from "returns a hardcoded constant that happens to match".
+3. **Numeric fields** — assert numeric fields are within expected bounds, and for zero-case scenarios (e.g. a session with no answers) assert exact equality to zero, since BIGINT/NUMERIC wire values can regress silently.
+
+Promoted at count=2 (PR #736 `complete_overdue_exam_session` + PR #737 `complete_empty_exam_session` AQ idempotency, both under-asserted then tightened in review).
+
 ---
 
 ## 8. What the Code Reviewer Checks Automatically
