@@ -64,6 +64,7 @@
 - **Server Component query helpers** (called via Suspense, not `'use server'`) throwing `error.message` is NOT a client-exposure gap (propagates to error.tsx→Sentry, never reaches DOM) — but a `console.error` before the throw is still wanted for log correlation. Confirmed intentional at count=2; do NOT flag as ISSUE.
 
 ### Test-quality catches (semantic, not style)
+- **PostgREST NUMERIC(5,2) integer-value serialization:** for integer-valued NUMERIC cells (e.g. `score_percentage = 0` after UPDATE ... SET score_percentage = 0), PostgREST serializes as JSON number `0`, not string `"0.00"`. Playwright `toEqual(0)` passes without `Number()`. Non-integer values (e.g. `66.67`) serialize as strings and need `Number()`. Rule: if the test's DB value is provably always integer (e.g. the expiry branch hardcodes `0`), `toEqual(0)` is safe; if non-integer values are possible in the same column, use `Number()`. Confirmed by rpc-complete-overdue-exam.spec.ts CI passing with `toEqual(0)` direct PostgREST read.
 - **Vacuous re-run test:** to verify an effect guard, the dep value passed must actually differ from the initial — same value silently skips the effect, making the assertion vacuous.
 - **jsdom flushes `useEffect` in `act()`** — any property depending on an effect appears correct even if the effect fires too late for a real browser; lock-release-after-failure tests pass in jsdom regardless.
 - **Mocked-client unit tests can't catch JSONB-key drift or PostgREST string-serialization** — call out the integration-test gap.
