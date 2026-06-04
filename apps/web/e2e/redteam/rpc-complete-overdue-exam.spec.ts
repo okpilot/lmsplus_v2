@@ -121,11 +121,12 @@ test.describe('Red Team: complete_overdue_exam_session RPC', () => {
     expect(data).toBeNull()
 
     // The session must remain active — the attacker did not complete it.
-    const { data: row } = await admin
+    const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
       .select('ended_at')
       .eq('id', sessionId)
       .single()
+    expect(readErr).toBeNull()
     expect(row?.ended_at).toBeNull()
   })
 
@@ -185,11 +186,12 @@ test.describe('Red Team: complete_overdue_exam_session RPC', () => {
     expect(result?.total_questions).toBe(1)
     expect(result?.answered_count).toBe(0)
 
-    const { data: row } = await admin
+    const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
       .select('ended_at, passed, score_percentage')
       .eq('id', sessionId)
       .single()
+    expect(readErr).toBeNull()
     expect(row?.ended_at).not.toBeNull()
     expect(row?.passed).toBe(false)
     expect(row?.score_percentage).toEqual(0)
@@ -205,11 +207,12 @@ test.describe('Red Team: complete_overdue_exam_session RPC', () => {
     expect(error).toBeNull()
     expect((data as CompleteResult | null)?.session_id).toBe(sessionId)
 
-    const { data: row } = await admin
+    const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
       .select('ended_at, passed')
       .eq('id', sessionId)
       .single()
+    expect(readErr).toBeNull()
     expect(row?.ended_at).not.toBeNull()
     expect(row?.passed).toBe(false)
   })
@@ -260,11 +263,12 @@ test.describe('Red Team: complete_overdue_exam_session RPC', () => {
     expect((first.data as CompleteResult | null)?.session_id).toBe(sessionId)
     expect((second.data as CompleteResult | null)?.session_id).toBe(sessionId)
 
-    const { data: row } = await admin
+    const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
       .select('ended_at, passed, score_percentage')
       .eq('id', sessionId)
       .single()
+    expect(readErr).toBeNull()
     expect(row?.ended_at).not.toBeNull()
     expect(row?.passed).toBe(false)
     expect(row?.score_percentage).toEqual(0)
