@@ -274,22 +274,22 @@ test.describe('Red Team: Audit Event Completeness', () => {
       p_question_ids: questionIds,
     })
     expect(startErr).toBeNull()
-    expect(typeof sessionId).toBe('string')
-    createdSessionIds.add(sessionId as string)
+    // Explicit guard over a bare `as string` cast — narrows sessionId for both the
+    // cleanup-set add and the answer build, and fails loudly with a diagnostic if
+    // the RPC ever returns a non-string. (#636)
+    if (!sessionId || typeof sessionId !== 'string') {
+      throw new Error(`start_quiz_session returned non-string sessionId: ${typeof sessionId}`)
+    }
+    createdSessionIds.add(sessionId)
 
-    const answers = await buildAnswersForSession(sessionId as string)
+    const answers = await buildAnswersForSession(sessionId)
     const { error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
       p_answers: answers,
     })
     expect(submitErr).toBeNull()
 
-    await expectAuditRow(
-      'quiz_session.batch_submitted',
-      studentUserId,
-      testStart,
-      sessionId as string,
-    )
+    await expectAuditRow('quiz_session.batch_submitted', studentUserId, testStart, sessionId)
   })
 
   test('writes exam.started when start_exam_session runs', async () => {

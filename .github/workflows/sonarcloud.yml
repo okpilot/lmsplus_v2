@@ -50,10 +50,14 @@ jobs:
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
 
-      - name: SonarCloud Scan
+      - name: SonarQube Cloud Scan
         if: env.SONAR_TOKEN != ''
-        uses: sonarsource/sonarcloud-github-action@ffc3010689be73b8e5ae0c57ce35968afd7909e8 # v5
+        # Migrated from the deprecated sonarcloud-github-action. SONAR_TOKEN is
+        # inherited from the job-level env; org/project keys live in
+        # sonar-project.properties; SONAR_HOST_URL is not needed for SonarQube Cloud.
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
         env:
+          # Forwarded to the Sonar Scanner CLI for PR decoration — keep it.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Skip notice
