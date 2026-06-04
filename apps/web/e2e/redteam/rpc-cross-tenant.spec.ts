@@ -15,6 +15,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   createCrossOrgUser,
   E2E_REDTEAM_CODE_PREFIX,
+  ensureExamConfig,
   pickSubjectWithQuestions,
   seedRedTeamUsers,
   seedVictimResponses,
@@ -28,6 +29,12 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let egmontQuestionIds: string[]
   let egmontVictimUserId: string
   let egmontOrgId: string
+  // A subject GUARANTEED to have egmont questions + an enabled exam_config, so
+  // the cross-org exam/pool probes below prove org-scoping rather than the
+  // vacuous "this subject has no data anywhere" case.
+  let examSubjectId: string
+  let examTopicId: string
+  let examConfigId: string
   let seededVictimCodeId: string | null = null
   let seededVictimSessionId: string | null = null
 
@@ -43,37 +50,48 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     // RPC assertions prove isolation (empty/zeroed) rather than absence of data.
     await seedVictimResponses()
 
-    // Resolve a real subject from egmont-aviation for use in attack vectors
-    const { data: subjects, error } = await adminClient.from('easa_subjects').select('id').limit(1)
+    // Resolve an egmont subject that definitely has active questions, and ensure
+    // an enabled exam_config (+ distribution row) exists for it — the cross-org
+    // AH/CB/AK probes assert the attacker is blocked from THIS populated subject.
+    const examPick = await pickSubjectWithQuestions(adminClient, { orgId: egmontOrgId })
+    examSubjectId = examPick.subjectId
+    examTopicId = examPick.topicId
+    examConfigId = await ensureExamConfig(egmontOrgId, examSubjectId, examTopicId)
 
-    expect(error).toBeNull()
-    expect(subjects).not.toBeNull()
-    expect(subjects!.length).toBeGreaterThan(0)
+    // Reuse that same guaranteed-populated subject for the egmont quick-quiz
+    // probes (start_quiz_session, direct SELECT). Deriving from
+    // pickSubjectWithQuestions — instead of an arbitrary first easa_subjects row
+    // that may have no active questions — keeps egmontQuestionIds non-empty so the
+    // cross-org isolation proofs stay non-vacuous.
+    egmontSubjectId = examSubjectId
+    egmontTopicId = examTopicId
 
-    egmontSubjectId = subjects![0].id
-
-    // Fetch egmont question IDs — the cross-org user will attempt to use these
-    const { data: topics } = await adminClient
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', egmontSubjectId)
-      .limit(5)
-    egmontTopicId = (topics ?? [])[0]?.id ?? egmontSubjectId
-    const topicIds = (topics ?? []).map((t) => t.id)
-
-    const { data: qs } = await adminClient
+    // Scope to examTopicId too: start_quiz_session validates question_ids against
+    // (organization_id = caller's org) AND (topic_id = p_topic_id). Pinning the
+    // payload to examTopicId means a legitimate egmont student WOULD pass that
+    // check, so the cross-org caller below is rejected solely by org-scoping —
+    // not by an incidental topic mismatch.
+    const { data: qs, error: qErr } = await adminClient
       .from('questions')
       .select('id')
-      .in('topic_id', topicIds)
+      .eq('organization_id', egmontOrgId)
+      .eq('subject_id', examSubjectId)
+      .eq('topic_id', examTopicId)
+      .eq('status', 'active')
       .is('deleted_at', null)
       .limit(5)
+    expect(qErr).toBeNull()
     egmontQuestionIds = (qs ?? []).map((q) => q.id)
+    expect(egmontQuestionIds.length).toBeGreaterThan(0)
   })
 
   test('cross-org user cannot start a quiz session for an egmont-aviation subject', async () => {
-    // Attack: use known egmont-aviation subject_id and question_ids in start_quiz_session.
-    // RLS on the questions/subjects tables should cause the RPC to find 0 questions,
-    // resulting in an error or an empty session.
+    // Attack: submit a payload that is fully valid for a legitimate egmont
+    // student — real egmont (subject, topic, question_ids). start_quiz_session
+    // scopes question validation to the CALLER's org, so for the cross-org
+    // caller every question fails `q.organization_id = v_org_id` and the RPC
+    // raises `invalid_question_ids`. The payload's same-org/same-topic validity
+    // is what makes this prove org-scoping rather than a topic mismatch.
     const { data, error } = await crossOrgClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: egmontSubjectId,
@@ -81,17 +99,9 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
       p_question_ids: egmontQuestionIds,
     })
 
-    // The RPC should either return an error (could not find enough questions)
-    // or return a session with 0 question_ids — never a valid session with real questions.
-    if (error) {
-      // Acceptable: RPC raised because subject is inaccessible
-      expect(error).not.toBeNull()
-    } else {
-      // If it returned something, it must not contain any question IDs from the other org
-      const session = data as { question_ids?: string[] } | null
-      const questionCount = session?.question_ids?.length ?? 0
-      expect(questionCount).toBe(0)
-    }
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/invalid_question_ids/i)
+    expect(data ?? null).toBeNull()
   })
 
   test('cross-org user cannot SELECT questions from egmont-aviation via anon client', async () => {
@@ -272,6 +282,74 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     expect(data).toHaveLength(1)
     expect(data?.[0]?.current_streak).toBe(0)
     expect(data?.[0]?.best_streak).toBe(0)
+  })
+
+  // -------------------------------------------------------------------------
+  // Cross-org exam / question-pool / distribution isolation (#545, #690, #517)
+  // -------------------------------------------------------------------------
+
+  test('cross-org student cannot start an exam for an egmont subject (Vector AH, #545)', async () => {
+    // egmont HAS an enabled exam_config for examSubjectId (seeded in beforeAll);
+    // the attacker's org does NOT. start_exam_session scopes the exam_configs
+    // lookup to the caller's org, so the cross-org caller hits v_config_id IS NULL
+    // → RAISE 'no exam configuration found for this subject'. The egmont config
+    // existing is what makes this prove org-scoping, not global absence.
+    const { data, error } = await crossOrgClient.rpc('start_exam_session', {
+      p_subject_id: examSubjectId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/no exam configuration found/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('cross-org student sees no egmont questions from get_random_question_ids (Vector CB, #690)', async () => {
+    // Non-vacuity: examSubjectId has active egmont questions (pickSubjectWithQuestions
+    // guarantees it). get_random_question_ids is SECURITY INVOKER → tenant_isolation
+    // RLS on questions filters to the attacker's org, which has none for this subject.
+    expect(egmontQuestionIds.length).toBeGreaterThan(0)
+    const { data, error } = await crossOrgClient.rpc('get_random_question_ids', {
+      p_subject_id: examSubjectId,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_count: 10,
+      p_filters: null,
+    })
+    expect(error).toBeNull()
+    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+  })
+
+  test('cross-org student sees no egmont counts from get_filtered_question_counts (Vector CB, #690)', async () => {
+    // Same tenant_isolation defense as get_random_question_ids — the cross-org
+    // caller enumerates no per-topic counts for an egmont subject.
+    const { data, error } = await crossOrgClient.rpc('get_filtered_question_counts', {
+      p_subject_id: examSubjectId,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_filters: null,
+    })
+    expect(error).toBeNull()
+    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+  })
+
+  test('cross-org student cannot read exam_config_distributions (Vector AK, #517)', async () => {
+    // exam_config_distributions has an admin-only SELECT policy (is_admin() AND
+    // same org) and NO student policy — so a non-admin cross-org student sees
+    // none of egmont's rows. Non-vacuity: admin confirms the egmont config has
+    // ≥1 distribution row, then the cross-org student SELECT for THAT SAME
+    // config returns 0 (RLS blocks at the role boundary).
+    const { data: adminRows, error: adminErr } = await adminClient
+      .from('exam_config_distributions')
+      .select('id')
+      .eq('exam_config_id', examConfigId)
+    expect(adminErr).toBeNull()
+    expect(adminRows?.length ?? 0).toBeGreaterThan(0)
+
+    const { data, error } = await crossOrgClient
+      .from('exam_config_distributions')
+      .select('id')
+      .eq('exam_config_id', examConfigId)
+    expect(error).toBeNull()
+    expect(data?.length ?? 0).toBe(0)
   })
 
   test.afterAll(async () => {
