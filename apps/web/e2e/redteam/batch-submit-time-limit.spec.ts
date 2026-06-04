@@ -123,7 +123,8 @@ test.describe('Red Team: batch_submit_quiz time-limit enforcement', () => {
       expired?: boolean
       answered_count?: number
       correct_count?: number
-      score_percentage?: number
+      // NUMERIC over the wire is a JSON string, not a number (code-style.md §5).
+      score_percentage?: number | string
       passed?: boolean
       results?: unknown[]
     }
@@ -132,7 +133,7 @@ test.describe('Red Team: batch_submit_quiz time-limit enforcement', () => {
     expect(d?.expired).toBe(true)
     expect(d?.answered_count).toBe(0)
     expect(d?.correct_count).toBe(0)
-    expect(d?.score_percentage).toBe(0)
+    expect(Number(d?.score_percentage ?? -1)).toBe(0)
     expect(d?.passed).toBe(false)
     expect(Array.isArray(d?.results) ? d?.results?.length : -1).toBe(0)
 
