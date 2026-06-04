@@ -136,8 +136,9 @@ test.describe('Red Team: Session Race Condition', () => {
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', sessionId)
 
-    // RLS allows UPDATE on non-ended sessions owned by the student.
-    // If this fails, session is still active — skip this scenario.
+    // RLS scopes the row (non-ended, owned by the student) and the column GRANT
+    // (mig 20260605000001) allows authenticated to write deleted_at — exactly what
+    // discard sets, so this succeeds. If it fails, session is still active — skip.
     if (discardError) {
       test.skip()
       return
