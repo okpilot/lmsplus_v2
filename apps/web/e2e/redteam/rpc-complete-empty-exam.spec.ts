@@ -180,6 +180,10 @@ test.describe('Red Team: complete_empty_exam_session RPC', () => {
     expect(result?.session_id).toBe(sessionId)
     expect(result?.score_percentage).toEqual(75)
     expect(result?.passed).toBe(true)
+    // Full output contract: answered_count is COUNT(quiz_session_answers) — 0
+    // here (no answers seeded) — and total_questions echoes the row.
+    expect(result?.answered_count).toBe(0)
+    expect(result?.total_questions).toBe(1)
 
     // The stored row must be untouched by the idempotent path.
     const { data: row, error: readErr } = await admin
@@ -208,6 +212,8 @@ test.describe('Red Team: complete_empty_exam_session RPC', () => {
     const result = data as CompleteResult | null
     expect(result?.score_percentage).toEqual(50)
     expect(result?.passed).toBe(false)
+    expect(result?.answered_count).toBe(0)
+    expect(result?.total_questions).toBe(1)
 
     const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
