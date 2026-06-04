@@ -50,32 +50,6 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     // RPC assertions prove isolation (empty/zeroed) rather than absence of data.
     await seedVictimResponses()
 
-    // Resolve a real subject from egmont-aviation for use in attack vectors
-    const { data: subjects, error } = await adminClient.from('easa_subjects').select('id').limit(1)
-
-    expect(error).toBeNull()
-    expect(subjects).not.toBeNull()
-    expect(subjects!.length).toBeGreaterThan(0)
-
-    egmontSubjectId = subjects![0].id
-
-    // Fetch egmont question IDs — the cross-org user will attempt to use these
-    const { data: topics } = await adminClient
-      .from('easa_topics')
-      .select('id')
-      .eq('subject_id', egmontSubjectId)
-      .limit(5)
-    egmontTopicId = (topics ?? [])[0]?.id ?? egmontSubjectId
-    const topicIds = (topics ?? []).map((t) => t.id)
-
-    const { data: qs } = await adminClient
-      .from('questions')
-      .select('id')
-      .in('topic_id', topicIds)
-      .is('deleted_at', null)
-      .limit(5)
-    egmontQuestionIds = (qs ?? []).map((q) => q.id)
-
     // Resolve an egmont subject that definitely has active questions, and ensure
     // an enabled exam_config (+ distribution row) exists for it — the cross-org
     // AH/CB/AK probes assert the attacker is blocked from THIS populated subject.
@@ -83,12 +57,41 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     examSubjectId = examPick.subjectId
     examTopicId = examPick.topicId
     examConfigId = await ensureExamConfig(egmontOrgId, examSubjectId, examTopicId)
+
+    // Reuse that same guaranteed-populated subject for the egmont quick-quiz
+    // probes (start_quiz_session, direct SELECT). Deriving from
+    // pickSubjectWithQuestions — instead of an arbitrary first easa_subjects row
+    // that may have no active questions — keeps egmontQuestionIds non-empty so the
+    // cross-org isolation proofs stay non-vacuous.
+    egmontSubjectId = examSubjectId
+    egmontTopicId = examTopicId
+
+    // Scope to examTopicId too: start_quiz_session validates question_ids against
+    // (organization_id = caller's org) AND (topic_id = p_topic_id). Pinning the
+    // payload to examTopicId means a legitimate egmont student WOULD pass that
+    // check, so the cross-org caller below is rejected solely by org-scoping —
+    // not by an incidental topic mismatch.
+    const { data: qs, error: qErr } = await adminClient
+      .from('questions')
+      .select('id')
+      .eq('organization_id', egmontOrgId)
+      .eq('subject_id', examSubjectId)
+      .eq('topic_id', examTopicId)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+      .limit(5)
+    expect(qErr).toBeNull()
+    egmontQuestionIds = (qs ?? []).map((q) => q.id)
+    expect(egmontQuestionIds.length).toBeGreaterThan(0)
   })
 
   test('cross-org user cannot start a quiz session for an egmont-aviation subject', async () => {
-    // Attack: use known egmont-aviation subject_id and question_ids in start_quiz_session.
-    // RLS on the questions/subjects tables should cause the RPC to find 0 questions,
-    // resulting in an error or an empty session.
+    // Attack: submit a payload that is fully valid for a legitimate egmont
+    // student — real egmont (subject, topic, question_ids). start_quiz_session
+    // scopes question validation to the CALLER's org, so for the cross-org
+    // caller every question fails `q.organization_id = v_org_id` and the RPC
+    // raises `invalid_question_ids`. The payload's same-org/same-topic validity
+    // is what makes this prove org-scoping rather than a topic mismatch.
     const { data, error } = await crossOrgClient.rpc('start_quiz_session', {
       p_mode: 'quick_quiz',
       p_subject_id: egmontSubjectId,
@@ -96,17 +99,9 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
       p_question_ids: egmontQuestionIds,
     })
 
-    // The RPC should either return an error (could not find enough questions)
-    // or return a session with 0 question_ids — never a valid session with real questions.
-    if (error) {
-      // Acceptable: RPC raised because subject is inaccessible
-      expect(error).not.toBeNull()
-    } else {
-      // If it returned something, it must not contain any question IDs from the other org
-      const session = data as { question_ids?: string[] } | null
-      const questionCount = session?.question_ids?.length ?? 0
-      expect(questionCount).toBe(0)
-    }
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/invalid_question_ids/i)
+    expect(data ?? null).toBeNull()
   })
 
   test('cross-org user cannot SELECT questions from egmont-aviation via anon client', async () => {
