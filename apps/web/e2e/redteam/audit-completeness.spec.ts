@@ -334,6 +334,94 @@ test.describe('Red Team: Audit Event Completeness', () => {
     })
   })
 
+  // #728: complete_empty_exam_session is a SEPARATE exam.completed emitter from
+  // batch_submit_quiz. Lock its metadata schema so a future CREATE OR REPLACE
+  // can't silently revert the *_count keys or drop the reason key.
+  test('writes exam.completed with locked metadata on complete_empty_exam_session within grace', async () => {
+    const testStart = new Date().toISOString()
+
+    const { data: startData, error: startErr } = await studentClient.rpc('start_exam_session', {
+      p_subject_id: subjectId,
+    })
+    expect(startErr).toBeNull()
+    const sessionId = (startData as { session_id?: string } | null)?.session_id
+    expect(sessionId).toBeTruthy()
+    if (!sessionId) throw new Error('no sessionId')
+    createdSessionIds.add(sessionId)
+
+    // Within the grace window (just started) → completes as exam.completed.
+    const { error: completeErr } = await studentClient.rpc('complete_empty_exam_session', {
+      p_session_id: sessionId,
+    })
+    expect(completeErr).toBeNull()
+
+    await expectAuditRow('exam.completed', studentUserId, testStart, sessionId)
+    await expectCompletionMetadata({
+      eventType: 'exam.completed',
+      actorId: studentUserId,
+      testStart,
+      sessionId,
+    })
+
+    // Lock the complete_empty-specific metadata (zero counts + reason). Use
+    // maybeSingle (not single) so a missing row fails on the value assertion,
+    // not a confusing PGRST116, matching the file's helper pattern.
+    const { data: row, error: metaErr } = await admin
+      .from('audit_events')
+      .select('metadata')
+      .eq('event_type', 'exam.completed')
+      .eq('actor_id', studentUserId)
+      .eq('resource_id', sessionId)
+      .gte('created_at', testStart)
+      .maybeSingle()
+    expect(metaErr).toBeNull()
+    const meta = (row?.metadata ?? {}) as Record<string, unknown>
+    expect(meta.reason).toBe('completed with no answers')
+    expect(meta.answered_count).toBe(0)
+    expect(meta.correct_count).toBe(0)
+  })
+
+  // #728 (overdue branch): complete_empty on a past-grace session emits the
+  // symmetric exam.expired event with reason 'timed out with no answers'.
+  test('writes exam.expired with locked metadata on complete_empty_exam_session when overdue', async () => {
+    const testStart = new Date().toISOString()
+
+    const { data: startData, error: startErr } = await studentClient.rpc('start_exam_session', {
+      p_subject_id: subjectId,
+    })
+    expect(startErr).toBeNull()
+    const sessionId = (startData as { session_id?: string } | null)?.session_id
+    expect(sessionId).toBeTruthy()
+    if (!sessionId) throw new Error('no sessionId')
+    createdSessionIds.add(sessionId)
+
+    await backdateSession(sessionId)
+
+    const { error: completeErr } = await studentClient.rpc('complete_empty_exam_session', {
+      p_session_id: sessionId,
+    })
+    expect(completeErr).toBeNull()
+
+    await expectAuditRow('exam.expired', studentUserId, testStart, sessionId)
+    await expectCompletionMetadata({
+      eventType: 'exam.expired',
+      actorId: studentUserId,
+      testStart,
+      sessionId,
+    })
+
+    const { data: row, error: metaErr } = await admin
+      .from('audit_events')
+      .select('metadata')
+      .eq('event_type', 'exam.expired')
+      .eq('actor_id', studentUserId)
+      .eq('resource_id', sessionId)
+      .gte('created_at', testStart)
+      .maybeSingle()
+    expect(metaErr).toBeNull()
+    expect((row?.metadata as Record<string, unknown>)?.reason).toBe('timed out with no answers')
+  })
+
   test('writes exam.expired when mock_exam session is past the grace period', async () => {
     const testStart = new Date().toISOString()
 
