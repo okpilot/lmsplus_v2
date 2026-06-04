@@ -290,7 +290,7 @@ test.describe('Red Team: Session Replay', () => {
       answered_count?: number
       correct_count?: number
       score_percentage?: number
-      passed?: boolean
+      passed?: boolean | null
     }
     const d1 = r1.data as BatchScalars
     const d2 = r2.data as BatchScalars
@@ -301,7 +301,11 @@ test.describe('Red Team: Session Replay', () => {
       expect(d.answered_count).toBe(3)
       expect(typeof d.correct_count).toBe('number')
       expect(typeof d.score_percentage).toBe('number')
-      expect(typeof d.passed).toBe('boolean')
+      // quick_quiz is a study mode: batch_submit_quiz only sets `passed` for
+      // mock_exam / internal_exam (migration 20260601000001, lines 245-253);
+      // for quick_quiz it stays the fresh session's NULL. Pin that exact
+      // contract — a regression that began grading quick_quiz would fail here.
+      expect(d.passed).toBeNull()
     }
     // Idempotency: whichever caller won the FOR UPDATE race scored; the other returned
     // that cached result. Both responses must carry identical deterministic scalars
