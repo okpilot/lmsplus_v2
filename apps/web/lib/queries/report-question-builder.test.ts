@@ -47,6 +47,41 @@ describe('buildReportQuestions', () => {
     })
   })
 
+  // Red-team Vector O: the report payload delivered to the client must never
+  // carry a per-option `correct` boolean (that is the answer key). The builder
+  // projects options down to exactly { id, text }; this pins that defense even
+  // if an upstream row were ever widened to include `correct`.
+  it('never leaks a `correct` field on report options, even if the source carries one', () => {
+    const answers: AnswerRow[] = [
+      { question_id: 'q1', selected_option_id: 'o2', is_correct: false, response_time_ms: 1000 },
+    ]
+    // Cast a wider option shape (carrying `correct`) into the typed slot to
+    // simulate a future upstream regression that forgets to strip it.
+    const leakyOption = { id: 'o1', text: '3', correct: true } as { id: string; text: string }
+    const questionMap = new Map<string, QuestionRow>([
+      [
+        'q1',
+        {
+          id: 'q1',
+          question_text: 'What is 2+2?',
+          question_number: '1.1',
+          options: [leakyOption, { id: 'o2', text: '5' }],
+          explanation_text: null,
+          explanation_image_url: null,
+        },
+      ],
+    ])
+
+    const result = buildReportQuestions(answers, questionMap, new Map([['q1', 'o1']]))
+
+    const options = result[0]?.options ?? []
+    expect(options).toHaveLength(2)
+    for (const opt of options) {
+      expect(opt).not.toHaveProperty('correct')
+      expect(Object.keys(opt).sort()).toEqual(['id', 'text'])
+    }
+  })
+
   it('handles missing question gracefully', () => {
     const answers: AnswerRow[] = [
       {
