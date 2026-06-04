@@ -234,6 +234,24 @@ reviews:
           queue/shift pattern when the helper makes multiple sequential calls on
           the same table.
 
+    # Red-team specs — non-vacuous negatives + RPC output contracts (code-style.md §7)
+    - path: "apps/web/e2e/redteam/**/*.spec.ts"
+      instructions: |
+        Red-team Playwright spec. In addition to E2E hermiticity, enforce:
+        - NON-VACUOUS NEGATIVES: a negative assertion (expect(...).not.toContain(victim),
+          expect(rows).toHaveLength(0), "row unchanged after a blocked mutation") must first
+          assert the protected state EXISTS. For isolation tests, assert the attacker's own
+          result is non-empty (expect(rows.length).toBeGreaterThan(0)) and/or the victim row
+          exists via the service-role client, so "0 rows" proves RLS rejection, not an empty
+          table. For state-flip/no-op tests, read the protected value before the blocked
+          mutation and assert it is unchanged after. Flag negatives on unseeded tables.
+        - RPC OUTPUT CONTRACTS: success/idempotent-replay specs must assert the documented
+          return payload (field names + values), not just error === null. Idempotent/re-read
+          paths must seed ≥2 distinct fixture values (e.g. passing 75/true AND sub-pass 50/false)
+          so a hardcoded-constant regression fails at least one case. Assert numeric fields
+          exact/in-bounds (0 for a zero-answer session). Flag single-fixture idempotency specs
+          and unasserted numeric return fields.
+
     # Environment files — block immediately
     - path: "**/.env*"
       instructions: |
