@@ -16,9 +16,10 @@
 | Utility function > 30 lines (single query RPC) | 2026-05-31 (c879a259) | 1 | 2026-05-31 | WATCHING (getSessionReports 47→64L, out-of-range probe logic added 17 lines, grew from under-30 to over-30). Fix = extract probe helper into separate function |
 | Component deep nesting > 3 levels | 2026-03-27 (75ffa51) | 1 | 2026-03-27 | WATCHING (ConsentForm: form→div→div→Checkbox+span→a, repeated 3×; fix = extract ConsentCheckbox sub-component) |
 | Utility file > 200-line limit | 2026-04-27 (c656868) | 1 | 2026-04-27 | WATCHING (quiz-session-storage.ts 226→251L; split tracked in issue #552) |
+| E2E Playwright hermiticity (hard-delete without restoration) | 2026-04-30 (from §7 testing rule) | 2 | 2026-04-30 (admin-students, admin-questions pre-mig 083) | RESOLVED — distributions-rls.spec + report.spec + admin-dashboard.spec (all 2026-06-04, ad19626) apply hard-delete cascade correctly with `.beforeEach/.afterEach + createdIds.clear()` pattern; no recurrence since rule promotion |
 
 > Count increments only on a **distinct** mechanism. Rows transition state, never deleted.
-> Three "watching" count=1 rows have not recurred — that non-recurrence is itself a positive signal.
+> Four "watching" count=1 rows have not recurred — that non-recurrence is itself a positive signal.
 
 ## Durable knowledge
 
