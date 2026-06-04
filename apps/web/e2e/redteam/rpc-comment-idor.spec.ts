@@ -24,13 +24,12 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  E2E_REDTEAM_COMMENT_IDOR_MARKER as COMMENT_MARKER,
   pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
   VICTIM_PASSWORD,
 } from './helpers/seed'
-
-const COMMENT_MARKER = '[E2E_REDTEAM] comment-idor fixture'
 
 test.describe('Red Team: deleteComment cross-user IDOR (Vector P)', () => {
   let admin: ReturnType<typeof getAdminClient>
