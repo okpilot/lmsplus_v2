@@ -53,6 +53,7 @@
 ## Positive patterns
 
 - **Migration metadata-key rename via CREATE OR REPLACE copy (#570, 2026-06-01).** The plan specified: full byte-copy of the latest migration, change only the header comment + the two metadata keys, mirror to both dirs. Implementation was exact — diff 078→082 showed only 3 lines changed, mirror diff was empty. Zero-deviation execution on a "surgical change to a large SQL function" plan. The minimal-change plan approach (vs in-place edit of 078) is a sound strategy for audit-sensitive RPCs; reinforces that the migration copy approach is the right pattern for this class of fix.
+- **Red-team spec for complete_overdue_exam_session APPROVED clean (PR2, 2026-06-04).** All 4 error message assertions matched the latest CREATE OR REPLACE definition (mig 20260429000008). Timing math correct (120s > 60 + 30s grace). Seed validity confirmed (quick_quiz in CHECK constraint, deleted_at on quiz_sessions, config JSONB is schema-unconstrained). Hermeticity sound (try/finally + .is('deleted_at', null) filter + .select('id') observability). Pattern match to sibling specs correct. Zero deviations found after full CREATE OR REPLACE chain trace.
 
 ## False positives (do not re-raise)
 
