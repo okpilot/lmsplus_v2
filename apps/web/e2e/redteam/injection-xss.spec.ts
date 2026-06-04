@@ -167,8 +167,16 @@ async function startStudentSessionFor(
     p_question_ids: [qid],
   })
   expect(error).toBeNull()
-  expect(typeof sessionId).toBe('string')
-  return { sessionId: sessionId as string, questionIds: [qid] }
+  // Explicit guard, not a bare `as string` cast: if a future change weakens the
+  // expect above, a null/non-string sessionId would otherwise propagate silently
+  // into seedSessionHandoff and surface as a misleading redirect-to-/app/quiz
+  // (looks like a UI bug, not a missing-RPC-return bug). (#636)
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new Error(
+      `startStudentSessionFor: start_quiz_session returned non-string sessionId: ${typeof sessionId}`,
+    )
+  }
+  return { sessionId, questionIds: [qid] }
 }
 
 // The /app/quiz/session page reads its session from sessionStorage (handoff
