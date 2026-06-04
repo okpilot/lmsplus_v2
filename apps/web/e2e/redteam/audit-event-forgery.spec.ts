@@ -22,9 +22,13 @@ test.describe('Red Team: Audit Event Forgery', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let attackerUserId: string
   let adminClient: Awaited<ReturnType<typeof getAdminClient>>
+  let victimUserId: string
+  let orgId: string
 
   test.beforeAll(async () => {
-    await seedRedTeamUsers()
+    const seed = await seedRedTeamUsers()
+    victimUserId = seed.victimUserId
+    orgId = seed.orgId
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
     adminClient = getAdminClient()
 
@@ -113,5 +117,57 @@ test.describe('Red Team: Audit Event Forgery', () => {
 
     expect(after).not.toBeNull()
     expect(after?.id).toBe(targetEventId)
+  })
+
+  test('AA: a student cannot read another student audit events via actor_id probe', async () => {
+    // audit_read_own is `USING (actor_id = auth.uid())`, so a student must only
+    // see their own audit rows. Seed a victim-owned audit row (idempotent;
+    // audit_events is append-only and never cleaned), then probe as the attacker.
+    const AA_MARKER = '[E2E_REDTEAM] audit-read-isolation'
+    const { data: existing, error: existErr } = await adminClient
+      .from('audit_events')
+      .select('id')
+      .eq('actor_id', victimUserId)
+      .eq('event_type', 'student.login')
+      .contains('metadata', { marker: AA_MARKER })
+      .limit(1)
+    expect(existErr).toBeNull()
+    let victimEventId = existing?.[0]?.id
+    if (!victimEventId) {
+      const { data: inserted, error: insErr } = await adminClient
+        .from('audit_events')
+        .insert({
+          organization_id: orgId,
+          actor_id: victimUserId,
+          actor_role: 'student',
+          event_type: 'student.login',
+          resource_type: 'user',
+          resource_id: victimUserId,
+          metadata: { marker: AA_MARKER },
+        })
+        .select('id')
+        .single()
+      expect(insErr).toBeNull()
+      victimEventId = inserted?.id
+    }
+    expect(victimEventId).toBeTruthy()
+
+    // The attacker probes for the victim's rows by actor_id → RLS filters them
+    // out silently (0 rows), never leaking another student's audit trail.
+    const { data: leaked, error: probeErr } = await attackerClient
+      .from('audit_events')
+      .select('id')
+      .eq('actor_id', victimUserId)
+    expect(probeErr).toBeNull()
+    expect(leaked ?? []).toHaveLength(0)
+
+    // Non-vacuous: the victim's row genuinely exists (admin can read it).
+    const { data: confirm, error: confirmErr } = await adminClient
+      .from('audit_events')
+      .select('id')
+      .eq('id', victimEventId)
+      .single()
+    expect(confirmErr).toBeNull()
+    expect(confirm?.id).toBe(victimEventId)
   })
 })
