@@ -260,6 +260,12 @@ test.describe('Red Team: Session Replay', () => {
     createdSessionIds.add(sid)
 
     const [answersA, answersB] = await Promise.all([buildAnswers(false), buildAnswers(true)])
+    // Non-vacuity (code-style.md §5): the attack models a second caller submitting a
+    // *different* (potentially better) answer set to inflate the score. If the two
+    // sets were identical the idempotency checks below would pass trivially. pickLast
+    // diverges from pickFirst only when a question has ≥2 options — assert the sets
+    // actually differ so a single-option fixture drift fails loudly here, not silently.
+    expect(answersA).not.toEqual(answersB)
 
     // Two concurrent submissions with different answer sets. The RPC's FOR UPDATE
     // lock serialises them: one scores and ends the session, the other hits the
@@ -270,14 +276,40 @@ test.describe('Red Team: Session Replay', () => {
     ])
     expect(r1.error).toBeNull()
     expect(r2.error).toBeNull()
-    const s1 = (r1.data as { score_percentage?: number })?.score_percentage
-    const s2 = (r2.data as { score_percentage?: number })?.score_percentage
-    // Both paths (scoring + idempotent) must return a numeric score; asserting
-    // typeof on both gives a clear failure if the idempotent path regresses to
-    // omitting score_percentage, instead of a confusing `undefined === <n>`.
-    expect(typeof s1).toBe('number')
-    expect(typeof s2).toBe('number')
-    expect(s2).toBe(s1)
+
+    // Both responses must satisfy the full batch_submit_quiz output contract (latest
+    // def: migration 20260601000001). The scoring path and the idempotent cached path
+    // both return the same deterministic scalars. Asserting the whole scalar contract —
+    // not just score_percentage — catches an idempotent-path regression that returns a
+    // matching score but a divergent correct_count / answered_count / passed. We compare
+    // scalars only, NOT the `results` array: its element order differs between the
+    // freshly-scored path and the rebuilt-from-storage cached path, so a deep equal
+    // would be flaky.
+    type BatchScalars = {
+      total_questions?: number
+      answered_count?: number
+      correct_count?: number
+      score_percentage?: number
+      passed?: boolean
+    }
+    const d1 = r1.data as BatchScalars
+    const d2 = r2.data as BatchScalars
+    expect(d1).toBeTruthy()
+    expect(d2).toBeTruthy()
+    for (const d of [d1, d2]) {
+      expect(d.total_questions).toBe(3)
+      expect(d.answered_count).toBe(3)
+      expect(typeof d.correct_count).toBe('number')
+      expect(typeof d.score_percentage).toBe('number')
+      expect(typeof d.passed).toBe('boolean')
+    }
+    // Idempotency: whichever caller won the FOR UPDATE race scored; the other returned
+    // that cached result. Both responses must carry identical deterministic scalars
+    // regardless of which set actually scored.
+    expect(d2.score_percentage).toBe(d1.score_percentage)
+    expect(d2.correct_count).toBe(d1.correct_count)
+    expect(d2.answered_count).toBe(d1.answered_count)
+    expect(d2.passed).toBe(d1.passed)
 
     const { data: row, error: rowErr } = await admin
       .from('quiz_sessions')
