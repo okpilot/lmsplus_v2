@@ -178,6 +178,86 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data?.[0]?.best_streak).toBe(0)
   })
 
+  test('start_exam_session rejects unauthenticated callers (Vector AG, #545)', async () => {
+    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not authenticated'
+    // before any exam_config lookup, so an anon caller never reaches the
+    // question-selection path. knownSubjectId is a REAL subject (so the rejection
+    // is the auth guard, not a missing-subject path).
+    const { data, error } = await unauthClient.rpc('start_exam_session', {
+      p_subject_id: knownSubjectId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('complete_empty_exam_session rejects unauthenticated callers (Vector AN, #557)', async () => {
+    // SECURITY DEFINER; the auth.uid() IS NULL guard fires before the session
+    // ownership lookup, so the session id need not exist for the anon caller to
+    // be rejected with 'not authenticated'.
+    const { data, error } = await unauthClient.rpc('complete_empty_exam_session', {
+      p_session_id: knownSessionId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('get_random_question_ids returns an empty set for an unauthenticated caller (Vector CA, #689)', async () => {
+    // SECURITY INVOKER → runs as the anon role. _filtered_question_pool reads
+    // questions under tenant_isolation RLS; with auth.uid() NULL the org scope is
+    // empty, so a REAL subject with active questions yields 0 ids (proving RLS
+    // blocks, not table emptiness). No RAISE on this path — empty set, no error.
+    const { data, error } = await unauthClient.rpc('get_random_question_ids', {
+      p_subject_id: knownSubjectId,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_count: 10,
+      p_filters: null,
+    })
+    expect(error).toBeNull()
+    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+  })
+
+  test('get_filtered_question_counts returns an empty set for an unauthenticated caller (Vector CA, #689)', async () => {
+    // Same SECURITY INVOKER + tenant_isolation empty-set defense as
+    // get_random_question_ids — anon enumerates no per-topic counts.
+    const { data, error } = await unauthClient.rpc('get_filtered_question_counts', {
+      p_subject_id: knownSubjectId,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_filters: null,
+    })
+    expect(error).toBeNull()
+    expect(Array.isArray(data) ? data.length : 0).toBe(0)
+  })
+
+  test('check_consent_status rejects unauthenticated callers (Vector W, #384)', async () => {
+    // SECURITY DEFINER; the _uid IS NULL guard raises 'Not authenticated' before
+    // the consent lookup (message capitalised differently from the exam RPCs —
+    // matched case-insensitively).
+    const { data, error } = await unauthClient.rpc('check_consent_status', {
+      p_tos_version: 'v1.0',
+      p_privacy_version: 'v1.0',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('record_consent rejects unauthenticated callers (Vector W, #384)', async () => {
+    // SECURITY DEFINER; the _uid IS NULL guard raises 'Not authenticated' before
+    // any user_consents INSERT, so an anon caller cannot forge a consent record.
+    const { data, error } = await unauthClient.rpc('record_consent', {
+      p_document_type: 'terms_of_service',
+      p_document_version: 'v1.0',
+      p_accepted: true,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
   // --- Direct table SELECT vectors ---
 
   test('unauthenticated client sees 0 rows from student_responses', async () => {
