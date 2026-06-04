@@ -144,7 +144,10 @@ test.describe('Red Team: batch_submit_quiz time-limit enforcement', () => {
       .single()
     expect(rowErr).toBeNull()
     expect(row?.ended_at).not.toBeNull()
-    expect(row?.score_percentage).toEqual(0)
+    // score_percentage is NUMERIC(5,2): PostgREST serializes fractional NUMERIC as a
+    // string (code-style.md §5). Coerce so a future non-integer score can't slip past;
+    // `?? -1` keeps a NULL from masquerading as 0.
+    expect(Number(row?.score_percentage ?? -1)).toEqual(0)
 
     // No answers were recorded — the submission was rejected at the deadline gate
     // before any scoring/insert.
