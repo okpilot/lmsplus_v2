@@ -328,6 +328,11 @@ test.describe('Red Team: complete_empty_exam_session RPC', () => {
       .eq('id', victimUserId)
     expect(delErr).toBeNull()
 
+    // Capture the restore result outside the block: a failed restore leaves
+    // the shared victim fixture soft-deleted and would poison downstream specs,
+    // so it must FAIL this test — but asserting inside `finally` would mask a
+    // try-block assertion failure (noUnsafeFinally). Assert after the block.
+    let restoreErrorMessage: string | null = null
     try {
       const { data, error } = await victimClient.rpc('complete_empty_exam_session', {
         p_session_id: sessionId,
@@ -336,16 +341,12 @@ test.describe('Red Team: complete_empty_exam_session RPC', () => {
       expect(error?.message ?? '').toMatch(/user not found or inactive/i)
       expect(data).toBeNull()
     } finally {
-      // Restore the shared victim fixture so later runs/tests are unaffected.
-      // Log rather than throw — a throw here would mask a try-block assertion
-      // failure (noUnsafeFinally).
       const { error: restoreErr } = await admin
         .from('users')
         .update({ deleted_at: null })
         .eq('id', victimUserId)
-      if (restoreErr) {
-        console.error(`[complete-empty] restore victim user failed: ${restoreErr.message}`)
-      }
+      restoreErrorMessage = restoreErr?.message ?? null
     }
+    expect(restoreErrorMessage).toBeNull()
   })
 })
