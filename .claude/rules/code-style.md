@@ -511,6 +511,23 @@ try {
 }
 ```
 
+### Mirror Callback-Critical State in a Ref (stale-closure guard)
+
+A React state variable read directly inside a callback captures the **render-time snapshot**. If the callback can fire before the next render commits (event handlers stored in a hook, `onAnswerRecorded`-style props, timers, async continuations), that snapshot is stale. State whose value must be **current at callback execution time** — not just at definition time — must be mirrored in a `useRef` and read via `ref.current` inside the callback.
+
+```tsx
+// ❌ WRONG — feedback is the render-time snapshot, stale if the callback fires before re-render
+onAnswerRecorded: (a, fb) => checkpoint(a, idx, feedback),
+
+// ✅ CORRECT — feedbackRef.current is eagerly updated, so the callback reads the live value
+onAnswerRecorded: (a, fb) => {
+  feedbackRef.current = fb
+  checkpoint(a, idx, fb)
+},
+```
+
+The same applies to any scalar captured across a hook split (e.g. a `currentIndex` read in a save handler defined in a different hook). When in doubt: if a value is read inside a callback and also changes via `setState`, mirror it. Promoted at count=2 — `df5d354` (stale `currentIndex` in `handleSave` after a hook split) and `e137e93` (stale `feedback` Map in `wrappedNavigateTo`'s checkpoint).
+
 ---
 
 ## 7. Testing Rules
