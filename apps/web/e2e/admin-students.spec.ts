@@ -13,10 +13,11 @@ const E2E_STUDENT_DOMAIN = '@lmsplus.local'
 /** Delete E2E-created students by email prefix to keep the DB clean. */
 async function cleanupE2eStudents() {
   const admin = getAdminClient()
-  const { data: rows } = await admin
+  const { data: rows, error: rowsErr } = await admin
     .from('users')
     .select('id, email')
     .like('email', `${E2E_STUDENT_EMAIL_PREFIX}%`)
+  if (rowsErr) throw new Error(`cleanupE2eStudents: ${rowsErr.message}`)
   if (!rows?.length) return
   for (const row of rows) {
     await admin.auth.admin.deleteUser(row.id)

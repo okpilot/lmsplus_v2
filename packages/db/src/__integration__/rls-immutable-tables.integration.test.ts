@@ -103,12 +103,13 @@ describe('RLS: immutable tables', () => {
       .eq('question_id', questionIds[0])
 
     // Verify original value is intact
-    const { data } = await admin
+    const { data, error: verifyErr } = await admin
       .from('quiz_session_answers')
       .select('selected_option_id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
       .single()
+    expect(verifyErr).toBeNull()
     expect(data?.selected_option_id).toBe('b')
   })
 
@@ -119,23 +120,25 @@ describe('RLS: immutable tables', () => {
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
 
-    const { data } = await admin
+    const { data, error: verifyErr } = await admin
       .from('quiz_session_answers')
       .select('id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
+    expect(verifyErr).toBeNull()
     expect(data).toHaveLength(1)
   })
 
   it('cannot UPDATE student_responses (data unchanged)', async () => {
     // Get original value
-    const { data: before } = await admin
+    const { data: before, error: beforeErr } = await admin
       .from('student_responses')
       .select('selected_option_id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
       .limit(1)
       .single()
+    expect(beforeErr).toBeNull()
 
     await studentClient
       .from('student_responses')
@@ -143,22 +146,24 @@ describe('RLS: immutable tables', () => {
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
 
-    const { data: after } = await admin
+    const { data: after, error: afterErr } = await admin
       .from('student_responses')
       .select('selected_option_id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
       .limit(1)
       .single()
+    expect(afterErr).toBeNull()
     expect(after?.selected_option_id).toBe(before?.selected_option_id)
   })
 
   it('cannot DELETE student_responses (row still exists)', async () => {
-    const { data: before } = await admin
+    const { data: before, error: beforeErr } = await admin
       .from('student_responses')
       .select('id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
+    expect(beforeErr).toBeNull()
 
     await studentClient
       .from('student_responses')
@@ -166,21 +171,23 @@ describe('RLS: immutable tables', () => {
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
 
-    const { data: after } = await admin
+    const { data: after, error: afterErr } = await admin
       .from('student_responses')
       .select('id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
+    expect(afterErr).toBeNull()
     expect(after).toHaveLength(before?.length ?? 0)
   })
 
   it('cannot UPDATE audit_events (data unchanged)', async () => {
-    const { data: events } = await admin
+    const { data: events, error: eventsErr } = await admin
       .from('audit_events')
       .select('id, event_type')
       .eq('organization_id', orgId)
       .limit(1)
 
+    expect(eventsErr).toBeNull()
     expect(events?.length).toBeGreaterThan(0)
     // Previous expect guarantees events is non-empty
     const original = events![0]!
@@ -189,28 +196,34 @@ describe('RLS: immutable tables', () => {
     // so RLS blocks the update silently)
     await studentClient.from('audit_events').update({ event_type: 'hacked' }).eq('id', original.id)
 
-    const { data: after } = await admin
+    const { data: after, error: afterErr } = await admin
       .from('audit_events')
       .select('event_type')
       .eq('id', original.id)
       .single()
+    expect(afterErr).toBeNull()
     expect(after?.event_type).toBe(original.event_type)
   })
 
   it('cannot DELETE audit_events (row still exists)', async () => {
-    const { data: events } = await admin
+    const { data: events, error: eventsErr } = await admin
       .from('audit_events')
       .select('id')
       .eq('organization_id', orgId)
       .limit(1)
 
+    expect(eventsErr).toBeNull()
     expect(events?.length).toBeGreaterThan(0)
     // Previous expect guarantees events is non-empty
     const eventId = events![0]!.id
 
     await studentClient.from('audit_events').delete().eq('id', eventId)
 
-    const { data: after } = await admin.from('audit_events').select('id').eq('id', eventId)
+    const { data: after, error: afterErr } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('id', eventId)
+    expect(afterErr).toBeNull()
     expect(after).toHaveLength(1)
   })
 })

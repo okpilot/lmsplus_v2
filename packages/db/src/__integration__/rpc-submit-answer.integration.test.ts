@@ -141,11 +141,12 @@ describe('RPC: submit_quiz_answer', () => {
     expect(error).toBeNull()
 
     // Verify only 1 row in quiz_session_answers
-    const { data: answers } = await admin
+    const { data: answers, error: answersErr } = await admin
       .from('quiz_session_answers')
       .select('id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[0])
+    expect(answersErr).toBeNull()
     expect(answers).toHaveLength(1)
   })
 
@@ -213,19 +214,21 @@ describe('RPC: submit_quiz_answer', () => {
       p_response_time_ms: 4000,
     })
 
-    const { data: answers } = await admin
+    const { data: answers, error: answersErr } = await admin
       .from('quiz_session_answers')
       .select('id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[2])
+    expect(answersErr).toBeNull()
     expect(answers).toHaveLength(1)
 
-    const { data: responses } = await admin
+    const { data: responses, error: responsesErr } = await admin
       .from('student_responses')
       .select('id')
       .eq('session_id', sessionId)
       .eq('question_id', questionIds[2])
       .eq('student_id', studentId)
+    expect(responsesErr).toBeNull()
     expect(responses?.length).toBeGreaterThanOrEqual(1)
   })
 })

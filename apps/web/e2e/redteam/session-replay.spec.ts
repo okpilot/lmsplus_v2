@@ -40,7 +40,7 @@ test.describe('Red Team: Session Replay', () => {
     subjectId = picked.subjectId
     topicId = picked.topicId
 
-    const { data: qs } = await admin
+    const { data: qs, error: qsErr } = await admin
       .from('questions')
       .select('id')
       .eq('organization_id', orgId)
@@ -50,6 +50,7 @@ test.describe('Red Team: Session Replay', () => {
       .is('deleted_at', null)
       .order('id', { ascending: true })
       .limit(3)
+    if (qsErr) throw new Error(`session-replay seed: questions query failed: ${qsErr.message}`)
     questionIds = (qs ?? []).map((q) => q.id)
     if (questionIds.length !== 3) {
       throw new Error(
@@ -165,12 +166,13 @@ test.describe('Red Team: Session Replay', () => {
 
     // Step 7: Verify score in DB did not change
     const admin = getAdminClient()
-    const { data: sessionRow } = await admin
+    const { data: sessionRow, error: sessionRowErr } = await admin
       .from('quiz_sessions')
       .select('score_percentage, ended_at')
       .eq('id', sessionId)
       .single()
 
+    expect(sessionRowErr).toBeNull()
     expect(sessionRow?.ended_at).not.toBeNull()
     expect(sessionRow?.score_percentage).toBe(originalScore)
 

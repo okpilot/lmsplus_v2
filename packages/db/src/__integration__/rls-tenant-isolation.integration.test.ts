@@ -163,36 +163,41 @@ describe('RLS: tenant isolation', () => {
   })
 
   it('student in orgB cannot read orgA questions', async () => {
-    const { data } = await studentBClient.from('questions').select('id').in('id', questionIdsA)
+    const { data, error } = await studentBClient.from('questions').select('id').in('id', questionIdsA)
+    expect(error).toBeNull()
     expect(data).toHaveLength(0)
   })
 
   it('student in orgB cannot read orgA quiz sessions', async () => {
-    const { data } = await studentBClient
+    const { data, error } = await studentBClient
       .from('quiz_sessions')
       .select('id')
       .eq('organization_id', orgAId)
+    expect(error).toBeNull()
     expect(data).toHaveLength(0)
   })
 
   it('student in orgB cannot read orgA student responses', async () => {
-    const { data } = await studentBClient
+    const { data, error } = await studentBClient
       .from('student_responses')
       .select('id')
       .eq('organization_id', orgAId)
+    expect(error).toBeNull()
     expect(data).toHaveLength(0)
   })
 
   it('student cannot read another student FSRS cards (same org)', async () => {
-    const { data } = await studentA2Client.from('fsrs_cards').select('id')
+    const { data, error } = await studentA2Client.from('fsrs_cards').select('id')
     // studentA2 should only see their own cards (none seeded)
+    expect(error).toBeNull()
     expect(data).toHaveLength(0)
   })
 
   it('student can read only their own audit events (GDPR Art. 15)', async () => {
-    const { data } = await studentAClient.from('audit_events').select('id, actor_id')
+    const { data, error } = await studentAClient.from('audit_events').select('id, actor_id')
     // Migration 060: students can now read their own audit events
     // All returned rows must belong to the authenticated student (RLS enforces actor_id = auth.uid())
+    expect(error).toBeNull()
     expect(data).not.toBeNull()
     const actorIds = new Set((data ?? []).map((r) => r.actor_id))
     // All rows share a single actor_id (the student's own)
@@ -200,20 +205,23 @@ describe('RLS: tenant isolation', () => {
   })
 
   it('instructor can read audit events in own org', async () => {
-    const { data } = await instructorAClient
+    const { data, error } = await instructorAClient
       .from('audit_events')
       .select('id')
       .eq('organization_id', orgAId)
+    expect(error).toBeNull()
     expect(data?.length).toBeGreaterThan(0)
   })
 
   it('student can only see own quiz sessions (same org)', async () => {
     // studentA2 has no sessions
-    const { data } = await studentA2Client.from('quiz_sessions').select('id')
+    const { data, error } = await studentA2Client.from('quiz_sessions').select('id')
+    expect(error).toBeNull()
     expect(data).toHaveLength(0)
 
     // studentA has 1 session
-    const { data: dataA } = await studentAClient.from('quiz_sessions').select('id')
+    const { data: dataA, error: errorA } = await studentAClient.from('quiz_sessions').select('id')
+    expect(errorA).toBeNull()
     expect(dataA?.length).toBeGreaterThan(0)
   })
 })

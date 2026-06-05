@@ -119,11 +119,12 @@ describe('RPC: complete_quiz_session', () => {
       p_session_id: sessionId,
     })
 
-    const { data: session } = await admin
+    const { data: session, error: sessionErr } = await admin
       .from('quiz_sessions')
       .select('ended_at')
       .eq('id', sessionId)
       .single()
+    expect(sessionErr).toBeNull()
     expect(session?.ended_at).not.toBeNull()
   })
 
@@ -137,12 +138,13 @@ describe('RPC: complete_quiz_session', () => {
       p_session_id: sessionId,
     })
 
-    const { data: events } = await admin
+    const { data: events, error: eventsErr } = await admin
       .from('audit_events')
       .select('event_type, metadata')
       .eq('resource_id', sessionId)
       .eq('event_type', 'quiz_session.completed')
 
+    expect(eventsErr).toBeNull()
     expect(events).toHaveLength(1)
     expect(events![0]!.metadata).toMatchObject({
       total: 3,

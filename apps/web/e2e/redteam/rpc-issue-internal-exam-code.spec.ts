@@ -85,11 +85,12 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     // Resolve a SECOND subject (the "unconfigured" one) — different from the
     // configured pick. Top up with a throwaway easa_subjects row if the org has
     // only one.
-    let { data: subjectsForUnconfigured } = await admin
+    let { data: subjectsForUnconfigured, error: subjectsErr } = await admin
       .from('easa_subjects')
       .select('id')
       .order('sort_order', { ascending: true })
       .limit(5)
+    if (subjectsErr) throw new Error(`seed: easa_subjects lookup failed: ${subjectsErr.message}`)
     let unconfPick = subjectsForUnconfigured?.find((s) => s.id !== configuredSubjectId)
     if (!unconfPick) {
       await admin.from('easa_subjects').upsert(
@@ -125,11 +126,13 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     // up as that "second subject" — but it has no topics or questions by default,
     // breaking those specs. Seed both.
     let unconfTopicId: string
-    const { data: unconfTopics } = await admin
+    const { data: unconfTopics, error: unconfTopicsErr } = await admin
       .from('easa_topics')
       .select('id')
       .eq('subject_id', unconfiguredSubjectId)
       .limit(1)
+    if (unconfTopicsErr)
+      throw new Error(`seed: easa_topics lookup failed: ${unconfTopicsErr.message}`)
     if (unconfTopics && unconfTopics.length > 0) {
       unconfTopicId = unconfTopics[0].id
     } else {
@@ -155,20 +158,23 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
 
     // Ensure rpc-question-membership has at least one question on the unconfigured
     // subject's topic. Idempotent — only inserts if no question exists.
-    const { data: existingUnconfQ } = await admin
+    const { data: existingUnconfQ, error: existingUnconfQErr } = await admin
       .from('questions')
       .select('id')
       .eq('topic_id', unconfTopicId)
       .is('deleted_at', null)
       .limit(1)
+    if (existingUnconfQErr)
+      throw new Error(`seed: questions lookup failed: ${existingUnconfQErr.message}`)
     if (!existingUnconfQ || existingUnconfQ.length === 0) {
-      const { data: bankRow } = await admin
+      const { data: bankRow, error: bankRowErr } = await admin
         .from('question_banks')
         .select('id')
         .eq('organization_id', egmontOrgIdForPick)
         .is('deleted_at', null)
         .limit(1)
         .maybeSingle()
+      if (bankRowErr) throw new Error(`seed: question_banks lookup failed: ${bankRowErr.message}`)
       if (bankRow) {
         const { error: unconfQErr } = await admin.from('questions').insert({
           organization_id: egmontOrgIdForPick,

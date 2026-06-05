@@ -93,12 +93,12 @@ describe('RPC: start_quiz_session', () => {
       p_question_ids: qIds,
     })
 
-    const { data: session } = await admin
+    const { data: session, error: sessionErr } = await admin
       .from('quiz_sessions')
       .select('config, total_questions, mode, subject_id, topic_id')
       .eq('id', sessionId)
       .single()
-
+    expect(sessionErr).toBeNull()
     expect(session?.config.question_ids).toEqual(qIds)
     expect(session?.total_questions).toBe(2)
     expect(session?.mode).toBe('quick_quiz')
@@ -114,11 +114,11 @@ describe('RPC: start_quiz_session', () => {
       p_question_ids: questionIds.slice(0, 1),
     })
 
-    const { data: events } = await admin
+    const { data: events, error: eventsErr } = await admin
       .from('audit_events')
       .select('event_type, resource_type, resource_id')
       .eq('resource_id', sessionId)
-
+    expect(eventsErr).toBeNull()
     expect(events).toHaveLength(1)
     // Previous expect guarantees events[0] exists
     expect(events![0]!.event_type).toBe('quiz_session.started')

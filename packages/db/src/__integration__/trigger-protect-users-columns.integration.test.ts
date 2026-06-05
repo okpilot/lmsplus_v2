@@ -62,7 +62,8 @@ describe('trigger: protect_users_sensitive_columns', () => {
     await studentClient.from('users').update({ role: 'admin' }).eq('id', studentId)
 
     // The important assertion: role must not have changed
-    const { data } = await admin.from('users').select('role').eq('id', studentId).single()
+    const { data, error } = await admin.from('users').select('role').eq('id', studentId).single()
+    expect(error).toBeNull()
     expect(data?.role).toBe('student')
   })
 
@@ -77,11 +78,12 @@ describe('trigger: protect_users_sensitive_columns', () => {
       await studentClient.from('users').update({ organization_id: otherOrgId }).eq('id', studentId)
 
       // The important assertion: org must not have changed
-      const { data } = await admin
+      const { data, error } = await admin
         .from('users')
         .select('organization_id')
         .eq('id', studentId)
         .single()
+      expect(error).toBeNull()
       expect(data?.organization_id).toBe(orgId)
     } finally {
       // Clean up the extra org (no users to remove from it)
@@ -99,7 +101,8 @@ describe('trigger: protect_users_sensitive_columns', () => {
       .eq('id', studentId)
 
     // The important assertion: user must not be soft-deleted
-    const { data } = await admin.from('users').select('deleted_at').eq('id', studentId).single()
+    const { data, error } = await admin.from('users').select('deleted_at').eq('id', studentId).single()
+    expect(error).toBeNull()
     expect(data?.deleted_at).toBeNull()
   })
 
@@ -119,7 +122,12 @@ describe('trigger: protect_users_sensitive_columns', () => {
 
     // Verify via admin that full_name is either updated (if UPDATE policy exists)
     // or unchanged (if RLS blocked) — either way, no trigger exception occurred
-    const { data } = await admin.from('users').select('full_name').eq('id', studentId).single()
+    const { data, error: fullNameErr } = await admin
+      .from('users')
+      .select('full_name')
+      .eq('id', studentId)
+      .single()
+    expect(fullNameErr).toBeNull()
     expect(data).not.toBeNull()
   })
 
@@ -134,7 +142,8 @@ describe('trigger: protect_users_sensitive_columns', () => {
 
     expect(promoteError).toBeNull()
 
-    const { data } = await admin.from('users').select('role').eq('id', studentId).single()
+    const { data, error: roleErr } = await admin.from('users').select('role').eq('id', studentId).single()
+    expect(roleErr).toBeNull()
     expect(data?.role).toBe('instructor')
 
     // Restore original role for subsequent tests
@@ -148,7 +157,12 @@ describe('trigger: protect_users_sensitive_columns', () => {
 
     expect(error).toBeNull()
 
-    const { data } = await admin.from('users').select('deleted_at').eq('id', studentId).single()
+    const { data, error: deletedAtErr } = await admin
+      .from('users')
+      .select('deleted_at')
+      .eq('id', studentId)
+      .single()
+    expect(deletedAtErr).toBeNull()
     expect(data?.deleted_at).not.toBeNull()
 
     // Restore for cleanup

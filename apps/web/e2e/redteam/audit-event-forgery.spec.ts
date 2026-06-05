@@ -71,7 +71,11 @@ test.describe('Red Team: Audit Event Forgery', () => {
 
   test('student cannot UPDATE an existing audit event (append-only enforcement)', async () => {
     // Even if a student somehow knows an event ID, they must not be able to modify it.
-    const { data: events } = await adminClient.from('audit_events').select('id, metadata').limit(1)
+    const { data: events, error: eventsErr } = await adminClient
+      .from('audit_events')
+      .select('id, metadata')
+      .limit(1)
+    expect(eventsErr).toBeNull()
 
     if (!events || events.length === 0) {
       // No events to target — skip (not a test failure, just no data)
@@ -88,17 +92,21 @@ test.describe('Red Team: Audit Event Forgery', () => {
 
     // RLS USING(false) silently filters rows — PostgREST returns null error
     // but 0 rows affected. Verify the data was NOT actually modified.
-    const { data: after } = await adminClient
+    const { data: after, error: afterErr } = await adminClient
       .from('audit_events')
       .select('metadata')
       .eq('id', targetEventId)
       .single()
-
+    expect(afterErr).toBeNull()
     expect(after?.metadata).toEqual(originalMetadata)
   })
 
   test('student cannot DELETE an audit event', async () => {
-    const { data: events } = await adminClient.from('audit_events').select('id').limit(1)
+    const { data: events, error: eventsErr } = await adminClient
+      .from('audit_events')
+      .select('id')
+      .limit(1)
+    expect(eventsErr).toBeNull()
 
     if (!events || events.length === 0) {
       return
@@ -109,12 +117,12 @@ test.describe('Red Team: Audit Event Forgery', () => {
     await attackerClient.from('audit_events').delete().eq('id', targetEventId)
 
     // RLS USING(false) silently filters rows — verify the row still exists
-    const { data: after } = await adminClient
+    const { data: after, error: afterErr } = await adminClient
       .from('audit_events')
       .select('id')
       .eq('id', targetEventId)
       .single()
-
+    expect(afterErr).toBeNull()
     expect(after).not.toBeNull()
     expect(after?.id).toBe(targetEventId)
   })
