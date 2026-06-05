@@ -119,51 +119,92 @@ vi.mock('@/app/app/_components/question-card', () => ({
   ),
 }))
 
-vi.mock('@/app/app/_components/answer-options', () => ({
-  AnswerOptions: ({
+vi.mock('@/app/app/_components/answer-options', async () => {
+  const { useState } = await import('react')
+
+  function AnswerOptions({
     options,
     onSubmit,
     disabled,
     selectedOptionId,
     onSelectionChange,
+    isExam,
   }: {
     options: { id: string; text: string }[]
     onSubmit: (id: string) => void
     disabled: boolean
     selectedOptionId?: string | null
     onSelectionChange?: (id: string | null) => void
-  }) => (
-    <div data-testid="answer-options">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          data-testid={`option-${o.id}`}
-          data-selected={selectedOptionId === o.id ? 'true' : 'false'}
-          onClick={() => {
-            onSelectionChange?.(o.id)
-            onSubmit(o.id)
-          }}
-          disabled={disabled}
-        >
-          {o.text}
-        </button>
-      ))}
-      {/* Select-only buttons: trigger onSelectionChange without submitting */}
-      {options.map((o) => (
-        <button
-          key={`select-${o.id}`}
-          type="button"
-          data-testid={`select-btn-${o.id}`}
-          onClick={() => onSelectionChange?.(o.id)}
-          disabled={disabled}
-        >
-          Select only {o.text}
-        </button>
-      ))}
-    </div>
-  ),
-}))
+    isExam?: boolean
+  }) {
+    // In exam mode track pending selection locally, mirroring the real component's
+    // internal `selected` state. onSubmit fires only when the Confirm Answer button
+    // is clicked — not on the option click itself.
+    const [pendingId, setPendingId] = useState<string | null>(null)
+
+    return (
+      <div data-testid="answer-options">
+        {options.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            data-testid={`option-${o.id}`}
+            // Mirrors the real component's isSelected (answer-options.tsx:82): the
+            // parent-driven selectedOptionId, or — before the parent commits — the
+            // local pendingId. Unselected emits no attribute, like production.
+            data-selected={
+              selectedOptionId === o.id || (!selectedOptionId && pendingId === o.id)
+                ? 'true'
+                : undefined
+            }
+            onClick={() => {
+              onSelectionChange?.(o.id)
+              if (!isExam) {
+                // Study/practice mode: option click immediately submits, matching the
+                // real component where Submit Answer is the only confirm step.
+                onSubmit(o.id)
+              } else {
+                // Exam mode: option click only selects; onSubmit fires via Confirm Answer.
+                setPendingId(o.id)
+              }
+            }}
+            disabled={disabled}
+          >
+            {o.text}
+          </button>
+        ))}
+        {/* Select-only buttons: trigger onSelectionChange without submitting */}
+        {options.map((o) => (
+          <button
+            key={`select-${o.id}`}
+            type="button"
+            data-testid={`select-btn-${o.id}`}
+            onClick={() => onSelectionChange?.(o.id)}
+            disabled={disabled}
+          >
+            Select only {o.text}
+          </button>
+        ))}
+        {/* Exam-mode confirm button — mirrors answer-options.tsx line 104 ("Confirm Answer") */}
+        {isExam && pendingId && (
+          <button
+            type="button"
+            data-testid="confirm-answer-btn"
+            onClick={() => {
+              onSubmit(pendingId)
+              setPendingId(null)
+            }}
+            disabled={disabled}
+          >
+            Confirm Answer
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return { AnswerOptions }
+})
 
 vi.mock('@/app/app/_components/session-timer', () => ({
   SessionTimer: () => <span data-testid="session-timer">00:00</span>,
@@ -589,8 +630,10 @@ describe('QuizSession', () => {
       />,
     )
 
-    // Buffer an answer so handleSubmitSession progresses past the empty-answers guard
+    // Buffer an answer so handleSubmitSession progresses past the empty-answers guard.
+    // In exam mode: option click selects only; Confirm Answer fires onSubmit.
     fireEvent.click(screen.getByTestId('option-a'))
+    fireEvent.click(screen.getByTestId('confirm-answer-btn'))
 
     // Open dialog and click Submit so the batch submit is in flight (submitting=true).
     // Pre-fix: when the timer fires later, handleTimeExpired's `s.submitting` guard
