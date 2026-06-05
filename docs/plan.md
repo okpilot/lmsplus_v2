@@ -554,7 +554,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
   - code-reviewer (sonnet) — reviews diff for code style violations
   - doc-updater (haiku) — checks if docs need updates
   - test-writer (sonnet) — writes missing tests, runs them
-  - learner (haiku) — analyzes findings, detects patterns, updates rules/memory
+  - learner (sonnet) — analyzes findings, detects patterns, updates rules/memory
   - coderabbit-sync (haiku) — keeps .coderabbit.yaml aligned when rules change
 - **CodeRabbit** (GitHub PR review):
   - `.coderabbit.yaml` — assertive profile, path-specific rules mirroring code-style.md + security.md
