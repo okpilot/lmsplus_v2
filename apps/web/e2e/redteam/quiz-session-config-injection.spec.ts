@@ -13,8 +13,12 @@
  *            config, total_questions, mode, time_limit_seconds, started_at,
  *            organization_id, student_id, subject_id, topic_id, created_at
  *
- * Mutable columns remain: ended_at, correct_count, score_percentage, passed,
- * deleted_at — covering every legitimate SECURITY DEFINER UPDATE path.
+ * The config columns above remain in authenticated's UPDATE grant, so a student's
+ * attack reaches this trigger and is rejected with the 'immutable' message (the
+ * assertions below). As of mig 20260605000001 (#611), the SCORING columns
+ * (ended_at, correct_count, score_percentage, passed) were removed from that grant —
+ * a student-direct write to them now returns 42501 before the trigger; see
+ * quiz-session-score-forgery.spec.ts. Only deleted_at is freely student-writable.
  */
 
 import { expect, test } from '@playwright/test'
