@@ -88,7 +88,7 @@ test.describe('Red Team: user_consents Isolation', () => {
     }
   })
 
-  test('Vector X (#384): a user cannot read another user consent records via a user_id probe', async () => {
+  test("Vector X (#384): a user cannot read another user's consent records via a user_id probe", async () => {
     // Non-vacuity: admin confirms the victim actually has the seeded consent row.
     const { data: adminRows, error: adminErr } = await adminClient
       .from('user_consents')
@@ -116,7 +116,10 @@ test.describe('Red Team: user_consents Isolation', () => {
       .from('user_consents')
       .select('id, user_id, document_version')
     expect(error).toBeNull()
-    const rows = (Array.isArray(data) ? data : []) as Array<{ user_id: string; document_version: string }>
+    const rows = (Array.isArray(data) ? data : []) as Array<{
+      user_id: string
+      document_version: string
+    }>
     expect(rows.length).toBeGreaterThan(0)
     // Every visible row belongs to the caller…
     expect(rows.every((r) => r.user_id === attackerUserId)).toBe(true)
