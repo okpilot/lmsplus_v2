@@ -98,7 +98,8 @@ test.describe('Red Team: Session Race Condition', () => {
     })
     expect(startError).toBeNull()
     const sessionId = startData as string
-    // Track before any assertion so afterEach cleans up even if the test fails.
+    // Track right after start succeeds (before later assertions) so afterEach
+    // cleans up even if a subsequent assertion fails.
     createdSessionIds.push(sessionId)
 
     // Step 2: Fetch questions and build answers
@@ -159,7 +160,8 @@ test.describe('Red Team: Session Race Condition', () => {
     })
     expect(startError).toBeNull()
     const sessionId = startData as string
-    // Track before any assertion so afterEach cleans up even if the test fails.
+    // Track right after start succeeds (before later assertions) so afterEach
+    // cleans up even if a subsequent assertion fails.
     // afterEach filters .is('deleted_at', null), so already-discarded sessions
     // are skipped silently — no double-update on a session the test itself discards.
     createdSessionIds.push(sessionId)
