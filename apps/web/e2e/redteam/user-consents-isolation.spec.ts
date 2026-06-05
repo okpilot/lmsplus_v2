@@ -116,7 +116,7 @@ test.describe('Red Team: user_consents Isolation', () => {
       .from('user_consents')
       .select('id, user_id, document_version')
     expect(error).toBeNull()
-    const rows = (data ?? []) as Array<{ user_id: string; document_version: string }>
+    const rows = (Array.isArray(data) ? data : []) as Array<{ user_id: string; document_version: string }>
     expect(rows.length).toBeGreaterThan(0)
     // Every visible row belongs to the caller…
     expect(rows.every((r) => r.user_id === attackerUserId)).toBe(true)
