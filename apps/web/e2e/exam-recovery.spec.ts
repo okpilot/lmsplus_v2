@@ -91,11 +91,14 @@ async function answerCurrentQuestion(page: Page): Promise<void> {
   // Click first option. The exam buffer confirms it synchronously.
   const answerBtns = page.locator('button:has(span.rounded-full)')
   await answerBtns.first().waitFor({ state: 'visible', timeout: 10_000 })
-  await answerBtns.first().click()
+  const firstOption = answerBtns.first()
+  await firstOption.click()
 
-  // Wait briefly for the click to be processed (localStorage write is synchronous,
-  // but we give the React state cycle a tick to settle).
-  await page.waitForTimeout(300)
+  // Wait for the clicked option to carry data-selected="true" — set by AnswerOptions
+  // (answer-options.tsx line 82) when isSelected && !showResult, which is exactly
+  // the post-click exam-buffer state. This is deterministic and replaces the
+  // former page.waitForTimeout(300) flake-risk.
+  await expect(firstOption).toHaveAttribute('data-selected', 'true')
 }
 
 test.describe('practice exam — refresh recovery', () => {
