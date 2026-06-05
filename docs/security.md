@@ -585,7 +585,7 @@ Any Server Action that operates on a quiz session or its questions must verify *
 - **No discard.** Server Action `discardSession` rejects `mode = 'internal_exam'`. The student-side discard button is hidden by mode in the session header. Internal-exam attempts are auditable artefacts and cannot be removed by the student.
 - **Admin-only issue/void.** `issue_internal_exam_code` and `void_internal_exam_code` both gate via `is_admin()` AND org-scope. `start_internal_exam_session` requires `code.student_id = auth.uid()` — students cannot redeem another student's code.
 
-### Known residual exam-mode vectors (red-team AJ / AL)
+### Known residual exam-mode vectors (red-team AJ: document-only / AL: constraint-enforced)
 
 These two **LOW-severity** vectors from the exam-mode red-team review (issue #517) are bounded away from the high-value student-facing threats in §1, so neither has a dedicated automated red-team test yet. They differ in current enforcement state: **AJ** is document-only (an admin-only action inside the admin's own org — a trusted boundary, not student-reachable, no answer exposure or privilege escalation), while **AL**'s data-integrity invariant is already enforced by a DB-level partial unique index — only a cosmetic error-message refinement remains. The residual hardening for each is tracked (AJ → #755, AL → #754); the entries below record the current state and the concrete refinement each issue will apply.
 
