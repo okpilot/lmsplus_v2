@@ -148,7 +148,7 @@ describe('voidInternalExamCode', () => {
   })
 
   describe('error code mapping', () => {
-    it('maps cannot_void_finished_attempt', async () => {
+    it('surfaces "Cannot void a finished attempt" when voiding after submission', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({
         data: null,
@@ -161,7 +161,7 @@ describe('voidInternalExamCode', () => {
       }
     })
 
-    it('maps code_not_found', async () => {
+    it('surfaces "Code not found" when the code does not exist', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: null, error: { message: 'code_not_found' } })
       const result = await voidInternalExamCode(VALID_INPUT)
@@ -169,7 +169,7 @@ describe('voidInternalExamCode', () => {
       if (!result.success) expect(result.error).toBe('Code not found')
     })
 
-    it('maps not_admin', async () => {
+    it('surfaces an admin-permission error when the RPC rejects the caller', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: null, error: { message: 'not_admin' } })
       const result = await voidInternalExamCode(VALID_INPUT)
@@ -177,7 +177,7 @@ describe('voidInternalExamCode', () => {
       if (!result.success) expect(result.error).toBe('Admin permission required')
     })
 
-    it('maps invalid_reason', async () => {
+    it('surfaces a blank-reason error when the reason is whitespace-only', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: null, error: { message: 'invalid_reason' } })
       const result = await voidInternalExamCode(VALID_INPUT)
@@ -185,7 +185,7 @@ describe('voidInternalExamCode', () => {
       if (!result.success) expect(result.error).toBe('Reason cannot be blank or whitespace-only')
     })
 
-    it('maps session_state_changed', async () => {
+    it('surfaces a refresh-and-retry error when the session changed concurrently', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({ data: null, error: { message: 'session_state_changed' } })
       const result = await voidInternalExamCode(VALID_INPUT)

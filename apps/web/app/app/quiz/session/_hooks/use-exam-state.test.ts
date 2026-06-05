@@ -259,27 +259,27 @@ describe('useExamPipeline — submit state surfacing', () => {
     expect(result.current.showFinishDialog).toBe(true)
   })
 
-  it('returns the submit handler to the consumer', () => {
+  it('exposes the submit handler that triggers exam submission', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.handleSubmit).toBe(mockHandleSubmit)
   })
 
-  it('returns the save handler to the consumer', () => {
+  it('exposes the save-and-exit handler', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.handleSave).toBe(mockHandleSave)
   })
 
-  it('returns the discard handler to the consumer', () => {
+  it('exposes the discard handler that abandons the session', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.handleDiscard).toBe(mockHandleDiscard)
   })
 
-  it('returns the finish-dialog setter to the consumer', () => {
+  it('exposes the setter that controls finish-dialog visibility', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.setShowFinishDialog).toBe(mockSetShowFinishDialog)
   })
 
-  it('returns the submitted ref to the consumer', () => {
+  it('exposes the submitted ref that tracks whether the exam was submitted', () => {
     const { result } = renderHook(() => useExamPipeline(makeOpts()))
     expect(result.current.submitted).toBe(mockSubmitted)
   })
