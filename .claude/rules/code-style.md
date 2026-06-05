@@ -511,6 +511,42 @@ try {
 }
 ```
 
+### Mirror Callback-Critical State in a Ref (stale-closure guard)
+
+A React state variable read directly inside a callback captures the **render-time snapshot**. If the callback can fire before the next render commits (event handlers stored in a hook, `onAnswerRecorded`-style props, timers, async continuations), that snapshot is stale. State whose value must be **current at callback execution time** — not just at definition time — must be mirrored in a `useRef` and read via `ref.current` inside the callback.
+
+The danger is a **split between where state is produced and where it is later read**: one callback updates the state via `setState`, and a *different* callback — defined in the same hook, capturing the same render's closure — reads it before the next render commits. The reader gets the stale snapshot.
+
+Both callbacks below live in the **same hook**, capturing the same render's closure — that shared scope is what makes the stale read possible.
+
+```tsx
+// ❌ WRONG — wrappedNavigateTo closes over the render-time `feedback`; if the user
+// answers then immediately navigates, the checkpoint persists the pre-answer Map.
+function useExamNavigation() {
+  const wrappedNavigateTo = (i: number) => {
+    checkpoint(currentAnswer, idx, feedback)   // stale: last render's `feedback`
+    navigateTo(i)
+  }
+  return { wrappedNavigateTo }
+}
+
+// ✅ CORRECT — the produce-site eagerly mirrors into a ref; the read-site reads
+// ref.current, so it sees the latest value even before React re-renders.
+function useExamNavigation() {
+  const feedbackRef = useRef<FeedbackMap>(new Map())
+  const onAnswerRecorded = (a: Answer, fb: FeedbackMap) => {
+    feedbackRef.current = fb                    // produce-site updates the ref
+  }
+  const wrappedNavigateTo = (i: number) => {
+    checkpoint(currentAnswer, idx, feedbackRef.current)   // read-site reads the live value
+    navigateTo(i)
+  }
+  return { onAnswerRecorded, wrappedNavigateTo }
+}
+```
+
+The same applies to any scalar captured across a hook split (e.g. a `currentIndex` read in a save handler defined in a different hook). When in doubt: if a value is read inside a callback and also changes via `setState`, mirror it. Promoted at count=2 — `df5d354` (stale `currentIndex` in `handleSave` after a hook split) and `e137e93` (stale `feedback` Map read in `wrappedNavigateTo`'s checkpoint).
+
 ---
 
 ## 7. Testing Rules
@@ -731,4 +767,4 @@ This prevents documentation from drifting and confusing future readers.
 
 ---
 
-*Last updated: 2026-06-01*
+*Last updated: 2026-06-05 (added stale-closure ref-mirroring rule to §6 — issue #444)*
