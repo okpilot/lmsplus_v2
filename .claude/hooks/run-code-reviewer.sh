@@ -20,7 +20,7 @@ cat "$REPO_ROOT/.claude/agents/code-reviewer.md" > "$TMPFILE"
 printf "\n---\n\n## Commit diff (%s):\n\n\`\`\`diff\n%s\n\`\`\`\n\nReview this diff now. Output your findings in the format specified above." "$COMMIT_HASH" "$DIFF" >> "$TMPFILE"
 
 cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude --print \
-  --model claude-haiku-4-5-20251001 \
+  --model claude-sonnet-4-6 \
   --allowedTools "Read Glob Grep" \
   --no-session-persistence 2>&1 || true
 

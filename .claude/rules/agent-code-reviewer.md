@@ -1,6 +1,6 @@
 # Agent Rules — code-reviewer
 
-> Model: haiku | Trigger: post-commit | Blocking: on merge to main
+> Model: sonnet | Trigger: post-commit | Blocking: on merge to main
 
 ## Purpose
 Checks every commit diff against `.claude/rules/code-style.md`. Catches mechanical violations: file sizes, naming, nesting depth, `any` types, barrel files, useEffect misuse, missing tests.

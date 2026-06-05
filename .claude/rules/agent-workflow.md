@@ -175,7 +175,7 @@ Implementation-critic review (always runs)
     ▼
 git commit
     │
-    ├─► code-reviewer   (haiku)   ─┐
+    ├─► code-reviewer   (sonnet)  ─┐
     ├─► semantic-reviewer (sonnet) ─┤  parallel, wait for all 4
     ├─► doc-updater      (haiku)   ─┤
     └─► test-writer      (sonnet)  ─┘
