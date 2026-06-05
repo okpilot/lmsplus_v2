@@ -62,9 +62,9 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 - Run CR local as a pre-push git hook. The wall-clock is too long, the protocol needs orchestrator judgment, and `--no-verify` would be the natural workaround. The orchestrator runs it via `/fullpush`.
 - Defer something that's < 10 lines and clearly within scope. The per-agent SUGGESTION rules (e.g., `agent-semantic-reviewer.md`, `agent-code-reviewer.md`) say "fix if under 10 lines"; for the broader APPLY-vs-DEFER decision, see `agent-workflow.md § Apply-vs-Defer Discipline` (DEFER requires ≥ 30 LOC plus separate concern plus design decision — all three).
 
-## Common Pitfalls Observed (PR #108, 2026-05-07)
+## Common Pitfalls Observed
 
-These are the patterns CR local caught that our internal agents missed. Update this list as new ones surface.
+These are the patterns CR local caught that our internal agents missed (#1–5 first surfaced on PR #108, 2026-05-07). Update this list as new ones surface.
 
 1. **Service-role cleanup discarding `.select('id')` result.** code-style.md §5 explicitly requires logging on `data?.length > 0` even for cleanup-context where zero rows is valid. Internal agents read `.select('id')` is present and stop there.
 2. **Cast `as unknown as T` without runtime guard.** code-style.md §5 requires pairing the cast with `Array.isArray`/`typeof` checks. Internal agents accept the cast as type assertion.
