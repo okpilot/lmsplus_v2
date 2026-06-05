@@ -43,11 +43,12 @@ test.describe('Red Team: Unauthenticated access to /auth/login-complete (Vector 
       // waitForURL resolves after all redirects settle.
       await page.waitForURL('/', { timeout: 10_000 })
 
-      expect(page.url()).toMatch(/\/$/)
-      // Must NOT end up on any /app/* route
-      expect(page.url()).not.toContain('/app/')
-      // Must NOT end up on /consent (only reached after successful auth)
-      expect(page.url()).not.toContain('/consent')
+      // Lock the exact destination — pathname '/' with no query params. This is
+      // stricter than a trailing-slash regex: it would fail if a refactor sent the
+      // user to /app/*, /consent, or '/?error=...' instead of the bare login page.
+      const url = new URL(page.url())
+      expect(url.pathname).toBe('/')
+      expect(url.search).toBe('')
     } finally {
       await context.close()
     }
@@ -63,8 +64,11 @@ test.describe('Red Team: Unauthenticated access to /auth/login-complete (Vector 
    * writing a student.login row on successful auth) is covered by
    * audit-completeness.spec.ts "writes student.login when record_login() is invoked".
    *
-   * We scope by event_type = 'student.login' and created_at >= testStart so
-   * concurrent specs writing their own login rows don't create false positives.
+   * The count is scoped by event_type = 'student.login' and created_at >= testStart
+   * so rows written before this test don't pollute it. Because the request is
+   * cookieless it cannot itself write a row; the assertion additionally relies on
+   * the redteam Playwright project running serially (same as rate-limiting.spec.ts),
+   * so no concurrent spec writes a student.login row inside this window.
    */
   test('cookieless GET to /auth/login-complete does not invoke record_login', async ({
     browser,

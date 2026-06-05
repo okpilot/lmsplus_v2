@@ -101,9 +101,9 @@ test.describe('Red Team: Open Redirect via `next` param (Vector X)', () => {
   }) => {
     await page.goto('/auth/callback?code=forged-invalid-code-12345&next=%2F%2Fevil.com')
 
-    // Route fails PKCE exchange (line 18-21) → redirects to /?error=invalid_code.
-    // Even if the exchange had succeeded, isSafePath (line 65) rejects any path
-    // starting with '//' — `extractedNext.startsWith('//')` evaluates to true.
+    // Route fails PKCE exchange (line 18-21) → redirects to /?error=invalid_code,
+    // so the `next` param is never processed on this attacker-reachable path.
+    // (The success-path '//' rejection is unit-tested — see the scope note above.)
     await page.waitForURL(/[?&]error=/, { timeout: 10_000 })
 
     const url = new URL(page.url())
@@ -120,10 +120,10 @@ test.describe('Red Team: Open Redirect via `next` param (Vector X)', () => {
   test('ignores ?next=/not-in-allowlist and stays on app origin', async ({ page, baseURL }) => {
     await page.goto('/auth/callback?code=forged-invalid-code-12345&next=%2Fnot-in-allowlist')
 
-    // Route fails PKCE exchange (line 18-21) → redirects to /?error=invalid_code.
-    // Even if the exchange had succeeded, isRecoveryRedirect (line 66) would be false
-    // because '/not-in-allowlist' is not in ALLOWED_NEXT_PATHS, so the else branch
-    // (line 80) would redirect to /app/dashboard — not the attacker-supplied path.
+    // Route fails PKCE exchange (line 18-21) → redirects to /?error=invalid_code,
+    // so the `next` param is never processed on this attacker-reachable path.
+    // (The success-path rejection of non-allowlisted paths → /app/dashboard is
+    // unit-tested — see the scope note above.)
     await page.waitForURL(/[?&]error=/, { timeout: 10_000 })
 
     const url = new URL(page.url())
