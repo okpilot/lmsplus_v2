@@ -62,16 +62,17 @@ CodeRabbit is an LLM. It does not converge — it can find a new nit on every ro
 - Run CR local as a pre-push git hook. The wall-clock is too long, the protocol needs orchestrator judgment, and `--no-verify` would be the natural workaround. The orchestrator runs it via `/fullpush`.
 - Defer something that's < 10 lines and clearly within scope. The per-agent SUGGESTION rules (e.g., `agent-semantic-reviewer.md`, `agent-code-reviewer.md`) say "fix if under 10 lines"; for the broader APPLY-vs-DEFER decision, see `agent-workflow.md § Apply-vs-Defer Discipline` (DEFER requires ≥ 30 LOC plus separate concern plus design decision — all three).
 
-## Common Pitfalls Observed (PR #108, 2026-05-07)
+## Common Pitfalls Observed
 
-These are the patterns CR local caught that our internal agents missed. Update this list as new ones surface.
+These are the patterns CR local caught that our internal agents missed (#1–5 first surfaced on PR #108, 2026-05-07). Update this list as new ones surface.
 
 1. **Service-role cleanup discarding `.select('id')` result.** code-style.md §5 explicitly requires logging on `data?.length > 0` even for cleanup-context where zero rows is valid. Internal agents read `.select('id')` is present and stop there.
 2. **Cast `as unknown as T` without runtime guard.** code-style.md §5 requires pairing the cast with `Array.isArray`/`typeof` checks. Internal agents accept the cast as type assertion.
 3. **Silent failure paths on cleanup.** `await admin.from(...).update(...).eq(...)` without `{ error }` destructure in afterEach blocks. Same pattern as the §5 mutation rule but in test infrastructure.
 4. **`.clear()` of in-memory ID set unreachable on cleanup throw.** Need try/finally so state resets on both success and error paths, otherwise next afterEach masks its own state.
 5. **Helper functions defined inside `for`-loop iteration.** Closures over loop-scoped vars + harder to scan. Move out, accept as parameter.
+6. **CR-local flags a Postgres guard/branch as "missing" without tracing the `CREATE OR REPLACE FUNCTION` chain.** CR reads one migration in isolation and never traces forward to where the guard was added or last redefined. Before accepting any such finding, trace the chain to the LATEST definition (the same "Pre-Flag Verification" rule our internal agents follow in `agent-critic.md` / `semantic-reviewer.md` / `implementation-critic.md` / `plan-critic.md` — but CR-local is external and does not apply it, so the orchestrator must). Also: file-path refs may look wrong due to the **two-dir migration mirror** (`packages/db/NNN_* ≡ supabase/timestamp_*`); neither dir is authoritative over the other, and docs use the supabase timestamp convention. Both validated as false positives on PR #750 (`start_exam_session` guard claimed missing; the AJ red-team-vector migration ref claimed "should be 044").
 
 ---
 
-*Last updated: 2026-05-07 (created during PR #108 OWASP coverage cycle)*
+*Last updated: 2026-06-05 (added CR-local CREATE-OR-REPLACE / migration-mirror false-positive note — issue #759)*
