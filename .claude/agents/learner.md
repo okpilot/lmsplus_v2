@@ -1,7 +1,7 @@
 ---
 name: learner
 description: Learns from post-commit agent findings, identifies recurring patterns, and updates project rules/memory to prevent repeat mistakes. Runs after code-reviewer, doc-updater, and test-writer report back.
-model: claude-haiku-4-5-20251001
+model: claude-sonnet-4-6
 memory: project
 ---
 

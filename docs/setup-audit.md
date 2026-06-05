@@ -53,7 +53,7 @@ The foundation is production-grade. All config, agents, hooks, rules, security d
 - `.claude/hooks/review-gate.js` — PreToolUse Edit/Write: blocks edits while reviewer findings open
 - `.claude/hooks/cr-local-plan-reminder.sh` — PostToolUse Bash: crlocal reminder
 - `.claude/hooks/on-stop.sh` — Stop: biome format + vitest + Windows toast
-- `.claude/agents/code-reviewer.md` — haiku, post-commit, read-only
+- `.claude/agents/code-reviewer.md` — sonnet, post-commit, read-only
 - `.claude/agents/security-auditor.md` — sonnet, pre-push, blocking on CRITICAL/HIGH
 - `.claude/agents/test-writer.md` — sonnet, writes Vitest tests
 - `.claude/agents/doc-updater.md` — haiku, updates docs after code changes

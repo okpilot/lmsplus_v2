@@ -368,7 +368,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
 - `@repo/db` package exports map added
 - Test batch: 5 questions from 050-01-01 imported + idempotency verified
 - 4 Claude subagents run via Agent tool after each commit (not Lefthook):
-  - `code-reviewer` (haiku) — reviews diff for code style violations
+  - `code-reviewer` (sonnet) — reviews diff for code style violations
   - `doc-updater` (haiku) — checks if docs need updates
   - `test-writer` (sonnet) — writes missing tests for new source files
   - `security-auditor` (sonnet) → pre-push via Lefthook, **blocking** on CRITICAL/HIGH findings
@@ -551,10 +551,10 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
   - **Layer 2: commit-msg**: commitlint — enforces Conventional Commits
   - **Layer 3: pre-push**: security-auditor + dep audit — final defense before remote
 - **Claude Code subagents** (run via Agent tool after each commit — findings flow back to conversation):
-  - code-reviewer (haiku) — reviews diff for code style violations
+  - code-reviewer (sonnet) — reviews diff for code style violations
   - doc-updater (haiku) — checks if docs need updates
   - test-writer (sonnet) — writes missing tests, runs them
-  - learner (haiku) — analyzes findings, detects patterns, updates rules/memory
+  - learner (sonnet) — analyzes findings, detects patterns, updates rules/memory
   - coderabbit-sync (haiku) — keeps .coderabbit.yaml aligned when rules change
 - **CodeRabbit** (GitHub PR review):
   - `.coderabbit.yaml` — assertive profile, path-specific rules mirroring code-style.md + security.md
@@ -704,7 +704,7 @@ Files to create (✅ = already created):
 - `.claudeignore`
 - `.claude/settings.json` (all hooks)
 - ✅ `.claude/settings.json` — mcpServers (Supabase, Context7, shadcn) + hook stubs
-- ✅ `.claude/agents/code-reviewer.md` — haiku, post-commit, quality + structure
+- ✅ `.claude/agents/code-reviewer.md` — sonnet, post-commit, quality + structure
 - ✅ `.claude/agents/security-auditor.md` — sonnet, pre-push, vulns + secrets
 - `.claude/agents/test-writer.md`
 - `.claude/agents/doc-updater.md`
@@ -918,7 +918,7 @@ git commit
     → [Lefthook pre-commit] biome check --write + type-check + unit tests (BLOCKING)
     → [Lefthook commit-msg] commitlint validates message format
     → [Claude subagents — run by me via Agent tool, results come back to conversation]
-        1. code-reviewer (haiku) — diff against code-style.md
+        1. code-reviewer (sonnet) — diff against code-style.md
         2. doc-updater (haiku) — check docs freshness
         3. test-writer (sonnet) — find/write missing tests
         4. learner (sonnet) — detect patterns, update rules/memory

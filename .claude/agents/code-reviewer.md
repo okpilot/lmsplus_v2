@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Reviews every git commit diff for code quality, structure, and maintainability violations. Runs automatically after commits. Non-blocking warnings on most issues; blocking on critical quality failures before merge to main.
-model: claude-haiku-4-5-20251001
+model: claude-sonnet-4-6
 memory: project
 ---
 
