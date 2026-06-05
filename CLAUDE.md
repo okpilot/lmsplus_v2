@@ -155,7 +155,7 @@ After any dep-bump commit, run `pnpm check-types --force` (bypasses turbo cache)
 
 ## Post-commit review (MANDATORY)
 After every `git commit`, run these 4 subagents in parallel using the Agent tool:
-1. **code-reviewer** (haiku) — review diff against `.claude/rules/code-style.md`, report findings
+1. **code-reviewer** (sonnet) — review diff against `.claude/rules/code-style.md`, report findings
 2. **semantic-reviewer** (sonnet) — deep logic/security/consistency review (like CodeRabbit), report findings
 3. **doc-updater** (haiku) — check if docs need updates, report what changed
 4. **test-writer** (sonnet) — check for missing tests, write them, run them
