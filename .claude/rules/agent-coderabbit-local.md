@@ -71,7 +71,8 @@ These are the patterns CR local caught that our internal agents missed. Update t
 3. **Silent failure paths on cleanup.** `await admin.from(...).update(...).eq(...)` without `{ error }` destructure in afterEach blocks. Same pattern as the §5 mutation rule but in test infrastructure.
 4. **`.clear()` of in-memory ID set unreachable on cleanup throw.** Need try/finally so state resets on both success and error paths, otherwise next afterEach masks its own state.
 5. **Helper functions defined inside `for`-loop iteration.** Closures over loop-scoped vars + harder to scan. Move out, accept as parameter.
+6. **CR-local flags a Postgres guard/branch as "missing" without tracing the `CREATE OR REPLACE FUNCTION` chain.** CR reads one migration in isolation and never traces forward to where the guard was added or last redefined. Before accepting any such finding, trace the chain to the LATEST definition (the same "Pre-Flag Verification" rule our internal agents follow in `agent-critic.md` / `semantic-reviewer.md` / `implementation-critic.md` / `plan-critic.md` — but CR-local is external and does not apply it, so the orchestrator must). Also: file-path refs may look wrong due to the **two-dir migration mirror** (`packages/db/NNN_* ≡ supabase/timestamp_*`); neither dir is authoritative over the other, and docs use the supabase timestamp convention. Both validated as false positives on PR #750 (`start_exam_session` guard claimed missing; AJ migration ref claimed "should be 044").
 
 ---
 
-*Last updated: 2026-05-07 (created during PR #108 OWASP coverage cycle)*
+*Last updated: 2026-06-05 (added CR-local CREATE-OR-REPLACE / migration-mirror false-positive note — issue #759)*
