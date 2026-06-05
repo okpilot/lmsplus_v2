@@ -95,8 +95,9 @@ async function answerCurrentQuestion(page: Page): Promise<void> {
   await firstOption.click()
 
   // Wait for the clicked option to carry data-selected="true" — set by AnswerOptions
-  // (answer-options.tsx line 82) when isSelected && !showResult, which is exactly
-  // the post-click exam-buffer state. This is deterministic and replaces the
+  // (answer-options.tsx line 82) when isSelected && !showResult, i.e. the
+  // pre-confirmation pending-selection state set synchronously on click (the exam
+  // buffer itself only commits on Confirm). This is deterministic and replaces the
   // former page.waitForTimeout(300) flake-risk.
   await expect(firstOption).toHaveAttribute('data-selected', 'true')
 }

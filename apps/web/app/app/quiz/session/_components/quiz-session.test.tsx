@@ -149,6 +149,9 @@ vi.mock('@/app/app/_components/answer-options', async () => {
             key={o.id}
             type="button"
             data-testid={`option-${o.id}`}
+            // Mirrors the real component's isSelected (answer-options.tsx:82): the
+            // parent-driven selectedOptionId, or — before the parent commits — the
+            // local pendingId. Unselected emits no attribute, like production.
             data-selected={
               selectedOptionId === o.id || (!selectedOptionId && pendingId === o.id)
                 ? 'true'
