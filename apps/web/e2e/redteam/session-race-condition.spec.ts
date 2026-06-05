@@ -29,6 +29,9 @@ test.describe('Red Team: Session Race Condition', () => {
   let subjectId: string
   let questionIds: string[]
   let topicId: string
+  // Track every quiz_session this spec creates so afterEach can soft-delete
+  // them even if assertions fail mid-test (per code-style.md §7 hermiticity).
+  const createdSessionIds: string[] = []
 
   test.beforeAll(async () => {
     const { orgId } = await seedRedTeamUsers()
@@ -43,7 +46,7 @@ test.describe('Red Team: Session Race Condition', () => {
     subjectId = picked.subjectId
     topicId = picked.topicId
 
-    const { data: qs } = await admin
+    const { data: qs, error: qsErr } = await admin
       .from('questions')
       .select('id')
       .eq('organization_id', orgId)
@@ -53,11 +56,35 @@ test.describe('Red Team: Session Race Condition', () => {
       .is('deleted_at', null)
       .order('id', { ascending: true })
       .limit(3)
+    if (qsErr)
+      throw new Error(`session-race-condition seed: questions query failed: ${qsErr.message}`)
     questionIds = (qs ?? []).map((q) => q.id)
     if (questionIds.length !== 3) {
       throw new Error(
         `session-race-condition seed: expected 3 active questions in (subject=${subjectId}, topic=${topicId}), got ${questionIds.length}`,
       )
+    }
+  })
+
+  test.afterEach(async () => {
+    if (createdSessionIds.length === 0) return
+    const admin = getAdminClient()
+    try {
+      const { data, error } = await admin
+        .from('quiz_sessions')
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', createdSessionIds)
+        .is('deleted_at', null)
+        .select('id')
+      if (error) {
+        console.error('[session-race-condition afterEach] soft-delete failed:', error.message)
+        throw new Error(`afterEach soft-delete: ${error.message}`)
+      }
+      if ((data?.length ?? 0) > 0) {
+        console.log(`[session-race-condition afterEach] soft-deleted ${data?.length} session(s)`)
+      }
+    } finally {
+      createdSessionIds.length = 0
     }
   })
 
@@ -71,6 +98,8 @@ test.describe('Red Team: Session Race Condition', () => {
     })
     expect(startError).toBeNull()
     const sessionId = startData as string
+    // Track before any assertion so afterEach cleans up even if the test fails.
+    createdSessionIds.push(sessionId)
 
     // Step 2: Fetch questions and build answers
     const { data: questions, error: questionsError } = await attackerClient.rpc(
@@ -108,12 +137,13 @@ test.describe('Red Team: Session Race Condition', () => {
 
     // Step 5: Confirm the session remained in its committed terminal state
     const admin = getAdminClient()
-    const { data: row } = await admin
+    const { data: row, error: rowErr } = await admin
       .from('quiz_sessions')
       .select('ended_at, deleted_at, score_percentage')
       .eq('id', sessionId)
       .single()
 
+    expect(rowErr).toBeNull()
     expect(row?.ended_at).not.toBeNull()
     expect(row?.deleted_at).toBeNull()
     expect(row?.score_percentage).not.toBeNull()
@@ -129,6 +159,10 @@ test.describe('Red Team: Session Race Condition', () => {
     })
     expect(startError).toBeNull()
     const sessionId = startData as string
+    // Track before any assertion so afterEach cleans up even if the test fails.
+    // afterEach filters .is('deleted_at', null), so already-discarded sessions
+    // are skipped silently — no double-update on a session the test itself discards.
+    createdSessionIds.push(sessionId)
 
     // Step 2: Discard the session via direct UPDATE (no discard RPC exists)
     const { error: discardError } = await attackerClient
@@ -153,13 +187,14 @@ test.describe('Red Team: Session Race Condition', () => {
 
     // Step 4: Verify the session stayed discarded regardless of completion outcome
     const admin = getAdminClient()
-    const { data: row } = await admin
+    const { data: row, error: rowErr } = await admin
       .from('quiz_sessions')
       .select('ended_at, deleted_at')
       .eq('id', sessionId)
       .single()
 
     // Session must still be soft-deleted no matter what
+    expect(rowErr).toBeNull()
     expect(row?.deleted_at).not.toBeNull()
 
     if (completeError) {
