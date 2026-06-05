@@ -148,7 +148,7 @@ describe('voidInternalExamCode', () => {
   })
 
   describe('error code mapping', () => {
-    it('surfaces a final-record error when voiding a finished attempt', async () => {
+    it('surfaces "Cannot void a finished attempt" when voiding after submission', async () => {
       mockAdmin()
       mockRpc.mockResolvedValue({
         data: null,
