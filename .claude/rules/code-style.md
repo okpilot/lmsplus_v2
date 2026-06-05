@@ -517,20 +517,31 @@ A React state variable read directly inside a callback captures the **render-tim
 
 The danger is a **split between where state is produced and where it is later read**: one callback updates the state via `setState`, and a *different* callback — defined in the same hook, capturing the same render's closure — reads it before the next render commits. The reader gets the stale snapshot.
 
+Both callbacks below live in the **same hook**, capturing the same render's closure — that shared scope is what makes the stale read possible.
+
 ```tsx
 // ❌ WRONG — wrappedNavigateTo closes over the render-time `feedback`; if the user
 // answers then immediately navigates, the checkpoint persists the pre-answer Map.
-const wrappedNavigateTo = (i: number) => {
-  checkpoint(currentAnswer, idx, feedback)   // stale: last render's `feedback`
-  navigateTo(i)
+function useExamNavigation() {
+  const wrappedNavigateTo = (i: number) => {
+    checkpoint(currentAnswer, idx, feedback)   // stale: last render's `feedback`
+    navigateTo(i)
+  }
+  return { wrappedNavigateTo }
 }
 
-// ✅ CORRECT — the produce-site eagerly mirrors into a ref; the read-site reads ref.current,
-// so it sees the latest value even before React re-renders.
-onAnswerRecorded: (a, fb) => { feedbackRef.current = fb },      // produce-site updates the ref
-const wrappedNavigateTo = (i: number) => {
-  checkpoint(currentAnswer, idx, feedbackRef.current)          // read-site reads the live value
-  navigateTo(i)
+// ✅ CORRECT — the produce-site eagerly mirrors into a ref; the read-site reads
+// ref.current, so it sees the latest value even before React re-renders.
+function useExamNavigation() {
+  const feedbackRef = useRef<FeedbackMap>(new Map())
+  const onAnswerRecorded = (a: Answer, fb: FeedbackMap) => {
+    feedbackRef.current = fb                    // produce-site updates the ref
+  }
+  const wrappedNavigateTo = (i: number) => {
+    checkpoint(currentAnswer, idx, feedbackRef.current)   // read-site reads the live value
+    navigateTo(i)
+  }
+  return { onAnswerRecorded, wrappedNavigateTo }
 }
 ```
 
