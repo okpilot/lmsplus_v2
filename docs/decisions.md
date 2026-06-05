@@ -99,7 +99,7 @@ Full rules in `.claude/rules/code-style.md` — binding. Key limits:
 - No `useEffect` for data fetching — use Server Components.
 - No `any` type. No non-null `!` without a justifying comment.
 - Co-locate tests: `question-card.tsx` + `question-card.test.tsx` in same folder.
-- Code reviewer agent: `.claude/agents/code-reviewer.md` (CREATED, haiku model, runs post-commit)
+- Code reviewer agent: `.claude/agents/code-reviewer.md` (CREATED, sonnet model, runs post-commit)
 
 ### Database Principles (confirmed 2026-03-11)
 Full reference: `docs/database.md`. Key decisions:
@@ -137,7 +137,7 @@ Full security reference: `docs/security.md` — binding rules, covers:
 │   ├── cr-local-plan-reminder.sh ← PostToolUse Bash: reminder to run crlocal
 │   └── on-stop.sh           ← Stop: biome format + vitest
 ├── agents/
-│   ├── code-reviewer.md    ← haiku, read-only, memory: project, proactive after commits
+│   ├── code-reviewer.md    ← sonnet, read-only, memory: project, proactive after commits
 │   ├── security-auditor.md ← sonnet, CREATED, scans diffs for vulns/secrets, memory: project
 │   ├── test-writer.md      ← sonnet, writes Vitest tests for new code
 │   └── doc-updater.md      ← haiku, updates docs when API changes
@@ -310,7 +310,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 **Decided:**
 - All 4 agents wired via Lefthook shell scripts in `.claude/hooks/run-*.sh`
-- Post-commit (parallel, non-blocking): code-reviewer (haiku), doc-updater (haiku), test-writer (sonnet)
+- Post-commit (parallel, non-blocking): code-reviewer (sonnet), doc-updater (haiku), test-writer (sonnet)
 - Pre-push (blocking): security-auditor (sonnet) — exits non-zero on CRITICAL/HIGH
 - Nested session fix: `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT` + pipe prompt via stdin
 - Agent memory persists in `.claude/agent-memory/*/`
