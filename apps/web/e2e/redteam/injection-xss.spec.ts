@@ -80,7 +80,7 @@ async function discardSession(sessionId: string): Promise<void> {
 }
 
 async function pickSubjectAndTopic(orgId: string): Promise<{ subjectId: string; topicId: string }> {
-  const { data } = await getAdminClient()
+  const { data, error } = await getAdminClient()
     .from('questions')
     .select('subject_id, topic_id')
     .eq('organization_id', orgId)
@@ -88,6 +88,7 @@ async function pickSubjectAndTopic(orgId: string): Promise<{ subjectId: string; 
     .is('deleted_at', null)
     .not('topic_id', 'is', null)
     .limit(1)
+  if (error) throw new Error(`pickSubjectAndTopic: ${error.message}`)
   if (!data?.length) throw new Error('no seeded active question with topic in org')
   return { subjectId: data[0].subject_id as string, topicId: data[0].topic_id as string }
 }
@@ -214,7 +215,12 @@ test.describe('Red Team: OWASP A05 — XSS in cross-user rendering', () => {
     studentUserId = seeded.userId
     orgId = seeded.orgId
     const admin = getAdminClient()
-    const { data } = await admin.from('users').select('full_name').eq('id', studentUserId).single()
+    const { data, error: fullNameErr } = await admin
+      .from('users')
+      .select('full_name')
+      .eq('id', studentUserId)
+      .single()
+    if (fullNameErr) throw new Error(`beforeAll: full_name lookup failed: ${fullNameErr.message}`)
     originalFullName = data?.full_name ?? 'E2E Test Student'
   })
 

@@ -32,7 +32,12 @@ test.describe('Red Team: RPC Question Membership Check', () => {
     adminClient = getAdminClient()
 
     // Ensure at least 2 subjects exist for cross-subject injection testing
-    const { data: existingSubjects } = await adminClient.from('easa_subjects').select('id').limit(2)
+    const { data: existingSubjects, error: existingSubjectsErr } = await adminClient
+      .from('easa_subjects')
+      .select('id')
+      .limit(2)
+    if (existingSubjectsErr)
+      throw new Error(`seed: easa_subjects lookup failed: ${existingSubjectsErr.message}`)
 
     if (!existingSubjects || existingSubjects.length < 2) {
       // Seed a second subject + topic + question for the membership check test
@@ -56,35 +61,40 @@ test.describe('Red Team: RPC Question Membership Check', () => {
           .single()
 
         if (topicB) {
-          const { data: org } = await adminClient
+          const { data: org, error: orgErr } = await adminClient
             .from('organizations')
             .select('id')
             .eq('slug', 'egmont-aviation')
             .single()
+          if (orgErr) throw new Error(`seed: org lookup failed: ${orgErr.message}`)
 
-          const { data: bank } = await adminClient
+          const { data: bank, error: bankErr } = await adminClient
             .from('question_banks')
             .select('id')
             .eq('organization_id', org!.id)
             .limit(1)
             .single()
+          if (bankErr) throw new Error(`seed: question_banks lookup failed: ${bankErr.message}`)
 
-          const { data: user } = await adminClient
+          const { data: user, error: userErr } = await adminClient
             .from('users')
             .select('id')
             .eq('role', 'admin')
             .limit(1)
             .single()
+          if (userErr) throw new Error(`seed: users lookup failed: ${userErr.message}`)
 
           if (org && bank && user) {
             // Check if question already exists (can't use upsert — partial unique index)
-            const { data: existing } = await adminClient
+            const { data: existing, error: existingErr } = await adminClient
               .from('questions')
               .select('id')
               .eq('bank_id', bank.id)
               .eq('question_number', 'RT-ALW-001')
               .is('deleted_at', null)
               .limit(1)
+            if (existingErr)
+              throw new Error(`seed: questions lookup failed: ${existingErr.message}`)
 
             if (!existing || existing.length === 0) {
               await adminClient.from('questions').insert({
@@ -112,7 +122,12 @@ test.describe('Red Team: RPC Question Membership Check', () => {
     }
 
     // Verify seed succeeded — fail fast with a clear message instead of a cryptic assertion later
-    const { data: verifySubjects } = await adminClient.from('easa_subjects').select('id').limit(2)
+    const { data: verifySubjects, error: verifySubjectsErr } = await adminClient
+      .from('easa_subjects')
+      .select('id')
+      .limit(2)
+    if (verifySubjectsErr)
+      throw new Error(`seed: easa_subjects verify failed: ${verifySubjectsErr.message}`)
     expect(
       verifySubjects?.length,
       'Seed failed: need at least 2 subjects for membership check test',
@@ -152,7 +167,7 @@ test.describe('Red Team: RPC Question Membership Check', () => {
     expect(subjectBId, 'need a second subject with at least one active question').not.toBeNull()
 
     // Step 3: Attacker starts a session for subject A — fetch question IDs first
-    const { data: questionsA } = await adminClient
+    const { data: questionsA, error: questionsAErr } = await adminClient
       .from('questions')
       .select('id')
       .eq('organization_id', orgId)
@@ -161,6 +176,7 @@ test.describe('Red Team: RPC Question Membership Check', () => {
       .eq('status', 'active')
       .is('deleted_at', null)
       .limit(5)
+    expect(questionsAErr).toBeNull()
     const questionAIds = (questionsA ?? []).map((q) => q.id)
 
     const { data: sessionData, error: sessionError } = await attackerClient.rpc(

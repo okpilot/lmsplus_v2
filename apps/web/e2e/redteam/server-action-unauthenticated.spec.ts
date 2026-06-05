@@ -47,10 +47,19 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     knownSubjectId = picked.subjectId
     knownTopicId = picked.topicId
 
-    const { data: sessions } = await adminClient.from('quiz_sessions').select('id').limit(1)
+    const { data: sessions, error: sessionsErr } = await adminClient
+      .from('quiz_sessions')
+      .select('id')
+      .limit(1)
+    if (sessionsErr)
+      throw new Error(`beforeAll: quiz_sessions lookup failed: ${sessionsErr.message}`)
     knownSessionId = sessions?.[0]?.id ?? '00000000-0000-4000-a000-000000000001'
 
-    const { data: questions } = await adminClient.from('questions').select('id').limit(1)
+    const { data: questions, error: questionsErr } = await adminClient
+      .from('questions')
+      .select('id')
+      .limit(1)
+    if (questionsErr) throw new Error(`beforeAll: questions lookup failed: ${questionsErr.message}`)
     knownQuestionId = questions?.[0]?.id ?? '00000000-0000-4000-a000-000000000002'
 
     // Seed victim-owned rows so the anon SELECT tests below prove RLS blocks

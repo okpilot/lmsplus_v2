@@ -45,11 +45,13 @@ export async function seedRedTeamUsers(): Promise<{
   const orgId = await getEgmontOrgId(admin)
 
   // Create redteam-other-org (idempotent)
-  const { data: existingOtherOrg } = await admin
+  const { data: existingOtherOrg, error: existingOtherOrgErr } = await admin
     .from('organizations')
     .select('id')
     .eq('slug', OTHER_ORG_SLUG)
     .maybeSingle()
+  if (existingOtherOrgErr)
+    throw new Error(`seedRedTeamUsers: org lookup failed: ${existingOtherOrgErr.message}`)
 
   let otherOrgId: string
   if (existingOtherOrg) {
@@ -138,11 +140,13 @@ export async function seedCrossOrgAdmin(): Promise<{
   password: string
 }> {
   const admin = getAdminClient()
-  const { data: existingOtherOrg } = await admin
+  const { data: existingOtherOrg, error: existingOtherOrgErr } = await admin
     .from('organizations')
     .select('id')
     .eq('slug', OTHER_ORG_SLUG)
     .maybeSingle()
+  if (existingOtherOrgErr)
+    throw new Error(`seedCrossOrgAdmin: org lookup failed: ${existingOtherOrgErr.message}`)
 
   let orgId: string
   if (existingOtherOrg) {
@@ -317,12 +321,13 @@ export async function ensureExamConfig(
   }
 
   // Ensure at least one distribution row.
-  const { data: dist } = await admin
+  const { data: dist, error: distLookupError } = await admin
     .from('exam_config_distributions')
     .select('id')
     .eq('exam_config_id', configId)
     .order('id', { ascending: true })
     .limit(1)
+  if (distLookupError) throw new Error(`ensureExamConfig dist lookup: ${distLookupError.message}`)
   if (!dist || dist.length === 0) {
     const { error: distError } = await admin.from('exam_config_distributions').insert({
       exam_config_id: configId,
@@ -541,11 +546,12 @@ async function upsertUser(
     // Ensure public.users row exists (may have been cleaned up) AND has the
     // expected role + org. Re-running the helper across spec files must be
     // idempotent; a user that drifted (org changed, role demoted) gets fixed.
-    const { data: userRow } = await admin
+    const { data: userRow, error: userRowErr } = await admin
       .from('users')
       .select('id, organization_id, role')
       .eq('id', existing.id)
       .maybeSingle()
+    if (userRowErr) throw new Error(`upsertUser: users lookup failed: ${userRowErr.message}`)
     if (!userRow) {
       const { error: insertError } = await admin.from('users').insert({
         id: existing.id,

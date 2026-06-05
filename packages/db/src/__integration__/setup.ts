@@ -236,14 +236,17 @@ export async function cleanupTestData(opts: {
   await admin.from('audit_events').delete().eq('organization_id', orgId)
   await admin.from('fsrs_cards').delete().in('student_id', userIds)
   await admin.from('student_responses').delete().eq('organization_id', orgId)
+  const { data: sessionIds, error: sessionIdsErr } = await admin
+    .from('quiz_sessions')
+    .select('id')
+    .eq('organization_id', orgId)
+  if (sessionIdsErr) throw new Error(`cleanupTestData: quiz_sessions lookup failed: ${sessionIdsErr.message}`)
   await admin
     .from('quiz_session_answers')
     .delete()
     .in(
       'session_id',
-      (await admin.from('quiz_sessions').select('id').eq('organization_id', orgId)).data?.map(
-        (s: { id: string }) => s.id,
-      ) ?? [],
+      sessionIds?.map((s: { id: string }) => s.id) ?? [],
     )
   await admin.from('quiz_sessions').delete().eq('organization_id', orgId)
   await admin.from('questions').delete().eq('organization_id', orgId)
