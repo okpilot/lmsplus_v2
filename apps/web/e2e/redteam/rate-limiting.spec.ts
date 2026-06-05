@@ -26,6 +26,7 @@ import {
 
 test.describe('Red Team: Rate Limiting', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  let attackerUserId: string
   let subjectId: string
   let questionIds: string[]
   let topicId: string
@@ -34,7 +35,8 @@ test.describe('Red Team: Rate Limiting', () => {
   const createdSessionIds: string[] = []
 
   test.beforeAll(async () => {
-    const { orgId } = await seedRedTeamUsers()
+    const { orgId, attackerUserId: uid } = await seedRedTeamUsers()
+    attackerUserId = uid
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     const admin = getAdminClient()
@@ -132,5 +134,107 @@ test.describe('Red Team: Rate Limiting', () => {
     // Current expectation: all succeed (no throttle)
     // Update this threshold when rate limiting is added.
     expect(successes).toBe(50)
+  })
+
+  // ---------------------------------------------------------------------------
+  // Vector W (MEDIUM): record_login 60-second rate-limit observation.
+  // GitHub issue #298.
+  //
+  // record_login() (migration 20260319000047) implements a 60-second dedup
+  // window: if a 'student.login' audit_events row already exists for the caller
+  // within the last 60 seconds, the RPC returns immediately without inserting.
+  // The rate-limit is a silent no-op — it never returns an error.
+  //
+  // These tests document the observable contract:
+  //   1. A burst of 10 parallel calls ALL succeed (no error is returned).
+  //   2. Exactly ONE new audit row is inserted regardless of burst size.
+  //
+  // Hermiticity note: audit_events is immutable (security.md rule 5 — no
+  // UPDATE/DELETE). Cleanup is not possible and not needed. The delta assertion
+  // (count after minus count before == 1) scopes the assertion to rows produced
+  // by this burst, making the test safe to re-run within the same 60s window:
+  // if the window is already open the delta is 0 (rate-limit fires on all 10),
+  // not 1 — the test will correctly fail in that edge case, signalling the
+  // constraint was not exercised. In practice Playwright's redteam project runs
+  // serially and these two tests run back-to-back; only the first call in the
+  // burst opens the window, so the delta is always exactly 1 under normal CI.
+  // ---------------------------------------------------------------------------
+
+  test('observation: all 10 burst record_login calls return no error (rate-limit is a silent no-op)', async () => {
+    // Vector W — assert the rate-limit NEVER returns an error on any of the 10
+    // parallel calls. The first call writes the row; the remaining 9 hit the
+    // 60s window guard and return void without inserting — silently, not with
+    // an error.
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () => attackerClient.rpc('record_login')),
+    )
+
+    const errors = results.filter((r) => r.error)
+    if (errors.length > 0) {
+      console.error(
+        '[rate-limiting] record_login errors:',
+        errors.map((r) => r.error?.message),
+      )
+    }
+
+    // All 10 calls must return without an error (rate-limit is a no-op, not a
+    // rejection).
+    expect(errors).toHaveLength(0)
+  })
+
+  test('observation: burst of 10 record_login calls produces exactly 1 new audit row (60s dedup window)', async () => {
+    // Vector W — assert the 60-second rate-limit collapses the burst to exactly
+    // one 'student.login' audit_events row.
+    //
+    // Non-vacuity (code-style.md §7): we snapshot the count BEFORE the burst so
+    // the delta assertion proves a row was actually written — not just that zero
+    // rows exist (which would be vacuously true if the user had no prior rows).
+
+    const admin = getAdminClient()
+    const burstStart = new Date().toISOString()
+
+    // Pre-burst baseline: count existing student.login rows for this user
+    // created since burstStart (should be 0 at this instant).
+    const { data: preBurst, error: preError } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('event_type', 'student.login')
+      .eq('actor_id', attackerUserId)
+      .gte('created_at', burstStart)
+    if (preError) throw new Error(`[rate-limiting] pre-burst audit query: ${preError.message}`)
+    const preCount = preBurst?.length ?? 0
+
+    // Fire the burst (10 parallel calls).
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () => attackerClient.rpc('record_login')),
+    )
+    const errors = results.filter((r) => r.error)
+    if (errors.length > 0) {
+      console.error(
+        '[rate-limiting] record_login burst errors:',
+        errors.map((r) => r.error?.message),
+      )
+    }
+
+    // Post-burst count: rows written after burstStart.
+    const { data: postBurst, error: postError } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('event_type', 'student.login')
+      .eq('actor_id', attackerUserId)
+      .gte('created_at', burstStart)
+    if (postError) throw new Error(`[rate-limiting] post-burst audit query: ${postError.message}`)
+    const postCount = postBurst?.length ?? 0
+
+    console.log(
+      `[rate-limiting] record_login burst: preCount=${preCount}, postCount=${postCount}, delta=${postCount - preCount}`,
+    )
+
+    // The delta must be exactly 1: the first call in the burst wrote one row;
+    // the remaining 9 hit the 60s window guard and returned void.
+    // (Migration 20260319000047 — latest record_login def: line 40 inserts
+    //  event_type 'student.login'; the dedup guard at lines 31-32 skips when a
+    //  'student.login' row already exists within now() - interval '60 seconds'.)
+    expect(postCount - preCount).toBe(1)
   })
 })
