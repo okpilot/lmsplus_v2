@@ -29,7 +29,6 @@ test.describe('Red Team: user_consents Isolation', () => {
   let adminClient: ReturnType<typeof getAdminClient>
   let attackerUserId: string
   let victimUserId: string
-  let seededConsentId: string | null = null
 
   test.beforeAll(async () => {
     const seed = await seedRedTeamUsers()
@@ -52,8 +51,7 @@ test.describe('Red Team: user_consents Isolation', () => {
       .select('id')
       .single<{ id: string }>()
     expect(error).toBeNull()
-    seededConsentId = data?.id ?? null
-    expect(seededConsentId).not.toBeNull()
+    expect(data?.id).toBeDefined()
 
     // Positive-control seed: the attacker has their OWN consent record. This lets the
     // positive-control test below prove the RLS policy SCOPES reads to the owner (returns
