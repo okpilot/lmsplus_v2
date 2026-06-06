@@ -68,6 +68,9 @@ function buildChain(returnValue: unknown) {
 describe('proxy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset the shared mock's headers each test so a header set by one test can never
+    // leak into another (e.g. if a proxy() call throws before a try/finally cleanup runs).
+    MOCK_SESSION_RESPONSE.headers = new Headers()
   })
 
   it('redirects unauthenticated requests for /app/dashboard to /', async () => {
