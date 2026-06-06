@@ -8,9 +8,9 @@
  *   PostgREST, bypassing the `record_consent()` RPC. RLS
  *   `user_consents_no_direct_insert WITH CHECK (false)` must reject every client insert.
  * Vector Z2 (#386): calling `record_consent()` twice with identical accepted=true args must
- *   be a no-op — exactly 1 row in user_consents, not 2. The partial unique index
- *   idx_user_consents_lookup (user_id, document_type, document_version WHERE accepted=true)
- *   plus ON CONFLICT DO NOTHING (mig 085) prevents duplicate GDPR audit rows.
+ *   be a no-op — exactly 1 row in user_consents, not 2. mig 085 guards the INSERT with an
+ *   EXISTS pre-check (the partial index idx_user_consents_lookup is non-unique and cannot
+ *   back ON CONFLICT), preventing duplicate GDPR audit rows on retry.
  *
  * (Vectors V "forged __consent cookie" and Z "cookie injected without completing the flow"
  *  are proxy/browser-gate concerns — see apps/web/proxy.ts — and require a page-navigation
