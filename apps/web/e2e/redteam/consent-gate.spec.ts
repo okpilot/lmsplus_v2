@@ -368,7 +368,13 @@ test.describe('Red Team: login-complete routes based on DB consent status (Vecto
         consentCookie,
         '__consent cookie must be set after successful login-complete with DB consent',
       ).toBeDefined()
-      expect(consentCookie?.value).toBe(`${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`)
+      // Playwright's context.cookies() returns the raw stored value, which Next.js
+      // percent-encodes on Set-Cookie (the ':' separator becomes %3A). The app reads
+      // it back via request.cookies.get().value (proxy.ts:67), which auto-decodes —
+      // so decode here to compare against the app's runtime view, not the wire form.
+      expect(decodeURIComponent(consentCookie?.value ?? '')).toBe(
+        `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`,
+      )
     } finally {
       await context.close()
     }
