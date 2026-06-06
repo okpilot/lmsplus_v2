@@ -371,6 +371,14 @@ const sortOrder = (maxRow?.sort_order ?? -1) + 1
 
 **Exception:** read-only test/setup helpers may wrap multiple chained reads in a single try/catch when the entire setup is atomic.
 
+### `ON CONFLICT` Requires a UNIQUE Inference Target — Validate at Execution, Not Apply
+
+An `INSERT ... ON CONFLICT (col, ...) [WHERE pred] DO ...` needs a **UNIQUE** index or constraint matching exactly that column set (and partial predicate). A plain `CREATE INDEX` (non-unique) does **not** qualify — Postgres raises `42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`.
+
+Critically, when the `INSERT ... ON CONFLICT` lives inside a **plpgsql function body**, the inference target is **not validated at `CREATE OR REPLACE FUNCTION` time — only at execution**. So `supabase db reset` applies the migration 100% clean, and `pg_get_functiondef(...) ILIKE '%on conflict%'` confirms the clause is present, yet the function throws `42P10` the first time it actually runs. Clean apply + structural grep is therefore **insufficient** for any migration that changes a plpgsql body containing `ON CONFLICT`, `EXECUTE format(...)`, or other deferred-validation SQL — you must **execute the function** (a functional SQL test or the relevant red-team / integration spec) before trusting it.
+
+Before using `ON CONFLICT (cols) [WHERE pred]`, confirm a matching **UNIQUE** index exists (`indisunique = true`, same columns + predicate). If the existing index is non-unique and making it unique would require destructively de-duplicating a sensitive table, prefer a guarded `IF EXISTS (...) THEN RETURN; END IF;` pre-check inside the function instead (see `record_consent`, mig 085). **Precedent:** mig 085 originally shipped `ON CONFLICT (...) WHERE accepted = true` against the non-unique `idx_user_consents_lookup`; it applied clean but threw `42P10` on first call (caught by semantic-reviewer, #386).
+
 ### PostgREST Embedded Resources: Use `!` (FK-hint), Not `:` (alias)
 The `:` operator in `.select()` aliases the result key but does NOT expand a foreign key. PostgREST may resolve the embedded resource by table name when there's a single FK, but on resolution failure (FK ambiguous, schema drift) it returns null silently — and downstream code that expected an object then operates on null. Use `!fk_column_name` to explicitly hint the FK; resolution failures error loudly.
 

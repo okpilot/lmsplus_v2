@@ -1,17 +1,25 @@
 /**
  * Red Team Spec 7 — Vector G (LOW): Session Race Condition
  *
- * Attack: Concurrent discard + complete on the same session.
+ * Attack: Concurrent discard + complete on the same session; also concurrent
+ *         start_exam_session calls for the same (student, subject).
  * Goal: Exploit a TOCTOU window to land the session in an inconsistent state,
- *       or bypass scoring logic by discarding after completion.
+ *       bypass scoring logic by discarding after completion, or create two
+ *       simultaneous active mock_exam sessions by slipping two starts past the
+ *       IF EXISTS guard before either INSERT commits.
  * Defense: `FOR UPDATE` lock inside RPCs serialises concurrent access; RLS UPDATE
- *          policy requires `ended_at IS NULL`, so completed sessions are immutable.
+ *          policy requires `ended_at IS NULL`, so completed sessions are immutable;
+ *          partial unique index uq_active_exam_session (realigned in mig 088 to
+ *          include organization_id) rejects the losing concurrent INSERT at the
+ *          schema level and the EXCEPTION WHEN unique_violation handler converts
+ *          the raw 23505 to the friendly "already in progress" message.
  *
  * Note: True concurrency cannot be reliably tested in a sequential Playwright
  *       process. We simulate the race by performing the second operation after
  *       the first has already committed — if the RLS / RPC rejects the late
  *       write, the sequential version of the race also fails, proving the lock
- *       holds for the window that matters.
+ *       holds for the window that matters. For the concurrent-start sub-case,
+ *       Promise.all fires both calls from the same authenticated client.
  */
 
 import { expect, test } from '@playwright/test'
@@ -20,13 +28,17 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  ensureExamConfig,
   pickSubjectWithQuestions,
   seedRedTeamUsers,
 } from './helpers/seed'
 
 test.describe('Red Team: Session Race Condition', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  let attackerUserId: string
   let subjectId: string
+  let examSubjectId: string
+  let orgId: string
   let questionIds: string[]
   let topicId: string
   // Track every quiz_session this spec creates so afterEach can soft-delete
@@ -34,7 +46,9 @@ test.describe('Red Team: Session Race Condition', () => {
   const createdSessionIds: string[] = []
 
   test.beforeAll(async () => {
-    const { orgId } = await seedRedTeamUsers()
+    const seed = await seedRedTeamUsers()
+    orgId = seed.orgId
+    attackerUserId = seed.attackerUserId
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     const admin = getAdminClient()
@@ -64,6 +78,17 @@ test.describe('Red Team: Session Race Condition', () => {
         `session-race-condition seed: expected 3 active questions in (subject=${subjectId}, topic=${topicId}), got ${questionIds.length}`,
       )
     }
+
+    // Resolve and configure a subject for the concurrent-start exam sub-case.
+    // ensureExamConfig creates an exam_config + distribution if absent, so
+    // start_exam_session can reach the INSERT (rather than fail on config lookup).
+    const examPicked = await pickSubjectWithQuestions(admin, {
+      orgId,
+      minActiveQuestions: 1,
+      topicMinQuestions: 1,
+    })
+    examSubjectId = examPicked.subjectId
+    await ensureExamConfig(orgId, examSubjectId, examPicked.topicId)
   })
 
   test.afterEach(async () => {
@@ -208,5 +233,83 @@ test.describe('Red Team: Session Race Condition', () => {
       // This is acceptable: the session is still marked deleted.
       expect(row?.ended_at).not.toBeNull()
     }
+  })
+
+  test('concurrent start_exam_session for the same subject yields exactly one active session and the rejected call signals already in progress (mig 088)', async () => {
+    // Fire two start_exam_session calls for the same (student, subject) via
+    // Promise.all — the client is authenticated as the attacker, so both calls
+    // carry the same JWT. One should succeed (wins the partial unique index race)
+    // and the other must be rejected.
+    //
+    // Non-vacuity (code-style.md §7): after the calls we assert the winner
+    // created an active session (non-empty result set), so the "losing call
+    // was rejected" assertion cannot pass vacuously on an empty table.
+    const [first, second] = await Promise.all([
+      attackerClient.rpc('start_exam_session', { p_subject_id: examSubjectId }),
+      attackerClient.rpc('start_exam_session', { p_subject_id: examSubjectId }),
+    ])
+
+    // Skip if both fail due to an exam-config / question-distribution gap in the
+    // test fixture — that's a seed concern, not the race-condition behavior.
+    const bothFailed = first.error !== null && second.error !== null
+    if (
+      bothFailed &&
+      (/no exam configuration/i.test(first.error?.message ?? '') ||
+        /not enough active questions/i.test(first.error?.message ?? '') ||
+        /distribution total/i.test(first.error?.message ?? ''))
+    ) {
+      test.skip(
+        true,
+        'insufficient exam config / question distribution in fixture — covered by SQL integration tests',
+      )
+      return
+    }
+
+    // Exactly one call must have succeeded.
+    const winner = first.error === null ? first : second
+    const loser = first.error === null ? second : first
+
+    expect(winner.error).toBeNull()
+    expect(winner.data).not.toBeNull()
+
+    // Track the winning session for afterEach cleanup. start_exam_session returns a jsonb
+    // object with session_id (mig 088); assert it is present so a return-shape regression
+    // fails loudly here rather than silently leaving an untracked active session that would
+    // pollute later specs (code-style.md §7 hermeticity).
+    const winnerData = winner.data as unknown as { session_id?: string } | null
+    const winnerSessionId = winnerData?.session_id
+    expect(typeof winnerSessionId).toBe('string')
+    createdSessionIds.push(winnerSessionId as string)
+
+    // The losing concurrent call must have been rejected. The EXCEPTION WHEN
+    // unique_violation handler (mig 088 Change A) converts the raw 23505 into
+    // the friendly message. We assert on the message content, not the raw code.
+    expect(loser.error).not.toBeNull()
+    expect(loser.error?.message ?? '').toMatch(/already in progress/i)
+    // Belt: confirm the rejection is NOT the raw PostgreSQL unique-violation
+    // error code string — that would indicate the EXCEPTION handler is absent.
+    expect(loser.error?.message ?? '').not.toMatch(/23505|unique.*constraint|duplicate.*key/i)
+
+    // Non-vacuous admin check: confirm exactly one active mock_exam session
+    // exists for (attacker, examSubjectId, orgId). If the race guard failed,
+    // both INSERTs would have landed and this assertion would catch it.
+    // Use the seeded attackerUserId (a guaranteed string — beforeAll throws if
+    // seeding failed) rather than an unchecked getUser() with a vacuous '' fallback,
+    // which would silently query for student_id = '' on an auth error.
+    const admin = getAdminClient()
+    const { data: activeSessions, error: activeErr } = await admin
+      .from('quiz_sessions')
+      .select('id')
+      .eq('student_id', attackerUserId)
+      .eq('subject_id', examSubjectId)
+      .eq('organization_id', orgId)
+      .eq('mode', 'mock_exam')
+      .is('ended_at', null)
+      .is('deleted_at', null)
+
+    expect(activeErr).toBeNull()
+    // Non-vacuous: the winner's session must exist (length > 0) AND no second
+    // session was created (length = 1).
+    expect(activeSessions?.length).toBe(1)
   })
 })

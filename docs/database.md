@@ -40,7 +40,7 @@ Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), whi
 
 | Table | Frozen columns | Mutable columns | Trigger | Migration |
 |-------|----------------|-----------------|---------|-----------|
-| `users` | `role`, `organization_id`, `deleted_at` | `full_name`, `email`, `last_active_at` (any other non-frozen column is mutable for authenticated connections; service-role bypasses the trigger entirely) | `trg_protect_users_sensitive_columns` | `20260316000041` |
+| `users` | `role`, `organization_id`, `deleted_at` | **authenticated**: `full_name` only (mig 090 column GRANT). `email` / `last_active_at` are written by service-role / SECURITY DEFINER RPCs, not by authenticated connections. Service-role bypasses both the column GRANT and the trigger entirely. | `trg_protect_users_sensitive_columns` | `20260316000041`; column GRANT `20260606000006` (`authenticated` holds `UPDATE (full_name)` only — see §2 users table) |
 | `quiz_sessions` | `config`, `total_questions`, `mode`, `time_limit_seconds`, `started_at`, `organization_id`, `student_id`, `subject_id`, `topic_id`, `created_at` | `deleted_at` (the only column a student effectively writes — `discardQuiz`). `ended_at`, `correct_count`, `score_percentage`, `passed` are **postgres / SECURITY DEFINER-only**: mig `20260605000001` removed them from `authenticated`'s UPDATE grant (#611), so a student-direct write returns 42501. | `trg_quiz_sessions_immutable_columns` | `079` / `20260502000001`; column GRANT `20260605000001` |
 
 The `quiz_sessions` trigger closes the exam-question-swap vector where a student could inject question_ids into their own active session via direct PostgREST UPDATE (issue #554). Migration `20260605000001` closes the complementary score-forgery vector (#611): a student could otherwise directly UPDATE `correct_count` / `score_percentage` / `passed` / `ended_at` — columns the trigger does **not** freeze — to fake an exam result. Because Postgres can't revoke a single column from a table-level grant, the migration REVOKEs the blanket UPDATE and re-GRANTs every column **except** those four scoring columns: the config columns stay granted (so the immutability trigger still fires its `immutable` message — #554 unchanged), `deleted_at` stays granted (discard), and the scoring columns become postgres-only (42501 for a student). All scoring writes flow through the SECURITY DEFINER completion RPCs (postgres owner), which the column grant does not restrict.
@@ -120,6 +120,8 @@ CREATE TABLE users (
 - SELECT: org-scoped via `organizations(id)` — users can see org members' names/roles
 - UPDATE: `id = auth.uid() AND deleted_at IS NULL` — students can edit their own profile (migration 056). Protected by `trg_protect_users_sensitive_columns` trigger (migration 041) which blocks `role`, `organization_id`, and `deleted_at` changes for non-service-role connections.
 - No DELETE policy — soft-delete only via service role
+
+**Column UPDATE GRANT (mig 090, #773):** Defense-in-depth at the Postgres privilege layer on top of the RLS + trigger defenses. `authenticated` holds `UPDATE (full_name)` only; UPDATE on `role`, `organization_id`, and `deleted_at` is revoked at the privilege layer (`REVOKE UPDATE ON users FROM authenticated` + `GRANT UPDATE (full_name) ON users TO authenticated`). A direct `UPDATE users SET role='admin'` now returns `42501` (permission denied for column) before the trigger or RLS even fires. Mirrors the `quiz_sessions` column-GRANT pattern (mig `20260605000001`).
 
 ### easa_subjects / easa_topics / easa_subtopics
 ```sql
@@ -287,6 +289,8 @@ CREATE UNIQUE INDEX uq_exam_configs_org_subject_active
   ON exam_configs (organization_id, subject_id) WHERE deleted_at IS NULL;
 -- RLS: admin full CRUD, students read-only (enabled + non-deleted only)
 ```
+
+**Reactivation-block trigger (mig 089, #755):** A `BEFORE UPDATE` trigger `trg_block_exam_config_reactivation` raises `'exam_config reactivation must go through upsert_exam_config'` when `OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL` (unconditional — no role exemption). This blocks any direct `UPDATE exam_configs SET deleted_at = NULL` outside of `upsert_exam_config`, the only sanctioned reactivation path. The trigger never fires during `upsert_exam_config` because that RPC's UPDATE branch does not write `deleted_at` at all (it touches only `enabled/total_questions/time_limit_seconds/pass_mark/updated_at`, or inserts a fresh row) — not because of any role exemption; a future reactivation RPC would need an explicit exemption added here. The data-integrity invariant (≤1 active config per org+subject) was always enforced by `uq_exam_configs_org_subject_active`; this trigger additionally enforces that reactivation flows through the RPC's controlled path. Closes security.md §11 AJ (was GAP/LOW, now ENFORCED).
 
 ### exam_config_distributions
 ```sql
@@ -642,8 +646,8 @@ verb_noun pattern:
   check_quiz_answer                ← read, verify answer + return explanation (immediate feedback)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit + last_active_at stamp (deferred writes pattern)
-  start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids')
-  start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; returns started_at
+  start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500)
+  start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; maps unique_violation to friendly domain error (mig 088, #754); returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
   complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent)
   complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam OR internal_exam session, score from buffered answers, audit exam.expired / internal_exam.expired (idempotent; widened in mig 063 / 20260429000008)
@@ -664,6 +668,8 @@ verb_noun pattern:
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
   get_student_profile_stats  ← read, student: completed-session count + average score (single-row COUNT + AVG over own non-deleted, ended, non-null-score quiz_sessions); replaces the client-side count/average that truncated at the PostgREST 1000-row cap (#668 P2, profile.ts)
+  record_consent             ← write, GDPR: inserts one consent row for the caller; idempotent for accepted=true via an EXISTS pre-check on (user_id, document_type, document_version) (mig 085, #386)
+  check_consent_status       ← read, GDPR: returns (has_tos, has_privacy) boolean flags for specified document versions
 ```
 
 ### Security Model
@@ -1286,6 +1292,8 @@ Atomically reads the subject's `exam_configs` row, randomly selects questions pe
 
 **Return shape:** `{ session_id, question_ids, time_limit_seconds, total_questions, pass_mark, started_at }`. `started_at` (added in migration 050) lets the client compute remaining time from the server clock instead of trusting its own local clock at start. The `quiz_sessions.config` JSONB persists `{ question_ids, exam_config_id, pass_mark }`; the row-level `started_at` and `time_limit_seconds` columns are the canonical timing source. The caller validates the payload with `StartExamRpcResultSchema.safeParse()` (`z.object()` default strips unknown keys), so additive return-shape changes do not break existing callers — only renames or removals do.
 
+**Duplicate-active-session hardening (mig 088, #754):** The `uq_active_exam_session` partial unique index on `quiz_sessions` was widened from `(student_id, subject_id)` to `(student_id, organization_id, subject_id)` to align with `uq_internal_exam_session_active` and prevent a cross-org transfer edge case. The RPC now catches the `unique_violation` error (`23505`) raised by a concurrent racer that slips past the `IF EXISTS` guard and maps it to the friendly domain error `'an exam session is already in progress for this subject'`. Previously, a racer received a raw `23505` — the data-integrity invariant was always DB-enforced, but the error message was unmapped (was the residual in security.md §11 AL; now ENFORCED). The RPC also caches `actor_role` via a top-level `SELECT role FROM users` gate (mirrors mig 087 for the internal-exam RPCs), closing the TOCTOU window in the audit INSERT.
+
 ---
 
 #### `complete_empty_exam_session` — close a zero-answer exam session (timer or manual)
@@ -1651,13 +1659,14 @@ $$;
 
 #### `start_quiz_session` — locks question set atomically
 
-**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix). `20260506000001_start_quiz_session_harden_input.sql` — adds input validation on `p_question_ids` (closes #622). `20260508000001_start_quiz_session_mode_whitelist.sql` — hard whitelist on `p_mode`: rejects `mock_exam` and `internal_exam` (which must be created exclusively by `start_exam_session` and `start_internal_exam_session`) with `mode_not_allowed` (closes #629).
+**Migration history:** `20260430000008` — adds `AND deleted_at IS NULL` to the audit `actor_role` subquery on `users` (security.md §10, closes #573). `20260430000010` — replaces the scattered `users` subqueries with a single top-level active-user gate (`SELECT organization_id, role INTO v_org_id, v_role ... AND deleted_at IS NULL` + `IF NOT FOUND RAISE 'user not found or inactive'`); both INSERTs now read from the locals (PR #599 CR root-cause fix). `20260506000001_start_quiz_session_harden_input.sql` — adds input validation on `p_question_ids` (closes #622). `20260508000001_start_quiz_session_mode_whitelist.sql` — hard whitelist on `p_mode`: rejects `mock_exam` and `internal_exam` (which must be created exclusively by `start_exam_session` and `start_internal_exam_session`) with `mode_not_allowed` (closes #629). `20260606000002` — adds NULL guard to mode check (`p_mode IS NULL OR p_mode NOT IN (...)`) and a 500-element cap on `p_question_ids`: raises `too_many_questions` when `array_length(p_question_ids, 1) > 500` (mig 086, #275; matches the Zod cap in the Server Action).
 
 **Validation contract** (raised in this order: auth → mode whitelist → active-user gate → input validation):
 - `'Not authenticated'` — `auth.uid()` returns NULL.
-- `'mode_not_allowed'` — `p_mode` is not in `('smart_review','quick_quiz')`. Runs immediately after the auth check (before the active-user gate) so attackers cannot probe `'user inactive'` vs `'mode invalid'` via timing or error differences. mock_exam sessions are created exclusively by `start_exam_session` (mig 040) after exam config validation; internal_exam sessions by `start_internal_exam_session` (mig 058).
+- `'mode_not_allowed'` — `p_mode` IS NULL or is not in `('smart_review','quick_quiz')`. Runs immediately after the auth check (before the active-user gate) so attackers cannot probe `'user inactive'` vs `'mode invalid'` via timing or error differences. mock_exam sessions are created exclusively by `start_exam_session` (mig 040) after exam config validation; internal_exam sessions by `start_internal_exam_session` (mig 058).
 - `'user not found or inactive'` — caller soft-deleted between auth and gate.
 - `'no_questions_provided'` — `p_question_ids` is NULL or empty (`array_length(...) IS NULL`).
+- `'too_many_questions'` — `array_length(p_question_ids, 1) > 500` (mig 086, #275), checked immediately after the `no_questions_provided` guard. Cap matches the Zod schema in the Server Action; a direct RPC caller cannot bypass it.
 - `'invalid_question_ids'` — raised in two cases: (a) `p_question_ids` contains a duplicate UUID (set-based `count(DISTINCT)` mismatch with `array_length`), or (b) at least one UUID does not resolve to a question that is in the caller's organization, has `status = 'active'`, has `deleted_at IS NULL`, and matches `p_subject_id` / `p_topic_id` when those parameters are non-NULL.
 - `p_subject_id` and `p_topic_id` MAY be NULL (smart_review mode crosses subjects/topics); the per-question subject/topic match is skipped for the NULL parameter, while the org + active + soft-delete checks always apply.
 
@@ -1684,9 +1693,10 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- Mode whitelist (mig 081, closes #629): only student-facing practice modes.
+  -- Mode whitelist (mig 081/086, closes #629): only student-facing practice modes.
+  -- NULL p_mode also raises mode_not_allowed (mig 086 null-guard).
   -- mock_exam => start_exam_session; internal_exam => start_internal_exam_session.
-  IF p_mode NOT IN ('smart_review', 'quick_quiz') THEN
+  IF p_mode IS NULL OR p_mode NOT IN ('smart_review', 'quick_quiz') THEN
     RAISE EXCEPTION 'mode_not_allowed';
   END IF;
 
@@ -1705,6 +1715,11 @@ BEGIN
   -- Input validation (mig 20260506000001, closes #622).
   IF p_question_ids IS NULL OR array_length(p_question_ids, 1) IS NULL THEN
     RAISE EXCEPTION 'no_questions_provided';
+  END IF;
+
+  -- Array length cap (mig 086, #275): mirrors the Zod cap in the Server Action.
+  IF array_length(p_question_ids, 1) > 500 THEN
+    RAISE EXCEPTION 'too_many_questions';
   END IF;
 
   -- Reject duplicate UUIDs (would otherwise silently double-count below).
@@ -1873,6 +1888,8 @@ Records a single consent decision (TOS acceptance, privacy policy acceptance). C
 
 **Returns:** void. Raises EXCEPTION on auth failure, invalid document_type, or user not found.
 
+**Idempotency (mig 085, #386):** Before inserting an acceptance, the RPC runs an `EXISTS` pre-check for an existing `accepted = true` row with the same `(user_id, document_type, document_version)` and returns early (no-op) if one is found — the same idiom `check_consent_status` uses. A retried acceptance (double-submit, network retry, tab restore) therefore does not append a duplicate audit row. Rejections (`accepted = false`) are still inserted unconditionally — each rejection is a distinct event. An `ON CONFLICT` target was not used because `idx_user_consents_lookup` is a non-unique partial index; making it unique would require hard-deleting pre-existing duplicates from a GDPR table, so the EXISTS guard is preferred. A truly-concurrent pair of identical calls is not closed by this guard (would need the unique index) — this is no worse than prior behaviour and not the reported failure mode.
+
 ```sql
 CREATE FUNCTION record_consent(
   p_document_type    TEXT,      -- 'terms_of_service', 'privacy_policy'
@@ -1901,6 +1918,19 @@ BEGIN
   -- Verify user exists and is not soft-deleted
   IF NOT EXISTS (SELECT 1 FROM users WHERE id = _uid AND deleted_at IS NULL) THEN
     RAISE EXCEPTION 'User not found';
+  END IF;
+
+  -- Idempotent acceptance (mig 085, #386): no-op if an identical accepted=true
+  -- row already exists. ON CONFLICT is not usable — idx_user_consents_lookup is a
+  -- non-unique partial index. Rejections (accepted=false) still insert unconditionally.
+  IF p_accepted AND EXISTS (
+    SELECT 1 FROM user_consents
+    WHERE user_id = _uid
+      AND document_type = p_document_type
+      AND document_version = p_document_version
+      AND accepted = true
+  ) THEN
+    RETURN;
   END IF;
 
   INSERT INTO user_consents
@@ -2213,6 +2243,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 |---------|-------|---------|
 | `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021; `SET search_path = public` added in `20260430000007` — closes #588; `20260430000011` adds `pg_advisory_xact_lock(hashtext(NEW.student_id::text))` to serialize the 20-draft cap check under concurrency — PR #599 CR root-cause fix) |
 | `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
+| `trg_block_exam_config_reactivation` | `exam_configs` | Blocks `UPDATE SET deleted_at = NULL` (unconditional — no role exemption); enforces that reactivation goes through `upsert_exam_config`, whose UPDATE branch never writes `deleted_at` (mig 089, #755) |
 
 ---
 
@@ -2279,4 +2310,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-05 (migration 20260605000001: quiz_sessions column GRANT — REVOKE blanket UPDATE from authenticated, re-GRANT every column except the 4 scoring columns + id PK, closing the student score-forgery vector; closes #611) | Previous: 2026-05-08 (migration 20260508000001: start_quiz_session p_mode whitelist; closes #629) | Companion: docs/security.md*
+*Last updated: 2026-06-06 (migrations 085–090: record_consent idempotency via EXISTS guard (not ON CONFLICT — index is non-unique); start_quiz_session 500-element array cap + null mode guard; start_exam_session unique_violation mapping + org_id index + role cache; exam_configs reactivation-block trigger; users column UPDATE GRANT revoke/full_name-only re-grant) | Previous: 2026-06-05 (migration 20260605000001: quiz_sessions column GRANT; closes #611) | Companion: docs/security.md*

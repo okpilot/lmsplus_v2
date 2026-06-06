@@ -207,16 +207,25 @@ describe('startQuizSession', () => {
     expect(result.success).toBe(false)
   })
 
-  it('accepts count without a max cap (no upper limit enforced by schema)', async () => {
+  it('accepts count at the maximum allowed value (500)', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
     const result = await startQuizSession({
       subjectId: '00000000-0000-4000-a000-000000000001',
-      count: 200,
+      count: 500,
     })
-    // Schema has no .max() — a large count is valid; the application layer caps it
     expect(result.success).toBe(true)
+  })
+
+  it('rejects count above the 500 question cap', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 501,
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
   it('returns failure and logs when an unexpected error is thrown', async () => {

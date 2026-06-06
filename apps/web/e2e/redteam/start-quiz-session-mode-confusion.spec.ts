@@ -1,15 +1,17 @@
 /**
  * Red Team Spec — Vector: start_quiz_session p_mode whitelist (issue #629)
+ *                         + p_question_ids array-length cap (issue #275)
  *
- * Attack: An authenticated student calls `start_quiz_session` with
- *         p_mode='mock_exam' or p_mode='internal_exam'. Without the whitelist,
- *         this creates a quiz_sessions row whose mode column bypasses all
- *         exam_config validation performed by start_exam_session (mig 040) and
- *         start_internal_exam_session (mig 058). The attacker could then call
- *         batch_submit_quiz against a self-assembled question set, effectively
- *         generating a fake exam report without completing a real exam.
+ * Attack A (mode whitelist): An authenticated student calls `start_quiz_session`
+ *         with p_mode='mock_exam' or p_mode='internal_exam'. Without the
+ *         whitelist, this creates a quiz_sessions row whose mode column bypasses
+ *         all exam_config validation performed by start_exam_session (mig 040)
+ *         and start_internal_exam_session (mig 058). The attacker could then
+ *         call batch_submit_quiz against a self-assembled question set,
+ *         effectively generating a fake exam report without completing a real
+ *         exam.
  *
- * Defense: Migration 081 adds an early `IF p_mode IS NULL OR p_mode NOT IN
+ * Defense A: Migration 081 adds an early `IF p_mode IS NULL OR p_mode NOT IN
  *          ('smart_review', 'quick_quiz') THEN RAISE EXCEPTION
  *          'mode_not_allowed'` immediately after the auth check. The `IS NULL`
  *          clause is required because Postgres 3-valued logic returns NULL for
@@ -19,11 +21,23 @@
  *          'user inactive' via timing or error differences. The NULL guard
  *          ships in migration 20260521000001_start_quiz_session_null_guard.
  *
- * No afterEach cleanup — the RPC raises before any INSERT reaches the table.
- * Both attacks assert count === 0 new rows as a positive verification of the
- * no-insert claim. If a future contributor adds a test case that exercises a
- * normal (accepted) mode, that test MUST add session cleanup in its own
- * afterEach or afterAll block.
+ * Attack B (resource exhaustion): An authenticated student calls
+ *         `start_quiz_session` directly (bypassing the Next.js Server Action's
+ *         Zod layer which caps count at 500) with 501+ UUIDs in p_question_ids.
+ *         Without a DB-level cap the RPC would proceed to unnest, COUNT(DISTINCT),
+ *         and JOIN against questions — O(N) work per call, unbounded (Vector R,
+ *         issue #275).
+ *
+ * Defense B: Migration 086 adds `IF array_length(p_question_ids, 1) > 500 THEN
+ *          RAISE EXCEPTION 'too_many_questions'` immediately after the
+ *          no_questions_provided guard. Runs BEFORE the expensive unnest/JOIN
+ *          operations so the guard is O(1). Cap matches the Zod max (500).
+ *
+ * No afterEach cleanup for mode-confusion attacks — the RPC raises before any
+ * INSERT reaches the table. The array-cap attacks likewise raise before INSERT.
+ * Both attack classes assert count === 0 new rows as positive verification.
+ * If a future contributor adds a test case exercising a normal (accepted) call,
+ * that test MUST add session cleanup in its own afterEach or afterAll block.
  */
 
 import { expect, test } from '@playwright/test'
@@ -153,5 +167,68 @@ test.describe('Vector — start_quiz_session p_mode whitelist (issue #629)', () 
       .gte('created_at', testStartIso)
     expect(countError).toBeNull()
     expect(count).toBe(0)
+  })
+
+  // ── Vector R: p_question_ids array-length cap (issue #275) ────────────────
+  //
+  // Attack 4: send 501 distinct UUIDs in p_question_ids, bypassing the Zod
+  // layer (which caps at 500 but only fires when called through the Server
+  // Action). Without a DB-level guard the RPC proceeds to unnest + DISTINCT +
+  // JOIN — O(N) work per call with no upper bound. Migration 086 adds an O(1)
+  // guard that fires before those operations.
+  //
+  // Non-vacuous design:
+  // - 501-id call: must return too_many_questions.
+  // - 500-id call: must NOT return too_many_questions (boundary is inclusive).
+  //   The 500-id call will proceed past the length guard and fail at
+  //   invalid_question_ids (the UUIDs are random and will not resolve to real
+  //   questions), which is the expected behaviour — it proves the length guard
+  //   did not fire on a 500-element array.
+  test('Attack 4 — 501 question IDs rejected with too_many_questions before unnest', async () => {
+    // Generate 501 distinct random UUIDs. These do not exist in the DB; the
+    // RPC must raise before it reaches the JOIN that would detect that.
+    const ids501 = Array.from({ length: 501 }, () => crypto.randomUUID())
+
+    const { error } = await attackerClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: subjectId,
+      p_topic_id: topicId,
+      p_question_ids: ids501,
+    })
+
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toContain('too_many_questions')
+
+    // Positive no-insert assertion: the guard fired before any INSERT.
+    const { count, error: countError } = await admin
+      .from('quiz_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('student_id', attackerUserId)
+      .gte('created_at', testStartIso)
+    expect(countError).toBeNull()
+    expect(count).toBe(0)
+  })
+
+  test('Boundary — 500 question IDs pass the length guard (fail later at invalid_question_ids)', async () => {
+    // Generate exactly 500 distinct random UUIDs. The length guard must NOT
+    // fire; the call proceeds to the unnest/JOIN validation and fails with
+    // invalid_question_ids because none of these UUIDs exist in the DB.
+    const ids500 = Array.from({ length: 500 }, () => crypto.randomUUID())
+
+    const { error } = await attackerClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: subjectId,
+      p_topic_id: topicId,
+      p_question_ids: ids500,
+    })
+
+    // The call must fail (random UUIDs won't resolve), but NOT with
+    // too_many_questions — that would mean the cap incorrectly rejected a
+    // valid-length array. Positively assert the downstream guard fired
+    // (invalid_question_ids) so the boundary test proves the call passed the cap
+    // and reached membership validation, not that it failed for an unrelated reason.
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toContain('invalid_question_ids')
+    expect(error?.message ?? '').not.toContain('too_many_questions')
   })
 })

@@ -23,6 +23,8 @@ Deep logic and security review at CodeRabbit depth. Catches what lint can't: log
 - Trust the reviewer's security findings — they check against `docs/security.md`.
 - Include the reviewer's reasoning when reporting to the user so they understand the "why."
 - Treat "forward-looking" gaps the same as current gaps — code should be correct regardless of current call sites.
+- Before flagging a column / constraint / whitelist as missing, dropped, or "narrowed," trace the `CREATE OR REPLACE FUNCTION` **and** `ALTER TABLE` / `CREATE [UNIQUE] INDEX` / CHECK chain to the LATEST migration and compare against that — never against a superseded earlier one. (False-positive source, count≥2: flagging `record_consent` vs the original mig 057 when `20260327000058` had already dropped `cookie_analytics` from both the whitelist and the table CHECK, #386. Also verify `NOT IN (...)` direction — removing a value makes the function *reject* it, not accept it.)
+- For a migration that changes a plpgsql body containing `ON CONFLICT`, `EXECUTE format(...)`, or other deferred-validation SQL, remember a clean `supabase db reset` does NOT prove execution-correctness (the parser defers inference-target validation to runtime). Verify `ON CONFLICT` targets resolve to a UNIQUE index and recommend an execution test — `record_consent`'s `ON CONFLICT` against a non-unique index applied clean but threw `42P10` on first call (#386).
 
 ### NEVER
 - Defer an ISSUE to a future session. The fix happens now.

@@ -7,6 +7,10 @@
  * Vector Y (MEDIUM): a user calls `.from('user_consents').insert(...)` directly via
  *   PostgREST, bypassing the `record_consent()` RPC. RLS
  *   `user_consents_no_direct_insert WITH CHECK (false)` must reject every client insert.
+ * Vector Z2 (#386): calling `record_consent()` twice with identical accepted=true args must
+ *   be a no-op — exactly 1 row in user_consents, not 2. mig 085 guards the INSERT with an
+ *   EXISTS pre-check (the partial index idx_user_consents_lookup is non-unique and cannot
+ *   back ON CONFLICT), preventing duplicate GDPR audit rows on retry.
  *
  * (Vectors V "forged __consent cookie" and Z "cookie injected without completing the flow"
  *  are proxy/browser-gate concerns — see apps/web/proxy.ts — and require a page-navigation
@@ -22,6 +26,7 @@ import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
   USER_CONSENTS_FORGED_VERSION as FORGED_VERSION,
+  USER_CONSENTS_IDEMPOTENCY_VERSION as IDEMPOTENCY_VERSION,
   USER_CONSENTS_SEED_VERSION as SEED_VERSION,
   USER_CONSENTS_SELF_VERSION as SELF_VERSION,
   seedRedTeamUsers,
@@ -72,11 +77,11 @@ test.describe('Red Team: user_consents Isolation', () => {
   test.afterAll(async () => {
     // Hard-delete the seeded victim row (service role bypasses the no-delete RLS) so the
     // table stays hermetic for downstream specs. Also sweep any forged row in case a
-    // future regression let Vector Y through.
+    // future regression let Vector Y through, and the idempotency fixture row.
     const { data, error } = await adminClient
       .from('user_consents')
       .delete()
-      .in('document_version', [SEED_VERSION, SELF_VERSION, FORGED_VERSION])
+      .in('document_version', [SEED_VERSION, SELF_VERSION, FORGED_VERSION, IDEMPOTENCY_VERSION])
       .select('id')
     if (error) {
       // Surface the hermiticity breach to Playwright's report — a stranded fixture row
@@ -150,5 +155,67 @@ test.describe('Red Team: user_consents Isolation', () => {
       .eq('document_version', FORGED_VERSION)
     expect(checkErr).toBeNull()
     expect(forged?.length ?? -1).toBe(0)
+  })
+
+  test('Vector Z2 (#386): calling record_consent twice with the same accepted=true args is a no-op — row count stays exactly 1', async () => {
+    // Non-vacuity: first call must actually insert a row (proves the RPC works and auth.uid()
+    // resolves for the attacker's authenticated session). If this is already 0 the second
+    // assertion is vacuous.
+    const { error: firstErr } = await attackerClient.rpc('record_consent', {
+      p_document_type: 'terms_of_service',
+      p_document_version: IDEMPOTENCY_VERSION,
+      p_accepted: true,
+    })
+    expect(firstErr).toBeNull()
+
+    // Confirm the first call landed exactly 1 row.
+    const { data: afterFirst, error: checkFirst } = await adminClient
+      .from('user_consents')
+      .select('id')
+      .eq('user_id', attackerUserId)
+      .eq('document_version', IDEMPOTENCY_VERSION)
+      .eq('accepted', true)
+    expect(checkFirst).toBeNull()
+    expect(afterFirst?.length ?? 0).toBe(1)
+
+    // Second call — identical args. The EXISTS guard (mig 085) must make it a no-op.
+    // record_consent RETURNS void, so there is no payload contract to assert beyond the
+    // observable side effects (error + resulting row count) — those ARE its full contract.
+    const { error: secondErr } = await attackerClient.rpc('record_consent', {
+      p_document_type: 'terms_of_service',
+      p_document_version: IDEMPOTENCY_VERSION,
+      p_accepted: true,
+    })
+    expect(secondErr).toBeNull()
+
+    // Row count must still be exactly 1 — not 2 — so the GDPR audit trail has no duplicate.
+    const { data: afterSecond, error: checkSecond } = await adminClient
+      .from('user_consents')
+      .select('id')
+      .eq('user_id', attackerUserId)
+      .eq('document_version', IDEMPOTENCY_VERSION)
+      .eq('accepted', true)
+    expect(checkSecond).toBeNull()
+    expect(afterSecond?.length ?? 0).toBe(1)
+
+    // Scoping fixture (code-style §7 multi-fixture): the guard is keyed on
+    // (user, document_type, document_version) — accepting TOS must NOT suppress a distinct
+    // document_type. A privacy_policy acceptance at the same version still inserts (1 row),
+    // proving the idempotency is per-(type,version), not a global "already consented" flag.
+    const { error: ppErr } = await attackerClient.rpc('record_consent', {
+      p_document_type: 'privacy_policy',
+      p_document_version: IDEMPOTENCY_VERSION,
+      p_accepted: true,
+    })
+    expect(ppErr).toBeNull()
+    const { data: ppRows, error: ppCheck } = await adminClient
+      .from('user_consents')
+      .select('id')
+      .eq('user_id', attackerUserId)
+      .eq('document_version', IDEMPOTENCY_VERSION)
+      .eq('document_type', 'privacy_policy')
+      .eq('accepted', true)
+    expect(ppCheck).toBeNull()
+    expect(ppRows?.length ?? 0).toBe(1)
   })
 })
