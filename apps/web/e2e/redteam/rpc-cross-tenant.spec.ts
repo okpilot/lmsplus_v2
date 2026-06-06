@@ -19,6 +19,8 @@ import {
   pickSubjectWithQuestions,
   seedRedTeamUsers,
   seedVictimResponses,
+  VICTIM_EMAIL,
+  VICTIM_PASSWORD,
 } from './helpers/seed'
 
 test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
@@ -37,11 +39,16 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let examConfigId: string
   let seededVictimCodeId: string | null = null
   let seededVictimSessionId: string | null = null
+  // Vector BE: user-transfer cross-org session isolation
+  let otherOrgId: string
+  let victimUserId: string
 
   test.beforeAll(async () => {
     const seed = await seedRedTeamUsers()
     egmontVictimUserId = seed.victimUserId
+    victimUserId = seed.victimUserId
     egmontOrgId = seed.orgId
+    otherOrgId = seed.otherOrgId
     const crossOrgUser = await createCrossOrgUser()
     crossOrgClient = await createAuthenticatedClient(crossOrgUser.email, crossOrgUser.password)
     adminClient = getAdminClient()
@@ -350,6 +357,139 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
       .eq('exam_config_id', examConfigId)
     expect(error).toBeNull()
     expect(data?.length ?? 0).toBe(0)
+  })
+
+  // -------------------------------------------------------------------------
+  // Vector BE (#572): user-transfer cross-org session isolation
+  // -------------------------------------------------------------------------
+
+  test('BE: org-A mock_exam session does not block start_exam_session after user is transferred to org-B', async () => {
+    // Scenario: a student has an active mock_exam session under org-A (egmont).
+    // An admin transfers them to org-B (redteam-other-org). They then call
+    // start_exam_session for the same subject under org-B.
+    //
+    // EXPECTED (mig 20260428000004):
+    //   1. The duplicate-active EXISTS guard — which now filters
+    //      `AND organization_id = v_org_id` — does NOT match the org-A session
+    //      because v_org_id is now org-B. The call does not raise
+    //      'an exam session is already in progress for this subject'.
+    //   2. The stale-session lookup — also filtered by organization_id — does
+    //      NOT auto-complete the org-A session (ended_at remains null).
+    //
+    // org-B has no exam_config for this subject, so start_exam_session fails
+    // with 'no exam configuration found for this subject' — proving we passed
+    // both org-A guards. A 'no exam configuration found' error is downstream of
+    // both the stale-session lookup and the duplicate-active check; reaching it
+    // means neither guard fired on the org-A session.
+
+    // ── Non-vacuity: confirm the org-A session genuinely exists ─────────────
+    const orgASessionStart = new Date(Date.now() - 5_000).toISOString()
+    const { data: orgARow, error: seedErr } = await adminClient
+      .from('quiz_sessions')
+      .insert({
+        organization_id: egmontOrgId,
+        student_id: victimUserId,
+        mode: 'mock_exam',
+        subject_id: examSubjectId,
+        config: { question_ids: [], pass_mark: 75 },
+        total_questions: 1,
+        time_limit_seconds: 3600,
+        started_at: orgASessionStart,
+      })
+      .select('id, ended_at')
+      .single()
+    if (seedErr || !orgARow) throw new Error(`BE seed org-A session: ${seedErr?.message}`)
+    const orgASessionId = orgARow.id
+
+    // Prove the org-A session is active (ended_at null) before transfer.
+    expect(orgARow.ended_at).toBeNull()
+
+    // ── Transfer: move student from org-A → org-B ────────────────────────────
+    const { error: transferErr } = await adminClient
+      .from('users')
+      .update({ organization_id: otherOrgId })
+      .eq('id', victimUserId)
+    expect(transferErr).toBeNull()
+
+    // ── Authenticate as victim (now in org-B) and call start_exam_session ────
+    // The RPC re-reads organization_id from users at call time, so v_org_id = org-B.
+    const victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
+
+    let orgBSessionId: string | null = null
+    try {
+      const { data, error } = await victimClient.rpc('start_exam_session', {
+        p_subject_id: examSubjectId,
+      })
+
+      // org-B has no exam_config for this subject, so the expected failure is
+      // 'no exam configuration found'. That error code is reached only AFTER
+      // both org-scoped guards (stale-session lookup + duplicate-active check)
+      // have been evaluated and found no matching org-A session.
+      // A 'an exam session is already in progress' error here would mean the
+      // org filter is missing — which is the regression this test guards against.
+      if (error) {
+        expect(error.message ?? '').not.toMatch(/an exam session is already in progress/i)
+        expect(error.message ?? '').toMatch(/no exam configuration found/i)
+      } else {
+        // If org-B DID have a config (e.g. ensureExamConfig was called for it
+        // elsewhere), a fresh session was returned — verify it differs from the
+        // org-A session, proving the duplicate-active guard did not block.
+        const result = data as { session_id: string } | null
+        expect(result?.session_id).toBeDefined()
+        expect(result?.session_id).not.toBe(orgASessionId)
+        orgBSessionId = result?.session_id ?? null
+      }
+
+      // ── Assert org-A session was NOT auto-completed ────────────────────────
+      // The stale-session lookup is filtered by organization_id = v_org_id
+      // (now org-B), so the org-A session must still be active.
+      // Non-vacuity guarantee: we confirmed ended_at was null before the call.
+      const { data: orgAAfter, error: readErr } = await adminClient
+        .from('quiz_sessions')
+        .select('ended_at')
+        .eq('id', orgASessionId)
+        .is('deleted_at', null)
+        .single()
+      expect(readErr).toBeNull()
+      expect(orgAAfter?.ended_at).toBeNull()
+    } finally {
+      // ── Restore victim's org to egmont (hermiticity §7) ─────────────────
+      const { error: restoreErr } = await adminClient
+        .from('users')
+        .update({ organization_id: egmontOrgId })
+        .eq('id', victimUserId)
+      if (restoreErr) {
+        console.error(`[BE cleanup] restore victim org failed: ${restoreErr.message}`)
+      }
+
+      // Soft-delete the org-A fixture session.
+      const { data: discardedA, error: delAErr } = await adminClient
+        .from('quiz_sessions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', orgASessionId)
+        .is('deleted_at', null)
+        .select('id')
+      if (delAErr) {
+        console.error(`[BE cleanup] org-A session soft-delete failed: ${delAErr.message}`)
+      } else if ((discardedA?.length ?? 0) > 0) {
+        console.log(`[BE cleanup] soft-deleted org-A fixture session ${orgASessionId}`)
+      }
+
+      // Soft-delete the org-B session if one was created.
+      if (orgBSessionId) {
+        const { data: discardedB, error: delBErr } = await adminClient
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', orgBSessionId)
+          .is('deleted_at', null)
+          .select('id')
+        if (delBErr) {
+          console.error(`[BE cleanup] org-B session soft-delete failed: ${delBErr.message}`)
+        } else if ((discardedB?.length ?? 0) > 0) {
+          console.log(`[BE cleanup] soft-deleted org-B fixture session ${orgBSessionId}`)
+        }
+      }
+    }
   })
 
   test.afterAll(async () => {
