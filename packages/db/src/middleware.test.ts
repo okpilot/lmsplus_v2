@@ -95,4 +95,42 @@ describe('createMiddlewareSupabaseClient', () => {
       cookiesConfig.setAll([{ name: 'sb-token', value: 'new-value', options: { httpOnly: true } }]),
     ).not.toThrow()
   })
+
+  it('forwards anti-cache headers onto the response the caller holds', () => {
+    // setAll fires lazily (during auth.getUser), after this function has returned —
+    // so the headers must land on the SAME reference returned here, not an orphan.
+    const { response } = createMiddlewareSupabaseClient(makeRequest())
+
+    const cookiesConfig = mockCreateServerClient.mock.calls[0]?.[2].cookies
+    cookiesConfig.setAll([{ name: 'sb-token', value: 'v', options: { httpOnly: true } }], {
+      'Cache-Control': 'private, no-cache, no-store, must-revalidate, max-age=0',
+      Expires: '0',
+      Pragma: 'no-cache',
+    })
+
+    expect(response.headers.get('Cache-Control')).toBe(
+      'private, no-cache, no-store, must-revalidate, max-age=0',
+    )
+    expect(response.headers.get('Expires')).toBe('0')
+    expect(response.headers.get('Pragma')).toBe('no-cache')
+  })
+
+  it('writes refreshed cookies onto the response the caller holds', () => {
+    // Regression guard: reassigning `response` inside setAll would orphan the cookie.
+    const { response } = createMiddlewareSupabaseClient(makeRequest())
+
+    const cookiesConfig = mockCreateServerClient.mock.calls[0]?.[2].cookies
+    cookiesConfig.setAll([{ name: 'sb-token', value: 'refreshed', options: { httpOnly: true } }])
+
+    expect(response.cookies.get('sb-token')?.value).toBe('refreshed')
+  })
+
+  it('does not throw when setAll is passed an empty headers object', () => {
+    createMiddlewareSupabaseClient(makeRequest())
+
+    const cookiesConfig = mockCreateServerClient.mock.calls[0]?.[2].cookies
+    expect(() =>
+      cookiesConfig.setAll([{ name: 'sb-token', value: 'v', options: { httpOnly: true } }], {}),
+    ).not.toThrow()
+  })
 })
