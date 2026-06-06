@@ -126,6 +126,9 @@ export async function seedQuestions(opts: {
 
   const { data, error: qErr } = await admin.from('questions').insert(questions).select('id')
   if (qErr) throw new Error(`seedQuestions: ${qErr.message}`)
+  // Runtime guard pairs with the implicit DB-result shape assumption (code-style.md §5):
+  // a null/non-array response would otherwise throw an opaque error on .map().
+  if (!Array.isArray(data)) throw new Error('seedQuestions: unexpected response shape')
 
   return {
     bankId,

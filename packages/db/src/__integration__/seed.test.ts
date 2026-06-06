@@ -131,6 +131,14 @@ describe('seedQuestions', () => {
 
     await expect(seedQuestions(BASE_OPTS)).rejects.toThrow(/^seedQuestions:/)
   })
+
+  it('throws "unexpected response shape" when the insert returns a non-array with no error', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: { id: 'bank-xyz' }, error: null })) // bank lookup OK
+      .mockReturnValueOnce(buildChain({ data: null, error: null })) // insert: null data, no error
+
+    await expect(seedQuestions(BASE_OPTS)).rejects.toThrow(/unexpected response shape/)
+  })
 })
 
 // ---------------------------------------------------------------------------
