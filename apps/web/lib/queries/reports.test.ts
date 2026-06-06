@@ -66,9 +66,12 @@ describe('getSessionReports', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.sessions).toHaveLength(1)
-    expect(result.sessions[0]!.subjectName).toBe('Navigation')
-    expect(result.sessions[0]!.durationMinutes).toBe(15)
-    expect(result.sessions[0]!.scorePercentage).toBe(80)
+    const s = result.sessions[0]!
+    expect(s.subjectName).toBe('Navigation')
+    expect(s.durationMinutes).toBe(15)
+    expect(s.scorePercentage).toBe(80)
+    expect(s.totalQuestions).toBe(10)
+    expect(s.correctCount).toBe(8)
     expect(result.totalCount).toBe(1)
   })
 
@@ -146,6 +149,7 @@ describe('getSessionReports', () => {
   it('coerces BIGINT total_count from string to number', async () => {
     // PostgREST serializes BIGINT columns as strings. Without Number() coercion,
     // result.totalCount would be "1" and the caller's `=== 1` singular check would break.
+    // (answered_count was the other BIGINT here; removed in #471 — no longer in the RPC output.)
     mockRpc.mockResolvedValue({
       data: [makeRpcRow({ total_count: '1' })],
       error: null,
