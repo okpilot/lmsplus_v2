@@ -195,6 +195,8 @@ describe('resetStudentPassword', () => {
       if (result.success) return
       expect(result.error).toBe('Failed to reset password')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      // No audit event for a failed reset (the audit call is after the success path).
+      expect(mockRpc).not.toHaveBeenCalled()
     })
   })
 

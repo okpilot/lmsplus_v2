@@ -202,6 +202,8 @@ describe('createStudent', () => {
       expect(result.error).toBe('Failed to create student')
       expect(mockDeleteUser).toHaveBeenCalledWith(NEW_USER_ID)
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      // No audit event for a failed creation (the audit call is after the success path).
+      expect(mockRpc).not.toHaveBeenCalled()
     })
   })
 

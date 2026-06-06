@@ -233,6 +233,8 @@ describe('toggleStudentStatus', () => {
       expect(result.success).toBe(true)
       expect(mockUpdateUserById).toHaveBeenCalledWith(STUDENT_ID, { ban_duration: 'none' })
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
+      // Reactivation is intentionally not audited (#379 scope is deactivate only).
+      expect(mockRpc).not.toHaveBeenCalled()
     })
 
     it('returns failure when unbanning the auth user fails (DB not touched)', async () => {
