@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -47,6 +47,10 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('softDeleteQuestion', () => {
   describe('input validation', () => {
     it('returns failure when input is missing the id field', async () => {
@@ -92,14 +96,17 @@ describe('softDeleteQuestion', () => {
   })
 
   describe('error paths', () => {
-    it('returns failure when the DB update returns an error', async () => {
+    it('returns a generic error and logs the raw cause server-side when the DB update fails', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       mockAdminWithResult({ data: null, error: { message: 'update failed' } })
 
       const result = await softDeleteQuestion({ id: VALID_UUID })
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('update failed')
+      // Raw DB error must not reach the client (code-style.md §5 / OWASP A10).
+      expect(result.error).toBe('Failed to delete question')
+      expect(errorSpy).toHaveBeenCalledWith('[softDeleteQuestion] DB error:', 'update failed')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 

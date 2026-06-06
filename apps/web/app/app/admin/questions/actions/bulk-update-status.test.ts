@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -48,6 +48,10 @@ function mockAdminWithResult(leafResult: LeafResult) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('bulkUpdateStatus', () => {
@@ -139,14 +143,17 @@ describe('bulkUpdateStatus', () => {
   })
 
   describe('error paths', () => {
-    it('returns failure when the DB update returns an error', async () => {
+    it('returns a generic error and logs the raw cause server-side when the DB update fails', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       mockAdminWithResult({ data: null, error: { message: 'update failed' } })
 
       const result = await bulkUpdateStatus({ ids: [UUID_1], status: 'active' })
 
       expect(result.success).toBe(false)
       if (result.success) return
-      expect(result.error).toBe('update failed')
+      // Raw DB error must not reach the client (code-style.md §5 / OWASP A10).
+      expect(result.error).toBe('Failed to update question status')
+      expect(errorSpy).toHaveBeenCalledWith('[bulkUpdateStatus] DB error:', 'update failed')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
     })
 

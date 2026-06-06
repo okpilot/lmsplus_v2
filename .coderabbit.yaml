@@ -136,6 +136,17 @@ reviews:
           identity guard). Postgres ORs permissive policies, so RLS alone over-scopes to the
           broader instructor/admin policy. Admin/org-wide RPCs behind is_admin() are exempt.
           Flag any per-caller RPC reading these tables without an explicit auth.uid() filter.
+        - SECURITY DEFINER soft-delete SELECT filter: every SELECT inside a SECURITY DEFINER
+          function must filter AND deleted_at IS NULL on soft-deletable tables. SECURITY DEFINER
+          bypasses RLS, so the soft-delete filter is NOT applied automatically and must be
+          replicated manually in every query. Narrow carve-out: SELECTs fetching records by IDs
+          stored in an immutable, write-once column may omit the filter (sole current case:
+          batch_submit_quiz reading questions via quiz_sessions.config.question_ids, locked at
+          session start, enforced by trg_quiz_sessions_immutable_columns). Any new carve-out
+          instance must cite the immutable write-once column in an inline comment at the call
+          site. Flag any SECURITY DEFINER SELECT on a soft-deletable table missing
+          AND deleted_at IS NULL that lacks a cited write-once carve-out.
+          (security.md §9 / docs/security.md §15; docs/database.md §3.)
         - ON CONFLICT inference target: any INSERT ... ON CONFLICT (cols) [WHERE pred] must
           target a UNIQUE index/constraint matching those columns + predicate (a plain
           CREATE INDEX does not qualify; Postgres raises 42P10). When ON CONFLICT is inside
