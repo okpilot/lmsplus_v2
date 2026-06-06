@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "supabase": {
-      "command": "npx.cmd",
+      "command": "npx",
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@0.7.0",
@@ -12,16 +12,16 @@
       ]
     },
     "context7": {
-      "command": "npx.cmd",
+      "command": "npx",
       "args": ["-y", "@upstash/context7-mcp@2.1.4"]
     },
     "shadcn": {
-      "command": "npx.cmd",
+      "command": "npx",
       "args": ["-y", "shadcn@4.1.0", "mcp"]
     },
     "spec-workflow": {
-      "command": "npx.cmd",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "."]
+      "command": "npx",
+      "args": ["-y", "@pimzino/spec-workflow-mcp@2.2.5", "."]
     },
     "sonarqube": {
       "command": "docker",
