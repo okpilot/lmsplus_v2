@@ -2297,4 +2297,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-06 (migrations 085–090: record_consent idempotency ON CONFLICT; start_quiz_session 500-element array cap + null mode guard; start_exam_session unique_violation mapping + org_id index + role cache; exam_configs reactivation-block trigger; users column UPDATE GRANT revoke/full_name-only re-grant) | Previous: 2026-06-05 (migration 20260605000001: quiz_sessions column GRANT; closes #611) | Companion: docs/security.md*
+*Last updated: 2026-06-06 (migrations 085–090: record_consent idempotency via EXISTS guard (not ON CONFLICT — index is non-unique); start_quiz_session 500-element array cap + null mode guard; start_exam_session unique_violation mapping + org_id index + role cache; exam_configs reactivation-block trigger; users column UPDATE GRANT revoke/full_name-only re-grant) | Previous: 2026-06-05 (migration 20260605000001: quiz_sessions column GRANT; closes #611) | Companion: docs/security.md*
