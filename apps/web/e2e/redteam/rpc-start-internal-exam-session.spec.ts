@@ -1,7 +1,7 @@
 /**
  * Red Team Spec: start_internal_exam_session RPC
  *
- * Vectors BJ / BK / BL / BM (HIGH/MEDIUM): student-facing RPC that redeems a
+ * Vectors BJ / BK / BL / BM / BV (HIGH/MEDIUM): student-facing RPC that redeems a
  * single-use code and creates an internal_exam quiz_session.
  *  - BJ: unauthenticated → 'not_authenticated'
  *  - BK: student-B uses student-A's code → 'code_not_yours' (cross-student)
@@ -10,6 +10,8 @@
  *  - BM:  double-redemption / consumed code → 'code_already_used'
  *  - extra: starting a second concurrent code while a session is already
  *           active for the same subject → 'active_session_exists'
+ *  - BV: overdue active session is auto-completed and new session starts
+ *        successfully (mig 071 column-qualification fix + PERFORM branch)
  *
  * Status: Expected to PASS — every guard is in the SECURITY DEFINER body.
  */
@@ -117,6 +119,30 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
   let victimUserId: string
   let orgId: string
   let subjectId: string
+
+  // Sessions created during tests (by the RPC or by admin seed) are tracked
+  // here so afterEach can soft-delete them and keep the spec hermetic.
+  const createdSessionIds = new Set<string>()
+
+  test.afterEach(async () => {
+    if (createdSessionIds.size === 0) return
+    try {
+      const { data, error } = await admin
+        .from('quiz_sessions')
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', Array.from(createdSessionIds))
+        .is('deleted_at', null)
+        .select('id')
+      if (error) throw new Error(`afterEach soft-delete sessions: ${error.message}`)
+      if ((data?.length ?? 0) > 0) {
+        console.log(
+          `[start-internal-exam-session afterEach] soft-deleted ${data?.length} session(s)`,
+        )
+      }
+    } finally {
+      createdSessionIds.clear()
+    }
+  })
 
   test.beforeAll(async () => {
     admin = getAdminClient()
@@ -274,11 +300,102 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     }
     expect(first.error).toBeNull()
 
+    // Track the session created by the first redemption so afterEach cleans it up.
+    const newSessionId = (first.data as Array<{ session_id: string }>)?.[0]?.session_id
+    if (newSessionId) createdSessionIds.add(newSessionId)
+
     const second = await attackerClient.rpc('start_internal_exam_session', {
       p_code: code2.code,
     })
     expect(second.error).not.toBeNull()
     expect(second.error?.message ?? '').toMatch(/active_session_exists/i)
     expect(second.data).toBeNull()
+  })
+
+  test('overdue active session is auto-completed and the fresh code starts a new session without error (Vector BV)', async () => {
+    // Seed an ACTIVE internal_exam session for the attacker that is well past
+    // its grace window. The RPC checks (mig 071, line 99-113):
+    //   now() > qs.started_at + ((qs.time_limit_seconds + 30) || ' seconds')::interval
+    // With started_at = now()-2h and time_limit_seconds=600 the check evaluates
+    // to now() > (now()-2h + 630s), i.e. now() > (now()-~110min) — TRUE.
+    // mig 071 also fixed the 42702 column-ambiguity bug that made this branch
+    // unreachable: qs.* qualification prevents Postgres confusing quiz_sessions
+    // columns with the RETURNS TABLE output columns of the same name.
+    const overdueStartedAt = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
+    const { data: oldSessionRow, error: oldSessionErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: attackerUserId,
+        mode: 'internal_exam',
+        subject_id: subjectId,
+        config: { question_ids: [], pass_mark: 75 },
+        total_questions: 1,
+        time_limit_seconds: 600, // 10 min limit — well within the 2h backdated start
+        started_at: overdueStartedAt,
+      })
+      .select('id')
+      .single()
+    if (oldSessionErr || !oldSessionRow) {
+      throw new Error(`BV seed overdue session: ${oldSessionErr?.message}`)
+    }
+    const oldSessionId = oldSessionRow.id
+    createdSessionIds.add(oldSessionId)
+
+    // Non-vacuity: confirm the old session is ACTIVE (ended_at IS NULL) before
+    // we redeem the fresh code. This ensures the subsequent "ended_at IS NOT NULL"
+    // assertion proves auto-completion, not a pre-existing closed session.
+    const { data: preCheck, error: preCheckErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at')
+      .eq('id', oldSessionId)
+      .single()
+    expect(preCheckErr).toBeNull()
+    expect(preCheck?.ended_at).toBeNull()
+
+    // Issue a fresh code for the same student + subject.
+    const freshCode = await seedCode(admin, {
+      studentId: attackerUserId,
+      subjectId,
+      orgId,
+    })
+
+    // Redeem the fresh code as the attacker. The RPC should:
+    //   1. Detect the overdue session via the grace-window SELECT (mig 071 lines 99-110).
+    //   2. Call PERFORM complete_overdue_exam_session(v_old_session_id) (line 112).
+    //   3. Proceed to the active-session guard — which now finds no open session.
+    //   4. Create and return a new session.
+    const { data: redeemData, error: redeemErr } = await attackerClient.rpc(
+      'start_internal_exam_session',
+      { p_code: freshCode.code },
+    )
+
+    // Skip if the fixture lacks questions — the exam_config distribution check
+    // fires before the overdue branch and is a separate concern.
+    if (redeemErr && /insufficient_questions/i.test(redeemErr.message)) {
+      test.skip(
+        true,
+        'insufficient seeded questions for exam_config — fixture limitation; covered by SQL integration tests',
+      )
+      return
+    }
+
+    // No 42702 column-ambiguity error and no active_session_exists error.
+    expect(redeemErr).toBeNull()
+    expect(redeemData).not.toBeNull()
+
+    // The new session id is returned in the first row of the RETURNS TABLE result.
+    const newSessionId = (redeemData as Array<{ session_id: string }>)?.[0]?.session_id
+    expect(newSessionId).toBeTruthy()
+    if (newSessionId) createdSessionIds.add(newSessionId)
+
+    // The OLD session must now have ended_at set — auto-completed by the PERFORM branch.
+    const { data: postCheck, error: postCheckErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at')
+      .eq('id', oldSessionId)
+      .single()
+    expect(postCheckErr).toBeNull()
+    expect(postCheck?.ended_at).not.toBeNull()
   })
 })
