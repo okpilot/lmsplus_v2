@@ -87,8 +87,10 @@ export async function collectUserData(
   ] as const
   const warnings = collectSectionWarnings(queryResults)
 
-  // Phase 2: fetch quiz answers using session IDs from phase 1
-  const sessionIds = sessionsResult.data.map((s) => s.id)
+  // Phase 2: fetch quiz answers using session IDs from phase 1. Skip when the sessions
+  // read failed — we can't resolve answer session IDs from a partial/empty set, and the
+  // explicit error guard also protects .map() if a future refactor returns data: null.
+  const sessionIds = sessionsResult.error ? [] : sessionsResult.data.map((s) => s.id)
   let answers: GdprExportPayload['quiz_answers'] = []
   let answersError: { message: string } | null = null
 
