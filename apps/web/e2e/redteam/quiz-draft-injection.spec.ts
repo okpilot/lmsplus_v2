@@ -242,7 +242,11 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     const { error: seedError } = await adminClient.from('quiz_drafts').insert(seedRows)
     expect(seedError, 'admin seed of 19 drafts must succeed').toBeNull()
 
-    // Non-vacuity guard: confirm pre-burst count is exactly 19
+    // Non-vacuity guard: confirm pre-burst count is exactly 19.
+    // No deleted_at filter here — this query mirrors exactly what the cap trigger
+    // counts (`SELECT count(*) FROM quiz_drafts WHERE student_id = ?`, mig
+    // 20260430000011). If a future migration adds soft-delete to quiz_drafts and
+    // the trigger's count gains a filter, this query must gain the same filter.
     const { data: preBurstRows, error: preBurstError } = await adminClient
       .from('quiz_drafts')
       .select('id')

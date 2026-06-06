@@ -119,6 +119,10 @@ test.describe('Red Team: Forged __consent cookie bypasses the proxy gate (Vector
       // Inject the forged __consent cookie directly into the browser context.
       // This simulates an attacker who copied the cookie value from a previously-
       // consented session (or guessed it from the public versions.ts constants).
+      // Note: addCookies() stores the value verbatim (no percent-encoding), and the
+      // proxy auto-decodes on read — so the raw `v1.0:v1.0` here matches. This is the
+      // mirror of the Case B positive path, which must decodeURIComponent() the value
+      // Playwright reads back from a server-set (percent-encoded) cookie.
       const expectedCookieValue = `${CURRENT_TOS_VERSION}:${CURRENT_PRIVACY_VERSION}`
       await context.addCookies([
         {
