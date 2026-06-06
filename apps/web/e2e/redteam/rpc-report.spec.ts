@@ -53,14 +53,18 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
     subjectId = picked.subjectId
   })
 
-  const seedSession = async (opts: { completed: boolean }): Promise<string> => {
+  const seedSession = async (opts: {
+    completed: boolean
+    questionIds?: string[]
+  }): Promise<string> => {
+    const questionIds = opts.questionIds ?? []
     const row: Record<string, unknown> = {
       organization_id: orgId,
       student_id: victimUserId,
       mode: 'quick_quiz',
       subject_id: subjectId,
-      config: { question_ids: [] },
-      total_questions: 1,
+      config: { question_ids: questionIds },
+      total_questions: questionIds.length > 0 ? questionIds.length : 1,
       started_at: new Date(Date.now() - 60_000).toISOString(),
     }
     if (opts.completed) {
@@ -122,12 +126,78 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
     expect(data).toBeNull()
   })
 
-  test('positive: the owner can read the report for their own completed session', async () => {
+  test('positive boundary: a completed session with no answers returns an empty report', async () => {
     const sessionId = await seedSession({ completed: true })
     const { data, error } = await victimClient.rpc(RPC, { p_session_id: sessionId })
-    // The ownership + completion guard passes; the result is an array (empty is
-    // fine — this session has no answered questions).
+    // The ownership + completion guard passes; with zero answered questions the
+    // RPC returns an empty array — the answer-key boundary case.
     expect(error).toBeNull()
     expect(Array.isArray(data)).toBe(true)
+    expect((data as unknown[]).length).toBe(0)
   })
+
+  test("positive: a completed session with one answer returns that question's correct-option key", async () => {
+    // Derive a real question + its correct option id from the DB — never hardcode
+    // the letter (the correct option varies per question). Prefer the spec's
+    // subject; fall back to any active org question so the test is resilient to
+    // fixture drift. get_report_correct_options derives the key from the question's
+    // options (the option whose `correct: true`), independent of selected_option_id.
+    const baseQuery = () =>
+      admin
+        .from('questions')
+        .select('id, options')
+        .eq('organization_id', orgId)
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .order('id', { ascending: true })
+        .limit(1)
+
+    const subjectScoped = await baseQuery().eq('subject_id', subjectId).maybeSingle()
+    expect(subjectScoped.error).toBeNull()
+    const fallback = subjectScoped.data ? null : await baseQuery().maybeSingle()
+    if (fallback) expect(fallback.error).toBeNull()
+    const question = subjectScoped.data ?? fallback?.data ?? null
+    expect(question).not.toBeNull()
+
+    const questionId = question?.id as string
+    // options is JSONB — narrow before indexing (code-style §5 runtime guard).
+    const options = Array.isArray(question?.options)
+      ? (question?.options as { id?: string; correct?: boolean }[])
+      : []
+    const correctOptionId = options.find((o) => o.correct === true)?.id
+    expect(typeof questionId).toBe('string')
+    expect(typeof correctOptionId).toBe('string')
+
+    // Seed a completed session scoped to that single question, then insert exactly
+    // one answer row. quiz_session_answers is immutable (append-only) — service-role
+    // insert only. selected_option_id satisfies the CHECK ('a'..'d') because option
+    // ids are letters; is_correct is cosmetic here (the RPC derives the key from the
+    // question's options, not the submitted answer).
+    const sessionId = await seedSession({ completed: true, questionIds: [questionId] })
+    const { error: answerErr } = await admin.from('quiz_session_answers').insert({
+      session_id: sessionId,
+      question_id: questionId,
+      selected_option_id: correctOptionId,
+      is_correct: true,
+      response_time_ms: 5000,
+    })
+    expect(answerErr).toBeNull()
+
+    // The guard passes AND the RPC returns the documented (question_id,
+    // correct_option_id) payload — assert the real 2-column contract, not just
+    // error===null / Array.isArray (red-team §7 RPC output-contract).
+    const { data, error } = await victimClient.rpc(RPC, { p_session_id: sessionId })
+    expect(error).toBeNull()
+    expect(Array.isArray(data)).toBe(true)
+    const rows = data as { question_id: string; correct_option_id: string }[]
+    expect(rows.length).toBeGreaterThanOrEqual(1)
+    const row = rows.find((r) => r.question_id === questionId)
+    expect(row).toBeDefined()
+    expect(row?.correct_option_id).toBe(correctOptionId)
+  })
+
+  // Cleanup note: the new answer row is scoped to the session seeded above, which
+  // afterEach soft-deletes (mirrors session-replay.spec.ts — parent soft-delete is
+  // sufficient; the immutable quiz_session_answers row is never hard-deleted and
+  // cannot pollute other specs once its session is soft-deleted).
 })

@@ -396,39 +396,47 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     // asserting ended_at stays null then non-vacuously proves BOTH org filters
     // (stale-session lookup + duplicate-active EXISTS) in start_exam_session.
     const orgASessionStart = new Date(Date.now() - 4_000_000).toISOString()
-    const { data: orgARow, error: seedErr } = await adminClient
-      .from('quiz_sessions')
-      .insert({
-        organization_id: egmontOrgId,
-        student_id: victimUserId,
-        mode: 'mock_exam',
-        subject_id: examSubjectId,
-        config: { question_ids: [], pass_mark: 75 },
-        total_questions: 1,
-        time_limit_seconds: 3600,
-        started_at: orgASessionStart,
-      })
-      .select('id, ended_at')
-      .single()
-    if (seedErr || !orgARow) throw new Error(`BE seed org-A session: ${seedErr?.message}`)
-    const orgASessionId = orgARow.id
 
-    // Prove the org-A session is active (ended_at null) before transfer.
-    expect(orgARow.ended_at).toBeNull()
-
-    // ── Transfer: move student from org-A → org-B ────────────────────────────
-    const { error: transferErr } = await adminClient
-      .from('users')
-      .update({ organization_id: otherOrgId })
-      .eq('id', victimUserId)
-    expect(transferErr).toBeNull()
-
-    // ── Authenticate as victim (now in org-B) and call start_exam_session ────
-    // The RPC re-reads organization_id from users at call time, so v_org_id = org-B.
-    const victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
-
+    // Declared before the try so the finally restore/cleanup always runs even
+    // if the org-A seed-insert or the org transfer throws (issue #768 — without
+    // this the victim is stranded in org-B and downstream specs fail with
+    // 'an exam session is already in progress').
+    let orgASessionId: string | null = null
     let orgBSessionId: string | null = null
     try {
+      const { data: orgARow, error: seedErr } = await adminClient
+        .from('quiz_sessions')
+        .insert({
+          organization_id: egmontOrgId,
+          student_id: victimUserId,
+          mode: 'mock_exam',
+          subject_id: examSubjectId,
+          config: { question_ids: [], pass_mark: 75 },
+          total_questions: 1,
+          time_limit_seconds: 3600,
+          started_at: orgASessionStart,
+        })
+        .select('id, ended_at')
+        .single()
+      if (seedErr || !orgARow) throw new Error(`BE seed org-A session: ${seedErr?.message}`)
+      orgASessionId = orgARow.id
+
+      // Prove the org-A session is active (ended_at null) before transfer.
+      expect(orgARow.ended_at).toBeNull()
+
+      // ── Transfer: move student from org-A → org-B ────────────────────────────
+      const { data: transferred, error: transferErr } = await adminClient
+        .from('users')
+        .update({ organization_id: otherOrgId })
+        .eq('id', victimUserId)
+        .select('id')
+      expect(transferErr).toBeNull()
+      expect(transferred).toHaveLength(1)
+
+      // ── Authenticate as victim (now in org-B) and call start_exam_session ────
+      // The RPC re-reads organization_id from users at call time, so v_org_id = org-B.
+      const victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
+
       const { data, error } = await victimClient.rpc('start_exam_session', {
         p_subject_id: examSubjectId,
       })
@@ -466,25 +474,33 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
       expect(orgAAfter?.ended_at).toBeNull()
     } finally {
       // ── Restore victim's org to egmont (hermiticity §7) ─────────────────
-      const { error: restoreErr } = await adminClient
+      // No throwing expect() here — cleanup must never mask the original test
+      // failure. Verify a row was actually restored via .select('id') + length.
+      const { data: restored, error: restoreErr } = await adminClient
         .from('users')
         .update({ organization_id: egmontOrgId })
         .eq('id', victimUserId)
+        .select('id')
       if (restoreErr) {
         console.error(`[BE cleanup] restore victim org failed: ${restoreErr.message}`)
+      } else if (!restored?.length) {
+        console.error(`[BE cleanup] restore matched 0 rows for victim ${victimUserId}`)
       }
 
-      // Soft-delete the org-A fixture session.
-      const { data: discardedA, error: delAErr } = await adminClient
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', orgASessionId)
-        .is('deleted_at', null)
-        .select('id')
-      if (delAErr) {
-        console.error(`[BE cleanup] org-A session soft-delete failed: ${delAErr.message}`)
-      } else if ((discardedA?.length ?? 0) > 0) {
-        console.log(`[BE cleanup] soft-deleted org-A fixture session ${orgASessionId}`)
+      // Soft-delete the org-A fixture session (orgASessionId may be null if the
+      // seed-insert threw before assignment).
+      if (orgASessionId) {
+        const { data: discardedA, error: delAErr } = await adminClient
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', orgASessionId)
+          .is('deleted_at', null)
+          .select('id')
+        if (delAErr) {
+          console.error(`[BE cleanup] org-A session soft-delete failed: ${delAErr.message}`)
+        } else if ((discardedA?.length ?? 0) > 0) {
+          console.log(`[BE cleanup] soft-deleted org-A fixture session ${orgASessionId}`)
+        }
       }
 
       // Soft-delete the org-B session if one was created.
