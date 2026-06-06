@@ -54,9 +54,9 @@ export async function cleanupTestData(opts: {
   await deleteOrLog('users', admin.from('users').delete().in('id', userIds))
   await deleteOrLog('organizations', admin.from('organizations').delete().eq('id', orgId))
 
-  // Delete auth users
+  // Delete auth users (best-effort, same log-don't-throw policy as the table deletes)
   for (const uid of userIds) {
-    await admin.auth.admin.deleteUser(uid)
+    await deleteOrLog(`auth user ${uid}`, admin.auth.admin.deleteUser(uid))
   }
 }
 

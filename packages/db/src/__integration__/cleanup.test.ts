@@ -250,6 +250,7 @@ describe('cleanupTestData', () => {
 
   it('deletes in FK-safe order and removes each auth user', async () => {
     queueAllDeletesOk()
+    mockDeleteUser.mockResolvedValue({ error: null })
 
     await cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: ['u-1', 'u-2'] })
 
@@ -292,6 +293,18 @@ describe('cleanupTestData', () => {
       cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: [] }),
     ).resolves.toBeUndefined()
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('audit_events delete failed'))
+    consoleSpy.mockRestore()
+  })
+
+  it('logs and continues when an auth user deletion errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    queueAllDeletesOk()
+    mockDeleteUser.mockResolvedValue({ error: { message: 'gotrue boom' } })
+
+    await expect(
+      cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: ['u-1'] }),
+    ).resolves.toBeUndefined()
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('auth user u-1 delete failed'))
     consoleSpy.mockRestore()
   })
 })
