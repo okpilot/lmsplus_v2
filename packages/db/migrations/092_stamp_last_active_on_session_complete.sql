@@ -39,7 +39,10 @@ BEGIN
   -- completion RPCs, so an admin void (auth.uid() = admin) or a future service-role
   -- sweeper (auth.uid() = NULL) is correctly skipped.
   IF auth.uid() = NEW.student_id THEN
-    UPDATE users SET last_active_at = now() WHERE id = NEW.student_id;
+    -- deleted_at IS NULL: the trigger runs as postgres (RLS bypassed), so the
+    -- soft-delete filter is manual, per docs/security.md §9 and the prior stamp
+    -- site in complete_quiz_session.
+    UPDATE users SET last_active_at = now() WHERE id = NEW.student_id AND deleted_at IS NULL;
   END IF;
   RETURN NEW;
 END;
