@@ -109,7 +109,12 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
       p_question_ids: [questionId],
     })
     expect(startErr).toBeNull()
-    const sessionId = sessionData as string
+    // start_quiz_session returns the session uuid as a plain string. Narrow before
+    // use (code-style §5) instead of an unguarded cast.
+    if (typeof sessionData !== 'string') {
+      throw new Error('start_quiz_session did not return a session id string')
+    }
+    const sessionId = sessionData
     expect(sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
 
     // b. Soft-delete the question MID-SESSION (after start, before submit).
