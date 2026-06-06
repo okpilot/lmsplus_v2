@@ -224,8 +224,11 @@ test.describe('Vector — start_quiz_session p_mode whitelist (issue #629)', () 
 
     // The call must fail (random UUIDs won't resolve), but NOT with
     // too_many_questions — that would mean the cap incorrectly rejected a
-    // valid-length array.
+    // valid-length array. Positively assert the downstream guard fired
+    // (invalid_question_ids) so the boundary test proves the call passed the cap
+    // and reached membership validation, not that it failed for an unrelated reason.
     expect(error).not.toBeNull()
+    expect(error?.message ?? '').toContain('invalid_question_ids')
     expect(error?.message ?? '').not.toContain('too_many_questions')
   })
 })
