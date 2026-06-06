@@ -82,10 +82,16 @@ test.describe('Red Team: users Role Forge (privilege escalation via direct UPDAT
       .update({ role: 'admin' })
       .eq('id', studentUserId)
     expect(error).not.toBeNull()
-    // With mig 090 applied, the privilege layer fires first: expect 42501 /
-    // "permission denied for column". The trigger message ("Cannot modify role column")
-    // would only surface if the privilege revoke were missing (regression).
-    expect(error?.message).toMatch(/permission denied for column role|Cannot modify role column/i)
+    // With mig 090 applied, the privilege layer fires first (42501). Postgres reports an
+    // UPDATE touching a column the role lacks (and with no table-wide UPDATE grant) as
+    // "permission denied for table users" — confirmed empirically; it does not always name
+    // the specific column. Either privilege phrasing proves the privilege-layer block; the
+    // trigger message ("Cannot modify role column") would only surface if the revoke
+    // regressed. Accept all three so the test asserts "rejected at the privilege/trigger
+    // layer" without over-fitting Postgres's exact 42501 wording.
+    expect(error?.message).toMatch(
+      /permission denied for (table users|column role)|Cannot modify role column/i,
+    )
 
     // Non-vacuity post-read: confirm the row is unchanged — the trigger fired BEFORE any
     // mutation committed. If escalation worked, this assertion fails. (code-style.md §7)
@@ -118,10 +124,11 @@ test.describe('Red Team: users Role Forge (privilege escalation via direct UPDAT
       .update({ organization_id: fakeOrgId })
       .eq('id', studentUserId)
     expect(error).not.toBeNull()
-    // Mig 090: privilege layer fires first (42501). Trigger message is the fallback
-    // signal if the privilege revoke regresses.
+    // Mig 090: privilege layer fires first (42501) — Postgres surfaces this as
+    // "permission denied for table users" (it does not always name the column). Either
+    // privilege phrasing, or the trigger fallback, proves the forge is blocked.
     expect(error?.message).toMatch(
-      /permission denied for column organization_id|Cannot modify organization_id column/i,
+      /permission denied for (table users|column organization_id)|Cannot modify organization_id column/i,
     )
 
     // Non-vacuity post-read: org_id is unchanged.
