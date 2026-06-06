@@ -220,6 +220,7 @@ describe('trigger: stamp_last_active_on_session_complete', () => {
     expect(storedAt).toBe(new Date(sentinel).getTime())
 
     // Cleanup the seeded session so cleanupTestData doesn't encounter FK issues.
-    await admin.from('quiz_sessions').delete().eq('id', sessionId)
+    const { error: cleanupErr } = await admin.from('quiz_sessions').delete().eq('id', sessionId)
+    if (cleanupErr) console.error('[test cleanup] failed to delete session:', cleanupErr.message)
   })
 })
