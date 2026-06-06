@@ -1,6 +1,20 @@
+/**
+ * A section of the export that could not be read in full. The export is still
+ * returned (so the data subject is never denied access by a transient outage),
+ * but this list makes the incompleteness machine-readable so the caller can warn
+ * the requester or retry. `section` matches a payload key; `message` is user-safe
+ * (the raw DB error is logged server-side only, never surfaced here).
+ */
+export type GdprExportWarning = {
+  section: string
+  message: string
+}
+
 /** GDPR data export payload — Articles 15 (access) and 20 (portability). */
 export type GdprExportPayload = {
   exported_at: string
+  /** Empty when every section exported cleanly; one entry per failed sub-read. */
+  warnings: GdprExportWarning[]
   user: {
     id: string
     email: string
