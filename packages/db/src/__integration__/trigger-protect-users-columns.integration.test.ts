@@ -1,12 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  cleanupTestData,
-  createTestOrg,
-  createTestUser,
-  getAdminClient,
-  getAuthenticatedClient,
-} from './setup'
+import { cleanupTestData } from './cleanup'
+import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 /**
  * Integration tests for trg_protect_users_sensitive_columns (migration 041).

@@ -1,15 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  cleanupReferenceData,
-  cleanupTestData,
-  createTestOrg,
-  createTestUser,
-  getAdminClient,
-  getAuthenticatedClient,
-  seedQuestions,
-  seedReferenceData,
-} from './setup'
+import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { seedQuestions, seedReferenceData } from './seed'
+import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 /**
  * PostgREST + RLS: when a policy like `FOR UPDATE USING (false)` blocks
