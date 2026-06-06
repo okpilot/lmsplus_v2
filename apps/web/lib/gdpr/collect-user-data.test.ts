@@ -79,6 +79,33 @@ function makeChain(rows: unknown, error: unknown) {
 }
 
 /**
+ * Chain where the count (head) call succeeds with a non-zero total but the page (range)
+ * call errors — the fetchAllRows "page error after count success" path. fetchAllRows then
+ * discards partial pages and returns { data: [], error }, so the caller sees an errored read.
+ * NB: `state` is per-`from()`-call; each logical fetchAllRows chain must originate from a fresh
+ * `from()` so the head/page flag doesn't carry over (one count + one page call per invocation).
+ */
+function makePageErrorChain(count: number, pageError: { message: string }) {
+  const state = { head: false }
+  const handler: ProxyHandler<Record<string, unknown>> = {
+    get(target, prop) {
+      if (prop === 'then') {
+        return (resolve: (v: unknown) => void) =>
+          resolve(state.head ? { count, error: null } : { data: null, error: pageError })
+      }
+      if (prop === 'select') {
+        return (_col: unknown, opts?: { head?: boolean; count?: string }) => {
+          state.head = Boolean(opts?.head) // reset per select: count select is head, page select is not
+          return new Proxy(target, handler)
+        }
+      }
+      return () => new Proxy(target, handler)
+    },
+  }
+  return new Proxy({} as Record<string, unknown>, handler)
+}
+
+/**
  * Build a fake Supabase client that returns pre-configured data for each table.
  * Each call to `.from(tableName)` returns a chain that resolves to the supplied value.
  */
@@ -440,6 +467,169 @@ describe('collectUserData', () => {
       expect(result.flagged_questions).toHaveLength(2)
       // No rows dropped → no drop log (guards against a `<` → `>=` regression).
       expect(consoleSpy).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('warnings (machine-readable incompleteness)', () => {
+    it('returns an empty warnings array when every section exports cleanly', async () => {
+      const supabase = buildSupabaseClient()
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.warnings).toEqual([])
+    })
+
+    it('records a warning for each failed sub-read, keyed by section', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const supabase = buildSupabaseClientWithErrors({
+        sessionsError: { message: 'timeout' },
+        flagsError: { message: 'connection lost' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      const sections = result.warnings.map((w) => w.section)
+      expect(sections).toContain('quiz_sessions')
+      expect(sections).toContain('flagged_questions')
+      expect(sections).toHaveLength(2)
+      // Message is the user-safe constant — never the raw DB error string.
+      for (const warning of result.warnings) {
+        expect(warning.message).not.toContain('timeout')
+        expect(warning.message).not.toContain('connection lost')
+        expect(warning.message.length).toBeGreaterThan(0)
+      }
+      consoleSpy.mockRestore()
+    })
+
+    it('records a quiz_answers warning when the phase-2 answers read fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      // Sessions succeed (phase-2 fires), but the answers read errors.
+      const supabase = buildSupabaseClientWithErrors({
+        answersError: { message: 'answers timeout' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.warnings.map((w) => w.section)).toContain('quiz_answers')
+      consoleSpy.mockRestore()
+    })
+
+    it('skips phase-2 and leaves quiz_answers empty when the sessions read fails', async () => {
+      // Sessions errored → fetchAllRows returns { data: [], error }; phase-2 must not run
+      // (and the explicit error guard protects .map if a future refactor returns null data).
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const supabase = buildSupabaseClientWithErrors({
+        sessionsError: { message: 'sessions down' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.quiz_answers).toEqual([])
+      expect(result.warnings.map((w) => w.section)).toContain('quiz_sessions')
+      // sessions failed, so the answers section is not separately warned (phase-2 skipped)
+      expect(result.warnings.map((w) => w.section)).not.toContain('quiz_answers')
+      consoleSpy.mockRestore()
+    })
+
+    it('records a warning when a page fetch fails after the count succeeds', async () => {
+      // fetchAllRows page-error path: count returns a non-zero total, then the page read
+      // errors and fetchAllRows discards partial pages, yielding { data: [], error }. The
+      // export must surface this — a silently truncated legal export is the #668 failure mode.
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const base = buildSupabaseClient()
+      const supabase = {
+        from: (table: string) =>
+          table === 'quiz_sessions'
+            ? makePageErrorChain(5, { message: 'page fetch failed' })
+            : (base as unknown as { from: (t: string) => unknown }).from(table),
+      } as unknown as SupabaseClient<Database>
+
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.quiz_sessions).toHaveLength(0) // partial pages discarded
+      expect(result.warnings.map((w) => w.section)).toContain('quiz_sessions')
+      consoleSpy.mockRestore()
+    })
+
+    it('records exactly one warning per failed section — no duplicates', async () => {
+      // Regression guard: collectSectionWarnings must push exactly one entry per failing
+      // section, not two (e.g. if the loop iterated the same result twice).
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const supabase = buildSupabaseClientWithErrors({
+        responsesError: { message: 'db error' },
+        commentsError: { message: 'db error' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      const failedSections = result.warnings.map((w) => w.section)
+      // Exactly two sections failed — no duplicates.
+      expect(failedSections).toHaveLength(2)
+      expect(new Set(failedSections).size).toBe(2)
+      consoleSpy.mockRestore()
+    })
+
+    it('omits successful sections from warnings even when other sections fail', async () => {
+      // Guards against an unconditional push regression: a section that exported cleanly
+      // must never appear in warnings regardless of how many other sections fail.
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const supabase = buildSupabaseClientWithErrors({
+        sessionsError: { message: 'timeout' },
+        fsrsError: { message: 'timeout' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      const warnedSections = new Set(result.warnings.map((w) => w.section))
+      // Failed sections must be present.
+      expect(warnedSections.has('quiz_sessions')).toBe(true)
+      expect(warnedSections.has('fsrs_cards')).toBe(true)
+      // Successful phase-1 sections must be absent.
+      for (const ok of [
+        'student_responses',
+        'flagged_questions',
+        'question_comments',
+        'user_consents',
+        'audit_events',
+      ]) {
+        expect(warnedSections.has(ok)).toBe(false)
+      }
+      // Phase-2 succeeded (sessions errored, so no sessionIds → no phase-2 call → no answers warning).
+      expect(warnedSections.has('quiz_answers')).toBe(false)
+      consoleSpy.mockRestore()
+    })
+
+    it('produces warnings in section-iteration order when all phase-1 sections fail', async () => {
+      // collectSectionWarnings iterates queryResults in declaration order. The warnings array
+      // must reflect that stable order — downstream consumers (e.g. UI rendering) rely on it.
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const supabase = buildSupabaseClientWithErrors({
+        sessionsError: { message: 'e' },
+        responsesError: { message: 'e' },
+        fsrsError: { message: 'e' },
+        flagsError: { message: 'e' },
+        commentsError: { message: 'e' },
+        consentsError: { message: 'e' },
+        auditError: { message: 'e' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      // All 7 phase-1 sections fail → 7 warnings (no quiz_answers warning because sessions
+      // returned empty data, so phase-2 never fires).
+      expect(result.warnings).toHaveLength(7)
+
+      // Verify stable declaration order (see `queryResults` array in collect-user-data.ts).
+      const expectedOrder = [
+        'quiz_sessions',
+        'student_responses',
+        'fsrs_cards',
+        'flagged_questions',
+        'question_comments',
+        'user_consents',
+        'audit_events',
+      ]
+      expect(result.warnings.map((w) => w.section)).toEqual(expectedOrder)
+
+      // Every warning carries the user-safe message, not any raw error string.
+      for (const warning of result.warnings) {
+        expect(warning.message).not.toBe('e')
+        expect(warning.message.length).toBeGreaterThan(0)
+      }
       consoleSpy.mockRestore()
     })
   })
