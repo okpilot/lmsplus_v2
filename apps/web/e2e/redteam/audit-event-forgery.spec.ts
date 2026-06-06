@@ -16,7 +16,12 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
-import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/seed'
+import {
+  ATTACKER_EMAIL,
+  ATTACKER_PASSWORD,
+  seedRedTeamUsers,
+  USER_CONSENTS_FORGED_VERSION,
+} from './helpers/seed'
 
 test.describe('Red Team: Audit Event Forgery', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -125,6 +130,31 @@ test.describe('Red Team: Audit Event Forgery', () => {
     expect(afterErr).toBeNull()
     expect(after).not.toBeNull()
     expect(after?.id).toBe(targetEventId)
+  })
+
+  test('Vector Y (#384): a student is blocked from directly INSERTing into user_consents, bypassing record_consent', async () => {
+    // RLS policy user_consents_no_direct_insert: FOR INSERT WITH CHECK (false)
+    // (migration 20260327000057_user_consents.sql, line 29)
+    // This rejects every PostgREST INSERT regardless of the caller's user_id,
+    // forcing all consent writes through the record_consent() SECURITY DEFINER RPC.
+    const { error } = await attackerClient.from('user_consents').insert({
+      user_id: attackerUserId,
+      document_type: 'terms_of_service',
+      document_version: USER_CONSENTS_FORGED_VERSION,
+      accepted: true,
+    })
+    // WITH CHECK (false) produces a 42501 permission-denied from PostgREST.
+    expect(error).not.toBeNull()
+    expect(error?.code).toBe('42501')
+
+    // Non-vacuous: confirm no forged row landed via the service-role client.
+    const { data: forged, error: checkErr } = await adminClient
+      .from('user_consents')
+      .select('id')
+      .eq('user_id', attackerUserId)
+      .eq('document_version', USER_CONSENTS_FORGED_VERSION)
+    expect(checkErr).toBeNull()
+    expect(forged?.length ?? -1).toBe(0)
   })
 
   test('AA: a student cannot read another student audit events via actor_id probe', async () => {

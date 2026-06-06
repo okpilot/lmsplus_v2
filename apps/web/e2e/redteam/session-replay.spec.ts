@@ -18,6 +18,7 @@ import {
 
 test.describe('Red Team: Session Replay', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  let attackerUserId: string
   let sessionId: string
   let subjectId: string
   let originalScore: number
@@ -27,7 +28,8 @@ test.describe('Red Team: Session Replay', () => {
   const createdSessionIds = new Set<string>()
 
   test.beforeAll(async () => {
-    const { orgId } = await seedRedTeamUsers()
+    const { orgId, attackerUserId: uid } = await seedRedTeamUsers()
+    attackerUserId = uid
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     // Resolve a real subject_id and fetch question IDs for session creation
@@ -332,5 +334,135 @@ test.describe('Red Team: Session Replay', () => {
       .eq('session_id', sid)
     expect(countErr).toBeNull()
     expect(count).toBe(3)
+  })
+
+  // Vector BH — soft-deleted-user replay (issue #603)
+  // Gate: mig 20260430000012_active_user_gate_batch_submit.sql
+  // The user-not-found gate fires before the cached-results branch, so a
+  // soft-deleted user's still-valid JWT cannot replay a completed session.
+  test('rejects batch_submit_quiz replay when the submitting user has been soft-deleted', async () => {
+    const admin = getAdminClient()
+
+    // Step 1: Start a quick_quiz session as the attacker.
+    const { data: startData, error: startError } = await attackerClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: subjectId,
+      p_topic_id: topicId,
+      p_question_ids: questionIds,
+    })
+    expect(startError).toBeNull()
+    expect(startData).toBeTruthy()
+    const bhSessionId = startData as string
+    createdSessionIds.add(bhSessionId)
+
+    // Step 2: Complete the session via batch_submit so it has ended_at + score.
+    const answers = await buildAnswers(false)
+    const { data: completeData, error: completeError } = await attackerClient.rpc(
+      'batch_submit_quiz',
+      { p_session_id: bhSessionId, p_answers: answers },
+    )
+    expect(completeError).toBeNull()
+
+    // Non-vacuity (§7): confirm the session is genuinely completed before soft-deleting.
+    // A vacuous deleted-user test that passes only because the session was never ended
+    // would not exercise the user-gate-before-cached-results ordering.
+    const { data: sessionRow, error: sessionRowErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at, score_percentage')
+      .eq('id', bhSessionId)
+      .single()
+    expect(sessionRowErr).toBeNull()
+    expect(sessionRow?.ended_at).not.toBeNull()
+    const preReplayEndedAt = sessionRow?.ended_at as string
+    const completedScore = Number(sessionRow?.score_percentage ?? -1)
+    expect(completedScore).toBeGreaterThanOrEqual(0)
+    expect(completeData).not.toBeNull()
+
+    // Capture the pre-replay answer count so we can assert it is unchanged after
+    // the rejected replay (a regression that inserted answers before raising would
+    // silently pass without this check — §7 non-vacuous state-flip assertion).
+    const { count: preReplayAnswerCount, error: preReplayCountErr } = await admin
+      .from('quiz_session_answers')
+      .select('id', { count: 'exact', head: true })
+      .eq('session_id', bhSessionId)
+    expect(preReplayCountErr).toBeNull()
+    expect(typeof preReplayAnswerCount).toBe('number')
+
+    // Step 3: Admin soft-deletes the attacker user.
+    // Use a finally block so the user is always restored — even if an assertion
+    // mid-test fails (noUnsafeFinally: assertions happen OUTSIDE the finally).
+    let restoreError: string | null = null
+    let replayError: { message: string } | null = null
+    let replayData: unknown
+
+    try {
+      const { data: delData, error: delErr } = await admin
+        .from('users')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', attackerUserId)
+        .is('deleted_at', null)
+        .select('id')
+      expect(delErr).toBeNull()
+      // Non-vacuity (§7): assert exactly 1 row was soft-deleted so the gate
+      // below genuinely exercises the deleted-user path.
+      expect(delData?.length).toBe(1)
+
+      // Step 4: Replay batch_submit_quiz with the attacker's still-valid JWT.
+      // p_answers: [] — the user-not-found gate fires before the empty-array
+      // check, so the error is 'user not found or inactive', not the array error.
+      const result = await attackerClient.rpc('batch_submit_quiz', {
+        p_session_id: bhSessionId,
+        p_answers: [],
+      })
+      replayError = result.error
+      replayData = result.data
+    } finally {
+      // Restore the attacker user so downstream specs are not affected.
+      const { data: restoreData, error: restoreErr } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', attackerUserId)
+        .select('id')
+      if (restoreErr) {
+        restoreError = restoreErr.message
+      } else if ((restoreData?.length ?? 0) === 0) {
+        restoreError = 'restore matched no rows'
+      }
+    }
+
+    // Step 5: Assert the defense fired correctly (assertions outside finally).
+    expect(restoreError).toBeNull()
+    expect(replayError).not.toBeNull()
+    expect(replayError?.message).toMatch(/user not found or inactive/i)
+
+    // No leaked answer data — the RPC must not return correct_option_id or
+    // explanation_text when the user gate fires.
+    const payload = replayData as Record<string, unknown> | null
+    expect(payload).toBeNull()
+
+    // Step 6: Re-read the session and answer count after the rejected replay to
+    // confirm the completed row is UNCHANGED (§7 non-vacuous state-flip check).
+    // A regression that mutates ended_at / score_percentage or inserts extra
+    // quiz_session_answers before raising would still pass the error assertion
+    // above but will fail here.
+    const { data: postReplayRow, error: postReplayRowErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at, score_percentage')
+      .eq('id', bhSessionId)
+      .single()
+    expect(postReplayRowErr).toBeNull()
+    // ended_at must still be non-null and unchanged after the rejected replay
+    expect(postReplayRow?.ended_at).not.toBeNull()
+    expect(postReplayRow?.ended_at).toBe(preReplayEndedAt)
+    // score_percentage must be unchanged after the rejected replay
+    expect(Number(postReplayRow?.score_percentage ?? -1)).toBe(completedScore)
+
+    // quiz_session_answers count must be unchanged after the rejected replay
+    const { count: postReplayAnswerCount, error: postReplayCountErr } = await admin
+      .from('quiz_session_answers')
+      .select('id', { count: 'exact', head: true })
+      .eq('session_id', bhSessionId)
+    expect(postReplayCountErr).toBeNull()
+    expect(postReplayAnswerCount).toBe(preReplayAnswerCount)
   })
 })
