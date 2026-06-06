@@ -20,6 +20,9 @@ export const E2E_REDTEAM_COMMENT_IDOR_MARKER = '[E2E_REDTEAM] comment-idor fixtu
 export const USER_CONSENTS_SEED_VERSION = 'redteam-x-1.0'
 export const USER_CONSENTS_SELF_VERSION = 'redteam-x-self'
 export const USER_CONSENTS_FORGED_VERSION = 'redteam-y-forged'
+// user_consents idempotency spec (#386): distinct version so the afterAll cleanup
+// can sweep it along with the other fixture rows.
+export const USER_CONSENTS_IDEMPOTENCY_VERSION = 'redteam-idem-1.0'
 
 const OTHER_ORG_SLUG = 'redteam-other-org'
 
