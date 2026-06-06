@@ -373,9 +373,20 @@ test.describe('Red Team: Session Replay', () => {
       .single()
     expect(sessionRowErr).toBeNull()
     expect(sessionRow?.ended_at).not.toBeNull()
+    const preReplayEndedAt = sessionRow?.ended_at as string
     const completedScore = Number(sessionRow?.score_percentage ?? -1)
     expect(completedScore).toBeGreaterThanOrEqual(0)
     expect(completeData).not.toBeNull()
+
+    // Capture the pre-replay answer count so we can assert it is unchanged after
+    // the rejected replay (a regression that inserted answers before raising would
+    // silently pass without this check — §7 non-vacuous state-flip assertion).
+    const { count: preReplayAnswerCount, error: preReplayCountErr } = await admin
+      .from('quiz_session_answers')
+      .select('id', { count: 'exact', head: true })
+      .eq('session_id', bhSessionId)
+    expect(preReplayCountErr).toBeNull()
+    expect(typeof preReplayAnswerCount).toBe('number')
 
     // Step 3: Admin soft-deletes the attacker user.
     // Use a finally block so the user is always restored — even if an assertion
@@ -428,5 +439,30 @@ test.describe('Red Team: Session Replay', () => {
     // explanation_text when the user gate fires.
     const payload = replayData as Record<string, unknown> | null
     expect(payload).toBeNull()
+
+    // Step 6: Re-read the session and answer count after the rejected replay to
+    // confirm the completed row is UNCHANGED (§7 non-vacuous state-flip check).
+    // A regression that mutates ended_at / score_percentage or inserts extra
+    // quiz_session_answers before raising would still pass the error assertion
+    // above but will fail here.
+    const { data: postReplayRow, error: postReplayRowErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at, score_percentage')
+      .eq('id', bhSessionId)
+      .single()
+    expect(postReplayRowErr).toBeNull()
+    // ended_at must still be non-null and unchanged after the rejected replay
+    expect(postReplayRow?.ended_at).not.toBeNull()
+    expect(postReplayRow?.ended_at).toBe(preReplayEndedAt)
+    // score_percentage must be unchanged after the rejected replay
+    expect(Number(postReplayRow?.score_percentage ?? -1)).toBe(completedScore)
+
+    // quiz_session_answers count must be unchanged after the rejected replay
+    const { count: postReplayAnswerCount, error: postReplayCountErr } = await admin
+      .from('quiz_session_answers')
+      .select('id', { count: 'exact', head: true })
+      .eq('session_id', bhSessionId)
+    expect(postReplayCountErr).toBeNull()
+    expect(postReplayAnswerCount).toBe(preReplayAnswerCount)
   })
 })

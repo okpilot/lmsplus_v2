@@ -38,7 +38,7 @@ const unauthClient = createClient(SUPABASE_URL, ANON_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-type CodeRow = { id: string; code: string }
+type CodeRow = { id: string; code: string; syntheticSessionId?: string }
 
 async function seedCode(
   admin: ReturnType<typeof getAdminClient>,
@@ -70,6 +70,7 @@ async function seedCode(
     expires_at: expiresAt,
     organization_id: opts.orgId,
   }
+  let syntheticSessionId: string | undefined
   if (opts.consumedAt) {
     insertRow.consumed_at = opts.consumedAt
     // CHECK constraint consumed_pair_consistency requires consumed_session_id
@@ -95,6 +96,8 @@ async function seedCode(
         throw new Error(`seedCode placeholder session: ${sessionErr?.message}`)
       }
       sessionId = sessionRow.id
+      // Surface the synthetic session id so callers can register it for cleanup.
+      syntheticSessionId = sessionId
     }
     insertRow.consumed_session_id = sessionId
   }
@@ -108,7 +111,7 @@ async function seedCode(
     .select('id, code')
     .single()
   if (error || !data) throw new Error(`seedCode: ${error?.message}`)
-  return data
+  return { ...data, syntheticSessionId }
 }
 
 test.describe('Red Team: start_internal_exam_session RPC', () => {
@@ -259,6 +262,9 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
       orgId,
       consumedAt: new Date().toISOString(),
     })
+    // seedCode creates a synthetic quiz_session to satisfy the consumed_pair_consistency
+    // CHECK constraint; register it so afterEach soft-deletes it.
+    if (code.syntheticSessionId) createdSessionIds.add(code.syntheticSessionId)
 
     const { data, error } = await victimClient.rpc('start_internal_exam_session', {
       p_code: code.code,
@@ -388,6 +394,22 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     const newSessionId = (redeemData as Array<{ session_id: string }>)?.[0]?.session_id
     expect(newSessionId).toBeTruthy()
     if (newSessionId) createdSessionIds.add(newSessionId)
+
+    // The RPC must have created a DISTINCT new session, not returned the
+    // auto-completed overdue row. If the RPC regressed to completing the old
+    // session and returning it, newSessionId === oldSessionId and this fails.
+    expect(newSessionId).not.toBe(oldSessionId)
+
+    // The new session must be fresh/active (ended_at IS NULL). If the RPC
+    // returned the just-completed overdue session instead of creating a new one,
+    // ended_at would be set and this assertion would catch the regression.
+    const { data: newSessionCheck, error: newSessionCheckErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at')
+      .eq('id', newSessionId)
+      .single()
+    expect(newSessionCheckErr).toBeNull()
+    expect(newSessionCheck?.ended_at).toBeNull()
 
     // The OLD session must now have ended_at set — auto-completed by the PERFORM branch.
     const { data: postCheck, error: postCheckErr } = await admin

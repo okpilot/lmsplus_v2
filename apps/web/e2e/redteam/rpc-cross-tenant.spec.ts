@@ -517,7 +517,7 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     const { error: seedErr } = await adminClient
       .from('flagged_questions')
       .upsert(
-        { student_id: egmontVictimUserId, question_id: victimQuestionId },
+        { student_id: egmontVictimUserId, question_id: victimQuestionId, deleted_at: null },
         { onConflict: 'student_id,question_id', ignoreDuplicates: false },
       )
     expect(seedErr).toBeNull()
@@ -528,6 +528,7 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
       .select('question_id')
       .eq('student_id', egmontVictimUserId)
       .eq('question_id', victimQuestionId)
+      .is('deleted_at', null)
     expect(adminErr).toBeNull()
     expect(adminRows?.length ?? 0).toBeGreaterThan(0)
 

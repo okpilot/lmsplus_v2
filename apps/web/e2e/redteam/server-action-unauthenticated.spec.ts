@@ -406,11 +406,10 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
         .update({ deleted_at: null })
         .eq('id', victimUserId)
         .select('id')
-      if (restoreErr) {
-        console.error(`[BJ cleanup] failed to restore victim user: ${restoreErr.message}`)
-      } else if ((restored?.length ?? 0) > 0) {
-        console.log(`[BJ cleanup] restored victim user ${victimUserId}`)
-      }
+      if (restoreErr) throw new Error(`[BJ cleanup] restore victim failed: ${restoreErr.message}`)
+      if ((restored?.length ?? 0) === 0)
+        throw new Error('[BJ cleanup] restore victim affected 0 rows')
+      console.log(`[BJ cleanup] restored victim user ${victimUserId}`)
       victimSoftDeleted = false
     })
 

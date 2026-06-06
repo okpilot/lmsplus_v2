@@ -89,7 +89,10 @@ function assertSecurityHeaders(
   } else {
     // Minimal hardened CSP set by proxy.ts (redirects + 4xx/5xx).
     // No scripts execute on a 3xx/4xx/5xx, so default-src 'none' is correct.
-    expect(csp).toContain("default-src 'none'")
+    // Exact equality — catches regressions that add 'unsafe-inline' or similar.
+    expect(csp, `CSP on ${path} must be exactly the reduced proxy.ts value`).toBe(
+      "default-src 'none'; frame-ancestors 'none'",
+    )
   }
 }
 
@@ -142,9 +145,12 @@ test.describe('Red Team: OWASP A02 — security response headers', () => {
       await page.goto('/')
       await page.getByLabel('Email address').fill(ATTACKER_EMAIL)
       await page.getByLabel('Password', { exact: true }).fill(ATTACKER_PASSWORD)
-      await page.getByRole('button', { name: 'Sign in' }).click()
-      // Wait until the login completes and the proxy fires (consent or dashboard).
-      await page.waitForURL(/\/(app\/dashboard|consent|$)/, { timeout: 15_000 })
+      // Race-safe: resolve only on a real post-login path (consent or dashboard).
+      // Removing `|$` prevents the wait resolving on the pre-submit `/` itself.
+      await Promise.all([
+        page.waitForURL(/\/(app\/dashboard|consent)(?:\?.*)?$/, { timeout: 15_000 }),
+        page.getByRole('button', { name: 'Sign in' }).click(),
+      ])
 
       // Inject the consent cookie so the proxy's consent gate passes and the
       // request reaches the admin-role check. The cookie value mirrors what

@@ -221,12 +221,18 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     // Deterministic pre-condition: soft-delete any victim drafts left over from a
     // prior test whose afterEach failed, so the 19-row seed below starts clean and
     // the pre-burst count is exactly 19 (not 20+ from inherited state).
-    const { error: preCleanError } = await adminClient
+    const { data: preDiscarded, error: preCleanError } = await adminClient
       .from('quiz_drafts')
       .update({ deleted_at: new Date().toISOString() })
       .eq('student_id', victimUserId)
       .is('deleted_at', null)
+      .select('id')
     expect(preCleanError, 'pre-seed cleanup of stale victim drafts must succeed').toBeNull()
+    if ((preDiscarded?.length ?? 0) > 0) {
+      console.log(
+        `[quiz-draft-injection] pre-seed cleanup: soft-deleted ${preDiscarded?.length} stale draft(s)`,
+      )
+    }
 
     // --- Step 1: Seed exactly 19 drafts as the victim via the admin client ---
     const seedRows = Array.from({ length: 19 }, () => ({
