@@ -1,14 +1,27 @@
--- Migration 085: record_consent — ON CONFLICT idempotency for accepted=true rows (#386)
+-- Migration 085: record_consent — idempotency guard for accepted=true rows (#386)
 --
 -- A retried consent submission (network retry, double-click, tab restore) currently
 -- inserts a duplicate accepted=true row into user_consents, polluting the GDPR audit
--- trail with phantom re-consent events. The partial unique index
--- idx_user_consents_lookup (user_id, document_type, document_version) WHERE accepted=true
--- already exists (mig 057) — wire it to ON CONFLICT DO NOTHING so repeat calls for
--- the same (user, type, version, accepted=true) triple are silent no-ops.
+-- trail with phantom re-consent events.
 --
--- Only the INSERT statement changes; all guards (auth.uid() check, document_type
--- whitelist, soft-deleted-user check) and all function attributes are preserved verbatim.
+-- The existing idx_user_consents_lookup index (mig 057) is a NON-UNIQUE partial index,
+-- so it cannot back an ON CONFLICT inference target. Converting it to UNIQUE would first
+-- require hard-deleting any pre-existing duplicate accepted rows from a GDPR consent
+-- table (a sensitive, hard-to-reverse data change — and the conversion would fail on any
+-- DB that already holds the very duplicates this issue describes). Instead, guard the
+-- INSERT with an EXISTS pre-check — the same idempotency idiom check_consent_status
+-- already uses — so a repeated accepted=true call for the same (user, type, version)
+-- triple is a silent no-op, with no schema change and no data deletion. Rejections
+-- (accepted=false) remain unconditional inserts: each rejection is a distinct event.
+--
+-- This closes the reported sequential-retry scenario (TOS succeeds, privacy fails, user
+-- retries). A truly-concurrent pair of identical calls could still both pass the EXISTS
+-- check and insert two rows — but that is no worse than today's behaviour and is not the
+-- reported failure mode; a unique index (with the dedup hazard above) would be required
+-- to close that race, which this migration deliberately does not take on.
+--
+-- All guards (auth.uid() check, document_type whitelist, soft-deleted-user check) and
+-- all function attributes are preserved verbatim.
 
 CREATE OR REPLACE FUNCTION record_consent(
   p_document_type    TEXT,
@@ -39,9 +52,20 @@ BEGIN
     RAISE EXCEPTION 'User not found';
   END IF;
 
+  -- Idempotency (#386): a repeated acceptance of the same (type, version) is a no-op,
+  -- so a retried submission does not append a duplicate accepted=true audit row.
+  IF p_accepted AND EXISTS (
+    SELECT 1 FROM user_consents
+    WHERE user_id = _uid
+      AND document_type = p_document_type
+      AND document_version = p_document_version
+      AND accepted = true
+  ) THEN
+    RETURN;
+  END IF;
+
   INSERT INTO user_consents (user_id, document_type, document_version, accepted, ip_address, user_agent)
-  VALUES (_uid, p_document_type, p_document_version, p_accepted, p_ip_address, p_user_agent)
-  ON CONFLICT (user_id, document_type, document_version) WHERE accepted = true DO NOTHING;
+  VALUES (_uid, p_document_type, p_document_version, p_accepted, p_ip_address, p_user_agent);
 END;
 $$;
 

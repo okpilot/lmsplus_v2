@@ -668,7 +668,7 @@ verb_noun pattern:
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
   get_student_profile_stats  ← read, student: completed-session count + average score (single-row COUNT + AVG over own non-deleted, ended, non-null-score quiz_sessions); replaces the client-side count/average that truncated at the PostgREST 1000-row cap (#668 P2, profile.ts)
-  record_consent             ← write, GDPR: inserts one consent row for the caller; idempotent via ON CONFLICT (user_id, document_type, document_version) WHERE accepted = true DO NOTHING (mig 085, #386)
+  record_consent             ← write, GDPR: inserts one consent row for the caller; idempotent for accepted=true via an EXISTS pre-check on (user_id, document_type, document_version) (mig 085, #386)
   check_consent_status       ← read, GDPR: returns (has_tos, has_privacy) boolean flags for specified document versions
 ```
 
@@ -1888,7 +1888,7 @@ Records a single consent decision (TOS acceptance, privacy policy acceptance). C
 
 **Returns:** void. Raises EXCEPTION on auth failure, invalid document_type, or user not found.
 
-**Idempotency (mig 085, #386):** The INSERT is now `ON CONFLICT (user_id, document_type, document_version) WHERE accepted = true DO NOTHING`. A duplicate acceptance of the same document version (e.g., on double-submit or network retry) is silently ignored rather than raising a unique-violation error. Rejections (`accepted = false`) are still inserted unconditionally — only accepted rows are deduplicated via the partial unique index.
+**Idempotency (mig 085, #386):** Before inserting an acceptance, the RPC runs an `EXISTS` pre-check for an existing `accepted = true` row with the same `(user_id, document_type, document_version)` and returns early (no-op) if one is found — the same idiom `check_consent_status` uses. A retried acceptance (double-submit, network retry, tab restore) therefore does not append a duplicate audit row. Rejections (`accepted = false`) are still inserted unconditionally — each rejection is a distinct event. An `ON CONFLICT` target was not used because `idx_user_consents_lookup` is a non-unique partial index; making it unique would require hard-deleting pre-existing duplicates from a GDPR table, so the EXISTS guard is preferred. A truly-concurrent pair of identical calls is not closed by this guard (would need the unique index) — this is no worse than prior behaviour and not the reported failure mode.
 
 ```sql
 CREATE FUNCTION record_consent(
