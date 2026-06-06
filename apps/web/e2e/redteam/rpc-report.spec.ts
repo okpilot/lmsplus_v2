@@ -201,7 +201,10 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
     expect(error).toBeNull()
     expect(Array.isArray(data)).toBe(true)
     const rows = data as { question_id: string; correct_option_id: string }[]
-    expect(rows.length).toBeGreaterThanOrEqual(1)
+    // Exactly one answered question was seeded, and the RPC is DISTINCT ON
+    // (question_id), so the report must return exactly one row — an exact
+    // assertion catches a duplicate/extra-row regression that >= 1 would mask.
+    expect(rows).toHaveLength(1)
     const row = rows.find((r) => r.question_id === questionId)
     expect(row).toBeDefined()
     expect(row?.correct_option_id).toBe(correctOptionId)

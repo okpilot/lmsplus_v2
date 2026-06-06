@@ -178,6 +178,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
       }>
       total_questions: number
       answered_count: number
+      passed: boolean | null
     }
     if (!result || typeof result !== 'object') {
       throw new Error('batch_submit_quiz returned an invalid result structure')
@@ -198,6 +199,8 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
     // Session-level tallies reflect the single answered question.
     expect(result.total_questions).toBe(1)
     expect(result.answered_count).toBe(1)
+    // quick_quiz (study mode) never sets a pass mark — passed stays NULL.
+    expect(result.passed).toBeNull()
   })
 
   it('returns the correct-option key even when a wrong answer is submitted for a soft-deleted question', async () => {
@@ -250,6 +253,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
 
     const result = data as unknown as {
       results: Array<{ question_id: string; is_correct: boolean; correct_option_id: string }>
+      passed: boolean | null
     }
     if (!result || typeof result !== 'object') {
       throw new Error('batch_submit_quiz returned an invalid result structure')
@@ -264,5 +268,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
     expect(scored.question_id).toBe(questionIdWrong)
     expect(scored.is_correct).toBe(false)
     expect(scored.correct_option_id).toBe(correctOption.id)
+    // quick_quiz (study mode) never sets a pass mark — passed stays NULL.
+    expect(result.passed).toBeNull()
   })
 })
