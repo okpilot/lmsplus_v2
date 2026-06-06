@@ -664,6 +664,22 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 **Implementation**: Round-2 fix commits `e3a7a0b` + `7082d77` + `787b5f0` (PR #590, merged 2026-04-30 → `1eeeda6`). New helper `restoreSeededQuestionsState()` in `apps/web/e2e/helpers/supabase.ts`. Marker constant `E2E_ADMIN_Q_MARKER` exported from same module. 7 unit tests for the helper.
 
+### Decision 39: GDPR export sub-read failure → machine-readable `warnings` field (not silent empty, not hard-fail) (2026-06-06)
+
+**Date**: 2026-06-06
+
+**Context**: Issue #684 (spun out of #668/#681). `collectUserData()` fetches each export section independently. When a sub-read fails, `fetchAllRows` discards partial pages and returns `{ data: [], error }`, so the section comes back empty. The prior behaviour logged the failure server-side and returned the export anyway. For a **legal** GDPR data-subject export this is risky: a transient outage could hand the requester an export that *looks* whole while silently missing a section — the server log is the only signal.
+
+**Decision**: Add a machine-readable `warnings: GdprExportWarning[]` field to `GdprExportPayload`. Each failed sub-read appends `{ section, message }` (section = payload key; message = a fixed user-safe string — the raw DB error is logged server-side only, never surfaced to the data subject per `docs/security.md` error-sanitisation). The export is still **returned** rather than hard-failing, so a transient outage never denies the data subject their right of access (Art. 15); the warnings make any incompleteness explicit so the caller/UI can warn or retry.
+
+- Rejected **hard-fail-and-retry**: a single section outage would block the entire export, denying access for a transient cause.
+- Rejected **keep-as-is (empty + log only)**: incompleteness was invisible to the requester — unacceptable for a legal export.
+- The user record itself remains a **hard fail** (`throw 'User not found'`) — without identity the export is meaningless.
+
+**Rationale**: Preserves the right of access while making partial failure auditable and actionable, at app-layer cost only (no migration). Empty array when every section exports cleanly.
+
+**Implementation**: `GdprExportWarning` type + `warnings` field in `apps/web/lib/gdpr/types.ts`; `collectSectionWarnings()` helper in `collect-user-data.ts`; warnings asserted in `collect-user-data.test.ts` (incl. the mandatory `fetchAllRows` page-error-after-count-success path). Both Server Action callers (`exportMyData`, `exportStudentData`) pass the payload — and its `warnings` — through unchanged.
+
 ---
 
-*Last updated: 2026-04-30 — Decision 38: E2E Spec Hermiticity rule promotion (count=2)*
+*Last updated: 2026-06-06 — Decision 39: GDPR export `warnings` field (#684)*

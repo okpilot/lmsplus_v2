@@ -1382,12 +1382,11 @@ export type Database = {
           p_sort?: string
         }
         Returns: {
-          answered_count: number
           correct_count: number
           ended_at: string
           id: string
           mode: string
-          score_percentage: number
+          score_percentage: number | null
           started_at: string
           subject_id: string
           subject_name: string

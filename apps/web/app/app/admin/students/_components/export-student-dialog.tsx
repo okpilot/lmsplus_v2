@@ -44,7 +44,15 @@ export function ExportStudentDialog({ student, open, onOpenChange }: Readonly<Pr
           `student-export-${safePrefix}-${new Date().toISOString().slice(0, 10)}.json`,
         )
 
-        toast.success('Student data exported')
+        // Download still proceeds on a partial failure, but flag incompleteness rather
+        // than reporting plain success so the admin knows to retry before relying on it.
+        if (result.data.warnings.length > 0) {
+          toast.warning(
+            'Export downloaded, but some sections could not be loaded and may be incomplete. Please try again.',
+          )
+        } else {
+          toast.success('Student data exported')
+        }
         onOpenChange(false)
       } catch {
         toast.error('Failed to export student data')

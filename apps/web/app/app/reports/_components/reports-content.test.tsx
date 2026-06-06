@@ -30,7 +30,6 @@ function makeSession(id: string): SessionReport {
     mode: 'practice',
     subjectName: 'Meteorology',
     totalQuestions: 20,
-    answeredCount: 20,
     correctCount: 15,
     scorePercentage: 75,
     startedAt: '2026-01-01T10:00:00Z',

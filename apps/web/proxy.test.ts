@@ -68,6 +68,9 @@ function buildChain(returnValue: unknown) {
 describe('proxy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset the shared mock's headers each test so a header set by one test can never
+    // leak into another (e.g. if a proxy() call throws before a try/finally cleanup runs).
+    MOCK_SESSION_RESPONSE.headers = new Headers()
   })
 
   it('redirects unauthenticated requests for /app/dashboard to /', async () => {
@@ -239,6 +242,62 @@ describe('proxy', () => {
         'connection reset',
       )
     } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
+  it('preserves anti-cache headers on the login redirect', async () => {
+    // A token refresh that ends in a redirect carries a fresh Set-Cookie; the
+    // anti-cache headers must travel with it so a CDN cannot cache and replay it.
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    MOCK_SESSION_RESPONSE.headers.set(
+      'cache-control',
+      'private, no-cache, no-store, must-revalidate, max-age=0',
+    )
+    MOCK_SESSION_RESPONSE.headers.set('expires', '0')
+    MOCK_SESSION_RESPONSE.headers.set('pragma', 'no-cache')
+    try {
+      const response = await proxy(makeRequest('/app/dashboard'))
+
+      expect(response.status).toBe(307)
+      expect(response.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, must-revalidate, max-age=0',
+      )
+      expect(response.headers.get('expires')).toBe('0')
+      expect(response.headers.get('pragma')).toBe('no-cache')
+    } finally {
+      MOCK_SESSION_RESPONSE.headers.delete('cache-control')
+      MOCK_SESSION_RESPONSE.headers.delete('expires')
+      MOCK_SESSION_RESPONSE.headers.delete('pragma')
+    }
+  })
+
+  it('preserves anti-cache headers on the forbidden response', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
+    MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
+    try {
+      const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+
+      expect(response.status).toBe(403)
+      expect(response.headers.get('cache-control')).toBe('private, no-store')
+    } finally {
+      MOCK_SESSION_RESPONSE.headers.delete('cache-control')
+    }
+  })
+
+  it('preserves anti-cache headers on the service-unavailable response', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection reset' } }))
+    MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
+    try {
+      const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+
+      expect(response.status).toBe(503)
+      expect(response.headers.get('cache-control')).toBe('private, no-store')
+    } finally {
+      MOCK_SESSION_RESPONSE.headers.delete('cache-control')
       consoleSpy.mockRestore()
     }
   })

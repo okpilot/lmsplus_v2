@@ -2072,9 +2072,9 @@ Returns paginated session reports for the authenticated student with subject nam
 
 **Filters:** `ended_at IS NOT NULL`, `deleted_at IS NULL`, `student_id = auth.uid()`.
 
-**Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, answered_count BIGINT, total_count BIGINT)`
+**Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC NULL, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, total_count BIGINT)` — `score_percentage` is nullable (NULL for sessions with no scored result); consumers must handle null (the TS `RpcRow`/`SessionReport` type it as `number | null`).
 
-**Migration:** `20260410000010_get_session_reports_rpc.sql`
+**Migration:** `20260410000010_get_session_reports_rpc.sql` (created); `20260606000007_get_session_reports_drop_unused_answered_count.sql` (migration 091 — removed unused `answered_count` correlated subquery, #471)
 
 ---
 
@@ -2311,4 +2311,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-06 (migration 092: trg_stamp_last_active_on_session_complete trigger on quiz_sessions.ended_at NULL→NOT NULL transition, centralizes activity stamp across all student-completion paths, fixes #532; batch_submit_quiz / complete_empty_exam_session / complete_overdue_exam_session / complete_quiz_session RPC descriptions updated to reflect trigger-based stamp) | Previous: 2026-06-06 (migrations 085–090) | Companion: docs/security.md*
+*Last updated: 2026-06-06 (migration 092: trg_stamp_last_active_on_session_complete trigger on quiz_sessions.ended_at NULL→NOT NULL transition, centralizes activity stamp across all student-completion paths, fixes #532; batch_submit_quiz / complete_empty_exam_session / complete_overdue_exam_session / complete_quiz_session RPC descriptions updated to reflect trigger-based stamp) | Previous: 2026-06-06 (migration 091: get_session_reports drops unused answered_count correlated subquery — #471; migrations 085–090) | Companion: docs/security.md*

@@ -4,16 +4,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockExportStudentData, mockToastSuccess, mockToastError } = vi.hoisted(() => ({
-  mockExportStudentData: vi.fn(),
-  mockToastSuccess: vi.fn(),
-  mockToastError: vi.fn(),
-}))
+const { mockExportStudentData, mockToastSuccess, mockToastError, mockToastWarning } = vi.hoisted(
+  () => ({
+    mockExportStudentData: vi.fn(),
+    mockToastSuccess: vi.fn(),
+    mockToastError: vi.fn(),
+    mockToastWarning: vi.fn(),
+  }),
+)
 
 vi.mock('../actions/export-student-data', () => ({
   exportStudentData: mockExportStudentData,
 }))
-vi.mock('sonner', () => ({ toast: { success: mockToastSuccess, error: mockToastError } }))
+vi.mock('sonner', () => ({
+  toast: { success: mockToastSuccess, error: mockToastError, warning: mockToastWarning },
+}))
 
 // jsdom does not implement URL.createObjectURL / URL.revokeObjectURL
 vi.stubGlobal('URL', {
@@ -41,6 +46,7 @@ const MOCK_STUDENT: StudentRow = {
 
 const MOCK_PAYLOAD = {
   exported_at: '2026-03-27T10:00:00.000Z',
+  warnings: [],
   user: {
     id: MOCK_STUDENT.id,
     email: MOCK_STUDENT.email,
@@ -106,6 +112,27 @@ describe('ExportStudentDialog', () => {
         expect(mockToastSuccess).toHaveBeenCalledWith('Student data exported')
         expect(mockOnOpenChange).toHaveBeenCalledWith(false)
       })
+    })
+
+    it('shows a warning toast (not success) but still closes when the export is incomplete', async () => {
+      mockExportStudentData.mockResolvedValue({
+        success: true,
+        data: { ...MOCK_PAYLOAD, warnings: [{ section: 'audit_events', message: 'incomplete' }] },
+      })
+      const mockOnOpenChange = vi.fn()
+
+      const user = userEvent.setup()
+      render(
+        <ExportStudentDialog student={MOCK_STUDENT} open={true} onOpenChange={mockOnOpenChange} />,
+      )
+
+      await user.click(screen.getByRole('button', { name: /^export$/i }))
+
+      await waitFor(() => {
+        expect(mockToastWarning).toHaveBeenCalledWith(expect.stringContaining('incomplete'))
+        expect(mockOnOpenChange).toHaveBeenCalledWith(false)
+      })
+      expect(mockToastSuccess).not.toHaveBeenCalled()
     })
 
     it('calls exportStudentData with the student userId', async () => {
