@@ -24,6 +24,18 @@ function applySecurityHeaders(res: NextResponse): void {
   res.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
 }
 
+// @supabase/ssr writes anti-cache headers (Cache-Control/Expires/Pragma) onto the
+// pass-through response when it refreshes auth cookies. Redirect and error exits build
+// fresh NextResponse objects, so forward those headers too — otherwise a CDN/edge could
+// cache a Set-Cookie-bearing redirect and replay one user's session token to another.
+const ANTI_CACHE_HEADERS = ['cache-control', 'expires', 'pragma'] as const
+function forwardAntiCacheHeaders(source: NextResponse, target: NextResponse): void {
+  for (const name of ANTI_CACHE_HEADERS) {
+    const value = source.headers.get(name)
+    if (value !== null) target.headers.set(name, value)
+  }
+}
+
 export async function proxy(request: NextRequest): Promise<Response> {
   // Cast needed: @playwright/test causes a duplicate next.js install with incompatible internal types
   const { supabase, response } = createMiddlewareSupabaseClient(
@@ -47,6 +59,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
     for (const cookie of response.cookies.getAll()) {
       redirect.cookies.set(cookie)
     }
+    forwardAntiCacheHeaders(response, redirect)
     applySecurityHeaders(redirect)
     return redirect
   }
@@ -86,6 +99,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
       for (const cookie of response.cookies.getAll()) {
         unavailable.cookies.set(cookie)
       }
+      forwardAntiCacheHeaders(response, unavailable)
       applySecurityHeaders(unavailable)
       return unavailable
     }
@@ -95,6 +109,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
       for (const cookie of response.cookies.getAll()) {
         forbidden.cookies.set(cookie)
       }
+      forwardAntiCacheHeaders(response, forbidden)
       applySecurityHeaders(forbidden)
       return forbidden
     }
