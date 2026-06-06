@@ -35,6 +35,7 @@ import {
 
 test.describe('Red Team: Session Race Condition', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  let attackerUserId: string
   let subjectId: string
   let examSubjectId: string
   let orgId: string
@@ -47,6 +48,7 @@ test.describe('Red Team: Session Race Condition', () => {
   test.beforeAll(async () => {
     const seed = await seedRedTeamUsers()
     orgId = seed.orgId
+    attackerUserId = seed.attackerUserId
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
     const admin = getAdminClient()
@@ -274,7 +276,7 @@ test.describe('Red Team: Session Race Condition', () => {
     // object with session_id (mig 088); assert it is present so a return-shape regression
     // fails loudly here rather than silently leaving an untracked active session that would
     // pollute later specs (code-style.md §7 hermeticity).
-    const winnerData = winner.data as { session_id?: string } | null
+    const winnerData = winner.data as unknown as { session_id?: string } | null
     const winnerSessionId = winnerData?.session_id
     expect(typeof winnerSessionId).toBe('string')
     createdSessionIds.push(winnerSessionId as string)
@@ -291,11 +293,14 @@ test.describe('Red Team: Session Race Condition', () => {
     // Non-vacuous admin check: confirm exactly one active mock_exam session
     // exists for (attacker, examSubjectId, orgId). If the race guard failed,
     // both INSERTs would have landed and this assertion would catch it.
+    // Use the seeded attackerUserId (a guaranteed string — beforeAll throws if
+    // seeding failed) rather than an unchecked getUser() with a vacuous '' fallback,
+    // which would silently query for student_id = '' on an auth error.
     const admin = getAdminClient()
     const { data: activeSessions, error: activeErr } = await admin
       .from('quiz_sessions')
       .select('id')
-      .eq('student_id', (await attackerClient.auth.getUser()).data.user?.id ?? '')
+      .eq('student_id', attackerUserId)
       .eq('subject_id', examSubjectId)
       .eq('organization_id', orgId)
       .eq('mode', 'mock_exam')
