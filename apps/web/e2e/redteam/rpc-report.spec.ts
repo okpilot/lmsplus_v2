@@ -155,7 +155,13 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
     const subjectScoped = await baseQuery().eq('subject_id', subjectId).maybeSingle()
     expect(subjectScoped.error).toBeNull()
     const fallback = subjectScoped.data ? null : await baseQuery().maybeSingle()
-    if (fallback) expect(fallback.error).toBeNull()
+    if (fallback) {
+      expect(fallback.error).toBeNull()
+      // Surface which path ran so a CI pass with an out-of-subject question is visible.
+      console.warn(
+        '[rpc-report positive] no subject-scoped question; using any active org question',
+      )
+    }
     const question = subjectScoped.data ?? fallback?.data ?? null
     expect(question).not.toBeNull()
 

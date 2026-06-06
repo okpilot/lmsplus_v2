@@ -28,6 +28,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
   let adminUserId: string
   let studentClient: SupabaseClient
   let questionId: string
+  let questionIdWrong: string
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
   const suffix = Date.now()
@@ -78,12 +79,16 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
       createdBy: adminUserId,
       subjectId: refs.subjectId,
       topicId: refs.topicId,
-      count: 1,
+      count: 2,
     })
-    // seedQuestions with count: 1 always returns exactly one ID
-    const seededId = seeded.questionIds[0]
-    if (!seededId) throw new Error('seedQuestions(count:1) returned no question id')
+    // Two questions: one for the correct-answer test, one for the wrong-answer
+    // test. Each test soft-deletes its own question, so they must not share one.
+    const [seededId, seededIdWrong] = seeded.questionIds
+    if (!seededId || !seededIdWrong) {
+      throw new Error('seedQuestions(count:2) returned fewer than two question ids')
+    }
     questionId = seededId
+    questionIdWrong = seededIdWrong
 
     // seedQuestions leaves explanation_image_url NULL (column is TEXT NULL).
     // Populate it so the assertion below can prove the soft-deleted question's
@@ -190,5 +195,68 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
     // Session-level tallies reflect the single answered question.
     expect(result.total_questions).toBe(1)
     expect(result.answered_count).toBe(1)
+  })
+
+  it('returns the correct-option key even when a wrong answer is submitted for a soft-deleted question', async () => {
+    // Guards against a regression that nulls correct_option_id on a wrong answer:
+    // the answer-key feedback (which option WAS correct) must survive the §15
+    // soft-delete carve-out regardless of whether the student answered correctly.
+    const { data: sessionData, error: startErr } = await studentClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: refs.subjectId,
+      p_topic_id: refs.topicId,
+      p_question_ids: [questionIdWrong],
+    })
+    expect(startErr).toBeNull()
+    if (typeof sessionData !== 'string') {
+      throw new Error('start_quiz_session did not return a session id string')
+    }
+    const sessionId = sessionData
+
+    // Soft-delete mid-session (after start, before submit).
+    const { data: delData, error: delErr } = await admin
+      .from('questions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', questionIdWrong)
+      .select('id')
+    if (delErr) throw new Error(`soft-delete: ${delErr.message}`)
+    if (!delData?.length) throw new Error('soft-delete: zero rows affected')
+
+    // Derive both the correct option and a distinct wrong option from the seed.
+    const { data: qRow, error: qErr } = await admin
+      .from('questions')
+      .select('options')
+      .eq('id', questionIdWrong)
+      .single()
+    expect(qErr).toBeNull()
+    const options = qRow?.options as unknown as Array<{ id: string; correct: boolean }>
+    expect(Array.isArray(options)).toBe(true)
+    const correctOption = options.find((o) => o.correct === true)
+    const wrongOption = options.find((o) => o.correct === false)
+    if (!correctOption || !wrongOption) {
+      throw new Error('seeded question needs one correct and one wrong option')
+    }
+
+    const { data, error } = await studentClient.rpc('batch_submit_quiz', {
+      p_session_id: sessionId,
+      p_answers: [
+        { question_id: questionIdWrong, selected_option: wrongOption.id, response_time_ms: 5000 },
+      ],
+    })
+    expect(error).toBeNull()
+
+    const result = data as unknown as {
+      results: Array<{ question_id: string; is_correct: boolean; correct_option_id: string }>
+    }
+    expect(Array.isArray(result.results)).toBe(true)
+    expect(result.results).toHaveLength(1)
+
+    const scored = result.results[0]
+    if (!scored) throw new Error('expected exactly one scored result')
+
+    // Wrong answer scored as incorrect, but the correct-option key is STILL returned.
+    expect(scored.question_id).toBe(questionIdWrong)
+    expect(scored.is_correct).toBe(false)
+    expect(scored.correct_option_id).toBe(correctOption.id)
   })
 })
