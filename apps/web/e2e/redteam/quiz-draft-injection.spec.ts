@@ -89,25 +89,24 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     ).toBeGreaterThan(0)
   })
 
-  // Hermetic cleanup (code-style.md §7): soft-delete any quiz_drafts created
-  // for the victim user during this describe block. Hard-delete is forbidden
-  // (docs/security.md §6). Runs after every test so a mid-suite failure doesn't
-  // leave state that breaks downstream specs.
+  // Hermetic cleanup (code-style.md §7): hard-delete any quiz_drafts created for
+  // the victim user during this describe block. quiz_drafts has no deleted_at
+  // column — it is ephemeral, hard-deleted by the app on submit/cancel (mig
+  // 20260312000009), and has no FK children — so soft-delete is impossible and
+  // hard-delete is the correct cleanup. Runs after every test so a mid-suite
+  // failure doesn't leave state that breaks downstream specs.
   test.afterEach(async () => {
     if (!victimUserId) return
     const { data: discarded, error } = await adminClient
       .from('quiz_drafts')
-      .update({ deleted_at: new Date().toISOString() })
+      .delete()
       .eq('student_id', victimUserId)
-      .is('deleted_at', null)
       .select('id')
     if (error) {
       console.error('[quiz-draft-injection] afterEach cleanup error:', error.message)
     }
     if ((discarded?.length ?? 0) > 0) {
-      console.log(
-        `[quiz-draft-injection] afterEach: soft-deleted ${discarded?.length} victim draft(s)`,
-      )
+      console.log(`[quiz-draft-injection] afterEach: deleted ${discarded?.length} victim draft(s)`)
     }
   })
 
@@ -218,19 +217,18 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     // inserts succeeded" would reveal a broken trigger, not an already-at-cap
     // pre-condition.
 
-    // Deterministic pre-condition: soft-delete any victim drafts left over from a
+    // Deterministic pre-condition: hard-delete any victim drafts left over from a
     // prior test whose afterEach failed, so the 19-row seed below starts clean and
     // the pre-burst count is exactly 19 (not 20+ from inherited state).
     const { data: preDiscarded, error: preCleanError } = await adminClient
       .from('quiz_drafts')
-      .update({ deleted_at: new Date().toISOString() })
+      .delete()
       .eq('student_id', victimUserId)
-      .is('deleted_at', null)
       .select('id')
     expect(preCleanError, 'pre-seed cleanup of stale victim drafts must succeed').toBeNull()
     if ((preDiscarded?.length ?? 0) > 0) {
       console.log(
-        `[quiz-draft-injection] pre-seed cleanup: soft-deleted ${preDiscarded?.length} stale draft(s)`,
+        `[quiz-draft-injection] pre-seed cleanup: deleted ${preDiscarded?.length} stale draft(s)`,
       )
     }
 
@@ -244,12 +242,15 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     const { error: seedError } = await adminClient.from('quiz_drafts').insert(seedRows)
     expect(seedError, 'admin seed of 19 drafts must succeed').toBeNull()
 
-    // Non-vacuity guard: confirm pre-burst count is exactly 19
+    // Non-vacuity guard: confirm pre-burst count is exactly 19.
+    // No deleted_at filter here — this query mirrors exactly what the cap trigger
+    // counts (`SELECT count(*) FROM quiz_drafts WHERE student_id = ?`, mig
+    // 20260430000011). If a future migration adds soft-delete to quiz_drafts and
+    // the trigger's count gains a filter, this query must gain the same filter.
     const { data: preBurstRows, error: preBurstError } = await adminClient
       .from('quiz_drafts')
       .select('id')
       .eq('student_id', victimUserId)
-      .is('deleted_at', null)
     expect(preBurstError).toBeNull()
     expect(
       preBurstRows?.length,
@@ -291,7 +292,6 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
       .from('quiz_drafts')
       .select('id')
       .eq('student_id', victimUserId)
-      .is('deleted_at', null)
     expect(postBurstError).toBeNull()
     expect(
       postBurstRows?.length,

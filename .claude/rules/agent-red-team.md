@@ -25,6 +25,10 @@ Do NOT run on every commit — only when the above paths are in the diff.
 - Re-run affected red-team specs if the agent flags them: `pnpm --filter @repo/web e2e:redteam`
 - Create GitHub Issues for coverage gaps the agent identifies (not immediate fixes).
 - Trust the agent's vector-to-spec mapping — it maintains the mapping in memory.
+- **Read the actual migration before writing any column filter, table assertion, or schema-derived value in a red-team spec — never author one from memory of the schema.**
+  - Promoted at count=3 (PR #769: `quiz-draft-injection.spec.ts` soft-deleted via a `deleted_at` column `quiz_drafts` does not have; two prior in-session occurrences f278d5c, a396438).
+  - The first two were caught by CI before merge; the third reached production because Red Team Specs was non-required.
+  - Verify the column exists (`grep` the `CREATE TABLE` / latest `ALTER`/`CREATE OR REPLACE`), and trace the `CREATE OR REPLACE FUNCTION` chain to the latest definition for RPC/trigger assertions.
 
 ### NEVER
 - Run on every commit — only on security-sensitive diffs.

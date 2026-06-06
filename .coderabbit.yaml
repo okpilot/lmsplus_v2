@@ -224,7 +224,11 @@ reviews:
           (UPDATE deleted_at = now()), not hard DELETE. FK children of `questions`:
           student_responses, quiz_session_answers, flagged_questions,
           question_comments. Hard DELETE risks 23503 violations and breaks
-          docs/security.md rule 6.
+          docs/security.md rule 6. EXCEPTION — hard-delete-by-design tables with
+          no `deleted_at` column and no FK children (currently `quiz_drafts`) must
+          use `.delete()`, and cleanup/count queries must NOT add
+          `.is('deleted_at', null)` (the column does not exist; the cap trigger
+          counts unfiltered). Soft-deleting such a table errors at runtime.
         - Cleanup helpers must chain `.select('id')` and gate logging on
           `data.length > 0` per code-style.md §5 (zero-row no-op rule). Silent
           on filter-only tests; observable when something actually changed.

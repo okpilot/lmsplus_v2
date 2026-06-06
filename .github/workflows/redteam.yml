@@ -1,16 +1,12 @@
 name: Red Team Security Tests
 
 on:
+  # Runs on every PR to master (no path filter) so "Red Team Specs" can be a
+  # required status check — a path-filtered required check leaves PRs that don't
+  # touch those paths permanently pending (the check never reports). Security
+  # defenses must gate every change, not only diffs that obviously touch them.
   pull_request:
     branches: [master]
-    paths:
-      - 'supabase/migrations/**'
-      - 'packages/db/src/**'
-      - 'apps/web/app/app/quiz/actions/**'
-      - 'apps/web/app/auth/**'
-      - 'apps/web/proxy.ts'
-      - 'apps/web/e2e/redteam/**'
-      - 'docs/security.md'
   workflow_dispatch:
 
 permissions:
