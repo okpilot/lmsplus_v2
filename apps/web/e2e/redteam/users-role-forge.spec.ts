@@ -82,6 +82,9 @@ test.describe('Red Team: users Role Forge (privilege escalation via direct UPDAT
       .update({ role: 'admin' })
       .eq('id', studentUserId)
     expect(error).not.toBeNull()
+    // Pin the privilege-layer SQLSTATE (42501): if mig 090 regressed and only the trigger
+    // blocked the forge, the code would be P0001 — this assertion catches that regression.
+    expect(error?.code).toBe('42501')
     // With mig 090 applied, the privilege layer fires first (42501). Postgres reports an
     // UPDATE touching a column the role lacks (and with no table-wide UPDATE grant) as
     // "permission denied for table users" — confirmed empirically; it does not always name
@@ -124,6 +127,8 @@ test.describe('Red Team: users Role Forge (privilege escalation via direct UPDAT
       .update({ organization_id: fakeOrgId })
       .eq('id', studentUserId)
     expect(error).not.toBeNull()
+    // Pin the privilege-layer SQLSTATE (42501) — a trigger-only regression (P0001) fails here.
+    expect(error?.code).toBe('42501')
     // Mig 090: privilege layer fires first (42501) — Postgres surfaces this as
     // "permission denied for table users" (it does not always name the column). Either
     // privilege phrasing, or the trigger fallback, proves the forge is blocked.

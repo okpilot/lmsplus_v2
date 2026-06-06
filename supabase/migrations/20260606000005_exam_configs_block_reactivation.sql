@@ -27,6 +27,6 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_block_exam_config_reactivation ON exam_configs;
 CREATE TRIGGER trg_block_exam_config_reactivation
-  BEFORE UPDATE ON exam_configs
+  BEFORE UPDATE OF deleted_at ON exam_configs
   FOR EACH ROW
   EXECUTE FUNCTION block_exam_config_reactivation();

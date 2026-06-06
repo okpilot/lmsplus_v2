@@ -270,10 +270,14 @@ test.describe('Red Team: Session Race Condition', () => {
     expect(winner.error).toBeNull()
     expect(winner.data).not.toBeNull()
 
-    // Track the winning session for afterEach cleanup.
+    // Track the winning session for afterEach cleanup. start_exam_session returns a jsonb
+    // object with session_id (mig 088); assert it is present so a return-shape regression
+    // fails loudly here rather than silently leaving an untracked active session that would
+    // pollute later specs (code-style.md §7 hermeticity).
     const winnerData = winner.data as { session_id?: string } | null
     const winnerSessionId = winnerData?.session_id
-    if (winnerSessionId) createdSessionIds.push(winnerSessionId)
+    expect(typeof winnerSessionId).toBe('string')
+    createdSessionIds.push(winnerSessionId as string)
 
     // The losing concurrent call must have been rejected. The EXCEPTION WHEN
     // unique_violation handler (mig 088 Change A) converts the raw 23505 into

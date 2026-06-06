@@ -40,6 +40,13 @@ test.describe('Red Team: exam_config reactivation-guard trigger (Vector AJ)', ()
   // transitions (hard-deletes are DELETEs, not UPDATEs, so the trigger does not fire).
   const createdConfigIds = new Set<string>()
 
+  // Snapshot of the seeded active config(s) (and their CASCADE-deleted child
+  // distributions) this spec hard-deletes in beforeAll, so afterAll can restore them — the
+  // trigger blocks un-soft-delete, so restoration is a re-INSERT of the full original rows
+  // (code-style.md §7: restore mutated shared seed data).
+  let restoreConfigs: Record<string, unknown>[] = []
+  let restoreDistributions: Record<string, unknown>[] = []
+
   test.beforeAll(async () => {
     admin = getAdminClient()
     const seededAdmin = await seedRedTeamAdmin()
@@ -52,27 +59,50 @@ test.describe('Red Team: exam_config reactivation-guard trigger (Vector AJ)', ()
     subjectId = picked.subjectId
     topicId = picked.topicId
 
-    // Pre-clean: hard-delete any active config for this subject so the
-    // positive-control upsert_exam_config call starts from a clean slate
-    // (the partial unique index uq_exam_configs_org_subject_active blocks two
-    // concurrent active rows for the same org+subject).
+    // Pre-clean: snapshot then hard-delete any active config for this subject so the
+    // positive-control upsert_exam_config call starts from a clean slate (the partial
+    // unique index uq_exam_configs_org_subject_active blocks two concurrent active rows
+    // for the same org+subject). afterAll restores the snapshot so the shared seed config
+    // is not destroyed for downstream specs (code-style.md §7).
     const { data: existing, error: existingErr } = await admin
       .from('exam_configs')
-      .select('id')
+      .select('*')
       .eq('organization_id', orgId)
       .eq('subject_id', subjectId)
       .is('deleted_at', null)
     if (existingErr) throw new Error(`beforeAll pre-clean lookup: ${existingErr.message}`)
     if (existing && existing.length > 0) {
-      const { error: cleanErr } = await admin
-        .from('exam_configs')
-        .delete()
-        .in(
-          'id',
-          existing.map((r) => r.id),
-        )
+      restoreConfigs = existing as Record<string, unknown>[]
+      const ids = existing.map((r) => r.id as string)
+      // Snapshot the child distributions too — they are CASCADE-deleted with the config
+      // (mig 038) and a plain config re-insert would not bring them back.
+      const { data: dists, error: distErr } = await admin
+        .from('exam_config_distributions')
+        .select('*')
+        .in('exam_config_id', ids)
+      if (distErr) throw new Error(`beforeAll pre-clean dist lookup: ${distErr.message}`)
+      restoreDistributions = (dists ?? []) as Record<string, unknown>[]
+      const { error: cleanErr } = await admin.from('exam_configs').delete().in('id', ids)
       if (cleanErr) throw new Error(`beforeAll pre-clean delete: ${cleanErr.message}`)
     }
+  })
+
+  test.afterAll(async () => {
+    // Restore the seeded config(s) + distributions removed in beforeAll by re-inserting the
+    // full original rows (same ids/timestamps). INSERT does not fire the BEFORE UPDATE OF
+    // deleted_at trigger. Configs first (distributions FK them). Idempotent: clear after.
+    if (restoreConfigs.length > 0) {
+      const { error: cfgErr } = await admin.from('exam_configs').insert(restoreConfigs)
+      if (cfgErr) throw new Error(`afterAll restore configs: ${cfgErr.message}`)
+    }
+    if (restoreDistributions.length > 0) {
+      const { error: distErr } = await admin
+        .from('exam_config_distributions')
+        .insert(restoreDistributions)
+      if (distErr) throw new Error(`afterAll restore distributions: ${distErr.message}`)
+    }
+    restoreConfigs = []
+    restoreDistributions = []
   })
 
   test.afterEach(async () => {

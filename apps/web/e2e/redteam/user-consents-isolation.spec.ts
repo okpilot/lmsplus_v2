@@ -178,7 +178,9 @@ test.describe('Red Team: user_consents Isolation', () => {
     expect(checkFirst).toBeNull()
     expect(afterFirst?.length ?? 0).toBe(1)
 
-    // Second call — identical args. ON CONFLICT DO NOTHING (mig 085) must make it a no-op.
+    // Second call — identical args. The EXISTS guard (mig 085) must make it a no-op.
+    // record_consent RETURNS void, so there is no payload contract to assert beyond the
+    // observable side effects (error + resulting row count) — those ARE its full contract.
     const { error: secondErr } = await attackerClient.rpc('record_consent', {
       p_document_type: 'terms_of_service',
       p_document_version: IDEMPOTENCY_VERSION,
@@ -195,5 +197,25 @@ test.describe('Red Team: user_consents Isolation', () => {
       .eq('accepted', true)
     expect(checkSecond).toBeNull()
     expect(afterSecond?.length ?? 0).toBe(1)
+
+    // Scoping fixture (code-style §7 multi-fixture): the guard is keyed on
+    // (user, document_type, document_version) — accepting TOS must NOT suppress a distinct
+    // document_type. A privacy_policy acceptance at the same version still inserts (1 row),
+    // proving the idempotency is per-(type,version), not a global "already consented" flag.
+    const { error: ppErr } = await attackerClient.rpc('record_consent', {
+      p_document_type: 'privacy_policy',
+      p_document_version: IDEMPOTENCY_VERSION,
+      p_accepted: true,
+    })
+    expect(ppErr).toBeNull()
+    const { data: ppRows, error: ppCheck } = await adminClient
+      .from('user_consents')
+      .select('id')
+      .eq('user_id', attackerUserId)
+      .eq('document_version', IDEMPOTENCY_VERSION)
+      .eq('document_type', 'privacy_policy')
+      .eq('accepted', true)
+    expect(ppCheck).toBeNull()
+    expect(ppRows?.length ?? 0).toBe(1)
   })
 })
