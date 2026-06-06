@@ -260,17 +260,26 @@ export async function cleanupTestData(opts: {
   }
 }
 
+type ReferenceIds = { subjectId: string; topicId: string; subtopicId: string | null }
+
 /**
  * Delete reference rows seeded by seedReferenceData(). easa_subjects/topics/subtopics
  * are GLOBAL tables (not org-scoped), so they're cleaned per-suite (not per-org).
  * Idempotent: dedups ids and .in() no-ops on already-removed rows. Null subtopicIds
  * are skipped (suites that seed no subtopic pass subtopicId: null).
+ *
+ * Accepts `undefined` ref entries and filters them out: a describe-scoped `let refs`
+ * is `undefined` until beforeAll assigns it, and vitest still runs afterAll if beforeAll
+ * throws. Filtering here (vs an `if (refs)` guard per call site) also covers the
+ * multi-ref start-session case where an early seed succeeds but a later one throws
+ * (e.g. [refs, undefined, undefined]) — a single call-site guard would miss that.
  */
 export async function cleanupReferenceData(opts: {
   admin: SupabaseClient
-  refs: Array<{ subjectId: string; topicId: string; subtopicId: string | null }>
+  refs: Array<ReferenceIds | undefined>
 }) {
-  const { admin, refs } = opts
+  const { admin } = opts
+  const refs = opts.refs.filter((r): r is ReferenceIds => r != null)
   const subtopicIds = [...new Set(refs.map((r) => r.subtopicId).filter((v): v is string => v !== null))]
   const topicIds = [...new Set(refs.map((r) => r.topicId))]
   const subjectIds = [...new Set(refs.map((r) => r.subjectId))]

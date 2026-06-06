@@ -278,4 +278,29 @@ describe('cleanupReferenceData', () => {
       }),
     ).rejects.toThrow(/cleanupReferenceData subjects:/)
   })
+
+  it('no-ops when every ref is undefined (beforeAll-failed afterAll guard)', async () => {
+    // A describe-scoped `let refs` is undefined if beforeAll throws before assigning it;
+    // vitest still runs afterAll. The helper must not crash on undefined entries.
+    await cleanupReferenceData({ admin: adminForCleanup, refs: [undefined] })
+
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('cleans defined refs and skips undefined entries (partial beforeAll failure)', async () => {
+    // Multi-ref case where an early seed succeeded but a later one threw:
+    // [definedRef, undefined]. The defined ref is still cleaned; the undefined is dropped.
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: [{ id: 'st-p' }], error: null })) // subtopics
+      .mockReturnValueOnce(buildChain({ data: [{ id: 't-p' }], error: null })) // topics
+      .mockReturnValueOnce(buildChain({ data: [{ id: 's-p' }], error: null })) // subjects
+
+    await cleanupReferenceData({
+      admin: adminForCleanup,
+      refs: [{ subjectId: 's-p', topicId: 't-p', subtopicId: 'st-p' }, undefined],
+    })
+
+    expect(mockFrom).toHaveBeenCalledTimes(3)
+    expect(mockFrom).toHaveBeenNthCalledWith(1, 'easa_subtopics')
+  })
 })
