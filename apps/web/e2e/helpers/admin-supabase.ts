@@ -75,6 +75,8 @@ export async function ensureAdminTestUser() {
 
   if (userRow) {
     // Ensure password matches
+    // Intentional unconditional reset (#593, won't-fix): GoTrue stores only a password
+    // hash so equality can't be compared; the write is idempotent + cheap (setup workers=1).
     const { error: resetError } = await admin.auth.admin.updateUserById(userRow.id, {
       password: ADMIN_TEST_PASSWORD,
     })

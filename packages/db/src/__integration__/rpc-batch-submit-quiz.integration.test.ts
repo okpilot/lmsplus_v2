@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
+  cleanupReferenceData,
   cleanupTestData,
   createTestOrg,
   createTestUser,
@@ -102,6 +103,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
 
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
+    await cleanupReferenceData({ admin, refs: [refs] })
   })
 
   it('scores a question soft-deleted after the session started', async () => {

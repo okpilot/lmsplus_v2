@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
+  cleanupReferenceData,
   cleanupTestData,
   createTestOrg,
   createTestUser,
@@ -23,6 +24,7 @@ describe('RLS: immutable tables', () => {
   let studentClient: SupabaseClient
   let sessionId: string
   let questionIds: string[]
+  let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
 
   beforeAll(async () => {
@@ -55,7 +57,7 @@ describe('RLS: immutable tables', () => {
       password: 'test-pass-123',
     })
 
-    const refs = await seedReferenceData({
+    refs = await seedReferenceData({
       admin,
       subjectCode: `I${suffix}`,
       subjectName: `Immut Subject ${suffix}`,
@@ -92,6 +94,7 @@ describe('RLS: immutable tables', () => {
 
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
+    await cleanupReferenceData({ admin, refs: [refs] })
   })
 
   it('cannot UPDATE quiz_session_answers (data unchanged)', async () => {

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
+  cleanupReferenceData,
   cleanupTestData,
   createTestOrg,
   createTestUser,
@@ -19,6 +20,7 @@ describe('RLS: tenant isolation', () => {
   let studentAClient: SupabaseClient
   let instructorAClient: SupabaseClient
   let questionIdsA: string[]
+  let refsA: Awaited<ReturnType<typeof seedReferenceData>>
   const userIdsA: string[] = []
 
   // Org B
@@ -86,7 +88,7 @@ describe('RLS: tenant isolation', () => {
       password: 'test-pass-123',
     })
 
-    const refsA = await seedReferenceData({
+    refsA = await seedReferenceData({
       admin,
       subjectCode: `TA${suffix}`,
       subjectName: `Tenant A Subject ${suffix}`,
@@ -160,6 +162,7 @@ describe('RLS: tenant isolation', () => {
   afterAll(async () => {
     await cleanupTestData({ admin, orgId: orgAId, userIds: userIdsA })
     await cleanupTestData({ admin, orgId: orgBId, userIds: userIdsB })
+    await cleanupReferenceData({ admin, refs: [refsA] })
   })
 
   it('student in orgB cannot read orgA questions', async () => {

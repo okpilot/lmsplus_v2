@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
+  cleanupReferenceData,
   cleanupTestData,
   createTestOrg,
   createTestUser,
@@ -17,6 +18,7 @@ describe('RPC: submit_quiz_answer', () => {
   let studentId: string
   let studentClient: SupabaseClient
   let questionIds: string[]
+  let refs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
   const suffix = Date.now()
 
@@ -50,7 +52,7 @@ describe('RPC: submit_quiz_answer', () => {
       password: 'test-pass-123',
     })
 
-    const refs = await seedReferenceData({
+    refs = await seedReferenceData({
       admin,
       subjectCode: `B${suffix}`,
       subjectName: `Submit Subject ${suffix}`,
@@ -71,6 +73,7 @@ describe('RPC: submit_quiz_answer', () => {
 
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
+    await cleanupReferenceData({ admin, refs: [refs] })
   })
 
   async function startSession(qIds?: string[]) {

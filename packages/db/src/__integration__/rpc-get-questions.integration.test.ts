@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
+  cleanupReferenceData,
   cleanupTestData,
   createTestOrg,
   createTestUser,
@@ -74,6 +75,7 @@ describe('RPC: get_quiz_questions', () => {
 
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
+    await cleanupReferenceData({ admin, refs: [refs] })
   })
 
   it('strips correct field from options', async () => {
