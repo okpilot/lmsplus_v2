@@ -203,4 +203,93 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     // question_ids must be unchanged (empty array from original insert)
     expect(afterUpdate?.question_ids).toEqual([])
   })
+
+  test('advisory lock serializes concurrent draft inserts so the 20-draft cap cannot be exceeded (Vector BI — draft-limit TOCTOU)', async () => {
+    // Vector BI: a student fires N concurrent INSERT requests hoping the
+    // read-then-write gap lets multiple inserts slip through the trigger's
+    // count >= 20 guard simultaneously.
+    //
+    // Defense under test: enforce_draft_limit trigger (mig 20260430000011)
+    //   pg_advisory_xact_lock(hashtext(student_id)) serializes concurrent inserts
+    //   per student, so only one can proceed once count reaches 20.
+    //
+    // Non-vacuity (code-style.md §7): we pre-seed exactly 19 drafts via the
+    // admin client so the victim is one below the cap. That way "0 concurrent
+    // inserts succeeded" would reveal a broken trigger, not an already-at-cap
+    // pre-condition.
+
+    // Deterministic pre-condition: soft-delete any victim drafts left over from a
+    // prior test whose afterEach failed, so the 19-row seed below starts clean and
+    // the pre-burst count is exactly 19 (not 20+ from inherited state).
+    const { error: preCleanError } = await adminClient
+      .from('quiz_drafts')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('student_id', victimUserId)
+      .is('deleted_at', null)
+    expect(preCleanError, 'pre-seed cleanup of stale victim drafts must succeed').toBeNull()
+
+    // --- Step 1: Seed exactly 19 drafts as the victim via the admin client ---
+    const seedRows = Array.from({ length: 19 }, () => ({
+      student_id: victimUserId,
+      organization_id: orgId,
+      question_ids: [] as string[],
+      answers: {} as Record<string, never>,
+    }))
+    const { error: seedError } = await adminClient.from('quiz_drafts').insert(seedRows)
+    expect(seedError, 'admin seed of 19 drafts must succeed').toBeNull()
+
+    // Non-vacuity guard: confirm pre-burst count is exactly 19
+    const { data: preBurstRows, error: preBurstError } = await adminClient
+      .from('quiz_drafts')
+      .select('id')
+      .eq('student_id', victimUserId)
+      .is('deleted_at', null)
+    expect(preBurstError).toBeNull()
+    expect(
+      preBurstRows?.length,
+      'pre-burst: victim must have exactly 19 active drafts for the TOCTOU test to be non-vacuous',
+    ).toBe(19)
+
+    // --- Step 2: Fire 5 concurrent inserts via the victim's authenticated client ---
+    const burstResults = await Promise.allSettled(
+      Array.from({ length: 5 }, () =>
+        victimClient.from('quiz_drafts').insert({
+          student_id: victimUserId,
+          organization_id: orgId,
+          question_ids: [] as string[],
+          answers: {} as Record<string, never>,
+        }),
+      ),
+    )
+
+    // --- Step 3: Exactly 1 must succeed; 4 must be rejected with the cap message ---
+    const successes = burstResults.filter((r) => r.status === 'fulfilled' && r.value.error === null)
+    const capRejections = burstResults.filter(
+      (r) =>
+        r.status === 'fulfilled' &&
+        r.value.error !== null &&
+        /maximum 20 saved quizzes reached/i.test(r.value.error?.message ?? ''),
+    )
+
+    expect(
+      successes.length,
+      'exactly 1 concurrent insert must succeed (advisory lock allows only one at the boundary)',
+    ).toBe(1)
+    expect(
+      capRejections.length,
+      'the remaining 4 concurrent inserts must be rejected with the 20-draft cap message',
+    ).toBe(4)
+
+    // --- Step 4: Post-burst count must be exactly 20 (delta = 1) ---
+    const { data: postBurstRows, error: postBurstError } = await adminClient
+      .from('quiz_drafts')
+      .select('id')
+      .eq('student_id', victimUserId)
+      .is('deleted_at', null)
+    expect(postBurstError).toBeNull()
+    expect(
+      postBurstRows?.length,
+      'post-burst: advisory lock must hold the count at exactly 20 (delta = 1 from 19)',
+    ).toBe(20)
+  })
 })
