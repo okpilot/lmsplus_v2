@@ -185,6 +185,21 @@ describe('getStudentDetail', () => {
     expect(result?.deletedAt).toBe('2026-03-15T12:00:00Z')
   })
 
+  it('returns null for a non-student (admin) id because the role=student filter excludes it', async () => {
+    // The guard is .eq('role', 'student') (NOT deleted_at): an admin id is filtered
+    // out at the query, so Supabase returns no row. Assert both the filter that does
+    // the rejecting and the null result, so this is distinct from a generic no-match.
+    const ADMIN_USER_ID = 'admin-uuid-1'
+    const chain = makeDetailChain(null)
+    mockFrom.mockReturnValue(chain)
+
+    const result = await getStudentDetail(ADMIN_USER_ID)
+
+    const eqCalls = (chain.eq as ReturnType<typeof vi.fn>).mock.calls
+    expect(eqCalls).toContainEqual(['role', 'student'])
+    expect(result).toBeNull()
+  })
+
   it('throws when the query returns an error', async () => {
     mockFrom.mockReturnValue(makeDetailChain(null, { message: 'connection refused' }))
 
