@@ -1386,7 +1386,7 @@ export type Database = {
           ended_at: string
           id: string
           mode: string
-          score_percentage: number
+          score_percentage: number | null
           started_at: string
           subject_id: string
           subject_name: string
