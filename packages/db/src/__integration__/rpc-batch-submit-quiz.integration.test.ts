@@ -179,6 +179,9 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
       total_questions: number
       answered_count: number
     }
+    if (!result || typeof result !== 'object') {
+      throw new Error('batch_submit_quiz returned an invalid result structure')
+    }
     expect(Array.isArray(result.results)).toBe(true)
     expect(result.results).toHaveLength(1)
 
@@ -247,6 +250,9 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
 
     const result = data as unknown as {
       results: Array<{ question_id: string; is_correct: boolean; correct_option_id: string }>
+    }
+    if (!result || typeof result !== 'object') {
+      throw new Error('batch_submit_quiz returned an invalid result structure')
     }
     expect(Array.isArray(result.results)).toBe(true)
     expect(result.results).toHaveLength(1)
