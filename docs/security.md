@@ -693,4 +693,4 @@ These are covered by Supabase infrastructure — no additional work needed:
 
 ---
 
-*Last updated: 2026-06-06 (migs 085–090: record_consent idempotency; start_quiz_session 500-element array cap; start_exam_session AL unique_violation mapping + org_id index align; exam_configs AJ reactivation-block trigger; users CG column UPDATE GRANT) | Previous: 2026-03-15 | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*
+*Last updated: 2026-06-06 (migs 085–090: record_consent idempotency; CI start_quiz_session 500-element array cap; AL start_exam_session unique_violation mapping + org_id index align; AJ exam_configs reactivation-block trigger; CG users column UPDATE GRANT) | Previous: 2026-03-15 | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*

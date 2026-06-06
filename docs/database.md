@@ -40,7 +40,7 @@ Writes happen only via SECURITY DEFINER RPCs (e.g., `submit_quiz_answer()`), whi
 
 | Table | Frozen columns | Mutable columns | Trigger | Migration |
 |-------|----------------|-----------------|---------|-----------|
-| `users` | `role`, `organization_id`, `deleted_at` | `full_name`, `email`, `last_active_at` (any other non-frozen column is mutable for authenticated connections; service-role bypasses the trigger entirely) | `trg_protect_users_sensitive_columns` | `20260316000041`; column GRANT `20260606000006` (`authenticated` holds `UPDATE (full_name)` only — see §2 users table) |
+| `users` | `role`, `organization_id`, `deleted_at` | **authenticated**: `full_name` only (mig 090 column GRANT). `email` / `last_active_at` are written by service-role / SECURITY DEFINER RPCs, not by authenticated connections. Service-role bypasses both the column GRANT and the trigger entirely. | `trg_protect_users_sensitive_columns` | `20260316000041`; column GRANT `20260606000006` (`authenticated` holds `UPDATE (full_name)` only — see §2 users table) |
 | `quiz_sessions` | `config`, `total_questions`, `mode`, `time_limit_seconds`, `started_at`, `organization_id`, `student_id`, `subject_id`, `topic_id`, `created_at` | `deleted_at` (the only column a student effectively writes — `discardQuiz`). `ended_at`, `correct_count`, `score_percentage`, `passed` are **postgres / SECURITY DEFINER-only**: mig `20260605000001` removed them from `authenticated`'s UPDATE grant (#611), so a student-direct write returns 42501. | `trg_quiz_sessions_immutable_columns` | `079` / `20260502000001`; column GRANT `20260605000001` |
 
 The `quiz_sessions` trigger closes the exam-question-swap vector where a student could inject question_ids into their own active session via direct PostgREST UPDATE (issue #554). Migration `20260605000001` closes the complementary score-forgery vector (#611): a student could otherwise directly UPDATE `correct_count` / `score_percentage` / `passed` / `ended_at` — columns the trigger does **not** freeze — to fake an exam result. Because Postgres can't revoke a single column from a table-level grant, the migration REVOKEs the blanket UPDATE and re-GRANTs every column **except** those four scoring columns: the config columns stay granted (so the immutability trigger still fires its `immutable` message — #554 unchanged), `deleted_at` stays granted (discard), and the scoring columns become postgres-only (42501 for a student). All scoring writes flow through the SECURITY DEFINER completion RPCs (postgres owner), which the column grant does not restrict.
@@ -1918,6 +1918,19 @@ BEGIN
   -- Verify user exists and is not soft-deleted
   IF NOT EXISTS (SELECT 1 FROM users WHERE id = _uid AND deleted_at IS NULL) THEN
     RAISE EXCEPTION 'User not found';
+  END IF;
+
+  -- Idempotent acceptance (mig 085, #386): no-op if an identical accepted=true
+  -- row already exists. ON CONFLICT is not usable — idx_user_consents_lookup is a
+  -- non-unique partial index. Rejections (accepted=false) still insert unconditionally.
+  IF p_accepted AND EXISTS (
+    SELECT 1 FROM user_consents
+    WHERE user_id = _uid
+      AND document_type = p_document_type
+      AND document_version = p_document_version
+      AND accepted = true
+  ) THEN
+    RETURN;
   END IF;
 
   INSERT INTO user_consents
