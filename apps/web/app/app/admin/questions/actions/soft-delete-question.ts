@@ -24,7 +24,8 @@ export async function softDeleteQuestion(input: unknown): Promise<ActionResult> 
     .select('id')
 
   if (error) {
-    return { success: false, error: error.message }
+    console.error('[softDeleteQuestion] DB error:', error.message)
+    return { success: false, error: 'Failed to delete question' }
   }
   if (!data?.length) {
     return { success: false, error: 'Question not found or not accessible' }

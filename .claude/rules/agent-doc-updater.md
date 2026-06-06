@@ -50,6 +50,12 @@ When a doc commit adds a **structural** cross-reference to an existing section �
 2. Scan summary tables, matrices, and indexes that mention the target subject (e.g., the `## RPC Summary` row for the function, or schema matrices that list the table).
 3. Flag any claim that contradicts the latest migration or current code as DRIFT (severity: ISSUE; escalate to CRITICAL if it contradicts a rule in `docs/security.md` or `.claude/rules/security.md`).
 
+### Repeated numeric-literal counts (e.g. red-team spec count)
+
+When a commit adds a red-team Playwright spec (`apps/web/e2e/redteam/**/*.spec.ts`), the suite's spec-count appears as a **numeric literal in multiple current-state surfaces** and routinely goes stale in some but not all. Grep ALL occurrences of the count literal across `.spec-workflow/steering/tech.md` (it appears 3×: Testing section, Security & Compliance section, Decision 27) AND `docs/decisions.md` (Decision 27) so every current-state occurrence is corrected together. **Respect the steering boundary** (*What the agent does NOT do*, below): the doc-updater does NOT edit `tech.md` directly — it **flags every stale `tech.md` occurrence as DRIFT** and the orchestrator/approval flow applies the edit. `docs/decisions.md` is not a steering doc, so the doc-updater updates it directly per normal doc sync. **Exclude historical milestone records** — a phase-completion entry (e.g. `docs/plan.md` "Phase 5B-6 COMPLETE — N specs as delivered") documents the count at a point in time and must NOT be rewritten. The separate E2E suite count (`tech.md` "Playwright (N specs …)") is a different suite — out of scope for a red-team spec addition.
+
+**Why:** promoted at count=2 (PR #779-family `18→37` stale across tech.md ×3 + decisions.md, after a 2026-05-07 `9-spec` instance). The structural-cross-reference scope above does not catch grep-able repeated numeric literals; this sub-rule does.
+
 ## Steering Document Drift Detection
 
 **DRIFT** finding type — ISSUE by default (per the Cross-Reference Audit Rule above); escalates to CRITICAL when it contradicts security rules (treat as semantic-reviewer CRITICAL in that case).

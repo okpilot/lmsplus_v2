@@ -25,7 +25,8 @@ export async function bulkUpdateStatus(input: unknown): Promise<ActionResult> {
     .select('id')
 
   if (error) {
-    return { success: false, error: error.message }
+    console.error('[bulkUpdateStatus] DB error:', error.message)
+    return { success: false, error: 'Failed to update question status' }
   }
   if (!data?.length) {
     return { success: false, error: 'No questions were updated' }
