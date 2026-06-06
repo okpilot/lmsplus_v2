@@ -1423,6 +1423,10 @@ export type Database = {
           expires_at: string
         }[]
       }
+      record_auth_event: {
+        Args: { p_event_type: string; p_resource_id: string; p_metadata?: Json }
+        Returns: undefined
+      }
       record_consent: {
         Args: {
           p_accepted: boolean

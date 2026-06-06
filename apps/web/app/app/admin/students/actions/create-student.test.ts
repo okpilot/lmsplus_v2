@@ -7,6 +7,7 @@ const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockCreateUser = vi.hoisted(() => vi.fn())
 const mockDeleteUser = vi.hoisted(() => vi.fn())
+const mockRpc = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
@@ -35,7 +36,12 @@ const VALID_INPUT = {
 }
 
 function mockAdmin() {
-  mockRequireAdmin.mockResolvedValue({ supabase: {}, userId: ADMIN_ID, organizationId: ORG_ID })
+  mockRpc.mockResolvedValue({ error: null })
+  mockRequireAdmin.mockResolvedValue({
+    supabase: { rpc: mockRpc },
+    userId: ADMIN_ID,
+    organizationId: ORG_ID,
+  })
 }
 
 function buildChain({ insertError = null }: { insertError?: { message: string } | null } = {}) {
@@ -109,6 +115,36 @@ describe('createStudent', () => {
       )
       expect(mockFrom).toHaveBeenCalledWith('users')
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
+    })
+
+    it('records a user.created audit event for the new student', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser()
+
+      await createStudent(VALID_INPUT)
+
+      expect(mockRpc).toHaveBeenCalledWith('record_auth_event', {
+        p_event_type: 'user.created',
+        p_resource_id: NEW_USER_ID,
+      })
+    })
+
+    it('still succeeds when the audit event write fails (best-effort)', async () => {
+      mockAdmin()
+      buildChain()
+      mockAuthCreateUser()
+      mockRpc.mockResolvedValue({ error: { message: 'audit insert failed' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await createStudent(VALID_INPUT)
+
+      expect(result.success).toBe(true)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[createStudent] Audit event failed:',
+        'audit insert failed',
+      )
+      consoleSpy.mockRestore()
     })
 
     it('sets must_change_password metadata when creating the auth user', async () => {

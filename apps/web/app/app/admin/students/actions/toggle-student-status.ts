@@ -13,7 +13,7 @@ export async function toggleStudentStatus(input: unknown): Promise<ActionResult>
     return { success: false, error: 'Invalid input' }
   }
 
-  const { userId, organizationId } = await requireAdmin()
+  const { userId, organizationId, supabase } = await requireAdmin()
   const { id } = parsed.data
 
   if (id === userId) {
@@ -36,7 +36,19 @@ export async function toggleStudentStatus(input: unknown): Promise<ActionResult>
   }
 
   if (target.deleted_at === null) {
-    return await deactivate(id, userId, organizationId)
+    const result = await deactivate(id, userId, organizationId)
+    if (result.success) {
+      // Audit via the admin's user-context client (auth.uid() = admin). Best-effort:
+      // the student is deactivated, so a failed audit write is logged, not surfaced.
+      const { error: auditError } = await supabase.rpc('record_auth_event', {
+        p_event_type: 'user.deactivated',
+        p_resource_id: id,
+      })
+      if (auditError) {
+        console.error('[toggleStudentStatus] Audit event failed:', auditError.message)
+      }
+    }
+    return result
   }
   return await reactivate(id, organizationId)
 }

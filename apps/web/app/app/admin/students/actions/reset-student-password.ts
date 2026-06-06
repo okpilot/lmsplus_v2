@@ -13,7 +13,7 @@ export async function resetStudentPassword(input: unknown): Promise<ActionResult
     return { success: false, error: 'Invalid input' }
   }
 
-  const { organizationId } = await requireAdmin()
+  const { organizationId, supabase } = await requireAdmin()
   const { id, temporary_password } = parsed.data
 
   const { data: target, error: fetchErr } = await adminClient
@@ -44,6 +44,17 @@ export async function resetStudentPassword(input: unknown): Promise<ActionResult
   if (error) {
     console.error('[resetStudentPassword] Password reset error:', error.message)
     return { success: false, error: 'Failed to reset password' }
+  }
+
+  // Audit the admin reset via the admin's user-context client (auth.uid() = admin),
+  // not adminClient (service role → auth.uid() NULL). Best-effort: the password is
+  // already reset, so a failed audit write is logged, not surfaced to the admin.
+  const { error: auditError } = await supabase.rpc('record_auth_event', {
+    p_event_type: 'user.password_reset',
+    p_resource_id: id,
+  })
+  if (auditError) {
+    console.error('[resetStudentPassword] Audit event failed:', auditError.message)
   }
 
   revalidatePath('/app/admin/students')
