@@ -145,8 +145,10 @@ describe('RPC: start_quiz_session input validation', () => {
   let otherAdminUserId: string
   let studentClient: SupabaseClient
   let questionIds: string[]
+  let altTopicQuestionId: string
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
   let otherRefs: Awaited<ReturnType<typeof seedReferenceData>>
+  let altTopicRefs: Awaited<ReturnType<typeof seedReferenceData>>
   const userIds: string[] = []
   const otherUserIds: string[] = []
   const suffix = `${Date.now()}-v`
@@ -198,6 +200,17 @@ describe('RPC: start_quiz_session input validation', () => {
       topicName: `Validation Topic B ${suffix}`,
     })
 
+    // Second topic under the SAME subject (refs.subjectId) for the wrong-topic test.
+    // seedReferenceData upserts the subject on conflict, so passing the same
+    // subjectCode returns the existing refs.subjectId while creating a new topic.
+    altTopicRefs = await seedReferenceData({
+      admin,
+      subjectCode: `SV${suffix}`,
+      subjectName: `Validation Subject ${suffix}`,
+      topicCode: `SV${suffix}-02`,
+      topicName: `Validation Alt Topic ${suffix}`,
+    })
+
     const seeded = await seedQuestions({
       admin,
       orgId,
@@ -207,6 +220,18 @@ describe('RPC: start_quiz_session input validation', () => {
       count: 5,
     })
     questionIds = seeded.questionIds
+
+    // One question under refs.subjectId but altTopicRefs.topicId — wrong topic
+    const altSeeded = await seedQuestions({
+      admin,
+      orgId,
+      createdBy: adminUserId,
+      subjectId: altTopicRefs.subjectId,
+      topicId: altTopicRefs.topicId,
+      count: 1,
+    })
+    // seedQuestions with count: 1 always returns one ID
+    altTopicQuestionId = altSeeded.questionIds[0]!
 
     // Separate org for cross-org test
     otherOrgId = await createTestOrg({
@@ -413,5 +438,57 @@ describe('RPC: start_quiz_session input validation', () => {
     expect(error).not.toBeNull()
     expect(error?.message).toContain('mode_not_allowed')
     expect(data).toBeNull()
+  })
+
+  // Migration 20260521000001 line 56:
+  //   IF p_question_ids IS NULL OR array_length(p_question_ids, 1) IS NULL THEN
+  //     RAISE EXCEPTION 'no_questions_provided';
+  // The existing empty-array test covers the `array_length(...) IS NULL` branch.
+  // This case covers the `p_question_ids IS NULL` branch explicitly.
+  it('rejects null p_question_ids with no_questions_provided', async () => {
+    const { data, error } = await studentClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: refs.subjectId,
+      p_topic_id: refs.topicId,
+      p_question_ids: null as unknown as string[],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('no_questions_provided')
+    expect(data).toBeNull()
+  })
+
+  // Migration 20260521000001 lines 72-82:
+  //   SELECT count(*) ... FROM unnest(p_question_ids) AS qid JOIN questions q ON q.id = qid
+  //   WHERE q.organization_id = v_org_id AND ... AND q.status = 'active' AND q.deleted_at IS NULL;
+  //   IF v_count <> array_length(p_question_ids, 1) THEN RAISE EXCEPTION 'invalid_question_ids';
+  // One valid UUID resolves in the JOIN; the non-existent UUID does not.
+  // count (1) <> array_length (2) triggers the count-mismatch rejection.
+  it('rejects a mix of one valid and one non-existent UUID with invalid_question_ids', async () => {
+    // questionIds[0]! safe — seeded in beforeAll with count: 5
+    const { error } = await studentClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: refs.subjectId,
+      p_topic_id: refs.topicId,
+      p_question_ids: [questionIds[0]!, '00000000-0000-0000-0000-000000000002'],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('invalid_question_ids')
+  })
+
+  // Migration 20260521000001 line 77:
+  //   AND (p_topic_id IS NULL OR q.topic_id = p_topic_id)
+  // altTopicQuestionId belongs to refs.subjectId (correct subject) but
+  // altTopicRefs.topicId (different topic). With p_topic_id = refs.topicId,
+  // the topic filter excludes the question from the JOIN count, triggering
+  // the count-mismatch rejection.
+  it('rejects a question from a different topic within the same subject with invalid_question_ids', async () => {
+    const { error } = await studentClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: refs.subjectId,
+      p_topic_id: refs.topicId,
+      p_question_ids: [altTopicQuestionId],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('invalid_question_ids')
   })
 })
