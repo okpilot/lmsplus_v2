@@ -210,6 +210,10 @@ describe('RPC: start_quiz_session input validation', () => {
       topicCode: `SV${suffix}-02`,
       topicName: `Validation Alt Topic ${suffix}`,
     })
+    // Invariant the wrong-topic test depends on: same subjectCode upserts to the
+    // SAME subject, so altTopicRefs is a different TOPIC under refs.subjectId. If
+    // this broke, the wrong-topic test would silently become a wrong-subject test.
+    expect(altTopicRefs.subjectId).toBe(refs.subjectId)
 
     const seeded = await seedQuestions({
       admin,

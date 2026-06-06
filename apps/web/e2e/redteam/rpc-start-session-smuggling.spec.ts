@@ -1,6 +1,5 @@
 /**
- * Red Team Spec — Vectors BL (sub-vectors 1 & 2): start_quiz_session input
- * hardening (issue #625)
+ * Red Team Spec: start_quiz_session Input Smuggling — Vectors BL (issue #625)
  *
  * Attack:  An authenticated student calls `start_quiz_session` with
  *          `p_question_ids` that contain UUIDs the RPC should reject:
@@ -9,8 +8,8 @@
  *     The attacker is a user in `redteam-other-org` (created via
  *     createCrossOrgUser()). They pass valid question UUIDs that belong to
  *     `egmont-aviation` (org A). The RPC resolves `v_org_id` from
- *     `auth.uid()` → redteam-other-org (org B). The guard at line 71 of
- *     mig 20260506000001 enforces `q.organization_id = v_org_id`; since
+ *     `auth.uid()` → redteam-other-org (org B). The guard at line 75 of
+ *     mig 20260521000001 enforces `q.organization_id = v_org_id`; since
  *     the questions exist in egmont (org A) but the caller's org is
  *     redteam-other-org (org B), the COUNT check fails and the RPC raises
  *     `invalid_question_ids`. This proves the org boundary filter, not
@@ -25,12 +24,12 @@
  *          to foreign-org content or to revive soft-deleted questions into a
  *          live scoring session.
  *
- * Defense: Migration 20260506000001 (`start_quiz_session_harden_input`).
+ * Defense: Migration 20260521000001 (`start_quiz_session_null_guard`).
  *          After the active-user gate, the RPC runs a COUNT(*)
  *          JOIN that enforces: `q.organization_id = v_org_id`,
  *          `q.status = 'active'`, and `q.deleted_at IS NULL`.
- *          Any count mismatch raises `invalid_question_ids` (line 77).
- *          The org filter (`q.organization_id = v_org_id`) is at line 71.
+ *          Any count mismatch raises `invalid_question_ids` (line 82).
+ *          The org filter (`q.organization_id = v_org_id`) is at line 75.
  *
  * Non-vacuity (§7 red-team isolation rule):
  *   Attack 1: egmont question IDs are confirmed non-empty via admin query
@@ -102,7 +101,7 @@ test.describe('Vector BL — start_quiz_session question-ID smuggling (issue #62
     // Fetch real active egmont question IDs to use as the Attack 1 smuggle payload.
     // These questions exist in egmont-aviation (org A). The cross-org caller's
     // v_org_id resolves to redteam-other-org (org B) from auth.uid(), so
-    // `q.organization_id = v_org_id` (mig 20260506000001 line 71) fails → invalid_question_ids.
+    // `q.organization_id = v_org_id` (mig 20260521000001 line 75) fails → invalid_question_ids.
     const egmontPicked = await pickSubjectWithQuestions(admin, {
       orgId: egmontOrgId,
       minActiveQuestions: 1,
@@ -222,10 +221,10 @@ test.describe('Vector BL — start_quiz_session question-ID smuggling (issue #62
   test('Attack 1 — cross-org question IDs are rejected with invalid_question_ids', async () => {
     // The cross-org caller (redteam-other-org) supplies valid egmont-aviation
     // question IDs to start_quiz_session. The RPC resolves v_org_id from
-    // auth.uid() → redteam-other-org. The guard at mig 20260506000001 line 71
+    // auth.uid() → redteam-other-org. The guard at mig 20260521000001 line 75
     //   WHERE q.organization_id = v_org_id
     // means these egmont questions (org A) do not match the caller's org (org B),
-    // so COUNT < array_length → RAISE EXCEPTION 'invalid_question_ids' (line 77).
+    // so COUNT < array_length → RAISE EXCEPTION 'invalid_question_ids' (line 82).
     //
     // Non-vacuity: egmontQuestionIds is asserted non-empty in beforeAll, so
     // rejection here proves the org boundary filter, not "empty array rejected".

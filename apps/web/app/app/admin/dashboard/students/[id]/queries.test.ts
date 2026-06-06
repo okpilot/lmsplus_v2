@@ -185,7 +185,7 @@ describe('getStudentDetail', () => {
     expect(result?.deletedAt).toBe('2026-03-15T12:00:00Z')
   })
 
-  it('returns null for a non-student (admin) id because the role=student filter excludes it', async () => {
+  it('returns null for an admin id — only student rows are returned', async () => {
     // The guard is .eq('role', 'student') (NOT deleted_at): an admin id is filtered
     // out at the query, so Supabase returns no row. Assert both the filter that does
     // the rejecting and the null result, so this is distinct from a generic no-match.

@@ -383,7 +383,12 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     // means neither guard fired on the org-A session.
 
     // ── Non-vacuity: confirm the org-A session genuinely exists ─────────────
-    const orgASessionStart = new Date(Date.now() - 5_000).toISOString()
+    // Seed it as OVERDUE (started_at ~67 min ago, well past time_limit + 30s grace)
+    // so the stale-session auto-complete lookup WOULD fire on it if its org filter
+    // were absent. Combined with the active (ended_at null) duplicate-active guard,
+    // asserting ended_at stays null then non-vacuously proves BOTH org filters
+    // (stale-session lookup + duplicate-active EXISTS) in start_exam_session.
+    const orgASessionStart = new Date(Date.now() - 4_000_000).toISOString()
     const { data: orgARow, error: seedErr } = await adminClient
       .from('quiz_sessions')
       .insert({
