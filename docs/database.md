@@ -2072,9 +2072,9 @@ Returns paginated session reports for the authenticated student with subject nam
 
 **Filters:** `ended_at IS NOT NULL`, `deleted_at IS NULL`, `student_id = auth.uid()`.
 
-**Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, answered_count BIGINT, total_count BIGINT)`
+**Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC NULL, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, total_count BIGINT)` — `score_percentage` is nullable (NULL for sessions with no scored result); consumers must handle null (the TS `RpcRow`/`SessionReport` type it as `number | null`).
 
-**Migration:** `20260410000010_get_session_reports_rpc.sql`
+**Migration:** `20260410000010_get_session_reports_rpc.sql` (created); `20260606000007_get_session_reports_drop_unused_answered_count.sql` (migration 091 — removed unused `answered_count` correlated subquery, #471)
 
 ---
 
@@ -2310,4 +2310,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-06 (migrations 085–090: record_consent idempotency via EXISTS guard (not ON CONFLICT — index is non-unique); start_quiz_session 500-element array cap + null mode guard; start_exam_session unique_violation mapping + org_id index + role cache; exam_configs reactivation-block trigger; users column UPDATE GRANT revoke/full_name-only re-grant) | Previous: 2026-06-05 (migration 20260605000001: quiz_sessions column GRANT; closes #611) | Companion: docs/security.md*
+*Last updated: 2026-06-06 (migration 091: get_session_reports drops unused answered_count correlated subquery — #471; 085–090: record_consent idempotency via EXISTS guard (not ON CONFLICT — index is non-unique); start_quiz_session 500-element array cap + null mode guard; start_exam_session unique_violation mapping + org_id index + role cache; exam_configs reactivation-block trigger; users column UPDATE GRANT revoke/full_name-only re-grant) | Previous: 2026-06-05 (migration 20260605000001: quiz_sessions column GRANT; closes #611) | Companion: docs/security.md*
