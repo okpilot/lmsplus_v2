@@ -1,17 +1,19 @@
 /**
  * Red Team Spec: Quiz Draft Question Injection
  *
- * Vector C (MEDIUM): A student saves a quiz draft containing question_ids that
- * belong to a different org or subject — attempting to reference questions they
- * should not have access to, either to probe for data or to load them in future
- * quiz sessions.
+ * Vector C (MEDIUM): A student from org A injects question IDs that belong to a
+ * different organisation (org B) — attempting to reference questions they should
+ * not have access to and load them via start_quiz_session.
  *
- * Two sub-scenarios:
- *   1. RLS blocks the INSERT entirely (ideal — draft is rejected).
- *   2. Draft is saved but the questions can't be loaded later (RLS filters at read).
+ * Defense under test: start_quiz_session (mig 20260521000001, lines 73-83)
+ * validates every supplied question UUID against
+ *   `q.organization_id = v_org_id`  (caller's own org)
+ * and raises `invalid_question_ids` on any mismatch — so a cross-org caller
+ * holding real question IDs from the victim's org is rejected at the session-start
+ * boundary, not merely at draft-save time.
  *
- * Status: Expected to PASS in the sense that the injected questions are never
- * accessible. If the INSERT is allowed, a follow-up SELECT must return 0 rows.
+ * Status: Expected to PASS (defenses should hold).
+ * If any assertion fails, it indicates a cross-org question injection gap.
  */
 
 import { expect, test } from '@playwright/test'
@@ -20,6 +22,7 @@ import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   ATTACKER_EMAIL,
   ATTACKER_PASSWORD,
+  createCrossOrgUser,
   pickSubjectWithQuestions,
   seedRedTeamUsers,
   VICTIM_EMAIL,
@@ -29,10 +32,15 @@ import {
 test.describe('Red Team: Quiz Draft Question Injection', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let victimClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let adminClient: Awaited<ReturnType<typeof getAdminClient>>
   let attackerUserId: string
+  let victimUserId: string
+  /** IDs of active questions from egmont-aviation — foreign to the cross-org caller. */
   let foreignQuestionIds: string[]
   let orgId: string
+  let foreignSubjectId: string
+  let foreignTopicId: string
 
   test.beforeAll(async () => {
     const seed = await seedRedTeamUsers()
@@ -41,84 +49,89 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
     victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
     adminClient = getAdminClient()
 
+    const crossOrgUser = await createCrossOrgUser()
+    crossOrgClient = await createAuthenticatedClient(crossOrgUser.email, crossOrgUser.password)
+
     const { data: me } = await attackerClient.auth.getUser()
     attackerUserId = me?.user?.id ?? ''
     expect(attackerUserId).not.toBe('')
 
-    // Admin: resolve real question IDs from a subject in this org (used as
-    // "foreign-scope" payload for the injection attempt — RLS scopes drafts by
-    // org, not subject, so any same-org questions exercise the read path).
+    const { data: victimMe } = await victimClient.auth.getUser()
+    victimUserId = victimMe?.user?.id ?? ''
+    expect(victimUserId).not.toBe('')
+
+    // Admin: resolve real question IDs from egmont-aviation (orgId).
+    // These are genuinely foreign to the cross-org caller (who belongs to
+    // redteam-other-org). Non-vacuity: we assert length > 0 below so that a
+    // rejected session proves RLS/RPC org-scoping, not an empty question set.
     const picked = await pickSubjectWithQuestions(adminClient, { orgId })
-    const { data: questions } = await adminClient
+    foreignSubjectId = picked.subjectId
+    foreignTopicId = picked.topicId
+
+    const { data: questions, error: questionsError } = await adminClient
       .from('questions')
       .select('id')
       .eq('organization_id', orgId)
-      .eq('subject_id', picked.subjectId)
-      .eq('topic_id', picked.topicId)
+      .eq('subject_id', foreignSubjectId)
+      .eq('topic_id', foreignTopicId)
       .eq('status', 'active')
       .is('deleted_at', null)
       .limit(5)
 
+    expect(questionsError).toBeNull()
     foreignQuestionIds = (questions ?? []).map((q) => q.id)
 
-    // If we couldn't find foreign questions, use sentinel UUIDs — the INSERT should
-    // still be tested (just won't find real data at read time either way).
-    if (foreignQuestionIds.length === 0) {
-      foreignQuestionIds = [
-        '00000000-0000-4000-a000-000000000010',
-        '00000000-0000-4000-a000-000000000011',
-      ]
+    // Non-vacuity guard (code-style.md §7): the foreign questions must exist so
+    // that a downstream rejection proves the cross-org boundary, not an empty set.
+    expect(
+      foreignQuestionIds.length,
+      'beforeAll: egmont-aviation must have ≥1 active question for the injection test to be non-vacuous',
+    ).toBeGreaterThan(0)
+  })
+
+  // Hermetic cleanup (code-style.md §7): soft-delete any quiz_drafts created
+  // for the victim user during this describe block. Hard-delete is forbidden
+  // (docs/security.md §6). Runs after every test so a mid-suite failure doesn't
+  // leave state that breaks downstream specs.
+  test.afterEach(async () => {
+    if (!victimUserId) return
+    const { data: discarded, error } = await adminClient
+      .from('quiz_drafts')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('student_id', victimUserId)
+      .is('deleted_at', null)
+      .select('id')
+    if (error) {
+      console.error('[quiz-draft-injection] afterEach cleanup error:', error.message)
+    }
+    if ((discarded?.length ?? 0) > 0) {
+      console.log(
+        `[quiz-draft-injection] afterEach: soft-deleted ${discarded?.length} victim draft(s)`,
+      )
     }
   })
 
-  test('inserting a draft with foreign question_ids is rejected or returns no questions on load', async () => {
-    // Attack: save a draft with question_ids from another subject
-    const { data: insertData, error: insertError } = await attackerClient
-      .from('quiz_drafts')
-      .insert({
-        student_id: attackerUserId,
-        organization_id: orgId,
-        question_ids: foreignQuestionIds,
-        answers: {},
-      })
-      .select('id')
-
-    if (insertError) {
-      // Ideal outcome: RLS rejected the insert outright
-      expect(insertError).not.toBeNull()
-      return
-    }
-
-    // Insert succeeded — same-org questions are readable by design (RLS scopes
-    // by org, not subject). The real defense is that correct answers are stripped
-    // by get_quiz_questions RPC and start_quiz_session validates subject membership.
-    const draftId = (insertData as { id: string }[] | null)?.[0]?.id
-    expect(draftId).toBeTruthy()
-
-    // Verify correct answers are NOT exposed via the RPC
-    const { data: rpcQuestions } = await attackerClient.rpc('get_quiz_questions', {
+  test('cross-org caller is rejected by start_quiz_session when supplying foreign question IDs', async () => {
+    // Attack: the cross-org caller (redteam-other-org) supplies valid egmont-aviation
+    // question IDs to start_quiz_session. The RPC validates every UUID against
+    //   q.organization_id = caller's org_id
+    // (mig 20260521000001, lines 73-83). Since the caller's org is redteam-other-org
+    // and these questions belong to egmont-aviation, the count check fails and the
+    // RPC raises `invalid_question_ids`.
+    const { data, error } = await crossOrgClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: foreignSubjectId,
+      p_topic_id: foreignTopicId,
       p_question_ids: foreignQuestionIds,
     })
 
-    if (rpcQuestions && Array.isArray(rpcQuestions)) {
-      for (const q of rpcQuestions as { options: { correct?: boolean }[] }[]) {
-        for (const opt of q.options) {
-          expect(opt.correct).toBeUndefined()
-        }
-      }
-    }
-
-    // Cleanup: soft-delete the injected draft so it doesn't pollute other tests
-    await adminClient
-      .from('quiz_drafts')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', draftId)
+    expect(error, 'start_quiz_session must reject foreign-org question IDs').not.toBeNull()
+    expect(error?.message ?? '').toMatch(/invalid_question_ids/i)
+    expect(data ?? null).toBeNull()
   })
 
   test('attacker cannot insert a draft owned by another student (student_id forgery)', async () => {
     // Attack: spoof student_id to save a draft under the victim's account
-    const { data: victimData } = await victimClient.auth.getUser()
-    const victimUserId = victimData?.user?.id ?? ''
     expect(victimUserId).not.toBe('')
 
     const { error } = await attackerClient.from('quiz_drafts').insert({
@@ -133,10 +146,7 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
   })
 
   test("attacker cannot read another student's quiz drafts", async () => {
-    // First, create a legitimate draft as the victim
-    const { data: victimMe } = await victimClient.auth.getUser()
-    const victimUserId = victimMe?.user?.id ?? ''
-
+    // First, create a legitimate draft as the victim (cleaned up by afterEach)
     await adminClient.from('quiz_drafts').insert({
       student_id: victimUserId,
       organization_id: orgId,
@@ -160,9 +170,9 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
   })
 
   test("attacker cannot update another student's quiz draft", async () => {
-    // Find a draft belonging to the victim
-    const { data: victimMe } = await victimClient.auth.getUser()
-    const victimUserId = victimMe?.user?.id ?? ''
+    // Find a draft belonging to the victim (created in the preceding test,
+    // or seed one here if none exists — afterEach cleans up both).
+    if (!victimUserId) return
 
     const { data: victimDrafts } = await adminClient
       .from('quiz_drafts')
