@@ -143,9 +143,11 @@ reviews:
           stored in an immutable, write-once column may omit the filter (sole current case:
           batch_submit_quiz reading questions via quiz_sessions.config.question_ids, locked at
           session start, enforced by trg_quiz_sessions_immutable_columns). Any new carve-out
-          instance must cite the immutable write-once column in an inline comment at the call
-          site. Flag any SECURITY DEFINER SELECT on a soft-deletable table missing
-          AND deleted_at IS NULL that lacks a cited write-once carve-out.
+          instance must (a) cite the immutable write-once column, (b) include that citation in
+          an inline comment at the call site, and (c) cross-reference docs/database.md §3
+          "Scoring Soft-Deleted Questions" (per docs/security.md §15). Flag any SECURITY DEFINER
+          SELECT on a soft-deletable table missing AND deleted_at IS NULL that lacks a cited
+          write-once carve-out, and flag any carve-out missing the docs/database.md §3 cross-reference.
           (security.md §9 / docs/security.md §15; docs/database.md §3.)
         - ON CONFLICT inference target: any INSERT ... ON CONFLICT (cols) [WHERE pred] must
           target a UNIQUE index/constraint matching those columns + predicate (a plain
