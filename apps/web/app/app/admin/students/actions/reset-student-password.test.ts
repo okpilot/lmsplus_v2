@@ -6,6 +6,7 @@ const mockRevalidatePath = vi.hoisted(() => vi.fn())
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockUpdateUserById = vi.hoisted(() => vi.fn())
+const mockRpc = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
@@ -30,7 +31,12 @@ const VALID_INPUT = {
 }
 
 function mockAdmin() {
-  mockRequireAdmin.mockResolvedValue({ supabase: {}, userId: 'admin-1', organizationId: 'org-1' })
+  mockRpc.mockResolvedValue({ error: null })
+  mockRequireAdmin.mockResolvedValue({
+    supabase: { rpc: mockRpc },
+    userId: 'admin-1',
+    organizationId: 'org-1',
+  })
 }
 
 function buildFetchChain({
@@ -104,6 +110,36 @@ describe('resetStudentPassword', () => {
       )
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
     })
+
+    it('records a user.password_reset audit event for the target student', async () => {
+      mockAdmin()
+      buildFetchChain()
+      mockUpdateUserById.mockResolvedValue({ error: null })
+
+      await resetStudentPassword(VALID_INPUT)
+
+      expect(mockRpc).toHaveBeenCalledWith('record_auth_event', {
+        p_event_type: 'user.password_reset',
+        p_resource_id: VALID_UUID,
+      })
+    })
+
+    it('still succeeds when the audit event write fails (best-effort)', async () => {
+      mockAdmin()
+      buildFetchChain()
+      mockUpdateUserById.mockResolvedValue({ error: null })
+      mockRpc.mockResolvedValue({ error: { message: 'audit insert failed' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await resetStudentPassword(VALID_INPUT)
+
+      expect(result.success).toBe(true)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[resetStudentPassword] Audit event failed:',
+        'audit insert failed',
+      )
+      consoleSpy.mockRestore()
+    })
   })
 
   describe('student lookup', () => {
@@ -159,6 +195,8 @@ describe('resetStudentPassword', () => {
       if (result.success) return
       expect(result.error).toBe('Failed to reset password')
       expect(mockRevalidatePath).not.toHaveBeenCalled()
+      // No audit event for a failed reset (the audit call is after the success path).
+      expect(mockRpc).not.toHaveBeenCalled()
     })
   })
 

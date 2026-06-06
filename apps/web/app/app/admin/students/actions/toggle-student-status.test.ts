@@ -6,6 +6,7 @@ const mockRevalidatePath = vi.hoisted(() => vi.fn())
 const mockRequireAdmin = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockUpdateUserById = vi.hoisted(() => vi.fn())
+const mockRpc = vi.hoisted(() => vi.fn())
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
 vi.mock('@/lib/auth/require-admin', () => ({ requireAdmin: mockRequireAdmin }))
@@ -28,7 +29,12 @@ const STUDENT_ID = '00000000-0000-4000-a000-000000000002'
 const VALID_INPUT = { id: STUDENT_ID }
 
 function mockAdmin() {
-  mockRequireAdmin.mockResolvedValue({ supabase: {}, userId: ADMIN_ID, organizationId: 'org-1' })
+  mockRpc.mockResolvedValue({ error: null })
+  mockRequireAdmin.mockResolvedValue({
+    supabase: { rpc: mockRpc },
+    userId: ADMIN_ID,
+    organizationId: 'org-1',
+  })
 }
 
 function buildFetchChain({
@@ -141,6 +147,46 @@ describe('toggleStudentStatus', () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
     })
 
+    it('records a user.deactivated audit event on successful deactivation', async () => {
+      mockAdmin()
+      buildFetchChain({ deletedAt: null })
+      mockUpdateUserById.mockResolvedValue({ error: null })
+
+      await toggleStudentStatus(VALID_INPUT)
+
+      expect(mockRpc).toHaveBeenCalledWith('record_auth_event', {
+        p_event_type: 'user.deactivated',
+        p_resource_id: STUDENT_ID,
+      })
+    })
+
+    it('does not record an audit event when deactivation fails', async () => {
+      mockAdmin()
+      buildFetchChain({ deletedAt: null })
+      mockUpdateUserById.mockResolvedValue({ error: { message: 'ban failed' } })
+
+      await toggleStudentStatus(VALID_INPUT)
+
+      expect(mockRpc).not.toHaveBeenCalled()
+    })
+
+    it('still succeeds when the audit event write fails (best-effort)', async () => {
+      mockAdmin()
+      buildFetchChain({ deletedAt: null })
+      mockUpdateUserById.mockResolvedValue({ error: null })
+      mockRpc.mockResolvedValue({ error: { message: 'audit insert failed' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await toggleStudentStatus(VALID_INPUT)
+
+      expect(result.success).toBe(true)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[toggleStudentStatus] Audit event failed:',
+        'audit insert failed',
+      )
+      consoleSpy.mockRestore()
+    })
+
     it('returns failure when banning the auth user fails (DB not touched)', async () => {
       mockAdmin()
       buildFetchChain({ deletedAt: null })
@@ -187,6 +233,8 @@ describe('toggleStudentStatus', () => {
       expect(result.success).toBe(true)
       expect(mockUpdateUserById).toHaveBeenCalledWith(STUDENT_ID, { ban_duration: 'none' })
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/students')
+      // Reactivation is intentionally not audited (#379 scope is deactivate only).
+      expect(mockRpc).not.toHaveBeenCalled()
     })
 
     it('returns failure when unbanning the auth user fails (DB not touched)', async () => {

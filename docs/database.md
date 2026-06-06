@@ -668,6 +668,7 @@ verb_noun pattern:
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
   get_student_profile_stats  ← read, student: completed-session count + average score (single-row COUNT + AVG over own non-deleted, ended, non-null-score quiz_sessions); replaces the client-side count/average that truncated at the PostgREST 1000-row cap (#668 P2, profile.ts)
+  record_auth_event          ← write, audit: records auth-related events (user.password_changed, user.password_reset, user.deactivated, user.created) after Server Action mutations. Self-defending: whitelist + role/org checks + best-effort (audit failure does not surface to caller). EXECUTE granted to authenticated, invoked through the acting user's client (not service role) so auth.uid() is the real actor.
   record_consent             ← write, GDPR: inserts one consent row for the caller; idempotent for accepted=true via an EXISTS pre-check on (user_id, document_type, document_version) (mig 085, #386)
   check_consent_status       ← read, GDPR: returns (has_tos, has_privacy) boolean flags for specified document versions
 ```
@@ -1876,6 +1877,78 @@ END;
 $$;
 ```
 
+#### `record_auth_event` — audit events for auth Server Actions
+
+Records authentication-related audit events (`user.password_changed`, `user.password_reset`, `user.deactivated`, `user.created`) after successful auth mutations. Called from Server Actions: `changePassword`, `resetStudentPassword`, `toggleStudentStatus` (deactivate path), and `createStudent`. Auth mutations were previously unaudited; this RPC provides a generic, self-defending audit interface.
+
+**Security:**
+- `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
+- Actor ID and role are derived from `auth.uid()` via a `deleted_at`-filtered `users` lookup (security.md §7 + §10) — never from caller input.
+- `event_type` is whitelisted. Self-service event (`user.password_changed`) forces `resource_id = actor_id`. Admin events (`user.password_reset`, `user.deactivated`, `user.created`) require the caller's role = `'admin'`. The RPC does **not** re-SELECT the resource to org-scope it: such a lookup would need an `AND deleted_at IS NULL` filter per security.md §9, which would reject the `user.deactivated` audit (whose target is already soft-deleted by audit time). The audit row's `organization_id` is always the **actor's** org, so a bogus `resource_id` only adds a self-referential row to the admin's own log — no cross-org read or write.
+- Callers invoke the RPC through the **acting user's client** (the student for `changePassword`, the admin's `requireAdmin()` client for admin actions) so `auth.uid()` is the real actor — **never** through the service-role `adminClient` (which would have `auth.uid() = NULL`).
+- Best-effort audit: if the RPC fails, the auth mutation has already succeeded. Failures are logged server-side, not surfaced to the caller.
+
+**Parameters:**
+- `p_event_type` — one of `'user.password_changed'`, `'user.password_reset'`, `'user.deactivated'`, `'user.created'`
+- `p_resource_id` — UUID of the user record being acted upon (the actor for `password_changed`, the target for admin events)
+- `p_metadata` — JSONB, optional additional event context (default `'{}'`)
+
+**Returns:** void. Raises EXCEPTION if not authenticated, user not found/inactive, a non-admin attempts an admin event, a self event targets another user, or the event_type is not whitelisted.
+
+```sql
+CREATE OR REPLACE FUNCTION public.record_auth_event(
+  p_event_type  TEXT,
+  p_resource_id UUID,
+  p_metadata    JSONB DEFAULT '{}'::jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_actor_id UUID := auth.uid();
+  v_org_id   UUID;
+  v_role     TEXT;
+BEGIN
+  IF v_actor_id IS NULL THEN
+    RAISE EXCEPTION 'not authenticated';
+  END IF;
+
+  SELECT organization_id, role INTO v_org_id, v_role
+  FROM users
+  WHERE id = v_actor_id AND deleted_at IS NULL;
+  IF v_org_id IS NULL THEN
+    RAISE EXCEPTION 'user not found or inactive';
+  END IF;
+
+  IF p_event_type = 'user.password_changed' THEN
+    -- Self-service: a user may only record their own password change.
+    IF p_resource_id IS DISTINCT FROM v_actor_id THEN
+      RAISE EXCEPTION 'self event resource must be the actor';
+    END IF;
+  ELSIF p_event_type IN ('user.password_reset', 'user.deactivated', 'user.created') THEN
+    -- Admin-only. No resource re-SELECT: it would need AND deleted_at IS NULL per
+    -- §9, which would reject the user.deactivated audit (target already soft-deleted).
+    -- The audit row's org is always the actor's own org, so a bogus resource_id is
+    -- only self-referential log noise — no cross-org read or write.
+    IF v_role <> 'admin' THEN
+      RAISE EXCEPTION 'not authorized';
+    END IF;
+  ELSE
+    RAISE EXCEPTION 'unsupported event_type: %', p_event_type;
+  END IF;
+
+  INSERT INTO audit_events
+    (organization_id, actor_id, actor_role, event_type, resource_type, resource_id, metadata)
+  VALUES (
+    v_org_id, v_actor_id, v_role, p_event_type, 'user', p_resource_id,
+    COALESCE(p_metadata, '{}'::jsonb)
+  );
+END;
+$$;
+```
+
 #### `record_consent` — GDPR consent audit logging
 
 Records a single consent decision (TOS acceptance, privacy policy acceptance). Called from `/consent` Server Action after user submits the consent form. All writes to `user_consents` must go through this RPC — direct inserts are blocked by RLS.
@@ -2311,4 +2384,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-06 (migration 092: trg_stamp_last_active_on_session_complete trigger on quiz_sessions.ended_at NULL→NOT NULL transition, centralizes activity stamp across all student-completion paths, fixes #532; batch_submit_quiz / complete_empty_exam_session / complete_overdue_exam_session / complete_quiz_session RPC descriptions updated to reflect trigger-based stamp) | Previous: 2026-06-06 (migration 091: get_session_reports drops unused answered_count correlated subquery — #471; migrations 085–090) | Companion: docs/security.md*
+*Last updated: 2026-06-06 (migration 093: record_auth_event RPC for auth Server Action audit events; 4 new event types — #379) | Previous: 2026-06-06 (migration 092: trg_stamp_last_active_on_session_complete trigger on quiz_sessions.ended_at NULL→NOT NULL transition, centralizes activity stamp across all student-completion paths, fixes #532; migration 091: get_session_reports drops unused answered_count correlated subquery — #471; migrations 085–090) | Companion: docs/security.md*

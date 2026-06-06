@@ -517,6 +517,10 @@ CREATE POLICY "audit_read_instructors" ON audit_events
 | Event | Trigger |
 |-------|---------|
 | `student.login` | Successful email + password sign-in (via `record_login()` RPC, 60s rate-limited) |
+| `user.password_changed` | Student changes their own password (via `changePassword` Server Action, recorded by `record_auth_event()` RPC) |
+| `user.password_reset` | Admin resets a student password (via `resetStudentPassword` Server Action, recorded by `record_auth_event()` RPC) |
+| `user.deactivated` | Admin deactivates a student account (via `toggleStudentStatus` deactivate path, recorded by `record_auth_event()` RPC) |
+| `user.created` | Admin creates a new student account (via `createStudent` Server Action, recorded by `record_auth_event()` RPC) |
 | `quiz_session.started` | Student begins any quiz mode |
 | `quiz_session.completed` | Student finishes session (score recorded) |
 | `exam.started` | Mock exam begins |

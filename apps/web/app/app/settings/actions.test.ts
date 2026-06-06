@@ -2,20 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockUpdateUser, mockSignIn, mockFrom, mockRevalidatePath } = vi.hoisted(
-  () => ({
+const { mockGetUser, mockUpdateUser, mockSignIn, mockFrom, mockRevalidatePath, mockRpc } =
+  vi.hoisted(() => ({
     mockGetUser: vi.fn(),
     mockUpdateUser: vi.fn(),
     mockSignIn: vi.fn(),
     mockFrom: vi.fn(),
     mockRevalidatePath: vi.fn(),
-  }),
-)
+    mockRpc: vi.fn(),
+  }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
     auth: { getUser: mockGetUser, updateUser: mockUpdateUser, signInWithPassword: mockSignIn },
     from: mockFrom,
+    rpc: mockRpc,
   }),
 }))
 
@@ -56,6 +57,7 @@ function buildUpdateChain({
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockRpc.mockResolvedValue({ error: null })
 })
 
 describe('updateDisplayName', () => {
@@ -281,6 +283,36 @@ describe('changePassword', () => {
       expect(result.success).toBe(true)
       expect(mockSignIn).toHaveBeenCalledWith({ email: 'test@example.com', password: 'oldpass123' })
       expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpass123' })
+    })
+
+    it('records a self user.password_changed audit event', async () => {
+      mockAuthenticatedUser()
+      mockSignIn.mockResolvedValue({ error: null })
+      mockUpdateUser.mockResolvedValue({ error: null })
+
+      await changePassword(validInput)
+
+      expect(mockRpc).toHaveBeenCalledWith('record_auth_event', {
+        p_event_type: 'user.password_changed',
+        p_resource_id: USER_ID,
+      })
+    })
+
+    it('still succeeds when the audit event write fails (best-effort)', async () => {
+      mockAuthenticatedUser()
+      mockSignIn.mockResolvedValue({ error: null })
+      mockUpdateUser.mockResolvedValue({ error: null })
+      mockRpc.mockResolvedValue({ error: { message: 'audit insert failed' } })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const result = await changePassword(validInput)
+
+      expect(result.success).toBe(true)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[changePassword] Audit event failed:',
+        'audit insert failed',
+      )
+      consoleSpy.mockRestore()
     })
   })
 

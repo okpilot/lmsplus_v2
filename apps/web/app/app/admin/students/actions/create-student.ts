@@ -13,7 +13,7 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Invalid input' }
   }
 
-  const { organizationId } = await requireAdmin()
+  const { organizationId, supabase } = await requireAdmin()
   const { email, full_name, role, temporary_password } = parsed.data
 
   const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
@@ -52,6 +52,16 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
       )
     }
     return { success: false, error: 'Failed to create student' }
+  }
+
+  // Audit the creation via the admin's user-context client (auth.uid() = admin).
+  // Best-effort: the student exists, so a failed audit write is logged, not surfaced.
+  const { error: auditError } = await supabase.rpc('record_auth_event', {
+    p_event_type: 'user.created',
+    p_resource_id: authData.user.id,
+  })
+  if (auditError) {
+    console.error('[createStudent] Audit event failed:', auditError.message)
   }
 
   revalidatePath('/app/admin/students')
