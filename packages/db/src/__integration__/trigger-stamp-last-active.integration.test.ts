@@ -216,7 +216,9 @@ describe('trigger: stamp_last_active_on_session_complete', () => {
     // Compare as timestamps, not strings: PostgreSQL serialises TIMESTAMPTZ as
     // "+00:00" while JS toISOString() produces "Z" — both represent the same
     // instant but string equality would fail.
-    const storedAt = userRow?.last_active_at ? new Date(userRow.last_active_at as string).getTime() : null
+    const storedAt = userRow?.last_active_at
+      ? new Date(userRow.last_active_at as string).getTime()
+      : null
     expect(storedAt).toBe(new Date(sentinel).getTime())
 
     // Cleanup the seeded session so cleanupTestData doesn't encounter FK issues.
