@@ -4,14 +4,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockExportMyData, mockToastSuccess, mockToastError } = vi.hoisted(() => ({
+const { mockExportMyData, mockToastSuccess, mockToastError, mockToastWarning } = vi.hoisted(() => ({
   mockExportMyData: vi.fn(),
   mockToastSuccess: vi.fn(),
   mockToastError: vi.fn(),
+  mockToastWarning: vi.fn(),
 }))
 
 vi.mock('../gdpr-actions', () => ({ exportMyData: mockExportMyData }))
-vi.mock('sonner', () => ({ toast: { success: mockToastSuccess, error: mockToastError } }))
+vi.mock('sonner', () => ({
+  toast: { success: mockToastSuccess, error: mockToastError, warning: mockToastWarning },
+}))
 
 // jsdom does not implement URL.createObjectURL / URL.revokeObjectURL
 vi.stubGlobal('URL', {
@@ -27,6 +30,7 @@ import { DataExportCard } from './data-export-card'
 
 const MOCK_PAYLOAD = {
   exported_at: '2026-03-27T10:00:00.000Z',
+  warnings: [],
   user: {
     id: 'u-1',
     email: 'student@example.com',
@@ -51,6 +55,22 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
+/**
+ * Stub document.createElement so the anchor's .click() is a no-op (jsdom does not
+ * implement navigation). Returns the spy so the caller can restore it in a finally
+ * block — beforeEach uses resetAllMocks, which does NOT reinstate the original impl.
+ */
+function stubLinkClick() {
+  const originalCreateElement = document.createElement.bind(document)
+  return vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+    const el = originalCreateElement(tag)
+    if (tag === 'a') {
+      Object.defineProperty(el, 'click', { value: vi.fn(), writable: true })
+    }
+    return el
+  })
+}
+
 describe('DataExportCard', () => {
   describe('rendering', () => {
     it('renders the card heading', () => {
@@ -72,27 +92,40 @@ describe('DataExportCard', () => {
   describe('happy path', () => {
     it('shows success toast when export succeeds', async () => {
       mockExportMyData.mockResolvedValue({ success: true, data: MOCK_PAYLOAD })
+      const createElementSpy = stubLinkClick()
+      try {
+        const user = userEvent.setup()
+        render(<DataExportCard />)
 
-      // Stub link.click() so jsdom does not attempt navigation
-      const originalCreateElement = document.createElement.bind(document)
-      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        const el = originalCreateElement(tag)
-        if (tag === 'a') {
-          Object.defineProperty(el, 'click', { value: vi.fn(), writable: true })
-        }
-        return el
+        await user.click(screen.getByRole('button', { name: /export my data/i }))
+
+        await waitFor(() => {
+          expect(mockToastSuccess).toHaveBeenCalledWith('Data exported successfully')
+        })
+      } finally {
+        createElementSpy.mockRestore()
+      }
+    })
+
+    it('shows a warning toast (not success) when the export has incomplete sections', async () => {
+      mockExportMyData.mockResolvedValue({
+        success: true,
+        data: { ...MOCK_PAYLOAD, warnings: [{ section: 'quiz_sessions', message: 'incomplete' }] },
       })
+      const createElementSpy = stubLinkClick()
+      try {
+        const user = userEvent.setup()
+        render(<DataExportCard />)
 
-      const user = userEvent.setup()
-      render(<DataExportCard />)
+        await user.click(screen.getByRole('button', { name: /export my data/i }))
 
-      await user.click(screen.getByRole('button', { name: /export my data/i }))
-
-      await waitFor(() => {
-        expect(mockToastSuccess).toHaveBeenCalledWith('Data exported successfully')
-      })
-
-      vi.restoreAllMocks()
+        await waitFor(() => {
+          expect(mockToastWarning).toHaveBeenCalledWith(expect.stringContaining('incomplete'))
+        })
+        expect(mockToastSuccess).not.toHaveBeenCalled()
+      } finally {
+        createElementSpy.mockRestore()
+      }
     })
   })
 

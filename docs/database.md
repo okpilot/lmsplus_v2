@@ -645,18 +645,18 @@ verb_noun pattern:
   get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin())
   check_quiz_answer                ← read, verify answer + return explanation (immediate feedback)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
-  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit + last_active_at stamp (deferred writes pattern)
+  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500)
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; maps unique_violation to friendly domain error (mig 088, #754); returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
-  complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent)
-  complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam OR internal_exam session, score from buffered answers, audit exam.expired / internal_exam.expired (idempotent; widened in mig 063 / 20260429000008)
+  complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent; last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
+  complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam OR internal_exam session, score from buffered answers, audit exam.expired / internal_exam.expired (idempotent; widened in mig 063 / 20260429000008; last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
   issue_internal_exam_code   ← write, admin-only: generate 8-char single-use code, 24h validity, 5-retry collision handling, audit internal_exam.code_issued
   start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard
   void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
   list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004)
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
-  complete_quiz_session      ← write, atomic: session end + score + audit + last_active_at stamp (DEPRECATED — use batch_submit_quiz)
+  complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz; last_active_at now stamped by trigger on all completion paths, mig 092)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
@@ -2145,9 +2145,9 @@ Returns paginated session reports for the authenticated student with subject nam
 
 **Filters:** `ended_at IS NOT NULL`, `deleted_at IS NULL`, `student_id = auth.uid()`.
 
-**Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, answered_count BIGINT, total_count BIGINT)`
+**Returns:** `TABLE(id UUID, mode TEXT, total_questions INT, correct_count INT, score_percentage NUMERIC NULL, started_at TIMESTAMPTZ, ended_at TIMESTAMPTZ, subject_id UUID, subject_name TEXT, total_count BIGINT)` — `score_percentage` is nullable (NULL for sessions with no scored result); consumers must handle null (the TS `RpcRow`/`SessionReport` type it as `number | null`).
 
-**Migration:** `20260410000010_get_session_reports_rpc.sql`
+**Migration:** `20260410000010_get_session_reports_rpc.sql` (created); `20260606000007_get_session_reports_drop_unused_answered_count.sql` (migration 091 — removed unused `answered_count` correlated subquery, #471)
 
 ---
 
@@ -2317,6 +2317,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 | `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021; `SET search_path = public` added in `20260430000007` — closes #588; `20260430000011` adds `pg_advisory_xact_lock(hashtext(NEW.student_id::text))` to serialize the 20-draft cap check under concurrency — PR #599 CR root-cause fix) |
 | `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 | `trg_block_exam_config_reactivation` | `exam_configs` | Blocks `UPDATE SET deleted_at = NULL` (unconditional — no role exemption); enforces that reactivation goes through `upsert_exam_config`, whose UPDATE branch never writes `deleted_at` (mig 089, #755) |
+| `trg_stamp_last_active_on_session_complete` | `quiz_sessions` | AFTER UPDATE OF `ended_at`: stamps `users.last_active_at = now()` on the NULL→NOT NULL transition, guarded to the student who owns the session (`auth.uid() = NEW.student_id`). Fires on all four student-completion paths (`batch_submit_quiz`, `complete_overdue_exam_session`, `complete_empty_exam_session`, deprecated `complete_quiz_session`), and is skipped on admin voids (`void_internal_exam_code` with `auth.uid() = admin`). Centralizes the stamp operation outside of RPC bodies, closing the bug where only the deprecated path updated activity (mig 092, #532). |
 
 ---
 
@@ -2383,4 +2384,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-06 (migration 093: record_auth_event RPC for auth Server Action audit events; 4 new event types) | Prior: migrations 085–090 (record_consent idempotency, start_quiz_session cap, start_exam_session mapping, users column UPDATE GRANT) | Companion: docs/security.md*
+*Last updated: 2026-06-06 (migration 093: record_auth_event RPC for auth Server Action audit events; 4 new event types — #379) | Previous: 2026-06-06 (migration 092: trg_stamp_last_active_on_session_complete trigger on quiz_sessions.ended_at NULL→NOT NULL transition, centralizes activity stamp across all student-completion paths, fixes #532; migration 091: get_session_reports drops unused answered_count correlated subquery — #471; migrations 085–090) | Companion: docs/security.md*

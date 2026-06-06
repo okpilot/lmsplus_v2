@@ -27,7 +27,6 @@ function makeRpcRow(overrides: Record<string, unknown> = {}) {
     ended_at: '2026-03-12T10:15:00Z',
     subject_id: 's-1',
     subject_name: 'Navigation',
-    answered_count: 10,
     total_count: 1,
     ...overrides,
   }
@@ -67,10 +66,12 @@ describe('getSessionReports', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.sessions).toHaveLength(1)
-    expect(result.sessions[0]!.subjectName).toBe('Navigation')
-    expect(result.sessions[0]!.durationMinutes).toBe(15)
-    expect(result.sessions[0]!.scorePercentage).toBe(80)
-    expect(result.sessions[0]!.answeredCount).toBe(10)
+    const s = result.sessions[0]!
+    expect(s.subjectName).toBe('Navigation')
+    expect(s.durationMinutes).toBe(15)
+    expect(s.scorePercentage).toBe(80)
+    expect(s.totalQuestions).toBe(10)
+    expect(s.correctCount).toBe(8)
     expect(result.totalCount).toBe(1)
   })
 
@@ -145,18 +146,18 @@ describe('getSessionReports', () => {
     expect(result.totalCount).toBe(42)
   })
 
-  it('coerces BIGINT total_count and answered_count from string to number', async () => {
+  it('coerces BIGINT total_count from string to number', async () => {
     // PostgREST serializes BIGINT columns as strings. Without Number() coercion,
     // result.totalCount would be "1" and the caller's `=== 1` singular check would break.
+    // (answered_count was the other BIGINT here; removed in #471 — no longer in the RPC output.)
     mockRpc.mockResolvedValue({
-      data: [makeRpcRow({ total_count: '1', answered_count: '7' })],
+      data: [makeRpcRow({ total_count: '1' })],
       error: null,
     })
     const result = await getSessionReports(DEFAULT_OPTS)
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.totalCount).toBe(1)
-    expect(result.sessions[0]!.answeredCount).toBe(7)
   })
 
   it('coerces a fractional NUMERIC score_percentage from string to number', async () => {

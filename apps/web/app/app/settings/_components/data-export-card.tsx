@@ -25,7 +25,15 @@ export function DataExportCard() {
           `lmsplus-data-export-${new Date().toISOString().slice(0, 10)}.json`,
         )
 
-        toast.success('Data exported successfully')
+        // The export still downloads on a partial failure (right of access is never denied),
+        // but the requester must be told it may be incomplete rather than seeing plain success.
+        if (result.data.warnings.length > 0) {
+          toast.warning(
+            'Export downloaded, but some sections could not be loaded and may be incomplete. Please try again.',
+          )
+        } else {
+          toast.success('Data exported successfully')
+        }
       } catch {
         toast.error('Failed to export data')
       }
