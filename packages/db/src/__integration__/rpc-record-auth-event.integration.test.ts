@@ -16,7 +16,7 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
  *  (c) student cannot record a self-event for another user → throws
  *  (d) unsupported event_type → throws
  *  (e) admin records a user.created event for a student in the same org → audit row created
- *  (f) admin cannot record an admin-only event for a user in a different org → throws
+ *  (f) admin records a cross-org resource_id → accepted, logged under the actor's own org
  */
 describe('RPC: record_auth_event', () => {
   const admin = getAdminClient()
