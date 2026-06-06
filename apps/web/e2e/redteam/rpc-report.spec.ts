@@ -165,8 +165,13 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
       ? (question?.options as { id?: string; correct?: boolean }[])
       : []
     const correctOptionId = options.find((o) => o.correct === true)?.id
-    expect(typeof questionId).toBe('string')
-    expect(typeof correctOptionId).toBe('string')
+    // Guard AND narrow (code-style §5): the insert below targets NOT NULL columns,
+    // so a `string | undefined` must not flow through. The throw narrows the TS type
+    // to `string` for the insert and the final assertion, and fails the test with a
+    // clear message if no active question with a correct option exists.
+    if (typeof questionId !== 'string' || typeof correctOptionId !== 'string') {
+      throw new Error('rpc-report positive: no active question with a correct option id found')
+    }
 
     // Seed a completed session scoped to that single question, then insert exactly
     // one answer row. quiz_session_answers is immutable (append-only) — service-role
