@@ -934,7 +934,7 @@ GitHub PR
     → [CodeRabbit] reviews PR against .coderabbit.yaml rules
     → [GitHub Actions ci.yml] lint + types + unit tests
     → [GitHub Actions e2e.yml] integration + E2E tests (PRs + master)
-    → [GitHub Actions redteam.yml] red-team security tests (triggered on security-sensitive paths)
+    → [GitHub Actions redteam.yml] red-team security tests (runs on every PR; required check)
 
 Weekly
     → /project:insights → reads git log + test failures + agent memories

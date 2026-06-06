@@ -483,7 +483,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 - Separate Playwright project (`e2e/redteam/`) to avoid clutter, testIgnore on normal e2e pipeline
 - Red-team agent (sonnet) triggers post-commit on security-sensitive file changes (migrations, db/src, quiz/actions, auth, proxy.ts, security.md) — maps diff to affected specs, flags coverage gaps
 - Attack surface memory: tracks patterns found, confirmed gaps (marked .fixme), documented gaps (marked .skip), exploitation techniques
-- CI workflow `redteam.yml` auto-runs on branches touching security paths
+- CI workflow `redteam.yml` runs on every PR to master (no path filter) and is a required status check — a path-filtered required check leaves PRs that don't touch those paths permanently pending
 - `/redteam` skill command for on-demand execution (useful for validating fixes)
 - Principle: if you can't prove the defense holds under attack, it doesn't
 
