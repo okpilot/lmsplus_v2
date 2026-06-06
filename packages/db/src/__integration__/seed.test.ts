@@ -153,7 +153,7 @@ const REF_OPTS = {
 }
 
 describe('seedReferenceData', () => {
-  it('returns all three ids and makes 3 .from() calls when subtopic is provided', async () => {
+  it('seeds and returns subject, topic, and subtopic IDs when all inputs are provided', async () => {
     mockFrom
       .mockReturnValueOnce(buildChain({ data: { id: 'subj-uuid-1' }, error: null })) // easa_subjects upsert
       .mockReturnValueOnce(buildChain({ data: { id: 'topic-uuid-1' }, error: null })) // easa_topics upsert
@@ -174,7 +174,7 @@ describe('seedReferenceData', () => {
     expect(mockFrom).toHaveBeenNthCalledWith(3, 'easa_subtopics')
   })
 
-  it('returns subtopicId null and makes 2 .from() calls when subtopic is omitted', async () => {
+  it('returns subtopicId null when subtopic inputs are omitted', async () => {
     mockFrom
       .mockReturnValueOnce(buildChain({ data: { id: 'subj-uuid-2' }, error: null })) // easa_subjects upsert
       .mockReturnValueOnce(buildChain({ data: { id: 'topic-uuid-2' }, error: null })) // easa_topics upsert
