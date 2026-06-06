@@ -22,7 +22,7 @@ vi.mock('@supabase/supabase-js', () => ({
 
 // vitest hoists the vi.mock calls above this import — the module gets the
 // mocked createClient and stubbed env vars before its top-level code runs.
-import { cleanupReferenceData } from './cleanup'
+import { cleanupReferenceData, cleanupTestData } from './cleanup'
 
 // ---------------------------------------------------------------------------
 // buildChain — Proxy-based thenable that forwards every method call back to
@@ -216,5 +216,82 @@ describe('cleanupReferenceData', () => {
 
     expect(mockFrom).toHaveBeenCalledTimes(3)
     expect(mockFrom).toHaveBeenNthCalledWith(1, 'easa_subtopics')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// cleanupTestData
+// ---------------------------------------------------------------------------
+
+// adminMock for cleanupTestData — needs .from() AND auth.admin.deleteUser.
+const mockDeleteUser = vi.hoisted(() => vi.fn())
+const adminForTestData = {
+  from: mockFrom,
+  auth: { admin: { deleteUser: mockDeleteUser } },
+} as unknown as Parameters<typeof cleanupTestData>[0]['admin']
+
+describe('cleanupTestData', () => {
+  // The from() call order in cleanupTestData: audit_events, fsrs_cards,
+  // student_responses, quiz_sessions (id lookup), quiz_session_answers,
+  // quiz_sessions (delete), questions, question_banks, users, organizations.
+  function queueAllDeletesOk() {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // student_responses
+      .mockReturnValueOnce(buildChain({ data: [{ id: 'sess-1' }], error: null })) // quiz_sessions lookup
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_session_answers
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_sessions delete
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // question_banks
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // users
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // organizations
+  }
+
+  it('deletes in FK-safe order and removes each auth user', async () => {
+    queueAllDeletesOk()
+
+    await cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: ['u-1', 'u-2'] })
+
+    expect(mockFrom).toHaveBeenNthCalledWith(1, 'audit_events')
+    expect(mockFrom).toHaveBeenNthCalledWith(4, 'quiz_sessions') // id lookup before child delete
+    expect(mockFrom).toHaveBeenNthCalledWith(5, 'quiz_session_answers')
+    expect(mockFrom).toHaveBeenNthCalledWith(10, 'organizations') // org deleted last
+    expect(mockDeleteUser).toHaveBeenCalledTimes(2)
+    expect(mockDeleteUser).toHaveBeenNthCalledWith(1, 'u-1')
+    expect(mockDeleteUser).toHaveBeenNthCalledWith(2, 'u-2')
+  })
+
+  it('throws when the quiz_sessions id lookup fails (cannot scope child delete)', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // audit_events
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // student_responses
+      .mockReturnValueOnce(buildChain({ data: null, error: { message: 'lookup boom' } })) // lookup fails
+
+    await expect(
+      cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: ['u-1'] }),
+    ).rejects.toThrow(/cleanupTestData: quiz_sessions lookup failed/)
+  })
+
+  it('logs and continues (does not throw) when a table delete errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: null, error: { message: 'audit boom' } })) // audit_events fails
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // fsrs_cards
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // student_responses
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_sessions lookup
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_session_answers
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // quiz_sessions delete
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // questions
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // question_banks
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // users
+      .mockReturnValueOnce(buildChain({ data: [], error: null })) // organizations
+
+    await expect(
+      cleanupTestData({ admin: adminForTestData, orgId: 'org-1', userIds: [] }),
+    ).resolves.toBeUndefined()
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('audit_events delete failed'))
+    consoleSpy.mockRestore()
   })
 })

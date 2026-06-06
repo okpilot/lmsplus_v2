@@ -3,8 +3,24 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export type ReferenceIds = { subjectId: string; topicId: string; subtopicId: string | null }
 
 /**
+ * Await a teardown DELETE and log (not throw) on error. Best-effort: one table's failure
+ * must not abort the rest of cleanup, and a silent error would leave orphaned test data
+ * with no signal (code-style.md §5 — destructure and check `{ error }`).
+ */
+async function deleteOrLog(
+  label: string,
+  query: PromiseLike<{ error: { message: string } | null }>,
+) {
+  const { error } = await query
+  if (error) console.error(`cleanupTestData: ${label} delete failed: ${error.message}`)
+}
+
+/**
  * Clean up all test data created during a test run.
- * Deletes in reverse FK order using the service role client.
+ * Deletes in reverse FK order using the service role client. Best-effort: per-table errors
+ * are logged and skipped (see deleteOrLog) rather than thrown, so one failure doesn't leave
+ * the rest of teardown un-run. (cleanupReferenceData throws instead, because it deletes a
+ * specific seeded id set where a failure is a real signal, not best-effort cleanup.)
  */
 export async function cleanupTestData(opts: {
   admin: SupabaseClient
@@ -14,26 +30,29 @@ export async function cleanupTestData(opts: {
   const { admin, orgId, userIds } = opts
 
   // Delete in FK-safe order
-  await admin.from('audit_events').delete().eq('organization_id', orgId)
-  await admin.from('fsrs_cards').delete().in('student_id', userIds)
-  await admin.from('student_responses').delete().eq('organization_id', orgId)
+  await deleteOrLog('audit_events', admin.from('audit_events').delete().eq('organization_id', orgId))
+  await deleteOrLog('fsrs_cards', admin.from('fsrs_cards').delete().in('student_id', userIds))
+  await deleteOrLog(
+    'student_responses',
+    admin.from('student_responses').delete().eq('organization_id', orgId),
+  )
   const { data: sessionIds, error: sessionIdsErr } = await admin
     .from('quiz_sessions')
     .select('id')
     .eq('organization_id', orgId)
   if (sessionIdsErr) throw new Error(`cleanupTestData: quiz_sessions lookup failed: ${sessionIdsErr.message}`)
-  await admin
-    .from('quiz_session_answers')
-    .delete()
-    .in(
-      'session_id',
-      sessionIds?.map((s: { id: string }) => s.id) ?? [],
-    )
-  await admin.from('quiz_sessions').delete().eq('organization_id', orgId)
-  await admin.from('questions').delete().eq('organization_id', orgId)
-  await admin.from('question_banks').delete().eq('organization_id', orgId)
-  await admin.from('users').delete().in('id', userIds)
-  await admin.from('organizations').delete().eq('id', orgId)
+  await deleteOrLog(
+    'quiz_session_answers',
+    admin
+      .from('quiz_session_answers')
+      .delete()
+      .in('session_id', sessionIds?.map((s: { id: string }) => s.id) ?? []),
+  )
+  await deleteOrLog('quiz_sessions', admin.from('quiz_sessions').delete().eq('organization_id', orgId))
+  await deleteOrLog('questions', admin.from('questions').delete().eq('organization_id', orgId))
+  await deleteOrLog('question_banks', admin.from('question_banks').delete().eq('organization_id', orgId))
+  await deleteOrLog('users', admin.from('users').delete().in('id', userIds))
+  await deleteOrLog('organizations', admin.from('organizations').delete().eq('id', orgId))
 
   // Delete auth users
   for (const uid of userIds) {
