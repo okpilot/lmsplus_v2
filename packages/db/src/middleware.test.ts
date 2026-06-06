@@ -133,4 +133,20 @@ describe('createMiddlewareSupabaseClient', () => {
       cookiesConfig.setAll([{ name: 'sb-token', value: 'v', options: { httpOnly: true } }], {}),
     ).not.toThrow()
   })
+
+  it('writes all cookies in the array onto the response when setAll receives multiple cookies', () => {
+    // Covers the full iteration: the production loop runs for every element, not just the first.
+    const { response } = createMiddlewareSupabaseClient(makeRequest())
+
+    const cookiesConfig = mockCreateServerClient.mock.calls[0]?.[2].cookies
+    cookiesConfig.setAll([
+      { name: 'sb-access-token', value: 'access-val', options: { httpOnly: true } },
+      { name: 'sb-refresh-token', value: 'refresh-val', options: { httpOnly: true } },
+      { name: 'sb-provider-token', value: 'provider-val', options: { httpOnly: true } },
+    ])
+
+    expect(response.cookies.get('sb-access-token')?.value).toBe('access-val')
+    expect(response.cookies.get('sb-refresh-token')?.value).toBe('refresh-val')
+    expect(response.cookies.get('sb-provider-token')?.value).toBe('provider-val')
+  })
 })

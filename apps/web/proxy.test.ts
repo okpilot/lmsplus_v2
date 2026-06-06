@@ -243,6 +243,62 @@ describe('proxy', () => {
     }
   })
 
+  it('forwards anti-cache headers from the session response onto a redirect', async () => {
+    // A token refresh that ends in a redirect carries a fresh Set-Cookie; the
+    // anti-cache headers must travel with it so a CDN cannot cache and replay it.
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    MOCK_SESSION_RESPONSE.headers.set(
+      'cache-control',
+      'private, no-cache, no-store, must-revalidate, max-age=0',
+    )
+    MOCK_SESSION_RESPONSE.headers.set('expires', '0')
+    MOCK_SESSION_RESPONSE.headers.set('pragma', 'no-cache')
+    try {
+      const response = await proxy(makeRequest('/app/dashboard'))
+
+      expect(response.status).toBe(307)
+      expect(response.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, must-revalidate, max-age=0',
+      )
+      expect(response.headers.get('expires')).toBe('0')
+      expect(response.headers.get('pragma')).toBe('no-cache')
+    } finally {
+      MOCK_SESSION_RESPONSE.headers.delete('cache-control')
+      MOCK_SESSION_RESPONSE.headers.delete('expires')
+      MOCK_SESSION_RESPONSE.headers.delete('pragma')
+    }
+  })
+
+  it('forwards anti-cache headers from the session response onto the 403 for a non-admin', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: { role: 'student' }, error: null }))
+    MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
+    try {
+      const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+
+      expect(response.status).toBe(403)
+      expect(response.headers.get('cache-control')).toBe('private, no-store')
+    } finally {
+      MOCK_SESSION_RESPONSE.headers.delete('cache-control')
+    }
+  })
+
+  it('forwards anti-cache headers from the session response onto the 503 when the admin role lookup fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'connection reset' } }))
+    MOCK_SESSION_RESPONSE.headers.set('cache-control', 'private, no-store')
+    try {
+      const response = await proxy(makeConsentedRequest('/app/admin/syllabus'))
+
+      expect(response.status).toBe(503)
+      expect(response.headers.get('cache-control')).toBe('private, no-store')
+    } finally {
+      MOCK_SESSION_RESPONSE.headers.delete('cache-control')
+      consoleSpy.mockRestore()
+    }
+  })
+
   describe('__vdpl deployment pinning cookie', () => {
     const DEPLOYMENT_ID = 'dpl_test_abc123'
 
