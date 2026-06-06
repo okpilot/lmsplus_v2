@@ -1382,7 +1382,6 @@ export type Database = {
           p_sort?: string
         }
         Returns: {
-          answered_count: number
           correct_count: number
           ended_at: string
           id: string
