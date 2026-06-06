@@ -79,6 +79,31 @@ function makeChain(rows: unknown, error: unknown) {
 }
 
 /**
+ * Chain where the count (head) call succeeds with a non-zero total but the page (range)
+ * call errors — the fetchAllRows "page error after count success" path. fetchAllRows then
+ * discards partial pages and returns { data: [], error }, so the caller sees an errored read.
+ */
+function makePageErrorChain(count: number, pageError: { message: string }) {
+  const state = { head: false }
+  const handler: ProxyHandler<Record<string, unknown>> = {
+    get(target, prop) {
+      if (prop === 'then') {
+        return (resolve: (v: unknown) => void) =>
+          resolve(state.head ? { count, error: null } : { data: null, error: pageError })
+      }
+      if (prop === 'select') {
+        return (_col: unknown, opts?: { head?: boolean; count?: string }) => {
+          state.head = Boolean(opts?.head) // reset per select: count select is head, page select is not
+          return new Proxy(target, handler)
+        }
+      }
+      return () => new Proxy(target, handler)
+    },
+  }
+  return new Proxy({} as Record<string, unknown>, handler)
+}
+
+/**
  * Build a fake Supabase client that returns pre-configured data for each table.
  * Each call to `.from(tableName)` returns a chain that resolves to the supplied value.
  */
@@ -440,6 +465,68 @@ describe('collectUserData', () => {
       expect(result.flagged_questions).toHaveLength(2)
       // No rows dropped → no drop log (guards against a `<` → `>=` regression).
       expect(consoleSpy).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('warnings (machine-readable incompleteness)', () => {
+    it('returns an empty warnings array when every section exports cleanly', async () => {
+      const supabase = buildSupabaseClient()
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.warnings).toEqual([])
+    })
+
+    it('records a warning for each failed sub-read, keyed by section', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const supabase = buildSupabaseClientWithErrors({
+        sessionsError: { message: 'timeout' },
+        flagsError: { message: 'connection lost' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      const sections = result.warnings.map((w) => w.section)
+      expect(sections).toContain('quiz_sessions')
+      expect(sections).toContain('flagged_questions')
+      expect(sections).toHaveLength(2)
+      // Message is the user-safe constant — never the raw DB error string.
+      for (const warning of result.warnings) {
+        expect(warning.message).not.toContain('timeout')
+        expect(warning.message).not.toContain('connection lost')
+        expect(warning.message.length).toBeGreaterThan(0)
+      }
+      consoleSpy.mockRestore()
+    })
+
+    it('records a quiz_answers warning when the phase-2 answers read fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      // Sessions succeed (phase-2 fires), but the answers read errors.
+      const supabase = buildSupabaseClientWithErrors({
+        answersError: { message: 'answers timeout' },
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.warnings.map((w) => w.section)).toContain('quiz_answers')
+      consoleSpy.mockRestore()
+    })
+
+    it('records a warning when a page fetch fails after the count succeeds', async () => {
+      // fetchAllRows page-error path: count returns a non-zero total, then the page read
+      // errors and fetchAllRows discards partial pages, yielding { data: [], error }. The
+      // export must surface this — a silently truncated legal export is the #668 failure mode.
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const base = buildSupabaseClient()
+      const supabase = {
+        from: (table: string) =>
+          table === 'quiz_sessions'
+            ? makePageErrorChain(5, { message: 'page fetch failed' })
+            : (base as unknown as { from: (t: string) => unknown }).from(table),
+      } as unknown as SupabaseClient<Database>
+
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.quiz_sessions).toHaveLength(0) // partial pages discarded
+      expect(result.warnings.map((w) => w.section)).toContain('quiz_sessions')
       consoleSpy.mockRestore()
     })
   })

@@ -10,7 +10,31 @@ import {
   fetchUserSessionAnswers,
   fetchUserSessions,
 } from './collect-user-data-queries'
-import type { GdprExportPayload } from './types'
+import type { GdprExportPayload, GdprExportWarning } from './types'
+
+// User-safe wording for a failed section — surfaced in the export's `warnings`. The raw
+// DB error is logged server-side only (see callers), never returned to the data subject.
+const SECTION_FAILED_MESSAGE =
+  'This section could not be exported in full and may be incomplete. Please retry the export or contact support.'
+
+/**
+ * Logs each failed sub-read server-side and returns a machine-readable warning per
+ * failure. A failed read yields an EMPTY section (fetchAllRows discards partial pages on
+ * error), so without a warning the export would look complete while silently missing a
+ * section — the #668 failure mode, which for a legal GDPR export is unacceptable.
+ */
+function collectSectionWarnings(
+  results: ReadonlyArray<readonly [string, { error: { message: string } | null }]>,
+): GdprExportWarning[] {
+  const warnings: GdprExportWarning[] = []
+  for (const [section, result] of results) {
+    if (result.error) {
+      console.error(`[collectUserData] ${section} query failed:`, result.error.message)
+      warnings.push({ section, message: SECTION_FAILED_MESSAGE })
+    }
+  }
+  return warnings
+}
 
 /**
  * Collects all data associated with a user for GDPR export.
@@ -48,9 +72,10 @@ export async function collectUserData(
     throw new Error('User not found')
   }
 
-  // A failed read returns an EMPTY section (fetchAllRows discards partial pages on error) and is
-  // logged here; the export still returns rather than hard-failing. The #668 failure mode we must
-  // avoid is a silently TRUNCATED section that looks complete — an empty + logged section does not.
+  // A failed read returns an EMPTY section (fetchAllRows discards partial pages on error); the
+  // export still returns rather than hard-failing so a transient outage never denies the data
+  // subject access. Each failure is logged AND recorded in `warnings` so the incompleteness is
+  // visible/machine-readable rather than a silently TRUNCATED section that looks complete (#668).
   const queryResults = [
     ['quiz_sessions', sessionsResult],
     ['student_responses', responsesResult],
@@ -60,11 +85,7 @@ export async function collectUserData(
     ['user_consents', consentsResult],
     ['audit_events', auditResult],
   ] as const
-  for (const [table, result] of queryResults) {
-    if (result.error) {
-      console.error(`[collectUserData] ${table} query failed:`, result.error.message)
-    }
-  }
+  const warnings = collectSectionWarnings(queryResults)
 
   // Phase 2: fetch quiz answers using session IDs from phase 1
   const sessionIds = sessionsResult.data.map((s) => s.id)
@@ -79,6 +100,7 @@ export async function collectUserData(
 
   if (answersError) {
     console.error('[collectUserData] quiz_session_answers query failed:', answersError.message)
+    warnings.push({ section: 'quiz_answers', message: SECTION_FAILED_MESSAGE })
   }
 
   // View columns are typed nullable (Postgres view artifact); the backing table enforces NOT NULL,
@@ -97,6 +119,7 @@ export async function collectUserData(
 
   return {
     exported_at: new Date().toISOString(),
+    warnings,
     user: userResult.data,
     quiz_sessions: sessionsResult.data,
     quiz_answers: answers,
