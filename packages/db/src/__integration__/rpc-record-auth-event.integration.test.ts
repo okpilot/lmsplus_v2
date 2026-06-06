@@ -215,27 +215,33 @@ describe('RPC: record_auth_event', () => {
     expect(row.organization_id).toBe(orgId)
   })
 
-  // ── (f) Admin cannot record an event for a user in a different org ────────
+  // ── (f) A cross-org resource_id is logged under the ADMIN's own org ───────
+  //        (no cross-org read/write). The RPC intentionally does not re-SELECT
+  //        the resource to org-scope it: that lookup would need an AND deleted_at
+  //        IS NULL filter per security.md §9, which would reject the
+  //        user.deactivated audit whose target is already soft-deleted. A bogus
+  //        resource_id only adds a self-referential row to the admin's own log.
 
-  it('rejects an admin recording an event for a user in a different org', async () => {
-    // adminClient is authenticated as an admin in orgId.
-    // otherOrgUserId belongs to otherOrgId — outside the admin's org.
+  it('records an admin event under the admin org even when resource_id is from another org', async () => {
     const { error } = await adminClient.rpc('record_auth_event', {
       p_event_type: 'user.deactivated',
       p_resource_id: otherOrgUserId,
     })
 
-    expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/resource not in caller org/i)
+    expect(error).toBeNull()
 
-    // Non-vacuous: verify the other-org user actually exists so the rejection
-    // is an org boundary, not a missing row.
-    const { data: exists, error: lookupErr } = await admin
-      .from('users')
-      .select('id')
-      .eq('id', otherOrgUserId)
-      .single()
-    expect(lookupErr).toBeNull()
-    expect(exists).not.toBeNull()
+    const { data: rows, error: readErr } = await admin
+      .from('audit_events')
+      .select('actor_id, event_type, resource_id, organization_id')
+      .eq('actor_id', adminUserId)
+      .eq('event_type', 'user.deactivated')
+      .eq('resource_id', otherOrgUserId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    expect(readErr).toBeNull()
+    expect(rows).toHaveLength(1)
+    // The row lives in the ACTOR's org, never the resource's org — no cross-org write.
+    expect(rows![0]!.organization_id).toBe(orgId)
   })
 })

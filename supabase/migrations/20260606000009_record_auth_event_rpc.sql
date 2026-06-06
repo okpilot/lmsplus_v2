@@ -15,9 +15,10 @@
 --   * actor_id / actor_role are derived from auth.uid() via a deleted_at-filtered
 --     users lookup (security.md §7 + §10) — never from caller input.
 --   * event_type is whitelisted. The self-service event forces resource_id = actor.
---     The admin events require the caller's role to be 'admin' AND the resource to
---     be a user in the caller's org (defense-in-depth; the resource may be
---     soft-deleted, e.g. a just-deactivated student, so no deleted_at filter there).
+--     The admin events require the caller's role to be 'admin'. (No resource users
+--     re-SELECT: it would need a §9 deleted_at filter that rejects the deactivate
+--     audit whose target is already soft-deleted; the audit row's org is always the
+--     actor's own org, so a bogus resource_id is only self-referential log noise.)
 --   * Callers pass the RPC through the ACTING user's client (the student for
 --     changePassword, the admin's requireAdmin() client for the admin actions) so
 --     auth.uid() is the real actor — not the service-role adminClient (auth.uid() NULL).
@@ -54,15 +55,16 @@ BEGIN
       RAISE EXCEPTION 'self event resource must be the actor';
     END IF;
   ELSIF p_event_type IN ('user.password_reset', 'user.deactivated', 'user.created') THEN
+    -- Admin-only events. Authorization is the admin-role gate below; the audit row's
+    -- organization_id is always the actor's own org (v_org_id) and resource_id is
+    -- recorded as-is. We deliberately do NOT re-SELECT the resource from users to
+    -- "org-scope" it: that lookup would need AND deleted_at IS NULL per security.md §9,
+    -- which would reject the user.deactivated audit (its target is already soft-deleted
+    -- by the time the Server Action records the event). A bogus resource_id only adds a
+    -- self-referential junk row to the admin's OWN org log — no cross-org read or write.
+    -- The security-critical lookup (actor identity/role/org) above IS deleted_at-filtered.
     IF v_role <> 'admin' THEN
       RAISE EXCEPTION 'not authorized';
-    END IF;
-    -- Resource must be a user in the admin's org (may be soft-deleted, e.g. a
-    -- just-deactivated student — so this existence check is org-scoped only).
-    IF NOT EXISTS (
-      SELECT 1 FROM users WHERE id = p_resource_id AND organization_id = v_org_id
-    ) THEN
-      RAISE EXCEPTION 'resource not in caller org';
     END IF;
   ELSE
     RAISE EXCEPTION 'unsupported event_type: %', p_event_type;

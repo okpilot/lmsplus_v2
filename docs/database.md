@@ -1884,7 +1884,7 @@ Records authentication-related audit events (`user.password_changed`, `user.pass
 **Security:**
 - `SECURITY DEFINER` with `SET search_path = public` and manual `auth.uid()` check.
 - Actor ID and role are derived from `auth.uid()` via a `deleted_at`-filtered `users` lookup (security.md §7 + §10) — never from caller input.
-- `event_type` is whitelisted. Self-service event (`user.password_changed`) forces `resource_id = actor_id`. Admin events (`user.password_reset`, `user.deactivated`, `user.created`) require the caller's role = `'admin'` AND the resource to be a user in the caller's org.
+- `event_type` is whitelisted. Self-service event (`user.password_changed`) forces `resource_id = actor_id`. Admin events (`user.password_reset`, `user.deactivated`, `user.created`) require the caller's role = `'admin'`. The RPC does **not** re-SELECT the resource to org-scope it: such a lookup would need an `AND deleted_at IS NULL` filter per security.md §9, which would reject the `user.deactivated` audit (whose target is already soft-deleted by audit time). The audit row's `organization_id` is always the **actor's** org, so a bogus `resource_id` only adds a self-referential row to the admin's own log — no cross-org read or write.
 - Callers invoke the RPC through the **acting user's client** (the student for `changePassword`, the admin's `requireAdmin()` client for admin actions) so `auth.uid()` is the real actor — **never** through the service-role `adminClient` (which would have `auth.uid() = NULL`).
 - Best-effort audit: if the RPC fails, the auth mutation has already succeeded. Failures are logged server-side, not surfaced to the caller.
 
@@ -1893,7 +1893,7 @@ Records authentication-related audit events (`user.password_changed`, `user.pass
 - `p_resource_id` — UUID of the user record being acted upon (the actor for `password_changed`, the target for admin events)
 - `p_metadata` — JSONB, optional additional event context (default `'{}'`)
 
-**Returns:** void. Raises EXCEPTION if not authenticated, user not found, whitelist violation, or resource not in org.
+**Returns:** void. Raises EXCEPTION if not authenticated, user not found/inactive, a non-admin attempts an admin event, a self event targets another user, or the event_type is not whitelisted.
 
 ```sql
 CREATE OR REPLACE FUNCTION public.record_auth_event(
@@ -1928,15 +1928,12 @@ BEGIN
       RAISE EXCEPTION 'self event resource must be the actor';
     END IF;
   ELSIF p_event_type IN ('user.password_reset', 'user.deactivated', 'user.created') THEN
+    -- Admin-only. No resource re-SELECT: it would need AND deleted_at IS NULL per
+    -- §9, which would reject the user.deactivated audit (target already soft-deleted).
+    -- The audit row's org is always the actor's own org, so a bogus resource_id is
+    -- only self-referential log noise — no cross-org read or write.
     IF v_role <> 'admin' THEN
       RAISE EXCEPTION 'not authorized';
-    END IF;
-    -- Resource must be a user in the admin's org (may be soft-deleted, e.g. a
-    -- just-deactivated student — so this existence check is org-scoped only).
-    IF NOT EXISTS (
-      SELECT 1 FROM users WHERE id = p_resource_id AND organization_id = v_org_id
-    ) THEN
-      RAISE EXCEPTION 'resource not in caller org';
     END IF;
   ELSE
     RAISE EXCEPTION 'unsupported event_type: %', p_event_type;
