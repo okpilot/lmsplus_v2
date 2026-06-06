@@ -1,14 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  cleanupTestData,
-  createTestOrg,
-  createTestUser,
-  getAdminClient,
-  getAuthenticatedClient,
-  seedQuestions,
-  seedReferenceData,
-} from './setup'
+import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { seedQuestions, seedReferenceData } from './seed'
+import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 // Issue #551 — historical-scoring contract (docs/database.md §3, security.md §15).
 //
@@ -102,6 +96,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
 
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
+    await cleanupReferenceData({ admin, refs: [refs] })
   })
 
   it('scores a question soft-deleted after the session started', async () => {

@@ -1,14 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  cleanupTestData,
-  createTestOrg,
-  createTestUser,
-  getAdminClient,
-  getAuthenticatedClient,
-  seedQuestions,
-  seedReferenceData,
-} from './setup'
+import { cleanupReferenceData, cleanupTestData } from './cleanup'
+import { seedQuestions, seedReferenceData } from './seed'
+import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 describe('RPC: start_quiz_session', () => {
   const admin = getAdminClient()
@@ -71,6 +65,7 @@ describe('RPC: start_quiz_session', () => {
 
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
+    await cleanupReferenceData({ admin, refs: [refs] })
   })
 
   it('creates a session and returns a UUID', async () => {
@@ -256,6 +251,7 @@ describe('RPC: start_quiz_session input validation', () => {
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
     await cleanupTestData({ admin, orgId: otherOrgId, userIds: otherUserIds })
+    await cleanupReferenceData({ admin, refs: [refs, otherRefs, altTopicRefs] })
   })
 
   it('rejects an empty p_question_ids array with no_questions_provided', async () => {

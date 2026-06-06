@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
-// setup.ts calls requireEnv() at module scope — the env vars must be present
-// before the module is imported. vi.hoisted runs before any import, so we set
-// them here. The Supabase client factories (getAdminClient / getAnonClient)
-// are lazy functions; the only module-level side effect is requireEnv().
+// seed.ts calls requireEnv() indirectly via setup.ts at module scope — the env
+// vars must be present before any module in this tree is imported. vi.hoisted
+// runs before any import, so we set them here.
 // ---------------------------------------------------------------------------
 
 vi.hoisted(() => {
@@ -23,7 +22,7 @@ vi.mock('@supabase/supabase-js', () => ({
 
 // vitest hoists the vi.mock calls above this import — the module gets the
 // mocked createClient and stubbed env vars before its top-level code runs.
-import { seedQuestions } from './setup'
+import { seedQuestions, seedReferenceData } from './seed'
 
 // ---------------------------------------------------------------------------
 // buildChain — Proxy-based thenable that forwards every method call back to
@@ -45,8 +44,8 @@ function buildChain(returnValue: unknown): unknown {
   })
 }
 
-// Minimal admin mock: only `.from()` is needed — seedQuestions does not call
-// auth methods.
+// Minimal admin mock shared by both seedQuestions and seedReferenceData describe
+// blocks: only `.from()` is needed — neither calls auth methods.
 const adminMock = { from: mockFrom } as unknown as Parameters<typeof seedQuestions>[0]['admin']
 
 const BASE_OPTS = {
@@ -131,5 +130,104 @@ describe('seedQuestions', () => {
       .mockReturnValueOnce(buildChain({ data: null, error: { message: 'FK violation' } })) // questions insert fails
 
     await expect(seedQuestions(BASE_OPTS)).rejects.toThrow(/^seedQuestions:/)
+  })
+
+  it('throws "unexpected response shape" when the insert returns a non-array with no error', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: { id: 'bank-xyz' }, error: null })) // bank lookup OK
+      .mockReturnValueOnce(buildChain({ data: null, error: null })) // insert: null data, no error
+
+    await expect(seedQuestions(BASE_OPTS)).rejects.toThrow(/unexpected response shape/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Base opts for seedReferenceData
+// ---------------------------------------------------------------------------
+const REF_OPTS = {
+  admin: adminMock,
+  subjectCode: 'MET',
+  subjectName: 'Meteorology',
+  topicCode: 'MET-01',
+  topicName: 'Atmosphere',
+}
+
+describe('seedReferenceData', () => {
+  it('seeds and returns subject, topic, and subtopic IDs when all inputs are provided', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: { id: 'subj-uuid-1' }, error: null })) // easa_subjects upsert
+      .mockReturnValueOnce(buildChain({ data: { id: 'topic-uuid-1' }, error: null })) // easa_topics upsert
+      .mockReturnValueOnce(buildChain({ data: { id: 'subtopic-uuid-1' }, error: null })) // easa_subtopics upsert
+
+    const result = await seedReferenceData({
+      ...REF_OPTS,
+      subtopicCode: 'MET-01-01',
+      subtopicName: 'Composition',
+    })
+
+    expect(result.subjectId).toBe('subj-uuid-1')
+    expect(result.topicId).toBe('topic-uuid-1')
+    expect(result.subtopicId).toBe('subtopic-uuid-1')
+    expect(mockFrom).toHaveBeenCalledTimes(3)
+    expect(mockFrom).toHaveBeenNthCalledWith(1, 'easa_subjects')
+    expect(mockFrom).toHaveBeenNthCalledWith(2, 'easa_topics')
+    expect(mockFrom).toHaveBeenNthCalledWith(3, 'easa_subtopics')
+  })
+
+  it('returns subtopicId null when subtopic inputs are omitted', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: { id: 'subj-uuid-2' }, error: null })) // easa_subjects upsert
+      .mockReturnValueOnce(buildChain({ data: { id: 'topic-uuid-2' }, error: null })) // easa_topics upsert
+
+    const result = await seedReferenceData(REF_OPTS)
+
+    expect(result.subjectId).toBe('subj-uuid-2')
+    expect(result.topicId).toBe('topic-uuid-2')
+    expect(result.subtopicId).toBeNull()
+    expect(mockFrom).toHaveBeenCalledTimes(2)
+    expect(mockFrom).toHaveBeenNthCalledWith(1, 'easa_subjects')
+    expect(mockFrom).toHaveBeenNthCalledWith(2, 'easa_topics')
+  })
+
+  it('returns subtopicId null when only subtopicCode is provided without subtopicName', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: { id: 'subj-uuid-3' }, error: null }))
+      .mockReturnValueOnce(buildChain({ data: { id: 'topic-uuid-3' }, error: null }))
+
+    const result = await seedReferenceData({ ...REF_OPTS, subtopicCode: 'MET-01-01' })
+
+    expect(result.subtopicId).toBeNull()
+    expect(mockFrom).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws with "seedSubject:" prefix when the subject upsert fails', async () => {
+    mockFrom.mockReturnValueOnce(
+      buildChain({ data: null, error: { message: 'unique violation on code' } }),
+    )
+
+    await expect(seedReferenceData(REF_OPTS)).rejects.toThrow(/^seedSubject:/)
+  })
+
+  it('throws with "seedTopic:" prefix when the topic upsert fails', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: { id: 'subj-uuid-4' }, error: null })) // subject OK
+      .mockReturnValueOnce(
+        buildChain({ data: null, error: { message: 'FK constraint failed' } }),
+      ) // topic fails
+
+    await expect(seedReferenceData(REF_OPTS)).rejects.toThrow(/^seedTopic:/)
+  })
+
+  it('throws with "seedSubtopic:" prefix when the subtopic upsert fails', async () => {
+    mockFrom
+      .mockReturnValueOnce(buildChain({ data: { id: 'subj-uuid-5' }, error: null })) // subject OK
+      .mockReturnValueOnce(buildChain({ data: { id: 'topic-uuid-5' }, error: null })) // topic OK
+      .mockReturnValueOnce(
+        buildChain({ data: null, error: { message: 'unique violation on topic_id,code' } }),
+      ) // subtopic fails
+
+    await expect(
+      seedReferenceData({ ...REF_OPTS, subtopicCode: 'MET-01-01', subtopicName: 'Composition' }),
+    ).rejects.toThrow(/^seedSubtopic:/)
   })
 })
