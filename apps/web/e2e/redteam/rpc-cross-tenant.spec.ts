@@ -42,6 +42,13 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   // Vector BE: user-transfer cross-org session isolation
   let otherOrgId: string
   let victimUserId: string
+  // Vector Q: cross-tenant flagged_questions RLS isolation
+  let seededVictimFlaggedQuestionId: string | null = null
+  // Vector X (rpc-cross-tenant): cross-tenant user_consents RLS isolation
+  // Uses a distinct version marker to avoid colliding with user-consents-isolation.spec.ts
+  let seededVictimConsentId: string | null = null
+  // ≤20 chars: user_consents.document_version CHECK (char_length BETWEEN 1 AND 20)
+  const RPC_CROSS_TENANT_CONSENT_VERSION = 'rct-x-1.0'
 
   test.beforeAll(async () => {
     const seed = await seedRedTeamUsers()
@@ -497,6 +504,85 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     }
   })
 
+  // -------------------------------------------------------------------------
+  // Vector Q (#276): cross-tenant flagged_questions RLS isolation
+  // -------------------------------------------------------------------------
+
+  test('Q (#276): cross-org client cannot read another user flagged_questions row via direct SELECT', async () => {
+    // Non-vacuity: seed a flagged_questions row owned by the egmont victim via
+    // the admin client (service role bypasses RLS), then assert the admin sees
+    // it. Without the row the "attacker sees 0" assertion passes vacuously.
+    expect(egmontQuestionIds.length).toBeGreaterThan(0)
+    const victimQuestionId = egmontQuestionIds[0]
+    const { error: seedErr } = await adminClient
+      .from('flagged_questions')
+      .upsert(
+        { student_id: egmontVictimUserId, question_id: victimQuestionId },
+        { onConflict: 'student_id,question_id', ignoreDuplicates: false },
+      )
+    expect(seedErr).toBeNull()
+    seededVictimFlaggedQuestionId = victimQuestionId
+
+    const { data: adminRows, error: adminErr } = await adminClient
+      .from('flagged_questions')
+      .select('question_id')
+      .eq('student_id', egmontVictimUserId)
+      .eq('question_id', victimQuestionId)
+    expect(adminErr).toBeNull()
+    expect(adminRows?.length ?? 0).toBeGreaterThan(0)
+
+    // Cross-org attacker probes by victim student_id.
+    // RLS flagged_questions_student_select USING (student_id = auth.uid()) scopes
+    // to the caller → 0 rows even though a row exists.
+    const { data, error } = await crossOrgClient
+      .from('flagged_questions')
+      .select('question_id')
+      .eq('student_id', egmontVictimUserId)
+    expect(error).toBeNull()
+    expect(Array.isArray(data) ? data.length : -1).toBe(0)
+  })
+
+  // -------------------------------------------------------------------------
+  // Vector X (#384): cross-tenant user_consents RLS isolation
+  // -------------------------------------------------------------------------
+
+  test('X (#384): cross-org client cannot read another user_consents row via a user_id probe', async () => {
+    // Non-vacuity: seed a user_consents row owned by the egmont victim via the
+    // admin client (service role bypasses the WITH CHECK(false) insert policy).
+    // Without the row, "attacker sees 0" passes vacuously.
+    const { data: consentRow, error: seedErr } = await adminClient
+      .from('user_consents')
+      .insert({
+        user_id: egmontVictimUserId,
+        document_type: 'terms_of_service',
+        document_version: RPC_CROSS_TENANT_CONSENT_VERSION,
+        accepted: true,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    expect(seedErr).toBeNull()
+    expect(consentRow?.id).toBeDefined()
+    seededVictimConsentId = consentRow?.id ?? null
+
+    const { data: adminRows, error: adminErr } = await adminClient
+      .from('user_consents')
+      .select('id')
+      .eq('user_id', egmontVictimUserId)
+      .eq('document_version', RPC_CROSS_TENANT_CONSENT_VERSION)
+    expect(adminErr).toBeNull()
+    expect(adminRows?.length ?? 0).toBeGreaterThan(0)
+
+    // Cross-org attacker probes by victim user_id.
+    // RLS user_consents_select_own USING (user_id = auth.uid()) scopes to the caller
+    // → 0 rows even though the victim row exists.
+    const { data, error } = await crossOrgClient
+      .from('user_consents')
+      .select('id, document_type')
+      .eq('user_id', egmontVictimUserId)
+    expect(error).toBeNull()
+    expect(Array.isArray(data) ? data.length : -1).toBe(0)
+  })
+
   test.afterAll(async () => {
     // E2E hermiticity (code-style.md §7): remove the fixture code/session rows
     // the BY-vector tests inserted into egmont so downstream specs don't see
@@ -529,6 +615,40 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
         console.error(`[rpc-cross-tenant cleanup] code soft-delete error: ${error.message}`)
       } else if ((discarded?.length ?? 0) > 0) {
         console.log(`[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture code(s)`)
+      }
+    }
+    // Vector Q cleanup: soft-delete the seeded flagged_questions row.
+    if (seededVictimFlaggedQuestionId) {
+      const { data: discarded, error } = await adminClient
+        .from('flagged_questions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('student_id', egmontVictimUserId)
+        .eq('question_id', seededVictimFlaggedQuestionId)
+        .is('deleted_at', null)
+        .select('question_id')
+      if (error) {
+        console.error(
+          `[rpc-cross-tenant cleanup] flagged_questions soft-delete error: ${error.message}`,
+        )
+      } else if ((discarded?.length ?? 0) > 0) {
+        console.log(`[rpc-cross-tenant cleanup] soft-deleted flagged_questions fixture row`)
+      }
+    }
+    // Vector X cleanup: hard-delete the seeded user_consents row.
+    // user_consents is append-only (no deleted_at column), so the service role
+    // performs a hard DELETE — matching the pattern in user-consents-isolation.spec.ts.
+    if (seededVictimConsentId) {
+      const { data: discarded, error } = await adminClient
+        .from('user_consents')
+        .delete()
+        .eq('id', seededVictimConsentId)
+        .select('id')
+      if (error) {
+        console.error(
+          `[rpc-cross-tenant cleanup] user_consents hard-delete error: ${error.message}`,
+        )
+      } else if ((discarded?.length ?? 0) > 0) {
+        console.log(`[rpc-cross-tenant cleanup] hard-deleted user_consents fixture row`)
       }
     }
   })
