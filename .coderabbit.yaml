@@ -136,6 +136,13 @@ reviews:
           identity guard). Postgres ORs permissive policies, so RLS alone over-scopes to the
           broader instructor/admin policy. Admin/org-wide RPCs behind is_admin() are exempt.
           Flag any per-caller RPC reading these tables without an explicit auth.uid() filter.
+        - ON CONFLICT inference target: any INSERT ... ON CONFLICT (cols) [WHERE pred] must
+          target a UNIQUE index/constraint matching those columns + predicate (a plain
+          CREATE INDEX does not qualify; Postgres raises 42P10). When ON CONFLICT is inside
+          a plpgsql function body, this is validated at EXECUTION, not at CREATE FUNCTION, so
+          a clean migration apply does not prove correctness. Flag ON CONFLICT whose target
+          is a non-unique index, and require a functional/integration test that executes the
+          function. (code-style.md §5; mig 085 record_consent #386.)
 
     - path: "supabase/migrations/**/*.sql"
       instructions: |
