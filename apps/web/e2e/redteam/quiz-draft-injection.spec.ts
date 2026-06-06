@@ -169,22 +169,21 @@ test.describe('Red Team: Quiz Draft Question Injection', () => {
   })
 
   test("attacker cannot update another student's quiz draft", async () => {
-    // Find a draft belonging to the victim (created in the preceding test,
-    // or seed one here if none exists — afterEach cleans up both).
     if (!victimUserId) return
 
-    const { data: victimDrafts } = await adminClient
+    // Seed a victim-owned draft here rather than relying on the preceding test's
+    // row: afterEach wipes every victim draft between tests, so a lookup would
+    // find none and the cross-user UPDATE assertion below would pass vacuously
+    // on an empty result set (code-style.md §7). The baseline question_ids: []
+    // is what we assert stays unchanged after the blocked UPDATE.
+    const { data: seeded, error: seedErr } = await adminClient
       .from('quiz_drafts')
+      .insert({ student_id: victimUserId, organization_id: orgId, question_ids: [], answers: {} })
       .select('id')
-      .eq('student_id', victimUserId)
-      .limit(1)
-
-    if (!victimDrafts || victimDrafts.length === 0) {
-      // No victim draft to target — pass (nothing to exploit)
-      return
-    }
-
-    const victimDraftId = victimDrafts[0].id
+      .single()
+    expect(seedErr).toBeNull()
+    const victimDraftId = seeded?.id
+    expect(victimDraftId).toBeTruthy()
 
     await attackerClient
       .from('quiz_drafts')

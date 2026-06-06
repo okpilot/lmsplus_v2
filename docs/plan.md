@@ -981,7 +981,7 @@ Weekly
 ✅ **5B-4 done:** 10 Playwright E2E tests across 4 spec files (login, protected routes, quiz flow, progress)
 ✅ **5B-5 done:** GitHub Actions CI — `ci.yml` (PR: lint + types + tests + audit) + `e2e.yml` (PRs + master + nightly: integration + E2E with local Supabase)
 
-Test summary: 247 unit tests (32 files) + 35 integration tests + 10 E2E tests. All passing.
+Test summary: 247 unit tests (32 files) + 37 integration tests + 10 E2E tests. All passing.
 
 ## Phase 5B-6 (COMPLETE — 2026-03-14)
 
