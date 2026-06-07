@@ -145,6 +145,12 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
   const createdCodeIds = new Set<string>()
   const createdSessionIds = new Set<string>()
 
+  // The CM test mutates the SHARED victim seed user's last_active_at to a fixed
+  // value. Track + restore it in afterEach so the mutation can't leak into
+  // downstream specs that read this user's last_active_at (code-style.md §7).
+  let victimLastActiveAtMutated = false
+  let originalVictimLastActiveAt: string | null = null
+
   // Compact factories — every test uses the same victim+subject+org+issuer.
   const validCode = async () => {
     const code = await seedCode(admin, {
@@ -179,6 +185,19 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     // a failed delete can't replay stale ids into the next test's cleanup.
     const errors: string[] = []
     const now = new Date().toISOString()
+    if (victimLastActiveAtMutated) {
+      try {
+        const { error } = await admin
+          .from('users')
+          .update({ last_active_at: originalVictimLastActiveAt })
+          .eq('id', victimUserId)
+        if (error) throw new Error(`afterEach restore last_active_at: ${error.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        victimLastActiveAtMutated = false
+      }
+    }
     if (createdCodeIds.size > 0) {
       try {
         const { data, error } = await admin
@@ -326,6 +345,87 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     expect(codeRow?.voided_at).not.toBeNull()
     expect(codeRow?.voided_by).toBe(adminUserId)
     expect(codeRow?.void_reason).toBe('positive path')
+  })
+
+  test('admin void of an active session does NOT stamp the student last_active_at (Vector CM)', async () => {
+    const sessionId = await session()
+    const code = await codeForSession(sessionId)
+
+    // Seed a KNOWN non-null last_active_at via service-role so the "unchanged"
+    // assertion below always exercises the strict timestamp-equality branch. On
+    // a fresh env the victim's last_active_at is NULL, and the trigger only ever
+    // writes a non-null now() — so a null->null comparison can't distinguish
+    // "trigger skipped" from "trigger never fired". A fixed before-value makes
+    // the regression detector (after === before) non-vacuous.
+    const SEEDED_LAST_ACTIVE_AT = '2026-01-01T00:00:00.000Z'
+    // Capture the pre-mutation value so afterEach can restore it — this user is
+    // shared across the suite/specs (code-style.md §7).
+    const { data: preSeedRow, error: preSeedErr } = await admin
+      .from('users')
+      .select('last_active_at')
+      .eq('id', victimUserId)
+      .single()
+    if (preSeedErr) throw new Error(`capture last_active_at: ${preSeedErr.message}`)
+    originalVictimLastActiveAt = preSeedRow?.last_active_at ?? null
+    victimLastActiveAtMutated = true
+    const { data: seededRows, error: seedErr } = await admin
+      .from('users')
+      .update({ last_active_at: SEEDED_LAST_ACTIVE_AT })
+      .eq('id', victimUserId)
+      .select('id')
+    if (seedErr) throw new Error(`seed last_active_at: ${seedErr.message}`)
+    // Zero-row no-op guard (code-style.md §5): if the update matched 0 rows (e.g. the
+    // victim was deleted between capture and seed), the "unchanged" assertion below would
+    // compare null === null and pass vacuously. Fail loudly instead.
+    if ((seededRows?.length ?? 0) === 0)
+      throw new Error(`seed last_active_at matched 0 rows for victim ${victimUserId}`)
+
+    // Read the victim's last_active_at via service-role BEFORE the void. RLS
+    // does not block the service-role client, so this is the true stored value.
+    const { data: beforeRow, error: beforeErr } = await admin
+      .from('users')
+      .select('last_active_at')
+      .eq('id', victimUserId)
+      .single()
+    if (beforeErr) throw new Error(`read last_active_at before: ${beforeErr.message}`)
+    const before = beforeRow?.last_active_at ?? null
+
+    const { data, error } = await adminClientAuthed.rpc('void_internal_exam_code', {
+      p_code_id: code.id,
+      p_reason: 'void no-stamp check',
+    })
+
+    expect(error).toBeNull()
+    // Non-vacuity: prove the ended_at write actually fired (session_ended=true)
+    // so the trigger DID get a chance to run — only then is "unchanged" meaningful.
+    expect(Array.isArray(data)).toBe(true)
+    const [result] = data as Array<{
+      code_id: string
+      session_id: string
+      session_ended: boolean
+    }>
+    expect(result).toBeDefined()
+    expect(result?.code_id).toBe(code.id)
+    expect(result?.session_id).toBe(sessionId)
+    expect(result?.session_ended).toBe(true)
+
+    // The trigger's auth.uid() = NEW.student_id guard is FALSE for an admin-driven
+    // ended_at write, so last_active_at must be unchanged. Compare by parsed
+    // timestamp (TIMESTAMPTZ serialization differs), preserving the null case.
+    const { data: afterRow, error: afterErr } = await admin
+      .from('users')
+      .select('last_active_at')
+      .eq('id', victimUserId)
+      .single()
+    if (afterErr) throw new Error(`read last_active_at after: ${afterErr.message}`)
+    const after = afterRow?.last_active_at ?? null
+
+    if (before === null) {
+      expect(after).toBeNull()
+    } else {
+      expect(after).not.toBeNull()
+      expect(new Date(after as string).getTime()).toBe(new Date(before).getTime())
+    }
   })
 
   test('voiding a consumed code whose session was soft-deleted raises session_state_changed (Vector CD)', async () => {

@@ -47,6 +47,9 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   // Vector X (rpc-cross-tenant): cross-tenant user_consents RLS isolation
   // Uses a distinct version marker to avoid colliding with user-consents-isolation.spec.ts
   let seededVictimConsentId: string | null = null
+  // Vector CL3 (#784): completed quiz_session seeded for the egmont victim, used
+  // to prove get_session_reports never leaks it to a cross-org caller.
+  let seededCL3SessionId: string | null = null
   // ≤20 chars: user_consents.document_version CHECK (char_length BETWEEN 1 AND 20)
   const RPC_CROSS_TENANT_CONSENT_VERSION = 'rct-x-1.0'
 
@@ -600,73 +603,188 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     expect(Array.isArray(data) ? data.length : -1).toBe(0)
   })
 
+  // -------------------------------------------------------------------------
+  // Vector CL2/CL3 (#784): get_session_reports auth-passed control + non-vacuous IDOR
+  // -------------------------------------------------------------------------
+
+  test('CL2 (#784): authenticated cross-org user with no completed sessions gets an empty get_session_reports result', async () => {
+    // Auth-passed control: get_session_reports clears the auth.uid() null-check
+    // (the caller is authenticated, so it does NOT raise 'Not authenticated'),
+    // but the cross-org user has no completed quiz_sessions. The self-scoped
+    // query (WHERE qs.student_id = auth.uid() AND ended_at IS NOT NULL) returns
+    // zero rows → error null, empty array. This is the no-rows baseline; CL3
+    // below is the true non-vacuous ownership proof.
+    const { data, error } = await crossOrgClient.rpc('get_session_reports', {})
+    expect(error).toBeNull()
+    expect(data ?? []).toHaveLength(0)
+  })
+
+  test('CL3 (#784): get_session_reports never returns another user completed session to a cross-org caller', async () => {
+    // Non-vacuity: seed a COMPLETED quiz_session for the egmont victim via the
+    // service-role client (bypasses RLS). get_session_reports requires
+    // ended_at IS NOT NULL and mode <> 'internal_exam' (mig 091), so the seeded
+    // session uses mode 'quick_quiz' with ended_at set.
+    const startedAt = new Date(Date.now() - 20 * 60 * 1000).toISOString()
+    const endedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+    const { data: sessionRow, error: seedErr } = await adminClient
+      .from('quiz_sessions')
+      .insert({
+        organization_id: egmontOrgId,
+        student_id: egmontVictimUserId,
+        mode: 'quick_quiz',
+        subject_id: examSubjectId,
+        config: { question_ids: [], pass_mark: 75 },
+        total_questions: 1,
+        started_at: startedAt,
+        ended_at: endedAt,
+        score_percentage: 100,
+        passed: true,
+        correct_count: 1,
+      })
+      .select('id')
+      .single()
+    if (seedErr || !sessionRow) throw new Error(`CL3 seed victim session: ${seedErr?.message}`)
+    seededCL3SessionId = sessionRow.id
+
+    // Owner-visibility (non-vacuity): the victim's OWN authenticated client sees
+    // the seeded session via get_session_reports — proving the row is genuinely
+    // reportable, so the attacker's "0 rows" assertion below is non-vacuous.
+    // p_limit: 100 ensures the seeded row is not paged out behind other sessions.
+    const victimClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
+    const { data: victimRows, error: victimErr } = await victimClient.rpc('get_session_reports', {
+      p_limit: 100,
+    })
+    expect(victimErr).toBeNull()
+    const victimReports = (victimRows ?? []) as Array<{ id: string }>
+    expect(victimReports.length).toBeGreaterThan(0)
+    expect(victimReports.find((r) => r.id === seededCL3SessionId)).toBeDefined()
+
+    // Isolation: get_session_reports only ever returns the caller's own sessions
+    // (WHERE qs.student_id = auth.uid()), so the cross-org attacker must never
+    // see the victim's seeded session id.
+    const { data: attackerRows, error: attackerErr } = await crossOrgClient.rpc(
+      'get_session_reports',
+      { p_limit: 100 },
+    )
+    expect(attackerErr).toBeNull()
+    const attackerReports = (attackerRows ?? []) as Array<{ id: string }>
+    expect(attackerReports.find((r) => r.id === seededCL3SessionId)).toBeUndefined()
+  })
+
   test.afterAll(async () => {
     // E2E hermiticity (code-style.md §7): remove the fixture code/session rows
     // the BY-vector tests inserted into egmont so downstream specs don't see
-    // them. Soft-delete the session (quiz_sessions is soft-delete only) and
-    // hard-delete the code row (no FK children — code was never consumed).
+    // them. Soft-delete sessions (quiz_sessions is soft-delete only) and
+    // hard-delete the consent row (append-only, no deleted_at column).
+    //
+    // Each block runs in its own try/catch so a failure in one cleanup never
+    // skips the rest — otherwise a throw in the first block leaks the CL3
+    // session and others into downstream specs (workers:1, alphabetical order).
+    // Errors are accumulated and re-thrown at the end; each block resets its
+    // tracking var in finally so a failed delete can't replay a stale id.
+    const errors: string[] = []
     if (seededVictimSessionId) {
-      const { data: discarded, error } = await adminClient
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', seededVictimSessionId)
-        .is('deleted_at', null)
-        .select('id')
-      if (error) {
-        console.error(`[rpc-cross-tenant cleanup] session soft-delete error: ${error.message}`)
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(
-          `[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture session(s)`,
-        )
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', seededVictimSessionId)
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`session soft-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(
+            `[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture session(s)`,
+          )
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededVictimSessionId = null
       }
     }
     if (seededVictimCodeId) {
       // Soft-delete per security.md §6 — never hard DELETE.
-      const { data: discarded, error } = await adminClient
-        .from('internal_exam_codes')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', seededVictimCodeId)
-        .is('deleted_at', null)
-        .select('id')
-      if (error) {
-        console.error(`[rpc-cross-tenant cleanup] code soft-delete error: ${error.message}`)
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture code(s)`)
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('internal_exam_codes')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', seededVictimCodeId)
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`code soft-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(
+            `[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture code(s)`,
+          )
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededVictimCodeId = null
+      }
+    }
+    // Vector CL3 cleanup: soft-delete the seeded completed quiz_session.
+    if (seededCL3SessionId) {
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', seededCL3SessionId)
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`CL3 session soft-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(`[rpc-cross-tenant cleanup] soft-deleted CL3 fixture session`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededCL3SessionId = null
       }
     }
     // Vector Q cleanup: soft-delete the seeded flagged_questions row.
     if (seededVictimFlaggedQuestionId) {
-      const { data: discarded, error } = await adminClient
-        .from('flagged_questions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('student_id', egmontVictimUserId)
-        .eq('question_id', seededVictimFlaggedQuestionId)
-        .is('deleted_at', null)
-        .select('question_id')
-      if (error) {
-        console.error(
-          `[rpc-cross-tenant cleanup] flagged_questions soft-delete error: ${error.message}`,
-        )
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[rpc-cross-tenant cleanup] soft-deleted flagged_questions fixture row`)
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('flagged_questions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('student_id', egmontVictimUserId)
+          .eq('question_id', seededVictimFlaggedQuestionId)
+          .is('deleted_at', null)
+          .select('question_id')
+        if (error) throw new Error(`flagged_questions soft-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(`[rpc-cross-tenant cleanup] soft-deleted flagged_questions fixture row`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededVictimFlaggedQuestionId = null
       }
     }
     // Vector X cleanup: hard-delete the seeded user_consents row.
     // user_consents is append-only (no deleted_at column), so the service role
     // performs a hard DELETE — matching the pattern in user-consents-isolation.spec.ts.
     if (seededVictimConsentId) {
-      const { data: discarded, error } = await adminClient
-        .from('user_consents')
-        .delete()
-        .eq('id', seededVictimConsentId)
-        .select('id')
-      if (error) {
-        console.error(
-          `[rpc-cross-tenant cleanup] user_consents hard-delete error: ${error.message}`,
-        )
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[rpc-cross-tenant cleanup] hard-deleted user_consents fixture row`)
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('user_consents')
+          .delete()
+          .eq('id', seededVictimConsentId)
+          .select('id')
+        if (error) throw new Error(`user_consents hard-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(`[rpc-cross-tenant cleanup] hard-deleted user_consents fixture row`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededVictimConsentId = null
       }
+    }
+    if (errors.length > 0) {
+      throw new Error(`[rpc-cross-tenant cleanup]: ${errors.join('; ')}`)
     }
   })
 })
