@@ -368,12 +368,17 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     if (preSeedErr) throw new Error(`capture last_active_at: ${preSeedErr.message}`)
     originalVictimLastActiveAt = preSeedRow?.last_active_at ?? null
     victimLastActiveAtMutated = true
-    const { error: seedErr } = await admin
+    const { data: seededRows, error: seedErr } = await admin
       .from('users')
       .update({ last_active_at: SEEDED_LAST_ACTIVE_AT })
       .eq('id', victimUserId)
       .select('id')
     if (seedErr) throw new Error(`seed last_active_at: ${seedErr.message}`)
+    // Zero-row no-op guard (code-style.md §5): if the update matched 0 rows (e.g. the
+    // victim was deleted between capture and seed), the "unchanged" assertion below would
+    // compare null === null and pass vacuously. Fail loudly instead.
+    if ((seededRows?.length ?? 0) === 0)
+      throw new Error(`seed last_active_at matched 0 rows for victim ${victimUserId}`)
 
     // Read the victim's last_active_at via service-role BEFORE the void. RLS
     // does not block the service-role client, so this is the true stored value.
