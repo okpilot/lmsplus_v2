@@ -270,6 +270,29 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
+  test('record_auth_event rejects unauthenticated callers (Vector CQ, #788)', async () => {
+    // SECURITY DEFINER (mig 093); the auth.uid() IS NULL guard raises
+    // 'not authenticated' before the actor lookup, event-type whitelist, or any
+    // audit_events INSERT — so an anon caller cannot forge an audit row.
+    const { data, error } = await unauthClient.rpc('record_auth_event', {
+      p_event_type: 'user.password_changed',
+      p_resource_id: '00000000-0000-4000-a000-0000000000aa',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('get_session_reports rejects unauthenticated callers (Vector CL1, #784)', async () => {
+    // SECURITY DEFINER (mig 091); the auth.uid() IS NULL guard raises
+    // 'Not authenticated' (capital N) before the session query — so an anon
+    // caller gets an error, NOT an empty result set. Matched case-insensitively.
+    const { data, error } = await unauthClient.rpc('get_session_reports')
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
   // --- Direct table SELECT vectors ---
 
   test('unauthenticated client sees 0 rows from student_responses', async () => {

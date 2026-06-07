@@ -13,6 +13,7 @@
  * (exempt from quiz_sessions immutable-columns trigger, mig 20260502000001).
  */
 
+import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 import { createAuthenticatedClient } from './helpers/redteam-client'
@@ -32,6 +33,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
   let studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let adminAuthedClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let studentUserId: string
+  let victimUserId: string
   let adminUserId: string
   let orgId: string
   let subjectId: string
@@ -43,11 +45,17 @@ test.describe('Red Team: Audit Event Completeness', () => {
   const createdSessionIds = new Set<string>()
   const createdCodeIds = new Set<string>()
 
+  // Track users this spec soft-deletes (only the user.deactivated CT target) so
+  // afterEach can restore deleted_at = null. The audit_events rows it produces are
+  // NOT cleaned (append-only) — testStart scoping isolates them instead.
+  const softDeletedUserIds = new Set<string>()
+
   test.beforeAll(async () => {
     admin = getAdminClient()
 
     const seeded = await seedRedTeamUsers()
     studentUserId = seeded.attackerUserId
+    victimUserId = seeded.victimUserId
     orgId = seeded.orgId
 
     const seededAdmin = await seedRedTeamAdmin()
@@ -107,6 +115,24 @@ test.describe('Red Team: Audit Event Completeness', () => {
         errors.push(e instanceof Error ? e.message : String(e))
       } finally {
         createdCodeIds.clear()
+      }
+    }
+    if (softDeletedUserIds.size > 0) {
+      try {
+        const { data, error } = await admin
+          .from('users')
+          .update({ deleted_at: null })
+          .in('id', Array.from(softDeletedUserIds))
+          .not('deleted_at', 'is', null)
+          .select('id')
+        if (error) throw new Error(`afterEach restore users: ${error.message}`)
+        if ((data?.length ?? 0) > 0) {
+          console.log(`[audit-completeness] restored ${data?.length} soft-deleted user(s)`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        softDeletedUserIds.clear()
       }
     }
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
@@ -588,5 +614,84 @@ test.describe('Red Team: Audit Event Completeness', () => {
       const ageMs = Date.now() - new Date(post.created_at as string).getTime()
       expect(ageMs).toBeLessThan(60_000)
     }
+  })
+
+  // Vector CT (#788): positive emission for record_auth_event (mig 093). The 4
+  // whitelisted auth event_types must land in the immutable audit log with the
+  // correct actor (= auth.uid()) and resource_id. Called via the RPC directly,
+  // not the Server Actions — the Server Actions fire it best-effort, so their
+  // timing is unreliable for an audit assertion.
+
+  test('records user.password_changed in the audit log for a self-service password change', async () => {
+    const testStart = new Date().toISOString()
+
+    // Self-service event: caller is the student, resource MUST equal the actor.
+    const { error } = await studentClient.rpc('record_auth_event', {
+      p_event_type: 'user.password_changed',
+      p_resource_id: studentUserId,
+    })
+    expect(error, 'record_auth_event user.password_changed error').toBeNull()
+
+    await expectAuditRow('user.password_changed', studentUserId, testStart, studentUserId)
+  })
+
+  test('records user.password_reset in the audit log when an admin resets a student password', async () => {
+    const testStart = new Date().toISOString()
+
+    // Admin-only event: caller is the admin, resource is the active student.
+    const { error } = await adminAuthedClient.rpc('record_auth_event', {
+      p_event_type: 'user.password_reset',
+      p_resource_id: studentUserId,
+    })
+    expect(error, 'record_auth_event user.password_reset error').toBeNull()
+
+    // actor = admin (auth.uid()), resource = the student whose password was reset.
+    await expectAuditRow('user.password_reset', adminUserId, testStart, studentUserId)
+  })
+
+  test('records user.created in the audit log when an admin creates a student', async () => {
+    const testStart = new Date().toISOString()
+
+    // record_auth_event does NOT re-SELECT the resource for admin events (mig 093 —
+    // the resource lookup would need a deleted_at filter that breaks user.deactivated),
+    // and the real createStudent flow records the just-created user's id. A fresh UUID
+    // faithfully represents that brand-new student without provisioning a persistent
+    // auth user that would accumulate across runs and require extra cleanup.
+    const newUserId = randomUUID()
+    const { error } = await adminAuthedClient.rpc('record_auth_event', {
+      p_event_type: 'user.created',
+      p_resource_id: newUserId,
+    })
+    expect(error, 'record_auth_event user.created error').toBeNull()
+
+    // actor = admin (auth.uid()), resource = the newly created student (not swapped).
+    await expectAuditRow('user.created', adminUserId, testStart, newUserId)
+  })
+
+  test('records user.deactivated in the audit log when an admin deactivates a student', async () => {
+    // Mirror the real deactivateStudent flow: by the time the audit event is
+    // recorded the target is ALREADY soft-deleted. record_auth_event does not
+    // re-SELECT the resource, so a soft-deleted resource_id is accepted. The
+    // admin CALLER stays active — only the resource is soft-deleted.
+    const { data: deleted, error: deleteErr } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', victimUserId)
+      .select('id')
+    if (deleteErr) throw new Error(`user.deactivated soft-delete target: ${deleteErr.message}`)
+    if (!deleted?.length) {
+      throw new Error('user.deactivated target user row not found before soft-delete')
+    }
+    softDeletedUserIds.add(victimUserId)
+
+    const testStart = new Date().toISOString()
+    const { error } = await adminAuthedClient.rpc('record_auth_event', {
+      p_event_type: 'user.deactivated',
+      p_resource_id: victimUserId,
+    })
+    expect(error, 'record_auth_event user.deactivated error').toBeNull()
+
+    // actor = admin (auth.uid()), resource = the deactivated student.
+    await expectAuditRow('user.deactivated', adminUserId, testStart, victimUserId)
   })
 })

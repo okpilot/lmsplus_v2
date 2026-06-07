@@ -328,6 +328,52 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     expect(codeRow?.void_reason).toBe('positive path')
   })
 
+  test('admin void of an active session does NOT stamp the student last_active_at (Vector CM)', async () => {
+    const sessionId = await session()
+    const code = await codeForSession(sessionId)
+
+    // Read the victim's last_active_at via service-role BEFORE the void. RLS
+    // does not block the service-role client, so this is the true stored value.
+    const { data: beforeRow, error: beforeErr } = await admin
+      .from('users')
+      .select('last_active_at')
+      .eq('id', victimUserId)
+      .single()
+    if (beforeErr) throw new Error(`read last_active_at before: ${beforeErr.message}`)
+    const before = beforeRow?.last_active_at ?? null
+
+    const { data, error } = await adminClientAuthed.rpc('void_internal_exam_code', {
+      p_code_id: code.id,
+      p_reason: 'void no-stamp check',
+    })
+
+    expect(error).toBeNull()
+    // Non-vacuity: prove the ended_at write actually fired (session_ended=true)
+    // so the trigger DID get a chance to run — only then is "unchanged" meaningful.
+    expect(Array.isArray(data)).toBe(true)
+    const [result] = data as Array<{ session_ended: boolean }>
+    expect(result).toBeDefined()
+    expect(result?.session_ended).toBe(true)
+
+    // The trigger's auth.uid() = NEW.student_id guard is FALSE for an admin-driven
+    // ended_at write, so last_active_at must be unchanged. Compare by parsed
+    // timestamp (TIMESTAMPTZ serialization differs), preserving the null case.
+    const { data: afterRow, error: afterErr } = await admin
+      .from('users')
+      .select('last_active_at')
+      .eq('id', victimUserId)
+      .single()
+    if (afterErr) throw new Error(`read last_active_at after: ${afterErr.message}`)
+    const after = afterRow?.last_active_at ?? null
+
+    if (before === null) {
+      expect(after).toBeNull()
+    } else {
+      expect(after).not.toBeNull()
+      expect(new Date(after as string).getTime()).toBe(new Date(before).getTime())
+    }
+  })
+
   test('voiding a consumed code whose session was soft-deleted raises session_state_changed (Vector CD)', async () => {
     const sessionId = await session()
     const code = await codeForSession(sessionId)

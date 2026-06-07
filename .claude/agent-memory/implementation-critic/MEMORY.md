@@ -81,3 +81,12 @@
 ## Topic pointers
 
 - [tracker-archive](topics/tracker-archive.md) — older impl-critic findings (two dated spec-notes + the "Positive patterns" approval log, pre-2026-06-07)
+
+## Notes on redteam-e2e-coverage-batch (#784, #786, #788, #781)
+
+- **Spec-count drift in steering + decisions on new-spec batch** — adding 2 new Playwright specs (rpc-record-auth-event.spec.ts + token-refresh-anti-cache.spec.ts) moves count from 37→39. `tech.md` has the count in 3 places (lines 85, 146, 183); `docs/decisions.md` Decision 27 has it once. None updated in the staged diff. This is a SUGGESTION (doc-updater handles it post-commit). The plan explicitly excluded `docs/*.md` schema edits from scope.
+- **actor-liveness pre-check pattern confirmed.** rpc-record-auth-event.spec.ts beforeAll asserts all 3 RPC callers (attackerUserId, adminUserId, crossOrgAdminUserId) have `deleted_at IS NULL` before any test runs. This prevents gate-2 (`'user not found or inactive'`) from pre-empting gate-3 assertions (CN/CO/CP). Correct pattern — promote if reused elsewhere.
+- **force-token-refresh.ts helper is a Playwright E2E seam, not a `_hooks/` util** — code-style §7 Vitest test requirement does NOT apply to `e2e/redteam/helpers/*.ts`. Do not flag missing co-located test for E2E helper files.
+- **CL2 non-vacuity acknowledged in plan as control, not the proof.** CL2 asserts error null + empty array for cross-org user with no sessions. The vacuity concern is pre-acknowledged — CL3 is the non-vacuous ownership proof. Do not re-flag CL2 as vacuous.
+- **CT user.deactivated: soft-delete target without `.is('deleted_at', null)` guard is acceptable.** The update at `audit-completeness.spec.ts:678` uses `.eq('id', victimUserId)` without `.is('deleted_at', null)`. If the victim was already soft-deleted from a cross-spec leak, the update succeeds idempotently and `softDeletedUserIds` still restores it. The test checks `!deleted?.length` as an existence guard. This pattern is acceptable — the service-role client doesn't enforce the soft-delete guard, and the afterEach restore uses `.not('deleted_at', 'is', null)` correctly.
+- **RAISE-string casing verified for all 4 RPCs.** `record_auth_event` → `'not authenticated'` (lower); `get_session_reports` → `'Not authenticated'` (capital N); `void_internal_exam_code` → `'not_authenticated'` (snake). All anon assertions in new specs use `/not[ _]authenticated/i` or `/not authenticated/i` (case-insensitive) — safe against all three forms.
