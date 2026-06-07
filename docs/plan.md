@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-06-07 — **Security & Test-Hardening Sprint** (post-#668, see section below): DB-hardening migrations 085–093, OWASP A10 error-disclosure coverage, auth audit logging (`record_auth_event`), activity-stamp trigger, and the red-team Playwright suite expanded to **39 specs**. Two batches landed this sprint — backend (#446/#684/#471/#532/#379, PRs #782/#783/#785/#787/#790) and red-team E2E coverage (#784/#786/#788/#781, PR #795). Prior milestone: **Umbrella #668 (PostgREST 1000-row truncation) CLOSED 2026-05-31** — all 25 sites addressed (24 fixed + 1 exempt) across instances #1–#9, plus the §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
+> Last updated: 2026-06-07 — **Security & Test-Hardening Sprint** (post-#668, see section below): DB-hardening migrations 085–093, OWASP A10:2025 error-disclosure coverage, auth audit logging (`record_auth_event`), activity-stamp trigger, and the red-team Playwright suite expanded to **39 specs**. Two batches landed this sprint — backend (#446/#684/#471/#532/#379, PRs #782/#783/#785/#787/#790) and red-team E2E coverage (#784/#786/#788/#781, PR #795). Prior milestone: **Umbrella #668 (PostgREST 1000-row truncation) CLOSED 2026-05-31** — all 25 sites addressed (24 fixed + 1 exempt) across instances #1–#9, plus the §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
 
 ---
 
@@ -17,7 +17,7 @@ After umbrella #668 closed, focus shifted to DB/security hardening and adversari
 - `record_auth_event` SECURITY DEFINER RPC — generic audit logging for the 4 auth Server Actions (password change/reset, deactivate, create), self-defending against forged events (#379, PR #790).
 
 **App-layer security:**
-- OWASP A10 error-path information-disclosure coverage + Server Action error-message sanitization (#634, #552, #553, PR #780).
+- OWASP A10:2025 error-path information-disclosure coverage + Server Action error-message sanitization (#634, #552, #553, PR #780).
 - Middleware/proxy: `@supabase/ssr` anti-cache header forwarding (Cache-Control/Expires/Pragma) onto redirect/403/503 exits + orphaned-response fix (#446, PR #782).
 - GDPR export: machine-readable `warnings` field for failed export sub-reads (#684, PR #783).
 
