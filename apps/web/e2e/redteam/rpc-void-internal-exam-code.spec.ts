@@ -332,6 +332,20 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     const sessionId = await session()
     const code = await codeForSession(sessionId)
 
+    // Seed a KNOWN non-null last_active_at via service-role so the "unchanged"
+    // assertion below always exercises the strict timestamp-equality branch. On
+    // a fresh env the victim's last_active_at is NULL, and the trigger only ever
+    // writes a non-null now() — so a null->null comparison can't distinguish
+    // "trigger skipped" from "trigger never fired". A fixed before-value makes
+    // the regression detector (after === before) non-vacuous.
+    const SEEDED_LAST_ACTIVE_AT = '2026-01-01T00:00:00.000Z'
+    const { error: seedErr } = await admin
+      .from('users')
+      .update({ last_active_at: SEEDED_LAST_ACTIVE_AT })
+      .eq('id', victimUserId)
+      .select('id')
+    if (seedErr) throw new Error(`seed last_active_at: ${seedErr.message}`)
+
     // Read the victim's last_active_at via service-role BEFORE the void. RLS
     // does not block the service-role client, so this is the true stored value.
     const { data: beforeRow, error: beforeErr } = await admin

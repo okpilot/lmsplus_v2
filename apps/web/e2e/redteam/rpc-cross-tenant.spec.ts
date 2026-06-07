@@ -674,84 +674,115 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   test.afterAll(async () => {
     // E2E hermiticity (code-style.md §7): remove the fixture code/session rows
     // the BY-vector tests inserted into egmont so downstream specs don't see
-    // them. Soft-delete the session (quiz_sessions is soft-delete only) and
-    // hard-delete the code row (no FK children — code was never consumed).
+    // them. Soft-delete sessions (quiz_sessions is soft-delete only) and
+    // hard-delete the consent row (append-only, no deleted_at column).
+    //
+    // Each block runs in its own try/catch so a failure in one cleanup never
+    // skips the rest — otherwise a throw in the first block leaks the CL3
+    // session and others into downstream specs (workers:1, alphabetical order).
+    // Errors are accumulated and re-thrown at the end; each block resets its
+    // tracking var in finally so a failed delete can't replay a stale id.
+    const errors: string[] = []
     if (seededVictimSessionId) {
-      const { data: discarded, error } = await adminClient
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', seededVictimSessionId)
-        .is('deleted_at', null)
-        .select('id')
-      if (error) {
-        console.error(`[rpc-cross-tenant cleanup] session soft-delete error: ${error.message}`)
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(
-          `[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture session(s)`,
-        )
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', seededVictimSessionId)
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`session soft-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(
+            `[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture session(s)`,
+          )
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededVictimSessionId = null
       }
     }
     if (seededVictimCodeId) {
       // Soft-delete per security.md §6 — never hard DELETE.
-      const { data: discarded, error } = await adminClient
-        .from('internal_exam_codes')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', seededVictimCodeId)
-        .is('deleted_at', null)
-        .select('id')
-      if (error) {
-        console.error(`[rpc-cross-tenant cleanup] code soft-delete error: ${error.message}`)
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture code(s)`)
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('internal_exam_codes')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', seededVictimCodeId)
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`code soft-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(`[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture code(s)`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededVictimCodeId = null
       }
     }
     // Vector CL3 cleanup: soft-delete the seeded completed quiz_session.
     if (seededCL3SessionId) {
-      const { data: discarded, error } = await adminClient
-        .from('quiz_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', seededCL3SessionId)
-        .is('deleted_at', null)
-        .select('id')
-      if (error) {
-        console.error(`[rpc-cross-tenant cleanup] CL3 session soft-delete error: ${error.message}`)
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[rpc-cross-tenant cleanup] soft-deleted CL3 fixture session`)
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', seededCL3SessionId)
+          .is('deleted_at', null)
+          .select('id')
+        if (error) throw new Error(`CL3 session soft-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(`[rpc-cross-tenant cleanup] soft-deleted CL3 fixture session`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededCL3SessionId = null
       }
     }
     // Vector Q cleanup: soft-delete the seeded flagged_questions row.
     if (seededVictimFlaggedQuestionId) {
-      const { data: discarded, error } = await adminClient
-        .from('flagged_questions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('student_id', egmontVictimUserId)
-        .eq('question_id', seededVictimFlaggedQuestionId)
-        .is('deleted_at', null)
-        .select('question_id')
-      if (error) {
-        console.error(
-          `[rpc-cross-tenant cleanup] flagged_questions soft-delete error: ${error.message}`,
-        )
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[rpc-cross-tenant cleanup] soft-deleted flagged_questions fixture row`)
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('flagged_questions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('student_id', egmontVictimUserId)
+          .eq('question_id', seededVictimFlaggedQuestionId)
+          .is('deleted_at', null)
+          .select('question_id')
+        if (error) throw new Error(`flagged_questions soft-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(`[rpc-cross-tenant cleanup] soft-deleted flagged_questions fixture row`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededVictimFlaggedQuestionId = null
       }
     }
     // Vector X cleanup: hard-delete the seeded user_consents row.
     // user_consents is append-only (no deleted_at column), so the service role
     // performs a hard DELETE — matching the pattern in user-consents-isolation.spec.ts.
     if (seededVictimConsentId) {
-      const { data: discarded, error } = await adminClient
-        .from('user_consents')
-        .delete()
-        .eq('id', seededVictimConsentId)
-        .select('id')
-      if (error) {
-        console.error(
-          `[rpc-cross-tenant cleanup] user_consents hard-delete error: ${error.message}`,
-        )
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[rpc-cross-tenant cleanup] hard-deleted user_consents fixture row`)
+      try {
+        const { data: discarded, error } = await adminClient
+          .from('user_consents')
+          .delete()
+          .eq('id', seededVictimConsentId)
+          .select('id')
+        if (error) throw new Error(`user_consents hard-delete: ${error.message}`)
+        if ((discarded?.length ?? 0) > 0) {
+          console.log(`[rpc-cross-tenant cleanup] hard-deleted user_consents fixture row`)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        seededVictimConsentId = null
       }
+    }
+    if (errors.length > 0) {
+      throw new Error(`[rpc-cross-tenant cleanup]: ${errors.join('; ')}`)
     }
   })
 })

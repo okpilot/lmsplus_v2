@@ -114,16 +114,16 @@ test.describe('Red Team: record_auth_event RPC forgery guards (#788)', () => {
     crossOrgAdminUserId = crossOrgSeed.adminUserId
     crossOrgId = crossOrgSeed.orgId
 
-    studentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
-    adminClient = await createAuthenticatedClient(adminSeed.email, adminSeed.password)
-    crossOrgAdminClient = await createAuthenticatedClient(crossOrgSeed.email, crossOrgSeed.password)
-
     // Actor-liveness pre-check: the RPC's gate 2 ('user not found or inactive')
     // fires before the event-type gates if a caller's users row is soft-deleted.
     // seedRedTeam*/upsertUser do NOT restore deleted_at, so a failed afterEach in
     // another spec could leave a caller soft-deleted (cross-spec risk). Assert all
     // RPC callers are active up front, otherwise CN/CO/CP would fail spuriously on
     // the gate-2 message instead of the gate-3 message under test.
+    //
+    // Run this BEFORE createAuthenticatedClient: it needs only the seeded user
+    // ids, and a pre-check failure here must not leave the describe's tests
+    // running against undefined clients (tracked beforeAll-crash pattern).
     const { data: callerRows, error: callerErr } = await admin
       .from('users')
       .select('id, deleted_at')
@@ -136,6 +136,10 @@ test.describe('Red Team: record_auth_event RPC forgery guards (#788)', () => {
         `caller ${(row as { id: string }).id} must be active (deleted_at IS NULL)`,
       ).toBeNull()
     }
+
+    studentClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
+    adminClient = await createAuthenticatedClient(adminSeed.email, adminSeed.password)
+    crossOrgAdminClient = await createAuthenticatedClient(crossOrgSeed.email, crossOrgSeed.password)
 
     // CR non-vacuity precondition: the cross-org admin and the resource user it
     // will reference must genuinely live in different orgs.

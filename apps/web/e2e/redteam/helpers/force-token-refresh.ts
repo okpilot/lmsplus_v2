@@ -49,7 +49,7 @@ export type AuthSessionSummary = {
 }
 
 /** Strip a trailing `.N` chunk suffix to recover the base storage key. */
-function baseKeyOf(cookieName: string): string {
+export function baseKeyOf(cookieName: string): string {
   return cookieName.replace(/\.\d+$/, '')
 }
 
@@ -58,7 +58,7 @@ function baseKeyOf(cookieName: string): string {
  * prefer the un-chunked cookie under the base key; otherwise concatenate the
  * `.0`, `.1`, … chunks in index order.
  */
-function reconstructCookieValue(authCookies: PlaywrightCookie[], baseKey: string): string {
+export function reconstructCookieValue(authCookies: PlaywrightCookie[], baseKey: string): string {
   const whole = authCookies.find((c) => c.name === baseKey)
   if (whole) return whole.value
 
@@ -75,7 +75,7 @@ function reconstructCookieValue(authCookies: PlaywrightCookie[], baseKey: string
 }
 
 /** Decode `base64-<base64url(json)>` (or a plain JSON value) to the session object. */
-function decodeSession(rawValue: string): Record<string, unknown> {
+export function decodeSession(rawValue: string): Record<string, unknown> {
   const json = rawValue.startsWith(BASE64_PREFIX)
     ? Buffer.from(rawValue.slice(BASE64_PREFIX.length), 'base64url').toString('utf-8')
     : rawValue
@@ -101,7 +101,7 @@ function decodeSession(rawValue: string): Record<string, unknown> {
 }
 
 /** Re-encode a session object back to the `base64-<base64url(json)>` cookie form. */
-function encodeSession(session: Record<string, unknown>): string {
+export function encodeSession(session: Record<string, unknown>): string {
   return BASE64_PREFIX + Buffer.from(JSON.stringify(session), 'utf-8').toString('base64url')
 }
 
@@ -111,7 +111,16 @@ function encodeSession(session: Record<string, unknown>): string {
  * percent-escaped, so `encodeURIComponent(value).length === value.length` and
  * the chunk-splitting reduces to a plain slice on MAX_CHUNK_SIZE.
  */
-function chunkValue(baseKey: string, value: string): Array<{ name: string; value: string }> {
+export function chunkValue(baseKey: string, value: string): Array<{ name: string; value: string }> {
+  // Invariant: the payload is URI-safe, so plain `.slice()` matches @supabase/ssr's
+  // encodeURIComponent-based chunking. If supabase ever changes cookieEncoding to a
+  // form with percent-escaped characters, this assumption breaks silently — fail loud.
+  if (encodeURIComponent(value).length !== value.length) {
+    throw new Error(
+      'forceTokenRefresh: chunkValue invariant violated — encodeURIComponent(value).length !== value.length; ' +
+        'the cookie payload is no longer URI-safe, so plain slicing would misalign chunks against @supabase/ssr.',
+    )
+  }
   if (value.length <= MAX_CHUNK_SIZE) return [{ name: baseKey, value }]
   const chunks: Array<{ name: string; value: string }> = []
   for (let i = 0, n = 0; i < value.length; i += MAX_CHUNK_SIZE, n += 1) {
@@ -122,6 +131,48 @@ function chunkValue(baseKey: string, value: string): Array<{ name: string; value
 
 function findAuthCookies(cookies: PlaywrightCookie[]): PlaywrightCookie[] {
   return cookies.filter((c) => AUTH_TOKEN_COOKIE_RE.test(c.name))
+}
+
+/**
+ * Clear any existing chunk cookie whose name won't be overwritten by the new
+ * chunk set. The chunk count can shrink (or grow); leaving stale `.N` chunks
+ * behind would corrupt the reconstructed value on the next read.
+ */
+async function clearStaleChunks(
+  context: BrowserContext,
+  authCookies: PlaywrightCookie[],
+  newNames: Set<string>,
+  template: PlaywrightCookie,
+): Promise<void> {
+  for (const cookie of authCookies) {
+    if (!newNames.has(cookie.name)) {
+      await context.clearCookies({
+        name: cookie.name,
+        domain: template.domain,
+        path: template.path,
+      })
+    }
+  }
+}
+
+/** Write the new chunk set, copying domain/path/flags from the original cookie. */
+async function writeCookieChunks(
+  context: BrowserContext,
+  chunks: Array<{ name: string; value: string }>,
+  template: PlaywrightCookie,
+): Promise<void> {
+  await context.addCookies(
+    chunks.map(({ name, value }) => ({
+      name,
+      value,
+      domain: template.domain,
+      path: template.path,
+      expires: template.expires,
+      httpOnly: template.httpOnly,
+      secure: template.secure,
+      sameSite: template.sameSite,
+    })),
+  )
 }
 
 /**
@@ -168,28 +219,6 @@ export async function forceTokenRefresh(context: BrowserContext): Promise<void> 
   const newChunks = chunkValue(baseKey, encodeSession(session))
   const newNames = new Set(newChunks.map((c) => c.name))
 
-  // The chunk count can shrink (or grow); clear any old chunk name we won't
-  // overwrite so stale chunks can't corrupt the reconstructed value.
-  for (const cookie of authCookies) {
-    if (!newNames.has(cookie.name)) {
-      await context.clearCookies({
-        name: cookie.name,
-        domain: template.domain,
-        path: template.path,
-      })
-    }
-  }
-
-  await context.addCookies(
-    newChunks.map(({ name, value }) => ({
-      name,
-      value,
-      domain: template.domain,
-      path: template.path,
-      expires: template.expires,
-      httpOnly: template.httpOnly,
-      secure: template.secure,
-      sameSite: template.sameSite,
-    })),
-  )
+  await clearStaleChunks(context, authCookies, newNames, template)
+  await writeCookieChunks(context, newChunks, template)
 }
