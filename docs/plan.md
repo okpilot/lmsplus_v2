@@ -2,7 +2,34 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-05-30 — Umbrella #668: PostgREST 1000-row truncation fixes. Instances #1–#4 merged (10 P0 sites); instance #5 (#682, admin roster → get_admin_dashboard_students) merged via #686 — completing all 12/12 P0 sites. Instance #6 (#678 + #679, filtered-question-pool RPCs — **P1** sites) merged via #691 (squash `67b9fcf9`). Instance #7 (listOrgStudents + getComments — **P1** list reads, paginated via `fetchAllRows`) merged via #700 (squash `0187d483`) — completing the P1 tier. Instance #8 (profile.ts averageScore → `get_student_profile_stats` aggregation RPC — first **P2** site) merged via #702 (squash `49491481`). Instance #9 (#701, the 3 practically-bounded P2 sites — active mock/internal exam lookups + drafts — given explicit `.limit()` bounds) merged via #705 (squash `7070c8af`), completing the P2 tier — all 25 sites now addressed (24 fixed + 1 exempt). **#668 CLOSED 2026-05-31** — final follow-ups merged: §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
+> Last updated: 2026-06-07 — **Security & Test-Hardening Sprint** (post-#668, see section below): DB-hardening migrations 085–093, OWASP A10 error-disclosure coverage, auth audit logging (`record_auth_event`), activity-stamp trigger, and the red-team Playwright suite expanded to **39 specs**. Two batches landed this sprint — backend (#446/#684/#471/#532/#379, PRs #782/#783/#785/#787/#790) and red-team E2E coverage (#784/#786/#788/#781, PR #795). Prior milestone: **Umbrella #668 (PostgREST 1000-row truncation) CLOSED 2026-05-31** — all 25 sites addressed (24 fixed + 1 exempt) across instances #1–#9, plus the §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
+
+---
+
+## Security & Test-Hardening Sprint — 2026-06 (post-#668)
+
+After umbrella #668 closed, focus shifted to DB/security hardening and adversarial test coverage. No new product surface — these harden existing behavior and lock it under tests.
+
+**DB-hardening migrations 085–093:**
+- `record_consent` idempotency via EXISTS-guard (#386); `start_quiz_session` 500-element array cap + NULL mode guard (#275); internal-exam RPC actor-role cache (#734); `start_exam_session` unique-violation mapping + org_id index + role cache (#754); `exam_configs` reactivation-block trigger (#755); `users` column-UPDATE GRANT lockdown — `full_name`-only (#773). (Batch A, PR #776.)
+- `get_session_reports` drops the unused `answered_count` correlated subquery (#471, PR #785).
+- `stamp_last_active_on_session_complete` trigger — stamps `users.last_active_at` on the `ended_at` NULL→NOT NULL transition across all student-completion paths, guarded by `auth.uid() = NEW.student_id` (#532, PR #787).
+- `record_auth_event` SECURITY DEFINER RPC — generic audit logging for the 4 auth Server Actions (password change/reset, deactivate, create), self-defending against forged events (#379, PR #790).
+
+**App-layer security:**
+- OWASP A10 error-path information-disclosure coverage + Server Action error-message sanitization (#634, #552, #553, PR #780).
+- Middleware/proxy: `@supabase/ssr` anti-cache header forwarding (Cache-Control/Expires/Pragma) onto redirect/403/503 exits + orphaned-response fix (#446, PR #782).
+- GDPR export: machine-readable `warnings` field for failed export sub-reads (#684, PR #783).
+
+**Red-team Playwright suite → 39 specs:**
+- This sprint added E2E coverage for `record_auth_event` forgery guards (Vectors CN–CT, #788), `get_session_reports` auth + cross-user IDOR (CL, #784), the `last_active_at` trigger no-stamp on admin void (CM, #786), and anti-cache headers on a real token refresh (CK2, #781) — all in PR #795, with a `force-token-refresh.ts` test seam + co-located Vitest unit tests.
+- Earlier backlog batches (#774 family, PRs #736–#779): complete_overdue/empty exam attack surfaces, audit cross-user isolation, cross-org isolation for exam/pool/distributions, `upsert_exam_config` injection, `user_consents` isolation, quiz_sessions score-forgery column GRANT (#611), and more.
+
+**Test hermeticity & infra:**
+- Hermetic `easa_*` reference-data cleanup in integration suites (#775, #593, PR #779).
+- "Red Team Specs" promoted to a required status check (#771).
+
+**Open follow-ups (P2 tech-debt):** #789 (extract `recordAuthEvent` helper + split `toggle-student-status.ts`), #791 (knip dead code), #792 (dedupe learner tracker rows), #793 (renumber BL/BM/BN vector-ID collision), #794 (promote 2 learner rule candidates + sweep), #796 (split 3 oversized red-team hub specs).
 
 ---
 
