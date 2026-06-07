@@ -59,7 +59,7 @@
 - **Stale-closure on locks/Maps:** deleting from a `lockedRef` in a catch before `setAnswers` propagates opens a double-submit window — release via `useEffect` keyed on the `answers` prop, not synchronously.
 - **`new Map()` / `new Set()` in a render return** = new ref each render → downstream dep-array thrash; use a stable `useRef`.
 - **Two-layer guard:** HTML `disabled` is not a behavioral contract — `onClick` handlers must also `if (!disabled)` when they manage local state and can be invoked programmatically.
-- **`'server-only'` import — DO NOT flag its absence (FALSE-POSITIVE source, #789 2026-06-07).** This codebase uses `server-only` 0 times; many server modules (`*/queries.ts`, `*-queries.ts`, `toggle-student-status-mutations.ts`) import `adminClient` with neither `'use server'` nor `server-only`. That is the established pattern. Recommending the guard contradicts 100% of the codebase and would add an unused dependency. The earlier "required" claim here was wrong — verified by grep before flagging.
+- **`'server-only'` — DO NOT flag its absence (FALSE POSITIVE, #789).** `server-only` is used 0× in this repo; `*/queries.ts` + sibling modules import `adminClient` with no such guard. The earlier "required" claim was wrong — recommending it contradicts the codebase + adds an unused dep.
 - **Server Component query helpers** (called via Suspense, not `'use server'`) throwing `error.message` is NOT a client-exposure gap (propagates to error.tsx→Sentry, never reaches DOM) — but a `console.error` before the throw is still wanted for log correlation. Confirmed intentional at count=2; do NOT flag as ISSUE.
 
 ### Test-quality catches (semantic, not style)
