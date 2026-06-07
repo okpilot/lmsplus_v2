@@ -16,9 +16,13 @@ type RecordAuthEventOpts = {
 }
 
 /**
- * Best-effort audit write via the `record_auth_event` RPC. Never throws — a failed
- * audit is logged (`[<context>] Audit event failed:`) and swallowed, so the caller's
- * primary mutation is not surfaced as failed because of an audit-log miss.
+ * Best-effort audit write via the `record_auth_event` RPC. A failed audit is logged
+ * (`[<context>] Audit event failed:`) and swallowed, so the caller's primary mutation
+ * is not surfaced as failed because of an audit-log miss.
+ *
+ * Never throws as long as the Supabase client honours the supabase-js v2 `{ error }`
+ * contract (query errors are returned, not thrown) — matching every other `.rpc()`
+ * helper in `lib/`; we intentionally do not add a try/catch to diverge from that.
  */
 export async function recordAuthEvent(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,

@@ -3,6 +3,7 @@
 import { adminClient } from '@repo/db/admin'
 import { ResetStudentPasswordSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
+import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
 type ActionResult = { success: true } | { success: false; error: string }
@@ -49,13 +50,11 @@ export async function resetStudentPassword(input: unknown): Promise<ActionResult
   // Audit the admin reset via the admin's user-context client (auth.uid() = admin),
   // not adminClient (service role → auth.uid() NULL). Best-effort: the password is
   // already reset, so a failed audit write is logged, not surfaced to the admin.
-  const { error: auditError } = await supabase.rpc('record_auth_event', {
-    p_event_type: 'user.password_reset',
-    p_resource_id: id,
+  await recordAuthEvent(supabase, {
+    eventType: 'user.password_reset',
+    resourceId: id,
+    context: 'resetStudentPassword',
   })
-  if (auditError) {
-    console.error('[resetStudentPassword] Audit event failed:', auditError.message)
-  }
 
   revalidatePath('/app/admin/students')
   return { success: true }

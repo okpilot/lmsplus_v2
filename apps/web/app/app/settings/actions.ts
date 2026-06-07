@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 
 const UpdateNameSchema = z.object({
   fullName: z.string().trim().min(1, 'Name is required').max(200, 'Name is too long'),
@@ -83,13 +84,11 @@ export async function changePassword(raw: unknown): Promise<ActionResult> {
 
   // Audit the password change (best-effort: the password is already changed, so a
   // failed audit write must not fail the action — log it server-side instead).
-  const { error: auditError } = await supabase.rpc('record_auth_event', {
-    p_event_type: 'user.password_changed',
-    p_resource_id: user.id,
+  await recordAuthEvent(supabase, {
+    eventType: 'user.password_changed',
+    resourceId: user.id,
+    context: 'changePassword',
   })
-  if (auditError) {
-    console.error('[changePassword] Audit event failed:', auditError.message)
-  }
 
   return { success: true }
 }

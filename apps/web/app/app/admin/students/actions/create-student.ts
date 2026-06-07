@@ -3,6 +3,7 @@
 import { adminClient } from '@repo/db/admin'
 import { CreateStudentSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
+import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
 type ActionResult = { success: true } | { success: false; error: string }
@@ -56,13 +57,11 @@ export async function createStudent(input: unknown): Promise<ActionResult> {
 
   // Audit the creation via the admin's user-context client (auth.uid() = admin).
   // Best-effort: the student exists, so a failed audit write is logged, not surfaced.
-  const { error: auditError } = await supabase.rpc('record_auth_event', {
-    p_event_type: 'user.created',
-    p_resource_id: authData.user.id,
+  await recordAuthEvent(supabase, {
+    eventType: 'user.created',
+    resourceId: authData.user.id,
+    context: 'createStudent',
   })
-  if (auditError) {
-    console.error('[createStudent] Audit event failed:', auditError.message)
-  }
 
   revalidatePath('/app/admin/students')
   return { success: true }
