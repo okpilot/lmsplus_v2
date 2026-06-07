@@ -16,7 +16,7 @@ Weekly self-review: analyse project health, audit agent system, and update memor
    - `.claude/agent-memory/plan-critic/MEMORY.md`
    - `.claude/agent-memory/implementation-critic/MEMORY.md`
 7. Cross-reference agent health:
-   - **Memory budget**: run `wc -l .claude/agent-memory/*/MEMORY.md` — flag any MEMORY.md over 200 lines. Native injection truncates at 200 lines / 25 KB, so an over-budget index silently loses its tail. Spill detail into `topics/` files per `.claude/rules/agent-memory.md` (the tracker stays; verbose prose moves out).
+   - **Memory budget**: run `wc -lc .claude/agent-memory/*/MEMORY.md` — flag any MEMORY.md over **200 lines OR over 25 KB (25600 bytes)**, whichever it hits first. Native injection truncates at min(200 lines, 25 KB), and the **byte cap is usually the binding one** because tracker rows are long paragraphs — a file can be well under 200 lines yet 2–3× over 25 KB, silently losing its tail (and since new rows append at the bottom, the *most recent* learnings are what get dropped). A line-only check misses this. Spill detail into `topics/` files per `.claude/rules/agent-memory.md` (the tracker stays terse; verbose evidence/rationale moves out; terminal-state rows — PROMOTED/RULE EXISTS/FALSE POSITIVE/RESOLVED — move to the agent's `topics/tracker-archive.md`).
    - **Red-team**: list spec files in `apps/web/e2e/redteam/` vs mentions in `topics/attack-surface.md` — flag orphans and stale mappings
    - **Learner**: scan frequency table for entries with count >= 2 still at "Watch" — these should be "Rule Candidate"
    - **Semantic-reviewer**: note false positive patterns, check if any flagged patterns stopped recurring
