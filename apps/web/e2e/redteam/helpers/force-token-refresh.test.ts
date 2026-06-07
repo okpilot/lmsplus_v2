@@ -80,9 +80,19 @@ describe('reconstructCookieValue', () => {
     expect(reconstructCookieValue(cookies, BASE_KEY)).toBe('abc')
   })
 
-  it('throws when the list has auth-cookie names but no value for the base key', () => {
-    // No matching un-chunked or chunked entries — empty after filter
+  it('throws when passed an empty cookie array', () => {
+    // No cookies at all — nothing to reconstruct; hits the chunks.length === 0 guard.
     expect(() => reconstructCookieValue([], BASE_KEY)).toThrow(
+      /found auth cookie name\(s\) but no value/,
+    )
+  })
+
+  it('throws when only a different ref\'s auth cookie is present (no value for the requested base key)', () => {
+    // A valid auth-token name, but for a different Supabase ref — it neither matches
+    // the base key nor any of its `.N` chunks, so no value resolves. Distinct from the
+    // empty-array case above and the non-integer-suffix case below.
+    const cookies: CookieFixture[] = [{ name: 'sb-otherref-auth-token.0', value: 'chunk0' }]
+    expect(() => reconstructCookieValue(cookies, BASE_KEY)).toThrow(
       /found auth cookie name\(s\) but no value/,
     )
   })

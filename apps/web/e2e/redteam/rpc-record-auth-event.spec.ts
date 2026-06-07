@@ -150,6 +150,10 @@ test.describe('Red Team: record_auth_event RPC forgery guards (#788)', () => {
     // Each admin event requires v_role = 'admin'; the student caller is rejected
     // by gate 3's admin branch. Use a non-self resource id so a future regression
     // can't accidentally pass through the self-event branch.
+    // Gate 3's role check fires BEFORE any resource-state validation, so passing a
+    // live (non-deleted) victimUserId for 'user.deactivated' is fine here: the real
+    // deactivate flow's target is already soft-deleted, but mig 093 does not re-SELECT
+    // the resource, so gate ordering is unaffected by the resource's deleted_at state.
     for (const eventType of ADMIN_EVENT_TYPES) {
       const { data, error } = await studentClient.rpc(RPC, {
         p_event_type: eventType,

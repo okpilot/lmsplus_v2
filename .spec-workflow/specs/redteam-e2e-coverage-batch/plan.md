@@ -74,7 +74,7 @@
 
 ## Risks
 
-- **#781 refresh seam (HIGH):** cookie-rewrite may not trigger a refresh depending on @supabase/ssr internals → spike first; fallback = jwt_expiry lower (config, env-gated). If neither is reliable in CI, escalate (do not silently ship a vacuous header-only assertion).
+- **#781 refresh seam (HIGH):** cookie-rewrite may not trigger a refresh depending on @supabase/ssr internals → spike first. Do NOT lower `supabase/config.toml jwt_expiry` as a fallback — it is global to the docker stack and would break the other redteam specs. If the cookie-rewrite is not reliable in CI, STOP and re-evaluate the CK2 approach with the user (do not silently ship a vacuous header-only assertion, and do not make a global config change). [Resolved post-spike: cookie-rewrite confirmed working.]
 - **CL3 non-vacuity:** must assert victim-owner sees the seeded session (≥1) before asserting attacker sees 0 — else vacuous.
 - **CR semantics:** cross-org admin event is ACCEPTED (not rejected) by design — the assertion is "logged under actor's org," not an error. Easy to mis-assert as a rejection.
 - **CT immutability:** must NOT attempt to soft-delete audit_events (would throw / violate append-only) — scope by testStart only.

@@ -145,6 +145,12 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
   const createdCodeIds = new Set<string>()
   const createdSessionIds = new Set<string>()
 
+  // The CM test mutates the SHARED victim seed user's last_active_at to a fixed
+  // value. Track + restore it in afterEach so the mutation can't leak into
+  // downstream specs that read this user's last_active_at (code-style.md §7).
+  let victimLastActiveAtMutated = false
+  let originalVictimLastActiveAt: string | null = null
+
   // Compact factories — every test uses the same victim+subject+org+issuer.
   const validCode = async () => {
     const code = await seedCode(admin, {
@@ -179,6 +185,19 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     // a failed delete can't replay stale ids into the next test's cleanup.
     const errors: string[] = []
     const now = new Date().toISOString()
+    if (victimLastActiveAtMutated) {
+      try {
+        const { error } = await admin
+          .from('users')
+          .update({ last_active_at: originalVictimLastActiveAt })
+          .eq('id', victimUserId)
+        if (error) throw new Error(`afterEach restore last_active_at: ${error.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        victimLastActiveAtMutated = false
+      }
+    }
     if (createdCodeIds.size > 0) {
       try {
         const { data, error } = await admin
@@ -339,6 +358,16 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     // "trigger skipped" from "trigger never fired". A fixed before-value makes
     // the regression detector (after === before) non-vacuous.
     const SEEDED_LAST_ACTIVE_AT = '2026-01-01T00:00:00.000Z'
+    // Capture the pre-mutation value so afterEach can restore it — this user is
+    // shared across the suite/specs (code-style.md §7).
+    const { data: preSeedRow, error: preSeedErr } = await admin
+      .from('users')
+      .select('last_active_at')
+      .eq('id', victimUserId)
+      .single()
+    if (preSeedErr) throw new Error(`capture last_active_at: ${preSeedErr.message}`)
+    originalVictimLastActiveAt = preSeedRow?.last_active_at ?? null
+    victimLastActiveAtMutated = true
     const { error: seedErr } = await admin
       .from('users')
       .update({ last_active_at: SEEDED_LAST_ACTIVE_AT })
@@ -365,8 +394,14 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     // Non-vacuity: prove the ended_at write actually fired (session_ended=true)
     // so the trigger DID get a chance to run — only then is "unchanged" meaningful.
     expect(Array.isArray(data)).toBe(true)
-    const [result] = data as Array<{ session_ended: boolean }>
+    const [result] = data as Array<{
+      code_id: string
+      session_id: string
+      session_ended: boolean
+    }>
     expect(result).toBeDefined()
+    expect(result?.code_id).toBe(code.id)
+    expect(result?.session_id).toBe(sessionId)
     expect(result?.session_ended).toBe(true)
 
     // The trigger's auth.uid() = NEW.student_id guard is FALSE for an admin-driven
