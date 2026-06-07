@@ -682,4 +682,4 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 ---
 
-*Last updated: 2026-06-06 — Decision 39: GDPR export `warnings` field (#684)*
+*Last updated: 2026-06-07 — Decision 27 red-team spec count updated to 39 (test/redteam-e2e-coverage batch); Decision 39: GDPR export `warnings` field (#684)*
