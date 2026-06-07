@@ -29,7 +29,7 @@ After umbrella #668 closed, focus shifted to DB/security hardening and adversari
 - Hermetic `easa_*` reference-data cleanup in integration suites (#775, #593, PR #779).
 - "Red Team Specs" promoted to a required status check (#771).
 
-**Open follow-ups (P2 tech-debt):** #789 (extract `recordAuthEvent` helper + split `toggle-student-status.ts`), #791 (knip dead code), #792 (dedupe learner tracker rows), #793 (renumber BL/BM/BN vector-ID collision), #794 (promote 2 learner rule candidates + sweep), #796 (split 3 oversized red-team hub specs).
+**Open follow-ups (P2 tech-debt):** #791 (knip dead code), #792 (dedupe learner tracker rows), #793 (renumber BL/BM/BN vector-ID collision), #794 (promote 2 learner rule candidates + sweep), #796 (split 3 oversized red-team hub specs), #797 (consolidate duplicated `ActionResult` type).
 
 ---
 
