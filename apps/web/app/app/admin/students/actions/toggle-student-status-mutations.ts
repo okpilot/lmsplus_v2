@@ -1,7 +1,6 @@
 import { adminClient } from '@repo/db/admin'
 import { revalidatePath } from 'next/cache'
-
-export type ActionResult = { success: true } | { success: false; error: string }
+import type { ActionResult } from '@/lib/action-result'
 
 const PERMANENT_BAN = '876600h'
 const NO_BAN = 'none'

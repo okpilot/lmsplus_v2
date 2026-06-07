@@ -1,7 +1,6 @@
 import type { UpsertQuestionInput } from '@repo/db/schema'
+import type { ActionResult } from '@/lib/action-result'
 import type { requireAdmin } from '@/lib/auth/require-admin'
-
-type ActionResult = { success: true } | { success: false; error: string }
 
 export async function insertQuestion(
   supabase: Awaited<ReturnType<typeof requireAdmin>>['supabase'],

@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 
 const UpdateNameSchema = z.object({
@@ -13,8 +14,6 @@ const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 })
-
-type ActionResult = { success: true } | { success: false; error: string }
 
 export async function updateDisplayName(raw: unknown): Promise<ActionResult> {
   const parsed = UpdateNameSchema.safeParse(raw)

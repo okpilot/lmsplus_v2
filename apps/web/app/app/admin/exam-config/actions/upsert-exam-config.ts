@@ -2,10 +2,9 @@
 
 import { UpsertExamConfigSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
+import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { rpc } from '@/lib/supabase-rpc'
-
-type ActionResult = { success: true } | { success: false; error: string }
 
 export async function upsertExamConfig(input: unknown): Promise<ActionResult> {
   const parsed = UpsertExamConfigSchema.safeParse(input)

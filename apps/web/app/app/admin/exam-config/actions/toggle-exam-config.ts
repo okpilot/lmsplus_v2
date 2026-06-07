@@ -2,9 +2,8 @@
 
 import { ToggleExamConfigSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
+import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
-
-type ActionResult = { success: true } | { success: false; error: string }
 
 export async function toggleExamConfig(input: unknown): Promise<ActionResult> {
   const parsed = ToggleExamConfigSchema.safeParse(input)
