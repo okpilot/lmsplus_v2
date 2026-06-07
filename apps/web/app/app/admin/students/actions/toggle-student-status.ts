@@ -2,13 +2,10 @@
 
 import { adminClient } from '@repo/db/admin'
 import { ToggleStudentStatusSchema } from '@repo/db/schema'
+import type { ActionResult } from '@/lib/action-result'
 import { recordAuthEvent } from '@/lib/audit/record-auth-event'
 import { requireAdmin } from '@/lib/auth/require-admin'
-import {
-  type ActionResult,
-  deactivateStudent,
-  reactivateStudent,
-} from './toggle-student-status-mutations'
+import { deactivateStudent, reactivateStudent } from './toggle-student-status-mutations'
 
 export async function toggleStudentStatus(input: unknown): Promise<ActionResult> {
   const parsed = ToggleStudentStatusSchema.safeParse(input)

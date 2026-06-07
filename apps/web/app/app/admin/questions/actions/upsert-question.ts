@@ -3,10 +3,9 @@
 import type { UpsertQuestionInput } from '@repo/db/schema'
 import { UpsertQuestionSchema } from '@repo/db/schema'
 import { revalidatePath } from 'next/cache'
+import type { ActionResult } from '@/lib/action-result'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { insertQuestion } from './insert-question'
-
-type ActionResult = { success: true } | { success: false; error: string }
 
 export async function upsertQuestion(input: unknown): Promise<ActionResult> {
   const parsed = UpsertQuestionSchema.safeParse(input)

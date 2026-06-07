@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { cookies, headers } from 'next/headers'
 import { z } from 'zod'
+import type { ActionResult } from '@/lib/action-result'
 import { buildConsentCookieValue } from '@/lib/consent/check-consent'
 import {
   CONSENT_COOKIE,
@@ -15,8 +16,6 @@ const ConsentSchema = z.object({
   acceptedTos: z.literal(true, { message: 'You must accept the Terms of Service' }),
   acceptedPrivacy: z.literal(true, { message: 'You must accept the Privacy Policy' }),
 })
-
-type ActionResult = { success: true } | { success: false; error: string }
 
 export async function recordConsent(raw: unknown): Promise<ActionResult> {
   const parsed = ConsentSchema.safeParse(raw)
