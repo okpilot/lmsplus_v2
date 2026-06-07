@@ -1,5 +1,5 @@
 /**
- * Red Team Spec: start_quiz_session Input Smuggling — Vectors BL (issue #625)
+ * Red Team Spec: start_quiz_session Input Smuggling — Vector CU (issue #625)
  *
  * Attack:  An authenticated student calls `start_quiz_session` with
  *          `p_question_ids` that contain UUIDs the RPC should reject:
@@ -56,7 +56,7 @@ import {
   seedRedTeamUsers,
 } from './helpers/seed'
 
-test.describe('Vector BL — start_quiz_session question-ID smuggling (issue #625)', () => {
+test.describe('Vector CU — start_quiz_session question-ID smuggling (issue #625)', () => {
   let admin: ReturnType<typeof getAdminClient>
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
