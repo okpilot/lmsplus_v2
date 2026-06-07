@@ -213,7 +213,10 @@ test.describe('Red Team: CK2 — anti-cache headers on a real token refresh', ()
         forbiddenRes.status(),
         'non-admin student on /app/admin/* should be forbidden (403)',
       ).toBe(403)
-      assertAntiCacheHeaders(forbiddenRes.headers(), '403 admin-forbidden exit (/app/admin/students)')
+      assertAntiCacheHeaders(
+        forbiddenRes.headers(),
+        '403 admin-forbidden exit (/app/admin/students)',
+      )
 
       // ---- Soft routed exit: authenticated + consented /app/dashboard → 200 ----
       // Next.js overrides cache-control on routed pages, so this is asserted softly

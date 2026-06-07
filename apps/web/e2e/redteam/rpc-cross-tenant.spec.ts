@@ -714,7 +714,9 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
           .select('id')
         if (error) throw new Error(`code soft-delete: ${error.message}`)
         if ((discarded?.length ?? 0) > 0) {
-          console.log(`[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture code(s)`)
+          console.log(
+            `[rpc-cross-tenant cleanup] soft-deleted ${discarded?.length} fixture code(s)`,
+          )
         }
       } catch (e) {
         errors.push(e instanceof Error ? e.message : String(e))

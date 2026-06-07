@@ -87,7 +87,7 @@ describe('reconstructCookieValue', () => {
     )
   })
 
-  it('throws when only a different ref\'s auth cookie is present (no value for the requested base key)', () => {
+  it("throws when only a different ref's auth cookie is present (no value for the requested base key)", () => {
     // A valid auth-token name, but for a different Supabase ref — it neither matches
     // the base key nor any of its `.N` chunks, so no value resolves. Distinct from the
     // empty-array case above and the non-integer-suffix case below.
@@ -99,9 +99,7 @@ describe('reconstructCookieValue', () => {
 
   it('ignores cookies whose chunk suffix is not an integer', () => {
     // `.refresh` is not a valid chunk index — should be filtered out
-    const cookies: CookieFixture[] = [
-      { name: `${BASE_KEY}.refresh`, value: 'stray' },
-    ]
+    const cookies: CookieFixture[] = [{ name: `${BASE_KEY}.refresh`, value: 'stray' }]
     expect(() => reconstructCookieValue(cookies, BASE_KEY)).toThrow(
       /found auth cookie name\(s\) but no value/,
     )
@@ -240,13 +238,13 @@ describe('chunkValue → reconstructCookieValue roundtrip', () => {
   const MAX_CHUNK_SIZE = 3180
 
   it('round-trips a value below MAX_CHUNK_SIZE via an un-chunked cookie', () => {
-    const value = 'base64-' + 'z'.repeat(100)
+    const value = `base64-${'z'.repeat(100)}`
     const chunks = chunkValue(BASE_KEY, value)
     expect(reconstructCookieValue(chunks, BASE_KEY)).toBe(value)
   })
 
   it('round-trips a value spanning three chunks', () => {
-    const value = 'base64-' + 'q'.repeat(MAX_CHUNK_SIZE * 2 + 200)
+    const value = `base64-${'q'.repeat(MAX_CHUNK_SIZE * 2 + 200)}`
     const chunks = chunkValue(BASE_KEY, value)
     expect(reconstructCookieValue(chunks, BASE_KEY)).toBe(value)
   })
