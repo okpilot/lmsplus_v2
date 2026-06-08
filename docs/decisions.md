@@ -680,22 +680,24 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 **Implementation**: `GdprExportWarning` type + `warnings` field in `apps/web/lib/gdpr/types.ts`; `collectSectionWarnings()` helper in `collect-user-data.ts`; warnings asserted in `collect-user-data.test.ts` (incl. the mandatory `fetchAllRows` page-error-after-count-success path). Both Server Action callers (`exportMyData`, `exportStudentData`) pass the payload — and its `warnings` — through unchanged.
 
-### Decision 40: Adopt Socket.dev (GitHub App) for supply-chain detection — layer, not replace; skip Snyk (2026-06-08)
+### Decision 40: Adopt Socket.dev for supply-chain detection; remove the redundant Snyk trial (2026-06-08)
 
 **Date**: 2026-06-08
 
 **Context**: Issue #109 (open since 2026-03-14) asked us to evaluate Snyk, Socket.dev, and other dependency-scanning tools against our then-current `pnpm audit`-only posture. Since the issue was filed, known-CVE coverage has been layered several deep: `pnpm audit --audit-level=high` runs both in CI (`ci.yml`) and the pre-push hook (`lefthook.yml`); Dependabot opens grouped update PRs workspace-wide (`dependabot.yml`); CodeQL runs SAST on every PR and push to master plus a weekly scheduled scan; SonarCloud runs on every PR and push to master. What none of these cover is **behavioral supply-chain analysis** — a freshly published malicious, typosquatted, or hijacked package has no CVE yet, so `pnpm audit` / Dependabot / CodeQL are all blind to it.
 
-**Decision**: Adopt **Socket.dev** via its **GitHub App** (free for public repos; no API key, no CI maintenance) for supply-chain / malicious-package detection. It auto-comments behavioral risk analysis (install scripts, network/filesystem/env access, obfuscation, typosquatting) on dependency PRs — exactly where Dependabot's weekly PRs land. **Layer, do not replace**: `pnpm audit` + Dependabot + CodeQL stay as the known-CVE layer; Socket adds the previously-missing behavioral layer.
+A second finding surfaced *during* this work: **Snyk was already integrated** — the #109 "trial Snyk for 1 week" action item had been carried out (a Snyk↔GitHub App on the `okpilot` account, monitoring 5 manifests and posting the `security/snyk` PR status check) and never removed. It leaves **no files in the repo**, so a file-based tooling inventory misses it; it was only visible as a passing PR check on the Decision-40 PR itself.
 
-- Rejected **Snyk**: its SCA/CVE scanning duplicates `pnpm audit` + Dependabot + CodeQL and closes no gap those don't already cover; adopting it would add a second CVE dashboard and PR-comment source (noise) for no new capability. Free for public repos, so cost was not the deciding factor — redundancy was.
+**Decision**: Adopt **Socket.dev** via its **GitHub App** (free for public repos; no API key, no CI maintenance) for supply-chain / malicious-package detection. It auto-comments behavioral risk analysis (install scripts, network/filesystem/env access, obfuscation, typosquatting) on dependency PRs — exactly where Dependabot's weekly PRs land. `pnpm audit` + Dependabot + CodeQL stay as the known-CVE layer; Socket adds the previously-missing behavioral layer.
+
+- **Remove the existing Snyk integration** as redundant: its SCA/CVE scanning duplicates `pnpm audit` + Dependabot + CodeQL and closes no gap those don't already cover. Keeping it just adds a second CVE source and an extra PR status check for no new capability. Removal de-clutters PR checks and consolidates CVE scanning on the existing layer. (Free for public repos, so cost was never the factor — redundancy is.) Disconnecting the Snyk App is a one-time repo-admin action (Snyk dashboard / GitHub App settings), documented on #109.
 - Rejected **replacing `pnpm audit`**: defense-in-depth — the CI/pre-push audit is a cheap, offline, enforceable gate; Socket is an advisory PR-comment layer, not a CI blocker.
 - Also enabled **Dependabot automated security fixes** (the `automated-security-fixes` repo setting; vulnerability *alerts* were already on) so vulnerable deps get auto-remediation PRs.
 
-**Rationale**: Closes the one real gap in #109 (supply-chain behavioral detection) at zero cost and near-zero maintenance, without piling on a redundant CVE scanner. Socket's PR-comment model pairs naturally with Dependabot's update cadence; an App-only integration was chosen over a CI Socket Action to avoid maintaining a workflow + API secret.
+**Rationale**: Closes the one real gap in #109 (supply-chain behavioral detection) at zero cost and near-zero maintenance, and removes a redundant CVE scanner rather than maintaining two. Socket's PR-comment model pairs naturally with Dependabot's update cadence; an App-only integration was chosen over a CI Socket Action to avoid maintaining a workflow + API secret.
 
-**Implementation**: Docs-only in-repo (this entry + `docs/plan.md` tooling note). The Socket GitHub App install is a one-time repo-admin Marketplace action (documented in issue #109 / the PR). Dependabot security-updates toggled via `PUT /repos/okpilot/lmsplus_v2/automated-security-fixes`. No code, migration, or CI-workflow change.
+**Implementation**: Docs-only in-repo (this entry + `docs/plan.md` tooling note). Two one-time repo-admin actions are documented on issue #109: **install the Socket GitHub App** and **disconnect the Snyk App**. Dependabot security-updates toggled via `PUT /repos/okpilot/lmsplus_v2/automated-security-fixes`. No code, migration, or CI-workflow change (Snyk left no repo files to remove).
 
 ---
 
-*Last updated: 2026-06-08 — Decision 40: adopt Socket.dev (GitHub App) for supply-chain detection, skip Snyk, enable Dependabot security updates (#109)*
+*Last updated: 2026-06-08 — Decision 40: adopt Socket.dev (GitHub App) for supply-chain detection, remove the redundant Snyk trial, enable Dependabot security updates (#109)*

@@ -607,6 +607,7 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
     - Scopes: GitHub Actions (`/`) + npm (whole pnpm workspace, via the root `/` entry)
     - Dependabot **security updates** enabled (`automated-security-fixes` repo setting → auto-remediation PRs for vulnerable deps); vulnerability **alerts** were already on (#109, 2026-06-08)
   - **Socket.dev** (GitHub App, no CI workflow) — supply-chain / malicious-package detection (install scripts, network/env/filesystem access, obfuscation, typosquatting) auto-commented on dependency PRs. Layered on top of `pnpm audit` + Dependabot + CodeQL, which only catch known CVEs; Socket covers freshly-published malicious packages that have no CVE yet. App install is a one-time repo-admin action (see Decision 40, #109)
+  - **Snyk** — a leftover #109 trial (Snyk↔GitHub App, `security/snyk` PR check, no repo files) is being **removed** as redundant with `pnpm audit` + Dependabot + CodeQL; disconnect is a one-time repo-admin action (see Decision 40, #109)
   - `health-monitoring.yml` — weekly workflows: dependency audit, security audit, codeql scan (added 2026-03-15, moved to separate weekly schedule for visibility)
   - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
   - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 20 questions for E2E (expanded from 5 to support review flow after quiz)
