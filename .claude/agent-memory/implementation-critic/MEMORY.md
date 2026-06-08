@@ -88,6 +88,12 @@
 - **Plan description of MEMORY.md change was inaccurate (benign).** Plan said "typo `VITAMIN_PASSWORD`→`VICTIM_PASSWORD` correction". Actual staged change: new positive-signal bullet for #789. `VICTIM_PASSWORD` was already correctly spelled in the file. Staged content is correct memory maintenance — this is a stale plan description, not a behavioral deviation. Do not re-flag in future commits.
 - **`toggle-student-status-mutations.ts` in `actions/` dir does not require own test.** Code-style §7 requires tests for new files in `_hooks/`/`_utils/`/`lib/`. `actions/` is not in that list. Existing `toggle-student-status.test.ts` already covers both mutation helpers end-to-end via the module-level `@repo/db/admin` mock (which the mutations file imports). No test gap.
 
+## Notes on agent-health.yml false-positive fix (#810)
+
+- **`var=$(cmd)` is exempt from `set -e` in bash** — `set -euo pipefail` does NOT abort on a failing command substitution inside a variable assignment. The old `|| true` after `xargs 2>/dev/null` in Check 3 was therefore NOT load-bearing under `set -e`; removing it (replacing xargs with `trim()`) is safe. `sed` piped from `awk` exits 0 on well-formed input, so in practice these never fail.
+- **`trim()` placement in Check 3** — defined at line 88 (before the while-loop at line 90), outside the loop. Correct hoisting. Do not flag as "redefined per iteration".
+- **Check 4 security-auditor comment placement** — the explanatory comment about `-not -path '*/security-auditor/findings.md'` is placed inside the while-loop body (last line before `done`), but it describes the `find` command in the process substitution. Cosmetically misplaced — SUGGESTION class only.
+
 ## Notes on redteam-e2e-coverage-batch (#784, #786, #788, #781)
 
 - **Spec-count drift in steering + decisions on new-spec batch** — adding 2 new Playwright specs (rpc-record-auth-event.spec.ts + token-refresh-anti-cache.spec.ts) moves count from 37→39. `tech.md` has the count in 3 places (lines 85, 146, 183); `docs/decisions.md` Decision 27 has it once. None updated in the staged diff. This is a SUGGESTION (doc-updater handles it post-commit). The plan explicitly excluded `docs/*.md` schema edits from scope.
