@@ -1296,4 +1296,4 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - **CLOSED 2026-05-31:** umbrella #668 closed — both remaining follow-ups landed: the §5 cast-guard sweep (**#677**, merged via PR #707, squash `bb813d1b`) and red-team E2E coverage for the aggregation RPCs (**#673**, merged via PR #709, squash `fa857892`). All 25 truncation sites addressed (24 fixed + 1 exempt), all tiers prod-re-verified 2026-05-31 (40/0).
 - **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened; it was deliberately kept open until #677 + #673 landed, then closed manually on 2026-05-31 (PR #709 used `Closes #673` only, not `Closes #668`, to retain manual control).
 
-*Last updated: 2026-06-08 — Decision 40: adopt Socket.dev (GitHub App) for supply-chain detection, skip Snyk, enable Dependabot security updates (#109).*
+*Last updated: 2026-06-08 — Decision 40: adopt Socket.dev (GitHub App) for supply-chain detection, remove the redundant Snyk trial, enable Dependabot security updates (#109).*
