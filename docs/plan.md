@@ -605,6 +605,9 @@ Migrations 044–047. 1082 tests, all passing. Production Supabase email templat
   - `codeql.yml` — weekly security scan (Monday 05:30 UTC) for JavaScript/TypeScript via GitHub CodeQL action, logs to Security tab
   - `dependabot.yml` — automated dependency updates, weekly schedule, `tech-debt` label, commits with `ci` or `chore` prefix. npm updates are grouped into minor/patch + major batches via a single pnpm-workspace-aware root entry (consolidated in #715; per-directory entries previously caused lockfile-sync failures — see #669/#670)
     - Scopes: GitHub Actions (`/`) + npm (whole pnpm workspace, via the root `/` entry)
+    - Dependabot **security updates** enabled (`automated-security-fixes` repo setting → auto-remediation PRs for vulnerable deps); vulnerability **alerts** were already on (#109, 2026-06-08)
+  - **Socket.dev** (GitHub App, no CI workflow) — supply-chain / malicious-package detection (install scripts, network/env/filesystem access, obfuscation, typosquatting) auto-commented on dependency PRs. Layered on top of `pnpm audit` + Dependabot + CodeQL, which only catch known CVEs; Socket covers freshly-published malicious packages that have no CVE yet. App install is a one-time repo-admin action (see Decision 40, #109)
+  - **Snyk** — a leftover #109 trial (Snyk↔GitHub App, `security/snyk` PR check, no repo files) is being **removed** as redundant with `pnpm audit` + Dependabot + CodeQL; disconnect is a one-time repo-admin action (see Decision 40, #109)
   - `health-monitoring.yml` — weekly workflows: dependency audit, security audit, codeql scan (added 2026-03-15, moved to separate weekly schedule for visibility)
   - Local Supabase spun up in CI via `supabase/setup-cli` — runs all migrations automatically
   - `apps/web/scripts/seed-e2e.ts` — seeds org, users, question bank, and 20 questions for E2E (expanded from 5 to support review flow after quiz)
@@ -1293,4 +1296,4 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - **CLOSED 2026-05-31:** umbrella #668 closed — both remaining follow-ups landed: the §5 cast-guard sweep (**#677**, merged via PR #707, squash `bb813d1b`) and red-team E2E coverage for the aggregation RPCs (**#673**, merged via PR #709, squash `fa857892`). All 25 truncation sites addressed (24 fixed + 1 exempt), all tiers prod-re-verified 2026-05-31 (40/0).
 - **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened; it was deliberately kept open until #677 + #673 landed, then closed manually on 2026-05-31 (PR #709 used `Closes #673` only, not `Closes #668`, to retain manual control).
 
-*Last updated: 2026-05-31 — Umbrella #668 CLOSED. Final follow-ups #677 (PR #707) + #673 (PR #709) merged; all 25 sites addressed (24 fixed + 1 exempt), prod-re-verified 40/0.*
+*Last updated: 2026-06-08 — Decision 40: adopt Socket.dev (GitHub App) for supply-chain detection, remove the redundant Snyk trial, enable Dependabot security updates (#109).*
