@@ -32,7 +32,7 @@ jobs:
           # ─────────────────────────────────────────────────────────────────
           # Check 1: Orphan specs — .spec.ts files not mentioned in attack-surface.md
           # ─────────────────────────────────────────────────────────────────
-          # NOTE: attack-surface.md lives under topics/ since the PR #704 native-subagent-memory migration.
+          # NOTE: attack-surface.md lives under red-team/topics/ since the PR #704 native-subagent-memory migration.
           ATTACK_SURFACE=".claude/agent-memory/red-team/topics/attack-surface.md"
           REDTEAM_DIR="apps/web/e2e/redteam"
           ORPHAN_LIST=""
@@ -171,11 +171,13 @@ jobs:
             # xargs error and || true would silently skip that section. Same fix as Check 3.
             title=$(echo "$section_line" | sed 's/^## [0-9]*\. *//' | trim)
             [ -z "$title" ] && continue
-            # Use first word as keyword, stemmed (strip trailing "ing"/"s") so e.g.
-            # "Testing" matches ".coderabbit.yaml"'s "test" coverage block.
+            # Use first word as keyword, stemmed so e.g. "Testing" matches
+            # ".coderabbit.yaml"'s "test" coverage block. Strip a trailing "ing",
+            # then a true-plural "s" (only when not preceded by another "s", so
+            # "Class"/"Success" keep their double-s and aren't mangled to "clas").
             # (next.js stems to next.j — a literal substring of "Next.js" in .coderabbit.yaml.)
             raw_keyword=$(echo "$title" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
-            keyword=$(echo "$raw_keyword" | sed -E 's/(ing|s)$//')
+            keyword=$(echo "$raw_keyword" | sed -E 's/ing$//; s/([^s])s$/\1/')
             # Fall back to the unstemmed keyword if the stem is too short to
             # match safely (e.g. a future "Ms" title → "m" would match anything).
             if [ "${#keyword}" -lt 3 ]; then
