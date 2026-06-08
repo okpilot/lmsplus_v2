@@ -24,12 +24,19 @@ added. Derive the baseline at runtime from two live sources:
 - **Expected per-spec status** — the source of truth is the `## Vector-to-Spec
   Mapping` table in
   `.claude/agent-memory/red-team/topics/attack-surface.md` (the `Status`
-  column). Read its values as two posture buckets rather than a fixed token
-  list — the exact tokens evolve, so bucket by meaning, don't hardcode them:
-  - **Defense should hold → spec expected to PASS:** `COVERED`, `PASSING`,
-    `FIXED`, `ENFORCED`, `HARDENED`.
-  - **Known / partial gap → spec may FAIL or be `.skip`'d by design:** `GAP`,
-    `DOCUMENTED GAP`, `PARTIAL`, `LOW`, `NON-ISSUE`, `TBD`.
+  column). The cells are free-form prose, not a fixed enum — the runner is you,
+  an agent, not a regex, so judge each row's posture from the **leading
+  word(s)** of its `Status` cell by meaning, ignoring trailing commit refs,
+  quotes, or a vector-ID prefix (e.g. `CK2 COVERED` → treat as `COVERED`). Two
+  buckets (representative, not exhaustive — bucket new statuses by meaning):
+  - **Defense should hold → spec expected to PASS:** statuses that read as
+    covered or enforced — `COVERED` (incl. `COVERED AT INTEGRATION LAYER`,
+    `FULLY COVERED`), `PASSING`, `FIXED`, `ENFORCED`, `HARDENED`, `DB-CAPPED`.
+  - **Known gap, or assessed-safe with no spec → no PASS expected:** `GAP`,
+    `DOCUMENTED GAP`, `PARTIAL`, `TBD`, `INTENTIONAL`, and the `ASSESSED …`
+    family (`ASSESSED LOW`, `ASSESSED NON-ISSUE`, `ASSESSED IMPROVED`) — these
+    usually carry `(no spec)` in the Spec File column, so they produce no
+    Playwright result and matter only for the coverage/drift check.
 
   The `Status` column does **not** use the word `SKIPPED` — that is a Playwright
   run state (step 2), not a mapping posture. Print just this section (the `awk`
