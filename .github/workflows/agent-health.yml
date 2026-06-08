@@ -25,6 +25,11 @@ jobs:
           TODAY=$(date -u +%Y-%m-%d)
           FINDINGS=""
 
+          # Trim leading/trailing whitespace with sed, not xargs — xargs errors on
+          # unbalanced backticks/apostrophes in table cells/titles and silently drops
+          # the row/section. Shared by Check 3 (learner table) and Check 5 (drift titles).
+          trim() { sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
+
           # ─────────────────────────────────────────────────────────────────
           # Check 1: Orphan specs — .spec.ts files not mentioned in attack-surface.md
           # ─────────────────────────────────────────────────────────────────
@@ -81,11 +86,6 @@ jobs:
           # NOTE: the learner journal is MEMORY.md since PR #704 (patterns.md no longer exists; agent-memory.md forbids recreating it).
           PATTERNS_FILE=".claude/agent-memory/learner/MEMORY.md"
           STUCK_LIST=""
-
-          # Trim with sed, not xargs: the Status column contains backticks and
-          # apostrophes (e.g. "Bare `catch {}`", "doesn't"), and xargs errors on
-          # unbalanced quotes — returning empty and silently skipping the row.
-          trim() { sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
 
           while IFS= read -r row; do
             # Parse pipe-delimited table row: | Issue Type | Count | Last Seen | Status |
