@@ -168,11 +168,13 @@ jobs:
 
           while IFS= read -r section_line; do
             # Extract section title after "## N. "
-            title=$(echo "$section_line" | sed 's/^## [0-9]*\. *//' | xargs 2>/dev/null) || true
+            # trim (not xargs): a future title with an apostrophe/backtick would make
+            # xargs error and || true would silently skip that section. Same fix as Check 3.
+            title=$(echo "$section_line" | sed 's/^## [0-9]*\. *//' | trim)
             [ -z "$title" ] && continue
             # Use first word as keyword, stemmed (strip trailing "ing"/"s") so e.g.
             # "Testing" matches ".coderabbit.yaml"'s "test" coverage block.
-            # (next.js → next.j is a benign substring that still matches "Next.js".)
+            # (next.js stems to next.j — a literal substring of "Next.js" in .coderabbit.yaml.)
             raw_keyword=$(echo "$title" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
             keyword=$(echo "$raw_keyword" | sed -E 's/(ing|s)$//')
             # Fall back to the unstemmed keyword if the stem is too short to
