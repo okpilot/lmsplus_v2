@@ -23,7 +23,6 @@ jobs:
         run: |
           set -euo pipefail
           TODAY=$(date -u +%Y-%m-%d)
-          FINDINGS=""
 
           # Trim leading/trailing whitespace with sed, not xargs — xargs errors on
           # unbalanced backticks/apostrophes in table cells/titles and silently drops
