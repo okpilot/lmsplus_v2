@@ -173,9 +173,16 @@ jobs:
             # Use first word as keyword, stemmed (strip trailing "ing"/"s") so e.g.
             # "Testing" matches ".coderabbit.yaml"'s "test" coverage block.
             # (next.js → next.j is a benign substring that still matches "Next.js".)
-            keyword=$(echo "$title" | awk '{print $1}' | tr '[:upper:]' '[:lower:]' | sed -E 's/(ing|s)$//')
+            raw_keyword=$(echo "$title" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
+            keyword=$(echo "$raw_keyword" | sed -E 's/(ing|s)$//')
+            # Fall back to the unstemmed keyword if the stem is too short to
+            # match safely (e.g. a future "Ms" title → "m" would match anything).
+            if [ "${#keyword}" -lt 3 ]; then
+              keyword="$raw_keyword"
+            fi
             [ -z "$keyword" ] && continue
-            if ! grep -qi "$keyword" "$CODERABBIT" 2>/dev/null; then
+            # grep -F: keyword is a literal, not a regex — "next.js"'s "." must not act as a wildcard.
+            if ! grep -Fqi "$keyword" "$CODERABBIT" 2>/dev/null; then
               DRIFT_LIST="${DRIFT_LIST}- **${title}** (keyword: \`${keyword}\`)\n"
             fi
           done < <(grep -P '^## [0-9]+\.' "$CODE_STYLE" 2>/dev/null || true)
