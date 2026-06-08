@@ -23,12 +23,17 @@ jobs:
         run: |
           set -euo pipefail
           TODAY=$(date -u +%Y-%m-%d)
-          FINDINGS=""
+
+          # Trim leading/trailing whitespace with sed, not xargs — xargs errors on
+          # unbalanced backticks/apostrophes in table cells/titles and silently drops
+          # the row/section. Shared by Check 3 (learner table) and Check 5 (drift titles).
+          trim() { sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
 
           # ─────────────────────────────────────────────────────────────────
           # Check 1: Orphan specs — .spec.ts files not mentioned in attack-surface.md
           # ─────────────────────────────────────────────────────────────────
-          ATTACK_SURFACE=".claude/agent-memory/red-team/attack-surface.md"
+          # NOTE: attack-surface.md lives under red-team/topics/ since the PR #704 native-subagent-memory migration.
+          ATTACK_SURFACE=".claude/agent-memory/red-team/topics/attack-surface.md"
           REDTEAM_DIR="apps/web/e2e/redteam"
           ORPHAN_LIST=""
 
@@ -77,15 +82,16 @@ jobs:
           # ─────────────────────────────────────────────────────────────────
           # Check 3: Stuck learner patterns — count >= 2 with Watch status (not promoted)
           # ─────────────────────────────────────────────────────────────────
-          PATTERNS_FILE=".claude/agent-memory/learner/patterns.md"
+          # NOTE: the learner journal is MEMORY.md since PR #704 (patterns.md no longer exists; agent-memory.md forbids recreating it).
+          PATTERNS_FILE=".claude/agent-memory/learner/MEMORY.md"
           STUCK_LIST=""
 
           while IFS= read -r row; do
             # Parse pipe-delimited table row: | Issue Type | Count | Last Seen | Status |
-            # Extract count field (field 2) and status field (field 4)
-            count_field=$(echo "$row" | awk -F'|' '{print $3}' | xargs 2>/dev/null) || true
-            status_field=$(echo "$row" | awk -F'|' '{print $5}' | xargs 2>/dev/null) || true
-            issue_field=$(echo "$row" | awk -F'|' '{print $2}' | xargs 2>/dev/null) || true
+            # Fields (leading "|" makes $1 empty): $2 Issue Type, $3 Count, $5 Status.
+            count_field=$(echo "$row" | awk -F'|' '{print $3}' | trim)
+            status_field=$(echo "$row" | awk -F'|' '{print $5}' | trim)
+            issue_field=$(echo "$row" | awk -F'|' '{print $2}' | trim)
 
             [ -z "$count_field" ] && continue
             [ -z "$status_field" ] && continue
@@ -139,7 +145,9 @@ jobs:
               rel_path="${mem_file#./}"
               STALE_MEM_LIST="${STALE_MEM_LIST}- \`${rel_path}\` (${age_days} days)\n"
             fi
-          done < <(find .claude/agent-memory -name "*.md" -type f 2>/dev/null || true)
+          # security-auditor/findings.md is a deferred-by-design empty placeholder
+          # (agent-memory.md: "no memory until it accumulates real content") — exclude it.
+          done < <(find .claude/agent-memory -name "*.md" -type f -not -path '*/security-auditor/findings.md' 2>/dev/null || true)
 
           if [ -n "$STALE_MEM_LIST" ]; then
             STALE_MEM_SECTION="### Agent Memory Staleness
@@ -151,33 +159,7 @@ jobs:
           fi
 
           # ─────────────────────────────────────────────────────────────────
-          # Check 5: Security checklist alignment — section count divergence
-          # ─────────────────────────────────────────────────────────────────
-          SECURITY_DOC="docs/security.md"
-          AUDITOR_AGENT=".claude/agents/security-auditor.md"
-          SEC_SECTION_COUNT=0
-          AUDITOR_SECTION_COUNT=0
-
-          if [ -f "$SECURITY_DOC" ]; then
-            SEC_SECTION_COUNT=$(grep -cP '^#{2,3} [0-9]' "$SECURITY_DOC" 2>/dev/null) || true
-          fi
-          if [ -f "$AUDITOR_AGENT" ]; then
-            AUDITOR_SECTION_COUNT=$(grep -cP '^#{2,3} [0-9]' "$AUDITOR_AGENT" 2>/dev/null) || true
-          fi
-
-          DIFF_COUNT=$(( SEC_SECTION_COUNT - AUDITOR_SECTION_COUNT ))
-          ABS_DIFF=${DIFF_COUNT#-}  # absolute value
-
-          if [ "$ABS_DIFF" -gt 2 ] 2>/dev/null; then
-            SEC_SECTION="### Security Checklist
-          ⚠️ Section count mismatch: \`docs/security.md\` has ${SEC_SECTION_COUNT} numbered sections, \`.claude/agents/security-auditor.md\` has ${AUDITOR_SECTION_COUNT} (diff: ${DIFF_COUNT})"
-          else
-            SEC_SECTION="### Security Checklist
-          ✅ Aligned (security.md: ${SEC_SECTION_COUNT} sections, security-auditor: ${AUDITOR_SECTION_COUNT} sections)"
-          fi
-
-          # ─────────────────────────────────────────────────────────────────
-          # Check 6: CodeRabbit drift — code-style.md sections without CodeRabbit coverage
+          # Check 5: CodeRabbit drift — code-style.md sections without CodeRabbit coverage
           # ─────────────────────────────────────────────────────────────────
           CODE_STYLE=".claude/rules/code-style.md"
           CODERABBIT=".coderabbit.yaml"
@@ -185,12 +167,25 @@ jobs:
 
           while IFS= read -r section_line; do
             # Extract section title after "## N. "
-            title=$(echo "$section_line" | sed 's/^## [0-9]*\. *//' | xargs 2>/dev/null) || true
+            # trim (not xargs): a future title with an apostrophe/backtick would make
+            # xargs error and || true would silently skip that section. Same fix as Check 3.
+            title=$(echo "$section_line" | sed 's/^## [0-9]*\. *//' | trim)
             [ -z "$title" ] && continue
-            # Use first meaningful word(s) as keyword for grep
-            keyword=$(echo "$title" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
+            # Use first word as keyword, stemmed so e.g. "Testing" matches
+            # ".coderabbit.yaml"'s "test" coverage block. Strip a trailing "ing",
+            # then a true-plural "s" (only when not preceded by another "s", so
+            # "Class"/"Success" keep their double-s and aren't mangled to "clas").
+            # (next.js stems to next.j — a literal substring of "Next.js" in .coderabbit.yaml.)
+            raw_keyword=$(echo "$title" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
+            keyword=$(echo "$raw_keyword" | sed -E 's/ing$//; s/([^s])s$/\1/')
+            # Fall back to the unstemmed keyword if the stem is too short to
+            # match safely (e.g. a future "Ms" title → "m" would match anything).
+            if [ "${#keyword}" -lt 3 ]; then
+              keyword="$raw_keyword"
+            fi
             [ -z "$keyword" ] && continue
-            if ! grep -qi "$keyword" "$CODERABBIT" 2>/dev/null; then
+            # grep -F: keyword is a literal, not a regex — "next.js"'s "." must not act as a wildcard.
+            if ! grep -Fqi "$keyword" "$CODERABBIT" 2>/dev/null; then
               DRIFT_LIST="${DRIFT_LIST}- **${title}** (keyword: \`${keyword}\`)\n"
             fi
           done < <(grep -P '^## [0-9]+\.' "$CODE_STYLE" 2>/dev/null || true)
@@ -208,7 +203,7 @@ jobs:
           # Aggregate findings and set outputs
           # ─────────────────────────────────────────────────────────────────
           HAS_FINDINGS="false"
-          for section in "$ORPHAN_SECTION" "$STALE_SECTION" "$STUCK_SECTION" "$STALE_MEM_SECTION" "$SEC_SECTION" "$DRIFT_SECTION"; do
+          for section in "$ORPHAN_SECTION" "$STALE_SECTION" "$STUCK_SECTION" "$STALE_MEM_SECTION" "$DRIFT_SECTION"; do
             if echo "$section" | grep -q '⚠️'; then
               HAS_FINDINGS="true"
               break
@@ -224,8 +219,6 @@ jobs:
           ${STUCK_SECTION}
 
           ${STALE_MEM_SECTION}
-
-          ${SEC_SECTION}
 
           ${DRIFT_SECTION}
 
