@@ -246,7 +246,7 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     expect(data).toBeNull()
   })
 
-  test('cross-org admin cannot issue code for egmont student (mirror of BI)', async () => {
+  test('cross-org admin cannot issue code for egmont student (mirror of DM)', async () => {
     // The cross-org admin targets the egmont student. Same expected outcome.
     const { data, error } = await crossOrgAdminClient.rpc('issue_internal_exam_code', {
       p_subject_id: configuredSubjectId,
