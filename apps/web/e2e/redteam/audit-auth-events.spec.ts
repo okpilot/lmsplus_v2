@@ -85,7 +85,7 @@ test.describe('Red Team: Audit Auth Event Completeness', () => {
     const { error } = await studentClient.rpc('record_login')
     expect(error, 'record_login error').toBeNull()
 
-    const { data: post } = await admin
+    const { data: post, error: postError } = await admin
       .from('audit_events')
       .select('id, created_at')
       .eq('event_type', 'student.login')
@@ -93,6 +93,7 @@ test.describe('Red Team: Audit Auth Event Completeness', () => {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
+    if (postError) throw new Error(`student.login post-query: ${postError.message}`)
 
     expect(post, 'expected at least one student.login row after record_login').not.toBeNull()
     if (pre?.id && post?.id === pre.id) {

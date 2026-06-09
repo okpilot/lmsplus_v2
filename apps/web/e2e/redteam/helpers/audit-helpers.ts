@@ -189,9 +189,13 @@ export async function issueCodeViaRpc(
   if (!Array.isArray(data)) {
     throw new Error(`issueCodeViaRpc: unexpected RPC return shape: ${JSON.stringify(data)}`)
   }
-  const row = data[0] as { code_id: string; code: string } | undefined
-  expect(row, 'issue_internal_exam_code returned empty').toBeTruthy()
-  if (!row) throw new Error('unreachable')
+  // Pair the cast with runtime field-type guards (code-style §5): the cast
+  // silences TS but guarantees nothing at runtime — a malformed RPC return
+  // must fail loudly, not propagate undefined/non-string ids downstream.
+  const row = data[0] as { code_id?: unknown; code?: unknown } | undefined
+  if (!row || typeof row.code_id !== 'string' || typeof row.code !== 'string') {
+    throw new Error(`issueCodeViaRpc: unexpected row shape: ${JSON.stringify(row)}`)
+  }
   createdCodeIds.add(row.code_id)
   return { codeId: row.code_id, code: row.code }
 }
