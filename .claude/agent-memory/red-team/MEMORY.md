@@ -9,6 +9,12 @@ red-team maps security-sensitive diffs to red-team Playwright specs and flags co
 
 - [attack-surface](topics/attack-surface.md) — **PROTECTED** vector→spec mapping matrix (vectors, spec files, Files-to-Watch, dated Lessons Learned). Never auto-curated, never pruned, never inlined into this index. This is the source of truth for which spec covers which attack vector — consult it on every review.
 
+## Tracker
+
+| Pattern | First Seen | Count | Last Seen | Status |
+|---------|-----------|-------|-----------|--------|
+| Spec self-labels reusing matrix IDs already occupied by unrelated rows | PR #802 (3d9c7736) | 1 | 2026-06-09 | RESOLVED — 10 vectors reassigned CX–DG; matrix IDs now unique per vector |
+
 ## Durable lessons
 
 - New RPCs need matching **unauthenticated** AND **cross-tenant** test cases on every addition — generic specs do not cover these by default.
@@ -21,3 +27,4 @@ red-team maps security-sensitive diffs to red-team Playwright specs and flags co
 - DELETE RLS USING failures are silent 0-row no-ops (200 OK, error===null, affected_rows===0) — NOT 42501. 42501 (insufficient_privilege) is raised only by INSERT/UPDATE WITH CHECK failures. Any cross-user DELETE spec (question_comments, flagged_questions, or any future table) must assert error===null AND deleted.length===0, then confirm the target row survives via an admin re-read. Issue #711 originally stated "42501" for the deleteComment IDOR case — this was wrong. Confirmed in rpc-comment-idor.spec.ts (commit cb861b4, Vector P).
 - RLS WITH CHECK on non-SECURITY-DEFINER tables is NOT governed by security.md §9 (the soft-delete filter rule applies to SECURITY DEFINER function SELECTs only). A missing `deleted_at IS NULL` in a WITH CHECK is not automatically a gap — verify the table's RLS design intent before flagging (e.g., `flagged_questions_insert_own` has no deleted_at guard by design per mig 050; #297 closed as obsolete).
 - Cross-user audit-read specs (Vector AA class) must seed a victim-owned row AND confirm it exists (non-vacuity assertion) before probing as the attacker. A probe against a table with zero victim rows trivially returns 0 and proves nothing. The `audit_events` append-only constraint means idempotent seeding via an admin INSERT with a marker column is the correct pattern.
+- Spec-file self-labels (vector mnemonics inside `test()` titles and header comments) must not reuse any matrix ID that already names an unrelated vector. The collision pattern: a new spec is written with sequential self-labels (BJ, BK, BL …) without consulting the matrix — those IDs were already occupied by start_quiz_session TOCTOU (BJ), batch_submit TOCTOU (BK), score-forgery (BL/BM/BN), upsert_exam_config injection (BV), and injection-sql.spec.ts (BO/BP). Fix is reassignment to unused sequential IDs (CX–DG in #802). Prevention: before self-labeling a new spec block, grep the matrix for the highest existing ID and start from there + 1.

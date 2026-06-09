@@ -1,16 +1,16 @@
 /**
  * Red Team Spec: start_internal_exam_session RPC
  *
- * Vectors BJ / BK / BL / BM / BV (HIGH/MEDIUM): student-facing RPC that redeems a
+ * Vectors CX / CY / CZ / DA / DB / DC (HIGH/MEDIUM): student-facing RPC that redeems a
  * single-use code and creates an internal_exam quiz_session.
- *  - BJ: unauthenticated → 'not_authenticated'
- *  - BK: student-B uses student-A's code → 'code_not_yours' (cross-student)
- *  - BL(1): expired code → 'code_expired'
- *  - BL(2): voided code  → 'code_voided'
- *  - BM:  double-redemption / consumed code → 'code_already_used'
+ *  - CX: unauthenticated → 'not_authenticated'
+ *  - CY: student-B uses student-A's code → 'code_not_yours' (cross-student)
+ *  - CZ: expired code → 'code_expired'
+ *  - DA: voided code  → 'code_voided'
+ *  - DB:  double-redemption / consumed code → 'code_already_used'
  *  - extra: starting a second concurrent code while a session is already
  *           active for the same subject → 'active_session_exists'
- *  - BV: overdue active session is auto-completed and new session starts
+ *  - DC: overdue active session is auto-completed and new session starts
  *        successfully (mig 071 column-qualification fix + PERFORM branch)
  *
  * Status: Expected to PASS — every guard is in the SECURITY DEFINER body.
@@ -167,7 +167,7 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     await ensureExamConfig(orgId, subjectId, topicId)
   })
 
-  test('unauthenticated call returns not_authenticated (Vector BJ)', async () => {
+  test('unauthenticated call returns not_authenticated (Vector CX)', async () => {
     const { data, error } = await unauthClient.rpc('start_internal_exam_session', {
       p_code: 'NEVERUSED',
     })
@@ -177,7 +177,7 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     expect(data).toBeNull()
   })
 
-  test('student-B using student-A code is rejected without disclosing existence (Vector BK)', async () => {
+  test('student-B using student-A code is rejected without disclosing existence (Vector CY)', async () => {
     const code = await seedCode(admin, {
       studentId: victimUserId,
       subjectId,
@@ -185,7 +185,7 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     })
 
     // Capture testStart BEFORE the redemption attempt so the probe ignores
-    // attacker sessions created by sibling tests (BL/BM/etc.) and prior runs
+    // attacker sessions created by sibling tests (CZ/DA/DB/etc.) and prior runs
     // that did not get cleaned up.
     const testStart = new Date().toISOString()
 
@@ -216,7 +216,7 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     expect((probe ?? []).length).toBe(0)
   })
 
-  test('expired code is rejected with code_expired (Vector BL-1)', async () => {
+  test('expired code is rejected with code_expired (Vector CZ)', async () => {
     // Insert a code that was already expired one minute ago.
     const code = await seedCode(admin, {
       studentId: victimUserId,
@@ -234,7 +234,7 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     expect(data).toBeNull()
   })
 
-  test('voided code is rejected with code_voided (Vector BL-2)', async () => {
+  test('voided code is rejected with code_voided (Vector DA)', async () => {
     const code = await seedCode(admin, {
       studentId: victimUserId,
       subjectId,
@@ -252,7 +252,7 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     expect(data).toBeNull()
   })
 
-  test('already-consumed code is rejected with code_already_used (Vector BM)', async () => {
+  test('already-consumed code is rejected with code_already_used (Vector DB)', async () => {
     // Seed a code marked consumed via direct admin insert (skips the FOR UPDATE
     // lock that the RPC uses; the read-side guard `IF v_code_consumed IS NOT NULL`
     // is what we're exercising).
@@ -318,7 +318,7 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
     expect(second.data).toBeNull()
   })
 
-  test('overdue active session is auto-completed and the fresh code starts a new session without error (Vector BV)', async () => {
+  test('overdue active session is auto-completed and the fresh code starts a new session without error (Vector DC)', async () => {
     // Seed an ACTIVE internal_exam session for the attacker that is well past
     // its grace window. The RPC checks (mig 071, line 99-113):
     //   now() > qs.started_at + ((qs.time_limit_seconds + 30) || ' seconds')::interval
@@ -343,7 +343,7 @@ test.describe('Red Team: start_internal_exam_session RPC', () => {
       .select('id')
       .single()
     if (oldSessionErr || !oldSessionRow) {
-      throw new Error(`BV seed overdue session: ${oldSessionErr?.message}`)
+      throw new Error(`DC seed overdue session: ${oldSessionErr?.message}`)
     }
     const oldSessionId = oldSessionRow.id
     createdSessionIds.add(oldSessionId)
