@@ -1,13 +1,13 @@
 /**
  * Red Team Spec: internal_exam_codes Table — RLS Read/Write Isolation
  *
- * Vectors BE / BF / BG (HIGH): direct table access on internal_exam_codes.
- *  - BE: unauthenticated SELECT must return 0 rows (or error).
- *  - BF: authenticated student INSERT/UPDATE/DELETE must be blocked. After
+ * Vectors DI / DJ / DK (HIGH): direct table access on internal_exam_codes.
+ *  - DI: unauthenticated SELECT must return 0 rows (or error).
+ *  - DJ: authenticated student INSERT/UPDATE/DELETE must be blocked. After
  *        migration 20260521000004 the student SELECT and admin UPDATE policies
  *        were dropped and UPDATE was revoked from `authenticated`, so direct
  *        writes fail at the privilege layer in addition to RLS.
- *  - BG: any direct SELECT (own row or cross-student) returns 0 rows — the
+ *  - DK: any direct SELECT (own row or cross-student) returns 0 rows — the
  *        only read path is `list_my_active_internal_exam_codes()` RPC, whose
  *        return signature omits the plaintext `code` column.
  *
@@ -111,7 +111,7 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     }
   })
 
-  test('unauthenticated client sees 0 rows from internal_exam_codes (Vector BE)', async () => {
+  test('unauthenticated client sees 0 rows from internal_exam_codes (Vector DI)', async () => {
     const { data, error } = await unauthClient
       .from('internal_exam_codes')
       .select('id, code, student_id')
@@ -122,7 +122,7 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     expect(data?.length ?? 0).toBe(0)
   })
 
-  test('student-B cannot SELECT student-A code via direct table read (Vector BG)', async () => {
+  test('student-B cannot SELECT student-A code via direct table read (Vector DK)', async () => {
     // Attacker probes by victim code id — the only allowed SELECT path is
     // student_read_active_codes (student_id = auth.uid()) or admin policy. The
     // attacker is neither; result must be 0 rows.
@@ -135,7 +135,7 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     expect(data?.length ?? 0).toBe(0)
   })
 
-  test('student direct SELECT on own active code now returns 0 rows (RPC is the only read path) (Vector BG)', async () => {
+  test('student direct SELECT on own active code now returns 0 rows (RPC is the only read path) (Vector DK)', async () => {
     // Migration 20260521000004 dropped the `student_read_active_codes` SELECT
     // policy. With no SELECT policy admitting the authenticated role, every
     // direct PostgREST read returns 0 rows — including the student's own
@@ -164,7 +164,7 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     }
   })
 
-  test('student cannot INSERT directly into internal_exam_codes (Vector BF)', async () => {
+  test('student cannot INSERT directly into internal_exam_codes (Vector DJ)', async () => {
     // Table has no INSERT policy and no INSERT GRANT to authenticated.
     // The attempt must fail with an RLS / permission error — never silently succeed.
     const { data: meRes } = await attackerClient.auth.getUser()
@@ -205,7 +205,7 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     expect(probe?.length ?? 0).toBe(0)
   })
 
-  test('student cannot UPDATE another student code via direct write (Vector BF)', async () => {
+  test('student cannot UPDATE another student code via direct write (Vector DJ)', async () => {
     // Migration 20260521000004 dropped the `admin_update_org_codes` policy and
     // executed `REVOKE UPDATE ON internal_exam_codes FROM authenticated`. The
     // attempt now fails at the GRANT layer (privilege denied) — and even if a
@@ -233,7 +233,7 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     expect(after?.void_reason ?? null).toEqual(before?.void_reason ?? null)
   })
 
-  test('student cannot UPDATE their own code (no UPDATE policy, GRANT revoked) (Vector BF)', async () => {
+  test('student cannot UPDATE their own code (no UPDATE policy, GRANT revoked) (Vector DJ)', async () => {
     // After migration 20260521000004 there is no UPDATE policy on
     // `internal_exam_codes` for the authenticated role AND
     // `REVOKE UPDATE ... FROM authenticated` was executed. A student updating
@@ -261,7 +261,7 @@ test.describe('Red Team: internal_exam_codes table RLS', () => {
     expect(after?.void_reason ?? null).toEqual(before?.void_reason ?? null)
   })
 
-  test('student cannot DELETE rows from internal_exam_codes (Vector BF)', async () => {
+  test('student cannot DELETE rows from internal_exam_codes (Vector DJ)', async () => {
     // No DELETE policy and no DELETE GRANT — attempts must error or be no-ops.
     await victimClient.from('internal_exam_codes').delete().eq('id', victimCodeId)
 

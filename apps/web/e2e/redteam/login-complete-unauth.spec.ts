@@ -1,5 +1,5 @@
 /**
- * Red Team Spec — Vector V (MEDIUM): Unauthenticated access to /auth/login-complete
+ * Red Team Spec — Vector DH (MEDIUM): Unauthenticated access to /auth/login-complete
  *
  * Attack: Issue a cookieless GET to /auth/login-complete, bypassing the
  *         normal OAuth callback flow that would establish a session first.
@@ -19,7 +19,7 @@
 import { expect, test } from '@playwright/test'
 import { getAdminClient } from '../helpers/supabase'
 
-test.describe('Red Team: Unauthenticated access to /auth/login-complete (Vector V)', () => {
+test.describe('Red Team: Unauthenticated access to /auth/login-complete (Vector DH)', () => {
   /**
    * Case 1 — Cookieless GET is redirected to the login page.
    *

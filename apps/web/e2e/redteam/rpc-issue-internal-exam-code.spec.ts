@@ -1,10 +1,10 @@
 /**
  * Red Team Spec: issue_internal_exam_code RPC
  *
- * Vectors BH / BI (HIGH): admin-only RPC that issues a single-use code.
- *  - BH(1): unauthenticated → 'not_authenticated'
- *  - BH(2): authenticated student (non-admin) → 'not_admin'
- *  - BI:    cross-org admin issuing for foreign-org student → 'student_not_found'
+ * Vectors DL / DM (HIGH): admin-only RPC that issues a single-use code.
+ *  - DL(1): unauthenticated → 'not_authenticated'
+ *  - DL(2): authenticated student (non-admin) → 'not_admin'
+ *  - DM:    cross-org admin issuing for foreign-org student → 'student_not_found'
  *  - extra: missing exam_config → 'exam_config_required'
  *
  * Status: Expected to PASS — every guard is in the SECURITY DEFINER body of
@@ -211,7 +211,7 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
       .is('deleted_at', null)
   })
 
-  test('unauthenticated call returns not_authenticated (Vector BH-1)', async () => {
+  test('unauthenticated call returns not_authenticated (Vector DL-1)', async () => {
     const { data, error } = await unauthClient.rpc('issue_internal_exam_code', {
       p_subject_id: configuredSubjectId,
       p_student_id: egmontStudentId,
@@ -222,7 +222,7 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     expect(data).toBeNull()
   })
 
-  test('authenticated student (non-admin) cannot issue codes (Vector BH-2)', async () => {
+  test('authenticated student (non-admin) cannot issue codes (Vector DL-2)', async () => {
     const { data, error } = await attackerStudentClient.rpc('issue_internal_exam_code', {
       p_subject_id: configuredSubjectId,
       p_student_id: egmontStudentId,
@@ -233,7 +233,7 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
     expect(data).toBeNull()
   })
 
-  test('admin cannot issue code for student in different org (Vector BI)', async () => {
+  test('admin cannot issue code for student in different org (Vector DM)', async () => {
     // The egmont admin targets a student in the cross-org tenant. The RPC must
     // reject with 'student_not_found' (existence-hiding).
     const { data, error } = await adminClientAuthed.rpc('issue_internal_exam_code', {
