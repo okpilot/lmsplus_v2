@@ -94,6 +94,12 @@
 - **`trim()` placement in Check 3** — defined at line 88 (before the while-loop at line 90), outside the loop. Correct hoisting. Do not flag as "redefined per iteration".
 - **Check 4 security-auditor comment placement** — the explanatory comment about `-not -path '*/security-auditor/findings.md'` is placed inside the while-loop body (last line before `done`), but it describes the `find` command in the process substitution. Cosmetically misplaced — SUGGESTION class only.
 
+## Notes on #796 spec-split (rpc-cross-tenant + audit-completeness)
+
+- **`cleanupFixtures` flagged_questions filter is student_id-unscoped by design.** The helper uses `.in('question_id', ...)` without a student_id filter — intentionally broader than the original specs (which used `.eq('student_id', victimUserId)`). In the test DB this is fine because only redteam seed users exist; flagged as ISSUE in this review but may be an accepted trade-off. Track: if the plan explicitly accepts this, add to false positives.
+- **`seedVictimResponses()` correctly belongs to the isolation spec, not the reports spec.** The BY/BE/Q/X/CL3 tests in rpc-cross-tenant-reports.spec.ts all seed their own fixture data; none need the mastery/streak/last-practiced responses that the probe-only tests need. Do not flag the omission as missing non-vacuity seeding.
+- **force-token-refresh.ts helper is a Playwright E2E seam** — code-style §7 Vitest test requirement does NOT apply to `e2e/redteam/helpers/*.ts`. (Confirmed again for helpers/cleanup.ts and helpers/audit-helpers.ts, which DO have co-located .test.ts — correct pattern.)
+
 ## Notes on redteam-e2e-coverage-batch (#784, #786, #788, #781)
 
 - **Spec-count drift in steering + decisions on new-spec batch** — adding 2 new Playwright specs (rpc-record-auth-event.spec.ts + token-refresh-anti-cache.spec.ts) moves count from 37→39. `tech.md` has the count in 3 places (lines 85, 146, 183); `docs/decisions.md` Decision 27 has it once. None updated in the staged diff. This is a SUGGESTION (doc-updater handles it post-commit). The plan explicitly excluded `docs/*.md` schema edits from scope.

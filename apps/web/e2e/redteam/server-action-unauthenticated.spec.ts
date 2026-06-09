@@ -1,10 +1,8 @@
 /**
- * Red Team Spec: Unauthenticated RPC and Table Access
+ * Red Team Spec: Unauthenticated RPC and Table Access (Vectors B+E)
  *
- * Vectors B+E (MEDIUM): Server Actions and RPCs called without a valid session.
- * Tested at the Supabase client level (not browser) using an unauthenticated
- * anon-key client — simulating a request with no JWT.
- *
+ * Server Actions and RPCs called without a valid session, tested at the
+ * Supabase client level using an unauthenticated anon-key client (no JWT).
  * All RPCs and protected tables must return errors or empty results.
  * Status: Expected to PASS (anon key + RLS should block everything).
  */
@@ -12,6 +10,7 @@
 import { expect, test } from '@playwright/test'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { getAdminClient } from '../helpers/supabase'
+import { cleanupFixtures, createFixtureTracker } from './helpers/cleanup'
 import { createAuthenticatedClient } from './helpers/redteam-client'
 import {
   E2E_REDTEAM_UNAUTH_COMMENT_MARKER,
@@ -36,8 +35,9 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
   let knownSessionId: string
   let knownQuestionId: string
   let victimUserId: string
-  let seededCommentId: string | null = null
-  let seededFlagQuestionId: string | null = null
+
+  // Fixture tracker for afterAll cleanup of seeded comment + flag rows.
+  const tracker = createFixtureTracker()
 
   test.beforeAll(async () => {
     adminClient = getAdminClient()
@@ -82,7 +82,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
       throw new Error(
         `unauth seed: failed to seed question_comment: ${commentErr?.message ?? 'none'}`,
       )
-    seededCommentId = comment.id
+    tracker.comments.add(comment.id)
 
     const { error: flagErr } = await adminClient
       .from('flagged_questions')
@@ -91,7 +91,7 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
         { onConflict: 'student_id,question_id' },
       )
     if (flagErr) throw new Error(`unauth seed: failed to seed flagged_question: ${flagErr.message}`)
-    seededFlagQuestionId = knownQuestionId
+    tracker.flags.add(`${victimUserId}::${knownQuestionId}`)
   })
 
   // --- RPC vectors ---
@@ -494,34 +494,16 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     })
   })
 
+  // Hermetic cleanup (code-style.md §7): soft-delete seeded comment + flag rows.
+  // Preserve the original swallow-and-log contract — a teardown failure here
+  // must not turn a green run into a suite failure (these are low-stakes setup
+  // fixtures). The seeding specs that own isolation fixtures keep the stricter
+  // throw contract; this anon-probe spec does not.
   test.afterAll(async () => {
-    // Hermetic cleanup (code-style.md §7): soft-delete the seeded victim fixtures.
-    if (seededCommentId) {
-      const { data: discarded, error } = await adminClient
-        .from('question_comments')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', seededCommentId)
-        .is('deleted_at', null)
-        .select('id')
-      if (error) {
-        console.error(`[unauth cleanup] question_comments soft-delete error: ${error.message}`)
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[unauth cleanup] soft-deleted ${discarded?.length} fixture comment(s)`)
-      }
-    }
-    if (seededFlagQuestionId) {
-      const { data: discarded, error } = await adminClient
-        .from('flagged_questions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('student_id', victimUserId)
-        .eq('question_id', seededFlagQuestionId)
-        .is('deleted_at', null)
-        .select('student_id')
-      if (error) {
-        console.error(`[unauth cleanup] flagged_questions soft-delete error: ${error.message}`)
-      } else if ((discarded?.length ?? 0) > 0) {
-        console.log(`[unauth cleanup] soft-deleted ${discarded?.length} fixture flag(s)`)
-      }
+    try {
+      await cleanupFixtures(adminClient, tracker)
+    } catch (e) {
+      console.error(`[unauth cleanup] ${e instanceof Error ? e.message : String(e)}`)
     }
   })
 })

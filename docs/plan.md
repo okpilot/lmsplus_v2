@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-06-07 — **Security & Test-Hardening Sprint** (post-#668, see section below): DB-hardening migrations 085–093, OWASP A10:2025 error-disclosure coverage, auth audit logging (`record_auth_event`), activity-stamp trigger, and the red-team Playwright suite expanded to **39 specs**. Two batches landed this sprint — backend (#446/#684/#471/#532/#379, PRs #782/#783/#785/#787/#790) and red-team E2E coverage (#784/#786/#788/#781, PR #795). Prior milestone: **Umbrella #668 (PostgREST 1000-row truncation) CLOSED 2026-05-31** — all 25 sites addressed (24 fixed + 1 exempt) across instances #1–#9, plus the §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
+> Last updated: 2026-06-09 — **Red-team infra refactor** (issue #796): split 3 oversized red-team spec files into 5 files (now 41 spec files total, unchanged 271 tests), extracted shared cleanup/audit helpers into reusable modules. Prior sprint: **Security & Test-Hardening Sprint** (post-#668, see section below): DB-hardening migrations 085–093, OWASP A10:2025 error-disclosure coverage, auth audit logging (`record_auth_event`), activity-stamp trigger. Two batches landed that sprint — backend (#446/#684/#471/#532/#379, PRs #782/#783/#785/#787/#790) and red-team E2E coverage (#784/#786/#788/#781, PR #795). Prior milestone: **Umbrella #668 (PostgREST 1000-row truncation) CLOSED 2026-05-31** — all 25 sites addressed (24 fixed + 1 exempt) across instances #1–#9, plus the §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
 
 ---
 
@@ -26,10 +26,11 @@ After umbrella #668 closed, focus shifted to DB/security hardening and adversari
 - Earlier backlog batches (#774 family, PRs #736–#779): complete_overdue/empty exam attack surfaces, audit cross-user isolation, cross-org isolation for exam/pool/distributions, `upsert_exam_config` injection, `user_consents` isolation, quiz_sessions score-forgery column GRANT (#611), and more.
 
 **Test hermeticity & infra:**
+- Red-team spec-file refactor (#796): split 3 oversized hub specs (790L / 704L / 527L) into 5 files (each <500L) — `rpc-cross-tenant.spec.ts` → `rpc-cross-tenant-isolation.spec.ts` + `rpc-cross-tenant-reports.spec.ts`; `audit-completeness.spec.ts` → trimmed `audit-completeness.spec.ts` + `audit-auth-events.spec.ts`; extracted `helpers/cleanup.ts` (FixtureTracker, cleanupFixtures) + `helpers/audit-helpers.ts` (6 audit assertion helpers), each with co-located Vitest unit tests. Zero test-count change (271 preserved); **41 spec files** total (up from 39). attack-surface.md rows repointed to new filenames.
 - Hermetic `easa_*` reference-data cleanup in integration suites (#775, #593, PR #779).
 - "Red Team Specs" promoted to a required status check (#771).
 
-**Open follow-ups (P2 tech-debt):** #791 (knip dead code), #794 (promote 2 learner rule candidates + sweep), #796 (split 3 oversized red-team hub specs).
+**Open follow-ups (P2 tech-debt):** #791 (knip dead code), #794 (promote 2 learner rule candidates + sweep).
 
 **Resolved this sprint:** #797 (consolidate duplicated `ActionResult` type into `@/lib/action-result`, PR #801); #793 (renumber start_quiz_session smuggling vectors BL/BM/BN → CU/CV/CW, commit b388dc9c) — resolved the pre-existing matrix ID collision; #792 (dedupe learner tracker rows — merged 4 duplicate live-table pairs, counts unchanged).
 
