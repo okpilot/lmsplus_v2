@@ -1,12 +1,12 @@
 /**
  * Red Team Spec: void_internal_exam_code RPC
  *
- * Vectors BN/BO/BP (HIGH). Admin-only RPC that voids a code and (optionally)
+ * Vectors DD/DE/DF/DG (HIGH). Admin-only RPC that voids a code and (optionally)
  * ends the linked active session. Tests cover:
- *  - BN(1) unauthenticated → not_authenticated
- *  - BN(2) student → not_admin
- *  - BO    cross-org admin → code_not_found (existence-hiding)
- *  - BP    consumed + finished session → cannot_void_finished_attempt
+ *  - DD unauthenticated → not_authenticated
+ *  - DE student → not_admin
+ *  - DF    cross-org admin → code_not_found (existence-hiding)
+ *  - DG    consumed + finished session → cannot_void_finished_attempt
  *  - CD    consumed code, linked session soft-deleted before void →
  *          session_state_changed (fail-fast, code NOT voided — mig 084)
  *  - positive — consumed + active session ends with passed=false.
@@ -237,7 +237,7 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
-  test('unauthenticated call returns not_authenticated (Vector BN-1)', async () => {
+  test('unauthenticated call returns not_authenticated (Vector DD)', async () => {
     const code = await validCode()
     const { data, error } = await unauthClient.rpc('void_internal_exam_code', {
       p_code_id: code.id,
@@ -249,7 +249,7 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     expect(data).toBeNull()
   })
 
-  test('authenticated student (non-admin) cannot void a code (Vector BN-2)', async () => {
+  test('authenticated student (non-admin) cannot void a code (Vector DE)', async () => {
     const code = await validCode()
     const { data, error } = await attackerStudentClient.rpc('void_internal_exam_code', {
       p_code_id: code.id,
@@ -261,7 +261,7 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     expect(data).toBeNull()
   })
 
-  test('cross-org admin cannot void code in foreign org (Vector BO)', async () => {
+  test('cross-org admin cannot void code in foreign org (Vector DF)', async () => {
     const code = await validCode()
     const { data, error } = await crossOrgAdminClient.rpc('void_internal_exam_code', {
       p_code_id: code.id,
@@ -281,7 +281,7 @@ test.describe('Red Team: void_internal_exam_code RPC', () => {
     expect(row?.voided_at ?? null).toBeNull()
   })
 
-  test('void on consumed code with finished session raises cannot_void_finished_attempt (Vector BP)', async () => {
+  test('void on consumed code with finished session raises cannot_void_finished_attempt (Vector DG)', async () => {
     const sessionId = await session(true)
     const code = await codeForSession(sessionId)
 
