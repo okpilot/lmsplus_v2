@@ -495,5 +495,15 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
   })
 
   // Hermetic cleanup (code-style.md §7): soft-delete seeded comment + flag rows.
-  test.afterAll(() => cleanupFixtures(adminClient, tracker))
+  // Preserve the original swallow-and-log contract — a teardown failure here
+  // must not turn a green run into a suite failure (these are low-stakes setup
+  // fixtures). The seeding specs that own isolation fixtures keep the stricter
+  // throw contract; this anon-probe spec does not.
+  test.afterAll(async () => {
+    try {
+      await cleanupFixtures(adminClient, tracker)
+    } catch (e) {
+      console.error(`[unauth cleanup] ${e instanceof Error ? e.message : String(e)}`)
+    }
+  })
 })

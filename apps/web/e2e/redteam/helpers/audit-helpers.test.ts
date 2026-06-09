@@ -168,4 +168,19 @@ describe('expectCompletionMetadata', () => {
       }),
     ).rejects.toThrow(/exam\.completed metadata query error/)
   })
+
+  it('throws when the query returns zero rows (no matching audit event written yet)', async () => {
+    // data: [] — no error, but no row → data?.[0]?.metadata resolves to undefined → {}
+    // The {} object lacks answered_count so the toHaveProperty assertion fires.
+    mockFrom.mockReturnValueOnce(buildChain({ data: [], error: null }))
+
+    await expect(
+      expectCompletionMetadata(adminMock, {
+        eventType: 'exam.completed',
+        actorId: 'user-1',
+        testStart: '2026-01-01T00:00:00Z',
+        sessionId: 'sess-1',
+      }),
+    ).rejects.toThrow(/answered_count/)
+  })
 })

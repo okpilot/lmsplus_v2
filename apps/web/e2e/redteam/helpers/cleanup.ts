@@ -110,6 +110,11 @@ export async function cleanupFixtures(admin: AdminClient, tracker: FixtureTracke
       let deleted = 0
       for (const key of tracker.flags) {
         const [studentId, questionId] = key.split('::')
+        if (!studentId || !questionId) {
+          throw new Error(
+            `cleanupFixtures flagged_questions: malformed key "${key}" (expected "studentId::questionId")`,
+          )
+        }
         const { data, error } = await admin
           .from('flagged_questions')
           .update({ deleted_at: now })

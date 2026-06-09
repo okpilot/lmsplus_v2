@@ -156,7 +156,7 @@ describe('cleanupFixtures — no-op silence', () => {
 })
 
 describe('cleanupFixtures — error path', () => {
-  it('accumulates errors from all failed blocks and throws an aggregated error', async () => {
+  it('accumulates errors from all failed blocks and throws an aggregated error containing each message', async () => {
     const tracker = createFixtureTracker()
     tracker.sessions.add('sess-err')
     tracker.codes.add('code-err')
@@ -166,7 +166,9 @@ describe('cleanupFixtures — error path', () => {
       .mockReturnValueOnce(buildChain({ data: null, error: { message: 'sessions error' } }))
       .mockReturnValueOnce(buildChain({ data: null, error: { message: 'codes error' } }))
 
-    await expect(cleanupFixtures(adminMock, tracker)).rejects.toThrow(/sessions error/)
+    await expect(cleanupFixtures(adminMock, tracker)).rejects.toThrow(
+      /sessions error.*codes error|codes error.*sessions error/,
+    )
 
     // Both sets cleared even though errors were thrown
     expect(tracker.sessions.size).toBe(0)
@@ -181,5 +183,17 @@ describe('cleanupFixtures — error path', () => {
 
     await expect(cleanupFixtures(adminMock, tracker)).rejects.toThrow(/db down/)
     expect(tracker.consents.size).toBe(0)
+  })
+
+  it('clears flags in finally even when the flagged_questions delete throws', async () => {
+    const tracker = createFixtureTracker()
+    tracker.flags.add('student-x::question-x')
+
+    mockFrom.mockReturnValueOnce(
+      buildChain({ data: null, error: { message: 'flagged_questions db error' } }),
+    )
+
+    await expect(cleanupFixtures(adminMock, tracker)).rejects.toThrow(/flagged_questions db error/)
+    expect(tracker.flags.size).toBe(0)
   })
 })
