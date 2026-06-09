@@ -29,6 +29,10 @@ Do NOT run on every commit — only when the above paths are in the diff.
   - Promoted at count=3 (PR #769: `quiz-draft-injection.spec.ts` soft-deleted via a `deleted_at` column `quiz_drafts` does not have; two prior in-session occurrences f278d5c, a396438).
   - The first two were caught by CI before merge; the third reached production because Red Team Specs was non-required.
   - Verify the column exists (`grep` the `CREATE TABLE` / latest `ALTER`/`CREATE OR REPLACE`), and trace the `CREATE OR REPLACE FUNCTION` chain to the latest definition for RPC/trigger assertions.
+- **Before allocating new vector IDs in `attack-surface.md`, grep the WORKING-TREE matrix on freshly-updated `master` for the highest existing ID and start at highest+1 — never trust a max-ID (or a "spec count") computed by Explore/plan-critic against the feature branch.**
+  - Promoted at count=3 (#793 renamed BL/BM/BN→CU/CV/CW on a matrix ID collision; #802 reassigned 10 internal-exam self-labels to CX–DG; #326 allocated CX–DC against a pre-#802 branch where the matrix max still read CW, corrected to DH–DM at execution time).
+  - The matrix is a high-churn shared file: sibling PRs (#796/#802/#817) can merge between a branch's cut and the work, advancing both the max ID and the red-team spec-count literal. Cut the work branch off fresh `master` and re-read the live working-tree matrix header BEFORE allocating — a stale branch silently understates both.
+  - When re-lettering a spec's self-labels, grep ALL cross-reference forms — `Vector X`, `(mirror of X)`, `vs X`, bare `(X)` — not just `Vector X`; a narrow grep leaves stale labels (#326 missed a `(mirror of BI)` title).
 
 ### NEVER
 - Run on every commit — only on security-sensitive diffs.
@@ -39,4 +43,4 @@ Do NOT run on every commit — only when the above paths are in the diff.
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-06-09 (added vector-ID allocation rule — verify matrix max-ID against fresh master before allocating; #820/count=3)*
