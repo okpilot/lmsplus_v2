@@ -241,6 +241,11 @@ describe('SQL function: normalize_answer', () => {
     ['roger.', 'roger'],
     ['(affirm)', 'affirm'],
     ['ATIS,', 'atis'],
+    // Pins verified behavior: the POSIX ARE bracket-class in the function's
+    // regex honors backslash escapes, so literal [ and ] ARE stripped as
+    // punctuation. An external reviewer claimed otherwise (false positive);
+    // verified live: SELECT normalize_answer('test[bracket]') = 'testbracket'.
+    ['test[bracket]', 'testbracket'],
     // Note: `"cleared"` (input with literal double-quotes) is NOT included here.
     // When the body is `{"":"\"cleared\""}`, PostgREST passes the JSON-encoded
     // backslash escapes verbatim to the unnamed TEXT param, so the function

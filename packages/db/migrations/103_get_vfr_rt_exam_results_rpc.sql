@@ -51,6 +51,15 @@ BEGIN
     RAISE EXCEPTION 'not_authenticated';
   END IF;
 
+  -- Active-user gate (#838): a soft-deleted account with a live JWT must not
+  -- read its completed-session answer keys (family pattern, migs 099/099b/100).
+  PERFORM 1
+  FROM users u
+  WHERE u.id = v_student_id AND u.deleted_at IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user_not_found_or_inactive';
+  END IF;
+
   SELECT qs.config, qs.total_questions
   INTO v_config, v_total
   FROM quiz_sessions qs

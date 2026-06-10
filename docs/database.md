@@ -714,7 +714,7 @@ verb_noun pattern:
   get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + grading breakdown per part (mig 103); gated to owner + ended session only
   get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b)
   normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics); used by submit_vfr_rt_exam_answers + complete_overdue_exam_session for vfr_rt_exam grading (mig 101)
-  complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz; last_active_at now stamped by trigger on all completion paths, mig 092)
+  complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz; last_active_at now stamped by trigger on all completion paths, mig 092; legacy-mode whitelist rejects vfr_rt_exam with unsupported_session_mode, mig 104 #838)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
@@ -831,6 +831,7 @@ This RPC is superseded by `batch_submit_quiz` for new code. Kept for backwards c
 - Validates `p_question_id` is in the session's `config.question_ids` (migration 033). Prevents submitting answers for questions outside the session's question set.
 - Soft-delete guard: `deleted_at IS NULL` prevents submitting to a discarded (soft-deleted) session.
 - Option membership validation: verifies `p_selected_option` exists in the question's options JSONB array. Prevents attackers from submitting arbitrary strings as option IDs.
+- Legacy-mode whitelist (migration 095b, #838): rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`, `mock_exam`, `internal_exam`) with `unsupported_session_mode` — a `vfr_rt_exam` session must submit via `submit_vfr_rt_exam_answers` (per-part grading, mig 100). Fail-closed: future modes must opt in explicitly.
 
 ```sql
 CREATE OR REPLACE FUNCTION submit_quiz_answer(
@@ -970,6 +971,8 @@ Submits all quiz answers in a single transaction. Replaces the per-answer `submi
 - Option membership validation (migration 037): verifies each `selected_option` exists in the question's options JSONB array. Prevents attackers from submitting arbitrary strings as option IDs in batch operations.
 - **N+1 fix (migration 041):** uses `CREATE TEMP TABLE _batch_questions` to bulk-fetch all questions for the session in a single query before the answer loop, then reads from the temp table per-answer instead of issuing N separate SELECT statements. Reduces query overhead from O(N) to O(1) for question lookups.
 - **Active-user gate + cached `actor_role` (migration `20260430000012`):** after the `auth.uid()` check, the function loads the caller's role into `v_actor_role` from `users WHERE id = v_student_id AND deleted_at IS NULL`. `IF NOT FOUND` raises `'user not found or inactive'`. The cached local is reused in both the timeout (`exam.expired` / `internal_exam.expired`) and completion (`exam.completed` / `internal_exam.completed` / `quiz_session.batch_submitted`) audit INSERTs — closing the TOCTOU window where a soft-delete between the gate and audit write would null the scalar subquery and abort the whole transaction (PR #599 CR root-cause fix).
+
+- **Legacy-mode whitelist (migration 095c, #838):** after the session-ownership check, rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`, `mock_exam`, `internal_exam`) with `unsupported_session_mode` — a `vfr_rt_exam` session must submit answers via `submit_vfr_rt_exam_answers` (per-part grading, mig 100). The same guard is in `submit_quiz_answer` (mig 095b) and `complete_quiz_session` (mig 104). Fail-closed: future modes must opt in explicitly.
 
 **Use this for:** finishing a quiz session with accumulated answers (deferred writes pattern).
 
@@ -2448,7 +2451,7 @@ Student-facing RPC (migration 100). Submits an array of typed answers (one per b
 
 Student-facing RPC (migration 103). Fetches completion-time answer key + per-question grading breakdown. Requires session to be ended.
 
-**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, explicit `student_id = auth.uid() AND mode = 'vfr_rt_exam' AND ended_at IS NOT NULL` scope (multiple permissive policies on quiz_sessions, security.md §3).
+**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, active-user gate (`users.deleted_at IS NULL`, #838 — family pattern of migs 099/099b/100), explicit `student_id = auth.uid() AND mode = 'vfr_rt_exam' AND ended_at IS NOT NULL` scope (multiple permissive policies on quiz_sessions, security.md §3).
 
 **Parameters:**
 - `p_session_id UUID` — the target session
@@ -2469,7 +2472,8 @@ Student-facing RPC (migration 103). Fetches completion-time answer key + per-que
 
 **Per-part recomputation:** Same formulas as `submit_vfr_rt_exam_answers`. Single source of truth for both fresh grading and idempotent replay.
 
-**Error code:**
+**Error codes:**
+- `user_not_found_or_inactive` — caller is soft-deleted (active-user gate, #838)
 - `Session not found, not owned, or not completed` — ownership/mode/ended check
 
 #### `get_question_authoring_fields` — gated answer-key column reads for admin authoring
@@ -2481,9 +2485,7 @@ Admin-only RPC (migration 094b). Fetches the four answer-key columns (canonical_
 **Parameters:**
 - `p_question_id UUID` — the target question
 
-**Returns:** `jsonb` with keys:
-- `id UUID`
-- `question_type TEXT`
+**Returns:** `TABLE` with columns:
 - `canonical_answer TEXT` — may be NULL for non-short_answer types
 - `accepted_synonyms TEXT[]`
 - `dialog_template TEXT` — may be NULL for non-dialog_fill types

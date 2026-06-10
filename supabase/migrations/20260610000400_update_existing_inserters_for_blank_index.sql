@@ -11,8 +11,12 @@
 --
 -- Body copied VERBATIM from the latest definition
 -- (supabase/migrations/20260316000040_submit_answer_track_last_was_correct.sql).
--- The ONLY change is the quiz_session_answers conflict target:
+-- The ONLY changes are the quiz_session_answers conflict target:
 --   ON CONFLICT (session_id, question_id) -> ON CONFLICT (session_id, question_id, blank_index)
+-- and the legacy-mode whitelist guard (#838): the session SELECT also fetches
+-- qs.mode, and non-legacy modes (vfr_rt_exam) are rejected with
+-- 'unsupported_session_mode' — a vfr_rt session answered via this MC path
+-- would bypass per-part grading (mig 100).
 -- This function inserts only MC rows (blank_index NULL); with NULLS NOT
 -- DISTINCT semantics, (session, question, NULL) conflicts exactly as the old
 -- (session, question) did — re-submit idempotency is preserved.
@@ -51,6 +55,7 @@ DECLARE
   v_expl_image_url       text;
   v_session_ended        boolean;
   v_config               jsonb;
+  v_mode                 text;
   v_session_question_ids uuid[];
   v_options              jsonb;
 BEGIN
@@ -63,8 +68,9 @@ BEGIN
   SELECT
     qs.organization_id,
     qs.ended_at IS NOT NULL,
-    qs.config
-  INTO v_org_id, v_session_ended, v_config
+    qs.config,
+    qs.mode
+  INTO v_org_id, v_session_ended, v_config, v_mode
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
@@ -73,6 +79,10 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found';
+  END IF;
+
+  IF v_mode NOT IN ('smart_review', 'quick_quiz', 'mock_exam', 'internal_exam') THEN
+    RAISE EXCEPTION 'unsupported_session_mode';
   END IF;
 
   IF v_session_ended THEN

@@ -1,5 +1,5 @@
 -- Migration 095c: batch_submit_quiz — widen ON CONFLICT for blank_index (VFR RT, #697). MUST apply in the same release as 095/095b (deferred 42P10 — full rationale in the 095/095b headers).
--- Body copied VERBATIM from supabase/migrations/20260601000001_align_batch_submit_audit_metadata_keys.sql; ONLY the quiz_session_answers conflict target changed (header trimmed to honor the 300-line migration cap, code-style.md §1).
+-- Body copied VERBATIM from supabase/migrations/20260601000001_align_batch_submit_audit_metadata_keys.sql; changes: quiz_session_answers conflict target widened for blank_index + legacy-mode whitelist guard rejecting vfr_rt_exam sessions (#838). Header/blank lines trimmed to honor the 300-line migration cap, code-style.md §1.
 CREATE OR REPLACE FUNCTION batch_submit_quiz(
   p_session_id uuid,
   p_answers    jsonb
@@ -49,7 +49,6 @@ BEGIN
   FROM users
   WHERE id = v_student_id
     AND deleted_at IS NULL;
-
   IF NOT FOUND THEN
     RAISE EXCEPTION 'user not found or inactive';
   END IF;
@@ -64,9 +63,11 @@ BEGIN
     AND qs.student_id = v_student_id
     AND qs.deleted_at IS NULL
   FOR UPDATE;
-
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found or not accessible';
+  END IF;
+  IF v_mode NOT IN ('smart_review', 'quick_quiz', 'mock_exam', 'internal_exam') THEN
+    RAISE EXCEPTION 'unsupported_session_mode';
   END IF;
 
   IF v_ended_at IS NOT NULL THEN
@@ -242,8 +243,7 @@ BEGIN
     v_score := CASE WHEN v_answered > 0 THEN round((v_correct_count::numeric / v_answered) * 100, 2) ELSE 0 END;
   END IF;
 
-  -- Pass-mark gating for both exam modes. mock_exam additionally requires
-  -- all questions answered; internal_exam allows partial submissions.
+  -- Pass-mark gating for both exam modes; mock_exam additionally requires all questions answered (internal_exam allows partial submissions).
   IF v_mode IN ('mock_exam', 'internal_exam') THEN
     v_pass_mark := (v_config->>'pass_mark')::int;
     IF v_pass_mark IS NOT NULL THEN

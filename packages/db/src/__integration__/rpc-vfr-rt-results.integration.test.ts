@@ -6,6 +6,7 @@
  *   - pre-completion session → 'Session not found, not owned, or not completed'
  *   - non-owner → same guard error
  *   - wrong mode session → same guard error
+ *   - soft-deleted caller → user_not_found_or_inactive (mig 103 gate, #838)
  *   - passing session: per-part pcts match submit result; revealed key present
  *   - failing session (Part 2 fail): second distinct fixture outcome
  *
@@ -415,6 +416,36 @@ describe('RPC: get_vfr_rt_exam_results — guard errors', () => {
     expect(data).toBeNull()
     expect(error).not.toBeNull()
     expect(error?.message).toContain('Session not found, not owned, or not completed')
+  })
+
+  it('rejects a soft-deleted caller with user_not_found_or_inactive', async () => {
+    // Soft-delete the student — mig 103's active-user gate (#838) fires before
+    // the session guard, so even the owned + completed passing session is
+    // rejected (family pattern, migs 099/099b/100).
+    const { error: softDeleteErr } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', studentId)
+    if (softDeleteErr) throw new Error(`soft-delete setup: ${softDeleteErr.message}`)
+
+    try {
+      const { error } = await studentClient.rpc('get_vfr_rt_exam_results', {
+        p_session_id: passingSessionId,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('user_not_found_or_inactive')
+    } finally {
+      // Restore the student so afterAll cleanup can delete the row cleanly.
+      const { error: restoreErr } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', studentId)
+      // console.error, not throw: a throw here would mask the test's own
+      // assertion failure (biome noUnsafeFinally).
+      if (restoreErr) {
+        console.error('[soft-delete restore] student row left soft-deleted:', restoreErr.message)
+      }
+    }
   })
 })
 

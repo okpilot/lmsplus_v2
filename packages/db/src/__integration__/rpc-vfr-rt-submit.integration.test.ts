@@ -9,6 +9,10 @@
  *   - partial answers (some blanks missing) — missing scores as 0
  *   - timer-expiry guard (session's started_at backdated via service-role)
  *
+ * Legacy RPC mode whitelist (#838) covers:
+ *   - batch_submit_quiz / submit_quiz_answer / complete_quiz_session each
+ *     reject a vfr_rt_exam session with unsupported_session_mode
+ *
  * get_question_authoring_fields covers:
  *   - admin gets the four answer-key columns
  *   - student caller is rejected
@@ -432,10 +436,11 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
     }
 
     // Count answer rows before second call
-    const { data: rows1 } = await admin
+    const { data: rows1, error: rows1Err } = await admin
       .from('quiz_session_answers')
       .select('id')
       .eq('session_id', sessionId)
+    expect(rows1Err).toBeNull()
     const countBefore = (rows1 ?? []).length
 
     const { data: second, error: err2 } = await studentClient.rpc('submit_vfr_rt_exam_answers', {
@@ -457,10 +462,11 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
     expect(secondResult.passed_overall).toBe(firstResult.passed_overall)
 
     // No new rows inserted
-    const { data: rows2 } = await admin
+    const { data: rows2, error: rows2Err } = await admin
       .from('quiz_session_answers')
       .select('id')
       .eq('session_id', sessionId)
+    expect(rows2Err).toBeNull()
     expect((rows2 ?? []).length).toBe(countBefore)
   })
 
@@ -570,6 +576,56 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
     expect(evErr).toBeNull()
     const types = (events ?? []).map((e: { event_type: string }) => e.event_type)
     expect(types).toContain('vfr_rt_exam.expired')
+  })
+})
+
+// ─── Legacy RPC mode whitelist (#838) ─────────────────────────────────────────
+//
+// Migs 095b/095c/104 add a fail-closed mode whitelist to the legacy session
+// RPCs: a vfr_rt_exam session answered/completed via the MC path would bypass
+// per-part grading (mig 100). The legacy-mode happy paths live in
+// rpc-batch-submit-quiz / rpc-submit-answer / rpc-complete-session — those are
+// what make these rejections non-vacuous.
+
+describe('legacy RPC mode whitelist (#838) — vfr_rt_exam sessions are rejected', () => {
+  it('batch_submit_quiz rejects a vfr_rt_exam session with unsupported_session_mode', async () => {
+    const { sessionId, questionIds } = await startSession()
+
+    const { error } = await studentClient.rpc('batch_submit_quiz', {
+      p_session_id: sessionId,
+      p_answers: [{ question_id: questionIds[0], selected_option: 'a', response_time_ms: 1000 }],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('unsupported_session_mode')
+
+    await forceEndSession(sessionId)
+  })
+
+  it('submit_quiz_answer rejects a vfr_rt_exam session with unsupported_session_mode', async () => {
+    const { sessionId, questionIds } = await startSession()
+
+    const { error } = await studentClient.rpc('submit_quiz_answer', {
+      p_session_id: sessionId,
+      p_question_id: questionIds[0],
+      p_selected_option: 'a',
+      p_response_time_ms: 1000,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('unsupported_session_mode')
+
+    await forceEndSession(sessionId)
+  })
+
+  it('complete_quiz_session rejects a vfr_rt_exam session with unsupported_session_mode', async () => {
+    const { sessionId } = await startSession()
+
+    const { error } = await studentClient.rpc('complete_quiz_session', {
+      p_session_id: sessionId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('unsupported_session_mode')
+
+    await forceEndSession(sessionId)
   })
 })
 
