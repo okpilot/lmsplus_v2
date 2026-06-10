@@ -557,6 +557,49 @@ describe('RPC: start_vfr_rt_exam_session', () => {
     // Same frozen question set (order matters — IDs are sampled once and locked)
     expect(second.question_ids).toEqual(first.question_ids)
   })
+
+  it('allows a new session after the previous one is ended (index predicate: ended_at IS NULL)', async () => {
+    // uq_vfr_rt_exam_session_active only covers rows where ended_at IS NULL.
+    // An ended session must no longer block INSERTs — this is the contractual
+    // guarantee that lets a student take the exam more than once.
+    //
+    // At this point the describe block's happy-path test has already created
+    // and the idempotent-resume test has returned an active session. Capture
+    // it, end it via direct admin UPDATE, then assert a fresh call returns a
+    // brand-new session_id (not the ended one).
+    const { data: activeData, error: activeErr } = await studentClient.rpc(
+      'start_vfr_rt_exam_session',
+      { p_subject_id: rtSubjectId },
+    )
+    expect(activeErr).toBeNull()
+    const active = activeData as unknown as { session_id: string }
+
+    // Force-end the session (simulate exam completion at DB level).
+    const { data: closed, error: closeErr } = await admin
+      .from('quiz_sessions')
+      .update({
+        ended_at: new Date().toISOString(),
+        correct_count: 0,
+        score_percentage: 0,
+        passed: false,
+      })
+      .eq('id', active.session_id)
+      .select('id')
+    expect(closeErr).toBeNull()
+    expect(closed).toHaveLength(1)
+
+    // A new start call must now succeed and return a DIFFERENT session_id —
+    // proving the ended row no longer occupies the partial unique index slot.
+    const { data: newData, error: newErr } = await studentClient.rpc('start_vfr_rt_exam_session', {
+      p_subject_id: rtSubjectId,
+    })
+    expect(newErr).toBeNull()
+    const newSession = newData as unknown as { session_id: string; question_ids: string[] }
+    expect(typeof newSession.session_id).toBe('string')
+    expect(newSession.session_id).not.toBe(active.session_id)
+    expect(Array.isArray(newSession.question_ids)).toBe(true)
+    expect(newSession.question_ids).toHaveLength(25)
+  })
 })
 
 // ─── get_vfr_rt_exam_questions ────────────────────────────────────────────────
