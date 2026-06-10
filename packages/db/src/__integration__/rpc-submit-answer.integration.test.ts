@@ -227,4 +227,83 @@ describe('RPC: submit_quiz_answer', () => {
     expect(responsesErr).toBeNull()
     expect(responses?.length).toBeGreaterThanOrEqual(1)
   })
+
+  it('rejects an exam-mode session with unsupported_session_mode', async () => {
+    // submit_quiz_answer returns is_correct/explanation/correct_option_id
+    // immediately — accepting an exam-mode session would be a mid-exam answer
+    // oracle (whitelist narrowed in mig 095b, PR #830). Exam-mode sessions
+    // start via dedicated RPCs, so admin-insert the row directly here.
+    const { data: sessRow, error: sessErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: studentId,
+        mode: 'mock_exam',
+        subject_id: refs.subjectId,
+        config: { question_ids: [questionIds[0]] },
+        total_questions: 1,
+        started_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (sessErr) throw new Error(`exam session insert: ${sessErr.message}`)
+    const examSessionId = sessRow.id
+
+    try {
+      const { error } = await studentClient.rpc('submit_quiz_answer', {
+        p_session_id: examSessionId,
+        p_question_id: questionIds[0],
+        p_selected_option: 'b',
+        p_response_time_ms: 1000,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('unsupported_session_mode')
+    } finally {
+      // Force-end + soft-delete the admin-inserted session so it cannot leak
+      // into other tests' active-session views. Never throw in finally.
+      const { error: endErr } = await admin
+        .from('quiz_sessions')
+        .update({
+          ended_at: new Date().toISOString(),
+          deleted_at: new Date().toISOString(),
+        })
+        .eq('id', examSessionId)
+      if (endErr) {
+        console.error('[exam-session cleanup] session left active:', endErr.message)
+      }
+    }
+  })
+
+  it('rejects a soft-deleted caller', async () => {
+    // Mig 095b (PR #830) adds an explicit active-user gate right after the
+    // auth check, mirroring batch_submit_quiz (mig 095c).
+    const sessionId = await startSession()
+
+    // Soft-delete the student mid-session.
+    const { error: softDeleteErr } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', studentId)
+    if (softDeleteErr) throw new Error(`soft-delete setup: ${softDeleteErr.message}`)
+
+    try {
+      const { error } = await studentClient.rpc('submit_quiz_answer', {
+        p_session_id: sessionId,
+        p_question_id: questionIds[0],
+        p_selected_option: 'b',
+        p_response_time_ms: 1000,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('user not found or inactive')
+    } finally {
+      // Restore so later tests and afterAll cleanup see an active student.
+      const { error: restoreErr } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', studentId)
+      if (restoreErr) {
+        console.error('[soft-delete restore] student row left soft-deleted:', restoreErr.message)
+      }
+    }
+  })
 })

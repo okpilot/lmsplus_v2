@@ -194,11 +194,12 @@ describe('RPC: complete_quiz_session', () => {
     expect(error?.message).toContain('session not found or already completed')
   })
 
-  it('fails closed when the caller is soft-deleted (mig 104 audit deleted_at guard)', async () => {
-    // Mig 104 adds `deleted_at IS NULL` to the audit-event actor_role subquery
-    // (security.md rule 10). complete_quiz_session has no explicit active-user
-    // pre-check, but actor_role is NOT NULL — so a soft-deleted caller fails at
-    // the audit INSERT rather than the session lookup.
+  it('rejects a soft-deleted caller before completing the session', async () => {
+    // Mig 104 (PR #830) adds an explicit active-user gate right after the auth
+    // check, mirroring batch_submit_quiz (mig 095c) — a soft-deleted caller is
+    // rejected before any session read. The deleted_at-filtered audit
+    // actor_role subquery (security.md rule 10) remains as defense-in-depth
+    // behind the gate.
     const sessionId = await startAndAnswer({
       correctCount: 1,
       totalCount: 1,
@@ -216,14 +217,10 @@ describe('RPC: complete_quiz_session', () => {
         p_session_id: sessionId,
       })
       expect(error).not.toBeNull()
-      // Pin the mechanism: the deleted_at-filtered subquery returns NULL and
-      // the audit INSERT violates actor_role NOT NULL (23502) — if a future
-      // redefinition swaps this for an explicit pre-check gate, this assert
-      // must be updated deliberately, not silently.
-      expect(error?.message).toContain('actor_role')
+      expect(error?.message).toContain('user not found or inactive')
 
-      // Fail-closed means the whole transaction rolled back — the session
-      // must remain open, not half-completed without an audit row.
+      // Fail-closed means nothing was written — the session must remain open,
+      // not half-completed without an audit row.
       const { data: sessionRow, error: readErr } = await admin
         .from('quiz_sessions')
         .select('ended_at')

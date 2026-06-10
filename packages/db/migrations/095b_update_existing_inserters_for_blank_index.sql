@@ -13,10 +13,15 @@
 -- (supabase/migrations/20260316000040_submit_answer_track_last_was_correct.sql).
 -- The ONLY changes are the quiz_session_answers conflict target:
 --   ON CONFLICT (session_id, question_id) -> ON CONFLICT (session_id, question_id, blank_index)
--- and the legacy-mode whitelist guard (#838): the session SELECT also fetches
--- qs.mode, and non-legacy modes (vfr_rt_exam) are rejected with
--- 'unsupported_session_mode' — a vfr_rt session answered via this MC path
--- would bypass per-part grading (mig 100).
+-- the mode whitelist guard (#838; narrowed to practice modes per PR #830
+-- cloud-CR review): the session SELECT also fetches qs.mode, and only
+-- ('smart_review', 'quick_quiz') sessions are accepted — exam modes
+-- (mock_exam, internal_exam) and vfr_rt_exam are rejected with
+-- 'unsupported_session_mode' (mid-exam answer-oracle rationale at the guard
+-- in the body; a vfr_rt session would also bypass per-part grading, mig 100),
+-- and the active-user gate (PR #830 cloud-CR review): soft-deleted callers
+-- are rejected with 'user not found or inactive' right after the auth check,
+-- mirroring batch_submit_quiz (mig 095c).
 -- This function inserts only MC rows (blank_index NULL); with NULLS NOT
 -- DISTINCT semantics, (session, question, NULL) conflicts exactly as the old
 -- (session, question) did — re-submit idempotency is preserved.
@@ -64,6 +69,16 @@ BEGIN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
+  -- Active-user gate: soft-deleted callers fail closed before any session
+  -- read (mirrors batch_submit_quiz, mig 095c).
+  PERFORM 1
+  FROM users
+  WHERE id = v_student_id
+    AND deleted_at IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user not found or inactive';
+  END IF;
+
   -- Verify session belongs to this student, is still active, and not soft-deleted
   SELECT
     qs.organization_id,
@@ -81,7 +96,11 @@ BEGIN
     RAISE EXCEPTION 'session not found';
   END IF;
 
-  IF v_mode NOT IN ('smart_review', 'quick_quiz', 'mock_exam', 'internal_exam') THEN
+  -- Practice modes only: this RPC returns is_correct / explanation /
+  -- correct_option_id immediately, so accepting exam-mode sessions would be a
+  -- mid-exam answer oracle. Exam submission goes exclusively through
+  -- batch_submit_quiz; vfr_rt goes through submit_vfr_rt_exam_answers.
+  IF v_mode NOT IN ('smart_review', 'quick_quiz') THEN
     RAISE EXCEPTION 'unsupported_session_mode';
   END IF;
 

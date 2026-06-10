@@ -577,4 +577,29 @@ describe('Constraint regression — commit 13dce467 negative blank_index guard o
     // 23514 = check_violation (student_responses_answer_shape_check)
     expect(error?.code).toBe('23514')
   })
+
+  it('accepts a student_responses text-response row with blank_index = 0', async () => {
+    // Positive control for the rejection test above: the same row shape with a
+    // valid blank_index passes the CHECK, proving it admits valid shapes
+    // (non-vacuous). student_responses is append-only — never update/delete it
+    // here; the row is org-scoped and removed by the suite's org cleanup.
+    const { data, error } = await admin
+      .from('student_responses')
+      .insert({
+        organization_id: orgId,
+        student_id: studentUserId,
+        question_id: questionId,
+        session_id: null,
+        selected_option_id: null,
+        response_text: 'wilco',
+        blank_index: 0,
+        is_correct: true,
+        response_time_ms: 500,
+      })
+      .select('id, blank_index')
+      .single<{ id: string; blank_index: number }>()
+    expect(error).toBeNull()
+    expect(data).not.toBeNull()
+    expect(data?.blank_index).toBe(0)
+  })
 })

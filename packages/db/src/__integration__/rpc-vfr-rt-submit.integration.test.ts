@@ -291,7 +291,7 @@ async function startSession(): Promise<{ sessionId: string; questionIds: string[
 
 /** Force-end a session so the next startSession creates a new one. */
 async function forceEndSession(sessionId: string): Promise<void> {
-  const { error } = await admin
+  const { data, error } = await admin
     .from('quiz_sessions')
     .update({
       ended_at: new Date().toISOString(),
@@ -300,7 +300,11 @@ async function forceEndSession(sessionId: string): Promise<void> {
       passed: false,
     })
     .eq('id', sessionId)
+    .select('id')
   if (error) throw new Error(`forceEndSession: ${error.message}`)
+  // §5 zero-row observability: this helper always targets exactly one row —
+  // a silent zero-row no-op means the next startSession resumes a stale session.
+  if ((data?.length ?? 0) === 0) throw new Error('forceEndSession: no session row matched')
 }
 
 /** Build an all-correct answers payload for the given session's question list.

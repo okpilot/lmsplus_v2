@@ -1,18 +1,24 @@
--- Migration 104: complete_quiz_session — legacy-mode whitelist guard (#838).
+-- Migration 104: complete_quiz_session — legacy-mode whitelist guard + hardening (#838, PR #830).
 --
 -- Body copied VERBATIM from the latest definition
 -- (supabase/migrations/20260406000004_populate_last_active_at.sql, L21-94).
--- Two changes:
+-- Four changes:
 --   1. The session SELECT also fetches qs.mode, and non-legacy modes
 --      (vfr_rt_exam) are rejected with 'unsupported_session_mode' — a vfr_rt
 --      session ended via this MC path would bypass per-part grading (mig 100)
 --      and emit the wrong audit event. Fail-closed NOT IN whitelist so future
---      modes must opt in explicitly.
+--      modes must opt in explicitly. (#838)
 --   2. The audit-event actor_role subquery gains the deleted_at IS NULL
 --      filter required by security.md rule 10 (audit-event INSERT subqueries)
 --      — absent in the copy source, fixed here rather than replicating the
---      violation. actor_role is NOT NULL, so a soft-deleted caller fails
---      closed at the INSERT.
+--      violation. Kept as defense-in-depth behind the explicit gate (change 3).
+--   3. Active-user gate right after the auth check: soft-deleted callers are
+--      rejected with 'user not found or inactive' before any session read,
+--      mirroring batch_submit_quiz (mig 095c). (PR #830 cloud-CR review)
+--   4. FOR UPDATE on the session-ownership SELECT: locks the row so two
+--      concurrent completions cannot both pass the ended_at IS NULL filter
+--      (double-completion race) — batch_submit_quiz locks the same way.
+--      (PR #830 cloud-CR review)
 
 CREATE OR REPLACE FUNCTION complete_quiz_session(p_session_id uuid)
 RETURNS TABLE (
@@ -37,14 +43,27 @@ BEGIN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
-  -- Verify session belongs to this student, is still active, and not soft-deleted
+  -- Active-user gate: soft-deleted callers fail closed before any session
+  -- read (mirrors batch_submit_quiz, mig 095c).
+  PERFORM 1
+  FROM users
+  WHERE id = v_student_id
+    AND deleted_at IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user not found or inactive';
+  END IF;
+
+  -- Verify session belongs to this student, is still active, and not soft-deleted.
+  -- FOR UPDATE: lock the row so concurrent completions serialize and the
+  -- second caller sees ended_at set (no double-completion).
   SELECT qs.organization_id, qs.mode
   INTO v_org_id, v_mode
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
     AND qs.ended_at IS NULL
-    AND qs.deleted_at IS NULL;
+    AND qs.deleted_at IS NULL
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'session not found or already completed';

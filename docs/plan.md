@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-06-10 — **Phase A: VFR RT (Slovenia) Mock Exam COMPLETE** (commit 5f561ddf). 15 migrations (094–104), 133 integration tests, 6 new RPCs, 3 new decisions documented. Phases B–E pending. Prior: **Red-team infra refactor** (issue #796): split 3 oversized red-team spec files into 5 files (now 41 spec files total, unchanged 271 tests), extracted shared cleanup/audit helpers into reusable modules. Prior sprint: **Security & Test-Hardening Sprint** (post-#668, see section below): DB-hardening migrations 085–093, OWASP A10:2025 error-disclosure coverage, auth audit logging (`record_auth_event`), activity-stamp trigger. Two batches landed that sprint — backend (#446/#684/#471/#532/#379, PRs #782/#783/#785/#787/#790) and red-team E2E coverage (#784/#786/#788/#781, PR #795). Prior milestone: **Umbrella #668 (PostgREST 1000-row truncation) CLOSED 2026-05-31** — all 25 sites addressed (24 fixed + 1 exempt) across instances #1–#9, plus the §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
+> Last updated: 2026-06-10 — **Phase A: VFR RT (Slovenia) Mock Exam COMPLETE** (commit 5f561ddf). 15 migrations (094–104), 136 integration tests, 6 new RPCs, 3 new decisions documented. Phases B–E pending. Prior: **Red-team infra refactor** (issue #796): split 3 oversized red-team spec files into 5 files (now 41 spec files total, unchanged 271 tests), extracted shared cleanup/audit helpers into reusable modules. Prior sprint: **Security & Test-Hardening Sprint** (post-#668, see section below): DB-hardening migrations 085–093, OWASP A10:2025 error-disclosure coverage, auth audit logging (`record_auth_event`), activity-stamp trigger. Two batches landed that sprint — backend (#446/#684/#471/#532/#379, PRs #782/#783/#785/#787/#790) and red-team E2E coverage (#784/#786/#788/#781, PR #795). Prior milestone: **Umbrella #668 (PostgREST 1000-row truncation) CLOSED 2026-05-31** — all 25 sites addressed (24 fixed + 1 exempt) across instances #1–#9, plus the §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
 ---
 
 ## VFR Radiotelephony (Slovenia) Mock Exam — Phase A — 2026-06-10
@@ -13,7 +13,7 @@
 - Mig 094: questions table — `question_type` TEXT + CHECK, 4 answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config), type↔column CHECK (single source of truth), partial index on (question_type, subject_id) WHERE active, REVOKE/GRANT privilege gate on answer-key columns
 - Mig 094b: `get_question_authoring_fields()` RPC — admin-only read path for answer-key columns (bypasses column REVOKE)
 - Mig 095: quiz_session_answers + student_responses — selected_option_id nullable, response_text + blank_index columns, answer-shape CHECK, UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index) replacing old one-per-question constraint
-- Mig 095b: `submit_quiz_answer` RPC redefined — ON CONFLICT updated for new UNIQUE constraint + legacy-mode whitelist guard rejecting vfr_rt_exam sessions (#838)
+- Mig 095b: `submit_quiz_answer` RPC redefined — ON CONFLICT updated for new UNIQUE constraint + mode whitelist narrowed to practice modes ('smart_review', 'quick_quiz') (#838; exam modes rejected — mid-exam answer-oracle risk, PR #830) + active-user gate rejecting soft-deleted callers (PR #830)
 - Mig 095c: `batch_submit_quiz` RPC redefined — ON CONFLICT updated for new UNIQUE constraint + legacy-mode whitelist guard rejecting vfr_rt_exam sessions (#838)
 - Mig 096: quiz_sessions mode CHECK — 'vfr_rt_exam' added to whitelist (alongside smart_review, quick_quiz, mock_exam, internal_exam)
 - Mig 097: VFR RT seeded subject + topics (P1_ACRONYMS, P2_DIALOG, P3_MC in easa_topics, subject code 'RT' in easa_subjects)
@@ -24,14 +24,14 @@
 - Mig 101: `normalize_answer(text)` SQL helper — IMMUTABLE function; trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics (Slovenian č/š/ž); deploy-time locale guard (raises on misconfigured collation)
 - Mig 102: `complete_overdue_exam_session` + `complete_empty_exam_session` RPCs extended — mode CHECK widened to include 'vfr_rt_exam', per-part grading formulas (mig 100 logic) used for vfr_rt_exam final scoring, audit events renamed (vfr_rt_exam.expired, vfr_rt_exam.completed)
 - Mig 103: `get_vfr_rt_exam_results(p_session_id)` RPC — gated results/review read; recomputes per-part pcts + per-question answer array (student's per-blank responses + revealed answer keys per type); requires active-user gate (#838) + session owner + mode + ended_at checks
-- Mig 104: `complete_quiz_session` RPC redefined — legacy-mode whitelist guard rejecting vfr_rt_exam sessions + deleted_at filter on the audit actor_role subquery (security.md rule 10) (#838)
+- Mig 104: `complete_quiz_session` RPC redefined — legacy-mode whitelist guard rejecting vfr_rt_exam sessions + deleted_at filter on the audit actor_role subquery (security.md rule 10) (#838) + active-user gate and FOR UPDATE session lock against double-completion (PR #830)
 
 **Decisions 41–43 documented in docs/decisions.md:**
 - Decision 41: Column-level REVOKE/GRANT privilege gate for answer-key columns (mig 094; precedent: mig 20260605000001 quiz_sessions scoring columns)
 - Decision 42: UNIQUE NULLS NOT DISTINCT for per-blank answers (mig 095; PG17 feature; replaces one-row-per-question constraint)
 - Decision 43: Per-part ≥75% pass rule + immutable write-once config.question_ids exception (migs 100/102/103)
 
-**Integration tests:** 133 new SQL tests (admin-questions.spec.ts + admin-exam-configs.spec.ts expanded; new vfr-rt-exam.spec.ts suite). Fixtures: VFR RT questions (part1=short_answer, part2=dialog_fill, part3=MC with per-blank variants), exam sessions (fresh start, idempotent resume, timer expiry, per-part grading breakdown).
+**Integration tests:** 136 new SQL tests (admin-questions.spec.ts + admin-exam-configs.spec.ts expanded; new vfr-rt-exam.spec.ts suite). Fixtures: VFR RT questions (part1=short_answer, part2=dialog_fill, part3=MC with per-blank variants), exam sessions (fresh start, idempotent resume, timer expiry, per-part grading breakdown).
 
 **Docs updated:** docs/database.md (questions schema §2, quiz_session_answers + student_responses per-blank, exam_configs.parts_config, 6 new RPC detailed sections in §4), docs/decisions.md (Decisions 41–43), docs/security.md (privilege-layer §11 new subsection, immutable-write-once exception updated with new RPCs).
 
