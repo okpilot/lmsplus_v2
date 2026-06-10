@@ -381,9 +381,10 @@ describe('Constraint regression — mig 094 accepted_synonyms CHECK on multiple_
         status: 'active',
         created_by: adminUserId,
       })
-      .select('id')
-      .single()
+      .select('id, accepted_synonyms')
+      .single<{ id: string; accepted_synonyms: string[] }>()
     expect(error).toBeNull()
     expect(data).not.toBeNull()
+    expect(data?.accepted_synonyms).toEqual(['roger', 'affirmative'])
   })
 })

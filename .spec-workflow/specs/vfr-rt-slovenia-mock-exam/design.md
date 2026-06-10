@@ -115,7 +115,7 @@ flowchart TD
 - Add `dialog_template TEXT NULL` (used by `dialog_fill`; raw template with `[atc]`/`[pilot]` tags + `{{n|canonical; var1; var2}}` blanks).
 - Add `blanks_config JSONB NOT NULL DEFAULT '[]'::JSONB` (used by `dialog_fill`; ordered array of `{ index: int, canonical: text, synonyms: text[] }`).
 - **Add `DEFAULT '[]'::jsonb` to the existing `options` column** (`ALTER TABLE questions ALTER COLUMN options SET DEFAULT '[]'::jsonb`). The existing `options JSONB NOT NULL` constraint in `001_initial_schema.sql` has no default, so non-MC INSERTs would fail without this default. MC INSERTs continue to supply their own options array, unaffected.
-- Add a CHECK constraint enforcing the type↔column contract — every branch must positively state which columns ARE and ARE NOT set, so accidental population (e.g. an admin form bug saving a `canonical_answer` on a `dialog_fill` question) is rejected at the database layer:
+- Add a CHECK constraint enforcing the type↔column contract (authoritative definition: `packages/db/migrations/094_question_type_enum_and_column.sql`; the block below is reference) — every branch must positively state which columns ARE and ARE NOT set, so accidental population (e.g. an admin form bug saving a `canonical_answer` on a `dialog_fill` question) is rejected at the database layer:
   ```sql
   CHECK (
     (question_type = 'multiple_choice'
