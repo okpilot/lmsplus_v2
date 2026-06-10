@@ -9,6 +9,11 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK="$SCRIPT_DIR/run-security-auditor.sh"
 
+if [ ! -f "$HOOK" ]; then
+  echo "ERROR: Hook script not found at $HOOK" >&2
+  exit 1
+fi
+
 PASS=0
 FAIL=0
 
