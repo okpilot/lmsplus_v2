@@ -216,6 +216,11 @@ describe('RPC: complete_quiz_session', () => {
         p_session_id: sessionId,
       })
       expect(error).not.toBeNull()
+      // Pin the mechanism: the deleted_at-filtered subquery returns NULL and
+      // the audit INSERT violates actor_role NOT NULL (23502) — if a future
+      // redefinition swaps this for an explicit pre-check gate, this assert
+      // must be updated deliberately, not silently.
+      expect(error?.message).toContain('actor_role')
 
       // Fail-closed means the whole transaction rolled back — the session
       // must remain open, not half-completed without an audit row.
