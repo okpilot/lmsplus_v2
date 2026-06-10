@@ -698,6 +698,63 @@ A second finding surfaced *during* this work: **Snyk was already integrated** �
 
 **Implementation**: Docs-only in-repo (this entry + `docs/plan.md` tooling note). Two one-time repo-admin actions are documented on issue #109: **install the Socket GitHub App** and **disconnect the Snyk App**. Dependabot security-updates toggled via `PUT /repos/okpilot/lmsplus_v2/automated-security-fixes`. No code, migration, or CI-workflow change (Snyk left no repo files to remove).
 
+### Decision 41: Column-level privilege gate (REVOKE/GRANT) for answer-key columns on questions (2026-06-10)
+
+**Date**: 2026-06-10
+
+**Context**: VFR RT (Phase A) introduces three new question types alongside multiple-choice: short_answer (graded against canonical_answer + accepted_synonyms) and dialog_fill (graded against blanks_config). The four answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config) must never be exposed to students before submission — only admins during authoring and SECURITY DEFINER RPCs during grading should access them.
+
+The existing `tenant_isolation` RLS policy on questions is org-scoped, not role-scoped — a same-org student passes it. RLS cannot express column-level restrictions; Postgres privilege grants/revokes are the only enforcement mechanism.
+
+**Decision**: Apply the #611 column-GRANT pattern (precedent: mig 20260605000001 on quiz_sessions scoring columns) to the four answer-key columns on questions (mig 094):
+1. `REVOKE SELECT ON questions FROM authenticated` (blanket revocation)
+2. `GRANT SELECT (id, organization_id, bank_id, subject_id, topic_id, subtopic_id, lo_reference, question_number, question_text, question_image_url, options, explanation_text, explanation_image_url, difficulty, status, version, question_type, created_by, deleted_at, deleted_by, created_at, updated_at) ON questions TO authenticated` — all columns except the four answer-keys
+
+Consequences:
+- Any direct `.select('*')` or `.select('canonical_answer, ...')` from an authenticated client returns `42501 (permission denied for column)` before RLS fires — defense-in-depth
+- All SECURITY DEFINER RPCs and service-role scripts are unaffected (they run as postgres, which retains full grant)
+- Admin reads of answer-key columns go through the new `get_question_authoring_fields()` RPC (mig 094b, is_admin()-gated) — asymmetry by design
+
+**Rationale**: A single rule-level CHECK constraint (`questions_question_type_columns_check`, added alongside the columns, mig 094) ensures the DB layer prevents cross-contamination (e.g., a bug saving canonical_answer on a multiple_choice question). The privilege gate prevents *exposure* of that data to students before submission. Together they form a two-layer defense.
+
+**Implementation**: Mig 094 (creates the four columns + type discriminator CHECK) includes the REVOKE/GRANT block. Mig 094b defines `get_question_authoring_fields()` RPC for admin reads. No other code changes needed; all existing student question reads already use explicit column lists (verified in PR #697 A.1 audit, see design.md).
+
 ---
 
-*Last updated: 2026-06-08 — Decision 40: adopt Socket.dev (GitHub App) for supply-chain detection, remove the redundant Snyk trial, enable Dependabot security updates (#109)*
+### Decision 42: UNIQUE NULLS NOT DISTINCT for per-blank answers in quiz_session_answers + student_responses (2026-06-10)
+
+**Date**: 2026-06-10
+
+**Context**: VFR RT (Phase A) introduces dialog_fill questions, where one submission can write multiple answer rows — one per blank. The old one-row-per-question model (multiple_choice, smart_review, quick_quiz) enforces `UNIQUE (session_id, question_id)`. The new model must support *both* the old semantics (blank_index NULL for MC/short_answer) and the new multi-blank semantics (blank_index int for dialog_fill).
+
+Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT DISTINCT`, which treats `NULL = NULL` as a match (violates uniqueness) — allowing `(session_id, question_id, NULL)` to appear only once, while `(session_id, question_id, 0)` and `(session_id, question_id, 1)` can coexist.
+
+**Decision**: Drop the old `UNIQUE (session_id, question_id)` constraints and replace with `UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)` (mig 095) on both `quiz_session_answers` and `student_responses`. This preserves old one-row-per-question behavior for legacy callers (blank_index omitted → NULL → single row per question) while enabling per-blank rows for new code.
+
+**Release coupling**: Migs 095 (schema shift), 095b (update submit_quiz_answer RPC), and 095c (update batch_submit_quiz RPC) ship in the same release. The constraint change is paired with ON CONFLICT clause redefinition inside two plpgsql RPC bodies. Because ON CONFLICT inference validation is deferred to execution time (not apply time), `db reset` applies the migration cleanly but the first live submit throws `42P10 (ON CONFLICT inference target not found)` without the RPC updates. All three must ship together.
+
+**Rationale**: Preserves idempotency and the one-row-per-question guarantee for existing study modes while cleanly extending to per-blank semantics for VFR RT without schema migration churn.
+
+**Implementation**: Mig 095 drops and re-creates the unique constraints. Migs 095b and 095c redefine the two affected RPCs' ON CONFLICT clauses to reference the new constraint. No app-code changes; callers of `batch_submit_quiz` already omit blank_index (lands as NULL, conflicts on old semantics unchanged).
+
+---
+
+### Decision 43: VFR RT exam grading — per-part ≥75% pass criterion, immutable config.question_ids (2026-06-10)
+
+**Date**: 2026-06-10
+
+**Context**: VFR RT exams (Phase A) are structured as three parts (Part 1 acronyms, Part 2 dialog, Part 3 multiple-choice), each with its own question pool and passing threshold. Overall pass requires all three parts ≥75%. The fixed question set at session start is sampled from `exam_configs.parts_config` (mig 098) and frozen in `quiz_sessions.config.question_ids` (write-once, enforced by trigger mig 079).
+
+**Decision**:
+1. **Per-part ≥75% pass rule (migs 100, 102, 103)**: Each of the three parts must score ≥75% independently. The overall `passed` flag is true only if `v_p1 >= 75 AND v_p2 >= 75 AND v_p3 >= 75`. The aggregate score_percentage is `mean(p1, p2, p3)` — informational only, not used for pass/fail.
+2. **Immutable config.question_ids (security.md §15 exception)**: The question set is sampled at session start and locked in config (frozen by trigger). Grading RPCs (`submit_vfr_rt_exam_answers`, `complete_overdue_exam_session`, `get_vfr_rt_exam_results`) read questions by this frozen ID array without `deleted_at IS NULL` filters — soft-deleted questions sampled before deletion are still graded (historical-record posture, same as batch_submit_quiz's immutable-write-once exception).
+
+**Rationale**:
+- **Per-part criterion**: mirrors the EASA regulatory exam structure (three distinct competency areas, each tested). A student weak in one area can retake focused study without failing overall due to another area's unrelated gap.
+- **Immutable ID list**: avoids the race condition where a question is soft-deleted mid-exam, and its explanation becomes unavailable on the results review. The question_ids array is the immutable contract; grading must honor it.
+
+**Implementation**: Migs 100 and 101 define the grading logic. Mig 102 extends `complete_overdue_exam_session` with per-part formulas for vfr_rt_exam mode. Mig 103 defines `get_vfr_rt_exam_results()` using the same formulas. No config or trigger changes needed; existing immutability (trigger mig 079) already enforces question_ids write-once.
+
+---
+
+*Last updated: 2026-06-10 — Phase A (migs 094–103): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*

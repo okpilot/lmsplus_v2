@@ -183,21 +183,46 @@ CREATE TABLE questions (
   lo_reference    TEXT NULL,                   -- 'MET 3.2.1'
   question_text   TEXT NOT NULL,
   question_image_url TEXT NULL,
-  options         JSONB NOT NULL,              -- [{id,text,correct}] — correct stripped by RPC
+  options         JSONB NOT NULL DEFAULT '[]'::jsonb,  -- [{id,text,correct}] — correct stripped by RPC
   explanation_text TEXT NOT NULL,
   explanation_image_url TEXT NULL,
   difficulty      TEXT NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
   status          TEXT NOT NULL DEFAULT 'active'
                     CHECK (status IN ('active', 'draft')),
   version         INT NOT NULL DEFAULT 1,
+  question_type   TEXT NOT NULL DEFAULT 'multiple_choice'
+                    CHECK (question_type IN ('multiple_choice', 'short_answer', 'dialog_fill')),
+  canonical_answer TEXT NULL,                  -- short_answer grading key
+  accepted_synonyms TEXT[] NOT NULL DEFAULT '{}',  -- short_answer synonyms
+  dialog_template TEXT NULL,                   -- dialog_fill raw template with {{n|canonical; syn}} tokens
+  blanks_config   JSONB NOT NULL DEFAULT '[]'::jsonb,  -- dialog_fill: [{index, canonical, synonyms}]
   created_by      UUID NOT NULL REFERENCES users(id),
   deleted_at      TIMESTAMPTZ NULL,            -- soft delete = question retired from bank
   deleted_by      UUID REFERENCES users(id) NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT questions_question_type_columns_check CHECK (
+    (question_type = 'multiple_choice'
+       AND canonical_answer IS NULL
+       AND dialog_template IS NULL
+       AND jsonb_array_length(blanks_config) = 0)
+    OR (question_type = 'short_answer'
+       AND canonical_answer IS NOT NULL
+       AND dialog_template IS NULL
+       AND jsonb_array_length(blanks_config) = 0)
+    OR (question_type = 'dialog_fill'
+       AND canonical_answer IS NULL
+       AND dialog_template IS NOT NULL
+       AND jsonb_array_length(blanks_config) > 0)
+  )
 );
--- Note: status='archived' is replaced by deleted_at IS NOT NULL
 ```
+
+**Column-level SELECT gate (mig 094):** The four answer-key columns (`canonical_answer`, `accepted_synonyms`, `dialog_template`, `blanks_config`) are REVOKED from the `authenticated` role (students and admins). Both answer tables and all grading RPCs run as `postgres` (SECURITY DEFINER owner), which is unaffected. Admin authoring reads go through `get_question_authoring_fields()` RPC (mig 094b, is_admin()-gated). The privilege layer defense mirrors the `quiz_sessions` column-GRANT pattern (mig 20260605000001). A direct `.select('*')` or `.select('canonical_answer, ...')` from an authenticated client returns 42501 (permission denied).
+
+**Indexes:** Partial index on `(question_type, subject_id)` WHERE `deleted_at IS NULL AND status = 'active'` supports VFR RT part-based sampling (mig 094).
+
+-- Note: status='archived' is replaced by deleted_at IS NOT NULL
 
 ### courses
 ```sql
@@ -248,14 +273,15 @@ CREATE TABLE quiz_sessions (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id  UUID NOT NULL REFERENCES organizations(id),
   student_id       UUID NOT NULL REFERENCES users(id),
-  mode             TEXT NOT NULL CHECK (mode IN ('smart_review', 'quick_quiz', 'mock_exam', 'internal_exam')),
+  mode             TEXT NOT NULL CHECK (mode IN ('smart_review', 'quick_quiz', 'mock_exam', 'internal_exam', 'vfr_rt_exam')),
   -- Creation paths (enforced by the RPCs, not the table CHECK):
   --   start_quiz_session            → 'smart_review' | 'quick_quiz' (whitelist; mig 081 rejects exam modes)
   --   start_exam_session            → 'mock_exam'                   (mig 040)
   --   start_internal_exam_session   → 'internal_exam'               (mig 058)
+  --   start_vfr_rt_exam_session     → 'vfr_rt_exam'                 (mig 099)
   subject_id       UUID REFERENCES easa_subjects(id) NULL,  -- NULL for smart_review
   topic_id         UUID REFERENCES easa_topics(id) NULL,
-  config           JSONB NOT NULL DEFAULT '{}',             -- question IDs locked at start
+  config           JSONB NOT NULL DEFAULT '{}',             -- question IDs locked at start; may carry parts {p1_end,p2_end,p3_end} for vfr_rt_exam
   started_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   ended_at         TIMESTAMPTZ NULL,
   total_questions  INT NOT NULL DEFAULT 0,
@@ -280,6 +306,7 @@ CREATE TABLE exam_configs (
   total_questions   INT NOT NULL CHECK (total_questions > 0),
   time_limit_seconds INT NOT NULL CHECK (time_limit_seconds > 0),
   pass_mark         INT NOT NULL CHECK (pass_mark > 0 AND pass_mark <= 100),
+  parts_config      JSONB NOT NULL DEFAULT '{}'::jsonb,  -- VFR RT: {part1: {topic_code, count}, part2: {topic_code, count}, part3: {topic_code, count}}
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at        TIMESTAMPTZ NULL
@@ -289,6 +316,8 @@ CREATE UNIQUE INDEX uq_exam_configs_org_subject_active
   ON exam_configs (organization_id, subject_id) WHERE deleted_at IS NULL;
 -- RLS: admin full CRUD, students read-only (enabled + non-deleted only)
 ```
+
+**`parts_config` column (mig 098):** Optional per-part composition object for VFR RT exams. Structure: `{ "part1": { "topic_code": "P1_ACRONYMS", "count": 8 }, "part2": { "topic_code": "P2_DIALOG", "count": 9 }, "part3": { "topic_code": "P3_MC", "count": 8 } }`. Empty object `{}` = RPC uses hardcoded 8/9/8 defaults. Post-deploy seed step only — no auto-migration.seed (see mig 098 comments).
 
 **Reactivation-block trigger (mig 089, #755):** A `BEFORE UPDATE` trigger `trg_block_exam_config_reactivation` raises `'exam_config reactivation must go through upsert_exam_config'` when `OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL` (unconditional — no role exemption). This blocks any direct `UPDATE exam_configs SET deleted_at = NULL` outside of `upsert_exam_config`, the only sanctioned reactivation path. The trigger never fires during `upsert_exam_config` because that RPC's UPDATE branch does not write `deleted_at` at all (it touches only `enabled/total_questions/time_limit_seconds/pass_mark/updated_at`, or inserts a fresh row) — not because of any role exemption; a future reactivation RPC would need an explicit exemption added here. The data-integrity invariant (≤1 active config per org+subject) was always enforced by `uq_exam_configs_org_subject_active`; this trigger additionally enforces that reactivation flows through the RPC's controlled path. Closes security.md §11 AJ (was GAP/LOW, now ENFORCED).
 
@@ -315,13 +344,22 @@ CREATE TABLE quiz_session_answers (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id            UUID NOT NULL REFERENCES quiz_sessions(id),
   question_id           UUID NOT NULL REFERENCES questions(id),
-  selected_option_id    TEXT NOT NULL CHECK (selected_option_id IN ('a','b','c','d')),
+  selected_option_id    TEXT NULL CHECK (selected_option_id IS NULL OR selected_option_id IN ('a','b','c','d')),  -- multiple_choice only
+  response_text         TEXT NULL,                                    -- short_answer or dialog_fill
+  blank_index           INT NULL,                                     -- dialog_fill only
   is_correct            BOOLEAN NOT NULL,
   response_time_ms      INT NOT NULL,
   answered_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (session_id, question_id)  -- one answer per question per session, enforced at DB level
+  CONSTRAINT quiz_session_answers_answer_shape_check CHECK (
+    (selected_option_id IS NOT NULL AND response_text IS NULL AND blank_index IS NULL)
+    OR (selected_option_id IS NULL AND response_text IS NOT NULL)
+  ),
+  CONSTRAINT quiz_session_answers_session_question_blank_uniq
+    UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)
 );
 ```
+
+**Answer shape discriminator (mig 095):** Exactly one of `(selected_option_id, response_text)` must be set per row. `blank_index` is non-null only for `dialog_fill` (multiple rows per question). `UNIQUE NULLS NOT DISTINCT` allows multiple rows per `(session_id, question_id)` when `blank_index` differs (blank_index NULL for MC/short_answer, int for dialog_fill). Supports both old one-row-per-question and new per-blank-per-question semantics.
 
 ### student_responses
 ```sql
@@ -332,13 +370,23 @@ CREATE TABLE student_responses (
   student_id         UUID NOT NULL REFERENCES users(id),
   question_id        UUID NOT NULL REFERENCES questions(id),
   session_id         UUID REFERENCES quiz_sessions(id) NULL,
-  selected_option_id TEXT NOT NULL CHECK (selected_option_id IN ('a','b','c','d')),
+  selected_option_id TEXT NULL CHECK (selected_option_id IS NULL OR selected_option_id IN ('a','b','c','d')),
+  response_text      TEXT NULL,                                    -- short_answer or dialog_fill
+  blank_index        INT NULL,                                     -- dialog_fill only
   is_correct         BOOLEAN NOT NULL,
   response_time_ms   INT NOT NULL,
-  created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT student_responses_answer_shape_check CHECK (
+    (selected_option_id IS NOT NULL AND response_text IS NULL AND blank_index IS NULL)
+    OR (selected_option_id IS NULL AND response_text IS NOT NULL)
+  ),
+  CONSTRAINT student_responses_session_question_blank_uniq
+    UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)
   -- No updated_at: this record is immutable by design
 );
 ```
+
+**Answer shape discriminator (mig 095):** Mirrors `quiz_session_answers` constraint. Legacy callers omit `blank_index` (lands as NULL); rows conflict on the old `(session_id, question_id)` constraint semantics unchanged. New dialog_fill paths supply per-blank rows.
 
 ### fsrs_cards
 ```sql
@@ -649,13 +697,19 @@ verb_noun pattern:
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500)
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; maps unique_violation to friendly domain error (mig 088, #754); returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
-  complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent; last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
-  complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam OR internal_exam session, score from buffered answers, audit exam.expired / internal_exam.expired (idempotent; widened in mig 063 / 20260429000008; last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
+  complete_overdue_exam_session ← write, atomic: close past-deadline mock_exam OR internal_exam OR vfr_rt_exam session, score from buffered answers, audit exam.expired / internal_exam.expired / vfr_rt_exam.expired (idempotent; widened in mig 063 / 20260429000008, extended for vfr_rt_exam in mig 102; last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
+  complete_empty_exam_session ← write, atomic: 0-answer exam expiry → 0%/FAIL + audit (idempotent; widened for vfr_rt_exam in mig 102; last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
   issue_internal_exam_code   ← write, admin-only: generate 8-char single-use code, 24h validity, 5-retry collision handling, audit internal_exam.code_issued
   start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard
   void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
   list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004)
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
+  start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099)
+  get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for mixed-type VFR RT exams; strips canonicals/synonyms/dialog_template details, shuffles MC options (mig 099b)
+  submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank, compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session
+  get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + grading breakdown per part (mig 103); gated to owner + ended session only
+  get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b)
+  normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics); used by submit_vfr_rt_exam_answers + complete_overdue_exam_session for vfr_rt_exam grading (mig 101)
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz; last_active_at now stamped by trigger on all completion paths, mig 092)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
@@ -2287,6 +2341,164 @@ Returns a single aggregate row with the caller's completed-session count and ave
 
 **Rationale:** Replaces a client-side count/average over an unpaginated `quiz_sessions` read that silently truncated at the PostgREST 1000-row cap, skewing `totalSessions` and `averageScore` for high-volume students (#668 P2, profile.ts).
 
+#### `start_vfr_rt_exam_session` — VFR RT mock exam start
+
+Student-facing RPC (migration 099). Creates a timed (30-minute) `vfr_rt_exam` session with a frozen, per-question-type sampled question set: Part 1 (short_answer), Part 2 (dialog_fill), Part 3 (multiple_choice).
+
+**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check (`auth.uid()` guard, user lookup with `deleted_at IS NULL`), org-scoped exam config read, soft-delete filters on all questions, soft-delete filter on old session (mig 102 auto-complete). Idempotent resume on in-flight non-overdue session (returns frozen config unchanged, no INSERT).
+
+**Parameters:**
+- `p_subject_id UUID` — the target subject (RT)
+
+**Returns:** `jsonb` with keys:
+- `session_id UUID` — the created/resumed session
+- `question_ids UUID[]` — flat array in Part-1, Part-2, Part-3 order
+- `time_limit_seconds INT` — always 1800 (30 minutes)
+- `parts JSONB` — `{p1_end, p2_end, p3_end}` boundaries for slicing the question_ids array
+- `started_at TIMESTAMPTZ` — session creation timestamp
+
+**Exam config lookup:** Reads `exam_configs.parts_config` to determine per-part counts (defaults 8/9/8 over topic codes P1_ACRONYMS/P2_DIALOG/P3_MC if parts_config is empty). Per-part question sampling is random, ordered by `question_id` to avoid trivial repetition.
+
+**Error codes:**
+- `exam_config_required` — no enabled exam config for this org+subject
+- `insufficient_questions_for_vfr_rt_exam` — shortfall on any part; DETAIL returns `{p1_have, p2_have, p3_have}`
+
+**Audit:** `vfr_rt_exam.started` event logged with subject_id, total_questions, and parts breakdown.
+
+**Idempotency:** Resume guards against duplicate active sessions — if the student has an in-flight (not overdue) vfr_rt_exam session, it is returned as-is instead of creating a new one.
+
+#### `get_vfr_rt_exam_questions` — type-aware, answer-key-stripped VFR RT question reads
+
+Student-facing RPC (migration 099b, sibling of `get_quiz_questions`). Returns mixed-type questions (multiple_choice, short_answer, dialog_fill) with all grading keys stripped.
+
+**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, active-user gate. Questions are read by frozen `quiz_sessions.config.question_ids` (immutable write-once, see security.md §15 exception); soft-deleted questions are intentionally included (historical-record posture for in-flight exams).
+
+**Parameters:**
+- `p_question_ids UUID[]` — array of question IDs (from session config)
+
+**Returns:** `TABLE` with columns:
+- `id UUID`, `question_type TEXT`, `question_text TEXT`, `question_image_url TEXT`
+- `subject_code TEXT`, `topic_code TEXT`, `difficulty TEXT`, `question_number TEXT`
+- `explanation_text TEXT`, `explanation_image_url TEXT`
+- `options JSONB` — multiple_choice only: `[{id, text}]`, shuffled; `NULL` for other types
+- `dialog_template TEXT` — dialog_fill only: raw template with `{{n}}` markers (canonicals/synonyms stripped); `NULL` for other types
+- `blanks_safe JSONB` — dialog_fill only: `[{index}]` (positions only, no canonicals/synonyms); `NULL` for other types
+
+**Answer-key stripping guarantees (security.md rule 1):**
+- Multiple_choice: `correct` flag removed from options, shuffled
+- Short_answer: canonical_answer and accepted_synonyms never selected
+- Dialog_fill: dialog_template rewritten from `{{n|canonical; syn...}}` to `{{n}}`, blanks_safe drops synonyms
+
+**Index:** Shuffled MC options via `ORDER BY random()`.
+
+#### `submit_vfr_rt_exam_answers` — atomic VFR RT answers submission + grading
+
+Student-facing RPC (migration 100). Submits an array of typed answers (one per blank), normalizes + grades per-blank, computes per-part percentages, scores overall ≥75% pass rule per part, logs audit event.
+
+**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, student_id ownership scope (explicit `student_id = auth.uid()`, mandatory per security.md §3), session soft-delete filter, ended_at guard (idempotent replay).
+
+**Parameters:**
+- `p_session_id UUID` — the target vfr_rt_exam session
+- `p_answers JSONB` — array of answer objects; each object has `{question_id UUID, selected_option_id text?, response_text text?, blank_index int?, response_time_ms int?}`. One entry per (question_id, blank_index) — blank_index NULL for MC/short_answer, int for dialog_fill. response_time_ms optional (default 0).
+
+**Returns:** `jsonb` with keys:
+- `session_id UUID`
+- `part1_pct NUMERIC(5,2)`, `part2_pct NUMERIC(5,2)`, `part3_pct NUMERIC(5,2)` — per-part percentages (0–100)
+- `passed_overall BOOLEAN` — `v_p1 >= 75 AND v_p2 >= 75 AND v_p3 >= 75`
+- `correct_count INT` — count of correct answer rows (per-blank; dialog_fill may have multiple per question)
+- `total_questions INT` — session's total_questions (8+9+8 = 25 default)
+- `expired BOOLEAN` — present only if session expired past grace period; returns zeroed result if true
+
+**Grading (per-part formulas):**
+- Part 1 (short_answer): correct count / 8 (default) * 100
+- Part 2 (dialog_fill): mean of (correct blanks / total blanks) per question * 100
+- Part 3 (multiple_choice): correct count / 8 (default) * 100
+- Unanswered questions contribute 0
+
+**Answer normalization:** `normalize_answer(text)` helper (mig 101) — trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics (Slovenian č/š/ž). Matching: canonical_answer or any accepted_synonym.
+
+**Timer expiry guard (design.md § Migration 100):** Submit past `started_at + time_limit_seconds + 30s` grace → expires the session (zeroed result, `expired: true`), logged as `vfr_rt_exam.expired`.
+
+**Idempotency:** On replay (session already ended), returns previously-computed result; no writes.
+
+**Error codes:**
+- `session_not_found_or_not_accessible` — owner/mode/deleted check
+- `invalid_answers_payload` — payload is null, not array, or empty
+- `duplicate_answer_entry` — (question_id, blank_index) pair appears twice
+- `invalid_question_id_for_session` — question not in session's frozen question_ids
+- `answer_type_mismatch` — answer entry has wrong field set for question type
+- `invalid_option_for_question` — selected_option_id not in options array
+- `invalid_blank_index` — blank_index not in blanks_config array
+- `question_missing_correct_option` — MC question has no correct option (data error)
+
+**Audit:** `vfr_rt_exam.completed` event on fresh submit (part pcts, passed_overall, total_questions). `vfr_rt_exam.expired` event on timer expiry.
+
+#### `get_vfr_rt_exam_results` — gated results/review read path for VFR RT exams
+
+Student-facing RPC (migration 103). Fetches completion-time answer key + per-question grading breakdown. Requires session to be ended.
+
+**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, explicit `student_id = auth.uid() AND mode = 'vfr_rt_exam' AND ended_at IS NOT NULL` scope (multiple permissive policies on quiz_sessions, security.md §3).
+
+**Parameters:**
+- `p_session_id UUID` — the target session
+
+**Returns:** `jsonb` with keys:
+- `part1_pct NUMERIC`, `part2_pct NUMERIC`, `part3_pct NUMERIC` — per-part percentages (recomputed from quiz_session_answers)
+- `passed_overall BOOLEAN` — `v_p1 >= 75 AND v_p2 >= 75 AND v_p3 >= 75`
+- `passed_per_part JSONB` — `{part1, part2, part3}` boolean flags
+- `correct_count INT` — total correct answer rows
+- `total_questions INT` — session's total_questions
+- `questions JSONB` — array of question review objects (one per session question, in config.question_ids order); each object has:
+  - `question_id UUID`, `question_type TEXT`, `question_text TEXT`
+  - `answers JSONB` — array of the student's answers `[{blank_index?, selected_option_id?, response_text?, is_correct}]`
+  - `key JSONB` — the revealed answer key per type:
+    - Multiple_choice: `{correct_option_id}`
+    - Short_answer: `{canonical_answer, accepted_synonyms}`
+    - Dialog_fill: `{blanks: [{index, canonical, synonyms}]}`
+
+**Per-part recomputation:** Same formulas as `submit_vfr_rt_exam_answers`. Single source of truth for both fresh grading and idempotent replay.
+
+**Error code:**
+- `Session not found, not owned, or not completed` — ownership/mode/ended check
+
+#### `get_question_authoring_fields` — gated answer-key column reads for admin authoring
+
+Admin-only RPC (migration 094b). Fetches the four answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config) that are REVOKED from authenticated at the privilege layer (mig 094). Allows admin authoring UI to load question details without requiring a service-role client.
+
+**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check (`auth.uid()`), `is_admin()` gate.
+
+**Parameters:**
+- `p_question_id UUID` — the target question
+
+**Returns:** `jsonb` with keys:
+- `id UUID`
+- `question_type TEXT`
+- `canonical_answer TEXT` — may be NULL for non-short_answer types
+- `accepted_synonyms TEXT[]`
+- `dialog_template TEXT` — may be NULL for non-dialog_fill types
+- `blanks_config JSONB`
+
+**Error code:**
+- `question_not_found` — question doesn't exist
+
+#### `normalize_answer` — IMMUTABLE SQL helper for answer grading
+
+Helper RPC (migration 101). Normalizes free-text exam answers for grading comparison. Pure function (IMMUTABLE, PARALLEL SAFE).
+
+**Logic (mirrors `apps/web/lib/grading/normalize-answer.ts` exactly):**
+1. Trim leading/trailing whitespace
+2. Lowercase (preserves diacritics under UTF-8 non-Turkish locales)
+3. Collapse hyphen/underscore runs to single space
+4. Strip punctuation `.`,`;`,`:`,`!`,`?`,`"`,`'`,`(`,`)`,`[`,`]`
+5. Collapse whitespace runs to single space
+
+**Deploy-time locale guard (mig 101):** The migration includes a DO-block that raises an exception if `lower('Č') <> 'č'` — catches misconfigured locales (e.g. tr_TR, C/POSIX) that fold Slovenian diacritics before the function is created, preventing silent answer miscount at runtime.
+
+**Parameters:**
+- `text` — the answer to normalize
+
+**Returns:** `text` — the normalized answer (empty string if all punctuation)
+
 ---
 
 ## 4b. Triggers & Defensive Constraints
@@ -2384,4 +2596,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-06 (migration 093: record_auth_event RPC for auth Server Action audit events; 4 new event types — #379) | Previous: 2026-06-06 (migration 092: trg_stamp_last_active_on_session_complete trigger on quiz_sessions.ended_at NULL→NOT NULL transition, centralizes activity stamp across all student-completion paths, fixes #532; migration 091: get_session_reports drops unused answered_count correlated subquery — #471; migrations 085–090) | Companion: docs/security.md*
+*Last updated: 2026-06-10 (Phase A migrations 094–103: VFR RT schema + 6 new RPCs; questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Previous: 2026-06-06 (migration 093: record_auth_event RPC; migration 092–085) | Companion: docs/security.md*

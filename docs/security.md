@@ -604,6 +604,31 @@ These two **LOW-severity** vectors from the exam-mode red-team review (issue #51
 
 `public.is_admin()` was missing `AND deleted_at IS NULL` on the `users` lookup. A soft-deleted admin previously satisfied `is_admin()` for every admin RLS policy and admin-gated RPC. Migration `20260429000001` adds the filter. _Pattern hit count = 1 for `is_admin()` specifically; not promoted to a new rule yet — flag and watch for a second occurrence in any other admin-gated function._
 
+### Privilege-Layer Column REVOKE/GRANT (Defense-in-Depth)
+
+**Rule:** Answer-key columns on questions are critical — they must never be exposed to students. RLS cannot restrict columns, only rows. Apply Postgres privilege layer as a second defense:
+
+```sql
+-- Questions table answer-key columns (mig 094):
+-- canonical_answer, accepted_synonyms, dialog_template, blanks_config
+-- These are readable by SECURITY DEFINER RPCs (postgres owner) and service role (admin scripts).
+-- For authenticated role (students + admins): REVOKE SELECT on these columns.
+
+REVOKE SELECT ON questions FROM authenticated;
+GRANT SELECT (
+  id, organization_id, bank_id, subject_id, topic_id, subtopic_id,
+  lo_reference, question_number, question_text, question_image_url,
+  options, explanation_text, explanation_image_url,
+  difficulty, status, version, question_type,
+  created_by, deleted_at, deleted_by, created_at, updated_at
+) ON questions TO authenticated;
+-- canonical_answer, accepted_synonyms, dialog_template, blanks_config are omitted.
+```
+
+**Consequence:** A direct `.select('canonical_answer')` or `.select('*')` from an authenticated client returns `42501 (permission denied for column)` before RLS evaluation. Admins read answer-key columns through the `get_question_authoring_fields()` RPC (mig 094b, is_admin()-gated).
+
+**Precedent:** Mig 20260605000001 applied the same pattern to `quiz_sessions` scoring columns (`ended_at`, `correct_count`, `score_percentage`, `passed`) — students cannot UPDATE them directly, only SECURITY DEFINER RPCs can write scores. The `questions` column REVOKE/GRANT extends this pattern from write-protection to read-protection.
+
 ---
 
 ## 12. GDPR & Data Privacy
@@ -681,7 +706,7 @@ All database design rules (soft delete, immutability, idempotency, RPC conventio
 - No hard `DELETE` anywhere in application code — always `UPDATE SET deleted_at = now()`
 - Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) have RLS policies blocking UPDATE and DELETE
 - `SECURITY DEFINER` RPCs must always include a manual `auth.uid()` check + `SET search_path = public`
-- **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query. **Narrow exception:** SELECTs that retrieve records by IDs stored in an immutable, write-once column may omit the filter, because the accessible ID set is bounded by the immutable prior write rather than by the deleted-at predicate. The only current example is `batch_submit_quiz` reading `questions` via `quiz_sessions.config.question_ids`, written once at session start and never mutated. Historical scoring then needs access to records that may have been soft-deleted after that write. Any new instance of this exception must (a) cite the immutable, write-once column it relies on, (b) include an inline comment at the call site, and (c) cross-reference `docs/database.md` §3 "Scoring Soft-Deleted Questions". The `config.question_ids` write-once guarantee is enforced by trigger `trg_quiz_sessions_immutable_columns` (migration 079) — see `docs/database.md` §1 column-level immutability table.
+- **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query. **Narrow exception:** SELECTs that retrieve records by IDs stored in an immutable, write-once column may omit the filter, because the accessible ID set is bounded by the immutable prior write rather than by the deleted-at predicate. Current examples: (a) `batch_submit_quiz`, `submit_vfr_rt_exam_answers` reading `questions` via `quiz_sessions.config.question_ids` (written once at session start); (b) `get_vfr_rt_exam_questions`, `get_vfr_rt_exam_results` reading `questions` via the same frozen `config.question_ids`. Historical scoring and review then need access to records that may have been soft-deleted after the session was sampled. Any new instance of this exception must (a) cite the immutable, write-once column it relies on, (b) include an inline comment at the call site, and (c) cross-reference `docs/database.md` §3 "Scoring Soft-Deleted Questions". The `config.question_ids` write-once guarantee is enforced by trigger `trg_quiz_sessions_immutable_columns` (migration 079) — see `docs/database.md` §1 column-level immutability table.
 - All multi-table mutations go through RPCs for atomicity — never multi-step application calls
 
 ## 16. What Supabase Handles For Us

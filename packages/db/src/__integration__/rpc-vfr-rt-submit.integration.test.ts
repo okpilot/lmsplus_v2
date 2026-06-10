@@ -499,8 +499,7 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
       passed_overall: boolean
     }
     // Part 1 has 8 questions; only 1 answered correctly → pct = 100/8 = 12.5
-    expect(Number(result.part1_pct)).toBeGreaterThan(0)
-    expect(Number(result.part1_pct)).toBeLessThan(50)
+    expect(Number(result.part1_pct)).toBe(12.5)
     // Part 2 and Part 3 have zero answers → 0
     expect(Number(result.part2_pct)).toBe(0)
     expect(Number(result.part3_pct)).toBe(0)
