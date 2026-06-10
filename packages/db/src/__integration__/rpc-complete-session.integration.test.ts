@@ -8,6 +8,7 @@ describe('RPC: complete_quiz_session', () => {
   const admin = getAdminClient()
   let orgId: string
   let adminUserId: string
+  let studentId: string
   let studentClient: SupabaseClient
   let questionIds: string[]
   let refs: Awaited<ReturnType<typeof seedReferenceData>>
@@ -30,7 +31,7 @@ describe('RPC: complete_quiz_session', () => {
     })
     userIds.push(adminUserId)
 
-    const studentId = await createTestUser({
+    studentId = await createTestUser({
       admin,
       orgId,
       email: `student-complete-${suffix}@test.local`,
@@ -191,5 +192,58 @@ describe('RPC: complete_quiz_session', () => {
     })
     expect(error).not.toBeNull()
     expect(error?.message).toContain('session not found or already completed')
+  })
+
+  it('fails closed when the caller is soft-deleted (mig 104 audit deleted_at guard)', async () => {
+    // Mig 104 adds `deleted_at IS NULL` to the audit-event actor_role subquery
+    // (security.md rule 10). complete_quiz_session has no explicit active-user
+    // pre-check, but actor_role is NOT NULL — so a soft-deleted caller fails at
+    // the audit INSERT rather than the session lookup.
+    const sessionId = await startAndAnswer({
+      correctCount: 1,
+      totalCount: 1,
+    })
+
+    // Soft-delete the student mid-session.
+    const { error: softDeleteErr } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', studentId)
+    if (softDeleteErr) throw new Error(`soft-delete setup: ${softDeleteErr.message}`)
+
+    try {
+      const { error } = await studentClient.rpc('complete_quiz_session', {
+        p_session_id: sessionId,
+      })
+      expect(error).not.toBeNull()
+
+      // Fail-closed means the whole transaction rolled back — the session
+      // must remain open, not half-completed without an audit row.
+      const { data: sessionRow, error: readErr } = await admin
+        .from('quiz_sessions')
+        .select('ended_at')
+        .eq('id', sessionId)
+        .single()
+      expect(readErr).toBeNull()
+      expect(sessionRow?.ended_at).toBeNull()
+    } finally {
+      // Restore so afterAll cleanup can delete the row cleanly.
+      const { error: restoreErr } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', studentId)
+      if (restoreErr) {
+        console.error('[soft-delete restore] student row left soft-deleted:', restoreErr.message)
+      }
+
+      // Force-end the session so it does not block afterAll cleanup.
+      const { error: endErr } = await admin
+        .from('quiz_sessions')
+        .update({ ended_at: new Date().toISOString() })
+        .eq('id', sessionId)
+      if (endErr) {
+        console.error('[force-end] session left active:', endErr.message)
+      }
+    }
   })
 })
