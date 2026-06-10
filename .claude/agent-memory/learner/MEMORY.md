@@ -64,6 +64,8 @@ All count=1 WATCHING rows live in `topics/tracker-archive.md` only (moved 2026-0
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
 | Doc migration-range footer literal stale across multiple doc surfaces | 1 | 2026-06-10 | WATCHING — #838 cycle: database.md footer 094–103→094–104 (round 1), decisions.md same drift (round 2). Two doc surfaces, one PR = 1 occurrence. On 2nd (different PR): propose doc-updater note to grep migration-range footer literals when adding a migration. … [full → topics/tracker-archive.md] |
+| Mode/role whitelist evaluated mechanically without checking admitted values vs. output sensitivity | 1 | 2026-06-10 | WATCHING — fce9a871: internal agents verified whitelist rejects vfr_rt (correct) but not whether admitted exam modes are compatible with is_correct/correct_option_id output. Cloud CR caught the answer-oracle gap. On 2nd: propose semantic-reviewer note — check each admitted value against RPC output sensitivity. … [full → topics/tracker-archive.md] |
+| Mechanism-pin suggestion applied then reversed next cycle (premature pin churn) | 1 | 2026-06-10 | WATCHING — fce9a871: actor_role assertion pinned at CR suggestion, reverted one cycle later when explicit gate landed. Single occurrence; no prevention signal visible at pin time. On 2nd: look for mechanism change pending in same session. … [full → topics/tracker-archive.md] |
 
 ## Durable knowledge (cross-agent)
 
