@@ -2,7 +2,7 @@
 
 > This is the master plan. Start every new session by reading this file.
 > User writes zero code. Claude plans, builds, tests, reviews, documents.
-> Last updated: 2026-06-10 — **Phase A: VFR RT (Slovenia) Mock Exam COMPLETE** (commit 5f561ddf). 14 migrations (094–103), 115 integration tests, 6 new RPCs, 3 new decisions documented. Phases B–E pending. Prior: **Red-team infra refactor** (issue #796): split 3 oversized red-team spec files into 5 files (now 41 spec files total, unchanged 271 tests), extracted shared cleanup/audit helpers into reusable modules. Prior sprint: **Security & Test-Hardening Sprint** (post-#668, see section below): DB-hardening migrations 085–093, OWASP A10:2025 error-disclosure coverage, auth audit logging (`record_auth_event`), activity-stamp trigger. Two batches landed that sprint — backend (#446/#684/#471/#532/#379, PRs #782/#783/#785/#787/#790) and red-team E2E coverage (#784/#786/#788/#781, PR #795). Prior milestone: **Umbrella #668 (PostgREST 1000-row truncation) CLOSED 2026-05-31** — all 25 sites addressed (24 fixed + 1 exempt) across instances #1–#9, plus the §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
+> Last updated: 2026-06-10 — **Phase A: VFR RT (Slovenia) Mock Exam COMPLETE** (commit 5f561ddf). 14 migrations (094–103), 118 integration tests, 6 new RPCs, 3 new decisions documented. Phases B–E pending. Prior: **Red-team infra refactor** (issue #796): split 3 oversized red-team spec files into 5 files (now 41 spec files total, unchanged 271 tests), extracted shared cleanup/audit helpers into reusable modules. Prior sprint: **Security & Test-Hardening Sprint** (post-#668, see section below): DB-hardening migrations 085–093, OWASP A10:2025 error-disclosure coverage, auth audit logging (`record_auth_event`), activity-stamp trigger. Two batches landed that sprint — backend (#446/#684/#471/#532/#379, PRs #782/#783/#785/#787/#790) and red-team E2E coverage (#784/#786/#788/#781, PR #795). Prior milestone: **Umbrella #668 (PostgREST 1000-row truncation) CLOSED 2026-05-31** — all 25 sites addressed (24 fixed + 1 exempt) across instances #1–#9, plus the §5 cast-guard sweep (#677, PR #707) and red-team E2E coverage (#673, PR #709).
 ---
 
 ## VFR Radiotelephony (Slovenia) Mock Exam — Phase A — 2026-06-10
@@ -30,7 +30,7 @@
 - Decision 42: UNIQUE NULLS NOT DISTINCT for per-blank answers (mig 095; PG17 feature; replaces one-row-per-question constraint)
 - Decision 43: Per-part ≥75% pass rule + immutable write-once config.question_ids exception (migs 100/102/103)
 
-**Integration tests:** 115 new SQL tests (admin-questions.spec.ts + admin-exam-configs.spec.ts expanded; new vfr-rt-exam.spec.ts suite). Fixtures: VFR RT questions (part1=short_answer, part2=dialog_fill, part3=MC with per-blank variants), exam sessions (fresh start, idempotent resume, timer expiry, per-part grading breakdown).
+**Integration tests:** 118 new SQL tests (admin-questions.spec.ts + admin-exam-configs.spec.ts expanded; new vfr-rt-exam.spec.ts suite). Fixtures: VFR RT questions (part1=short_answer, part2=dialog_fill, part3=MC with per-blank variants), exam sessions (fresh start, idempotent resume, timer expiry, per-part grading breakdown).
 
 **Docs updated:** docs/database.md (questions schema §2, quiz_session_answers + student_responses per-blank, exam_configs.parts_config, 6 new RPC detailed sections in §4), docs/decisions.md (Decisions 41–43), docs/security.md (privilege-layer §11 new subsection, immutable-write-once exception updated with new RPCs).
 
