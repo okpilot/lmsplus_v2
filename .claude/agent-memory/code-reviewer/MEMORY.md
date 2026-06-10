@@ -21,6 +21,8 @@
 
 > Count increments only on a **distinct** mechanism. Rows transition state, never deleted.
 > Four "watching" count=1 rows have not recurred — that non-recurrence is itself a positive signal.
+> Commit 3260e2d9 (2026-06-10): docs-only spec update — no code pattern violations. All migration timestamps verified against actual files.
+> Commit 5f561ddf (2026-06-10): VFR RT Phase A — 14 migrations + 4 integration tests. Clean. Three SECURITY DEFINER migrations at 299-300L (095c=300, 100=299, 102=299) — within cap or at exact limit, exception confirmed. Integration test files at 223/598/673/769L — all within 500L test-file ceiling. No pattern violations.
 
 ## Durable knowledge
 
