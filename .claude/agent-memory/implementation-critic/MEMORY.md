@@ -109,6 +109,13 @@
 - **CT user.deactivated: soft-delete target without `.is('deleted_at', null)` guard is acceptable.** The update at `audit-completeness.spec.ts:678` uses `.eq('id', victimUserId)` without `.is('deleted_at', null)`. If the victim was already soft-deleted from a cross-spec leak, the update succeeds idempotently and `softDeletedUserIds` still restores it. The test checks `!deleted?.length` as an existence guard. This pattern is acceptable — the service-role client doesn't enforce the soft-delete guard, and the afterEach restore uses `.not('deleted_at', 'is', null)` correctly.
 - **RAISE-string casing verified for all 4 RPCs.** `record_auth_event` → `'not authenticated'` (lower); `get_session_reports` → `'Not authenticated'` (capital N); `void_internal_exam_code` → `'not_authenticated'` (snake). All anon assertions in new specs use `/not[ _]authenticated/i` or `/not authenticated/i` (case-insensitive) — safe against all three forms.
 
+## Notes on #832 verdict parser fix (run-security-auditor.sh)
+
+- **`set -euo pipefail` + non-zero function return in `if` condition is safe.** A bash function returning non-zero inside `if parse_verdict "$VAR"; then` does NOT trigger `set -e` — bash exempts the condition of `if`/`while`/`until`. Both call sites in run-security-auditor.sh are in `if` positions. Do not flag this pattern as a `set -e` hazard.
+- **`${1:-}` guard is the correct `set -u` idiom for optional first argument.** Prevents unbound-variable abort when the hook is called with no args (lefthook path). Confirmed safe under `set -u` by live invocation.
+- **Bash test scripts should use `set -u` only, NOT `set -e`.** The `|| actual=$?` exit-code capture pattern works correctly only when `set -e` is not active. If `set -e` were active, the `||` would still suppress the abort, but `set -u` only is the right posture for test scripts that intentionally invoke commands expected to fail.
+- **Test false-pass risk via wrong path: exit 127 (file-not-found) ≠ expected exit 1 or 0 → FAIL.** If `$HOOK` pointed to a nonexistent file, `bash "$HOOK"` exits 127. Because all expected values are 0 or 1, every case would report FAIL — the test cannot silently pass on a bad hook path.
+
 ## Notes on #326 attack-surface matrix registration (orphaned specs bookkeeping)
 
 - **Bookkeeping-only diff is comment/title changes only — no assertion/logic changes.** The 3 spec files had ONLY `+` lines touching `/** ... */` doc comments, `test.describe(...)` titles, and `test(...)` titles. Zero assertion or logic changes confirmed by reading every `+` line in the diff.
