@@ -210,7 +210,7 @@ flowchart TD
 - Add `parts_config JSONB NOT NULL DEFAULT '{}'::JSONB` to `exam_configs`.
 - Document the shape via `COMMENT ON COLUMN exam_configs.parts_config IS '...'`: `{ part1: { topic_code: text, count: int }, part2: { topic_code: text, count: int }, part3: { topic_code: text, count: int } }`.
 - Existing rows have empty `{}`; they continue to work with the existing `mock_exam` flow which doesn't read `parts_config`.
-- **The migration does NOT seed any `exam_configs` row.** Per-org `exam_configs` rows are tenant-scoped (organization_id is part of the UNIQUE key) — the migration runs once at the database level and can't pick the right org-specific UUIDs without conditional logic that's brittle across environments. Instead, seeding the VFR RT exam config for a given org is a **post-deploy ops step**: a small TypeScript script (or one-off SQL run via the Supabase SQL editor) executed once per org that needs VFR RT enabled. Document the seed SQL inline in the migration as a `-- POST-DEPLOY SEED EXAMPLE (do not auto-run):` comment block so ops can copy-paste. The RPC in mig 099 has hardcoded 8/9/8 defaults that work even when no row is inserted, so the migration is functionally complete without the seed — the seed is only required when an org wants to override the defaults.
+- **The migration does NOT seed any `exam_configs` row.** Per-org `exam_configs` rows are tenant-scoped (organization_id is part of the UNIQUE key) — the migration runs once at the database level and can't pick the right org-specific UUIDs without conditional logic that's brittle across environments. Instead, seeding the VFR RT exam config for a given org is a **post-deploy ops step**: a small TypeScript script (or one-off SQL run via the Supabase SQL editor) executed once per org that needs VFR RT enabled. Document the seed SQL inline in the migration as a `-- POST-DEPLOY SEED EXAMPLE (do not auto-run):` comment block so ops can copy-paste. The RPC in mig 099 REQUIRES an enabled `exam_configs` row (it raises `exam_config_required` otherwise — see mig 099 step 3); its hardcoded 8/9/8 defaults cover an empty or partial `parts_config` on that row. The post-deploy seed is therefore what enables the feature for an org; a non-empty `parts_config` is only needed to override the defaults. (CORRECTED 2026-06-10: an earlier revision said the defaults "work even when no row is inserted", conflating row-presence with field-presence.)
 
 ### Migration `099_start_vfr_rt_exam_session_rpc.sql`
 
@@ -261,7 +261,7 @@ flowchart TD
   1. Auth check (security.md §7).
   2. SELECT the session FOR UPDATE; check ownership, mode='vfr_rt_exam', `deleted_at IS NULL`.
   3. Idempotency: `IF ended_at IS NOT NULL RETURN` prior result (read from `quiz_sessions.score_percentage` + per-part subqueries OR a session-scoped audit-events lookup).
-  3b. Timer-expiry guard (ADDED 2026-06-10 — pattern parity with `batch_submit_quiz`, `20260601000001` L99–115): `IF now() > started_at + (time_limit_seconds + 30) * interval '1 second'` THEN mark the session expired instead of grading — UPDATE `ended_at = now(), correct_count = 0, score_percentage = 0, passed = false`, INSERT `'vfr_rt_exam.expired'` audit event, RETURN the expired result shape. Without this, a student could hold the submit past the 30-minute limit indefinitely (the overdue sweep is lazy); Error Scenario 3's "next request is intercepted" promise requires it.
+  3b. Timer-expiry guard (ADDED 2026-06-10 — pattern parity with `batch_submit_quiz`, `20260601000001` L99–115): `IF time_limit_seconds IS NOT NULL AND started_at IS NOT NULL AND now() > started_at + (time_limit_seconds + 30) * interval '1 second'` (both columns are nullable — null guards per the blueprint, see mig 100 body) THEN mark the session expired instead of grading — UPDATE `ended_at = now(), correct_count = 0, score_percentage = 0, passed = false`, INSERT `'vfr_rt_exam.expired'` audit event, RETURN the expired result shape. Without this, a student could hold the submit past the 30-minute limit indefinitely (the overdue sweep is lazy); Error Scenario 3's "next request is intercepted" promise requires it.
   4. Validate input: every entry's `question_id` MUST be in `config.question_ids`; reject extraneous IDs.
   5. For each entry, look up the question's `question_type`, `canonical_answer`, `accepted_synonyms` (short_answer), `options` (MC), or `blanks_config` (dialog_fill).
   6. Score per entry using the same `normalize_answer(text)` helper as the TS module (defined in this migration or in a sibling `09X_normalize_answer_fn.sql`).
@@ -430,7 +430,7 @@ Plus a type↔column-population CHECK enforcing per-type validity.
 }
 ```
 
-v1: the RPC reads counts/topics from `parts_config` if present, else falls back to the briefing-package defaults (8/9/8 with the seeded topic codes). The defaults are baked into the RPC body so the system works even if no `parts_config` row is inserted post-deploy.
+v1: the RPC reads counts/topics from `parts_config` if present, else falls back to the briefing-package defaults (8/9/8 with the seeded topic codes). The defaults are baked into the RPC body so the system works even when the enabled `exam_configs` row carries an empty `parts_config` (the row itself is still required — the RPC raises `exam_config_required` without it).
 
 ## Error Handling
 
