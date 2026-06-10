@@ -74,7 +74,7 @@ fi
 
 TMPFILE=$(mktemp)
 cat "$REPO_ROOT/.claude/agents/security-auditor.md" > "$TMPFILE"
-printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this diff now. Output your findings in the format specified above.\nIMPORTANT: If you find any CRITICAL or HIGH issues, your last line MUST be exactly: BLOCKED\nIf no CRITICAL or HIGH issues, your last line MUST be exactly: APPROVED" "$DIFF" >> "$TMPFILE"
+printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this diff now. Output your findings in the format specified above.\nIMPORTANT: If you find any CRITICAL or HIGH issues, end with a line starting with BLOCKED (e.g. 'BLOCKED: reason').\nIf no CRITICAL or HIGH issues, end with a line containing only: APPROVED" "$DIFF" >> "$TMPFILE"
 
 # Timeout after 120 seconds to prevent hanging
 if command -v timeout &>/dev/null; then

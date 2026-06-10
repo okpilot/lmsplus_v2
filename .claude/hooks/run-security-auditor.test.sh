@@ -74,6 +74,50 @@ run_case "neither token present fails closed" 1 \
 "Error: API connection refused (ECONNREFUSED 127.0.0.1:443)
 Please try again later."
 
+# 8. Empty transcript (e.g. claude CLI produces no output) — fail closed.
+run_case "empty transcript fails closed" 1 ""
+
+# 9. APPROVED appears before BLOCKED in the same transcript — BLOCKED must win.
+#    This is the critical fail-closed property: any BLOCKED anywhere blocks the push,
+#    regardless of what other tokens appear. The parser checks BLOCKED first.
+run_case "APPROVED then BLOCKED — BLOCKED wins" 1 \
+"No issues found.
+
+APPROVED
+
+Wait, actually one more thing:
+BLOCKED: forgot to mention the HIGH finding."
+
+# 10. CRLF line endings — Windows-style transcripts (e.g. pipes through cmd.exe on CI).
+#     [[:space:]] in the POSIX character class includes \r, so both verdicts must parse.
+#     APPROVED\r should satisfy ^[[:space:]]*APPROVED[[:space:]]*$ because \r matches [[:space:]].
+run_case_raw_bytes() {
+  local name="$1"
+  local expected="$2"
+  local actual=0
+  printf '%b' "$3" | bash "$HOOK" --parse-verdict >/dev/null 2>&1 || actual=$?
+  if [ "$actual" -eq "$expected" ]; then
+    echo "PASS: $name (exit $actual)"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: $name (expected exit $expected, got $actual)"
+    FAIL=$((FAIL + 1))
+  fi
+}
+run_case_raw_bytes "CRLF APPROVED approves" 0 \
+  "No CRITICAL or HIGH issues found.\r\nAPPROVED\r\n"
+run_case_raw_bytes "CRLF BLOCKED blocks" 1 \
+  "Findings:\r\nBLOCKED: RLS gap.\r\n"
+
+# 11. APPROVED with leading whitespace — the ^[[:space:]]* anchor allows indented verdicts
+#     (symmetrical with case 6 for BLOCKED). Mirrors real-world agent output where the
+#     model may indent its verdict line. Pinning as approved so a future regex tightening
+#     is visible and deliberate.
+run_case "APPROVED with leading whitespace approves" 0 \
+"No CRITICAL or HIGH issues found.
+
+  APPROVED"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
