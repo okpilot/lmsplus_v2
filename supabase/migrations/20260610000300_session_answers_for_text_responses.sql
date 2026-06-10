@@ -46,7 +46,8 @@ ALTER TABLE public.quiz_session_answers
 ALTER TABLE public.quiz_session_answers
   ADD CONSTRAINT quiz_session_answers_answer_shape_check CHECK (
     (selected_option_id IS NOT NULL AND response_text IS NULL AND blank_index IS NULL)
-    OR (selected_option_id IS NULL AND response_text IS NOT NULL)
+    OR (selected_option_id IS NULL AND response_text IS NOT NULL
+        AND (blank_index IS NULL OR blank_index >= 0))
   );
 
 -- Drop the UNIQUE (session_id, question_id) from mig 001. It was declared
@@ -96,7 +97,8 @@ ALTER TABLE public.student_responses
 ALTER TABLE public.student_responses
   ADD CONSTRAINT student_responses_answer_shape_check CHECK (
     (selected_option_id IS NOT NULL AND response_text IS NULL AND blank_index IS NULL)
-    OR (selected_option_id IS NULL AND response_text IS NOT NULL)
+    OR (selected_option_id IS NULL AND response_text IS NOT NULL
+        AND (blank_index IS NULL OR blank_index >= 0))
   );
 
 -- Named by supabase/migrations/20260313000020_fix_student_responses_unique.sql.
