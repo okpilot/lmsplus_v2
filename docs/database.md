@@ -183,7 +183,7 @@ CREATE TABLE questions (
   lo_reference    TEXT NULL,                   -- 'MET 3.2.1'
   question_text   TEXT NOT NULL,
   question_image_url TEXT NULL,
-  options         JSONB NOT NULL DEFAULT '[]'::jsonb,  -- [{id,text,correct}] — correct stripped by RPC
+  options         JSONB NOT NULL DEFAULT '[]'::jsonb,  -- [{id,text,correct}] — correct stripped by student question-read RPCs (get_quiz_questions, get_vfr_rt_exam_questions)
   explanation_text TEXT NOT NULL,
   explanation_image_url TEXT NULL,
   difficulty      TEXT NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
@@ -714,7 +714,7 @@ verb_noun pattern:
   get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + grading breakdown per part (mig 103); gated to owner + ended session only
   get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b)
   normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics); used by submit_vfr_rt_exam_answers + complete_overdue_exam_session for vfr_rt_exam grading (mig 101)
-  complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED — use batch_submit_quiz; last_active_at now stamped by trigger on all completion paths, mig 092; legacy-mode whitelist rejects vfr_rt_exam with unsupported_session_mode, mig 104 #838)
+  complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED for new code — use batch_submit_quiz; still supported for legacy modes (smart_review, quick_quiz, mock_exam, internal_exam); last_active_at now stamped by trigger on all completion paths, mig 092; legacy-mode whitelist rejects vfr_rt_exam with unsupported_session_mode, mig 104 #838)
   soft_delete_question       ← write, sets deleted_at
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
