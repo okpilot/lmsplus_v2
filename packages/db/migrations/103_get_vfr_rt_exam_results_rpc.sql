@@ -72,6 +72,9 @@ BEGIN
          COALESCE(round(100 * avg(ts) FILTER (WHERE qt = 'dialog_fill'), 2), 0),
          COALESCE(round(100 * avg(ts) FILTER (WHERE qt = 'multiple_choice'), 2), 0)
     INTO v_p1, v_p2, v_p3
+    -- No q.deleted_at filter on the questions JOIN below: §15 carve-out via the
+    -- immutable write-once config.question_ids (docs/security.md §15;
+    -- docs/database.md §3 "Scoring Soft-Deleted Questions").
     FROM (SELECT q.question_type AS qt,
                  LEAST((SELECT count(*) FROM quiz_session_answers qsa
                         WHERE qsa.session_id = p_session_id
@@ -116,6 +119,9 @@ BEGIN
       q.id AS question_id,
       (opt.value->>'id')::text AS correct_option_id
     FROM cfg
+    -- No q.deleted_at filter: §15 carve-out via the immutable write-once
+    -- config.question_ids (docs/security.md §15; docs/database.md §3
+    -- "Scoring Soft-Deleted Questions").
     JOIN questions q ON q.id = cfg.question_id
     CROSS JOIN LATERAL jsonb_array_elements(q.options)
       WITH ORDINALITY AS opt(value, ord)
@@ -141,7 +147,9 @@ BEGIN
   INTO v_questions
   FROM cfg
   -- No q.deleted_at filter: soft-deleted questions must still appear in the
-  -- historical review of a completed session (docs/security.md §15 posture).
+  -- historical review of a completed session (immutable write-once
+  -- config.question_ids — docs/security.md §15; docs/database.md §3 "Scoring
+  -- Soft-Deleted Questions").
   JOIN questions q ON q.id = cfg.question_id
   LEFT JOIN ans ON ans.question_id = q.id
   LEFT JOIN mc_key mc ON mc.question_id = q.id;

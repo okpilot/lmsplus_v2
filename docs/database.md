@@ -2451,7 +2451,7 @@ Student-facing RPC (migration 103). Fetches completion-time answer key + per-que
 - `part1_pct NUMERIC`, `part2_pct NUMERIC`, `part3_pct NUMERIC` — per-part percentages (recomputed from quiz_session_answers)
 - `passed_overall BOOLEAN` — `v_p1 >= 75 AND v_p2 >= 75 AND v_p3 >= 75`
 - `passed_per_part JSONB` — `{part1, part2, part3}` boolean flags
-- `correct_count INT` — total correct answer rows
+- `correct_count INT` — total correct answer rows (counted per-blank for `dialog_fill`, so it can exceed `total_questions`; informational only — pass/fail derives from the per-part percentages)
 - `total_questions INT` — session's total_questions
 - `questions JSONB` — array of question review objects (one per session question, in config.question_ids order); each object has:
   - `question_id UUID`, `question_type TEXT`, `question_text TEXT`

@@ -105,7 +105,7 @@ BEGIN
   -- vfr_rt_exam: per-part grading (mig 100 formulas); missing answers score 0;
   -- pass = ALL parts >= 75 (no config pass_mark). config.question_ids is write-once;
   -- soft-deleted questions intentionally included (immutable write-once exception,
-  -- docs/security.md §15).
+  -- docs/security.md §15; docs/database.md §3 "Scoring Soft-Deleted Questions").
   IF v_mode = 'vfr_rt_exam' THEN
     SELECT COALESCE(round(100 * avg(ts) FILTER (WHERE qt = 'short_answer'), 2), 0),
            COALESCE(round(100 * avg(ts) FILTER (WHERE qt = 'dialog_fill'), 2), 0),

@@ -95,6 +95,7 @@ ALTER TABLE questions
   ADD CONSTRAINT questions_question_type_columns_check CHECK (
     (question_type = 'multiple_choice'
        AND canonical_answer IS NULL
+       AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0)
     OR (question_type = 'short_answer'
@@ -103,6 +104,7 @@ ALTER TABLE questions
        AND jsonb_array_length(blanks_config) = 0)
     OR (question_type = 'dialog_fill'
        AND canonical_answer IS NULL
+       AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NOT NULL
        AND jsonb_array_length(blanks_config) > 0)
   );

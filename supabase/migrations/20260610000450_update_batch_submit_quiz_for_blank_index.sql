@@ -143,6 +143,10 @@ BEGIN
     RAISE EXCEPTION 'duplicate question_id in answers payload';
   END IF;
 
+  -- §15 carve-out: no deleted_at filter — questions are fetched via the immutable
+  -- write-once quiz_sessions.config.question_ids (v_session_question_ids, locked
+  -- at session start by trg_quiz_sessions_immutable_columns, mig 079). See
+  -- docs/security.md §15 and docs/database.md §3 "Scoring Soft-Deleted Questions".
   DROP TABLE IF EXISTS _batch_questions;
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT
