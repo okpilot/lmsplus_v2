@@ -1353,15 +1353,15 @@ Atomically reads the subject's `exam_configs` row, randomly selects questions pe
 
 #### `complete_empty_exam_session` — close a zero-answer exam session (timer or manual)
 
-Completes a `mock_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. On RPC success the caller (`submitEmptyExamSession` in `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts`) routes the student to `/app/quiz/report?session=<id>` showing 0% / FAIL; on RPC failure the caller falls back to `/app/quiz` so the student is not stranded mid-flow.
+Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session that has zero answers recorded. Sets `correct_count = 0`, `score_percentage = 0`, `passed = false`, and `ended_at = now()`. On RPC success the caller (`submitEmptyExamSession` in `apps/web/app/app/quiz/session/_hooks/quiz-submit.ts`) routes the student to `/app/quiz/report?session=<id>` showing 0% / FAIL; on RPC failure the caller falls back to `/app/quiz` so the student is not stranded mid-flow.
 
 **Purpose:** Called by `submitEmptyExamSession` Server Action in two scenarios:
 1. Timer fires and `answers.size === 0` (student ran out of time without answering)
 2. Student manually finishes before the deadline with zero answers recorded
 
 **Audit event branching (migration 053):** The RPC determines the actual deadline state and audits accordingly:
-- **Deadline passed (beyond +30s grace)** → `exam.expired` event with reason "timed out with no answers"
-- **Deadline not yet passed** → `exam.completed` event with reason "completed with no answers"
+- **Deadline passed (beyond +30s grace)** → `exam.expired` (or `internal_exam.expired` / `vfr_rt_exam.expired`) event with reason "timed out with no answers"
+- **Deadline not yet passed** → `exam.completed` (or `internal_exam.completed` / `vfr_rt_exam.completed`) event with reason "completed with no answers"
 
 This ensures the audit trail reflects what actually happened, not a hard-coded assumption.
 
@@ -1371,8 +1371,8 @@ This ensures the audit trail reflects what actually happened, not a hard-coded a
 - `auth.uid()` check — rejects unauthenticated callers.
 - Org-scope guard — reads `organization_id` from `users` with `deleted_at IS NULL`.
 - Ownership + org check — `FOR UPDATE` fetch requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
-- Mode guard — raises if session is not `mock_exam`.
-- Audit log — appends `exam.expired` or `exam.completed` event based on deadline state. The `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs, not subordinate to outer guards).
+- Mode guard — raises if session is not `mock_exam`, `internal_exam`, or `vfr_rt_exam` (widened in migrations `20260429000008` and `20260610001200` — see the extension notes under `complete_overdue_exam_session` below).
+- Audit log — appends an `*.expired` or `*.completed` event (mode-branched, see above) based on deadline state. The `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs, not subordinate to outer guards).
 - `SECURITY DEFINER SET search_path = public` — required pattern for all security-definer RPCs.
 
 **Return shape:** `{ session_id, score_percentage, passed, total_questions, answered_count }`
