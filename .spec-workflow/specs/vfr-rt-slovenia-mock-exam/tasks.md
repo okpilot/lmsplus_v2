@@ -119,12 +119,12 @@
   - _Leverage: `get_report_correct_options` (`supabase/migrations/20260316231503`) — the existing gated-reveal precedent; same guard-message style (pinned by `rpc-report.spec.ts`)_
   - _Requirements: R3.1–R3.3, R3.8, NFR-Security_
 
-- [ ] **A.10 Apply migrations, regen types, baseline tests**
+- [x] **A.10 Apply migrations, regen types, baseline tests**
   - Operations (run from the monorepo root so relative paths resolve correctly): `npx supabase db reset` → `npx supabase gen types typescript --local > packages/db/src/types.ts` → `pnpm test` → `pnpm check-types`. (`--local` targets the local stack just reset — `--linked` would pull the remote project's schema, which won't have these migrations until deploy.)
   - Confirm `Database['public']['Functions']['start_vfr_rt_exam_session']` exists; the new `question_type` enum union types reflect three values.
   - _Acceptance: All migrations apply clean; `pnpm test` and `pnpm check-types` exit 0._
 
-- [ ] **A.11 SQL integration tests for new RPCs + extended RPCs**
+- [x] **A.11 SQL integration tests for new RPCs + extended RPCs**
   - File: `packages/db/tests/vfr-rt-exam.spec.ts` (new)
   - Cover every RPC error path + each acceptance criterion under R2/R3/R4/R6 from `requirements.md`. Include parity test for `normalize_answer` (SQL) vs `normalizeAnswer` (TS).
   - **Explicit diacritic test**: assert `SELECT normalize_answer('Č') = 'č'` (NOT `'c'`) — guards against accidental locale-driven diacritic folding (the Postgres `lower()` function folds differently under `tr_TR` than under `C.UTF-8` / `en_US.UTF-8`).
