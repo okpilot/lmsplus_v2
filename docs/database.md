@@ -2380,7 +2380,7 @@ Student-facing RPC (migration 099). Creates a timed (30-minute) `vfr_rt_exam` se
 
 Student-facing RPC (migration 099b, sibling of `get_quiz_questions`). Returns mixed-type questions (multiple_choice, short_answer, dialog_fill) with all grading keys stripped.
 
-**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, active-user gate. Questions are read by frozen `quiz_sessions.config.question_ids` (immutable write-once, see security.md §15 exception); soft-deleted questions are intentionally included (historical-record posture for in-flight exams).
+**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, active-user gate. Questions are read by frozen `quiz_sessions.config.question_ids` (immutable write-once, see security.md §15 exception); soft-deleted questions are intentionally included (historical-record posture for in-flight exams). Reads are tenant-scoped to the caller's `organization_id` (resolved in the active-user read) — cross-org question IDs return zero rows (issue #831).
 
 **Parameters:**
 - `p_question_ids UUID[]` — array of question IDs (from session config)

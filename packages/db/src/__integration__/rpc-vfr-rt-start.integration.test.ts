@@ -518,6 +518,11 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
   let dfId: string
   let mcId: string
   const userIds: string[] = []
+  // Cross-org fixture (issue #831): a second org owning a question the
+  // first-org student must never be able to read through this RPC.
+  let orgId2: string
+  let adminUserId2: string
+  let crossOrgSaId: string
 
   beforeAll(async () => {
     const refs = await getRtRefs()
@@ -577,10 +582,34 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       p3TopicId,
       idx: 200,
     })
+
+    // Second org + question for the cross-org isolation tests (issue #831).
+    orgId2 = await createTestOrg({
+      admin,
+      name: `RT Questions Org B ${suffix}`,
+      slug: `rt-qs-b-${suffix}`,
+    })
+    adminUserId2 = await createTestUser({
+      admin,
+      orgId: orgId2,
+      email: `admin-rtqsb-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'admin',
+    })
+    const bankId2 = await ensureBank(orgId2, adminUserId2)
+    crossOrgSaId = await insertShortAnswerQuestion({
+      orgId: orgId2,
+      bankId: bankId2,
+      adminId: adminUserId2,
+      rtSubjectId,
+      p1TopicId,
+      idx: 201,
+    })
   })
 
   afterAll(async () => {
     await cleanupTestData({ admin, orgId, userIds })
+    await cleanupTestData({ admin, orgId: orgId2, userIds: [adminUserId2] })
   })
 
   it('returns type-discriminated rows for all three question types', async () => {
@@ -668,6 +697,31 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       expect(Object.keys(opt).sort()).toEqual(['id', 'text'])
       expect('correct' in opt).toBe(false)
     }
+  })
+
+  it('returns only same-org questions when the id array mixes same-org and cross-org ids', async () => {
+    // Non-vacuous cross-org isolation (issue #831): the same-org question MUST
+    // come back (proves the call works) while the other org's question must not.
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_questions', {
+      p_question_ids: [saId, crossOrgSaId],
+    })
+    expect(error).toBeNull()
+    const rows = data as unknown as Array<{ id: string }>
+    expect(Array.isArray(rows)).toBe(true)
+    const ids = rows.map((r) => r.id)
+    expect(ids).toContain(saId)
+    expect(ids).not.toContain(crossOrgSaId)
+    expect(rows).toHaveLength(1)
+  })
+
+  it('returns zero rows when every requested question belongs to another organization', async () => {
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_questions', {
+      p_question_ids: [crossOrgSaId],
+    })
+    expect(error).toBeNull()
+    const rows = data as unknown as unknown[]
+    expect(Array.isArray(rows)).toBe(true)
+    expect(rows).toHaveLength(0)
   })
 })
 

@@ -48,15 +48,19 @@ SET search_path = public
 AS $$
 DECLARE
   v_caller uuid := auth.uid();
+  v_caller_org_id uuid;
 BEGIN
-  -- Auth (security.md rule 7) + active-user gate.
+  -- Auth (security.md rule 7).
   IF v_caller IS NULL THEN
     RAISE EXCEPTION 'not_authenticated';
   END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM public.users u
-    WHERE u.id = v_caller AND u.deleted_at IS NULL
-  ) THEN
+  -- Resolve the caller's org in one deleted_at-filtered read (security.md
+  -- rules 7, 9). This single read is both the active-user gate AND the
+  -- tenant-scope source for the questions read below — mirrors mig 099.
+  SELECT u.organization_id INTO v_caller_org_id
+  FROM public.users u
+  WHERE u.id = v_caller AND u.deleted_at IS NULL;
+  IF v_caller_org_id IS NULL THEN
     RAISE EXCEPTION 'user_not_found_or_inactive';
   END IF;
 
@@ -68,6 +72,8 @@ BEGIN
   -- questions soft-deleted or retired after sampling. Cross-reference:
   -- docs/database.md §3 "Scoring Soft-Deleted Questions". Every row is fully
   -- answer-key-stripped (see header), so no key material is exposed either way.
+  -- The caller-org filter scopes the read to the caller's tenant (issue #831):
+  -- cross-org question UUIDs return zero rows.
   RETURN QUERY
   SELECT
     q.id,
@@ -103,7 +109,8 @@ BEGIN
   FROM public.questions q
   JOIN public.easa_subjects s ON s.id = q.subject_id
   JOIN public.easa_topics   t ON t.id = q.topic_id
-  WHERE q.id = ANY(p_question_ids);
+  WHERE q.id = ANY(p_question_ids)
+    AND q.organization_id = v_caller_org_id;
 END;
 $$;
 
