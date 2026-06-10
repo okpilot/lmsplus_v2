@@ -156,6 +156,12 @@ reviews:
           a clean migration apply does not prove correctness. Flag ON CONFLICT whose target
           is a non-unique index, and require a functional/integration test that executes the
           function. (code-style.md §5; mig 085 record_consent #386.)
+        - Deferred-validation SQL in plpgsql, general case: the same apply-vs-execution gap
+          covers EXECUTE format(...) and regex literals (POSIX bracket-class shorthand like
+          '[][...]' is invalid in Postgres ARE — applies clean, throws 2201B on first call;
+          mig 101, 2026-06-10). Flag any migration changing a plpgsql body containing these
+          constructs that lacks a functional/integration test executing the function.
+          (code-style.md §5 "Validate at Execution, Not Apply".)
 
     - path: "supabase/migrations/**/*.sql"
       instructions: |
