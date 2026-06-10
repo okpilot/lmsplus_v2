@@ -20,6 +20,8 @@ function makeAnswer(sessionId: string, index: number): AnswerRow {
     session_id: sessionId,
     question_id: `q-${index}`,
     selected_option_id: `opt-${index}`,
+    response_text: null,
+    blank_index: null,
     is_correct: index % 2 === 0,
     response_time_ms: 1000,
     answered_at: '2026-03-01T10:00:00Z',

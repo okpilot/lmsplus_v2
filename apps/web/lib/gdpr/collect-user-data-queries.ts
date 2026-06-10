@@ -52,7 +52,7 @@ export function fetchUserResponses(supabase: SupabaseClient<Database>, userId: s
       supabase
         .from('student_responses')
         .select(
-          'question_id, selected_option_id, is_correct, response_time_ms, session_id, created_at',
+          'question_id, selected_option_id, response_text, blank_index, is_correct, response_time_ms, session_id, created_at',
         )
         .eq('student_id', userId)
         .order('created_at', { ascending: false })
@@ -173,7 +173,7 @@ export async function fetchUserSessionAnswers(
         supabase
           .from('quiz_session_answers')
           .select(
-            'session_id, question_id, selected_option_id, is_correct, response_time_ms, answered_at',
+            'session_id, question_id, selected_option_id, response_text, blank_index, is_correct, response_time_ms, answered_at',
           )
           .in('session_id', batch)
           .order('answered_at', { ascending: false })
