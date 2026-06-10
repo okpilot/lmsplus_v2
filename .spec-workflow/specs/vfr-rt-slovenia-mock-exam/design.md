@@ -120,6 +120,7 @@ flowchart TD
   CHECK (
     (question_type = 'multiple_choice'
        AND canonical_answer IS NULL
+       AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0)
     OR (question_type = 'short_answer'
@@ -128,6 +129,7 @@ flowchart TD
        AND jsonb_array_length(blanks_config) = 0)
     OR (question_type = 'dialog_fill'
        AND canonical_answer IS NULL
+       AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NOT NULL
        AND jsonb_array_length(blanks_config) > 0)
   );
