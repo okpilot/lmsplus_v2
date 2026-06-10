@@ -382,33 +382,27 @@ describe('RPC: get_vfr_rt_exam_results — guard errors', () => {
   })
 
   it('rejects a non-vfr_rt_exam session with the guard error', async () => {
-    // Start a quick_quiz (legacy mode) session
-    const { data: refData } = await admin
-      .from('easa_subjects')
+    // Hermetic fixture: INSERT a completed quick_quiz session directly via the
+    // service-role client. It is owned by studentId, completed (ended_at set),
+    // and not deleted — so the ONLY guard predicate that fails is the mode check.
+    const { data: inserted, error: insErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: studentId,
+        mode: 'quick_quiz',
+        subject_id: rtSubjectId,
+        config: { question_ids: [mcQs[0]!.id, mcQs[1]!.id] },
+        total_questions: 2,
+        correct_count: 0,
+        score_percentage: 0,
+        passed: false,
+        ended_at: new Date().toISOString(),
+      })
       .select('id')
-      .eq('code', 'RT')
       .single()
-    // Use any subject + any MC questions from the seeded pool (just need a valid session)
-    const { data: qRows } = await admin
-      .from('questions')
-      .select('id')
-      .eq('organization_id', orgId)
-      .eq('question_type', 'multiple_choice')
-      .is('deleted_at', null)
-      .limit(2)
-    const qIds = (qRows ?? []).map((r: { id: string }) => r.id)
-    if (qIds.length < 2) {
-      // Skip if not enough MC questions in this org (can happen if pool is only dialog_fill/SA)
-      return
-    }
-    const { data: qqData, error: qqErr } = await studentClient.rpc('start_quiz_session', {
-      p_mode: 'quick_quiz',
-      p_subject_id: refData?.id ?? null,
-      p_topic_id: null,
-      p_question_ids: qIds,
-    })
-    if (qqErr) return // If start fails, skip test
-    const quickSessionId = qqData as string
+    if (insErr) throw new Error(`quick_quiz session insert: ${insErr.message}`)
+    const quickSessionId = inserted.id as string
 
     const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
       p_session_id: quickSessionId,

@@ -86,7 +86,8 @@ BEGIN
       VALUES (
         v_org_id, v_student_id, v_actor_role,
         'vfr_rt_exam.expired', 'quiz_session', p_session_id,
-        jsonb_build_object('total_questions', v_total, 'reason', 'submission past grace period')
+        jsonb_build_object('total_questions', v_total, 'answered_count', 0, 'correct_count', 0,
+                           'passed', false, 'reason', 'submission past grace period')
       );
       RETURN jsonb_build_object(
         'session_id', p_session_id,
@@ -177,7 +178,7 @@ BEGIN
         END IF;
         v_norm := normalize_answer(v_response_text);
         v_is_correct := (v_norm <> '' AND (
-          v_norm = normalize_answer(v_canonical)
+          v_norm = COALESCE(normalize_answer(v_canonical), '')
           OR EXISTS (SELECT 1 FROM unnest(v_synonyms) AS s WHERE normalize_answer(s) = v_norm)
         ));
 
@@ -198,7 +199,7 @@ BEGIN
         END IF;
         v_norm := normalize_answer(v_response_text);
         v_is_correct := (v_norm <> '' AND (
-          v_norm = normalize_answer(v_blank_canonical)
+          v_norm = COALESCE(normalize_answer(v_blank_canonical), '')
           OR EXISTS (SELECT 1 FROM unnest(v_blank_synonyms) AS s WHERE normalize_answer(s) = v_norm)
         ));
 
@@ -242,7 +243,7 @@ BEGIN
   SELECT
     coalesce(round(100.0 * count(*) FILTER (WHERE sq.question_type = 'short_answer' AND coalesce(g.correct_rows, 0) >= 1)
              / nullif(count(*) FILTER (WHERE sq.question_type = 'short_answer'), 0), 2), 0),
-    coalesce(round(100.0 * avg(coalesce(g.correct_rows, 0)::numeric / sq.total_blanks)
+    coalesce(round(100.0 * avg(LEAST(coalesce(g.correct_rows, 0)::numeric / sq.total_blanks, 1))
              FILTER (WHERE sq.question_type = 'dialog_fill'), 2), 0),
     coalesce(round(100.0 * count(*) FILTER (WHERE sq.question_type = 'multiple_choice' AND coalesce(g.correct_rows, 0) >= 1)
              / nullif(count(*) FILTER (WHERE sq.question_type = 'multiple_choice'), 0), 2), 0)
