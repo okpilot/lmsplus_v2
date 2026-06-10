@@ -156,9 +156,11 @@ flowchart TD
   ```sql
   -- Exactly one of (selected_option_id, response_text) must be set per row.
   -- blank_index is non-null only for dialog_fill (response_text set, selected_option_id NULL).
+  -- blank_index must be non-negative (rejects accidental negative indices that inflate unique counts).
   CHECK (
     (selected_option_id IS NOT NULL AND response_text IS NULL AND blank_index IS NULL)
-    OR (selected_option_id IS NULL AND response_text IS NOT NULL)
+    OR (selected_option_id IS NULL AND response_text IS NOT NULL
+        AND (blank_index IS NULL OR blank_index >= 0))
   );
   ```
 - **UNIQUE widening — must NOT break the existing `ON CONFLICT (session_id, question_id)` callers, AND must widen on BOTH tables** (`quiz_session_answers` and `student_responses`). Both carry a `UNIQUE (session_id, question_id)` constraint today — `quiz_session_answers` since mig `001`, `student_responses` since `supabase/migrations/20260313000020_fix_student_responses_unique.sql` (constraint name `student_responses_session_question_unique`). `batch_submit_quiz` (latest body as of 2026-06-10: `supabase/migrations/20260601000001_align_batch_submit_audit_metadata_keys.sql` — re-verify via Pre-Flag Verification at implementation time) and `submit_quiz_answer` (latest body in `supabase/migrations/20260316000040_submit_answer_track_last_was_correct.sql`) both rely on the `quiz_session_answers` constraint via `ON CONFLICT (session_id, question_id) DO NOTHING`. The plan:

@@ -354,7 +354,8 @@ CREATE TABLE quiz_session_answers (
   answered_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT quiz_session_answers_answer_shape_check CHECK (
     (selected_option_id IS NOT NULL AND response_text IS NULL AND blank_index IS NULL)
-    OR (selected_option_id IS NULL AND response_text IS NOT NULL)
+    OR (selected_option_id IS NULL AND response_text IS NOT NULL
+        AND (blank_index IS NULL OR blank_index >= 0))
   ),
   CONSTRAINT quiz_session_answers_session_question_blank_uniq
     UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)
@@ -380,7 +381,8 @@ CREATE TABLE student_responses (
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT student_responses_answer_shape_check CHECK (
     (selected_option_id IS NOT NULL AND response_text IS NULL AND blank_index IS NULL)
-    OR (selected_option_id IS NULL AND response_text IS NOT NULL)
+    OR (selected_option_id IS NULL AND response_text IS NOT NULL
+        AND (blank_index IS NULL OR blank_index >= 0))
   ),
   CONSTRAINT student_responses_session_question_blank_uniq
     UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)
