@@ -1324,6 +1324,8 @@ $$;
 
 A consumer filtering `event_type = 'exam.completed'` must inspect metadata to separate them: the presence of the `reason` key (equivalently `answered_count = 0`) marks the zero-answer in-grace path. No distinct event_type was introduced because no current consumer depends on the distinction; revisit if an analytics or red-team query later needs to query the two outcomes separately.
 
+The same two-source pattern applies to the mode-branched variants: `internal_exam.completed` is emitted by `batch_submit_quiz` (full internal-exam submission) and `complete_empty_exam_session` (zero-answer in-grace); `vfr_rt_exam.completed` by `submit_vfr_rt_exam_answers` (mig 100 — metadata carries `part1_pct`/`part2_pct`/`part3_pct`/`passed_overall`, no `reason` key) and `complete_empty_exam_session`. In every mode, the presence of the `reason` key marks the zero-answer in-grace path.
+
 #### `start_exam_session` — initiate a `mock_exam` session for a subject
 
 Atomically reads the subject's `exam_configs` row, randomly selects questions per `exam_config_distributions`, creates a `quiz_sessions` row with `mode = 'mock_exam'`, and writes an `exam.started` audit event. Returns the new session id together with the question id list, timing, pass mark, and `started_at` so the caller can compute remaining time from the server clock.
