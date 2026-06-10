@@ -938,13 +938,7 @@ describe('Column grant (mig 094) — student cannot directly SELECT answer-key c
     // The PostgREST request must fail with a 42501 permission error
     expect(data).toBeNull()
     expect(error).not.toBeNull()
-    // PostgREST maps 42501 to HTTP 403; error.message contains the pg error
-    const errMsg = error?.message ?? ''
-    const isPermissionError =
-      errMsg.includes('42501') ||
-      errMsg.toLowerCase().includes('permission denied') ||
-      errMsg.toLowerCase().includes('insufficient privilege')
-    expect(isPermissionError).toBe(true)
+    expect(error?.code).toBe('42501')
   })
 
   it('direct PostgREST SELECT of granted columns (id, question_text) by a same-org student succeeds', async () => {

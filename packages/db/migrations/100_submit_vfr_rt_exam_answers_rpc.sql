@@ -2,8 +2,7 @@
 -- mock-exam grader (#697 Phase A, task A.7). Calls normalize_answer(text), defined in
 -- mig 101 (same release; plpgsql resolves at execution). Full contract incl. error
 -- codes: design.md § Migration 100. Security citations (§3/§7/rule 10) are inline below.
--- Input (jsonb array, flat per blank; entries MAY carry optional "response_time_ms",
--- digits, defaults 0 — the column is NOT NULL on both answer tables):
+-- Input (jsonb array, flat per blank; entries MAY carry optional "response_time_ms" digits, defaults 0 — the column is NOT NULL on both answer tables):
 --   { "question_id": uuid, "selected_option_id": "a".."d" }              -- Part 3 multiple_choice
 --   { "question_id": uuid, "response_text": text }                       -- Part 1 short_answer
 --   { "question_id": uuid, "blank_index": int, "response_text": text }   -- Part 2 dialog_fill (one per blank)
@@ -14,8 +13,7 @@
 -- Timer-expiry guard (design.md § Migration 100 step 3b): a submit past time_limit_seconds
 -- + 30s grace EXPIRES the session ('vfr_rt_exam.expired' audit event, zeroed result with
 -- 'expired': true) instead of grading — parity with batch_submit_quiz (mig 20260601000001).
--- Idempotency: ended_at already set → per-part pcts recomputed from persisted rows,
--- correct_count/passed re-read from the session row, prior result returned; no writes.
+-- Idempotency: ended_at already set → per-part pcts recomputed from persisted rows, correct_count/passed re-read from the session row, prior result returned; no writes.
 
 CREATE OR REPLACE FUNCTION public.submit_vfr_rt_exam_answers(
   p_session_id uuid,

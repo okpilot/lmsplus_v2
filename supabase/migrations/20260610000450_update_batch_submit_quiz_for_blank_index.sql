@@ -1,6 +1,5 @@
 -- Migration 095c: batch_submit_quiz — widen ON CONFLICT for blank_index (VFR RT, #697). MUST apply in the same release as 095/095b (deferred 42P10 — full rationale in the 095/095b headers).
 -- Body copied VERBATIM from supabase/migrations/20260601000001_align_batch_submit_audit_metadata_keys.sql; ONLY the quiz_session_answers conflict target changed (header trimmed to honor the 300-line migration cap, code-style.md §1).
-
 CREATE OR REPLACE FUNCTION batch_submit_quiz(
   p_session_id uuid,
   p_answers    jsonb
@@ -143,10 +142,8 @@ BEGIN
     RAISE EXCEPTION 'duplicate question_id in answers payload';
   END IF;
 
-  -- §15 carve-out: no deleted_at filter — questions are fetched via the immutable
-  -- write-once quiz_sessions.config.question_ids (v_session_question_ids, locked
-  -- at session start by trg_quiz_sessions_immutable_columns, mig 079). See
-  -- docs/security.md §15 and docs/database.md §3 "Scoring Soft-Deleted Questions".
+  -- §15 carve-out: no deleted_at filter — questions are fetched via the immutable write-once
+  -- quiz_sessions.config.question_ids (v_session_question_ids, locked at session start by trg_quiz_sessions_immutable_columns, mig 079). See docs/security.md §15 and docs/database.md §3 "Scoring Soft-Deleted Questions".
   DROP TABLE IF EXISTS _batch_questions;
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT
@@ -300,5 +297,4 @@ BEGIN
   );
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION batch_submit_quiz(uuid, jsonb) TO authenticated;

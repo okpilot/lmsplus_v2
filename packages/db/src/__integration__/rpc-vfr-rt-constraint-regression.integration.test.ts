@@ -87,7 +87,7 @@ describe('Constraint regression — batch_submit_quiz idempotency after mig 095/
   })
 
   afterAll(async () => {
-    await cleanupTestData({ admin, orgId, userIds })
+    if (orgId) await cleanupTestData({ admin, orgId, userIds })
     await cleanupReferenceData({ admin, refs: [refs] })
   })
 
@@ -306,7 +306,7 @@ describe('Constraint regression — mig 094 accepted_synonyms CHECK on multiple_
   })
 
   afterAll(async () => {
-    await cleanupTestData({ admin, orgId, userIds })
+    if (orgId) await cleanupTestData({ admin, orgId, userIds })
     await cleanupReferenceData({ admin, refs: [refs] })
   })
 
@@ -517,7 +517,7 @@ describe('Constraint regression — commit 13dce467 negative blank_index guard o
   })
 
   afterAll(async () => {
-    await cleanupTestData({ admin, orgId, userIds })
+    if (orgId) await cleanupTestData({ admin, orgId, userIds })
     await cleanupReferenceData({ admin, refs: [refs] })
   })
 
