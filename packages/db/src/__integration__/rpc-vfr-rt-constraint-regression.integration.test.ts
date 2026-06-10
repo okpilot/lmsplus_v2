@@ -1,5 +1,7 @@
 /**
- * A.11 — Constraint regression tests (migs 095/095b/095c).
+ * A.11 — Constraint regression tests (migs 094, 095/095b/095c).
+ *
+ * ## mig 095/095b/095c — quiz_session_answers UNIQUE widening
  *
  * The UNIQUE on quiz_session_answers was widened from (session_id, question_id)
  * to (session_id, question_id, blank_index) NULLS NOT DISTINCT. The ON CONFLICT
@@ -10,6 +12,18 @@
  * resolves ON CONFLICT inference at EXECUTION time, not at CREATE OR REPLACE time
  * (code-style.md §5 / design.md § Migrations 095b+095c). A 42P10 only surfaces
  * when a student actually submits — which is exactly what these tests exercise.
+ *
+ * ## mig 094 — questions_question_type_columns_check (accepted_synonyms tightening)
+ *
+ * commit f8898771 added `accepted_synonyms = '{}'` to the multiple_choice and
+ * dialog_fill branches of the CHECK — the original CHECK advertised
+ * no-cross-contamination but left accepted_synonyms unguarded in those two
+ * branches. A type-switch or admin-form bug could silently leave stale synonyms
+ * on an MC or dialog_fill row. The CHECK now rejects that at the DB layer.
+ *
+ * These tests exercise the rejection paths (bad INSERT hits the CHECK and returns
+ * a 23514 error) and a positive control (valid row inserts cleanly), confirming
+ * the constraint fires correctly at execution time.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -219,5 +233,157 @@ describe('Constraint regression — batch_submit_quiz idempotency after mig 095/
     })
     // The primary signal is no 42P10 error
     expect(completeErr).toBeNull()
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+// mig 094 — questions_question_type_columns_check (accepted_synonyms branches)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// commit f8898771 tightened the CHECK to require accepted_synonyms = '{}'
+// in the multiple_choice and dialog_fill branches. Before this commit a
+// type-switch (or admin-form bug) could write non-empty synonyms on an MC or
+// dialog_fill row without any DB-layer rejection.
+//
+// These tests INSERT invalid rows via the service-role admin client (which
+// bypasses RLS) and assert a 23514 check-violation error is returned.
+// A positive control confirms a valid row still inserts without error.
+// No RPCs involved — the CHECK fires on the raw INSERT, independent of any
+// plpgsql body, so execution-time deferral does not apply here.
+
+describe('Constraint regression — mig 094 accepted_synonyms CHECK on multiple_choice and dialog_fill', () => {
+  let orgId: string
+  let adminUserId: string
+  let bankId: string
+  let refs: Awaited<ReturnType<typeof seedReferenceData>>
+  const userIds: string[] = []
+
+  beforeAll(async () => {
+    orgId = await createTestOrg({
+      admin,
+      name: `Test Org SynCheck ${suffix}`,
+      slug: `test-syncheck-${suffix}`,
+    })
+    adminUserId = await createTestUser({
+      admin,
+      orgId,
+      email: `admin-syncheck-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'admin',
+    })
+    userIds.push(adminUserId)
+
+    refs = await seedReferenceData({
+      admin,
+      subjectCode: `SC${suffix}`,
+      subjectName: `SynCheck Subject ${suffix}`,
+      topicCode: `SC${suffix}-01`,
+      topicName: `SynCheck Topic ${suffix}`,
+    })
+
+    const { data: existingBank, error: lookupErr } = await admin
+      .from('question_banks')
+      .select('id')
+      .eq('organization_id', orgId)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (lookupErr) throw new Error(`bank lookup: ${lookupErr.message}`)
+    if (existingBank) {
+      bankId = (existingBank as { id: string }).id
+    } else {
+      const { data: bank, error: bErr } = await admin
+        .from('question_banks')
+        .insert({
+          organization_id: orgId,
+          name: `SynCheck Bank ${suffix}`,
+          created_by: adminUserId,
+        })
+        .select('id')
+        .single()
+      if (bErr) throw new Error(`bank insert: ${bErr.message}`)
+      bankId = (bank as { id: string }).id
+    }
+  })
+
+  afterAll(async () => {
+    await cleanupTestData({ admin, orgId, userIds })
+    await cleanupReferenceData({ admin, refs: [refs] })
+  })
+
+  it('rejects a multiple_choice row with non-empty accepted_synonyms with a check-violation error', async () => {
+    // Before f8898771 this INSERT would succeed silently, leaving stale synonyms
+    // on an MC question. The tightened CHECK must reject it with 23514.
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs.subjectId,
+      topic_id: refs.topicId,
+      question_text: 'MC with synonyms — should be rejected?',
+      explanation_text: 'Explanation',
+      question_type: 'multiple_choice',
+      // Intentionally non-empty — this violates the new branch of the CHECK
+      accepted_synonyms: ['stale_synonym'],
+      options: [
+        { id: 'a', text: 'Option A', correct: false },
+        { id: 'b', text: 'Option B', correct: true },
+      ],
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+    })
+    expect(error).not.toBeNull()
+    // 23514 = check_violation (questions_question_type_columns_check)
+    expect(error?.code).toBe('23514')
+  })
+
+  it('rejects a dialog_fill row with non-empty accepted_synonyms with a check-violation error', async () => {
+    // dialog_fill uses per-blank synonyms inside blanks_config, not accepted_synonyms.
+    // The tightened CHECK requires accepted_synonyms = '{}' for dialog_fill.
+    const { error } = await admin.from('questions').insert({
+      organization_id: orgId,
+      bank_id: bankId,
+      subject_id: refs.subjectId,
+      topic_id: refs.topicId,
+      question_text: 'DF with synonyms — should be rejected?',
+      explanation_text: 'Explanation',
+      question_type: 'dialog_fill',
+      dialog_template: '[atc] Cleared to land. {{0}} report vacated.',
+      blanks_config: [{ index: 0, canonical: 'wilco', synonyms: [] }],
+      // Intentionally non-empty — this violates the new branch of the CHECK
+      accepted_synonyms: ['stale_synonym'],
+      options: [],
+      difficulty: 'medium',
+      status: 'active',
+      created_by: adminUserId,
+    })
+    expect(error).not.toBeNull()
+    // 23514 = check_violation (questions_question_type_columns_check)
+    expect(error?.code).toBe('23514')
+  })
+
+  it('accepts a valid short_answer row with non-empty accepted_synonyms', async () => {
+    // Positive control: the short_answer branch has NO constraint on accepted_synonyms
+    // (it is the only type that legitimately uses it). This insert must succeed.
+    const { data, error } = await admin
+      .from('questions')
+      .insert({
+        organization_id: orgId,
+        bank_id: bankId,
+        subject_id: refs.subjectId,
+        topic_id: refs.topicId,
+        question_text: 'SA with synonyms — should be accepted?',
+        explanation_text: 'Explanation',
+        question_type: 'short_answer',
+        canonical_answer: 'wilco',
+        accepted_synonyms: ['roger', 'affirmative'],
+        options: [],
+        difficulty: 'medium',
+        status: 'active',
+        created_by: adminUserId,
+      })
+      .select('id')
+      .single()
+    expect(error).toBeNull()
+    expect(data).not.toBeNull()
   })
 })
