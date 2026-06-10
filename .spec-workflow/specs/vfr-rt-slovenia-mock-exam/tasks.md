@@ -18,7 +18,7 @@
 
 ## Phase A — Database (foundation, unblocks everything)
 
-- [ ] **A.1 Migration `094` — `question_type` enum, type-specific columns, CHECK constraint, index, `options` default**
+- [x] **A.1 Migration `094` — `question_type` enum, type-specific columns, CHECK constraint, index, `options` default**
   - File: `packages/db/migrations/094_question_type_enum_and_column.sql`
   - File: `supabase/migrations/<ts>_question_type_enum_and_column.sql` (mirror)
   - ALTER `questions` ADD COLUMN `question_type TEXT NOT NULL DEFAULT 'multiple_choice' CHECK (...)`. ADD `canonical_answer TEXT NULL`, `accepted_synonyms TEXT[] NOT NULL DEFAULT '{}'`, `dialog_template TEXT NULL`, `blanks_config JSONB NOT NULL DEFAULT '[]'::jsonb`. **ALTER COLUMN `options` SET DEFAULT `'[]'::jsonb`** — the existing column is `NOT NULL` with no default; non-MC INSERTs would fail otherwise.
@@ -29,7 +29,7 @@
   - _Leverage: `packages/db/migrations/001_initial_schema.sql` (questions table shape, line 115 for the `options NOT NULL` constraint), `packages/db/migrations/058_quiz_session_modes.sql` (CHECK pattern), `supabase/migrations/20260605000001_quiz_sessions_student_update_column_grant.sql` (#611 column-grant pattern)_
   - _Requirements: R1.1–R1.5, NFR-Security_
 
-- [ ] **A.1b Migration `094b` — `get_question_authoring_fields(p_question_id)` RPC (admin read path for the revoked columns)**
+- [x] **A.1b Migration `094b` — `get_question_authoring_fields(p_question_id)` RPC (admin read path for the revoked columns)**
   - File: `packages/db/migrations/094b_get_question_authoring_fields_rpc.sql` (+ mirror)
   - SECURITY DEFINER + STABLE + `SET search_path = public`; guards: `auth.uid()` NULL check, `is_admin()` check, row scoped to the admin's org with `deleted_at IS NULL` (security.md §7 §9). Returns ONLY `(canonical_answer, accepted_synonyms, dialog_template, blanks_config)` for the requested question.
   - Needed because mig 094's column REVOKE blocks the `authenticated` role — which includes admins — from direct-selecting the answer-key columns; the Phase D editor loads them via this RPC.
@@ -37,7 +37,7 @@
   - _Leverage: `is_admin()` helper; mig 094 column-grant rationale in design.md_
   - _Requirements: R5, NFR-Security_
 
-- [ ] **A.2 Migration `095` — `quiz_session_answers` + `student_responses` schema shift for text responses & per-blank answers**
+- [x] **A.2 Migration `095` — `quiz_session_answers` + `student_responses` schema shift for text responses & per-blank answers**
   - File: `packages/db/migrations/095_session_answers_for_text_responses.sql` (+ mirror)
   - On BOTH tables: `ALTER COLUMN selected_option_id DROP NOT NULL` (keep the existing `IN ('a','b','c','d')` CHECK — it permits NULL automatically). ADD `response_text TEXT NULL`, `blank_index INT NULL`. ADD a discriminator CHECK (do NOT replace the existing CHECK): exactly one of `selected_option_id` / `response_text` non-null per row; `blank_index` non-null only when `response_text` is set.
   - **Widen UNIQUE on BOTH tables.** `quiz_session_answers` carries `UNIQUE (session_id, question_id)` from mig 001; `student_responses` carries `student_responses_session_question_unique UNIQUE (session_id, question_id)` from `supabase/migrations/20260313000020_fix_student_responses_unique.sql`. Both must be widened — without the `student_responses` widening, every dialog_fill submission with 2+ blanks would fail at the second `student_responses` INSERT. Pattern (on each table): DROP the existing constraint, ADD `UNIQUE NULLS NOT DISTINCT (session_id, question_id, blank_index)`. Supabase Postgres 17 supports `NULLS NOT DISTINCT`. The NULL=NULL semantics preserve the "no duplicate MC rows per session" behavior for MC/short_answer rows where `blank_index IS NULL`.
@@ -46,7 +46,7 @@
   - _Leverage: existing schema in `001_initial_schema.sql`; `supabase/migrations/20260313000020_fix_student_responses_unique.sql`; `supabase/config.toml` for Postgres version_
   - _Requirements: R2, R3, R4_
 
-- [ ] **A.2b Migrations `095b` + `095c` — update `batch_submit_quiz` and `submit_quiz_answer` ON CONFLICT clauses for the new constraint**
+- [x] **A.2b Migrations `095b` + `095c` — update `batch_submit_quiz` and `submit_quiz_answer` ON CONFLICT clauses for the new constraint**
   - Files: `packages/db/migrations/095b_update_existing_inserters_for_blank_index.sql` (carries `submit_quiz_answer`) + `095c_update_batch_submit_quiz_for_blank_index.sql` (carries `batch_submit_quiz` — its verbatim body alone is ~297 lines, so the two cannot share a file under the 300-line cap) (+ mirrors)
   - **TWO callers** (CORRECTED 2026-06-10 during implementation — an earlier revision claimed `complete_quiz_session` as a third, misattributing the `ON CONFLICT` at L259 of `20260406000004` to it; function-boundary tracing shows `complete_quiz_session` spans L21–97 of that file and inserts only into `audit_events`; L259 belongs to the `batch_submit_quiz` body redefined in the same file, superseded by `20260601000001`): `batch_submit_quiz` (latest as of 2026-06-10: `20260601000001_align_batch_submit_audit_metadata_keys.sql`) and `submit_quiz_answer` (latest: `20260316000040`). For each: locate the LATEST body via Pre-Flag Verification at implementation time, copy verbatim, change only the `quiz_session_answers` clause `ON CONFLICT (session_id, question_id)` → `ON CONFLICT (session_id, question_id, blank_index)`. The `fsrs_cards` ON CONFLICT clauses in both bodies are untouched (different table).
   - These functions continue to INSERT only MC/short-answer rows (no `blank_index`). With `NULLS NOT DISTINCT` semantics, the inference clause `(s, q, NULL)` matches the new constraint identically to the old `(s, q)` constraint — behavior is preserved.
@@ -54,7 +54,7 @@
   - _Leverage: `agent-critic.md` Pre-Flag Verification rule (trace BOTH packages/db AND supabase/migrations for LATEST)_
   - _Requirements: R2.4 (idempotency preserved), NFR-Reliability_
 
-- [ ] **A.3 Migration `096` — extend `quiz_sessions.mode` CHECK to include `'vfr_rt_exam'`**
+- [x] **A.3 Migration `096` — extend `quiz_sessions.mode` CHECK to include `'vfr_rt_exam'`**
   - File: `packages/db/migrations/096_quiz_sessions_mode_vfr_rt.sql` (+ mirror)
   - The CHECK was named `quiz_sessions_mode_check` by mig 058. Simple DROP CONSTRAINT + ADD CONSTRAINT — no DO-block lookup needed (the constraint is named, not anonymous):
     ```sql
@@ -65,26 +65,26 @@
   - _Leverage: `packages/db/migrations/058_quiz_session_modes.sql` (constraint name source)_
   - _Requirements: R2.1_
 
-- [ ] **A.4 Migration `097` — seed VFR RT subject + Part-1/2/3 topics**
+- [x] **A.4 Migration `097` — seed VFR RT subject + Part-1/2/3 topics**
   - File: `packages/db/migrations/097_seed_vfr_rt_subject_and_topics.sql` (+ mirror)
   - INSERT one `easa_subjects` row (`code='RT', name='VFR Radiotelephony (Slovenia)'`) with `ON CONFLICT (code) DO NOTHING` — `easa_subjects` has `UNIQUE(code)`.
   - INSERT three `easa_topics` rows under it (`P1_ACRONYMS`, `P2_DIALOG`, `P3_MC`) with `ON CONFLICT (subject_id, code) DO NOTHING` — `easa_topics` has `UNIQUE (subject_id, code)` (mig 001 line 67), NOT `UNIQUE(code)` alone. A bare `ON CONFLICT (code)` would fail at migration time. Resolve the subject's UUID first (CTE or scalar subquery).
   - _Leverage: existing seed pattern from initial schema; `packages/db/migrations/001_initial_schema.sql` lines 60–67 for `easa_topics` constraint shape_
   - _Requirements: R1, R4.3_
 
-- [ ] **A.5 Migration `098` — `exam_configs.parts_config` jsonb column**
+- [x] **A.5 Migration `098` — `exam_configs.parts_config` jsonb column**
   - File: `packages/db/migrations/098_exam_configs_parts_config.sql` (+ mirror)
   - ALTER `exam_configs` ADD COLUMN `parts_config JSONB NOT NULL DEFAULT '{}'::jsonb`. Document the shape via `COMMENT ON COLUMN`. No backfill — existing rows keep `{}`.
   - _Leverage: `packages/db/migrations/038_exam_configs.sql`_
   - _Requirements: R4.1, R4.3_
 
-- [ ] **A.6 Migration `099` — `start_vfr_rt_exam_session(p_subject_id)` RPC**
+- [x] **A.6 Migration `099` — `start_vfr_rt_exam_session(p_subject_id)` RPC**
   - File: `packages/db/migrations/099_start_vfr_rt_exam_session_rpc.sql` (+ mirror)
   - SECURITY DEFINER + `SET search_path = public` + `auth.uid()` check + `users.deleted_at IS NULL` filter + audit-event INSERT with `actor_role` subquery filtering `deleted_at IS NULL`. Sample 8 short_answer + 9 dialog_fill + 8 multiple_choice by `random() LIMIT N`. Insert quiz_sessions with `mode='vfr_rt_exam'`, `time_limit_seconds=1800`. Idempotent resume on active in-flight. RAISE `'insufficient_questions_for_vfr_rt_exam'` with DETAIL when any pool is short.
   - _Leverage: `packages/db/migrations/060_start_internal_exam_session_rpc.sql` (blueprint); `049`, `063` for audit pattern; `security.md` §7 §9 §10_
   - _Requirements: R2, R4_
 
-- [ ] **A.6b Migration `099b` — `get_vfr_rt_exam_questions(p_question_ids uuid[])` RPC (REQUIRED for Phase B/C)**
+- [x] **A.6b Migration `099b` — `get_vfr_rt_exam_questions(p_question_ids uuid[])` RPC (REQUIRED for Phase B/C)**
   - File: `packages/db/migrations/099b_get_vfr_rt_exam_questions_rpc.sql` (+ mirror)
   - SECURITY DEFINER + STABLE + `SET search_path = public` + `auth.uid()` check + `users.deleted_at IS NULL` filter. Returns one row per requested question id with: `id`, `question_type`, `question_text`, `question_image_url`, `subject_code`, `topic_code`, `difficulty`, `question_number`, `explanation_text`, `explanation_image_url`. For MC rows: `options` projected via the existing stripped pattern (id + text only, ORDER BY random()). For short_answer: `options = NULL`. For dialog_fill: `options = NULL`, `dialog_template` returned with `{{n|canonical;...}}` tokens REPLACED by `{{n}}` plain markers (`regexp_replace(dialog_template, '\{\{(\d+)\|[^}]*\}\}', '{{\1}}', 'g')`), and `blanks_safe jsonb` = `[{ index: int }]` array (canonicals stripped).
   - **MUST NEVER return**: `canonical_answer`, `accepted_synonyms`, raw `blanks_config` with canonicals, or any `correct` flag on options. Failure to strip is a `security.md` rule 1 violation.
@@ -92,26 +92,26 @@
   - _Leverage: `get_quiz_questions()` LATEST body at `supabase/migrations/20260327000059_shuffle_answer_options.sql` for the options-stripping pattern; sibling RPC, not a replacement_
   - _Requirements: R1 (type-discriminated rendering), R3.8 (no answer leak before submit), NFR-Security_
 
-- [ ] **A.7 Migration `100` — `submit_vfr_rt_exam_answers(p_session_id, p_answers jsonb)` RPC**
+- [x] **A.7 Migration `100` — `submit_vfr_rt_exam_answers(p_session_id, p_answers jsonb)` RPC**
   - File: `packages/db/migrations/100_submit_vfr_rt_exam_answers_rpc.sql` (+ mirror)
   - Atomic: SELECT FOR UPDATE on session, ownership + mode + deleted_at checks, idempotent on `ended_at IS NOT NULL`, **timer-expiry guard** (now() past `started_at + (time_limit_seconds + 30s)` → expire with 0/false + `'vfr_rt_exam.expired'` audit event instead of grading — pattern parity with `batch_submit_quiz` `20260601000001` L99–115; added 2026-06-10), validate every `question_id` ∈ `config.question_ids`, INSERT `quiz_session_answers` + `student_responses` per entry (per blank for dialog_fill), compute per-part scores, UPDATE `quiz_sessions` (ended_at, correct_count, score_percentage, passed), INSERT audit-event with full per-part metadata.
   - _Leverage: `batch_submit_quiz` for the answer-write pattern; `complete_quiz_session` for completion shape_
   - _Requirements: R3, R6_
 
-- [ ] **A.8 Migration `101` — `normalize_answer(text)` SQL helper + deploy-time locale guard**
+- [x] **A.8 Migration `101` — `normalize_answer(text)` SQL helper + deploy-time locale guard**
   - File: `packages/db/migrations/101_normalize_answer_helper.sql` (+ mirror)
   - **Deploy-time guard at the top of the migration:** `DO $$ BEGIN IF lower('Č') <> 'č' THEN RAISE EXCEPTION 'normalize_answer requires a UTF-8 locale that preserves diacritics. Current locale folds "Č" to "%". Use en_US.UTF-8 or C.UTF-8; check the database locale with: SHOW lc_ctype;', lower('Č'); END IF; END $$;`. Forces a deploy to a fold-folding locale (e.g. `tr_TR` or `C`/POSIX) to fail at apply time instead of silently breaking grader accuracy after launch. The error message embeds the offending folded value AND the fix instruction so ops doesn't have to guess.
   - `CREATE OR REPLACE FUNCTION normalize_answer(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE`. Logic mirrors the TS `normalizeAnswer()` exactly.
   - _Leverage: `apps/web/lib/grading/normalize-answer.ts` (TS source of truth; mig 101 mirrors it)_
   - _Requirements: R6.1–R6.4_
 
-- [ ] **A.9 Migration `102` — extend `complete_overdue_exam_session` for vfr_rt_exam mode**
+- [x] **A.9 Migration `102` — extend `complete_overdue_exam_session` for vfr_rt_exam mode**
   - File: `packages/db/migrations/102_extend_overdue_for_vfr_rt_exam.sql` (+ mirror)
   - `CREATE OR REPLACE FUNCTION complete_overdue_exam_session(...)` — locate LATEST via Pre-Flag Verification (`agent-critic.md`), copy verbatim, widen `mode IN (...)` to include `'vfr_rt_exam'`. Body for vfr_rt_exam overdue: compute partial per-part scores from existing answers, default missing entries to 0, emit `'vfr_rt_exam.expired'` audit event — matches the existing `CASE v_mode WHEN 'internal_exam' THEN 'internal_exam.expired' ELSE 'exam.expired' END` pattern at mig 063 lines 112–115. **Do NOT widen any other RPC mode check.**
   - _Leverage: `packages/db/migrations/063_extend_overdue_for_internal_exam.sql` (verify LATEST per agent-critic.md before copying)_
   - _Requirements: R2.3, NFR-Reliability_
 
-- [ ] **A.9b Migration `103` — `get_vfr_rt_exam_results(p_session_id)` RPC (results/review read path, REQUIRED for Phase C)**
+- [x] **A.9b Migration `103` — `get_vfr_rt_exam_results(p_session_id)` RPC (results/review read path, REQUIRED for Phase C)**
   - File: `packages/db/migrations/103_get_vfr_rt_exam_results_rpc.sql` (+ mirror)
   - Per-part percentages are not persisted on `quiz_sessions`, and canonicals are privilege-blocked (mig 094) + RPC-stripped (mig 099b) — so a fresh load of the results page needs this RPC. SECURITY DEFINER + STABLE + `SET search_path = public`. Guards in order: `auth.uid()` NULL → `'not_authenticated'`; session `WHERE id = p_session_id AND student_id = auth.uid() AND mode = 'vfr_rt_exam' AND deleted_at IS NULL AND ended_at IS NOT NULL` → `'Session not found, not owned, or not completed'` (capital S — exact wording per design.md § Migration 103). Explicit `student_id = auth.uid()` scoping is mandatory (`quiz_sessions` has multiple permissive SELECT policies — security.md "Multiple Permissive RLS SELECT Policies" / `docs/security.md` §3).
   - Returns per-part percentages (recomputed from `quiz_session_answers` × `questions.question_type`, mig-100 formulas, unanswered = 0), `passed_overall` + per-part flags, and per-question review rows with the revealed key (canonical/synonyms/correct option) — full contract in design.md § Migration 103.
