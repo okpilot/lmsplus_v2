@@ -121,6 +121,12 @@
 - **CT user.deactivated: soft-delete target without `.is('deleted_at', null)` guard is acceptable.** The update at `audit-completeness.spec.ts:678` uses `.eq('id', victimUserId)` without `.is('deleted_at', null)`. If the victim was already soft-deleted from a cross-spec leak, the update succeeds idempotently and `softDeletedUserIds` still restores it. The test checks `!deleted?.length` as an existence guard. This pattern is acceptable — the service-role client doesn't enforce the soft-delete guard, and the afterEach restore uses `.not('deleted_at', 'is', null)` correctly.
 - **RAISE-string casing verified for all 4 RPCs.** `record_auth_event` → `'not authenticated'` (lower); `get_session_reports` → `'Not authenticated'` (capital N); `void_internal_exam_code` → `'not_authenticated'` (snake). All anon assertions in new specs use `/not[ _]authenticated/i` or `/not authenticated/i` (case-insensitive) — safe against all three forms.
 
+## Notes on #831 get_vfr_rt_exam_questions org-filter fix
+
+- **NULL-org guard doubles as NULL-user guard — confirmed again.** `SELECT u.organization_id INTO v_caller_org_id ... WHERE u.id = v_caller AND u.deleted_at IS NULL; IF v_caller_org_id IS NULL THEN RAISE 'user_not_found_or_inactive'` preserves the old EXISTS gate exactly: soft-deleted user or unknown user → org returns NULL → guard fires. No behavioral regression. Pattern mirrors mig 099 lines 67–71 identically.
+- **questions.organization_id is NOT NULL (verified in initial schema line 107).** The `AND q.organization_id = v_caller_org_id` filter is non-nullable on both sides — no null-equality trap possible.
+- **adminUserId2 not pushed to the describe-scope `userIds` — correct by design.** It is explicitly passed as `userIds: [adminUserId2]` in its own `cleanupTestData` call. The first `cleanupTestData` call covers orgId + its own userIds (adminUserId + studentId). No orphan risk.
+
 ## Notes on #326 attack-surface matrix registration (orphaned specs bookkeeping)
 
 - **Bookkeeping-only diff is comment/title changes only — no assertion/logic changes.** The 3 spec files had ONLY `+` lines touching `/** ... */` doc comments, `test.describe(...)` titles, and `test(...)` titles. Zero assertion or logic changes confirmed by reading every `+` line in the diff.

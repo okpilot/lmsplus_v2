@@ -723,6 +723,49 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
     expect(Array.isArray(rows)).toBe(true)
     expect(rows).toHaveLength(0)
   })
+
+  it('rejects an unauthenticated call with not_authenticated', async () => {
+    const { createClient } = await import('@supabase/supabase-js')
+    const anonClient = createClient(
+      process.env['NEXT_PUBLIC_SUPABASE_URL'] ?? '',
+      process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    )
+    const { error } = await anonClient.rpc('get_vfr_rt_exam_questions', {
+      p_question_ids: [saId],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message).toContain('not_authenticated')
+  })
+
+  it('rejects a soft-deleted caller with user_not_found_or_inactive', async () => {
+    // Soft-delete the student — the deleted_at-filtered SELECT INTO yields NULL,
+    // triggering the user_not_found_or_inactive gate (mig 099b pattern).
+    const { error: softDeleteErr } = await admin
+      .from('users')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', studentId)
+    if (softDeleteErr) throw new Error(`soft-delete setup: ${softDeleteErr.message}`)
+
+    try {
+      const { error } = await studentClient.rpc('get_vfr_rt_exam_questions', {
+        p_question_ids: [saId],
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('user_not_found_or_inactive')
+    } finally {
+      // Restore the student so afterAll cleanup can delete the row cleanly.
+      const { error: restoreErr } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', studentId)
+      // console.error, not throw: a throw here would mask the test's own
+      // assertion failure (biome noUnsafeFinally).
+      if (restoreErr) {
+        console.error('[soft-delete restore] student row left soft-deleted:', restoreErr.message)
+      }
+    }
+  })
 })
 
 // ─── Column-grant regression (mig 094) ────────────────────────────────────────
