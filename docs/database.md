@@ -1381,7 +1381,7 @@ This ensures the audit trail reflects what actually happened, not a hard-coded a
 
 #### `complete_overdue_exam_session` — close a past-deadline exam (Layer 1)
 
-Completes a `mock_exam` or `internal_exam` session whose deadline has passed. Computes score from any existing `quiz_session_answers` rows — partial answers are honoured, NOT zeroed. Sets `ended_at`, `correct_count`, `score_percentage`, `passed` and writes an `exam.expired` (or `internal_exam.expired`) audit event.
+Completes a `mock_exam`, `internal_exam`, or `vfr_rt_exam` session whose deadline has passed. Computes score from any existing `quiz_session_answers` rows — partial answers are honoured, NOT zeroed. Sets `ended_at`, `correct_count`, `score_percentage`, `passed` and writes an `exam.expired` (or `internal_exam.expired` / `vfr_rt_exam.expired`) audit event.
 
 **Grace window (migration 052):** The overdue threshold is `now() > started_at + (time_limit_seconds + 30 seconds)`, matching the grace window in `batch_submit_quiz`. This ensures the Layer 1 refresh check and the submit RPC never disagree on whether a session is overdue — a session within the grace window is not considered overdue by either path.
 
@@ -1394,6 +1394,7 @@ Completes a `mock_exam` or `internal_exam` session whose deadline has passed. Co
 **Score computation:**
 - `v_score = round(correct_count / total_questions * 100, 2)` — unanswered count as wrong (formula imported from `batch_submit_quiz`'s `mock_exam` branch).
 - `v_passed := (pass_mark IS NOT NULL AND v_score >= pass_mark)`. Mode-specific incompleteness rule (migration 063): an incomplete `mock_exam` (`answered < total`) auto-fails regardless of score; `internal_exam` allows partial submissions and is judged solely on the score-vs-pass-mark check.
+- `vfr_rt_exam` sessions take a separate per-part grading branch that bypasses the `pass_mark`-based check entirely — see "VFR RT extension" below.
 
 **Idempotency:** If `ended_at IS NOT NULL`, the function returns the stored `score_percentage`, `passed`, and a fresh `answered_count` from `quiz_session_answers`. The `FOR UPDATE` lock holds the row, so the re-read is safe.
 
@@ -1401,7 +1402,7 @@ Completes a `mock_exam` or `internal_exam` session whose deadline has passed. Co
 - `auth.uid()` check.
 - Org-scope guard reads `organization_id` from `users` with `deleted_at IS NULL`.
 - Ownership + org check — `FOR UPDATE` filter requires `student_id = v_student_id AND organization_id = v_org_id AND deleted_at IS NULL`.
-- Mode guard — RAISE if mode is not `mock_exam` or `internal_exam` (widened in migration `20260429000008` — see "Internal-exam extension" below).
+- Mode guard — RAISE if mode is not `mock_exam`, `internal_exam`, or `vfr_rt_exam` (widened in migration `20260429000008`, then again in migration `20260610001200` — see the extension notes below).
 - Overdue invariant — RAISE if `now() <= started_at + (time_limit_seconds + 30 seconds)`. Callers must not invoke for sessions within the grace window.
 - Audit `actor_role` subquery enforces `deleted_at IS NULL` per security.md rule #10 (audit-event subqueries are independent SELECTs and must validate soft-delete unconditionally).
 - `SECURITY DEFINER SET search_path = public`.
@@ -1411,6 +1412,8 @@ Completes a `mock_exam` or `internal_exam` session whose deadline has passed. Co
 **`start_exam_session` interaction:** Before raising the duplicate-active-session guard, `start_exam_session` looks up any same-subject `mock_exam` session past `started_at + (time_limit_seconds + 30 seconds)` and calls `complete_overdue_exam_session` on it. See the `start_exam_session` subsection above for the full sequence and the org-scope filter on the lookup.
 
 **Internal-exam extension (migration `20260429000008`):** `complete_overdue_exam_session` and `complete_empty_exam_session` were widened from `mode = 'mock_exam'` to `mode IN ('mock_exam', 'internal_exam')`. The audit `event_type` is branched: `internal_exam.expired` / `internal_exam.completed` for internal-exam sessions, the existing `exam.*` events for mock-exam sessions.
+
+**VFR RT extension (migration `20260610001200` / mig 102):** Both helpers' mode guards were widened again to `mode IN ('mock_exam', 'internal_exam', 'vfr_rt_exam')`, and the audit `event_type` branching gained `vfr_rt_exam.expired` / `vfr_rt_exam.completed`. For a `vfr_rt_exam` session, `complete_overdue_exam_session` replaces the `pass_mark`-based score computation with the per-part grading branch (mig 100 formulas): Part 1 = avg of binary correctness over `short_answer` questions, Part 2 = avg of `correct_blanks / total_blanks` over `dialog_fill` questions, Part 3 = avg of binary correctness over `multiple_choice` questions — missing answers score 0. `passed := (all three parts >= 75)`; the config `pass_mark` is not used. `score_percentage = round((p1 + p2 + p3) / 3, 2)` is informational only. Question rows are read via the write-once `config.question_ids` (immutable write-once exception, `docs/security.md` §15).
 
 ---
 
