@@ -95,6 +95,13 @@
 - **GDPR type widening for new nullable columns is a secondary change class.** When schema adds nullable columns to existing tables (`response_text`, `blank_index` on `quiz_session_answers`/`student_responses`), check 3 sites: (1) the SELECT string in the GDPR query, (2) the GdprExportPayload type in types.ts (must widen to `string | null`), (3) test fixture must add the new fields as `null`. All 3 aligned in #697.
 - **tasks.md A.10 was completed but not checked in the staged diff.** A.10 artifacts (types.ts regen) ARE staged but the checkbox was not ticked. SUGGESTION class only — workflows item, not correctness.
 
+## Notes on #838 CR round-3 applies (legacy-mode whitelist + active-user gate)
+
+- **Mig 104 'not authenticated' (space) vs sibling 'not_authenticated' (underscore)** is a pre-existing divergence inherited from the copy source (20260406000004) — the plan explicitly lists only 2 changes. Do not flag as a deviation when the copy source is the source of truth. Both forms remain in the codebase; flag at SUGGESTION only.
+- **`forceEndSession` inline (not try/finally) in whitelist tests** is safe because (a) `start_vfr_rt_exam_session` resumes an existing active session idempotently — so a leaked active session becomes the input to the NEXT test's `startSession()`, not a blocker; (b) `cleanupTestData` in `afterAll` hard-deletes all sessions by `org_id`. Pattern is hermetic even without per-test try/finally.
+- **#838 review was clean (0 CRITICAL, 0 ISSUE, 1 SUGGESTION)** — twin-file identity, guard placement, copy-source fidelity, test non-vacuity and hermiticity all verified correct.
+- **Post-#838 fix-cycle commit APPROVED (0 CRITICAL, 0 ISSUE, 1 SUGGESTION).** Mig 104 deleted_at guard test: non-vacuous (rollback assertion `ended_at IS NULL`), hermetic (try/finally with `console.error` restore, `{ error: endErr }` on force-end). Doc edits accurate: 094–104 range confirmed (15 files), footer claim matches existing L717/L975 entries. plan.md 132→133 in both current-phase lines. SUGGESTION: finally-block UPDATEs lack `.select('id')` + zero-row log — acceptable for cleanup context per §5 established pattern, plan explicitly only required `{ error }` destructure.
+
 ## Notes on agent-health.yml false-positive fix (#810)
 
 - **`var=$(cmd)` is exempt from `set -e` in bash** — `set -euo pipefail` does NOT abort on a failing command substitution inside a variable assignment. The old `|| true` after `xargs 2>/dev/null` in Check 3 was therefore NOT load-bearing under `set -e`; removing it (replacing xargs with `trim()`) is safe. `sed` piped from `awk` exits 0 on well-formed input, so in practice these never fail.
