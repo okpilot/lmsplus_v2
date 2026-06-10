@@ -388,3 +388,193 @@ describe('Constraint regression — mig 094 accepted_synonyms CHECK on multiple_
     expect(data?.accepted_synonyms).toEqual(['roger', 'affirmative'])
   })
 })
+
+// ────────────────────────────────────────────────────────────────────────────
+// commit 13dce467 — negative blank_index guard in answer-shape CHECKs
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Both quiz_session_answers and student_responses previously accepted any
+// integer blank_index value. The tightened CHECK adds
+//   `AND (blank_index IS NULL OR blank_index >= 0)`
+// to the text-response branch. A negative index would produce a
+// UNIQUE-distinct row that inflates dialog_fill correct-row counts without
+// corresponding to a real blank.
+//
+// quiz_session_answers has a NOT NULL FK to quiz_sessions, so a valid session
+// row is required. We admin-INSERT a minimal quiz_sessions row directly
+// (bypassing RLS) rather than going through the RPC to keep this describe
+// block self-contained.
+//
+// student_responses.session_id is nullable, so no session FK is needed there.
+//
+// The CHECK fires on raw INSERT — no plpgsql body involved, so execution-time
+// deferral does not apply (same reasoning as the mig 094 block above).
+
+describe('Constraint regression — commit 13dce467 negative blank_index guard on answer-shape CHECKs', () => {
+  let orgId: string
+  let studentUserId: string
+  let adminUserId: string
+  let questionId: string
+  let sessionId: string
+  let refs: Awaited<ReturnType<typeof seedReferenceData>>
+  const userIds: string[] = []
+
+  beforeAll(async () => {
+    orgId = await createTestOrg({
+      admin,
+      name: `Test Org BlankIdx ${suffix}`,
+      slug: `test-blankidx-${suffix}`,
+    })
+    adminUserId = await createTestUser({
+      admin,
+      orgId,
+      email: `admin-blankidx-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'admin',
+    })
+    userIds.push(adminUserId)
+
+    studentUserId = await createTestUser({
+      admin,
+      orgId,
+      email: `student-blankidx-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'student',
+    })
+    userIds.push(studentUserId)
+
+    refs = await seedReferenceData({
+      admin,
+      subjectCode: `BI${suffix}`,
+      subjectName: `BlankIdx Subject ${suffix}`,
+      topicCode: `BI${suffix}-01`,
+      topicName: `BlankIdx Topic ${suffix}`,
+    })
+
+    // Seed a single short_answer question (text-response type — the branch under test).
+    const { data: bankRow, error: bankLookupErr } = await admin
+      .from('question_banks')
+      .select('id')
+      .eq('organization_id', orgId)
+      .is('deleted_at', null)
+      .maybeSingle<{ id: string }>()
+    if (bankLookupErr) throw new Error(`bank lookup: ${bankLookupErr.message}`)
+    let bankId: string
+    if (bankRow) {
+      bankId = bankRow.id
+    } else {
+      const { data: newBank, error: bankErr } = await admin
+        .from('question_banks')
+        .insert({
+          organization_id: orgId,
+          name: `BlankIdx Bank ${suffix}`,
+          created_by: adminUserId,
+        })
+        .select('id')
+        .single<{ id: string }>()
+      if (bankErr) throw new Error(`bank insert: ${bankErr.message}`)
+      bankId = newBank.id
+    }
+
+    const { data: qRow, error: qErr } = await admin
+      .from('questions')
+      .insert({
+        organization_id: orgId,
+        bank_id: bankId,
+        subject_id: refs.subjectId,
+        topic_id: refs.topicId,
+        question_text: 'BlankIdx fixture question',
+        explanation_text: 'Explanation',
+        question_type: 'short_answer',
+        canonical_answer: 'wilco',
+        accepted_synonyms: [],
+        options: [],
+        difficulty: 'medium',
+        status: 'active',
+        created_by: adminUserId,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (qErr) throw new Error(`question insert: ${qErr.message}`)
+    questionId = qRow.id
+
+    // Admin-insert a minimal quiz_sessions row so quiz_session_answers tests
+    // have a valid session FK. The service-role client bypasses RLS for this.
+    const { data: sessRow, error: sessErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: studentUserId,
+        mode: 'quick_quiz',
+        subject_id: refs.subjectId,
+        config: {},
+        total_questions: 1,
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (sessErr) throw new Error(`session insert: ${sessErr.message}`)
+    sessionId = sessRow.id
+  })
+
+  afterAll(async () => {
+    await cleanupTestData({ admin, orgId, userIds })
+    await cleanupReferenceData({ admin, refs: [refs] })
+  })
+
+  it('rejects a quiz_session_answers text-response row with blank_index = -1 with a check-violation error', async () => {
+    // Before commit 13dce467 a negative blank_index would insert silently,
+    // creating a UNIQUE-distinct row that inflates dialog_fill correct-row counts.
+    const { error } = await admin.from('quiz_session_answers').insert({
+      session_id: sessionId,
+      question_id: questionId,
+      selected_option_id: null,
+      response_text: 'wilco',
+      blank_index: -1, // violates the new >= 0 guard
+      is_correct: true,
+      response_time_ms: 500,
+    })
+    expect(error).not.toBeNull()
+    // 23514 = check_violation (quiz_session_answers_answer_shape_check)
+    expect(error?.code).toBe('23514')
+  })
+
+  it('accepts a quiz_session_answers text-response row with blank_index = 0', async () => {
+    // Positive control: blank_index = 0 is a valid first-blank ordinal and
+    // must be accepted by the tightened CHECK.
+    const { data, error } = await admin
+      .from('quiz_session_answers')
+      .insert({
+        session_id: sessionId,
+        question_id: questionId,
+        selected_option_id: null,
+        response_text: 'wilco',
+        blank_index: 0,
+        is_correct: true,
+        response_time_ms: 500,
+      })
+      .select('id, blank_index')
+      .single<{ id: string; blank_index: number }>()
+    expect(error).toBeNull()
+    expect(data).not.toBeNull()
+    expect(data?.blank_index).toBe(0)
+  })
+
+  it('rejects a student_responses text-response row with blank_index = -1 with a check-violation error', async () => {
+    // student_responses mirrors the same CHECK tightening. session_id is nullable
+    // so no session FK is required here.
+    const { error } = await admin.from('student_responses').insert({
+      organization_id: orgId,
+      student_id: studentUserId,
+      question_id: questionId,
+      session_id: null,
+      selected_option_id: null,
+      response_text: 'wilco',
+      blank_index: -1, // violates the new >= 0 guard
+      is_correct: true,
+      response_time_ms: 500,
+    })
+    expect(error).not.toBeNull()
+    // 23514 = check_violation (student_responses_answer_shape_check)
+    expect(error?.code).toBe('23514')
+  })
+})
