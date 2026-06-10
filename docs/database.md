@@ -2376,6 +2376,8 @@ Student-facing RPC (migration 099). Creates a timed (30-minute) `vfr_rt_exam` se
 
 **Idempotency:** Resume guards against duplicate active sessions — if the student has an in-flight (not overdue) vfr_rt_exam session, it is returned as-is instead of creating a new one.
 
+**Duplicate-active-session hardening (mig 096 + 099):** The idempotent-resume SELECT alone is racy on the first call — two concurrent callers can both observe no active session and both INSERT. `uq_vfr_rt_exam_session_active` (mig 096), a partial unique index on `quiz_sessions (student_id, organization_id, subject_id) WHERE mode = 'vfr_rt_exam' AND ended_at IS NULL AND deleted_at IS NULL`, closes the race at the schema level (sibling of `uq_active_exam_session` for mock_exam, mig 088, and `uq_internal_exam_session_active` for internal_exam). The mig 099 `EXCEPTION WHEN unique_violation` handler then re-reads and **returns the winner's session** instead of raising — unlike the sibling RPCs' raise-only handlers. This divergence is intentional: the RPC's contract is idempotent resume, so the racing loser receives the same payload a sequential second call would. The loser's path skips the audit INSERT (it created no session).
+
 #### `get_vfr_rt_exam_questions` — type-aware, answer-key-stripped VFR RT question reads
 
 Student-facing RPC (migration 099b, sibling of `get_quiz_questions`). Returns mixed-type questions (multiple_choice, short_answer, dialog_fill) with all grading keys stripped.

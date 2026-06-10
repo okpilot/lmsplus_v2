@@ -345,8 +345,10 @@ describe('RPC: get_vfr_rt_exam_results — guard errors', () => {
     // Exact wording from mig 103 / design.md (capital S)
     expect(error?.message).toContain('Session not found, not owned, or not completed')
 
-    // Force-end so the next start_vfr_rt_exam_session can create a fresh session
-    await admin
+    // Force-end so the next start_vfr_rt_exam_session can create a fresh session.
+    // Zero-row no-op guard (code-style §5): exactly one row must be closed —
+    // a silent no-op here would leak an active session into later tests.
+    const { data: closed, error: closeErr } = await admin
       .from('quiz_sessions')
       .update({
         ended_at: new Date().toISOString(),
@@ -355,6 +357,9 @@ describe('RPC: get_vfr_rt_exam_results — guard errors', () => {
         passed: false,
       })
       .eq('id', openSession)
+      .select('id')
+    if (closeErr) throw new Error(`force-close pre-completion session: ${closeErr.message}`)
+    expect(closed).toHaveLength(1)
   })
 
   it('rejects a non-owner call with the guard error', async () => {
@@ -437,6 +442,10 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
     expect(result.passed_per_part.part2).toBe(true)
     expect(result.passed_per_part.part3).toBe(true)
     expect(Number(result.total_questions)).toBe(25)
+    // correct_count is ROW-level (one quiz_session_answers row per blank for
+    // dialog_fill, informational-only per migs 100/102/103): 8 SA + 9 DF × 2
+    // blanks (18) + 8 MC = 34 — NOT the 25 question-level count.
+    expect(Number(result.correct_count)).toBe(34)
     expect(Array.isArray(result.questions)).toBe(true)
     expect(result.questions).toHaveLength(25)
   })
@@ -496,6 +505,7 @@ describe('RPC: get_vfr_rt_exam_results — Part 2 fail session (Fixture B)', () 
       part3_pct: number
       passed_overall: boolean
       passed_per_part: { part1: boolean; part2: boolean; part3: boolean }
+      correct_count: number
     }
     expect(Number(result.part1_pct)).toBe(100)
     expect(Number(result.part2_pct)).toBe(0)
@@ -504,6 +514,9 @@ describe('RPC: get_vfr_rt_exam_results — Part 2 fail session (Fixture B)', () 
     expect(result.passed_per_part.part1).toBe(true)
     expect(result.passed_per_part.part2).toBe(false)
     expect(result.passed_per_part.part3).toBe(true)
+    // correct_count is ROW-level (per-blank for dialog_fill, informational-only
+    // per migs 100/102/103): 8 SA + 0 of 18 wrong DF blank rows + 8 MC = 16.
+    expect(Number(result.correct_count)).toBe(16)
   })
 })
 

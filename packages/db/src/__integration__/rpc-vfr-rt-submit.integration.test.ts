@@ -657,16 +657,20 @@ describe('RPC: get_question_authoring_fields', () => {
       password: 'test-pass-123',
     })
 
-    // The question saId belongs to orgId, not orgId2; cross-org admin sees 0 rows
-    const { data, error } = await crossAdminClient.rpc('get_question_authoring_fields', {
-      p_question_id: saId,
-    })
-    expect(error).toBeNull()
-    const rows = data as unknown as unknown[]
-    // Non-vacuity: the question row exists (confirmed above); the empty result
-    // means the RPC's org filter correctly rejected the cross-org admin
-    expect(rows).toHaveLength(0)
-
-    await cleanupTestData({ admin, orgId: orgId2, userIds: [adminId2] })
+    try {
+      // The question saId belongs to orgId, not orgId2; cross-org admin sees 0 rows
+      const { data, error } = await crossAdminClient.rpc('get_question_authoring_fields', {
+        p_question_id: saId,
+      })
+      expect(error).toBeNull()
+      const rows = data as unknown as unknown[]
+      // Non-vacuity: the question row exists (confirmed above); the empty result
+      // means the RPC's org filter correctly rejected the cross-org admin
+      expect(rows).toHaveLength(0)
+    } finally {
+      // Cleanup must run even when an assertion above fails — otherwise the
+      // second org leaks into later test runs.
+      await cleanupTestData({ admin, orgId: orgId2, userIds: [adminId2] })
+    }
   })
 })

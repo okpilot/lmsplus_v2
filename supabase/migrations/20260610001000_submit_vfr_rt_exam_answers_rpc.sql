@@ -145,7 +145,8 @@ BEGIN
 
       -- Frozen-ID read: IDs come from the write-once quiz_sessions.config.question_ids,
       -- so the immutable write-once exception applies — no deleted_at filter here
-      -- (docs/security.md §15; same posture as batch_submit_quiz's question reads).
+      -- (docs/security.md §15; docs/database.md §3 "Scoring Soft-Deleted
+      -- Questions"; same posture as batch_submit_quiz's question reads).
       SELECT q.question_type, q.canonical_answer, q.accepted_synonyms, q.options, q.blanks_config
       INTO v_qtype, v_canonical, v_synonyms, v_options, v_blanks
       FROM questions q
@@ -225,7 +226,8 @@ BEGIN
 
   -- Per-part scores from persisted rows — single source of truth for both the
   -- fresh path and the idempotent re-read. Frozen-ID questions read carries the
-  -- immutable write-once exception (docs/security.md §15) — no deleted_at filter.
+  -- immutable write-once exception (docs/security.md §15; docs/database.md §3)
+  -- — no deleted_at filter.
   WITH session_questions AS (
     SELECT q.id, q.question_type,
            CASE WHEN q.question_type = 'dialog_fill'

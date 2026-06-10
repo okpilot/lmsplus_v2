@@ -458,6 +458,62 @@ describe('RPC: start_vfr_rt_exam_session', () => {
     await cleanupTestData({ admin, orgId: orgId3, userIds: [adminId3, studentId3] })
   })
 
+  it('a second concurrent active session for the same student and subject is rejected with a unique violation (23505)', async () => {
+    // Schema-level race guard (uq_vfr_rt_exam_session_active, mig 096): two
+    // concurrent first calls can both pass the RPC's idempotent-resume SELECT;
+    // the partial unique index makes the loser's INSERT fail with 23505 instead
+    // of creating a duplicate active session. Asserted via direct service-role
+    // INSERTs — the index, not the RPC body, is the defense under test.
+    const insertActiveSession = () =>
+      admin
+        .from('quiz_sessions')
+        .insert({
+          organization_id: orgId,
+          student_id: studentId,
+          mode: 'vfr_rt_exam',
+          subject_id: rtSubjectId,
+          config: {},
+          total_questions: 25,
+          time_limit_seconds: 1800,
+        })
+        .select('id')
+        .single<{ id: string }>()
+
+    const { data: first, error: firstErr } = await insertActiveSession()
+    try {
+      expect(firstErr).toBeNull()
+      expect(first?.id).toBeTruthy()
+
+      const { error: secondErr } = await insertActiveSession()
+      expect(secondErr).not.toBeNull()
+      // 23505 = unique_violation (uq_vfr_rt_exam_session_active)
+      expect(secondErr?.code).toBe('23505')
+    } finally {
+      // Soft-delete the directly-inserted row(s) so the happy-path/resume tests
+      // below see no active session (hard DELETE on quiz_sessions is forbidden).
+      // console.error, not throw: a throw here would mask the test's own
+      // assertion failure (biome noUnsafeFinally).
+      const { data: discarded, error: cleanupErr } = await admin
+        .from('quiz_sessions')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('student_id', studentId)
+        .eq('organization_id', orgId)
+        .eq('subject_id', rtSubjectId)
+        .eq('mode', 'vfr_rt_exam')
+        .is('ended_at', null)
+        .is('deleted_at', null)
+        .select('id')
+      if (cleanupErr) {
+        console.error(
+          '[uq_vfr_rt cleanup] soft-delete failed — active session left behind:',
+          cleanupErr.message,
+        )
+      } else if ((discarded?.length ?? 0) > 0) {
+        console.log(`[uq_vfr_rt cleanup] soft-deleted ${discarded?.length} session(s)`)
+      }
+    }
+  })
+
   it('happy path — returns session_id, 25 question_ids, parts boundaries, time_limit_seconds', async () => {
     const { data, error } = await studentClient.rpc('start_vfr_rt_exam_session', {
       p_subject_id: rtSubjectId,

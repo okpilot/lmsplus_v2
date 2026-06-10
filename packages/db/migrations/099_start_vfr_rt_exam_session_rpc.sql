@@ -208,19 +208,50 @@ BEGIN
   );
 
   -- 10. Insert the session. 1800s = fixed 30-minute timer (design.md).
-  INSERT INTO public.quiz_sessions
-    (organization_id, student_id, mode, subject_id,
-     config, total_questions, time_limit_seconds)
-  VALUES (
-    v_org_id, v_student_id, 'vfr_rt_exam', p_subject_id,
-    jsonb_build_object(
-      'question_ids', to_jsonb(v_all_ids),
-      'parts',        v_parts
-    ),
-    v_total, 1800
-  )
-  RETURNING id, quiz_sessions.started_at
-  INTO v_session_id, v_started_at;
+  -- Sub-block handler: two concurrent FIRST calls can both pass the step-5
+  -- idempotent-resume SELECT; uq_vfr_rt_exam_session_active (mig 096) makes
+  -- the loser's INSERT raise unique_violation. Unlike the raise-only handlers
+  -- in start_exam_session (mig 088) / start_internal_exam_session (mig 070),
+  -- the loser re-reads and RETURNs the winner's session — preserving this
+  -- RPC's idempotent-resume contract. The RETURN exits here, so the audit
+  -- INSERT below never runs on this path (this caller created no session).
+  BEGIN
+    INSERT INTO public.quiz_sessions
+      (organization_id, student_id, mode, subject_id,
+       config, total_questions, time_limit_seconds)
+    VALUES (
+      v_org_id, v_student_id, 'vfr_rt_exam', p_subject_id,
+      jsonb_build_object(
+        'question_ids', to_jsonb(v_all_ids),
+        'parts',        v_parts
+      ),
+      v_total, 1800
+    )
+    RETURNING id, quiz_sessions.started_at
+    INTO v_session_id, v_started_at;
+  EXCEPTION WHEN unique_violation THEN
+    SELECT qs.id, qs.config, qs.time_limit_seconds, qs.started_at
+    INTO v_resume
+    FROM public.quiz_sessions qs
+    WHERE qs.student_id = v_student_id
+      AND qs.organization_id = v_org_id
+      AND qs.subject_id = p_subject_id
+      AND qs.mode = 'vfr_rt_exam'
+      AND qs.ended_at IS NULL
+      AND qs.deleted_at IS NULL
+    LIMIT 1;
+    IF v_resume.id IS NULL THEN
+      -- Defensive: unreachable with uq_vfr_rt_exam_session_active in place.
+      RAISE EXCEPTION 'active_session_exists';
+    END IF;
+    RETURN jsonb_build_object(
+      'session_id',         v_resume.id,
+      'question_ids',       v_resume.config->'question_ids',
+      'time_limit_seconds', v_resume.time_limit_seconds,
+      'parts',              v_resume.config->'parts',
+      'started_at',         v_resume.started_at
+    );
+  END;
 
   -- 11. Audit. Cached v_student_role from the deleted_at-filtered authz read
   -- (security.md rule 10; cached-role pattern per mig 087).
