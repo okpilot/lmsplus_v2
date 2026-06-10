@@ -23,6 +23,8 @@
 > Four "watching" count=1 rows have not recurred — that non-recurrence is itself a positive signal.
 > Commit 3260e2d9 (2026-06-10): docs-only spec update — no code pattern violations. All migration timestamps verified against actual files.
 > Commit 5f561ddf (2026-06-10): VFR RT Phase A — 14 migrations + 4 integration tests. Clean. Three SECURITY DEFINER migrations at 299-300L (095c=300, 100=299, 102=299) — within cap or at exact limit, exception confirmed. Integration test files at 223/598/673/769L — all within 500L test-file ceiling. No pattern violations.
+> Commit f8898771 (2026-06-10): Phase A CR hardening — comment/CHECK additions to 4 migs + mirror pairs + docs. Clean. 095c 300→304L (SECURITY DEFINER exception applies; 4 added lines are load-bearing §15 rationale comments). No pattern violations.
+> Commits fcef799b + e179093b (2026-06-10): mig 094 doc sync + constraint-regression integration tests. Clean. Test file 389L (within 500L ceiling). Three new it() titles behavior-first, pass all §7 disallowed-title checks. Hermiticity via beforeAll/afterAll + cleanupTestData pattern. No pattern violations.
 
 ## Durable knowledge
 
