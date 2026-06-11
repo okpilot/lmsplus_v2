@@ -96,6 +96,12 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Session not found or not owned';
   END IF;
+  -- Config-shape guard before jsonb_array_elements_text (family pattern:
+  -- batch_submit_quiz mig 095c, submit_vfr_rt_exam_answers mig 100).
+  IF v_config IS NULL OR v_config->'question_ids' IS NULL
+     OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+    RAISE EXCEPTION 'session_config_malformed';
+  END IF;
 
   -- Question IDs are derived HERE from the session's frozen
   -- quiz_sessions.config.question_ids — an immutable, write-once column

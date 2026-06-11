@@ -1060,6 +1060,145 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
     expect(error?.message).toContain('Session not found or not owned')
   })
 
+  it('filters foreign-org questions out of a session whose frozen config references them', async () => {
+    // Mig 105 defense-in-depth (issue #831): the questions JOIN filters
+    // q.organization_id = v_caller_org_id. The session gate cannot catch this
+    // case — the session is genuinely owned by the caller — so if a frozen
+    // config.question_ids ever references a foreign-org question, only the org
+    // filter keeps it out of the response.
+    const foreignOrgId = await createTestOrg({
+      admin,
+      name: `RT Foreign Org ${suffix}`,
+      slug: `rt-foreign-${suffix}`,
+    })
+    let foreignAdminId: string | null = null
+    let foreignQuestionId: string | null = null
+    try {
+      foreignAdminId = await createTestUser({
+        admin,
+        orgId: foreignOrgId,
+        email: `admin-rtforeign-${suffix}@test.local`,
+        password: 'test-pass-123',
+        role: 'admin',
+      })
+      const foreignBankId = await ensureBank(foreignOrgId, foreignAdminId)
+      // easa_subjects/easa_topics are GLOBAL tables — the foreign-org question
+      // can share the seeded RT subject/topic refs.
+      foreignQuestionId = await insertShortAnswerQuestion({
+        orgId: foreignOrgId,
+        bankId: foreignBankId,
+        adminId: foreignAdminId,
+        rtSubjectId,
+        p1TopicId,
+        idx: 400,
+      })
+
+      // Non-vacuous: the foreign question demonstrably exists (and belongs to
+      // the foreign org) before the call — "1 row" below proves filtering, not
+      // a missing fixture.
+      const { data: foreignRow, error: foreignErr } = await admin
+        .from('questions')
+        .select('id, organization_id')
+        .eq('id', foreignQuestionId)
+        .single()
+      expect(foreignErr).toBeNull()
+      expect(foreignRow?.organization_id).toBe(foreignOrgId)
+
+      // Caller-owned, right mode, not deleted, valid question_ids array (so the
+      // mig 105 session_config_malformed guard passes). ended_at is set so the
+      // row stays off the active-session partial unique index — the RPC accepts
+      // completed sessions.
+      const { data: inserted, error: insErr } = await admin
+        .from('quiz_sessions')
+        .insert({
+          organization_id: orgId,
+          student_id: studentId,
+          mode: 'vfr_rt_exam',
+          subject_id: rtSubjectId,
+          config: { question_ids: [saId, foreignQuestionId], parts: [] },
+          total_questions: 2,
+          correct_count: 0,
+          score_percentage: 0,
+          passed: false,
+          ended_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single()
+      if (insErr) throw new Error(`mixed-org session insert: ${insErr.message}`)
+      const mixedSessionId = inserted.id as string
+      expect(mixedSessionId).toBeTruthy()
+
+      const { data, error } = await studentClient.rpc('get_vfr_rt_exam_questions', {
+        p_session_id: mixedSessionId,
+      })
+      expect(error).toBeNull()
+      const rows = data as unknown as Array<{ id: string }>
+      expect(rows).toHaveLength(1)
+      expect(rows[0]!.id).toBe(saId)
+      expect(rows.map((r) => r.id)).not.toContain(foreignQuestionId)
+      // The mixed session itself is org-scoped to this describe's org, so
+      // afterAll's cleanupTestData removes it — same as the other
+      // admin-inserted-session tests in this block.
+    } finally {
+      // Foreign-org rows are OUTSIDE afterAll's org scope — remove them here in
+      // FK-safe order (question → bank → user → org → auth user). console.error,
+      // not throw: a throw here would mask the test's own assertion failure
+      // (biome noUnsafeFinally).
+      if (foreignQuestionId) {
+        const { data: deletedQ, error: qErr } = await admin
+          .from('questions')
+          .delete()
+          .eq('id', foreignQuestionId)
+          .select('id')
+        if (qErr) {
+          console.error('[foreign-org cleanup] question delete failed:', qErr.message)
+        } else if ((deletedQ?.length ?? 0) === 0) {
+          console.error('[foreign-org cleanup] zero questions deleted:', foreignQuestionId)
+        }
+      }
+      // Zero rows is valid for the bank (ensureBank may not have run) — log only
+      // when something was actually removed.
+      const { data: deletedBanks, error: bankErr } = await admin
+        .from('question_banks')
+        .delete()
+        .eq('organization_id', foreignOrgId)
+        .select('id')
+      if (bankErr) {
+        console.error('[foreign-org cleanup] bank delete failed:', bankErr.message)
+      } else if ((deletedBanks?.length ?? 0) > 0) {
+        console.log(`[foreign-org cleanup] removed ${deletedBanks?.length} bank(s)`)
+      }
+      if (foreignAdminId) {
+        const { data: deletedUsers, error: userErr } = await admin
+          .from('users')
+          .delete()
+          .eq('id', foreignAdminId)
+          .select('id')
+        if (userErr) {
+          console.error('[foreign-org cleanup] user delete failed:', userErr.message)
+        } else if ((deletedUsers?.length ?? 0) === 0) {
+          console.error('[foreign-org cleanup] zero users deleted:', foreignAdminId)
+        }
+      }
+      const { data: deletedOrgs, error: orgErr } = await admin
+        .from('organizations')
+        .delete()
+        .eq('id', foreignOrgId)
+        .select('id')
+      if (orgErr) {
+        console.error('[foreign-org cleanup] org delete failed:', orgErr.message)
+      } else if ((deletedOrgs?.length ?? 0) === 0) {
+        console.error('[foreign-org cleanup] zero orgs deleted:', foreignOrgId)
+      }
+      if (foreignAdminId) {
+        const { error: authErr } = await admin.auth.admin.deleteUser(foreignAdminId)
+        if (authErr) {
+          console.error('[foreign-org cleanup] auth user delete failed:', authErr.message)
+        }
+      }
+    }
+  })
+
   it('rejects an unauthenticated call with not_authenticated', async () => {
     const { createClient } = await import('@supabase/supabase-js')
     const anonClient = createClient(

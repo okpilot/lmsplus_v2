@@ -78,6 +78,13 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Session not found, not owned, or not completed';
   END IF;
+  -- Config-shape guard before jsonb_array_elements_text (family pattern:
+  -- batch_submit_quiz mig 095c, submit_vfr_rt_exam_answers mig 100). Without
+  -- it, a malformed config would render as a valid-looking zero-score result.
+  IF v_config IS NULL OR v_config->'question_ids' IS NULL
+     OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+    RAISE EXCEPTION 'session_config_malformed';
+  END IF;
 
   -- Per-part percentages, mig 100 formulas. Each question's task score is
   -- correct_rows / total_blanks (total_blanks = 1 for short_answer and
