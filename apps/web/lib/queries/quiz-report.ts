@@ -5,11 +5,13 @@ export type QuizReportQuestion = {
   questionText: string
   questionNumber: string | null
   isCorrect: boolean
-  selectedOptionId: string
+  // Null for text-answer (VFR RT) rows — see AnswerRow in report-question-builder.ts.
+  selectedOptionId: string | null
   correctOptionId: string
   options: { id: string; text: string }[]
   explanationText: string | null
   explanationImageUrl: string | null
+  questionImageUrl: string | null
   responseTimeMs: number
 }
 

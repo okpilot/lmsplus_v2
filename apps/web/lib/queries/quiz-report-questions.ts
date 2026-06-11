@@ -87,7 +87,9 @@ export async function getQuizReportQuestions(opts: {
   // are shown even if subsequently soft-deleted (historical record).
   const { data: questionsData, error: questionsError } = await supabase
     .from('questions')
-    .select('id, question_text, question_number, options, explanation_text, explanation_image_url')
+    .select(
+      'id, question_text, question_number, options, explanation_text, explanation_image_url, question_image_url',
+    )
     .in('id', questionIds)
 
   if (questionsError) {

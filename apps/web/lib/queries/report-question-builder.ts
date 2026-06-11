@@ -2,7 +2,8 @@ import type { QuizReportQuestion } from './quiz-report'
 
 export type AnswerRow = {
   question_id: string
-  selected_option_id: string
+  // Nullable since mig 095: VFR RT text-answer rows store response_text with selected_option_id NULL.
+  selected_option_id: string | null
   is_correct: boolean
   response_time_ms: number
 }
@@ -14,6 +15,7 @@ export type QuestionRow = {
   options: { id: string; text: string }[]
   explanation_text: string | null
   explanation_image_url: string | null
+  question_image_url: string | null
 }
 
 export function buildReportQuestions(
@@ -35,6 +37,7 @@ export function buildReportQuestions(
       options: options.map((o) => ({ id: o.id, text: o.text })),
       explanationText: question?.explanation_text ?? null,
       explanationImageUrl: question?.explanation_image_url ?? null,
+      questionImageUrl: question?.question_image_url ?? null,
       responseTimeMs: answer.response_time_ms,
     }
   })

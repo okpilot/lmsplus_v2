@@ -21,6 +21,7 @@ describe('buildReportQuestions', () => {
           ],
           explanation_text: 'The answer is 4.',
           explanation_image_url: null,
+          question_image_url: null,
         },
       ],
     ])
@@ -43,6 +44,7 @@ describe('buildReportQuestions', () => {
       ],
       explanationText: 'The answer is 4.',
       explanationImageUrl: null,
+      questionImageUrl: null,
       responseTimeMs: 5000,
     })
   })
@@ -68,6 +70,7 @@ describe('buildReportQuestions', () => {
           options: [leakyOption, { id: 'o2', text: '5' }],
           explanation_text: null,
           explanation_image_url: null,
+          question_image_url: null,
         },
       ],
     ])
@@ -80,6 +83,55 @@ describe('buildReportQuestions', () => {
       expect(opt).not.toHaveProperty('correct')
       expect(Object.keys(opt).sort()).toEqual(['id', 'text'])
     }
+  })
+
+  it('includes the question image URL in the report when present', () => {
+    const answers: AnswerRow[] = [
+      { question_id: 'q1', selected_option_id: 'o1', is_correct: true, response_time_ms: 2000 },
+    ]
+    const questionMap = new Map<string, QuestionRow>([
+      [
+        'q1',
+        {
+          id: 'q1',
+          question_text: 'What is lift?',
+          question_number: null,
+          options: [{ id: 'o1', text: 'Upward force' }],
+          explanation_text: null,
+          explanation_image_url: null,
+          question_image_url: 'https://example.com/q-img.png',
+        },
+      ],
+    ])
+
+    const result = buildReportQuestions(answers, questionMap, new Map([['q1', 'o1']]))
+
+    expect(result[0]?.questionImageUrl).toBe('https://example.com/q-img.png')
+  })
+
+  it('returns a null selectedOptionId when the answer has no selected option', () => {
+    // VFR RT text-answer rows carry a null selection
+    const answers: AnswerRow[] = [
+      { question_id: 'q1', selected_option_id: null, is_correct: false, response_time_ms: 4000 },
+    ]
+    const questionMap = new Map<string, QuestionRow>([
+      [
+        'q1',
+        {
+          id: 'q1',
+          question_text: 'Describe the procedure.',
+          question_number: null,
+          options: [],
+          explanation_text: null,
+          explanation_image_url: null,
+          question_image_url: null,
+        },
+      ],
+    ])
+
+    const result = buildReportQuestions(answers, questionMap, new Map())
+
+    expect(result[0]?.selectedOptionId).toBeNull()
   })
 
   it('handles missing question gracefully', () => {

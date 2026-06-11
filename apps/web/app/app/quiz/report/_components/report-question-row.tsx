@@ -5,15 +5,10 @@ import { useState } from 'react'
 import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
+import { OptionsList } from './options-list'
 
 function formatResponseTime(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`
-}
-
-function optionLetter(options: { id: string; text: string }[], optionId: string): string {
-  const idx = options.findIndex((o) => o.id === optionId)
-  if (idx === -1) return ''
-  return String.fromCodePoint(65 + idx)
 }
 
 export function ReportQuestionRow({
@@ -25,17 +20,9 @@ export function ReportQuestionRow({
 }) {
   const [expanded, setExpanded] = useState(false)
 
-  const selectedOption = question.options.find((o) => o.id === question.selectedOptionId)
-  const correctOption = question.options.find((o) => o.id === question.correctOptionId)
   const label = question.questionNumber ?? `Q${index + 1}`
-  const selectedLetter = question.selectedOptionId
-    ? optionLetter(question.options, question.selectedOptionId)
-    : ''
-  const correctLetter = question.correctOptionId
-    ? optionLetter(question.options, question.correctOptionId)
-    : ''
-
   const hasExplanation = Boolean(question.explanationText || question.explanationImageUrl)
+  const isAnswered = question.options.some((o) => o.id === question.selectedOptionId)
 
   return (
     <div className={`px-4 py-3 ${question.isCorrect ? '' : 'bg-red-50 dark:bg-red-950/20'}`}>
@@ -69,17 +56,23 @@ export function ReportQuestionRow({
             </span>
           </div>
 
-          <div className="mt-1 space-y-0.5 text-xs">
-            <p className={question.isCorrect ? 'text-green-600' : 'text-destructive'}>
-              Your answer:{' '}
-              {selectedLetter ? `${selectedLetter} — ${selectedOption?.text ?? ''}` : 'No answer'}
-            </p>
-            {!question.isCorrect && correctOption && (
-              <p className="text-green-600">
-                Correct answer: {correctLetter} — {correctOption.text}
-              </p>
-            )}
-          </div>
+          {question.questionImageUrl && (
+            <div className="mt-2">
+              <ZoomableImage
+                src={question.questionImageUrl}
+                alt="Question illustration"
+                className="max-h-64"
+              />
+            </div>
+          )}
+
+          {!isAnswered && <p className="mt-1 text-xs text-muted-foreground">Not answered</p>}
+
+          <OptionsList
+            options={question.options}
+            correctOptionId={question.correctOptionId}
+            selectedOptionId={question.selectedOptionId}
+          />
 
           {hasExplanation && (
             <div className="mt-2">
