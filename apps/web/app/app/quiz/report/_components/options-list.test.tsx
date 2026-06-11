@@ -1,10 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { OptionsList } from './options-list'
-
-beforeEach(() => {
-  vi.resetAllMocks()
-})
 
 const baseOptions = [
   { id: 'opt-a', text: 'Upward force' },
@@ -72,8 +68,6 @@ describe('OptionsList', () => {
 
   it('shows no markers on neutral options', () => {
     render(<OptionsList options={baseOptions} correctOptionId="opt-a" selectedOptionId="opt-b" />)
-    // opt-c and opt-d are neither correct nor selected — no Correct/Your answer on them
-    // The Correct label appears exactly once (for opt-a), Your answer exactly once (for opt-b)
     expect(screen.getAllByText('Correct')).toHaveLength(1)
     expect(screen.getAllByText('Your answer')).toHaveLength(1)
   })

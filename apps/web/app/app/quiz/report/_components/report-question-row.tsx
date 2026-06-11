@@ -57,11 +57,13 @@ export function ReportQuestionRow({
           </div>
 
           {question.questionImageUrl && (
-            <ZoomableImage
-              src={question.questionImageUrl}
-              alt="Question illustration"
-              className="max-h-64"
-            />
+            <div className="mt-2">
+              <ZoomableImage
+                src={question.questionImageUrl}
+                alt="Question illustration"
+                className="max-h-64"
+              />
+            </div>
           )}
 
           {!isAnswered && <p className="mt-1 text-xs text-muted-foreground">Not answered</p>}

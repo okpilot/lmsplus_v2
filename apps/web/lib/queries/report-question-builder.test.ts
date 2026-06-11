@@ -85,7 +85,7 @@ describe('buildReportQuestions', () => {
     }
   })
 
-  it('passes a non-null question_image_url through to the output', () => {
+  it('includes the question image URL in the report when present', () => {
     const answers: AnswerRow[] = [
       { question_id: 'q1', selected_option_id: 'o1', is_correct: true, response_time_ms: 2000 },
     ]
@@ -109,8 +109,8 @@ describe('buildReportQuestions', () => {
     expect(result[0]?.questionImageUrl).toBe('https://example.com/q-img.png')
   })
 
-  it('passes a null selected_option_id through (VFR RT text-answer row)', () => {
-    // mig 095 made selected_option_id nullable for text-answer rows
+  it('returns a null selectedOptionId when the answer has no selected option', () => {
+    // VFR RT text-answer rows carry a null selection
     const answers: AnswerRow[] = [
       { question_id: 'q1', selected_option_id: null, is_correct: false, response_time_ms: 4000 },
     ]
