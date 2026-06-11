@@ -171,7 +171,9 @@ export async function getAdminQuizReportQuestions(opts: {
   // Omits deleted_at intentionally — historical record for completed sessions.
   const { data: questionsData, error: questionsError } = await adminClient
     .from('questions')
-    .select('id, question_text, question_number, options, explanation_text, explanation_image_url')
+    .select(
+      'id, question_text, question_number, options, explanation_text, explanation_image_url, question_image_url',
+    )
     .in('id', questionIds)
 
   if (questionsError) {

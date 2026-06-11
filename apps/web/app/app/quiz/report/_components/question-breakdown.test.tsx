@@ -42,6 +42,7 @@ function makeQuestion(id: string, text: string): QuizReportQuestion {
     options: [{ id: 'opt-a', text: 'Answer A' }],
     explanationText: null,
     explanationImageUrl: null,
+    questionImageUrl: null,
     responseTimeMs: 2000,
   }
 }

@@ -10,6 +10,7 @@ export type QuizReportQuestion = {
   options: { id: string; text: string }[]
   explanationText: string | null
   explanationImageUrl: string | null
+  questionImageUrl: string | null
   responseTimeMs: number
 }
 

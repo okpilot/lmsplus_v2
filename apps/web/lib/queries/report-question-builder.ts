@@ -14,6 +14,7 @@ export type QuestionRow = {
   options: { id: string; text: string }[]
   explanation_text: string | null
   explanation_image_url: string | null
+  question_image_url: string | null
 }
 
 export function buildReportQuestions(
@@ -35,6 +36,7 @@ export function buildReportQuestions(
       options: options.map((o) => ({ id: o.id, text: o.text })),
       explanationText: question?.explanation_text ?? null,
       explanationImageUrl: question?.explanation_image_url ?? null,
+      questionImageUrl: question?.question_image_url ?? null,
       responseTimeMs: answer.response_time_ms,
     }
   })

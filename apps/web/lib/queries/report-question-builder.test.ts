@@ -21,6 +21,7 @@ describe('buildReportQuestions', () => {
           ],
           explanation_text: 'The answer is 4.',
           explanation_image_url: null,
+          question_image_url: null,
         },
       ],
     ])
@@ -43,6 +44,7 @@ describe('buildReportQuestions', () => {
       ],
       explanationText: 'The answer is 4.',
       explanationImageUrl: null,
+      questionImageUrl: null,
       responseTimeMs: 5000,
     })
   })
@@ -68,6 +70,7 @@ describe('buildReportQuestions', () => {
           options: [leakyOption, { id: 'o2', text: '5' }],
           explanation_text: null,
           explanation_image_url: null,
+          question_image_url: null,
         },
       ],
     ])

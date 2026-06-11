@@ -15,9 +15,11 @@ vi.mock('@/app/app/_components/markdown-text', () => ({
 
 vi.mock('@/app/app/_components/zoomable-image', () => ({
   ZoomableImage: ({ src, alt }: { src: string; alt: string }) => (
-    <span data-testid="zoomable-image" data-src={src} role="img" aria-label={alt} />
+    <img data-testid="zoomable-image" src={src} alt={alt} />
   ),
 }))
+
+// OptionsList is a real component — no mock; its rendering is part of the contract
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -39,6 +41,7 @@ function makeQuestion(overrides: Partial<QuizReportQuestion> = {}): QuizReportQu
     ],
     explanationText: null,
     explanationImageUrl: null,
+    questionImageUrl: null,
     responseTimeMs: 3000,
     ...overrides,
   }
@@ -61,30 +64,47 @@ describe('ReportQuestionRow', () => {
     })
   })
 
-  describe('correct answer', () => {
-    it('renders question text for a correct answer', () => {
-      render(<ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />)
+  describe('question text', () => {
+    it('renders question text', () => {
+      render(<ReportQuestionRow question={makeQuestion()} index={0} />)
       expect(screen.getByText('What is lift?')).toBeInTheDocument()
-    })
-
-    it('shows the selected answer with letter prefix for a correct answer', () => {
-      render(
-        <ReportQuestionRow
-          question={makeQuestion({ isCorrect: true, selectedOptionId: 'opt-a' })}
-          index={0}
-        />,
-      )
-      expect(screen.getByText(/A — Upward force/)).toBeInTheDocument()
-    })
-
-    it('does not show the correct answer row when the answer is correct', () => {
-      render(<ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />)
-      expect(screen.queryByText(/Correct answer:/)).not.toBeInTheDocument()
     })
   })
 
-  describe('incorrect answer', () => {
-    it('shows the selected (wrong) answer with letter prefix', () => {
+  describe('options list', () => {
+    it('renders all option texts', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({
+            options: [
+              { id: 'opt-a', text: 'Upward force' },
+              { id: 'opt-b', text: 'Downward force' },
+            ],
+            selectedOptionId: 'opt-a',
+            correctOptionId: 'opt-a',
+          })}
+          index={0}
+        />,
+      )
+      expect(screen.getByText('Upward force')).toBeInTheDocument()
+      expect(screen.getByText('Downward force')).toBeInTheDocument()
+    })
+
+    it('marks the correct option with "Correct" label', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({
+            isCorrect: true,
+            selectedOptionId: 'opt-a',
+            correctOptionId: 'opt-a',
+          })}
+          index={0}
+        />,
+      )
+      expect(screen.getByText('Correct')).toBeInTheDocument()
+    })
+
+    it('marks the selected-wrong option with "Your answer" label', () => {
       render(
         <ReportQuestionRow
           question={makeQuestion({
@@ -95,24 +115,38 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      expect(screen.getByText(/B — Downward force/)).toBeInTheDocument()
+      expect(screen.getByText('Your answer')).toBeInTheDocument()
     })
 
-    it('shows the correct answer row when the answer is incorrect', () => {
+    it('shows both "Correct" and "Your answer" when the selected option is correct', () => {
       render(
         <ReportQuestionRow
           question={makeQuestion({
-            isCorrect: false,
-            selectedOptionId: 'opt-b',
+            isCorrect: true,
+            selectedOptionId: 'opt-a',
             correctOptionId: 'opt-a',
           })}
           index={0}
         />,
       )
-      expect(screen.getByText(/Correct answer:/)).toBeInTheDocument()
-      expect(screen.getByText(/A — Upward force/)).toBeInTheDocument()
+      expect(screen.getByText('Correct')).toBeInTheDocument()
+      expect(screen.getByText('· Your answer')).toBeInTheDocument()
     })
+  })
 
+  describe('no answer fallback', () => {
+    it('shows "Not answered" when selectedOptionId matches no option', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({ selectedOptionId: 'opt-nonexistent' })}
+          index={0}
+        />,
+      )
+      expect(screen.getByText('Not answered')).toBeInTheDocument()
+    })
+  })
+
+  describe('background tint', () => {
     it('applies pink tint background on incorrect rows', () => {
       const { container } = render(
         <ReportQuestionRow question={makeQuestion({ isCorrect: false })} index={0} />,
@@ -128,31 +162,25 @@ describe('ReportQuestionRow', () => {
       const row = container.firstElementChild as HTMLElement
       expect(row.className).not.toContain('bg-red-50')
     })
-
-    it('hides the correct answer row when correctOption is not found in options', () => {
-      render(
-        <ReportQuestionRow
-          question={makeQuestion({
-            isCorrect: false,
-            selectedOptionId: 'opt-b',
-            correctOptionId: 'opt-unknown',
-          })}
-          index={0}
-        />,
-      )
-      expect(screen.queryByText(/Correct answer:/)).not.toBeInTheDocument()
-    })
   })
 
-  describe('no answer fallback', () => {
-    it('shows "No answer" when selectedOptionId matches no option', () => {
+  describe('question image', () => {
+    it('renders question image when questionImageUrl is set', () => {
       render(
         <ReportQuestionRow
-          question={makeQuestion({ selectedOptionId: 'opt-nonexistent' })}
+          question={makeQuestion({ questionImageUrl: 'https://example.com/q-img.png' })}
           index={0}
         />,
       )
-      expect(screen.getByText(/No answer/)).toBeInTheDocument()
+      const imgs = screen.getAllByRole('img', { name: 'Question illustration' })
+      expect(imgs.length).toBeGreaterThan(0)
+      expect(imgs[0]).toHaveAttribute('src', 'https://example.com/q-img.png')
+    })
+
+    it('does not render question image when questionImageUrl is null', () => {
+      render(<ReportQuestionRow question={makeQuestion({ questionImageUrl: null })} index={0} />)
+      const imgs = screen.queryAllByRole('img', { name: 'Question illustration' })
+      expect(imgs).toHaveLength(0)
     })
   })
 
@@ -221,8 +249,12 @@ describe('ReportQuestionRow', () => {
         />,
       )
       fireEvent.click(screen.getByText('Show explanation'))
-      const img = screen.getByTestId('zoomable-image')
-      expect(img).toHaveAttribute('data-src', 'https://example.com/diagram.png')
+      const imgs = screen.getAllByTestId('zoomable-image')
+      const explanationImg = imgs.find(
+        (el) => el.getAttribute('alt') === 'Explanation illustration',
+      )
+      expect(explanationImg).toBeDefined()
+      expect(explanationImg).toHaveAttribute('src', 'https://example.com/diagram.png')
     })
 
     it('hides explanation when toggle is clicked again', () => {

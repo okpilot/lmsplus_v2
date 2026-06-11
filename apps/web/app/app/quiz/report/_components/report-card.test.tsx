@@ -41,6 +41,7 @@ const mockQuestions: QuizReportQuestion[] = [
     ],
     explanationText: 'Lift acts perpendicular to the relative wind.',
     explanationImageUrl: null,
+    questionImageUrl: null,
     responseTimeMs: 3000,
   },
   {
@@ -56,6 +57,7 @@ const mockQuestions: QuizReportQuestion[] = [
     ],
     explanationText: null,
     explanationImageUrl: null,
+    questionImageUrl: null,
     responseTimeMs: 5000,
   },
   {
@@ -71,6 +73,7 @@ const mockQuestions: QuizReportQuestion[] = [
     ],
     explanationText: null,
     explanationImageUrl: null,
+    questionImageUrl: null,
     responseTimeMs: 2500,
   },
 ]
