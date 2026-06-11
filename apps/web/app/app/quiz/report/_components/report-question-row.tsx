@@ -65,7 +65,10 @@ export function ReportQuestionRow({
                 <button
                   type="button"
                   data-testid="report-flag-button"
-                  onClick={() => flag.toggle(question.questionId)}
+                  onClick={() => {
+                    // HTML `disabled` is not a behavioral contract — guard the handler too.
+                    if (!isFlagToggling) flag.toggle(question.questionId)
+                  }}
                   aria-pressed={isFlagged}
                   aria-label={isFlagged ? 'Unflag question' : 'Flag question'}
                   disabled={isFlagToggling}

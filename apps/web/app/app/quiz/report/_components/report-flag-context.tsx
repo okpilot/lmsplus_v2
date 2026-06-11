@@ -22,7 +22,7 @@ export function ReportFlagProvider({
   // Seeded server-side; remounted per page via a `key` on this provider so each
   // page's server-read state re-seeds on pagination.
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(() => new Set(initialFlaggedIds))
-  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set())
   // Ref for synchronous guard — avoids stale-closure window in concurrent toggle calls.
   const pendingRef = useRef<Set<string>>(new Set())
 

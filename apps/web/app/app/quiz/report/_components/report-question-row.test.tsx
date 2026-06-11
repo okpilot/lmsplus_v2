@@ -374,5 +374,25 @@ describe('ReportQuestionRow', () => {
       )
       expect(mockToggleFlag).toHaveBeenCalledWith({ questionId: 'q1' })
     })
+
+    it('disables the flag button while the toggle action is in-flight', async () => {
+      let resolveToggle: (v: { success: true; flagged: boolean }) => void = () => {}
+      mockToggleFlag.mockReturnValue(
+        new Promise((resolve) => {
+          resolveToggle = resolve
+        }),
+      )
+      render(
+        <ReportFlagProvider initialFlaggedIds={[]}>
+          <ReportQuestionRow question={makeQuestion({ questionId: 'q1' })} index={0} />
+        </ReportFlagProvider>,
+      )
+      const button = screen.getByTestId('report-flag-button')
+      expect(button).not.toBeDisabled()
+      fireEvent.click(button)
+      await waitFor(() => expect(button).toBeDisabled())
+      resolveToggle({ success: true, flagged: true })
+      await waitFor(() => expect(button).not.toBeDisabled())
+    })
   })
 })
