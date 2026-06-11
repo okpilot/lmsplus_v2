@@ -60,6 +60,7 @@ Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema
 ## Count=1 WATCHING rows
 
 All count=1 WATCHING rows live in `topics/tracker-archive.md` only (moved 2026-06-10 to respect the count≥2 live-table spec). New WATCHING rows added this cycle:
+- Shell script parsing LLM output for a gate decision via exact-string match — fails open on prose-wrapped token (#832, f7ec4a11; fail-closed parse_verdict fix). Full row in archive.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|

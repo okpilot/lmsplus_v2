@@ -16,6 +16,7 @@
 
 ## Durable knowledge
 
+- **Bash security-gate parsers need four extra cases beyond happy/unhappy paths:** (a) empty input — fail closed; (b) both tokens present — the blocking token must win regardless of order; (c) CRLF line endings — `[[:space:]]` absorbs `\r`, pin the behaviour so a future `[ \t]` substitution is visible; (d) leading-whitespace variant of each token — if the regex allows indented tokens (as this parser does for both BLOCKED and APPROVED), add a pinning test so intent is documented. Use a `run_case_raw_bytes` helper with `printf '%b'` for the CRLF case. Pattern confirmed: `.claude/hooks/run-security-auditor.test.sh` (2026-06-10, issue #832).
 - **Every cleanup/restore mutation in generated tests must destructure `{ error }`** (finally blocks, afterEach, afterAll included) per code-style.md §5 — the cleanup path is not exempt; log via `console.error`, never throw inside `finally` (biome noUnsafeFinally). Promoted at count=2 (13fa0249, 50c81b94 — both finally-block restore UPDATEs caught by the orchestrator pre-commit).
 - **Always `vi.hoisted()` for any variable a `vi.mock()` factory references** — no exceptions. Vitest hoists factories above plain `const`s, so the var is `undefined` at factory time and the mock silently no-ops. Bug is invisible until the test runs.
 - **jsdom: pre-hydration state is untestable.** RTL's `render()` runs inside `act()`, which flushes effects, so a hydration guard's pre-hydration branch (skeleton/disabled) never appears. Test only the post-hydration state — not a missing test, a jsdom constraint.

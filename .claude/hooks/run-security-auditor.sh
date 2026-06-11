@@ -4,6 +4,31 @@
 
 set -euo pipefail
 
+# Testable verdict parser: `bash run-security-auditor.sh --parse-verdict < transcript`
+# Exit 1 (blocked) if any line starts with BLOCKED; exit 0 only if an APPROVED
+# token stands alone on a line; otherwise exit 1 (fail closed).
+parse_verdict() {
+  local transcript="$1"
+  if printf '%s\n' "$transcript" | grep -qE '^[[:space:]]*BLOCKED'; then
+    echo "[security-auditor] BLOCKED verdict found. Push blocked."
+    return 1
+  fi
+  if printf '%s\n' "$transcript" | grep -qE '^[[:space:]]*APPROVED[[:space:]]*$'; then
+    return 0
+  fi
+  echo "[security-auditor] No deterministic APPROVED verdict found. Failing closed — push blocked."
+  return 1
+}
+
+if [ "${1:-}" = "--parse-verdict" ]; then
+  INPUT=$(cat)
+  if parse_verdict "$INPUT"; then
+    echo "[security-auditor] Push approved."
+    exit 0
+  fi
+  exit 1
+fi
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 REMOTE_REF=$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo "origin/master")
 DIFF_FULL=$(git diff "$REMOTE_REF"...HEAD 2>/dev/null || git diff HEAD 2>/dev/null || echo "")
@@ -49,7 +74,7 @@ fi
 
 TMPFILE=$(mktemp)
 cat "$REPO_ROOT/.claude/agents/security-auditor.md" > "$TMPFILE"
-printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this diff now. Output your findings in the format specified above.\nIMPORTANT: If you find any CRITICAL or HIGH issues, your last line MUST be exactly: BLOCKED\nIf no CRITICAL or HIGH issues, your last line MUST be exactly: APPROVED" "$DIFF" >> "$TMPFILE"
+printf "\n---\n\n## Diff being pushed:\n\n\`\`\`diff\n%s\n\`\`\`\n\nAudit this diff now. Output your findings in the format specified above.\nIMPORTANT: If you find any CRITICAL or HIGH issues, end with a line starting with BLOCKED (e.g. 'BLOCKED: reason').\nIf no CRITICAL or HIGH issues, end with a line containing only: APPROVED" "$DIFF" >> "$TMPFILE"
 
 # Timeout after 120 seconds to prevent hanging
 if command -v timeout &>/dev/null; then
@@ -134,12 +159,10 @@ OUTPUT=$($TIMEOUT_CMD cat "$TMPFILE" | env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOI
 rm -f "$TMPFILE"
 echo "$OUTPUT"
 
-LAST_LINE=$(echo "$OUTPUT" | tail -1 | tr -d '[:space:]')
-if [ "$LAST_LINE" = "BLOCKED" ]; then
-  echo ""
-  echo "[security-auditor] Push blocked. Fix CRITICAL/HIGH findings above."
-  exit 1
+if parse_verdict "$OUTPUT"; then
+  echo "[security-auditor] Push approved."
+  exit 0
 fi
-
-echo "[security-auditor] Push approved."
-exit 0
+echo ""
+echo "[security-auditor] Push blocked. Fix CRITICAL/HIGH findings above."
+exit 1
