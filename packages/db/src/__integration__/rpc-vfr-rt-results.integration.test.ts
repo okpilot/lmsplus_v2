@@ -8,6 +8,9 @@
  *   - wrong mode session → same guard error
  *   - soft-deleted caller → user_not_found_or_inactive (mig 103 gate, #838)
  *   - passing session: per-part pcts match submit result; revealed key present
+ *   - passing session: explanation_text / explanation_image_url revealed per
+ *     question post-completion (mig 106), with ≥2 distinct non-null fixture
+ *     values per field and null passthrough for questions seeded without them
  *   - failing session (Part 2 fail): second distinct fixture outcome
  *
  * complete_overdue_exam_session (mig 102 extension) covers:
@@ -112,6 +115,9 @@ async function seedPool(opts: {
         topic_id: p1TopicId,
         question_text: `SA res ${base} ${i} ${suffix}?`,
         explanation_text: `SA res expl ${base} ${i}`,
+        // i === 0 carries an explanation image — with the MC i === 0 image below
+        // this gives the results tests ≥2 distinct non-null image fixtures.
+        explanation_image_url: i === 0 ? `https://cdn.test/expl-sa-${base}.png` : null,
         question_type: 'short_answer',
         canonical_answer: canonical,
         accepted_synonyms: [],
@@ -156,7 +162,11 @@ async function seedPool(opts: {
         subject_id: rtSubjectId,
         topic_id: p3TopicId,
         question_text: `MC res ${base} ${i} ${suffix}?`,
+        // explanation_text is NOT NULL by schema (initial_schema.sql) — only
+        // explanation_image_url can be null, asserted in the passthrough test.
         explanation_text: `MC res expl ${base} ${i}`,
+        // i === 0 carries an explanation image distinct from the SA i === 0 one.
+        explanation_image_url: i === 0 ? `https://cdn.test/expl-mc-${base}.png` : null,
         question_type: 'multiple_choice',
         options: [
           { id: 'a', text: `A`, correct: false },
@@ -521,6 +531,72 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
     const key = mcEntry!['key'] as Record<string, unknown>
     expect(key['correct_option_id']).toBeTruthy()
     expect(typeof key['correct_option_id']).toBe('string')
+  })
+
+  it('reveals the seeded explanation fields for every question after completion', async () => {
+    // mig 106: explanation_text / explanation_image_url moved out of the in-exam
+    // questions read and are revealed here, per entry, post-completion only.
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
+      p_session_id: passingSessionId,
+    })
+    expect(error).toBeNull()
+    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    expect(result.questions).toHaveLength(25)
+
+    // Every entry carries both keys (present even when the value is null)
+    for (const q of result.questions) {
+      expect('explanation_text' in q).toBe(true)
+      expect('explanation_image_url' in q).toBe(true)
+    }
+
+    // Values must match the seeded fixtures exactly (service-role read = ground truth)
+    const ids = result.questions.map((q) => q['question_id'] as string)
+    const { data: seeded, error: seededErr } = await admin
+      .from('questions')
+      .select('id, explanation_text, explanation_image_url')
+      .in('id', ids)
+    expect(seededErr).toBeNull()
+    const byId = new Map(
+      (
+        (seeded ?? []) as Array<{
+          id: string
+          explanation_text: string | null
+          explanation_image_url: string | null
+        }>
+      ).map((q) => [q.id, q]),
+    )
+    for (const q of result.questions) {
+      const expected = byId.get(q['question_id'] as string)
+      expect(expected).toBeDefined()
+      expect(q['explanation_text']).toBe(expected!.explanation_text)
+      expect(q['explanation_image_url']).toBe(expected!.explanation_image_url)
+    }
+
+    // Hardcoded-constant guard: a regression that returns one fixed value (or
+    // always null) must fail — each field has ≥2 distinct non-null fixtures.
+    const texts = result.questions
+      .map((q) => q['explanation_text'])
+      .filter((t): t is string => typeof t === 'string')
+    expect(new Set(texts).size).toBeGreaterThanOrEqual(2)
+    const imageUrls = result.questions
+      .map((q) => q['explanation_image_url'])
+      .filter((u): u is string => typeof u === 'string')
+    expect(new Set(imageUrls).size).toBeGreaterThanOrEqual(2)
+  })
+
+  it('passes through a null explanation_image_url for questions seeded without one', async () => {
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
+      p_session_id: passingSessionId,
+    })
+    expect(error).toBeNull()
+    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+
+    // explanation_text is NOT NULL by schema, so null passthrough is only
+    // observable on explanation_image_url; dialog_fill questions are seeded
+    // without one.
+    const dfEntry = result.questions.find((q) => q['question_id'] === dfQs[0]!.id)
+    expect(dfEntry).toBeDefined()
+    expect(dfEntry!['explanation_image_url']).toBeNull()
   })
 })
 

@@ -104,5 +104,7 @@ When a plan adds a new code path to a function that returns a discriminated-unio
 
 | Idempotent-resume RPC race-handler: when wrapping an INSERT in BEGIN...EXCEPTION WHEN unique_violation, a function that is idempotent-resume (returns existing session on race) must do a re-read + RETURN in the handler — NOT mirror the siblings' raise-only shape. start_internal_exam_session (mig 070) and start_exam_session (mig 088) both just RAISE 'active_session_exists' because they are not idempotent. start_vfr_rt_exam_session IS idempotent — the handler must re-read via a SELECT identical to step 5 and return the winner's session. Plans that say "mirror whichever sibling fits best" without explicitly noting this divergence will produce a raise-only handler that breaks idempotency on concurrent first-calls. | 2026-06-10 | 1 | 2026-06-10 | WATCHING |
 
+| docs/plan.md Phase-A delivery records vs current-state claims: line 5 is a current-state count ("136 integration tests") — correct bump target. Line 34 is a Phase A delivery record ("136 new SQL tests … Phase A delivered") — bumping it corrupts the historical record. Plans that say "bump lines 5+34" must be corrected to "bump line 5 only." Historical phase-completion entries must not be edited (agent-doc-updater.md rule). | 2026-06-11 | 1 | 2026-06-11 | WATCHING |
+
 ## Topic pointers
 - [tracker-archive](topics/tracker-archive.md) — relocated verbatim: older single-occurrence (count=1) tracker rows + older positive signals (moved 2026-06-07 to stay under the 25 KB injection cap).

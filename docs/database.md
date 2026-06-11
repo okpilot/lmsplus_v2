@@ -709,9 +709,9 @@ verb_noun pattern:
   list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004)
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099)
-  get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for mixed-type VFR RT exams; strips canonicals/synonyms/dialog_template details, shuffles MC options (mig 099b)
+  get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for a caller-owned vfr_rt_exam session (p_session_id); derives question IDs server-side from the session's frozen config.question_ids, callable in-flight AND post-exam; strips canonicals/synonyms/dialog_template details + explanation fields, shuffles MC options (mig 099b; session-derived signature + explanation strip in mig 105, #833/#840)
   submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank, compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session
-  get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + grading breakdown per part (mig 103); gated to owner + ended session only
+  get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (explanations ride along here; note explanation columns also remain in the mig 094 column GRANT and are PostgREST-readable, privilege-layer rework tracked in the #823 family)
   get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b)
   normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics); used by submit_vfr_rt_exam_answers + complete_overdue_exam_session for vfr_rt_exam grading (mig 101)
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED for new code — use batch_submit_quiz; still supported for legacy modes (smart_review, quick_quiz, mock_exam, internal_exam); last_active_at now stamped by trigger on all completion paths, mig 092; legacy-mode whitelist rejects vfr_rt_exam with unsupported_session_mode, mig 104 #838; active-user gate rejects soft-deleted callers + FOR UPDATE session lock against double-completion, mig 104 PR #830)
@@ -2384,27 +2384,32 @@ Student-facing RPC (migration 099). Creates a timed (30-minute) `vfr_rt_exam` se
 
 #### `get_vfr_rt_exam_questions` — type-aware, answer-key-stripped VFR RT question reads
 
-Student-facing RPC (migration 099b, sibling of `get_quiz_questions`). Returns mixed-type questions (multiple_choice, short_answer, dialog_fill) with all grading keys stripped.
+Student-facing RPC (migration 099b, sibling of `get_quiz_questions`; redefined in migration `20260611000100` / mig 105, #833 + #840 — old `(p_question_ids uuid[])` signature dropped, replaced by `(p_session_id uuid)` with server-side ID derivation, explanation fields removed). Returns the mixed-type questions (multiple_choice, short_answer, dialog_fill) of a caller-owned `vfr_rt_exam` session with all grading keys stripped, in the session's frozen `config.question_ids` order.
 
-**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, active-user gate. Questions are read by frozen `quiz_sessions.config.question_ids` (immutable write-once, see security.md §15 exception); soft-deleted questions are intentionally included (historical-record posture for in-flight exams). Reads are tenant-scoped to the caller's `organization_id` (resolved in the active-user read) — cross-org question IDs return zero rows (issue #831).
+**Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, active-user gate (single `deleted_at`-filtered `users` read that also resolves the caller's `organization_id`). The session fetch scopes `student_id = auth.uid() AND mode = 'vfr_rt_exam' AND deleted_at IS NULL` explicitly (multiple permissive SELECT policies on `quiz_sessions`, security.md §3) and deliberately has **no** `ended_at` condition — the RPC is callable both in-flight and post-exam (it is the display-field source for the Phase C review screen as well as the live exam). Question IDs are derived inside the function from the session's frozen `quiz_sessions.config.question_ids` — an immutable, write-once column (locked by `trg_quiz_sessions_immutable_columns`, mig 079) — so the security.md §15 carve-out now applies by construction (the 099b version took caller-supplied IDs, which misapplied the carve-out; closed by mig 105, #833). Soft-deleted questions are intentionally included (historical-record posture for in-flight exams). The questions read is additionally tenant-scoped to the caller's `organization_id`, retained as defense-in-depth (issue #831) — with session-derived IDs, foreign-org question IDs are already unreachable by construction.
 
 **Parameters:**
-- `p_question_ids UUID[]` — array of question IDs (from session config)
+- `p_session_id UUID` — the caller-owned `vfr_rt_exam` session whose frozen question set is returned
 
-**Returns:** `TABLE` with columns:
+**Returns:** `TABLE` with columns (rows ordered by the session's `config.question_ids` order):
 - `id UUID`, `question_type TEXT`, `question_text TEXT`, `question_image_url TEXT`
 - `subject_code TEXT`, `topic_code TEXT`, `difficulty TEXT`, `question_number TEXT`
-- `explanation_text TEXT`, `explanation_image_url TEXT`
 - `options JSONB` — multiple_choice only: `[{id, text}]`, shuffled; `NULL` for other types
 - `dialog_template TEXT` — dialog_fill only: raw template with `{{n}}` markers (canonicals/synonyms stripped); `NULL` for other types
 - `blanks_safe JSONB` — dialog_fill only: `[{index}]` (positions only, no canonicals/synonyms); `NULL` for other types
 
-**Answer-key stripping guarantees (security.md rule 1):**
-- Multiple_choice: `correct` flag removed from options, shuffled
-- Short_answer: canonical_answer and accepted_synonyms never selected
-- Dialog_fill: dialog_template rewritten from `{{n|canonical; syn...}}` to `{{n}}`, blanks_safe drops synonyms
+`explanation_text` / `explanation_image_url` were removed from the output in mig 105 (#840) so explanations cannot leak mid-exam — they are revealed only via `get_vfr_rt_exam_results` (mig 106), behind its `ended_at IS NOT NULL` gate.
 
-**Index:** Shuffled MC options via `ORDER BY random()`.
+**Answer-key stripping guarantees (security.md rule 1):**
+- Multiple_choice: `correct` flag removed from options, shuffled via `ORDER BY random()`
+- Short_answer: canonical_answer and accepted_synonyms never selected
+- Dialog_fill: dialog_template rewritten from `{{n|canonical; syn...}}` to `{{n}}`, blanks_safe drops canonicals/synonyms
+
+**Error codes:**
+- `not_authenticated` — no `auth.uid()`
+- `user_not_found_or_inactive` — caller is soft-deleted/inactive
+- `Session not found or not owned` — session missing, not owned by the caller, wrong mode, or soft-deleted
+- `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (family guard, migs 100/105)
 
 #### `submit_vfr_rt_exam_answers` — atomic VFR RT answers submission + grading
 
@@ -2438,6 +2443,7 @@ Student-facing RPC (migration 100). Submits an array of typed answers (one per b
 
 **Error codes:**
 - `session_not_found_or_not_accessible` — owner/mode/deleted check
+- `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (mig 100 guard; pre-existing doc omission fixed alongside migs 105/106)
 - `invalid_answers_payload` — payload is null, not array, or empty
 - `duplicate_answer_entry` — (question_id, blank_index) pair appears twice
 - `invalid_question_id_for_session` — question not in session's frozen question_ids
@@ -2450,7 +2456,7 @@ Student-facing RPC (migration 100). Submits an array of typed answers (one per b
 
 #### `get_vfr_rt_exam_results` — gated results/review read path for VFR RT exams
 
-Student-facing RPC (migration 103). Fetches completion-time answer key + per-question grading breakdown. Requires session to be ended.
+Student-facing RPC (migration 103; redefined in migration `20260611000200` / mig 106, #840 — adds `explanation_text` / `explanation_image_url` to the per-question review payload; only functional delta). Fetches completion-time answer key + explanations + per-question grading breakdown. Requires session to be ended.
 
 **Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check, active-user gate (`users.deleted_at IS NULL`, #838 — family pattern of migs 099/099b/100), explicit `student_id = auth.uid() AND mode = 'vfr_rt_exam' AND ended_at IS NOT NULL` scope (multiple permissive policies on quiz_sessions, security.md §3).
 
@@ -2465,6 +2471,7 @@ Student-facing RPC (migration 103). Fetches completion-time answer key + per-que
 - `total_questions INT` — session's total_questions
 - `questions JSONB` — array of question review objects (one per session question, in config.question_ids order); each object has:
   - `question_id UUID`, `question_type TEXT`, `question_text TEXT`
+  - `explanation_text TEXT`, `explanation_image_url TEXT` — added in mig 106 (#840); explanations are revealed only here among the VFR RT RPCs, behind the `ended_at IS NOT NULL` gate (stripped from the in-flight path, `get_vfr_rt_exam_questions`, by mig 105; the columns themselves remain in the mig 094 column GRANT and are PostgREST-readable — #823-family privilege-layer scope)
   - `answers JSONB` — array of the student's answers `[{blank_index?, selected_option_id?, response_text?, is_correct}]`
   - `key JSONB` — the revealed answer key per type:
     - Multiple_choice: `{correct_option_id}`
@@ -2476,6 +2483,7 @@ Student-facing RPC (migration 103). Fetches completion-time answer key + per-que
 **Error codes:**
 - `user_not_found_or_inactive` — caller is soft-deleted (active-user gate, #838)
 - `Session not found, not owned, or not completed` — ownership/mode/ended check
+- `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (family guard, migs 100/106)
 
 #### `get_question_authoring_fields` — gated answer-key column reads for admin authoring
 
@@ -2610,4 +2618,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Previous: 2026-06-06 (migration 093: record_auth_event RPC; migration 092–085) | Companion: docs/security.md*
+*Last updated: 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*

@@ -177,7 +177,7 @@ Never push without all agents reporting clean.
 
 ## QA pipeline
 Lefthook enforces mechanical gates (blocking):
-- **pre-commit:** biome lint/format + type-check + unit tests
+- **pre-commit:** biome lint/format + type-check (unit tests intentionally NOT in pre-commit — lefthook.yml runs fast gates only; the full suite runs in CI)
 - **commit-msg:** conventional commit format
 - **pre-push:** security-auditor agent + dependency audit
 

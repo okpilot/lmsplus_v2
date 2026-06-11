@@ -1512,13 +1512,11 @@ export type Database = {
         }[]
       }
       get_vfr_rt_exam_questions: {
-        Args: { p_question_ids: string[] }
+        Args: { p_session_id: string }
         Returns: {
           blanks_safe: Json
           dialog_template: string
           difficulty: string
-          explanation_image_url: string
-          explanation_text: string
           id: string
           options: Json
           question_image_url: string

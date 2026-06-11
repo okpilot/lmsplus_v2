@@ -140,9 +140,13 @@ reviews:
           function must filter AND deleted_at IS NULL on soft-deletable tables. SECURITY DEFINER
           bypasses RLS, so the soft-delete filter is NOT applied automatically and must be
           replicated manually in every query. Narrow carve-out: SELECTs fetching records by IDs
-          stored in an immutable, write-once column may omit the filter (sole current case:
-          batch_submit_quiz reading questions via quiz_sessions.config.question_ids, locked at
-          session start, enforced by trg_quiz_sessions_immutable_columns). Any new carve-out
+          stored in an immutable, write-once column may omit the filter. Current documented cases
+          (docs/security.md §15): (a) batch_submit_quiz and submit_vfr_rt_exam_answers reading
+          questions via quiz_sessions.config.question_ids (written once at session start);
+          (b) get_vfr_rt_exam_questions and get_vfr_rt_exam_results reading questions via the
+          same frozen config.question_ids, with IDs derived server-side from the caller-owned
+          session row, never from client input. The write-once guarantee is enforced by
+          trg_quiz_sessions_immutable_columns (mig 079). Any new carve-out
           instance must (a) cite the immutable write-once column, (b) include that citation in
           an inline comment at the call site, and (c) cross-reference docs/database.md §3
           "Scoring Soft-Deleted Questions" (per docs/security.md §15). Flag any SECURITY DEFINER
