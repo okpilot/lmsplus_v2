@@ -85,6 +85,55 @@ describe('buildReportQuestions', () => {
     }
   })
 
+  it('passes a non-null question_image_url through to the output', () => {
+    const answers: AnswerRow[] = [
+      { question_id: 'q1', selected_option_id: 'o1', is_correct: true, response_time_ms: 2000 },
+    ]
+    const questionMap = new Map<string, QuestionRow>([
+      [
+        'q1',
+        {
+          id: 'q1',
+          question_text: 'What is lift?',
+          question_number: null,
+          options: [{ id: 'o1', text: 'Upward force' }],
+          explanation_text: null,
+          explanation_image_url: null,
+          question_image_url: 'https://example.com/q-img.png',
+        },
+      ],
+    ])
+
+    const result = buildReportQuestions(answers, questionMap, new Map([['q1', 'o1']]))
+
+    expect(result[0]?.questionImageUrl).toBe('https://example.com/q-img.png')
+  })
+
+  it('passes a null selected_option_id through (VFR RT text-answer row)', () => {
+    // mig 095 made selected_option_id nullable for text-answer rows
+    const answers: AnswerRow[] = [
+      { question_id: 'q1', selected_option_id: null, is_correct: false, response_time_ms: 4000 },
+    ]
+    const questionMap = new Map<string, QuestionRow>([
+      [
+        'q1',
+        {
+          id: 'q1',
+          question_text: 'Describe the procedure.',
+          question_number: null,
+          options: [],
+          explanation_text: null,
+          explanation_image_url: null,
+          question_image_url: null,
+        },
+      ],
+    ])
+
+    const result = buildReportQuestions(answers, questionMap, new Map())
+
+    expect(result[0]?.selectedOptionId).toBeNull()
+  })
+
   it('handles missing question gracefully', () => {
     const answers: AnswerRow[] = [
       {

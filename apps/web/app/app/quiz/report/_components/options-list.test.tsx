@@ -63,6 +63,13 @@ describe('OptionsList', () => {
     expect(screen.queryByText('· Your answer')).not.toBeInTheDocument()
   })
 
+  it('shows the correct marker but no "Your answer" when selectedOptionId is null (text-answer row)', () => {
+    // VFR RT text-answer rows carry selected_option_id = NULL (mig 095)
+    render(<OptionsList options={baseOptions} correctOptionId="opt-a" selectedOptionId={null} />)
+    expect(screen.getByText('Correct')).toBeInTheDocument()
+    expect(screen.queryByText('Your answer')).not.toBeInTheDocument()
+  })
+
   it('shows no markers on neutral options', () => {
     render(<OptionsList options={baseOptions} correctOptionId="opt-a" selectedOptionId="opt-b" />)
     // opt-c and opt-d are neither correct nor selected — no Correct/Your answer on them

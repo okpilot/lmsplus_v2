@@ -2,7 +2,8 @@ import type { QuizReportQuestion } from './quiz-report'
 
 export type AnswerRow = {
   question_id: string
-  selected_option_id: string
+  // Nullable since mig 095: VFR RT text-answer rows store response_text with selected_option_id NULL.
+  selected_option_id: string | null
   is_correct: boolean
   response_time_ms: number
 }

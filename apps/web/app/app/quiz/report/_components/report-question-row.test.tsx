@@ -15,6 +15,7 @@ vi.mock('@/app/app/_components/markdown-text', () => ({
 
 vi.mock('@/app/app/_components/zoomable-image', () => ({
   ZoomableImage: ({ src, alt }: { src: string; alt: string }) => (
+    // biome-ignore lint/performance/noImgElement: test mock — no Next.js Image needed
     <img data-testid="zoomable-image" src={src} alt={alt} />
   ),
 }))
@@ -61,6 +62,23 @@ describe('ReportQuestionRow', () => {
     it('falls back to Q{index+1} when questionNumber is null', () => {
       render(<ReportQuestionRow question={makeQuestion({ questionNumber: null })} index={2} />)
       expect(screen.getByText('Q3')).toBeInTheDocument()
+    })
+  })
+
+  describe('status icon', () => {
+    it('shows the Correct icon when the answer is correct', () => {
+      render(<ReportQuestionRow question={makeQuestion({ isCorrect: true })} index={0} />)
+      expect(screen.getByRole('img', { name: 'Correct' })).toBeInTheDocument()
+    })
+
+    it('shows the Incorrect icon when the answer is wrong', () => {
+      render(
+        <ReportQuestionRow
+          question={makeQuestion({ isCorrect: false, selectedOptionId: 'opt-b' })}
+          index={0}
+        />,
+      )
+      expect(screen.getByRole('img', { name: 'Incorrect' })).toBeInTheDocument()
     })
   })
 
@@ -172,9 +190,8 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      const imgs = screen.getAllByRole('img', { name: 'Question illustration' })
-      expect(imgs.length).toBeGreaterThan(0)
-      expect(imgs[0]).toHaveAttribute('src', 'https://example.com/q-img.png')
+      const img = screen.getByRole('img', { name: 'Question illustration' })
+      expect(img).toHaveAttribute('src', 'https://example.com/q-img.png')
     })
 
     it('does not render question image when questionImageUrl is null', () => {

@@ -5,7 +5,7 @@ type Option = { id: string; text: string }
 type OptionsListProps = {
   options: Option[]
   correctOptionId: string
-  selectedOptionId: string
+  selectedOptionId: string | null
 }
 
 export function OptionsList({ options, correctOptionId, selectedOptionId }: OptionsListProps) {
