@@ -361,7 +361,7 @@ describe('ReportQuestionRow', () => {
       expect(button).toHaveAttribute('aria-label', 'Unflag question')
     })
 
-    it('flags the question via the toggleFlag action when clicked', async () => {
+    it('flags the question when clicked', async () => {
       mockToggleFlag.mockResolvedValue({ success: true, flagged: true })
       render(
         <ReportFlagProvider initialFlaggedIds={[]}>
