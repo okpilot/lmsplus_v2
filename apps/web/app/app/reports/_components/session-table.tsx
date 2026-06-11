@@ -6,7 +6,7 @@ import { SortableTableHead } from '@/components/sortable-table-head'
 import { isExamMode } from '@/lib/constants/exam-modes'
 import type { SessionReport, SortDir, SortKey } from '@/lib/queries/reports'
 import { scoreColor } from '@/lib/utils/score-color'
-import { formatDate, MODE_LABELS } from './reports-utils'
+import { formatDate, formatDurationMinutes, MODE_LABELS } from './reports-utils'
 
 type Props = Readonly<{
   sessions: SessionReport[]
@@ -95,7 +95,9 @@ function SessionRow({ session: s }: Readonly<{ session: SessionReport }>) {
       <td className="px-4 py-3 tabular-nums">
         {s.correctCount} / {s.totalQuestions}
       </td>
-      <td className="px-4 py-3 text-muted-foreground">{s.durationMinutes}m</td>
+      <td className="px-4 py-3 text-muted-foreground">
+        {formatDurationMinutes(s.durationMinutes)}
+      </td>
       <td className="px-4 py-3 text-right font-semibold tabular-nums" style={{ color }}>
         {score}
       </td>
