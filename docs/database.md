@@ -190,6 +190,7 @@ CREATE TABLE questions (
   status          TEXT NOT NULL DEFAULT 'active'
                     CHECK (status IN ('active', 'draft')),
   version         INT NOT NULL DEFAULT 1,
+  has_calculations BOOLEAN NOT NULL DEFAULT false,  -- admin-tagged: question requires a calculation; drives the quiz-start calc filter (mig 107, #837)
   question_type   TEXT NOT NULL DEFAULT 'multiple_choice'
                     CHECK (question_type IN ('multiple_choice', 'short_answer', 'dialog_fill')),
   canonical_answer TEXT NULL,                  -- short_answer grading key
@@ -220,7 +221,7 @@ CREATE TABLE questions (
 );
 ```
 
-**Column-level SELECT gate (mig 094):** The four answer-key columns (`canonical_answer`, `accepted_synonyms`, `dialog_template`, `blanks_config`) are REVOKED from the `authenticated` role (students and admins). Both answer tables and all grading RPCs run as `postgres` (SECURITY DEFINER owner), which is unaffected. Admin authoring reads go through `get_question_authoring_fields()` RPC (mig 094b, is_admin()-gated). The privilege layer defense mirrors the `quiz_sessions` column-GRANT pattern (mig 20260605000001). A direct `.select('*')` or `.select('canonical_answer, ...')` from an authenticated client returns 42501 (permission denied).
+**Column-level SELECT gate (mig 094):** The four answer-key columns (`canonical_answer`, `accepted_synonyms`, `dialog_template`, `blanks_config`) are REVOKED from the `authenticated` role (students and admins). Both answer tables and all grading RPCs run as `postgres` (SECURITY DEFINER owner), which is unaffected. Admin authoring reads go through `get_question_authoring_fields()` RPC (mig 094b, is_admin()-gated). The privilege layer defense mirrors the `quiz_sessions` column-GRANT pattern (mig 20260605000001). A direct `.select('*')` or `.select('canonical_answer, ...')` from an authenticated client returns 42501 (permission denied). Because the gate re-GRANTs an explicit column list, any column added after mig 094 must be granted to `authenticated` separately or SECURITY INVOKER readers fail with 42501 — `has_calculations` (mig 107) adds `GRANT SELECT (has_calculations) ON questions TO authenticated` so the SECURITY INVOKER `_filtered_question_pool` can read it (#837).
 
 **Indexes:** Partial index on `(question_type, subject_id)` WHERE `deleted_at IS NULL AND status = 'active'` supports VFR RT part-based sampling (mig 094).
 
@@ -720,8 +721,8 @@ verb_noun pattern:
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
   get_subject_scores         ← read, analytics: avg scores by subject
   get_question_counts        ← read, per-(subject, topic, subtopic) question counts; used by admin/exam-config, admin/syllabus, and the student quiz builder (quiz.ts); replaces client-side counting that truncated at the PostgREST 1000-row cap (#614, #668)
-  get_random_question_ids    ← read, student: up to N random IDs from the filtered question pool (subject + topic/subtopic OR + unseen/incorrect/flagged UNION); used by start_quiz_session seeding; replaces client-side fetch-shuffle-slice that biased sampling past row 1000 (#679, umbrella #668)
-  get_filtered_question_counts ← read, student: per-(topic, subtopic) counts over the same filtered pool as get_random_question_ids; structurally guaranteed count == quiz (shared _filtered_question_pool helper); replaces client-side counting that truncated at 1000 rows (#678, umbrella #668)
+  get_random_question_ids    ← read, student: up to N random IDs from the filtered question pool (subject + topic/subtopic OR + unseen/incorrect/flagged UNION, AND-restricted by p_calc_mode {all|only|exclude} on has_calculations); used by start_quiz_session seeding; replaces client-side fetch-shuffle-slice that biased sampling past row 1000 (#679, umbrella #668; calc-mode #837)
+  get_filtered_question_counts ← read, student: per-(topic, subtopic) counts over the same filtered pool as get_random_question_ids (incl. p_calc_mode); structurally guaranteed count == quiz (shared _filtered_question_pool helper); replaces client-side counting that truncated at 1000 rows (#678, umbrella #668; calc-mode #837)
   get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
@@ -2250,16 +2251,17 @@ Returns up to `p_count` random question IDs from the active, org-scoped, subject
 - `p_subtopic_ids UUID[]` — same semantics as `p_topic_ids`. The two dimensions are combined with `OR`, so a question matching either is in the pool (this preserves leaf-topic questions whose `subtopic_id` is `NULL`).
 - `p_count INT` — maximum number of IDs to return. `LIMIT LEAST(GREATEST(p_count, 0), 500)` clamps negatives to zero AND caps at 500 (defense in depth — mirrors the Zod schema in `apps/web/app/app/quiz/actions/start.ts`; prevents a direct RPC caller from bypassing the Server Action with an arbitrarily large value).
 - `p_filters TEXT[]` — `NULL` or `'{}'` = no per-user filter; non-empty subset of `{'unseen', 'incorrect', 'flagged'}` = union of matches (a question passes if it matches ANY active filter).
+- `p_calc_mode TEXT DEFAULT 'all'` — calculation filter on `has_calculations`. `'only'` = only calc questions; `'exclude'` = only non-calc questions; `'all'` / `NULL` / any unknown value = unrestricted (fail-open). Unlike `p_filters` (UNION), calc-mode **AND-restricts** the pool — it composes on top of the per-user filters (#837).
 
 **Returns:** `TABLE(id UUID)` — up to `LEAST(p_count, 500)` rows, sampled via `ORDER BY random() LIMIT LEAST(GREATEST(p_count, 0), 500)` over the helper's pool.
 
 **Volatility:** `VOLATILE` (because `random()` is volatile).
 
-**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`
+**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`; `p_calc_mode` added in `20260611000400_calc_mode_filtered_question_pool.sql` (≡ packages/db 108), which DROPs + recreates the three functions (signature change) (#837).
 
 **Rationale:** Replaces a client-side fetch-then-shuffle that hit the PostgREST 1000-row cap once the active pool crossed 1000 rows — questions past row 1000 were never sampled, biasing the quiz toward the first 1000 by insertion order (#679, instance of umbrella #668). Sampling now happens server-side so every active, in-scope question has equal probability.
 
-**Internal helper:** `_filtered_question_pool(p_subject_id, p_topic_ids, p_subtopic_ids, p_filters)` — shared `STABLE SECURITY INVOKER` SQL function. Same migration. Defines the filtered pool exactly once so `get_random_question_ids` and `get_filtered_question_counts` are structurally guaranteed to agree (count == quiz). Prefer the wrapper RPCs over calling the helper directly: a direct call returns one row per pool member and can hit the 1000-row cap.
+**Internal helper:** `_filtered_question_pool(p_subject_id, p_topic_ids, p_subtopic_ids, p_filters, p_calc_mode)` — shared `STABLE SECURITY INVOKER` SQL function. Defines the filtered pool exactly once so `get_random_question_ids` and `get_filtered_question_counts` are structurally guaranteed to agree (count == quiz). The calc-mode AND-clause lives here (one place), so both wrappers inherit it. Requires `GRANT SELECT (has_calculations)` to `authenticated` (mig 107) since it reads the column as the SECURITY INVOKER student. Prefer the wrapper RPCs over calling the helper directly: a direct call returns one row per pool member and can hit the 1000-row cap.
 
 ---
 
@@ -2269,7 +2271,7 @@ Returns one row per distinct `(topic_id, subtopic_id)` in the same filtered pool
 
 **Security:** `SECURITY INVOKER`. Same scoping model as `get_random_question_ids` (shared `_filtered_question_pool` helper): `tenant_isolation` on `questions` + load-bearing `sr.student_id = auth.uid()` on `student_responses` per security.md §3 (Multiple Permissive SELECT Policies). No correct-answer columns selected.
 
-**Parameters:** identical to `get_random_question_ids` except for the omitted `p_count`. Same NULL-vs-empty-array semantics on `p_topic_ids` / `p_subtopic_ids` / `p_filters`.
+**Parameters:** identical to `get_random_question_ids` except for the omitted `p_count`. Same NULL-vs-empty-array semantics on `p_topic_ids` / `p_subtopic_ids` / `p_filters`, and the same `p_calc_mode TEXT DEFAULT 'all'` AND-restriction so the badge count reflects the calc filter (count == quiz).
 
 **Returns:** `TABLE(topic_id UUID, subtopic_id UUID, n BIGINT)` — one row per `(topic_id, subtopic_id)` group present in the pool. Total count is `sum(n)`. Per-subtopic counts ignore rows where `subtopic_id IS NULL` at the TypeScript aggregation site.
 
@@ -2277,7 +2279,7 @@ Returns one row per distinct `(topic_id, subtopic_id)` in the same filtered pool
 
 **Result-set size:** bounded by syllabus shape (one row per `(topic, subtopic)` present in the pool — low hundreds in production), so the result itself cannot hit the 1000-row cap that the legacy client-side counting was vulnerable to.
 
-**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`
+**Migration:** `20260528000001_filtered_question_pool_rpcs.sql`; `p_calc_mode` added in `20260611000400_calc_mode_filtered_question_pool.sql` (≡ packages/db 108) (#837).
 
 **Rationale:** Replaces a client-side `SELECT id, topic_id, subtopic_id FROM questions WHERE …` read whose total truncated at the PostgREST 1000-row cap for any pool larger than 1000 rows, causing the badge count and per-(topic, subtopic) breakdown to under-report. The new RPC computes counts in SQL and reuses the same `_filtered_question_pool` definition as `get_random_question_ids`, so the badge is structurally guaranteed to equal the size of the pool the quiz samples from (count == quiz). Also fixes the prior AND-vs-OR mismatch between the badge and the quiz, and the `unseen + incorrect` mutex-then-AND-bug that produced a permanently-zero badge for any combination of those two filters (#678, instance of umbrella #668).
 
