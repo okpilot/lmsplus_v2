@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { QuestionBreakdown } from '@/app/app/quiz/report/_components/question-breakdown'
+import { ReportFlagProvider } from '@/app/app/quiz/report/_components/report-flag-context'
 import { ResultSummary } from '@/app/app/quiz/report/_components/result-summary'
+import { getFlaggedQuestionIds } from '@/lib/queries/flagged-questions'
 import { getQuizReportSummary, PAGE_SIZE } from '@/lib/queries/quiz-report'
 import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
@@ -30,15 +32,19 @@ export default async function InternalExamReportPage({
     redirect(`/app/internal-exam/report?session=${sessionId}&page=${totalPages}`)
   }
 
+  const flaggedIds = await getFlaggedQuestionIds(questionsResult.questions.map((q) => q.questionId))
+
   return (
     <main className="space-y-6">
       <ResultSummary summary={summary} />
-      <QuestionBreakdown
-        questions={questionsResult.questions}
-        page={page}
-        totalCount={questionsResult.totalCount}
-        pageSize={PAGE_SIZE}
-      />
+      <ReportFlagProvider key={`${sessionId}-${page}`} initialFlaggedIds={flaggedIds}>
+        <QuestionBreakdown
+          questions={questionsResult.questions}
+          page={page}
+          totalCount={questionsResult.totalCount}
+          pageSize={PAGE_SIZE}
+        />
+      </ReportFlagProvider>
       <ReportFooter />
     </main>
   )

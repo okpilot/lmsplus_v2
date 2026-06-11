@@ -1,11 +1,12 @@
 'use client'
 
-import { Check, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Flag, X } from 'lucide-react'
 import { useState } from 'react'
 import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
 import { OptionsList } from './options-list'
+import { useReportFlag } from './report-flag-context'
 
 function formatResponseTime(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`
@@ -19,6 +20,11 @@ export function ReportQuestionRow({
   index: number
 }) {
   const [expanded, setExpanded] = useState(false)
+
+  // Null on admin report views (no provider) — the flag toggle is student-only.
+  const flag = useReportFlag()
+  const isFlagged = flag?.isFlagged(question.questionId) ?? false
+  const isFlagToggling = flag?.isToggling(question.questionId) ?? false
 
   const label = question.questionNumber ?? `Q${index + 1}`
   const hasExplanation = Boolean(question.explanationText || question.explanationImageUrl)
@@ -51,9 +57,28 @@ export function ReportQuestionRow({
           <div className="flex items-baseline gap-2">
             <span className="text-xs font-medium text-muted-foreground">{label}</span>
             <span className="text-sm">{question.questionText}</span>
-            <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
-              {formatResponseTime(question.responseTimeMs)}
-            </span>
+            <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {formatResponseTime(question.responseTimeMs)}
+              </span>
+              {flag && (
+                <button
+                  type="button"
+                  data-testid="report-flag-button"
+                  onClick={() => flag.toggle(question.questionId)}
+                  aria-pressed={isFlagged}
+                  aria-label={isFlagged ? 'Unflag question' : 'Flag question'}
+                  disabled={isFlagToggling}
+                  className={
+                    isFlagged
+                      ? 'inline-flex items-center rounded-md p-1 text-orange-600 transition-colors hover:bg-orange-500/10 disabled:opacity-50 disabled:pointer-events-none dark:text-orange-400'
+                      : 'inline-flex items-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:pointer-events-none'
+                  }
+                >
+                  <Flag size={14} aria-hidden className={isFlagged ? 'fill-current' : undefined} />
+                </button>
+              )}
+            </div>
           </div>
 
           {question.questionImageUrl && (

@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
+import { getFlaggedQuestionIds } from '@/lib/queries/flagged-questions'
 import { getQuizReportSummary, PAGE_SIZE } from '@/lib/queries/quiz-report'
 import { getQuizReportQuestions } from '@/lib/queries/quiz-report-questions'
 import { parsePageParam } from '@/lib/utils/parse-page-param'
 import { ReportCard } from './_components/report-card'
+import { ReportFlagProvider } from './_components/report-flag-context'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -27,16 +29,20 @@ export default async function QuizReportPage({
     redirect(`/app/quiz/report?session=${sessionId}&page=${totalPages}`)
   }
 
+  const flaggedIds = await getFlaggedQuestionIds(questionsResult.questions.map((q) => q.questionId))
+
   return (
     <main className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Quiz Results</h1>
-      <ReportCard
-        summary={summary}
-        questions={questionsResult.questions}
-        page={page}
-        totalCount={questionsResult.totalCount}
-        pageSize={PAGE_SIZE}
-      />
+      <ReportFlagProvider key={`${sessionId}-${page}`} initialFlaggedIds={flaggedIds}>
+        <ReportCard
+          summary={summary}
+          questions={questionsResult.questions}
+          page={page}
+          totalCount={questionsResult.totalCount}
+          pageSize={PAGE_SIZE}
+        />
+      </ReportFlagProvider>
     </main>
   )
 }
