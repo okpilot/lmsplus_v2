@@ -129,7 +129,10 @@ describe('ReportFlagProvider', () => {
     // finally{} must clear pending state even when the action rejects.
     await waitFor(() => expect(button).not.toBeDisabled())
     expect(button).toHaveTextContent('not-flagged')
-    expect(warnSpy).toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[ReportFlagProvider] flag toggle failed:',
+      expect.any(Error),
+    )
     warnSpy.mockRestore()
   })
 })
