@@ -34,6 +34,12 @@ export function parseFilters(
       (STATUS_VALUES as readonly string[]).includes(params.status)
         ? (params.status as QuestionFilters['status'])
         : undefined,
+    hasCalculations:
+      params.hasCalculations === 'true'
+        ? true
+        : params.hasCalculations === 'false'
+          ? false
+          : undefined,
     search:
       typeof params.search === 'string'
         ? params.search.trim().slice(0, 200) || undefined

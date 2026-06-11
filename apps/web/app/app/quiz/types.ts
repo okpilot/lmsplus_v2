@@ -148,6 +148,8 @@ export type StartExamResult =
 
 export type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'
 
+export type CalcMode = 'all' | 'only' | 'exclude'
+
 export type CompleteEmptyExamResult =
   | { success: true; sessionId: string }
   | { success: false; error: string }

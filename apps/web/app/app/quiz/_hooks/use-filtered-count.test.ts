@@ -60,6 +60,7 @@ describe('useFilteredCount — refetch', () => {
         topicIds: TOPIC_IDS,
         subtopicIds: SUBTOPIC_IDS,
         filters: ['unseen'],
+        calcMode: 'all',
       }),
     )
     expect(result.current.filteredCount).toBe(12)
@@ -143,6 +144,52 @@ describe('useFilteredCount — refetch', () => {
     })
     expect(result.current.filteredCount).toBe(10)
     expect(mockGetFilteredCount).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ---- calcMode -------------------------------------------------------------
+
+describe('useFilteredCount — calcMode', () => {
+  it('fetches when calcMode is only even with no active switch-filters', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 4, byTopic: { [TOPIC_ID]: 4 }, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['all'], 'only')
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: [], calcMode: 'only' }),
+    )
+    expect(result.current.filteredCount).toBe(4)
+  })
+
+  it('fetches when calcMode is exclude even with no active switch-filters', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 6, byTopic: {}, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['all'], 'exclude')
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: [], calcMode: 'exclude' }),
+    )
+  })
+
+  it('does not fetch when calcMode is all and no switch-filters are active', async () => {
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['all'], 'all')
+    })
+    expect(mockGetFilteredCount).not.toHaveBeenCalled()
+  })
+
+  it('passes calcMode through alongside an active switch-filter', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 2, byTopic: {}, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['unseen'], 'exclude')
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: ['unseen'], calcMode: 'exclude' }),
+    )
   })
 })
 

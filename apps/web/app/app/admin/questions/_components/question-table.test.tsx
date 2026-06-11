@@ -59,6 +59,7 @@ function makeQuestion(overrides: Partial<QuestionRow> = {}): QuestionRow {
     question_image_url: null,
     explanation_image_url: null,
     lo_reference: null,
+    has_calculations: false,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-15T00:00:00Z',
     ...overrides,
@@ -124,6 +125,20 @@ describe('QuestionTable', () => {
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
     expect(screen.getByText('draft')).toBeInTheDocument()
+  })
+
+  it('shows a calc badge when the question involves calculations', () => {
+    const question = makeQuestion({ has_calculations: true })
+    render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
+
+    expect(screen.getByText('calc')).toBeInTheDocument()
+  })
+
+  it('does not show a calc badge when the question has no calculations', () => {
+    const question = makeQuestion({ has_calculations: false })
+    render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
+
+    expect(screen.queryByText('calc')).not.toBeInTheDocument()
   })
 
   it('displays the subject code from the joined subject relation', () => {

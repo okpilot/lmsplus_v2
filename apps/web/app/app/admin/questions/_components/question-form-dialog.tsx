@@ -44,6 +44,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
           explanation_image_url: s.explanationImageUrl || null,
           difficulty: s.difficulty,
           status: s.status,
+          has_calculations: s.hasCalculations,
         })
         if (result.success) {
           toast.success(isEdit ? 'Question updated' : 'Question created')
@@ -93,6 +94,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
           onExplanationImageChange={(url) => h.setExplanationImageUrl(url || null)}
           difficulty={s.difficulty}
           status={s.status}
+          hasCalculations={s.hasCalculations}
           isPending={isPending}
           onSubjectChange={h.handleSubjectChange}
           onTopicChange={h.handleTopicChange}
@@ -108,6 +110,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
           onStatusChange={(v) => {
             if (v === 'active' || v === 'draft') h.setStatus(v)
           }}
+          onHasCalculationsChange={h.setHasCalculations}
         />
 
         <DialogFooter showCloseButton>

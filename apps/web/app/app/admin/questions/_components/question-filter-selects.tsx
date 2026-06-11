@@ -16,6 +16,7 @@ type Props = {
   subtopicId: string
   difficulty: string
   status: string
+  hasCalculations: string
   onFilterChange: (key: string, value: string | null | undefined) => void
 }
 
@@ -34,6 +35,12 @@ const STATUS_ITEMS = [
   { value: 'draft', label: 'Draft' },
 ]
 
+const CALCULATIONS_ITEMS = [
+  { value: ALL, label: 'All questions' },
+  { value: 'true', label: 'Has calculations' },
+  { value: 'false', label: 'No calculations' },
+]
+
 export function QuestionFilterSelects({
   tree,
   subjectId,
@@ -41,6 +48,7 @@ export function QuestionFilterSelects({
   subtopicId,
   difficulty,
   status,
+  hasCalculations,
   onFilterChange,
 }: Readonly<Props>) {
   const selectedSubject = tree.find((s) => s.id === subjectId)
@@ -143,6 +151,23 @@ export function QuestionFilterSelects({
         </SelectTrigger>
         <SelectContent>
           {STATUS_ITEMS.map((item) => (
+            <SelectItem key={item.value} value={item.value} label={item.label}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={hasCalculations}
+        onValueChange={(v) => onFilterChange('hasCalculations', v)}
+        items={CALCULATIONS_ITEMS}
+      >
+        <SelectTrigger className="w-40" aria-label="Calculations">
+          <SelectValue placeholder="Calculations" />
+        </SelectTrigger>
+        <SelectContent>
+          {CALCULATIONS_ITEMS.map((item) => (
             <SelectItem key={item.value} value={item.value} label={item.label}>
               {item.label}
             </SelectItem>

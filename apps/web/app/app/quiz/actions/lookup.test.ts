@@ -285,6 +285,45 @@ describe('getFilteredCount — aggregation from grouped rpc rows', () => {
     )
   })
 
+  it("defaults p_calc_mode to 'all' when calcMode is omitted", async () => {
+    setupAuthenticatedUser()
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'] })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_calc_mode: 'all' }),
+    )
+  })
+
+  it("passes p_calc_mode through literally (does NOT strip 'all')", async () => {
+    setupAuthenticatedUser()
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getFilteredCount({ subjectId: SUBJECT_ID, filters: ['all'], calcMode: 'exclude' })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_filtered_question_counts',
+      expect.objectContaining({ p_calc_mode: 'exclude' }),
+    )
+  })
+
+  it('returns empty count and logs when calcMode is an unknown value', async () => {
+    setupAuthenticatedUser()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getFilteredCount({
+      subjectId: SUBJECT_ID,
+      filters: ['all'],
+      calcMode: 'sometimes',
+    })
+    expect(result).toEqual({ count: 0, byTopic: {}, bySubtopic: {} })
+    expect(consoleSpy).toHaveBeenCalledWith('[getFilteredCount] Invalid input')
+    consoleSpy.mockRestore()
+  })
+
   it('sends p_topic_ids and p_subtopic_ids as null when callers omit them', async () => {
     setupAuthenticatedUser()
     mockRpc.mockResolvedValueOnce({ data: [], error: null })

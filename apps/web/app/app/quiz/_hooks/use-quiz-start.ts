@@ -7,7 +7,7 @@ import {
   readActiveSession,
   sessionHandoffKey,
 } from '../session/_utils/quiz-session-storage'
-import type { QuestionFilterValue } from '../types'
+import type { CalcMode, QuestionFilterValue } from '../types'
 
 type UseQuizStartOpts = {
   userId: string
@@ -16,6 +16,7 @@ type UseQuizStartOpts = {
   count: number
   maxQuestions: number
   filters: QuestionFilterValue[]
+  calcMode: CalcMode
   topicTree: {
     getSelectedTopicIds: () => string[]
     getSelectedSubtopicIds: () => string[]
@@ -23,7 +24,7 @@ type UseQuizStartOpts = {
 }
 
 export function useQuizStart(opts: UseQuizStartOpts) {
-  const { userId, subjectId, subjects, count, maxQuestions, filters, topicTree } = opts
+  const { userId, subjectId, subjects, count, maxQuestions, filters, calcMode, topicTree } = opts
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +50,7 @@ export function useQuizStart(opts: UseQuizStartOpts) {
         subtopicIds: subtopicIds.length > 0 ? subtopicIds : undefined,
         count: effectiveCount,
         filters,
+        calcMode,
       })
       if (result.success) {
         const selectedSubject = subjects.find((s) => s.id === subjectId)

@@ -256,6 +256,30 @@ describe('getRandomQuestionIds', () => {
     )
   })
 
+  it("defaults p_calc_mode to 'all' when calcMode is omitted", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_calc_mode: 'all' }),
+    )
+  })
+
+  it("passes p_calc_mode through literally (does NOT strip 'all')", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5, calcMode: 'only' })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_calc_mode: 'only' }),
+    )
+  })
+
   it('passes p_filters as an empty array when filters is undefined', async () => {
     mockRpc.mockResolvedValueOnce({ data: [], error: null })
 

@@ -1,3 +1,4 @@
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import type { SyllabusTree } from '../../syllabus/types'
@@ -23,6 +24,7 @@ type Props = {
   onExplanationImageChange: (url: string) => void
   difficulty: string
   status: string
+  hasCalculations: boolean
   isPending: boolean
   onSubjectChange: (id: string) => void
   onTopicChange: (id: string) => void
@@ -34,6 +36,7 @@ type Props = {
   onExplanationTextChange: (v: string) => void
   onDifficultyChange: (v: string | null) => void
   onStatusChange: (v: string | null) => void
+  onHasCalculationsChange: (v: boolean) => void
 }
 
 export function QuestionFormFields({
@@ -52,6 +55,7 @@ export function QuestionFormFields({
   onExplanationImageChange,
   difficulty,
   status,
+  hasCalculations,
   isPending,
   onSubjectChange,
   onTopicChange,
@@ -63,6 +67,7 @@ export function QuestionFormFields({
   onExplanationTextChange,
   onDifficultyChange,
   onStatusChange,
+  onHasCalculationsChange,
 }: Readonly<Props>) {
   return (
     <div className="space-y-4">
@@ -145,6 +150,18 @@ export function QuestionFormFields({
         onDifficultyChange={onDifficultyChange}
         onStatusChange={onStatusChange}
       />
+
+      <div className="flex items-center gap-2 text-sm">
+        <Checkbox
+          id="question-has-calculations"
+          checked={hasCalculations}
+          onCheckedChange={(c) => onHasCalculationsChange(c === true)}
+          disabled={isPending}
+        />
+        <label htmlFor="question-has-calculations" className="cursor-pointer">
+          Involves calculations
+        </label>
+      </div>
     </div>
   )
 }

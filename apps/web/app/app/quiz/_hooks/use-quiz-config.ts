@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz'
-import type { QuestionFilterValue, QuizMode } from '../types'
+import type { CalcMode, QuestionFilterValue, QuizMode } from '../types'
 import { createConfigHandlers } from './quiz-config-handlers'
 import { calcFilteredAvailable } from './topic-tree-helpers'
 import { useFilteredCount } from './use-filtered-count'
@@ -11,10 +11,11 @@ export function useQuizConfig({ userId, subjects }: { userId: string; subjects: 
   const [subjectId, setSubjectId] = useState('')
   const [mode, setMode] = useState<QuizMode>('study')
   const [filters, setFilters] = useState<QuestionFilterValue[]>(['all'])
+  const [calcMode, setCalcMode] = useState<CalcMode>('all')
   const [count, setCount] = useState(10)
   const topicTree = useTopicTree()
   const fc = useFilteredCount()
-  const hasActiveFilters = filters.some((f) => f !== 'all')
+  const hasActiveFilters = filters.some((f) => f !== 'all') || calcMode !== 'all'
   const allTopicIds = useMemo(() => topicTree.topics.map((t) => t.id), [topicTree.topics])
   const allSubtopicIds = useMemo(
     () => topicTree.topics.flatMap((t) => t.subtopics.map((st) => st.id)),
@@ -48,19 +49,26 @@ export function useQuizConfig({ userId, subjects }: { userId: string; subjects: 
     count,
     maxQuestions: availableCount,
     filters,
+    calcMode,
     topicTree,
   })
 
   useEffect(() => {
     if (!subjectId || !hasActiveFilters || allTopicIds.length === 0) return
-    fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters)
-  }, [subjectId, hasActiveFilters, filters, allTopicIds, allSubtopicIds, fc.refetch])
-  const { handleSubjectChange, handleFiltersChange } = createConfigHandlers({
+    fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters, calcMode)
+  }, [subjectId, hasActiveFilters, filters, calcMode, allTopicIds, allSubtopicIds, fc.refetch])
+  const { handleSubjectChange, handleFiltersChange, handleCalcModeChange } = createConfigHandlers({
     setSubjectId,
     setFilters,
     setCount,
+    setCalcMode,
     fc,
     topicTree,
+    subjectId,
+    allTopicIds,
+    allSubtopicIds,
+    filters,
+    calcMode,
   })
 
   return {
@@ -69,6 +77,8 @@ export function useQuizConfig({ userId, subjects }: { userId: string; subjects: 
     setMode,
     filters,
     setFilters: handleFiltersChange,
+    calcMode,
+    setCalcMode: handleCalcModeChange,
     count,
     setCount,
     availableCount,

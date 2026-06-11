@@ -2,13 +2,28 @@
 
 import { CircleHelp } from 'lucide-react'
 import { useState } from 'react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import type { QuestionFilterValue } from '../types'
+import type { CalcMode, QuestionFilterValue } from '../types'
 
 type QuestionFiltersProps = {
   value: QuestionFilterValue[]
   onValueChange: (filters: QuestionFilterValue[]) => void
+  calcMode: CalcMode
+  onCalcModeChange: (mode: CalcMode) => void
 }
+
+const CALC_MODE_ITEMS: { value: CalcMode; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'only', label: 'Only calculations' },
+  { value: 'exclude', label: 'Exclude calculations' },
+]
 
 const FILTERS: { value: Exclude<QuestionFilterValue, 'all'>; label: string; hint: string }[] = [
   {
@@ -52,7 +67,12 @@ function FilterHint({ hint, label }: { hint: string; label: string }) {
   )
 }
 
-export function QuestionFilters({ value, onValueChange }: QuestionFiltersProps) {
+export function QuestionFilters({
+  value,
+  onValueChange,
+  calcMode,
+  onCalcModeChange,
+}: QuestionFiltersProps) {
   function handleToggle(filter: Exclude<QuestionFilterValue, 'all'>) {
     const withoutAll = value.filter((f) => f !== 'all')
     const isActive = withoutAll.includes(filter)
@@ -83,6 +103,27 @@ export function QuestionFilters({ value, onValueChange }: QuestionFiltersProps) 
             </div>
           )
         })}
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">Calculations</span>
+        <Select
+          value={calcMode}
+          onValueChange={(v) => {
+            if (v) onCalcModeChange(v as CalcMode)
+          }}
+          items={CALC_MODE_ITEMS}
+        >
+          <SelectTrigger className="w-48" aria-label="Calculations">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CALC_MODE_ITEMS.map((item) => (
+              <SelectItem key={item.value} value={item.value} label={item.label}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   )

@@ -49,6 +49,9 @@ export function QuestionFiltersBar({ tree, filters }: Readonly<Props>) {
         subtopicId={filters.subtopicId ?? ALL}
         difficulty={filters.difficulty ?? ALL}
         status={filters.status ?? ALL}
+        hasCalculations={
+          filters.hasCalculations === undefined ? ALL : String(filters.hasCalculations)
+        }
         onFilterChange={updateFilter}
       />
 

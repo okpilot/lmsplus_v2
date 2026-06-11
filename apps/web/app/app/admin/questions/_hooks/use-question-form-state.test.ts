@@ -34,6 +34,7 @@ const MOCK_QUESTION: QuestionRow = {
   question_image_url: 'https://example.com/image.png',
   explanation_image_url: null,
   lo_reference: 'LO-1.2',
+  has_calculations: true,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-02T00:00:00Z',
 }
@@ -60,6 +61,7 @@ describe('useQuestionFormState', () => {
       expect(state.explanationImageUrl).toBeNull()
       expect(state.difficulty).toBe('easy')
       expect(state.status).toBe('active')
+      expect(state.hasCalculations).toBe(true)
     })
   })
 
@@ -80,6 +82,7 @@ describe('useQuestionFormState', () => {
       expect(state.explanationImageUrl).toBeNull()
       expect(state.difficulty).toBe('medium')
       expect(state.status).toBe('draft')
+      expect(state.hasCalculations).toBe(false)
     })
   })
 
@@ -143,11 +146,13 @@ describe('useQuestionFormState', () => {
         result.current.handlers.setQuestionText('Changed text')
         result.current.handlers.setDifficulty('hard')
         result.current.handlers.handleSubjectChange('subj-99')
+        result.current.handlers.setHasCalculations(false)
       })
 
       expect(result.current.state.questionText).toBe('Changed text')
       expect(result.current.state.difficulty).toBe('hard')
       expect(result.current.state.subjectId).toBe('subj-99')
+      expect(result.current.state.hasCalculations).toBe(false)
 
       // Close the dialog
       rerender({ open: false })
@@ -158,6 +163,7 @@ describe('useQuestionFormState', () => {
       expect(result.current.state.topicId).toBe('topic-1')
       expect(result.current.state.subtopicId).toBe('subtopic-1')
       expect(result.current.state.status).toBe('active')
+      expect(result.current.state.hasCalculations).toBe(true)
     })
 
     it('resets all fields to defaults when question is undefined and dialog closes', () => {

@@ -98,6 +98,11 @@ export function QuestionTable({
               </TableCell>
               <TableCell className="max-w-[400px]">
                 <span className="text-sm">{truncate(q.question_text, 90)}</span>
+                {q.has_calculations && (
+                  <Badge variant="secondary" className="ml-2 text-[10px]">
+                    calc
+                  </Badge>
+                )}
               </TableCell>
               <TableCell>
                 <span className="text-xs font-medium">{q.subject?.code ?? '\u2014'}</span>

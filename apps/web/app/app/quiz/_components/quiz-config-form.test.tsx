@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { QuestionFilterValue, QuizMode } from '../types'
+import type { CalcMode, QuestionFilterValue, QuizMode } from '../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -103,6 +103,8 @@ function buildDefaultConfig() {
     setMode: vi.fn(),
     filters: ['all'] as QuestionFilterValue[],
     setFilters: vi.fn(),
+    calcMode: 'all' as CalcMode,
+    setCalcMode: vi.fn(),
     count: 10,
     setCount: vi.fn(),
     availableCount: 100,

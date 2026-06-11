@@ -30,7 +30,7 @@ vi.mock('../session/_utils/quiz-session-storage', () => ({
 
 // ---- Subject under test ---------------------------------------------------
 
-import type { QuestionFilterValue } from '../types'
+import type { CalcMode, QuestionFilterValue } from '../types'
 import { useQuizStart } from './use-quiz-start'
 
 // ---- Fixtures -------------------------------------------------------------
@@ -56,6 +56,7 @@ const DEFAULT_OPTS = {
   count: 10,
   maxQuestions: 50,
   filters: ['all'] as QuestionFilterValue[],
+  calcMode: 'all' as CalcMode,
   topicTree: mockTopicTree,
 }
 
@@ -165,6 +166,15 @@ describe('useQuizStart — handleStart happy path', () => {
     expect(mockStartQuizSession).toHaveBeenCalledWith(
       expect.objectContaining({ filters: ['unseen', 'incorrect'] }),
     )
+  })
+
+  it('forwards calcMode to startQuizSession', async () => {
+    const { result } = renderHook(() =>
+      useQuizStart({ ...DEFAULT_OPTS, calcMode: 'only' as CalcMode }),
+    )
+    await act(async () => result.current.handleStart())
+
+    expect(mockStartQuizSession).toHaveBeenCalledWith(expect.objectContaining({ calcMode: 'only' }))
   })
 
   it('omits topicIds when topicTree returns an empty array', async () => {

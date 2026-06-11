@@ -27,6 +27,8 @@ export async function QuestionsContent({ filters }: Readonly<Props>) {
     if (filters.subtopicId) params.set('subtopicId', filters.subtopicId)
     if (filters.difficulty) params.set('difficulty', filters.difficulty)
     if (filters.status) params.set('status', filters.status)
+    if (filters.hasCalculations !== undefined)
+      params.set('hasCalculations', String(filters.hasCalculations))
     if (filters.search) params.set('search', filters.search)
     if (totalPages > 1) params.set('page', String(totalPages))
     redirect(`/app/admin/questions?${params.toString()}`)

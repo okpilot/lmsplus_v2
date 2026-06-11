@@ -254,12 +254,13 @@ describe('useQuizConfig — setFilters', () => {
     await act(async () => {
       result.current.setFilters(['incorrect'] as QuestionFilterValue[])
     })
-    // Should pass ALL topics/subtopics, not just checked ones
+    // Should pass ALL topics/subtopics, not just checked ones, plus the default calcMode
     expect(mockFcRefetch).toHaveBeenCalledWith(
       SUBJECT_ID,
       ['t1', 't2'],
       ['s1', 's2'],
       ['incorrect'],
+      'all',
     )
     expect(mockFcRefetch).toHaveBeenCalledTimes(1)
   })
@@ -309,6 +310,86 @@ describe('useQuizConfig — setFilters', () => {
 
     // No re-fetch needed — per-topic counts are already subject-wide
     expect(mockFcRefetch).not.toHaveBeenCalled()
+  })
+})
+
+// ---- calcMode ------------------------------------------------------------
+
+describe('useQuizConfig — calcMode', () => {
+  it('starts with calcMode = all', () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    expect(result.current.calcMode).toBe('all')
+  })
+
+  it('updates calcMode when setCalcMode is called', async () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    await act(async () => {
+      result.current.setCalcMode('only')
+    })
+    expect(result.current.calcMode).toBe('only')
+  })
+
+  it('activates the filtered-count badge path when calc-only is selected with no switch-filter', async () => {
+    ;(useFilteredCount as Mock).mockReturnValue(
+      buildMockFilteredCount({ filteredCount: 8, filteredByTopic: { t1: 8 } }),
+    )
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    // filters is still ['all'] — only calcMode drives the badge path
+    await act(async () => {
+      result.current.setCalcMode('only')
+    })
+    expect(result.current.filteredByTopic).toEqual({ t1: 8 })
+  })
+
+  it('refetches counts with the new calcMode when calc-only is selected', async () => {
+    const mockTree = buildMockTopicTree({
+      topics: [
+        {
+          id: 't1',
+          code: '01',
+          name: 'T1',
+          questionCount: 5,
+          subtopics: [{ id: 's1', code: '01-01', name: 'S1', questionCount: 5 }],
+        },
+      ],
+      checkedTopics: new Set(['t1']),
+      checkedSubtopics: new Set(['s1']),
+      selectedQuestionCount: 5,
+    })
+    ;(useTopicTree as Mock).mockReturnValue(mockTree)
+
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    await act(async () => {
+      result.current.handleSubjectChange(SUBJECT_ID)
+    })
+    mockFcRefetch.mockClear()
+
+    await act(async () => {
+      result.current.setCalcMode('exclude')
+    })
+    expect(mockFcRefetch).toHaveBeenCalledWith(SUBJECT_ID, ['t1'], ['s1'], ['all'], 'exclude')
+  })
+
+  it('resets calcMode to all when the subject changes', async () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    await act(async () => {
+      result.current.setCalcMode('only')
+    })
+    expect(result.current.calcMode).toBe('only')
+    await act(async () => {
+      result.current.handleSubjectChange('')
+    })
+    expect(result.current.calcMode).toBe('all')
   })
 })
 

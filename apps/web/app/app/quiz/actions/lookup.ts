@@ -78,6 +78,7 @@ const FilteredCountSchema = z.object({
   topicIds: z.array(z.uuid()).optional(),
   subtopicIds: z.array(z.uuid()).optional(),
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
+  calcMode: z.enum(['all', 'only', 'exclude']).default('all'),
 })
 
 export type FilteredCountResult = {
@@ -104,9 +105,10 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     console.error('[getFilteredCount] Invalid input')
     return empty
   }
-  const { subjectId, topicIds, subtopicIds, filters } = parsed
+  const { subjectId, topicIds, subtopicIds, filters, calcMode } = parsed
 
   // undefined → null to RPC = unconstrained (whole subject pool); [] → empty array = match nothing (topic_id = ANY('{}') is always false).
+  // p_calc_mode is a literal enum the RPC reads directly ('all' = unrestricted via CASE ELSE) — pass it through without stripping.
   const { data, error } = await rpc<
     { topic_id: string; subtopic_id: string | null; n: number | string }[]
   >(supabase, 'get_filtered_question_counts', {
@@ -114,6 +116,7 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     p_topic_ids: topicIds ?? null,
     p_subtopic_ids: subtopicIds ?? null,
     p_filters: filters.filter((f) => f !== 'all'),
+    p_calc_mode: calcMode,
   })
   if (error) {
     console.error('[getFilteredCount] get_filtered_question_counts error:', error.message)

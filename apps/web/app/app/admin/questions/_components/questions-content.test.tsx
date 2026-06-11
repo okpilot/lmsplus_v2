@@ -190,6 +190,7 @@ describe('QuestionsContent', () => {
           subtopicId: 'sub-3',
           difficulty: 'hard',
           status: 'active',
+          hasCalculations: true,
           search: 'atmosphere',
         },
       }),
@@ -201,6 +202,7 @@ describe('QuestionsContent', () => {
     expect(redirectPath).toContain('subtopicId=sub-3')
     expect(redirectPath).toContain('difficulty=hard')
     expect(redirectPath).toContain('status=active')
+    expect(redirectPath).toContain('hasCalculations=true')
     expect(redirectPath).toContain('search=atmosphere')
   })
 

@@ -20,6 +20,8 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
   if (filters.subtopicId) countQ = countQ.eq('subtopic_id', filters.subtopicId)
   if (filters.difficulty) countQ = countQ.eq('difficulty', filters.difficulty)
   if (filters.status) countQ = countQ.eq('status', filters.status)
+  if (filters.hasCalculations !== undefined)
+    countQ = countQ.eq('has_calculations', filters.hasCalculations)
   if (escapedSearch) countQ = countQ.ilike('question_text', escapedSearch)
 
   const { count, error: countError } = await countQ
@@ -47,7 +49,7 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
       subject_id, topic_id, subtopic_id,
       options, explanation_text,
       question_image_url, explanation_image_url,
-      lo_reference, created_at, updated_at,
+      lo_reference, has_calculations, created_at, updated_at,
       easa_subjects(code, name),
       easa_topics(name),
       easa_subtopics(name)
@@ -61,6 +63,8 @@ export async function getQuestionsList(filters: QuestionFilters): Promise<Questi
   if (filters.subtopicId) dataQ = dataQ.eq('subtopic_id', filters.subtopicId)
   if (filters.difficulty) dataQ = dataQ.eq('difficulty', filters.difficulty)
   if (filters.status) dataQ = dataQ.eq('status', filters.status)
+  if (filters.hasCalculations !== undefined)
+    dataQ = dataQ.eq('has_calculations', filters.hasCalculations)
   if (escapedSearch) dataQ = dataQ.ilike('question_text', escapedSearch)
 
   const { data, error } = await dataQ
