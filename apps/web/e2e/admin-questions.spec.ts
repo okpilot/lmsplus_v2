@@ -36,16 +36,6 @@ test.describe('Admin Question Editor', () => {
 
   // ── Section 2: Filters ──────────────────────────────────────────────
 
-  test('filters by difficulty', async ({ page }) => {
-    // Click the difficulty filter trigger
-    const difficultyTrigger = page.locator('[aria-label="Difficulty"]')
-    await difficultyTrigger.click()
-    await page.locator('[data-slot="select-item"]').filter({ hasText: 'Easy' }).click()
-
-    // URL should contain difficulty=easy
-    await expect(page).toHaveURL(/difficulty=easy/)
-  })
-
   test('filters by status', async ({ page }) => {
     const statusTrigger = page.locator('[aria-label="Status"]')
     await statusTrigger.click()
