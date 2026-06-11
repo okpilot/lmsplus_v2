@@ -57,8 +57,7 @@ describe('SessionCard', () => {
 
   it('displays em dash when scorePercentage is null', () => {
     render(<SessionCard session={makeSession({ scorePercentage: null })} />)
-    // The subject-name em dash and the score em dash — at least one must be present
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+    expect(screen.getByText('—')).toBeInTheDocument()
   })
 
   it('renders the correct/total question counts', () => {
