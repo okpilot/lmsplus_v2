@@ -162,6 +162,11 @@ describe('ReportQuestionRow', () => {
       )
       expect(screen.getByText('Not answered')).toBeInTheDocument()
     })
+
+    it('shows "Not answered" when selectedOptionId is null (VFR RT text-answer row)', () => {
+      render(<ReportQuestionRow question={makeQuestion({ selectedOptionId: null })} index={0} />)
+      expect(screen.getByText('Not answered')).toBeInTheDocument()
+    })
   })
 
   describe('background tint', () => {

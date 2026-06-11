@@ -86,6 +86,7 @@ const questionsData = [
       { id: 'opt-b', text: 'Downward force' },
     ],
     explanation_text: 'Lift acts upward.',
+    question_image_url: null,
   },
   {
     id: 'q2',
@@ -96,6 +97,7 @@ const questionsData = [
       { id: 'opt-d', text: 'Opposing force' },
     ],
     explanation_text: null,
+    question_image_url: null,
   },
 ]
 

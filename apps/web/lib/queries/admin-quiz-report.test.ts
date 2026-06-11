@@ -86,6 +86,7 @@ const questionsData = [
     ],
     explanation_text: 'Lift acts upward.',
     explanation_image_url: null,
+    question_image_url: null,
   },
   {
     id: 'q2',
@@ -97,6 +98,7 @@ const questionsData = [
     ],
     explanation_text: null,
     explanation_image_url: null,
+    question_image_url: null,
   },
 ]
 
