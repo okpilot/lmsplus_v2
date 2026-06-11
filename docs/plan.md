@@ -7,9 +7,9 @@
 
 ## Quiz Question Filtering — Calculation-Mode Filter (Phase A follow-up, #837) — 2026-06-11
 
-**COMPLETE** — 2-commit feature branch: DB migrations 107–108 + schema/RPC plumbing + admin checkbox + student tri-state filter + count-badge sync.
+**COMPLETE** — DB migrations 107–108 + schema/RPC plumbing + admin checkbox + student calc filter (two mutually-exclusive toggles) + count-badge sync. Followed by an admin question-editor UI/UX polish pass (table/dialog overflow fixes, Difficulty column + filter removed, calc filter as toggles, terminology cleanup).
 
-**Feature:** Admin-tagged `has_calculations BOOLEAN` column on `questions` (default false, backfilled by admins per-org). `p_calc_mode` parameter added to `get_random_question_ids` and `get_filtered_question_counts` RPCs: `'only'` = calc questions only, `'exclude'` = non-calc only, `'all'` (default) = unrestricted. Calc-mode **AND-restricts** the pool (distinct from `p_filters` which UNION); fail-open on unknown values. Admin questions list gains checkbox + bulk action; student quiz builder gains a tri-state Select (Include / Only / Exclude calculation questions) + count badge synced with the RPC.
+**Feature:** Admin-tagged `has_calculations BOOLEAN` column on `questions` (default false, backfilled by admins per-org). `p_calc_mode` parameter added to `get_random_question_ids` and `get_filtered_question_counts` RPCs: `'only'` = calc questions only, `'exclude'` = non-calc only, `'all'` (default) = unrestricted. Calc-mode **AND-restricts** the pool (distinct from `p_filters` which UNION); fail-open on unknown values. Admin questions list gains checkbox + bulk action; student quiz builder gains two mutually-exclusive toggles (Only / Exclude calculation questions; neither active = included by default) + count badge synced with the RPC.
 
 **Migrations 107–108:**
 - Mig 107 / 20260611000300: `ALTER TABLE questions ADD has_calculations BOOLEAN NOT NULL DEFAULT false`. GRANT SELECT (has_calculations) TO authenticated — mig 094 column-gated SELECT, and the SECURITY INVOKER `_filtered_question_pool` reads the column as the student (without the grant it fails 42501 permission denied).

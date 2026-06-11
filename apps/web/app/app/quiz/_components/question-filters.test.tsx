@@ -172,4 +172,20 @@ describe('QuestionFilters', () => {
     await user.click(screen.getByRole('switch', { name: 'Exclude calculation questions' }))
     expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('exclude')
   })
+
+  it("toggling 'only' while 'exclude' is active switches the mode to 'only'", async () => {
+    const user = userEvent.setup()
+    const onCalcModeChange = vi.fn()
+    renderFilters({ calcMode: 'exclude', onCalcModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Only calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('only')
+  })
+
+  it("toggling the active 'exclude' toggle off reverts to 'all'", async () => {
+    const user = userEvent.setup()
+    const onCalcModeChange = vi.fn()
+    renderFilters({ calcMode: 'exclude', onCalcModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Exclude calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('all')
+  })
 })

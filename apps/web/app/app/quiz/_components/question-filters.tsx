@@ -75,13 +75,11 @@ function FilterToggle({
   hint,
   checked,
   onToggle,
-  ariaLabel,
 }: {
   label: string
   hint: string
   checked: boolean
   onToggle: () => void
-  ariaLabel?: string
 }) {
   return (
     <div className="flex items-center justify-between">
@@ -89,7 +87,7 @@ function FilterToggle({
         {label}
         <FilterHint hint={hint} label={label} />
       </span>
-      <Switch checked={checked} onCheckedChange={onToggle} aria-label={ariaLabel ?? label} />
+      <Switch checked={checked} onCheckedChange={onToggle} aria-label={label} />
     </div>
   )
 }
