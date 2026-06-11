@@ -65,6 +65,28 @@ describe('parseFilters', () => {
     expect(parseFilters({ status: 'archived' }).status).toBeUndefined()
   })
 
+  it("parses hasCalculations 'true' string as boolean true", () => {
+    expect(parseFilters({ hasCalculations: 'true' }).hasCalculations).toBe(true)
+  })
+
+  it("parses hasCalculations 'false' string as boolean false", () => {
+    expect(parseFilters({ hasCalculations: 'false' }).hasCalculations).toBe(false)
+  })
+
+  it('returns undefined hasCalculations for unrecognised values', () => {
+    expect(parseFilters({ hasCalculations: 'yes' }).hasCalculations).toBeUndefined()
+    expect(parseFilters({ hasCalculations: '1' }).hasCalculations).toBeUndefined()
+    expect(parseFilters({ hasCalculations: '' }).hasCalculations).toBeUndefined()
+  })
+
+  it('returns undefined hasCalculations when param is missing', () => {
+    expect(parseFilters({}).hasCalculations).toBeUndefined()
+  })
+
+  it('returns undefined hasCalculations for array values', () => {
+    expect(parseFilters({ hasCalculations: ['true', 'false'] }).hasCalculations).toBeUndefined()
+  })
+
   it('trims search and passes through non-empty value', () => {
     expect(parseFilters({ search: '  QNH  ' }).search).toBe('QNH')
   })

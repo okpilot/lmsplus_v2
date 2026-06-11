@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { FilteredCountState } from '../types'
 import { createConfigHandlers } from './quiz-config-handlers'
 import type { UseTopicTreeReturn } from './topic-tree-helpers'
-import type { FilteredCountState } from './use-filtered-count'
 
 function makeFilteredCount(overrides: Partial<FilteredCountState> = {}): FilteredCountState {
   return {
@@ -44,10 +44,6 @@ describe('createConfigHandlers', () => {
   let fc: FilteredCountState
   let topicTree: UseTopicTreeReturn
 
-  const SUBJECT_ID = 'subj-1'
-  const ALL_TOPIC_IDS = ['t1', 't2']
-  const ALL_SUBTOPIC_IDS = ['s1', 's2']
-
   function makeDeps(overrides: Partial<Parameters<typeof createConfigHandlers>[0]> = {}) {
     return {
       setSubjectId,
@@ -56,9 +52,6 @@ describe('createConfigHandlers', () => {
       setCalcMode,
       fc,
       topicTree,
-      subjectId: SUBJECT_ID,
-      allTopicIds: ALL_TOPIC_IDS,
-      allSubtopicIds: ALL_SUBTOPIC_IDS,
       filters: ['all'] as ('all' | 'unseen' | 'incorrect' | 'flagged')[],
       calcMode: 'all' as 'all' | 'only' | 'exclude',
       ...overrides,
@@ -163,35 +156,27 @@ describe('createConfigHandlers', () => {
   })
 
   describe('handleCalcModeChange', () => {
+    // The handler only updates state + conditionally resets; the counts effect (calcMode
+    // is in its dep array, guarded on topics being loaded) performs the refetch. So the
+    // handler never calls fc.refetch directly — that avoids a double fetch and the
+    // empty-topics-before-load race.
     it('updates calcMode to the new value', () => {
       const { handleCalcModeChange } = createConfigHandlers(makeDeps())
       handleCalcModeChange('only')
       expect(setCalcMode).toHaveBeenCalledWith('only')
     })
 
-    it('refetches counts with the new calcMode when calc is active', () => {
+    it('does not reset (or directly refetch) when calc becomes active', () => {
       const { handleCalcModeChange } = createConfigHandlers(makeDeps())
       handleCalcModeChange('exclude')
-      expect(fc.refetch).toHaveBeenCalledWith(
-        SUBJECT_ID,
-        ALL_TOPIC_IDS,
-        ALL_SUBTOPIC_IDS,
-        ['all'],
-        'exclude',
-      )
       expect(fc.reset).not.toHaveBeenCalled()
+      expect(fc.refetch).not.toHaveBeenCalled()
     })
 
-    it('refetches (not resets) when a switch-filter is active and calc returns to all', () => {
+    it('does not reset when a switch-filter is active and calc returns to all', () => {
       const { handleCalcModeChange } = createConfigHandlers(makeDeps({ filters: ['unseen'] }))
       handleCalcModeChange('all')
-      expect(fc.refetch).toHaveBeenCalledWith(
-        SUBJECT_ID,
-        ALL_TOPIC_IDS,
-        ALL_SUBTOPIC_IDS,
-        ['unseen'],
-        'all',
-      )
+      expect(fc.reset).not.toHaveBeenCalled()
     })
 
     it('resets counts when calc returns to all and no switch-filter is active', () => {

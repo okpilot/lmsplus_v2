@@ -176,7 +176,7 @@ describe('bulkUpdateCalculations', () => {
   })
 
   describe('auth guard', () => {
-    it('propagates the error when requireAdmin throws', async () => {
+    it('propagates the auth error to the caller', async () => {
       mockRequireAdmin.mockRejectedValue(new Error('Forbidden: admin role required'))
 
       await expect(

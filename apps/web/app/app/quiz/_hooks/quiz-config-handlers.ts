@@ -9,11 +9,7 @@ type ConfigHandlerDeps = {
   setCalcMode: (m: CalcMode) => void
   fc: ReturnType<typeof useFilteredCount>
   topicTree: ReturnType<typeof useTopicTree>
-  // Current reactive values needed to refetch counts when calcMode changes — the
-  // calc Select fires outside the filters effect, so it triggers its own refetch.
-  subjectId: string
-  allTopicIds: string[]
-  allSubtopicIds: string[]
+  // Current reactive values the change handlers read to decide reset-vs-keep.
   filters: QuestionFilterValue[]
   calcMode: CalcMode
 }
@@ -25,9 +21,6 @@ export function createConfigHandlers({
   setCalcMode,
   fc,
   topicTree,
-  subjectId,
-  allTopicIds,
-  allSubtopicIds,
   filters,
   calcMode,
 }: ConfigHandlerDeps) {
@@ -50,12 +43,11 @@ export function createConfigHandlers({
 
   function handleCalcModeChange(newCalcMode: CalcMode) {
     setCalcMode(newCalcMode)
-    // No active switch-filter and calc back to 'all' → nothing to count, clear state.
-    if (!filters.some((f) => f !== 'all') && newCalcMode === 'all') {
-      fc.reset()
-      return
-    }
-    fc.refetch(subjectId, allTopicIds, allSubtopicIds, filters, newCalcMode)
+    // Mirror handleFiltersChange: clear counts only when nothing restricts the pool.
+    // The counts effect (calcMode is in its dep array, guarded on allTopicIds being
+    // loaded) performs the refetch after state settles — no direct refetch here, which
+    // avoids both a double fetch and the empty-topics-before-load race.
+    if (!filters.some((f) => f !== 'all') && newCalcMode === 'all') fc.reset()
   }
 
   return { handleSubjectChange, handleFiltersChange, handleCalcModeChange }

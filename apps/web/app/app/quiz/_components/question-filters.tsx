@@ -2,13 +2,7 @@
 
 import { CircleHelp } from 'lucide-react'
 import { useState } from 'react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import type { CalcMode, QuestionFilterValue } from '../types'
 
@@ -20,10 +14,18 @@ type QuestionFiltersProps = {
 }
 
 const CALC_MODE_ITEMS: { value: CalcMode; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'only', label: 'Only calculations' },
-  { value: 'exclude', label: 'Exclude calculations' },
+  { value: 'all', label: 'Include calculation questions' },
+  { value: 'only', label: 'Only calculation questions' },
+  { value: 'exclude', label: 'Exclude calculation questions' },
 ]
+
+// Short label shown in the collapsed trigger (the "Calculation questions" heading on
+// the left already supplies the noun; the dropdown list carries the full phrases).
+const CALC_TRIGGER_LABEL: Record<CalcMode, string> = {
+  all: 'Include',
+  only: 'Only',
+  exclude: 'Exclude',
+}
 
 const FILTERS: { value: Exclude<QuestionFilterValue, 'all'>; label: string; hint: string }[] = [
   {
@@ -105,7 +107,7 @@ export function QuestionFilters({
         })}
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">Calculations</span>
+        <span className="text-sm text-muted-foreground">Calculation questions</span>
         <Select
           value={calcMode}
           onValueChange={(v) => {
@@ -113,8 +115,8 @@ export function QuestionFilters({
           }}
           items={CALC_MODE_ITEMS}
         >
-          <SelectTrigger className="w-48" aria-label="Calculations">
-            <SelectValue />
+          <SelectTrigger className="w-36" aria-label="Calculation questions">
+            {CALC_TRIGGER_LABEL[calcMode]}
           </SelectTrigger>
           <SelectContent>
             {CALC_MODE_ITEMS.map((item) => (

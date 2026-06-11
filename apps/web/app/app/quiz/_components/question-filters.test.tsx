@@ -40,7 +40,7 @@ vi.mock('@/components/ui/select', () => ({
   }) => (
     <select
       data-testid="calc-select"
-      aria-label="Calculations"
+      aria-label="Calculation questions"
       value={value}
       onChange={(e) => onValueChange(e.target.value)}
     >
@@ -160,9 +160,13 @@ describe('QuestionFilters', () => {
 
   it('renders the three calculation options', () => {
     renderFilters()
-    expect(screen.getByRole('option', { name: 'All' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Only calculations' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Exclude calculations' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: 'Include calculation questions' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Only calculation questions' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: 'Exclude calculation questions' }),
+    ).toBeInTheDocument()
   })
 
   it('reflects the current calcMode value', () => {

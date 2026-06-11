@@ -1,27 +1,12 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import type { SubjectOption } from '@/lib/queries/quiz'
 import { startQuizSession } from '../actions/start'
 import {
   clearActiveSession,
   readActiveSession,
   sessionHandoffKey,
 } from '../session/_utils/quiz-session-storage'
-import type { CalcMode, QuestionFilterValue } from '../types'
-
-type UseQuizStartOpts = {
-  userId: string
-  subjectId: string
-  subjects: SubjectOption[]
-  count: number
-  maxQuestions: number
-  filters: QuestionFilterValue[]
-  calcMode: CalcMode
-  topicTree: {
-    getSelectedTopicIds: () => string[]
-    getSelectedSubtopicIds: () => string[]
-  }
-}
+import type { UseQuizStartOpts } from '../types'
 
 export function useQuizStart(opts: UseQuizStartOpts) {
   const { userId, subjectId, subjects, count, maxQuestions, filters, calcMode, topicTree } = opts

@@ -1,22 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { getFilteredCount } from '../actions/lookup'
-import type { CalcMode, QuestionFilterValue } from '../types'
-
-export type FilteredCountState = {
-  filteredCount: number | null
-  filteredByTopic: Record<string, number> | null
-  filteredBySubtopic: Record<string, number> | null
-  isFilterPending: boolean
-  authError: boolean
-  refetch: (
-    subjectId: string,
-    topicIds: string[],
-    subtopicIds: string[],
-    filters: QuestionFilterValue[],
-    calcMode?: CalcMode,
-  ) => void
-  reset: () => void
-}
+import type { CalcMode, FilteredCountState, QuestionFilterValue } from '../types'
 
 export function useFilteredCount(): FilteredCountState {
   const [filteredCount, setFilteredCount] = useState<number | null>(null)

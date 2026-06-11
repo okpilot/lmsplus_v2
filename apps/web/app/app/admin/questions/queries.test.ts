@@ -193,6 +193,32 @@ describe('getQuestionsList', () => {
     expect(chain.eq).toHaveBeenCalledWith('status', 'draft')
   })
 
+  it('applies has_calculations filter when hasCalculations is true', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ hasCalculations: true })
+
+    expect(chain.eq).toHaveBeenCalledWith('has_calculations', true)
+  })
+
+  it('applies has_calculations filter when hasCalculations is false', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ hasCalculations: false })
+
+    expect(chain.eq).toHaveBeenCalledWith('has_calculations', false)
+  })
+
+  it('does not apply has_calculations filter when hasCalculations is undefined', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({})
+
+    const eqCalls = (chain.eq as ReturnType<typeof vi.fn>).mock.calls
+    const calcEqCall = eqCalls.find((args: unknown[]) => args[0] === 'has_calculations')
+    expect(calcEqCall).toBeUndefined()
+  })
+
   it('applies search filter as ilike with wildcard wrapping when provided', async () => {
     const chain = mockSupabaseWith([])
 

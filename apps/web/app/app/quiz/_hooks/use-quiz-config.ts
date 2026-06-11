@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { SubjectOption } from '@/lib/queries/quiz'
 import type { CalcMode, QuestionFilterValue, QuizMode } from '../types'
 import { createConfigHandlers } from './quiz-config-handlers'
-import { calcFilteredAvailable } from './topic-tree-helpers'
+import { useAvailableCount } from './use-available-count'
 import { useFilteredCount } from './use-filtered-count'
 import { useQuizStart } from './use-quiz-start'
 import { useTopicTree } from './use-topic-tree'
@@ -21,27 +21,12 @@ export function useQuizConfig({ userId, subjects }: { userId: string; subjects: 
     () => topicTree.topics.flatMap((t) => t.subtopics.map((st) => st.id)),
     [topicTree.topics],
   )
-
-  const availableCount = useMemo(() => {
-    if (!hasActiveFilters || !fc.filteredByTopic || !fc.filteredBySubtopic) {
-      return topicTree.selectedQuestionCount
-    }
-    return calcFilteredAvailable(
-      topicTree.topics,
-      topicTree.checkedTopics,
-      topicTree.checkedSubtopics,
-      fc.filteredByTopic,
-      fc.filteredBySubtopic,
-    )
-  }, [
+  const availableCount = useAvailableCount({
     hasActiveFilters,
-    fc.filteredByTopic,
-    fc.filteredBySubtopic,
-    topicTree.selectedQuestionCount,
-    topicTree.topics,
-    topicTree.checkedTopics,
-    topicTree.checkedSubtopics,
-  ])
+    filteredByTopic: fc.filteredByTopic,
+    filteredBySubtopic: fc.filteredBySubtopic,
+    topicTree,
+  })
   const { loading, error, handleStart } = useQuizStart({
     userId,
     subjectId,
@@ -64,9 +49,6 @@ export function useQuizConfig({ userId, subjects }: { userId: string; subjects: 
     setCalcMode,
     fc,
     topicTree,
-    subjectId,
-    allTopicIds,
-    allSubtopicIds,
     filters,
     calcMode,
   })

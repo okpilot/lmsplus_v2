@@ -1,11 +1,11 @@
-import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import type { SyllabusTree } from '../../syllabus/types'
 import type { QuestionOption } from '../types'
 import { DifficultyStatusSelect } from './difficulty-status-select'
 import { ImageUploadField } from './image-upload-field'
 import { OptionEditor } from './option-editor'
+import { QuestionCalculationsField } from './question-calculations-field'
+import { QuestionMetaFields } from './question-meta-fields'
 import { SyllabusCascader } from './syllabus-cascader'
 
 type Props = {
@@ -82,26 +82,13 @@ export function QuestionFormFields({
         disabled={isPending}
       />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Question #</span>
-          <Input
-            value={questionNumber}
-            onChange={(e) => onQuestionNumberChange(e.target.value)}
-            placeholder="e.g. MET-001"
-            disabled={isPending}
-          />
-        </div>
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">LO Reference</span>
-          <Input
-            value={loReference}
-            onChange={(e) => onLoReferenceChange(e.target.value)}
-            placeholder="e.g. LO 050 01 01 01"
-            disabled={isPending}
-          />
-        </div>
-      </div>
+      <QuestionMetaFields
+        questionNumber={questionNumber}
+        loReference={loReference}
+        isPending={isPending}
+        onQuestionNumberChange={onQuestionNumberChange}
+        onLoReferenceChange={onLoReferenceChange}
+      />
 
       <div>
         <span className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -151,17 +138,11 @@ export function QuestionFormFields({
         onStatusChange={onStatusChange}
       />
 
-      <div className="flex items-center gap-2 text-sm">
-        <Checkbox
-          id="question-has-calculations"
-          checked={hasCalculations}
-          onCheckedChange={(c) => onHasCalculationsChange(c === true)}
-          disabled={isPending}
-        />
-        <label htmlFor="question-has-calculations" className="cursor-pointer">
-          Involves calculations
-        </label>
-      </div>
+      <QuestionCalculationsField
+        hasCalculations={hasCalculations}
+        isPending={isPending}
+        onHasCalculationsChange={onHasCalculationsChange}
+      />
     </div>
   )
 }
