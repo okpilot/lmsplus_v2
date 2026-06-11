@@ -1,9 +1,14 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
+import { ReportFlagProvider } from './report-flag-context'
 import { ReportQuestionRow } from './report-question-row'
 
 // ---- Mocks ------------------------------------------------------------------
+
+const { mockToggleFlag } = vi.hoisted(() => ({ mockToggleFlag: vi.fn() }))
+
+vi.mock('../../actions/flag', () => ({ toggleFlag: mockToggleFlag }))
 
 vi.mock('@/app/app/_components/markdown-text', () => ({
   MarkdownText: ({ children, className }: { children: string; className?: string }) => (
@@ -325,6 +330,69 @@ describe('ReportQuestionRow', () => {
       const longText = 'A'.repeat(120)
       render(<ReportQuestionRow question={makeQuestion({ questionText: longText })} index={0} />)
       expect(screen.getByText(longText)).toBeInTheDocument()
+    })
+  })
+
+  describe('flag toggle', () => {
+    it('does not render a flag button without a flag provider (e.g. admin report view)', () => {
+      render(<ReportQuestionRow question={makeQuestion({ questionId: 'q1' })} index={0} />)
+      expect(screen.queryByTestId('report-flag-button')).not.toBeInTheDocument()
+    })
+
+    it('renders an unpressed Flag button when the question is not flagged', () => {
+      render(
+        <ReportFlagProvider initialFlaggedIds={[]}>
+          <ReportQuestionRow question={makeQuestion({ questionId: 'q1' })} index={0} />
+        </ReportFlagProvider>,
+      )
+      const button = screen.getByTestId('report-flag-button')
+      expect(button).toHaveAttribute('aria-pressed', 'false')
+      expect(button).toHaveAttribute('aria-label', 'Flag question')
+    })
+
+    it('renders a pressed Unflag button when the question is already flagged', () => {
+      render(
+        <ReportFlagProvider initialFlaggedIds={['q1']}>
+          <ReportQuestionRow question={makeQuestion({ questionId: 'q1' })} index={0} />
+        </ReportFlagProvider>,
+      )
+      const button = screen.getByTestId('report-flag-button')
+      expect(button).toHaveAttribute('aria-pressed', 'true')
+      expect(button).toHaveAttribute('aria-label', 'Unflag question')
+    })
+
+    it('flags the question when clicked', async () => {
+      mockToggleFlag.mockResolvedValue({ success: true, flagged: true })
+      render(
+        <ReportFlagProvider initialFlaggedIds={[]}>
+          <ReportQuestionRow question={makeQuestion({ questionId: 'q1' })} index={0} />
+        </ReportFlagProvider>,
+      )
+      fireEvent.click(screen.getByTestId('report-flag-button'))
+      await waitFor(() =>
+        expect(screen.getByTestId('report-flag-button')).toHaveAttribute('aria-pressed', 'true'),
+      )
+      expect(mockToggleFlag).toHaveBeenCalledWith({ questionId: 'q1' })
+    })
+
+    it('disables the flag button while the toggle action is in-flight', async () => {
+      let resolveToggle: (v: { success: true; flagged: boolean }) => void = () => {}
+      mockToggleFlag.mockReturnValue(
+        new Promise((resolve) => {
+          resolveToggle = resolve
+        }),
+      )
+      render(
+        <ReportFlagProvider initialFlaggedIds={[]}>
+          <ReportQuestionRow question={makeQuestion({ questionId: 'q1' })} index={0} />
+        </ReportFlagProvider>,
+      )
+      const button = screen.getByTestId('report-flag-button')
+      expect(button).not.toBeDisabled()
+      fireEvent.click(button)
+      await waitFor(() => expect(button).toBeDisabled())
+      resolveToggle({ success: true, flagged: true })
+      await waitFor(() => expect(button).not.toBeDisabled())
     })
   })
 })
