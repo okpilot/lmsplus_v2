@@ -66,7 +66,8 @@ export function ReportQuestionRow({
                   type="button"
                   data-testid="report-flag-button"
                   onClick={() => {
-                    // HTML `disabled` is not a behavioral contract — guard the handler too.
+                    // Guards programmatic invocation; pointer clicks are also blocked by
+                    // `disabled:pointer-events-none`. HTML `disabled` is not a behavioral contract.
                     if (!isFlagToggling) flag.toggle(question.questionId)
                   }}
                   aria-pressed={isFlagged}
