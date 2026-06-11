@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { isExamMode } from '@/lib/constants/exam-modes'
 import type { SessionReport } from '@/lib/queries/reports'
 import { scoreColor } from '@/lib/utils/score-color'
-import { formatDate, MODE_LABELS } from './reports-utils'
+import { formatDate, formatDurationMinutes, MODE_LABELS } from './reports-utils'
 
 export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>) {
   const exam = isExamMode(s.mode)
@@ -33,7 +33,7 @@ export function SessionCard({ session: s }: Readonly<{ session: SessionReport }>
         <span className="ml-3">
           Correct: {s.correctCount} / {s.totalQuestions}
         </span>
-        <span className="ml-3">Time: {s.durationMinutes}m</span>
+        <span className="ml-3">Time: {formatDurationMinutes(s.durationMinutes)}</span>
       </p>
     </Link>
   )

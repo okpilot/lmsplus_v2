@@ -101,6 +101,44 @@ describe('ResultSummary', () => {
       render(<ResultSummary summary={makeSummary({ endedAt: null })} />)
       expect(screen.getAllByText('—').length).toBeGreaterThan(0)
     })
+
+    it('keeps the minutes-and-seconds format just under one hour', () => {
+      // 59 min 59 s — boundary below the hours tier
+      render(
+        <ResultSummary
+          summary={makeSummary({
+            startedAt: '2026-03-12T10:00:00Z',
+            endedAt: '2026-03-12T10:59:59Z',
+          })}
+        />,
+      )
+      expect(screen.getAllByText('59m 59s').length).toBeGreaterThan(0)
+    })
+
+    it('shows the hours tier at exactly one hour', () => {
+      render(
+        <ResultSummary
+          summary={makeSummary({
+            startedAt: '2026-03-12T10:00:00Z',
+            endedAt: '2026-03-12T11:00:00Z',
+          })}
+        />,
+      )
+      expect(screen.getAllByText('1h 0m 0s').length).toBeGreaterThan(0)
+    })
+
+    it('renders multi-hour durations with an hours unit instead of raw minutes', () => {
+      // 27 h 9 m 43 s (the reported "1629m 43s" case)
+      render(
+        <ResultSummary
+          summary={makeSummary({
+            startedAt: '2026-03-12T10:00:00Z',
+            endedAt: '2026-03-13T13:09:43Z',
+          })}
+        />,
+      )
+      expect(screen.getAllByText('27h 9m 43s').length).toBeGreaterThan(0)
+    })
   })
 
   describe('date display', () => {
