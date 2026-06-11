@@ -96,7 +96,11 @@ BEGIN
     INTO v_p1, v_p2, v_p3
     -- No q.deleted_at filter on the questions JOIN below: §15 carve-out via the
     -- immutable write-once config.question_ids (docs/security.md §15;
-    -- docs/database.md §3 "Scoring Soft-Deleted Questions").
+    -- docs/database.md §3 "Scoring Soft-Deleted Questions"). Likewise no
+    -- q.organization_id filter anywhere in this function (asymmetry with mig
+    -- 105 is deliberate): this is the post-completion historical-record read —
+    -- the student_id ownership guard plus the write-once config already bound
+    -- every reachable row.
     FROM (SELECT q.question_type AS qt,
                  LEAST((SELECT count(*) FROM quiz_session_answers qsa
                         WHERE qsa.session_id = p_session_id

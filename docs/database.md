@@ -2409,6 +2409,7 @@ Student-facing RPC (migration 099b, sibling of `get_quiz_questions`; redefined i
 - `not_authenticated` — no `auth.uid()`
 - `user_not_found_or_inactive` — caller is soft-deleted/inactive
 - `Session not found or not owned` — session missing, not owned by the caller, wrong mode, or soft-deleted
+- `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (family guard, migs 100/105)
 
 #### `submit_vfr_rt_exam_answers` — atomic VFR RT answers submission + grading
 
@@ -2442,6 +2443,7 @@ Student-facing RPC (migration 100). Submits an array of typed answers (one per b
 
 **Error codes:**
 - `session_not_found_or_not_accessible` — owner/mode/deleted check
+- `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (mig 100 guard; pre-existing doc omission fixed alongside migs 105/106)
 - `invalid_answers_payload` — payload is null, not array, or empty
 - `duplicate_answer_entry` — (question_id, blank_index) pair appears twice
 - `invalid_question_id_for_session` — question not in session's frozen question_ids
@@ -2481,6 +2483,7 @@ Student-facing RPC (migration 103; redefined in migration `20260611000200` / mig
 **Error codes:**
 - `user_not_found_or_inactive` — caller is soft-deleted (active-user gate, #838)
 - `Session not found, not owned, or not completed` — ownership/mode/ended check
+- `session_config_malformed` — session `config.question_ids` is null, missing, or not an array (family guard, migs 100/106)
 
 #### `get_question_authoring_fields` — gated answer-key column reads for admin authoring
 
