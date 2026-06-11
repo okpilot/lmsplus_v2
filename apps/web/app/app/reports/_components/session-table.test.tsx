@@ -74,9 +74,14 @@ describe('SessionTable', () => {
     expect(screen.getByText(/7 \/ 10/)).toBeInTheDocument()
   })
 
-  it('displays duration in minutes', () => {
+  it('displays duration in minutes when under one hour', () => {
     render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ durationMinutes: 20 })]} />)
     expect(screen.getByText('20m')).toBeInTheDocument()
+  })
+
+  it('displays duration with an hours unit when at or above one hour', () => {
+    render(<SessionTable {...SORT_PROPS} sessions={[makeSession({ durationMinutes: 1629 })]} />)
+    expect(screen.getByText('27h 9m')).toBeInTheDocument()
   })
 
   it('displays score percentage rounded to nearest integer', () => {
