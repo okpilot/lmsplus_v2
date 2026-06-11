@@ -17,9 +17,11 @@
 -- Phase C review screen as well as the live exam.
 --
 -- Explanations removed (#840): explanation_text / explanation_image_url are no
--- longer returned, so explanations cannot leak mid-exam. They are revealed
--- ONLY via get_vfr_rt_exam_results (mig 103/106), which is gated behind
--- ended_at IS NOT NULL.
+-- longer returned, so the exam payload cannot leak explanations mid-exam. In
+-- this RPC family they are revealed only via get_vfr_rt_exam_results (mig
+-- 103/106), gated behind ended_at IS NOT NULL. (The columns themselves remain
+-- in the mig 094 column GRANT and are PostgREST-readable — privilege-layer
+-- rework is #823-family scope.)
 --
 -- Stripping guarantees (security.md rule 1 — every answer key removed):
 --   * multiple_choice — options projected to {id, text} only (the 'correct'
@@ -34,7 +36,9 @@
 -- The function NEVER returns canonical_answer, accepted_synonyms, raw
 -- blanks_config, any correct flag, or explanation fields.
 --
--- security.md rules 1, 7. STABLE: read-only.
+-- security.md rules 1, 7. VOLATILE (default): the MC option shuffle uses
+-- ORDER BY random(), so the same-arguments/same-result guarantee of STABLE
+-- does not hold — matches get_quiz_questions (mig 20260327000059).
 
 -- The parameter type changes (uuid[] -> uuid), so CREATE OR REPLACE is not
 -- possible — drop the old signature first.
@@ -55,7 +59,6 @@ RETURNS TABLE (
   blanks_safe           jsonb
 )
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$

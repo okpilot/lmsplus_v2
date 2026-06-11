@@ -30,7 +30,10 @@ export async function cleanupTestData(opts: {
   const { admin, orgId, userIds } = opts
 
   // Delete in FK-safe order
-  await deleteOrLog('audit_events', admin.from('audit_events').delete().eq('organization_id', orgId))
+  await deleteOrLog(
+    'audit_events',
+    admin.from('audit_events').delete().eq('organization_id', orgId),
+  )
   await deleteOrLog('fsrs_cards', admin.from('fsrs_cards').delete().in('student_id', userIds))
   await deleteOrLog(
     'student_responses',
@@ -40,7 +43,8 @@ export async function cleanupTestData(opts: {
     .from('quiz_sessions')
     .select('id')
     .eq('organization_id', orgId)
-  if (sessionIdsErr) throw new Error(`cleanupTestData: quiz_sessions lookup failed: ${sessionIdsErr.message}`)
+  if (sessionIdsErr)
+    throw new Error(`cleanupTestData: quiz_sessions lookup failed: ${sessionIdsErr.message}`)
   await deleteOrLog(
     'quiz_session_answers',
     admin
@@ -48,9 +52,19 @@ export async function cleanupTestData(opts: {
       .delete()
       .in('session_id', sessionIds?.map((s: { id: string }) => s.id) ?? []),
   )
-  await deleteOrLog('quiz_sessions', admin.from('quiz_sessions').delete().eq('organization_id', orgId))
+  await deleteOrLog(
+    'quiz_sessions',
+    admin.from('quiz_sessions').delete().eq('organization_id', orgId),
+  )
   await deleteOrLog('questions', admin.from('questions').delete().eq('organization_id', orgId))
-  await deleteOrLog('question_banks', admin.from('question_banks').delete().eq('organization_id', orgId))
+  await deleteOrLog(
+    'question_banks',
+    admin.from('question_banks').delete().eq('organization_id', orgId),
+  )
+  await deleteOrLog(
+    'exam_configs',
+    admin.from('exam_configs').delete().eq('organization_id', orgId),
+  )
   await deleteOrLog('users', admin.from('users').delete().in('id', userIds))
   await deleteOrLog('organizations', admin.from('organizations').delete().eq('id', orgId))
 
@@ -78,7 +92,9 @@ export async function cleanupReferenceData(opts: {
 }) {
   const { admin } = opts
   const refs = opts.refs.filter((r): r is ReferenceIds => r != null)
-  const subtopicIds = [...new Set(refs.map((r) => r.subtopicId).filter((v): v is string => v !== null))]
+  const subtopicIds = [
+    ...new Set(refs.map((r) => r.subtopicId).filter((v): v is string => v !== null)),
+  ]
   const topicIds = [...new Set(refs.map((r) => r.topicId))]
   const subjectIds = [...new Set(refs.map((r) => r.subjectId))]
 
