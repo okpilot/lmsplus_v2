@@ -271,11 +271,7 @@ describe('ReportQuestionRow', () => {
         />,
       )
       fireEvent.click(screen.getByText('Show explanation'))
-      const imgs = screen.getAllByTestId('zoomable-image')
-      const explanationImg = imgs.find(
-        (el) => el.getAttribute('alt') === 'Explanation illustration',
-      )
-      expect(explanationImg).toBeDefined()
+      const explanationImg = screen.getByRole('img', { name: 'Explanation illustration' })
       expect(explanationImg).toHaveAttribute('src', 'https://example.com/diagram.png')
     })
 
