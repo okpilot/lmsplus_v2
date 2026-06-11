@@ -149,8 +149,9 @@ describe('BulkActionsBar', () => {
   it('calls bulkUpdateCalculations with has_calculations false when Unmark as calculation is clicked', async () => {
     mockBulkUpdateCalculations.mockResolvedValue({ success: true })
     const user = userEvent.setup()
+    const onClear = vi.fn()
 
-    render(<BulkActionsBar selectedIds={['q-1']} onClear={vi.fn()} />)
+    render(<BulkActionsBar selectedIds={['q-1']} onClear={onClear} />)
     await user.click(screen.getByRole('button', { name: 'Unmark as calculation' }))
 
     expect(mockBulkUpdateCalculations).toHaveBeenCalledWith({
@@ -158,6 +159,7 @@ describe('BulkActionsBar', () => {
       has_calculations: false,
     })
     expect(mockToastSuccess).toHaveBeenCalledWith('1 question unmarked as calculation')
+    expect(onClear).toHaveBeenCalledTimes(1)
   })
 
   it('shows an error toast and does not call onClear when bulkUpdateCalculations returns an error', async () => {

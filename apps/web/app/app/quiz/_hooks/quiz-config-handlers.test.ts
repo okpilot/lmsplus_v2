@@ -180,7 +180,9 @@ describe('createConfigHandlers', () => {
     })
 
     it('resets counts when calc returns to all and no switch-filter is active', () => {
-      const { handleCalcModeChange } = createConfigHandlers(makeDeps({ filters: ['all'] }))
+      const { handleCalcModeChange } = createConfigHandlers(
+        makeDeps({ filters: ['all'], calcMode: 'only' }),
+      )
       handleCalcModeChange('all')
       expect(fc.reset).toHaveBeenCalled()
       expect(fc.refetch).not.toHaveBeenCalled()

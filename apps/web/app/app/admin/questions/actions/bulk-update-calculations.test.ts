@@ -143,6 +143,17 @@ describe('bulkUpdateCalculations', () => {
       const result = await bulkUpdateCalculations({ ids, has_calculations: true })
       expect(result.success).toBe(true)
     })
+
+    it('returns failure when ids exceeds the 100 max', async () => {
+      const ids = Array.from(
+        { length: 101 },
+        (_, i) => `00000000-0000-4000-a000-${String(i).padStart(12, '0')}`,
+      )
+      const result = await bulkUpdateCalculations({ ids, has_calculations: true })
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Invalid input')
+    })
   })
 
   describe('error paths', () => {
