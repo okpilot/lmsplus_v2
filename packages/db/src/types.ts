@@ -284,6 +284,7 @@ export type Database = {
           enabled: boolean
           id: string
           organization_id: string
+          parts_config: Json
           pass_mark: number
           subject_id: string
           time_limit_seconds: number
@@ -296,6 +297,7 @@ export type Database = {
           enabled?: boolean
           id?: string
           organization_id: string
+          parts_config?: Json
           pass_mark: number
           subject_id: string
           time_limit_seconds: number
@@ -308,6 +310,7 @@ export type Database = {
           enabled?: boolean
           id?: string
           organization_id?: string
+          parts_config?: Json
           pass_mark?: number
           subject_id?: string
           time_limit_seconds?: number
@@ -753,11 +756,15 @@ export type Database = {
       }
       questions: {
         Row: {
+          accepted_synonyms: string[]
           bank_id: string
+          blanks_config: Json
+          canonical_answer: string | null
           created_at: string
           created_by: string
           deleted_at: string | null
           deleted_by: string | null
+          dialog_template: string | null
           difficulty: string
           explanation_image_url: string | null
           explanation_text: string
@@ -768,6 +775,7 @@ export type Database = {
           question_image_url: string | null
           question_number: string | null
           question_text: string
+          question_type: string
           status: string
           subject_id: string
           subtopic_id: string | null
@@ -776,21 +784,26 @@ export type Database = {
           version: number
         }
         Insert: {
+          accepted_synonyms?: string[]
           bank_id: string
+          blanks_config?: Json
+          canonical_answer?: string | null
           created_at?: string
           created_by: string
           deleted_at?: string | null
           deleted_by?: string | null
+          dialog_template?: string | null
           difficulty: string
           explanation_image_url?: string | null
           explanation_text: string
           id?: string
           lo_reference?: string | null
-          options: Json
+          options?: Json
           organization_id: string
           question_image_url?: string | null
           question_number?: string | null
           question_text: string
+          question_type?: string
           status?: string
           subject_id: string
           subtopic_id?: string | null
@@ -799,11 +812,15 @@ export type Database = {
           version?: number
         }
         Update: {
+          accepted_synonyms?: string[]
           bank_id?: string
+          blanks_config?: Json
+          canonical_answer?: string | null
           created_at?: string
           created_by?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          dialog_template?: string | null
           difficulty?: string
           explanation_image_url?: string | null
           explanation_text?: string
@@ -814,6 +831,7 @@ export type Database = {
           question_image_url?: string | null
           question_number?: string | null
           question_text?: string
+          question_type?: string
           status?: string
           subject_id?: string
           subtopic_id?: string | null
@@ -930,29 +948,35 @@ export type Database = {
       quiz_session_answers: {
         Row: {
           answered_at: string
+          blank_index: number | null
           id: string
           is_correct: boolean
           question_id: string
+          response_text: string | null
           response_time_ms: number
-          selected_option_id: string
+          selected_option_id: string | null
           session_id: string
         }
         Insert: {
           answered_at?: string
+          blank_index?: number | null
           id?: string
           is_correct: boolean
           question_id: string
+          response_text?: string | null
           response_time_ms: number
-          selected_option_id: string
+          selected_option_id?: string | null
           session_id: string
         }
         Update: {
           answered_at?: string
+          blank_index?: number | null
           id?: string
           is_correct?: boolean
           question_id?: string
+          response_text?: string | null
           response_time_ms?: number
-          selected_option_id?: string
+          selected_option_id?: string | null
           session_id?: string
         }
         Relationships: [
@@ -1060,35 +1084,41 @@ export type Database = {
       }
       student_responses: {
         Row: {
+          blank_index: number | null
           created_at: string
           id: string
           is_correct: boolean
           organization_id: string
           question_id: string
+          response_text: string | null
           response_time_ms: number
-          selected_option_id: string
+          selected_option_id: string | null
           session_id: string | null
           student_id: string
         }
         Insert: {
+          blank_index?: number | null
           created_at?: string
           id?: string
           is_correct: boolean
           organization_id: string
           question_id: string
+          response_text?: string | null
           response_time_ms: number
-          selected_option_id: string
+          selected_option_id?: string | null
           session_id?: string | null
           student_id: string
         }
         Update: {
+          blank_index?: number | null
           created_at?: string
           id?: string
           is_correct?: boolean
           organization_id?: string
           question_id?: string
+          response_text?: string | null
           response_time_ms?: number
-          selected_option_id?: string
+          selected_option_id?: string | null
           session_id?: string | null
           student_id?: string
         }
@@ -1255,6 +1285,19 @@ export type Database = {
       }
     }
     Functions: {
+      _filtered_question_pool: {
+        Args: {
+          p_filters: string[]
+          p_subject_id: string
+          p_subtopic_ids: string[]
+          p_topic_ids: string[]
+        }
+        Returns: {
+          id: string
+          subtopic_id: string
+          topic_id: string
+        }[]
+      }
       batch_submit_quiz: {
         Args: { p_answers: Json; p_session_id: string }
         Returns: Json
@@ -1303,12 +1346,12 @@ export type Database = {
           p_status?: string
         }
         Returns: {
-          avg_score: number | null
-          deleted_at: string | null
+          avg_score: number
+          deleted_at: string
           email: string
-          full_name: string | null
+          full_name: string
           id: string
-          last_active_at: string | null
+          last_active_at: string
           mastery: number
           session_count: number
           total_count: number
@@ -1341,6 +1384,28 @@ export type Database = {
           total: number
         }[]
       }
+      get_filtered_question_counts: {
+        Args: {
+          p_filters: string[]
+          p_subject_id: string
+          p_subtopic_ids: string[]
+          p_topic_ids: string[]
+        }
+        Returns: {
+          n: number
+          subtopic_id: string
+          topic_id: string
+        }[]
+      }
+      get_question_authoring_fields: {
+        Args: { p_question_id: string }
+        Returns: {
+          accepted_synonyms: string[]
+          blanks_config: Json
+          canonical_answer: string
+          dialog_template: string
+        }[]
+      }
       get_question_counts: {
         Args: { p_status?: string }
         Returns: {
@@ -1367,6 +1432,18 @@ export type Database = {
           topic_name: string
         }[]
       }
+      get_random_question_ids: {
+        Args: {
+          p_count: number
+          p_filters: string[]
+          p_subject_id: string
+          p_subtopic_ids: string[]
+          p_topic_ids: string[]
+        }
+        Returns: {
+          id: string
+        }[]
+      }
       get_report_correct_options: {
         Args: { p_session_id: string }
         Returns: {
@@ -1386,7 +1463,7 @@ export type Database = {
           ended_at: string
           id: string
           mode: string
-          score_percentage: number | null
+          score_percentage: number
           started_at: string
           subject_id: string
           subject_name: string
@@ -1394,13 +1471,34 @@ export type Database = {
           total_questions: number
         }[]
       }
+      get_student_last_practiced: {
+        Args: never
+        Returns: {
+          last_practiced_at: string
+          subject_id: string
+        }[]
+      }
       get_student_mastery_stats: {
         Args: never
         Returns: {
           correct: number
           subject_id: string
-          topic_id: string | null
+          topic_id: string
           total: number
+        }[]
+      }
+      get_student_profile_stats: {
+        Args: never
+        Returns: {
+          avg_score: number
+          total_sessions: number
+        }[]
+      }
+      get_student_streak: {
+        Args: never
+        Returns: {
+          best_streak: number
+          current_streak: number
         }[]
       }
       get_subject_scores: {
@@ -1413,6 +1511,25 @@ export type Database = {
           subject_short: string
         }[]
       }
+      get_vfr_rt_exam_questions: {
+        Args: { p_question_ids: string[] }
+        Returns: {
+          blanks_safe: Json
+          dialog_template: string
+          difficulty: string
+          explanation_image_url: string
+          explanation_text: string
+          id: string
+          options: Json
+          question_image_url: string
+          question_number: string
+          question_text: string
+          question_type: string
+          subject_code: string
+          topic_code: string
+        }[]
+      }
+      get_vfr_rt_exam_results: { Args: { p_session_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       issue_internal_exam_code: {
         Args: { p_student_id: string; p_subject_id: string }
@@ -1422,8 +1539,36 @@ export type Database = {
           expires_at: string
         }[]
       }
+      list_my_active_internal_exam_codes: {
+        Args: never
+        Returns: {
+          expires_at: string
+          id: string
+          issued_at: string
+          subject_id: string
+          subject_name: string
+          subject_short: string
+        }[]
+      }
+      list_my_internal_exam_history: {
+        Args: never
+        Returns: {
+          answered_count: number
+          attempt_number: number
+          ended_at: string
+          id: string
+          passed: boolean
+          score_percentage: number
+          started_at: string
+          subject_id: string
+          subject_name: string
+          subject_short: string
+          total_questions: number
+        }[]
+      }
+      normalize_answer: { Args: { '': string }; Returns: string }
       record_auth_event: {
-        Args: { p_event_type: string; p_resource_id: string; p_metadata?: Json }
+        Args: { p_event_type: string; p_metadata?: Json; p_resource_id: string }
         Returns: undefined
       }
       record_consent: {
@@ -1458,6 +1603,10 @@ export type Database = {
         }
         Returns: string
       }
+      start_vfr_rt_exam_session: {
+        Args: { p_subject_id: string }
+        Returns: Json
+      }
       submit_quiz_answer: {
         Args: {
           p_question_id: string
@@ -1471,6 +1620,10 @@ export type Database = {
           explanation_text: string
           is_correct: boolean
         }[]
+      }
+      submit_vfr_rt_exam_answers: {
+        Args: { p_answers: Json; p_session_id: string }
+        Returns: Json
       }
       upsert_exam_config: {
         Args: {
