@@ -56,6 +56,8 @@ When a commit adds a red-team Playwright spec (`apps/web/e2e/redteam/**/*.spec.t
 
 **Why:** promoted at count=2 (PR #779-family `18→37` stale across tech.md ×3 + decisions.md, after a 2026-05-07 `9-spec` instance). The structural-cross-reference scope above does not catch grep-able repeated numeric literals; this sub-rule does.
 
+The same sub-rule applies to the **integration-test count literal in `docs/plan.md`** (current-phase header + "Integration tests:" line): when a commit adds or removes tests under `packages/db/src/__integration__/`, grep `docs/plan.md` for the current-phase count literal and correct every current-state occurrence together (historical phase-completion entries stay untouched). Promoted at count=2+ on the #697 Phase A branch (115→118, 118→121, 121→125, 125→127 — each bump caught post-commit by the doc-updater instead of landing with the test commit). At count=3+ (2026-06-10) the primary duty shifted to the COMMITTER: update the plan.md count in the same commit that adds or removes integration tests; the doc-updater check remains as the safety net.
+
 ## Steering Document Drift Detection
 
 **DRIFT** finding type — ISSUE by default (per the Cross-Reference Audit Rule above); escalates to CRITICAL when it contradicts security rules (treat as semantic-reviewer CRITICAL in that case).
@@ -79,4 +81,4 @@ If `.spec-workflow/steering/` does not exist or is empty, skip the drift check w
 
 ---
 
-*Last updated: 2026-05-02*
+*Last updated: 2026-06-10 (extended repeated-numeric-literal rule to the docs/plan.md integration-test count — learner count=2 on Phase A)*

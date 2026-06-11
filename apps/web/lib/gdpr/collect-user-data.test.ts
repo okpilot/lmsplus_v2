@@ -309,6 +309,80 @@ describe('collectUserData', () => {
     })
   })
 
+  describe('VFR RT answer fields — response_text / blank_index / nullable selected_option_id', () => {
+    // mig 095 made selected_option_id nullable on both answer tables and added
+    // response_text + blank_index. collectUserData must pass these fields through
+    // unchanged (no transformation, no accidental drop).
+
+    it('preserves response_text and blank_index fields in quiz_answers when they are non-null', async () => {
+      const supabase = buildSupabaseClient({
+        answersData: [
+          {
+            session_id: 'sess-1',
+            question_id: 'q-df-1',
+            selected_option_id: null,
+            response_text: 'S5-ABC',
+            blank_index: 0,
+            is_correct: true,
+            response_time_ms: 3000,
+            answered_at: '2026-06-10T10:00:00Z',
+          },
+        ],
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.quiz_answers).toHaveLength(1)
+      expect(result.quiz_answers[0]!.selected_option_id).toBeNull()
+      expect(result.quiz_answers[0]!.response_text).toBe('S5-ABC')
+      expect(result.quiz_answers[0]!.blank_index).toBe(0)
+    })
+
+    it('preserves null response_text and blank_index in quiz_answers for MC-type answers', async () => {
+      const supabase = buildSupabaseClient({
+        answersData: [
+          {
+            session_id: 'sess-1',
+            question_id: 'q-mc-1',
+            selected_option_id: 'b',
+            response_text: null,
+            blank_index: null,
+            is_correct: true,
+            response_time_ms: 2000,
+            answered_at: '2026-06-10T10:01:00Z',
+          },
+        ],
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.quiz_answers[0]!.selected_option_id).toBe('b')
+      expect(result.quiz_answers[0]!.response_text).toBeNull()
+      expect(result.quiz_answers[0]!.blank_index).toBeNull()
+    })
+
+    it('preserves response_text and blank_index fields in student_responses when they are non-null', async () => {
+      const supabase = buildSupabaseClient({
+        responsesData: [
+          {
+            question_id: 'q-df-2',
+            selected_option_id: null,
+            response_text: 'descending to 2500 feet',
+            blank_index: 1,
+            is_correct: false,
+            response_time_ms: 5000,
+            session_id: 'sess-1',
+            created_at: '2026-06-10T10:02:00Z',
+          },
+        ],
+      })
+      const result = await collectUserData(supabase, USER_ID)
+
+      expect(result.student_responses).toHaveLength(1)
+      expect(result.student_responses[0]!.selected_option_id).toBeNull()
+      expect(result.student_responses[0]!.response_text).toBe('descending to 2500 feet')
+      expect(result.student_responses[0]!.blank_index).toBe(1)
+    })
+  })
+
   describe('ip_address normalisation', () => {
     it('keeps ip_address as a string when it is a string', async () => {
       const supabase = buildSupabaseClient({

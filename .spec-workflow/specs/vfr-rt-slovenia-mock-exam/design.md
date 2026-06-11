@@ -115,11 +115,12 @@ flowchart TD
 - Add `dialog_template TEXT NULL` (used by `dialog_fill`; raw template with `[atc]`/`[pilot]` tags + `{{n|canonical; var1; var2}}` blanks).
 - Add `blanks_config JSONB NOT NULL DEFAULT '[]'::JSONB` (used by `dialog_fill`; ordered array of `{ index: int, canonical: text, synonyms: text[] }`).
 - **Add `DEFAULT '[]'::jsonb` to the existing `options` column** (`ALTER TABLE questions ALTER COLUMN options SET DEFAULT '[]'::jsonb`). The existing `options JSONB NOT NULL` constraint in `001_initial_schema.sql` has no default, so non-MC INSERTs would fail without this default. MC INSERTs continue to supply their own options array, unaffected.
-- Add a CHECK constraint enforcing the type↔column contract — every branch must positively state which columns ARE and ARE NOT set, so accidental population (e.g. an admin form bug saving a `canonical_answer` on a `dialog_fill` question) is rejected at the database layer:
+- Add a CHECK constraint enforcing the type↔column contract (authoritative definition: `packages/db/migrations/094_question_type_enum_and_column.sql`; the block below is reference) — every branch must positively state which columns ARE and ARE NOT set, so accidental population (e.g. an admin form bug saving a `canonical_answer` on a `dialog_fill` question) is rejected at the database layer:
   ```sql
   CHECK (
     (question_type = 'multiple_choice'
        AND canonical_answer IS NULL
+       AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NULL
        AND jsonb_array_length(blanks_config) = 0)
     OR (question_type = 'short_answer'
@@ -128,6 +129,7 @@ flowchart TD
        AND jsonb_array_length(blanks_config) = 0)
     OR (question_type = 'dialog_fill'
        AND canonical_answer IS NULL
+       AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NOT NULL
        AND jsonb_array_length(blanks_config) > 0)
   );
@@ -154,9 +156,11 @@ flowchart TD
   ```sql
   -- Exactly one of (selected_option_id, response_text) must be set per row.
   -- blank_index is non-null only for dialog_fill (response_text set, selected_option_id NULL).
+  -- blank_index must be non-negative (rejects accidental negative indices that inflate unique counts).
   CHECK (
     (selected_option_id IS NOT NULL AND response_text IS NULL AND blank_index IS NULL)
-    OR (selected_option_id IS NULL AND response_text IS NOT NULL)
+    OR (selected_option_id IS NULL AND response_text IS NOT NULL
+        AND (blank_index IS NULL OR blank_index >= 0))
   );
   ```
 - **UNIQUE widening — must NOT break the existing `ON CONFLICT (session_id, question_id)` callers, AND must widen on BOTH tables** (`quiz_session_answers` and `student_responses`). Both carry a `UNIQUE (session_id, question_id)` constraint today — `quiz_session_answers` since mig `001`, `student_responses` since `supabase/migrations/20260313000020_fix_student_responses_unique.sql` (constraint name `student_responses_session_question_unique`). `batch_submit_quiz` (latest body as of 2026-06-10: `supabase/migrations/20260601000001_align_batch_submit_audit_metadata_keys.sql` — re-verify via Pre-Flag Verification at implementation time) and `submit_quiz_answer` (latest body in `supabase/migrations/20260316000040_submit_answer_track_last_was_correct.sql`) both rely on the `quiz_session_answers` constraint via `ON CONFLICT (session_id, question_id) DO NOTHING`. The plan:
@@ -206,7 +210,7 @@ flowchart TD
 - Add `parts_config JSONB NOT NULL DEFAULT '{}'::JSONB` to `exam_configs`.
 - Document the shape via `COMMENT ON COLUMN exam_configs.parts_config IS '...'`: `{ part1: { topic_code: text, count: int }, part2: { topic_code: text, count: int }, part3: { topic_code: text, count: int } }`.
 - Existing rows have empty `{}`; they continue to work with the existing `mock_exam` flow which doesn't read `parts_config`.
-- **The migration does NOT seed any `exam_configs` row.** Per-org `exam_configs` rows are tenant-scoped (organization_id is part of the UNIQUE key) — the migration runs once at the database level and can't pick the right org-specific UUIDs without conditional logic that's brittle across environments. Instead, seeding the VFR RT exam config for a given org is a **post-deploy ops step**: a small TypeScript script (or one-off SQL run via the Supabase SQL editor) executed once per org that needs VFR RT enabled. Document the seed SQL inline in the migration as a `-- POST-DEPLOY SEED EXAMPLE (do not auto-run):` comment block so ops can copy-paste. The RPC in mig 099 has hardcoded 8/9/8 defaults that work even when no row is inserted, so the migration is functionally complete without the seed — the seed is only required when an org wants to override the defaults.
+- **The migration does NOT seed any `exam_configs` row.** Per-org `exam_configs` rows are tenant-scoped (organization_id is part of the UNIQUE key) — the migration runs once at the database level and can't pick the right org-specific UUIDs without conditional logic that's brittle across environments. Instead, seeding the VFR RT exam config for a given org is a **post-deploy ops step**: a small TypeScript script (or one-off SQL run via the Supabase SQL editor) executed once per org that needs VFR RT enabled. Document the seed SQL inline in the migration as a `-- POST-DEPLOY SEED EXAMPLE (do not auto-run):` comment block so ops can copy-paste. The RPC in mig 099 REQUIRES an enabled `exam_configs` row (it raises `exam_config_required` otherwise — see mig 099 step 3); its hardcoded 8/9/8 defaults cover an empty or partial `parts_config` on that row. The post-deploy seed is therefore what enables the feature for an org; a non-empty `parts_config` is only needed to override the defaults. (CORRECTED 2026-06-10: an earlier revision said the defaults "work even when no row is inserted", conflating row-presence with field-presence.)
 
 ### Migration `099_start_vfr_rt_exam_session_rpc.sql`
 
@@ -256,8 +260,8 @@ flowchart TD
 - Body sequence:
   1. Auth check (security.md §7).
   2. SELECT the session FOR UPDATE; check ownership, mode='vfr_rt_exam', `deleted_at IS NULL`.
-  3. Idempotency: `IF ended_at IS NOT NULL RETURN` prior result (read from `quiz_sessions.score_percentage` + per-part subqueries OR a session-scoped audit-events lookup).
-  3b. Timer-expiry guard (ADDED 2026-06-10 — pattern parity with `batch_submit_quiz`, `20260601000001` L99–115): `IF now() > started_at + (time_limit_seconds + 30) * interval '1 second'` THEN mark the session expired instead of grading — UPDATE `ended_at = now(), correct_count = 0, score_percentage = 0, passed = false`, INSERT `'vfr_rt_exam.expired'` audit event, RETURN the expired result shape. Without this, a student could hold the submit past the 30-minute limit indefinitely (the overdue sweep is lazy); Error Scenario 3's "next request is intercepted" promise requires it.
+  3. Idempotency: when `ended_at IS NOT NULL` the call becomes a pure re-read — a `v_already_ended` flag skips the answer-INSERT loop, session UPDATE, and audit INSERT; per-part percentages are recomputed from the persisted `quiz_session_answers` rows and `correct_count`/`passed` are re-read from the session row, returning the prior result with no writes (mig 100 body — no early RETURN; the recompute-from-rows path is the single source of truth).
+  3b. Timer-expiry guard (ADDED 2026-06-10 — pattern parity with `batch_submit_quiz`, `20260601000001` L99–115): `IF time_limit_seconds IS NOT NULL AND started_at IS NOT NULL AND now() > started_at + (time_limit_seconds + 30) * interval '1 second'` (both columns are nullable — null guards per the blueprint, see mig 100 body) THEN mark the session expired instead of grading — UPDATE `ended_at = now(), correct_count = 0, score_percentage = 0, passed = false`, INSERT `'vfr_rt_exam.expired'` audit event, RETURN the expired result shape. Without this, a student could hold the submit past the 30-minute limit indefinitely (the overdue sweep is lazy); Error Scenario 3's "next request is intercepted" promise requires it.
   4. Validate input: every entry's `question_id` MUST be in `config.question_ids`; reject extraneous IDs.
   5. For each entry, look up the question's `question_type`, `canonical_answer`, `accepted_synonyms` (short_answer), `options` (MC), or `blanks_config` (dialog_fill).
   6. Score per entry using the same `normalize_answer(text)` helper as the TS module (defined in this migration or in a sibling `09X_normalize_answer_fn.sql`).
@@ -426,7 +430,7 @@ Plus a type↔column-population CHECK enforcing per-type validity.
 }
 ```
 
-v1: the RPC reads counts/topics from `parts_config` if present, else falls back to the briefing-package defaults (8/9/8 with the seeded topic codes). The defaults are baked into the RPC body so the system works even if no `parts_config` row is inserted post-deploy.
+v1: the RPC reads counts/topics from `parts_config` if present, else falls back to the briefing-package defaults (8/9/8 with the seeded topic codes). The defaults are baked into the RPC body so the system works even when the enabled `exam_configs` row carries an empty `parts_config` (the row itself is still required — the RPC raises `exam_config_required` without it).
 
 ## Error Handling
 
