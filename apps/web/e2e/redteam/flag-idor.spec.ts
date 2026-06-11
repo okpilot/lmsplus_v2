@@ -3,9 +3,10 @@
  *
  * Vector S (MEDIUM): An authenticated attacker attempts to read or corrupt another
  * student's flagged_questions rows. flagged_questions RLS scopes every policy to
- * student_id = auth.uid(); the flag Server Actions (toggleFlag, getFlaggedIds) and the
- * report-page read helper getFlaggedQuestionIds all hard-code student_id from the auth
- * token, so the attack is only expressible at the direct-table layer — which
+ * student_id = auth.uid(); every server entry point that touches flagged_questions
+ * (the in-quiz flag actions and the report-page read helper getFlaggedQuestionIds)
+ * hard-codes student_id from the auth token, so the attack is only expressible at the
+ * direct-table layer — which
  * this spec exercises. Defenses must hold: attacker sees 0 of the victim's flags and
  * cannot insert a flag as the victim.
  *
