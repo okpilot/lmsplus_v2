@@ -25,7 +25,6 @@ vi.mock('./question-filter-selects', () => ({
     subjectId: string
     topicId: string
     subtopicId: string
-    difficulty: string
     status: string
     onFilterChange: (key: string, value: string | null | undefined) => void
     tree: unknown
@@ -37,7 +36,7 @@ vi.mock('./question-filter-selects', () => ({
         value={props.hasCalculations}
         onChange={(e) => props.onFilterChange('hasCalculations', e.target.value)}
       >
-        <option value="__all__">All questions</option>
+        <option value="__all__">Any calculations</option>
         <option value="true">Has calculations</option>
         <option value="false">No calculations</option>
       </select>

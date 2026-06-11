@@ -5,7 +5,6 @@ import { QuestionsContent } from './_components/questions-content'
 import { QuestionsContentFallback } from './_components/questions-content-fallback'
 import type { QuestionFilters } from './types'
 
-const DIFFICULTY_VALUES = ['easy', 'medium', 'hard'] as const
 const STATUS_VALUES = ['active', 'draft'] as const
 
 export function parseFilters(
@@ -23,11 +22,6 @@ export function parseFilters(
     subtopicId:
       typeof params.subtopicId === 'string' && z.uuid().safeParse(params.subtopicId).success
         ? params.subtopicId
-        : undefined,
-    difficulty:
-      typeof params.difficulty === 'string' &&
-      (DIFFICULTY_VALUES as readonly string[]).includes(params.difficulty)
-        ? (params.difficulty as QuestionFilters['difficulty'])
         : undefined,
     status:
       typeof params.status === 'string' &&

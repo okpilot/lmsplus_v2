@@ -5,7 +5,7 @@ import { FilterSelect } from './filter-select'
 const ALL = '__all__'
 
 const CALCULATIONS_ITEMS = [
-  { value: ALL, label: 'All questions' },
+  { value: ALL, label: 'Any calculations' },
   { value: 'true', label: 'Has calculations' },
   { value: 'false', label: 'No calculations' },
 ]

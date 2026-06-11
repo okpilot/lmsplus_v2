@@ -5,14 +5,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CalcMode } from '../types'
 import { QuestionFilters } from './question-filters'
 
-// Mock the Switch to a simple checkbox for testability
+// Mock the Switch to a simple checkbox for testability. Forward aria-label so the
+// calculation toggles can be targeted by accessible name.
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({
     checked,
     onCheckedChange,
+    ...props
   }: {
     checked: boolean
     onCheckedChange: (checked: boolean) => void
+    [key: string]: unknown
   }) => (
     <input
       type="checkbox"
@@ -20,38 +23,8 @@ vi.mock('@/components/ui/switch', () => ({
       aria-checked={checked}
       checked={checked}
       onChange={(e) => onCheckedChange(e.target.checked)}
+      {...props}
     />
-  ),
-}))
-
-// Mock the Select to a native <select> so we can drive value changes in jsdom.
-// base-ui's Select renders a portal-based popup that's awkward to test directly;
-// the contract we care about is "renders the three options and reports the chosen value".
-vi.mock('@/components/ui/select', () => ({
-  Select: ({
-    value,
-    onValueChange,
-    children,
-  }: {
-    value: string
-    onValueChange: (v: string) => void
-    items?: unknown
-    children: React.ReactNode
-  }) => (
-    <select
-      data-testid="calc-select"
-      aria-label="Calculation questions"
-      value={value}
-      onChange={(e) => onValueChange(e.target.value)}
-    >
-      {children}
-    </select>
-  ),
-  SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  SelectTrigger: () => null,
-  SelectValue: () => null,
-  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
-    <option value={value}>{children}</option>
   ),
 }))
 
@@ -78,10 +51,11 @@ describe('QuestionFilters', () => {
     expect(screen.getByText('Flagged questions')).toBeInTheDocument()
   })
 
-  it('all switches are off when value is [all]', () => {
+  it('all switches are off by default (no filters, calcMode all)', () => {
     renderFilters()
+    // 3 preference filters + 2 calculation toggles
     const switches = screen.getAllByRole('switch')
-    expect(switches).toHaveLength(3)
+    expect(switches).toHaveLength(5)
     for (const s of switches) {
       expect(s).not.toBeChecked()
     }
@@ -150,40 +124,52 @@ describe('QuestionFilters', () => {
     expect(onValueChange).toHaveBeenCalledWith(['incorrect', 'flagged'])
   })
 
-  it('renders info buttons for each filter', () => {
+  it('renders a hint button for every toggle (3 filters + 2 calculation)', () => {
     renderFilters()
-    const hintButtons = screen.getAllByLabelText(/Info about/)
-    expect(hintButtons).toHaveLength(3)
+    expect(screen.getAllByLabelText(/Info about/)).toHaveLength(5)
   })
 
-  // ---- Calculation tri-state Select --------------------------------------
+  // ---- Calculation toggles (mutually exclusive, included by default) ------
 
-  it('renders the three calculation options', () => {
+  it('renders the two calculation toggles, both off by default', () => {
     renderFilters()
-    expect(
-      screen.getByRole('option', { name: 'Include calculation questions' }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Only calculation questions' })).toBeInTheDocument()
-    expect(
-      screen.getByRole('option', { name: 'Exclude calculation questions' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Only calculation questions' })).not.toBeChecked()
+    expect(screen.getByRole('switch', { name: 'Exclude calculation questions' })).not.toBeChecked()
   })
 
-  it('reflects the current calcMode value', () => {
+  it("marks the 'only' toggle on when calcMode is 'only'", () => {
     renderFilters({ calcMode: 'only' })
-    expect(screen.getByTestId('calc-select')).toHaveValue('only')
+    expect(screen.getByRole('switch', { name: 'Only calculation questions' })).toBeChecked()
+    expect(screen.getByRole('switch', { name: 'Exclude calculation questions' })).not.toBeChecked()
   })
 
-  it('calls onCalcModeChange when a calculation option is selected', async () => {
+  it("marks the 'exclude' toggle on when calcMode is 'exclude'", () => {
+    renderFilters({ calcMode: 'exclude' })
+    expect(screen.getByRole('switch', { name: 'Exclude calculation questions' })).toBeChecked()
+    expect(screen.getByRole('switch', { name: 'Only calculation questions' })).not.toBeChecked()
+  })
+
+  it("toggling 'only' on calls onCalcModeChange with 'only'", async () => {
     const user = userEvent.setup()
     const onCalcModeChange = vi.fn()
     renderFilters({ onCalcModeChange })
-    await user.selectOptions(screen.getByTestId('calc-select'), 'exclude')
-    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('exclude')
+    await user.click(screen.getByRole('switch', { name: 'Only calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('only')
   })
 
-  it('does not add a hint button for the calculation Select (keeps 3 hint buttons)', () => {
-    renderFilters()
-    expect(screen.getAllByLabelText(/Info about/)).toHaveLength(3)
+  it("toggling the active 'only' toggle off reverts to 'all'", async () => {
+    const user = userEvent.setup()
+    const onCalcModeChange = vi.fn()
+    renderFilters({ calcMode: 'only', onCalcModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Only calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('all')
+  })
+
+  it("toggling 'exclude' while 'only' is active switches the mode to 'exclude'", async () => {
+    const user = userEvent.setup()
+    const onCalcModeChange = vi.fn()
+    renderFilters({ calcMode: 'only', onCalcModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Exclude calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('exclude')
   })
 })

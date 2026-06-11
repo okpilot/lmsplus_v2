@@ -25,7 +25,6 @@ export async function QuestionsContent({ filters }: Readonly<Props>) {
     if (filters.subjectId) params.set('subjectId', filters.subjectId)
     if (filters.topicId) params.set('topicId', filters.topicId)
     if (filters.subtopicId) params.set('subtopicId', filters.subtopicId)
-    if (filters.difficulty) params.set('difficulty', filters.difficulty)
     if (filters.status) params.set('status', filters.status)
     if (filters.hasCalculations !== undefined)
       params.set('hasCalculations', String(filters.hasCalculations))

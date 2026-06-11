@@ -94,30 +94,16 @@ describe('QuestionTable', () => {
     expect(screen.getByTestId('edit-dialog-q-3')).toBeInTheDocument()
   })
 
-  it('truncates question text longer than 90 characters', () => {
-    // Use a unique prefix so the selector cannot accidentally match other table content.
-    const longText = `ZZZZZ_UNIQUE_${'Z'.repeat(78)}` // 91 chars total
+  it('keeps the full question text in the DOM and exposes it via a title tooltip', () => {
+    // Visual overflow is handled by the CSS `truncate` class (not measurable in jsdom);
+    // the full text must stay in the DOM and be surfaced on hover via `title`.
+    const longText = `ZZZZZ_UNIQUE_${'Z'.repeat(200)}`
     const question = makeQuestion({ question_text: longText })
     render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
 
-    // The truncated text is the first 90 chars followed by U+2026.
-    const expected = `${longText.slice(0, 90)}\u2026`
-    expect(screen.getByText(expected)).toBeInTheDocument()
-  })
-
-  it('does not truncate question text of exactly 90 characters', () => {
-    const exactText = 'B'.repeat(90)
-    const question = makeQuestion({ question_text: exactText })
-    render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
-
-    expect(screen.getByText(exactText)).toBeInTheDocument()
-  })
-
-  it('displays the difficulty badge with the correct label', () => {
-    const question = makeQuestion({ difficulty: 'hard' })
-    render(<QuestionTable questions={[question]} {...DEFAULT_PROPS} />)
-
-    expect(screen.getByText('hard')).toBeInTheDocument()
+    const textEl = screen.getByText(longText)
+    expect(textEl).toBeInTheDocument()
+    expect(textEl).toHaveAttribute('title', longText)
   })
 
   it('displays the status badge', () => {

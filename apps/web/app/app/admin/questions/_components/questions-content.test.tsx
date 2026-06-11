@@ -188,7 +188,6 @@ describe('QuestionsContent', () => {
           subjectId: 'subj-1',
           topicId: 'topic-2',
           subtopicId: 'sub-3',
-          difficulty: 'hard',
           status: 'active',
           hasCalculations: true,
           search: 'atmosphere',
@@ -200,7 +199,6 @@ describe('QuestionsContent', () => {
     expect(redirectPath).toContain('subjectId=subj-1')
     expect(redirectPath).toContain('topicId=topic-2')
     expect(redirectPath).toContain('subtopicId=sub-3')
-    expect(redirectPath).toContain('difficulty=hard')
     expect(redirectPath).toContain('status=active')
     expect(redirectPath).toContain('hasCalculations=true')
     expect(redirectPath).toContain('search=atmosphere')
@@ -214,7 +212,6 @@ describe('QuestionsContent', () => {
     const redirectPath: string = mockRedirect.mock.calls[0]?.[0]
     expect(redirectPath).not.toContain('subjectId')
     expect(redirectPath).not.toContain('topicId')
-    expect(redirectPath).not.toContain('difficulty')
     expect(redirectPath).not.toContain('status')
     expect(redirectPath).not.toContain('search')
   })

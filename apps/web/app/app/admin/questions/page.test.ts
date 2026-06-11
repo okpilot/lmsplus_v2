@@ -46,16 +46,6 @@ describe('parseFilters', () => {
     expect(result.subtopicId).toBeUndefined()
   })
 
-  it('passes through valid difficulty values', () => {
-    expect(parseFilters({ difficulty: 'easy' }).difficulty).toBe('easy')
-    expect(parseFilters({ difficulty: 'medium' }).difficulty).toBe('medium')
-    expect(parseFilters({ difficulty: 'hard' }).difficulty).toBe('hard')
-  })
-
-  it('rejects invalid difficulty values', () => {
-    expect(parseFilters({ difficulty: 'extreme' }).difficulty).toBeUndefined()
-  })
-
   it('passes through valid status values', () => {
     expect(parseFilters({ status: 'active' }).status).toBe('active')
     expect(parseFilters({ status: 'draft' }).status).toBe('draft')

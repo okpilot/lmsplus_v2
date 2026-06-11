@@ -175,7 +175,7 @@ describe('QuestionFormFields', () => {
       />,
     )
 
-    screen.getByLabelText('Involves calculations').click()
+    screen.getByLabelText('Calculation question').click()
     expect(onHasCalculationsChange).toHaveBeenCalledWith(true)
   })
 })

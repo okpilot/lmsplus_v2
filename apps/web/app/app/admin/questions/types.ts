@@ -32,7 +32,6 @@ export type QuestionFilters = {
   subjectId?: string
   topicId?: string
   subtopicId?: string
-  difficulty?: 'easy' | 'medium' | 'hard'
   status?: 'active' | 'draft'
   hasCalculations?: boolean
   search?: string

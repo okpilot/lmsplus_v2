@@ -16,7 +16,7 @@ import type { QuestionRow } from '../types'
 import { CalcBadge } from './calc-badge'
 import { DeleteQuestionButton } from './delete-question-button'
 import { QuestionFormDialog } from './question-form-dialog'
-import { difficultyVariant, formatDate, truncate } from './question-table-helpers'
+import { formatDate, truncate } from './question-table-helpers'
 
 type Props = {
   questions: QuestionRow[]
@@ -52,7 +52,7 @@ export function QuestionTable({
             <TableHead className="min-w-[300px]">Question</TableHead>
             <TableHead className="w-24">Subject</TableHead>
             <TableHead className="w-40">Topic</TableHead>
-            <TableHead className="w-24">Difficulty</TableHead>
+            <TableHead className="w-20">Calc</TableHead>
             <TableHead className="w-20">Status</TableHead>
             <TableHead className="w-28">Updated</TableHead>
             <TableHead className="w-20">Actions</TableHead>
@@ -73,8 +73,11 @@ export function QuestionTable({
                 {q.question_number ?? '\u2014'}
               </TableCell>
               <TableCell className="max-w-[400px]">
-                <span className="text-sm">{truncate(q.question_text, 90)}</span>
-                {q.has_calculations && <CalcBadge />}
+                <div className="flex">
+                  <span className="min-w-0 flex-1 truncate text-sm" title={q.question_text}>
+                    {q.question_text}
+                  </span>
+                </div>
               </TableCell>
               <TableCell>
                 <span className="text-xs font-medium">{q.subject?.code ?? '\u2014'}</span>
@@ -85,9 +88,11 @@ export function QuestionTable({
                 </span>
               </TableCell>
               <TableCell>
-                <Badge variant={difficultyVariant(q.difficulty)} className="text-xs">
-                  {q.difficulty}
-                </Badge>
+                {q.has_calculations ? (
+                  <CalcBadge />
+                ) : (
+                  <span className="text-xs text-muted-foreground">{'—'}</span>
+                )}
               </TableCell>
               <TableCell>
                 <Badge variant={q.status === 'active' ? 'default' : 'outline'} className="text-xs">

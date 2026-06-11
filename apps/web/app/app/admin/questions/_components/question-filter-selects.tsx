@@ -9,20 +9,12 @@ type Props = {
   subjectId: string
   topicId: string
   subtopicId: string
-  difficulty: string
   status: string
   hasCalculations: string
   onFilterChange: (key: string, value: string | null | undefined) => void
 }
 
 const ALL = '__all__'
-
-const DIFFICULTY_ITEMS = [
-  { value: ALL, label: 'All difficulties' },
-  { value: 'easy', label: 'Easy' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'hard', label: 'Hard' },
-]
 
 const STATUS_ITEMS = [
   { value: ALL, label: 'All statuses' },
@@ -35,7 +27,6 @@ export function QuestionFilterSelects({
   subjectId,
   topicId,
   subtopicId,
-  difficulty,
   status,
   hasCalculations,
   onFilterChange,
@@ -85,14 +76,6 @@ export function QuestionFilterSelects({
         triggerClassName="w-44"
         disabled={subtopics.length === 0}
         onValueChange={(v) => onFilterChange('subtopicId', v)}
-      />
-      <FilterSelect
-        value={difficulty}
-        items={DIFFICULTY_ITEMS}
-        ariaLabel="Difficulty"
-        placeholder="Difficulty"
-        triggerClassName="w-32"
-        onValueChange={(v) => onFilterChange('difficulty', v)}
       />
       <FilterSelect
         value={status}

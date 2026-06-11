@@ -87,7 +87,7 @@ export function ImageUploadField({ label, currentUrl, onUploaded, disabled }: Re
           <img
             src={preview}
             alt="Upload preview"
-            className="max-h-32 rounded border object-contain"
+            className="max-h-32 max-w-full rounded border object-contain"
           />
           <Button
             type="button"

@@ -177,14 +177,6 @@ describe('getQuestionsList', () => {
     expect(chain.eq).toHaveBeenCalledWith('subtopic_id', 'st1')
   })
 
-  it('applies difficulty filter when provided', async () => {
-    const chain = mockSupabaseWith([])
-
-    await getQuestionsList({ difficulty: 'hard' })
-
-    expect(chain.eq).toHaveBeenCalledWith('difficulty', 'hard')
-  })
-
   it('applies status filter when provided', async () => {
     const chain = mockSupabaseWith([])
 
@@ -282,7 +274,6 @@ describe('getQuestionsList', () => {
       subjectId: 's1',
       topicId: 't1',
       subtopicId: 'st1',
-      difficulty: 'medium',
       status: 'active',
       search: 'cloud',
     })
@@ -290,7 +281,6 @@ describe('getQuestionsList', () => {
     expect(chain.eq).toHaveBeenCalledWith('subject_id', 's1')
     expect(chain.eq).toHaveBeenCalledWith('topic_id', 't1')
     expect(chain.eq).toHaveBeenCalledWith('subtopic_id', 'st1')
-    expect(chain.eq).toHaveBeenCalledWith('difficulty', 'medium')
     expect(chain.eq).toHaveBeenCalledWith('status', 'active')
     expect(chain.ilike).toHaveBeenCalledWith('question_text', '%cloud%')
   })

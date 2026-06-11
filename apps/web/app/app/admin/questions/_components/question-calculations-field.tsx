@@ -20,7 +20,7 @@ export function QuestionCalculationsField({
         disabled={isPending}
       />
       <label htmlFor="question-has-calculations" className="cursor-pointer">
-        Involves calculations
+        Calculation question
       </label>
     </div>
   )
