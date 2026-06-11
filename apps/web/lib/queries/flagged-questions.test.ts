@@ -95,7 +95,7 @@ describe('getFlaggedQuestionIds', () => {
     mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'boom' } }))
     const result = await getFlaggedQuestionIds([QUESTION_ID_A])
     expect(result).toEqual([])
-    expect(errorSpy).toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith('[getFlaggedQuestionIds] Query error:', 'boom')
     errorSpy.mockRestore()
   })
 })

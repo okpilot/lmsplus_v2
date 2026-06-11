@@ -115,4 +115,21 @@ describe('ReportFlagProvider', () => {
     await waitFor(() => expect(button).toHaveTextContent('flagged'))
     expect(mockToggleFlag).toHaveBeenCalledTimes(1)
   })
+
+  it('re-enables the button and preserves state when toggleFlag throws', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockToggleFlag.mockRejectedValue(new Error('network'))
+    render(
+      <ReportFlagProvider initialFlaggedIds={[]}>
+        <FlagConsumer />
+      </ReportFlagProvider>,
+    )
+    const button = screen.getByTestId('toggle')
+    fireEvent.click(button)
+    // finally{} must clear pending state even when the action rejects.
+    await waitFor(() => expect(button).not.toBeDisabled())
+    expect(button).toHaveTextContent('not-flagged')
+    expect(warnSpy).toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
 })

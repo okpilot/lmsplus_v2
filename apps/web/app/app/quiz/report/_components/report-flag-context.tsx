@@ -41,6 +41,10 @@ export function ReportFlagProvider({
           return next
         })
       }
+    } catch (err) {
+      // Best-effort: a thrown action (e.g. network failure) leaves flag state unchanged.
+      // Log for observability — this path never touches answer data.
+      console.warn('[ReportFlagProvider] flag toggle failed:', err)
     } finally {
       pendingRef.current.delete(questionId)
       setPendingIds((prev) => {
