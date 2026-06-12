@@ -4,14 +4,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks -----------------------------------------------------------------
 
-const { mockBulkUpdateStatus, mockToastSuccess, mockToastError } = vi.hoisted(() => ({
-  mockBulkUpdateStatus: vi.fn(),
-  mockToastSuccess: vi.fn(),
-  mockToastError: vi.fn(),
-}))
+const { mockBulkUpdateStatus, mockBulkUpdateCalculations, mockToastSuccess, mockToastError } =
+  vi.hoisted(() => ({
+    mockBulkUpdateStatus: vi.fn(),
+    mockBulkUpdateCalculations: vi.fn(),
+    mockToastSuccess: vi.fn(),
+    mockToastError: vi.fn(),
+  }))
 
 vi.mock('../actions/bulk-update-status', () => ({
   bulkUpdateStatus: (...args: unknown[]) => mockBulkUpdateStatus(...args),
+}))
+
+vi.mock('../actions/bulk-update-calculations', () => ({
+  bulkUpdateCalculations: (...args: unknown[]) => mockBulkUpdateCalculations(...args),
 }))
 
 vi.mock('sonner', () => ({
@@ -115,6 +121,59 @@ describe('BulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: 'Activate' }))
 
     expect(mockToastError).toHaveBeenCalledWith('Bulk update failed')
+    expect(onClear).not.toHaveBeenCalled()
+  })
+
+  it('renders Mark and Unmark as calculation buttons when count is greater than 0', () => {
+    render(<BulkActionsBar selectedIds={['q-1']} onClear={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Mark as calculation' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unmark as calculation' })).toBeInTheDocument()
+  })
+
+  it('calls bulkUpdateCalculations with has_calculations true when Mark as calculation is clicked', async () => {
+    mockBulkUpdateCalculations.mockResolvedValue({ success: true })
+    const user = userEvent.setup()
+    const onClear = vi.fn()
+
+    render(<BulkActionsBar selectedIds={['q-1', 'q-2']} onClear={onClear} />)
+    await user.click(screen.getByRole('button', { name: 'Mark as calculation' }))
+
+    expect(mockBulkUpdateCalculations).toHaveBeenCalledWith({
+      ids: ['q-1', 'q-2'],
+      has_calculations: true,
+    })
+    expect(mockToastSuccess).toHaveBeenCalledWith('2 questions marked as calculation')
+    expect(onClear).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls bulkUpdateCalculations with has_calculations false when Unmark as calculation is clicked', async () => {
+    mockBulkUpdateCalculations.mockResolvedValue({ success: true })
+    const user = userEvent.setup()
+    const onClear = vi.fn()
+
+    render(<BulkActionsBar selectedIds={['q-1']} onClear={onClear} />)
+    await user.click(screen.getByRole('button', { name: 'Unmark as calculation' }))
+
+    expect(mockBulkUpdateCalculations).toHaveBeenCalledWith({
+      ids: ['q-1'],
+      has_calculations: false,
+    })
+    expect(mockToastSuccess).toHaveBeenCalledWith('1 question unmarked as calculation')
+    expect(onClear).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows an error toast and does not call onClear when bulkUpdateCalculations returns an error', async () => {
+    mockBulkUpdateCalculations.mockResolvedValue({
+      success: false,
+      error: 'No questions were updated',
+    })
+    const user = userEvent.setup()
+    const onClear = vi.fn()
+
+    render(<BulkActionsBar selectedIds={['q-1']} onClear={onClear} />)
+    await user.click(screen.getByRole('button', { name: 'Mark as calculation' }))
+
+    expect(mockToastError).toHaveBeenCalledWith('No questions were updated')
     expect(onClear).not.toHaveBeenCalled()
   })
 

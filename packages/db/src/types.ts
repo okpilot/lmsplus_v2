@@ -768,6 +768,7 @@ export type Database = {
           difficulty: string
           explanation_image_url: string | null
           explanation_text: string
+          has_calculations: boolean
           id: string
           lo_reference: string | null
           options: Json
@@ -796,6 +797,7 @@ export type Database = {
           difficulty: string
           explanation_image_url?: string | null
           explanation_text: string
+          has_calculations?: boolean
           id?: string
           lo_reference?: string | null
           options?: Json
@@ -824,6 +826,7 @@ export type Database = {
           difficulty?: string
           explanation_image_url?: string | null
           explanation_text?: string
+          has_calculations?: boolean
           id?: string
           lo_reference?: string | null
           options?: Json
@@ -1287,6 +1290,7 @@ export type Database = {
     Functions: {
       _filtered_question_pool: {
         Args: {
+          p_calc_mode?: string
           p_filters: string[]
           p_subject_id: string
           p_subtopic_ids: string[]
@@ -1386,6 +1390,7 @@ export type Database = {
       }
       get_filtered_question_counts: {
         Args: {
+          p_calc_mode?: string
           p_filters: string[]
           p_subject_id: string
           p_subtopic_ids: string[]
@@ -1434,6 +1439,7 @@ export type Database = {
       }
       get_random_question_ids: {
         Args: {
+          p_calc_mode?: string
           p_count: number
           p_filters: string[]
           p_subject_id: string

@@ -35,7 +35,7 @@ export function DifficultyStatusSelect({
   onStatusChange,
 }: Readonly<Props>) {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-3 [&>div]:min-w-0 [&_[data-slot=select-trigger]]:w-full">
       <div>
         <span className="mb-1 block text-xs font-medium text-muted-foreground">Difficulty</span>
         <Select

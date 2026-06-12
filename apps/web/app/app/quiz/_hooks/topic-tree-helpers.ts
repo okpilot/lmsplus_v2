@@ -84,6 +84,27 @@ export function calcFilteredAvailable(
   return total
 }
 
+export function computeAvailableCount(opts: {
+  hasActiveFilters: boolean
+  filteredByTopic: Record<string, number> | null
+  filteredBySubtopic: Record<string, number> | null
+  selectedQuestionCount: number
+  topics: TopicWithSubtopics[]
+  checkedTopics: Set<string>
+  checkedSubtopics: Set<string>
+}): number {
+  if (!opts.hasActiveFilters || !opts.filteredByTopic || !opts.filteredBySubtopic) {
+    return opts.selectedQuestionCount
+  }
+  return calcFilteredAvailable(
+    opts.topics,
+    opts.checkedTopics,
+    opts.checkedSubtopics,
+    opts.filteredByTopic,
+    opts.filteredBySubtopic,
+  )
+}
+
 export function computeSelectAll(
   allSelected: boolean,
   topics: TopicWithSubtopics[],

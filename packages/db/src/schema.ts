@@ -87,6 +87,7 @@ export const UpsertQuestionSchema = z
     explanation_image_url: z.url().nullable().optional(),
     difficulty: z.enum(['easy', 'medium', 'hard']),
     status: z.enum(['active', 'draft']),
+    has_calculations: z.boolean().default(false),
   })
   .refine((q) => q.options.filter((o) => o.correct).length === 1, {
     message: 'Exactly one option must be marked correct',
@@ -104,6 +105,11 @@ export const SoftDeleteQuestionSchema = z.object({
 export const BulkUpdateStatusSchema = z.object({
   ids: z.array(z.uuid()).min(1).max(100),
   status: z.enum(['active', 'draft']),
+})
+
+export const BulkUpdateCalculationsSchema = z.object({
+  ids: z.array(z.uuid()).min(1).max(100),
+  has_calculations: z.boolean(),
 })
 
 // --- Admin: Student Management schemas ---

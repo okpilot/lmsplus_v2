@@ -1,21 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { getFilteredCount } from '../actions/lookup'
-import type { QuestionFilterValue } from '../types'
-
-export type FilteredCountState = {
-  filteredCount: number | null
-  filteredByTopic: Record<string, number> | null
-  filteredBySubtopic: Record<string, number> | null
-  isFilterPending: boolean
-  authError: boolean
-  refetch: (
-    subjectId: string,
-    topicIds: string[],
-    subtopicIds: string[],
-    filters: QuestionFilterValue[],
-  ) => void
-  reset: () => void
-}
+import type { CalcMode, FilteredCountState, QuestionFilterValue } from '../types'
 
 export function useFilteredCount(): FilteredCountState {
   const [filteredCount, setFilteredCount] = useState<number | null>(null)
@@ -39,10 +24,13 @@ export function useFilteredCount(): FilteredCountState {
     topicIds: string[],
     subtopicIds: string[],
     filters: QuestionFilterValue[],
+    calcMode: CalcMode = 'all',
   ) {
     if (!subjectId) return
     const activeFilters = filters.filter((f) => f !== 'all')
-    if (!activeFilters.length) return
+    // calcMode AND-restricts independently of the switch-filters, so a calc-only
+    // selection must fetch even when no switch-filter is active.
+    if (!activeFilters.length && calcMode === 'all') return
     setFilteredCount(null)
     setFilteredByTopic(null)
     setFilteredBySubtopic(null)
@@ -50,7 +38,7 @@ export function useFilteredCount(): FilteredCountState {
     filterGeneration.current++
     const gen = filterGeneration.current
     setIsFilterPending(true)
-    getFilteredCount({ subjectId, topicIds, subtopicIds, filters: activeFilters })
+    getFilteredCount({ subjectId, topicIds, subtopicIds, filters: activeFilters, calcMode })
       .then((result) => {
         if (gen !== filterGeneration.current) return
         if (result.error === 'auth') {

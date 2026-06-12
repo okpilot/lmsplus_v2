@@ -1,29 +1,15 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import type { SubjectOption } from '@/lib/queries/quiz'
 import { startQuizSession } from '../actions/start'
 import {
   clearActiveSession,
   readActiveSession,
   sessionHandoffKey,
 } from '../session/_utils/quiz-session-storage'
-import type { QuestionFilterValue } from '../types'
-
-type UseQuizStartOpts = {
-  userId: string
-  subjectId: string
-  subjects: SubjectOption[]
-  count: number
-  maxQuestions: number
-  filters: QuestionFilterValue[]
-  topicTree: {
-    getSelectedTopicIds: () => string[]
-    getSelectedSubtopicIds: () => string[]
-  }
-}
+import type { UseQuizStartOpts } from '../types'
 
 export function useQuizStart(opts: UseQuizStartOpts) {
-  const { userId, subjectId, subjects, count, maxQuestions, filters, topicTree } = opts
+  const { userId, subjectId, subjects, count, maxQuestions, filters, calcMode, topicTree } = opts
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +35,7 @@ export function useQuizStart(opts: UseQuizStartOpts) {
         subtopicIds: subtopicIds.length > 0 ? subtopicIds : undefined,
         count: effectiveCount,
         filters,
+        calcMode,
       })
       if (result.success) {
         const selectedSubject = subjects.find((s) => s.id === subjectId)

@@ -1,16 +1,21 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { CalcMode } from '../types'
 import { QuestionFilters } from './question-filters'
 
-// Mock the Switch to a simple checkbox for testability
+// Mock the Switch to a simple checkbox for testability. Forward aria-label so the
+// calculation toggles can be targeted by accessible name.
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({
     checked,
     onCheckedChange,
+    ...props
   }: {
     checked: boolean
     onCheckedChange: (checked: boolean) => void
+    [key: string]: unknown
   }) => (
     <input
       type="checkbox"
@@ -18,9 +23,21 @@ vi.mock('@/components/ui/switch', () => ({
       aria-checked={checked}
       checked={checked}
       onChange={(e) => onCheckedChange(e.target.checked)}
+      {...props}
     />
   ),
 }))
+
+function renderFilters(props: Partial<React.ComponentProps<typeof QuestionFilters>> = {}) {
+  return render(
+    <QuestionFilters
+      value={props.value ?? ['all']}
+      onValueChange={props.onValueChange ?? vi.fn()}
+      calcMode={props.calcMode ?? 'all'}
+      onCalcModeChange={props.onCalcModeChange ?? vi.fn()}
+    />,
+  )
+}
 
 describe('QuestionFilters', () => {
   beforeEach(() => {
@@ -28,23 +45,24 @@ describe('QuestionFilters', () => {
   })
 
   it('renders all 3 filter toggles', () => {
-    render(<QuestionFilters value={['all']} onValueChange={vi.fn()} />)
+    renderFilters()
     expect(screen.getByText('Previously unseen')).toBeInTheDocument()
     expect(screen.getByText('Incorrectly answered')).toBeInTheDocument()
     expect(screen.getByText('Flagged questions')).toBeInTheDocument()
   })
 
-  it('all switches are off when value is [all]', () => {
-    render(<QuestionFilters value={['all']} onValueChange={vi.fn()} />)
+  it('all switches are off by default (no filters, calcMode all)', () => {
+    renderFilters()
+    // 3 preference filters + 2 calculation toggles
     const switches = screen.getAllByRole('switch')
-    expect(switches).toHaveLength(3)
+    expect(switches).toHaveLength(5)
     for (const s of switches) {
       expect(s).not.toBeChecked()
     }
   })
 
   it('marks the correct switch as on when a filter is active', () => {
-    render(<QuestionFilters value={['unseen']} onValueChange={vi.fn()} />)
+    renderFilters({ value: ['unseen'] })
     const switches = screen.getAllByRole('switch')
     // Order: unseen, incorrect, flagged
     expect(switches[0]).toBeChecked()
@@ -55,7 +73,7 @@ describe('QuestionFilters', () => {
   it('toggling on a filter calls onValueChange with that filter', async () => {
     const user = userEvent.setup()
     const onValueChange = vi.fn()
-    render(<QuestionFilters value={['all']} onValueChange={onValueChange} />)
+    renderFilters({ onValueChange })
     const switches = screen.getAllByRole('switch')
     await user.click(switches[0]!) // unseen
     expect(onValueChange).toHaveBeenCalledWith(['unseen'])
@@ -64,7 +82,7 @@ describe('QuestionFilters', () => {
   it("toggling off the only active filter reverts to ['all']", async () => {
     const user = userEvent.setup()
     const onValueChange = vi.fn()
-    render(<QuestionFilters value={['unseen']} onValueChange={onValueChange} />)
+    renderFilters({ value: ['unseen'], onValueChange })
     const switches = screen.getAllByRole('switch')
     await user.click(switches[0]!) // toggle off unseen
     expect(onValueChange).toHaveBeenCalledWith(['all'])
@@ -73,7 +91,7 @@ describe('QuestionFilters', () => {
   it('selecting unseen auto-deselects incorrect and flagged', async () => {
     const user = userEvent.setup()
     const onValueChange = vi.fn()
-    render(<QuestionFilters value={['incorrect', 'flagged']} onValueChange={onValueChange} />)
+    renderFilters({ value: ['incorrect', 'flagged'], onValueChange })
     const switches = screen.getAllByRole('switch')
     await user.click(switches[0]!) // toggle on unseen
     expect(onValueChange).toHaveBeenCalledWith(['unseen'])
@@ -82,7 +100,7 @@ describe('QuestionFilters', () => {
   it('selecting incorrect auto-deselects unseen', async () => {
     const user = userEvent.setup()
     const onValueChange = vi.fn()
-    render(<QuestionFilters value={['unseen']} onValueChange={onValueChange} />)
+    renderFilters({ value: ['unseen'], onValueChange })
     const switches = screen.getAllByRole('switch')
     await user.click(switches[1]!) // toggle on incorrect
     expect(onValueChange).toHaveBeenCalledWith(['incorrect'])
@@ -91,7 +109,7 @@ describe('QuestionFilters', () => {
   it('selecting flagged auto-deselects unseen', async () => {
     const user = userEvent.setup()
     const onValueChange = vi.fn()
-    render(<QuestionFilters value={['unseen']} onValueChange={onValueChange} />)
+    renderFilters({ value: ['unseen'], onValueChange })
     const switches = screen.getAllByRole('switch')
     await user.click(switches[2]!) // toggle on flagged
     expect(onValueChange).toHaveBeenCalledWith(['flagged'])
@@ -100,15 +118,74 @@ describe('QuestionFilters', () => {
   it('incorrect and flagged can be active simultaneously', async () => {
     const user = userEvent.setup()
     const onValueChange = vi.fn()
-    render(<QuestionFilters value={['incorrect']} onValueChange={onValueChange} />)
+    renderFilters({ value: ['incorrect'], onValueChange })
     const switches = screen.getAllByRole('switch')
     await user.click(switches[2]!) // toggle on flagged
     expect(onValueChange).toHaveBeenCalledWith(['incorrect', 'flagged'])
   })
 
-  it('renders info buttons for each filter', () => {
-    render(<QuestionFilters value={['all']} onValueChange={vi.fn()} />)
-    const hintButtons = screen.getAllByLabelText(/Info about/)
-    expect(hintButtons).toHaveLength(3)
+  it('renders a hint button for every toggle (3 filters + 2 calculation)', () => {
+    renderFilters()
+    expect(screen.getAllByLabelText(/Info about/)).toHaveLength(5)
+  })
+
+  // ---- Calculation toggles (mutually exclusive, included by default) ------
+
+  it('renders the two calculation toggles, both off by default', () => {
+    renderFilters()
+    expect(screen.getByRole('switch', { name: 'Only calculation questions' })).not.toBeChecked()
+    expect(screen.getByRole('switch', { name: 'Exclude calculation questions' })).not.toBeChecked()
+  })
+
+  it("marks the 'only' toggle on when calcMode is 'only'", () => {
+    renderFilters({ calcMode: 'only' })
+    expect(screen.getByRole('switch', { name: 'Only calculation questions' })).toBeChecked()
+    expect(screen.getByRole('switch', { name: 'Exclude calculation questions' })).not.toBeChecked()
+  })
+
+  it("marks the 'exclude' toggle on when calcMode is 'exclude'", () => {
+    renderFilters({ calcMode: 'exclude' })
+    expect(screen.getByRole('switch', { name: 'Exclude calculation questions' })).toBeChecked()
+    expect(screen.getByRole('switch', { name: 'Only calculation questions' })).not.toBeChecked()
+  })
+
+  it("toggling 'only' on calls onCalcModeChange with 'only'", async () => {
+    const user = userEvent.setup()
+    const onCalcModeChange = vi.fn()
+    renderFilters({ onCalcModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Only calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('only')
+  })
+
+  it("toggling the active 'only' toggle off reverts to 'all'", async () => {
+    const user = userEvent.setup()
+    const onCalcModeChange = vi.fn()
+    renderFilters({ calcMode: 'only', onCalcModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Only calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('all')
+  })
+
+  it("toggling 'exclude' while 'only' is active switches the mode to 'exclude'", async () => {
+    const user = userEvent.setup()
+    const onCalcModeChange = vi.fn()
+    renderFilters({ calcMode: 'only', onCalcModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Exclude calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('exclude')
+  })
+
+  it("toggling 'only' while 'exclude' is active switches the mode to 'only'", async () => {
+    const user = userEvent.setup()
+    const onCalcModeChange = vi.fn()
+    renderFilters({ calcMode: 'exclude', onCalcModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Only calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('only')
+  })
+
+  it("toggling the active 'exclude' toggle off reverts to 'all'", async () => {
+    const user = userEvent.setup()
+    const onCalcModeChange = vi.fn()
+    renderFilters({ calcMode: 'exclude', onCalcModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Exclude calculation questions' }))
+    expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('all')
   })
 })

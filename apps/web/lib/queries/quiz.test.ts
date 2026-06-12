@@ -256,6 +256,32 @@ describe('getRandomQuestionIds', () => {
     )
   })
 
+  it("defaults p_calc_mode to 'all' when calcMode is omitted", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_calc_mode: 'all' }),
+    )
+  })
+
+  it("passes p_calc_mode through literally (does NOT strip 'all')", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    // Unlike p_filters (where 'all' is stripped to []), calcMode is a literal enum —
+    // 'all' must reach the RPC verbatim so its CASE resolves to the unrestricted pool.
+    await getRandomQuestionIds({ subjectId: 's1', count: 5, calcMode: 'all' })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_calc_mode: 'all' }),
+    )
+  })
+
   it('passes p_filters as an empty array when filters is undefined', async () => {
     mockRpc.mockResolvedValueOnce({ data: [], error: null })
 

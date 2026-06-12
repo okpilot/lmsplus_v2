@@ -177,20 +177,38 @@ describe('getQuestionsList', () => {
     expect(chain.eq).toHaveBeenCalledWith('subtopic_id', 'st1')
   })
 
-  it('applies difficulty filter when provided', async () => {
-    const chain = mockSupabaseWith([])
-
-    await getQuestionsList({ difficulty: 'hard' })
-
-    expect(chain.eq).toHaveBeenCalledWith('difficulty', 'hard')
-  })
-
   it('applies status filter when provided', async () => {
     const chain = mockSupabaseWith([])
 
     await getQuestionsList({ status: 'draft' })
 
     expect(chain.eq).toHaveBeenCalledWith('status', 'draft')
+  })
+
+  it('applies has_calculations filter when hasCalculations is true', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ hasCalculations: true })
+
+    expect(chain.eq).toHaveBeenCalledWith('has_calculations', true)
+  })
+
+  it('applies has_calculations filter when hasCalculations is false', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({ hasCalculations: false })
+
+    expect(chain.eq).toHaveBeenCalledWith('has_calculations', false)
+  })
+
+  it('does not apply has_calculations filter when hasCalculations is undefined', async () => {
+    const chain = mockSupabaseWith([])
+
+    await getQuestionsList({})
+
+    const eqCalls = (chain.eq as ReturnType<typeof vi.fn>).mock.calls
+    const calcEqCall = eqCalls.find((args: unknown[]) => args[0] === 'has_calculations')
+    expect(calcEqCall).toBeUndefined()
   })
 
   it('applies search filter as ilike with wildcard wrapping when provided', async () => {
@@ -256,7 +274,6 @@ describe('getQuestionsList', () => {
       subjectId: 's1',
       topicId: 't1',
       subtopicId: 'st1',
-      difficulty: 'medium',
       status: 'active',
       search: 'cloud',
     })
@@ -264,7 +281,6 @@ describe('getQuestionsList', () => {
     expect(chain.eq).toHaveBeenCalledWith('subject_id', 's1')
     expect(chain.eq).toHaveBeenCalledWith('topic_id', 't1')
     expect(chain.eq).toHaveBeenCalledWith('subtopic_id', 'st1')
-    expect(chain.eq).toHaveBeenCalledWith('difficulty', 'medium')
     expect(chain.eq).toHaveBeenCalledWith('status', 'active')
     expect(chain.ilike).toHaveBeenCalledWith('question_text', '%cloud%')
   })

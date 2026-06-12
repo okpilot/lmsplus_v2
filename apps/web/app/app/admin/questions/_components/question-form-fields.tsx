@@ -1,10 +1,11 @@
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import type { SyllabusTree } from '../../syllabus/types'
 import type { QuestionOption } from '../types'
 import { DifficultyStatusSelect } from './difficulty-status-select'
 import { ImageUploadField } from './image-upload-field'
 import { OptionEditor } from './option-editor'
+import { QuestionCalculationsField } from './question-calculations-field'
+import { QuestionMetaFields } from './question-meta-fields'
 import { SyllabusCascader } from './syllabus-cascader'
 
 type Props = {
@@ -23,6 +24,7 @@ type Props = {
   onExplanationImageChange: (url: string) => void
   difficulty: string
   status: string
+  hasCalculations: boolean
   isPending: boolean
   onSubjectChange: (id: string) => void
   onTopicChange: (id: string) => void
@@ -34,6 +36,7 @@ type Props = {
   onExplanationTextChange: (v: string) => void
   onDifficultyChange: (v: string | null) => void
   onStatusChange: (v: string | null) => void
+  onHasCalculationsChange: (v: boolean) => void
 }
 
 export function QuestionFormFields({
@@ -52,6 +55,7 @@ export function QuestionFormFields({
   onExplanationImageChange,
   difficulty,
   status,
+  hasCalculations,
   isPending,
   onSubjectChange,
   onTopicChange,
@@ -63,9 +67,10 @@ export function QuestionFormFields({
   onExplanationTextChange,
   onDifficultyChange,
   onStatusChange,
+  onHasCalculationsChange,
 }: Readonly<Props>) {
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <SyllabusCascader
         tree={tree}
         subjectId={subjectId}
@@ -77,26 +82,13 @@ export function QuestionFormFields({
         disabled={isPending}
       />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Question #</span>
-          <Input
-            value={questionNumber}
-            onChange={(e) => onQuestionNumberChange(e.target.value)}
-            placeholder="e.g. MET-001"
-            disabled={isPending}
-          />
-        </div>
-        <div>
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">LO Reference</span>
-          <Input
-            value={loReference}
-            onChange={(e) => onLoReferenceChange(e.target.value)}
-            placeholder="e.g. LO 050 01 01 01"
-            disabled={isPending}
-          />
-        </div>
-      </div>
+      <QuestionMetaFields
+        questionNumber={questionNumber}
+        loReference={loReference}
+        isPending={isPending}
+        onQuestionNumberChange={onQuestionNumberChange}
+        onLoReferenceChange={onLoReferenceChange}
+      />
 
       <div>
         <span className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -144,6 +136,12 @@ export function QuestionFormFields({
         isPending={isPending}
         onDifficultyChange={onDifficultyChange}
         onStatusChange={onStatusChange}
+      />
+
+      <QuestionCalculationsField
+        hasCalculations={hasCalculations}
+        isPending={isPending}
+        onHasCalculationsChange={onHasCalculationsChange}
       />
     </div>
   )

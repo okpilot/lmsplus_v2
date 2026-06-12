@@ -25,6 +25,7 @@ export function useQuestionFormState(question: QuestionRow | undefined, open: bo
   )
   const [difficulty, setDifficulty] = useState(question?.difficulty ?? 'medium')
   const [status, setStatus] = useState(question?.status ?? 'draft')
+  const [hasCalculations, setHasCalculations] = useState(question?.has_calculations ?? false)
 
   // Reset form when dialog closes
   // biome-ignore lint/correctness/useExhaustiveDependencies: question prop read from closure on reset
@@ -42,6 +43,7 @@ export function useQuestionFormState(question: QuestionRow | undefined, open: bo
       setExplanationImageUrl(question?.explanation_image_url ?? null)
       setDifficulty(question?.difficulty ?? 'medium')
       setStatus(question?.status ?? 'draft')
+      setHasCalculations(question?.has_calculations ?? false)
     }
   }, [open])
 
@@ -70,6 +72,7 @@ export function useQuestionFormState(question: QuestionRow | undefined, open: bo
       explanationImageUrl,
       difficulty,
       status,
+      hasCalculations,
     },
     handlers: {
       handleSubjectChange,
@@ -84,6 +87,7 @@ export function useQuestionFormState(question: QuestionRow | undefined, open: bo
       setExplanationImageUrl,
       setDifficulty,
       setStatus,
+      setHasCalculations,
     },
   }
 }

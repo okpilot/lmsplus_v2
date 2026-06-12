@@ -148,6 +148,38 @@ export type StartExamResult =
 
 export type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'
 
+export type CalcMode = 'all' | 'only' | 'exclude'
+
+export type UseQuizStartOpts = {
+  userId: string
+  subjectId: string
+  subjects: import('@/lib/queries/quiz').SubjectOption[]
+  count: number
+  maxQuestions: number
+  filters: QuestionFilterValue[]
+  calcMode: CalcMode
+  topicTree: {
+    getSelectedTopicIds: () => string[]
+    getSelectedSubtopicIds: () => string[]
+  }
+}
+
+export type FilteredCountState = {
+  filteredCount: number | null
+  filteredByTopic: Record<string, number> | null
+  filteredBySubtopic: Record<string, number> | null
+  isFilterPending: boolean
+  authError: boolean
+  refetch: (
+    subjectId: string,
+    topicIds: string[],
+    subtopicIds: string[],
+    filters: QuestionFilterValue[],
+    calcMode?: CalcMode,
+  ) => void
+  reset: () => void
+}
+
 export type CompleteEmptyExamResult =
   | { success: true; sessionId: string }
   | { success: false; error: string }

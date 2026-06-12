@@ -12,6 +12,7 @@ const StartQuizInput = z.object({
   subtopicIds: z.array(z.uuid()).optional(),
   count: z.number().int().min(1).max(500),
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
+  calcMode: z.enum(['all', 'only', 'exclude']).default('all'),
 })
 
 export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
@@ -37,6 +38,7 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
       subtopicIds: input.subtopicIds,
       count: input.count,
       filters: input.filters,
+      calcMode: input.calcMode,
     })
 
     if (questionIds.length === 0) {

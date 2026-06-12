@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { TopicWithSubtopics } from '@/lib/queries/quiz'
-import { calcFilteredAvailable, calcSelectedCount } from './topic-tree-helpers'
+import {
+  calcFilteredAvailable,
+  calcSelectedCount,
+  computeAvailableCount,
+} from './topic-tree-helpers'
 
 // ---- Fixtures ---------------------------------------------------------------
 
@@ -220,5 +224,52 @@ describe('calcFilteredAvailable', () => {
         filteredBySubtopic,
       ),
     ).toBe(11) // 4 (t1) + 7 (st1)
+  })
+})
+
+describe('computeAvailableCount', () => {
+  it('returns the unfiltered selected count when no filters are active', () => {
+    const topics = [makeTopic('t1', 10)]
+    expect(
+      computeAvailableCount({
+        hasActiveFilters: false,
+        filteredByTopic: { t1: 4 },
+        filteredBySubtopic: {},
+        selectedQuestionCount: 42,
+        topics,
+        checkedTopics: new Set(['t1']),
+        checkedSubtopics: new Set(),
+      }),
+    ).toBe(42)
+  })
+
+  it('returns the unfiltered selected count when filtered maps are not yet loaded', () => {
+    const topics = [makeTopic('t1', 10)]
+    expect(
+      computeAvailableCount({
+        hasActiveFilters: true,
+        filteredByTopic: null,
+        filteredBySubtopic: null,
+        selectedQuestionCount: 42,
+        topics,
+        checkedTopics: new Set(['t1']),
+        checkedSubtopics: new Set(),
+      }),
+    ).toBe(42)
+  })
+
+  it('derives the count from filtered maps when filters are active and loaded', () => {
+    const topics = [makeTopic('t1', 20, [{ id: 'st1', questionCount: 10 }])]
+    expect(
+      computeAvailableCount({
+        hasActiveFilters: true,
+        filteredByTopic: { t1: 4 },
+        filteredBySubtopic: { st1: 7 },
+        selectedQuestionCount: 42,
+        topics,
+        checkedTopics: new Set(['t1']),
+        checkedSubtopics: new Set(['st1']),
+      }),
+    ).toBe(7) // st1 subtopic count under filters
   })
 })

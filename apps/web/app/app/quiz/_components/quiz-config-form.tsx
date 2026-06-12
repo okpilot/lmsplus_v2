@@ -49,7 +49,12 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
               onValueChange={config.handleSubjectChange}
             />
             {config.subjectId && (
-              <QuestionFilters value={config.filters} onValueChange={config.setFilters} />
+              <QuestionFilters
+                value={config.filters}
+                onValueChange={config.setFilters}
+                calcMode={config.calcMode}
+                onCalcModeChange={config.setCalcMode}
+              />
             )}
           </>
         )}

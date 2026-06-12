@@ -23,6 +23,7 @@ export type QuestionRow = {
   question_image_url: string | null
   explanation_image_url: string | null
   lo_reference: string | null
+  has_calculations: boolean
   created_at: string
   updated_at: string
 }
@@ -31,8 +32,8 @@ export type QuestionFilters = {
   subjectId?: string
   topicId?: string
   subtopicId?: string
-  difficulty?: 'easy' | 'medium' | 'hard'
   status?: 'active' | 'draft'
+  hasCalculations?: boolean
   search?: string
   page?: number
 }

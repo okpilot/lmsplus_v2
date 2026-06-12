@@ -29,6 +29,24 @@ vi.mock('@/components/ui/textarea', () => ({
   Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea {...props} />,
 }))
 
+vi.mock('@/components/ui/checkbox', () => ({
+  Checkbox: ({
+    checked,
+    onCheckedChange,
+    ...props
+  }: {
+    checked: boolean
+    onCheckedChange: (c: boolean) => void
+  } & React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={(e) => onCheckedChange(e.target.checked)}
+      {...props}
+    />
+  ),
+}))
+
 import type { SyllabusTree } from '../../syllabus/types'
 import type { QuestionOption } from '../types'
 import { QuestionFormFields } from './question-form-fields'
@@ -62,6 +80,7 @@ describe('QuestionFormFields', () => {
         explanationImageUrl={null}
         difficulty="medium"
         status="active"
+        hasCalculations={false}
         isPending={false}
         onSubjectChange={vi.fn()}
         onTopicChange={vi.fn()}
@@ -75,6 +94,7 @@ describe('QuestionFormFields', () => {
         onExplanationImageChange={vi.fn()}
         onDifficultyChange={vi.fn()}
         onStatusChange={vi.fn()}
+        onHasCalculationsChange={vi.fn()}
       />,
     )
     expect(screen.getByTestId('syllabus-cascader')).toBeInTheDocument()
@@ -99,6 +119,7 @@ describe('QuestionFormFields', () => {
         explanationImageUrl={null}
         difficulty="easy"
         status="draft"
+        hasCalculations={false}
         isPending={false}
         onSubjectChange={vi.fn()}
         onTopicChange={vi.fn()}
@@ -112,9 +133,49 @@ describe('QuestionFormFields', () => {
         onExplanationImageChange={vi.fn()}
         onDifficultyChange={vi.fn()}
         onStatusChange={vi.fn()}
+        onHasCalculationsChange={vi.fn()}
       />,
     )
     expect(screen.getByDisplayValue('MET-042')).toBeInTheDocument()
     expect(screen.getByDisplayValue('LO 050 02 01 03')).toBeInTheDocument()
+  })
+
+  it('fires onHasCalculationsChange when the calculations checkbox is toggled', () => {
+    const onHasCalculationsChange = vi.fn()
+    render(
+      <QuestionFormFields
+        tree={TREE}
+        subjectId={undefined}
+        topicId={undefined}
+        subtopicId={null}
+        questionNumber=""
+        loReference=""
+        questionText=""
+        options={OPTIONS}
+        explanationText=""
+        questionImageUrl={null}
+        explanationImageUrl={null}
+        difficulty="medium"
+        status="draft"
+        hasCalculations={false}
+        isPending={false}
+        onSubjectChange={vi.fn()}
+        onTopicChange={vi.fn()}
+        onSubtopicChange={vi.fn()}
+        onQuestionNumberChange={vi.fn()}
+        onLoReferenceChange={vi.fn()}
+        onQuestionTextChange={vi.fn()}
+        onOptionsChange={vi.fn()}
+        onExplanationTextChange={vi.fn()}
+        onQuestionImageChange={vi.fn()}
+        onExplanationImageChange={vi.fn()}
+        onDifficultyChange={vi.fn()}
+        onStatusChange={vi.fn()}
+        onHasCalculationsChange={onHasCalculationsChange}
+      />,
+    )
+
+    screen.getByLabelText('Calculation question').click()
+    expect(onHasCalculationsChange).toHaveBeenCalledWith(true)
   })
 })

@@ -3,11 +3,13 @@
 import { CircleHelp } from 'lucide-react'
 import { useState } from 'react'
 import { Switch } from '@/components/ui/switch'
-import type { QuestionFilterValue } from '../types'
+import type { CalcMode, QuestionFilterValue } from '../types'
 
 type QuestionFiltersProps = {
   value: QuestionFilterValue[]
   onValueChange: (filters: QuestionFilterValue[]) => void
+  calcMode: CalcMode
+  onCalcModeChange: (mode: CalcMode) => void
 }
 
 const FILTERS: { value: Exclude<QuestionFilterValue, 'all'>; label: string; hint: string }[] = [
@@ -25,6 +27,22 @@ const FILTERS: { value: Exclude<QuestionFilterValue, 'all'>; label: string; hint
     value: 'flagged',
     label: 'Flagged questions',
     hint: 'Questions you flagged for review during a quiz.',
+  },
+]
+
+// Calculation questions are included by default. These two toggles are mutually
+// exclusive deviations from that default: 'only' restricts the pool to calculation
+// questions, 'exclude' removes them. Neither active → calcMode 'all' (the default).
+const CALC_TOGGLES: { mode: Exclude<CalcMode, 'all'>; label: string; hint: string }[] = [
+  {
+    mode: 'only',
+    label: 'Only calculation questions',
+    hint: 'Only questions that require a calculation (mass & balance, navigation, performance).',
+  },
+  {
+    mode: 'exclude',
+    label: 'Exclude calculation questions',
+    hint: 'Hide questions that require a calculation.',
   },
 ]
 
@@ -52,7 +70,34 @@ function FilterHint({ hint, label }: { hint: string; label: string }) {
   )
 }
 
-export function QuestionFilters({ value, onValueChange }: QuestionFiltersProps) {
+function FilterToggle({
+  label,
+  hint,
+  checked,
+  onToggle,
+}: {
+  label: string
+  hint: string
+  checked: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {label}
+        <FilterHint hint={hint} label={label} />
+      </span>
+      <Switch checked={checked} onCheckedChange={onToggle} aria-label={label} />
+    </div>
+  )
+}
+
+export function QuestionFilters({
+  value,
+  onValueChange,
+  calcMode,
+  onCalcModeChange,
+}: QuestionFiltersProps) {
   function handleToggle(filter: Exclude<QuestionFilterValue, 'all'>) {
     const withoutAll = value.filter((f) => f !== 'all')
     const isActive = withoutAll.includes(filter)
@@ -67,22 +112,34 @@ export function QuestionFilters({ value, onValueChange }: QuestionFiltersProps) 
     onValueChange(next.length === 0 ? ['all'] : next)
   }
 
+  // Toggling the active mode off returns to 'all'; toggling a mode on replaces any
+  // other mode (single calcMode value makes the two toggles mutually exclusive).
+  function handleCalcToggle(mode: Exclude<CalcMode, 'all'>) {
+    onCalcModeChange(calcMode === mode ? 'all' : mode)
+  }
+
   return (
     <div className="space-y-3">
       <span className="text-[13px] font-medium">Question Preferences</span>
       <div className="space-y-2.5">
-        {FILTERS.map((opt) => {
-          const isActive = value.includes(opt.value)
-          return (
-            <div key={opt.value} className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                {opt.label}
-                <FilterHint hint={opt.hint} label={opt.label} />
-              </span>
-              <Switch checked={isActive} onCheckedChange={() => handleToggle(opt.value)} />
-            </div>
-          )
-        })}
+        {FILTERS.map((opt) => (
+          <FilterToggle
+            key={opt.value}
+            label={opt.label}
+            hint={opt.hint}
+            checked={value.includes(opt.value)}
+            onToggle={() => handleToggle(opt.value)}
+          />
+        ))}
+        {CALC_TOGGLES.map((opt) => (
+          <FilterToggle
+            key={opt.mode}
+            label={opt.label}
+            hint={opt.hint}
+            checked={calcMode === opt.mode}
+            onToggle={() => handleCalcToggle(opt.mode)}
+          />
+        ))}
       </div>
     </div>
   )

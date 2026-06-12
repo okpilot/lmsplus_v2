@@ -1,32 +1,20 @@
 'use client'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import type { SyllabusTree } from '../../syllabus/types'
+import { CalcFilterSelect } from './calc-filter-select'
+import { FilterSelect } from './filter-select'
 
 type Props = {
   tree: SyllabusTree
   subjectId: string
   topicId: string
   subtopicId: string
-  difficulty: string
   status: string
+  hasCalculations: string
   onFilterChange: (key: string, value: string | null | undefined) => void
 }
 
 const ALL = '__all__'
-
-const DIFFICULTY_ITEMS = [
-  { value: ALL, label: 'All difficulties' },
-  { value: 'easy', label: 'Easy' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'hard', label: 'Hard' },
-]
 
 const STATUS_ITEMS = [
   { value: ALL, label: 'All statuses' },
@@ -39,8 +27,8 @@ export function QuestionFilterSelects({
   subjectId,
   topicId,
   subtopicId,
-  difficulty,
   status,
+  hasCalculations,
   onFilterChange,
 }: Readonly<Props>) {
   const selectedSubject = tree.find((s) => s.id === subjectId)
@@ -63,92 +51,44 @@ export function QuestionFilterSelects({
 
   return (
     <>
-      <Select
+      <FilterSelect
         value={subjectId}
-        onValueChange={(v) => onFilterChange('subjectId', v)}
         items={subjectItems}
-      >
-        <SelectTrigger className="w-44" aria-label="Subject">
-          <SelectValue placeholder="All subjects" />
-        </SelectTrigger>
-        <SelectContent>
-          {subjectItems.map((item) => (
-            <SelectItem key={item.value} value={item.value} label={item.label}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
+        ariaLabel="Subject"
+        placeholder="All subjects"
+        triggerClassName="w-44"
+        onValueChange={(v) => onFilterChange('subjectId', v)}
+      />
+      <FilterSelect
         value={topicId}
-        onValueChange={(v) => onFilterChange('topicId', v)}
-        disabled={topics.length === 0}
         items={topicItems}
-      >
-        <SelectTrigger className="w-44" aria-label="Topic">
-          <SelectValue placeholder="All topics" />
-        </SelectTrigger>
-        <SelectContent>
-          {topicItems.map((item) => (
-            <SelectItem key={item.value} value={item.value} label={item.label}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
+        ariaLabel="Topic"
+        placeholder="All topics"
+        triggerClassName="w-44"
+        disabled={topics.length === 0}
+        onValueChange={(v) => onFilterChange('topicId', v)}
+      />
+      <FilterSelect
         value={subtopicId}
-        onValueChange={(v) => onFilterChange('subtopicId', v)}
-        disabled={subtopics.length === 0}
         items={subtopicItems}
-      >
-        <SelectTrigger className="w-44" aria-label="Subtopic">
-          <SelectValue placeholder="All subtopics" />
-        </SelectTrigger>
-        <SelectContent>
-          {subtopicItems.map((item) => (
-            <SelectItem key={item.value} value={item.value} label={item.label}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={difficulty}
-        onValueChange={(v) => onFilterChange('difficulty', v)}
-        items={DIFFICULTY_ITEMS}
-      >
-        <SelectTrigger className="w-32" aria-label="Difficulty">
-          <SelectValue placeholder="Difficulty" />
-        </SelectTrigger>
-        <SelectContent>
-          {DIFFICULTY_ITEMS.map((item) => (
-            <SelectItem key={item.value} value={item.value} label={item.label}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
+        ariaLabel="Subtopic"
+        placeholder="All subtopics"
+        triggerClassName="w-44"
+        disabled={subtopics.length === 0}
+        onValueChange={(v) => onFilterChange('subtopicId', v)}
+      />
+      <FilterSelect
         value={status}
-        onValueChange={(v) => onFilterChange('status', v)}
         items={STATUS_ITEMS}
-      >
-        <SelectTrigger className="w-28" aria-label="Status">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          {STATUS_ITEMS.map((item) => (
-            <SelectItem key={item.value} value={item.value} label={item.label}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        ariaLabel="Status"
+        placeholder="Status"
+        triggerClassName="w-28"
+        onValueChange={(v) => onFilterChange('status', v)}
+      />
+      <CalcFilterSelect
+        value={hasCalculations}
+        onValueChange={(v) => onFilterChange('hasCalculations', v)}
+      />
     </>
   )
 }
