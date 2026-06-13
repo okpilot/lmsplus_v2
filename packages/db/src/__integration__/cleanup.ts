@@ -21,6 +21,15 @@ async function deleteOrLog(
  * are logged and skipped (see deleteOrLog) rather than thrown, so one failure doesn't leave
  * the rest of teardown un-run. (cleanupReferenceData throws instead, because it deletes a
  * specific seeded id set where a failure is a real signal, not best-effort cleanup.)
+ *
+ * HARD-DELETE IS INTENTIONAL HERE — do not "soft-delete" this teardown. These are ephemeral
+ * per-suite fixtures (a throwaway org + its users) that must be physically removed so the next
+ * run starts from a clean slate; a soft-delete (deleted_at) would leave rows that pollute later
+ * runs' counts and queries, breaking isolation. The immutable-table rule (no UPDATE/DELETE on
+ * audit_events / student_responses / quiz_session_answers) and the soft-delete-only rule govern
+ * the PRODUCTION app via RLS — they are not enforced for service-role integration teardown, which
+ * is the sanctioned mechanism for resetting fixtures (see docs/security.md §6 hard-delete-by-design
+ * exception for ephemeral data, and code-style.md §7 "Exception — hard-delete-by-design tables").
  */
 export async function cleanupTestData(opts: {
   admin: SupabaseClient

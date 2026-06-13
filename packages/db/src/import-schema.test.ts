@@ -96,6 +96,35 @@ describe('ImportQuestionSchema', () => {
     )
   })
 
+  it('rejects when question_text is whitespace-only', () => {
+    expect(ImportQuestionSchema.safeParse({ ...validQuestion, question_text: '   ' }).success).toBe(
+      false,
+    )
+  })
+
+  it('rejects when explanation_text is whitespace-only', () => {
+    expect(
+      ImportQuestionSchema.safeParse({ ...validQuestion, explanation_text: '  \t ' }).success,
+    ).toBe(false)
+  })
+
+  it('rejects when an option text is whitespace-only', () => {
+    const options = [
+      { id: 'a', text: '   ' },
+      { id: 'b', text: 'Option B' },
+      { id: 'c', text: 'Option C' },
+      { id: 'd', text: 'Option D' },
+    ]
+    expect(ImportQuestionSchema.safeParse({ ...validQuestion, options }).success).toBe(false)
+  })
+
+  it('rejects when question_text exceeds the 10000-character cap', () => {
+    expect(
+      ImportQuestionSchema.safeParse({ ...validQuestion, question_text: 'x'.repeat(10001) })
+        .success,
+    ).toBe(false)
+  })
+
   it('rejects an unrecognised difficulty value', () => {
     expect(
       ImportQuestionSchema.safeParse({ ...validQuestion, difficulty: 'very_hard' }).success,

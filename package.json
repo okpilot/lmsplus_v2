@@ -28,6 +28,7 @@
     "turbo": "^2.9.16",
     "typescript": "^6.0.3"
   },
+  "//pnpm-overrides": "Security/dedup pins. esbuild>=0.28.1 keeps the whole toolchain (vite, webpack, tsx) on the single esbuild version the lockfile already resolves, above the GHSA-67mh-4wv8-2f99 fix line (0.25.0); the floor also avoids a split esbuild graph that pnpm audit / dedupe would flag.",
   "pnpm": {
     "overrides": {
       "undici": ">=7.24.0 <8",
