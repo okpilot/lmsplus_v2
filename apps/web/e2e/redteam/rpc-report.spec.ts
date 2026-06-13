@@ -137,18 +137,23 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
   })
 
   test("positive: a completed session with one answer returns that question's correct-option key", async () => {
-    // Derive a real question + its correct option id from the DB — never hardcode
-    // the letter (the correct option varies per question). Prefer the spec's
-    // subject; fall back to any active org question so the test is resilient to
-    // fixture drift. get_report_correct_options derives the key from the question's
-    // options (the option whose `correct: true`), independent of selected_option_id.
+    // Derive a real MC question + its correct option id from the DB — never
+    // hardcode the letter (the correct option varies per question). Prefer the
+    // spec's subject; fall back to any active org MC question so the test is
+    // resilient to fixture drift. Since #823 (mig 109) the answer key lives in the
+    // REVOKE-gated questions.correct_option_id column (stripped out of options[]),
+    // so the service-role admin client reads correct_option_id directly here.
+    // get_report_correct_options likewise derives the key from correct_option_id,
+    // independent of selected_option_id.
     const baseQuery = () =>
       admin
         .from('questions')
-        .select('id, options')
+        .select('id, correct_option_id')
         .eq('organization_id', orgId)
+        .eq('question_type', 'multiple_choice')
         .eq('status', 'active')
         .is('deleted_at', null)
+        .not('correct_option_id', 'is', null)
         .order('id', { ascending: true })
         .limit(1)
 
@@ -159,31 +164,27 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
       expect(fallback.error).toBeNull()
       // Surface which path ran so a CI pass with an out-of-subject question is visible.
       console.warn(
-        '[rpc-report positive] no subject-scoped question; using any active org question',
+        '[rpc-report positive] no subject-scoped MC question; using any active org MC question',
       )
     }
     const question = subjectScoped.data ?? fallback?.data ?? null
     expect(question).not.toBeNull()
 
     const questionId = question?.id as string
-    // options is JSONB — narrow before indexing (code-style §5 runtime guard).
-    const options = Array.isArray(question?.options)
-      ? (question?.options as { id?: string; correct?: boolean }[])
-      : []
-    const correctOptionId = options.find((o) => o.correct === true)?.id
+    const correctOptionId = question?.correct_option_id as string | null
     // Guard AND narrow (code-style §5): the insert below targets NOT NULL columns,
-    // so a `string | undefined` must not flow through. The throw narrows the TS type
+    // so a `string | null` must not flow through. The throw narrows the TS type
     // to `string` for the insert and the final assertion, and fails the test with a
-    // clear message if no active question with a correct option exists.
+    // clear message if no active MC question with a correct_option_id exists.
     if (typeof questionId !== 'string' || typeof correctOptionId !== 'string') {
-      throw new Error('rpc-report positive: no active question with a correct option id found')
+      throw new Error('rpc-report positive: no active MC question with a correct_option_id found')
     }
 
     // Seed a completed session scoped to that single question, then insert exactly
     // one answer row. quiz_session_answers is immutable (append-only) — service-role
     // insert only. selected_option_id satisfies the CHECK ('a'..'d') because option
     // ids are letters; is_correct is cosmetic here (the RPC derives the key from the
-    // question's options, not the submitted answer).
+    // question's correct_option_id column, not the submitted answer).
     const sessionId = await seedSession({ completed: true, questionIds: [questionId] })
     const { error: answerErr } = await admin.from('quiz_session_answers').insert({
       session_id: sessionId,

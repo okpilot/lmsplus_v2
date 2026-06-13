@@ -248,20 +248,38 @@ Verified repo-wide at promotion (2026-05-26): the only offender was `get_student
 
 ## 4. Correct Answer Stripping (Critical)
 
-**The `options` JSONB field contains `"correct": true/false`. This MUST NEVER reach a student's browser during an active session.**
+**Multiple-choice answer keys are now stored in the `correct_option_id` column (mig 109, #823), not in the `options` JSONB. The `options` field stores only `{id, text}` — the `correct` key is stripped on every write by a trigger. This MUST NEVER reach a student's browser during an active session.**
 
-### The Problem
+### The Problem (Pre-Mig-109)
 ```jsonc
-// What's in the database — never send this to a student mid-quiz
+// OLD: stored in JSONB (mig 094 and earlier)
 {
   "options": [
     { "id": "a", "text": "Cumulus", "correct": false },
-    { "id": "b", "text": "Nimbostratus", "correct": true },  // ← exposed!
+    { "id": "b", "text": "Nimbostratus", "correct": true },  // ← exposed if leaked!
     { "id": "c", "text": "Cirrus", "correct": false },
     { "id": "d", "text": "Altocumulus", "correct": false }
   ]
 }
 ```
+
+### The Fix (Post-Mig-109): Dedicated Column + Trigger
+```jsonc
+// NEW: stored in dedicated column (mig 109)
+{
+  "correct_option_id": "b",  // ← privilege-layer REVOKE-gated
+  "options": [
+    { "id": "a", "text": "Cumulus" },
+    { "id": "b", "text": "Nimbostratus" },
+    { "id": "c", "text": "Cirrus" },
+    { "id": "d", "text": "Altocumulus" }
+  ]
+}
+```
+
+The `correct_option_id` column is **protected by two layers:**
+1. **Privilege layer (mig 109):** `REVOKE SELECT (correct_option_id) ON questions FROM authenticated` — direct PostgREST reads return 42501.
+2. **Trigger (mig 109):** `trg_sanitize_question_options` strips any stray `correct` key on every write (defense-in-depth for raw SQL/PostgREST writes that bypass the app layer).
 
 ### The Fix: Server-Side RPC
 
@@ -318,15 +336,21 @@ $$;
 
 Correct answers are only fetched server-side when validating a submitted answer, never returned to the client during an active session.
 
-### Post-Session Exception
+### Post-Session Exception: Report RPCs (Mig 109, #823)
 
-Post-session report queries (e.g., `getQuizReport()`) may read the `correct` field from questions server-side, provided:
+Post-session report queries may read the `correct_option_id` from questions server-side, provided:
 
 1. The query verifies the session is **completed** (`ended_at IS NOT NULL` — student has already answered all questions)
-2. The `correct` boolean is **stripped before returning** — the client receives only `correctOptionId` (a single ID) and options without the `correct` field
+2. The correct option ID is returned only as a scalar (`a`, `b`, `c`, or `d`) — never as a boolean or nested in options
 3. The query runs in a **Server Component** (data never hits the client as raw DB rows)
 
-**Implementation:** Use `get_report_correct_options()` RPC to fetch correct option IDs (not the raw boolean). The RPC internally reads the `correct` field and returns only the ID, so the TypeScript layer never touches the boolean field.
+**Implementation:** Use `get_report_correct_options()` (mig 112) or `get_vfr_rt_exam_results()` (mig 113) RPCs to fetch correct option IDs. These RPCs:
+- Require `ended_at IS NOT NULL` or `session already ended` checks before reading the key
+- Return the option ID only (not the full row with the column exposed)
+- Run as `SECURITY DEFINER` (postgres owner), which bypasses the privilege-layer REVOKE
+- Enforce student/owner scoping in SQL so the caller cannot read another student's answers
+
+**Why it's safe:** The privilege layer (`REVOKE SELECT (correct_option_id)`) prevents accidental exposure via direct PostgREST reads (42501 on `.select('correct_option_id')`). The RPC-only path means the answer key reaches the client **only after the session ends**, when feedback is intended. Direct `SELECT *` from `questions` never returns `correct_option_id` anyway — it's not in the `authenticated` role's granted columns.
 
 This is intentional feedback — showing which answer was correct after the student has answered is the core learning loop, not a data leak.
 
@@ -609,8 +633,9 @@ These two **LOW-severity** vectors from the exam-mode red-team review (issue #51
 **Rule:** Answer-key columns on questions are critical — they must never be exposed to students. RLS cannot restrict columns, only rows. Apply Postgres privilege layer as a second defense:
 
 ```sql
--- Questions table answer-key columns (mig 094):
--- canonical_answer, accepted_synonyms, dialog_template, blanks_config
+-- Questions table answer-key columns (mig 094, mig 109):
+-- canonical_answer, accepted_synonyms, dialog_template, blanks_config (short_answer & dialog_fill keys)
+-- correct_option_id (multiple_choice key, added in mig 109 / #823)
 -- These are readable by SECURITY DEFINER RPCs (postgres owner) and service role (admin scripts).
 -- For authenticated role (students + admins): REVOKE SELECT on these columns.
 
@@ -619,13 +644,15 @@ GRANT SELECT (
   id, organization_id, bank_id, subject_id, topic_id, subtopic_id,
   lo_reference, question_number, question_text, question_image_url,
   options, explanation_text, explanation_image_url,
-  difficulty, status, version, question_type,
+  difficulty, status, version, question_type, has_calculations,
   created_by, deleted_at, deleted_by, created_at, updated_at
 ) ON questions TO authenticated;
--- canonical_answer, accepted_synonyms, dialog_template, blanks_config are omitted.
+-- canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id are omitted.
 ```
 
-**Consequence:** A direct `.select('canonical_answer')` or `.select('*')` from an authenticated client returns `42501 (permission denied for column)` before RLS evaluation. Admins read answer-key columns through the `get_question_authoring_fields()` RPC (mig 094b, is_admin()-gated).
+**Consequence:** A direct `.select('correct_option_id')`, `.select('canonical_answer')`, or `.select('*')` from an authenticated client returns `42501 (permission denied for column)` before RLS evaluation. Admins read answer-key columns through the `get_question_authoring_fields()` RPC (mig 094b / 114, is_admin()-gated). Students read the correct option ID post-session only via `get_report_correct_options()` and `get_vfr_rt_exam_results()` RPCs (mig 112 / 113, #823), which are gated to `ended_at IS NOT NULL` (completed sessions only).
+
+**Rationale for relocation (mig 109, #823):** The MC answer key was originally stored as `correct: boolean` inside the `options` JSONB array. Column-level REVOKE cannot target keys nested in JSONB, only top-level columns. Moving the key to a dedicated `correct_option_id` column allows the privilege layer to protect it consistently alongside the other answer-key columns. The `options` column no longer carries `correct`; a trigger (`trg_sanitize_question_options`) strips it on every write.
 
 **Precedent:** Mig 20260605000001 applied the same pattern to `quiz_sessions` scoring columns (`ended_at`, `correct_count`, `score_percentage`, `passed`) — students cannot UPDATE them directly, only SECURITY DEFINER RPCs can write scores. The `questions` column REVOKE/GRANT extends this pattern from write-protection to read-protection.
 

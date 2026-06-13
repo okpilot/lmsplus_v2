@@ -183,7 +183,8 @@ CREATE TABLE questions (
   lo_reference    TEXT NULL,                   -- 'MET 3.2.1'
   question_text   TEXT NOT NULL,
   question_image_url TEXT NULL,
-  options         JSONB NOT NULL DEFAULT '[]'::jsonb,  -- [{id,text,correct}] — correct stripped by student question-read RPCs (get_quiz_questions, get_vfr_rt_exam_questions)
+  correct_option_id TEXT NULL,                  -- MC answer key (option id a-d). NULL for non-MC. REVOKE-gated: read via get_question_authoring_fields() (mig 109, #823)
+  options         JSONB NOT NULL DEFAULT '[]'::jsonb,  -- [{id,text}] — correct field stripped on write by trg_sanitize_question_options (mig 109). MC key moved to correct_option_id column.
   explanation_text TEXT NOT NULL,
   explanation_image_url TEXT NULL,
   difficulty      TEXT NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
@@ -217,11 +218,19 @@ CREATE TABLE questions (
        AND accepted_synonyms = '{}'::TEXT[]
        AND dialog_template IS NOT NULL
        AND jsonb_array_length(blanks_config) > 0)
+  ),
+  CONSTRAINT questions_mc_correct_option_id_check CHECK (
+    (question_type = 'multiple_choice')
+      = (correct_option_id IS NOT NULL AND correct_option_id IN ('a', 'b', 'c', 'd'))
   )
 );
 ```
 
-**Column-level SELECT gate (mig 094):** The four answer-key columns (`canonical_answer`, `accepted_synonyms`, `dialog_template`, `blanks_config`) are REVOKED from the `authenticated` role (students and admins). Both answer tables and all grading RPCs run as `postgres` (SECURITY DEFINER owner), which is unaffected. Admin authoring reads go through `get_question_authoring_fields()` RPC (mig 094b, is_admin()-gated). The privilege layer defense mirrors the `quiz_sessions` column-GRANT pattern (mig 20260605000001). A direct `.select('*')` or `.select('canonical_answer, ...')` from an authenticated client returns 42501 (permission denied). Because the gate re-GRANTs an explicit column list, any column added after mig 094 must be granted to `authenticated` separately or SECURITY INVOKER readers fail with 42501 — `has_calculations` (mig 107) adds `GRANT SELECT (has_calculations) ON questions TO authenticated` so the SECURITY INVOKER `_filtered_question_pool` can read it (#837).
+**Column-level SELECT gate (mig 094, mig 109):** Five answer-key columns are REVOKED from the `authenticated` role (students and admins):
+- `canonical_answer`, `accepted_synonyms`, `dialog_template`, `blanks_config` (short-answer & dialog-fill keys, mig 094)
+- `correct_option_id` (multiple-choice key, mig 109, #823)
+
+All grading RPCs run as `postgres` (SECURITY DEFINER owner), which is unaffected. Admin authoring reads go through `get_question_authoring_fields()` RPC (mig 094b / 114, is_admin()-gated). The privilege layer defense mirrors the `quiz_sessions` column-GRANT pattern (mig 20260605000001). A direct `.select('*')` or `.select('correct_option_id, ...')` from an authenticated client returns 42501 (permission denied). Because the gate re-GRANTs an explicit column list, any column added after mig 094 must be granted to `authenticated` separately or SECURITY INVOKER readers fail with 42501 — `has_calculations` (mig 107) adds `GRANT SELECT (has_calculations) ON questions TO authenticated` so the SECURITY INVOKER `_filtered_question_pool` can read it (#837). Migration 109 does NOT add `correct_option_id` to the grant list, so it remains privileged.
 
 **Indexes:** Partial index on `(question_type, subject_id)` WHERE `deleted_at IS NULL AND status = 'active'` supports VFR RT part-based sampling (mig 094).
 
@@ -694,11 +703,11 @@ Use Postgres functions (RPCs) for:
 ```
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
-  get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped)
-  get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin())
+  get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped); reads from questions.correct_option_id (mig 112, #823)
+  get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin()); reads from questions.correct_option_id (mig 112, #823)
   check_quiz_answer                ← read, verify answer + return explanation (immediate feedback)
-  submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct
-  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092)
+  submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; reads from questions.correct_option_id (mig 110, #823)
+  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092); reads from questions.correct_option_id for MC grading (mig 110b, #823)
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500)
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; maps unique_violation to friendly domain error (mig 088, #754); returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
@@ -711,9 +720,9 @@ verb_noun pattern:
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099)
   get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for a caller-owned vfr_rt_exam session (p_session_id); derives question IDs server-side from the session's frozen config.question_ids, callable in-flight AND post-exam; strips canonicals/synonyms/dialog_template details + explanation fields, shuffles MC options (mig 099b; session-derived signature + explanation strip in mig 105, #833/#840)
-  submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank, compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session
-  get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (explanations ride along here; note explanation columns also remain in the mig 094 column GRANT and are PostgREST-readable, privilege-layer rework tracked in the #823 family)
-  get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b)
+  submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank, compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session; reads from questions.correct_option_id for MC grading (mig 111, #823)
+  get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (reads from questions.correct_option_id, mig 113, #823)
+  get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b / 114, #823); returns correct_option_id for MC questions
   normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics); used by submit_vfr_rt_exam_answers + complete_overdue_exam_session for vfr_rt_exam grading (mig 101)
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED for new code — use batch_submit_quiz; still supported for legacy modes (smart_review, quick_quiz, mock_exam, internal_exam); last_active_at now stamped by trigger on all completion paths, mig 092; legacy-mode whitelist rejects vfr_rt_exam with unsupported_session_mode, mig 104 #838; active-user gate rejects soft-deleted callers + FOR UPDATE session lock against double-completion, mig 104 PR #830)
   soft_delete_question       ← write, sets deleted_at
@@ -828,10 +837,11 @@ $$;
 
 This RPC is superseded by `batch_submit_quiz` for new code. Kept for backwards compatibility.
 
-**Security (migration 036):**
+**Security (migration 036, updated mig 110 #823):**
 - Validates `p_question_id` is in the session's `config.question_ids` (migration 033). Prevents submitting answers for questions outside the session's question set.
 - Soft-delete guard: `deleted_at IS NULL` prevents submitting to a discarded (soft-deleted) session.
-- Option membership validation: verifies `p_selected_option` exists in the question's options JSONB array. Prevents attackers from submitting arbitrary strings as option IDs.
+- Option membership validation: verifies `p_selected_option` exists in the question's options JSONB array (which no longer carries `correct`, stripped by `trg_sanitize_question_options`). Prevents attackers from submitting arbitrary strings as option IDs.
+- Correctness check: reads `questions.correct_option_id` (mig 110 #823) instead of the old JSONB scan of options[].correct. Compares `p_selected_option` against `correct_option_id` to derive `is_correct`.
 - Mode whitelist (migration 095b, #838; narrowed in PR #830 cloud-CR review): rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`) with `unsupported_session_mode`. This RPC returns `is_correct`/`explanation`/`correct_option_id` immediately, so accepting exam-mode sessions would be a mid-exam answer oracle — exam submission goes exclusively through `batch_submit_quiz`; `vfr_rt_exam` goes through `submit_vfr_rt_exam_answers` (per-part grading, mig 100). Fail-closed: future modes must opt in explicitly.
 - Active-user gate (migration 095b, PR #830 cloud-CR review): soft-deleted callers are rejected with `user not found or inactive` right after the auth check, before any session read — mirrors `batch_submit_quiz` (mig 095c).
 
@@ -2553,6 +2563,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 | `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021; `SET search_path = public` added in `20260430000007` — closes #588; `20260430000011` adds `pg_advisory_xact_lock(hashtext(NEW.student_id::text))` to serialize the 20-draft cap check under concurrency — PR #599 CR root-cause fix) |
 | `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 | `trg_block_exam_config_reactivation` | `exam_configs` | Blocks `UPDATE SET deleted_at = NULL` (unconditional — no role exemption); enforces that reactivation goes through `upsert_exam_config`, whose UPDATE branch never writes `deleted_at` (mig 089, #755) |
+| `trg_sanitize_question_options` | `questions` | BEFORE INSERT OR UPDATE OF `options`: strips any `correct` key from the options JSONB, rebuilding the array as `{id,text}` only. Defense-in-depth: guarantees the MC answer key never re-enters the readable JSONB (it lives in `correct_option_id` column, mig 109, #823). Fires on every write, including raw PostgREST updates that bypass the app-layer Zod contract. |
 | `trg_stamp_last_active_on_session_complete` | `quiz_sessions` | AFTER UPDATE OF `ended_at`: stamps `users.last_active_at = now()` on the NULL→NOT NULL transition, guarded to the student who owns the session (`auth.uid() = NEW.student_id`). Fires on all four student-completion paths (`batch_submit_quiz`, `complete_overdue_exam_session`, `complete_empty_exam_session`, deprecated `complete_quiz_session`), and is skipped on admin voids (`void_internal_exam_code` with `auth.uid() = admin`). Centralizes the stamp operation outside of RPC bodies, closing the bug where only the deprecated path updated activity (mig 092, #532). |
 
 ---
