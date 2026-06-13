@@ -705,7 +705,7 @@ verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
   get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped); reads from questions.correct_option_id (mig 112, #823)
   get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin()); reads from questions.correct_option_id (mig 112, #823)
-  check_quiz_answer                ← read, verify answer + return explanation (immediate feedback)
+  check_quiz_answer                ← read, verify answer + return explanation (immediate feedback); reads from questions.correct_option_id (mig 115, #823)
   submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; reads from questions.correct_option_id (mig 110, #823)
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092); reads from questions.correct_option_id for MC grading (mig 110b, #823)
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500)
