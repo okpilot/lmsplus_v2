@@ -56,6 +56,7 @@ Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema
 | Identical type union declared in N Server Action files instead of extracted to lib/ | 2 | 2026-06-07 | WATCHING (count 2) — QuestionFilter + ActionResult both required retroactive sweeps. On 3rd: propose code-style.md §4 rule. … [full → topics/tracker-archive.md] |
 | CR local suggests wrong fix rejected on a documented architectural decision | 2 | 2026-06-10 | RULE CANDIDATE — (1) VFR RT Phase A: CR suggested question-level correct_count, contradicts row-level decision; (2) #838 cycle: same suggestion re-raised. On 3rd: propose .coderabbit.yaml path-scope context note. … [full → topics/tracker-archive.md] |
 | Test-writer agent generates cleanup/restore mutation without `{ error }` destructure | 2 | 2026-06-10 | RULE CANDIDATE — (1) 13fa0249; (2) 50c81b94 (#838). Finally-block cleanup path not covered by §5 in agent-generated code. Propose note to test-writer/MEMORY.md. … [full → topics/tracker-archive.md] |
+| `as unknown as T` cast without runtime guard in test helper / integration test (§5) | 2 | 2026-06-13 | RULE CANDIDATE — (1) #818 `expectWithinTimeSubmitContract` helper (impl-critic); (2) #845 `AnswerRow[]` cast in integration test (semantic-reviewer). §5 rule already mandates guard pairing but test files treated as exempt. Propose note to code-style.md §5: "§5 cast-guard applies equally to test helpers and integration test assertions — test files are not exempt." … [full → topics/tracker-archive.md] |
 
 ## Count=1 WATCHING rows
 
@@ -69,7 +70,7 @@ New WATCHING rows added this cycle (#849):
 - Plan cites superseded RLS policy (DROP POLICY + CREATE POLICY chain not traced forward) — plan-critic caught orchestrator citing mig 043 USING clause; binding policy is mig 050. Full row in archive.
 - Asymmetric afterAll guard variable initialization (victimUserId lacking '' initializer vs attackerUserId = '') — semantic-reviewer ISSUE; undefined filter in cleanup on beforeAll failure. Full row in archive.
 New WATCHING rows added this cycle (#818):
-- `as unknown as T` cast without runtime guard in test contract helper (impl-critic §5 catch, `expectWithinTimeSubmitContract` — applied typeof/Array.isArray guard). Full row in archive.
+- `as unknown as T` cast without runtime guard in test contract helper (impl-critic §5 catch, `expectWithinTimeSubmitContract` — applied typeof/Array.isArray guard). **PROMOTED to live table at count=2 (#845 cycle).** Full row in archive.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
