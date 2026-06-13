@@ -103,8 +103,16 @@ BEGIN
     END IF;
 
     -- One entry per (question_id, blank_index) — blank_index NULL for MC/short.
+    -- Canonicalize numeric blank_index to integer text so "1" and "01" collide in this
+    -- guard, matching the integer cast at insert time (v_blank_text::int, below). Without
+    -- this they slip past the check and silently collapse at ON CONFLICT (#856, CR-local).
     IF (
-      SELECT count(*) <> count(DISTINCT lower(coalesce(e->>'question_id', '')) || '#' || coalesce(e->>'blank_index', ''))
+      SELECT count(*) <> count(DISTINCT lower(coalesce(e->>'question_id', '')) || '#' || coalesce(
+        CASE
+          WHEN e ? 'blank_index' AND (e->>'blank_index') ~ '^\d{1,4}$'
+            THEN ((e->>'blank_index')::int)::text
+          ELSE e->>'blank_index'
+        END, ''))
       FROM jsonb_array_elements(p_answers) AS e
     ) THEN
       RAISE EXCEPTION 'duplicate_answer_entry';
