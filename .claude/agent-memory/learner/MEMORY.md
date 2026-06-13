@@ -59,17 +59,19 @@ Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema
 
 ## Count=1 WATCHING rows
 
-All count=1 WATCHING rows live in `topics/tracker-archive.md` only (moved 2026-06-10 to respect the count≥2 live-table spec). New WATCHING rows added this cycle:
+All count=1 WATCHING rows live in `topics/tracker-archive.md` only (moved 2026-06-10 to respect the count≥2 live-table spec). New WATCHING rows added this cycle (#851):
 - Shell script parsing LLM output for a gate decision via exact-string match — fails open on prose-wrapped token (#832, f7ec4a11; fail-closed parse_verdict fix). Full row in archive.
 - CLAUDE.md QA-pipeline section claims pre-commit runs unit tests; lefthook.yml has unit-test step intentionally commented out (#833/#840 cycle). Full row in archive.
 - Blueprint RPC `STABLE`/`VOLATILE` annotation carried verbatim into cloned variant without verifying correctness for the new RPC's semantics (#833/#840 cycle: ORDER BY random() annotated STABLE from 099b). Full row in archive.
 - Newly-published transitive-dep advisory causes `pnpm audit --audit-level=high` pre-push hook to block all pushes mid-run; fix = bounded pnpm override pin mirroring existing pattern (chore/esbuild-0281-audit-fix, f02a3a87). Full row in archive.
+- Stale in-file spec file-header test-count after adding a test case to an existing spec (#851, 680c77e4). Full row in archive.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
 | Doc migration-range footer literal stale across multiple doc surfaces | 1 | 2026-06-10 | WATCHING — #838 cycle: database.md footer 094–103→094–104 (round 1), decisions.md same drift (round 2). Two doc surfaces, one PR = 1 occurrence. On 2nd (different PR): propose doc-updater note to grep migration-range footer literals when adding a migration. … [full → topics/tracker-archive.md] |
 | Mode/role whitelist evaluated mechanically without checking admitted values vs. output sensitivity | 1 | 2026-06-10 | WATCHING — fce9a871: internal agents verified whitelist rejects vfr_rt (correct) but not whether admitted exam modes are compatible with is_correct/correct_option_id output. Cloud CR caught the answer-oracle gap. On 2nd: propose semantic-reviewer note — check each admitted value against RPC output sensitivity. … [full → topics/tracker-archive.md] |
 | Mechanism-pin suggestion applied then reversed next cycle (premature pin churn) | 1 | 2026-06-10 | WATCHING — fce9a871: actor_role assertion pinned at CR suggestion, reverted one cycle later when explicit gate landed. Single occurrence; no prevention signal visible at pin time. On 2nd: look for mechanism change pending in same session. … [full → topics/tracker-archive.md] |
+| Stale in-file spec file-header test-count after adding a test case | 1 | 2026-06-13 | WATCHING — #851, 680c77e4: rpc-cross-tenant-isolation.spec.ts header had `// 13 tests`; adding Vector DX left it stale at 13→14; caught by PR-level semantic sweep (not per-commit doc-updater). Distinct from "Red-team spec-count prose drift" (that rule covers external doc surfaces: tech.md, decisions.md). This is an in-file `//N tests` header comment in the spec itself. On 2nd (different spec file or PR): propose adding to agent-doc-updater.md or code-style.md §7 — "when adding a test case to a spec with a file-header test-count comment, update the count in the same commit." … [full → topics/tracker-archive.md] |
 
 ## Durable knowledge (cross-agent)
 
