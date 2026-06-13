@@ -47,8 +47,17 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
       return
     }
     startTransition(async () => {
-      const { correctOptionId } = await getCorrectOption(question.id)
-      h.setCorrectOptionId(toCorrectOptionId(correctOptionId))
+      try {
+        const { correctOptionId } = await getCorrectOption(question.id)
+        h.setCorrectOptionId(toCorrectOptionId(correctOptionId))
+      } catch (err) {
+        // A network/infra failure reaching the Server Action can reject. Open the
+        // dialog anyway (degraded) so editing isn't blocked — the admin re-selects
+        // the correct answer, which the Zod schema requires before save.
+        console.error('[QuestionFormDialog] getCorrectOption failed:', err)
+        toast.error('Could not load the saved correct answer — please re-select it.')
+        h.setCorrectOptionId('')
+      }
       setOpen(true)
     })
   }

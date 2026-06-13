@@ -55,6 +55,10 @@ BEGIN
 END;
 $$;
 
+-- Re-assert the student EXECUTE grant explicitly (CREATE OR REPLACE preserves the
+-- prior grant, but make it survive a future DROP+CREATE and mirror the admin RPC).
+GRANT EXECUTE ON FUNCTION public.get_report_correct_options(uuid) TO authenticated;
+
 -- RPC: get_admin_report_correct_options
 -- Allows admins to retrieve correct options for any completed quiz session
 -- within their organization. Mirrors get_report_correct_options but uses
