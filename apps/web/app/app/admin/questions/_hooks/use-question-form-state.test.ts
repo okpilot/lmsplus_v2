@@ -77,7 +77,7 @@ describe('useQuestionFormState', () => {
       expect(result.current.state.correctOptionId).toBe('')
     })
 
-    it('updates correctOptionId via its setter', () => {
+    it('updates the selected answer key when a new option is chosen', () => {
       const { result } = renderHook(() => useQuestionFormState(undefined, true))
 
       act(() => {

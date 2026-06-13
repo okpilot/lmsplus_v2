@@ -174,6 +174,22 @@ describe('upsertQuestion', () => {
       expect(result.error).toBe('Invalid input')
     })
 
+    it('returns failure when option ids are not unique', async () => {
+      const result = await upsertQuestion({
+        ...VALID_INPUT,
+        options: [
+          { id: 'a', text: 'Option A' },
+          { id: 'a', text: 'Option A duplicate' },
+          { id: 'b', text: 'Option B' },
+          { id: 'c', text: 'Option C' },
+        ],
+        correct_option_id: 'a',
+      })
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Invalid input')
+    })
+
     it('returns failure when difficulty is not a valid enum value', async () => {
       const result = await upsertQuestion({ ...VALID_INPUT, difficulty: 'extreme' })
       expect(result.success).toBe(false)
@@ -203,7 +219,7 @@ describe('upsertQuestion', () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/questions')
     })
 
-    it('passes correct_option_id through to the inserted question payload', async () => {
+    it('includes correct_option_id in the created question', async () => {
       mockAdmin()
       buildInsertChain()
 

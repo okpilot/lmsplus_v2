@@ -1,7 +1,6 @@
 'use client'
 
 import type { ReactElement } from 'react'
-import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,53 +13,22 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import type { SyllabusTree } from '../../syllabus/types'
+import { useCorrectOptionLoader } from '../_hooks/use-correct-option-loader'
 import { useQuestionFormState } from '../_hooks/use-question-form-state'
-import { getCorrectOption } from '../actions/get-correct-option'
 import { upsertQuestion } from '../actions/upsert-question'
 import type { QuestionRow } from '../types'
 import { QuestionFormFields } from './question-form-fields'
 
 type Props = { tree: SyllabusTree; question?: QuestionRow; trigger: ReactElement }
 
-function toCorrectOptionId(value: string | null): 'a' | 'b' | 'c' | 'd' | '' {
-  return value === 'a' || value === 'b' || value === 'c' || value === 'd' ? value : ''
-}
-
 export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>) {
   const isEdit = !!question
-  const [open, setOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const { open, setOpen, isPending, startTransition, handleOpenChange } = useCorrectOptionLoader({
+    questionId: question?.id,
+    isEdit,
+    getSetCorrectOptionId: () => h.setCorrectOptionId,
+  })
   const { state: s, handlers: h } = useQuestionFormState(question, open)
-
-  // The MC answer key is REVOKE-gated (#823) and absent from the list query, so
-  // it must be fetched on demand for edit mode. We fetch in the open transition
-  // (trigger click) — NOT useEffect — and seed it BEFORE opening so the radio
-  // renders already-selected (no unselected flash). New questions open instantly.
-  function handleOpenChange(next: boolean) {
-    if (isPending) return
-    if (!next) {
-      setOpen(false)
-      return
-    }
-    if (!isEdit) {
-      setOpen(true)
-      return
-    }
-    startTransition(async () => {
-      try {
-        const { correctOptionId } = await getCorrectOption(question.id)
-        h.setCorrectOptionId(toCorrectOptionId(correctOptionId))
-      } catch (err) {
-        // A network/infra failure reaching the Server Action can reject. Open the
-        // dialog anyway (degraded) so editing isn't blocked — the admin re-selects
-        // the correct answer, which the Zod schema requires before save.
-        console.error('[QuestionFormDialog] getCorrectOption failed:', err)
-        toast.error('Could not load the saved correct answer — please re-select it.')
-        h.setCorrectOptionId('')
-      }
-      setOpen(true)
-    })
-  }
 
   function handleSubmit() {
     startTransition(async () => {

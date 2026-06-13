@@ -6,8 +6,10 @@ vi.mock('./syllabus-cascader', () => ({
   SyllabusCascader: () => <div data-testid="syllabus-cascader" />,
 }))
 
+const answerKeyFieldSpy = vi.fn((_props: unknown) => <div data-testid="answer-key-field" />)
+
 vi.mock('./answer-key-field', () => ({
-  AnswerKeyField: () => <div data-testid="answer-key-field" />,
+  AnswerKeyField: (props: unknown) => answerKeyFieldSpy(props),
 }))
 
 vi.mock('./image-upload-field', () => ({
@@ -62,6 +64,8 @@ const OPTIONS: QuestionOption[] = [
 describe('QuestionFormFields', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    // resetAllMocks() clears the spy's implementation; restore the render output.
+    answerKeyFieldSpy.mockImplementation(() => <div data-testid="answer-key-field" />)
   })
 
   it('renders without crashing when given all required props', () => {
@@ -103,6 +107,56 @@ describe('QuestionFormFields', () => {
     expect(screen.getByTestId('answer-key-field')).toBeInTheDocument()
     expect(screen.getByTestId('difficulty-status-select')).toBeInTheDocument()
     expect(screen.getAllByTestId('image-upload-field')).toHaveLength(2)
+  })
+
+  it('forwards the answer-key props to the answer-key editor', () => {
+    const onOptionsChange = vi.fn()
+    const onCorrectOptionChange = vi.fn()
+    render(
+      <QuestionFormFields
+        tree={TREE}
+        subjectId={undefined}
+        topicId={undefined}
+        subtopicId={null}
+        questionNumber=""
+        loReference=""
+        questionText=""
+        options={OPTIONS}
+        correctOptionId="b"
+        explanationText=""
+        questionImageUrl={null}
+        explanationImageUrl={null}
+        difficulty="medium"
+        status="active"
+        hasCalculations={false}
+        isPending={false}
+        onSubjectChange={vi.fn()}
+        onTopicChange={vi.fn()}
+        onSubtopicChange={vi.fn()}
+        onQuestionNumberChange={vi.fn()}
+        onLoReferenceChange={vi.fn()}
+        onQuestionTextChange={vi.fn()}
+        onOptionsChange={onOptionsChange}
+        onCorrectOptionChange={onCorrectOptionChange}
+        onExplanationTextChange={vi.fn()}
+        onQuestionImageChange={vi.fn()}
+        onExplanationImageChange={vi.fn()}
+        onDifficultyChange={vi.fn()}
+        onStatusChange={vi.fn()}
+        onHasCalculationsChange={vi.fn()}
+      />,
+    )
+
+    const forwarded = answerKeyFieldSpy.mock.calls.at(-1)?.[0]
+    expect(forwarded).toEqual(
+      expect.objectContaining({
+        options: OPTIONS,
+        correctOptionId: 'b',
+        isPending: false,
+        onOptionsChange,
+        onCorrectOptionChange,
+      }),
+    )
   })
 
   it('renders question number and LO reference inputs with supplied values', () => {
