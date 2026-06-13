@@ -215,6 +215,66 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
+  test('start_vfr_rt_exam_session rejects unauthenticated callers (Vector DN1, #825)', async () => {
+    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not_authenticated'
+    // (mig 099) before the exam_config lookup. knownSubjectId is REAL so the
+    // rejection is the auth guard, not a missing-subject path.
+    const { data, error } = await unauthClient.rpc('start_vfr_rt_exam_session', {
+      p_subject_id: knownSubjectId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('get_vfr_rt_exam_questions rejects unauthenticated callers (Vector DO1, #825)', async () => {
+    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not_authenticated'
+    // (mig 105 — the session-derived (p_session_id) signature) before the
+    // session/questions read, so the session id need not exist.
+    const { data, error } = await unauthClient.rpc('get_vfr_rt_exam_questions', {
+      p_session_id: knownSessionId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('submit_vfr_rt_exam_answers rejects unauthenticated callers (Vector DQ1, #825)', async () => {
+    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not_authenticated'
+    // (mig 100) before the session-ownership SELECT and payload validation.
+    const { data, error } = await unauthClient.rpc('submit_vfr_rt_exam_answers', {
+      p_session_id: knownSessionId,
+      p_answers: [{ question_id: knownQuestionId, selected_option_id: 'a' }],
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('get_vfr_rt_exam_results rejects unauthenticated callers (Vector DR1, #825)', async () => {
+    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not_authenticated'
+    // (mig 103/106) before the ended_at-gated results read — so answer keys are
+    // never reachable by an anon caller.
+    const { data, error } = await unauthClient.rpc('get_vfr_rt_exam_results', {
+      p_session_id: knownSessionId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('get_question_authoring_fields rejects unauthenticated callers (Vector DT, #825)', async () => {
+    // SECURITY DEFINER; the auth.uid() IS NULL guard raises 'not authenticated'
+    // (mig 094b — note the SPACE, not the underscore the vfr_rt RPCs use) before
+    // the is_admin() check, so the answer-key columns are never reachable anon.
+    const { data, error } = await unauthClient.rpc('get_question_authoring_fields', {
+      p_question_id: knownQuestionId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
   test('get_random_question_ids returns an empty set for an unauthenticated caller (Vector CA, #689)', async () => {
     // SECURITY INVOKER → runs as the anon role. _filtered_question_pool reads
     // questions under tenant_isolation RLS; with auth.uid() NULL the org scope is

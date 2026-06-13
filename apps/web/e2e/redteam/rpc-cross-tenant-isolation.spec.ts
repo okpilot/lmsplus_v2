@@ -30,6 +30,10 @@ import {
 
 test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  // The cross-org caller's own org id — used by Vector DN2 to prove that org has
+  // NO exam_config for examSubjectId (so the rejection is org-scoping, not a
+  // config that happens to exist for the attacker's org).
+  let crossOrgUserOrgId = ''
   // A genuine is_admin() user in redteam-other-org — used by Vector DX to prove
   // admin_update_questions RLS blocks a cross-tenant write even for a real admin.
   let crossOrgAdminClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -55,6 +59,7 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     egmontOrgId = seed.orgId
     victimUserId = seed.victimUserId
     const crossOrgUser = await createCrossOrgUser()
+    crossOrgUserOrgId = crossOrgUser.orgId
     crossOrgClient = await createAuthenticatedClient(crossOrgUser.email, crossOrgUser.password)
     // Vector DX: a real admin in the OTHER org, to prove the cross-org write is
     // blocked by org-scoping (not merely by lack of the admin role).
@@ -294,6 +299,43 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     })
     expect(error).not.toBeNull()
     expect(error?.message ?? '').toMatch(/no exam configuration found/i)
+    expect(data ?? null).toBeNull()
+  })
+
+  test('Vector DN2 (#825): cross-org student cannot start a vfr_rt exam for an egmont subject', async () => {
+    // start_vfr_rt_exam_session (mig 099) scopes its exam_configs lookup to the
+    // CALLER's org (ec.organization_id = caller_org) with no vfr-specific flag,
+    // so the enabled egmont config seeded in beforeAll satisfies it for an egmont
+    // student but not for the cross-org caller → RAISE 'exam_config_required'.
+    // Non-vacuity (§7): assert egmont HAS the config AND the attacker's own org
+    // does NOT — so the rejection proves org-scoping, not a globally-absent or
+    // attacker-present config.
+    const { data: egmontConfig, error: egmontCfgErr } = await adminClient
+      .from('exam_configs')
+      .select('id')
+      .eq('id', examConfigId)
+      .eq('enabled', true)
+      .is('deleted_at', null)
+      .single()
+    expect(egmontCfgErr).toBeNull()
+    expect(egmontConfig).not.toBeNull()
+
+    const { data: crossOrgConfig, error: crossCfgErr } = await adminClient
+      .from('exam_configs')
+      .select('id')
+      .eq('organization_id', crossOrgUserOrgId)
+      .eq('subject_id', examSubjectId)
+      .eq('enabled', true)
+      .is('deleted_at', null)
+      .maybeSingle()
+    expect(crossCfgErr).toBeNull()
+    expect(crossOrgConfig).toBeNull()
+
+    const { data, error } = await crossOrgClient.rpc('start_vfr_rt_exam_session', {
+      p_subject_id: examSubjectId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/exam_config_required/i)
     expect(data ?? null).toBeNull()
   })
 
