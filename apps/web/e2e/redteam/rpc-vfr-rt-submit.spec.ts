@@ -105,15 +105,19 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC', () => {
     expect(error?.message ?? '').toMatch(/session_not_found_or_not_accessible/i)
     expect(data).toBeNull()
 
-    // Non-vacuous (§7): the victim session genuinely exists and the attacker's
-    // rejected call did NOT grade it — ended_at is still NULL.
+    // Non-vacuous (§7): the session is provably a VICTIM-owned vfr_rt_exam
+    // session (student_id + mode) that the attacker's rejected call did NOT
+    // grade (ended_at still NULL) — so the block is the student_id predicate
+    // refusing a real, gradable-by-its-owner session, not a missing/foreign row.
     const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
-      .select('ended_at')
+      .select('ended_at, student_id, mode')
       .eq('id', sessionId)
       .single()
     expect(readErr).toBeNull()
     expect(row).not.toBeNull()
+    expect(row?.student_id).toBe(victimUserId)
+    expect(row?.mode).toBe('vfr_rt_exam')
     expect(row?.ended_at).toBeNull()
   })
 
@@ -132,14 +136,18 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC', () => {
     expect(error?.message ?? '').toMatch(/session_not_found_or_not_accessible/i)
     expect(data).toBeNull()
 
-    // The mock_exam session is untouched — not graded by the vfr_rt RPC.
+    // Non-vacuous: the session is provably the attacker's OWN mock_exam session
+    // (student_id + mode) and is untouched (ended_at NULL) — so the rejection is
+    // the `mode = 'vfr_rt_exam'` filter, not an ownership failure.
     const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
-      .select('ended_at')
+      .select('ended_at, student_id, mode')
       .eq('id', sessionId)
       .single()
     expect(readErr).toBeNull()
     expect(row).not.toBeNull()
+    expect(row?.student_id).toBe(attackerUserId)
+    expect(row?.mode).toBe('mock_exam')
     expect(row?.ended_at).toBeNull()
   })
 })

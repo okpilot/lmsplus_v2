@@ -109,16 +109,19 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC', () => {
     expect(error?.message ?? '').toMatch(/session not found, not owned, or not completed/i)
     expect(data ?? null).toBeNull()
 
-    // Non-vacuous (§7): the session genuinely exists and is genuinely in the
-    // pre-completion state (ended_at NULL) — the rejection is the ended_at gate,
-    // not a missing row.
+    // Non-vacuous (§7): the session is provably a VICTIM-owned vfr_rt_exam
+    // session (student_id + mode) genuinely in the pre-completion state
+    // (ended_at NULL) — so the rejection is the ended_at answer-key gate, not a
+    // missing/foreign/wrong-mode row.
     const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
-      .select('id, ended_at')
+      .select('id, ended_at, student_id, mode')
       .eq('id', sessionId)
       .single()
     expect(readErr).toBeNull()
     expect(row).not.toBeNull()
+    expect(row?.student_id).toBe(victimUserId)
+    expect(row?.mode).toBe('vfr_rt_exam')
     expect(row?.ended_at).toBeNull()
   })
 
@@ -133,16 +136,19 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC', () => {
     expect(error?.message ?? '').toMatch(/session not found, not owned, or not completed/i)
     expect(data ?? null).toBeNull()
 
-    // Non-vacuous (§7): the victim session provably exists AND is completed
-    // (ended_at set) — so the attacker's 0-result is the student_id predicate
-    // blocking a real, readable-by-its-owner session, not an empty/ungraded row.
+    // Non-vacuous (§7): the session is provably a VICTIM-owned vfr_rt_exam
+    // session (student_id + mode) that is genuinely completed (ended_at set) —
+    // so the attacker's 0-result is the student_id predicate blocking a real,
+    // readable-by-its-owner session, not an empty/ungraded/foreign row.
     const { data: row, error: readErr } = await admin
       .from('quiz_sessions')
-      .select('id, ended_at')
+      .select('id, ended_at, student_id, mode')
       .eq('id', sessionId)
       .single()
     expect(readErr).toBeNull()
     expect(row).not.toBeNull()
+    expect(row?.student_id).toBe(victimUserId)
+    expect(row?.mode).toBe('vfr_rt_exam')
     expect(row?.ended_at).not.toBeNull()
   })
 })
