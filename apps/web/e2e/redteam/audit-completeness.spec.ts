@@ -39,6 +39,36 @@ import {
   seedRedTeamUsers,
 } from './helpers/seed'
 
+/**
+ * Assert the full within-time-limit `batch_submit_quiz` return contract (#818, §7).
+ * The success path (mig 20260610000450) returns the grade fields but NO `expired`
+ * key — only the past-grace path sets `expired: true` — so on a within-time submit
+ * `expired` must be `undefined` (the submit was NOT flagged expired), and the
+ * documented success payload must be present and well-typed.
+ */
+function expectWithinTimeSubmitContract(submitData: unknown, expectedAnswered: number): void {
+  // Runtime-guard the cast (§5): the RPC returns a jsonb object — fail loudly if
+  // the payload is null/array/primitive rather than silently asserting on undefined.
+  if (submitData === null || typeof submitData !== 'object' || Array.isArray(submitData)) {
+    throw new Error(
+      `expected a batch_submit_quiz object payload, got: ${JSON.stringify(submitData)}`,
+    )
+  }
+  const r = submitData as {
+    expired?: boolean
+    answered_count?: number
+    total_questions?: number
+    passed?: boolean
+    score_percentage?: number
+  }
+  expect(r.expired).toBeUndefined()
+  expect(r.answered_count).toBe(expectedAnswered)
+  expect(typeof r.total_questions).toBe('number')
+  expect(r.total_questions ?? 0).toBeGreaterThan(0)
+  expect(typeof r.passed).toBe('boolean')
+  expect(typeof r.score_percentage).toBe('number')
+}
+
 test.describe('Red Team: Audit Event Completeness', () => {
   let admin: ReturnType<typeof getAdminClient>
   let studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
@@ -139,11 +169,12 @@ test.describe('Red Team: Audit Event Completeness', () => {
     tracker.sessions.add(sessionId)
 
     const answers = await buildAnswersForSession(admin, sessionId)
-    const { error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
+    const { data: submitData, error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
       p_answers: answers,
     })
     expect(submitErr).toBeNull()
+    expectWithinTimeSubmitContract(submitData, answers.length)
 
     await expectAuditRow(admin, 'exam.completed', studentUserId, testStart, sessionId)
     await expectCompletionMetadata(admin, {
@@ -347,8 +378,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
       p_answers: answers,
     })
     expect(submitErr).toBeNull()
-    // expired flag should be false on the within-time-limit path
-    expect((submitData as { expired?: boolean } | null)?.expired).not.toBe(true)
+    expectWithinTimeSubmitContract(submitData, answers.length)
 
     await expectAuditRow(admin, 'internal_exam.completed', studentUserId, testStart, sessionId)
     await expectCompletionMetadata(admin, {
