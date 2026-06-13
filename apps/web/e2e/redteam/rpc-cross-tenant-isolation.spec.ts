@@ -346,6 +346,10 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
       .single()
     expect(beforeErr).toBeNull()
     expect(before).not.toBeNull()
+    // Runtime-guard the cast (§5): has_calculations is BOOLEAN NOT NULL, so a
+    // non-boolean here would make the "unchanged" assertion below vacuous
+    // (toBe(undefined)). The typeof check fails loudly instead.
+    expect(typeof before?.has_calculations).toBe('boolean')
     const original = before?.has_calculations as boolean
 
     // Attack: cross-org admin attempts to flip the flag to the opposite value.
