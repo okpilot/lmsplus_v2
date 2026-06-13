@@ -88,6 +88,13 @@ interface McQ {
   id: string
   correctOption: string
 }
+// Shape of one row in get_vfr_rt_exam_results' per-question `answers` array (mig 106).
+type AnswerRow = {
+  blank_index: number | null
+  selected_option_id: string | null
+  response_text: string | null
+  is_correct: boolean
+}
 
 async function seedPool(opts: {
   orgId: string
@@ -543,12 +550,6 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
     })
     expect(error).toBeNull()
     const result = data as unknown as { questions: Array<Record<string, unknown>> }
-    type AnswerRow = {
-      blank_index: number | null
-      selected_option_id: string | null
-      response_text: string | null
-      is_correct: boolean
-    }
 
     // short_answer: exactly one row, blank_index/selected_option_id null,
     // response_text === the submitted canonical, is_correct true.
@@ -703,12 +704,6 @@ describe('RPC: get_vfr_rt_exam_results — Part 2 fail session (Fixture B)', () 
     })
     expect(error).toBeNull()
     const result = data as unknown as { questions: Array<Record<string, unknown>> }
-    type AnswerRow = {
-      blank_index: number | null
-      selected_option_id: string | null
-      response_text: string | null
-      is_correct: boolean
-    }
     const dfEntry = result.questions.find((q) => q['question_type'] === 'dialog_fill')
     expect(dfEntry).toBeDefined()
     const dfAnswers = dfEntry!['answers'] as AnswerRow[]
