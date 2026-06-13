@@ -382,6 +382,7 @@ async function insertQuestion(
       question_text: question.question_text,
       question_image_url: opts.questionImageUrl,
       options: question.options as unknown as Record<string, unknown>,
+      correct_option_id: question.correct_option_id,
       explanation_text: question.explanation_text,
       explanation_image_url: opts.explanationImageUrl,
       difficulty: question.difficulty ?? 'medium',

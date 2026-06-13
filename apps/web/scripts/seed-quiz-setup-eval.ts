@@ -175,11 +175,13 @@ function makeQuestion(num: number, subtopicName: string) {
     question_number: `EVAL-${String(num).padStart(3, '0')}`,
     question_text: `${stem} ${subtopicName.toLowerCase()}?`,
     options: [
-      { id: 'a', text: `Option A for Q${num}`, correct: false },
-      { id: 'b', text: `Option B for Q${num} (correct)`, correct: true },
-      { id: 'c', text: `Option C for Q${num}`, correct: false },
-      { id: 'd', text: `Option D for Q${num}`, correct: false },
+      { id: 'a', text: `Option A for Q${num}` },
+      { id: 'b', text: `Option B for Q${num} (correct)` },
+      { id: 'c', text: `Option C for Q${num}` },
+      { id: 'd', text: `Option D for Q${num}` },
     ],
+    // MC answer key now lives in its own REVOKE-gated column (#823, mig 109).
+    correct_option_id: 'b',
     explanation_text: `Explanation for question ${num} about ${subtopicName}.`,
     difficulty: num % 3 === 0 ? 'hard' : num % 3 === 1 ? 'easy' : 'medium',
   }
@@ -342,6 +344,7 @@ async function seed() {
               subtopic_id: subtopicId,
               question_text: q.question_text,
               options: q.options,
+              correct_option_id: q.correct_option_id,
               explanation_text: q.explanation_text,
               difficulty: q.difficulty,
               status: 'active',

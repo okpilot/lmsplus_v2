@@ -130,19 +130,20 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
     if (!delData?.length) throw new Error('soft-delete: zero rows affected')
 
     // c. Derive the correct option id + seeded explanation from the question itself.
-    //    Service role bypasses RLS, so the now-soft-deleted row is still readable.
-    //    Don't blindly trust 'b' — read the options and find correct === true.
+    //    The MC answer key now lives in the REVOKE-gated correct_option_id column
+    //    (#823, mig 109) — the `correct` flag is stripped from options on write.
+    //    Service role bypasses both RLS and the column REVOKE, so the soft-deleted
+    //    row's key is still readable. Read the column rather than trusting 'b'.
     const { data: qRow, error: qErr } = await admin
       .from('questions')
-      .select('options, explanation_text')
+      .select('correct_option_id, explanation_text')
       .eq('id', questionId)
       .single()
     expect(qErr).toBeNull()
-    const options = qRow?.options as unknown as Array<{ id: string; correct: boolean }>
-    expect(Array.isArray(options)).toBe(true)
-    const correctOption = options.find((o) => o.correct === true)
-    if (!correctOption) throw new Error('seeded question has no correct option')
-    const correctOptionId = correctOption.id
+    const correctOptionId = qRow?.correct_option_id as unknown as string
+    if (typeof correctOptionId !== 'string' || correctOptionId.length === 0) {
+      throw new Error('seeded question has no correct_option_id')
+    }
     const seededExplanation = qRow?.explanation_text as unknown as string
     expect(typeof seededExplanation).toBe('string')
     expect(seededExplanation.length).toBeGreaterThan(0)
@@ -223,25 +224,26 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
     if (delErr) throw new Error(`soft-delete: ${delErr.message}`)
     if (!delData?.length) throw new Error('soft-delete: zero rows affected')
 
-    // Derive both the correct option and a distinct wrong option from the seed.
+    // Derive the correct option from the REVOKE-gated key column (#823, mig 109),
+    // then pick a distinct wrong option from the remaining option ids. The seeded
+    // options are always {a,b,c,d}, so any id != correct is a valid wrong answer.
     const { data: qRow, error: qErr } = await admin
       .from('questions')
-      .select('options')
+      .select('correct_option_id')
       .eq('id', questionIdWrong)
       .single()
     expect(qErr).toBeNull()
-    const options = qRow?.options as unknown as Array<{ id: string; correct: boolean }>
-    expect(Array.isArray(options)).toBe(true)
-    const correctOption = options.find((o) => o.correct === true)
-    const wrongOption = options.find((o) => o.correct === false)
-    if (!correctOption || !wrongOption) {
-      throw new Error('seeded question needs one correct and one wrong option')
+    const correctOptionId = qRow?.correct_option_id as unknown as string
+    if (typeof correctOptionId !== 'string' || correctOptionId.length === 0) {
+      throw new Error('seeded question has no correct_option_id')
     }
+    const wrongOptionId = (['a', 'b', 'c', 'd'] as const).find((id) => id !== correctOptionId)
+    if (!wrongOptionId) throw new Error('could not derive a distinct wrong option')
 
     const { data, error } = await studentClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
       p_answers: [
-        { question_id: questionIdWrong, selected_option: wrongOption.id, response_time_ms: 5000 },
+        { question_id: questionIdWrong, selected_option: wrongOptionId, response_time_ms: 5000 },
       ],
     })
     expect(error).toBeNull()
@@ -262,7 +264,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
     // Wrong answer scored as incorrect, but the correct-option key is STILL returned.
     expect(scored.question_id).toBe(questionIdWrong)
     expect(scored.is_correct).toBe(false)
-    expect(scored.correct_option_id).toBe(correctOption.id)
+    expect(scored.correct_option_id).toBe(correctOptionId)
     // quick_quiz (study mode) never sets a pass mark — passed stays NULL.
     expect(result.passed).toBeNull()
   })

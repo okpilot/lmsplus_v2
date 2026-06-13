@@ -760,6 +760,7 @@ export type Database = {
           bank_id: string
           blanks_config: Json
           canonical_answer: string | null
+          correct_option_id: string | null
           created_at: string
           created_by: string
           deleted_at: string | null
@@ -789,6 +790,7 @@ export type Database = {
           bank_id: string
           blanks_config?: Json
           canonical_answer?: string | null
+          correct_option_id?: string | null
           created_at?: string
           created_by: string
           deleted_at?: string | null
@@ -818,6 +820,7 @@ export type Database = {
           bank_id?: string
           blanks_config?: Json
           canonical_answer?: string | null
+          correct_option_id?: string | null
           created_at?: string
           created_by?: string
           deleted_at?: string | null
@@ -1408,6 +1411,7 @@ export type Database = {
           accepted_synonyms: string[]
           blanks_config: Json
           canonical_answer: string
+          correct_option_id: string | null
           dialog_template: string
         }[]
       }

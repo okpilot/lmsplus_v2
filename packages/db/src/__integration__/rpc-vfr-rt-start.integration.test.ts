@@ -106,11 +106,13 @@ async function insertMcQuestion(opts: {
       explanation_text: `MC explanation ${opts.idx}`,
       question_type: 'multiple_choice',
       options: [
-        { id: 'a', text: `Option A ${opts.idx}`, correct: false },
-        { id: 'b', text: `Option B ${opts.idx}`, correct: true },
-        { id: 'c', text: `Option C ${opts.idx}`, correct: false },
-        { id: 'd', text: `Option D ${opts.idx}`, correct: false },
+        { id: 'a', text: `Option A ${opts.idx}` },
+        { id: 'b', text: `Option B ${opts.idx}` },
+        { id: 'c', text: `Option C ${opts.idx}` },
+        { id: 'd', text: `Option D ${opts.idx}` },
       ],
+      // MC answer key in its own REVOKE-gated column (#823, mig 109).
+      correct_option_id: 'b',
       difficulty: 'medium',
       status: 'active',
       created_by: opts.adminId,

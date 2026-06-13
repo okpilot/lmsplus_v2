@@ -130,10 +130,12 @@ async function seed() {
     .single()
   if (!org) throw new Error('Org not found — run seed-admin-eval.ts first')
 
-  // 2. Get all active questions with their topics
+  // 2. Get all active questions with their topics.
+  // correct_option_id is the REVOKE-gated MC answer key (#823, mig 109);
+  // service-role bypasses the REVOKE, so this script reads it directly.
   const { data: questions } = await db
     .from('questions')
-    .select('id, options, subject_id, topic_id')
+    .select('id, options, correct_option_id, subject_id, topic_id')
     .eq('organization_id', org.id)
     .eq('status', 'active')
     .is('deleted_at', null)
@@ -286,17 +288,22 @@ async function seed() {
       for (let j = 0; j < qSlice.length; j++) {
         const q = qSlice[j]
         if (!q) continue
-        const opts = q.options as { id: string; correct: boolean }[]
+        // MC answer key is q.correct_option_id (#823); options no longer carry a
+        // `correct` flag. Use the key for a correct answer, any other id otherwise.
+        const opts = q.options as { id: string }[]
         const isCorrect = j < correctCount
-        const selected = isCorrect ? opts.find((o) => o.correct) : opts.find((o) => !o.correct)
-        if (!selected) continue
+        const correctOptId = q.correct_option_id
+        const selectedOptionId = isCorrect
+          ? correctOptId
+          : opts.find((o) => o.id !== correctOptId)?.id
+        if (!selectedOptionId) continue
 
         const responseTimeMs = Math.floor(Math.random() * 25000) + 5000
 
         await db.from('quiz_session_answers').insert({
           session_id: session.id,
           question_id: q.id,
-          selected_option_id: selected.id,
+          selected_option_id: selectedOptionId,
           is_correct: isCorrect,
           response_time_ms: responseTimeMs,
         })
@@ -306,7 +313,7 @@ async function seed() {
           student_id: sid,
           question_id: q.id,
           session_id: session?.id ?? null,
-          selected_option_id: selected.id,
+          selected_option_id: selectedOptionId,
           is_correct: isCorrect,
           response_time_ms: responseTimeMs,
         })

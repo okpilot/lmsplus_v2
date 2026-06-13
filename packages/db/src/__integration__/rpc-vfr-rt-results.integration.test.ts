@@ -169,11 +169,13 @@ async function seedPool(opts: {
         explanation_image_url: i === 0 ? `https://cdn.test/expl-mc-${base}.png` : null,
         question_type: 'multiple_choice',
         options: [
-          { id: 'a', text: `A`, correct: false },
-          { id: 'b', text: `B`, correct: true },
-          { id: 'c', text: `C`, correct: false },
-          { id: 'd', text: `D`, correct: false },
+          { id: 'a', text: `A` },
+          { id: 'b', text: `B` },
+          { id: 'c', text: `C` },
+          { id: 'd', text: `D` },
         ],
+        // MC answer key in its own REVOKE-gated column (#823, mig 109).
+        correct_option_id: 'b',
         difficulty: 'medium',
         status: 'active',
         created_by: adminId,

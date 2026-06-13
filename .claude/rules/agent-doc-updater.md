@@ -26,6 +26,7 @@ Keeps project documentation in sync with code changes. Watches for schema change
 - Ignore the agent's "no changes needed" report — acknowledge it in the summary.
 - Edit steering documents directly.
 - Skip drift check when steering docs exist.
+- Cite a migration number, RPC guard, error string, or other implementation detail without reading the migration/source file directly. Plans, commit messages, and session context are unreliable for sequential numeric references (e.g. which `mig NNN` a function lives in) and exact implementation specifics — read the file header and body before writing the citation. (Promoted count=2: #856 doc-updater attributed `submit_quiz_answer`'s idempotency gate to mig 112 when it is mig 110; Batch-A `ee4d5544` fabricated a trigger exemption, inverted a guard order, and wrong-stringed an error from the plan summary.)
 
 ## Key Documents The Agent Watches
 | Document | What triggers an update |

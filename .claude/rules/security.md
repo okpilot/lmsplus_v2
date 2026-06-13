@@ -7,7 +7,7 @@
 
 ## Critical rules (memorise these)
 
-1. **Correct answers** — strip via `get_quiz_questions()` RPC only. Never SELECT * questions for students.
+1. **Correct answers** — strip via `get_quiz_questions()` RPC only. Never SELECT * questions for students. The MC key is column-REVOKE-gated (mig 109, #823): stored in `questions.correct_option_id` (NULL for non-MC), kept out of the `options` JSONB by `trg_sanitize_question_options`; students read it post-session only via the report RPCs (mig 112/113, `ended_at`-gated), admins via `get_question_authoring_fields()`.
 2. **RLS** — every table needs BOTH `USING` (read) and `WITH CHECK` (write) policies.
 3. **Service role key** — `packages/db/src/admin.ts` only. Never `NEXT_PUBLIC_`. Never in client components.
 4. **Zod validation** — every Server Action and API route must parse input with Zod before using it.

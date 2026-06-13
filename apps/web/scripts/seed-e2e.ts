@@ -20,6 +20,7 @@ const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
+// options[].correct here is a transient authoring flag — converted to correct_option_id at insert and stripped from stored JSONB by trg_sanitize_question_options (#823).
 const SEED_QUESTIONS = [
   {
     question_number: 'CI-001',
@@ -382,6 +383,11 @@ async function seed() {
 
     if (existing && existing.length > 0) continue
 
+    // MC answer key now lives in its own REVOKE-gated column (#823, mig 109).
+    // Derive it from the authored options; the sanitize trigger strips `correct`
+    // from the stored options JSONB on write.
+    const correctOptionId = q.options.find((o) => o.correct)?.id
+    if (!correctOptionId) throw new Error(`Question ${q.question_number}: no correct option`)
     const { error: qErr } = await db.from('questions').insert({
       organization_id: org.id,
       bank_id: bankId,
@@ -391,6 +397,7 @@ async function seed() {
       subtopic_id: subtopicId,
       question_text: q.question_text,
       options: q.options,
+      correct_option_id: correctOptionId,
       explanation_text: q.explanation_text,
       difficulty: 'medium',
       status: 'active',

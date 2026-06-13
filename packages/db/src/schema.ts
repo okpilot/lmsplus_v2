@@ -69,7 +69,6 @@ export const DeleteSyllabusItemSchema = z.object({
 const OptionInputSchema = z.object({
   id: z.enum(['a', 'b', 'c', 'd']),
   text: z.string().trim().min(1),
-  correct: z.boolean(),
 })
 
 export const UpsertQuestionSchema = z
@@ -83,17 +82,20 @@ export const UpsertQuestionSchema = z
     question_text: z.string().trim().min(1).max(10000),
     question_image_url: z.url().nullable().optional(),
     options: z.array(OptionInputSchema).length(4),
+    // MC answer key lives in a dedicated, REVOKE-gated column (#823) — never
+    // inside options[]. The DB trigger strips any stray `correct` key on write.
+    correct_option_id: z.enum(['a', 'b', 'c', 'd']),
     explanation_text: z.string().trim().min(1).max(10000),
     explanation_image_url: z.url().nullable().optional(),
     difficulty: z.enum(['easy', 'medium', 'hard']),
     status: z.enum(['active', 'draft']),
     has_calculations: z.boolean().default(false),
   })
-  .refine((q) => q.options.filter((o) => o.correct).length === 1, {
-    message: 'Exactly one option must be marked correct',
-  })
   .refine((q) => new Set(q.options.map((o) => o.id)).size === 4, {
     message: 'Option IDs must be unique',
+  })
+  .refine((q) => q.options.some((o) => o.id === q.correct_option_id), {
+    message: 'correct_option_id must match an option id',
   })
 
 export type UpsertQuestionInput = z.infer<typeof UpsertQuestionSchema>

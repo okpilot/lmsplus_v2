@@ -1,10 +1,12 @@
 export type QuestionOption = {
   id: 'a' | 'b' | 'c' | 'd'
   text: string
-  correct: boolean
 }
 
-// Admin-only type. options[].correct is intentionally included for the edit form.
+// Admin-only type. The MC answer key lives in correct_option_id (#823), NOT
+// inside options[] — options carries only {id, text}. The key is REVOKE-gated
+// and never returned by the admin list query; it is fetched on demand via
+// get_question_authoring_fields() when the edit dialog opens.
 // Never use QuestionRow in student-facing queries — use get_quiz_questions() RPC instead.
 export type QuestionRow = {
   id: string
@@ -19,6 +21,8 @@ export type QuestionRow = {
   topic: { name: string } | null
   subtopic: { name: string } | null
   options: QuestionOption[]
+  // REVOKE-gated (#823): null on the admin list query; fetched separately for the edit form.
+  correct_option_id: 'a' | 'b' | 'c' | 'd' | null
   explanation_text: string
   question_image_url: string | null
   explanation_image_url: string | null
