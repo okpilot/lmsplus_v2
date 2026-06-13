@@ -87,6 +87,8 @@ test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
     expect(ownErr).toBeNull()
     expect((own ?? []).length).toBeGreaterThan(0)
 
+    // No question_id pin here (unlike the own-flag check above): isolation must hold
+    // for ALL of the victim's flags, not just the seeded one.
     const { data, error } = await attackerClient
       .from('active_flagged_questions')
       .select('question_id')
