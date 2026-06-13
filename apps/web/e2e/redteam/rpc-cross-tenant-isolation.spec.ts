@@ -19,12 +19,16 @@ import {
   createCrossOrgUser,
   ensureExamConfig,
   pickSubjectWithQuestions,
+  seedCrossOrgAdmin,
   seedRedTeamUsers,
   seedVictimResponses,
 } from './helpers/seed'
 
 test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  // A genuine is_admin() user in redteam-other-org — used by Vector DX to prove
+  // admin_update_questions RLS blocks a cross-tenant write even for a real admin.
+  let crossOrgAdminClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let adminClient: Awaited<ReturnType<typeof getAdminClient>>
   let egmontSubjectId: string
   let egmontTopicId: string
@@ -42,6 +46,13 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     egmontOrgId = seed.orgId
     const crossOrgUser = await createCrossOrgUser()
     crossOrgClient = await createAuthenticatedClient(crossOrgUser.email, crossOrgUser.password)
+    // Vector DX: a real admin in the OTHER org, to prove the cross-org write is
+    // blocked by org-scoping (not merely by lack of the admin role).
+    const crossOrgAdmin = await seedCrossOrgAdmin()
+    crossOrgAdminClient = await createAuthenticatedClient(
+      crossOrgAdmin.email,
+      crossOrgAdmin.password,
+    )
     adminClient = getAdminClient()
 
     // Seed the egmont victim with 8 correct responses so that the cross-org
@@ -301,5 +312,63 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     const { data, error } = await crossOrgClient.rpc('get_session_reports', {})
     expect(error).toBeNull()
     expect(data ?? []).toHaveLength(0)
+  })
+
+  // -------------------------------------------------------------------------
+  // Vector DX (#851): cross-org admin cannot flip has_calculations (#837)
+  // -------------------------------------------------------------------------
+
+  test('Vector DX (#851): cross-org admin cannot flip has_calculations on a question owned by another org', async () => {
+    // bulkUpdateCalculations (apps/web/app/app/admin/questions/actions/
+    // bulk-update-calculations.ts) runs purely under the CALLER's RLS — no
+    // service-role — via:
+    //   questions.update({ has_calculations, updated_at })
+    //           .in('id', ids).is('deleted_at', null).select('id')
+    // admin_update_questions RLS (mig 20260324000054) gates UPDATE on
+    // is_admin() AND organization_id = caller_org; the base tenant_isolation
+    // policy is also org-scoped. A cross-org admin matches 0 rows → the action
+    // returns { success: false, error: 'No questions were updated' }.
+    // Server Actions aren't callable from a PostgREST-layer red-team spec, so
+    // reproducing the exact chain via the cross-org admin client exercises the
+    // identical RLS boundary the action depends on.
+    //
+    // Vector allocated DX (not the issue's speculative "DZ"): the live
+    // attack-surface matrix max on master is DW (agent-red-team.md allocation
+    // rule — highest+1, never trust an externally-computed ID).
+    const targetId = egmontQuestionIds[0]
+
+    // Non-vacuity (code-style.md §7): the protected row genuinely exists; capture
+    // its real value so "unchanged" is a meaningful assertion, not a vacuous one.
+    const { data: before, error: beforeErr } = await adminClient
+      .from('questions')
+      .select('id, has_calculations')
+      .eq('id', targetId)
+      .single()
+    expect(beforeErr).toBeNull()
+    expect(before).not.toBeNull()
+    const original = before?.has_calculations as boolean
+
+    // Attack: cross-org admin attempts to flip the flag to the opposite value.
+    const { data: updated, error: updateErr } = await crossOrgAdminClient
+      .from('questions')
+      .update({ has_calculations: !original, updated_at: new Date().toISOString() })
+      .in('id', [targetId])
+      .is('deleted_at', null)
+      .select('id')
+
+    // RLS USING mismatch → silent 0-row no-op: error null, data []. (An UPDATE
+    // USING failure is NOT a 42501 — that is the INSERT/UPDATE WITH CHECK path.)
+    // This is the action's 'No questions were updated' branch.
+    expect(updateErr).toBeNull()
+    expect(updated ?? []).toHaveLength(0)
+
+    // Confirm the egmont question is untouched.
+    const { data: after, error: afterErr } = await adminClient
+      .from('questions')
+      .select('has_calculations')
+      .eq('id', targetId)
+      .single()
+    expect(afterErr).toBeNull()
+    expect(after?.has_calculations).toBe(original)
   })
 })
