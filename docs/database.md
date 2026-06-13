@@ -1622,6 +1622,16 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
+  -- Active-user gate (mig 112, #856): soft-deleted callers are rejected before the
+  -- session read, so a revoked student with a live JWT cannot read their answer keys.
+  PERFORM 1
+  FROM users
+  WHERE id = auth.uid()
+    AND deleted_at IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user not found or inactive';
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM quiz_sessions
     WHERE id = p_session_id
