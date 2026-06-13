@@ -533,6 +533,71 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
     expect(typeof key['correct_option_id']).toBe('string')
   })
 
+  it('returns each submitted answer in the per-question answers array (#845)', async () => {
+    // Guards the answers-array aggregation in get_vfr_rt_exam_results (mig 106):
+    // jsonb_agg(... ORDER BY blank_index NULLS FIRST) GROUP BY question_id. A
+    // regression in ordering, a dropped blank row, or a wrong is_correct join
+    // would otherwise pass silently (scores/keys/explanations are covered above).
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
+      p_session_id: passingSessionId,
+    })
+    expect(error).toBeNull()
+    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    type AnswerRow = {
+      blank_index: number | null
+      selected_option_id: string | null
+      response_text: string | null
+      is_correct: boolean
+    }
+
+    // short_answer: exactly one row, blank_index/selected_option_id null,
+    // response_text === the submitted canonical, is_correct true.
+    const saEntry = result.questions.find((q) => q['question_type'] === 'short_answer')
+    expect(saEntry).toBeDefined()
+    const saAnswers = saEntry!['answers'] as AnswerRow[]
+    expect(saAnswers).toHaveLength(1)
+    const saSeed = saQs.find((s) => s.id === saEntry!['question_id'])
+    expect(saSeed).toBeDefined()
+    expect(saAnswers[0]).toMatchObject({
+      blank_index: null,
+      selected_option_id: null,
+      response_text: saSeed!.canonical,
+      is_correct: true,
+    })
+
+    // dialog_fill: two rows ordered by blank_index (NULLS FIRST → [0, 1]); each
+    // response_text === the submitted blank canonical, is_correct true.
+    const dfEntry = result.questions.find((q) => q['question_type'] === 'dialog_fill')
+    expect(dfEntry).toBeDefined()
+    const dfAnswers = dfEntry!['answers'] as AnswerRow[]
+    expect(dfAnswers).toHaveLength(2)
+    expect(dfAnswers.map((a) => a.blank_index)).toEqual([0, 1])
+    const dfSeed = dfQs.find((d) => d.id === dfEntry!['question_id'])
+    expect(dfSeed).toBeDefined()
+    for (const a of dfAnswers) {
+      const blank = dfSeed!.blanks.find((b) => b.index === a.blank_index)
+      expect(blank).toBeDefined()
+      expect(a.selected_option_id).toBeNull()
+      expect(a.response_text).toBe(blank!.canonical)
+      expect(a.is_correct).toBe(true)
+    }
+
+    // multiple_choice: exactly one row, blank_index/response_text null,
+    // selected_option_id === the submitted correct option, is_correct true.
+    const mcEntry = result.questions.find((q) => q['question_type'] === 'multiple_choice')
+    expect(mcEntry).toBeDefined()
+    const mcAnswers = mcEntry!['answers'] as AnswerRow[]
+    expect(mcAnswers).toHaveLength(1)
+    const mcSeed = mcQs.find((m) => m.id === mcEntry!['question_id'])
+    expect(mcSeed).toBeDefined()
+    expect(mcAnswers[0]).toMatchObject({
+      blank_index: null,
+      response_text: null,
+      selected_option_id: mcSeed!.correctOption,
+      is_correct: true,
+    })
+  })
+
   it('reveals the seeded explanation fields for every question after completion', async () => {
     // mig 106: explanation_text / explanation_image_url moved out of the in-exam
     // questions read and are revealed here, per entry, post-completion only.
