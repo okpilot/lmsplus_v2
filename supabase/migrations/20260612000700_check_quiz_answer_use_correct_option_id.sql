@@ -5,10 +5,18 @@
 -- immediate-feedback RPC for smart_review / quick_quiz (apps/web/app/app/quiz/
 -- actions/check-answer.ts); without this swap its old `opt->>'correct'` scan
 -- would return NULL after the strip and raise 'question not found or has no
--- correct option' on every answer check. Body VERBATIM from the latest
--- definition (20260314000032); the ONLY change is reading q.correct_option_id
--- instead of the jsonb_array_elements scan. All auth/ownership/membership guards
--- and the soft-delete carve-out are preserved. Depends on 20260612000100.
+-- correct option' on every answer check. Body based on the latest definition
+-- (20260314000032); the answer-key read now uses q.correct_option_id instead of
+-- the jsonb_array_elements scan. Additionally hardened (CodeRabbit, PR #856) to
+-- match its sibling submit_quiz_answer (mig 110) — this RPC returns the answer
+-- key immediately, so it must self-defend rather than rely on callers:
+--   • active-user gate: soft-deleted callers fail closed before the session read;
+--   • practice-mode guard: reject mock_exam / internal_exam so it cannot be used
+--     as a mid-exam answer oracle (exam submission goes through batch_submit_quiz
+--     / submit_vfr_rt_exam_answers, which never return the key mid-session);
+--   • explicit question_ids-absent check (jsonb_typeof(NULL) is NULL, not 'array').
+-- The §15 soft-delete carve-out on the question fetch is preserved.
+-- Depends on 20260612000100.
 
 CREATE OR REPLACE FUNCTION check_quiz_answer(
   p_question_id        uuid,
@@ -23,6 +31,7 @@ AS $$
 DECLARE
   v_student_id        uuid := auth.uid();
   v_config            jsonb;
+  v_mode              text;
   v_correct_option_id text;
   v_explanation_text  text;
   v_explanation_image text;
@@ -34,9 +43,19 @@ BEGIN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
+  -- Active-user gate: soft-deleted callers fail closed before any session
+  -- read (mirrors submit_quiz_answer / batch_submit_quiz, mig 095c/110).
+  PERFORM 1
+  FROM users
+  WHERE id = v_student_id
+    AND deleted_at IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user not found or inactive';
+  END IF;
+
   -- Session ownership: verify the student owns an active session
-  SELECT qs.config
-  INTO v_config
+  SELECT qs.config, qs.mode
+  INTO v_config, v_mode
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
@@ -47,8 +66,21 @@ BEGIN
     RAISE EXCEPTION 'session not found or not owned by this student';
   END IF;
 
-  -- Guard against malformed config (matches pattern in batch_submit_quiz)
-  IF v_config IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+  -- Practice modes only: this RPC returns is_correct / explanation /
+  -- correct_option_id immediately, so accepting exam-mode sessions would be a
+  -- mid-exam answer oracle. Exam submission goes exclusively through
+  -- batch_submit_quiz; vfr_rt goes through submit_vfr_rt_exam_answers.
+  IF v_mode NOT IN ('smart_review', 'quick_quiz') THEN
+    RAISE EXCEPTION 'unsupported_session_mode';
+  END IF;
+
+  -- Guard against malformed config (matches pattern in batch_submit_quiz).
+  -- jsonb_typeof(v_config->'question_ids') is NULL when the key is absent, and
+  -- NULL <> 'array' is NULL (not true) — so the explicit IS NULL check is
+  -- required or jsonb_array_elements_text below would run on a missing key.
+  IF v_config IS NULL
+     OR v_config->'question_ids' IS NULL
+     OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
     RAISE EXCEPTION 'session config is malformed — question_ids not set';
   END IF;
 

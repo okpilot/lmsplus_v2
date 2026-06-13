@@ -77,6 +77,11 @@ BEGIN
   IF v_ended_at IS NOT NULL THEN
     SELECT count(*)::int INTO v_answered
     FROM quiz_session_answers WHERE session_id = p_session_id;
+    -- §15 carve-out (same as the fresh-submit path below): no deleted_at filter.
+    -- quiz_session_answers.question_id is immutable/write-once, so a question
+    -- soft-deleted after the session ended must still appear in the replayed
+    -- results — otherwise answered_count (counted above from quiz_session_answers)
+    -- would diverge from results. See docs/security.md §15 / docs/database.md §3.
     SELECT jsonb_agg(jsonb_build_object(
       'question_id', qsa.question_id,
       'is_correct', qsa.is_correct,
@@ -86,7 +91,7 @@ BEGIN
     ))
     INTO v_results
     FROM quiz_session_answers qsa
-    JOIN questions q ON q.id = qsa.question_id AND q.deleted_at IS NULL
+    JOIN questions q ON q.id = qsa.question_id
     WHERE qsa.session_id = p_session_id;
 
     RETURN jsonb_build_object(

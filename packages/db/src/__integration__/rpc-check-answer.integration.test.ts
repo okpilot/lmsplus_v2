@@ -181,4 +181,107 @@ describe('RPC: check_quiz_answer', () => {
     expect(error).not.toBeNull()
     expect(error?.message).toContain('session not found or not owned')
   })
+
+  it('rejects an exam-mode session with unsupported_session_mode', async () => {
+    // check_quiz_answer returns is_correct/explanation/correct_option_id
+    // immediately — accepting an exam-mode session would be a mid-exam answer
+    // oracle (#823 / mig 115 hardening, PR #856). Exam-mode sessions start via
+    // dedicated RPCs, so admin-insert the row directly here.
+    const { data: sessRow, error: sessErr } = await admin
+      .from('quiz_sessions')
+      .insert({
+        organization_id: orgId,
+        student_id: studentId,
+        mode: 'mock_exam',
+        subject_id: refs.subjectId,
+        config: { question_ids: [questionIds[0]] },
+        total_questions: 1,
+        started_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single<{ id: string }>()
+    if (sessErr) throw new Error(`exam session insert: ${sessErr.message}`)
+    const examSessionId = sessRow.id
+
+    try {
+      const { error } = await studentClient.rpc('check_quiz_answer', {
+        p_question_id: questionIds[0],
+        p_selected_option_id: 'b',
+        p_session_id: examSessionId,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('unsupported_session_mode')
+    } finally {
+      // Force-end + soft-delete the admin-inserted session so it cannot leak
+      // into other tests' active-session views. Never throw in finally.
+      const { error: endErr } = await admin
+        .from('quiz_sessions')
+        .update({
+          ended_at: new Date().toISOString(),
+          deleted_at: new Date().toISOString(),
+        })
+        .eq('id', examSessionId)
+      if (endErr) {
+        console.error('[exam-session cleanup] session left active:', endErr.message)
+      }
+    }
+  })
+
+  it('rejects a soft-deleted caller with user not found or inactive', async () => {
+    // The active-user gate (mirrors submit_quiz_answer, mig 110) must fail closed
+    // before the session read, so a soft-deleted account with a still-valid JWT
+    // cannot keep reading the answer key. Create a throwaway student, obtain its
+    // JWT while active, then soft-delete it and call with the live client.
+    const deletedStudentId = await createTestUser({
+      admin,
+      orgId,
+      email: `studentDel-checkanswer-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'student',
+    })
+    userIds.push(deletedStudentId)
+    const deletedStudentClient = await getAuthenticatedClient({
+      email: `studentDel-checkanswer-${suffix}@test.local`,
+      password: 'test-pass-123',
+    })
+
+    const { data: sessionId, error: startErr } = await deletedStudentClient.rpc(
+      'start_quiz_session',
+      {
+        p_mode: 'smart_review',
+        p_subject_id: null,
+        p_topic_id: null,
+        p_question_ids: questionIds.slice(0, 3),
+      },
+    )
+    if (startErr) throw new Error(`startSession (deleted student): ${startErr.message}`)
+
+    try {
+      const { error: delErr } = await admin
+        .from('users')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', deletedStudentId)
+      if (delErr) throw new Error(`soft-delete student: ${delErr.message}`)
+
+      const { error } = await deletedStudentClient.rpc('check_quiz_answer', {
+        p_question_id: questionIds[0],
+        p_selected_option_id: 'b',
+        p_session_id: sessionId as string,
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('user not found or inactive')
+    } finally {
+      // Soft-delete the orphaned active session so it cannot leak. Never throw.
+      const { error: endErr } = await admin
+        .from('quiz_sessions')
+        .update({
+          ended_at: new Date().toISOString(),
+          deleted_at: new Date().toISOString(),
+        })
+        .eq('id', sessionId as string)
+      if (endErr) {
+        console.error('[deleted-student session cleanup] left active:', endErr.message)
+      }
+    }
+  })
 })

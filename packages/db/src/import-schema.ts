@@ -24,6 +24,11 @@ export const ImportQuestionSchema = z
     explanation_image_url: z.string().nullable(),
     difficulty: z.enum(['easy', 'medium', 'hard']).nullable(),
   })
+  // Mirror schema.ts (UpsertQuestionSchema): four distinct option ids, else the
+  // answer key / scoring semantics are ambiguous.
+  .refine((q) => new Set(q.options.map((o) => o.id)).size === 4, {
+    message: 'Option IDs must be unique',
+  })
   .refine((q) => q.options.some((o) => o.id === q.correct_option_id), {
     message: 'correct_option_id must match an option id',
   })
