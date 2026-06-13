@@ -8,14 +8,16 @@ const OptionSchema = z.object({
 
 export const ImportQuestionSchema = z
   .object({
-    question_number: z.string().min(1),
-    subject: z.string().min(1),
-    subject_name: z.string().min(1),
-    topic: z.string().nullable(),
-    topic_name: z.string().nullable(),
-    subtopic: z.string().nullable(),
-    subtopic_name: z.string().nullable(),
-    lo_reference: z.string().nullable(),
+    // Identity/code fields are trimmed: trailing whitespace on a subject/topic/subtopic
+    // code would silently fail the `.eq('code', …)` lookup in import-questions.ts.
+    question_number: z.string().trim().min(1),
+    subject: z.string().trim().min(1),
+    subject_name: z.string().trim().min(1),
+    topic: z.string().trim().nullable(),
+    topic_name: z.string().trim().nullable(),
+    subtopic: z.string().trim().nullable(),
+    subtopic_name: z.string().trim().nullable(),
+    lo_reference: z.string().trim().nullable(),
     // Text fields mirror schema.ts (UpsertQuestionSchema): trim + cap length so
     // whitespace-only and oversized values are rejected at import, same as the admin UI.
     question_text: z.string().trim().min(1).max(10000),

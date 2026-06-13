@@ -644,7 +644,7 @@ When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to 
 
 See security.md §15 for the full list of carve-outs and their immutable-column justifications.
 
-**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 115) and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options` and `get_admin_report_correct_options` (mig 112) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the correct-option key for a question soft-deleted after it was answered. Note `submit_quiz_answer` deliberately does NOT use this carve-out: it filters `q.deleted_at IS NULL` because a soft-deleted question should not accept a *new* graded submission in an active session (the inconsistency between this and `check_quiz_answer`'s immediate-feedback carve-out is tracked separately).
+**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 115) and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options` and `get_admin_report_correct_options` (mig 112) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the correct-option key for a question soft-deleted after it was answered. Note `submit_quiz_answer` deliberately does NOT use this carve-out: it filters `q.deleted_at IS NULL` because a soft-deleted question should not accept a *new* graded submission in an active session. **This intentional divergence is documented in submit_quiz_answer's RPC section** — the difference reflects domain intent: immediate feedback (`check_quiz_answer`) serves historical replay, while new submissions require active, non-deleted questions.
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -710,10 +710,10 @@ Use Postgres functions (RPCs) for:
 ```
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
-  get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped); reads from questions.correct_option_id (mig 112, #823)
+  get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped); active-user gate (mig 112, #856); reads from questions.correct_option_id (mig 112, #823)
   get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin()); reads from questions.correct_option_id (mig 112, #823)
   check_quiz_answer                ← read, verify answer + return explanation (immediate feedback); reads from questions.correct_option_id (mig 115, #823)
-  submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; reads from questions.correct_option_id (mig 110, #823)
+  submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; idempotent dup-gate (mig 110, #856); reads from questions.correct_option_id (mig 110, #823)
   batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092); reads from questions.correct_option_id for MC grading (mig 110b, #823)
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500)
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; maps unique_violation to friendly domain error (mig 088, #754); returns started_at
@@ -844,13 +844,14 @@ $$;
 
 This RPC is superseded by `batch_submit_quiz` for new code. Kept for backwards compatibility.
 
-**Security (migration 036, updated mig 110 #823):**
+**Security (migration 036, updated mig 110 #823, hardened mig 110 PR #856):**
 - Validates `p_question_id` is in the session's `config.question_ids` (migration 033). Prevents submitting answers for questions outside the session's question set.
 - Soft-delete guard: `deleted_at IS NULL` prevents submitting to a discarded (soft-deleted) session.
 - Option membership validation: verifies `p_selected_option` exists in the question's options JSONB array (which no longer carries `correct`, stripped by `trg_sanitize_question_options`). Prevents attackers from submitting arbitrary strings as option IDs.
 - Correctness check: reads `questions.correct_option_id` (mig 110 #823) instead of the old JSONB scan of options[].correct. Compares `p_selected_option` against `correct_option_id` to derive `is_correct`.
 - Mode whitelist (migration 095b, #838; narrowed in PR #830 cloud-CR review): rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`) with `unsupported_session_mode`. This RPC returns `is_correct`/`explanation`/`correct_option_id` immediately, so accepting exam-mode sessions would be a mid-exam answer oracle — exam submission goes exclusively through `batch_submit_quiz`; `vfr_rt_exam` goes through `submit_vfr_rt_exam_answers` (per-part grading, mig 100). Fail-closed: future modes must opt in explicitly.
 - Active-user gate (migration 095b, PR #830 cloud-CR review): soft-deleted callers are rejected with `user not found or inactive` right after the auth check, before any session read — mirrors `batch_submit_quiz` (mig 095c).
+- **Idempotency gate (migration 110, #856):** A duplicate submission (same session + question, possibly different option) skips the answer row insert (ON CONFLICT DO NOTHING on blank_index-aware unique key) and re-reads the persisted `is_correct` instead of accepting the duplicate option. This preserves consistency between the stored answer and the FSRS state: a retry never flips `last_was_correct`, preventing divergence between the append-only answer log and the FSRS signal.
 
 ```sql
 CREATE OR REPLACE FUNCTION submit_quiz_answer(
@@ -945,29 +946,42 @@ BEGIN
 
   v_is_correct := (p_selected_option = v_correct_option);
 
-  -- Insert answer (idempotent: ignore duplicate on retry)
+  -- Insert answer (idempotent: ignore duplicate on retry).
   INSERT INTO quiz_session_answers
     (session_id, question_id, selected_option_id, is_correct, response_time_ms)
   VALUES
     (p_session_id, p_question_id, p_selected_option, v_is_correct, p_response_time_ms)
-  ON CONFLICT (session_id, question_id) DO NOTHING;
+  ON CONFLICT (session_id, question_id, blank_index) DO NOTHING;
+  GET DIAGNOSTICS v_answer_inserted = ROW_COUNT;
 
-  -- Insert to immutable response log (idempotent)
-  INSERT INTO student_responses
-    (organization_id, student_id, question_id, session_id,
-     selected_option_id, is_correct, response_time_ms)
-  VALUES
-    (v_org_id, v_student_id, p_question_id, p_session_id,
-     p_selected_option, v_is_correct, p_response_time_ms)
-  ON CONFLICT DO NOTHING;
+  -- Only persist the response log + FSRS state when THIS call actually recorded the
+  -- answer. A duplicate submit (same question, possibly a different option) must not
+  -- flip fsrs_cards.last_was_correct — re-read the persisted is_correct instead (#856).
+  IF v_answer_inserted = 0 THEN
+    SELECT qsa.is_correct
+    INTO v_is_correct
+    FROM quiz_session_answers qsa
+    WHERE qsa.session_id = p_session_id
+      AND qsa.question_id = p_question_id
+      AND qsa.blank_index IS NULL;
+  ELSE
+    -- Insert to immutable response log (idempotent)
+    INSERT INTO student_responses
+      (organization_id, student_id, question_id, session_id,
+       selected_option_id, is_correct, response_time_ms)
+    VALUES
+      (v_org_id, v_student_id, p_question_id, p_session_id,
+       p_selected_option, v_is_correct, p_response_time_ms)
+    ON CONFLICT DO NOTHING;
 
-  -- Update last_was_correct atomically within this transaction.
-  INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
-  VALUES (v_student_id, p_question_id, v_is_correct, now())
-  ON CONFLICT (student_id, question_id)
-  DO UPDATE SET
-    last_was_correct = EXCLUDED.last_was_correct,
-    updated_at = now();
+    -- Update last_was_correct atomically within this transaction.
+    INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
+    VALUES (v_student_id, p_question_id, v_is_correct, now())
+    ON CONFLICT (student_id, question_id)
+    DO UPDATE SET
+      last_was_correct = EXCLUDED.last_was_correct,
+      updated_at = now();
+  END IF;
 
   RETURN QUERY SELECT v_is_correct, v_expl_text, v_expl_image_url, v_correct_option;
 END;
@@ -1594,7 +1608,7 @@ Audit `event_type` branches: `internal_exam.completed` for internal-exam session
 
 Returns correct option IDs for the questions answered in a completed session owned by the caller. The RPC derives that question set from `quiz_session_answers`, so the TypeScript layer never reads the raw `correct` boolean from options JSONB.
 
-**Security:** Validates session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), and soft-delete status. Raises exception if any check fails.
+**Security:** Validates active-user status (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), and soft-delete status. Raises exception if any check fails. The active-user gate (migration 112, #856) gates soft-deleted callers before the session-ownership check, closing the vector where a revoked student could still read their report's answer keys.
 
 ```sql
 CREATE OR REPLACE FUNCTION get_report_correct_options(p_session_id uuid)
@@ -2662,4 +2676,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-13 (mig 115 hardening #823 PR #856: check_quiz_answer RPC—active-user gate + practice-mode guard (rejects exam modes) + explicit null-check on config.question_ids; batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; integration tests +2: exam-mode rejection + soft-deleted caller) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `p_calc_mode` AND-restriction) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions session-derived; get_vfr_rt_exam_results explanation gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT) | Companion: docs/security.md*
+*Last updated: 2026-06-13 (PR #856 CR-fix: get_report_correct_options active-user gate (mig 112); submit_quiz_answer idempotency-gate + re-read on dup-submit + intentional-divergence doc (mig 110); submit_vfr_rt blank_index dup-key canonicalization (mig 111); docs/database.md §3 updated: "divergence is documented-as-intentional"; submit_quiz_answer code sample updated with the GET DIAGNOSTICS branch) | Earlier 2026-06-13 (mig 115 hardening #823 PR #856: check_quiz_answer RPC—active-user gate + practice-mode guard (rejects exam modes) + explicit null-check on config.question_ids; batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; integration tests +2: exam-mode rejection + soft-deleted caller) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `p_calc_mode` AND-restriction) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT) | Companion: docs/security.md*

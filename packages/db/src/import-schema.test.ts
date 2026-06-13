@@ -125,6 +125,13 @@ describe('ImportQuestionSchema', () => {
     ).toBe(false)
   })
 
+  it('rejects when explanation_text exceeds the 10000-character cap', () => {
+    expect(
+      ImportQuestionSchema.safeParse({ ...validQuestion, explanation_text: 'x'.repeat(10001) })
+        .success,
+    ).toBe(false)
+  })
+
   it('rejects an unrecognised difficulty value', () => {
     expect(
       ImportQuestionSchema.safeParse({ ...validQuestion, difficulty: 'very_hard' }).success,
