@@ -215,4 +215,81 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
   // afterEach soft-deletes (mirrors session-replay.spec.ts — parent soft-delete is
   // sufficient; the immutable quiz_session_answers row is never hard-deleted and
   // cannot pollute other specs once its session is soft-deleted).
+
+  // --- #856 Vector ED: active-user gate (soft-deleted caller) ---
+
+  test.describe('ED: a soft-deleted caller is rejected by the active-user gate (#856)', () => {
+    // The owner (victim) holds a valid JWT and owns a COMPLETED session whose
+    // report they can read. After they are soft-deleted (users.deleted_at set),
+    // get_report_correct_options must reject with 'user not found or inactive'
+    // (mig 112 / 20260612000400, PR #856) — the active-user gate fires right after
+    // the auth.uid() check, BEFORE the session-ownership check, so the rejection is
+    // independent of session validity. Mirrors the BJ soft-deleted-user pattern in
+    // server-action-unauthenticated.spec.ts (start_quiz_session / batch_submit_quiz).
+    //
+    // CRITICAL — victimUserId is the SHARED red-team victim used by every spec in
+    // the run. The afterEach restores deleted_at = null (only when the flag is set)
+    // so the user is healthy for all later specs.
+    let victimSoftDeleted = false
+
+    test.afterEach(async () => {
+      // Restore the shared victim's deleted_at to null after each test so the user
+      // stays active for downstream specs.
+      if (!victimSoftDeleted) return
+      const { data: restored, error: restoreErr } = await admin
+        .from('users')
+        .update({ deleted_at: null })
+        .eq('id', victimUserId)
+        .select('id')
+      if (restoreErr) throw new Error(`[ED cleanup] restore victim failed: ${restoreErr.message}`)
+      if ((restored?.length ?? 0) === 0)
+        throw new Error('[ED cleanup] restore victim affected 0 rows')
+      console.log(`[ED cleanup] restored victim user ${victimUserId}`)
+      victimSoftDeleted = false
+    })
+
+    test('the owner can read their completed-session report until soft-deleted, then is rejected', async () => {
+      // Non-vacuous setup: seed the owner's OWN completed session and assert the
+      // protected state genuinely exists and is readable BEFORE soft-deletion —
+      // otherwise the post-deletion rejection could pass vacuously.
+      const sessionId = await seedSession({ completed: true })
+
+      // Confirm the session + ownership genuinely exist via the service-role client.
+      const { data: ownRows, error: ownErr } = await admin
+        .from('quiz_sessions')
+        .select('id, student_id, ended_at, deleted_at')
+        .eq('id', sessionId)
+      expect(ownErr).toBeNull()
+      expect(ownRows ?? []).toHaveLength(1)
+      expect(ownRows?.[0]?.student_id).toBe(victimUserId)
+      expect(ownRows?.[0]?.ended_at).not.toBeNull()
+      expect(ownRows?.[0]?.deleted_at).toBeNull()
+
+      // Happy path: while active, the owner's own completed session report is
+      // readable (the ownership + completion guard passes).
+      const before = await victimClient.rpc(RPC, { p_session_id: sessionId })
+      expect(before.error).toBeNull()
+      expect(Array.isArray(before.data)).toBe(true)
+
+      // Soft-delete the owner via admin (simulates account deactivation). The JWT
+      // minted in beforeAll is still valid.
+      const { data: deleted, error: delErr } = await admin
+        .from('users')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', victimUserId)
+        .is('deleted_at', null)
+        .select('id')
+      expect(delErr).toBeNull()
+      // Non-vacuous: confirm the soft-delete actually changed a row.
+      expect((deleted ?? []).length).toBeGreaterThan(0)
+      victimSoftDeleted = true
+
+      // The active-user gate fires before the session-ownership check, so the same
+      // owned + completed session that was readable above is now rejected.
+      const { data, error } = await victimClient.rpc(RPC, { p_session_id: sessionId })
+      expect(error).not.toBeNull()
+      expect(error?.message ?? '').toMatch(/user not found or inactive/i)
+      expect(data).toBeNull()
+    })
+  })
 })

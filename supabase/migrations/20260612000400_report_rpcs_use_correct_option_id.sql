@@ -32,6 +32,17 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
+  -- Active-user gate: a soft-deleted caller with a still-valid JWT must not keep reading
+  -- the MC answer key for their completed sessions. Mirrors check_quiz_answer (mig 115)
+  -- and the admin sibling below, which gates via its org lookup (#856, CR-local).
+  PERFORM 1
+  FROM users
+  WHERE id = auth.uid()
+    AND deleted_at IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user not found or inactive';
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM quiz_sessions
     WHERE id = p_session_id
