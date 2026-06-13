@@ -66,10 +66,16 @@ function expectWithinTimeSubmitContract(submitData: unknown, expectedAnswered: n
   expect(r.expired).toBeUndefined()
   expect(r.answered_count).toBe(expectedAnswered)
   expect(typeof r.correct_count).toBe('number')
+  // Bounds (§7): correct answers can't be negative or exceed the count submitted.
+  expect(r.correct_count ?? -1).toBeGreaterThanOrEqual(0)
+  expect(r.correct_count ?? Infinity).toBeLessThanOrEqual(expectedAnswered)
   expect(typeof r.total_questions).toBe('number')
   expect(r.total_questions ?? 0).toBeGreaterThan(0)
   expect(typeof r.passed).toBe('boolean')
   expect(typeof r.score_percentage).toBe('number')
+  // Bounds (§7): a percentage is in [0, 100].
+  expect(r.score_percentage ?? -1).toBeGreaterThanOrEqual(0)
+  expect(r.score_percentage ?? Infinity).toBeLessThanOrEqual(100)
   // results is the per-question payload array — one entry per submitted answer.
   // Assert length (not just Array.isArray, which passes on an emptied []).
   expect(Array.isArray(r.results)).toBe(true)
