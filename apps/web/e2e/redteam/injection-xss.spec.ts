@@ -129,6 +129,7 @@ async function seedXssQuestion(args: SeedArgs): Promise<string> {
       // panel never renders. The question_number still carries `tag`
       // (and therefore MARKER) for cleanup queries to target.
       question_text: args.field === 'question_text' ? `${tag}\n\n${v}` : 'inert',
+      correct_option_id: 'a',
       options: [
         { id: 'a', text: 'opt-a', correct: true },
         { id: 'b', text: 'opt-b', correct: false },

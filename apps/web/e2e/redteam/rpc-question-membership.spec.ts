@@ -104,6 +104,7 @@ test.describe('Red Team: RPC Question Membership Check', () => {
                 subject_id: subjectB.id,
                 topic_id: topicB.id,
                 question_text: 'ICAO is headquartered in:',
+                correct_option_id: 'b',
                 options: [
                   { id: 'a', text: 'Geneva', correct: false },
                   { id: 'b', text: 'Montreal', correct: true },
