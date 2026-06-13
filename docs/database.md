@@ -2492,7 +2492,7 @@ Student-facing RPC (migration 103; redefined in migration `20260611000200` / mig
 
 #### `get_question_authoring_fields` — gated answer-key column reads for admin authoring
 
-Admin-only RPC (migration 094b). Fetches the four answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config) that are REVOKED from authenticated at the privilege layer (mig 094). Allows admin authoring UI to load question details without requiring a service-role client.
+Admin-only RPC (migration 094b; `correct_option_id` added mig 114, #823). Fetches the five answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) that are REVOKED from authenticated at the privilege layer (mig 094 / mig 109). Allows admin authoring UI to load question details without requiring a service-role client.
 
 **Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check (`auth.uid()`), `is_admin()` gate.
 
@@ -2504,6 +2504,7 @@ Admin-only RPC (migration 094b). Fetches the four answer-key columns (canonical_
 - `accepted_synonyms TEXT[]`
 - `dialog_template TEXT` — may be NULL for non-dialog_fill types
 - `blanks_config JSONB`
+- `correct_option_id TEXT` — MC answer key ('a'/'b'/'c'/'d'); NULL for non-MC (added mig 114, #823)
 
 **Error code:**
 - `question_not_found` — question doesn't exist
