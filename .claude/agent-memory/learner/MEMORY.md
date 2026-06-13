@@ -13,7 +13,7 @@ Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema
 | Test fixture shape mismatch (wrong/missing field in fixture object) | 2 | 2026-03-13 | RULE CANDIDATE — both caught pre-commit by type-check; … [full → topics/tracker-archive.md] |
 | Bare `catch {}` without error-type narrowing | 2 | 2026-04-08 | RULE CANDIDATE → code-style.md §6 — swallowed redirect() from requireAdmin → 500; … [full → topics/tracker-archive.md] |
 | Inconsistent guard between related RPCs (sibling missing guard) | 2 | 2026-03-14 | RULE CANDIDATE — auth.uid() guard + NULL correct_option guard each added to one RPC, missed sibling; … [full → topics/tracker-archive.md] |
-| Partial fix applied to sibling file group (cross-cutting concern) | 9 | 2026-06-06 | RULE CANDIDATE (count 9, active) — fix applied to the instance seen, not all instances in file + siblings; … [full → topics/tracker-archive.md] |
+| Partial fix applied to sibling file group (cross-cutting concern) | 10 | 2026-06-14 | RULE CANDIDATE (count 10, active) — fix applied to the instance seen, not all instances in file + siblings; … [full → topics/tracker-archive.md] |
 | useTransition + manual loading state hybrid fragility | 2 | 2026-03-13 | RULE CANDIDATE — isPending + manual isLoading can both be false mid-fetch, flashing idle button; … [full → topics/tracker-archive.md] |
 | Silent numeric fallback without observability logging | 2 | 2026-03-13 | RULE CANDIDATE — fallback to 0/min on empty/malformed data with no server signal; … [full → topics/tracker-archive.md] |
 | Query missing student_id scope (returns wrong student's data) | 2 | 2026-03-15 | RULE CANDIDATE → security.md (propose on 3rd) — auth check ≠ ownership scoping; … [full → topics/tracker-archive.md] |
@@ -35,7 +35,7 @@ Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema
 | Manual-eval bug invisible to unit tests (dual-source UI only in full app) | 2 | 2026-04-28 | RULE CANDIDATE → code-style.md §7 (extends Refresh/Reload) — dual server+client surfaces need an integration/E2E test; … [full → topics/tracker-archive.md] |
 | Stale `why` annotations on test payloads after guard mechanism change | 2 | 2026-05-07 | RULE CANDIDATE (promotion deferred — same file/migration) — payloads.ts notes drift after guard change; … [full → topics/tracker-archive.md] |
 | Server Action ERROR_MESSAGES not synced with new RPC `RAISE EXCEPTION` literals | 2 | 2026-05-07 | RULE CANDIDATE (held for 3rd in different RPC/Action family); … [full → topics/tracker-archive.md] |
-| Red-team spec-count prose drift across multiple doc surfaces (tech.md ×N + decisions.md) | 3 | 2026-06-09 | RULE CANDIDATE — numeric red-team spec counts go stale on every spec-addition batch; … [full → topics/tracker-archive.md] |
+| Red-team spec-count prose drift across multiple doc surfaces (tech.md ×N + decisions.md) | 4 | 2026-06-14 | RULE CANDIDATE — numeric red-team spec counts go stale on every spec-addition batch; … [full → topics/tracker-archive.md] |
 | Spec-doc literal counts drifting from distinct-count implementations | 2 | 2026-05-31 | RULE CANDIDATE — #673 fixtures return distinct-question count, yet spec claimed fixed literals; … [full → topics/tracker-archive.md] |
 | Red-team RLS error-code assertions pinned to 42501 (instead of generic error non-null) | 2 | 2026-06-04 | RULE CANDIDATE (count 2) — orchestrator DEFERRED hard-rule promotion 2026-06-04. … [full → topics/tracker-archive.md] |
 | CR-local false positives on Postgres CREATE OR REPLACE migration chain | 2 | 2026-06-05 | RULE CANDIDATE → agent-coderabbit-local.md — CR reads one mig in isolation, misses forward chain. … [full → topics/tracker-archive.md] |
@@ -69,6 +69,8 @@ All count=1 WATCHING rows live in `topics/tracker-archive.md` only (moved 2026-0
 New WATCHING rows added this cycle (#842):
 - Race/concurrency test accesses `data?.[0]` without prior `toHaveLength` guard — opaque failure on regression (#842, b8109233; semantic-reviewer ISSUE). Full row in archive. Distinct from TS2532 array-index pattern (archive rows 163/269).
 - attack-surface.md gap-row Notes stale after gap closed by test in a different PR (#842; red-team caught in same cycle, fix applied in-commit). Full row in archive.
+New WATCHING rows added this cycle (#825):
+- Sub-vector prefix collision — new sub-vector group (DQ1/DQ2/DQ3) reused a 2-letter prefix (DB) already allocated to a different far-away vector; impl-critic caught it; fix: rename to DR1/DR2/DR3. Distinct from the live-table "max-ID" allocation rule (that guards sequential new-ID allocation; this guards 2-letter prefix reuse when labeling sub-vectors under an existing parent). Full row in archive.
 New WATCHING rows added this cycle (#849):
 - Plan cites superseded RLS policy (DROP POLICY + CREATE POLICY chain not traced forward) — plan-critic caught orchestrator citing mig 043 USING clause; binding policy is mig 050. Full row in archive.
 - Asymmetric afterAll guard variable initialization (victimUserId lacking '' initializer vs attackerUserId = '') — semantic-reviewer ISSUE; undefined filter in cleanup on beforeAll failure. Full row in archive.
