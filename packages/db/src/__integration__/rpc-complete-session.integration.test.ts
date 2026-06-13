@@ -194,6 +194,69 @@ describe('RPC: complete_quiz_session', () => {
     expect(error?.message).toContain('session not found or already completed')
   })
 
+  it('completes exactly once under concurrent calls', async () => {
+    // Mig 104 (PR #830) added FOR UPDATE to the session-ownership SELECT so two
+    // concurrent completions serialize: the winner sets ended_at, then the
+    // loser's re-evaluated WHERE (ended_at IS NULL) no longer matches and it
+    // raises. Unlike batch_submit_quiz there is no idempotent re-entry path, so
+    // the loser fails rather than returning cached scalars. Vector G
+    // (session-race-condition.spec.ts) covers the mechanically identical
+    // batch_submit_quiz lock; this is the complete_quiz_session analog (#842).
+    // Non-flaky by design: the partition holds even if the two calls happen to
+    // run sequentially (first wins, second hits the already-completed guard).
+    const sessionId = await startAndAnswer({
+      correctCount: 2,
+      totalCount: 3,
+    })
+
+    const results = await Promise.all([
+      studentClient.rpc('complete_quiz_session', { p_session_id: sessionId }),
+      studentClient.rpc('complete_quiz_session', { p_session_id: sessionId }),
+    ])
+
+    const winners = results.filter((r) => r.error === null)
+    const losers = results.filter((r) => r.error !== null)
+    // A degenerate race (both win = lock missing; both fail = setup broke)
+    // would otherwise surface as an opaque "expected 0 to be 1" — throw the
+    // actual outcomes so a regression is diagnosable, not just red.
+    if (winners.length !== 1) {
+      throw new Error(
+        `concurrent complete: expected exactly 1 winner, got ${winners.length} — ${results
+          .map((r) => r.error?.message ?? 'success')
+          .join(' | ')}`,
+      )
+    }
+    expect(losers).toHaveLength(1)
+
+    // Winner actually graded — non-vacuous score contract.
+    const winner = winners[0]!
+    expect(winner.data).toHaveLength(1)
+    expect(winner.data?.[0].total_questions).toBe(3)
+    expect(winner.data?.[0].correct_count).toBe(2)
+    expect(Number(winner.data?.[0].score_percentage)).toBeCloseTo(66.67, 1)
+
+    // Loser is rejected with the double-completion guard, not a raw DB error.
+    expect(losers[0]!.error?.message).toContain('session not found or already completed')
+
+    // Session ended exactly once.
+    const { data: sessionRow, error: readErr } = await admin
+      .from('quiz_sessions')
+      .select('ended_at')
+      .eq('id', sessionId)
+      .single()
+    expect(readErr).toBeNull()
+    expect(sessionRow?.ended_at).not.toBeNull()
+
+    // Exactly one quiz_session.completed audit event — no double-stamp.
+    const { data: events, error: eventsErr } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('resource_id', sessionId)
+      .eq('event_type', 'quiz_session.completed')
+    expect(eventsErr).toBeNull()
+    expect(events).toHaveLength(1)
+  })
+
   it('rejects a soft-deleted caller before completing the session', async () => {
     // Mig 104 (PR #830) adds an explicit active-user gate right after the auth
     // check, mirroring batch_submit_quiz (mig 095c) — a soft-deleted caller is

@@ -66,6 +66,9 @@ All count=1 WATCHING rows live in `topics/tracker-archive.md` only (moved 2026-0
 - Blueprint RPC `STABLE`/`VOLATILE` annotation carried verbatim into cloned variant without verifying correctness for the new RPC's semantics (#833/#840 cycle: ORDER BY random() annotated STABLE from 099b). Full row in archive.
 - Newly-published transitive-dep advisory causes `pnpm audit --audit-level=high` pre-push hook to block all pushes mid-run; fix = bounded pnpm override pin mirroring existing pattern (chore/esbuild-0281-audit-fix, f02a3a87). Full row in archive.
 - Stale in-file spec file-header test-count after adding a test case to an existing spec (#851, 680c77e4). Full row in archive.
+New WATCHING rows added this cycle (#842):
+- Race/concurrency test accesses `data?.[0]` without prior `toHaveLength` guard — opaque failure on regression (#842, b8109233; semantic-reviewer ISSUE). Full row in archive. Distinct from TS2532 array-index pattern (archive rows 163/269).
+- attack-surface.md gap-row Notes stale after gap closed by test in a different PR (#842; red-team caught in same cycle, fix applied in-commit). Full row in archive.
 New WATCHING rows added this cycle (#849):
 - Plan cites superseded RLS policy (DROP POLICY + CREATE POLICY chain not traced forward) — plan-critic caught orchestrator citing mig 043 USING clause; binding policy is mig 050. Full row in archive.
 - Asymmetric afterAll guard variable initialization (victimUserId lacking '' initializer vs attackerUserId = '') — semantic-reviewer ISSUE; undefined filter in cleanup on beforeAll failure. Full row in archive.
