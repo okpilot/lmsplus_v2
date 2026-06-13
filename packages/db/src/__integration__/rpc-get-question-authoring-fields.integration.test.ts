@@ -208,6 +208,18 @@ describe('RPC: get_question_authoring_fields exposes correct_option_id to admins
   it('returns zero rows for a cross-org admin caller', async () => {
     // The other-org admin is a legitimate admin (is_admin() passes) but the
     // question belongs to a different org, so the org-scoped lookup yields none.
+    // Non-vacuity (code-style §7): prove the question exists with a populated key
+    // via service-role first, so "0 rows" proves org-scoped rejection, not an
+    // empty table.
+    const { data: control, error: ctrlErr } = await admin
+      .from('questions')
+      .select('id, correct_option_id')
+      .eq('id', mcQuestionId)
+      .single<{ id: string; correct_option_id: string | null }>()
+    expect(ctrlErr).toBeNull()
+    expect(control?.id).toBe(mcQuestionId)
+    expect(control?.correct_option_id).toBe('c')
+
     const { data, error } = await otherAdminClient.rpc('get_question_authoring_fields', {
       p_question_id: mcQuestionId,
     })
