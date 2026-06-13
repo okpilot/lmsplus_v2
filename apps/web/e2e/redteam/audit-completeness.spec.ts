@@ -56,7 +56,7 @@ function expectWithinTimeSubmitContract(submitData: unknown, expectedAnswered: n
   }
   const r = submitData as {
     expired?: boolean
-    results?: unknown
+    results?: unknown[]
     answered_count?: number
     correct_count?: number
     total_questions?: number
@@ -70,7 +70,10 @@ function expectWithinTimeSubmitContract(submitData: unknown, expectedAnswered: n
   expect(r.total_questions ?? 0).toBeGreaterThan(0)
   expect(typeof r.passed).toBe('boolean')
   expect(typeof r.score_percentage).toBe('number')
+  // results is the per-question payload array — one entry per submitted answer.
+  // Assert length (not just Array.isArray, which passes on an emptied []).
   expect(Array.isArray(r.results)).toBe(true)
+  expect(r.results?.length).toBe(expectedAnswered)
 }
 
 test.describe('Red Team: Audit Event Completeness', () => {

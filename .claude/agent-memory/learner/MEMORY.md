@@ -48,7 +48,7 @@ Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema
 | Haiku code-reviewer false positives on Playwright E2E spec complexity (#611 cycle) | 2 | 2026-06-05 | RULE CANDIDATE (elevated FP rate on E2E scope); … [full → topics/tracker-archive.md] |
 | Query helper promoted to throw on error, but SA caller missing catch boundary | 2 | 2026-06-01 | RULE CANDIDATE — #627 (c26ef61f + b7cf6852): throw-posture sweep missed SA callers. … [full → topics/tracker-archive.md] |
 | Red-team spec field-type assertion without nullability check across RPC modes | 2 | 2026-06-06 | RULE CANDIDATE — agent assumes RPC field type/shape without reading the migration; … [full → topics/tracker-archive.md] |
-| Red-team RPC output-contract assertions under-asserted (positive paths assert existence but not field values) | 3 | 2026-06-04 | RULE CANDIDATE (count 3 — codified via PR-G/#742 §7 "RPC Output Contract") — #736, #557, PR-A #256/#257. … [full → topics/tracker-archive.md] |
+| Red-team RPC output-contract assertions under-asserted (positive paths assert existence but not field values) | 4 | 2026-06-13 | RULE CANDIDATE (count 4 — codified via PR-G/#742 §7 "RPC Output Contract") — #736, #557, PR-A #256/#257, #818. … [full → topics/tracker-archive.md] |
 | Shared test-infra helpers (setup.ts, helpers/*.ts) exceed 200-line utility cap (wrongly under .test.ts exemption) | 2 | 2026-06-06 | RULE CANDIDATE — setup.ts/helpers/*.ts are utility files (200-line cap), not test files (500-line exemption). … [full → topics/tracker-archive.md] |
 | Red-team spec self-labels vector mnemonic colliding with existing matrix ID | 3 | 2026-06-09 | RULE CANDIDATE (count 3) — ID collision ×3: #793, #802, #326. Root: not reading WORKING-TREE master before allocating. … [full → topics/tracker-archive.md] |
 | Test cleanup: throw inside finally block / multi-block afterAll without error accumulator (noUnsafeFinally) | 3 | 2026-06-10 | RULE CANDIDATE (count 3) — (1) 64339b28; (2) 4f918ded; (3) 13fa0249. ALL afterAll/afterEach cleanup with ≥2 steps must use per-block try/catch; finally blocks must not throw. … [full → topics/tracker-archive.md] |
@@ -68,6 +68,8 @@ All count=1 WATCHING rows live in `topics/tracker-archive.md` only (moved 2026-0
 New WATCHING rows added this cycle (#849):
 - Plan cites superseded RLS policy (DROP POLICY + CREATE POLICY chain not traced forward) — plan-critic caught orchestrator citing mig 043 USING clause; binding policy is mig 050. Full row in archive.
 - Asymmetric afterAll guard variable initialization (victimUserId lacking '' initializer vs attackerUserId = '') — semantic-reviewer ISSUE; undefined filter in cleanup on beforeAll failure. Full row in archive.
+New WATCHING rows added this cycle (#818):
+- `as unknown as T` cast without runtime guard in test contract helper (impl-critic §5 catch, `expectWithinTimeSubmitContract` — applied typeof/Array.isArray guard). Full row in archive.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
