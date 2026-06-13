@@ -15,7 +15,7 @@
 - Mig 107 / 20260611000300: `ALTER TABLE questions ADD has_calculations BOOLEAN NOT NULL DEFAULT false`. GRANT SELECT (has_calculations) TO authenticated — mig 094 column-gated SELECT, and the SECURITY INVOKER `_filtered_question_pool` reads the column as the student (without the grant it fails 42501 permission denied).
 - Mig 108 / 20260611000400: DROP + recreate `_filtered_question_pool`, `get_random_question_ids`, `get_filtered_question_counts` with `p_calc_mode TEXT DEFAULT 'all'` (last param, AND-restricts via CASE in WHERE). Signature change requires DROP-before-recreate; all dependents dropped in sequence.
 
-**Integration tests:** 6 new tests in `rpc-calc-mode-pool.integration.test.ts` (all/only/exclude pool membership, count==quiz, DEFAULT 'all', only+unseen composition). Suite now 171 (20 added for #823 MC answer-key relocation: sanitize-trigger strip, biconditional MC-key CHECK, get_question_authoring_fields + REVOKE, scoring-via-column, and check_quiz_answer immediate-feedback regression guard).
+**Integration tests:** 6 new tests in `rpc-calc-mode-pool.integration.test.ts` (all/only/exclude pool membership, count==quiz, DEFAULT 'all', only+unseen composition). Suite now 173 (20 added for #823 MC answer-key relocation: sanitize-trigger strip, biconditional MC-key CHECK, get_question_authoring_fields + REVOKE, scoring-via-column, and check_quiz_answer immediate-feedback regression guard; +2 hardening tests for exam-mode rejection and soft-deleted caller, PR #856).
 
 **Docs updated:** docs/database.md (questions schema `has_calculations` column + §5 column-level SELECT gate note, RPC summary L723-724, `get_random_question_ids` + `get_filtered_question_counts` detail sections + `_filtered_question_pool` helper signature and rationale).
 

@@ -637,7 +637,12 @@ When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to 
 2. **Explanations are preserved** — the question record still exists (soft-deleted, not hard-deleted), so we can still retrieve explanation text and images.
 3. **Historical integrity** — we score the response as it was when the student answered, not based on the question's current (deleted) state.
 
-**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` in its bulk-fetch temp table SELECT, which is scoped by the immutable `quiz_sessions.config.question_ids` array (locked at session start). RLS policies do not apply inside SECURITY DEFINER functions, so the RPC can access deleted questions as needed to complete historical scoring. **The carve-out is scoped to that bulk-fetch only**: the idempotent replay JOIN on `questions` is *not* scoped by `config.question_ids`, so it must filter `q.deleted_at IS NULL` like every other SECURITY DEFINER SELECT (security.md §10, migration `20260430000009`, closes #531). PR #599 review extended this from scattered subquery filters to a top-level active-user gate after auth — see migration `20260430000010` for `start_quiz_session` and migration `20260430000012` for `batch_submit_quiz`.
+**Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` on the `questions` JOIN when replaying completed sessions. This is safe because:
+- The idempotent replay path uses `quiz_session_answers.question_id` to fetch the questions (a write-once immutable FK link), so the accessible question set is bounded by the student's completed session's immutable answer record.
+- If a question was soft-deleted *after* the student answered it, the reply must still show all the student's prior answers—including the now-deleted question—for consistency (answered_count from the session row must match the actual result set length, else the UI diverges).
+- Migration `20260612000250` (PR #856) refined the §15 carve-out: removed the `AND q.deleted_at IS NULL` filter from the replay JOIN, added inline documentation explaining the write-once FK boundary.
+
+See security.md §15 for the full list of carve-outs and their immutable-column justifications.
 
 **Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 115) and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options` and `get_admin_report_correct_options` (mig 112) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the correct-option key for a question soft-deleted after it was answered. Note `submit_quiz_answer` deliberately does NOT use this carve-out: it filters `q.deleted_at IS NULL` because a soft-deleted question should not accept a *new* graded submission in an active session (the inconsistency between this and `check_quiz_answer`'s immediate-feedback carve-out is tracked separately).
 
@@ -1636,8 +1641,11 @@ Same return shape as `get_report_correct_options` but scoped by organization ins
 Verifies a student's answer for a question during an active quiz session. Returns correctness, correct option ID, and explanation. Requires session ownership.
 
 **Key behavior:**
+- Active-user gate: soft-deleted callers are rejected (closes issue #823 hardening)
+- Practice-mode guard: rejects mock_exam / internal_exam sessions (prevents mid-exam answer oracle; exam modes use dedicated submit RPCs)
 - Validates that the session belongs to the current student and is still active
-- Validates that the question belongs to the session's locked question set
+- Validates that the question belongs to the session's locked question set (via immutable config.question_ids)
+- Validates config.question_ids is properly formed (explicit NULL check for the array key)
 - Returns only the correct option ID and explanation — never exposes the full options array
 - Used for immediate feedback during quiz sessions (answers are typically batched later via `batch_submit_quiz`)
 
@@ -1666,6 +1674,7 @@ AS $$
 DECLARE
   v_student_id        uuid := auth.uid();
   v_config            jsonb;
+  v_mode              text;
   v_correct_option_id text;
   v_explanation_text  text;
   v_explanation_image text;
@@ -1677,9 +1686,19 @@ BEGIN
     RAISE EXCEPTION 'not authenticated';
   END IF;
 
+  -- Active-user gate: soft-deleted callers fail closed before the session read
+  -- (mirrors submit_quiz_answer / batch_submit_quiz, mig 095b/110)
+  PERFORM 1
+  FROM users
+  WHERE id = v_student_id
+    AND deleted_at IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user not found or inactive';
+  END IF;
+
   -- Session ownership: verify the student owns an active session
-  SELECT qs.config
-  INTO v_config
+  SELECT qs.config, qs.mode
+  INTO v_config, v_mode
   FROM quiz_sessions qs
   WHERE qs.id = p_session_id
     AND qs.student_id = v_student_id
@@ -1687,11 +1706,23 @@ BEGIN
     AND qs.deleted_at IS NULL;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'session not found or not owned by this student';
+    RAISE EXCEPTION 'session not found or not owned';
   END IF;
 
-  -- Guard against malformed config (matches pattern in batch_submit_quiz)
-  IF v_config IS NULL OR v_config->'question_ids' IS NULL OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
+  -- Practice-mode guard: reject mock_exam / internal_exam so this RPC cannot be used
+  -- as a mid-exam answer oracle (exam submission goes through batch_submit_quiz /
+  -- submit_vfr_rt_exam_answers, which never return the key mid-session)
+  IF v_mode NOT IN ('smart_review', 'quick_quiz') THEN
+    RAISE EXCEPTION 'unsupported_session_mode';
+  END IF;
+
+  -- Guard against malformed config (matches pattern in batch_submit_quiz).
+  -- jsonb_typeof(v_config->'question_ids') is NULL when the key is absent, and
+  -- NULL <> 'array' is NULL (not true) — so the explicit IS NULL check is required
+  -- or jsonb_array_elements_text below would run on a missing key.
+  IF v_config IS NULL
+     OR v_config->'question_ids' IS NULL
+     OR jsonb_typeof(v_config->'question_ids') <> 'array' THEN
     RAISE EXCEPTION 'session config is malformed — question_ids not set';
   END IF;
 
@@ -1702,11 +1733,14 @@ BEGIN
   END IF;
 
   -- Fetch correct option and explanation.
-  -- Intentionally no deleted_at filter: session membership was verified against
-  -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
-  -- A question soft-deleted after that point must still be answerable.
+  -- §15 carve-out (same posture as batch_submit_quiz): no deleted_at filter — the
+  -- question is fetched via the immutable write-once quiz_sessions.config.question_ids
+  -- (membership verified above; locked at session start by trg_quiz_sessions_immutable_columns,
+  -- mig 079), so a question soft-deleted mid-session must still be answerable for
+  -- immediate feedback. See docs/security.md §15 and docs/database.md §3.
+  -- The MC key now lives in questions.correct_option_id (#823), not options[].correct.
   SELECT
-    q.correct_option_id,  -- mig 115 #823: read the REVOKE-gated column, not options[].correct
+    q.correct_option_id,
     q.explanation_text,
     q.explanation_image_url
   INTO v_correct_option_id, v_explanation_text, v_explanation_image
@@ -2625,4 +2659,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*
+*Last updated: 2026-06-13 (mig 115 hardening #823 PR #856: check_quiz_answer RPC—active-user gate + practice-mode guard (rejects exam modes) + explicit null-check on config.question_ids; batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; integration tests +2: exam-mode rejection + soft-deleted caller) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `p_calc_mode` AND-restriction) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions session-derived; get_vfr_rt_exam_results explanation gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT) | Companion: docs/security.md*
