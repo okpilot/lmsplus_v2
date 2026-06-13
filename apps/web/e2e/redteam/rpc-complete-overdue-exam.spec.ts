@@ -9,7 +9,8 @@
  *  - AY (HIGH)   non-overdue session → 'session is not overdue' (deadline
  *                invariant: now() > started_at + time_limit + 30s grace).
  *  - AZ (HIGH)   study-mode / quick_quiz session → 'session is not an exam'
- *                (mode guard accepts only mock_exam / internal_exam).
+ *                (mode guard accepts mock_exam / internal_exam / vfr_rt_exam —
+ *                widened by mig 102, #697 A.9).
  *  - BB (LOW)    soft-deleted session → 'session not found or not accessible'
  *                (deleted_at IS NULL filter).
  *  - BC (MEDIUM) concurrent completion on the same overdue session → FOR UPDATE
