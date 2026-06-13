@@ -174,6 +174,46 @@ describe('RPC: submit_quiz_answer', () => {
     expect(answers).toHaveLength(1)
   })
 
+  it("keeps the first answer's result on a duplicate submit with a different option", async () => {
+    // #856 (mig 110): a duplicate submit for the same (session, question) is a true
+    // no-op on student state — the answer row is ON CONFLICT DO NOTHING, and
+    // student_responses + fsrs_cards are only written when the answer row was newly
+    // inserted. The duplicate path re-reads the persisted is_correct and returns THAT,
+    // so a later wrong option must NOT flip the stored result or fsrs_cards.
+    const sessionId = await startSession()
+
+    // First submit the CORRECT option ('b' is the seeded answer key).
+    const { data: first, error: firstErr } = await studentClient.rpc('submit_quiz_answer', {
+      p_session_id: sessionId,
+      p_question_id: questionIds[0],
+      p_selected_option: 'b',
+      p_response_time_ms: 5000,
+    })
+    expect(firstErr).toBeNull()
+    expect(first?.[0].is_correct).toBe(true)
+
+    // Duplicate submit with a DIFFERENT (wrong) option for the same question.
+    const { data: dup, error: dupErr } = await studentClient.rpc('submit_quiz_answer', {
+      p_session_id: sessionId,
+      p_question_id: questionIds[0],
+      p_selected_option: 'a',
+      p_response_time_ms: 1000,
+    })
+    expect(dupErr).toBeNull()
+    // Returns the persisted first answer's result, not this call's wrong option.
+    expect(dup?.[0].is_correct).toBe(true)
+
+    // The duplicate did not flip the FSRS last-was-correct signal either.
+    const { data: card, error: cardErr } = await admin
+      .from('fsrs_cards')
+      .select('last_was_correct')
+      .eq('student_id', studentId)
+      .eq('question_id', questionIds[0])
+      .single<{ last_was_correct: boolean }>()
+    expect(cardErr).toBeNull()
+    expect(card?.last_was_correct).toBe(true)
+  })
+
   it('rejects submission to another student session', async () => {
     // Create studentB
     const studentBId = await createTestUser({

@@ -35,6 +35,7 @@ DECLARE
   v_mode                 text;
   v_session_question_ids uuid[];
   v_options              jsonb;
+  v_answer_inserted      int;
 BEGIN
   -- Auth check
   IF v_student_id IS NULL THEN
@@ -94,7 +95,11 @@ BEGIN
   END IF;
 
   -- Get correct answer, explanation, and full options array (service-level access).
-  -- deleted_at filter applied: active sessions should only reference active questions.
+  -- deleted_at filter applied here ON PURPOSE and is an intentional divergence from
+  -- check_quiz_answer (mig 115): that RPC serves immediate feedback under the §15
+  -- write-once carve-out and allows a soft-deleted question, but this RPC records a
+  -- NEW graded answer — a soft-deleted question must not accept a fresh submission in
+  -- an active session. See docs/database.md §3 "Scoring Soft-Deleted Questions".
   SELECT
     q.correct_option_id,
     q.explanation_text,
@@ -123,29 +128,45 @@ BEGIN
 
   v_is_correct := (p_selected_option = v_correct_option);
 
-  -- Insert answer (idempotent: ignore duplicate on retry)
+  -- Insert answer (idempotent: ignore duplicate on retry).
   INSERT INTO quiz_session_answers
     (session_id, question_id, selected_option_id, is_correct, response_time_ms)
   VALUES
     (p_session_id, p_question_id, p_selected_option, v_is_correct, p_response_time_ms)
   ON CONFLICT (session_id, question_id, blank_index) DO NOTHING;
+  GET DIAGNOSTICS v_answer_inserted = ROW_COUNT;
 
-  -- Insert to immutable response log (idempotent)
-  INSERT INTO student_responses
-    (organization_id, student_id, question_id, session_id,
-     selected_option_id, is_correct, response_time_ms)
-  VALUES
-    (v_org_id, v_student_id, p_question_id, p_session_id,
-     p_selected_option, v_is_correct, p_response_time_ms)
-  ON CONFLICT DO NOTHING;
+  -- Only persist the response log + FSRS state when THIS call actually recorded the
+  -- answer. A duplicate submit (same question, possibly a different option) is a no-op
+  -- on the append-only answer row above, so it must not flip fsrs_cards.last_was_correct
+  -- either — otherwise the persisted answer and the FSRS "last was correct?" signal
+  -- diverge (#856, CR-local). On the duplicate path, re-read the persisted is_correct so
+  -- the RETURN reflects the stored answer rather than this call's option.
+  IF v_answer_inserted = 0 THEN
+    SELECT qsa.is_correct
+    INTO v_is_correct
+    FROM quiz_session_answers qsa
+    WHERE qsa.session_id = p_session_id
+      AND qsa.question_id = p_question_id
+      AND qsa.blank_index IS NULL;
+  ELSE
+    -- Insert to immutable response log (idempotent)
+    INSERT INTO student_responses
+      (organization_id, student_id, question_id, session_id,
+       selected_option_id, is_correct, response_time_ms)
+    VALUES
+      (v_org_id, v_student_id, p_question_id, p_session_id,
+       p_selected_option, v_is_correct, p_response_time_ms)
+    ON CONFLICT DO NOTHING;
 
-  -- Update last_was_correct atomically within this transaction.
-  INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
-  VALUES (v_student_id, p_question_id, v_is_correct, now())
-  ON CONFLICT (student_id, question_id)
-  DO UPDATE SET
-    last_was_correct = EXCLUDED.last_was_correct,
-    updated_at = now();
+    -- Update last_was_correct atomically within this transaction.
+    INSERT INTO fsrs_cards (student_id, question_id, last_was_correct, updated_at)
+    VALUES (v_student_id, p_question_id, v_is_correct, now())
+    ON CONFLICT (student_id, question_id)
+    DO UPDATE SET
+      last_was_correct = EXCLUDED.last_was_correct,
+      updated_at = now();
+  END IF;
 
   RETURN QUERY SELECT v_is_correct, v_expl_text, v_expl_image_url, v_correct_option;
 END;
