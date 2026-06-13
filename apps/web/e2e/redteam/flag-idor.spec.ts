@@ -21,12 +21,16 @@ import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/s
 test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let adminClient: ReturnType<typeof getAdminClient>
-  let victimUserId: string
+  // Both initialised to '' so the afterAll guard can short-circuit if beforeAll throws
+  // before they are assigned (a malformed `.in('student_id', ['', …])` would otherwise fire).
+  let victimUserId = ''
+  let attackerUserId = ''
   let seededQuestionId: string | null = null
 
   test.beforeAll(async () => {
     const seed = await seedRedTeamUsers()
     victimUserId = seed.victimUserId
+    attackerUserId = seed.attackerUserId
     adminClient = getAdminClient()
     attackerClient = await createAuthenticatedClient(ATTACKER_EMAIL, ATTACKER_PASSWORD)
 
@@ -55,9 +59,36 @@ test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
         { onConflict: 'student_id,question_id' },
       )
     if (insErr) throw new Error(`flag-idor seed: failed to seed victim flag: ${insErr.message}`)
+
+    // Seed an ATTACKER-owned flag on the same question (composite PK (student_id,
+    // question_id) makes (attacker, q) distinct from (victim, q)). This makes the
+    // cross-student read assertions below non-vacuous (code-style.md §7): the
+    // attacker genuinely owns a flag, so seeing 0 of the victim's flags proves RLS
+    // isolation rather than an empty/unreadable table. Re-upsert resets deleted_at
+    // to null if a prior run soft-deleted it.
+    const { error: attErr } = await adminClient
+      .from('flagged_questions')
+      .upsert(
+        { student_id: attackerUserId, question_id: seededQuestionId, deleted_at: null },
+        { onConflict: 'student_id,question_id' },
+      )
+    if (attErr) throw new Error(`flag-idor seed: failed to seed attacker flag: ${attErr.message}`)
   })
 
   test('attacker cannot read victim flags via active_flagged_questions view', async () => {
+    // Non-vacuity (code-style.md §7): the attacker owns a seeded flag, so the view
+    // returns it (the view applies WHERE deleted_at IS NULL itself). A non-empty own
+    // result proves the attacker CAN read the view and it is not globally empty.
+    const { data: own, error: ownErr } = await attackerClient
+      .from('active_flagged_questions')
+      .select('question_id')
+      .eq('student_id', attackerUserId)
+      .eq('question_id', seededQuestionId)
+    expect(ownErr).toBeNull()
+    expect((own ?? []).length).toBeGreaterThan(0)
+
+    // No question_id pin here (unlike the own-flag check above): isolation must hold
+    // for ALL of the victim's flags, not just the seeded one.
     const { data, error } = await attackerClient
       .from('active_flagged_questions')
       .select('question_id')
@@ -67,6 +98,20 @@ test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
   })
 
   test('attacker cannot read victim flags via flagged_questions base table', async () => {
+    // Non-vacuity (code-style.md §7): the base-table SELECT policy (mig
+    // 20260323000050) is ownership-only — USING (student_id = auth.uid()), with NO
+    // deleted_at filter (that lives in the view) — so we add `.is('deleted_at', null)`
+    // here to assert the FRESHLY-seeded attacker row is visible, not a stale
+    // soft-deleted one. A non-empty own result proves the attacker can read the table.
+    const { data: own, error: ownErr } = await attackerClient
+      .from('flagged_questions')
+      .select('question_id')
+      .eq('student_id', attackerUserId)
+      .eq('question_id', seededQuestionId)
+      .is('deleted_at', null)
+    expect(ownErr).toBeNull()
+    expect((own ?? []).length).toBeGreaterThan(0)
+
     const { data, error } = await attackerClient
       .from('flagged_questions')
       .select('student_id, question_id')
@@ -85,21 +130,21 @@ test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
   })
 
   test.afterAll(async () => {
-    // Hermetic cleanup (code-style.md §7): soft-delete the seeded victim flag.
-    // flagged_questions has a composite PK (student_id, question_id) and NO `id` column —
-    // filter + select on those columns, not `id`.
-    if (!seededQuestionId) return
+    // Hermetic cleanup (code-style.md §7): soft-delete BOTH seeded flags (victim and
+    // attacker) on the seeded question. flagged_questions has a composite PK
+    // (student_id, question_id) and NO `id` column — filter + select on those columns.
+    if (!seededQuestionId || !attackerUserId || !victimUserId) return
     const { data: discarded, error } = await adminClient
       .from('flagged_questions')
       .update({ deleted_at: new Date().toISOString() })
-      .eq('student_id', victimUserId)
+      .in('student_id', [victimUserId, attackerUserId])
       .eq('question_id', seededQuestionId)
       .is('deleted_at', null)
       .select('student_id')
     if (error) {
       console.error(`[flag-idor cleanup] soft-delete error: ${error.message}`)
     } else if ((discarded?.length ?? 0) > 0) {
-      console.log(`[flag-idor cleanup] soft-deleted ${discarded?.length} victim flag(s)`)
+      console.log(`[flag-idor cleanup] soft-deleted ${discarded?.length} seeded flag(s)`)
     }
   })
 })

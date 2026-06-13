@@ -36,6 +36,7 @@
 > Commit 1309878c (2026-06-11): post-commit review fixes — VOLATILE annotation drop (mig 105 both mirrors, 153→156L ✓), exam_configs delete added to cleanupTestData (packages/db/src/__integration__/cleanup.ts 109→120L ✓, well within 200L cap — distinct from e2e helpers/cleanup.ts 195L watch), docs/database.md claim rewords (2 lines). All clean. No pattern violations. Note: packages/db/src/__integration__/cleanup.ts and apps/web/e2e/redteam/helpers/cleanup.ts are distinct files; only the e2e one is on the 200L watch.
 > Commit cbb2b68f (2026-06-11): test mock queue + FK-order assertions updated for exam_configs delete (7 lines added / 8 removed, cleanup.test.ts 309L ✓). Clean.
 > Commit 86b97b21 (2026-06-13): #851 Vector DX — rpc-cross-tenant-isolation.spec.ts 305→374L (within 500L ceiling ✓). WARNING: `as boolean` cast on line 349 lacks a runtime guard (before?.has_calculations could be null even when the row exists; `expect(before).not.toBeNull()` guards the row but not the column). Not BLOCKING — pre-existing row-null assertion makes the undefined-cast unreachable in practice, but structurally unsound. Pattern count=1, WATCHING.
+> Commit 9f581a54 (2026-06-13): #849 flag-idor non-vacuity — flag-idor.spec.ts 99→146L (within 500L ceiling ✓). All checks passed. Non-vacuity assertions (attacker sees ≥1 own flag before asserting 0 victim flags), base-table `.is('deleted_at', null)` guard correctly explained, afterAll soft-deletes both seeded flags via `.in(student_id, [victim, attacker])`. No pattern violations.
 
 ## Durable knowledge
 
