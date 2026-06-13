@@ -20,10 +20,10 @@ const ORG_UUID = '00000000-0000-4000-a000-000000000002'
 const BANK_UUID = '00000000-0000-4000-a000-000000000003'
 
 const VALID_OPTIONS = [
-  { id: 'a' as const, text: 'Option A', correct: true },
-  { id: 'b' as const, text: 'Option B', correct: false },
-  { id: 'c' as const, text: 'Option C', correct: false },
-  { id: 'd' as const, text: 'Option D', correct: false },
+  { id: 'a' as const, text: 'Option A' },
+  { id: 'b' as const, text: 'Option B' },
+  { id: 'c' as const, text: 'Option C' },
+  { id: 'd' as const, text: 'Option D' },
 ]
 
 const VALID_INPUT = {
@@ -32,6 +32,7 @@ const VALID_INPUT = {
   subtopic_id: null,
   question_text: 'What is the minimum safe altitude?',
   options: VALID_OPTIONS,
+  correct_option_id: 'a' as const,
   explanation_text: 'The minimum safe altitude is 500 ft.',
   difficulty: 'medium' as const,
   status: 'active' as const,
@@ -158,21 +159,16 @@ describe('upsertQuestion', () => {
       expect(result.error).toBe('Invalid input')
     })
 
-    it('returns failure when no option is marked correct', async () => {
-      const result = await upsertQuestion({
-        ...VALID_INPUT,
-        options: VALID_OPTIONS.map((o) => ({ ...o, correct: false })),
-      })
+    it('returns failure when correct_option_id is missing', async () => {
+      const { correct_option_id, ...withoutKey } = VALID_INPUT
+      const result = await upsertQuestion(withoutKey)
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Invalid input')
     })
 
-    it('returns failure when more than one option is marked correct', async () => {
-      const result = await upsertQuestion({
-        ...VALID_INPUT,
-        options: VALID_OPTIONS.map((o) => ({ ...o, correct: true })),
-      })
+    it('returns failure when correct_option_id is not a valid option letter', async () => {
+      const result = await upsertQuestion({ ...VALID_INPUT, correct_option_id: 'z' })
       expect(result.success).toBe(false)
       if (result.success) return
       expect(result.error).toBe('Invalid input')
@@ -205,6 +201,19 @@ describe('upsertQuestion', () => {
       expect(mockFrom).toHaveBeenCalledWith('question_banks')
       expect(mockFrom).toHaveBeenCalledWith('questions')
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/questions')
+    })
+
+    it('passes correct_option_id through to the inserted question payload', async () => {
+      mockAdmin()
+      buildInsertChain()
+
+      await upsertQuestion(VALID_INPUT)
+
+      const insertChain = mockFrom('questions') as { insert: ReturnType<typeof vi.fn> }
+      const insertedRow = insertChain.insert.mock.calls[0]?.[0] as {
+        correct_option_id?: string
+      }
+      expect(insertedRow?.correct_option_id).toBe('a')
     })
 
     it('returns failure when user profile lookup fails', async () => {
@@ -265,6 +274,8 @@ describe('upsertQuestion', () => {
 
       expect(result.success).toBe(true)
       expect(chain.update).toHaveBeenCalled()
+      const updatedRow = chain.update.mock.calls[0]?.[0] as { correct_option_id?: string }
+      expect(updatedRow?.correct_option_id).toBe('a')
       expect(mockRevalidatePath).toHaveBeenCalledWith('/app/admin/questions')
     })
 

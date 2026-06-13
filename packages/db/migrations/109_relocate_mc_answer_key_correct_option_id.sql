@@ -83,10 +83,15 @@ WHERE jsonb_typeof(q.options) = 'array'
 -- ------------------------------------------------------------------
 -- 4) MC integrity CHECK
 -- ------------------------------------------------------------------
+-- Biconditional: a multiple_choice row has exactly a valid key, and a non-MC
+-- row has none. The RHS is forced to a strict boolean (IS NOT NULL AND IN ...)
+-- so a NULL key on an MC row evaluates to TRUE = FALSE -> FALSE (rejected at
+-- write time) rather than leaking through as NULL. Moves a missing key from a
+-- runtime "question has no correct option" RAISE to an INSERT/UPDATE failure.
 ALTER TABLE questions
   ADD CONSTRAINT questions_mc_correct_option_id_check CHECK (
-    question_type <> 'multiple_choice'
-    OR correct_option_id IN ('a', 'b', 'c', 'd')
+    (question_type = 'multiple_choice')
+      = (correct_option_id IS NOT NULL AND correct_option_id IN ('a', 'b', 'c', 'd'))
   );
 
 -- ------------------------------------------------------------------

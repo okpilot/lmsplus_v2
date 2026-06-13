@@ -202,11 +202,13 @@ async function seed() {
       subtopic_id: subtopicId,
       question_text: `Internal-exam eval question ${i}: which option is correct?`,
       options: [
-        { id: 'a', text: 'Option A', correct: false },
-        { id: 'b', text: 'Option B (correct)', correct: true },
-        { id: 'c', text: 'Option C', correct: false },
-        { id: 'd', text: 'Option D', correct: false },
+        { id: 'a', text: 'Option A' },
+        { id: 'b', text: 'Option B (correct)' },
+        { id: 'c', text: 'Option C' },
+        { id: 'd', text: 'Option D' },
       ],
+      // MC answer key now lives in its own REVOKE-gated column (#823, mig 109).
+      correct_option_id: 'b',
       explanation_text: 'Option B is correct for this eval question.',
       difficulty: 'medium',
       status: 'active',

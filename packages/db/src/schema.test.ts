@@ -131,10 +131,10 @@ describe('UpsertSubtopicSchema', () => {
 
 describe('UpsertQuestionSchema', () => {
   const validOptions = [
-    { id: 'a', text: 'Opt A', correct: true },
-    { id: 'b', text: 'Opt B', correct: false },
-    { id: 'c', text: 'Opt C', correct: false },
-    { id: 'd', text: 'Opt D', correct: false },
+    { id: 'a', text: 'Opt A' },
+    { id: 'b', text: 'Opt B' },
+    { id: 'c', text: 'Opt C' },
+    { id: 'd', text: 'Opt D' },
   ]
 
   const valid = {
@@ -143,6 +143,7 @@ describe('UpsertQuestionSchema', () => {
     subtopic_id: null,
     question_text: 'What is QNH?',
     options: validOptions,
+    correct_option_id: 'a',
     explanation_text: 'QNH is the altimeter subscale setting.',
     difficulty: 'medium',
     status: 'active',
@@ -152,22 +153,29 @@ describe('UpsertQuestionSchema', () => {
     expect(UpsertQuestionSchema.safeParse(valid).success).toBe(true)
   })
 
-  it('rejects when no option is marked correct', () => {
-    const options = validOptions.map((o) => ({ ...o, correct: false }))
-    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
+  it('rejects when correct_option_id is missing', () => {
+    const { correct_option_id, ...withoutKey } = valid
+    expect(UpsertQuestionSchema.safeParse(withoutKey).success).toBe(false)
   })
 
-  it('rejects when more than one option is marked correct', () => {
-    const options = validOptions.map((o) => ({ ...o, correct: true }))
-    expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
+  it('rejects when correct_option_id is not a valid option letter', () => {
+    expect(UpsertQuestionSchema.safeParse({ ...valid, correct_option_id: 'z' }).success).toBe(false)
+  })
+
+  it('rejects when correct_option_id does not match any option id', () => {
+    // All option ids are 'a', so a correct_option_id of 'b' matches none.
+    const options = validOptions.map((o) => ({ ...o, id: 'a' }))
+    expect(
+      UpsertQuestionSchema.safeParse({ ...valid, options, correct_option_id: 'b' }).success,
+    ).toBe(false)
   })
 
   it('rejects when duplicate option IDs are supplied', () => {
     const options = [
-      { id: 'a', text: 'Opt A', correct: true },
-      { id: 'a', text: 'Opt B', correct: false },
-      { id: 'a', text: 'Opt C', correct: false },
-      { id: 'a', text: 'Opt D', correct: false },
+      { id: 'a', text: 'Opt A' },
+      { id: 'a', text: 'Opt B' },
+      { id: 'a', text: 'Opt C' },
+      { id: 'a', text: 'Opt D' },
     ]
     expect(UpsertQuestionSchema.safeParse({ ...valid, options }).success).toBe(false)
   })

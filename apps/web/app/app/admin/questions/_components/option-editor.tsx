@@ -5,20 +5,23 @@ import type { QuestionOption } from '../types'
 
 type Props = {
   options: QuestionOption[]
+  correctOptionId: 'a' | 'b' | 'c' | 'd' | ''
   onChange: (options: QuestionOption[]) => void
+  onCorrectChange: (id: 'a' | 'b' | 'c' | 'd') => void
   disabled?: boolean
 }
 
 const OPTION_IDS = ['a', 'b', 'c', 'd'] as const
 
-export function OptionEditor({ options, onChange, disabled }: Readonly<Props>) {
+export function OptionEditor({
+  options,
+  correctOptionId,
+  onChange,
+  onCorrectChange,
+  disabled,
+}: Readonly<Props>) {
   function handleTextChange(idx: number, text: string) {
     const updated = options.map((opt, i) => (i === idx ? { ...opt, text } : opt))
-    onChange(updated)
-  }
-
-  function handleCorrectChange(idx: number) {
-    const updated = options.map((opt, i) => ({ ...opt, correct: i === idx }))
     onChange(updated)
   }
 
@@ -42,8 +45,8 @@ export function OptionEditor({ options, onChange, disabled }: Readonly<Props>) {
               type="radio"
               name="correct-option"
               aria-label={`Mark option ${letter.toUpperCase()} as correct`}
-              checked={options[idx]?.correct ?? false}
-              onChange={() => handleCorrectChange(idx)}
+              checked={correctOptionId === letter}
+              onChange={() => onCorrectChange(letter)}
               disabled={disabled}
               className="accent-primary"
             />{' '}

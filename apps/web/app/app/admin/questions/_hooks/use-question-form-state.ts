@@ -4,13 +4,19 @@ import { useEffect, useState } from 'react'
 import type { QuestionOption, QuestionRow } from '../types'
 
 const EMPTY_OPTIONS: QuestionOption[] = [
-  { id: 'a', text: '', correct: false },
-  { id: 'b', text: '', correct: false },
-  { id: 'c', text: '', correct: false },
-  { id: 'd', text: '', correct: false },
+  { id: 'a', text: '' },
+  { id: 'b', text: '' },
+  { id: 'c', text: '' },
+  { id: 'd', text: '' },
 ]
 
-export function useQuestionFormState(question: QuestionRow | undefined, open: boolean) {
+export type CorrectOptionId = 'a' | 'b' | 'c' | 'd' | ''
+
+export function useQuestionFormState(
+  question: QuestionRow | undefined,
+  open: boolean,
+  initialCorrectOptionId: CorrectOptionId = '',
+) {
   const [subjectId, setSubjectId] = useState(question?.subject_id)
   const [topicId, setTopicId] = useState(question?.topic_id)
   const [subtopicId, setSubtopicId] = useState(question?.subtopic_id ?? null)
@@ -18,6 +24,7 @@ export function useQuestionFormState(question: QuestionRow | undefined, open: bo
   const [loReference, setLoReference] = useState(question?.lo_reference ?? '')
   const [questionText, setQuestionText] = useState(question?.question_text ?? '')
   const [options, setOptions] = useState<QuestionOption[]>(question?.options ?? EMPTY_OPTIONS)
+  const [correctOptionId, setCorrectOptionId] = useState<CorrectOptionId>(initialCorrectOptionId)
   const [explanationText, setExplanationText] = useState(question?.explanation_text ?? '')
   const [questionImageUrl, setQuestionImageUrl] = useState(question?.question_image_url ?? null)
   const [explanationImageUrl, setExplanationImageUrl] = useState(
@@ -38,6 +45,7 @@ export function useQuestionFormState(question: QuestionRow | undefined, open: bo
       setLoReference(question?.lo_reference ?? '')
       setQuestionText(question?.question_text ?? '')
       setOptions(question?.options ?? EMPTY_OPTIONS)
+      setCorrectOptionId(initialCorrectOptionId)
       setExplanationText(question?.explanation_text ?? '')
       setQuestionImageUrl(question?.question_image_url ?? null)
       setExplanationImageUrl(question?.explanation_image_url ?? null)
@@ -67,6 +75,7 @@ export function useQuestionFormState(question: QuestionRow | undefined, open: bo
       loReference,
       questionText,
       options,
+      correctOptionId,
       explanationText,
       questionImageUrl,
       explanationImageUrl,
@@ -82,6 +91,7 @@ export function useQuestionFormState(question: QuestionRow | undefined, open: bo
       setLoReference,
       setQuestionText,
       setOptions,
+      setCorrectOptionId,
       setExplanationText,
       setQuestionImageUrl,
       setExplanationImageUrl,

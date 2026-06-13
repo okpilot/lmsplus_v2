@@ -53,10 +53,10 @@ import { QuestionFormFields } from './question-form-fields'
 
 const TREE: SyllabusTree = []
 const OPTIONS: QuestionOption[] = [
-  { id: 'a', text: 'Alpha', correct: true },
-  { id: 'b', text: 'Beta', correct: false },
-  { id: 'c', text: 'Gamma', correct: false },
-  { id: 'd', text: 'Delta', correct: false },
+  { id: 'a', text: 'Alpha' },
+  { id: 'b', text: 'Beta' },
+  { id: 'c', text: 'Gamma' },
+  { id: 'd', text: 'Delta' },
 ]
 
 describe('QuestionFormFields', () => {
@@ -75,6 +75,7 @@ describe('QuestionFormFields', () => {
         loReference="LO 050 01 01 01"
         questionText="What is the atmosphere?"
         options={OPTIONS}
+        correctOptionId="a"
         explanationText="The atmosphere is..."
         questionImageUrl={null}
         explanationImageUrl={null}
@@ -89,6 +90,7 @@ describe('QuestionFormFields', () => {
         onLoReferenceChange={vi.fn()}
         onQuestionTextChange={vi.fn()}
         onOptionsChange={vi.fn()}
+        onCorrectOptionChange={vi.fn()}
         onExplanationTextChange={vi.fn()}
         onQuestionImageChange={vi.fn()}
         onExplanationImageChange={vi.fn()}
@@ -114,6 +116,7 @@ describe('QuestionFormFields', () => {
         loReference="LO 050 02 01 03"
         questionText="Sample question"
         options={OPTIONS}
+        correctOptionId="a"
         explanationText=""
         questionImageUrl={null}
         explanationImageUrl={null}
@@ -128,6 +131,7 @@ describe('QuestionFormFields', () => {
         onLoReferenceChange={vi.fn()}
         onQuestionTextChange={vi.fn()}
         onOptionsChange={vi.fn()}
+        onCorrectOptionChange={vi.fn()}
         onExplanationTextChange={vi.fn()}
         onQuestionImageChange={vi.fn()}
         onExplanationImageChange={vi.fn()}
@@ -152,6 +156,7 @@ describe('QuestionFormFields', () => {
         loReference=""
         questionText=""
         options={OPTIONS}
+        correctOptionId="a"
         explanationText=""
         questionImageUrl={null}
         explanationImageUrl={null}
@@ -166,6 +171,7 @@ describe('QuestionFormFields', () => {
         onLoReferenceChange={vi.fn()}
         onQuestionTextChange={vi.fn()}
         onOptionsChange={vi.fn()}
+        onCorrectOptionChange={vi.fn()}
         onExplanationTextChange={vi.fn()}
         onQuestionImageChange={vi.fn()}
         onExplanationImageChange={vi.fn()}

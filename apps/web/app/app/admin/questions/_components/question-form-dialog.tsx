@@ -15,17 +15,36 @@ import {
 } from '@/components/ui/dialog'
 import type { SyllabusTree } from '../../syllabus/types'
 import { useQuestionFormState } from '../_hooks/use-question-form-state'
+import { getCorrectOption } from '../actions/get-correct-option'
 import { upsertQuestion } from '../actions/upsert-question'
 import type { QuestionRow } from '../types'
 import { QuestionFormFields } from './question-form-fields'
 
 type Props = { tree: SyllabusTree; question?: QuestionRow; trigger: ReactElement }
 
+function toCorrectOptionId(value: string | null): 'a' | 'b' | 'c' | 'd' | '' {
+  return value === 'a' || value === 'b' || value === 'c' || value === 'd' ? value : ''
+}
+
 export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>) {
   const isEdit = !!question
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { state: s, handlers: h } = useQuestionFormState(question, open)
+
+  // The MC answer key is REVOKE-gated (#823) and absent from the list query, so
+  // it must be fetched on demand for edit mode. We fetch in the open transition
+  // (trigger click) — NOT useEffect — and seed it via the form-state setter.
+  function handleOpenChange(next: boolean) {
+    if (isPending) return
+    setOpen(next)
+    if (next && isEdit) {
+      startTransition(async () => {
+        const { correctOptionId } = await getCorrectOption(question.id)
+        h.setCorrectOptionId(toCorrectOptionId(correctOptionId))
+      })
+    }
+  }
 
   function handleSubmit() {
     startTransition(async () => {
@@ -39,6 +58,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
           lo_reference: s.loReference || null,
           question_text: s.questionText,
           options: s.options,
+          correct_option_id: s.correctOptionId,
           explanation_text: s.explanationText,
           question_image_url: s.questionImageUrl || null,
           explanation_image_url: s.explanationImageUrl || null,
@@ -61,12 +81,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
   const submitLabel = isEdit ? 'Save Changes' : 'Create Question'
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!isPending) setOpen(v)
-      }}
-    >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={trigger} />
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -87,6 +102,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
           loReference={s.loReference}
           questionText={s.questionText}
           options={s.options}
+          correctOptionId={s.correctOptionId}
           explanationText={s.explanationText}
           questionImageUrl={s.questionImageUrl}
           explanationImageUrl={s.explanationImageUrl}
@@ -103,6 +119,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
           onLoReferenceChange={h.setLoReference}
           onQuestionTextChange={h.setQuestionText}
           onOptionsChange={h.setOptions}
+          onCorrectOptionChange={h.setCorrectOptionId}
           onExplanationTextChange={h.setExplanationText}
           onDifficultyChange={(v) => {
             if (v === 'easy' || v === 'medium' || v === 'hard') h.setDifficulty(v)

@@ -55,6 +55,7 @@ function makeQuestion(overrides: Partial<QuestionRow> = {}): QuestionRow {
     topic: { name: 'The Atmosphere' },
     subtopic: null,
     options: [],
+    correct_option_id: null,
     explanation_text: 'The atmosphere is a layer of gases.',
     question_image_url: null,
     explanation_image_url: null,

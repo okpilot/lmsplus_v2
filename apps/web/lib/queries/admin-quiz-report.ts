@@ -165,9 +165,11 @@ export async function getAdminQuizReportQuestions(opts: {
 
   const questionIds = answers.map((a) => a.question_id)
 
-  // Direct SELECT on questions.options includes the raw `correct` boolean in the DB response,
-  // but this is admin-only code (requireAdmin + is_admin RPC), the session is verified complete
-  // (ended_at guard), and buildReportQuestions strips `correct` — only `correctOptionId` is returned.
+  // options no longer carries the answer key — `correct` is stripped at the DB
+  // write layer (#823), so the raw `correct` boolean never reaches this query or
+  // buildReportQuestions. The report's correct option comes from
+  // get_report_correct_options (correctOptionId). This is admin-only code
+  // (requireAdmin + is_admin RPC) and the session is verified complete (ended_at guard).
   // Omits deleted_at intentionally — historical record for completed sessions.
   const { data: questionsData, error: questionsError } = await adminClient
     .from('questions')

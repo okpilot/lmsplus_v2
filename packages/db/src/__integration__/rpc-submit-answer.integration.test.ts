@@ -94,6 +94,34 @@ describe('RPC: submit_quiz_answer', () => {
     expect(data?.[0].correct_option_id).toBe('b')
   })
 
+  it('scores MC answer via the correct_option_id column after options.correct is stripped', async () => {
+    // #823 (mig 109): the answer key moved out of options[].correct (stripped on
+    // write by the sanitize trigger) into the REVOKE-gated correct_option_id
+    // column. Prove the seeded question's stored options carry NO `correct` key,
+    // yet scoring against the column still marks 'b' correct.
+    const { data: qRow, error: qErr } = await admin
+      .from('questions')
+      .select('options, correct_option_id')
+      .eq('id', questionIds[0])
+      .single<{ options: Array<Record<string, unknown>>; correct_option_id: string }>()
+    expect(qErr).toBeNull()
+    for (const opt of qRow!.options) {
+      expect('correct' in opt).toBe(false)
+    }
+    expect(qRow!.correct_option_id).toBe('b')
+
+    const sessionId = await startSession()
+    const { data, error } = await studentClient.rpc('submit_quiz_answer', {
+      p_session_id: sessionId,
+      p_question_id: questionIds[0],
+      p_selected_option: 'b',
+      p_response_time_ms: 4000,
+    })
+    expect(error).toBeNull()
+    expect(data?.[0].is_correct).toBe(true)
+    expect(data?.[0].correct_option_id).toBe('b')
+  })
+
   it('wrong answer returns is_correct = false', async () => {
     const sessionId = await startSession()
     const { data, error } = await studentClient.rpc('submit_quiz_answer', {

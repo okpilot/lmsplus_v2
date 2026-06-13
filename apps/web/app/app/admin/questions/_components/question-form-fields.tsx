@@ -17,6 +17,7 @@ type Props = {
   loReference: string
   questionText: string
   options: QuestionOption[]
+  correctOptionId: 'a' | 'b' | 'c' | 'd' | ''
   explanationText: string
   questionImageUrl: string | null
   explanationImageUrl: string | null
@@ -33,6 +34,7 @@ type Props = {
   onLoReferenceChange: (v: string) => void
   onQuestionTextChange: (v: string) => void
   onOptionsChange: (opts: QuestionOption[]) => void
+  onCorrectOptionChange: (id: 'a' | 'b' | 'c' | 'd') => void
   onExplanationTextChange: (v: string) => void
   onDifficultyChange: (v: string | null) => void
   onStatusChange: (v: string | null) => void
@@ -48,6 +50,7 @@ export function QuestionFormFields({
   loReference,
   questionText,
   options,
+  correctOptionId,
   explanationText,
   questionImageUrl,
   explanationImageUrl,
@@ -64,6 +67,7 @@ export function QuestionFormFields({
   onLoReferenceChange,
   onQuestionTextChange,
   onOptionsChange,
+  onCorrectOptionChange,
   onExplanationTextChange,
   onDifficultyChange,
   onStatusChange,
@@ -110,7 +114,13 @@ export function QuestionFormFields({
         disabled={isPending}
       />
 
-      <OptionEditor options={options} onChange={onOptionsChange} disabled={isPending} />
+      <OptionEditor
+        options={options}
+        correctOptionId={correctOptionId}
+        onChange={onOptionsChange}
+        onCorrectChange={onCorrectOptionChange}
+        disabled={isPending}
+      />
 
       <div>
         <span className="mb-1 block text-xs font-medium text-muted-foreground">Explanation</span>

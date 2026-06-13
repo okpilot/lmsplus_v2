@@ -4,17 +4,17 @@ import type { QuestionOption, QuestionRow } from '../types'
 import { useQuestionFormState } from './use-question-form-state'
 
 const EMPTY_OPTIONS: QuestionOption[] = [
-  { id: 'a', text: '', correct: false },
-  { id: 'b', text: '', correct: false },
-  { id: 'c', text: '', correct: false },
-  { id: 'd', text: '', correct: false },
+  { id: 'a', text: '' },
+  { id: 'b', text: '' },
+  { id: 'c', text: '' },
+  { id: 'd', text: '' },
 ]
 
 const QUESTION_OPTIONS: QuestionOption[] = [
-  { id: 'a', text: 'Option A', correct: true },
-  { id: 'b', text: 'Option B', correct: false },
-  { id: 'c', text: 'Option C', correct: false },
-  { id: 'd', text: 'Option D', correct: false },
+  { id: 'a', text: 'Option A' },
+  { id: 'b', text: 'Option B' },
+  { id: 'c', text: 'Option C' },
+  { id: 'd', text: 'Option D' },
 ]
 
 const MOCK_QUESTION: QuestionRow = {
@@ -30,6 +30,7 @@ const MOCK_QUESTION: QuestionRow = {
   topic: { name: 'Clouds' },
   subtopic: { name: 'Cloud types' },
   options: QUESTION_OPTIONS,
+  correct_option_id: 'a',
   explanation_text: 'METAR is a weather report.',
   question_image_url: 'https://example.com/image.png',
   explanation_image_url: null,
@@ -62,6 +63,28 @@ describe('useQuestionFormState', () => {
       expect(state.difficulty).toBe('easy')
       expect(state.status).toBe('active')
       expect(state.hasCalculations).toBe(true)
+    })
+  })
+
+  describe('correctOptionId', () => {
+    it('seeds correctOptionId from the passed-in initial value for edit mode', () => {
+      const { result } = renderHook(() => useQuestionFormState(MOCK_QUESTION, true, 'c'))
+      expect(result.current.state.correctOptionId).toBe('c')
+    })
+
+    it('defaults correctOptionId to empty when no initial value is passed', () => {
+      const { result } = renderHook(() => useQuestionFormState(undefined, true))
+      expect(result.current.state.correctOptionId).toBe('')
+    })
+
+    it('updates correctOptionId via its setter', () => {
+      const { result } = renderHook(() => useQuestionFormState(undefined, true))
+
+      act(() => {
+        result.current.handlers.setCorrectOptionId('d')
+      })
+
+      expect(result.current.state.correctOptionId).toBe('d')
     })
   })
 
@@ -137,7 +160,7 @@ describe('useQuestionFormState', () => {
   describe('reset on dialog close', () => {
     it('resets all fields to question prop values when open changes from true to false', () => {
       const { result, rerender } = renderHook(
-        ({ open }: { open: boolean }) => useQuestionFormState(MOCK_QUESTION, open),
+        ({ open }: { open: boolean }) => useQuestionFormState(MOCK_QUESTION, open, 'a'),
         { initialProps: { open: true } },
       )
 
@@ -147,6 +170,7 @@ describe('useQuestionFormState', () => {
         result.current.handlers.setDifficulty('hard')
         result.current.handlers.handleSubjectChange('subj-99')
         result.current.handlers.setHasCalculations(false)
+        result.current.handlers.setCorrectOptionId('d')
       })
 
       expect(result.current.state.questionText).toBe('Changed text')
@@ -164,6 +188,7 @@ describe('useQuestionFormState', () => {
       expect(result.current.state.subtopicId).toBe('subtopic-1')
       expect(result.current.state.status).toBe('active')
       expect(result.current.state.hasCalculations).toBe(true)
+      expect(result.current.state.correctOptionId).toBe('a')
     })
 
     it('resets all fields to defaults when question is undefined and dialog closes', () => {
