@@ -139,6 +139,7 @@ test.describe('Red Team: submit_vfr_rt_exam_answers RPC', () => {
       .eq('id', sessionId)
       .single()
     expect(readErr).toBeNull()
+    expect(row).not.toBeNull()
     expect(row?.ended_at).toBeNull()
   })
 })

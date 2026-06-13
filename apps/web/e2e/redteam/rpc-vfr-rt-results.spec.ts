@@ -53,8 +53,8 @@ test.describe('Red Team: get_vfr_rt_exam_results RPC', () => {
   })
 
   // Admin-insert a victim-owned vfr_rt session. `completed` sets ended_at + a
-  // real score so the row models a graded session (DB3); omitting it leaves
-  // ended_at NULL for the pre-completion gate (DB2). The guard SELECT fires
+  // real score so the row models a graded session (DR3); omitting it leaves
+  // ended_at NULL for the pre-completion gate (DR2). The guard SELECT fires
   // before any answer-key read, so no question pool is needed.
   const seedSession = async (
     opts: { completed: boolean } = { completed: false },
