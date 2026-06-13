@@ -315,6 +315,7 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
       .select('id')
       .eq('id', examConfigId)
       .eq('enabled', true)
+      .is('deleted_at', null)
       .single()
     expect(egmontCfgErr).toBeNull()
     expect(egmontConfig).not.toBeNull()
