@@ -5,7 +5,7 @@
  * session using a subject that belongs to egmont-aviation. RLS should prevent
  * cross-tenant data access at both the RPC and direct SELECT level.
  *
- * This file covers the 13 tests that PROBE existing data without seeding any
+ * This file covers the 14 tests that PROBE existing data without seeding any
  * fixture rows. The 6 tests that seed rows live in rpc-cross-tenant-reports.spec.ts.
  *
  * Status: Expected to PASS (defenses should hold).
