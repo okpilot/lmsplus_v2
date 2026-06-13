@@ -148,8 +148,8 @@ describe('Trigger: trg_sanitize_question_options strips the answer key from opti
       .from('questions')
       .update({ options: reinjected })
       .eq('id', inserted!.id)
-      .select('options')
-      .single<{ options: StoredOption[] }>()
+      .select('options, correct_option_id')
+      .single<{ options: StoredOption[]; correct_option_id: string | null }>()
     expect(updErr).toBeNull()
 
     const stored = updated!.options
@@ -158,6 +158,8 @@ describe('Trigger: trg_sanitize_question_options strips the answer key from opti
       expect(Object.keys(opt).sort()).toEqual(['id', 'text'])
       expect('correct' in opt).toBe(false)
     }
+    // The strip must not clear the answer key — scoring reads correct_option_id.
+    expect(updated?.correct_option_id).toBe('a')
   })
 
   it('leaves already-clean options unchanged on INSERT', async () => {

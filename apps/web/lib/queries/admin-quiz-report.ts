@@ -168,7 +168,7 @@ export async function getAdminQuizReportQuestions(opts: {
   // options no longer carries the answer key — `correct` is stripped at the DB
   // write layer (#823), so the raw `correct` boolean never reaches this query or
   // buildReportQuestions. The report's correct option comes from
-  // get_report_correct_options (correctOptionId). This is admin-only code
+  // get_admin_report_correct_options (correctOptionId). This is admin-only code
   // (requireAdmin + is_admin RPC) and the session is verified complete (ended_at guard).
   // Omits deleted_at intentionally — historical record for completed sessions.
   const { data: questionsData, error: questionsError } = await adminClient

@@ -20,7 +20,8 @@ export function LabeledTextarea({
   onChange,
 }: Readonly<Props>) {
   return (
-    <div>
+    // biome-ignore lint/a11y/noLabelWithoutControl: Textarea renders a native <textarea> nested in the label (implicit association); biome can't trace the custom wrapper
+    <label className="block">
       <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
       <Textarea
         value={value}
@@ -29,6 +30,6 @@ export function LabeledTextarea({
         rows={rows}
         disabled={disabled}
       />
-    </div>
+    </label>
   )
 }

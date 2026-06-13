@@ -96,6 +96,8 @@ describe('Constraint: questions_mc_correct_option_id_check (biconditional MC ans
     expect(error).not.toBeNull()
     // 23514 = check_violation (questions_mc_correct_option_id_check)
     expect(error?.code).toBe('23514')
+    // 23514 matches any CHECK — pin the specific constraint that fired.
+    expect(error?.message).toContain('questions_mc_correct_option_id_check')
   })
 
   it('rejects a multiple_choice row with an out-of-domain correct_option_id', async () => {
@@ -110,6 +112,7 @@ describe('Constraint: questions_mc_correct_option_id_check (biconditional MC ans
     )
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
+    expect(error?.message).toContain('questions_mc_correct_option_id_check')
   })
 
   it('rejects a non-MC row that carries a correct_option_id', async () => {
@@ -125,6 +128,7 @@ describe('Constraint: questions_mc_correct_option_id_check (biconditional MC ans
     )
     expect(error).not.toBeNull()
     expect(error?.code).toBe('23514')
+    expect(error?.message).toContain('questions_mc_correct_option_id_check')
   })
 
   it('accepts a valid multiple_choice row with a key in the a-d domain', async () => {
