@@ -555,6 +555,7 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
     const saEntry = result.questions.find((q) => q['question_type'] === 'short_answer')
     expect(saEntry).toBeDefined()
     const saAnswers = saEntry!['answers'] as AnswerRow[]
+    expect(Array.isArray(saAnswers)).toBe(true)
     expect(saAnswers).toHaveLength(1)
     const saSeed = saQs.find((s) => s.id === saEntry!['question_id'])
     expect(saSeed).toBeDefined()
@@ -570,6 +571,7 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
     const dfEntry = result.questions.find((q) => q['question_type'] === 'dialog_fill')
     expect(dfEntry).toBeDefined()
     const dfAnswers = dfEntry!['answers'] as AnswerRow[]
+    expect(Array.isArray(dfAnswers)).toBe(true)
     expect(dfAnswers).toHaveLength(2)
     expect(dfAnswers.map((a) => a.blank_index)).toEqual([0, 1])
     const dfSeed = dfQs.find((d) => d.id === dfEntry!['question_id'])
@@ -587,6 +589,7 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
     const mcEntry = result.questions.find((q) => q['question_type'] === 'multiple_choice')
     expect(mcEntry).toBeDefined()
     const mcAnswers = mcEntry!['answers'] as AnswerRow[]
+    expect(Array.isArray(mcAnswers)).toBe(true)
     expect(mcAnswers).toHaveLength(1)
     const mcSeed = mcQs.find((m) => m.id === mcEntry!['question_id'])
     expect(mcSeed).toBeDefined()
@@ -689,6 +692,33 @@ describe('RPC: get_vfr_rt_exam_results — Part 2 fail session (Fixture B)', () 
     // correct_count is ROW-level (per-blank for dialog_fill, informational-only
     // per migs 100/102/103): 8 SA + 0 of 18 wrong DF blank rows + 8 MC = 16.
     expect(Number(result.correct_count)).toBe(16)
+  })
+
+  it('returns is_correct false with the wrong response_text for the failed dialog_fill blanks (#845)', async () => {
+    // Pins the is_correct join from the wrong-answer side: Fixture B submits
+    // 'WRONG_XYZ' for every Part 2 blank, so the answers array must carry that
+    // text with is_correct false — independent of the part2_pct=0 score path.
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
+      p_session_id: failingSessionId,
+    })
+    expect(error).toBeNull()
+    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    type AnswerRow = {
+      blank_index: number | null
+      selected_option_id: string | null
+      response_text: string | null
+      is_correct: boolean
+    }
+    const dfEntry = result.questions.find((q) => q['question_type'] === 'dialog_fill')
+    expect(dfEntry).toBeDefined()
+    const dfAnswers = dfEntry!['answers'] as AnswerRow[]
+    expect(Array.isArray(dfAnswers)).toBe(true)
+    expect(dfAnswers).toHaveLength(2)
+    expect(dfAnswers.map((a) => a.blank_index)).toEqual([0, 1])
+    for (const a of dfAnswers) {
+      expect(a.response_text).toBe('WRONG_XYZ')
+      expect(a.is_correct).toBe(false)
+    }
   })
 })
 
