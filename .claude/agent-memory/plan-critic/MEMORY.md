@@ -106,5 +106,7 @@ When a plan adds a new code path to a function that returns a discriminated-unio
 
 | docs/plan.md Phase-A delivery records vs current-state claims: line 5 is a current-state count ("136 integration tests") — correct bump target. Line 34 is a Phase A delivery record ("136 new SQL tests … Phase A delivered") — bumping it corrupts the historical record. Plans that say "bump lines 5+34" must be corrected to "bump line 5 only." Historical phase-completion entries must not be edited (agent-doc-updater.md rule). | 2026-06-11 | 1 | 2026-06-11 | WATCHING |
 
+| Probe-only-to-seed transitions in red-team specs: when a plan converts a probe-only spec (no seeding, no afterAll) to a seeding spec, it must: (a) update the file header comment to remove "no seeding" / "probe-only" claims, (b) add a test.afterAll soft-delete for the new seeded rows. Plans that update the header are architecturally sound. Established pattern: rpc-cross-tenant-isolation.spec.ts #818. | 2026-06-13 | 1 | 2026-06-13 | WATCHING |
+
 ## Topic pointers
 - [tracker-archive](topics/tracker-archive.md) — relocated verbatim: older single-occurrence (count=1) tracker rows + older positive signals (moved 2026-06-07 to stay under the 25 KB injection cap).
