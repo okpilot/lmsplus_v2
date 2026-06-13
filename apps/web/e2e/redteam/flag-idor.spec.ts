@@ -21,9 +21,9 @@ import { ATTACKER_EMAIL, ATTACKER_PASSWORD, seedRedTeamUsers } from './helpers/s
 test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
   let attackerClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let adminClient: ReturnType<typeof getAdminClient>
-  let victimUserId: string
-  // Initialised so the afterAll guard can short-circuit if beforeAll throws before
-  // this is assigned (a malformed `.in('student_id', […, ''])` would otherwise fire).
+  // Both initialised to '' so the afterAll guard can short-circuit if beforeAll throws
+  // before they are assigned (a malformed `.in('student_id', ['', …])` would otherwise fire).
+  let victimUserId = ''
   let attackerUserId = ''
   let seededQuestionId: string | null = null
 
@@ -83,6 +83,7 @@ test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
       .from('active_flagged_questions')
       .select('question_id')
       .eq('student_id', attackerUserId)
+      .eq('question_id', seededQuestionId)
     expect(ownErr).toBeNull()
     expect((own ?? []).length).toBeGreaterThan(0)
 
@@ -104,6 +105,7 @@ test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
       .from('flagged_questions')
       .select('question_id')
       .eq('student_id', attackerUserId)
+      .eq('question_id', seededQuestionId)
       .is('deleted_at', null)
     expect(ownErr).toBeNull()
     expect((own ?? []).length).toBeGreaterThan(0)
@@ -129,7 +131,7 @@ test.describe('Red Team: Flag IDOR / Cross-Student Isolation', () => {
     // Hermetic cleanup (code-style.md §7): soft-delete BOTH seeded flags (victim and
     // attacker) on the seeded question. flagged_questions has a composite PK
     // (student_id, question_id) and NO `id` column — filter + select on those columns.
-    if (!seededQuestionId || !attackerUserId) return
+    if (!seededQuestionId || !attackerUserId || !victimUserId) return
     const { data: discarded, error } = await adminClient
       .from('flagged_questions')
       .update({ deleted_at: new Date().toISOString() })
