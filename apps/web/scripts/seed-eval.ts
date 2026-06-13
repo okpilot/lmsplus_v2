@@ -40,6 +40,7 @@ const db = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
+// options[].correct here is a transient authoring flag — converted to correct_option_id at insert and stripped from stored JSONB by trg_sanitize_question_options (#823).
 const AIR_LAW_QUESTIONS = [
   {
     question_number: 'EVAL-ALW-001',

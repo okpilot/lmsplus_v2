@@ -6,8 +6,8 @@ vi.mock('./syllabus-cascader', () => ({
   SyllabusCascader: () => <div data-testid="syllabus-cascader" />,
 }))
 
-vi.mock('./option-editor', () => ({
-  OptionEditor: () => <div data-testid="option-editor" />,
+vi.mock('./answer-key-field', () => ({
+  AnswerKeyField: () => <div data-testid="answer-key-field" />,
 }))
 
 vi.mock('./image-upload-field', () => ({
@@ -100,7 +100,7 @@ describe('QuestionFormFields', () => {
       />,
     )
     expect(screen.getByTestId('syllabus-cascader')).toBeInTheDocument()
-    expect(screen.getByTestId('option-editor')).toBeInTheDocument()
+    expect(screen.getByTestId('answer-key-field')).toBeInTheDocument()
     expect(screen.getByTestId('difficulty-status-select')).toBeInTheDocument()
     expect(screen.getAllByTestId('image-upload-field')).toHaveLength(2)
   })

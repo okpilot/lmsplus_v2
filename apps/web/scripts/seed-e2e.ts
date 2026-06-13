@@ -20,6 +20,7 @@ const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
+// options[].correct here is a transient authoring flag — converted to correct_option_id at insert and stripped from stored JSONB by trg_sanitize_question_options (#823).
 const SEED_QUESTIONS = [
   {
     question_number: 'CI-001',

@@ -1,5 +1,6 @@
 'use server'
 
+import { z } from 'zod'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
 export type GetCorrectOptionResult = { correctOptionId: string | null }
@@ -13,13 +14,16 @@ export type GetCorrectOptionResult = { correctOptionId: string | null }
  * the "correct" radio can be pre-seeded.
  */
 export async function getCorrectOption(p_question_id: unknown): Promise<GetCorrectOptionResult> {
-  if (typeof p_question_id !== 'string' || p_question_id.length === 0) {
+  const parsed = z.uuid().safeParse(p_question_id)
+  if (!parsed.success) {
     return { correctOptionId: null }
   }
 
   const { supabase } = await requireAdmin()
 
-  const { data, error } = await supabase.rpc('get_question_authoring_fields', { p_question_id })
+  const { data, error } = await supabase.rpc('get_question_authoring_fields', {
+    p_question_id: parsed.data,
+  })
 
   if (error) {
     console.error('[getCorrectOption] RPC error:', error.message)

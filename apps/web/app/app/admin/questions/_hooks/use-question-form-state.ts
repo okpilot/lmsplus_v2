@@ -1,103 +1,44 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import type { QuestionOption, QuestionRow } from '../types'
+import { useCallback, useEffect, useState } from 'react'
+import type { QuestionRow } from '../types'
+import {
+  buildInitialFormState,
+  buildSetterHandlers,
+  type CorrectOptionId,
+  type FormState,
+} from './build-initial-form-state'
 
-const EMPTY_OPTIONS: QuestionOption[] = [
-  { id: 'a', text: '' },
-  { id: 'b', text: '' },
-  { id: 'c', text: '' },
-  { id: 'd', text: '' },
-]
-
-export type CorrectOptionId = 'a' | 'b' | 'c' | 'd' | ''
+export type { CorrectOptionId }
 
 export function useQuestionFormState(
   question: QuestionRow | undefined,
   open: boolean,
   initialCorrectOptionId: CorrectOptionId = '',
 ) {
-  const [subjectId, setSubjectId] = useState(question?.subject_id)
-  const [topicId, setTopicId] = useState(question?.topic_id)
-  const [subtopicId, setSubtopicId] = useState(question?.subtopic_id ?? null)
-  const [questionNumber, setQuestionNumber] = useState(question?.question_number ?? '')
-  const [loReference, setLoReference] = useState(question?.lo_reference ?? '')
-  const [questionText, setQuestionText] = useState(question?.question_text ?? '')
-  const [options, setOptions] = useState<QuestionOption[]>(question?.options ?? EMPTY_OPTIONS)
-  const [correctOptionId, setCorrectOptionId] = useState<CorrectOptionId>(initialCorrectOptionId)
-  const [explanationText, setExplanationText] = useState(question?.explanation_text ?? '')
-  const [questionImageUrl, setQuestionImageUrl] = useState(question?.question_image_url ?? null)
-  const [explanationImageUrl, setExplanationImageUrl] = useState(
-    question?.explanation_image_url ?? null,
+  const [state, setState] = useState<FormState>(() =>
+    buildInitialFormState(question, initialCorrectOptionId),
   )
-  const [difficulty, setDifficulty] = useState(question?.difficulty ?? 'medium')
-  const [status, setStatus] = useState(question?.status ?? 'draft')
-  const [hasCalculations, setHasCalculations] = useState(question?.has_calculations ?? false)
 
-  // Reset form when dialog closes
+  const setField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setState((prev) => ({ ...prev, [key]: value }))
+  }, [])
+
+  // Reset form when dialog closes (state-reset guard, not data-fetching)
   // biome-ignore lint/correctness/useExhaustiveDependencies: question prop read from closure on reset
   useEffect(() => {
-    if (!open) {
-      setSubjectId(question?.subject_id)
-      setTopicId(question?.topic_id)
-      setSubtopicId(question?.subtopic_id ?? null)
-      setQuestionNumber(question?.question_number ?? '')
-      setLoReference(question?.lo_reference ?? '')
-      setQuestionText(question?.question_text ?? '')
-      setOptions(question?.options ?? EMPTY_OPTIONS)
-      setCorrectOptionId(initialCorrectOptionId)
-      setExplanationText(question?.explanation_text ?? '')
-      setQuestionImageUrl(question?.question_image_url ?? null)
-      setExplanationImageUrl(question?.explanation_image_url ?? null)
-      setDifficulty(question?.difficulty ?? 'medium')
-      setStatus(question?.status ?? 'draft')
-      setHasCalculations(question?.has_calculations ?? false)
-    }
+    if (!open) setState(buildInitialFormState(question, initialCorrectOptionId))
   }, [open])
 
   function handleSubjectChange(id: string) {
-    setSubjectId(id)
-    setTopicId(undefined)
-    setSubtopicId(null)
+    setState((prev) => ({ ...prev, subjectId: id, topicId: undefined, subtopicId: null }))
   }
 
   function handleTopicChange(id: string) {
-    setTopicId(id)
-    setSubtopicId(null)
+    setState((prev) => ({ ...prev, topicId: id, subtopicId: null }))
   }
 
-  return {
-    state: {
-      subjectId,
-      topicId,
-      subtopicId,
-      questionNumber,
-      loReference,
-      questionText,
-      options,
-      correctOptionId,
-      explanationText,
-      questionImageUrl,
-      explanationImageUrl,
-      difficulty,
-      status,
-      hasCalculations,
-    },
-    handlers: {
-      handleSubjectChange,
-      handleTopicChange,
-      setSubtopicId,
-      setQuestionNumber,
-      setLoReference,
-      setQuestionText,
-      setOptions,
-      setCorrectOptionId,
-      setExplanationText,
-      setQuestionImageUrl,
-      setExplanationImageUrl,
-      setDifficulty,
-      setStatus,
-      setHasCalculations,
-    },
-  }
+  const handlers = { handleSubjectChange, handleTopicChange, ...buildSetterHandlers(setField) }
+
+  return { state, handlers }
 }

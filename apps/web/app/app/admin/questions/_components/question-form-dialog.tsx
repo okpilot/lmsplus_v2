@@ -34,16 +34,23 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
 
   // The MC answer key is REVOKE-gated (#823) and absent from the list query, so
   // it must be fetched on demand for edit mode. We fetch in the open transition
-  // (trigger click) — NOT useEffect — and seed it via the form-state setter.
+  // (trigger click) — NOT useEffect — and seed it BEFORE opening so the radio
+  // renders already-selected (no unselected flash). New questions open instantly.
   function handleOpenChange(next: boolean) {
     if (isPending) return
-    setOpen(next)
-    if (next && isEdit) {
-      startTransition(async () => {
-        const { correctOptionId } = await getCorrectOption(question.id)
-        h.setCorrectOptionId(toCorrectOptionId(correctOptionId))
-      })
+    if (!next) {
+      setOpen(false)
+      return
     }
+    if (!isEdit) {
+      setOpen(true)
+      return
+    }
+    startTransition(async () => {
+      const { correctOptionId } = await getCorrectOption(question.id)
+      h.setCorrectOptionId(toCorrectOptionId(correctOptionId))
+      setOpen(true)
+    })
   }
 
   function handleSubmit() {

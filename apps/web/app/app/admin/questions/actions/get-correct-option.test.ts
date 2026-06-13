@@ -63,4 +63,13 @@ describe('getCorrectOption', () => {
     expect(result).toEqual({ correctOptionId: null })
     expect(mockRpc).not.toHaveBeenCalled()
   })
+
+  it('returns null without calling the RPC when the question id is not a valid uuid', async () => {
+    mockAdmin()
+
+    const result = await getCorrectOption('not-a-uuid')
+
+    expect(result).toEqual({ correctOptionId: null })
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
 })
