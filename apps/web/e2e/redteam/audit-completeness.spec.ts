@@ -56,17 +56,21 @@ function expectWithinTimeSubmitContract(submitData: unknown, expectedAnswered: n
   }
   const r = submitData as {
     expired?: boolean
+    results?: unknown
     answered_count?: number
+    correct_count?: number
     total_questions?: number
     passed?: boolean
     score_percentage?: number
   }
   expect(r.expired).toBeUndefined()
   expect(r.answered_count).toBe(expectedAnswered)
+  expect(typeof r.correct_count).toBe('number')
   expect(typeof r.total_questions).toBe('number')
   expect(r.total_questions ?? 0).toBeGreaterThan(0)
   expect(typeof r.passed).toBe('boolean')
   expect(typeof r.score_percentage).toBe('number')
+  expect(Array.isArray(r.results)).toBe(true)
 }
 
 test.describe('Red Team: Audit Event Completeness', () => {
