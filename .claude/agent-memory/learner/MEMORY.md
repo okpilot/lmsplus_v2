@@ -63,6 +63,7 @@ All count=1 WATCHING rows live in `topics/tracker-archive.md` only (moved 2026-0
 - Shell script parsing LLM output for a gate decision via exact-string match — fails open on prose-wrapped token (#832, f7ec4a11; fail-closed parse_verdict fix). Full row in archive.
 - CLAUDE.md QA-pipeline section claims pre-commit runs unit tests; lefthook.yml has unit-test step intentionally commented out (#833/#840 cycle). Full row in archive.
 - Blueprint RPC `STABLE`/`VOLATILE` annotation carried verbatim into cloned variant without verifying correctness for the new RPC's semantics (#833/#840 cycle: ORDER BY random() annotated STABLE from 099b). Full row in archive.
+- Newly-published transitive-dep advisory causes `pnpm audit --audit-level=high` pre-push hook to block all pushes mid-run; fix = bounded pnpm override pin mirroring existing pattern (chore/esbuild-0281-audit-fix, f02a3a87). Full row in archive.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
