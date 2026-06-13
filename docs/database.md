@@ -917,7 +917,7 @@ BEGIN
   -- Get correct answer, explanation, and full options array (service-level access).
   -- deleted_at filter applied: active sessions should only reference active questions.
   SELECT
-    (SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt WHERE (opt->>'correct')::boolean LIMIT 1),
+    q.correct_option_id,  -- mig 110 #823: read the REVOKE-gated column, not options[].correct
     q.explanation_text,
     q.explanation_image_url,
     q.options
@@ -1076,10 +1076,7 @@ BEGIN
     SELECT jsonb_agg(jsonb_build_object(
       'question_id', qsa.question_id,
       'is_correct', qsa.is_correct,
-      'correct_option_id', (
-        SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt
-        WHERE (opt->>'correct')::boolean LIMIT 1
-      ),
+      'correct_option_id', q.correct_option_id,  -- mig 110b #823: REVOKE-gated column
       'explanation_text', q.explanation_text,
       'explanation_image_url', q.explanation_image_url
     ))
@@ -1175,8 +1172,7 @@ BEGIN
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT
     q.id,
-    (SELECT opt->>'id' FROM jsonb_array_elements(q.options) opt
-     WHERE (opt->>'correct')::boolean LIMIT 1) AS correct_option,
+    q.correct_option_id AS correct_option,  -- mig 110b #823: REVOKE-gated column
     q.explanation_text,
     q.explanation_image_url,
     q.options
@@ -1618,13 +1614,11 @@ BEGIN
   -- This SECURITY DEFINER function bypasses RLS — do not remove the guard.
   RETURN QUERY
   SELECT DISTINCT ON (sa.question_id)
-    sa.question_id, (opt.value->>'id')::text
+    sa.question_id, q.correct_option_id  -- mig 112 #823: collapsed LATERAL scan to the REVOKE-gated column
   FROM quiz_session_answers sa
   JOIN questions q ON q.id = sa.question_id
-  CROSS JOIN LATERAL jsonb_array_elements(q.options) WITH ORDINALITY AS opt(value, ord)
   WHERE sa.session_id = p_session_id
-    AND (opt.value->>'correct')::boolean = true
-  ORDER BY sa.question_id, opt.ord;
+  ORDER BY sa.question_id;
 END;
 $$;
 ```
@@ -1712,10 +1706,7 @@ BEGIN
   -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
   -- A question soft-deleted after that point must still be answerable.
   SELECT
-    (SELECT opt->>'id'
-       FROM jsonb_array_elements(q.options) opt
-      WHERE (opt->>'correct')::boolean
-      LIMIT 1),
+    q.correct_option_id,  -- mig 115 #823: read the REVOKE-gated column, not options[].correct
     q.explanation_text,
     q.explanation_image_url
   INTO v_correct_option_id, v_explanation_text, v_explanation_image
