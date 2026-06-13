@@ -120,3 +120,8 @@ BEGIN
   );
 END;
 $$;
+
+-- CREATE OR REPLACE preserves the prior grant, but re-grant explicitly so the
+-- migration is self-contained on a fresh reset (matches the sibling RPC
+-- migrations in this series: batch_submit_quiz 110b, report RPCs 112/113).
+GRANT EXECUTE ON FUNCTION check_quiz_answer(uuid, text, uuid) TO authenticated;

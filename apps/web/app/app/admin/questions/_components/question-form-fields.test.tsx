@@ -109,7 +109,7 @@ describe('QuestionFormFields', () => {
     expect(screen.getAllByTestId('image-upload-field')).toHaveLength(2)
   })
 
-  it('forwards the answer-key props to the answer-key editor', () => {
+  it('gives the answer-key editor the current options, selection, and change handlers', () => {
     const onOptionsChange = vi.fn()
     const onCorrectOptionChange = vi.fn()
     render(
