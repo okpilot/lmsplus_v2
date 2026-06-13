@@ -45,19 +45,31 @@ SET correct_option_id = (
 )
 WHERE q.question_type = 'multiple_choice';
 
--- Data-quality gate: every MC question must now have a key. If any row is left
--- NULL (an MC question with zero options marked correct), fail the migration
--- loudly rather than silently shipping an un-scoreable question.
+-- Data-quality gate: every MC question must have EXACTLY ONE correct option.
+-- The backfill above takes the first `correct: true` via LIMIT 1, and step 3
+-- below permanently strips the `correct` flags — so a legacy row with zero
+-- correct flags (un-scoreable) OR two+ correct flags (ambiguous key, silently
+-- collapsed) must fail the migration loudly NOW, while the evidence still exists,
+-- rather than ship a wrong/missing answer key. The flags are still present at this
+-- point (strip is step 3), so the per-row count is authoritative.
 DO $$
 DECLARE
-  v_orphans INT;
+  v_bad_rows INT;
 BEGIN
-  SELECT count(*) INTO v_orphans
+  SELECT count(*) INTO v_bad_rows
   FROM questions
-  WHERE question_type = 'multiple_choice' AND correct_option_id IS NULL;
-  IF v_orphans > 0 THEN
+  WHERE question_type = 'multiple_choice'
+    AND (
+      correct_option_id IS NULL
+      OR 1 <> (
+        SELECT count(*)
+        FROM jsonb_array_elements(options) AS opt
+        WHERE coalesce(opt->>'correct', 'false')::boolean
+      )
+    );
+  IF v_bad_rows > 0 THEN
     RAISE EXCEPTION
-      '#823 backfill: % multiple_choice question(s) have no correct option — refusing to strip the key', v_orphans;
+      '#823 backfill: % multiple_choice question(s) do not have exactly one correct option — refusing to strip the key', v_bad_rows;
   END IF;
 END $$;
 
