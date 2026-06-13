@@ -59,9 +59,12 @@ BEGIN
   END IF;
 
   -- Fetch correct option and explanation.
-  -- Intentionally no deleted_at filter: session membership was verified against
-  -- config.question_ids (a snapshot locked at session start via FOR UPDATE).
-  -- A question soft-deleted after that point must still be answerable.
+  -- §15 carve-out (same posture as batch_submit_quiz): no deleted_at filter — the
+  -- question is fetched via the immutable write-once quiz_sessions.config.question_ids
+  -- (membership verified above; locked at session start by
+  -- trg_quiz_sessions_immutable_columns, mig 079), so a question soft-deleted
+  -- mid-session must still be answerable for immediate feedback. See docs/security.md
+  -- §15 and docs/database.md §3 "Scoring Soft-Deleted Questions".
   -- The MC key now lives in questions.correct_option_id (#823), not options[].correct.
   SELECT
     q.correct_option_id,

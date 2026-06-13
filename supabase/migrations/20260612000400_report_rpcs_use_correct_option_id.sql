@@ -13,9 +13,14 @@
 
 -- DISTINCT ON (sa.question_id) is retained to dedupe repeated answers for the
 -- same question within a session; the value is deterministic because every
--- duplicate sa row for a question maps to the same q.correct_option_id. No
--- q.deleted_at filter: soft-deleted questions must still appear in historical
--- reports for completed sessions (the session's answers constrain the set).
+-- duplicate sa row for a question maps to the same q.correct_option_id.
+-- §15 carve-out: no q.deleted_at filter on the questions JOIN. quiz_session_answers
+-- is immutable (append-only — no UPDATE/DELETE policies; resubmits are ON CONFLICT
+-- DO NOTHING), so sa.question_id is a write-once FK: the question set is bounded by
+-- the student's actual answers in a completed session (ended_at IS NOT NULL), not by
+-- the deleted-at predicate. A question soft-deleted after it was answered must still
+-- reveal its key in that historical report. See docs/security.md §15 and
+-- docs/database.md §3 "Scoring Soft-Deleted Questions".
 CREATE OR REPLACE FUNCTION get_report_correct_options(p_session_id uuid)
 RETURNS TABLE (question_id uuid, correct_option_id text)
 LANGUAGE plpgsql
@@ -92,6 +97,10 @@ BEGIN
     RAISE EXCEPTION 'Session not found, not in caller org, or not completed';
   END IF;
 
+  -- §15 carve-out (same as get_report_correct_options above): no q.deleted_at
+  -- filter — sa.question_id is a write-once FK on the immutable quiz_session_answers
+  -- table, so the question set is bounded by the answered, completed session, not by
+  -- deleted_at. See docs/security.md §15 and docs/database.md §3.
   RETURN QUERY
   SELECT DISTINCT ON (sa.question_id)
     sa.question_id,
