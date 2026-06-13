@@ -89,7 +89,7 @@ describe('RPC: check_quiz_answer', () => {
     return data as string
   }
 
-  it('marks the answer correct and returns the key from questions.correct_option_id', async () => {
+  it('returns the correct option id for a correct answer', async () => {
     // Regression guard for #823 (mig 109 + mig 115): the answer key moved out of
     // options[].correct (stripped on write) into the REVOKE-gated
     // correct_option_id column. First prove the stored options carry NO `correct`
@@ -182,7 +182,7 @@ describe('RPC: check_quiz_answer', () => {
     expect(error?.message).toContain('session not found or not owned')
   })
 
-  it('rejects an exam-mode session with unsupported_session_mode', async () => {
+  it('rejects answer checks for exam sessions', async () => {
     // check_quiz_answer returns is_correct/explanation/correct_option_id
     // immediately — accepting an exam-mode session would be a mid-exam answer
     // oracle (#823 / mig 115 hardening, PR #856). Exam-mode sessions start via
@@ -227,7 +227,7 @@ describe('RPC: check_quiz_answer', () => {
     }
   })
 
-  it('rejects a soft-deleted caller with user not found or inactive', async () => {
+  it('rejects answer checks from soft-deleted accounts', async () => {
     // The active-user gate (mirrors submit_quiz_answer, mig 110) must fail closed
     // before the session read, so a soft-deleted account with a still-valid JWT
     // cannot keep reading the answer key. Create a throwaway student, obtain its

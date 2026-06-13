@@ -1087,7 +1087,10 @@ BEGIN
     ))
     INTO v_results
     FROM quiz_session_answers qsa
-    JOIN questions q ON q.id = qsa.question_id AND q.deleted_at IS NULL
+    -- §15 write-once carve-out: replay joins via the immutable
+    -- quiz_session_answers.question_id FK, so a question soft-deleted after the
+    -- session ended still appears in results (mig 110b / 20260612000250).
+    JOIN questions q ON q.id = qsa.question_id
     WHERE qsa.session_id = p_session_id;
 
     RETURN jsonb_build_object(
@@ -1642,7 +1645,7 @@ Verifies a student's answer for a question during an active quiz session. Return
 
 **Key behavior:**
 - Active-user gate: soft-deleted callers are rejected (closes issue #823 hardening)
-- Practice-mode guard: rejects mock_exam / internal_exam sessions (prevents mid-exam answer oracle; exam modes use dedicated submit RPCs)
+- Practice-mode guard: only `smart_review` and `quick_quiz` sessions are accepted; all other modes (`mock_exam`, `internal_exam`, `vfr_rt_exam`) are rejected with `unsupported_session_mode` (prevents a mid-exam answer oracle; exam modes use dedicated submit RPCs)
 - Validates that the session belongs to the current student and is still active
 - Validates that the question belongs to the session's locked question set (via immutable config.question_ids)
 - Validates config.question_ids is properly formed (explicit NULL check for the array key)
