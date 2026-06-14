@@ -91,18 +91,33 @@ test.describe('Red Team: exam_config reactivation-guard trigger (Vector AJ)', ()
     // Restore the seeded config(s) + distributions removed in beforeAll by re-inserting the
     // full original rows (same ids/timestamps). INSERT does not fire the BEFORE UPDATE OF
     // deleted_at trigger. Configs first (distributions FK them). Idempotent: clear after.
+    const errors: string[] = []
+
     if (restoreConfigs.length > 0) {
-      const { error: cfgErr } = await admin.from('exam_configs').insert(restoreConfigs)
-      if (cfgErr) throw new Error(`afterAll restore configs: ${cfgErr.message}`)
+      try {
+        const { error: cfgErr } = await admin.from('exam_configs').insert(restoreConfigs)
+        if (cfgErr) throw new Error(`afterAll restore configs: ${cfgErr.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        restoreConfigs = []
+      }
     }
+
     if (restoreDistributions.length > 0) {
-      const { error: distErr } = await admin
-        .from('exam_config_distributions')
-        .insert(restoreDistributions)
-      if (distErr) throw new Error(`afterAll restore distributions: ${distErr.message}`)
+      try {
+        const { error: distErr } = await admin
+          .from('exam_config_distributions')
+          .insert(restoreDistributions)
+        if (distErr) throw new Error(`afterAll restore distributions: ${distErr.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      } finally {
+        restoreDistributions = []
+      }
     }
-    restoreConfigs = []
-    restoreDistributions = []
+
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   test.afterEach(async () => {

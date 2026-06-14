@@ -144,21 +144,34 @@ test.describe('Settings — Change Password', () => {
   test.afterAll(async () => {
     // Safety net: reset password via admin API in case the change-back test failed
     const admin = getAdminClient()
-    const { data, error: listError } = await admin.auth.admin.listUsers()
-    if (listError) {
-      console.error('[afterAll] listUsers failed:', listError.message)
-      return
+    const errors: string[] = []
+
+    // Step 1: resolve the test user
+    let userId: string | undefined
+    try {
+      const { data, error: listError } = await admin.auth.admin.listUsers()
+      if (listError) throw new Error(`afterAll listUsers: ${listError.message}`)
+      const user = data?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
+      if (!user) {
+        console.warn('[afterAll] Test user not found:', TEST_EMAIL)
+      }
+      userId = user?.id
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
     }
-    const user = data?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
-    if (!user) {
-      console.warn('[afterAll] Test user not found:', TEST_EMAIL)
-      return
+
+    // Step 2: reset password to the known test value
+    if (userId) {
+      try {
+        const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
+          password: TEST_PASSWORD,
+        })
+        if (updateError) throw new Error(`afterAll updateUserById: ${updateError.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
     }
-    const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
-      password: TEST_PASSWORD,
-    })
-    if (updateError) {
-      console.error('[afterAll] updateUserById failed:', updateError.message)
-    }
+
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 })
