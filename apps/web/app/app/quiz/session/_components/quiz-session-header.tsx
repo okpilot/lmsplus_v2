@@ -37,7 +37,13 @@ export function QuizSessionHeader({
 }: QuizSessionHeaderProps) {
   const finishLabel = isExam ? `Finish ${MODE_LABELS[examMode ?? 'mock_exam']}` : 'Finish Test'
   return (
-    <div className="relative flex items-center justify-between border-b border-border px-4 py-2">
+    // Desktop (md+) only: pin the header so it stays visible while the question
+    // body scrolls underneath. Mobile keeps the original scroll-away header.
+    // `md:sticky` is a positioned value, so the `absolute inset-0` desktop tab
+    // overlay below still anchors to this element. NOTE: md:sticky relies on no
+    // `overflow: hidden/auto/clip` on any scroll-container ancestor — if a parent
+    // gains an overflow value, the header will silently stop pinning.
+    <div className="relative flex items-center justify-between border-b border-border px-4 py-2 md:sticky md:top-0 md:z-30 md:bg-background/90 md:backdrop-blur-sm">
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium md:hidden">
           Q {currentIndex + 1} / {totalQuestions}
