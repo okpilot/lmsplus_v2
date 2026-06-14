@@ -28,9 +28,10 @@ export function createConfigHandlers({
   calcMode,
   imageMode,
 }: ConfigHandlerDeps) {
-  // Each handler clears counts only when NO dimension still restricts the pool —
-  // this prevents an unfiltered-count flash when a single filter clears while others
-  // remain active (see the per-handler reset guards below).
+  // handleSubjectChange is a full reset — it clears every dimension together, so it
+  // resets counts unconditionally. The three partial-change handlers below each clear
+  // counts only when NO dimension still restricts the pool, to avoid an
+  // unfiltered-count flash when one filter clears while others remain active.
   function handleSubjectChange(id: string) {
     setSubjectId(id)
     fc.reset()

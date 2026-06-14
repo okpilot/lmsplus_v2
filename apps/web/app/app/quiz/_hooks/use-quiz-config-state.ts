@@ -8,9 +8,9 @@ import type { useTopicTree } from './use-topic-tree'
  * Owns the quiz-builder selection state (subject, mode, filters, calc/image
  * mode, count) and the change handlers that decide reset-vs-keep. Extracted from
  * useQuizConfig so the orchestration hook stays within the hook line budget.
- * Returns the policy-applying handlers (`handleFiltersChange`,
- * `handleCalcModeChange`, `handleImageModeChange`) alongside the raw setters it
- * still exposes directly (`setMode`, `setCount`).
+ * Returns the policy-applying handlers (`handleSubjectChange`,
+ * `handleFiltersChange`, `handleCalcModeChange`, `handleImageModeChange`) alongside
+ * the raw setters it still exposes directly (`setMode`, `setCount`).
  */
 export function useQuizConfigState(deps: {
   fc: ReturnType<typeof useFilteredCount>
