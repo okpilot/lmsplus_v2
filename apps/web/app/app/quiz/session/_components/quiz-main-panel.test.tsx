@@ -169,7 +169,7 @@ describe('QuizMainPanel', () => {
     })
   })
 
-  describe('AnswerOptions disabled prop — regression: per-question RPC in flight', () => {
+  describe('answer options stay enabled during a per-question RPC', () => {
     // Regression guard for the fix in quiz-main-panel.tsx:
     // Before the fix: disabled={s.submitting || s.answering}
     // After the fix:  disabled={s.submitting}
