@@ -195,7 +195,7 @@ describe('QuizMainPanel', () => {
       expect(screen.getByTestId('answer-options')).toHaveAttribute('data-disabled', 'true')
     })
 
-    it('shows the spinner on AnswerOptions while a per-question RPC is in flight', () => {
+    it('shows the spinner on the submit control while a per-question RPC is in flight', () => {
       // answering drives the Submit Answer spinner (submitting prop on AnswerOptions).
       const s = makeState({ answering: true, submitting: false } as Partial<QuizState>)
       render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)

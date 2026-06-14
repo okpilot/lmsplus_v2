@@ -205,10 +205,13 @@ describe('QuizConfigForm', () => {
     expect(screen.getByRole('button', { name: 'Start Quiz' })).not.toBeDisabled()
   })
 
-  it('shows "Starting..." text and disables button while loading', () => {
+  it('shows "Starting..." text, disables the button, and marks it busy with a spinner while loading', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', loading: true }))
     render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
-    expect(screen.getByRole('button', { name: 'Starting...' })).toBeDisabled()
+    const btn = screen.getByRole('button', { name: 'Starting...' })
+    expect(btn).toBeDisabled()
+    expect(btn).toHaveAttribute('aria-busy', 'true')
+    expect(btn.querySelector('svg[aria-hidden="true"].animate-spin')).not.toBeNull()
   })
 
   it('shows error message when the hook reports an error', () => {

@@ -239,8 +239,8 @@ describe('CommentsTab', () => {
     const btn = screen.getByRole('button', { name: 'Post' })
     await user.click(btn)
 
-    // The Loader2 SVG is aria-hidden, present only while submitting.
-    expect(btn.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+    // The Loader2 SVG is aria-hidden + animate-spin, present only while submitting.
+    expect(btn.querySelector('svg[aria-hidden="true"].animate-spin')).not.toBeNull()
   })
 
   it('sets aria-busy on the Post button while the comment is being submitted', async () => {
