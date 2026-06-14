@@ -156,9 +156,10 @@ reviews:
         - Sibling SECURITY DEFINER RPC guard-set consistency: when a migration adds or
           rewrites a SECURITY DEFINER function, compare its guard set against the siblings
           in its feature family. A guard present in any sibling and absent here is a GAP.
-          Especially flag a MISSING active-user / soft-deleted-caller gate (`PERFORM 1 FROM
-          users WHERE id = <uid> AND deleted_at IS NULL; IF NOT FOUND THEN RAISE 'user not
-          found or inactive'`) on a per-caller read/write RPC whose siblings have it — it
+          Especially flag a MISSING active-user / soft-deleted-caller gate — a `PERFORM 1`
+          or (the common codebase form) a `SELECT … INTO … FROM users WHERE id = <uid> AND
+          deleted_at IS NULL; IF NOT FOUND THEN RAISE 'user not found or inactive'` that
+          also captures org_id/role — on a per-caller read/write RPC whose siblings have it; it
           leaks data/answer-keys to a deactivated account with a live JWT. Justified
           exceptions: is_admin()-gated admin/org-wide RPCs (no per-caller scoping);
           functions reading no soft-deletable table; functions with no audit_events INSERT.
