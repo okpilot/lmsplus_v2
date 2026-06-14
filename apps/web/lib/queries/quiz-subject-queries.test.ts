@@ -2,15 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
-const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
-  mockGetUser: vi.fn(),
+const { mockFrom, mockRpc } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
 }))
 
 vi.mock('@repo/db/server', () => ({
   createServerSupabaseClient: async () => ({
-    auth: { getUser: mockGetUser },
     from: mockFrom,
   }),
 }))

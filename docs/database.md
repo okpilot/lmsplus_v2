@@ -488,7 +488,6 @@ Created in migration 051 to centralize the soft-delete filter and provide RLS en
 
 - `apps/web/app/app/quiz/actions/flag.ts` — ownership check in `toggleFlag`, ID list in `getFlaggedIds`
 - `apps/web/app/app/quiz/actions/filter-helpers.ts` — quiz setup flagged filter
-- `apps/web/lib/queries/quiz.ts` — `filterFlagged`
 - `apps/web/lib/gdpr/collect-user-data.ts` — GDPR data export
 
 Write operations (`flagQuestion`, `unflagQuestion`) continue to use the `flagged_questions` base table directly.
@@ -720,7 +719,7 @@ verb_noun pattern:
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
   get_subject_scores         ← read, analytics: avg scores by subject
-  get_question_counts        ← read, per-(subject, topic, subtopic) question counts; used by admin/exam-config, admin/syllabus, and the student quiz builder (quiz.ts); replaces client-side counting that truncated at the PostgREST 1000-row cap (#614, #668)
+  get_question_counts        ← read, per-(subject, topic, subtopic) question counts; used by admin/exam-config, admin/syllabus, and the student quiz builder (quiz-subject-queries.ts); replaces client-side counting that truncated at the PostgREST 1000-row cap (#614, #668)
   get_random_question_ids    ← read, student: up to N random IDs from the filtered question pool (subject + topic/subtopic OR + unseen/incorrect/flagged UNION, AND-restricted by p_calc_mode {all|only|exclude} on has_calculations); used by start_quiz_session seeding; replaces client-side fetch-shuffle-slice that biased sampling past row 1000 (#679, umbrella #668; calc-mode #837)
   get_filtered_question_counts ← read, student: per-(topic, subtopic) counts over the same filtered pool as get_random_question_ids (incl. p_calc_mode); structurally guaranteed count == quiz (shared _filtered_question_pool helper); replaces client-side counting that truncated at 1000 rows (#678, umbrella #668; calc-mode #837)
   get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
@@ -2221,13 +2220,13 @@ Returns paginated session reports for the authenticated student with subject nam
 
 #### `get_question_counts` — per-(subject, topic, subtopic) question counts
 
-Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_id)`. Used by the admin exam-config and syllabus pages, and by the student quiz builder (`lib/queries/quiz.ts` — the subject/topic/subtopic count functions), to show available-question totals per node without paging through the full question bank.
+Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_id)`. Used by the admin exam-config and syllabus pages, and by the student quiz builder (`lib/queries/quiz-subject-queries.ts` — the subject/topic/subtopic count functions), to show available-question totals per node without paging through the full question bank.
 
 **Security:** `SECURITY INVOKER` (caller-context). RLS scopes the result to the caller's organization via the existing `tenant_isolation` policy on `questions` — no manual `auth.uid()` check needed.
 
 **Parameters:** `p_status TEXT DEFAULT NULL`
 - `NULL` — count all non-deleted questions (active + draft); used by `admin/syllabus/queries.ts`.
-- `'active'` — count only active questions; used by `admin/exam-config/queries.ts` (drafts are not eligible for exams) and by the student quiz builder (`lib/queries/quiz.ts`).
+- `'active'` — count only active questions; used by `admin/exam-config/queries.ts` (drafts are not eligible for exams) and by the student quiz builder (`lib/queries/quiz-subject-queries.ts`).
 
 **Returns:** `TABLE(subject_id UUID, topic_id UUID, subtopic_id UUID, n BIGINT)`
 
@@ -2241,7 +2240,7 @@ Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_i
 
 #### `get_random_question_ids` — random sample from the filtered question pool
 
-Returns up to `p_count` random question IDs from the active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) pool. Used by the student quiz builder (`apps/web/app/app/quiz/actions/start.ts` → `lib/queries/quiz.ts:getRandomQuestionIds`) to seed `start_quiz_session` with a uniformly sampled question set, regardless of pool size.
+Returns up to `p_count` random question IDs from the active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) pool. Used by the student quiz builder (`apps/web/app/app/quiz/actions/start.ts` → `lib/queries/quiz-session-queries.ts:getRandomQuestionIds`) to seed `start_quiz_session` with a uniformly sampled question set, regardless of pool size.
 
 **Security:** `SECURITY INVOKER`. The underlying `questions` table has a single permissive SELECT policy (`tenant_isolation`), so RLS alone gives correct org + `deleted_at IS NULL` scoping. The shared internal helper `_filtered_question_pool` additionally self-scopes the per-user filter subqueries with `sr.student_id = auth.uid()` on `student_responses` (LOAD-BEARING per security.md §3 (Multiple Permissive SELECT Policies) — `student_responses` has TWO permissive SELECT policies, `students_read_responses` + `instructors_read_students`, so RLS alone would over-scope to the instructor policy). The `fsrs_cards` and `active_flagged_questions` student_id filters are defense-in-depth (single policy each). No correct-answer columns are exposed — the RPC returns only `id`.
 
