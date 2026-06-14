@@ -26,7 +26,10 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
       {/* biome-ignore lint/performance/noImgElement: raw img — Next.js Image requires known dimensions */}
       <img
         src={src}
-        alt={alt}
+        // Presentational: the anchor's aria-label is the link's accessible name,
+        // so the image must not double-announce its own alt text.
+        alt=""
+        aria-hidden="true"
         className={`rounded-md border border-border object-contain ${className ?? ''}`}
       />
     </a>

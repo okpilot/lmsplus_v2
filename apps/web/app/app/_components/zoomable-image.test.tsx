@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { ZoomableImage } from './zoomable-image'
 
 describe('ZoomableImage', () => {
-  it('renders the image with correct src and alt', () => {
+  it('renders the image with the correct src', () => {
     render(<ZoomableImage src="/test.png" alt="Test image" />)
-    const img = screen.getByAltText('Test image')
-    expect(img).toBeInTheDocument()
+    const link = screen.getByRole('link')
+    const img = link.querySelector('img')
     expect(img).toHaveAttribute('src', '/test.png')
   })
 
@@ -18,15 +18,16 @@ describe('ZoomableImage', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })
 
-  it('renders the image inside the link', () => {
-    render(<ZoomableImage src="/test.png" alt="Test image" />)
-    const link = screen.getByRole('link')
-    expect(link.querySelector('img')).toHaveAttribute('alt', 'Test image')
+  it('marks the nested image presentational so it does not double-announce', () => {
+    render(<ZoomableImage src="/test.png" alt="Runway diagram" />)
+    const img = screen.getByRole('link').querySelector('img')
+    expect(img).toHaveAttribute('alt', '')
+    expect(img).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('applies custom className to the image', () => {
     render(<ZoomableImage src="/test.png" alt="Test image" className="max-h-64" />)
-    const img = screen.getByAltText('Test image')
-    expect(img.className).toContain('max-h-64')
+    const img = screen.getByRole('link').querySelector('img')
+    expect(img?.className).toContain('max-h-64')
   })
 })
