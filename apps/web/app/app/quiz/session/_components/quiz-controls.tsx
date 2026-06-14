@@ -37,6 +37,7 @@ export function QuizControls({
       {showSubmit && (
         <button
           type="button"
+          data-testid="submit-answer-mobile"
           onClick={onSubmitAnswer}
           disabled={submitting}
           aria-busy={submitting || undefined}
