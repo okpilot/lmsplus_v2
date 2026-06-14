@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
-import type { SubjectOption } from '@/lib/queries/quiz'
+import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useExamStart } from '../_hooks/use-exam-start'
 import { useQuizConfig } from '../_hooks/use-quiz-config'
 import { ExamConfigForm } from './exam-config-form'

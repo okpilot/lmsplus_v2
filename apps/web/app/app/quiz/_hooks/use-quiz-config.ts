@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { SubjectOption } from '@/lib/queries/quiz'
+import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import type { CalcMode, QuestionFilterValue, QuizMode } from '../types'
 import { createConfigHandlers } from './quiz-config-handlers'
 import { useAvailableCount } from './use-available-count'

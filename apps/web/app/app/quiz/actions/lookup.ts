@@ -3,12 +3,16 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
-import type { SubtopicOption, TopicOption, TopicWithSubtopics } from '@/lib/queries/quiz'
+import type {
+  SubtopicOption,
+  TopicOption,
+  TopicWithSubtopics,
+} from '@/lib/queries/quiz-query-types'
 import {
   getSubtopicsForTopic,
   getTopicsForSubject,
   getTopicsWithSubtopics,
-} from '@/lib/queries/quiz'
+} from '@/lib/queries/quiz-subject-queries'
 import { rpc } from '@/lib/supabase-rpc'
 
 const IdSchema = z.uuid()
