@@ -47,7 +47,7 @@ export function QuizMainPanel({
         key={s.question.id}
         options={s.question.options}
         onSubmit={s.handleSelectAnswer}
-        disabled={s.submitting || s.answering}
+        disabled={s.submitting}
         submitting={s.answering}
         selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
         correctOptionId={s.currentFeedback?.correctOptionId ?? null}

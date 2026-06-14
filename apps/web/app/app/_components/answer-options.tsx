@@ -101,7 +101,7 @@ export function AnswerOptions({
       {!showResult && !(isExam && lockedSelection != null) && (
         <button
           type="button"
-          disabled={!currentSelection || disabled}
+          disabled={!currentSelection || disabled || submitting}
           aria-busy={submitting || undefined}
           onClick={() => currentSelection && onSubmit(currentSelection)}
           className="mt-3 hidden w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 md:block"
