@@ -66,4 +66,22 @@ describe('LoadingButton', () => {
     await user.click(screen.getByRole('button'))
     expect(onClick).not.toHaveBeenCalled()
   })
+
+  it('falls back to children as the button label when loading with no loadingText', () => {
+    render(<LoadingButton loading>Save</LoadingButton>)
+    expect(screen.getByRole('button')).toHaveTextContent('Save')
+  })
+
+  it('passes variant and size props through to the underlying button', () => {
+    render(
+      <LoadingButton variant="outline" size="sm">
+        Cancel
+      </LoadingButton>,
+    )
+    const button = screen.getByRole('button', { name: 'Cancel' })
+    // 'border-border' is the cva class emitted only for variant="outline", so
+    // this proves the variant prop reached the underlying Button rather than
+    // being swallowed.
+    expect(button.className).toContain('border-border')
+  })
 })
