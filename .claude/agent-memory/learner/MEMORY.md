@@ -74,6 +74,8 @@ New WATCHING rows added this cycle (#825):
 New WATCHING rows added this cycle (#849):
 - Plan cites superseded RLS policy (DROP POLICY + CREATE POLICY chain not traced forward) — plan-critic caught orchestrator citing mig 043 USING clause; binding policy is mig 050. Full row in archive.
 - Asymmetric afterAll guard variable initialization (victimUserId lacking '' initializer vs attackerUserId = '') — semantic-reviewer ISSUE; undefined filter in cleanup on beforeAll failure. Full row in archive.
+New WATCHING rows added this cycle (#844):
+- Single-concern sequential DB-seed/infra helpers (no branching logic, sequential awaits only) exceeding the 30-line function cap — code-reviewer flagged 4 helpers in vfr-rt-helpers.ts (33/32/35/33L) as WARNING (non-blocking). code-reviewer classified all as structurally equivalent to the known-structural E2E infra exception (helpers/cleanup.ts cleanupFixtures 137L; helpers/audit-helpers.ts buildAnswersForSession 46L). code-reviewer's own "Utility function > 30 lines" row is now count=3, WATCHING. Full row in archive.
 New WATCHING rows added this cycle (#818):
 - `as unknown as T` cast without runtime guard in test contract helper (impl-critic §5 catch, `expectWithinTimeSubmitContract` — applied typeof/Array.isArray guard). **PROMOTED to live table at count=2 (#845 cycle).** Full row in archive.
 
