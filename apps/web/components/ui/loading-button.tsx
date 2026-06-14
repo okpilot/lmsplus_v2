@@ -34,7 +34,7 @@ function LoadingButton({
   ...props
 }: LoadingButtonProps) {
   return (
-    <Button disabled={loading || disabled} aria-busy={loading || undefined} {...props}>
+    <Button {...props} disabled={loading || disabled} aria-busy={loading || undefined}>
       {loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
       {loading ? (loadingText ?? children) : children}
     </Button>

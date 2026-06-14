@@ -131,7 +131,12 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Props) {
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
             Cancel
           </Button>
           <LoadingButton

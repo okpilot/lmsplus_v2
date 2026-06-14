@@ -517,6 +517,25 @@ describe('FinishQuizDialog', () => {
     expect(screen.getByRole('button', { name: /save for later/i })).not.toHaveAttribute('aria-busy')
   })
 
+  it('sets aria-busy on the Submit button while submitting', () => {
+    renderDialog({ submitting: true })
+    expect(screen.getByRole('button', { name: /submitting.../i })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    )
+  })
+
+  it('does not set aria-busy on the Submit button when not submitting', () => {
+    renderDialog({ submitting: false })
+    expect(screen.getByRole('button', { name: /submit quiz/i })).not.toHaveAttribute('aria-busy')
+  })
+
+  it('shows a spinner inside the Submit button while submitting', () => {
+    renderDialog({ submitting: true })
+    const submit = screen.getByRole('button', { name: /submitting.../i })
+    expect(submit.querySelector('.animate-spin')).not.toBeNull()
+  })
+
   it('shows the error message when the error prop has a value', () => {
     renderDialog({ error: 'Session expired. Please try again.' })
     expect(screen.getByText('Session expired. Please try again.')).toBeInTheDocument()

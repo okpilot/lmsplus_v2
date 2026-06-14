@@ -72,7 +72,7 @@ export function ExportStudentDialog({ student, open, onOpenChange }: Readonly<Pr
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancel
           </Button>
           <LoadingButton
