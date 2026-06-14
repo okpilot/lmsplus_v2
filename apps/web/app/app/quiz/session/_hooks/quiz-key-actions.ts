@@ -8,6 +8,7 @@ export type QuizKeyAction =
   | null
 
 const TAB_KEYS: Record<string, QuestionTab> = {
+  q: 'question',
   e: 'explanation',
   c: 'comments',
   s: 'statistics',
@@ -21,7 +22,7 @@ export function isTypingTarget(el: EventTarget | null): boolean {
 
 /**
  * Maps a keydown key to a quiz-runner action, or null when the key is not a
- * shortcut. The e/c/s tab shortcuts are suppressed in exam mode (no tabs there).
+ * shortcut. The q/e/c/s tab shortcuts are suppressed in exam mode (no tabs there).
  */
 export function quizKeyAction(key: string, opts: { isExam: boolean }): QuizKeyAction {
   switch (key) {

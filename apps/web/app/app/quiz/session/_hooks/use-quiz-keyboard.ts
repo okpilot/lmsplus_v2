@@ -19,8 +19,8 @@ type UseQuizKeyboardOpts = {
 
 /**
  * Wires keyboard shortcuts for the quiz/exam runner: ← / → navigate, ↑ / ↓ move
- * the answer highlight, Enter submits the highlighted answer, and e / c / s open
- * the Explanation / Comments / Stats tabs (study mode only). Shortcuts are
+ * the answer highlight, Enter submits the highlighted answer, and q / e / c / s open
+ * the Question / Explanation / Comments / Stats tabs (study mode only). Shortcuts are
  * ignored while a text field is focused. Returns the highlighted option id so the
  * answer list can render a focus ring.
  */

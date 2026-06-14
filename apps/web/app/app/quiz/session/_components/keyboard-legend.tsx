@@ -12,6 +12,7 @@ const NAV_SHORTCUTS: { keys: string; action: string }[] = [
 // Tab shortcuts only work in study mode (exam sessions have no tabs), so the
 // legend hides them in exam mode to match the actual enforced behavior.
 const TAB_SHORTCUTS: { keys: string; action: string }[] = [
+  { keys: 'Q', action: 'Question tab' },
   { keys: 'E', action: 'Explanation tab' },
   { keys: 'C', action: 'Comments tab' },
   { keys: 'S', action: 'Stats tab' },

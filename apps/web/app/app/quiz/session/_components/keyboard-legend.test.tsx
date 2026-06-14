@@ -23,14 +23,15 @@ describe('KeyboardLegend', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
-  it('lists all six shortcut rows when the panel is open', () => {
+  it('lists every shortcut row when the panel is open', () => {
     render(<KeyboardLegend />)
     fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
 
-    // Each row has an action label — verify all six are present
+    // Each row has an action label — verify they are all present
     expect(screen.getByText('Previous / next question')).toBeInTheDocument()
     expect(screen.getByText('Move answer highlight')).toBeInTheDocument()
     expect(screen.getByText('Submit highlighted answer')).toBeInTheDocument()
+    expect(screen.getByText('Question tab')).toBeInTheDocument()
     expect(screen.getByText('Explanation tab')).toBeInTheDocument()
     expect(screen.getByText('Comments tab')).toBeInTheDocument()
     expect(screen.getByText('Stats tab')).toBeInTheDocument()
@@ -43,6 +44,7 @@ describe('KeyboardLegend', () => {
     expect(screen.getByText('← / →')).toBeInTheDocument()
     expect(screen.getByText('↑ / ↓')).toBeInTheDocument()
     expect(screen.getByText('Enter')).toBeInTheDocument()
+    expect(screen.getByText('Q')).toBeInTheDocument()
     expect(screen.getByText('E')).toBeInTheDocument()
     expect(screen.getByText('C')).toBeInTheDocument()
     expect(screen.getByText('S')).toBeInTheDocument()
@@ -82,7 +84,8 @@ describe('KeyboardLegend', () => {
     // Navigation shortcuts still shown
     expect(screen.getByText('Previous / next question')).toBeInTheDocument()
     expect(screen.getByText('Submit highlighted answer')).toBeInTheDocument()
-    // Tab shortcuts (e/c/s) are suppressed in exam mode
+    // Tab shortcuts (q/e/c/s) are suppressed in exam mode
+    expect(screen.queryByText('Question tab')).not.toBeInTheDocument()
     expect(screen.queryByText('Explanation tab')).not.toBeInTheDocument()
     expect(screen.queryByText('Comments tab')).not.toBeInTheDocument()
     expect(screen.queryByText('Stats tab')).not.toBeInTheDocument()

@@ -96,6 +96,13 @@ describe('quizKeyAction — navigation keys', () => {
 // ---------------------------------------------------------------------------
 
 describe('quizKeyAction — tab shortcuts in study mode', () => {
+  it('maps q to the question tab', () => {
+    expect(quizKeyAction('q', { isExam: false })).toEqual({
+      type: 'tab',
+      tab: 'question',
+    })
+  })
+
   it('maps e to the explanation tab', () => {
     expect(quizKeyAction('e', { isExam: false })).toEqual({
       type: 'tab',
@@ -144,6 +151,10 @@ describe('quizKeyAction — tab shortcuts in study mode', () => {
 // ---------------------------------------------------------------------------
 
 describe('quizKeyAction — tab shortcuts suppressed in exam mode', () => {
+  it('returns null for q in exam mode', () => {
+    expect(quizKeyAction('q', { isExam: true })).toBeNull()
+  })
+
   it('returns null for e in exam mode', () => {
     expect(quizKeyAction('e', { isExam: true })).toBeNull()
   })

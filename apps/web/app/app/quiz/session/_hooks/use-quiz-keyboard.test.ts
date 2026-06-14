@@ -129,6 +129,15 @@ describe('useQuizKeyboard — highlight and confirm', () => {
 // ---------------------------------------------------------------------------
 
 describe('useQuizKeyboard — tab shortcuts in study mode', () => {
+  it('calls onTab with "question" on q', () => {
+    const opts = defaultOpts()
+    renderHook(() => useQuizKeyboard(opts))
+    act(() => {
+      fireKey('q')
+    })
+    expect(opts.onTab).toHaveBeenCalledWith('question')
+  })
+
   it('calls onTab with "explanation" on e', () => {
     const opts = defaultOpts()
     renderHook(() => useQuizKeyboard(opts))
@@ -162,6 +171,15 @@ describe('useQuizKeyboard — tab shortcuts in study mode', () => {
 // ---------------------------------------------------------------------------
 
 describe('useQuizKeyboard — exam mode suppresses tab shortcuts', () => {
+  it('does not call onTab when q is pressed in exam mode', () => {
+    const opts = defaultOpts({ isExam: true })
+    renderHook(() => useQuizKeyboard(opts))
+    act(() => {
+      fireKey('q')
+    })
+    expect(opts.onTab).not.toHaveBeenCalled()
+  })
+
   it('does not call onTab when e is pressed in exam mode', () => {
     const opts = defaultOpts({ isExam: true })
     renderHook(() => useQuizKeyboard(opts))
