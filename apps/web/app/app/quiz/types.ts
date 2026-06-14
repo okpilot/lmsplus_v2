@@ -29,7 +29,7 @@ export type CompleteQuizResult =
   | { success: true; totalQuestions: number; correctCount: number; scorePercentage: number }
   | { success: false; error: string }
 
-export type BatchAnswerResult = {
+type BatchAnswerResult = {
   questionId: string
   isCorrect: boolean
   correctOptionId: string
@@ -98,8 +98,6 @@ export type DraftData = {
 }
 
 export type DraftResult = { success: true } | { success: false; error: string }
-
-export type LoadDraftResult = { draft: DraftData | null }
 
 export type LoadDraftsResult = { drafts: DraftData[] }
 

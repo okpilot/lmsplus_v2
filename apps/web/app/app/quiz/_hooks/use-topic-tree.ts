@@ -8,8 +8,6 @@ import {
   computeToggleTopic,
 } from './topic-tree-helpers'
 
-export type { UseTopicTreeReturn } from './topic-tree-helpers'
-
 export function useTopicTree() {
   const [topics, setTopics] = useState<TopicWithSubtopics[]>([])
   const [checkedTopics, setCheckedTopics] = useState<Set<string>>(new Set())
