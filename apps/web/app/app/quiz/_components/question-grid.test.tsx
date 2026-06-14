@@ -128,6 +128,19 @@ describe('QuestionGrid — desktop', () => {
     expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(5)
     expect(screen.queryByTestId('grid-toggle-desktop')).not.toBeInTheDocument()
   })
+
+  it('restores the collapsed default after expanding then round-tripping through a filter', () => {
+    renderGrid({ totalQuestions: 40, questionIds: MANY_IDS, flaggedIds: new Set(['q1']) })
+    // Expand the desktop grid.
+    fireEvent.click(screen.getByTestId('grid-toggle-desktop'))
+    expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(40)
+    // Switch to the flagged filter and back to All.
+    fireEvent.click(screen.getByTestId('filter-flagged'))
+    fireEvent.click(screen.getByText('All'))
+    // Back on All, the grid should be collapsed again (two-row window), not expanded.
+    expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(18)
+    expect(screen.getByTestId('grid-toggle-desktop')).toHaveTextContent(/Show all/)
+  })
 })
 
 describe('QuestionGrid — filter row', () => {

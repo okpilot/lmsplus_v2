@@ -59,6 +59,18 @@ export function QuestionGrid({
     enabled,
   })
 
+  // Restore the default two-row window when a filter takes over, so returning
+  // to the unfiltered view starts collapsed rather than remembering a prior
+  // expansion. (setExpanded identities are stable useState setters.)
+  const { setExpanded: setDesktopExpanded } = desktop
+  const { setExpanded: setMobileExpanded } = mobile
+  useEffect(() => {
+    if (!enabled) {
+      setDesktopExpanded(false)
+      setMobileExpanded(false)
+    }
+  }, [enabled, setDesktopExpanded, setMobileExpanded])
+
   const squares = buildSquares({
     totalQuestions,
     currentIndex,

@@ -59,4 +59,13 @@ describe('useGridWindow', () => {
     expect(result.current.windowStart).toBeLessThanOrEqual(25)
     expect(result.current.windowEnd).toBeGreaterThan(25)
   })
+
+  it('keeps the current question in view near the end of the list', () => {
+    const { result } = renderHook(() =>
+      useGridWindow({ ...base, totalQuestions: 40, currentIndex: 38 }),
+    )
+    expect(result.current.windowStart).toBeLessThanOrEqual(38)
+    expect(result.current.windowEnd).toBeGreaterThan(38)
+    expect(result.current.windowEnd).toBeLessThanOrEqual(40)
+  })
 })
