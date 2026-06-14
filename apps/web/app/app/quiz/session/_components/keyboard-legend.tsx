@@ -3,10 +3,15 @@
 import { Keyboard } from 'lucide-react'
 import { useState } from 'react'
 
-const SHORTCUTS: { keys: string; action: string }[] = [
+const NAV_SHORTCUTS: { keys: string; action: string }[] = [
   { keys: '← / →', action: 'Previous / next question' },
   { keys: '↑ / ↓', action: 'Move answer highlight' },
   { keys: 'Enter', action: 'Submit highlighted answer' },
+]
+
+// Tab shortcuts only work in study mode (exam sessions have no tabs), so the
+// legend hides them in exam mode to match the actual enforced behavior.
+const TAB_SHORTCUTS: { keys: string; action: string }[] = [
   { keys: 'E', action: 'Explanation tab' },
   { keys: 'C', action: 'Comments tab' },
   { keys: 'S', action: 'Stats tab' },
@@ -17,8 +22,9 @@ const SHORTCUTS: { keys: string; action: string }[] = [
  * only on pointer-with-keyboard layouts (desktop) by the caller. Self-contained
  * popover (same click-to-toggle pattern as the filter hints) — no dependency.
  */
-export function KeyboardLegend() {
+export function KeyboardLegend({ isExam = false }: { isExam?: boolean }) {
   const [open, setOpen] = useState(false)
+  const shortcuts = isExam ? NAV_SHORTCUTS : [...NAV_SHORTCUTS, ...TAB_SHORTCUTS]
 
   return (
     <div className="relative">
@@ -48,7 +54,7 @@ export function KeyboardLegend() {
           >
             <p className="mb-2 text-xs font-medium">Keyboard shortcuts</p>
             <ul className="space-y-1.5">
-              {SHORTCUTS.map((s) => (
+              {shortcuts.map((s) => (
                 <li key={s.action} className="flex items-center justify-between gap-3 text-xs">
                   <span className="text-muted-foreground">{s.action}</span>
                   <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]">

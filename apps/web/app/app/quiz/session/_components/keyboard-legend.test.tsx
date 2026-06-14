@@ -75,6 +75,19 @@ describe('KeyboardLegend', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('hides the tab shortcuts in exam mode where they do not apply', () => {
+    render(<KeyboardLegend isExam />)
+    fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
+
+    // Navigation shortcuts still shown
+    expect(screen.getByText('Previous / next question')).toBeInTheDocument()
+    expect(screen.getByText('Submit highlighted answer')).toBeInTheDocument()
+    // Tab shortcuts (e/c/s) are suppressed in exam mode
+    expect(screen.queryByText('Explanation tab')).not.toBeInTheDocument()
+    expect(screen.queryByText('Comments tab')).not.toBeInTheDocument()
+    expect(screen.queryByText('Stats tab')).not.toBeInTheDocument()
+  })
+
   it('marks the toggle button as expanded when the panel is open', () => {
     render(<KeyboardLegend />)
     const btn = screen.getByRole('button', { name: 'Keyboard shortcuts' })

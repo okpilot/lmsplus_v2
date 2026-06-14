@@ -73,6 +73,9 @@ export function useQuizKeyboard(opts: UseQuizKeyboardOpts) {
   }, [])
 
   return {
+    // highlightedIndex may briefly be out of range between a navigation (new
+    // optionIds) and the reset effect; the `?? null` yields "no highlight",
+    // which is the correct visual outcome for that single render.
     highlightedOptionId: highlightedIndex >= 0 ? (opts.optionIds[highlightedIndex] ?? null) : null,
   }
 }

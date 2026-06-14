@@ -76,7 +76,7 @@ export function QuizSessionHeader({
       <div className="z-10 flex items-center gap-2">
         {/* Keyboard shortcuts are pointer-with-keyboard only → desktop. */}
         <div className="hidden md:block">
-          <KeyboardLegend />
+          <KeyboardLegend isExam={isExam} />
         </div>
         <ThemeToggle />
         <button
