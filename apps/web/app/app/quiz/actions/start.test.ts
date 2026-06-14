@@ -192,6 +192,44 @@ describe('startQuizSession', () => {
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
+  it('passes imageMode through to getRandomQuestionIds', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+      imageMode: 'only',
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ imageMode: 'only' }),
+    )
+  })
+
+  it("defaults imageMode to 'all' when omitted", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ imageMode: 'all' }),
+    )
+  })
+
+  it('rejects an unknown imageMode value', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+      imageMode: 'sometimes',
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
+  })
+
   it('rejects unauthenticated calls before input validation', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     const result = await startQuizSession({})

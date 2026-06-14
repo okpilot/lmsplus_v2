@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from '@repo/db/server'
-import type { CalcMode } from '@/app/app/quiz/types'
+import type { CalcMode, ImageMode } from '@/app/app/quiz/types'
 import { rpc } from '@/lib/supabase-rpc'
 
 export type QuestionFilter = 'all' | 'unseen' | 'incorrect' | 'flagged'
@@ -11,13 +11,14 @@ export async function getRandomQuestionIds(opts: {
   count: number
   filters?: QuestionFilter[]
   calcMode?: CalcMode
+  imageMode?: ImageMode
 }): Promise<string[]> {
   const supabase = await createServerSupabaseClient()
-  const { subjectId, topicIds, subtopicIds, count, filters, calcMode } = opts
+  const { subjectId, topicIds, subtopicIds, count, filters, calcMode, imageMode } = opts
   const activeFilters = filters?.filter((f) => f !== 'all') ?? []
 
   // undefined → null to RPC = unconstrained (whole subject pool); [] → empty array = match nothing (topic_id = ANY('{}') is always false).
-  // p_calc_mode is a literal enum the RPC reads directly ('all' = unrestricted via CASE ELSE) — do NOT strip 'all' the way p_filters does.
+  // p_calc_mode / p_has_image are literal enums the RPC reads directly ('all' = unrestricted via CASE ELSE) — do NOT strip 'all' the way p_filters does.
   const { data, error } = await rpc<{ id: string }[]>(supabase, 'get_random_question_ids', {
     p_subject_id: subjectId,
     p_topic_ids: topicIds ?? null,
@@ -25,6 +26,7 @@ export async function getRandomQuestionIds(opts: {
     p_count: count,
     p_filters: activeFilters,
     p_calc_mode: calcMode ?? 'all',
+    p_has_image: imageMode ?? 'all',
   })
   if (error) {
     console.error('[getRandomQuestionIds] get_random_question_ids error:', error.message)

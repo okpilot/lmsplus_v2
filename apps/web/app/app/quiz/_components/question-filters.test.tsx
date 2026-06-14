@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CalcMode } from '../types'
+import type { CalcMode, ImageMode } from '../types'
 import { QuestionFilters } from './question-filters'
 
 // Mock the Switch to a simple checkbox for testability. Forward aria-label so the
@@ -35,6 +35,8 @@ function renderFilters(props: Partial<React.ComponentProps<typeof QuestionFilter
       onValueChange={props.onValueChange ?? vi.fn()}
       calcMode={props.calcMode ?? 'all'}
       onCalcModeChange={props.onCalcModeChange ?? vi.fn()}
+      imageMode={props.imageMode ?? 'all'}
+      onImageModeChange={props.onImageModeChange ?? vi.fn()}
     />,
   )
 }
@@ -51,11 +53,11 @@ describe('QuestionFilters', () => {
     expect(screen.getByText('Flagged questions')).toBeInTheDocument()
   })
 
-  it('all switches are off by default (no filters, calcMode all)', () => {
+  it('all switches are off by default (no filters, calcMode all, imageMode all)', () => {
     renderFilters()
-    // 3 preference filters + 2 calculation toggles
+    // 3 preference filters + 2 calculation toggles + 2 image toggles
     const switches = screen.getAllByRole('switch')
-    expect(switches).toHaveLength(5)
+    expect(switches).toHaveLength(7)
     for (const s of switches) {
       expect(s).not.toBeChecked()
     }
@@ -124,9 +126,9 @@ describe('QuestionFilters', () => {
     expect(onValueChange).toHaveBeenCalledWith(['incorrect', 'flagged'])
   })
 
-  it('renders a hint button for every toggle (3 filters + 2 calculation)', () => {
+  it('renders a hint button for every toggle (3 filters + 2 calculation + 2 image)', () => {
     renderFilters()
-    expect(screen.getAllByLabelText(/Info about/)).toHaveLength(5)
+    expect(screen.getAllByLabelText(/Info about/)).toHaveLength(7)
   })
 
   // ---- Calculation toggles (mutually exclusive, included by default) ------
@@ -187,5 +189,69 @@ describe('QuestionFilters', () => {
     renderFilters({ calcMode: 'exclude', onCalcModeChange })
     await user.click(screen.getByRole('switch', { name: 'Exclude calculation questions' }))
     expect(onCalcModeChange).toHaveBeenCalledWith<[CalcMode]>('all')
+  })
+
+  // ---- Image toggles (mutually exclusive, included by default) ------
+
+  it('renders the two image toggles, both off by default', () => {
+    renderFilters()
+    expect(screen.getByRole('switch', { name: 'Only questions with an image' })).not.toBeChecked()
+    expect(
+      screen.getByRole('switch', { name: 'Exclude questions with an image' }),
+    ).not.toBeChecked()
+  })
+
+  it("marks the image 'only' toggle on when imageMode is 'only'", () => {
+    renderFilters({ imageMode: 'only' })
+    expect(screen.getByRole('switch', { name: 'Only questions with an image' })).toBeChecked()
+    expect(
+      screen.getByRole('switch', { name: 'Exclude questions with an image' }),
+    ).not.toBeChecked()
+  })
+
+  it("marks the image 'exclude' toggle on when imageMode is 'exclude'", () => {
+    renderFilters({ imageMode: 'exclude' })
+    expect(screen.getByRole('switch', { name: 'Exclude questions with an image' })).toBeChecked()
+    expect(screen.getByRole('switch', { name: 'Only questions with an image' })).not.toBeChecked()
+  })
+
+  it("toggling image 'only' on filters the pool to image questions only", async () => {
+    const user = userEvent.setup()
+    const onImageModeChange = vi.fn()
+    renderFilters({ onImageModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Only questions with an image' }))
+    expect(onImageModeChange).toHaveBeenCalledWith<[ImageMode]>('only')
+  })
+
+  it("toggling the active image 'only' toggle off reverts to 'all'", async () => {
+    const user = userEvent.setup()
+    const onImageModeChange = vi.fn()
+    renderFilters({ imageMode: 'only', onImageModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Only questions with an image' }))
+    expect(onImageModeChange).toHaveBeenCalledWith<[ImageMode]>('all')
+  })
+
+  it("toggling image 'exclude' while 'only' is active switches to 'exclude'", async () => {
+    const user = userEvent.setup()
+    const onImageModeChange = vi.fn()
+    renderFilters({ imageMode: 'only', onImageModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Exclude questions with an image' }))
+    expect(onImageModeChange).toHaveBeenCalledWith<[ImageMode]>('exclude')
+  })
+
+  it("toggling image 'only' while 'exclude' is active switches to 'only'", async () => {
+    const user = userEvent.setup()
+    const onImageModeChange = vi.fn()
+    renderFilters({ imageMode: 'exclude', onImageModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Only questions with an image' }))
+    expect(onImageModeChange).toHaveBeenCalledWith<[ImageMode]>('only')
+  })
+
+  it("toggling the active image 'exclude' toggle off reverts to 'all'", async () => {
+    const user = userEvent.setup()
+    const onImageModeChange = vi.fn()
+    renderFilters({ imageMode: 'exclude', onImageModeChange })
+    await user.click(screen.getByRole('switch', { name: 'Exclude questions with an image' }))
+    expect(onImageModeChange).toHaveBeenCalledWith<[ImageMode]>('all')
   })
 })

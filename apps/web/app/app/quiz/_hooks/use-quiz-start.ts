@@ -9,7 +9,17 @@ import {
 import type { UseQuizStartOpts } from '../types'
 
 export function useQuizStart(opts: UseQuizStartOpts) {
-  const { userId, subjectId, subjects, count, maxQuestions, filters, calcMode, topicTree } = opts
+  const {
+    userId,
+    subjectId,
+    subjects,
+    count,
+    maxQuestions,
+    filters,
+    calcMode,
+    imageMode,
+    topicTree,
+  } = opts
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,6 +46,7 @@ export function useQuizStart(opts: UseQuizStartOpts) {
         count: effectiveCount,
         filters,
         calcMode,
+        imageMode,
       })
       if (result.success) {
         const selectedSubject = subjects.find((s) => s.id === subjectId)

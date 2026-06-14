@@ -3,13 +3,15 @@
 import { CircleHelp } from 'lucide-react'
 import { useState } from 'react'
 import { Switch } from '@/components/ui/switch'
-import type { CalcMode, QuestionFilterValue } from '../types'
+import type { CalcMode, ImageMode, QuestionFilterValue } from '../types'
 
 type QuestionFiltersProps = {
   value: QuestionFilterValue[]
   onValueChange: (filters: QuestionFilterValue[]) => void
   calcMode: CalcMode
   onCalcModeChange: (mode: CalcMode) => void
+  imageMode: ImageMode
+  onImageModeChange: (mode: ImageMode) => void
 }
 
 const FILTERS: { value: Exclude<QuestionFilterValue, 'all'>; label: string; hint: string }[] = [
@@ -43,6 +45,22 @@ const CALC_TOGGLES: { mode: Exclude<CalcMode, 'all'>; label: string; hint: strin
     mode: 'exclude',
     label: 'Exclude calculation questions',
     hint: 'Hide questions that require a calculation.',
+  },
+]
+
+// Image questions are included by default. Mirrors CALC_TOGGLES: 'only' restricts
+// the pool to questions that carry an image, 'exclude' removes them. Neither
+// active → imageMode 'all'.
+const IMAGE_TOGGLES: { mode: Exclude<ImageMode, 'all'>; label: string; hint: string }[] = [
+  {
+    mode: 'only',
+    label: 'Only questions with an image',
+    hint: 'Only questions that include a diagram, chart, or photo.',
+  },
+  {
+    mode: 'exclude',
+    label: 'Exclude questions with an image',
+    hint: 'Hide questions that include a diagram, chart, or photo.',
   },
 ]
 
@@ -97,6 +115,8 @@ export function QuestionFilters({
   onValueChange,
   calcMode,
   onCalcModeChange,
+  imageMode,
+  onImageModeChange,
 }: QuestionFiltersProps) {
   function handleToggle(filter: Exclude<QuestionFilterValue, 'all'>) {
     const withoutAll = value.filter((f) => f !== 'all')
@@ -116,6 +136,12 @@ export function QuestionFilters({
   // other mode (single calcMode value makes the two toggles mutually exclusive).
   function handleCalcToggle(mode: Exclude<CalcMode, 'all'>) {
     onCalcModeChange(calcMode === mode ? 'all' : mode)
+  }
+
+  // Mirrors handleCalcToggle: the single imageMode value keeps the two image
+  // toggles mutually exclusive.
+  function handleImageToggle(mode: Exclude<ImageMode, 'all'>) {
+    onImageModeChange(imageMode === mode ? 'all' : mode)
   }
 
   return (
@@ -138,6 +164,15 @@ export function QuestionFilters({
             hint={opt.hint}
             checked={calcMode === opt.mode}
             onToggle={() => handleCalcToggle(opt.mode)}
+          />
+        ))}
+        {IMAGE_TOGGLES.map((opt) => (
+          <FilterToggle
+            key={opt.mode}
+            label={opt.label}
+            hint={opt.hint}
+            checked={imageMode === opt.mode}
+            onToggle={() => handleImageToggle(opt.mode)}
           />
         ))}
       </div>

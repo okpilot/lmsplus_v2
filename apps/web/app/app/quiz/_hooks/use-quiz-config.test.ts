@@ -254,12 +254,13 @@ describe('useQuizConfig — setFilters', () => {
     await act(async () => {
       result.current.setFilters(['incorrect'] as QuestionFilterValue[])
     })
-    // Should pass ALL topics/subtopics, not just checked ones, plus the default calcMode
+    // Should pass ALL topics/subtopics, not just checked ones, plus the default calcMode and imageMode
     expect(mockFcRefetch).toHaveBeenCalledWith(
       SUBJECT_ID,
       ['t1', 't2'],
       ['s1', 's2'],
       ['incorrect'],
+      'all',
       'all',
     )
     expect(mockFcRefetch).toHaveBeenCalledTimes(1)
@@ -375,7 +376,14 @@ describe('useQuizConfig — calcMode', () => {
     await act(async () => {
       result.current.setCalcMode('exclude')
     })
-    expect(mockFcRefetch).toHaveBeenCalledWith(SUBJECT_ID, ['t1'], ['s1'], ['all'], 'exclude')
+    expect(mockFcRefetch).toHaveBeenCalledWith(
+      SUBJECT_ID,
+      ['t1'],
+      ['s1'],
+      ['all'],
+      'exclude',
+      'all',
+    )
   })
 
   it('resets calcMode to all when the subject changes', async () => {
@@ -390,6 +398,55 @@ describe('useQuizConfig — calcMode', () => {
       result.current.handleSubjectChange('')
     })
     expect(result.current.calcMode).toBe('all')
+  })
+})
+
+// ---- imageMode -----------------------------------------------------------
+
+describe('useQuizConfig — imageMode', () => {
+  it('starts with imageMode = all', () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    expect(result.current.imageMode).toBe('all')
+  })
+
+  it('updates imageMode when setImageMode is called', async () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    await act(async () => {
+      result.current.setImageMode('only')
+    })
+    expect(result.current.imageMode).toBe('only')
+  })
+
+  it('activates the filtered-count badge path when image-only is selected with no switch-filter', async () => {
+    ;(useFilteredCount as Mock).mockReturnValue(
+      buildMockFilteredCount({ filteredCount: 6, filteredByTopic: { t1: 6 } }),
+    )
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    // filters is still ['all'] — only imageMode drives the badge path
+    await act(async () => {
+      result.current.setImageMode('only')
+    })
+    expect(result.current.filteredByTopic).toEqual({ t1: 6 })
+  })
+
+  it('resets imageMode to all when the subject changes', async () => {
+    const { result } = renderHook(() =>
+      useQuizConfig({ userId: 'test-user-id', subjects: SUBJECTS }),
+    )
+    await act(async () => {
+      result.current.setImageMode('only')
+    })
+    expect(result.current.imageMode).toBe('only')
+    await act(async () => {
+      result.current.handleSubjectChange('')
+    })
+    expect(result.current.imageMode).toBe('all')
   })
 })
 
