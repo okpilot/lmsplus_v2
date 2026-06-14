@@ -27,7 +27,10 @@ type UseQuizKeyboardOpts = {
 export function useQuizKeyboard(opts: UseQuizKeyboardOpts) {
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset highlight on question change
+  // Reset the answer highlight on question change. The effect body doesn't read
+  // currentIndex (it just clears to -1), so biome sees the dep as "unnecessary" —
+  // but it's the intentional trigger for the reset, hence the suppression.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: currentIndex is the reset trigger, not a read value
   useEffect(() => {
     setHighlightedIndex(-1)
   }, [opts.currentIndex])

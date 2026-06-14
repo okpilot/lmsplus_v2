@@ -272,7 +272,7 @@ describe('useFilteredCountSync — re-runs on dependency change', () => {
     )
   })
 
-  it('does not re-call fc.refetch when unrelated props change but deps stay the same', () => {
+  it('does not re-call fc.refetch when a re-render leaves every dependency unchanged', () => {
     const fc = makeFc()
     // Use stable array reference for topics — same identity across renders
     const topics: MinimalTopic[] = [{ id: TOPIC_ID_1, subtopics: [{ id: SUBTOPIC_ID_1 }] }]
