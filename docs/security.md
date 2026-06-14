@@ -631,6 +631,31 @@ GRANT SELECT (
 
 ---
 
+## 11c. Sibling SECURITY DEFINER RPC Guard-Set Consistency
+
+SECURITY DEFINER functions accrue defensive guards over time, one migration at a time. The recurring failure mode (count=3) is a NEW guard being added to one member of a feature family while its siblings — which need the same guard — are left unpatched, so a pre-existing exposure silently persists. Worst case: a function is rewritten as a verbatim copy of its own older, weaker body and ships missing guards a sibling already enforces (PR #856, `check_quiz_answer`).
+
+**Rule:** when rewriting or extending any SECURITY DEFINER RPC, compare its guard set against ALL siblings in the same feature family **before committing**; when introducing a NEW guard class into one member, audit every other member for the same guard **in the same commit**. A guard present in any sibling and absent in the target is a gap, not an intentional difference — unless justified (below).
+
+**Guard-class checklist** (apply per function; mark each ✓ / N-A / justified-exception):
+
+| Guard | Form |
+|-------|------|
+| `auth.uid()` null-check | `IF auth.uid() IS NULL THEN RAISE` (".claude/rules/security.md" rule 7 "Auth check in RPCs") |
+| Mode / whitelist | `IF v_mode NOT IN (...) THEN RAISE` (fail-closed `NOT IN`) |
+| Soft-delete filter | `AND deleted_at IS NULL` on every SELECT of a soft-deletable table (docs/security.md §15; narrow immutable-column exception) |
+| **Active-user / soft-deleted-caller gate** | `PERFORM 1 FROM users WHERE id = <uid> AND deleted_at IS NULL; IF NOT FOUND THEN RAISE 'user not found or inactive'` — or fold `AND deleted_at IS NULL` into a `SELECT … INTO` on `users` with a `NOT FOUND` guard. The mig-076 family (076/078/085/087/088/095b/095c/099/100/103/104/105/106) progressively added this; it closes the "deactivated account with a still-valid JWT" window. |
+| Ownership / identity scope | `WHERE student_id = auth.uid()` / `auth.uid() = p_student_id` (".claude/rules/security.md" rule 11 "Multiple Permissive RLS SELECT Policies"; docs/security.md §3 Row Level Security) |
+| Org / config-membership | `q.organization_id = v_caller_org_id`, config-membership checks |
+| Audit-subquery soft-delete | `deleted_at IS NULL` on FK lookups inside `INSERT INTO audit_events` (".claude/rules/security.md" rule 10 "Audit-event INSERT subqueries") |
+| `SET search_path = public` | on the function declaration |
+
+**Justified exceptions:** admin / org-wide RPCs behind `is_admin()` are exempt from per-caller ownership scoping; a function that reads no soft-deletable table needs no soft-delete filter; a function with no `audit_events` INSERT has no audit-subquery concern. `SET search_path = public` has no exceptions — every SECURITY DEFINER function requires it.
+
+**Promotion sweep finding (#883):** the count=3 promotion swept every SECURITY DEFINER RPC by family and found 4 legacy read-RPCs missing the active-user gate — `check_quiz_answer` (mig 029, HIGH — answer key), `get_report_correct_options` (mig 037, HIGH — `correct_option_id`), `get_quiz_questions` (mig 002, MEDIUM — explanations), `get_session_reports` (mig 091, MEDIUM — history). These are the four functions oldest enough to predate the mig-076 gate family. Fix tracked in #883 (migration + per-RPC soft-deleted-caller rejection tests).
+
+---
+
 ## 12. GDPR & Data Privacy
 
 We store student PII: email address, full name, learning history, exam scores.
