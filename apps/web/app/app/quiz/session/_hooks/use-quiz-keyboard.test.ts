@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useQuizKeyboard } from './use-quiz-keyboard'
 
 // ---------------------------------------------------------------------------
@@ -38,11 +38,6 @@ function fireKey(key: string, target?: EventTarget) {
 
 beforeEach(() => {
   vi.resetAllMocks()
-})
-
-afterEach(() => {
-  // Ensure event listeners don't bleed between tests (hook unmount handles this,
-  // but an explicit check is defensive for edge cases).
 })
 
 // ---------------------------------------------------------------------------
