@@ -103,7 +103,7 @@ export function QuestionGrid({
           data-testid="question-grid"
           ref={desktop.containerRef}
           className="grid gap-1.5"
-          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))' }}
+          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${DESKTOP_SQUARE}px, 1fr))` }}
         >
           {desktopSquares}
         </div>
@@ -121,7 +121,7 @@ export function QuestionGrid({
           data-testid="question-grid-mobile"
           ref={mobile.containerRef}
           className="grid gap-1.5"
-          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(36px, 1fr))' }}
+          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${MOBILE_SQUARE}px, 1fr))` }}
         >
           {mobileSquares}
         </div>
