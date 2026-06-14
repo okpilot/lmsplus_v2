@@ -1,3 +1,5 @@
+import type { ActionResult } from '@/lib/action-result'
+
 export type SubmitRpcResult = {
   is_correct: boolean
   correct_option_id: string
@@ -97,7 +99,7 @@ export type DraftData = {
   createdAt?: string
 }
 
-export type DraftResult = { success: true } | { success: false; error: string }
+export type DraftResult = ActionResult
 
 export type LoadDraftsResult = { drafts: DraftData[] }
 
