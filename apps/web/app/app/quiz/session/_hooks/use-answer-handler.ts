@@ -38,7 +38,9 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
   // A single boolean (not question-scoped) is sufficient: lockedRef prevents
   // same-question re-entry, and the only way to have two questions in flight at
   // once is to navigate mid-RPC and answer the next before the first resolves —
-  // in which case the spinner may clear one frame early. Cosmetic, no data loss.
+  // in which case the spinner may clear one frame early (or stay briefly after
+  // the visible question resolves). Cosmetic, no data loss. If the user unmounts
+  // mid-RPC, the trailing setAnswering(false) is a harmless no-op (React 18).
   const [answering, setAnswering] = useState(false)
   const lockedRef = useRef<Set<string>>(new Set())
   const pendingQuestionIdRef = useRef<Set<string>>(new Set())
