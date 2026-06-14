@@ -1,7 +1,7 @@
 'use client'
 
 import { Keyboard } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const NAV_SHORTCUTS: { keys: string; action: string }[] = [
   { keys: '← / →', action: 'Previous / next question' },
@@ -25,6 +25,17 @@ const TAB_SHORTCUTS: { keys: string; action: string }[] = [
 export function KeyboardLegend({ isExam = false }: { isExam?: boolean }) {
   const [open, setOpen] = useState(false)
   const shortcuts = isExam ? NAV_SHORTCUTS : [...NAV_SHORTCUTS, ...TAB_SHORTCUTS]
+
+  // Escape closes the popover — the standard dialog affordance for keyboard users
+  // (the click-away backdrop is aria-hidden / not focusable).
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open])
 
   return (
     <div className="relative">

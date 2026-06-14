@@ -88,6 +88,15 @@ describe('KeyboardLegend', () => {
     expect(screen.queryByText('Stats tab')).not.toBeInTheDocument()
   })
 
+  it('closes the panel when Escape is pressed', () => {
+    render(<KeyboardLegend />)
+    fireEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('marks the toggle button as expanded when the panel is open', () => {
     render(<KeyboardLegend />)
     const btn = screen.getByRole('button', { name: 'Keyboard shortcuts' })

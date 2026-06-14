@@ -18,10 +18,19 @@ vi.mock('@/app/app/_components/markdown-text', () => ({
   ),
 }))
 
+// Mock mirrors the real ZoomableImage contract (#863): an accessible link
+// wrapping a presentational img, so these tests track the real component output.
 vi.mock('@/app/app/_components/zoomable-image', () => ({
   ZoomableImage: ({ src, alt }: { src: string; alt: string }) => (
-    // biome-ignore lint/performance/noImgElement: test mock — no Next.js Image needed
-    <img data-testid="zoomable-image" src={src} alt={alt} />
+    <a
+      href={src}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Open image in new tab: ${alt}`}
+    >
+      {/* biome-ignore lint/performance/noImgElement: test mock — no Next.js Image needed */}
+      <img data-testid="zoomable-image" src={src} alt="" aria-hidden="true" />
+    </a>
   ),
 }))
 
@@ -200,14 +209,18 @@ describe('ReportQuestionRow', () => {
           index={0}
         />,
       )
-      const img = screen.getByRole('img', { name: 'Question illustration' })
-      expect(img).toHaveAttribute('src', 'https://example.com/q-img.png')
+      const link = screen.getByRole('link', {
+        name: 'Open image in new tab: Question illustration',
+      })
+      expect(link.querySelector('img')).toHaveAttribute('src', 'https://example.com/q-img.png')
     })
 
     it('does not render question image when questionImageUrl is null', () => {
       render(<ReportQuestionRow question={makeQuestion({ questionImageUrl: null })} index={0} />)
-      const imgs = screen.queryAllByRole('img', { name: 'Question illustration' })
-      expect(imgs).toHaveLength(0)
+      const links = screen.queryAllByRole('link', {
+        name: 'Open image in new tab: Question illustration',
+      })
+      expect(links).toHaveLength(0)
     })
   })
 
@@ -276,8 +289,10 @@ describe('ReportQuestionRow', () => {
         />,
       )
       fireEvent.click(screen.getByText('Show explanation'))
-      const explanationImg = screen.getByRole('img', { name: 'Explanation illustration' })
-      expect(explanationImg).toHaveAttribute('src', 'https://example.com/diagram.png')
+      const link = screen.getByRole('link', {
+        name: 'Open image in new tab: Explanation illustration',
+      })
+      expect(link.querySelector('img')).toHaveAttribute('src', 'https://example.com/diagram.png')
     })
 
     it('hides explanation when toggle is clicked again', () => {

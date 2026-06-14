@@ -390,6 +390,21 @@ describe('AnswerOptions', () => {
       expect(screen.getByTestId('option-a').className).toContain('ring-2')
     })
 
+    it('suppresses the highlight ring once an exam answer is locked', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          isExam
+          selectedOptionId="a"
+          keyboardHighlightedId="b"
+        />,
+      )
+      // The exam answer is locked → no option should advertise a keyboard highlight.
+      expect(screen.getByTestId('option-b')).not.toHaveAttribute('data-kb-highlighted')
+    })
+
     it('does not set data-kb-highlighted when keyboardHighlightedId is null', () => {
       render(
         <AnswerOptions

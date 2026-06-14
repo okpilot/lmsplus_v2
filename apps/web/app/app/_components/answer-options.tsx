@@ -80,7 +80,10 @@ export function AnswerOptions({
           isSelected,
           isExamLocked: !!isExam && lockedSelection != null && isSelected,
         })
-        const isKeyboardHighlighted = !showResult && option.id === keyboardHighlightedId
+        // No ring once a result is shown (study) or the exam answer is locked —
+        // the option is no longer actionable, so a highlight would mislead.
+        const isKeyboardHighlighted =
+          !showResult && !(isExam && lockedSelection != null) && option.id === keyboardHighlightedId
 
         return (
           <button
