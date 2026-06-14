@@ -21,6 +21,7 @@ describe('formatMsDuration', () => {
   })
 
   it('includes hours for long durations', () => {
+    expect(formatMsDuration(3_600_000)).toBe('1h 0m 0s')
     expect(formatMsDuration(3_725_000)).toBe('1h 2m 5s')
   })
 

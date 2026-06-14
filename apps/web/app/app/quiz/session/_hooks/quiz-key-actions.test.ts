@@ -79,7 +79,6 @@ describe('quizKeyAction — navigation keys', () => {
     expect(quizKeyAction('Enter', { isExam: false })).toEqual({ type: 'confirm' })
   })
 
-  // Navigation/highlight/confirm keys are unaffected by isExam
   it('maps ArrowLeft to navigate with delta -1 in exam mode', () => {
     expect(quizKeyAction('ArrowLeft', { isExam: true })).toEqual({
       type: 'navigate',

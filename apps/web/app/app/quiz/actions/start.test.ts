@@ -192,7 +192,7 @@ describe('startQuizSession', () => {
     if (!result.success) expect(result.error).toBe('Invalid input')
   })
 
-  it('passes imageMode through to getRandomQuestionIds', async () => {
+  it('filters the question pool by image presence when imageMode is provided', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockGetRandomQuestionIds.mockResolvedValue(['q1'])
     mockRpc.mockResolvedValue({ data: 'sess-1', error: null })

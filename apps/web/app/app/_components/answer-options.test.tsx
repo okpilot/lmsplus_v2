@@ -427,9 +427,6 @@ describe('AnswerOptions', () => {
     })
 
     it('suppresses the keyboard highlight when result is shown', () => {
-      // showResult = true when both selectedOptionId and correctOptionId are present.
-      // The isKeyboardHighlighted guard (answer-options.tsx: !showResult && ...) must
-      // prevent data-kb-highlighted from appearing even when the id matches.
       render(
         <AnswerOptions
           options={OPTIONS}
