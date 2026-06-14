@@ -486,6 +486,72 @@ describe('FinishQuizDialog', () => {
     expect(submittingBtns[0]).toBeInTheDocument()
   })
 
+  it('does not mark the "Submit anyway" confirm button busy during an unrelated action', () => {
+    // Open the submit-anyway confirmation, then simulate a different action (save)
+    // going in flight. The confirm button must NOT announce aria-busy for a save.
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /submit quiz/i }))
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={true}
+        pendingAction="save"
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    const confirmBtn = screen.getByRole('button', { name: /submit anyway/i })
+    expect(confirmBtn).toBeDisabled() // disabled while any action runs
+    expect(confirmBtn).not.toHaveAttribute('aria-busy') // but not busy — it's a save, not a submit
+  })
+
+  it('does not mark the "Yes, discard" confirm button busy during an unrelated action', () => {
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={true}
+        pendingAction="save"
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    const confirmBtn = screen.getByRole('button', { name: /yes, discard/i })
+    expect(confirmBtn).toBeDisabled()
+    expect(confirmBtn).not.toHaveAttribute('aria-busy') // a save is running, not a discard
+  })
+
   it('disables the Go back button while submitting', () => {
     const { rerender } = render(
       <FinishQuizDialog

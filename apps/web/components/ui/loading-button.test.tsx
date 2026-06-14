@@ -89,9 +89,10 @@ describe('LoadingButton', () => {
       </LoadingButton>,
     )
     const button = screen.getByRole('button', { name: 'Cancel' })
-    // 'border-border' is the cva class emitted only for variant="outline", so
-    // this proves the variant prop reached the underlying Button rather than
-    // being swallowed.
+    // 'border-border' is the cva class emitted only for variant="outline", and
+    // 'h-7' only for size="sm" — together they prove both props reached the
+    // underlying Button rather than being swallowed.
     expect(button.className).toContain('border-border')
+    expect(button.className).toContain('h-7')
   })
 })

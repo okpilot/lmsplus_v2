@@ -121,6 +121,7 @@ export function FinishQuizDialog({
             onConfirm={onSubmit}
             onCancel={() => setConfirmingSubmit(false)}
             submitting={submitting}
+            busy={pendingAction === 'submit'}
             variant="warning"
           />
         )}
@@ -136,6 +137,7 @@ export function FinishQuizDialog({
             onConfirm={onDiscard}
             onCancel={() => setConfirmingDiscard(false)}
             submitting={submitting}
+            busy={pendingAction === 'discard'}
             variant="destructive"
           />
         )}
@@ -281,13 +283,17 @@ function ConfirmPanel({
   onConfirm,
   onCancel,
   submitting,
+  busy,
   variant,
 }: {
   message: string
   confirmLabel: string
   onConfirm: () => void
   onCancel: () => void
+  /** True while ANY action runs — disables both buttons. */
   submitting: boolean
+  /** True only while THIS panel's own action runs — drives aria-busy. */
+  busy: boolean
   variant: 'warning' | 'destructive'
 }) {
   const isWarn = variant === 'warning'
@@ -305,7 +311,7 @@ function ConfirmPanel({
           type="button"
           onClick={onConfirm}
           disabled={submitting}
-          aria-busy={submitting || undefined}
+          aria-busy={busy || undefined}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${isWarn ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}`}
         >
           {confirmLabel}
