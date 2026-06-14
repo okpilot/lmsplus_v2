@@ -309,19 +309,19 @@ describe('ReportQuestionRow', () => {
   })
 
   describe('response time', () => {
-    it('displays response time in seconds with one decimal place', () => {
+    it('displays sub-minute response time as whole seconds', () => {
       render(<ReportQuestionRow question={makeQuestion({ responseTimeMs: 3000 })} index={0} />)
-      expect(screen.getByText('3.0s')).toBeInTheDocument()
+      expect(screen.getByText('3s')).toBeInTheDocument()
     })
 
-    it('rounds sub-second times to one decimal place', () => {
+    it('rounds sub-second times to whole seconds', () => {
       render(<ReportQuestionRow question={makeQuestion({ responseTimeMs: 500 })} index={0} />)
-      expect(screen.getByText('0.5s')).toBeInTheDocument()
+      expect(screen.getByText('1s')).toBeInTheDocument()
     })
 
-    it('displays longer response times correctly', () => {
-      render(<ReportQuestionRow question={makeQuestion({ responseTimeMs: 12500 })} index={0} />)
-      expect(screen.getByText('12.5s')).toBeInTheDocument()
+    it('formats times over a minute as minutes and seconds', () => {
+      render(<ReportQuestionRow question={makeQuestion({ responseTimeMs: 95_300 })} index={0} />)
+      expect(screen.getByText('1m 35s')).toBeInTheDocument()
     })
   })
 
