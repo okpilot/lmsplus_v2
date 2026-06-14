@@ -273,8 +273,9 @@ reviews:
           reset that step's tracking var/set in `finally`, and throw the joined
           errors once at the end (`if (errors.length > 0) throw ...`). A bare
           throw in step N otherwise skips steps N+1..M, leaking their rows
-          downstream. For FK-dependent steps (parent-delete after FK children,
-          child-insert after parent), additionally guard the dependent step with
+          downstream. For dependent steps (FK ordering — parent-delete after FK
+          children, child-insert after parent — OR a data dependency on a value
+          an earlier step resolved), additionally guard the dependent step with
           `errors.length === 0`. Single-step cleanups are exempt. Best-effort
           steps whose failure does NOT leak shared state (e.g. deleting a user
           that carries immutable audit_events FK refs, where the row is reused

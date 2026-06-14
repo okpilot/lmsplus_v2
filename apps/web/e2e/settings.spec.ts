@@ -160,8 +160,10 @@ test.describe('Settings — Change Password', () => {
       errors.push(e instanceof Error ? e.message : String(e))
     }
 
-    // Step 2: reset password to the known test value
-    if (userId) {
+    // Step 2: reset password to the known test value. Depends on step 1 — only
+    // run if the lookup succeeded (errors.length === 0; userId is also undefined
+    // on a step-1 failure, so this is defensive consistency with the §7 pattern).
+    if (errors.length === 0 && userId) {
       try {
         const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
           password: TEST_PASSWORD,
