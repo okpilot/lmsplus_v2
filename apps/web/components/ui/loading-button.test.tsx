@@ -11,6 +11,16 @@ describe('LoadingButton', () => {
     expect(container.querySelector('.animate-spin')).not.toBeNull()
   })
 
+  it('marks the button busy for assistive tech while loading', () => {
+    render(<LoadingButton loading>Save</LoadingButton>)
+    expect(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('does not mark the button busy when not loading', () => {
+    render(<LoadingButton>Save</LoadingButton>)
+    expect(screen.getByRole('button')).not.toHaveAttribute('aria-busy')
+  })
+
   it('shows loadingText instead of children while loading', () => {
     render(
       <LoadingButton loading loadingText="Saving...">
@@ -72,7 +82,7 @@ describe('LoadingButton', () => {
     expect(screen.getByRole('button')).toHaveTextContent('Save')
   })
 
-  it('passes variant and size props through to the underlying button', () => {
+  it('renders with the specified variant and size styles', () => {
     render(
       <LoadingButton variant="outline" size="sm">
         Cancel

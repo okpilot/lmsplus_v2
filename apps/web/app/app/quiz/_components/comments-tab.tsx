@@ -109,7 +109,7 @@ export function CommentsTab({ questionId, currentUserId }: CommentsTabProps) {
         >
           <span className="inline-flex items-center justify-center gap-2">
             {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
-            Post
+            {submitting ? 'Posting...' : 'Post'}
           </span>
         </button>
       </div>

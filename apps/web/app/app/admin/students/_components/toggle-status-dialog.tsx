@@ -58,6 +58,7 @@ export function ToggleStatusDialog({ student, open, onOpenChange }: Readonly<Pro
           <LoadingButton
             variant={isActive ? 'destructive' : 'default'}
             onClick={handleConfirm}
+            disabled={!student}
             loading={isPending}
             loadingText="Saving…"
           >

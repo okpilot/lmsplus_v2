@@ -970,14 +970,13 @@ describe('useAnswerHandler — answering flag', () => {
     expect(result.current.answering).toBe(false)
   })
 
-  it('stays false when the same question is answered twice (guarded re-submit)', async () => {
+  it('stays false when re-submitting an already-answered question', async () => {
     mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
     const { result } = renderAnswerHandler()
 
     await act(async () => {
       await result.current.handleSelectAnswer(OPT_A)
     })
-    // The second call hits the already-answered guard and never sets answering.
     await act(async () => {
       await result.current.handleSelectAnswer(OPT_B)
     })
