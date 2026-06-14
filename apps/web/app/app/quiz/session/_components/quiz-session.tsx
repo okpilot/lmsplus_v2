@@ -121,7 +121,7 @@ export function QuizSession(props: QuizSessionProps) {
             isFlagged={isFlagged(s.questionId)}
             currentIndex={s.currentIndex}
             totalQuestions={props.questions.length}
-            submitting={s.submitting}
+            submitting={s.answering}
             showSubmit={canSubmitAnswer}
             flagLoading={isToggling(s.questionId)}
             onTogglePin={s.togglePin}

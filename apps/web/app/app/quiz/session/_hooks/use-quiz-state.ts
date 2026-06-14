@@ -75,6 +75,7 @@ export function useQuizState(opts: QuizStateOpts) {
     error: p.error,
     isExam,
     submitting: p.submitting,
+    answering: p.answering,
     handleSubmit: p.handleSubmit,
     handleSave: p.handleSave,
     handleDiscard: p.handleDiscard,

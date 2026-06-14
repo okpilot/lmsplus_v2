@@ -32,6 +32,10 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     () => initialFeedback ?? new Map(),
   )
   const [error, setError] = useState<string | null>(null)
+  // True only while a per-question answer is being checked (the checkAnswer RPC
+  // is in flight) — drives the Submit Answer spinner. Distinct from the
+  // session-level `submitting` exposed by useQuizSubmit.
+  const [answering, setAnswering] = useState(false)
   const lockedRef = useRef<Set<string>>(new Set())
   const pendingQuestionIdRef = useRef<Set<string>>(new Set())
   const answersRef = useRef(answers)
@@ -53,6 +57,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       return next
     })
     pendingQuestionIdRef.current.add(questionId)
+    setAnswering(true)
     let result: CheckResult
     try {
       const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
@@ -68,6 +73,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
         setError,
         onAnswerReverted,
       )
+      setAnswering(false)
       return false
     }
     const nextFeedback = recordAnswerFeedback(questionId, result, feedbackRef, setFeedback)
@@ -84,6 +90,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       console.warn('[use-answer-handler] Checkpoint write failed (best-effort):', err)
     }
     pendingQuestionIdRef.current.delete(questionId)
+    setAnswering(false)
     return true
   }
 
@@ -97,6 +104,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
   return {
     feedback,
     error,
+    answering,
     handleSelectAnswer,
     clearError: () => setError(null),
     pendingQuestionIdRef,

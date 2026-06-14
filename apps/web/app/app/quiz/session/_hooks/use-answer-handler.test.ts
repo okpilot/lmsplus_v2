@@ -927,3 +927,61 @@ describe('useAnswerHandler — pendingQuestionIdRef lifecycle', () => {
     expect(result.current.pendingQuestionIdRef.current.size).toBe(0)
   })
 })
+
+// ---- answering flag (Submit Answer spinner) -------------------------------
+
+describe('useAnswerHandler — answering flag', () => {
+  it('is false before any answer is submitted', () => {
+    const { result } = renderAnswerHandler()
+    expect(result.current.answering).toBe(false)
+  })
+
+  it('is true while the checkAnswer RPC is in flight and false after it resolves', async () => {
+    let resolveCheck: (v: typeof SUCCESS_RESULT) => void = () => {}
+    mockCheckAnswer.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCheck = resolve
+      }),
+    )
+    const { result } = renderAnswerHandler()
+
+    let pending: Promise<boolean> = Promise.resolve(false)
+    act(() => {
+      pending = result.current.handleSelectAnswer(OPT_A)
+    })
+    // RPC has not resolved yet — the spinner should be showing.
+    expect(result.current.answering).toBe(true)
+
+    await act(async () => {
+      resolveCheck(SUCCESS_RESULT)
+      await pending
+    })
+    expect(result.current.answering).toBe(false)
+  })
+
+  it('resets to false when the checkAnswer RPC fails', async () => {
+    mockCheckAnswer.mockRejectedValue(new Error('network error'))
+    const { result } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(result.current.answering).toBe(false)
+  })
+
+  it('stays false when the same question is answered twice (guarded re-submit)', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const { result } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+    // The second call hits the already-answered guard and never sets answering.
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_B)
+    })
+
+    expect(result.current.answering).toBe(false)
+  })
+})
