@@ -2253,7 +2253,7 @@ Returns up to `p_count` random question IDs from the active, org-scoped, subject
 - `p_calc_mode TEXT DEFAULT 'all'` — calculation filter on `has_calculations`. `'only'` = only calc questions; `'exclude'` = only non-calc questions; `'all'` / `NULL` / any unknown value = unrestricted (fail-open). Unlike `p_filters` (UNION), calc-mode **AND-restricts** the pool — it composes on top of the per-user filters (#837).
 - `p_has_image TEXT DEFAULT 'all'` — image filter on `question_image_url` presence. `'only'` = only questions with images (`question_image_url IS NOT NULL`); `'exclude'` = only questions without images (`question_image_url IS NULL`); `'all'` / `NULL` / any unknown value = unrestricted (fail-open). Like calc-mode, has-image **AND-restricts** the pool independently of `p_filters` (#864).
 
-**Returns:** `TABLE(id UUID)` — up to `LEAST(COALESCE(p_count, 0), 500)` rows (NULL `p_count` yields 0 rows), sampled via `ORDER BY random() LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)` over the helper's pool.
+**Returns:** `TABLE(id UUID)` — up to `LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)` rows (NULL or negative `p_count` yields 0 rows), sampled via `ORDER BY random() LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)` over the helper's pool.
 
 **Volatility:** `VOLATILE` (because `random()` is volatile).
 
