@@ -4,9 +4,9 @@ import { createClient } from '@repo/db/client'
 import Link from 'next/link'
 import { useState } from 'react'
 import { z } from 'zod'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LoadingButton } from '@/components/ui/loading-button'
 
 const EmailSchema = z.string().email('Please enter a valid email address')
 
@@ -81,9 +81,9 @@ export function ForgotPasswordForm() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" disabled={loading} className="w-full">
-        {loading ? 'Sending...' : 'Send reset email'}
-      </Button>
+      <LoadingButton type="submit" loading={loading} loadingText="Sending..." className="w-full">
+        Send reset email
+      </LoadingButton>
 
       <p className="text-center text-sm">
         <Link href="/" className="text-muted-foreground hover:text-primary">

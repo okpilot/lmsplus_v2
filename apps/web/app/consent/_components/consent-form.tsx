@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { recordConsent } from '../actions'
 import { ConsentCheckbox } from './consent-checkbox'
 
@@ -31,7 +31,8 @@ export function ConsentForm() {
     })
   }
 
-  const canSubmit = acceptedTos && acceptedPrivacy && !isPending
+  // LoadingButton's `loading={isPending}` handles the pending-disable.
+  const canSubmit = acceptedTos && acceptedPrivacy
 
   return (
     <Card>
@@ -75,9 +76,15 @@ export function ConsentForm() {
             </p>
           )}
 
-          <Button type="submit" disabled={!canSubmit} className="w-full">
-            {isPending ? 'Saving...' : 'Continue'}
-          </Button>
+          <LoadingButton
+            type="submit"
+            loading={isPending}
+            loadingText="Saving..."
+            disabled={!canSubmit}
+            className="w-full"
+          >
+            Continue
+          </LoadingButton>
         </form>
       </CardContent>
     </Card>

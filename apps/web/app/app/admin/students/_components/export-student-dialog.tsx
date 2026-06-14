@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { downloadJsonFile } from '@/lib/gdpr/download-json'
 import { exportStudentData } from '../actions/export-student-data'
 import type { StudentRow } from '../types'
@@ -74,10 +75,15 @@ export function ExportStudentDialog({ student, open, onOpenChange }: Readonly<Pr
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleExport} disabled={isPending || !student}>
+          <LoadingButton
+            onClick={handleExport}
+            disabled={!student}
+            loading={isPending}
+            loadingText="Exporting…"
+          >
             <Download className="mr-2 size-4" />
-            {isPending ? 'Exporting…' : 'Export'}
-          </Button>
+            Export
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

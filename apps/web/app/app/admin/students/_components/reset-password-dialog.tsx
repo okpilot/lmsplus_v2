@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { resetStudentPassword } from '../actions/reset-student-password'
 import type { StudentRow } from '../types'
 
@@ -77,9 +78,14 @@ export function ResetPasswordDialog({ student, open, onOpenChange }: Readonly<Pr
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !password}>
-            {isPending ? 'Resetting…' : 'Reset password'}
-          </Button>
+          <LoadingButton
+            onClick={handleSubmit}
+            disabled={!password}
+            loading={isPending}
+            loadingText="Resetting…"
+          >
+            Reset password
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

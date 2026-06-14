@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { toggleStudentStatus } from '../actions/toggle-student-status'
 import type { StudentRow } from '../types'
 
@@ -54,13 +55,14 @@ export function ToggleStatusDialog({ student, open, onOpenChange }: Readonly<Pro
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             variant={isActive ? 'destructive' : 'default'}
             onClick={handleConfirm}
-            disabled={isPending}
+            loading={isPending}
+            loadingText="Saving…"
           >
-            {isPending ? 'Saving…' : confirmLabel}
-          </Button>
+            {confirmLabel}
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
