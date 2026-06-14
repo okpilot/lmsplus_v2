@@ -69,13 +69,20 @@ function FilterHint({ hint, label }: { hint: string; label: string }) {
         onClick={() => setOpen((p) => !p)}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
         className="inline-flex text-muted-foreground/60 hover:text-muted-foreground"
-        aria-label={`Info about ${label}`}
+        // Fold the hint into the label so screen readers announce the explanation
+        // directly — the visual tooltip below is a sighted-only enhancement.
+        aria-label={`Info about ${label}. ${hint}`}
       >
         <CircleHelp className="size-3.5" />
       </button>
       {open && (
-        <span className="absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-xs text-background shadow-md">
+        <span
+          aria-hidden
+          className="absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-xs text-background shadow-md"
+        >
           {hint}
         </span>
       )}
