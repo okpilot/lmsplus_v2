@@ -96,7 +96,11 @@ describe('trigger: protect_users_sensitive_columns', () => {
       .eq('id', studentId)
 
     // The important assertion: user must not be soft-deleted
-    const { data, error } = await admin.from('users').select('deleted_at').eq('id', studentId).single()
+    const { data, error } = await admin
+      .from('users')
+      .select('deleted_at')
+      .eq('id', studentId)
+      .single()
     expect(error).toBeNull()
     expect(data?.deleted_at).toBeNull()
   })
@@ -137,7 +141,11 @@ describe('trigger: protect_users_sensitive_columns', () => {
 
     expect(promoteError).toBeNull()
 
-    const { data, error: roleErr } = await admin.from('users').select('role').eq('id', studentId).single()
+    const { data, error: roleErr } = await admin
+      .from('users')
+      .select('role')
+      .eq('id', studentId)
+      .single()
     expect(roleErr).toBeNull()
     expect(data?.role).toBe('instructor')
 

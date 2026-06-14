@@ -77,7 +77,7 @@ lmsplusv2/
 
 ### Code Quality Tools
 
-- **Lint & format**: Biome v2.4.8 (`biome.json`). Single binary replacing ESLint + Prettier. Rules: `noUnusedVariables`, `noUnusedImports`, `noExplicitAny`, `noVar` (all error). Formatting: 2-space indent, 100-char line width, single quotes, no semicolons, trailing commas.
+- **Lint & format**: Biome v2.4.16 (`biome.json`). Single binary replacing ESLint + Prettier. Rules: `noUnusedVariables`, `noUnusedImports`, `noExplicitAny`, `noVar` (all error). Formatting: 2-space indent, 100-char line width, single quotes, no semicolons, trailing commas.
 - **Static analysis**: SonarCloud (CI), GitHub CodeQL (weekly + on PRs), Biome's 450+ built-in rules.
 - **Testing**:
   - **Unit/integration**: Vitest with v8 coverage provider. 2000+ tests across 165+ files. Co-located with source files (no `__tests__/` directories).

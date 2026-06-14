@@ -12,6 +12,7 @@
     "./middleware": "./src/middleware.ts"
   },
   "scripts": {
+    "lint": "biome check .",
     "check-types": "tsc --noEmit",
     "check-types:integration": "tsc --noEmit -p tsconfig.integration.json",
     "test": "vitest run",

@@ -211,9 +211,7 @@ describe('seedReferenceData', () => {
   it('throws with "seedTopic:" prefix when the topic upsert fails', async () => {
     mockFrom
       .mockReturnValueOnce(buildChain({ data: { id: 'subj-uuid-4' }, error: null })) // subject OK
-      .mockReturnValueOnce(
-        buildChain({ data: null, error: { message: 'FK constraint failed' } }),
-      ) // topic fails
+      .mockReturnValueOnce(buildChain({ data: null, error: { message: 'FK constraint failed' } })) // topic fails
 
     await expect(seedReferenceData(REF_OPTS)).rejects.toThrow(/^seedTopic:/)
   })

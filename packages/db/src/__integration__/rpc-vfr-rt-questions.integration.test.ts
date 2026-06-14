@@ -190,13 +190,13 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
     })
     expect(error).toBeNull()
     const rows = data as unknown as Array<Record<string, unknown>>
-    const row = rows.find((r) => r['id'] === saId)
+    const row = rows.find((r) => r.id === saId)
     expect(row).toBeDefined()
     // These keys must be absent from the returned row entirely
     expect('canonical_answer' in row!).toBe(false)
     expect('accepted_synonyms' in row!).toBe(false)
     // options is NULL for short_answer
-    expect(row!['options']).toBeNull()
+    expect(row!.options).toBeNull()
   })
 
   it('rewrites dialog_fill tokens from {{n|canonical;syn}} to {{n}} and strips blanks_config canonicals', async () => {
@@ -205,18 +205,18 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
     })
     expect(error).toBeNull()
     const rows = data as unknown as Array<Record<string, unknown>>
-    const dfRow = rows.find((r) => r['id'] === dfId)
+    const dfRow = rows.find((r) => r.id === dfId)
     expect(dfRow).toBeDefined()
 
     // dialog_template must have {{n}} plain markers, NOT {{n|canonical;...}} tokens
-    const tpl = dfRow!['dialog_template'] as string
+    const tpl = dfRow!.dialog_template as string
     expect(tpl).toContain('{{0}}')
     expect(tpl).not.toContain('S5-ABC')
     expect(tpl).not.toContain('S5-XYZ')
     expect(tpl).not.toMatch(/\{\{\d+\|/)
 
     // blanks_safe contains only index, not canonical or synonyms
-    const blanksSafe = dfRow!['blanks_safe'] as Array<Record<string, unknown>>
+    const blanksSafe = dfRow!.blanks_safe as Array<Record<string, unknown>>
     expect(Array.isArray(blanksSafe)).toBe(true)
     expect(blanksSafe).toHaveLength(1)
     const blank = blanksSafe[0]!
@@ -235,9 +235,9 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
     })
     expect(error).toBeNull()
     const rows = data as unknown as Array<Record<string, unknown>>
-    const mcRow = rows.find((r) => r['id'] === mcId)
+    const mcRow = rows.find((r) => r.id === mcId)
     expect(mcRow).toBeDefined()
-    const opts = mcRow!['options'] as Array<Record<string, unknown>>
+    const opts = mcRow!.options as Array<Record<string, unknown>>
     expect(Array.isArray(opts)).toBe(true)
     // Every returned option object must only have 'id' and 'text' — no 'correct'
     for (const opt of opts) {
@@ -299,7 +299,7 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
     const rows = data as unknown as Array<Record<string, unknown>>
     expect(rows).toHaveLength(3)
     // The frozen question order holds on the completed path too
-    expect(rows.map((r) => r['id'])).toEqual([saId, dfId, mcId])
+    expect(rows.map((r) => r.id)).toEqual([saId, dfId, mcId])
     // Answer-key and explanation stripping still applies post-completion
     for (const row of rows) {
       expect('canonical_answer' in row).toBe(false)
@@ -307,9 +307,9 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
       expect('explanation_text' in row).toBe(false)
       expect('explanation_image_url' in row).toBe(false)
     }
-    const mcRow = rows.find((r) => r['id'] === mcId)
+    const mcRow = rows.find((r) => r.id === mcId)
     expect(mcRow).toBeDefined()
-    const opts = mcRow!['options'] as Array<Record<string, unknown>>
+    const opts = mcRow!.options as Array<Record<string, unknown>>
     for (const opt of opts) {
       expect('correct' in opt).toBe(false)
     }
@@ -612,8 +612,8 @@ describe('RPC: get_vfr_rt_exam_questions', () => {
   it('rejects an unauthenticated call with not_authenticated', async () => {
     const { createClient } = await import('@supabase/supabase-js')
     const anonClient = createClient(
-      process.env['NEXT_PUBLIC_SUPABASE_URL'] ?? '',
-      process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] ?? '',
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } },
     )
     const { error } = await anonClient.rpc('get_vfr_rt_exam_questions', {
