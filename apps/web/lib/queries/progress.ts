@@ -16,7 +16,7 @@ export type SubjectDetail = {
   topics: TopicDetail[]
 }
 
-export type TopicDetail = {
+type TopicDetail = {
   id: string
   code: string
   name: string

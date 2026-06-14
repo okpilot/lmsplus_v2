@@ -13,7 +13,7 @@ export function getSquareClass(opts: {
   return 'border border-border text-muted-foreground'
 }
 
-export function FilterPill({
+function FilterPill({
   active,
   onClick,
   label,

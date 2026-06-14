@@ -79,7 +79,7 @@ After umbrella #668 closed, focus shifted to DB/security hardening and adversari
 - Hermetic `easa_*` reference-data cleanup in integration suites (#775, #593, PR #779).
 - "Red Team Specs" promoted to a required status check (#771).
 
-**Open follow-ups (P2 tech-debt):** #791 (knip dead code), #794 (promote 2 learner rule candidates + sweep).
+**Open follow-ups (P2 tech-debt):** #794 (promote 2 learner rule candidates + sweep).
 
 **Resolved this sprint:** #797 (consolidate duplicated `ActionResult` type into `@/lib/action-result`, PR #801); #793 (renumber start_quiz_session smuggling vectors BL/BM/BN → CU/CV/CW, commit b388dc9c) — resolved the pre-existing matrix ID collision; #792 (dedupe learner tracker rows — merged 4 duplicate live-table pairs, counts unchanged).
 
