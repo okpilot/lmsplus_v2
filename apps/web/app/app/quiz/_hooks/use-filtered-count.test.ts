@@ -193,6 +193,52 @@ describe('useFilteredCount — calcMode', () => {
   })
 })
 
+// ---- imageMode ------------------------------------------------------------
+
+describe('useFilteredCount — imageMode', () => {
+  it('fetches when imageMode is only even with no active switch-filters', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 5, byTopic: { [TOPIC_ID]: 5 }, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['all'], 'all', 'only')
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: [], imageMode: 'only' }),
+    )
+    expect(result.current.filteredCount).toBe(5)
+  })
+
+  it('fetches when imageMode is exclude even with no active switch-filters', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 3, byTopic: {}, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['all'], 'all', 'exclude')
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: [], imageMode: 'exclude' }),
+    )
+  })
+
+  it('does not fetch when imageMode is all and no other filters are active', async () => {
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['all'], 'all', 'all')
+    })
+    expect(mockGetFilteredCount).not.toHaveBeenCalled()
+  })
+
+  it('passes imageMode through alongside an active switch-filter', async () => {
+    mockGetFilteredCount.mockResolvedValue({ count: 2, byTopic: {}, bySubtopic: {} })
+    const { result } = renderHook(() => useFilteredCount())
+    await act(async () => {
+      result.current.refetch(SUBJECT_ID, TOPIC_IDS, SUBTOPIC_IDS, ['unseen'], 'all', 'exclude')
+    })
+    expect(mockGetFilteredCount).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: ['unseen'], imageMode: 'exclude' }),
+    )
+  })
+})
+
 // ---- Auth error -----------------------------------------------------------
 
 describe('useFilteredCount — auth error', () => {

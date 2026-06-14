@@ -1,6 +1,5 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
 import type { SessionQuestion } from '@/app/app/_types/session'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { FinishQuizDialog } from '../../_components/finish-quiz-dialog'
@@ -9,11 +8,12 @@ import { QuestionTabs } from '../../_components/question-tabs'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { useFlaggedQuestions } from '../_hooks/use-flagged-questions'
 import { useQuizActiveTab } from '../_hooks/use-quiz-active-tab'
+import { useQuizKeyboard } from '../_hooks/use-quiz-keyboard'
 import { useQuizState } from '../_hooks/use-quiz-state'
+import { useQuizTimer } from '../_hooks/use-quiz-timer'
 import { useQuizUI } from '../_hooks/use-quiz-ui'
-import { parseStartedAt } from '../_utils/parse-started-at'
-import { QuizControls } from './quiz-controls'
 import { QuizMainPanel } from './quiz-main-panel'
+import { QuizSessionFooter } from './quiz-session-footer'
 import { QuizSessionHeader } from './quiz-session-header'
 import { QuizSessionMetaRow } from './quiz-session-meta-row'
 
@@ -46,15 +46,21 @@ export function QuizSession(props: QuizSessionProps) {
     existingAnswer: s.existingAnswer,
   })
 
-  const timerStartRef = useRef(parseStartedAt(props.startedAt))
-  const autoSubmitFiredRef = useRef(false)
-  const [timeExpired, setTimeExpired] = useState(false)
-  const handleTimeExpired = useCallback(() => {
-    if (autoSubmitFiredRef.current) return
-    autoSubmitFiredRef.current = true
-    setTimeExpired(true)
-    s.setShowFinishDialog(true)
-  }, [s.setShowFinishDialog])
+  const { timerStart, timeExpired, handleTimeExpired } = useQuizTimer(
+    props.startedAt,
+    s.setShowFinishDialog,
+  )
+
+  const { highlightedOptionId } = useQuizKeyboard({
+    optionIds: s.question?.options.map((o) => o.id) ?? [],
+    currentIndex: s.currentIndex,
+    isExam: s.isExam,
+    // Pause shortcuts while the finish dialog is open so arrows/Enter don't act behind it.
+    enabled: !s.showFinishDialog,
+    onNavigate: s.navigate,
+    onConfirm: s.handleSelectAnswer,
+    onTab: setActiveTab,
+  })
 
   if (!s.question) return null
 
@@ -71,7 +77,7 @@ export function QuizSession(props: QuizSessionProps) {
         totalQuestions={props.questions.length}
         submitting={s.submitting}
         timeLimitSeconds={props.timeLimitSeconds}
-        timerStart={timerStartRef.current}
+        timerStart={timerStart}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onTimeExpired={handleTimeExpired}
@@ -102,7 +108,7 @@ export function QuizSession(props: QuizSessionProps) {
             totalQuestions={props.questions.length}
             questionNumber={s.question.question_number ?? null}
             timeLimitSeconds={props.timeLimitSeconds}
-            timerStart={timerStartRef.current}
+            timerStart={timerStart}
             onTimeExpired={handleTimeExpired}
           />
           <QuizMainPanel
@@ -110,31 +116,20 @@ export function QuizSession(props: QuizSessionProps) {
             activeTab={effectiveTab}
             userId={props.userId}
             onSelectionChange={handleSelectionChange}
+            keyboardHighlightedId={highlightedOptionId}
           />
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background px-4 pb-[env(safe-area-inset-bottom)] md:px-8">
-        <div className="mx-auto max-w-3xl">
-          <QuizControls
-            isPinned={s.isPinned}
-            isFlagged={isFlagged(s.questionId)}
-            currentIndex={s.currentIndex}
-            totalQuestions={props.questions.length}
-            submitting={s.submitting}
-            showSubmit={canSubmitAnswer}
-            flagLoading={isToggling(s.questionId)}
-            onTogglePin={s.togglePin}
-            onToggleFlag={() => toggleFlag(s.questionId)}
-            onPrev={() => s.navigate(-1)}
-            onNext={() => s.navigate(1)}
-            onSubmitAnswer={async () => {
-              if (pendingOptionId) await s.handleSelectAnswer(pendingOptionId)
-            }}
-            isExam={s.isExam}
-          />
-        </div>
-      </div>
+      <QuizSessionFooter
+        s={s}
+        totalQuestions={props.questions.length}
+        isFlagged={isFlagged(s.questionId)}
+        flagLoading={isToggling(s.questionId)}
+        showSubmit={canSubmitAnswer}
+        pendingOptionId={pendingOptionId}
+        onToggleFlag={() => toggleFlag(s.questionId)}
+      />
 
       <FinishQuizDialog
         open={s.showFinishDialog}

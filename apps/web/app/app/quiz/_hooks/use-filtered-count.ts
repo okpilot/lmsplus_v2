@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { getFilteredCount } from '../actions/lookup'
-import type { CalcMode, FilteredCountState, QuestionFilterValue } from '../types'
+import type { CalcMode, FilteredCountState, ImageMode, QuestionFilterValue } from '../types'
 
 export function useFilteredCount(): FilteredCountState {
   const [filteredCount, setFilteredCount] = useState<number | null>(null)
@@ -25,12 +25,13 @@ export function useFilteredCount(): FilteredCountState {
     subtopicIds: string[],
     filters: QuestionFilterValue[],
     calcMode: CalcMode = 'all',
+    imageMode: ImageMode = 'all',
   ) {
     if (!subjectId) return
     const activeFilters = filters.filter((f) => f !== 'all')
-    // calcMode AND-restricts independently of the switch-filters, so a calc-only
-    // selection must fetch even when no switch-filter is active.
-    if (!activeFilters.length && calcMode === 'all') return
+    // calcMode / imageMode AND-restrict independently of the switch-filters, so a
+    // calc-only or image-only selection must fetch even when no switch-filter is active.
+    if (!activeFilters.length && calcMode === 'all' && imageMode === 'all') return
     setFilteredCount(null)
     setFilteredByTopic(null)
     setFilteredBySubtopic(null)
@@ -38,7 +39,14 @@ export function useFilteredCount(): FilteredCountState {
     filterGeneration.current++
     const gen = filterGeneration.current
     setIsFilterPending(true)
-    getFilteredCount({ subjectId, topicIds, subtopicIds, filters: activeFilters, calcMode })
+    getFilteredCount({
+      subjectId,
+      topicIds,
+      subtopicIds,
+      filters: activeFilters,
+      calcMode,
+      imageMode,
+    })
       .then((result) => {
         if (gen !== filterGeneration.current) return
         if (result.error === 'auth') {

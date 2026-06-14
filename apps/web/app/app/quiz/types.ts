@@ -150,6 +150,10 @@ export type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'
 
 export type CalcMode = 'all' | 'only' | 'exclude'
 
+// Tri-state filter on whether a question carries an image (#864). Same shape as
+// CalcMode: 'only' = image questions only, 'exclude' = hide them, 'all' = default.
+export type ImageMode = 'all' | 'only' | 'exclude'
+
 export type UseQuizStartOpts = {
   userId: string
   subjectId: string
@@ -158,6 +162,7 @@ export type UseQuizStartOpts = {
   maxQuestions: number
   filters: QuestionFilterValue[]
   calcMode: CalcMode
+  imageMode: ImageMode
   topicTree: {
     getSelectedTopicIds: () => string[]
     getSelectedSubtopicIds: () => string[]
@@ -176,6 +181,7 @@ export type FilteredCountState = {
     subtopicIds: string[],
     filters: QuestionFilterValue[],
     calcMode?: CalcMode,
+    imageMode?: ImageMode,
   ) => void
   reset: () => void
 }
