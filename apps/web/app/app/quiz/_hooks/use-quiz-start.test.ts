@@ -178,7 +178,7 @@ describe('useQuizStart — handleStart happy path', () => {
     expect(mockStartQuizSession).toHaveBeenCalledWith(expect.objectContaining({ calcMode: 'only' }))
   })
 
-  it('forwards imageMode to startQuizSession', async () => {
+  it('includes the selected image mode in the start request payload', async () => {
     const { result } = renderHook(() =>
       useQuizStart({ ...DEFAULT_OPTS, imageMode: 'only' as ImageMode }),
     )
