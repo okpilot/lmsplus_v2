@@ -352,6 +352,83 @@ describe('AnswerOptions', () => {
     })
   })
 
+  describe('keyboardHighlightedId prop', () => {
+    it('sets data-kb-highlighted="true" on the matching option', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          keyboardHighlightedId="b"
+        />,
+      )
+      expect(screen.getByTestId('option-b')).toHaveAttribute('data-kb-highlighted', 'true')
+    })
+
+    it('does not set data-kb-highlighted on non-highlighted options', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          keyboardHighlightedId="b"
+        />,
+      )
+      expect(screen.getByTestId('option-a')).not.toHaveAttribute('data-kb-highlighted')
+      expect(screen.getByTestId('option-c')).not.toHaveAttribute('data-kb-highlighted')
+    })
+
+    it('applies the keyboard ring class to the highlighted option', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          keyboardHighlightedId="a"
+        />,
+      )
+      expect(screen.getByTestId('option-a').className).toContain('ring-2')
+    })
+
+    it('does not set data-kb-highlighted when keyboardHighlightedId is null', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          keyboardHighlightedId={null}
+        />,
+      )
+      for (const { id } of OPTIONS) {
+        expect(screen.getByTestId(`option-${id}`)).not.toHaveAttribute('data-kb-highlighted')
+      }
+    })
+
+    it('does not set data-kb-highlighted when keyboardHighlightedId is undefined', () => {
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      for (const { id } of OPTIONS) {
+        expect(screen.getByTestId(`option-${id}`)).not.toHaveAttribute('data-kb-highlighted')
+      }
+    })
+
+    it('suppresses the keyboard highlight when result is shown', () => {
+      // showResult = true when both selectedOptionId and correctOptionId are present.
+      // The isKeyboardHighlighted guard (answer-options.tsx: !showResult && ...) must
+      // prevent data-kb-highlighted from appearing even when the id matches.
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          selectedOptionId="a"
+          correctOptionId="b"
+          keyboardHighlightedId="b"
+        />,
+      )
+      expect(screen.getByTestId('option-b')).not.toHaveAttribute('data-kb-highlighted')
+    })
+  })
+
   describe('data-selected attribute', () => {
     it('sets data-selected="true" on the option the user clicks before submission', async () => {
       const user = userEvent.setup()

@@ -7,6 +7,7 @@ import { ExamCountdownTimer } from '../../_components/exam-countdown-timer'
 import type { QuestionTab } from '../../_components/question-tabs'
 import { QuestionTabs } from '../../_components/question-tabs'
 import { ExamBadge } from './exam-session-header'
+import { KeyboardLegend } from './keyboard-legend'
 
 type QuizSessionHeaderProps = {
   isExam: boolean
@@ -73,6 +74,10 @@ export function QuizSessionHeader({
       )}
       <div className="hidden md:block" />
       <div className="z-10 flex items-center gap-2">
+        {/* Keyboard shortcuts are pointer-with-keyboard only → desktop. */}
+        <div className="hidden md:block">
+          <KeyboardLegend />
+        </div>
         <ThemeToggle />
         <button
           type="button"
