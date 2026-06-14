@@ -134,16 +134,16 @@ test.describe
         }
       }
 
-      // Step 3: delete the auth user (cascades to public.users). Skip if step 2
-      // failed — user_consents still references this user, so the delete would
-      // FK-fail; the accumulated step-2 error already reports the real cause.
-      if (authUser && errors.length === 0) {
-        try {
-          const { error: deleteUserError } = await admin.auth.admin.deleteUser(authUser.id)
-          if (deleteUserError)
-            throw new Error(`afterAll delete auth user: ${deleteUserError.message}`)
-        } catch (e) {
-          errors.push(e instanceof Error ? e.message : String(e))
+      // Step 3: delete the auth user — BEST-EFFORT, not accumulated. The user
+      // carries immutable audit_events FK references (append-only per security
+      // rule 5), so auth.admin.deleteUser cannot fully succeed; the email is
+      // reused across runs, so a lingering user is not a cross-spec state leak.
+      // Log only — the hermiticity-critical cleanup (the consent records, which
+      // WOULD leak into the next run) is in the accumulator above.
+      if (authUser) {
+        const { error: deleteUserError } = await admin.auth.admin.deleteUser(authUser.id)
+        if (deleteUserError) {
+          console.error('[afterAll] best-effort auth-user delete failed:', deleteUserError.message)
         }
       }
 

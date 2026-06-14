@@ -714,6 +714,8 @@ The required shape (canonical example: `rpc-void-internal-exam-code.spec.ts`):
 
 **FK-dependent steps:** when a later step depends on an earlier one (deleting a parent row after its FK children, inserting children after their parent), additionally guard the dependent step with `errors.length === 0` so a failed prerequisite doesn't trigger a spurious FK error that masks the real cause. Independent steps (the common case) do not need this guard.
 
+**Best-effort steps:** a cleanup step whose failure does NOT leak shared seed state into the next spec — e.g. `auth.admin.deleteUser` on a user that carries immutable `audit_events` FK references (so the delete can never fully succeed), where the row is reused across runs — should log-and-continue (`console.error`), NOT accumulate into the fatal error list. Accumulating it would make a deliberately-tolerated failure fail CI. Reserve the accumulator + final throw for steps whose failure WOULD leak state (the soft-delete/restore of shared rows).
+
 Complements (does not duplicate) the Biome `noUnsafeFinally` rule — that bans `throw` inside `finally`; this rule governs the cross-step isolation structure. **Single-step cleanups** (one mutation, or one shared-helper call that internally isolates) are exempt.
 
 Promoted at count=2 — `64339b28` (a `throw` inside an `afterEach` finally) + `4f918ded` (`rpc-cross-tenant.spec.ts` afterAll: sequential cleanup blocks with no per-block isolation; a throw in block 1 risked the CL3 seeded session leaking into downstream specs). See issue #794.
