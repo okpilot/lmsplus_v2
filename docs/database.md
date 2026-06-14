@@ -2248,12 +2248,12 @@ Returns up to `p_count` random question IDs from the active, org-scoped, subject
 - `p_subject_id UUID` — required.
 - `p_topic_ids UUID[]` — `NULL` = unconstrained on topic dimension; `'{}'` (empty array) = matches nothing on topic dimension; non-empty array = `q.topic_id = ANY (p_topic_ids)`.
 - `p_subtopic_ids UUID[]` — same semantics as `p_topic_ids`. The two dimensions are combined with `OR`, so a question matching either is in the pool (this preserves leaf-topic questions whose `subtopic_id` is `NULL`).
-- `p_count INT` — maximum number of IDs to return. `LIMIT LEAST(GREATEST(p_count, 0), 500)` clamps negatives to zero AND caps at 500 (defense in depth — mirrors the Zod schema in `apps/web/app/app/quiz/actions/start.ts`; prevents a direct RPC caller from bypassing the Server Action with an arbitrarily large value).
+- `p_count INT` — maximum number of IDs to return. `LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)` clamps NULL to zero first, then negatives to zero, AND caps at 500 (defense in depth — mirrors the Zod schema in `apps/web/app/app/quiz/actions/start.ts`; prevents a direct RPC caller from bypassing the Server Action with a NULL value — which would make `LIMIT NULL` uncapped — or an arbitrarily large value).
 - `p_filters TEXT[]` — `NULL` or `'{}'` = no per-user filter; non-empty subset of `{'unseen', 'incorrect', 'flagged'}` = union of matches (a question passes if it matches ANY active filter).
 - `p_calc_mode TEXT DEFAULT 'all'` — calculation filter on `has_calculations`. `'only'` = only calc questions; `'exclude'` = only non-calc questions; `'all'` / `NULL` / any unknown value = unrestricted (fail-open). Unlike `p_filters` (UNION), calc-mode **AND-restricts** the pool — it composes on top of the per-user filters (#837).
 - `p_has_image TEXT DEFAULT 'all'` — image filter on `question_image_url` presence. `'only'` = only questions with images (`question_image_url IS NOT NULL`); `'exclude'` = only questions without images (`question_image_url IS NULL`); `'all'` / `NULL` / any unknown value = unrestricted (fail-open). Like calc-mode, has-image **AND-restricts** the pool independently of `p_filters` (#864).
 
-**Returns:** `TABLE(id UUID)` — up to `LEAST(p_count, 500)` rows, sampled via `ORDER BY random() LIMIT LEAST(GREATEST(p_count, 0), 500)` over the helper's pool.
+**Returns:** `TABLE(id UUID)` — up to `LEAST(COALESCE(p_count, 0), 500)` rows (NULL `p_count` yields 0 rows), sampled via `ORDER BY random() LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)` over the helper's pool.
 
 **Volatility:** `VOLATILE` (because `random()` is volatile).
 
