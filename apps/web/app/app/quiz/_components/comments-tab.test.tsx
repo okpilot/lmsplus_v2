@@ -227,4 +227,36 @@ describe('CommentsTab', () => {
     render(<CommentsTab questionId="q-unique" currentUserId={CURRENT_USER_ID} />)
     expect(mockUseComments).toHaveBeenCalledWith('q-unique')
   })
+
+  it('shows a spinner inside the Post button while the comment is being submitted', async () => {
+    // Use a never-resolving promise so the component stays in the submitting state.
+    mockAddComment.mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+
+    await user.type(screen.getByPlaceholderText('Add a comment...'), 'Spinner test')
+    // Fire the click but do not await resolution — the promise never settles.
+    const btn = screen.getByRole('button', { name: 'Post' })
+    await user.click(btn)
+
+    // The Loader2 SVG is aria-hidden, present only while submitting.
+    expect(btn.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+  })
+
+  it('sets aria-busy on the Post button while the comment is being submitted', async () => {
+    mockAddComment.mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+
+    await user.type(screen.getByPlaceholderText('Add a comment...'), 'Aria test')
+    const btn = screen.getByRole('button', { name: 'Post' })
+    await user.click(btn)
+
+    expect(btn).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('does not set aria-busy on the Post button when idle', () => {
+    render(<CommentsTab questionId="q-1" currentUserId={CURRENT_USER_ID} />)
+    expect(screen.getByRole('button', { name: 'Post' })).not.toHaveAttribute('aria-busy')
+  })
 })

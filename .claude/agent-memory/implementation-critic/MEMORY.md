@@ -86,6 +86,10 @@
 
 - [tracker-archive](topics/tracker-archive.md) — older impl-critic findings (two dated spec-notes + the "Positive patterns" approval log, pre-2026-06-07)
 
+## Notes on #533 loading-state commit 2 (answer-submit controls)
+
+- **Clean commit — all plan items verified.** Both AnswerOptions callers (quiz-main-panel + session-answer-block) thread `submitting` correctly. `aria-busy={submitting || undefined}` correctly emits no attribute when idle (boolean `||` short-circuits to `undefined`, which React omits). `finish-quiz-dialog` `aria-busy` correctly placed on Save for Later only — the Submit Quiz button uses a text swap pattern (pre-existing). `SessionRunner` is unused (no callers beyond its own file) — no missed path. Internal-exam answer path goes through the same `session-answer-block.tsx` chain and IS covered. False positive guard: `finish-quiz-dialog.tsx` is 307 lines pre-existing; the diff adds only 7 lines to it — code-reviewer's file-size flag (if any) is on pre-existing bloat, not introduced by this commit.
+
 ## Notes on #789 recordAuthEvent wiring (commit 2)
 
 - **Client-level mock intercepts helper correctly.** Tests for all 4 action files mock `supabase.rpc` at the Supabase client object level (`{ rpc: mockRpc }`). The `recordAuthEvent` helper receives the same client object and calls `supabase.rpc(...)` on it — so `mockRpc` is the intercepting mock. The helper runs for real but its I/O is fully captured. No `vi.mock('@/lib/audit/record-auth-event')` needed; client-level mock is correct and simpler.

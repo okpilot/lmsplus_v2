@@ -507,6 +507,16 @@ describe('FinishQuizDialog', () => {
 
   // ---- Error prop ----------------------------------------------------------
 
+  it('sets aria-busy on the Save for Later button while submitting', () => {
+    renderDialog({ submitting: true })
+    expect(screen.getByRole('button', { name: /saving.../i })).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('does not set aria-busy on the Save for Later button when not submitting', () => {
+    renderDialog({ submitting: false })
+    expect(screen.getByRole('button', { name: /save for later/i })).not.toHaveAttribute('aria-busy')
+  })
+
   it('shows the error message when the error prop has a value', () => {
     renderDialog({ error: 'Session expired. Please try again.' })
     expect(screen.getByText('Session expired. Please try again.')).toBeInTheDocument()
