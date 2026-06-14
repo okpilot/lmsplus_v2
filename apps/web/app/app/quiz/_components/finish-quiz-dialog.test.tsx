@@ -149,7 +149,8 @@ describe('FinishQuizDialog', () => {
     renderDialog({ submitting: true })
     expect(screen.getByRole('button', { name: /submitting.../i })).toBeDisabled()
     expect(screen.getByRole('button', { name: /return to quiz/i })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /save for later/i })).toBeDisabled()
+    // Save for Later shows its loading label ("Saving...") while submitting.
+    expect(screen.getByRole('button', { name: /saving.../i })).toBeDisabled()
   })
 
   it('shows "Submitting..." text on the submit button while submitting', () => {
