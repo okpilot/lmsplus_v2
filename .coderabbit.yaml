@@ -267,6 +267,16 @@ reviews:
           path, no-op silence, each log path. Use the vi.hoisted + buildChain
           queue/shift pattern when the helper makes multiple sequential calls on
           the same table.
+        - Multi-step cleanup blocks (`afterEach`/`afterAll` with >=2 distinct
+          cleanup steps) must isolate each step in its own try/catch, accumulate
+          errors (`const errors: string[] = []`, `errors.push(...)` per step),
+          reset that step's tracking var/set in `finally`, and throw the joined
+          errors once at the end (`if (errors.length > 0) throw ...`). A bare
+          throw in step N otherwise skips steps N+1..M, leaking their rows
+          downstream. For FK-dependent steps (parent-delete after FK children,
+          child-insert after parent), additionally guard the dependent step with
+          `errors.length === 0`. Single-step cleanups are exempt. Complements —
+          does not duplicate — Biome `noUnsafeFinally`. (code-style.md §7)
 
     # Red-team specs — non-vacuous negatives + RPC output contracts (code-style.md §7)
     - path: "apps/web/e2e/redteam/**/*.spec.ts"

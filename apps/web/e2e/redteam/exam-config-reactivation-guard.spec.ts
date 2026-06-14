@@ -104,7 +104,10 @@ test.describe('Red Team: exam_config reactivation-guard trigger (Vector AJ)', ()
       }
     }
 
-    if (restoreDistributions.length > 0) {
+    // Skip if the configs restore failed — distributions FK exam_configs(id), so
+    // the insert would FK-fail with the parent rows missing; the accumulated
+    // configs error already reports the real cause.
+    if (errors.length === 0 && restoreDistributions.length > 0) {
       try {
         const { error: distErr } = await admin
           .from('exam_config_distributions')

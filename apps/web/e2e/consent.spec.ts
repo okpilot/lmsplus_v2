@@ -134,8 +134,10 @@ test.describe
         }
       }
 
-      // Step 3: delete the auth user (cascades to public.users)
-      if (authUser) {
+      // Step 3: delete the auth user (cascades to public.users). Skip if step 2
+      // failed — user_consents still references this user, so the delete would
+      // FK-fail; the accumulated step-2 error already reports the real cause.
+      if (authUser && errors.length === 0) {
         try {
           const { error: deleteUserError } = await admin.auth.admin.deleteUser(authUser.id)
           if (deleteUserError)

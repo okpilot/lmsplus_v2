@@ -712,6 +712,8 @@ The required shape (canonical example: `rpc-void-internal-exam-code.spec.ts`):
 2. Each step in its own `try { … if (error) throw … } catch (e) { errors.push(e instanceof Error ? e.message : String(e)) } finally { <reset this step's tracking var/set> }`. The `finally` reset (`createdIds.clear()`, `mutated = false`) runs on both success and failure, so a failed step cannot replay stale ids into the next cleanup.
 3. After all steps: `if (errors.length > 0) throw new Error(\`afterEach: ${errors.join('; ')}\`)` — surfaces every failure at once without any step skipping a later one.
 
+**FK-dependent steps:** when a later step depends on an earlier one (deleting a parent row after its FK children, inserting children after their parent), additionally guard the dependent step with `errors.length === 0` so a failed prerequisite doesn't trigger a spurious FK error that masks the real cause. Independent steps (the common case) do not need this guard.
+
 Complements (does not duplicate) the Biome `noUnsafeFinally` rule — that bans `throw` inside `finally`; this rule governs the cross-step isolation structure. **Single-step cleanups** (one mutation, or one shared-helper call that internally isolates) are exempt.
 
 Promoted at count=2 — `64339b28` (a `throw` inside an `afterEach` finally) + `4f918ded` (`rpc-cross-tenant.spec.ts` afterAll: sequential cleanup blocks with no per-block isolation; a throw in block 1 risked the CL3 seeded session leaking into downstream specs). See issue #794.
