@@ -1,4 +1,5 @@
 import type { useRouter } from 'next/navigation'
+import type { ActionResult } from '@/lib/action-result'
 import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import { batchSubmitQuiz } from '../../actions/batch-submit'
 import { clearDeploymentPin } from '../../actions/clear-deployment-pin'
@@ -46,7 +47,7 @@ export async function discardQuizSession(
   router: AppRouterInstance,
   userId: string,
   draftId?: string,
-): Promise<{ success: true } | { success: false; error: string }> {
+): Promise<ActionResult> {
   clearActiveSession(userId) // Always clear — respect discard intent even if Server Action fails
   clearDeploymentPin().catch(() => {})
   try {
