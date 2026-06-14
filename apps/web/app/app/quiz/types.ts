@@ -153,7 +153,7 @@ export type CalcMode = 'all' | 'only' | 'exclude'
 export type UseQuizStartOpts = {
   userId: string
   subjectId: string
-  subjects: import('@/lib/queries/quiz').SubjectOption[]
+  subjects: import('@/lib/queries/quiz-query-types').SubjectOption[]
   count: number
   maxQuestions: number
   filters: QuestionFilterValue[]

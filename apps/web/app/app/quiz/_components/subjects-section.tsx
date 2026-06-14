@@ -1,5 +1,5 @@
 import { getExamEnabledSubjects } from '@/lib/queries/exam-subjects'
-import { getSubjectsWithCounts } from '@/lib/queries/quiz'
+import { getSubjectsWithCounts } from '@/lib/queries/quiz-subject-queries'
 import { QuizConfigForm } from './quiz-config-form'
 
 export async function SubjectsSection({ userId }: { userId: string }) {

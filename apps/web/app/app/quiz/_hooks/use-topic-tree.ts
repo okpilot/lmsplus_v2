@@ -1,5 +1,5 @@
 import { useRef, useState, useTransition } from 'react'
-import type { TopicWithSubtopics } from '@/lib/queries/quiz'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { fetchTopicsWithSubtopics } from '../actions/lookup'
 import {
   calcSelectedCount,

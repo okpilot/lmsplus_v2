@@ -31,7 +31,7 @@ vi.mock('@/lib/auth/require-auth-user', () => ({
   requireAuthUser: mockRequireAuthUser,
 }))
 
-vi.mock('@/lib/queries/quiz', () => ({
+vi.mock('@/lib/queries/quiz-subject-queries', () => ({
   getTopicsForSubject: (...args: unknown[]) => mockGetTopicsForSubject(...args),
   getSubtopicsForTopic: (...args: unknown[]) => mockGetSubtopicsForTopic(...args),
   getTopicsWithSubtopics: (...args: unknown[]) => mockGetTopicsWithSubtopics(...args),

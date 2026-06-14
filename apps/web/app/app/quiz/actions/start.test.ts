@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
 }))
 
-vi.mock('@/lib/queries/quiz', () => ({
+vi.mock('@/lib/queries/quiz-session-queries', () => ({
   getRandomQuestionIds: mockGetRandomQuestionIds,
 }))
 

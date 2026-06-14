@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { TopicWithSubtopics } from '@/lib/queries/quiz'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import {
   calcFilteredAvailable,
   calcSelectedCount,
