@@ -134,7 +134,7 @@ describe('RPC: has-image filtered question pool (#864)', () => {
     for (const image of imageIds) expect(ids).not.toContain(image)
   })
 
-  it("omitting p_has_image defaults to all (DEFAULT 'all')", async () => {
+  it('returns the whole pool when the image filter is omitted', async () => {
     const { data, error } = await studentClient.rpc('get_random_question_ids', {
       p_subject_id: refs.subjectId,
       p_topic_ids: null,
@@ -148,13 +148,31 @@ describe('RPC: has-image filtered question pool (#864)', () => {
     expect(data).toHaveLength(6)
   })
 
+  it('returns no questions when a direct caller requests a null count', async () => {
+    // A direct RPC caller can bypass the Server Action's Zod validation and pass
+    // p_count = NULL. The COALESCE/LEAST clamp must turn that into LIMIT 0 (no rows)
+    // rather than LIMIT NULL (uncapped) — guarding the 500-row safeguard.
+    const { data, error } = await studentClient.rpc('get_random_question_ids', {
+      p_subject_id: refs.subjectId,
+      p_topic_ids: null,
+      p_subtopic_ids: null,
+      p_count: null,
+      p_filters: [],
+      p_calc_mode: 'all',
+      p_has_image: 'all',
+    })
+    expect(error).toBeNull()
+    if (!Array.isArray(data)) throw new Error('non-array response')
+    expect(data).toHaveLength(0)
+  })
+
   it('counts match the pool size for each has-image mode (count == quiz)', async () => {
     expect(await countTotal('all')).toBe(6)
     expect(await countTotal('only')).toBe(2)
     expect(await countTotal('exclude')).toBe(4)
   })
 
-  it('has-image AND-restricts on top of the unseen OR-filter (only + unseen)', async () => {
+  it('returns only the unseen image question when image and unseen filters combine', async () => {
     // Mark one image question as "seen" by inserting a student_response for it.
     const seenImageId = imageIds[0]!
     const unseenImageId = imageIds[1]!

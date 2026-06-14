@@ -115,10 +115,12 @@ AS $$
   ORDER BY random()
   -- Server-side cap of 500 mirrors the Zod schema in apps/web/app/app/quiz/actions/start.ts.
   -- Defense in depth: the RPC is GRANT EXECUTE TO authenticated, so a direct caller could
-  -- bypass the Server Action's Zod validation and pass an arbitrarily large p_count.
-  -- LEAST(..., 500) prevents an unbounded ORDER BY random() workload (CLAUDE.md "never
-  -- trust client input"). 500 matches the canonical max quiz size.
-  LIMIT LEAST(GREATEST(p_count, 0), 500)
+  -- bypass the Server Action's Zod validation and pass an arbitrarily large (or NULL)
+  -- p_count. COALESCE(p_count, 0) clamps NULL to 0 first — otherwise LIMIT NULL removes the
+  -- cap entirely and turns ORDER BY random() into an unbounded sort. LEAST(..., 500) then
+  -- prevents an unbounded workload (CLAUDE.md "never trust client input"); 500 matches the
+  -- canonical max quiz size.
+  LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)
 $$;
 
 ---------------------------------------------------------------------------
