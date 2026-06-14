@@ -68,6 +68,7 @@ export function useExamPipeline(opts: {
     submitted: submit.submitted,
     error: submit.error,
     submitting: submit.submitting,
+    pendingAction: submit.pendingAction,
     handleSubmit: submit.handleSubmit,
     handleSave: submit.handleSave,
     handleDiscard: submit.handleDiscard,

@@ -9,6 +9,7 @@ type DialogProps = {
   answeredCount?: number
   totalQuestions?: number
   submitting?: boolean
+  pendingAction?: 'submit' | 'save' | 'discard' | null
   error?: string | null
   onSubmit?: () => void
   onCancel?: () => void
@@ -145,16 +146,26 @@ describe('FinishQuizDialog', () => {
     expect(onCancel).not.toHaveBeenCalled()
   })
 
-  it('disables all buttons while submitting', () => {
-    renderDialog({ submitting: true })
+  it('disables every button and shows only the submit spinner while submitting', () => {
+    renderDialog({ submitting: true, pendingAction: 'submit' })
     expect(screen.getByRole('button', { name: /submitting.../i })).toBeDisabled()
     expect(screen.getByRole('button', { name: /return to quiz/i })).toBeDisabled()
-    // Save for Later shows its loading label ("Saving...") while submitting.
+    // The other buttons are disabled but keep their idle labels — only the
+    // in-flight action (submit) shows its loading label.
+    expect(screen.getByRole('button', { name: /save for later/i })).toBeDisabled()
+  })
+
+  it('disables every button and shows only the save spinner while saving', () => {
+    renderDialog({ submitting: true, pendingAction: 'save' })
     expect(screen.getByRole('button', { name: /saving.../i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /return to quiz/i })).toBeDisabled()
+    // Primary button stays "Submit Quiz" (no "Submitting…") while a save is in flight.
+    expect(screen.getByRole('button', { name: /submit quiz/i })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /submitting.../i })).not.toBeInTheDocument()
   })
 
   it('shows "Submitting..." text on the submit button while submitting', () => {
-    renderDialog({ submitting: true })
+    renderDialog({ submitting: true, pendingAction: 'submit' })
     expect(screen.getByRole('button', { name: /submitting.../i })).toBeInTheDocument()
   })
 
@@ -462,6 +473,7 @@ describe('FinishQuizDialog', () => {
         answeredCount={3}
         totalQuestions={5}
         submitting={true}
+        pendingAction="submit"
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
         onSave={vi.fn()}
@@ -507,8 +519,8 @@ describe('FinishQuizDialog', () => {
 
   // ---- Error prop ----------------------------------------------------------
 
-  it('sets aria-busy on the Save for Later button while submitting', () => {
-    renderDialog({ submitting: true })
+  it('sets aria-busy on the Save for Later button while saving', () => {
+    renderDialog({ submitting: true, pendingAction: 'save' })
     expect(screen.getByRole('button', { name: /saving.../i })).toHaveAttribute('aria-busy', 'true')
   })
 
@@ -518,7 +530,7 @@ describe('FinishQuizDialog', () => {
   })
 
   it('sets aria-busy on the Submit button while submitting', () => {
-    renderDialog({ submitting: true })
+    renderDialog({ submitting: true, pendingAction: 'submit' })
     expect(screen.getByRole('button', { name: /submitting.../i })).toHaveAttribute(
       'aria-busy',
       'true',
@@ -531,9 +543,53 @@ describe('FinishQuizDialog', () => {
   })
 
   it('shows a spinner inside the Submit button while submitting', () => {
-    renderDialog({ submitting: true })
+    renderDialog({ submitting: true, pendingAction: 'submit' })
     const submit = screen.getByRole('button', { name: /submitting.../i })
     expect(submit.querySelector('.animate-spin')).not.toBeNull()
+  })
+
+  it('shows the Save spinner without flipping the primary button to "Submitting..." while saving', () => {
+    renderDialog({ submitting: true, pendingAction: 'save' })
+    const save = screen.getByRole('button', { name: /saving.../i })
+    expect(save.querySelector('.animate-spin')).not.toBeNull()
+    const submit = screen.getByRole('button', { name: /submit quiz/i })
+    expect(submit).not.toHaveAttribute('aria-busy')
+    expect(submit.querySelector('.animate-spin')).toBeNull()
+  })
+
+  it('shows "Discarding..." on the confirm button only while a discard is in flight', () => {
+    const { rerender } = render(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={false}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    // Open the discard confirmation, then flip to a discard-in-flight state.
+    fireEvent.click(screen.getByRole('button', { name: /discard quiz/i }))
+    rerender(
+      <FinishQuizDialog
+        open={true}
+        answeredCount={3}
+        totalQuestions={5}
+        submitting={true}
+        pendingAction="discard"
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+        onDiscard={vi.fn()}
+      />,
+    )
+    const discardingBtn = screen.getByRole('button', { name: /discarding.../i })
+    expect(discardingBtn).toBeInTheDocument()
+    expect(discardingBtn).toHaveAttribute('aria-busy', 'true')
+    // The primary button must not claim to be submitting during a discard.
+    expect(screen.queryByRole('button', { name: /submitting.../i })).not.toBeInTheDocument()
   })
 
   it('shows the error message when the error prop has a value', () => {

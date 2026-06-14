@@ -143,6 +143,7 @@ export function QuizSession(props: QuizSessionProps) {
         answeredCount={s.answeredCount}
         totalQuestions={props.questions.length}
         submitting={s.submitting}
+        pendingAction={s.pendingAction}
         error={s.error}
         onSubmit={s.handleSubmit}
         onCancel={() => s.setShowFinishDialog(false)}

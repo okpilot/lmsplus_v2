@@ -5,6 +5,9 @@ import type { QuizMode as DbQuizMode } from '@/lib/constants/exam-modes'
 import type { AnswerFeedback, DraftAnswer } from '../../types'
 import { handleDiscardSession, handleSaveSession, handleSubmitSession } from './quiz-submit'
 
+/** Which finish-dialog action is currently in flight, or null when idle. */
+export type QuizPendingAction = 'submit' | 'save' | 'discard' | null
+
 export function useQuizSubmit(opts: {
   userId: string
   sessionId: string
@@ -22,9 +25,16 @@ export function useQuizSubmit(opts: {
 }) {
   const submitted = useRef(false)
   const [showFinishDialog, setShowFinishDialog] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  // One action runs at a time (the dialog disables all buttons while any is pending),
+  // so a single discriminator drives both per-button spinners and the derived `submitting`.
+  const [pendingAction, setPendingAction] = useState<QuizPendingAction>(null)
+  const submitting = pendingAction !== null
   const [error, setError] = useState<string | null>(null)
-  const shared = { router: opts.router, setSubmitting, setError }
+  const sharedFor = (action: Exclude<QuizPendingAction, null>) => ({
+    router: opts.router,
+    setSubmitting: (v: boolean) => setPendingAction(v ? action : null),
+    setError,
+  })
 
   function handleSubmit() {
     const pending = opts.pendingQuestionIdRef.current
@@ -43,7 +53,7 @@ export function useQuizSubmit(opts: {
         submitted.current = true
         setShowFinishDialog(false)
       },
-      ...shared,
+      ...sharedFor('submit'),
     })
   }
 
@@ -63,7 +73,7 @@ export function useQuizSubmit(opts: {
       draftId: opts.draftId,
       subjectName: opts.subjectName,
       subjectCode: opts.subjectCode,
-      ...shared,
+      ...sharedFor('save'),
     })
   }
 
@@ -72,7 +82,7 @@ export function useQuizSubmit(opts: {
       userId: opts.userId,
       sessionId: opts.sessionId,
       draftId: opts.draftId,
-      ...shared,
+      ...sharedFor('discard'),
     })
   }
 
@@ -81,6 +91,7 @@ export function useQuizSubmit(opts: {
     showFinishDialog,
     setShowFinishDialog,
     submitting,
+    pendingAction,
     error,
     clearError: () => setError(null),
     handleSubmit,
