@@ -28,8 +28,9 @@ export function createConfigHandlers({
   calcMode,
   imageMode,
 }: ConfigHandlerDeps) {
-  // True when any dimension other than the one being changed still restricts the
-  // pool — used to decide whether clearing counts would cause an unfiltered flash.
+  // Each handler clears counts only when NO dimension still restricts the pool —
+  // this prevents an unfiltered-count flash when a single filter clears while others
+  // remain active (see the per-handler reset guards below).
   function handleSubjectChange(id: string) {
     setSubjectId(id)
     fc.reset()
