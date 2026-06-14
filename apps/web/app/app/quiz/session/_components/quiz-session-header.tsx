@@ -1,5 +1,6 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
 import { SessionTimer } from '@/app/app/_components/session-timer'
 import { ThemeToggle } from '@/app/app/_components/theme-toggle'
 import { type QuizMode as DbQuizMode, MODE_LABELS } from '@/lib/constants/exam-modes'
@@ -72,9 +73,13 @@ export function QuizSessionHeader({
           type="button"
           onClick={onFinishClick}
           disabled={submitting}
+          aria-busy={submitting || undefined}
           className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {finishLabel}
+          <span className="inline-flex items-center justify-center gap-2">
+            {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+            {finishLabel}
+          </span>
         </button>
       </div>
     </div>

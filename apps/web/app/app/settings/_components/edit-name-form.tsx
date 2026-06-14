@@ -3,10 +3,10 @@
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { updateDisplayName } from '../actions'
 
 const NameSchema = z.object({
@@ -73,9 +73,14 @@ export function EditNameForm({ currentName }: Readonly<EditNameFormProps>) {
               {error}
             </p>
           )}
-          <Button type="submit" disabled={isPending || !hasChanged}>
-            {isPending ? 'Saving...' : 'Save'}
-          </Button>
+          <LoadingButton
+            type="submit"
+            loading={isPending}
+            loadingText="Saving..."
+            disabled={!hasChanged}
+          >
+            Save
+          </LoadingButton>
         </form>
       </CardContent>
     </Card>

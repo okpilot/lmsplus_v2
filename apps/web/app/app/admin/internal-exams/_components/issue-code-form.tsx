@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { LoadingButton } from '@/components/ui/loading-button'
 import {
   Select,
   SelectContent,
@@ -34,7 +34,7 @@ export function IssueCodeForm({ students, subjects, onIssued }: Props) {
     label: `${s.code} — ${s.name}`,
   }))
 
-  const canSubmit = studentId !== '' && subjectId !== '' && !isPending
+  const canSubmit = studentId !== '' && subjectId !== ''
 
   function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -104,9 +104,9 @@ export function IssueCodeForm({ students, subjects, onIssued }: Props) {
         </Select>
       </div>
 
-      <Button type="submit" disabled={!canSubmit}>
-        {isPending ? 'Issuing…' : 'Issue code'}
-      </Button>
+      <LoadingButton type="submit" disabled={!canSubmit} loading={isPending} loadingText="Issuing…">
+        Issue code
+      </LoadingButton>
     </form>
   )
 }

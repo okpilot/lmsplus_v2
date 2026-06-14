@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { Textarea } from '@/components/ui/textarea'
 import { voidInternalExamCode } from '../actions/void-code'
 
@@ -89,13 +90,15 @@ export function VoidCodeDialog({ codeId, open, onOpenChange }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             variant="destructive"
             onClick={handleSubmit}
-            disabled={isPending || !isValid || !codeId}
+            disabled={!isValid || !codeId}
+            loading={isPending}
+            loadingText="Voiding…"
           >
-            {isPending ? 'Voiding…' : 'Void code'}
-          </Button>
+            Void code
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

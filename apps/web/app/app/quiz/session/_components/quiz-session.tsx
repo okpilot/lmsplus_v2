@@ -121,8 +121,10 @@ export function QuizSession(props: QuizSessionProps) {
             isFlagged={isFlagged(s.questionId)}
             currentIndex={s.currentIndex}
             totalQuestions={props.questions.length}
-            submitting={s.submitting}
-            showSubmit={canSubmitAnswer}
+            submitting={s.answering}
+            // Stay mounted through the in-flight per-question RPC, else the button
+            // unmounts before the spinner paints (#886). No-op in exam mode (answering=false).
+            showSubmit={canSubmitAnswer || s.answering}
             flagLoading={isToggling(s.questionId)}
             onTogglePin={s.togglePin}
             onToggleFlag={() => toggleFlag(s.questionId)}
@@ -141,6 +143,7 @@ export function QuizSession(props: QuizSessionProps) {
         answeredCount={s.answeredCount}
         totalQuestions={props.questions.length}
         submitting={s.submitting}
+        pendingAction={s.pendingAction}
         error={s.error}
         onSubmit={s.handleSubmit}
         onCancel={() => s.setShowFinishDialog(false)}

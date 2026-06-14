@@ -5,9 +5,9 @@ import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { z } from 'zod'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LoadingButton } from '@/components/ui/loading-button'
 
 const LoginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -114,9 +114,9 @@ export function LoginForm({ initialError }: LoginFormProps) {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" disabled={loading} className="w-full">
-        {loading ? 'Signing in...' : 'Sign in'}
-      </Button>
+      <LoadingButton type="submit" loading={loading} loadingText="Signing in..." className="w-full">
+        Sign in
+      </LoadingButton>
 
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account? Contact your administrator.

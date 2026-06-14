@@ -32,6 +32,14 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
     () => initialFeedback ?? new Map(),
   )
   const [error, setError] = useState<string | null>(null)
+  // > 0 while one or more per-question checkAnswer RPCs are in flight. Drives the
+  // Submit Answer spinner AND (since #886) keeps the footer submit button mounted.
+  // A counter, not a boolean: if the user navigates mid-RPC and answers the next
+  // question before the first settles, both are in flight — the counter stays
+  // positive until the LAST settles, so the first settle can't clear the loading
+  // state early. Distinct from the session-level `submitting` from useQuizSubmit.
+  const [inFlightAnswers, setInFlightAnswers] = useState(0)
+  const answering = inFlightAnswers > 0
   const lockedRef = useRef<Set<string>>(new Set())
   const pendingQuestionIdRef = useRef<Set<string>>(new Set())
   const answersRef = useRef(answers)
@@ -53,38 +61,51 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
       return next
     })
     pendingQuestionIdRef.current.add(questionId)
-    let result: CheckResult
+    setInFlightAnswers((n) => n + 1)
+    // finally guarantees the counter is decremented on every exit path (RPC
+    // error, success, or a throw from recordAnswerFeedback), so `answering`
+    // can never get stuck positive.
     try {
-      const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
-      if (!r.success) throw new Error(r.error)
-      result = r
-    } catch {
-      handleAnswerError(
-        questionId,
-        lockedRef,
-        pendingQuestionIdRef,
-        answersRef,
-        setAnswers,
-        setError,
-        onAnswerReverted,
-      )
-      return false
+      let result: CheckResult
+      try {
+        const r = await checkAnswer({ questionId, selectedOptionId: optionId, sessionId })
+        if (!r.success) throw new Error(r.error)
+        result = r
+      } catch {
+        handleAnswerError(
+          questionId,
+          lockedRef,
+          pendingQuestionIdRef,
+          answersRef,
+          setAnswers,
+          setError,
+          onAnswerReverted,
+        )
+        return false
+      }
+      const nextFeedback = recordAnswerFeedback(questionId, result, feedbackRef, setFeedback)
+      setError(null)
+      try {
+        onAnswerRecorded?.(
+          new Map(answersRef.current).set(questionId, {
+            selectedOptionId: optionId,
+            responseTimeMs: elapsed,
+          }),
+          nextFeedback,
+        )
+      } catch (err) {
+        console.warn('[use-answer-handler] Checkpoint write failed (best-effort):', err)
+      }
+      return true
+    } finally {
+      // Both run on every exit path. Decrementing the counter keeps `answering`
+      // from sticking positive; clearing the in-flight marker keeps this question
+      // from orphaning in pendingQuestionIdRef (which would drop it from submit) if
+      // recordAnswerFeedback ever throws. Idempotent on the error path —
+      // handleAnswerError already deleted it; Set.delete of an absent key is a no-op.
+      pendingQuestionIdRef.current.delete(questionId)
+      setInFlightAnswers((n) => Math.max(0, n - 1))
     }
-    const nextFeedback = recordAnswerFeedback(questionId, result, feedbackRef, setFeedback)
-    setError(null)
-    try {
-      onAnswerRecorded?.(
-        new Map(answersRef.current).set(questionId, {
-          selectedOptionId: optionId,
-          responseTimeMs: elapsed,
-        }),
-        nextFeedback,
-      )
-    } catch (err) {
-      console.warn('[use-answer-handler] Checkpoint write failed (best-effort):', err)
-    }
-    pendingQuestionIdRef.current.delete(questionId)
-    return true
   }
 
   // Clear ref lock reactively after state update propagates — not data fetching
@@ -97,6 +118,7 @@ export function useAnswerHandler(opts: AnswerHandlerOpts) {
   return {
     feedback,
     error,
+    answering,
     handleSelectAnswer,
     clearError: () => setError(null),
     pendingQuestionIdRef,

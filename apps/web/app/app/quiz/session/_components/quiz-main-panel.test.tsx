@@ -13,11 +13,14 @@ vi.mock('@/app/app/_components/question-card', () => ({
 const mockAnswerOptionsOnSelectionChange = vi.fn()
 vi.mock('@/app/app/_components/answer-options', () => ({
   AnswerOptions: ({
+    disabled,
+    submitting,
     onSelectionChange,
   }: {
     options: { id: string; text: string }[]
     onSubmit: (id: string) => void
     disabled: boolean
+    submitting?: boolean
     selectedOptionId?: string | null
     correctOptionId?: string | null
     onSelectionChange?: (id: string | null) => void
@@ -26,7 +29,13 @@ vi.mock('@/app/app/_components/answer-options', () => ({
     if (onSelectionChange) {
       mockAnswerOptionsOnSelectionChange.mockImplementation(onSelectionChange)
     }
-    return <div data-testid="answer-options" />
+    return (
+      <div
+        data-testid="answer-options"
+        data-disabled={String(disabled)}
+        data-submitting={String(submitting ?? false)}
+      />
+    )
   },
 }))
 
@@ -157,6 +166,40 @@ describe('QuizMainPanel', () => {
       )
       // QuizTabContent is rendered instead of AnswerOptions — callback not wired up
       expect(screen.queryByTestId('answer-options')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('answer options stay enabled during a per-question RPC', () => {
+    // Regression guard for the fix in quiz-main-panel.tsx:
+    // Before the fix: disabled={s.submitting || s.answering}
+    // After the fix:  disabled={s.submitting}
+    //
+    // When s.answering is true (a per-question checkAnswer RPC is in flight) but
+    // s.submitting is false (the session submit has not started), the answer options
+    // for the *current* question must NOT be disabled — the user navigated to a new
+    // question mid-RPC and must be able to answer it.
+
+    it('does not disable answer options when a per-question RPC is in flight but session submit has not started', () => {
+      // answering=true means a checkAnswer RPC is in flight for some question.
+      // submitting=false means the final session submit has not been triggered.
+      const s = makeState({ answering: true, submitting: false } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByTestId('answer-options')).toHaveAttribute('data-disabled', 'false')
+    })
+
+    it('disables answer options when the session submit is in progress', () => {
+      // submitting=true means the final quiz submission RPC is in flight —
+      // no more answers should be accepted.
+      const s = makeState({ answering: false, submitting: true } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByTestId('answer-options')).toHaveAttribute('data-disabled', 'true')
+    })
+
+    it('shows the spinner on the submit control while a per-question RPC is in flight', () => {
+      // answering drives the Submit Answer spinner (submitting prop on AnswerOptions).
+      const s = makeState({ answering: true, submitting: false } as Partial<QuizState>)
+      render(<QuizMainPanel s={s} activeTab="question" userId="test-user-id" />)
+      expect(screen.getByTestId('answer-options')).toHaveAttribute('data-submitting', 'true')
     })
   })
 })

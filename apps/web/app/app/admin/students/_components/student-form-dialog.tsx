@@ -3,7 +3,6 @@
 import type { ReactElement } from 'react'
 import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { createStudent } from '../actions/create-student'
 import { updateStudent } from '../actions/update-student'
 import type { StudentRow } from '../types'
@@ -109,9 +109,9 @@ export function StudentFormDialog({
         />
 
         <DialogFooter showCloseButton>
-          <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? 'Saving...' : submitLabel}
-          </Button>
+          <LoadingButton onClick={handleSubmit} loading={isPending} loadingText="Saving...">
+            {submitLabel}
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
