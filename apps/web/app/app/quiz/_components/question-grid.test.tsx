@@ -106,10 +106,27 @@ describe('QuestionGrid — desktop', () => {
     expect(desktopBtn(2)).toHaveAttribute('aria-label', 'Question 3, pinned')
   })
 
-  it('always shows all questions on desktop', () => {
+  it('collapses to a two-row window for large quizzes on desktop', () => {
+    // jsdom offsetWidth = 0 → measure is skipped → perRow stays at the default 9
+    // → twoRows = 18, so 40 questions collapse to the 18-square window.
     renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
     const grid = screen.getByTestId('question-grid')
+    expect(grid.querySelectorAll('button')).toHaveLength(18)
+    expect(screen.getByTestId('grid-toggle-desktop')).toHaveTextContent(/Show all.*40/)
+  })
+
+  it('expands to show all questions on desktop when toggled', () => {
+    renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
+    fireEvent.click(screen.getByTestId('grid-toggle-desktop'))
+    const grid = screen.getByTestId('question-grid')
     expect(grid.querySelectorAll('button')).toHaveLength(40)
+    expect(screen.getByTestId('grid-toggle-desktop')).toHaveTextContent('Hide')
+  })
+
+  it('does not collapse small quizzes that fit in two rows on desktop', () => {
+    renderGrid({ totalQuestions: 5 })
+    expect(screen.getByTestId('question-grid').querySelectorAll('button')).toHaveLength(5)
+    expect(screen.queryByTestId('grid-toggle-desktop')).not.toBeInTheDocument()
   })
 })
 
@@ -235,7 +252,7 @@ describe('QuestionGrid — effectiveFilter fallback', () => {
 
   it('does not show collapse toggle when flagged filter is active regardless of total count', () => {
     // With 40 questions and the flagged filter active, needsCollapse should be false
-    // because needsCollapse only fires when effectiveFilter === 'all'
+    // because windowing is only enabled when the filter is 'all'.
     const manyIds = Array.from({ length: 40 }, (_, i) => `q${i + 1}`)
     renderGrid({
       totalQuestions: 40,
@@ -245,8 +262,9 @@ describe('QuestionGrid — effectiveFilter fallback', () => {
 
     fireEvent.click(screen.getByTestId('filter-flagged'))
 
-    // Toggle should not appear when effectiveFilter !== 'all'
-    expect(screen.queryByTestId('grid-toggle')).not.toBeInTheDocument()
+    // Neither breakpoint's toggle should appear when the filter is not 'all'.
+    expect(screen.queryByTestId('grid-toggle-desktop')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('grid-toggle-mobile')).not.toBeInTheDocument()
   })
 
   it('All filter pill is active when effectiveFilter falls back from flagged', () => {
@@ -285,39 +303,34 @@ describe('QuestionGrid — effectiveFilter fallback', () => {
 })
 
 describe('QuestionGrid — mobile collapse', () => {
-  // jsdom offsetWidth = 0 → perRow defaults to max(floor(0+6)/(36+6), 1) = 1
-  // So twoRows = 2, needsCollapse = totalQuestions > 2
-  // With 5 questions: needs collapse. With mocked width we'd get proper counts.
-  // For these tests we validate the toggle and expand behavior.
+  // jsdom offsetWidth = 0 → measure is skipped → perRow stays at the default 9
+  // → twoRows = 18, needsCollapse = totalQuestions > 18.
+  // The toggle is scoped to the mobile breakpoint via the grid-toggle-mobile testid.
 
   it('shows toggle button for large quizzes', () => {
     renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
-    expect(screen.getByTestId('grid-toggle')).toBeInTheDocument()
-    expect(screen.getByTestId('grid-toggle')).toHaveTextContent(/Show all.*40/)
+    expect(screen.getByTestId('grid-toggle-mobile')).toBeInTheDocument()
+    expect(screen.getByTestId('grid-toggle-mobile')).toHaveTextContent(/Show all.*40/)
   })
 
   it('shows all squares when expanded', () => {
     renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
-    fireEvent.click(screen.getByTestId('grid-toggle'))
+    fireEvent.click(screen.getByTestId('grid-toggle-mobile'))
     const mobileGrid = screen.getByTestId('question-grid-mobile')
     expect(mobileGrid.querySelectorAll('button')).toHaveLength(40)
-    expect(screen.getByTestId('grid-toggle')).toHaveTextContent('Hide')
+    expect(screen.getByTestId('grid-toggle-mobile')).toHaveTextContent('Hide')
   })
 
   it('collapses back when toggle is clicked again', () => {
     renderGrid({ totalQuestions: 40, questionIds: MANY_IDS })
-    fireEvent.click(screen.getByTestId('grid-toggle'))
-    fireEvent.click(screen.getByTestId('grid-toggle'))
+    fireEvent.click(screen.getByTestId('grid-toggle-mobile'))
+    fireEvent.click(screen.getByTestId('grid-toggle-mobile'))
     const mobileGrid = screen.getByTestId('question-grid-mobile')
     expect(mobileGrid.querySelectorAll('button').length).toBeLessThan(40)
   })
 
   it('does not show toggle for small quizzes that fit in 2 rows', () => {
-    // Simulate a wide container: 390px → perRow = 9 → twoRows = 18
-    // With only 5 questions, no collapse needed
-    // But jsdom has 0 width → perRow = 1 → twoRows = 2 → collapse triggers
-    // This is a jsdom limitation; we test the toggle-free path separately
     renderGrid({ totalQuestions: 1, questionIds: ['q1'] })
-    expect(screen.queryByTestId('grid-toggle')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('grid-toggle-mobile')).not.toBeInTheDocument()
   })
 })
