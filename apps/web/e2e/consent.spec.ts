@@ -103,34 +103,51 @@ test.describe
 
     test.afterAll(async () => {
       const admin = getAdminClient()
+      const errors: string[] = []
 
-      const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
-      if (listError) {
-        console.error('[afterAll] listUsers failed:', listError.message)
-        return
-      }
-      const authUser = existingUsers?.users.find(
-        (u: { email?: string }) => u.email === CONSENT_TEST_EMAIL,
-      )
-      if (!authUser) {
-        console.warn('[afterAll] Consent test user not found:', CONSENT_TEST_EMAIL)
-        return
-      }
-
-      // Delete consent records first (FK constraint)
-      const { error: consentDeleteError } = await admin
-        .from('user_consents')
-        .delete()
-        .eq('user_id', authUser.id)
-      if (consentDeleteError) {
-        console.error('[afterAll] Failed to delete consent records:', consentDeleteError.message)
+      // Step 1: resolve the target auth user id
+      let authUser: { id: string; email?: string } | undefined
+      try {
+        const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
+        if (listError) throw new Error(`afterAll listUsers: ${listError.message}`)
+        authUser = existingUsers?.users.find(
+          (u: { email?: string }) => u.email === CONSENT_TEST_EMAIL,
+        )
+        if (!authUser) {
+          console.warn('[afterAll] Consent test user not found:', CONSENT_TEST_EMAIL)
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
       }
 
-      // Delete the auth user (cascades to public.users)
-      const { error: deleteUserError } = await admin.auth.admin.deleteUser(authUser.id)
-      if (deleteUserError) {
-        console.error('[afterAll] Failed to delete auth user:', deleteUserError.message)
+      // Step 2: delete consent records (FK child — must precede auth user delete)
+      if (authUser) {
+        try {
+          const { error: consentDeleteError } = await admin
+            .from('user_consents')
+            .delete()
+            .eq('user_id', authUser.id)
+          if (consentDeleteError)
+            throw new Error(`afterAll delete consent records: ${consentDeleteError.message}`)
+        } catch (e) {
+          errors.push(e instanceof Error ? e.message : String(e))
+        }
       }
+
+      // Step 3: delete the auth user — BEST-EFFORT, not accumulated. The user
+      // carries immutable audit_events FK references (append-only per security
+      // rule 5), so auth.admin.deleteUser cannot fully succeed; the email is
+      // reused across runs, so a lingering user is not a cross-spec state leak.
+      // Log only — the hermiticity-critical cleanup (the consent records, which
+      // WOULD leak into the next run) is in the accumulator above.
+      if (authUser) {
+        const { error: deleteUserError } = await admin.auth.admin.deleteUser(authUser.id)
+        if (deleteUserError) {
+          console.error('[afterAll] best-effort auth-user delete failed:', deleteUserError.message)
+        }
+      }
+
+      if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
     })
 
     // 1. Redirect to /consent when user has no consent records

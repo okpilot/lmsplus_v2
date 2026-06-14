@@ -183,6 +183,9 @@ Lefthook enforces mechanical gates (blocking):
 
 Everything else (code review, docs, tests) runs through ME as subagents so findings are visible and actionable. External hooks that I can't see are useless.
 
+## Local migrations
+`supabase db push --local` applies only migrations whose hash is NOT already in the ledger. So **after editing a migration file in-place** (changing one that was already pushed), `db push` is a silent no-op and the local DB diverges from the repo — e.g. a SECURITY DEFINER function keeps its old body and raises an error the repo version doesn't. Run `supabase db reset` (re-applies every migration from scratch) + re-seed before local integration/E2E runs. CI always resets, so CI is the source of truth — a change that "fails only locally" usually means the local DB is stale, not that the code is wrong. (count=2: #774, b004f206 — see #794. Complements the test-writer note on applying migrations before integration tests.)
+
 ## Push protocol
 Never push without explicit user approval. Always ask first.
 For branches with 2+ commits, run a full-diff semantic review (`git diff master...HEAD`) before pushing — see `agent-workflow.md § Pre-Push PR Sweep`.
