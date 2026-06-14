@@ -36,8 +36,11 @@ describe('QuestionCard', () => {
         totalQuestions={5}
       />,
     )
-    const img = screen.getByRole('img', { name: 'Question illustration' })
-    expect(img).toHaveAttribute('src', 'https://example.com/img.png')
+    // The image opens in a new tab (#863): it's wrapped in a link whose
+    // aria-label is the accessible name; the img itself is presentational.
+    const link = screen.getByRole('link', { name: 'Open image in new tab: Question illustration' })
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link.querySelector('img')).toHaveAttribute('src', 'https://example.com/img.png')
   })
 
   it('does not render an image when questionImageUrl is null', () => {
