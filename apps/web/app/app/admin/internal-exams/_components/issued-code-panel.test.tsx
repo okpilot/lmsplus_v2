@@ -31,7 +31,6 @@ describe('IssuedCodePanel', () => {
       Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor)
     } else {
       // Some jsdom builds don't define clipboard at all — strip the test fake.
-      // biome-ignore lint/performance/noDelete: required to fully restore navigator
       delete (navigator as unknown as { clipboard?: unknown }).clipboard
     }
   })

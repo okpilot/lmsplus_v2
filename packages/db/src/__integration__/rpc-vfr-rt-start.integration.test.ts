@@ -60,13 +60,13 @@ function unwrapPostgrestScalar(raw: unknown): string {
  * in the pg_proc entry; PostgREST maps it as the empty-string JSON key "".
  */
 async function callNormalizeAnswer(input: string): Promise<string> {
-  const url = `${process.env['NEXT_PUBLIC_SUPABASE_URL']}/rest/v1/rpc/normalize_answer`
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/normalize_answer`
   const resp = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      apikey: process.env['SUPABASE_SERVICE_ROLE_KEY'] ?? '',
-      Authorization: `Bearer ${process.env['SUPABASE_SERVICE_ROLE_KEY'] ?? ''}`,
+      apikey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''}`,
     },
     body: JSON.stringify({ '': input }),
   })
@@ -222,8 +222,8 @@ describe('RPC: start_vfr_rt_exam_session', () => {
     // Use the anon key client (no auth.uid())
     const anonClient = await import('@supabase/supabase-js').then(({ createClient }) =>
       createClient(
-        process.env['NEXT_PUBLIC_SUPABASE_URL'] ?? '',
-        process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
         { auth: { autoRefreshToken: false, persistSession: false } },
       ),
     )

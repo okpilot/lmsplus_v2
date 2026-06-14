@@ -29,7 +29,7 @@ export async function requireAdmin(): Promise<AdminAuth> {
     throw new Error('Service error: could not verify admin role')
   }
 
-  if (!profile || profile.role !== 'admin') {
+  if (profile?.role !== 'admin') {
     redirect('/app')
   }
 

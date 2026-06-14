@@ -141,13 +141,13 @@ export async function getRtRefs(): Promise<{
   const byCode = Object.fromEntries(
     (topics ?? []).map((t: { id: string; code: string }) => [t.code, t.id]),
   )
-  if (!byCode['P1_ACRONYMS'] || !byCode['P2_DIALOG'] || !byCode['P3_MC'])
+  if (!byCode.P1_ACRONYMS || !byCode.P2_DIALOG || !byCode.P3_MC)
     throw new Error('getRtRefs: one or more RT topics missing — run mig 097')
   return {
     rtSubjectId: sub.id,
-    p1TopicId: byCode['P1_ACRONYMS'],
-    p2TopicId: byCode['P2_DIALOG'],
-    p3TopicId: byCode['P3_MC'],
+    p1TopicId: byCode.P1_ACRONYMS,
+    p2TopicId: byCode.P2_DIALOG,
+    p3TopicId: byCode.P3_MC,
   }
 }
 
