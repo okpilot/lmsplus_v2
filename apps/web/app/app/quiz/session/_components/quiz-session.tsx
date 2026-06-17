@@ -55,7 +55,9 @@ export function QuizSession(props: QuizSessionProps) {
     optionIds: s.question?.options.map((o) => o.id) ?? [],
     currentIndex: s.currentIndex,
     isExam: s.isExam,
-    // Pause shortcuts while the finish dialog is open so arrows/Enter don't act behind it.
+    // Pause shortcuts only while the finish dialog is open so arrows/Enter don't act
+    // behind it. Lightweight popovers (the keyboard legend) are intentionally left
+    // unsuppressed — they hold no destructive action and close themselves on Escape.
     enabled: !s.showFinishDialog,
     onNavigate: s.navigate,
     onConfirm: s.handleSelectAnswer,

@@ -124,6 +124,13 @@ describe('quizKeyAction — tab shortcuts in study mode', () => {
     })
   })
 
+  it('is case-insensitive for q (uppercase Q → question)', () => {
+    expect(quizKeyAction('Q', { isExam: false })).toEqual({
+      type: 'tab',
+      tab: 'question',
+    })
+  })
+
   it('is case-insensitive for e (uppercase E → explanation)', () => {
     expect(quizKeyAction('E', { isExam: false })).toEqual({
       type: 'tab',
