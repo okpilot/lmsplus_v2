@@ -177,6 +177,10 @@ describe('quizKeyAction — tab shortcuts suppressed in exam mode', () => {
   it('returns null for uppercase E in exam mode', () => {
     expect(quizKeyAction('E', { isExam: true })).toBeNull()
   })
+
+  it('returns null for uppercase Q in exam mode', () => {
+    expect(quizKeyAction('Q', { isExam: true })).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
