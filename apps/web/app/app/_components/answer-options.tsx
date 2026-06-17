@@ -17,6 +17,12 @@ type AnswerOptionsProps = {
   selectedOptionId?: string | null
   onSelectionChange?: (id: string | null) => void
   isExam?: boolean
+  /**
+   * Option currently highlighted via keyboard (↑/↓). Drives a focus ring only —
+   * deliberately separate from `selectedOptionId`, which carries lock/result
+   * semantics. Submitting the highlight is handled by the keyboard hook.
+   */
+  keyboardHighlightedId?: string | null
 }
 
 function getOptionStyle(opts: {
@@ -49,6 +55,7 @@ export function AnswerOptions({
   selectedOptionId: lockedSelection,
   onSelectionChange,
   isExam,
+  keyboardHighlightedId,
 }: AnswerOptionsProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const currentSelection = lockedSelection ?? selected
@@ -73,6 +80,10 @@ export function AnswerOptions({
           isSelected,
           isExamLocked: !!isExam && lockedSelection != null && isSelected,
         })
+        // No ring once a result is shown (study) or the exam answer is locked —
+        // the option is no longer actionable, so a highlight would mislead.
+        const isKeyboardHighlighted =
+          !showResult && !(isExam && lockedSelection != null) && option.id === keyboardHighlightedId
 
         return (
           <button
@@ -80,9 +91,10 @@ export function AnswerOptions({
             type="button"
             data-testid={`option-${option.id}`}
             data-selected={isSelected && !showResult ? 'true' : undefined}
+            data-kb-highlighted={isKeyboardHighlighted ? 'true' : undefined}
             disabled={disabled || (!!isExam && lockedSelection != null)}
             onClick={() => handleSelect(option.id)}
-            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${disabled && !showResult ? 'opacity-50' : ''}`}
+            className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${card} ${isKeyboardHighlighted ? 'ring-2 ring-primary ring-offset-1' : ''} ${disabled && !showResult ? 'opacity-50' : ''}`}
           >
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${circle}`}
