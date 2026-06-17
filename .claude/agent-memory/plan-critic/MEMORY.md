@@ -112,3 +112,4 @@ When a plan adds a new code path to a function that returns a discriminated-unio
 
 ## Topic pointers
 - [tracker-archive](topics/tracker-archive.md) — relocated verbatim: older single-occurrence (count=1) tracker rows + older positive signals (moved 2026-06-07 to stay under the 25 KB injection cap).
+- [pr-836-report-ui](topics/pr-836-report-ui.md) — VFR-RT student-report/flagging UI facts (#697 Phase B/C, #836): report-page structure, `useFlaggedQuestions` is server-result-driven not optimistic, `active_flagged_questions` security_invoker view.
