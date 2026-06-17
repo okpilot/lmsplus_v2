@@ -199,10 +199,14 @@ function makeQuestion(num: number, subtopicName: string) {
  * upsert. The two seeded variants (question vs explanation) differ only in label.
  */
 async function uploadSampleImage(label: string, color: string): Promise<string> {
+  // Escape interpolated values so the SVG stays well-formed. Both call sites pass
+  // hardcoded literals today; this keeps the constraint explicit if a future caller
+  // ever passes a config- or user-derived string.
+  const esc = (s: string) => s.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`)
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420">
-  <rect width="640" height="420" fill="${color}"/>
+  <rect width="640" height="420" fill="${esc(color)}"/>
   <text x="320" y="210" font-family="sans-serif" font-size="40" fill="#ffffff"
-    text-anchor="middle" dominant-baseline="middle">${label}</text>
+    text-anchor="middle" dominant-baseline="middle">${esc(label)}</text>
 </svg>`
   const path = `eval/${label.toLowerCase().replace(/\s+/g, '-')}.svg`
   const { error } = await db.storage
