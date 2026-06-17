@@ -1,44 +1,33 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ZoomableImage } from './zoomable-image'
 
 describe('ZoomableImage', () => {
-  it('renders the thumbnail image with correct src and alt', () => {
+  it('renders the image with the correct src', () => {
     render(<ZoomableImage src="/test.png" alt="Test image" />)
-    const img = screen.getByAltText('Test image')
-    expect(img).toBeInTheDocument()
+    const link = screen.getByRole('link')
+    const img = link.querySelector('img')
     expect(img).toHaveAttribute('src', '/test.png')
   })
 
-  it('opens a fullscreen dialog when clicked', () => {
-    render(<ZoomableImage src="/test.png" alt="Test image" />)
-    const thumbnail = screen.getByAltText('Test image')
-    fireEvent.click(thumbnail)
-    // After clicking, there should be two images (thumbnail + fullsize in dialog)
-    const images = screen.getAllByAltText('Test image')
-    expect(images.length).toBe(2)
+  it('wraps the image in a link that opens the source in a new tab', () => {
+    render(<ZoomableImage src="https://cdn.example.com/runway.png" alt="Runway diagram" />)
+    const link = screen.getByRole('link', { name: /open image in new tab: runway diagram/i })
+    expect(link).toHaveAttribute('href', 'https://cdn.example.com/runway.png')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })
 
-  it('dialog popup carries an aria-label that includes the image alt text', () => {
+  it('marks the nested image presentational so it does not double-announce', () => {
     render(<ZoomableImage src="/test.png" alt="Runway diagram" />)
-    fireEvent.click(screen.getByAltText('Runway diagram'))
-    const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveAttribute('aria-label', 'Zoomed image: Runway diagram')
+    const img = screen.getByRole('link').querySelector('img')
+    expect(img).toHaveAttribute('alt', '')
+    expect(img).toHaveAttribute('aria-hidden', 'true')
   })
 
-  it('closes the dialog when close button is clicked', () => {
-    render(<ZoomableImage src="/test.png" alt="Test image" />)
-    fireEvent.click(screen.getByAltText('Test image'))
-    expect(screen.getAllByAltText('Test image')).toHaveLength(2)
-
-    fireEvent.click(screen.getByLabelText('Close'))
-    // Back to just the thumbnail
-    expect(screen.getAllByAltText('Test image')).toHaveLength(1)
-  })
-
-  it('applies custom className to thumbnail', () => {
+  it('applies custom className to the image', () => {
     render(<ZoomableImage src="/test.png" alt="Test image" className="max-h-64" />)
-    const img = screen.getByAltText('Test image')
-    expect(img.className).toContain('max-h-64')
+    const img = screen.getByRole('link').querySelector('img')
+    expect(img?.className).toContain('max-h-64')
   })
 })

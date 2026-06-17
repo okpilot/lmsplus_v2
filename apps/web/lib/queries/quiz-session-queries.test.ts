@@ -101,6 +101,44 @@ describe('getRandomQuestionIds', () => {
     )
   })
 
+  it("defaults p_has_image to 'all' when imageMode is omitted", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5 })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_has_image: 'all' }),
+    )
+  })
+
+  it("passes p_has_image through literally (does NOT strip 'all')", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    // imageMode is a literal enum — 'all' must reach the RPC verbatim so its CASE
+    // resolves to the unrestricted pool. Same convention as p_calc_mode.
+    await getRandomQuestionIds({ subjectId: 's1', count: 5, imageMode: 'all' })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_has_image: 'all' }),
+    )
+  })
+
+  it("passes p_has_image as 'only' when imageMode is 'only'", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+
+    await getRandomQuestionIds({ subjectId: 's1', count: 5, imageMode: 'only' })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'get_random_question_ids',
+      expect.objectContaining({ p_has_image: 'only' }),
+    )
+  })
+
   it('passes p_filters as an empty array when filters is undefined', async () => {
     mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
