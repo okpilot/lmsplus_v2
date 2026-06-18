@@ -55,6 +55,8 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
                 onValueChange={config.setFilters}
                 calcMode={config.calcMode}
                 onCalcModeChange={config.setCalcMode}
+                imageMode={config.imageMode}
+                onImageModeChange={config.setImageMode}
               />
             )}
           </>

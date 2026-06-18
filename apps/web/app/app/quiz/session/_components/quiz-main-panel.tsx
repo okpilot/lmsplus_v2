@@ -9,6 +9,7 @@ type QuizMainPanelProps = {
   activeTab: QuestionTab
   userId: string
   onSelectionChange?: (id: string | null) => void
+  keyboardHighlightedId?: string | null
 }
 
 export function QuizMainPanel({
@@ -16,6 +17,7 @@ export function QuizMainPanel({
   activeTab,
   userId,
   onSelectionChange,
+  keyboardHighlightedId,
 }: Readonly<QuizMainPanelProps>) {
   if (!s.question) return null
 
@@ -56,6 +58,7 @@ export function QuizMainPanel({
         correctOptionId={s.currentFeedback?.correctOptionId ?? null}
         onSelectionChange={onSelectionChange}
         isExam={s.isExam}
+        keyboardHighlightedId={keyboardHighlightedId}
       />
     </div>
   )

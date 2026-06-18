@@ -46,6 +46,8 @@ performance-optimization-strategy.md
 # Throwaway operational scripts (prod probes, one-off migration applies, verifies).
 # Root-anchored so it does NOT match the tracked apps/web/scripts/.
 /scripts/
+# Probe scripts dropped into the tracked apps/web/scripts/ dir are throwaway too.
+apps/web/scripts/probe-*.py
 
 # Logs
 *.log
