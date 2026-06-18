@@ -18,6 +18,8 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
  *  (c) cross-org code (belongs to another org) → throws 'code_not_found'
  *  (d) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
  *  (e) consumed code (state guard, defense-in-depth) → throws 'code_not_found'
+ *  (f) voided code (state guard) → throws 'code_not_found'
+ *  (g) expired code (state guard) → throws 'code_not_found'
  *
  * Hermetic: internal_exam_codes rows created here are soft-deleted in afterAll;
  * audit_events is append-only/immutable, so assertions scope by the unique
@@ -248,6 +250,70 @@ describe('RPC: record_internal_exam_code_emailed', () => {
     if (consumeErr) throw new Error(`mark consumed: ${consumeErr.message}`)
     // Non-vacuous: confirm the seeded code actually exists and was updated.
     expect(consumed).toHaveLength(1)
+
+    const { error } = await adminClient.rpc('record_internal_exam_code_emailed', {
+      p_code_id: codeId,
+    })
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/code_not_found/)
+
+    const { data: rows, error: readErr } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('event_type', 'internal_exam.code_emailed')
+      .eq('resource_id', codeId)
+    expect(readErr).toBeNull()
+    expect(rows).toHaveLength(0)
+  })
+
+  // ── (f) Voided code is rejected (state guard) ───────────────────────────────
+
+  it('rejects a voided code with code_not_found and writes no audit row', async () => {
+    const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
+
+    // voided_at and voided_by must be set together (voided_pair_consistency CHECK).
+    const { data: voided, error: voidErr } = await admin
+      .from('internal_exam_codes')
+      .update({ voided_at: new Date().toISOString(), voided_by: adminUserId })
+      .eq('id', codeId)
+      .select('id')
+    if (voidErr) throw new Error(`mark voided: ${voidErr.message}`)
+    expect(voided).toHaveLength(1)
+
+    const { error } = await adminClient.rpc('record_internal_exam_code_emailed', {
+      p_code_id: codeId,
+    })
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/code_not_found/)
+
+    const { data: rows, error: readErr } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('event_type', 'internal_exam.code_emailed')
+      .eq('resource_id', codeId)
+    expect(readErr).toBeNull()
+    expect(rows).toHaveLength(0)
+  })
+
+  // ── (g) Expired code is rejected (state guard) ──────────────────────────────
+
+  it('rejects an expired code with code_not_found and writes no audit row', async () => {
+    // seedCode hardcodes a future expiry, so insert a past-expiry row directly.
+    const { data, error: insertErr } = await admin
+      .from('internal_exam_codes')
+      .insert({
+        code: `EMLX${suffix}${createdCodeIds.length}`,
+        subject_id: subjectId,
+        student_id: studentId,
+        issued_by: adminUserId,
+        organization_id: orgId,
+        expires_at: new Date(Date.now() - 1000).toISOString(),
+      })
+      .select('id')
+      .single()
+    if (insertErr) throw new Error(`seed expired code: ${insertErr.message}`)
+    const codeId = data.id as string
+    createdCodeIds.push(codeId)
 
     const { error } = await adminClient.rpc('record_internal_exam_code_emailed', {
       p_code_id: codeId,

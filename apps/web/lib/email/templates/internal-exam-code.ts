@@ -8,7 +8,7 @@ type InternalExamCodeEmailArgs = {
 
 type EmailContent = { subject: string; html: string; text: string }
 
-/** HTML-encode a DB-derived value before interpolating it into the HTML body. */
+/** HTML-encode a value before interpolating it into the HTML body (DB-derived or otherwise). */
 function esc(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -52,9 +52,9 @@ export function internalExamCodeEmail({
     <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; font-family: 'Courier New', monospace; background: #f4f4f5; padding: 16px 24px; border-radius: 8px; display: inline-block;">${esc(code)}</p>
     <p>This code expires on <strong>${esc(expiry)} (UTC)</strong>.</p>
     <p>
-      <a href="${examUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Go to exam</a>
+      <a href="${esc(examUrl)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Go to exam</a>
     </p>
-    <p style="color: #6b7280; font-size: 13px;">If the button does not work, copy and paste this link into your browser:<br />${examUrl}</p>
+    <p style="color: #6b7280; font-size: 13px;">If the button does not work, copy and paste this link into your browser:<br />${esc(examUrl)}</p>
   </body>
 </html>`
 

@@ -763,7 +763,7 @@ Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT D
 
 **Context**: Internal Exam feature (Wave 2) adds a "Send via Email" button on the issued-code panel so an admin can email a single internal exam code to a student instead of copying it manually. This requires a transactional email provider. Supabase Auth handles its own emails (password reset, magic link era); for out-of-band operational emails (exam codes, future notifications), we need a separate provider.
 
-**Decision**: Use **Resend** as the transactional email provider. Server-side only (NEXT_PRIVATE_RESEND_API_KEY; never NEXT_PUBLIC_). Email template is co-located in `apps/web/lib/email/templates/` (rich HTML + plain-text fallback, no external rendering service). Fallback for local dev: when no API key is set, log the email template to console (no external SMTP/Mailpit needed during dev).
+**Decision**: Use **Resend** as the transactional email provider. Server-side only (RESEND_API_KEY; never NEXT_PUBLIC_). Email template is co-located in `apps/web/lib/email/templates/` (rich HTML + plain-text fallback, no external rendering service). Fallback for local dev: when no API key is set, log the email template to console (no external SMTP/Mailpit needed during dev).
 
 - **Why Resend**: Developer-friendly API, excellent TypeScript support via their SDK, per-request template rendering (no separate service), good uptime, free tier covers dev/test, pricing scales with volume
 - **Coexist with Supabase Auth emails**: No conflict; Supabase Auth uses its own configured provider (internal SMTP) and endpoint. Resend is for app-initiated operational emails only.
