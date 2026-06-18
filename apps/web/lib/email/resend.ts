@@ -37,8 +37,10 @@ export async function sendEmail({
   const resend = new Resend(apiKey)
   const result = await resend.emails.send({ from, to, subject, html, text })
   if (result.error) {
+    // Log the raw third-party detail server-side, but never let it flow through
+    // the exported SendEmailResult.error type — return a generic string.
     console.error('[sendEmail] Resend error:', result.error.message)
-    return { ok: false, error: result.error.message }
+    return { ok: false, error: 'send_failed' }
   }
   return { ok: true }
 }

@@ -85,7 +85,7 @@ describe('sendEmail', () => {
 
     const result = await sendEmail(ARGS)
 
-    expect(result).toEqual({ ok: false, error: 'rate limited' })
+    expect(result).toEqual({ ok: false, error: 'send_failed' })
     expect(errorSpy).toHaveBeenCalledWith('[sendEmail] Resend error:', 'rate limited')
     errorSpy.mockRestore()
   })

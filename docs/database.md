@@ -706,6 +706,7 @@ verb_noun pattern:
   issue_internal_exam_code   ← write, admin-only: generate 8-char single-use code, 24h validity, 5-retry collision handling, audit internal_exam.code_issued
   start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard
   void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
+  record_internal_exam_code_emailed ← write, admin-only: audit an admin emailing an internal exam code to a student (SECURITY DEFINER, mig 110); guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; no direct client call — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway
   list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004)
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099)
@@ -1480,6 +1481,25 @@ Admin-only. Three branches:
 **Bug (red-team finding, issue #108):** The blank-reason guard `btrim(p_reason) = ''` rejects empty strings and spaces-only inputs but accepts tabs (`\t`), newlines (`\n`), CR (`\r`), form feed (`\f`), and vertical tab (`\v`). Postgres `btrim(text)` defaults to a space charset; non-space whitespace passes through unchanged. The Server Action's Zod schema validates length only (`z.string().min(1).max(500)`), so the RPC is the only line of defense for non-whitespace content.
 
 **Fix:** `CREATE OR REPLACE` with the guard rewritten to `p_reason ~ '^[[:space:]]*$'` (POSIX whitespace class — matches the empty string AND any whitespace-only input). Function body otherwise unchanged from migration `20260430000006`.
+
+##### `record_internal_exam_code_emailed(p_code_id)` (migration `20260618000001`)
+
+Admin-only audit RPC (not a direct API endpoint — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway). Writes one `internal_exam.code_emailed` audit event when an admin emails an internal exam code to a student. Exists because `audit_events` blocks direct INSERTs via its `audit_no_direct_insert` RLS policy (`WITH CHECK false`), so all audit writes must flow through a SECURITY DEFINER function.
+
+**Guard set:** Mirrors the sibling internal-exam RPCs (`issue_internal_exam_code`, `start_internal_exam_session`, `void_internal_exam_code`) per security.md rule 11b:
+- Rule 7 — `auth.uid()` null-check raises `not_authenticated`
+- `is_admin()` gate raises `not_admin`
+- Active-user gate + rule 9 — org and role captured in one `deleted_at`-filtered users read; cached `v_admin_role` reused in the audit INSERT (mirrors mig 087; inlining a subquery would reverse that fix and require its own rule-10 filter)
+- Rule 9 — `internal_exam_codes` ownership read is org-scoped and `deleted_at`-filtered, yielding `student_id` and `subject_id` metadata
+- State guard — the code must also be un-consumed, un-voided, and unexpired (`consumed_at IS NULL`, `voided_at IS NULL`, `expires_at > now()`), mirroring the in-body state checks of `issue_`/`void_internal_exam_code`. The Server Action guards these before calling, so this is defense-in-depth for direct RPC calls; a code failing any state check is hidden behind `code_not_found` (existence-hiding, no new error mapping)
+- Rule 10 — no inline audit subqueries; every value in the INSERT comes from the pre-read locals
+- `SET search_path = public`
+
+**Audit payload:** `event_type = 'internal_exam.code_emailed'`, `resource_type = 'internal_exam_code'`, `resource_id = p_code_id`, `metadata = { student_id, subject_id }`.
+
+**Returns:** `void`.
+
+**Security:** SECURITY DEFINER. Invoked from `sendInternalExamCodeEmail` Server Action (email subsystem half) after a Resend POST succeeds; failure to audit does not bubble to caller (best-effort, logs server-side only).
 
 ##### `list_my_active_internal_exam_codes()` (migration `20260521000002`)
 
@@ -2620,4 +2640,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-14 (mig 109, #864: `p_has_image` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate, mirrors p_calc_mode pattern #837; filters on question_image_url presence) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*
+*Last updated: 2026-06-18 (mig 110, internal-exam code email feature: `record_internal_exam_code_emailed(p_code_id)` SECURITY DEFINER RPC for audit-event writes; guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; audit payload event_type=`internal_exam.code_emailed` / resource_type=`internal_exam_code`; invoked from Server Action sendInternalExamCodeEmail) | Earlier 2026-06-14 (mig 109, #864: `p_has_image` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate, mirrors p_calc_mode pattern #837; filters on question_image_url presence) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*

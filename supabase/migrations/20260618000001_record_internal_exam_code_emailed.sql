@@ -17,6 +17,12 @@
 --     would reverse that fix and need its own rule-10 deleted_at filter.
 --   * rule 9  — internal_exam_codes ownership read is org-scoped and
 --     deleted_at-filtered, also yielding the student_id/subject_id audit metadata.
+--   * state guard — the code must also be un-consumed, un-voided, and unexpired
+--     (consumed_at/voided_at IS NULL, expires_at > now()), mirroring the in-body
+--     state checks of issue_/void_internal_exam_code. The Server Action already
+--     guards these before calling, so this is defense-in-depth for direct RPC
+--     calls; a code failing any state check is hidden behind code_not_found
+--     (existence-hiding, no new error mapping).
 --   * rule 10 — no inline audit subqueries; every value in the audit INSERT
 --     comes from the deleted_at-filtered lookups above.
 --   * SET search_path = public.
@@ -54,12 +60,18 @@ BEGIN
   END IF;
 
   -- Ownership: the code must exist, belong to the admin's org, and not be
-  -- soft-deleted (rule 9). Read student_id/subject_id for the audit metadata.
+  -- soft-deleted (rule 9). State guard: the code must also be un-consumed,
+  -- un-voided, and unexpired (defense-in-depth — the Server Action already
+  -- checks these; a code failing any check is hidden behind code_not_found).
+  -- Read student_id/subject_id for the audit metadata.
   SELECT c.student_id, c.subject_id INTO v_student_id, v_subject_id
   FROM public.internal_exam_codes c
   WHERE c.id = p_code_id
     AND c.organization_id = v_admin_org
-    AND c.deleted_at IS NULL;
+    AND c.deleted_at IS NULL
+    AND c.consumed_at IS NULL
+    AND c.voided_at IS NULL
+    AND c.expires_at > now();
   IF v_student_id IS NULL THEN
     RAISE EXCEPTION 'code_not_found';
   END IF;

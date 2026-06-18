@@ -17,6 +17,7 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
  *  (b) non-admin (student) caller → throws 'not_admin', no audit row
  *  (c) cross-org code (belongs to another org) → throws 'code_not_found'
  *  (d) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
+ *  (e) consumed code (state guard, defense-in-depth) → throws 'code_not_found'
  *
  * Hermetic: internal_exam_codes rows created here are soft-deleted in afterAll;
  * audit_events is append-only/immutable, so assertions scope by the unique
@@ -228,6 +229,37 @@ describe('RPC: record_internal_exam_code_emailed', () => {
       .select('id')
       .eq('event_type', 'internal_exam.code_emailed')
       .eq('resource_id', foreignCodeId)
+    expect(readErr).toBeNull()
+    expect(rows).toHaveLength(0)
+  })
+
+  // ── (e) Consumed code is rejected (state guard, defense-in-depth) ────────────
+
+  it('rejects a consumed code with code_not_found and writes no audit row', async () => {
+    const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
+
+    // Mark the code consumed via service-role (the app guards this before
+    // calling, so the RPC's in-body state guard is defense-in-depth).
+    const { data: consumed, error: consumeErr } = await admin
+      .from('internal_exam_codes')
+      .update({ consumed_at: new Date().toISOString() })
+      .eq('id', codeId)
+      .select('id')
+    if (consumeErr) throw new Error(`mark consumed: ${consumeErr.message}`)
+    // Non-vacuous: confirm the seeded code actually exists and was updated.
+    expect(consumed).toHaveLength(1)
+
+    const { error } = await adminClient.rpc('record_internal_exam_code_emailed', {
+      p_code_id: codeId,
+    })
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/code_not_found/)
+
+    const { data: rows, error: readErr } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('event_type', 'internal_exam.code_emailed')
+      .eq('resource_id', codeId)
     expect(readErr).toBeNull()
     expect(rows).toHaveLength(0)
   })

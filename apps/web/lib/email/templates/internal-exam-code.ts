@@ -8,6 +8,15 @@ type InternalExamCodeEmailArgs = {
 
 type EmailContent = { subject: string; html: string; text: string }
 
+/** HTML-encode a DB-derived value before interpolating it into the HTML body. */
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 function formatExpiry(expiresAt: string): string {
   const date = new Date(expiresAt)
   if (Number.isNaN(date.getTime())) return expiresAt
@@ -37,11 +46,11 @@ export function internalExamCodeEmail({
   const html = `<!doctype html>
 <html lang="en">
   <body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.5;">
-    <p>${greeting}</p>
-    <p>You have been issued an access code for your <strong>${subjectName}</strong> internal exam.</p>
+    <p>${studentName ? `Hello ${esc(studentName)},` : 'Hello,'}</p>
+    <p>You have been issued an access code for your <strong>${esc(subjectName)}</strong> internal exam.</p>
     <p>Enter this code at the exam page to begin:</p>
-    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; font-family: 'Courier New', monospace; background: #f4f4f5; padding: 16px 24px; border-radius: 8px; display: inline-block;">${code}</p>
-    <p>This code expires on <strong>${expiry} (UTC)</strong>.</p>
+    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; font-family: 'Courier New', monospace; background: #f4f4f5; padding: 16px 24px; border-radius: 8px; display: inline-block;">${esc(code)}</p>
+    <p>This code expires on <strong>${esc(expiry)} (UTC)</strong>.</p>
     <p>
       <a href="${examUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Go to exam</a>
     </p>

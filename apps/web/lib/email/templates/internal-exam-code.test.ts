@@ -47,4 +47,26 @@ describe('internalExamCodeEmail', () => {
 
     expect(subject).toContain(BASE.subjectName)
   })
+
+  it('HTML-escapes DB-derived values but leaves the plain-text body raw', () => {
+    const malicious = '<script>alert(1)</script> & "quotes"'
+    const { html, text } = internalExamCodeEmail({
+      ...BASE,
+      studentName: malicious,
+      subjectName: malicious,
+    })
+
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quotes&quot;')
+    expect(html).not.toContain('<script>alert(1)</script>')
+    // Plain text needs no escaping — the raw value is preserved.
+    expect(text).toContain(malicious)
+  })
+
+  it('passes the expiresAt string through unchanged when it is not a valid date', () => {
+    const { html, text } = internalExamCodeEmail({ ...BASE, expiresAt: 'not-a-date' })
+
+    // The private formatExpiry falls back to the raw string when new Date() returns NaN.
+    expect(html).toContain('not-a-date')
+    expect(text).toContain('not-a-date')
+  })
 })

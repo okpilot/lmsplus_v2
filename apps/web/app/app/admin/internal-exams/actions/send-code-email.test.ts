@@ -49,6 +49,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllEnvs()
   vi.restoreAllMocks()
 })
 
@@ -158,5 +159,21 @@ describe('sendInternalExamCodeEmail', () => {
     expect(mockSendEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'derived@example.com' }),
     )
+  })
+
+  it('logs a warning but still sends when NEXT_PUBLIC_APP_URL is missing', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '')
+    mockAdmin()
+    mockGetCode.mockResolvedValue(activePayload())
+    mockSendEmail.mockResolvedValue({ ok: true })
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const result = await sendInternalExamCodeEmail(VALID_INPUT)
+
+    expect(result).toEqual({ success: true })
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('NEXT_PUBLIC_APP_URL'))
+    expect(mockSendEmail).toHaveBeenCalledTimes(1)
+    warnSpy.mockRestore()
   })
 })

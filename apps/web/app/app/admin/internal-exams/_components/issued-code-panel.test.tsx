@@ -155,4 +155,17 @@ describe('IssuedCodePanel', () => {
     rerender(<IssuedCodePanel {...PROPS} code="ZZZZ7777" codeId="code-2" />)
     expect(screen.getByRole('button', { name: /send via email/i })).toBeInTheDocument()
   })
+
+  it('shows a generic error toast when the send action throws an unexpected exception', async () => {
+    mockSendEmail.mockRejectedValue(new Error('network failure'))
+    render(<IssuedCodePanel {...PROPS} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /send via email/i }))
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(mockToastError).toHaveBeenCalledWith('Failed to send email')
+    // The button must NOT flip to "Sent" after an exception.
+    expect(screen.queryByRole('button', { name: /^sent$/i })).not.toBeInTheDocument()
+  })
 })
