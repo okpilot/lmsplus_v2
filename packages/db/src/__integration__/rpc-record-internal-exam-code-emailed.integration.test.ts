@@ -1,7 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cleanupTestData } from './cleanup'
-import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
+import {
+  createTestOrg,
+  createTestUser,
+  getAdminClient,
+  getAnonClient,
+  getAuthenticatedClient,
+} from './setup'
 
 /**
  * Integration tests for record_internal_exam_code_emailed() RPC (migration 110).
@@ -16,10 +22,10 @@ import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient }
  *      event_type/resource_type/resource_id/actor_role/org + student/subject metadata
  *  (b) non-admin (student) caller → throws 'not_admin', no audit row
  *  (c) cross-org code (belongs to another org) → throws 'code_not_found'
- *  (d) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
- *  (e) consumed code (state guard, defense-in-depth) → throws 'code_not_found'
- *  (f) voided code (state guard) → throws 'code_not_found'
- *  (g) expired code (state guard) → throws 'code_not_found'
+ *  (d) consumed code (state guard, defense-in-depth) → throws 'code_not_found'
+ *  (e) voided code (state guard) → throws 'code_not_found'
+ *  (f) expired code (state guard) → throws 'code_not_found'
+ *  (g) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
  *
  * Hermetic: internal_exam_codes rows created here are soft-deleted in afterAll;
  * audit_events is append-only/immutable, so assertions scope by the unique
@@ -235,7 +241,7 @@ describe('RPC: record_internal_exam_code_emailed', () => {
     expect(rows).toHaveLength(0)
   })
 
-  // ── (e) Consumed code is rejected (state guard, defense-in-depth) ────────────
+  // ── (d) Consumed code is rejected (state guard, defense-in-depth) ────────────
 
   it('rejects a consumed code with code_not_found and writes no audit row', async () => {
     const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
@@ -266,7 +272,7 @@ describe('RPC: record_internal_exam_code_emailed', () => {
     expect(rows).toHaveLength(0)
   })
 
-  // ── (f) Voided code is rejected (state guard) ───────────────────────────────
+  // ── (e) Voided code is rejected (state guard) ───────────────────────────────
 
   it('rejects a voided code with code_not_found and writes no audit row', async () => {
     const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
@@ -295,7 +301,7 @@ describe('RPC: record_internal_exam_code_emailed', () => {
     expect(rows).toHaveLength(0)
   })
 
-  // ── (g) Expired code is rejected (state guard) ──────────────────────────────
+  // ── (f) Expired code is rejected (state guard) ──────────────────────────────
 
   it('rejects an expired code with code_not_found and writes no audit row', async () => {
     // seedCode hardcodes a future expiry, so insert a past-expiry row directly.
@@ -330,17 +336,12 @@ describe('RPC: record_internal_exam_code_emailed', () => {
     expect(rows).toHaveLength(0)
   })
 
-  // ── (d) Unauthenticated caller is rejected ──────────────────────────────────
+  // ── (g) Unauthenticated caller is rejected ──────────────────────────────────
 
   it('rejects an unauthenticated call with not_authenticated', async () => {
     const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
 
-    const { createClient } = await import('@supabase/supabase-js')
-    const anonClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } },
-    )
+    const anonClient = getAnonClient()
     const { error } = await anonClient.rpc('record_internal_exam_code_emailed', {
       p_code_id: codeId,
     })

@@ -64,6 +64,24 @@ describe('sendEmail', () => {
     logSpy.mockRestore()
   })
 
+  it('fails loudly without logging PII when RESEND_API_KEY is absent in production', async () => {
+    vi.stubEnv('RESEND_API_KEY', '')
+    vi.stubEnv('NODE_ENV', 'production')
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await sendEmail(ARGS)
+
+    expect(result).toEqual({ ok: false, error: 'send_failed' })
+    expect(mockSend).not.toHaveBeenCalled()
+    expect(logSpy).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[sendEmail] RESEND_API_KEY is not set — cannot send email',
+    )
+    logSpy.mockRestore()
+    errorSpy.mockRestore()
+  })
+
   it('returns an error and does not send when EMAIL_FROM is missing', async () => {
     vi.stubEnv('RESEND_API_KEY', 'test-key')
     vi.stubEnv('EMAIL_FROM', '')
@@ -87,6 +105,19 @@ describe('sendEmail', () => {
 
     expect(result).toEqual({ ok: false, error: 'send_failed' })
     expect(errorSpy).toHaveBeenCalledWith('[sendEmail] Resend error:', 'rate limited')
+    errorSpy.mockRestore()
+  })
+
+  it('returns send_failed and logs when the Resend SDK throws', async () => {
+    vi.stubEnv('RESEND_API_KEY', 'test-key')
+    vi.stubEnv('EMAIL_FROM', 'noreply@example.com')
+    mockSend.mockRejectedValue(new Error('network down'))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await sendEmail(ARGS)
+
+    expect(result).toEqual({ ok: false, error: 'send_failed' })
+    expect(errorSpy).toHaveBeenCalledWith('[sendEmail] Unexpected error:', 'network down')
     errorSpy.mockRestore()
   })
 })

@@ -19,7 +19,7 @@ export function getAdminClient(): SupabaseClient {
 }
 
 /** Anon client — subject to RLS, used before auth */
-function getAnonClient(): SupabaseClient {
+export function getAnonClient(): SupabaseClient {
   return createClient(SUPABASE_URL, ANON_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
