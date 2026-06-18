@@ -17,7 +17,7 @@ import type { ExamSubjectOption, OrgStudentOption } from '../types'
 type Props = {
   students: OrgStudentOption[]
   subjects: ExamSubjectOption[]
-  onIssued: (issued: { code: string; expiresAt: string }) => void
+  onIssued: (issued: { codeId: string; code: string; expiresAt: string }) => void
 }
 
 export function IssueCodeForm({ students, subjects, onIssued }: Props) {
@@ -44,7 +44,7 @@ export function IssueCodeForm({ students, subjects, onIssued }: Props) {
         const result = await issueInternalExamCode({ studentId, subjectId })
         if (result.success) {
           toast.success('Internal exam code issued')
-          onIssued({ code: result.code, expiresAt: result.expiresAt })
+          onIssued({ codeId: result.codeId, code: result.code, expiresAt: result.expiresAt })
           setStudentId('')
           setSubjectId('')
         } else {

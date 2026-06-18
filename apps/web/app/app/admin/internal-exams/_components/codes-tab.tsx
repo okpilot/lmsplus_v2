@@ -12,16 +12,21 @@ type Props = {
   codes: InternalExamCodeRow[]
 }
 
-export type IssuedCode = { code: string; expiresAt: string }
+export type IssuedCode = { codeId: string; code: string; expiresAt: string }
 
 export function CodesTab({ students, subjects, codes }: Props) {
   const [issued, setIssued] = useState<IssuedCode | null>(null)
 
   return (
     <div className="space-y-6">
-      <IssueCodeForm students={students} subjects={subjects} onIssued={(code) => setIssued(code)} />
+      <IssueCodeForm
+        students={students}
+        subjects={subjects}
+        onIssued={(issued) => setIssued(issued)}
+      />
       {issued ? (
         <IssuedCodePanel
+          codeId={issued.codeId}
           code={issued.code}
           expiresAt={issued.expiresAt}
           onDismiss={() => setIssued(null)}
