@@ -10,12 +10,14 @@ vi.mock('./answer-options', () => ({
     options: { id: string; text: string }[]
     onSubmit: (id: string) => void
     disabled: boolean
+    submitting?: boolean
     correctOptionId?: string | null
     selectedOptionId?: string | null
   }) => (
     <div
       data-testid="answer-options"
       data-disabled={String(props.disabled)}
+      data-submitting={String(props.submitting ?? false)}
       data-selected-option-id={props.selectedOptionId ?? ''}
       data-correct-option-id={props.correctOptionId ?? ''}
     />
@@ -98,6 +100,11 @@ describe('SessionAnswerBlock — selected option is preserved across states', ()
       />,
     )
     expect(screen.getByTestId('answer-options').dataset.selectedOptionId).toBe('opt-a')
+  })
+
+  it('marks the answer options as submitting while a submit is in flight', () => {
+    render(<SessionAnswerBlock {...makeProps({ submitting: true })} />)
+    expect(screen.getByTestId('answer-options').dataset.submitting).toBe('true')
   })
 })
 

@@ -12,6 +12,7 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
   const {
     feedback,
     error: answerError,
+    answering,
     handleSelectAnswer,
     clearError: clearAnswerError,
     pendingQuestionIdRef,
@@ -62,6 +63,7 @@ export function useAnswerPipeline(opts: AnswerPipelineOpts) {
 
   return {
     feedback,
+    answering,
     handleSelectAnswer,
     navigateTo,
     navigate,

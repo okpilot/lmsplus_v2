@@ -554,6 +554,46 @@ describe('QuizSession', () => {
     expect(screen.queryByRole('button', { name: /Submit Answer/i })).not.toBeInTheDocument()
   })
 
+  it('keeps the mobile Submit Answer button (with spinner) mounted while the per-question RPC is in flight', async () => {
+    // Regression for #886: the answer is recorded optimistically before checkAnswer
+    // resolves, so canSubmitAnswer flips false mid-RPC. Without `|| s.answering` in
+    // showSubmit, the footer button unmounts before the spinner can paint. Hold
+    // checkAnswer pending to observe the in-flight window.
+    let resolveCheck!: (value: unknown) => void
+    mockCheckAnswer.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCheck = resolve
+        }),
+    )
+
+    render(<QuizSession sessionId="sess-1" questions={QUESTIONS} userId="test-user-id" />)
+
+    // Select an option (sets pendingOptionId) so the footer submit button appears
+    fireEvent.click(screen.getByTestId('select-btn-a'))
+    expect(screen.getByTestId('submit-answer-mobile')).toBeInTheDocument()
+
+    // Tap it → handleSelectAnswer fires, answering=true, checkAnswer awaited (held)
+    fireEvent.click(screen.getByTestId('submit-answer-mobile'))
+
+    // While the RPC is in flight the button stays mounted AND shows the spinner
+    await waitFor(() =>
+      expect(screen.getByTestId('submit-answer-mobile')).toHaveAttribute('aria-busy', 'true'),
+    )
+
+    // Resolve the RPC → answer recorded, answering=false → button unmounts once
+    resolveCheck({
+      success: true,
+      isCorrect: true,
+      correctOptionId: 'a',
+      explanationText: null,
+      explanationImageUrl: null,
+    })
+    await waitFor(() =>
+      expect(screen.queryByTestId('submit-answer-mobile')).not.toBeInTheDocument(),
+    )
+  })
+
   // ---- Exam-mode onDiscard wiring ------------------------------------------
 
   it('passes isExam=true to FinishQuizDialog when mode is exam', () => {

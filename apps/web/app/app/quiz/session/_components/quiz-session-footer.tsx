@@ -29,7 +29,9 @@ export function QuizSessionFooter({
           isFlagged={isFlagged}
           currentIndex={s.currentIndex}
           totalQuestions={totalQuestions}
-          submitting={s.submitting}
+          // #533: the Submit Answer spinner fires on the per-answer checkAnswer RPC
+          // (answering), not the session-level submitting (Submit/Save/Discard).
+          submitting={s.answering}
           showSubmit={showSubmit}
           flagLoading={flagLoading}
           onTogglePin={s.togglePin}

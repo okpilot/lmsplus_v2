@@ -59,12 +59,16 @@ export function useExamPipeline(opts: {
   return {
     answers,
     feedback: emptyFeedbackRef.current,
+    // Exam answers are buffered locally (no per-answer RPC), so there is never
+    // an in-flight answer to show a spinner for.
+    answering: false,
     handleSelectAnswer,
     navigateTo: opts.navigateTo,
     navigate: opts.navigate,
     submitted: submit.submitted,
     error: submit.error,
     submitting: submit.submitting,
+    pendingAction: submit.pendingAction,
     handleSubmit: submit.handleSubmit,
     handleSave: submit.handleSave,
     handleDiscard: submit.handleDiscard,

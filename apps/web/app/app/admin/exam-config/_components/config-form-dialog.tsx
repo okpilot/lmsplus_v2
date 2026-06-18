@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { Switch } from '@/components/ui/switch'
 import { upsertExamConfig } from '../actions/upsert-exam-config'
 import type { SubjectWithConfig } from '../types'
@@ -130,12 +131,23 @@ export function ConfigFormDialog({ subject, open, onOpenChange }: Props) {
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
             Cancel
           </Button>
-          <Button type="button" onClick={handleSubmit} disabled={isPending || !isValid}>
-            {isPending ? 'Saving...' : 'Save Config'}
-          </Button>
+          <LoadingButton
+            type="button"
+            onClick={handleSubmit}
+            disabled={!isValid}
+            loading={isPending}
+            loadingText="Saving..."
+          >
+            Save Config
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

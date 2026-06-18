@@ -927,3 +927,131 @@ describe('useAnswerHandler — pendingQuestionIdRef lifecycle', () => {
     expect(result.current.pendingQuestionIdRef.current.size).toBe(0)
   })
 })
+
+// ---- answering flag (Submit Answer spinner) -------------------------------
+
+describe('useAnswerHandler — answering flag', () => {
+  it('is false before any answer is submitted', () => {
+    const { result } = renderAnswerHandler()
+    expect(result.current.answering).toBe(false)
+  })
+
+  it('is true while the checkAnswer RPC is in flight and false after it resolves', async () => {
+    let resolveCheck: (v: typeof SUCCESS_RESULT) => void = () => {}
+    mockCheckAnswer.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCheck = resolve
+      }),
+    )
+    const { result } = renderAnswerHandler()
+
+    let pending: Promise<boolean> = Promise.resolve(false)
+    act(() => {
+      pending = result.current.handleSelectAnswer(OPT_A)
+    })
+    // RPC has not resolved yet — the spinner should be showing.
+    expect(result.current.answering).toBe(true)
+
+    await act(async () => {
+      resolveCheck(SUCCESS_RESULT)
+      await pending
+    })
+    expect(result.current.answering).toBe(false)
+  })
+
+  it('resets to false when the checkAnswer RPC fails', async () => {
+    mockCheckAnswer.mockRejectedValue(new Error('network error'))
+    const { result } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+
+    expect(result.current.answering).toBe(false)
+  })
+
+  it('stays false when re-submitting an already-answered question', async () => {
+    mockCheckAnswer.mockResolvedValue(SUCCESS_RESULT)
+    const { result } = renderAnswerHandler()
+
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_A)
+    })
+    await act(async () => {
+      await result.current.handleSelectAnswer(OPT_B)
+    })
+
+    expect(result.current.answering).toBe(false)
+  })
+
+  it('stays true after the first of two concurrent calls resolves while the second is still pending', async () => {
+    // This guards the boolean→counter change: with a plain boolean, the first
+    // call's finally would setAnswering(false) even though a second RPC is still
+    // in flight. With the counter, the decrement leaves inFlightAnswers at 1,
+    // so `answering` remains true until the last call settles.
+    let resolveQ1!: (v: typeof SUCCESS_RESULT) => void
+    let resolveQ2!: (v: typeof SUCCESS_RESULT) => void
+
+    mockCheckAnswer
+      .mockImplementationOnce(
+        () =>
+          new Promise<typeof SUCCESS_RESULT>((resolve) => {
+            resolveQ1 = resolve
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<typeof SUCCESS_RESULT>((resolve) => {
+            resolveQ2 = resolve
+          }),
+      )
+
+    // Mutable question-ID getter so we can switch from Q1 to Q2 mid-flight
+    let currentQuestion = Q1_ID
+    const answers = new Map<string, { selectedOptionId: string; responseTimeMs: number }>()
+    const setAnswers = vi.fn((updater: (prev: typeof answers) => typeof answers) => {
+      const next = updater(answers)
+      for (const [k, v] of next) answers.set(k, v)
+      for (const k of answers.keys()) {
+        if (!next.has(k)) answers.delete(k)
+      }
+    })
+
+    const { result } = renderHook(() =>
+      useAnswerHandler({
+        sessionId: SESSION_ID,
+        getQuestionId: () => currentQuestion,
+        getAnswerStartTime: () => Date.now() - 500,
+        answers,
+        setAnswers: setAnswers as React.Dispatch<
+          React.SetStateAction<Map<string, { selectedOptionId: string; responseTimeMs: number }>>
+        >,
+      }),
+    )
+
+    // Fire Q1 — leaves checkAnswer in-flight
+    act(() => {
+      result.current.handleSelectAnswer(OPT_A)
+    })
+    expect(result.current.answering).toBe(true)
+
+    // Navigate to Q2 and fire its answer — also in-flight
+    currentQuestion = Q2_ID
+    act(() => {
+      result.current.handleSelectAnswer(OPT_B)
+    })
+    expect(result.current.answering).toBe(true)
+
+    // Settle Q1 — the second call is still pending, so answering must remain true
+    await act(async () => {
+      resolveQ1(SUCCESS_RESULT)
+    })
+    expect(result.current.answering).toBe(true)
+
+    // Settle Q2 — now the counter reaches 0 and answering must become false
+    await act(async () => {
+      resolveQ2(SUCCESS_RESULT)
+    })
+    expect(result.current.answering).toBe(false)
+  })
+})

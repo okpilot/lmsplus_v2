@@ -5,9 +5,9 @@ import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { z } from 'zod'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { ResetSuccess } from './reset-success'
 
 const ResetPasswordSchema = z
@@ -130,9 +130,9 @@ export function ResetPasswordForm() {
         </div>
       )}
 
-      <Button type="submit" disabled={loading} className="w-full">
-        {loading ? 'Updating...' : 'Update password'}
-      </Button>
+      <LoadingButton type="submit" loading={loading} loadingText="Updating..." className="w-full">
+        Update password
+      </LoadingButton>
 
       <p className="text-center text-sm">
         <Link href="/" className="text-muted-foreground hover:text-primary">

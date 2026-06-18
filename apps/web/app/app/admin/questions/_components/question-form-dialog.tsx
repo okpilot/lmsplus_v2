@@ -3,7 +3,6 @@
 import type { ReactElement } from 'react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { LoadingButton } from '@/components/ui/loading-button'
 import type { SyllabusTree } from '../../syllabus/types'
 import { useQuestionFormState } from '../_hooks/use-question-form-state'
 import { upsertQuestion } from '../actions/upsert-question'
@@ -114,9 +114,9 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
         />
 
         <DialogFooter showCloseButton>
-          <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? 'Saving...' : submitLabel}
-          </Button>
+          <LoadingButton onClick={handleSubmit} loading={isPending} loadingText="Saving...">
+            {submitLabel}
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

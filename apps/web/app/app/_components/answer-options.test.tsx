@@ -60,6 +60,33 @@ describe('AnswerOptions', () => {
     expect(screen.queryByRole('button', { name: 'Submit Answer' })).not.toBeInTheDocument()
   })
 
+  it('shows a spinner on the Submit button while submitting', () => {
+    render(
+      <AnswerOptions
+        options={OPTIONS}
+        onSubmit={vi.fn()}
+        disabled={true}
+        submitting={true}
+        selectedOptionId="a"
+      />,
+    )
+    // selectedOptionId without correctOptionId keeps the submit button visible.
+    const submit = screen.getByRole('button', { name: 'Submit Answer' })
+    expect(submit).toBeDisabled()
+    // aria-hidden spinner: accessible name stays "Submit Answer", spinner present.
+    expect(submit.querySelector('.animate-spin')).not.toBeNull()
+    expect(submit).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('does not show a spinner on the Submit button when not submitting', async () => {
+    const user = userEvent.setup()
+    render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+    await user.click(screen.getByText('Option Alpha'))
+    const submit = screen.getByRole('button', { name: 'Submit Answer' })
+    expect(submit.querySelector('.animate-spin')).toBeNull()
+    expect(submit).not.toHaveAttribute('aria-busy')
+  })
+
   it('shows correct styling on the correct option when result is shown', () => {
     render(
       <AnswerOptions
