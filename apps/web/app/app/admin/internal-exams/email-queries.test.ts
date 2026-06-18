@@ -83,6 +83,16 @@ describe('getInternalExamCodeForEmail', () => {
     errorSpy.mockRestore()
   })
 
+  it('returns null when the row shape is invalid (wrong field type)', async () => {
+    mockAdmin()
+    // code is a number, not a string — fails the strengthened isCodeRow guard.
+    mockAdminFrom.mockReturnValue(buildChain({ ...ROW, code: 123 }))
+
+    const result = await getInternalExamCodeForEmail(CODE_ID)
+
+    expect(result).toBeNull()
+  })
+
   it('returns null when no row matches', async () => {
     mockAdmin()
     mockAdminFrom.mockReturnValue(buildChain(null))

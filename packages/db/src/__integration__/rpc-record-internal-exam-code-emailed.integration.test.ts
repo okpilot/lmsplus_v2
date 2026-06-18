@@ -25,7 +25,8 @@ import {
  *  (d) consumed code (state guard, defense-in-depth) → throws 'code_not_found'
  *  (e) voided code (state guard) → throws 'code_not_found'
  *  (f) expired code (state guard) → throws 'code_not_found'
- *  (g) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
+ *  (g) soft-deleted code (rule 9: deleted_at filter) → throws 'code_not_found'
+ *  (h) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
  *
  * Hermetic: internal_exam_codes rows created here are soft-deleted in afterAll;
  * audit_events is append-only/immutable, so assertions scope by the unique
@@ -336,7 +337,35 @@ describe('RPC: record_internal_exam_code_emailed', () => {
     expect(rows).toHaveLength(0)
   })
 
-  // ── (g) Unauthenticated caller is rejected ──────────────────────────────────
+  // ── (g) Soft-deleted code is rejected (rule 9: deleted_at filter) ────────────
+
+  it('rejects a soft-deleted code with code_not_found and writes no audit row', async () => {
+    const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
+
+    const { data: deleted, error: delErr } = await admin
+      .from('internal_exam_codes')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', codeId)
+      .select('id')
+    if (delErr) throw new Error(`soft-delete: ${delErr.message}`)
+    expect(deleted).toHaveLength(1)
+
+    const { error } = await adminClient.rpc('record_internal_exam_code_emailed', {
+      p_code_id: codeId,
+    })
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/code_not_found/)
+
+    const { data: rows, error: readErr } = await admin
+      .from('audit_events')
+      .select('id')
+      .eq('event_type', 'internal_exam.code_emailed')
+      .eq('resource_id', codeId)
+    expect(readErr).toBeNull()
+    expect(rows).toHaveLength(0)
+  })
+
+  // ── (h) Unauthenticated caller is rejected ──────────────────────────────────
 
   it('rejects an unauthenticated call with not_authenticated', async () => {
     const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
@@ -346,7 +375,7 @@ describe('RPC: record_internal_exam_code_emailed', () => {
       p_code_id: codeId,
     })
     expect(error).not.toBeNull()
-    expect(error?.message).toContain('not_authenticated')
+    expect(error!.message).toMatch(/not_authenticated/)
 
     const { data: rows, error: readErr } = await admin
       .from('audit_events')

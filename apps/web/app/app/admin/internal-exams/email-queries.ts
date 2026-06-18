@@ -70,8 +70,10 @@ export async function getInternalExamCodeForEmail(
   }
   if (!isCodeRow(data)) return null
 
-  const studentEmail = data.users?.email ?? ''
-  if (studentEmail.length === 0) return null
+  // Guard the recipient at the use site: it must be a non-empty string before
+  // it becomes the email `to`, even if the joined shape drifts.
+  const studentEmail = data.users?.email
+  if (typeof studentEmail !== 'string' || studentEmail.length === 0) return null
 
   return {
     code: data.code,
