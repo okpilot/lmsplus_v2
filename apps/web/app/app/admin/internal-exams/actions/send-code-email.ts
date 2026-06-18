@@ -9,7 +9,19 @@ import { getInternalExamCodeForEmail } from '../email-queries'
 
 const SendCodeEmailSchema = z.object({ codeId: z.uuid() })
 
-export type SendCodeEmailResult = { success: true } | { success: false; error: string }
+// error is a closed set of admin-facing domain strings (safe to display directly,
+// e.g. via toast). Keeping it a literal union — not `string` — prevents a future
+// change from silently leaking an internal/third-party message to the client.
+export type SendCodeEmailResult =
+  | { success: true }
+  | {
+      success: false
+      error:
+        | 'Invalid input'
+        | 'Code not found'
+        | 'Code is no longer active'
+        | 'Failed to send email'
+    }
 
 export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCodeEmailResult> {
   const parsed = SendCodeEmailSchema.safeParse(input)
