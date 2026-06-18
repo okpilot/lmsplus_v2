@@ -30,7 +30,14 @@ type ChainBuilder = {
 type AnyClient = { from: (t: string) => ChainBuilder }
 
 function isCodeRow(value: unknown): value is CodeRowRaw {
-  return typeof value === 'object' && value !== null && 'code' in value && 'expires_at' in value
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return (
+    typeof v.code === 'string' &&
+    typeof v.expires_at === 'string' &&
+    (v.consumed_at === null || typeof v.consumed_at === 'string') &&
+    (v.voided_at === null || typeof v.voided_at === 'string')
+  )
 }
 
 /**

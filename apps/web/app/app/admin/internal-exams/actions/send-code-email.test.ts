@@ -46,6 +46,8 @@ function activePayload(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  // A valid base URL by default; the missing-URL test re-stubs this to ''.
+  vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://app.example.com')
 })
 
 afterEach(() => {
@@ -161,19 +163,19 @@ describe('sendInternalExamCodeEmail', () => {
     )
   })
 
-  it('logs a warning but still sends when NEXT_PUBLIC_APP_URL is missing', async () => {
+  it('fails without sending when NEXT_PUBLIC_APP_URL is missing', async () => {
     vi.stubEnv('NEXT_PUBLIC_APP_URL', '')
     mockAdmin()
     mockGetCode.mockResolvedValue(activePayload())
-    mockSendEmail.mockResolvedValue({ ok: true })
-    mockRpc.mockResolvedValue({ data: null, error: null })
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const result = await sendInternalExamCodeEmail(VALID_INPUT)
 
-    expect(result).toEqual({ success: true })
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('NEXT_PUBLIC_APP_URL'))
-    expect(mockSendEmail).toHaveBeenCalledTimes(1)
-    warnSpy.mockRestore()
+    expect(result).toEqual({ success: false, error: 'Failed to send email' })
+    expect(mockSendEmail).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[sendInternalExamCodeEmail] NEXT_PUBLIC_APP_URL is not set',
+    )
+    errorSpy.mockRestore()
   })
 })

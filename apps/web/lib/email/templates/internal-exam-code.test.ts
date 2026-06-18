@@ -62,6 +62,13 @@ describe('internalExamCodeEmail', () => {
     expect(text).toContain(malicious)
   })
 
+  it('escapes single quotes in DB-derived values', () => {
+    const { html } = internalExamCodeEmail({ ...BASE, studentName: "O'Brien" })
+
+    expect(html).toContain('Hello O&#39;Brien,')
+    expect(html).not.toContain("O'Brien")
+  })
+
   it('passes the expiresAt string through unchanged when it is not a valid date', () => {
     const { html, text } = internalExamCodeEmail({ ...BASE, expiresAt: 'not-a-date' })
 

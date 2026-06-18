@@ -37,10 +37,11 @@ export async function sendInternalExamCodeEmail(input: unknown): Promise<SendCod
     return { success: false, error: 'Code is no longer active' }
   }
 
+  // Fail fast on a misconfigured base URL rather than emailing a broken link
+  // (NEXT_PUBLIC_APP_URL is always set in a correctly-configured env).
   if (!process.env.NEXT_PUBLIC_APP_URL) {
-    console.warn(
-      '[sendInternalExamCodeEmail] NEXT_PUBLIC_APP_URL is not set — examUrl will be malformed',
-    )
+    console.error('[sendInternalExamCodeEmail] NEXT_PUBLIC_APP_URL is not set')
+    return { success: false, error: 'Failed to send email' }
   }
   const examUrl = `${process.env.NEXT_PUBLIC_APP_URL}/app/internal-exam`
   const { subject, html, text } = internalExamCodeEmail({
