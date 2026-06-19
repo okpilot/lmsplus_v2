@@ -174,3 +174,10 @@ BEGIN
   RETURN QUERY SELECT v_is_correct, v_expl_text, v_expl_image_url, v_correct_option;
 END;
 $$;
+
+-- Re-assert the student EXECUTE grant explicitly, consistent with the sibling
+-- relocated RPCs (batch_submit_quiz 112b, submit_vfr_rt 113, report RPCs 114,
+-- check_quiz_answer 117). CREATE OR REPLACE preserves the existing grant, so this
+-- is belt-and-suspenders: it keeps the grant in the migration record should the
+-- function ever be DROP+CREATEd (security-auditor MEDIUM, #856).
+GRANT EXECUTE ON FUNCTION submit_quiz_answer(uuid, uuid, text, int) TO authenticated;
