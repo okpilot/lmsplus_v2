@@ -1,8 +1,9 @@
 -- Migration 112b: batch_submit_quiz reads the MC answer key from questions.correct_option_id
 -- (#823, P0 security). After mig 20260619000100 relocates the key into the REVOKE-gated
 -- correct_option_id column and strips `correct` from options[], the old options-scan returns
--- NULL and scoring breaks — so this reads q.correct_option_id instead. Body VERBATIM from the
--- latest definition (20260610000450); only the correctness-derivation swapped. Depends on 20260619000100.
+-- NULL and scoring breaks — so this reads q.correct_option_id instead. based on the
+-- latest definition (20260610000450); swaps the correctness derivation AND carries the completed-
+-- session replay carve-out (§15 deleted_at-filter removal on the replay JOIN). Depends on 20260619000100.
 
 CREATE OR REPLACE FUNCTION batch_submit_quiz(
   p_session_id uuid,

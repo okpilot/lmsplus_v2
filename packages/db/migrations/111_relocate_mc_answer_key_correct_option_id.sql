@@ -19,7 +19,7 @@
 --   6. correct_option_id is intentionally NOT granted to authenticated, so a
 --      direct SELECT raises 42501. Admins read it via get_question_authoring_fields.
 --
--- Deploy order: this migration + the RPC-update migrations (112-116) apply as
+-- Deploy order: this migration + the RPC-update migrations (112-117) apply as
 -- one atomic set before app code. The 6 scoring/report RPCs are updated in the
 -- same deploy to read correct_option_id; until then the strip in step 3 would
 -- starve any un-updated reader — they ship together.
