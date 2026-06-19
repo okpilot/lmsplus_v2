@@ -10,15 +10,22 @@ type McRendererProps = {
   value: string | null
   onChange: (optionId: string) => void
   disabled?: boolean
+  ariaLabelledBy?: string
 }
 
-export function McRenderer({ options, value, onChange, disabled }: McRendererProps) {
+export function McRenderer({
+  options,
+  value,
+  onChange,
+  disabled,
+  ariaLabelledBy,
+}: McRendererProps) {
   const groupName = useId()
 
   if (options.length === 0) return null
 
   return (
-    <fieldset className="space-y-1.5 border-0 p-0">
+    <fieldset className="space-y-1.5 border-0 p-0" aria-labelledby={ariaLabelledBy}>
       {options.map((option, i) => {
         const letter = String.fromCodePoint(65 + i)
         const isSelected = option.id === value
