@@ -27,13 +27,18 @@ export async function cleanupDiscardedDraft(
   draftId: string,
   userId: string,
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('quiz_drafts')
     .delete()
     .eq('id', draftId)
     .eq('student_id', userId)
+    .select('id')
 
   if (error) {
     console.error('[discardQuiz] Draft cleanup error:', error.message)
+    return
+  }
+  if ((data?.length ?? 0) > 0) {
+    console.log('[discardQuiz] Cleaned up draft', draftId, 'for user', userId)
   }
 }

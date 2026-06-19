@@ -5,11 +5,19 @@
 
 export const START_VFR_RT_EXAM_ERROR_MESSAGES: Array<[string, string]> = [
   ['not_authenticated', 'Not authenticated'],
+  ['user_not_found_or_inactive', 'Your account is inactive. Please contact your instructor.'],
   ['exam_config_required', 'VFR RT mock exam is not enabled for your organization.'],
   // The RPC attaches the shortfall detail via USING DETAIL — logged server-side
   // only, never surfaced to the student.
   [
     'insufficient_questions_for_vfr_rt_exam',
     'The VFR RT question pool is incomplete. Please contact your instructor.',
+  ],
+  // Rare concurrent-start race: the RPC normally resumes an in-flight session,
+  // but if the unique-constraint loser's re-read misses, it raises this. A
+  // reload re-triggers the resume path.
+  [
+    'active_session_exists',
+    'A VFR RT exam session is already starting. Please reload and try again.',
   ],
 ]

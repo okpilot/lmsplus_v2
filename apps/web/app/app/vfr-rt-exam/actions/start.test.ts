@@ -130,6 +130,24 @@ describe('startVfrRtExam — RPC error messages', () => {
     )
   })
 
+  it('tells the student their account is inactive when user_not_found_or_inactive is returned', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'user_not_found_or_inactive' } })
+    const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe('Your account is inactive. Please contact your instructor.')
+  })
+
+  it('asks the student to reload on the active_session_exists concurrent-start race', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'active_session_exists' } })
+    const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error).toBe(
+      'A VFR RT exam session is already starting. Please reload and try again.',
+    )
+  })
+
   it('returns a generic failure for an unknown RPC error', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'unexpected db failure' } })
     const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })

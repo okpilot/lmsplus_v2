@@ -18,10 +18,13 @@ type SubmitRpcResult = {
   passed_overall: boolean
   correct_count: number
   total_questions: number
+  // Set when the timer-expiry guard fired instead of normal grading (mig 100):
+  // all percentages are zeroed and the session is marked expired, not graded.
+  expired?: boolean
 }
 
 export type SubmitVfrRtExamResult =
-  | { success: true; session_id: string; redirect_to: string }
+  | { success: true; session_id: string; redirect_to: string; expired?: boolean }
   | { success: false; error: string }
 
 export async function submitVfrRtExam(raw: unknown): Promise<SubmitVfrRtExamResult> {
@@ -40,7 +43,7 @@ export async function submitVfrRtExam(raw: unknown): Promise<SubmitVfrRtExamResu
     }
 
     const p_answers = parsed.data.answers.map(toRpcAnswer)
-    const { error } = await rpc<SubmitRpcResult>(supabase, 'submit_vfr_rt_exam_answers', {
+    const { data, error } = await rpc<SubmitRpcResult>(supabase, 'submit_vfr_rt_exam_answers', {
       p_session_id: parsed.data.sessionId,
       p_answers,
     })
@@ -54,6 +57,9 @@ export async function submitVfrRtExam(raw: unknown): Promise<SubmitVfrRtExamResu
       success: true,
       session_id: parsed.data.sessionId,
       redirect_to: `/app/vfr-rt-exam/results/${parsed.data.sessionId}`,
+      // Surface timer-expiry so Phase C can show a "time's up" confirmation
+      // without a separate DB read; absent on the normal grade path.
+      ...(data?.expired ? { expired: true } : {}),
     }
   } catch (err) {
     console.error('[submitVfrRtExam] Uncaught error:', err)
