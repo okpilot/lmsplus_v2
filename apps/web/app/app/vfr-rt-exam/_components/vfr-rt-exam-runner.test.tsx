@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { VfrRtQuestion } from '@/lib/queries/vfr-rt-exam'
@@ -94,7 +94,7 @@ describe('VfrRtExamRunner', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/app/vfr-rt-exam/results/s1'))
   })
 
-  it('submits only once when finish and timer expiry fire in the same frame', async () => {
+  it('submits only once when a finish click and a timer expiry interleave', async () => {
     mockSubmit.mockResolvedValue({
       success: true,
       session_id: 's1',
@@ -102,9 +102,10 @@ describe('VfrRtExamRunner', () => {
     })
     renderRunner()
 
-    // Two near-simultaneous submit triggers (manual finish + timer expiry) must
-    // collapse to a single Server Action call via the synchronous ref gate.
-    lastTimerProps.current?.onExpired()
+    // The documented race: a manual Finish click and a near-simultaneous timer
+    // expiry. fireEvent.click runs handleSubmit synchronously (setting the ref
+    // gate), then the expiry hits the same gate and must be a no-op — one submit.
+    fireEvent.click(screen.getByRole('button', { name: /finish & submit exam/i }))
     lastTimerProps.current?.onExpired()
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/app/vfr-rt-exam/results/s1'))
@@ -121,5 +122,24 @@ describe('VfrRtExamRunner', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(/failed to submit exam/i),
     )
     expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('displays the next question after clicking the Next button', async () => {
+    renderRunner()
+    // Question 1 (short_answer) is shown initially; question 2 (MC) must appear after Next.
+    expect(screen.getByText('Question 1')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /next/i }))
+    expect(screen.getByText('Question 2')).toBeInTheDocument()
+    expect(screen.queryByText('Question 1')).not.toBeInTheDocument()
+  })
+
+  it('increments the Part 1 answered count in progress after the user types a short answer', async () => {
+    renderRunner()
+    const part1Bar = screen.getByRole('progressbar', { name: 'Part 1' })
+    expect(part1Bar).toHaveAttribute('aria-valuenow', '0')
+
+    await userEvent.type(screen.getByRole('textbox'), 'QNH')
+
+    expect(part1Bar).toHaveAttribute('aria-valuenow', '1')
   })
 })

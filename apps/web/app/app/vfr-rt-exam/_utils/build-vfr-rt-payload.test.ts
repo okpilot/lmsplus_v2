@@ -60,4 +60,27 @@ describe('buildVfrRtPayload', () => {
   it('produces no entry for an unanswered question', () => {
     expect(buildVfrRtPayload(questions, {})).toEqual([])
   })
+
+  it('skips a multiple-choice question when the answer object has no mc field', () => {
+    // An answer recorded for a previous type (e.g. short) ending up keyed to a
+    // MC question must not produce a selectedOptionId entry — `answer.mc` is
+    // undefined, so the `if (answer.mc)` guard must skip it cleanly.
+    const answers: Record<string, AnswerState> = { 'q-mc': { short: 'stale' } }
+    expect(buildVfrRtPayload(questions, answers)).toEqual([])
+  })
+
+  it('emits only the filled blanks when a dialog question has a mix of filled and empty blanks', () => {
+    // Three blanks: indices 0 and 2 filled, index 1 empty — only 0 and 2 appear.
+    const answers: Record<string, AnswerState> = {
+      'q-dialog': { blanks: { 0: 'cleared', 1: '', 2: 'final' } },
+    }
+    const result = buildVfrRtPayload(questions, answers)
+    expect(result).toHaveLength(2)
+    expect(result).toContainEqual({
+      questionId: 'q-dialog',
+      blankIndex: 0,
+      responseText: 'cleared',
+    })
+    expect(result).toContainEqual({ questionId: 'q-dialog', blankIndex: 2, responseText: 'final' })
+  })
 })

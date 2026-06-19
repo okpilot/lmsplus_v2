@@ -28,6 +28,13 @@ describe('partForType', () => {
   it('maps multiple_choice to Part 3', () => {
     expect(partForType('multiple_choice').label).toBe('Part 3')
   })
+  it('throws when given an unknown question type', () => {
+    // Guard against future DB schema values reaching the client before types are
+    // regenerated — the 3-value union is exhaustive at compile time only.
+    expect(() => partForType('unknown_type' as VfrRtQuestion['question_type'])).toThrow(
+      '[partForType] Unknown question type: unknown_type',
+    )
+  })
 })
 
 describe('buildPartSegments', () => {

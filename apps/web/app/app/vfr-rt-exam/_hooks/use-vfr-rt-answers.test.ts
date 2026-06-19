@@ -41,4 +41,29 @@ describe('useVfrRtAnswers', () => {
     const { result } = renderHook(() => useVfrRtAnswers(SESSION))
     expect(result.current.answers['q-5']).toEqual({ mc: 'opt-c' })
   })
+
+  it('updating one blank preserves the other blanks on the same question', () => {
+    const { result } = renderHook(() => useVfrRtAnswers(SESSION))
+    act(() => result.current.setBlank('q-3', 0, 'cleared'))
+    act(() => result.current.setBlank('q-3', 1, 'takeoff'))
+    // Update blank 1 — blank 0 must remain unchanged.
+    act(() => result.current.setBlank('q-3', 1, 'landing'))
+    expect(result.current.answers['q-3']).toEqual({ blanks: { 0: 'cleared', 1: 'landing' } })
+  })
+
+  it('does not throw when localStorage write fails (quota / private mode)', () => {
+    const { result } = renderHook(() => useVfrRtAnswers(SESSION))
+    // Simulate a quota-exceeded environment — the hook must swallow the error.
+    const original = localStorage.setItem.bind(localStorage)
+    localStorage.setItem = () => {
+      throw new DOMException('QuotaExceededError')
+    }
+    try {
+      expect(() => act(() => result.current.setShort('q-1', 'hello'))).not.toThrow()
+    } finally {
+      localStorage.setItem = original
+    }
+    // The in-memory state must still be updated even when persistence failed.
+    expect(result.current.answers['q-1']).toEqual({ short: 'hello' })
+  })
 })

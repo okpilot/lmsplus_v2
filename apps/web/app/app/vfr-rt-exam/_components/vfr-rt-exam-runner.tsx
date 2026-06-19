@@ -104,7 +104,11 @@ export function VfrRtExamRunner({
         </p>
       ) : null}
 
-      <Button onClick={handleSubmit} disabled={isPending} className="w-full">
+      <Button
+        onClick={handleSubmit}
+        disabled={isPending || submittedRef.current}
+        className="w-full"
+      >
         Finish &amp; submit exam
       </Button>
     </main>
