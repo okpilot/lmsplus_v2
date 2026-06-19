@@ -228,7 +228,7 @@ describe('startVfrRtExam — happy path', () => {
     expect(result.timeLimitSeconds).toBe(1800)
   })
 
-  it('unwraps a single-row array payload from the RPC', async () => {
+  it('returns session data when the RPC payload arrives as a single-row array', async () => {
     mockRpc.mockResolvedValue({ data: [RPC_SUCCESS], error: null })
     const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(true)

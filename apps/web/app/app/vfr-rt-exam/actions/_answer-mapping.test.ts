@@ -54,16 +54,14 @@ describe('AnswerEntry — schema validation', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects a dialog entry without blankIndex (falls through to short; short accepts it as valid, not an error)', () => {
-    // Without blankIndex the object matches ShortAnswer — that is the correct behaviour
+  it('accepts an entry with only questionId and responseText as a short answer', () => {
     const result = AnswerEntry.safeParse({ questionId: DIALOG_Q, responseText: 'wilco' })
     expect(result.success).toBe(true)
     if (!result.success) return
     expect('blankIndex' in result.data).toBe(false)
   })
 
-  it('rejects a short-answer entry that carries blankIndex as an extra unknown key (strict)', () => {
-    // blankIndex present → must be DialogAnswer; DialogAnswer requires responseText
+  it('rejects an entry carrying an unknown extra key', () => {
     const result = AnswerEntry.safeParse({
       questionId: DIALOG_Q,
       responseText: 'x',
