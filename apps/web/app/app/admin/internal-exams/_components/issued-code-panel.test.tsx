@@ -46,11 +46,6 @@ describe('IssuedCodePanel', () => {
     expect(screen.getByTestId('issued-code-value')).toHaveTextContent('ABCD2345')
   })
 
-  it('warns the admin that the code will not be shown again', () => {
-    render(<IssuedCodePanel {...PROPS} />)
-    expect(screen.getByText(/won.?t be shown again/i)).toBeInTheDocument()
-  })
-
   it('shows the expiry timestamp in a human-readable format', () => {
     render(<IssuedCodePanel {...PROPS} />)
     expect(screen.getByText(`Expires ${formatExpiry(PROPS.expiresAt)}`)).toBeInTheDocument()

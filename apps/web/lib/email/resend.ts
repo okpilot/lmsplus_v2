@@ -31,7 +31,9 @@ export async function sendEmail({
       return { ok: false, error: 'send_failed' }
     }
     // Redact the recipient — don't leak student PII into shared dev/test logs.
-    const redactedTo = to.replace(/^(.).*(@.*)$/, '$1***$2')
+    // String ops (not regex) to avoid a needless ReDoS hotspot on the `to` input.
+    const at = to.indexOf('@')
+    const redactedTo = at > 0 ? `${to.slice(0, 1)}***${to.slice(at)}` : '***'
     console.log('[email] (dev, no RESEND_API_KEY) would send:', { to: redactedTo, subject })
     return { ok: true }
   }

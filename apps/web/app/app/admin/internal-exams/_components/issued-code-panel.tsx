@@ -73,7 +73,6 @@ export function IssuedCodePanel({ codeId, code, expiresAt, onDismiss }: Props) {
             {code}
           </p>
           <p className="text-sm text-muted-foreground">Expires {formatExpiry(expiresAt)}</p>
-          <p className="text-sm font-medium text-destructive">Won't be shown again — copy now.</p>
         </div>
         <div className="flex flex-col gap-2">
           <Button type="button" onClick={handleCopy} variant="default">
