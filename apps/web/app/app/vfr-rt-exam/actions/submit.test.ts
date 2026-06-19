@@ -249,6 +249,19 @@ describe('submitVfrRtExam — invalid RPC response shape', () => {
       consoleSpy.mockRestore()
     }
   })
+
+  it('returns a generic failure when the RPC returns null with no error', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockRpc.mockResolvedValue({ data: null, error: null })
+      const result = await submitVfrRtExam({ sessionId: SESSION_ID, answers: [MC_ENTRY] })
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to submit exam')
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
 })
 
 // ---- RPC error handling ---------------------------------------------------
