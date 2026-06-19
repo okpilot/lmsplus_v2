@@ -1,12 +1,13 @@
 # Tasks — Send Internal Exam Code via Email
 
-> Status: COMPLETE — branch `feat/internal-exam-code-email` (427b0932 + 2b0d1693 + 25621c3c).
+> Status: implemented — PR #904 open, all CI checks green, awaiting manual eval + merge.
 > Post-commit suite (code-reviewer, semantic-reviewer ×2 incl. PR-sweep, doc-updater, test-writer,
-> red-team, learner) run; all findings resolved. Red-team E2E follow-up tracked in issue #902.
+> red-team, learner) + 4 CR-local rounds + cloud-CR run; all findings resolved.
+> Follow-ups: #902 (red-team E2E), #903 (learner rule promotions).
 
 ## DB (Stream A)
 - [x] A1. Migration `record_internal_exam_code_emailed` RPC in BOTH dirs (110 / 20260618000001), byte-identical
-- [x] A2. Integration test (admin ok / non-admin / cross-org / auth-null / consumed-code → 5 cases)
+- [x] A2. Integration test → 8 cases (admin ok / non-admin / cross-org / consumed / voided / expired / soft-deleted / unauthenticated)
 
 ## Backend app (Stream B)
 - [x] B1. `lib/email/resend.ts` (EMAIL_FROM as `from`; console fallback; generic `send_failed` on SDK error) + test
@@ -27,4 +28,5 @@
 - [x] check-types, lint, 3919 unit tests green
 - [x] plan-critic (plan) + spec QA + implementation-critic (staged) run, findings folded in
 - [x] post-commit suite + PR-sweep semantic review; all CRITICAL/ISSUE resolved
-- [ ] /fullpush (CR-local) → push → PR → green CI + CodeRabbit → merge  (in progress)
+- [x] /fullpush (CR-local, 4 rounds) → pushed → PR #904 (all CI green incl. migration/red-team/integration)
+- [ ] manual eval (send a real code email) → merge  (awaiting user)

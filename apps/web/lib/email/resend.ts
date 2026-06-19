@@ -30,7 +30,9 @@ export async function sendEmail({
       console.error('[sendEmail] RESEND_API_KEY is not set — cannot send email')
       return { ok: false, error: 'send_failed' }
     }
-    console.log('[email] (dev, no RESEND_API_KEY) would send:', { to, subject })
+    // Redact the recipient — don't leak student PII into shared dev/test logs.
+    const redactedTo = to.replace(/^(.).*(@.*)$/, '$1***$2')
+    console.log('[email] (dev, no RESEND_API_KEY) would send:', { to: redactedTo, subject })
     return { ok: true }
   }
 

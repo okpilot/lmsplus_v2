@@ -44,7 +44,7 @@ const ROW = {
   consumed_at: null,
   voided_at: null,
   easa_subjects: { name: 'Meteorology' },
-  users: { full_name: 'Alice', email: 'alice@example.com' },
+  users: { full_name: 'Alice', email: 'alice@example.com', deleted_at: null },
 }
 
 // ---- Tests ----------------------------------------------------------------
@@ -96,6 +96,24 @@ describe('getInternalExamCodeForEmail', () => {
   it('returns null when no row matches', async () => {
     mockAdmin()
     mockAdminFrom.mockReturnValue(buildChain(null))
+
+    const result = await getInternalExamCodeForEmail(CODE_ID)
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null when the student is soft-deleted (never email a deactivated student)', async () => {
+    mockAdmin()
+    mockAdminFrom.mockReturnValue(
+      buildChain({
+        ...ROW,
+        users: {
+          full_name: 'Alice',
+          email: 'alice@example.com',
+          deleted_at: '2026-01-01T00:00:00.000Z',
+        },
+      }),
+    )
 
     const result = await getInternalExamCodeForEmail(CODE_ID)
 

@@ -17,7 +17,7 @@ type CodeRowRaw = {
   consumed_at: string | null
   voided_at: string | null
   easa_subjects: { name: string | null } | null
-  users: { full_name: string | null; email: string | null } | null
+  users: { full_name: string | null; email: string | null; deleted_at: string | null } | null
 }
 
 type ChainBuilder = {
@@ -44,7 +44,8 @@ function isCodeRow(value: unknown): value is CodeRowRaw {
  * Fetches the single internal exam code's email payload, scoped to the admin's
  * organization. Uses adminClient (service role) because cross-row reads on
  * `users` are unreliable under tenant_isolation RLS, mirroring queries.ts.
- * Returns null on error, no row, or a row missing a recipient email.
+ * Returns null on error, no row, a row missing a recipient email, or a
+ * soft-deleted (deactivated) student — never email a deactivated student.
  */
 export async function getInternalExamCodeForEmail(
   codeId: string,
@@ -57,7 +58,7 @@ export async function getInternalExamCodeForEmail(
     .select(
       `code, expires_at, consumed_at, voided_at,
        easa_subjects!subject_id(name),
-       users!student_id(full_name, email)`,
+       users!student_id(full_name, email, deleted_at)`,
     )
     .eq('id', codeId)
     .eq('organization_id', organizationId)
@@ -69,6 +70,10 @@ export async function getInternalExamCodeForEmail(
     return null
   }
   if (!isCodeRow(data)) return null
+
+  // Never email a soft-deleted (deactivated) student, even though the code row
+  // itself is still active. adminClient bypasses RLS, so this filter is manual.
+  if (data.users?.deleted_at != null) return null
 
   // Guard the recipient at the use site: it must be a non-empty string before
   // it becomes the email `to`, even if the joined shape drifts.

@@ -57,8 +57,9 @@ describe('sendEmail', () => {
 
     expect(result).toEqual({ ok: true })
     expect(mockSend).not.toHaveBeenCalled()
+    // Recipient is redacted in the dev log — no raw PII (student@example.com -> s***@example.com).
     expect(logSpy).toHaveBeenCalledWith('[email] (dev, no RESEND_API_KEY) would send:', {
-      to: ARGS.to,
+      to: 's***@example.com',
       subject: ARGS.subject,
     })
     logSpy.mockRestore()
