@@ -4,9 +4,9 @@ _Last updated: 2026-06-19_
 
 ## TL;DR
 
-**Phase A (Database) + Phase B (Server Actions + grader) both MERGED + live (dark). Phase C (Student UI) is the active resume point — it's the first renderable surface, so it's where manual eval finally applies. Phases C–E not started. No blockers.**
+**Phases A + B MERGED + live (dark). Phase C (Student UI) is BUILT on branch `feat/vfr-rt-phase-c` (tasks C.1–C.5, 9 commits, all gates green) — awaiting push → PR → manual eval (renderable UI, NOT auto-merged). Phases D–E not started. No blockers.**
 
-`master` HEAD = `55e50398` (Phase B squash-merge, PR #922, 2026-06-19). Branch `feat/vfr-rt-phase-b` merged + deleted; local master synced. Phase C is frontend-only — no migrations, no new RPCs (all already shipped, see below).
+`master` HEAD = `55e50398` (Phase B, PR #922). Branch `feat/vfr-rt-phase-c` off master carries all of Phase C: briefing/start flow, in-progress timed runner, results/review. Frontend-only — no migrations, no new RPCs (consumes the already-shipped 099/105/106/100 RPCs). Each slice ran plan-critic/impl-critic + the full post-commit fleet; security GOOD throughout (canonicals only via the `ended_at`-gated 106 RPC; all result components are Server Components). **Next: push → open PR → drive CI green + CodeRabbit clean (`/replycoderabbit`) → manual eval → merge. Then Phase D (admin authoring).**
 
 ---
 
@@ -18,8 +18,8 @@ VFR RT = VFR Radiotelephony Slovenia mock exam. Spec at `.spec-workflow/specs/vf
 |-------|-------|--------|
 | **A — Database** | migs 094–106: question-type enum + columns, `vfr_rt_exam` mode, text/per-blank answers, all RPCs, 145 integration tests | ✅ **MERGED** (PRs #830, #841, #843) |
 | **B — Server Actions + grader** | `startVfrRtExam`, `submitVfrRtExam`, `lib/grading/normalize-answer.ts`, constants, discard guard | ✅ **MERGED** (PR #922, squash `55e50398`) |
-| **C — Student UI** | briefing page, runner shell, per-type renderers, part progress bar, results breakdown | ⬜ **← NEXT (active resume point)** |
-| **D — Admin authoring** | discriminated-union schema, type selector, dialog-template parser/preview, upsert branch, list badge | ⬜ |
+| **C — Student UI** | briefing page, runner shell, per-type renderers, part progress bar, results breakdown | 🟡 **BUILT on `feat/vfr-rt-phase-c`** — awaiting push/PR/eval |
+| **D — Admin authoring** | discriminated-union schema, type selector, dialog-template parser/preview, upsert branch, list badge | ⬜ **← NEXT (after C merges)** |
 | **E — Tests + red-team + ops** | Playwright lifecycle E2E, red-team (#825), pre-push sweep, launch | ⬜ |
 
 ### Phase A RPCs already shipped (Phase B calls these)
