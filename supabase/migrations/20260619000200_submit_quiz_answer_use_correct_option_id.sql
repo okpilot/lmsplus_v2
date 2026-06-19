@@ -3,9 +3,12 @@
 -- options[].correct into the REVOKE-gated correct_option_id column and added a trigger that
 -- strips `correct` from options on every write. Once that strip runs, the old
 -- `(SELECT opt->>'id' ... WHERE (opt->>'correct')::boolean ...)` scan returns NULL, so
--- submit_quiz_answer must read q.correct_option_id instead or scoring breaks. Body copied
--- VERBATIM from its latest definition (20260610000400); the ONLY change is the
--- correctness-derivation swap. Depends on 20260619000100 (correct_option_id column).
+-- submit_quiz_answer must read q.correct_option_id instead or scoring breaks. Based on its
+-- latest definition (20260610000400); swaps the correctness derivation AND adds a
+-- duplicate-submit idempotency/re-read fix (#856, CR-local): on a duplicate submit the
+-- student_responses + fsrs_cards writes are skipped and is_correct is re-read from the
+-- persisted answer, so the stored answer and the FSRS signal can't diverge. Depends on
+-- 20260619000100 (correct_option_id column).
 
 CREATE OR REPLACE FUNCTION submit_quiz_answer(
   p_session_id        uuid,

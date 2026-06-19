@@ -203,7 +203,7 @@ async function seed() {
       question_text: `Internal-exam eval question ${i}: which option is correct?`,
       options: [
         { id: 'a', text: 'Option A' },
-        { id: 'b', text: 'Option B (correct)' },
+        { id: 'b', text: 'Option B' },
         { id: 'c', text: 'Option C' },
         { id: 'd', text: 'Option D' },
       ],

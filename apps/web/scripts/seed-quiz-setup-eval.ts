@@ -182,7 +182,7 @@ function makeQuestion(num: number, subtopicName: string) {
     hasQuestionImage: num % 3 === 0,
     options: [
       { id: 'a', text: `Option A for Q${num}` },
-      { id: 'b', text: `Option B for Q${num} (correct)` },
+      { id: 'b', text: `Option B for Q${num}` },
       { id: 'c', text: `Option C for Q${num}` },
       { id: 'd', text: `Option D for Q${num}` },
     ],

@@ -5,8 +5,10 @@
 -- multiple_choice grading branch changes: the per-question SELECT also fetches
 -- q.correct_option_id (into v_correct_option), replacing the old
 -- `(SELECT opt->>'id' ... WHERE (opt->>'correct')::boolean ...)` scan. short_answer /
--- dialog_fill normalize_answer logic is untouched. Body copied VERBATIM from the latest
--- definition (20260610001000); only the correctness-derivation swaps. Depends on
+-- dialog_fill normalize_answer logic is untouched. Based on the latest definition
+-- (20260610001000); swaps the correctness derivation AND adds blank_index canonicalization
+-- for duplicate detection (#856, CR-local): the duplicate-blank guard normalizes a numeric
+-- blank_index ("1" vs "01") to match the integer cast at insert time. Depends on
 -- 20260619000100 (correct_option_id column).
 
 CREATE OR REPLACE FUNCTION public.submit_vfr_rt_exam_answers(
