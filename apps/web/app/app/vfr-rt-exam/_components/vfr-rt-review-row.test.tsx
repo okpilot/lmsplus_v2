@@ -72,7 +72,6 @@ describe('VfrRtReviewRow — short_answer', () => {
   })
 
   it('shows accepted synonyms below the correct answer when the key has them', () => {
-    // baseRow already has accepted_synonyms: ['NH']
     render(<VfrRtReviewRow row={baseRow} index={0} />)
     expect(screen.getByText('Also accepted: NH')).toBeInTheDocument()
   })
@@ -206,8 +205,8 @@ describe('VfrRtReviewRow — dialog_fill', () => {
     render(<VfrRtReviewRow row={dialogRow} index={3} />)
     expect(screen.getByText(/Blank 1/)).toBeInTheDocument()
     expect(screen.getByText(/Blank 2/)).toBeInTheDocument()
-    // "Golf" is both the student answer and the correct answer for blank 1
-    expect(screen.getAllByText('Golf').length).toBeGreaterThanOrEqual(1)
+    // "Golf" is both the student answer and the correct answer for blank 1 → two renders
+    expect(screen.getAllByText('Golf')).toHaveLength(2)
     expect(screen.getByText('Alpha')).toBeInTheDocument()
     expect(screen.getByText('Bravo')).toBeInTheDocument()
   })

@@ -19,7 +19,8 @@ function loadAnswers(sessionId: string): AnswersMap {
     const raw = localStorage.getItem(storageKey(sessionId))
     if (!raw) return {}
     const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed !== 'object' || parsed === null) return {}
+    // typeof [] === 'object', so guard arrays out before casting to the keyed map.
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
     return parsed as AnswersMap
   } catch {
     return {}

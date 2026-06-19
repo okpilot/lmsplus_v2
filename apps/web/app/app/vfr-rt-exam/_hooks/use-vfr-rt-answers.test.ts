@@ -42,6 +42,18 @@ describe('useVfrRtAnswers', () => {
     expect(result.current.answers['q-5']).toEqual({ mc: 'opt-c' })
   })
 
+  it('starts empty when localStorage holds a JSON array instead of a map', () => {
+    localStorage.setItem(KEY, '[]')
+    const { result } = renderHook(() => useVfrRtAnswers(SESSION))
+    expect(result.current.answers).toEqual({})
+  })
+
+  it('starts empty when localStorage holds non-JSON garbage', () => {
+    localStorage.setItem(KEY, 'not json{{')
+    const { result } = renderHook(() => useVfrRtAnswers(SESSION))
+    expect(result.current.answers).toEqual({})
+  })
+
   it('updating one blank preserves the other blanks on the same question', () => {
     const { result } = renderHook(() => useVfrRtAnswers(SESSION))
     act(() => result.current.setBlank('q-3', 0, 'cleared'))

@@ -26,7 +26,6 @@ describe('ShortAnswerRenderer', () => {
 
   it('uses the default inputId to link the label', () => {
     render(<ShortAnswerRenderer value="" onChange={vi.fn()} />)
-    // Label "Your answer" should be associated with the input via the default id.
     expect(screen.getByLabelText('Your answer')).toBeInTheDocument()
   })
 

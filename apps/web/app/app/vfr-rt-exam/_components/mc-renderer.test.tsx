@@ -46,7 +46,6 @@ describe('McRenderer', () => {
 
   it('labels options A, B, C by position', () => {
     render(<McRenderer options={OPTIONS} value={null} onChange={vi.fn()} />)
-    // Each option row shows its letter prefix before the text.
     expect(screen.getByText('A')).toBeInTheDocument()
     expect(screen.getByText('B')).toBeInTheDocument()
     expect(screen.getByText('C')).toBeInTheDocument()

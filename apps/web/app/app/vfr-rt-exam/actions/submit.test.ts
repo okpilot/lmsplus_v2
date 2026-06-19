@@ -81,7 +81,7 @@ describe('submitVfrRtExam — input validation', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
   })
 
-  it('forwards an empty answers array to the RPC so the timer-expiry path can close the session', async () => {
+  it('returns success with the expired flag when submitting an empty answers array', async () => {
     // A timer expiry with zero answers submits []. The action must NOT reject it
     // client-side — the RPC's expiry branch grades+closes it and returns expired:true.
     mockRpc.mockResolvedValue({ data: { expired: true }, error: null })
