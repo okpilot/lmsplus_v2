@@ -101,7 +101,7 @@ describe('startVfrRtExam — RPC error messages', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
   })
 
-  it('maps not_authenticated to the generic auth message', async () => {
+  it('returns "Not authenticated" when the RPC returns not_authenticated', async () => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'not_authenticated' } })
     const result = await startVfrRtExam({ subjectId: VALID_SUBJECT_ID })
     expect(result.success).toBe(false)
@@ -223,7 +223,7 @@ describe('startVfrRtExam — happy path', () => {
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.sessionId).toBe(VALID_SESSION_ID)
-    expect(result.parts).toEqual({ p1_end: 1, p2_end: 2, p3_end: 2 })
+    expect(result.parts).toEqual({ p1End: 1, p2End: 2, p3End: 2 })
     expect(result.questionIds).toEqual(VALID_QUESTION_IDS)
     expect(result.timeLimitSeconds).toBe(1800)
   })

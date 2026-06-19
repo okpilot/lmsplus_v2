@@ -31,7 +31,7 @@ export type StartVfrRtExamResult =
       sessionId: string
       questionIds: string[]
       timeLimitSeconds: number
-      parts: z.infer<typeof PartsSchema>
+      parts: { p1End: number; p2End: number; p3End: number }
       startedAt: string
     }
   | { success: false; error: string }
@@ -81,7 +81,9 @@ export async function startVfrRtExam(raw: unknown): Promise<StartVfrRtExamResult
       sessionId: r.session_id,
       questionIds: r.question_ids,
       timeLimitSeconds: r.time_limit_seconds,
-      parts: r.parts,
+      // camelCase the client-facing contract — the rest of this return is
+      // camelCase; parts is the only nested object echoed from the RPC.
+      parts: { p1End: r.parts.p1_end, p2End: r.parts.p2_end, p3End: r.parts.p3_end },
       startedAt: r.started_at,
     }
   } catch (err) {

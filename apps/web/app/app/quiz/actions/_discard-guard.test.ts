@@ -32,8 +32,11 @@ describe('cleanupDiscardedDraft', () => {
   const DRAFT_ID = '00000000-0000-4000-a000-000000000001'
   const USER_ID = 'user-abc'
 
-  // Minimal Supabase client mock — only needs .from().delete().eq().eq()
-  function buildDeleteChain(returnValue: { error: { message: string } | null }) {
+  // Minimal Supabase client mock — only needs .from().delete().eq().eq().select()
+  function buildDeleteChain(returnValue: {
+    data?: Array<{ id: string }>
+    error: { message: string } | null
+  }) {
     const awaitable = {
       // biome-ignore lint/suspicious/noThenProperty: intentional thenable for Supabase chain mock
       then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) =>
@@ -68,5 +71,32 @@ describe('cleanupDiscardedDraft', () => {
     await expect(cleanupDiscardedDraft(mockSupabase, DRAFT_ID, USER_ID)).resolves.toBeUndefined()
 
     expect(consoleSpy).toHaveBeenCalledWith('[discardQuiz] Draft cleanup error:', 'draft not found')
+  })
+
+  it('logs a cleanup message when a draft row is actually deleted', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const mockSupabase = {
+      from: () => buildDeleteChain({ data: [{ id: DRAFT_ID }], error: null }),
+    } as unknown as Parameters<typeof cleanupDiscardedDraft>[0]
+
+    await cleanupDiscardedDraft(mockSupabase, DRAFT_ID, USER_ID)
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[discardQuiz] Cleaned up draft',
+      DRAFT_ID,
+      'for user',
+      USER_ID,
+    )
+  })
+
+  it('does not log a cleanup message when no draft row matches', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const mockSupabase = {
+      from: () => buildDeleteChain({ data: [], error: null }),
+    } as unknown as Parameters<typeof cleanupDiscardedDraft>[0]
+
+    await cleanupDiscardedDraft(mockSupabase, DRAFT_ID, USER_ID)
+
+    expect(consoleSpy).not.toHaveBeenCalled()
   })
 })
