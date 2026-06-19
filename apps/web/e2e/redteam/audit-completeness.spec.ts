@@ -1,7 +1,7 @@
 /**
  * Red Team Spec: Audit Event Completeness — quiz/exam/internal-exam positive emission
  *
- * Asserts the 12 quiz/exam/internal-exam audit_events.event_type literals are written
+ * Asserts the 10 quiz/exam/internal-exam audit_events.event_type literals are written
  * by their triggering flows: quiz_session.batch_submitted, exam.started, exam.completed,
  * exam.expired, internal_exam.code_issued, internal_exam.code_voided,
  * internal_exam.code_emailed, internal_exam.started, internal_exam.completed,
