@@ -240,11 +240,12 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     const code = await validCode()
     // Non-vacuity (code-style.md §7): prove the code exists before the attack, so
     // not_admin proves the role gate fired — not that the code was simply absent.
-    const { data: seeded } = await admin
+    const { data: seeded, error: seedError } = await admin
       .from('internal_exam_codes')
       .select('id')
       .eq('id', code.id)
       .single()
+    expect(seedError).toBeNull()
     expect(seeded?.id).toBe(code.id)
 
     const { data, error } = await attackerStudentClient.rpc('record_internal_exam_code_emailed', {
@@ -262,11 +263,12 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     // before the attack so the code_not_found below proves org-scoping, not an
     // empty table (non-vacuous, code-style.md §7).
     const code = await validCode()
-    const { data: seeded } = await admin
+    const { data: seeded, error: seedError } = await admin
       .from('internal_exam_codes')
       .select('id')
       .eq('id', code.id)
       .single()
+    expect(seedError).toBeNull()
     expect(seeded?.id).toBe(code.id)
 
     const { data, error } = await crossOrgAdminClient.rpc('record_internal_exam_code_emailed', {
@@ -295,11 +297,12 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     createdCodeIds.add(code.id)
     // Non-vacuity (code-style.md §7): prove the code exists before the attack, so
     // code_not_found proves the state guard fired — not that the row was absent.
-    const { data: seeded } = await admin
+    const { data: seeded, error: seedError } = await admin
       .from('internal_exam_codes')
       .select('id')
       .eq('id', code.id)
       .single()
+    expect(seedError).toBeNull()
     expect(seeded?.id).toBe(code.id)
 
     const { data, error } = await adminClientAuthed.rpc('record_internal_exam_code_emailed', {
@@ -325,11 +328,12 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     createdCodeIds.add(code.id)
     // Non-vacuity (code-style.md §7): prove the code exists before the attack, so
     // code_not_found proves the state guard fired — not that the row was absent.
-    const { data: seeded } = await admin
+    const { data: seeded, error: seedError } = await admin
       .from('internal_exam_codes')
       .select('id')
       .eq('id', code.id)
       .single()
+    expect(seedError).toBeNull()
     expect(seeded?.id).toBe(code.id)
 
     const { data, error } = await adminClientAuthed.rpc('record_internal_exam_code_emailed', {
@@ -355,11 +359,12 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     createdCodeIds.add(code.id)
     // Non-vacuity (code-style.md §7): prove the code exists before the attack, so
     // code_not_found proves the state guard fired — not that the row was absent.
-    const { data: seeded } = await admin
+    const { data: seeded, error: seedError } = await admin
       .from('internal_exam_codes')
       .select('id')
       .eq('id', code.id)
       .single()
+    expect(seedError).toBeNull()
     expect(seeded?.id).toBe(code.id)
 
     const { data, error } = await adminClientAuthed.rpc('record_internal_exam_code_emailed', {

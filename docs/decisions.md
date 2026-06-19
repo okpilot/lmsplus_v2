@@ -783,4 +783,4 @@ Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT D
 
 ---
 
-*Last updated: 2026-06-18 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*
+*Last updated: 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*
