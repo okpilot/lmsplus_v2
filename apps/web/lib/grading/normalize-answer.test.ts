@@ -37,4 +37,35 @@ describe('normalizeAnswer', () => {
   it('preserves diacritics rather than folding them to ASCII', () => {
     expect(normalizeAnswer('Čačak')).toBe('čačak')
   })
+
+  it('strips leading punctuation', () => {
+    expect(normalizeAnswer('.hello')).toBe('hello')
+  })
+
+  it('strips trailing punctuation', () => {
+    expect(normalizeAnswer('hello.')).toBe('hello')
+  })
+
+  it('collapses hyphens and underscores mixed with spaces into a single space', () => {
+    expect(normalizeAnswer('a-b_c d')).toBe('a b c d')
+  })
+
+  it('strips adjacent punctuation characters without leaving extra spaces', () => {
+    expect(normalizeAnswer('a.,b')).toBe('ab')
+  })
+
+  it('returns an empty string for an all-whitespace input', () => {
+    expect(normalizeAnswer('   ')).toBe('')
+  })
+
+  it('preserves non-ASCII characters that are not diacritics (e.g. ñ, ï)', () => {
+    expect(normalizeAnswer('Naïve')).toBe('naïve')
+    expect(normalizeAnswer('Ñoño')).toBe('ñoño')
+  })
+
+  // A real radiotelephony answer like an ICAO location bracket: both brackets
+  // must strip in one pass, matching the SQL grader's [ ] character-class.
+  it('strips a bracketed token down to its inner text', () => {
+    expect(normalizeAnswer('[LKPR]')).toBe('lkpr')
+  })
 })
