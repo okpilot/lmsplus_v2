@@ -109,6 +109,37 @@ test.describe('Red Team: Session Replay', () => {
     })
   }
 
+  // Build a fully-correct or fully-incorrect answer set by reading each question's
+  // `correct` flag via the service-role client (the attacker JWT never sees it).
+  // Used to seed two sessions with deterministically distinct grades (100 vs 0) so a
+  // replay regression that returns a hardcoded payload fails at least one fixture (§7).
+  async function buildGradedAnswers(allCorrect: boolean): Promise<unknown[]> {
+    const admin = getAdminClient()
+    const { data: rows, error } = await admin
+      .from('questions')
+      .select('id, options')
+      .in('id', questionIds)
+    if (error || !rows) throw new Error(`buildGradedAnswers: ${error?.message}`)
+    if (rows.length !== questionIds.length) {
+      throw new Error(
+        `buildGradedAnswers: expected ${questionIds.length} questions, got ${rows.length}`,
+      )
+    }
+    return questionIds.map((qid) => {
+      const raw = rows.find((r) => r.id === qid)?.options
+      const opts = Array.isArray(raw) ? (raw as { id: string; correct?: boolean }[]) : []
+      const chosen = allCorrect
+        ? opts.find((o) => o.correct === true)
+        : opts.find((o) => !o.correct)
+      if (!chosen) {
+        throw new Error(
+          `buildGradedAnswers: question ${qid} has no ${allCorrect ? 'correct' : 'incorrect'} option`,
+        )
+      }
+      return { question_id: qid, selected_option: chosen.id, response_time_ms: 3000 }
+    })
+  }
+
   test('rejects batch_submit_quiz replay on completed session', async () => {
     // Step 1: Start a quiz session
     const { data: startData, error: startError } = await attackerClient.rpc('start_quiz_session', {
@@ -464,5 +495,83 @@ test.describe('Red Team: Session Replay', () => {
       .eq('session_id', bhSessionId)
     expect(postReplayCountErr).toBeNull()
     expect(postReplayAnswerCount).toBe(preReplayAnswerCount)
+  })
+
+  // #869: the idempotent-replay branch (mig 095c, L73–99) re-reads the stored grade
+  // (correct_count / score_percentage / passed) and recomputes answered_count, returning
+  // them without an `expired` key. Assert the replay payload equals the first submit's
+  // across TWO distinct-grade fixtures (all-correct → 100, all-wrong → 0). A regression
+  // that returned a hardcoded payload would match at most one fixture, so running both
+  // makes the assertion non-vacuous (code-style.md §7 — full output contract / re-read path).
+  test('replay returns the stored grade payload, matching the first submit across distinct grades', async () => {
+    type BatchPayload = {
+      results?: unknown
+      total_questions?: number
+      answered_count?: number
+      correct_count?: number
+      score_percentage?: number
+      passed?: boolean | null
+      expired?: boolean
+    }
+
+    async function submitAndReplay(allCorrect: boolean): Promise<BatchPayload> {
+      const { data: startData, error: startError } = await attackerClient.rpc(
+        'start_quiz_session',
+        {
+          p_mode: 'quick_quiz',
+          p_subject_id: subjectId,
+          p_topic_id: topicId,
+          p_question_ids: questionIds,
+        },
+      )
+      expect(startError).toBeNull()
+      const sid = startData as string
+      createdSessionIds.add(sid)
+
+      const answers = await buildGradedAnswers(allCorrect)
+      const { data: firstData, error: firstError } = await attackerClient.rpc('batch_submit_quiz', {
+        p_session_id: sid,
+        p_answers: answers,
+      })
+      expect(firstError).toBeNull()
+      const first = firstData as BatchPayload
+
+      // Replay on the now-completed session with a different (last-option) answer set —
+      // the idempotent branch must ignore it and return the stored grade unchanged.
+      const replayAnswers = await buildAnswers(true)
+      const { data: replayData, error: replayError } = await attackerClient.rpc(
+        'batch_submit_quiz',
+        {
+          p_session_id: sid,
+          p_answers: replayAnswers,
+        },
+      )
+      expect(replayError).toBeNull()
+      const replay = replayData as BatchPayload
+
+      // Replay payload contract: no `expired` key, results is an array, and every scalar
+      // equals the first submit's value (re-read from storage, not recomputed from replay).
+      expect(replay.expired).toBeUndefined()
+      expect(Array.isArray(replay.results)).toBe(true)
+      expect(replay.total_questions).toBe(first.total_questions)
+      expect(replay.answered_count).toBe(first.answered_count)
+      expect(replay.correct_count).toBe(first.correct_count)
+      expect(replay.score_percentage).toBe(first.score_percentage)
+      expect(replay.passed).toBe(first.passed)
+      return first
+    }
+
+    const correctRun = await submitAndReplay(true)
+    const wrongRun = await submitAndReplay(false)
+
+    // Non-vacuity (§7): the two fixtures must produce genuinely distinct grades, so a
+    // hardcoded-constant replay regression cannot satisfy both runs above.
+    expect(correctRun.correct_count).toBe(3)
+    expect(correctRun.score_percentage).toBe(100)
+    expect(wrongRun.correct_count).toBe(0)
+    expect(wrongRun.score_percentage).toBe(0)
+    // quick_quiz is a study mode — batch_submit_quiz leaves `passed` NULL (mig 095c L247–257).
+    expect(correctRun.passed).toBeNull()
+    expect(wrongRun.passed).toBeNull()
   })
 })
