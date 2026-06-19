@@ -81,11 +81,19 @@ describe('submitVfrRtExam — input validation', () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
   })
 
-  it('rejects an empty answers array', async () => {
+  it('forwards an empty answers array to the RPC so the timer-expiry path can close the session', async () => {
+    // A timer expiry with zero answers submits []. The action must NOT reject it
+    // client-side — the RPC's expiry branch grades+closes it and returns expired:true.
+    mockRpc.mockResolvedValue({ data: { expired: true }, error: null })
     const result = await submitVfrRtExam({ sessionId: SESSION_ID, answers: [] })
-    expect(result.success).toBe(false)
-    if (result.success) return
-    expect(result.error).toBe('Invalid input')
+    expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'submit_vfr_rt_exam_answers', {
+      p_session_id: SESSION_ID,
+      p_answers: [],
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.redirect_to).toBe(`/app/vfr-rt-exam/results/${SESSION_ID}`)
+    expect(result.expired).toBe(true)
   })
 
   it('rejects a non-UUID sessionId', async () => {
