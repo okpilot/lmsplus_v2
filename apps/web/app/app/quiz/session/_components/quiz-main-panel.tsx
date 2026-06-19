@@ -9,6 +9,7 @@ type QuizMainPanelProps = {
   activeTab: QuestionTab
   userId: string
   onSelectionChange?: (id: string | null) => void
+  keyboardHighlightedId?: string | null
 }
 
 export function QuizMainPanel({
@@ -16,6 +17,7 @@ export function QuizMainPanel({
   activeTab,
   userId,
   onSelectionChange,
+  keyboardHighlightedId,
 }: Readonly<QuizMainPanelProps>) {
   if (!s.question) return null
 
@@ -47,11 +49,16 @@ export function QuizMainPanel({
         key={s.question.id}
         options={s.question.options}
         onSubmit={s.handleSelectAnswer}
+        // Options stay clickable mid-RPC (lockedRef prevents re-entry); only a
+        // session submit disables them. `submitting` drives the spinner + the
+        // Submit Answer button's own disabled state during the per-answer RPC.
         disabled={s.submitting}
+        submitting={s.answering}
         selectedOptionId={s.existingAnswer?.selectedOptionId ?? null}
         correctOptionId={s.currentFeedback?.correctOptionId ?? null}
         onSelectionChange={onSelectionChange}
         isExam={s.isExam}
+        keyboardHighlightedId={keyboardHighlightedId}
       />
     </div>
   )

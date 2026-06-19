@@ -1,8 +1,9 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import type { ExamSubjectOption } from '@/lib/queries/exam-subjects'
-import type { SubjectOption } from '@/lib/queries/quiz'
+import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 import { useExamStart } from '../_hooks/use-exam-start'
 import { useQuizConfig } from '../_hooks/use-quiz-config'
 import { ExamConfigForm } from './exam-config-form'
@@ -54,6 +55,8 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
                 onValueChange={config.setFilters}
                 calcMode={config.calcMode}
                 onCalcModeChange={config.setCalcMode}
+                imageMode={config.imageMode}
+                onImageModeChange={config.setImageMode}
               />
             )}
           </>
@@ -115,9 +118,13 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
           type="button"
           disabled={!examSubjectId || exam.loading}
           onClick={exam.handleStart}
+          aria-busy={exam.loading || undefined}
           className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {exam.loading ? 'Starting...' : 'Start Practice Exam'}
+          <span className="inline-flex items-center justify-center gap-2">
+            {exam.loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+            {exam.loading ? 'Starting...' : 'Start Practice Exam'}
+          </span>
         </button>
       ) : (
         <button
@@ -130,9 +137,13 @@ export function QuizConfigForm({ userId, subjects, examSubjects }: QuizConfigFor
             config.authError
           }
           onClick={config.handleStart}
+          aria-busy={config.loading || undefined}
           className="w-full rounded-[10px] bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {config.loading ? 'Starting...' : 'Start Quiz'}
+          <span className="inline-flex items-center justify-center gap-2">
+            {config.loading && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+            {config.loading ? 'Starting...' : 'Start Quiz'}
+          </span>
         </button>
       )}
     </div>

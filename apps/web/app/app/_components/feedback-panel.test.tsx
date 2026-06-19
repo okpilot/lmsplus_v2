@@ -62,9 +62,13 @@ describe('FeedbackPanel', () => {
         onNext={vi.fn()}
       />,
     )
-    const img = screen.getByRole('img', { name: 'Explanation illustration' })
-    expect(img).toBeInTheDocument()
-    expect(img).toHaveAttribute('src', 'https://cdn.example.com/explain.png')
+    // The image opens in a new tab (#863): wrapped in a link whose aria-label is
+    // the accessible name; the img itself is presentational.
+    const link = screen.getByRole('link', {
+      name: 'Open image in new tab: Explanation illustration',
+    })
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link.querySelector('img')).toHaveAttribute('src', 'https://cdn.example.com/explain.png')
   })
 
   it('does not render an explanation image when URL is null', () => {
@@ -76,7 +80,7 @@ describe('FeedbackPanel', () => {
         onNext={vi.fn()}
       />,
     )
-    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('calls onNext when the Next Question button is clicked', async () => {

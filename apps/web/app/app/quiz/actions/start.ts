@@ -2,7 +2,7 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
-import { getRandomQuestionIds } from '@/lib/queries/quiz'
+import { getRandomQuestionIds } from '@/lib/queries/quiz-session-queries'
 import { rpc } from '@/lib/supabase-rpc'
 import type { StartQuizResult } from '../types'
 
@@ -13,6 +13,7 @@ const StartQuizInput = z.object({
   count: z.number().int().min(1).max(500),
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
   calcMode: z.enum(['all', 'only', 'exclude']).default('all'),
+  imageMode: z.enum(['all', 'only', 'exclude']).default('all'),
 })
 
 export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
@@ -39,6 +40,7 @@ export async function startQuizSession(raw: unknown): Promise<StartQuizResult> {
       count: input.count,
       filters: input.filters,
       calcMode: input.calcMode,
+      imageMode: input.imageMode,
     })
 
     if (questionIds.length === 0) {

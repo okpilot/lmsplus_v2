@@ -10,10 +10,12 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 1. **Run the review:**
    ```bash
-   coderabbit review --plain --base master --type committed > /tmp/cr-local-roundN.log 2>&1; \
+   coderabbit review --plain --base master --type committed -c .coderabbit.yaml > /tmp/cr-local-roundN.log 2>&1; \
    printf '\n════════════════════════════════════════════════════════════════════════════\nSTOP. Triage → Plan → Execute → Pipeline → Re-run.\nThe review log is INPUT, not a TODO list. Read source for every finding\n(verify file paths and line numbers — CR is sometimes wrong), triage into\napply/skip/defer, write a short plan inline (files, blast radius, risks,\nverification), then execute and run the post-commit review agents.\n════════════════════════════════════════════════════════════════════════════\n' >> /tmp/cr-local-roundN.log
    ```
    The command runs in 2-5 minutes. Use `run_in_background: true` and the Monitor-style wait pattern (`until grep -qiE "Review completed|findings ✔" <output> ...`).
+
+   **Always pass `-c .coderabbit.yaml`** (belt-and-suspenders). Both the hosted PR bot AND the CLI auto-load the repo-root config — confirmed by behavioral A/B 2026-06-18 (CLI 0.6.1): a fixture violating the `actions.ts` `path_instructions` was flagged identically with and without `-c` (see `reference-crlocal-cli-vs-cloud` memory). So `-c` is **cheap redundancy, not a necessity** — keep it because it makes the config explicit and is robust if a future CLI version changes auto-load behavior. Omit only if `.coderabbit.yaml` does not exist. You may pass additional rule-dense docs the same way (`-c .coderabbit.yaml CLAUDE.md`); mind the prompt token budget. (Note: the CLI honors `path_instructions` but does NOT run `pre_merge_checks`/`custom_checks` as named merge gates — those are hosted-PR-bot-only, confirmed by a second A/B 2026-06-18; their protections still surface via `path_instructions` + CR's default security review.)
 
    **Belt-and-suspenders reminder delivery.** Two layers:
    1. The trailing `printf` block is appended to `/tmp/cr-local-roundN.log` via `>>` (must be on the printf, not on the `coderabbit review` line — shell redirect scope ends at the semicolon, so `2>&1` on the first command does not carry over to printf). When the orchestrator reads the completed log, the STOP block is at the bottom, right after the findings. Works in both foreground and background bash modes.
@@ -42,11 +44,15 @@ But CodeRabbit is an LLM reviewer with no convergence guarantee — it can find 
 
 7. **Re-run the review** after your fix commit lands.
 
-8. **Stop the loop** when ANY of these is true:
-   - Round comes back with 0 findings.
-   - ≥ 75% of a round's findings are "Aesthetic preference" or "Contradicts codebase pattern."
-   - Two consecutive rounds produce only stylistic findings with no Apply verdicts.
-   - You've shipped 4 fix commits driven by CR local on this branch (cap — escalate to user judgment after that).
+8. **Minimum-rounds floor (anti-non-determinism).** CodeRabbit is non-deterministic — the same diff yields different findings each run, so a *single* quiet round is NOT evidence the diff is clean. Declare CR-local "clean" only after **N consecutive clean rounds**, where a *clean round* = 0 findings, OR stylistic-only findings (`Aesthetic preference` / `Contradicts codebase pattern`) with zero Apply verdicts:
+   - **N = 2** for a normal diff.
+   - **N = 3** when the diff touches a security path (the `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/`, `packages/db/`, `apps/web/app/app/quiz/actions/`, `apps/web/app/auth/`, `apps/web/proxy.ts`, `docs/security.md`). Compute via `git diff master...HEAD --name-only`.
+
+   Every floor round must run with `-c .coderabbit.yaml`. Any round carrying an **Apply** verdict **resets the consecutive-clean counter to zero** — fix it, then resume counting from the next round. Report the running count to the user each round (e.g. "clean round 1/2").
+
+9. **Stop the loop** when EITHER:
+   - The minimum-rounds floor above is satisfied (N consecutive clean rounds), OR
+   - You've shipped **4 fix commits** driven by CR local on this branch — a hard ceiling that caps total effort even if the floor isn't met; escalate to user judgment rather than looping further.
 
 ## Round summary template (give this to the user after each round)
 
@@ -59,6 +65,7 @@ CR local round N — <count> findings
 
 Applied: <count>
 Skipped: <count>
+Consecutive clean rounds: <X>/<N>   (floor: N=2 normal, N=3 security-path; any Apply resets to 0)
 Stop condition met: yes/no — <reason>
 ```
 

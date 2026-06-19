@@ -118,7 +118,7 @@ export async function seedQuestions(opts: {
       { id: 'c', text: `Option C ${i}` },
       { id: 'd', text: `Option D ${i}` },
     ],
-    // MC answer key now lives in its own REVOKE-gated column (#823, mig 109).
+    // MC answer key now lives in its own REVOKE-gated column (#823, mig 111).
     // 'b' is the correct option for every seeded question.
     correct_option_id: 'b',
     explanation_text: `Explanation for question ${i + 1}`,

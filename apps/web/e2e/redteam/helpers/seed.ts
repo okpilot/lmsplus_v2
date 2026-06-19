@@ -7,8 +7,8 @@ export const VICTIM_PASSWORD = 'redteam-victim-2026!'
 
 export const ADMIN_EMAIL = 'redteam-admin@lmsplus.local'
 export const ADMIN_PASSWORD = 'redteam-admin-2026!'
-export const CROSS_ORG_ADMIN_EMAIL = 'redteam-crossorg-admin@lmsplus.local'
-export const CROSS_ORG_ADMIN_PASSWORD = 'redteam-crossorg-admin-2026!'
+const CROSS_ORG_ADMIN_EMAIL = 'redteam-crossorg-admin@lmsplus.local'
+const CROSS_ORG_ADMIN_PASSWORD = 'redteam-crossorg-admin-2026!'
 
 // E2E hermiticity markers — exported per code-style.md §7 so cleanup queries
 // in any spec or maintenance script can target the rows these tests create.

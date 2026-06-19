@@ -1,5 +1,6 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { useComments } from '../session/_hooks/use-comments'
 import { getAvatarColor, getInitials } from './comment-helpers'
@@ -103,9 +104,13 @@ export function CommentsTab({ questionId, currentUserId }: CommentsTabProps) {
           type="button"
           onClick={handleSubmit}
           disabled={!body.trim() || submitting}
+          aria-busy={submitting || undefined}
           className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          Post
+          <span className="inline-flex items-center justify-center gap-2">
+            {submitting && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+            {submitting ? 'Posting...' : 'Post'}
+          </span>
         </button>
       </div>
     </div>

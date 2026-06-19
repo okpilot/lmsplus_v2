@@ -3,12 +3,16 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import { requireAuthUser } from '@/lib/auth/require-auth-user'
-import type { SubtopicOption, TopicOption, TopicWithSubtopics } from '@/lib/queries/quiz'
+import type {
+  SubtopicOption,
+  TopicOption,
+  TopicWithSubtopics,
+} from '@/lib/queries/quiz-query-types'
 import {
   getSubtopicsForTopic,
   getTopicsForSubject,
   getTopicsWithSubtopics,
-} from '@/lib/queries/quiz'
+} from '@/lib/queries/quiz-subject-queries'
 import { rpc } from '@/lib/supabase-rpc'
 
 const IdSchema = z.uuid()
@@ -79,6 +83,7 @@ const FilteredCountSchema = z.object({
   subtopicIds: z.array(z.uuid()).optional(),
   filters: z.array(z.enum(['all', 'unseen', 'incorrect', 'flagged'])).default(['all']),
   calcMode: z.enum(['all', 'only', 'exclude']).default('all'),
+  imageMode: z.enum(['all', 'only', 'exclude']).default('all'),
 })
 
 export type FilteredCountResult = {
@@ -105,10 +110,10 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     console.error('[getFilteredCount] Invalid input')
     return empty
   }
-  const { subjectId, topicIds, subtopicIds, filters, calcMode } = parsed
+  const { subjectId, topicIds, subtopicIds, filters, calcMode, imageMode } = parsed
 
   // undefined → null to RPC = unconstrained (whole subject pool); [] → empty array = match nothing (topic_id = ANY('{}') is always false).
-  // p_calc_mode is a literal enum the RPC reads directly ('all' = unrestricted via CASE ELSE) — pass it through without stripping.
+  // p_calc_mode / p_has_image are literal enums the RPC reads directly ('all' = unrestricted via CASE ELSE) — pass them through without stripping.
   const { data, error } = await rpc<
     { topic_id: string; subtopic_id: string | null; n: number | string }[]
   >(supabase, 'get_filtered_question_counts', {
@@ -117,6 +122,7 @@ export async function getFilteredCount(input: unknown): Promise<FilteredCountRes
     p_subtopic_ids: subtopicIds ?? null,
     p_filters: filters.filter((f) => f !== 'all'),
     p_calc_mode: calcMode,
+    p_has_image: imageMode,
   })
   if (error) {
     console.error('[getFilteredCount] get_filtered_question_counts error:', error.message)

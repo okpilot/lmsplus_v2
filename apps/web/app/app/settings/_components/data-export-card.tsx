@@ -3,8 +3,8 @@
 import { Download } from 'lucide-react'
 import { useTransition } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { LoadingButton } from '@/components/ui/loading-button'
 import { downloadJsonFile } from '@/lib/gdpr/download-json'
 import { exportMyData } from '../gdpr-actions'
 
@@ -50,10 +50,15 @@ export function DataExportCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button onClick={handleExport} disabled={isPending} variant="outline">
+        <LoadingButton
+          onClick={handleExport}
+          loading={isPending}
+          loadingText="Exporting..."
+          variant="outline"
+        >
           <Download className="mr-2 size-4" />
-          {isPending ? 'Exporting...' : 'Export My Data'}
-        </Button>
+          Export My Data
+        </LoadingButton>
       </CardContent>
     </Card>
   )

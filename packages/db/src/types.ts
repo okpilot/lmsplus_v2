@@ -1295,6 +1295,7 @@ export type Database = {
         Args: {
           p_calc_mode?: string
           p_filters: string[]
+          p_has_image?: string
           p_subject_id: string
           p_subtopic_ids: string[]
           p_topic_ids: string[]
@@ -1395,6 +1396,7 @@ export type Database = {
         Args: {
           p_calc_mode?: string
           p_filters: string[]
+          p_has_image?: string
           p_subject_id: string
           p_subtopic_ids: string[]
           p_topic_ids: string[]
@@ -1446,6 +1448,7 @@ export type Database = {
           p_calc_mode?: string
           p_count: number
           p_filters: string[]
+          p_has_image?: string
           p_subject_id: string
           p_subtopic_ids: string[]
           p_topic_ids: string[]

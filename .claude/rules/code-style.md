@@ -702,6 +702,24 @@ test.describe('Admin Student Management — Create', () => {
 
 Reason: issue #587 — `admin-questions.spec.ts`'s bulk-Deactivate test flipped every visible MET question to `status='draft'` and never restored. Within Playwright's `admin-e2e` project, admin-questions runs alphabetically before `internal-exam-*.spec.ts`, so `start_internal_exam_session` raised `insufficient_questions_for_exam` and 6 internal-exam specs timed out in CI. Promoted to a rule at count=2 (`admin-students.spec.ts` was already hermetic; `admin-questions.spec.ts` is the second).
 
+### Multi-Step Cleanup Needs a Per-Step Error Accumulator (from 2026-06-14)
+
+Any `afterEach`/`afterAll` (or shared cleanup helper) with **2 or more distinct cleanup steps** — separate DB mutations or restore operations — must isolate each step in its own `try/catch` and accumulate errors, instead of `await`-ing them sequentially with no isolation. A bare throw in step N (a failed delete, an RLS rejection surfaced via `{ error }`) otherwise skips steps N+1…M, leaking their rows into the next spec — the exact cross-spec coupling the hermiticity rule above prevents.
+
+The required shape (canonical example: `rpc-void-internal-exam-code.spec.ts`):
+
+1. `const errors: string[] = []` at the top of the block.
+2. Each step in its own `try { … if (error) throw … } catch (e) { errors.push(e instanceof Error ? e.message : String(e)) } finally { <reset this step's tracking var/set> }`. The `finally` reset (`createdIds.clear()`, `mutated = false`) runs on both success and failure, so a failed step cannot replay stale ids into the next cleanup.
+3. After all steps: `if (errors.length > 0) throw new Error(\`afterEach: ${errors.join('; ')}\`)` — surfaces every failure at once without any step skipping a later one.
+
+**Dependent steps:** when a later step depends on an earlier one — an FK ordering (delete a parent row after its FK children, insert children after their parent) OR a data dependency (the step needs a value the earlier step resolved, e.g. a looked-up `userId`) — additionally guard the dependent step with `errors.length === 0` so a failed prerequisite doesn't run the dependent step and trigger a spurious error that masks the real cause. Independent steps (the common case) do not need this guard.
+
+**Best-effort steps:** a cleanup step whose failure does NOT leak shared seed state into the next spec — e.g. `auth.admin.deleteUser` on a user that carries immutable `audit_events` FK references (so the delete can never fully succeed), where the row is reused across runs — should log-and-continue (`console.error`), NOT accumulate into the fatal error list. Accumulating it would make a deliberately-tolerated failure fail CI. Reserve the accumulator + final throw for steps whose failure WOULD leak state (the soft-delete/restore of shared rows).
+
+Complements (does not duplicate) the Biome `noUnsafeFinally` rule — that bans `throw` inside `finally`; this rule governs the cross-step isolation structure. **Single-step cleanups** (one mutation, or one shared-helper call that internally isolates) are exempt.
+
+Promoted at count=2 — `64339b28` (a `throw` inside an `afterEach` finally) + `4f918ded` (`rpc-cross-tenant.spec.ts` afterAll: sequential cleanup blocks with no per-block isolation; a throw in block 1 risked the CL3 seeded session leaking into downstream specs). See issue #794.
+
 ### Paginated Fetch Needs a Caller-Level Page-Error Test (from 2026-06-01)
 
 Any caller of `fetchAllRows` (or any multi-fetch / `.range()` pagination helper) must have a co-located test asserting that a **page-fetch error after a successful count** propagates correctly. Set it up one of two ways depending on how the suite mocks the helper:

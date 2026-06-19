@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CalcMode, QuestionFilterValue, QuizMode } from '../types'
+import type { CalcMode, ImageMode, QuestionFilterValue, QuizMode } from '../types'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -105,6 +105,8 @@ function buildDefaultConfig() {
     setFilters: vi.fn(),
     calcMode: 'all' as CalcMode,
     setCalcMode: vi.fn(),
+    imageMode: 'all' as ImageMode,
+    setImageMode: vi.fn(),
     count: 10,
     setCount: vi.fn(),
     availableCount: 100,
@@ -205,10 +207,13 @@ describe('QuizConfigForm', () => {
     expect(screen.getByRole('button', { name: 'Start Quiz' })).not.toBeDisabled()
   })
 
-  it('shows "Starting..." text and disables button while loading', () => {
+  it('shows "Starting..." text, disables the button, and marks it busy with a spinner while loading', () => {
     mockUseQuizConfig.mockReturnValue(makeDefaultConfig({ subjectId: 'sub-1', loading: true }))
     render(<QuizConfigForm userId="test-user-id" subjects={SUBJECTS} examSubjects={[]} />)
-    expect(screen.getByRole('button', { name: 'Starting...' })).toBeDisabled()
+    const btn = screen.getByRole('button', { name: 'Starting...' })
+    expect(btn).toBeDisabled()
+    expect(btn).toHaveAttribute('aria-busy', 'true')
+    expect(btn.querySelector('svg[aria-hidden="true"].animate-spin')).not.toBeNull()
   })
 
   it('shows error message when the hook reports an error', () => {

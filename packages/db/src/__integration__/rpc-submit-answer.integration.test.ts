@@ -95,7 +95,7 @@ describe('RPC: submit_quiz_answer', () => {
   })
 
   it('scores MC answer via the correct_option_id column after options.correct is stripped', async () => {
-    // #823 (mig 109): the answer key moved out of options[].correct (stripped on
+    // #823 (mig 111): the answer key moved out of options[].correct (stripped on
     // write by the sanitize trigger) into the REVOKE-gated correct_option_id
     // column. Prove the seeded question's stored options carry NO `correct` key,
     // yet scoring against the column still marks 'b' correct.
@@ -175,7 +175,7 @@ describe('RPC: submit_quiz_answer', () => {
   })
 
   it("keeps the first answer's result on a duplicate submit with a different option", async () => {
-    // #856 (mig 110): a duplicate submit for the same (session, question) is a true
+    // #856 (mig 112): a duplicate submit for the same (session, question) is a true
     // no-op on student state — the answer row is ON CONFLICT DO NOTHING, and
     // student_responses + fsrs_cards are only written when the answer row was newly
     // inserted. The duplicate path re-reads the persisted is_correct and returns THAT,

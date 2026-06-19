@@ -88,22 +88,22 @@ const SUBJECTS: SubjectSeed[] = [
         code: '050-01',
         name: 'The Atmosphere',
         subtopics: [
-          { code: '050-01-01', name: 'Composition, extent, vertical division', questionCount: 4 },
-          { code: '050-01-02', name: 'Temperature', questionCount: 3 },
+          { code: '050-01-01', name: 'Composition, extent, vertical division', questionCount: 12 },
+          { code: '050-01-02', name: 'Temperature', questionCount: 10 },
         ],
       },
       {
         code: '050-02',
         name: 'Wind',
         subtopics: [
-          { code: '050-02-01', name: 'Definition and measurement of wind', questionCount: 3 },
-          { code: '050-02-02', name: 'Primary cause of wind', questionCount: 2 },
+          { code: '050-02-01', name: 'Definition and measurement of wind', questionCount: 10 },
+          { code: '050-02-02', name: 'Primary cause of wind', questionCount: 9 },
         ],
       },
       {
         code: '050-03',
         name: 'Clouds and Precipitation',
-        subtopics: [{ code: '050-03-01', name: 'Cloud formation and types', questionCount: 3 }],
+        subtopics: [{ code: '050-03-01', name: 'Cloud formation and types', questionCount: 9 }],
       },
     ],
   },
@@ -171,20 +171,55 @@ const QUESTION_STEMS = [
 
 function makeQuestion(num: number, subtopicName: string) {
   const stem = QUESTION_STEMS[num % QUESTION_STEMS.length]
+  // Image coverage for #863 (open-in-new-tab) and #864 (has-image filter):
+  // ~1 in 3 questions carry a question image; ~1 in 5 also carry an explanation
+  // image. The actual URL (a same-origin Supabase Storage object — the app's CSP
+  // img-src forbids external hosts) is filled in at insert time from the uploaded
+  // sample, so makeQuestion only decides WHICH questions get one.
   return {
     question_number: `EVAL-${String(num).padStart(3, '0')}`,
     question_text: `${stem} ${subtopicName.toLowerCase()}?`,
+    hasQuestionImage: num % 3 === 0,
     options: [
       { id: 'a', text: `Option A for Q${num}` },
       { id: 'b', text: `Option B for Q${num} (correct)` },
       { id: 'c', text: `Option C for Q${num}` },
       { id: 'd', text: `Option D for Q${num}` },
     ],
-    // MC answer key now lives in its own REVOKE-gated column (#823, mig 109).
+    // MC answer key now lives in its own REVOKE-gated column (#823, mig 111).
     correct_option_id: 'b',
     explanation_text: `Explanation for question ${num} about ${subtopicName}.`,
+    hasExplanationImage: num % 5 === 0,
     difficulty: num % 3 === 0 ? 'hard' : num % 3 === 1 ? 'easy' : 'medium',
   }
+}
+
+/**
+ * Uploads a sample SVG to the public `question-images` bucket and returns its
+ * Storage public URL. Same-origin (http://127.0.0.1:54321/...), so the app's CSP
+ * `img-src` allows it to render AND #863's open-in-new-tab works. Idempotent via
+ * upsert. The two seeded variants (question vs explanation) differ only in label.
+ */
+async function uploadSampleImage(label: string, color: string): Promise<string> {
+  // Escape interpolated values so the SVG stays well-formed. Both call sites pass
+  // hardcoded literals today; this keeps the constraint explicit if a future caller
+  // ever passes a config- or user-derived string.
+  const esc = (s: string) => s.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420">
+  <rect width="640" height="420" fill="${esc(color)}"/>
+  <text x="320" y="210" font-family="sans-serif" font-size="40" fill="#ffffff"
+    text-anchor="middle" dominant-baseline="middle">${esc(label)}</text>
+</svg>`
+  const path = `eval/${label.toLowerCase().replace(/\s+/g, '-')}.svg`
+  const { error } = await db.storage
+    .from('question-images')
+    .upload(path, new Blob([svg], { type: 'image/svg+xml' }), {
+      upsert: true,
+      contentType: 'image/svg+xml',
+    })
+  if (error) throw new Error(`Sample image upload (${path}): ${error.message}`)
+  const { data } = db.storage.from('question-images').getPublicUrl(path)
+  return data.publicUrl
 }
 
 async function seed() {
@@ -258,6 +293,11 @@ async function seed() {
   const subjectQuestionIds: Record<string, string[]> = {}
   let firstSubjectId = ''
   let firstSubjectName = ''
+
+  // Upload the two sample images once; reuse their URLs across all image questions.
+  const questionImageUrl = await uploadSampleImage('Question image', '#1d4ed8')
+  const explanationImageUrl = await uploadSampleImage('Explanation image', '#047857')
+  console.log('  Uploaded sample images to question-images bucket')
 
   for (const subj of SUBJECTS) {
     const { data: subject, error: subjErr } = await db
@@ -343,9 +383,11 @@ async function seed() {
               topic_id: topicId,
               subtopic_id: subtopicId,
               question_text: q.question_text,
+              question_image_url: q.hasQuestionImage ? questionImageUrl : null,
               options: q.options,
               correct_option_id: q.correct_option_id,
               explanation_text: q.explanation_text,
+              explanation_image_url: q.hasExplanationImage ? explanationImageUrl : null,
               difficulty: q.difficulty,
               status: 'active',
               created_by: adminId,

@@ -1,10 +1,11 @@
 /**
  * Red Team Spec: Audit Event Completeness — quiz/exam/internal-exam positive emission
  *
- * Asserts the 11 quiz/exam/internal-exam audit_events.event_type literals are written
+ * Asserts the 10 quiz/exam/internal-exam audit_events.event_type literals are written
  * by their triggering flows: quiz_session.batch_submitted, exam.started, exam.completed,
  * exam.expired, internal_exam.code_issued, internal_exam.code_voided,
- * internal_exam.started, internal_exam.completed, internal_exam.expired.
+ * internal_exam.code_emailed, internal_exam.started, internal_exam.completed,
+ * internal_exam.expired.
  *
  * The 5 auth-event tests (student.login + CT record_auth_event) live in
  * audit-auth-events.spec.ts.
@@ -38,6 +39,49 @@ import {
   seedRedTeamAdmin,
   seedRedTeamUsers,
 } from './helpers/seed'
+
+/**
+ * Assert the full within-time-limit `batch_submit_quiz` return contract (#818, §7).
+ * The success path (mig 20260610000450) returns the grade fields but NO `expired`
+ * key — only the past-grace path sets `expired: true` — so on a within-time submit
+ * `expired` must be `undefined` (the submit was NOT flagged expired), and the
+ * documented success payload must be present and well-typed.
+ */
+function expectWithinTimeSubmitContract(submitData: unknown, expectedAnswered: number): void {
+  // Runtime-guard the cast (§5): the RPC returns a jsonb object — fail loudly if
+  // the payload is null/array/primitive rather than silently asserting on undefined.
+  if (submitData === null || typeof submitData !== 'object' || Array.isArray(submitData)) {
+    throw new Error(
+      `expected a batch_submit_quiz object payload, got: ${JSON.stringify(submitData)}`,
+    )
+  }
+  const r = submitData as {
+    expired?: boolean
+    results?: unknown[]
+    answered_count?: number
+    correct_count?: number
+    total_questions?: number
+    passed?: boolean
+    score_percentage?: number
+  }
+  expect(r.expired).toBeUndefined()
+  expect(r.answered_count).toBe(expectedAnswered)
+  expect(typeof r.correct_count).toBe('number')
+  // Bounds (§7): correct answers can't be negative or exceed the count submitted.
+  expect(r.correct_count ?? -1).toBeGreaterThanOrEqual(0)
+  expect(r.correct_count ?? Infinity).toBeLessThanOrEqual(expectedAnswered)
+  expect(typeof r.total_questions).toBe('number')
+  expect(r.total_questions ?? 0).toBeGreaterThan(0)
+  expect(typeof r.passed).toBe('boolean')
+  expect(typeof r.score_percentage).toBe('number')
+  // Bounds (§7): a percentage is in [0, 100].
+  expect(r.score_percentage ?? -1).toBeGreaterThanOrEqual(0)
+  expect(r.score_percentage ?? Infinity).toBeLessThanOrEqual(100)
+  // results is the per-question payload array — one entry per submitted answer.
+  // Assert length (not just Array.isArray, which passes on an emptied []).
+  expect(Array.isArray(r.results)).toBe(true)
+  expect(r.results?.length).toBe(expectedAnswered)
+}
 
 test.describe('Red Team: Audit Event Completeness', () => {
   let admin: ReturnType<typeof getAdminClient>
@@ -139,11 +183,12 @@ test.describe('Red Team: Audit Event Completeness', () => {
     tracker.sessions.add(sessionId)
 
     const answers = await buildAnswersForSession(admin, sessionId)
-    const { error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
+    const { data: submitData, error: submitErr } = await studentClient.rpc('batch_submit_quiz', {
       p_session_id: sessionId,
       p_answers: answers,
     })
     expect(submitErr).toBeNull()
+    expectWithinTimeSubmitContract(submitData, answers.length)
 
     await expectAuditRow(admin, 'exam.completed', studentUserId, testStart, sessionId)
     await expectCompletionMetadata(admin, {
@@ -298,6 +343,27 @@ test.describe('Red Team: Audit Event Completeness', () => {
     await expectAuditRow(admin, 'internal_exam.code_voided', adminUserId, testStart, codeId)
   })
 
+  test('writes internal_exam.code_emailed when admin emails a code (actor=admin)', async () => {
+    const testStart = new Date().toISOString()
+
+    const { codeId } = await issueCodeViaRpc(
+      adminAuthedClient,
+      subjectId,
+      studentUserId,
+      tracker.codes,
+    )
+    const { data: emailData, error: emailErr } = await adminAuthedClient.rpc(
+      'record_internal_exam_code_emailed',
+      { p_code_id: codeId },
+    )
+    expect(emailErr).toBeNull()
+    // record_internal_exam_code_emailed RETURNS void — the documented success
+    // payload is null (code-style.md §7 RPC output contract).
+    expect(emailData).toBeNull()
+
+    await expectAuditRow(admin, 'internal_exam.code_emailed', adminUserId, testStart, codeId)
+  })
+
   test('writes internal_exam.started when student redeems a valid code', async () => {
     const testStart = new Date().toISOString()
 
@@ -347,8 +413,7 @@ test.describe('Red Team: Audit Event Completeness', () => {
       p_answers: answers,
     })
     expect(submitErr).toBeNull()
-    // expired flag should be false on the within-time-limit path
-    expect((submitData as { expired?: boolean } | null)?.expired).not.toBe(true)
+    expectWithinTimeSubmitContract(submitData, answers.length)
 
     await expectAuditRow(admin, 'internal_exam.completed', studentUserId, testStart, sessionId)
     await expectCompletionMetadata(admin, {

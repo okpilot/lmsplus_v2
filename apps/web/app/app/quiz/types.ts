@@ -1,3 +1,5 @@
+import type { ActionResult } from '@/lib/action-result'
+
 export type SubmitRpcResult = {
   is_correct: boolean
   correct_option_id: string
@@ -29,7 +31,7 @@ export type CompleteQuizResult =
   | { success: true; totalQuestions: number; correctCount: number; scorePercentage: number }
   | { success: false; error: string }
 
-export type BatchAnswerResult = {
+type BatchAnswerResult = {
   questionId: string
   isCorrect: boolean
   correctOptionId: string
@@ -97,9 +99,7 @@ export type DraftData = {
   createdAt?: string
 }
 
-export type DraftResult = { success: true } | { success: false; error: string }
-
-export type LoadDraftResult = { draft: DraftData | null }
+export type DraftResult = ActionResult
 
 export type LoadDraftsResult = { drafts: DraftData[] }
 
@@ -150,14 +150,19 @@ export type QuestionFilterValue = 'all' | 'unseen' | 'incorrect' | 'flagged'
 
 export type CalcMode = 'all' | 'only' | 'exclude'
 
+// Tri-state filter on whether a question carries an image (#864). Same shape as
+// CalcMode: 'only' = image questions only, 'exclude' = hide them, 'all' = default.
+export type ImageMode = 'all' | 'only' | 'exclude'
+
 export type UseQuizStartOpts = {
   userId: string
   subjectId: string
-  subjects: import('@/lib/queries/quiz').SubjectOption[]
+  subjects: import('@/lib/queries/quiz-query-types').SubjectOption[]
   count: number
   maxQuestions: number
   filters: QuestionFilterValue[]
   calcMode: CalcMode
+  imageMode: ImageMode
   topicTree: {
     getSelectedTopicIds: () => string[]
     getSelectedSubtopicIds: () => string[]
@@ -176,6 +181,7 @@ export type FilteredCountState = {
     subtopicIds: string[],
     filters: QuestionFilterValue[],
     calcMode?: CalcMode,
+    imageMode?: ImageMode,
   ) => void
   reset: () => void
 }

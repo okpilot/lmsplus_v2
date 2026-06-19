@@ -19,24 +19,24 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.16",
+    "@biomejs/biome": "^2.5.0",
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
     "@commitlint/types": "^21.0.1",
-    "knip": "^6.16.1",
+    "knip": "^6.17.1",
     "lefthook": "^2.1.9",
-    "turbo": "^2.9.16",
+    "turbo": "^2.9.18",
     "typescript": "^6.0.3"
   },
-  "//pnpm-overrides": "Security/dedup pins. esbuild>=0.28.1 keeps the whole toolchain (vite, webpack, tsx) on the single esbuild version the lockfile already resolves, above the GHSA-67mh-4wv8-2f99 fix line (0.25.0); the floor also avoids a split esbuild graph that pnpm audit / dedupe would flag.",
   "pnpm": {
     "overrides": {
-      "undici": ">=7.24.0 <8",
+      "undici": ">=7.28.0 <8",
       "zod": "^4.4.3",
       "next": ">=16.2.6 <17",
       "fast-uri": ">=3.1.2 <4",
       "postcss": ">=8.5.10 <9",
-      "esbuild": ">=0.28.1"
+      "esbuild": ">=0.28.1 <0.29",
+      "hono": ">=4.12.25 <5"
     }
   },
   "packageManager": "pnpm@9.15.0",

@@ -2,15 +2,14 @@
 
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
+import type { ActionResult } from '@/lib/action-result'
 
 const DiscardQuizInput = z.object({
   sessionId: z.uuid(),
   draftId: z.uuid().optional(),
 })
 
-export async function discardQuiz(
-  raw: unknown,
-): Promise<{ success: true } | { success: false; error: string }> {
+export async function discardQuiz(raw: unknown): Promise<ActionResult> {
   try {
     const supabase = await createServerSupabaseClient()
     const {

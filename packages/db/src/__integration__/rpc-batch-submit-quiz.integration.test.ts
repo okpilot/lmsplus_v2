@@ -131,7 +131,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
 
     // c. Derive the correct option id + seeded explanation from the question itself.
     //    The MC answer key now lives in the REVOKE-gated correct_option_id column
-    //    (#823, mig 109) — the `correct` flag is stripped from options on write.
+    //    (#823, mig 111) — the `correct` flag is stripped from options on write.
     //    Service role bypasses both RLS and the column REVOKE, so the soft-deleted
     //    row's key is still readable. Read the column rather than trusting 'b'.
     const { data: qRow, error: qErr } = await admin
@@ -224,7 +224,7 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
     if (delErr) throw new Error(`soft-delete: ${delErr.message}`)
     if (!delData?.length) throw new Error('soft-delete: zero rows affected')
 
-    // Derive the correct option from the REVOKE-gated key column (#823, mig 109),
+    // Derive the correct option from the REVOKE-gated key column (#823, mig 111),
     // then pick a distinct wrong option from the remaining option ids. The seeded
     // options are always {a,b,c,d}, so any id != correct is a valid wrong answer.
     const { data: qRow, error: qErr } = await admin

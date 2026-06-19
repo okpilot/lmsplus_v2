@@ -188,7 +188,7 @@ async function insertMcQuestion(
         { id: 'c', text: `C ${idx}` },
         { id: 'd', text: `D ${idx}` },
       ],
-      // MC answer key in its own REVOKE-gated column (#823, mig 109).
+      // MC answer key in its own REVOKE-gated column (#823, mig 111).
       correct_option_id: 'b',
       difficulty: 'medium',
       status: 'active',
@@ -492,7 +492,7 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
   })
 
   it('rejects zero-padded and bare numeric blank_index as the same duplicate blank', async () => {
-    // #856 (mig 111): the duplicate-key pre-check canonicalizes numeric blank_index,
+    // #856 (mig 113): the duplicate-key pre-check canonicalizes numeric blank_index,
     // so two dialog_fill entries for the SAME question with blank_index 1 (raw int)
     // and "01" (zero-padded text) are detected as the same blank and rejected. Before
     // the fix they slipped past the guard and silently collapsed at ON CONFLICT.

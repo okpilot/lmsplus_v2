@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { TopicWithSubtopics } from '@/lib/queries/quiz'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 // ---- Mocks ------------------------------------------------------------------
 

@@ -328,7 +328,7 @@ describe('Constraint regression — mig 094 accepted_synonyms CHECK on multiple_
       // Intentionally non-empty — this violates the new branch of the CHECK
       accepted_synonyms: ['stale_synonym'],
       // Set correct_option_id so the biconditional MC key CHECK
-      // (questions_mc_correct_option_id_check, #823 mig 109) is satisfied and
+      // (questions_mc_correct_option_id_check, #823 mig 111) is satisfied and
       // the synonyms CHECK under test is the constraint that actually fires.
       correct_option_id: 'b',
       options: [

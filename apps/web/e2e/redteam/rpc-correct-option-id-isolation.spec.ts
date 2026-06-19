@@ -1,9 +1,9 @@
 /**
- * Red Team Spec: questions.correct_option_id column isolation (#823, Vector EA)
+ * Red Team Spec: questions.correct_option_id column isolation (#823, Vector EE)
  *
  * #823 (P0) relocated the multiple-choice answer key out of the readable
  * `options` JSONB into a dedicated column, `questions.correct_option_id`, that
- * is REVOKE-gated from the `authenticated` role (mig 109 / 20260612000100). The
+ * is REVOKE-gated from the `authenticated` role (mig 111 / 20260619000100). The
  * only SELECT-governing RLS policy on questions (tenant_isolation) is org-scoped,
  * NOT role-scoped — so a same-org student passes the RLS gate. The same-org
  * student is therefore the exploit surface: cross-org is already blocked by
@@ -31,7 +31,7 @@ import { seedRedTeamStudent, VICTIM_EMAIL, VICTIM_PASSWORD } from './helpers/see
 
 const VALID_OPTION_IDS = ['a', 'b', 'c', 'd']
 
-test.describe('Red Team: questions.correct_option_id column isolation (Vector EA)', () => {
+test.describe('Red Team: questions.correct_option_id column isolation (Vector EE)', () => {
   let admin: ReturnType<typeof getAdminClient>
   let studentClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let orgId: string
@@ -49,7 +49,7 @@ test.describe('Red Team: questions.correct_option_id column isolation (Vector EA
     studentClient = await createAuthenticatedClient(VICTIM_EMAIL, VICTIM_PASSWORD)
 
     // Resolve an active, non-deleted egmont multiple_choice question that has a
-    // populated answer key. mig 109's backfill RAISEs if any MC question lacks a
+    // populated answer key. mig 111's backfill RAISEs if any MC question lacks a
     // key, so every active MC egmont question has a non-null correct_option_id.
     const { data: question, error } = await admin
       .from('questions')
@@ -107,7 +107,7 @@ test.describe('Red Team: questions.correct_option_id column isolation (Vector EA
 
   test('the same student can still read options, and no option carries a correct key (trigger strip)', async () => {
     // Defense-in-depth regression: the readable `options` column is unchanged for
-    // students, and mig 109's sanitize trigger guarantees the `correct` boolean
+    // students, and mig 111's sanitize trigger guarantees the `correct` boolean
     // never re-enters the JSONB — so the key cannot leak via the still-readable
     // options array either.
     const { data, error } = await studentClient

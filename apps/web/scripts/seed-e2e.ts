@@ -383,7 +383,7 @@ async function seed() {
 
     if (existing && existing.length > 0) continue
 
-    // MC answer key now lives in its own REVOKE-gated column (#823, mig 109).
+    // MC answer key now lives in its own REVOKE-gated column (#823, mig 111).
     // Derive it from the authored options; the sanitize trigger strips `correct`
     // from the stored options JSONB on write.
     const correctOptionId = q.options.find((o) => o.correct)?.id

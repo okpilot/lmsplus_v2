@@ -153,6 +153,17 @@ reviews:
           SELECT on a soft-deletable table missing AND deleted_at IS NULL that lacks a cited
           write-once carve-out, and flag any carve-out missing the docs/database.md §3 cross-reference.
           (security.md §9 / docs/security.md §15; docs/database.md §3.)
+        - Sibling SECURITY DEFINER RPC guard-set consistency: when a migration adds or
+          rewrites a SECURITY DEFINER function, compare its guard set against the siblings
+          in its feature family. A guard present in any sibling and absent here is a GAP.
+          Especially flag a MISSING active-user / soft-deleted-caller gate — a `PERFORM 1`
+          or (the common codebase form) a `SELECT … INTO … FROM users WHERE id = <uid> AND
+          deleted_at IS NULL; IF NOT FOUND THEN RAISE 'user not found or inactive'` that
+          also captures org_id/role — on a per-caller read/write RPC whose siblings have it; it
+          leaks data/answer-keys to a deactivated account with a live JWT. Justified
+          exceptions: is_admin()-gated admin/org-wide RPCs (no per-caller scoping);
+          functions reading no soft-deletable table; functions with no audit_events INSERT.
+          (security.md rule 12 / docs/security.md §11c; precedent #856, gaps #883.)
         - ON CONFLICT inference target: any INSERT ... ON CONFLICT (cols) [WHERE pred] must
           target a UNIQUE index/constraint matching those columns + predicate (a plain
           CREATE INDEX does not qualify; Postgres raises 42P10). When ON CONFLICT is inside
@@ -267,6 +278,22 @@ reviews:
           path, no-op silence, each log path. Use the vi.hoisted + buildChain
           queue/shift pattern when the helper makes multiple sequential calls on
           the same table.
+        - Multi-step cleanup blocks (`afterEach`/`afterAll` with >=2 distinct
+          cleanup steps) must isolate each step in its own try/catch, accumulate
+          errors (`const errors: string[] = []`, `errors.push(...)` per step),
+          reset that step's tracking var/set in `finally`, and throw the joined
+          errors once at the end (`if (errors.length > 0) throw ...`). A bare
+          throw in step N otherwise skips steps N+1..M, leaking their rows
+          downstream. For dependent steps (FK ordering — parent-delete after FK
+          children, child-insert after parent — OR a data dependency on a value
+          an earlier step resolved), additionally guard the dependent step with
+          `errors.length === 0`. Single-step cleanups are exempt. Best-effort
+          steps whose failure does NOT leak shared state (e.g. deleting a user
+          that carries immutable audit_events FK refs, where the row is reused
+          across runs) log-and-continue (`console.error`) instead of
+          accumulating — don't make a deliberately-tolerated failure fail CI.
+          Complements — does not duplicate — Biome `noUnsafeFinally`.
+          (code-style.md §7)
 
     # Red-team specs — non-vacuous negatives + RPC output contracts (code-style.md §7)
     - path: "apps/web/e2e/redteam/**/*.spec.ts"

@@ -257,3 +257,52 @@ describe('useQuizSubmit — clearError', () => {
     expect(() => act(() => result.current.clearError())).not.toThrow()
   })
 })
+
+// ---- pendingAction discriminator -----------------------------------------
+
+// The session functions are mocked, so they only flip pendingAction if the mock
+// actually invokes the setSubmitting it receives. A bare mockResolvedValue would
+// never call it — the assertions below would pass vacuously — so each test drives
+// setSubmitting explicitly to exercise the discriminator wiring.
+type SessionOpts = { setSubmitting: (v: boolean) => void }
+
+describe('useQuizSubmit — pendingAction discriminator', () => {
+  it('starts with pendingAction null', () => {
+    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
+    expect(result.current.pendingAction).toBeNull()
+  })
+
+  it('reports pendingAction "submit" (and submitting true) while a submit is in flight', async () => {
+    mockHandleSubmitSession.mockImplementation(async (opts: SessionOpts) =>
+      opts.setSubmitting(true),
+    )
+    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
+    await act(async () => result.current.handleSubmit())
+    expect(result.current.pendingAction).toBe('submit')
+    expect(result.current.submitting).toBe(true)
+  })
+
+  it('reports pendingAction "save" while a save is in flight and clears it on completion', async () => {
+    let setSubmitting: ((v: boolean) => void) | undefined
+    mockHandleSaveSession.mockImplementation(async (opts: SessionOpts) => {
+      setSubmitting = opts.setSubmitting
+      opts.setSubmitting(true)
+    })
+    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
+    await act(async () => result.current.handleSave())
+    expect(result.current.pendingAction).toBe('save')
+
+    act(() => setSubmitting?.(false))
+    expect(result.current.pendingAction).toBeNull()
+    expect(result.current.submitting).toBe(false)
+  })
+
+  it('reports pendingAction "discard" while a discard is in flight', async () => {
+    mockHandleDiscardSession.mockImplementation(async (opts: SessionOpts) =>
+      opts.setSubmitting(true),
+    )
+    const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts()))
+    await act(async () => result.current.handleDiscard())
+    expect(result.current.pendingAction).toBe('discard')
+  })
+})

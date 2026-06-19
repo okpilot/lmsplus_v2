@@ -183,8 +183,8 @@ CREATE TABLE questions (
   lo_reference    TEXT NULL,                   -- 'MET 3.2.1'
   question_text   TEXT NOT NULL,
   question_image_url TEXT NULL,
-  correct_option_id TEXT NULL,                  -- MC answer key (option id a-d). NULL for non-MC. REVOKE-gated: read via get_question_authoring_fields() (mig 109, #823)
-  options         JSONB NOT NULL DEFAULT '[]'::jsonb,  -- [{id,text}] — correct field stripped on write by trg_sanitize_question_options (mig 109). MC key moved to correct_option_id column.
+  correct_option_id TEXT NULL,                  -- MC answer key (option id a-d). NULL for non-MC. REVOKE-gated: read via get_question_authoring_fields() (mig 111, #823)
+  options         JSONB NOT NULL DEFAULT '[]'::jsonb,  -- [{id,text}] — correct field stripped on write by trg_sanitize_question_options (mig 111). MC key moved to correct_option_id column.
   explanation_text TEXT NOT NULL,
   explanation_image_url TEXT NULL,
   difficulty      TEXT NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
@@ -226,9 +226,9 @@ CREATE TABLE questions (
 );
 ```
 
-**Column-level SELECT gate (mig 094, mig 109):** Five answer-key columns are REVOKED from the `authenticated` role (students and admins):
+**Column-level SELECT gate (mig 094, mig 111):** Five answer-key columns are REVOKED from the `authenticated` role (students and admins):
 - `canonical_answer`, `accepted_synonyms`, `dialog_template`, `blanks_config` (short-answer & dialog-fill keys, mig 094)
-- `correct_option_id` (multiple-choice key, mig 109, #823)
+- `correct_option_id` (multiple-choice key, mig 111, #823)
 
 All grading RPCs run as `postgres` (SECURITY DEFINER owner), which is unaffected. Admin authoring reads go through `get_question_authoring_fields()` RPC (mig 094b / 114, is_admin()-gated). The privilege layer defense mirrors the `quiz_sessions` column-GRANT pattern (mig 20260605000001). A direct `.select('*')` or `.select('correct_option_id, ...')` from an authenticated client returns 42501 (permission denied). Because the gate re-GRANTs an explicit column list, any column added after mig 094 must be granted to `authenticated` separately or SECURITY INVOKER readers fail with 42501 — `has_calculations` (mig 107) adds `GRANT SELECT (has_calculations) ON questions TO authenticated` so the SECURITY INVOKER `_filtered_question_pool` can read it (#837). Migration 109 does NOT add `correct_option_id` to the grant list, so it remains privileged.
 
@@ -497,7 +497,6 @@ Created in migration 051 to centralize the soft-delete filter and provide RLS en
 
 - `apps/web/app/app/quiz/actions/flag.ts` — ownership check in `toggleFlag`, ID list in `getFlaggedIds`
 - `apps/web/app/app/quiz/actions/filter-helpers.ts` — quiz setup flagged filter
-- `apps/web/lib/queries/quiz.ts` — `filterFlagged`
 - `apps/web/lib/gdpr/collect-user-data.ts` — GDPR data export
 
 Write operations (`flagQuestion`, `unflagQuestion`) continue to use the `flagged_questions` base table directly.
@@ -640,11 +639,11 @@ When a student submits quiz answers in `batch_submit_quiz`, the RPC may need to 
 **Implementation:** `batch_submit_quiz` does NOT filter `WHERE deleted_at IS NULL` on the `questions` JOIN when replaying completed sessions. This is safe because:
 - The idempotent replay path uses `quiz_session_answers.question_id` to fetch the questions (a write-once immutable FK link), so the accessible question set is bounded by the student's completed session's immutable answer record.
 - If a question was soft-deleted *after* the student answered it, the reply must still show all the student's prior answers—including the now-deleted question—for consistency (answered_count from the session row must match the actual result set length, else the UI diverges).
-- Migration `20260612000250` (PR #856) refined the §15 carve-out: removed the `AND q.deleted_at IS NULL` filter from the replay JOIN, added inline documentation explaining the write-once FK boundary.
+- Migration `20260619000250` (PR #856) refined the §15 carve-out: removed the `AND q.deleted_at IS NULL` filter from the replay JOIN, added inline documentation explaining the write-once FK boundary.
 
 See security.md §15 for the full list of carve-outs and their immutable-column justifications.
 
-**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 115) and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options` and `get_admin_report_correct_options` (mig 112) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the correct-option key for a question soft-deleted after it was answered. Note `submit_quiz_answer` deliberately does NOT use this carve-out: it filters `q.deleted_at IS NULL` because a soft-deleted question should not accept a *new* graded submission in an active session. **This intentional divergence is documented in submit_quiz_answer's RPC section** — the difference reflects domain intent: immediate feedback (`check_quiz_answer`) serves historical replay, while new submissions require active, non-deleted questions.
+**Other functions sharing this carve-out** (see security.md §15 for the full list): `check_quiz_answer` (mig 117) and `submit_vfr_rt_exam_answers` / `get_vfr_rt_exam_questions` / `get_vfr_rt_exam_results` read `questions` via the same frozen `config.question_ids`. `get_report_correct_options` and `get_admin_report_correct_options` (mig 114) instead read `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table — so a completed-session report still reveals the correct-option key for a question soft-deleted after it was answered. Note `submit_quiz_answer` deliberately does NOT use this carve-out: it filters `q.deleted_at IS NULL` because a soft-deleted question should not accept a *new* graded submission in an active session. **This intentional divergence is documented in submit_quiz_answer's RPC section** — the difference reflects domain intent: immediate feedback (`check_quiz_answer`) serves historical replay, while new submissions require active, non-deleted questions.
 
 ```sql
 -- ✅ CORRECT — SECURITY DEFINER RPC can score questions soft-deleted mid-quiz
@@ -710,11 +709,11 @@ Use Postgres functions (RPCs) for:
 ```
 verb_noun pattern:
   get_quiz_questions         ← read, strips correct answers
-  get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped); active-user gate (mig 112, #856); reads from questions.correct_option_id (mig 112, #823)
-  get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin()); reads from questions.correct_option_id (mig 112, #823)
-  check_quiz_answer                ← read, verify answer + return explanation (immediate feedback); reads from questions.correct_option_id (mig 115, #823)
-  submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; idempotent dup-gate (mig 110, #856); reads from questions.correct_option_id (mig 110, #823)
-  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092); reads from questions.correct_option_id for MC grading (mig 110b, #823)
+  get_report_correct_options       ← read, returns correct option IDs for completed-session reports (student-scoped); active-user gate (mig 114, #856); reads from questions.correct_option_id (mig 114, #823)
+  get_admin_report_correct_options ← read, same as above but org-scoped for admin (requires is_admin()); reads from questions.correct_option_id (mig 114, #823)
+  check_quiz_answer                ← read, verify answer + return explanation (immediate feedback); reads from questions.correct_option_id (mig 117, #823)
+  submit_quiz_answer         ← write, atomic: single answer + response log + last_was_correct; idempotent dup-gate (mig 112, #856); reads from questions.correct_option_id (mig 112, #823)
+  batch_submit_quiz          ← write, atomic: all answers + session complete + score + audit (last_active_at stamped by trigger on quiz_sessions.ended_at update; mig 092); reads from questions.correct_option_id for MC grading (mig 112b, #823)
   start_quiz_session         ← write, atomic: session + locked question set; validates p_question_ids (raises 'no_questions_provided' / 'invalid_question_ids' / 'too_many_questions' when array length > 500)
   start_exam_session         ← write, atomic: read exam config + random question selection + session creation (mock_exam mode); auto-completes overdue same-subject session before duplicate-active guard; maps unique_violation to friendly domain error (mig 088, #754); returns started_at
   upsert_exam_config         ← write, atomic: upsert exam_configs + replace exam_config_distributions (admin-only, SECURITY DEFINER)
@@ -723,12 +722,13 @@ verb_noun pattern:
   issue_internal_exam_code   ← write, admin-only: generate 8-char single-use code, 24h validity, 5-retry collision handling, audit internal_exam.code_issued
   start_internal_exam_session ← write, student: validate & consume code, auto-complete overdue prior session, build question set from exam config, atomic code consumption via WHERE-clause race guard
   void_internal_exam_code    ← write, admin-only: void unconsumed code or active session (sets session.passed = false), audit internal_exam.code_voided
+  record_internal_exam_code_emailed ← write, admin-only: audit an admin emailing an internal exam code to a student (SECURITY DEFINER, mig 110); guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; no direct client call — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway
   list_my_active_internal_exam_codes ← read, student: own unconsumed/unvoided/unexpired internal-exam codes WITHOUT the plaintext `code` column (closes #577; replaces direct SELECT after student policy was dropped in mig 20260521000004)
   list_my_internal_exam_history ← read, student: own internal_exam quiz_sessions history; computes per-subject `attempt_number` via row_number() in SQL (closes #579)
   start_vfr_rt_exam_session  ← write, student: VFR Radiotelephony mock exam start; samples 3 parts (short_answer, dialog_fill, multiple_choice) from seeded topics, reads exam_configs.parts_config (mig 099); idempotent resume for in-flight sessions (mig 099)
   get_vfr_rt_exam_questions  ← read, student: type-aware, answer-key-stripped question reads for a caller-owned vfr_rt_exam session (p_session_id); derives question IDs server-side from the session's frozen config.question_ids, callable in-flight AND post-exam; strips canonicals/synonyms/dialog_template details + explanation fields, shuffles MC options (mig 099b; session-derived signature + explanation strip in mig 105, #833/#840)
-  submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank, compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session; reads from questions.correct_option_id for MC grading (mig 111, #823)
-  get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (reads from questions.correct_option_id, mig 113, #823)
+  submit_vfr_rt_exam_answers ← write, atomic: submit array of typed answers (one per blank), normalize + grade per-blank, compute per-part pcts ≥75% pass rule, audit vfr_rt_exam.completed / vfr_rt_exam.expired (mig 100); idempotent replay on already-ended session; reads from questions.correct_option_id for MC grading (mig 113, #823)
+  get_vfr_rt_exam_results    ← read, student: fetch completion-time answer key + per-question explanations + grading breakdown per part (mig 103; explanations added in mig 106, #840); gated to owner + ended session only — the single post-completion reveal point for answer keys (reads from questions.correct_option_id, mig 115, #823)
   get_question_authoring_fields ← read, admin-only: fetch answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) for the question authoring UI; privilege-layer complement to column REVOKE (mig 094b / 114, #823); returns correct_option_id for MC questions
   normalize_answer           ← read (IMMUTABLE SQL helper): normalize free-text answer for grading (trim, lowercase, collapse hyphens/underscores, strip punctuation, preserve diacritics); used by submit_vfr_rt_exam_answers + complete_overdue_exam_session for vfr_rt_exam grading (mig 101)
   complete_quiz_session      ← write, atomic: session end + score + audit (DEPRECATED for new code — use batch_submit_quiz; still supported for legacy modes (smart_review, quick_quiz, mock_exam, internal_exam); last_active_at now stamped by trigger on all completion paths, mig 092; legacy-mode whitelist rejects vfr_rt_exam with unsupported_session_mode, mig 104 #838; active-user gate rejects soft-deleted callers + FOR UPDATE session lock against double-completion, mig 104 PR #830)
@@ -736,9 +736,9 @@ verb_noun pattern:
   get_student_progress       ← read, aggregated progress view
   get_daily_activity         ← read, analytics: daily answer counts (zero-filled)
   get_subject_scores         ← read, analytics: avg scores by subject
-  get_question_counts        ← read, per-(subject, topic, subtopic) question counts; used by admin/exam-config, admin/syllabus, and the student quiz builder (quiz.ts); replaces client-side counting that truncated at the PostgREST 1000-row cap (#614, #668)
-  get_random_question_ids    ← read, student: up to N random IDs from the filtered question pool (subject + topic/subtopic OR + unseen/incorrect/flagged UNION, AND-restricted by p_calc_mode {all|only|exclude} on has_calculations); used by start_quiz_session seeding; replaces client-side fetch-shuffle-slice that biased sampling past row 1000 (#679, umbrella #668; calc-mode #837)
-  get_filtered_question_counts ← read, student: per-(topic, subtopic) counts over the same filtered pool as get_random_question_ids (incl. p_calc_mode); structurally guaranteed count == quiz (shared _filtered_question_pool helper); replaces client-side counting that truncated at 1000 rows (#678, umbrella #668; calc-mode #837)
+  get_question_counts        ← read, per-(subject, topic, subtopic) question counts; used by admin/exam-config, admin/syllabus, and the student quiz builder (quiz-subject-queries.ts); replaces client-side counting that truncated at the PostgREST 1000-row cap (#614, #668)
+  get_random_question_ids    ← read, student: up to N random IDs from the filtered question pool (subject + topic/subtopic OR + unseen/incorrect/flagged UNION, AND-restricted by p_calc_mode {all|only|exclude} on has_calculations and p_has_image {all|only|exclude} on question_image_url presence); used by start_quiz_session seeding; replaces client-side fetch-shuffle-slice that biased sampling past row 1000 (#679, umbrella #668; calc-mode #837; has-image #864)
+  get_filtered_question_counts ← read, student: per-(topic, subtopic) counts over the same filtered pool as get_random_question_ids (incl. p_calc_mode and p_has_image); structurally guaranteed count == quiz (shared _filtered_question_pool helper); replaces client-side counting that truncated at 1000 rows (#678, umbrella #668; calc-mode #837; has-image #864)
   get_student_mastery_stats  ← read, student: per-(subject) and per-(subject,topic) mastery counts (total=active questions, correct=distinct correct to non-deleted any-status questions); replaces client-side aggregation that truncated at the PostgREST 1000-row cap (#540, umbrella #668)
   get_student_streak         ← read, student: current + best daily-practice streak (all-time), computed in Postgres via gaps-and-islands over DISTINCT UTC response dates; replaces client-side computeStreaks over a .limit(10000) read that truncated at the 1000-row cap (#668)
   get_student_last_practiced ← read, student: most recent response timestamp per subject (all responses); retires the client-side questionSubjectMap + truncated questions read (#668)
@@ -844,14 +844,14 @@ $$;
 
 This RPC is superseded by `batch_submit_quiz` for new code. Kept for backwards compatibility.
 
-**Security (migration 036, updated mig 110 #823, hardened mig 110 PR #856):**
+**Security (migration 036, updated mig 112 #823, hardened mig 112 PR #856):**
 - Validates `p_question_id` is in the session's `config.question_ids` (migration 033). Prevents submitting answers for questions outside the session's question set.
 - Soft-delete guard: `deleted_at IS NULL` prevents submitting to a discarded (soft-deleted) session.
 - Option membership validation: verifies `p_selected_option` exists in the question's options JSONB array (which no longer carries `correct`, stripped by `trg_sanitize_question_options`). Prevents attackers from submitting arbitrary strings as option IDs.
-- Correctness check: reads `questions.correct_option_id` (mig 110 #823) instead of the old JSONB scan of options[].correct. Compares `p_selected_option` against `correct_option_id` to derive `is_correct`.
+- Correctness check: reads `questions.correct_option_id` (mig 112 #823) instead of the old JSONB scan of options[].correct. Compares `p_selected_option` against `correct_option_id` to derive `is_correct`.
 - Mode whitelist (migration 095b, #838; narrowed in PR #830 cloud-CR review): rejects sessions whose `mode` is not in (`smart_review`, `quick_quiz`) with `unsupported_session_mode`. This RPC returns `is_correct`/`explanation`/`correct_option_id` immediately, so accepting exam-mode sessions would be a mid-exam answer oracle — exam submission goes exclusively through `batch_submit_quiz`; `vfr_rt_exam` goes through `submit_vfr_rt_exam_answers` (per-part grading, mig 100). Fail-closed: future modes must opt in explicitly.
 - Active-user gate (migration 095b, PR #830 cloud-CR review): soft-deleted callers are rejected with `user not found or inactive` right after the auth check, before any session read — mirrors `batch_submit_quiz` (mig 095c).
-- **Idempotency gate (migration 110, #856):** A duplicate submission (same session + question, possibly different option) skips the answer row insert (ON CONFLICT DO NOTHING on blank_index-aware unique key) and re-reads the persisted `is_correct` instead of accepting the duplicate option. This preserves consistency between the stored answer and the FSRS state: a retry never flips `last_was_correct`, preventing divergence between the append-only answer log and the FSRS signal.
+- **Idempotency gate (migration 112, #856):** A duplicate submission (same session + question, possibly different option) skips the answer row insert (ON CONFLICT DO NOTHING on blank_index-aware unique key) and re-reads the persisted `is_correct` instead of accepting the duplicate option. This preserves consistency between the stored answer and the FSRS state: a retry never flips `last_was_correct`, preventing divergence between the append-only answer log and the FSRS signal.
 
 ```sql
 CREATE OR REPLACE FUNCTION submit_quiz_answer(
@@ -923,7 +923,7 @@ BEGIN
   -- Get correct answer, explanation, and full options array (service-level access).
   -- deleted_at filter applied: active sessions should only reference active questions.
   SELECT
-    q.correct_option_id,  -- mig 110 #823: read the REVOKE-gated column, not options[].correct
+    q.correct_option_id,  -- mig 112 #823: read the REVOKE-gated column, not options[].correct
     q.explanation_text,
     q.explanation_image_url,
     q.options
@@ -1095,7 +1095,7 @@ BEGIN
     SELECT jsonb_agg(jsonb_build_object(
       'question_id', qsa.question_id,
       'is_correct', qsa.is_correct,
-      'correct_option_id', q.correct_option_id,  -- mig 110b #823: REVOKE-gated column
+      'correct_option_id', q.correct_option_id,  -- mig 112b #823: REVOKE-gated column
       'explanation_text', q.explanation_text,
       'explanation_image_url', q.explanation_image_url
     ))
@@ -1103,7 +1103,7 @@ BEGIN
     FROM quiz_session_answers qsa
     -- §15 write-once carve-out: replay joins via the immutable
     -- quiz_session_answers.question_id FK, so a question soft-deleted after the
-    -- session ended still appears in results (mig 110b / 20260612000250).
+    -- session ended still appears in results (mig 112b / 20260619000250).
     JOIN questions q ON q.id = qsa.question_id
     WHERE qsa.session_id = p_session_id;
 
@@ -1194,7 +1194,7 @@ BEGIN
   CREATE TEMP TABLE _batch_questions ON COMMIT DROP AS
   SELECT
     q.id,
-    q.correct_option_id AS correct_option,  -- mig 110b #823: REVOKE-gated column
+    q.correct_option_id AS correct_option,  -- mig 112b #823: REVOKE-gated column
     q.explanation_text,
     q.explanation_image_url,
     q.options
@@ -1512,6 +1512,25 @@ Admin-only. Three branches:
 
 **Fix:** `CREATE OR REPLACE` with the guard rewritten to `p_reason ~ '^[[:space:]]*$'` (POSIX whitespace class — matches the empty string AND any whitespace-only input). Function body otherwise unchanged from migration `20260430000006`.
 
+##### `record_internal_exam_code_emailed(p_code_id)` (migration `20260618000001`)
+
+Admin-only audit RPC (not a direct API endpoint — invoked from Server Action `sendInternalExamCodeEmail` via best-effort audit pathway). Writes one `internal_exam.code_emailed` audit event when an admin emails an internal exam code to a student. Exists because `audit_events` blocks direct INSERTs via its `audit_no_direct_insert` RLS policy (`WITH CHECK false`), so all audit writes must flow through a SECURITY DEFINER function.
+
+**Guard set:** Mirrors the sibling internal-exam RPCs (`issue_internal_exam_code`, `start_internal_exam_session`, `void_internal_exam_code`) per security.md rule 11b:
+- Rule 7 — `auth.uid()` null-check raises `not_authenticated`
+- `is_admin()` gate raises `not_admin`
+- Active-user gate + rule 9 — org and role captured in one `deleted_at`-filtered users read; cached `v_admin_role` reused in the audit INSERT (mirrors mig 087; inlining a subquery would reverse that fix and require its own rule-10 filter)
+- Rule 9 — `internal_exam_codes` ownership read is org-scoped and `deleted_at`-filtered, yielding `student_id` and `subject_id` metadata
+- State guard — the code must also be un-consumed, un-voided, and unexpired (`consumed_at IS NULL`, `voided_at IS NULL`, `expires_at > now()`), mirroring the in-body state checks of `issue_`/`void_internal_exam_code`. The Server Action guards these before calling, so this is defense-in-depth for direct RPC calls; a code failing any state check is hidden behind `code_not_found` (existence-hiding, no new error mapping)
+- Rule 10 — no inline audit subqueries; every value in the INSERT comes from the pre-read locals
+- `SET search_path = public`
+
+**Audit payload:** `event_type = 'internal_exam.code_emailed'`, `resource_type = 'internal_exam_code'`, `resource_id = p_code_id`, `metadata = { student_id, subject_id }`.
+
+**Returns:** `void`.
+
+**Security:** SECURITY DEFINER. Invoked from `sendInternalExamCodeEmail` Server Action (email subsystem half) after a Resend POST succeeds; failure to audit does not bubble to caller (best-effort, logs server-side only).
+
 ##### `list_my_active_internal_exam_codes()` (migration `20260521000002`)
 
 Student-facing read. Returns the caller's currently usable internal-exam codes without the plaintext `code` column — the value is single-use and meaningful only at issuance time, so it is omitted from every subsequent read. Replaces the direct `SELECT FROM internal_exam_codes` path previously gated by the `student_read_active_codes` RLS policy (dropped in migration `20260521000004` so plaintext never leaves the issuance RPC). Closes issue #577.
@@ -1608,7 +1627,7 @@ Audit `event_type` branches: `internal_exam.completed` for internal-exam session
 
 Returns correct option IDs for the questions answered in a completed session owned by the caller. The RPC derives that question set from `quiz_session_answers`, so the TypeScript layer never reads the raw `correct` boolean from options JSONB.
 
-**Security:** Validates active-user status (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), and soft-delete status. Raises exception if any check fails. The active-user gate (migration 112, #856) gates soft-deleted callers before the session-ownership check, closing the vector where a revoked student could still read their report's answer keys.
+**Security:** Validates active-user status (`deleted_at IS NULL`), session ownership (`student_id = auth.uid()`), completion (`ended_at IS NOT NULL`), and soft-delete status. Raises exception if any check fails. The active-user gate (migration 114, #856) gates soft-deleted callers before the session-ownership check, closing the vector where a revoked student could still read their report's answer keys.
 
 ```sql
 CREATE OR REPLACE FUNCTION get_report_correct_options(p_session_id uuid)
@@ -1622,7 +1641,7 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- Active-user gate (mig 112, #856): soft-deleted callers are rejected before the
+  -- Active-user gate (mig 114, #856): soft-deleted callers are rejected before the
   -- session read, so a revoked student with a live JWT cannot read their answer keys.
   PERFORM 1
   FROM users
@@ -1646,7 +1665,7 @@ BEGIN
   -- This SECURITY DEFINER function bypasses RLS — do not remove the guard.
   RETURN QUERY
   SELECT DISTINCT ON (sa.question_id)
-    sa.question_id, q.correct_option_id  -- mig 112 #823: collapsed LATERAL scan to the REVOKE-gated column
+    sa.question_id, q.correct_option_id  -- mig 114 #823: collapsed LATERAL scan to the REVOKE-gated column
   FROM quiz_session_answers sa
   JOIN questions q ON q.id = sa.question_id
   WHERE sa.session_id = p_session_id
@@ -2285,13 +2304,13 @@ Returns paginated session reports for the authenticated student with subject nam
 
 #### `get_question_counts` — per-(subject, topic, subtopic) question counts
 
-Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_id)`. Used by the admin exam-config and syllabus pages, and by the student quiz builder (`lib/queries/quiz.ts` — the subject/topic/subtopic count functions), to show available-question totals per node without paging through the full question bank.
+Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_id)`. Used by the admin exam-config and syllabus pages, and by the student quiz builder (`lib/queries/quiz-subject-queries.ts` — the subject/topic/subtopic count functions), to show available-question totals per node without paging through the full question bank.
 
 **Security:** `SECURITY INVOKER` (caller-context). RLS scopes the result to the caller's organization via the existing `tenant_isolation` policy on `questions` — no manual `auth.uid()` check needed.
 
 **Parameters:** `p_status TEXT DEFAULT NULL`
 - `NULL` — count all non-deleted questions (active + draft); used by `admin/syllabus/queries.ts`.
-- `'active'` — count only active questions; used by `admin/exam-config/queries.ts` (drafts are not eligible for exams) and by the student quiz builder (`lib/queries/quiz.ts`).
+- `'active'` — count only active questions; used by `admin/exam-config/queries.ts` (drafts are not eligible for exams) and by the student quiz builder (`lib/queries/quiz-subject-queries.ts`).
 
 **Returns:** `TABLE(subject_id UUID, topic_id UUID, subtopic_id UUID, n BIGINT)`
 
@@ -2305,7 +2324,7 @@ Returns aggregated question counts grouped by `(subject_id, topic_id, subtopic_i
 
 #### `get_random_question_ids` — random sample from the filtered question pool
 
-Returns up to `p_count` random question IDs from the active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) pool. Used by the student quiz builder (`apps/web/app/app/quiz/actions/start.ts` → `lib/queries/quiz.ts:getRandomQuestionIds`) to seed `start_quiz_session` with a uniformly sampled question set, regardless of pool size.
+Returns up to `p_count` random question IDs from the active, org-scoped, subject/topic/subtopic + per-user-filter (UNION) pool. Used by the student quiz builder (`apps/web/app/app/quiz/actions/start.ts` → `lib/queries/quiz-session-queries.ts:getRandomQuestionIds`) to seed `start_quiz_session` with a uniformly sampled question set, regardless of pool size.
 
 **Security:** `SECURITY INVOKER`. The underlying `questions` table has a single permissive SELECT policy (`tenant_isolation`), so RLS alone gives correct org + `deleted_at IS NULL` scoping. The shared internal helper `_filtered_question_pool` additionally self-scopes the per-user filter subqueries with `sr.student_id = auth.uid()` on `student_responses` (LOAD-BEARING per security.md §3 (Multiple Permissive SELECT Policies) — `student_responses` has TWO permissive SELECT policies, `students_read_responses` + `instructors_read_students`, so RLS alone would over-scope to the instructor policy). The `fsrs_cards` and `active_flagged_questions` student_id filters are defense-in-depth (single policy each). No correct-answer columns are exposed — the RPC returns only `id`.
 
@@ -2313,11 +2332,12 @@ Returns up to `p_count` random question IDs from the active, org-scoped, subject
 - `p_subject_id UUID` — required.
 - `p_topic_ids UUID[]` — `NULL` = unconstrained on topic dimension; `'{}'` (empty array) = matches nothing on topic dimension; non-empty array = `q.topic_id = ANY (p_topic_ids)`.
 - `p_subtopic_ids UUID[]` — same semantics as `p_topic_ids`. The two dimensions are combined with `OR`, so a question matching either is in the pool (this preserves leaf-topic questions whose `subtopic_id` is `NULL`).
-- `p_count INT` — maximum number of IDs to return. `LIMIT LEAST(GREATEST(p_count, 0), 500)` clamps negatives to zero AND caps at 500 (defense in depth — mirrors the Zod schema in `apps/web/app/app/quiz/actions/start.ts`; prevents a direct RPC caller from bypassing the Server Action with an arbitrarily large value).
+- `p_count INT` — maximum number of IDs to return. `LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)` clamps NULL to zero first, then negatives to zero, AND caps at 500 (defense in depth — mirrors the Zod schema in `apps/web/app/app/quiz/actions/start.ts`; prevents a direct RPC caller from bypassing the Server Action with a NULL value — which would make `LIMIT NULL` uncapped — or an arbitrarily large value).
 - `p_filters TEXT[]` — `NULL` or `'{}'` = no per-user filter; non-empty subset of `{'unseen', 'incorrect', 'flagged'}` = union of matches (a question passes if it matches ANY active filter).
 - `p_calc_mode TEXT DEFAULT 'all'` — calculation filter on `has_calculations`. `'only'` = only calc questions; `'exclude'` = only non-calc questions; `'all'` / `NULL` / any unknown value = unrestricted (fail-open). Unlike `p_filters` (UNION), calc-mode **AND-restricts** the pool — it composes on top of the per-user filters (#837).
+- `p_has_image TEXT DEFAULT 'all'` — image filter on `question_image_url` presence. `'only'` = only questions with images (`question_image_url IS NOT NULL`); `'exclude'` = only questions without images (`question_image_url IS NULL`); `'all'` / `NULL` / any unknown value = unrestricted (fail-open). Like calc-mode, has-image **AND-restricts** the pool independently of `p_filters` (#864).
 
-**Returns:** `TABLE(id UUID)` — up to `LEAST(p_count, 500)` rows, sampled via `ORDER BY random() LIMIT LEAST(GREATEST(p_count, 0), 500)` over the helper's pool.
+**Returns:** `TABLE(id UUID)` — up to `LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)` rows (NULL or negative `p_count` yields 0 rows), sampled via `ORDER BY random() LIMIT LEAST(GREATEST(COALESCE(p_count, 0), 0), 500)` over the helper's pool.
 
 **Volatility:** `VOLATILE` (because `random()` is volatile).
 
@@ -2325,7 +2345,7 @@ Returns up to `p_count` random question IDs from the active, org-scoped, subject
 
 **Rationale:** Replaces a client-side fetch-then-shuffle that hit the PostgREST 1000-row cap once the active pool crossed 1000 rows — questions past row 1000 were never sampled, biasing the quiz toward the first 1000 by insertion order (#679, instance of umbrella #668). Sampling now happens server-side so every active, in-scope question has equal probability.
 
-**Internal helper:** `_filtered_question_pool(p_subject_id, p_topic_ids, p_subtopic_ids, p_filters, p_calc_mode)` — shared `STABLE SECURITY INVOKER` SQL function. Defines the filtered pool exactly once so `get_random_question_ids` and `get_filtered_question_counts` are structurally guaranteed to agree (count == quiz). The calc-mode AND-clause lives here (one place), so both wrappers inherit it. Requires `GRANT SELECT (has_calculations)` to `authenticated` (mig 107) since it reads the column as the SECURITY INVOKER student. Prefer the wrapper RPCs over calling the helper directly: a direct call returns one row per pool member and can hit the 1000-row cap.
+**Internal helper:** `_filtered_question_pool(p_subject_id, p_topic_ids, p_subtopic_ids, p_filters, p_calc_mode, p_has_image)` — shared `STABLE SECURITY INVOKER` SQL function. Defines the filtered pool exactly once so `get_random_question_ids` and `get_filtered_question_counts` are structurally guaranteed to agree (count == quiz). Both the calc-mode AND-clause (#837) and the has-image AND-clause (#864) live here (one place each), so both wrappers inherit them. Requires `GRANT SELECT (has_calculations)` to `authenticated` (mig 107) since it reads the column as the SECURITY INVOKER student. Prefer the wrapper RPCs over calling the helper directly: a direct call returns one row per pool member and can hit the 1000-row cap.
 
 ---
 
@@ -2335,7 +2355,7 @@ Returns one row per distinct `(topic_id, subtopic_id)` in the same filtered pool
 
 **Security:** `SECURITY INVOKER`. Same scoping model as `get_random_question_ids` (shared `_filtered_question_pool` helper): `tenant_isolation` on `questions` + load-bearing `sr.student_id = auth.uid()` on `student_responses` per security.md §3 (Multiple Permissive SELECT Policies). No correct-answer columns selected.
 
-**Parameters:** identical to `get_random_question_ids` except for the omitted `p_count`. Same NULL-vs-empty-array semantics on `p_topic_ids` / `p_subtopic_ids` / `p_filters`, and the same `p_calc_mode TEXT DEFAULT 'all'` AND-restriction so the badge count reflects the calc filter (count == quiz).
+**Parameters:** identical to `get_random_question_ids` except for the omitted `p_count`. Same NULL-vs-empty-array semantics on `p_topic_ids` / `p_subtopic_ids` / `p_filters`, and the same `p_calc_mode` and `p_has_image` AND-restrictions so the badge count reflects both filters (count == quiz).
 
 **Returns:** `TABLE(topic_id UUID, subtopic_id UUID, n BIGINT)` — one row per `(topic_id, subtopic_id)` group present in the pool. Total count is `sum(n)`. Per-subtopic counts ignore rows where `subtopic_id IS NULL` at the TypeScript aggregation site.
 
@@ -2553,7 +2573,7 @@ Student-facing RPC (migration 103; redefined in migration `20260611000200` / mig
 
 #### `get_question_authoring_fields` — gated answer-key column reads for admin authoring
 
-Admin-only RPC (migration 094b; `correct_option_id` added mig 114, #823). Fetches the five answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) that are REVOKED from authenticated at the privilege layer (mig 094 / mig 109). Allows admin authoring UI to load question details without requiring a service-role client.
+Admin-only RPC (migration 094b; `correct_option_id` added mig 116, #823). Fetches the five answer-key columns (canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id) that are REVOKED from authenticated at the privilege layer (mig 094 / mig 111). Allows admin authoring UI to load question details without requiring a service-role client.
 
 **Security:** `SECURITY DEFINER`, `SET search_path = public`. Auth check (`auth.uid()`), `is_admin()` gate.
 
@@ -2565,7 +2585,7 @@ Admin-only RPC (migration 094b; `correct_option_id` added mig 114, #823). Fetche
 - `accepted_synonyms TEXT[]`
 - `dialog_template TEXT` — may be NULL for non-dialog_fill types
 - `blanks_config JSONB`
-- `correct_option_id TEXT` — MC answer key ('a'/'b'/'c'/'d'); NULL for non-MC (added mig 114, #823)
+- `correct_option_id TEXT` — MC answer key ('a'/'b'/'c'/'d'); NULL for non-MC (added mig 116, #823)
 
 **Error code:**
 - `question_not_found` — question doesn't exist
@@ -2618,7 +2638,7 @@ If profile editing is needed in the future, use a `SECURITY DEFINER` RPC that ac
 | `trg_enforce_draft_limit` | `quiz_drafts` | DB-enforced max drafts per student (migration 021; `SET search_path = public` added in `20260430000007` — closes #588; `20260430000011` adds `pg_advisory_xact_lock(hashtext(NEW.student_id::text))` to serialize the 20-draft cap check under concurrency — PR #599 CR root-cause fix) |
 | `trg_protect_users_sensitive_columns` | `users` | Blocks role/org/deleted_at changes (20260316000041) |
 | `trg_block_exam_config_reactivation` | `exam_configs` | Blocks `UPDATE SET deleted_at = NULL` (unconditional — no role exemption); enforces that reactivation goes through `upsert_exam_config`, whose UPDATE branch never writes `deleted_at` (mig 089, #755) |
-| `trg_sanitize_question_options` | `questions` | BEFORE INSERT OR UPDATE OF `options`: strips any `correct` key from the options JSONB, rebuilding the array as `{id,text}` only. Defense-in-depth: guarantees the MC answer key never re-enters the readable JSONB (it lives in `correct_option_id` column, mig 109, #823). Fires on every write, including raw PostgREST updates that bypass the app-layer Zod contract. |
+| `trg_sanitize_question_options` | `questions` | BEFORE INSERT OR UPDATE OF `options`: strips any `correct` key from the options JSONB, rebuilding the array as `{id,text}` only. Defense-in-depth: guarantees the MC answer key never re-enters the readable JSONB (it lives in `correct_option_id` column, mig 111, #823). Fires on every write, including raw PostgREST updates that bypass the app-layer Zod contract. |
 | `trg_stamp_last_active_on_session_complete` | `quiz_sessions` | AFTER UPDATE OF `ended_at`: stamps `users.last_active_at = now()` on the NULL→NOT NULL transition, guarded to the student who owns the session (`auth.uid() = NEW.student_id`). Fires on all four student-completion paths (`batch_submit_quiz`, `complete_overdue_exam_session`, `complete_empty_exam_session`, deprecated `complete_quiz_session`), and is skipped on admin voids (`void_internal_exam_code` with `auth.uid() = admin`). Centralizes the stamp operation outside of RPC bodies, closing the bug where only the deprecated path updated activity (mig 092, #532). |
 
 ---
@@ -2686,4 +2706,4 @@ The `security-auditor` agent flags:
 
 ---
 
-*Last updated: 2026-06-13 (PR #856 CR-fix: get_report_correct_options active-user gate (mig 112); submit_quiz_answer idempotency-gate + re-read on dup-submit + intentional-divergence doc (mig 110); submit_vfr_rt blank_index dup-key canonicalization (mig 111); docs/database.md §3 updated: "divergence is documented-as-intentional"; submit_quiz_answer code sample updated with the GET DIAGNOSTICS branch) | Earlier 2026-06-13 (mig 115 hardening #823 PR #856: check_quiz_answer RPC—active-user gate + practice-mode guard (rejects exam modes) + explicit null-check on config.question_ids; batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; integration tests +2: exam-mode rejection + soft-deleted caller) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `p_calc_mode` AND-restriction) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT) | Companion: docs/security.md*
+*Last updated: 2026-06-19 (PR #856 / #823 MC answer-key relocation, renumbered onto master: get_report_correct_options active-user gate (mig 114); submit_quiz_answer idempotency-gate + re-read on dup-submit + intentional-divergence doc (mig 112); submit_vfr_rt blank_index dup-key canonicalization (mig 113); check_quiz_answer active-user gate + practice-mode guard + null-check (mig 117); batch_submit_quiz replay JOIN removed deleted_at filter (mig 112b); correct_option_id column relocation migs 111–117; integration tests +2) | Earlier 2026-06-18 (mig 110, internal-exam code email feature: `record_internal_exam_code_emailed(p_code_id)` SECURITY DEFINER RPC for audit-event writes; guard set mirrors issue_/void_internal_exam_code per security.md rule 11b; audit payload event_type=`internal_exam.code_emailed` / resource_type=`internal_exam_code`; invoked from Server Action sendInternalExamCodeEmail) | Earlier 2026-06-14 (mig 109, #864: `p_has_image` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate, mirrors p_calc_mode pattern #837; filters on question_image_url presence) | Earlier 2026-06-11 (migs 107–108, #837: `questions.has_calculations` BOOLEAN column + `GRANT SELECT (has_calculations)` to authenticated; `p_calc_mode` {all|only|exclude} AND-restriction added to `_filtered_question_pool` / `get_random_question_ids` / `get_filtered_question_counts` via DROP-then-recreate) | Earlier 2026-06-11 (migs 105–106, #833/#840: get_vfr_rt_exam_questions redefined session-derived — `(p_session_id uuid)` signature, IDs from frozen config.question_ids, explanation fields removed; get_vfr_rt_exam_results gains explanation_text/explanation_image_url behind the ended_at gate) | Previous: 2026-06-10 (Phase A migrations 094–104: VFR RT schema + 6 new RPCs + legacy-RPC mode whitelist (mig 104 complete_quiz_session redefinition, #838); questions type+answer-key columns + column-level REVOKE/GRANT; quiz_session_answers + student_responses per-blank support + UNIQUE NULLS NOT DISTINCT; quiz_sessions mode+config; exam_configs parts_config; start_vfr_rt_exam_session, get_vfr_rt_exam_questions, submit_vfr_rt_exam_answers, get_vfr_rt_exam_results, get_question_authoring_fields, normalize_answer RPCs) | Companion: docs/security.md*

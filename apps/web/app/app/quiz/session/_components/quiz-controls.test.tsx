@@ -16,6 +16,7 @@ type ControlProps = {
   onPrev?: () => void
   onNext?: () => void
   onSubmitAnswer?: () => void
+  isExam?: boolean
 }
 
 function renderControls(overrides: ControlProps = {}) {
@@ -32,6 +33,7 @@ function renderControls(overrides: ControlProps = {}) {
     onPrev: vi.fn(),
     onNext: vi.fn(),
     onSubmitAnswer: vi.fn(),
+    isExam: false,
   }
   const props = { ...defaults, ...overrides }
   render(<QuizControls {...props} />)
@@ -208,5 +210,37 @@ describe('QuizControls — Submit Answer button', () => {
   it('disables Submit Answer when submitting', () => {
     renderControls({ showSubmit: true, submitting: true })
     expect(screen.getByRole('button', { name: /submit answer/i })).toBeDisabled()
+  })
+
+  it('shows a spinner inside the submit button when submitting', () => {
+    renderControls({ showSubmit: true, submitting: true })
+    const btn = screen.getByRole('button', { name: /submit answer/i })
+    // The Loader2 SVG is aria-hidden so it does not affect the accessible name,
+    // but it must be present in the DOM as a visual busy indicator.
+    expect(btn.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+  })
+
+  it('does not show a spinner when not submitting', () => {
+    renderControls({ showSubmit: true, submitting: false })
+    const btn = screen.getByRole('button', { name: /submit answer/i })
+    expect(btn.querySelector('svg[aria-hidden="true"]')).toBeNull()
+  })
+
+  it('sets aria-busy on the submit button while submitting', () => {
+    renderControls({ showSubmit: true, submitting: true })
+    expect(screen.getByRole('button', { name: /submit answer/i })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    )
+  })
+
+  it('does not set aria-busy on the submit button when not submitting', () => {
+    renderControls({ showSubmit: true, submitting: false })
+    expect(screen.getByRole('button', { name: /submit answer/i })).not.toHaveAttribute('aria-busy')
+  })
+
+  it('shows "Confirm Answer" label in exam mode', () => {
+    renderControls({ showSubmit: true, isExam: true })
+    expect(screen.getByRole('button', { name: /confirm answer/i })).toBeInTheDocument()
   })
 })

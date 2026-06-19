@@ -48,13 +48,13 @@ async function getRtRefs(): Promise<{
   const byCode = Object.fromEntries(
     (topics ?? []).map((t: { id: string; code: string }) => [t.code, t.id]),
   )
-  if (!byCode['P1_ACRONYMS'] || !byCode['P2_DIALOG'] || !byCode['P3_MC'])
+  if (!byCode.P1_ACRONYMS || !byCode.P2_DIALOG || !byCode.P3_MC)
     throw new Error('getRtRefs: RT topics missing')
   return {
     rtSubjectId: sub.id,
-    p1TopicId: byCode['P1_ACRONYMS'],
-    p2TopicId: byCode['P2_DIALOG'],
-    p3TopicId: byCode['P3_MC'],
+    p1TopicId: byCode.P1_ACRONYMS,
+    p2TopicId: byCode.P2_DIALOG,
+    p3TopicId: byCode.P3_MC,
   }
 }
 
@@ -87,6 +87,13 @@ interface DfQ {
 interface McQ {
   id: string
   correctOption: string
+}
+// Shape of one row in get_vfr_rt_exam_results' per-question `answers` array (mig 106).
+type AnswerRow = {
+  blank_index: number | null
+  selected_option_id: string | null
+  response_text: string | null
+  is_correct: boolean
 }
 
 async function seedPool(opts: {
@@ -174,7 +181,7 @@ async function seedPool(opts: {
           { id: 'c', text: `C` },
           { id: 'd', text: `D` },
         ],
-        // MC answer key in its own REVOKE-gated column (#823, mig 109).
+        // MC answer key in its own REVOKE-gated column (#823, mig 111).
         correct_option_id: 'b',
         difficulty: 'medium',
         status: 'active',
@@ -327,8 +334,8 @@ describe('RPC: get_vfr_rt_exam_results — guard errors', () => {
   it('rejects unauthenticated call with not_authenticated', async () => {
     const anonClient = await import('@supabase/supabase-js').then(({ createClient }) =>
       createClient(
-        process.env['NEXT_PUBLIC_SUPABASE_URL'] ?? '',
-        process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
         { auth: { autoRefreshToken: false, persistSession: false } },
       ),
     )
@@ -498,13 +505,13 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
       p_session_id: passingSessionId,
     })
     const result = data as unknown as { questions: Array<Record<string, unknown>> }
-    const saEntry = result.questions.find((q) => q['question_type'] === 'short_answer')
+    const saEntry = result.questions.find((q) => q.question_type === 'short_answer')
     expect(saEntry).toBeDefined()
-    const key = saEntry!['key'] as Record<string, unknown>
+    const key = saEntry!.key as Record<string, unknown>
     // canonical_answer must be revealed in the results (post-submit safe per mig 103 guard)
-    expect(key['canonical_answer']).toBeTruthy()
-    expect(typeof key['canonical_answer']).toBe('string')
-    expect(Array.isArray(key['accepted_synonyms'])).toBe(true)
+    expect(key.canonical_answer).toBeTruthy()
+    expect(typeof key.canonical_answer).toBe('string')
+    expect(Array.isArray(key.accepted_synonyms)).toBe(true)
   })
 
   it('revealed key contains blanks for dialog_fill questions', async () => {
@@ -512,15 +519,15 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
       p_session_id: passingSessionId,
     })
     const result = data as unknown as { questions: Array<Record<string, unknown>> }
-    const dfEntry = result.questions.find((q) => q['question_type'] === 'dialog_fill')
+    const dfEntry = result.questions.find((q) => q.question_type === 'dialog_fill')
     expect(dfEntry).toBeDefined()
-    const key = dfEntry!['key'] as Record<string, unknown>
-    const blanks = key['blanks'] as Array<unknown>
+    const key = dfEntry!.key as Record<string, unknown>
+    const blanks = key.blanks as Array<unknown>
     expect(Array.isArray(blanks)).toBe(true)
     expect(blanks.length).toBeGreaterThan(0)
     const blank0 = blanks[0] as Record<string, unknown>
     // Full blanks_config is revealed post-submit (canonical + synonyms)
-    expect(blank0['canonical']).toBeTruthy()
+    expect(blank0.canonical).toBeTruthy()
   })
 
   it('revealed key contains correct_option_id for multiple_choice questions', async () => {
@@ -528,11 +535,73 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
       p_session_id: passingSessionId,
     })
     const result = data as unknown as { questions: Array<Record<string, unknown>> }
-    const mcEntry = result.questions.find((q) => q['question_type'] === 'multiple_choice')
+    const mcEntry = result.questions.find((q) => q.question_type === 'multiple_choice')
     expect(mcEntry).toBeDefined()
-    const key = mcEntry!['key'] as Record<string, unknown>
-    expect(key['correct_option_id']).toBeTruthy()
-    expect(typeof key['correct_option_id']).toBe('string')
+    const key = mcEntry!.key as Record<string, unknown>
+    expect(key.correct_option_id).toBeTruthy()
+    expect(typeof key.correct_option_id).toBe('string')
+  })
+
+  it('returns each submitted answer in the per-question answers array (#845)', async () => {
+    // Guards the answers-array aggregation in get_vfr_rt_exam_results (mig 106):
+    // jsonb_agg(... ORDER BY blank_index NULLS FIRST) GROUP BY question_id. A
+    // regression in ordering, a dropped blank row, or a wrong is_correct join
+    // would otherwise pass silently (scores/keys/explanations are covered above).
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
+      p_session_id: passingSessionId,
+    })
+    expect(error).toBeNull()
+    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+
+    // short_answer: exactly one row, blank_index/selected_option_id null,
+    // response_text === the submitted canonical, is_correct true.
+    const saEntry = result.questions.find((q) => q.question_type === 'short_answer')
+    expect(saEntry).toBeDefined()
+    const saAnswers = saEntry!.answers as AnswerRow[]
+    expect(Array.isArray(saAnswers)).toBe(true)
+    expect(saAnswers).toHaveLength(1)
+    const saSeed = saQs.find((s) => s.id === saEntry!.question_id)
+    expect(saSeed).toBeDefined()
+    expect(saAnswers[0]).toMatchObject({
+      blank_index: null,
+      selected_option_id: null,
+      response_text: saSeed!.canonical,
+      is_correct: true,
+    })
+
+    // dialog_fill: two rows ordered by blank_index (NULLS FIRST → [0, 1]); each
+    // response_text === the submitted blank canonical, is_correct true.
+    const dfEntry = result.questions.find((q) => q.question_type === 'dialog_fill')
+    expect(dfEntry).toBeDefined()
+    const dfAnswers = dfEntry!.answers as AnswerRow[]
+    expect(Array.isArray(dfAnswers)).toBe(true)
+    expect(dfAnswers).toHaveLength(2)
+    expect(dfAnswers.map((a) => a.blank_index)).toEqual([0, 1])
+    const dfSeed = dfQs.find((d) => d.id === dfEntry!.question_id)
+    expect(dfSeed).toBeDefined()
+    for (const a of dfAnswers) {
+      const blank = dfSeed!.blanks.find((b) => b.index === a.blank_index)
+      expect(blank).toBeDefined()
+      expect(a.selected_option_id).toBeNull()
+      expect(a.response_text).toBe(blank!.canonical)
+      expect(a.is_correct).toBe(true)
+    }
+
+    // multiple_choice: exactly one row, blank_index/response_text null,
+    // selected_option_id === the submitted correct option, is_correct true.
+    const mcEntry = result.questions.find((q) => q.question_type === 'multiple_choice')
+    expect(mcEntry).toBeDefined()
+    const mcAnswers = mcEntry!.answers as AnswerRow[]
+    expect(Array.isArray(mcAnswers)).toBe(true)
+    expect(mcAnswers).toHaveLength(1)
+    const mcSeed = mcQs.find((m) => m.id === mcEntry!.question_id)
+    expect(mcSeed).toBeDefined()
+    expect(mcAnswers[0]).toMatchObject({
+      blank_index: null,
+      response_text: null,
+      selected_option_id: mcSeed!.correctOption,
+      is_correct: true,
+    })
   })
 
   it('reveals the seeded explanation fields for every question after completion', async () => {
@@ -552,7 +621,7 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
     }
 
     // Values must match the seeded fixtures exactly (service-role read = ground truth)
-    const ids = result.questions.map((q) => q['question_id'] as string)
+    const ids = result.questions.map((q) => q.question_id as string)
     const { data: seeded, error: seededErr } = await admin
       .from('questions')
       .select('id, explanation_text, explanation_image_url')
@@ -568,20 +637,20 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
       ).map((q) => [q.id, q]),
     )
     for (const q of result.questions) {
-      const expected = byId.get(q['question_id'] as string)
+      const expected = byId.get(q.question_id as string)
       expect(expected).toBeDefined()
-      expect(q['explanation_text']).toBe(expected!.explanation_text)
-      expect(q['explanation_image_url']).toBe(expected!.explanation_image_url)
+      expect(q.explanation_text).toBe(expected!.explanation_text)
+      expect(q.explanation_image_url).toBe(expected!.explanation_image_url)
     }
 
     // Hardcoded-constant guard: a regression that returns one fixed value (or
     // always null) must fail — each field has ≥2 distinct non-null fixtures.
     const texts = result.questions
-      .map((q) => q['explanation_text'])
+      .map((q) => q.explanation_text)
       .filter((t): t is string => typeof t === 'string')
     expect(new Set(texts).size).toBeGreaterThanOrEqual(2)
     const imageUrls = result.questions
-      .map((q) => q['explanation_image_url'])
+      .map((q) => q.explanation_image_url)
       .filter((u): u is string => typeof u === 'string')
     expect(new Set(imageUrls).size).toBeGreaterThanOrEqual(2)
   })
@@ -596,9 +665,9 @@ describe('RPC: get_vfr_rt_exam_results — passing session (Fixture A)', () => {
     // explanation_text is NOT NULL by schema, so null passthrough is only
     // observable on explanation_image_url; dialog_fill questions are seeded
     // without one.
-    const dfEntry = result.questions.find((q) => q['question_id'] === dfQs[0]!.id)
+    const dfEntry = result.questions.find((q) => q.question_id === dfQs[0]!.id)
     expect(dfEntry).toBeDefined()
-    expect(dfEntry!['explanation_image_url']).toBeNull()
+    expect(dfEntry!.explanation_image_url).toBeNull()
   })
 })
 
@@ -626,6 +695,27 @@ describe('RPC: get_vfr_rt_exam_results — Part 2 fail session (Fixture B)', () 
     // correct_count is ROW-level (per-blank for dialog_fill, informational-only
     // per migs 100/102/103): 8 SA + 0 of 18 wrong DF blank rows + 8 MC = 16.
     expect(Number(result.correct_count)).toBe(16)
+  })
+
+  it('returns is_correct false with the wrong response_text for the failed dialog_fill blanks (#845)', async () => {
+    // Pins the is_correct join from the wrong-answer side: Fixture B submits
+    // 'WRONG_XYZ' for every Part 2 blank, so the answers array must carry that
+    // text with is_correct false — independent of the part2_pct=0 score path.
+    const { data, error } = await studentClient.rpc('get_vfr_rt_exam_results', {
+      p_session_id: failingSessionId,
+    })
+    expect(error).toBeNull()
+    const result = data as unknown as { questions: Array<Record<string, unknown>> }
+    const dfEntry = result.questions.find((q) => q.question_type === 'dialog_fill')
+    expect(dfEntry).toBeDefined()
+    const dfAnswers = dfEntry!.answers as AnswerRow[]
+    expect(Array.isArray(dfAnswers)).toBe(true)
+    expect(dfAnswers).toHaveLength(2)
+    expect(dfAnswers.map((a) => a.blank_index)).toEqual([0, 1])
+    for (const a of dfAnswers) {
+      expect(a.response_text).toBe('WRONG_XYZ')
+      expect(a.is_correct).toBe(false)
+    }
   })
 })
 

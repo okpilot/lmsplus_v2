@@ -1,6 +1,6 @@
 # Agent Rules — coderabbit-local (external CLI)
 
-> External LLM reviewer (`coderabbit review --plain --base master --type committed`) | Trigger: pre-push, mid-development | Non-blocking
+> External LLM reviewer (`coderabbit review --plain --base master --type committed -c .coderabbit.yaml`) | Trigger: pre-push, mid-development | Non-blocking
 
 ## Purpose
 CodeRabbit local CLI runs the same review engine that comments on PRs, against the local branch diff before push. Catches things our internal agents systematically miss — observability gaps on `.select('id')` chains, runtime guard omissions on RPC casts, cleanup ordering, helper hoisting, error-path consistency. Cheaper to run pre-push than to triage on the PR after CI.
@@ -33,23 +33,26 @@ Every CR finding falls into exactly one of these classes. Severity labels (`triv
 
 ## Stop Conditions for the Loop
 
-CodeRabbit is an LLM. It does not converge — it can find a new nit on every round. The loop ends when ANY of these is true:
+CodeRabbit is an LLM. It does not converge — it can find a new nit on every round, and the same diff yields different findings run to run. A single quiet round is therefore NOT evidence the diff is clean. The loop ends when EITHER:
 
-1. Round comes back with **0 findings**.
-2. **≥ 75% of a round's findings** are `Aesthetic preference` or `Contradicts codebase pattern`.
-3. **Two consecutive rounds** produce only stylistic findings with zero APPLY verdicts.
-4. **4 fix commits driven by CR local** on the current branch — escalate to user judgment beyond that.
+1. **Minimum-rounds floor met — N consecutive clean rounds.** A *clean round* = 0 findings, OR stylistic-only findings (`Aesthetic preference` / `Contradicts codebase pattern`) with zero APPLY verdicts.
+   - **N = 2** for a normal diff.
+   - **N = 3** when the diff touches a security path (the `agent-workflow.md § Red-Team Agent Trigger` set: `supabase/migrations/`, `packages/db/`, `apps/web/app/app/quiz/actions/`, `apps/web/app/auth/`, `apps/web/proxy.ts`, `docs/security.md`) — determined via `git diff master...HEAD --name-only`.
+   - Every floor round runs with `-c .coderabbit.yaml`. Any round carrying an APPLY verdict **resets the consecutive-clean counter to zero** (fix, then resume counting).
+2. **4 fix commits driven by CR local** on the current branch — a hard ceiling that caps total effort even if the floor is unmet; escalate to user judgment rather than looping further.
 
 ## Handling Results
 
 ### DO
 - Run via `/crlocal` slash command — never call `coderabbit review` ad hoc; the command embeds the protocol.
+- **Always pass `-c .coderabbit.yaml`.** Both the hosted PR bot AND the CLI auto-load the repo-root config — confirmed by behavioral A/B 2026-06-18 (CLI 0.6.1): a fixture violating `actions.ts` path_instructions was flagged identically with and without `-c` (see `reference-crlocal-cli-vs-cloud` memory). So `-c` is **cheap redundancy, not a necessity** — keep it as belt-and-suspenders: it makes the config explicit and is robust if a future CLI version changes auto-load behavior. Omit only if the file is absent. (Especially relevant post-Forgejo-migration, where the PR bot is gone and the CLI is the only CodeRabbit — the experiment confirms the CLI honors `.coderabbit.yaml` off-platform with no extra wiring.)
+- **Honor the minimum-rounds floor** (Stop Conditions §1): a single clean round never satisfies the gate — require N consecutive clean rounds (2 normal / 3 security-path), resetting on any APPLY verdict.
 - Read the source for every finding before triaging — CR's labels are LLM-generated, not authoritative.
 - Apply each APPLY-verdict finding in a focused commit (one subject per commit). Don't batch unrelated fixes.
 - Report a per-round summary table (file:line / severity / class / verdict / why) to the user before re-running.
 - Re-run the review after each fix commit — fixes can surface new findings that weren't visible before.
 - For DEFER verdicts, file a GitHub Issue with the CR comment context (severity, file, line, suggestion).
-- Stop the loop the moment a stop condition trips. Tell the user which condition tripped.
+- Stop the loop the moment a stop condition trips (floor met, or 4-fix ceiling hit) — but NOT on a single clean round; report the running consecutive-clean count each round and tell the user which condition tripped.
 - Treat findings labeled `nitpick / trivial` with the same source-reading rigour as `potential_issue / major`. Severity labels are unreliable.
 - When SKIPPING, give a concrete reason (cite the codebase pattern, point to a code-style rule, or explain the trade-off).
 
@@ -75,4 +78,4 @@ These are the patterns CR local caught that our internal agents missed (#1–5 f
 
 ---
 
-*Last updated: 2026-06-05 (added CR-local CREATE-OR-REPLACE / migration-mirror false-positive note — issue #759)*
+*Last updated: 2026-06-18 (made `-c .coderabbit.yaml` config parity the default; added minimum-rounds floor — 2 consecutive clean rounds normally, 3 for security-path diffs — to counter CR non-determinism)*

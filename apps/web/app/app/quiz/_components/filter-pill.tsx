@@ -13,7 +13,7 @@ export function getSquareClass(opts: {
   return 'border border-border text-muted-foreground'
 }
 
-export function FilterPill({
+function FilterPill({
   active,
   onClick,
   label,
@@ -79,11 +79,17 @@ export function GridToggle({
   expanded,
   totalQuestions,
   onToggle,
-}: Readonly<{ expanded: boolean; totalQuestions: number; onToggle: () => void }>) {
+  testId = 'grid-toggle',
+}: Readonly<{
+  expanded: boolean
+  totalQuestions: number
+  onToggle: () => void
+  testId?: string
+}>) {
   return (
     <button
       type="button"
-      data-testid="grid-toggle"
+      data-testid={testId}
       onClick={onToggle}
       className="mt-1.5 flex w-full items-center justify-center gap-1 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
     >

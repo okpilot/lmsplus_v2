@@ -114,7 +114,7 @@ describe('trigger: stamp_last_active_on_session_complete', () => {
     const sessionId = sessionData
 
     // Derive the correct option id from the seeded question. The MC answer key
-    // now lives in the REVOKE-gated correct_option_id column (#823, mig 109);
+    // now lives in the REVOKE-gated correct_option_id column (#823, mig 111);
     // service-role reads bypass the REVOKE, so read the column directly.
     const { data: qRow, error: qErr } = await admin
       .from('questions')

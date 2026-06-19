@@ -1,12 +1,16 @@
 /**
- * Red Team Spec: Cross-Tenant RPC Isolation — probe-only tests (no seeding)
+ * Red Team Spec: Cross-Tenant RPC Isolation
  *
  * Vector D (MEDIUM): A user from a different organization attempts to start a quiz
  * session using a subject that belongs to egmont-aviation. RLS should prevent
  * cross-tenant data access at both the RPC and direct SELECT level.
  *
- * This file covers the 13 tests that PROBE existing data without seeding any
- * fixture rows. The 6 tests that seed rows live in rpc-cross-tenant-reports.spec.ts.
+ * This file covers the 14 cross-tenant isolation tests. The describe-level
+ * beforeAll seeds the minimal egmont victim fixtures (responses via
+ * seedVictimResponses + one quiz_session) needed to keep the direct-read
+ * isolation assertions NON-VACUOUS (#818, code-style.md §7): an empty cross-org
+ * result only proves isolation if a victim row provably exists to be blocked.
+ * The broader report-RPC seeders live in rpc-cross-tenant-reports.spec.ts.
  *
  * Status: Expected to PASS (defenses should hold).
  * If any assertion fails, it indicates an RLS gap requiring immediate fix.
@@ -19,17 +23,30 @@ import {
   createCrossOrgUser,
   ensureExamConfig,
   pickSubjectWithQuestions,
+  seedCrossOrgAdmin,
   seedRedTeamUsers,
   seedVictimResponses,
 } from './helpers/seed'
 
 test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   let crossOrgClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
+  // The cross-org caller's own org id — used by Vector DN2 to prove that org has
+  // NO exam_config for examSubjectId (so the rejection is org-scoping, not a
+  // config that happens to exist for the attacker's org).
+  let crossOrgUserOrgId = ''
+  // A genuine is_admin() user in redteam-other-org — used by Vector DX to prove
+  // admin_update_questions RLS blocks a cross-tenant write even for a real admin.
+  let crossOrgAdminClient: Awaited<ReturnType<typeof createAuthenticatedClient>>
   let adminClient: Awaited<ReturnType<typeof getAdminClient>>
   let egmontSubjectId: string
   let egmontTopicId: string
   let egmontQuestionIds: string[]
   let egmontOrgId: string
+  // The egmont victim user (seeded by seedRedTeamUsers/seedVictimResponses) and a
+  // victim-owned quiz_session — used by the direct-read isolation tests (#818) to
+  // prove a real victim row exists before asserting the cross-org caller sees 0.
+  let victimUserId = ''
+  let seededVictimSessionId: string | null = null
   // A subject GUARANTEED to have egmont questions + an enabled exam_config, so
   // the cross-org exam/pool probes below prove org-scoping rather than the
   // vacuous "this subject has no data anywhere" case.
@@ -40,8 +57,17 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
   test.beforeAll(async () => {
     const seed = await seedRedTeamUsers()
     egmontOrgId = seed.orgId
+    victimUserId = seed.victimUserId
     const crossOrgUser = await createCrossOrgUser()
+    crossOrgUserOrgId = crossOrgUser.orgId
     crossOrgClient = await createAuthenticatedClient(crossOrgUser.email, crossOrgUser.password)
+    // Vector DX: a real admin in the OTHER org, to prove the cross-org write is
+    // blocked by org-scoping (not merely by lack of the admin role).
+    const crossOrgAdmin = await seedCrossOrgAdmin()
+    crossOrgAdminClient = await createAuthenticatedClient(
+      crossOrgAdmin.email,
+      crossOrgAdmin.password,
+    )
     adminClient = getAdminClient()
 
     // Seed the egmont victim with 8 correct responses so that the cross-org
@@ -81,6 +107,52 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     expect(qErr).toBeNull()
     egmontQuestionIds = (qs ?? []).map((q) => q.id)
     expect(egmontQuestionIds.length).toBeGreaterThan(0)
+
+    // Seed one completed quiz_session owned by the egmont victim (#818). The
+    // direct-read isolation test for quiz_sessions needs a real victim row to
+    // exist so the cross-org "0 rows" assertion is non-vacuous (§7). Soft-deleted
+    // in afterAll. config has no pass_mark — quick_quiz never reads it.
+    const nowMs = Date.now()
+    const { data: sessionRow, error: sessionErr } = await adminClient
+      .from('quiz_sessions')
+      .insert({
+        organization_id: egmontOrgId,
+        student_id: victimUserId,
+        mode: 'quick_quiz',
+        subject_id: examSubjectId,
+        config: { question_ids: [] },
+        total_questions: 1,
+        started_at: new Date(nowMs - 20 * 60 * 1000).toISOString(),
+        ended_at: new Date(nowMs - 10 * 60 * 1000).toISOString(),
+        score_percentage: 100,
+        passed: true,
+        correct_count: 1,
+      })
+      .select('id')
+      .single()
+    if (sessionErr || !sessionRow)
+      throw new Error(`#818 seed victim session: ${sessionErr?.message}`)
+    seededVictimSessionId = sessionRow.id
+  })
+
+  test.afterAll(async () => {
+    // Hermetic cleanup (§7): soft-delete the seeded victim quiz_session. The
+    // seeded student_responses are immutable (append-only, no cleanup) and the
+    // egmont questions are shared seed data — neither is touched here.
+    if (!seededVictimSessionId) return
+    const { data: discarded, error } = await adminClient
+      .from('quiz_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', seededVictimSessionId)
+      .is('deleted_at', null)
+      .select('id')
+    if (error) {
+      console.error(`[cross-tenant-isolation cleanup] soft-delete error: ${error.message}`)
+    } else if ((discarded?.length ?? 0) > 0) {
+      console.log(
+        `[cross-tenant-isolation cleanup] soft-deleted ${discarded?.length} victim session(s)`,
+      )
+    }
   })
 
   test('cross-org user cannot start a quiz session for an egmont-aviation subject', async () => {
@@ -102,71 +174,64 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     expect(data ?? null).toBeNull()
   })
 
-  test('cross-org user cannot SELECT questions from egmont-aviation via anon client', async () => {
-    // Direct table read: the cross-org user's JWT should scope RLS to their own org.
-    // They must see 0 rows from the egmont-aviation subjects/questions tables.
-    const { data: questions, error } = await crossOrgClient
+  test('cross-org user cannot SELECT a known egmont question via anon client', async () => {
+    // Non-vacuous (#818, §7): a specific egmont question provably exists (admin
+    // re-read), so the cross-org caller's 0-row result for THAT id proves
+    // tenant_isolation RLS blocked it — not an empty first page.
+    const victimQid = egmontQuestionIds[0]
+    const { data: adminQ, error: adminErr } = await adminClient
       .from('questions')
-      .select('id, topic_id')
-      .limit(20)
+      .select('id')
+      .eq('id', victimQid)
+      .single()
+    expect(adminErr).toBeNull()
+    expect(adminQ).not.toBeNull()
 
-    expect(error).toBeNull()
-
-    if (questions && questions.length > 0) {
-      // Confirm none of the returned questions belong to egmont-aviation topics
-      const topicIds = questions.map((q) => q.topic_id)
-
-      const { data: egmontTopics } = await adminClient
-        .from('easa_topics')
-        .select('id')
-        .in('id', topicIds)
-
-      // If the admin sees these topics, the cross-org user is leaking egmont data
-      expect(egmontTopics?.length ?? 0).toBe(0)
-    }
-    // If 0 questions returned, isolation is confirmed — nothing to check further
+    const { data, error } = await crossOrgClient.from('questions').select('id').eq('id', victimQid)
+    expect(error).toBeNull() // RLS returns empty, not an error
+    expect(data?.length ?? 0).toBe(0)
   })
 
-  test('cross-org user cannot read egmont-aviation quiz_sessions', async () => {
-    // An attacker from another org must not be able to enumerate sessions
-    // from egmont-aviation students.
-    const { data: sessions, error } = await crossOrgClient
+  test('cross-org user cannot read the egmont victim quiz_session', async () => {
+    // Non-vacuous (#818, §7): a victim-owned quiz_session was seeded in beforeAll
+    // and provably exists (admin re-read). The cross-org caller probing by the
+    // victim's student_id must see 0 rows — quiz_sessions SELECT RLS scopes to
+    // student_id = auth.uid(), so the attacker is blocked despite the row existing.
+    expect(seededVictimSessionId).not.toBeNull()
+    const { data: adminRows, error: adminErr } = await adminClient
       .from('quiz_sessions')
-      .select('id, student_id')
-      .limit(10)
+      .select('id')
+      .eq('id', seededVictimSessionId)
+      .is('deleted_at', null)
+    expect(adminErr).toBeNull()
+    expect(adminRows?.length ?? 0).toBeGreaterThan(0)
 
+    const { data, error } = await crossOrgClient
+      .from('quiz_sessions')
+      .select('id')
+      .eq('student_id', victimUserId)
     expect(error).toBeNull()
-
-    if (sessions && sessions.length > 0) {
-      // Any sessions returned must belong to the cross-org user themselves
-      const uniqueStudentIds = [...new Set(sessions.map((s) => s.student_id))]
-
-      // Get the cross-org user's own id to verify sessions are scoped
-      const { data: me } = await crossOrgClient.auth.getUser()
-      const crossOrgUserId = me?.user?.id
-
-      for (const studentId of uniqueStudentIds) {
-        expect(studentId).toBe(crossOrgUserId)
-      }
-    }
+    expect(data?.length ?? 0).toBe(0)
   })
 
-  test('cross-org user cannot read egmont-aviation student_responses', async () => {
-    const { data: progress, error } = await crossOrgClient
+  test('cross-org user cannot read the egmont victim student_responses', async () => {
+    // Non-vacuous (#818, §7): seedVictimResponses seeded 8 responses for the egmont
+    // victim, which provably exist (admin re-read). The cross-org caller probing by
+    // the victim's student_id must see 0 — student_responses SELECT RLS scopes to
+    // student_id = auth.uid(), blocking the attacker despite the rows existing.
+    const { data: adminRows, error: adminErr } = await adminClient
       .from('student_responses')
-      .select('id, student_id')
-      .limit(10)
+      .select('id')
+      .eq('student_id', victimUserId)
+    expect(adminErr).toBeNull()
+    expect(adminRows?.length ?? 0).toBeGreaterThan(0)
 
+    const { data, error } = await crossOrgClient
+      .from('student_responses')
+      .select('id')
+      .eq('student_id', victimUserId)
     expect(error).toBeNull()
-
-    if (progress && progress.length > 0) {
-      const { data: me } = await crossOrgClient.auth.getUser()
-      const crossOrgUserId = me?.user?.id
-
-      for (const row of progress) {
-        expect(row.student_id).toBe(crossOrgUserId)
-      }
-    }
+    expect(data?.length ?? 0).toBe(0)
   })
 
   // -------------------------------------------------------------------------
@@ -237,6 +302,43 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     expect(data ?? null).toBeNull()
   })
 
+  test('Vector DN2 (#825): cross-org student cannot start a vfr_rt exam for an egmont subject', async () => {
+    // start_vfr_rt_exam_session (mig 099) scopes its exam_configs lookup to the
+    // CALLER's org (ec.organization_id = caller_org) with no vfr-specific flag,
+    // so the enabled egmont config seeded in beforeAll satisfies it for an egmont
+    // student but not for the cross-org caller → RAISE 'exam_config_required'.
+    // Non-vacuity (§7): assert egmont HAS the config AND the attacker's own org
+    // does NOT — so the rejection proves org-scoping, not a globally-absent or
+    // attacker-present config.
+    const { data: egmontConfig, error: egmontCfgErr } = await adminClient
+      .from('exam_configs')
+      .select('id')
+      .eq('id', examConfigId)
+      .eq('enabled', true)
+      .is('deleted_at', null)
+      .single()
+    expect(egmontCfgErr).toBeNull()
+    expect(egmontConfig).not.toBeNull()
+
+    const { data: crossOrgConfig, error: crossCfgErr } = await adminClient
+      .from('exam_configs')
+      .select('id')
+      .eq('organization_id', crossOrgUserOrgId)
+      .eq('subject_id', examSubjectId)
+      .eq('enabled', true)
+      .is('deleted_at', null)
+      .maybeSingle()
+    expect(crossCfgErr).toBeNull()
+    expect(crossOrgConfig).toBeNull()
+
+    const { data, error } = await crossOrgClient.rpc('start_vfr_rt_exam_session', {
+      p_subject_id: examSubjectId,
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/exam_config_required/i)
+    expect(data ?? null).toBeNull()
+  })
+
   test('cross-org student sees no egmont questions from get_random_question_ids (Vector CB, #690)', async () => {
     // Non-vacuity: examSubjectId has active egmont questions (pickSubjectWithQuestions
     // guarantees it). get_random_question_ids is SECURITY INVOKER → tenant_isolation
@@ -301,5 +403,67 @@ test.describe('Red Team: Cross-Tenant RPC Isolation', () => {
     const { data, error } = await crossOrgClient.rpc('get_session_reports', {})
     expect(error).toBeNull()
     expect(data ?? []).toHaveLength(0)
+  })
+
+  // -------------------------------------------------------------------------
+  // Vector DX (#851): cross-org admin cannot flip has_calculations (#837)
+  // -------------------------------------------------------------------------
+
+  test('Vector DX (#851): cross-org admin cannot flip has_calculations on a question owned by another org', async () => {
+    // bulkUpdateCalculations (apps/web/app/app/admin/questions/actions/
+    // bulk-update-calculations.ts) runs purely under the CALLER's RLS — no
+    // service-role — via:
+    //   questions.update({ has_calculations, updated_at })
+    //           .in('id', ids).is('deleted_at', null).select('id')
+    // admin_update_questions RLS (mig 20260324000054) gates UPDATE on
+    // is_admin() AND organization_id = caller_org; the base tenant_isolation
+    // policy is also org-scoped. A cross-org admin matches 0 rows → the action
+    // returns { success: false, error: 'No questions were updated' }.
+    // Server Actions aren't callable from a PostgREST-layer red-team spec, so
+    // reproducing the exact chain via the cross-org admin client exercises the
+    // identical RLS boundary the action depends on.
+    //
+    // Vector allocated DX (not the issue's speculative "DZ"): the live
+    // attack-surface matrix max on master is DW (agent-red-team.md allocation
+    // rule — highest+1, never trust an externally-computed ID).
+    const targetId = egmontQuestionIds[0]
+
+    // Non-vacuity (code-style.md §7): the protected row genuinely exists; capture
+    // its real value so "unchanged" is a meaningful assertion, not a vacuous one.
+    const { data: before, error: beforeErr } = await adminClient
+      .from('questions')
+      .select('id, has_calculations')
+      .eq('id', targetId)
+      .single()
+    expect(beforeErr).toBeNull()
+    expect(before).not.toBeNull()
+    // Runtime-guard the cast (§5): has_calculations is BOOLEAN NOT NULL, so a
+    // non-boolean here would make the "unchanged" assertion below vacuous
+    // (toBe(undefined)). The typeof check fails loudly instead.
+    expect(typeof before?.has_calculations).toBe('boolean')
+    const original = before?.has_calculations as boolean
+
+    // Attack: cross-org admin attempts to flip the flag to the opposite value.
+    const { data: updated, error: updateErr } = await crossOrgAdminClient
+      .from('questions')
+      .update({ has_calculations: !original, updated_at: new Date().toISOString() })
+      .in('id', [targetId])
+      .is('deleted_at', null)
+      .select('id')
+
+    // RLS USING mismatch → silent 0-row no-op: error null, data []. (An UPDATE
+    // USING failure is NOT a 42501 — that is the INSERT/UPDATE WITH CHECK path.)
+    // This is the action's 'No questions were updated' branch.
+    expect(updateErr).toBeNull()
+    expect(updated ?? []).toHaveLength(0)
+
+    // Confirm the egmont question is untouched.
+    const { data: after, error: afterErr } = await adminClient
+      .from('questions')
+      .select('has_calculations')
+      .eq('id', targetId)
+      .single()
+    expect(afterErr).toBeNull()
+    expect(after?.has_calculations).toBe(original)
   })
 })

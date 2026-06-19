@@ -1,18 +1,13 @@
 import { isExamMode, MODE_LABELS } from '@/lib/constants/exam-modes'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report'
+import { formatMsDuration } from './format-duration'
 import { ScoreRing } from './score-ring'
 
 function formatDuration(startedAt: string, endedAt: string | null): string {
   if (!endedAt) return '—'
   const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime()
   if (ms < 0) return '—'
-  const totalSeconds = Math.round(ms / 1000)
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`
-  if (minutes === 0) return `${seconds}s`
-  return `${minutes}m ${seconds}s`
+  return formatMsDuration(ms)
 }
 
 function formatDate(dateStr: string): string {

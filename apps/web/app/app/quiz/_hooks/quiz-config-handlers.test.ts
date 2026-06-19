@@ -41,6 +41,7 @@ describe('createConfigHandlers', () => {
   let setFilters: ReturnType<typeof vi.fn<(f: string[]) => void>>
   let setCount: ReturnType<typeof vi.fn<(n: number) => void>>
   let setCalcMode: ReturnType<typeof vi.fn<(m: 'all' | 'only' | 'exclude') => void>>
+  let setImageMode: ReturnType<typeof vi.fn<(m: 'all' | 'only' | 'exclude') => void>>
   let fc: FilteredCountState
   let topicTree: UseTopicTreeReturn
 
@@ -50,10 +51,12 @@ describe('createConfigHandlers', () => {
       setFilters,
       setCount,
       setCalcMode,
+      setImageMode,
       fc,
       topicTree,
       filters: ['all'] as ('all' | 'unseen' | 'incorrect' | 'flagged')[],
       calcMode: 'all' as 'all' | 'only' | 'exclude',
+      imageMode: 'all' as 'all' | 'only' | 'exclude',
       ...overrides,
     }
   }
@@ -63,6 +66,7 @@ describe('createConfigHandlers', () => {
     setFilters = vi.fn()
     setCount = vi.fn()
     setCalcMode = vi.fn()
+    setImageMode = vi.fn()
     fc = makeFilteredCount()
     topicTree = makeTopicTree()
   })
@@ -90,6 +94,12 @@ describe('createConfigHandlers', () => {
       const { handleSubjectChange } = createConfigHandlers(makeDeps())
       handleSubjectChange('subj-1')
       expect(setCalcMode).toHaveBeenCalledWith('all')
+    })
+
+    it('resets imageMode to all', () => {
+      const { handleSubjectChange } = createConfigHandlers(makeDeps())
+      handleSubjectChange('subj-1')
+      expect(setImageMode).toHaveBeenCalledWith('all')
     })
 
     it('resets the filtered count state', () => {
@@ -153,6 +163,13 @@ describe('createConfigHandlers', () => {
       handleFiltersChange(['all'])
       expect(fc.reset).not.toHaveBeenCalled()
     })
+
+    it('does not reset filtered count when switch-filters clear but image-mode still restricts', () => {
+      const { handleFiltersChange } = createConfigHandlers(makeDeps({ imageMode: 'only' }))
+      // Clearing to ['all'] while imageMode='only' must keep the badge.
+      handleFiltersChange(['all'])
+      expect(fc.reset).not.toHaveBeenCalled()
+    })
   })
 
   describe('handleCalcModeChange', () => {
@@ -186,6 +203,57 @@ describe('createConfigHandlers', () => {
       handleCalcModeChange('all')
       expect(fc.reset).toHaveBeenCalled()
       expect(fc.refetch).not.toHaveBeenCalled()
+    })
+
+    it('does not reset when imageMode is active and calc returns to all', () => {
+      const { handleCalcModeChange } = createConfigHandlers(
+        makeDeps({ filters: ['all'], calcMode: 'only', imageMode: 'exclude' }),
+      )
+      handleCalcModeChange('all')
+      // imageMode='exclude' still restricts the pool — must NOT flash unfiltered count.
+      expect(fc.reset).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('handleImageModeChange', () => {
+    // The handler only updates state + conditionally resets; the counts effect (imageMode
+    // is in its dep array) performs the refetch. No direct refetch here — same rationale
+    // as handleCalcModeChange (avoids double fetch and empty-topics-before-load race).
+    it('updates imageMode to the new value', () => {
+      const { handleImageModeChange } = createConfigHandlers(makeDeps())
+      handleImageModeChange('only')
+      expect(setImageMode).toHaveBeenCalledWith('only')
+    })
+
+    it('does not reset (or directly refetch) when image mode becomes active', () => {
+      const { handleImageModeChange } = createConfigHandlers(makeDeps())
+      handleImageModeChange('exclude')
+      expect(fc.reset).not.toHaveBeenCalled()
+      expect(fc.refetch).not.toHaveBeenCalled()
+    })
+
+    it('does not reset when a switch-filter is active and image mode returns to all', () => {
+      const { handleImageModeChange } = createConfigHandlers(makeDeps({ filters: ['unseen'] }))
+      handleImageModeChange('all')
+      expect(fc.reset).not.toHaveBeenCalled()
+    })
+
+    it('resets counts when image mode returns to all and no other filter is active', () => {
+      const { handleImageModeChange } = createConfigHandlers(
+        makeDeps({ filters: ['all'], calcMode: 'all', imageMode: 'only' }),
+      )
+      handleImageModeChange('all')
+      expect(fc.reset).toHaveBeenCalled()
+      expect(fc.refetch).not.toHaveBeenCalled()
+    })
+
+    it('does not reset when calcMode is active and image mode returns to all', () => {
+      const { handleImageModeChange } = createConfigHandlers(
+        makeDeps({ filters: ['all'], calcMode: 'only', imageMode: 'exclude' }),
+      )
+      handleImageModeChange('all')
+      // calcMode='only' still restricts the pool — must NOT flash unfiltered count.
+      expect(fc.reset).not.toHaveBeenCalled()
     })
   })
 })

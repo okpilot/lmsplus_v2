@@ -220,7 +220,7 @@ async function seed() {
         { id: 'c', text: 'Option C' },
         { id: 'd', text: 'Option D' },
       ],
-      // MC answer key now lives in its own REVOKE-gated column (#823, mig 109).
+      // MC answer key now lives in its own REVOKE-gated column (#823, mig 111).
       correct_option_id: q.correct,
       explanation_text: 'Test explanation.',
       difficulty: 'medium',

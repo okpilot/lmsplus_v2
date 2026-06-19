@@ -90,7 +90,7 @@ describe('RPC: check_quiz_answer', () => {
   }
 
   it('returns the correct option id for a correct answer', async () => {
-    // Regression guard for #823 (mig 109 + mig 115): the answer key moved out of
+    // Regression guard for #823 (mig 111 + mig 117): the answer key moved out of
     // options[].correct (stripped on write) into the REVOKE-gated
     // correct_option_id column. First prove the stored options carry NO `correct`
     // key, yet check_quiz_answer still scores 'b' correct by reading the column.
@@ -185,7 +185,7 @@ describe('RPC: check_quiz_answer', () => {
   it('rejects answer checks for exam sessions', async () => {
     // check_quiz_answer returns is_correct/explanation/correct_option_id
     // immediately — accepting an exam-mode session would be a mid-exam answer
-    // oracle (#823 / mig 115 hardening, PR #856). Exam-mode sessions start via
+    // oracle (#823 / mig 117 hardening, PR #856). Exam-mode sessions start via
     // dedicated RPCs, so admin-insert the row directly here.
     const { data: sessRow, error: sessErr } = await admin
       .from('quiz_sessions')

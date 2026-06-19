@@ -5,12 +5,9 @@ import { useState } from 'react'
 import { MarkdownText } from '@/app/app/_components/markdown-text'
 import { ZoomableImage } from '@/app/app/_components/zoomable-image'
 import type { QuizReportQuestion } from '@/lib/queries/quiz-report'
+import { formatMsDuration } from './format-duration'
 import { OptionsList } from './options-list'
 import { useReportFlag } from './report-flag-context'
-
-function formatResponseTime(ms: number): string {
-  return `${(ms / 1000).toFixed(1)}s`
-}
 
 export function ReportQuestionRow({
   question,
@@ -59,7 +56,7 @@ export function ReportQuestionRow({
             <span className="text-sm">{question.questionText}</span>
             <div className="ml-auto flex flex-shrink-0 items-center gap-2">
               <span className="text-xs text-muted-foreground">
-                {formatResponseTime(question.responseTimeMs)}
+                {formatMsDuration(question.responseTimeMs)}
               </span>
               {flag && (
                 <button

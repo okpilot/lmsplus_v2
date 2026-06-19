@@ -1,8 +1,13 @@
-'use client'
-
-import { Dialog } from '@base-ui/react/dialog'
-import { useState } from 'react'
-
+/**
+ * Renders an image that opens its full-resolution source in a new browser tab
+ * when activated. Implemented as a real anchor, so it is keyboard-focusable and
+ * Enter-activates; `rel="noopener noreferrer"` prevents tab-nabbing / opener
+ * leaks on the Supabase Storage URLs.
+ *
+ * Named `ZoomableImage` for historical reasons — it previously opened an in-page
+ * zoom overlay; #863 switched it to open in a new tab instead. The name and
+ * props are kept so existing call sites are unchanged.
+ */
 type ZoomableImageProps = {
   src: string
   alt: string
@@ -10,43 +15,23 @@ type ZoomableImageProps = {
 }
 
 export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
-  const [open, setOpen] = useState(false)
-
   return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} className="cursor-zoom-in">
-        {/* biome-ignore lint/performance/noImgElement: intentional raw img for zoom overlay — Next.js Image requires known dimensions */}
-        <img
-          src={src}
-          alt={alt}
-          className={`rounded-md border border-border object-contain ${className ?? ''}`}
-        />
-      </button>
-
-      <Dialog.Root open={open} onOpenChange={setOpen}>
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/80 transition-opacity" />
-          <Dialog.Popup
-            aria-label={`Zoomed image: ${alt}`}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="absolute right-4 top-4 z-50 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
-              aria-label="Close"
-            >
-              ✕
-            </button>
-            {/* biome-ignore lint/performance/noImgElement: intentional raw img for zoom overlay — Next.js Image requires known dimensions */}
-            <img
-              src={src}
-              alt={alt}
-              className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
-            />
-          </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
-    </>
+    <a
+      href={src}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Open image in new tab: ${alt}`}
+      className="inline-block cursor-zoom-in"
+    >
+      {/* biome-ignore lint/performance/noImgElement: raw img — Next.js Image requires known dimensions */}
+      <img
+        src={src}
+        // Presentational: the anchor's aria-label is the link's accessible name,
+        // so the image must not double-announce its own alt text.
+        alt=""
+        aria-hidden="true"
+        className={`rounded-md border border-border object-contain ${className ?? ''}`}
+      />
+    </a>
   )
 }

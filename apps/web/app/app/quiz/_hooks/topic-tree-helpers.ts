@@ -1,4 +1,4 @@
-import type { TopicWithSubtopics } from '@/lib/queries/quiz'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
 export type UseTopicTreeReturn = {
   topics: TopicWithSubtopics[]

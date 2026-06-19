@@ -159,7 +159,10 @@ describe('RLS: tenant isolation', () => {
   })
 
   it('student in orgB cannot read orgA questions', async () => {
-    const { data, error } = await studentBClient.from('questions').select('id').in('id', questionIdsA)
+    const { data, error } = await studentBClient
+      .from('questions')
+      .select('id')
+      .in('id', questionIdsA)
     expect(error).toBeNull()
     expect(data).toHaveLength(0)
   })

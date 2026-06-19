@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-export type FilterSelectItem = { value: string; label: string }
+type FilterSelectItem = { value: string; label: string }
 
 type Props = {
   value: string

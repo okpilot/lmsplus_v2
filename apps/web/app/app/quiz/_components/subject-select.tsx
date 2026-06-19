@@ -3,7 +3,7 @@
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import type { SubjectOption } from '@/lib/queries/quiz'
+import type { SubjectOption } from '@/lib/queries/quiz-query-types'
 
 type SubjectSelectProps = {
   subjects: SubjectOption[]

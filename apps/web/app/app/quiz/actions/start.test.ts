@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase-rpc', () => ({
   rpc: mockRpc,
 }))
 
-vi.mock('@/lib/queries/quiz', () => ({
+vi.mock('@/lib/queries/quiz-session-queries', () => ({
   getRandomQuestionIds: mockGetRandomQuestionIds,
 }))
 
@@ -187,6 +187,44 @@ describe('startQuizSession', () => {
       subjectId: '00000000-0000-4000-a000-000000000001',
       count: 1,
       calcMode: 'sometimes',
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toBe('Invalid input')
+  })
+
+  it('filters the question pool by image presence when imageMode is provided', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+      imageMode: 'only',
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ imageMode: 'only' }),
+    )
+  })
+
+  it("defaults imageMode to 'all' when omitted", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockGetRandomQuestionIds.mockResolvedValue(['q1'])
+    mockRpc.mockResolvedValue({ data: 'sess-1', error: null })
+    await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+    })
+    expect(mockGetRandomQuestionIds).toHaveBeenCalledWith(
+      expect.objectContaining({ imageMode: 'all' }),
+    )
+  })
+
+  it('rejects an unknown imageMode value', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    const result = await startQuizSession({
+      subjectId: '00000000-0000-4000-a000-000000000001',
+      count: 1,
+      imageMode: 'sometimes',
     })
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toBe('Invalid input')

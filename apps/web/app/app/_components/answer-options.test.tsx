@@ -60,6 +60,33 @@ describe('AnswerOptions', () => {
     expect(screen.queryByRole('button', { name: 'Submit Answer' })).not.toBeInTheDocument()
   })
 
+  it('shows a spinner on the Submit button while submitting', () => {
+    render(
+      <AnswerOptions
+        options={OPTIONS}
+        onSubmit={vi.fn()}
+        disabled={true}
+        submitting={true}
+        selectedOptionId="a"
+      />,
+    )
+    // selectedOptionId without correctOptionId keeps the submit button visible.
+    const submit = screen.getByRole('button', { name: 'Submit Answer' })
+    expect(submit).toBeDisabled()
+    // aria-hidden spinner: accessible name stays "Submit Answer", spinner present.
+    expect(submit.querySelector('.animate-spin')).not.toBeNull()
+    expect(submit).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('does not show a spinner on the Submit button when not submitting', async () => {
+    const user = userEvent.setup()
+    render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+    await user.click(screen.getByText('Option Alpha'))
+    const submit = screen.getByRole('button', { name: 'Submit Answer' })
+    expect(submit.querySelector('.animate-spin')).toBeNull()
+    expect(submit).not.toHaveAttribute('aria-busy')
+  })
+
   it('shows correct styling on the correct option when result is shown', () => {
     render(
       <AnswerOptions
@@ -349,6 +376,94 @@ describe('AnswerOptions', () => {
       const otherBtn = screen.getByTestId('option-b')
       expect(otherBtn.className).not.toContain('bg-primary/5')
       expect(otherBtn).not.toHaveAttribute('data-selected')
+    })
+  })
+
+  describe('keyboard highlight', () => {
+    it('highlights the keyboard-focused option', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          keyboardHighlightedId="b"
+        />,
+      )
+      expect(screen.getByTestId('option-b')).toHaveAttribute('data-kb-highlighted', 'true')
+    })
+
+    it('does not highlight options other than the keyboard-focused one', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          keyboardHighlightedId="b"
+        />,
+      )
+      expect(screen.getByTestId('option-a')).not.toHaveAttribute('data-kb-highlighted')
+      expect(screen.getByTestId('option-c')).not.toHaveAttribute('data-kb-highlighted')
+    })
+
+    it('shows a focus ring on the keyboard-focused option', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          keyboardHighlightedId="a"
+        />,
+      )
+      expect(screen.getByTestId('option-a').className).toContain('ring-2')
+    })
+
+    it('does not show a keyboard highlight once an exam answer is locked', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          isExam
+          selectedOptionId="a"
+          keyboardHighlightedId="b"
+        />,
+      )
+      expect(screen.getByTestId('option-b')).not.toHaveAttribute('data-kb-highlighted')
+    })
+
+    it('does not highlight any option when keyboardHighlightedId is null', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={false}
+          keyboardHighlightedId={null}
+        />,
+      )
+      for (const { id } of OPTIONS) {
+        expect(screen.getByTestId(`option-${id}`)).not.toHaveAttribute('data-kb-highlighted')
+      }
+    })
+
+    it('does not highlight any option when keyboardHighlightedId is undefined', () => {
+      render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
+      for (const { id } of OPTIONS) {
+        expect(screen.getByTestId(`option-${id}`)).not.toHaveAttribute('data-kb-highlighted')
+      }
+    })
+
+    it('does not show a keyboard highlight once the result is revealed', () => {
+      render(
+        <AnswerOptions
+          options={OPTIONS}
+          onSubmit={vi.fn()}
+          disabled={true}
+          selectedOptionId="a"
+          correctOptionId="b"
+          keyboardHighlightedId="b"
+        />,
+      )
+      expect(screen.getByTestId('option-b')).not.toHaveAttribute('data-kb-highlighted')
     })
   })
 

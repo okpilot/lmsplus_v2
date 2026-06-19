@@ -103,6 +103,7 @@ describe('IssueCodeForm', () => {
 
     expect(mockIssue).toHaveBeenCalledWith({ studentId: 'stu-1', subjectId: 'sub-1' })
     expect(onIssued).toHaveBeenCalledWith({
+      codeId: 'code-1',
       code: 'ABCD2345',
       expiresAt: '2026-04-30T12:00:00.000Z',
     })

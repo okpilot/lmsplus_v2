@@ -131,7 +131,7 @@ async function seed() {
   if (!org) throw new Error('Org not found — run seed-admin-eval.ts first')
 
   // 2. Get all active questions with their topics.
-  // correct_option_id is the REVOKE-gated MC answer key (#823, mig 109);
+  // correct_option_id is the REVOKE-gated MC answer key (#823, mig 111);
   // service-role bypasses the REVOKE, so this script reads it directly.
   const { data: questions } = await db
     .from('questions')

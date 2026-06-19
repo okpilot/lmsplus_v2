@@ -478,7 +478,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 **Context:** Static code review and unit tests miss real exploit chains and race conditions. Need active adversarial testing against a running app to prove defenses hold.
 
 **Decided:**
-- Create red-team suite: Playwright attack specs executing exploit chains against local Supabase (same as production); 41 specs as of 2026-06-09 covering OWASP A01/A02/A03/A07/A09 and A10:2025 (exceptional-condition handling / error-path information disclosure)
+- Create red-team suite: Playwright attack specs executing exploit chains against local Supabase (same as production); 45 specs as of 2026-06-19 covering OWASP A01/A02/A03/A07/A09 and A10:2025 (exceptional-condition handling / error-path information disclosure)
 - Attack vectors cover: RLS bypass (cross-tenant, question membership), RPC boundary breaches, session forgery (PKCE, replay), race conditions (concurrent discard+complete), audit log tampering and completeness, quiz draft injection, SQL/XSS injection, security-header validation
 - Separate Playwright project (`e2e/redteam/`) to avoid clutter, testIgnore on normal e2e pipeline
 - Red-team agent (sonnet) triggers post-commit on security-sensitive file changes (migrations, db/src, quiz/actions, auth, proxy.ts, security.md) — maps diff to affected specs, flags coverage gaps
@@ -651,7 +651,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 
 **Context**: Issue #587 — six `internal-exam-*.spec.ts` files failed deterministically in CI with `page.waitForURL(/\/app\/quiz\/session/)` 15 s timeout. Root cause was *not* the visible symptom: `admin-questions.spec.ts` test "selects rows and performs bulk status change" flipped every visible MET question to `status='draft'` and never restored. Within Playwright's `admin-e2e` project, admin-questions runs alphabetically before `internal-exam-*`, so by the time `start_internal_exam_session` ran, its `q.status='active'` filter returned zero and the RPC raised `insufficient_questions_for_exam`. Three rounds of investigation chased the most-visible signal (stale-session cascade, selector drift, tracing visibility) before round 2 found the cross-spec coupling.
 
-**Decision**: Every Playwright spec that mutates shared seed data must restore state in `test.afterEach` (or `afterAll` for describe-scoped fixtures). Codified as a hard rule in `code-style.md §7` "E2E Spec Hermiticity" and mirrored in `.coderabbit.yaml`. The required shape:
+**Decision**: Every Playwright spec that mutates shared seed data must restore state in `test.afterEach` (or `afterAll` for describe-scoped fixtures). Codified as a hard rule in `code-style.md §7` "E2E Spec Hermiticity" — and its sub-rule "Multi-Step Cleanup Needs a Per-Step Error Accumulator" (≥2-step `afterEach`/`afterAll` blocks must isolate each step in try/catch + accumulate errors, promoted #794) — both mirrored in `.coderabbit.yaml`. The required shape:
 
 1. **Stable marker constant** for test-created rows, exported from a shared helper module — never inline magic strings.
 2. **Test-created rows carry the marker** in a queryable column (text prefix preferred — PostgREST `.like()` works).
@@ -757,4 +757,30 @@ Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT D
 
 ---
 
-*Last updated: 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*
+### Decision 44: Transactional email provider — Resend (2026-06-18)
+
+**Date**: 2026-06-18
+
+**Context**: Internal Exam feature (Wave 2) adds a "Send via Email" button on the issued-code panel so an admin can email a single internal exam code to a student instead of copying it manually. This requires a transactional email provider. Supabase Auth handles its own emails (password reset, magic link era); for out-of-band operational emails (exam codes, future notifications), we need a separate provider.
+
+**Decision**: Use **Resend** as the transactional email provider. Server-side only (RESEND_API_KEY; never NEXT_PUBLIC_). Email template is co-located in `apps/web/lib/email/templates/` (rich HTML + plain-text fallback, no external rendering service). Fallback for local dev: when no API key is set, log the email template to console (no external SMTP/Mailpit needed during dev).
+
+- **Why Resend**: Developer-friendly API, excellent TypeScript support via their SDK, per-request template rendering (no separate service), good uptime, free tier covers dev/test, pricing scales with volume
+- **Coexist with Supabase Auth emails**: No conflict; Supabase Auth uses its own configured provider (internal SMTP) and endpoint. Resend is for app-initiated operational emails only.
+- **DNS TXT records (SPF/DKIM)**: Managed separately; Resend provides setup guidance per custom domain. For `lmsplus.app`, DNS records point to both Supabase Auth SMTP (existing) and Resend (new); no coordination needed at the DNS level.
+- **No email queue/retry logic in app**: Resend SDK handles retries server-side. If email send fails, Server Action logs and returns a generic error to the admin — best-effort (failure does not surface as a blocking error; audit may or may not record the event depending on the failure path — see audit RFC for detail).
+
+**Implementation**: 
+- New env vars: `RESEND_API_KEY` (server-side) + `EMAIL_FROM` (e.g., `noreply@lmsplus.app`, also server-side)
+- New `lib/email/resend.ts` — Resend client wrapper with a console-log fallback for missing API key (local dev)
+- New `lib/email/templates/internal-exam-code.ts` — template function returning `{ subject, html, text }`
+- New Server Action `sendInternalExamCodeEmail()` — Zod-validated, org-scoped, guard-gated, generic errors, best-effort audit via `record_internal_exam_code_emailed` RPC
+- New RPC `record_internal_exam_code_emailed(p_code_id)` — SECURITY DEFINER audit writer (mig 110)
+
+**Rationale**: Resend's developer experience and TypeScript-first design align with the Next.js stack. Email-send failures are non-fatal (the code is issued and visible; the admin can retry); best-effort audit captures intent. Future waves can add retry logic or an email queue if volume demands it.
+
+**Scope**: internal-exam code delivery only. Future notifications (quiz reminders, completion alerts, etc.) are out-of-scope for this decision.
+
+---
+
+*Last updated: 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*

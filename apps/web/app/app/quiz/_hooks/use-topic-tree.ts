@@ -1,5 +1,5 @@
 import { useRef, useState, useTransition } from 'react'
-import type { TopicWithSubtopics } from '@/lib/queries/quiz'
+import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 import { fetchTopicsWithSubtopics } from '../actions/lookup'
 import {
   calcSelectedCount,
@@ -7,8 +7,6 @@ import {
   computeToggleSubtopic,
   computeToggleTopic,
 } from './topic-tree-helpers'
-
-export type { UseTopicTreeReturn } from './topic-tree-helpers'
 
 export function useTopicTree() {
   const [topics, setTopics] = useState<TopicWithSubtopics[]>([])

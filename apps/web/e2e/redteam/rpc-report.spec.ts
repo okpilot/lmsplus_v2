@@ -140,7 +140,7 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
     // Derive a real MC question + its correct option id from the DB — never
     // hardcode the letter (the correct option varies per question). Prefer the
     // spec's subject; fall back to any active org MC question so the test is
-    // resilient to fixture drift. Since #823 (mig 109) the answer key lives in the
+    // resilient to fixture drift. Since #823 (mig 111) the answer key lives in the
     // REVOKE-gated questions.correct_option_id column (stripped out of options[]),
     // so the service-role admin client reads correct_option_id directly here.
     // get_report_correct_options likewise derives the key from correct_option_id,
@@ -222,7 +222,7 @@ test.describe('Red Team: get_report_correct_options RPC', () => {
     // The owner (victim) holds a valid JWT and owns a COMPLETED session whose
     // report they can read. After they are soft-deleted (users.deleted_at set),
     // get_report_correct_options must reject with 'user not found or inactive'
-    // (mig 112 / 20260612000400, PR #856) — the active-user gate fires right after
+    // (mig 114 / 20260619000400, PR #856) — the active-user gate fires right after
     // the auth.uid() check, BEFORE the session-ownership check, so the rejection is
     // independent of session validity. Mirrors the BJ soft-deleted-user pattern in
     // server-action-unauthenticated.spec.ts (start_quiz_session / batch_submit_quiz).

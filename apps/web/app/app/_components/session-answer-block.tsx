@@ -27,6 +27,7 @@ export function SessionAnswerBlock({
         options={options}
         onSubmit={onSubmit}
         disabled={submitting || state === 'feedback'}
+        submitting={submitting}
         correctOptionId={feedbackData?.correctOptionId}
         selectedOptionId={selectedOption}
       />

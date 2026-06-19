@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ActionResult } from '@/lib/action-result'
 
 const {
   mockSaveDraft,
@@ -7,8 +8,8 @@ const {
   mockClearActiveSession,
   mockSessionStorageSetItem,
 } = vi.hoisted(() => ({
-  mockSaveDraft: vi.fn<() => Promise<{ success: true } | { success: false; error: string }>>(),
-  mockDiscardQuiz: vi.fn<() => Promise<{ success: true } | { success: false; error: string }>>(),
+  mockSaveDraft: vi.fn<() => Promise<ActionResult>>(),
+  mockDiscardQuiz: vi.fn<() => Promise<ActionResult>>(),
   mockClearDeploymentPin: vi.fn<() => Promise<void>>(),
   mockClearActiveSession: vi.fn<(userId: string) => void>(),
   mockSessionStorageSetItem: vi.fn<(key: string, value: string) => void>(),

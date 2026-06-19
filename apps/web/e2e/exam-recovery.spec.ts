@@ -118,20 +118,36 @@ test.describe('practice exam — refresh recovery', () => {
     // test user so the next spec doesn't see a stale "Resume Practice Exam" banner
     // (which would race with the regular "Resume" banner and trip strict-mode locator).
     const admin = getAdminClient()
-    const { data: existingUsers } = await admin.auth.admin.listUsers()
-    const user = existingUsers?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
-    if (!user) return
+    const errors: string[] = []
 
-    const { error } = await admin
-      .from('quiz_sessions')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('student_id', user.id)
-      .eq('mode', 'mock_exam')
-      .is('ended_at', null)
-      .is('deleted_at', null)
-    if (error) {
-      console.error('[exam-recovery cleanup] soft-delete failed:', error.message)
+    // Step 1: resolve the test user
+    let userId: string | undefined
+    try {
+      const { data: existingUsers, error: listError } = await admin.auth.admin.listUsers()
+      if (listError) throw new Error(`afterEach listUsers: ${listError.message}`)
+      const user = existingUsers?.users.find((u: { email?: string }) => u.email === TEST_EMAIL)
+      userId = user?.id
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e))
     }
+
+    // Step 2: soft-delete mock_exam quiz_sessions for the resolved user
+    if (userId) {
+      try {
+        const { error } = await admin
+          .from('quiz_sessions')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('student_id', userId)
+          .eq('mode', 'mock_exam')
+          .is('ended_at', null)
+          .is('deleted_at', null)
+        if (error) throw new Error(`afterEach soft-delete mock_exam sessions: ${error.message}`)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e))
+      }
+    }
+
+    if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
   // ── 1. Warm in-tab refresh rehydrates from localStorage ────────────────────
