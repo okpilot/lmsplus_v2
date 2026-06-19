@@ -552,7 +552,17 @@ test.describe('Red Team: Session Replay', () => {
       // Replay payload contract: no `expired` key, results is an array, and every scalar
       // equals the first submit's value (re-read from storage, not recomputed from replay).
       expect(replay.expired).toBeUndefined()
+      // results is rebuilt from quiz_session_answers JOIN questions (mig 095c L76–89):
+      // pin it as a non-empty array of one element per answered question, each carrying
+      // the documented per-answer keys — so a JOIN refactor that drops rows/keys fails here.
       expect(Array.isArray(replay.results)).toBe(true)
+      const replayResults = replay.results as Array<Record<string, unknown>>
+      expect(replayResults).toHaveLength(questionIds.length)
+      for (const r of replayResults) {
+        expect(typeof r.question_id).toBe('string')
+        expect(typeof r.is_correct).toBe('boolean')
+        expect(r).toHaveProperty('correct_option_id')
+      }
       expect(replay.total_questions).toBe(first.total_questions)
       expect(replay.answered_count).toBe(first.answered_count)
       expect(replay.correct_count).toBe(first.correct_count)
