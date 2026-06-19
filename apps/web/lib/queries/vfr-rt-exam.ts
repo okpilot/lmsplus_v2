@@ -98,7 +98,11 @@ export async function getVfrRtInProgress(sessionId: string): Promise<VfrRtInProg
     data: { user },
     error: authError,
   } = await supabase.auth.getUser()
-  if (authError || !user) return { status: 'not_found' }
+  if (authError) {
+    console.error('[getVfrRtInProgress] Auth error:', authError.message)
+    return { status: 'not_found' }
+  }
+  if (!user) return { status: 'not_found' }
 
   // Explicit student_id scope required — quiz_sessions has multiple permissive
   // RLS SELECT policies (security.md "Multiple Permissive RLS SELECT Policies").

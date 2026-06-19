@@ -72,7 +72,7 @@ Phase B is merged, so Phase C is unblocked and **is the next thing to build**. A
 | **C.5 Results + breakdown** | per-part bars w/ 75% marker, pass/fail badge, per-question review; calls `get_vfr_rt_exam_results` (NOT direct table reads); guard error → redirect to `/app/vfr-rt-exam` | `results/[sessionId]/page.tsx` (≤80) + `_components/results-breakdown.tsx` (≤150) + **boundary test 74.9→fail / 75.0→pass** |
 
 **Phase C must-dos already flagged (don't lose these):**
-- **C.5** must extend the shared `report-question-row.tsx` row/builder to render `response_text` for short_answer/dialog_fill — text-answer rows (null `selected_option_id` + `response_text`, mig 095) currently show "Not answered" (see Gotchas).
+- **C.5 (RESOLVED in build):** rather than extend the shared `report-question-row.tsx` (plan-critic flagged its single-slot MC shape can't show dialog_fill's per-blank review), Phase C ships a **dedicated `vfr-rt-review-row.tsx` + per-type sub-components** that render `response_text`/per-blank answers natively. The shared row was intentionally left untouched.
 - **C.3** dialog-fill renderer must NOT leak canonicals into client props — template skeleton + blank index only (the C.3 test asserts seeded canonicals like "S5-ABC" / "descending to 2500 feet" are absent from props/HTML).
 - **C.2** runner can consume the `expired` flag now returned by `submitVfrRtExam` to show a "time's up" confirmation.
 - Watch **#911** (P1 internal-exam email half-auth stuck-loading) — same `/app/*` protected flow the runner uses; if it's a general redirect defect it could bite the runner.
@@ -94,7 +94,7 @@ Phase B is merged, so Phase C is unblocked and **is the next thing to build**. A
 - `questions.explanation_text` is **NOT NULL** by schema; null-passthrough only observable on `explanation_image_url`.
 - `supabase db reset` wipes the E2E seed — re-run `pnpm --filter @repo/web exec tsx scripts/seed-e2e.ts`.
 - Keep local `master` fast-forwarded before `coderabbit --base master`.
-- Phase C report UI: shared `report-question-row.tsx` is mode-agnostic but text-answer rows (null `selected_option_id` + `response_text`, mig 095) currently show "Not answered". **Phase C must extend the row/builder to render `response_text` for short_answer/dialog_fill.**
+- Phase C results review uses a **dedicated `vfr-rt-review-row.tsx`** (not the shared `report-question-row.tsx`) — it renders `response_text`/per-blank answers + the gated key from `get_vfr_rt_exam_results`. The shared row's "Not answered" behavior for text rows is therefore moot for VFR RT (it's never used here).
 - #367 WIP still STASHED ("367-wip protect" + patch backup at `../367-wip-backup-2026-06-10.patch`).
 
 ## Reference
