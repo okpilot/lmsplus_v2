@@ -141,8 +141,8 @@
 
 - [ ] **B.2 Server Action `startVfrRtExam`**
   - File: `apps/web/app/app/vfr-rt-exam/actions/start.ts` + `.test.ts`
-  - Zod parse `{ subjectId: z.uuid() }`, auth gate (`requireStudent()` or existing equivalent), RPC call, error mapping (4 cases per design.md), redirect to `/app/vfr-rt-exam/in-progress/<id>`.
-  - _Test_: URL-redirect destination asserted via `.toHaveBeenCalledWith('/app/vfr-rt-exam/in-progress/...')` per `code-style.md` §7.
+  - Zod parse `{ subjectId: z.uuid() }`, auth gate (inline `supabase.auth.getUser()` — the established exam-start pattern; `requireStudent()` does not exist), RPC call, error mapping (4 cases per design.md). **Returns** `{ success, sessionId, questionIds, timeLimitSeconds, parts, startedAt }` on success — the client (Phase C Start button) navigates to `/app/vfr-rt-exam/in-progress/<id>` via `router.push`. (DEVIATION from the original design's server-side `redirect()`: user-approved 2026-06-19 to match `start-exam.ts`/`start-internal-exam.ts`, which return + let the client navigate; no Server Action in this codebase uses `redirect()`.)
+  - _Test_: success-path asserts the returned `sessionId` (no `redirect` mock — the action returns).
   - _Requirements: R2.1, R2.4_
 
 - [ ] **B.3 Server Action `submitVfrRtExam`**

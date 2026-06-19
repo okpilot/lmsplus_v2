@@ -309,6 +309,22 @@ describe('hasValidOptionalFields', () => {
     expect(hasValidOptionalFields({ subjectCode: false }, QUESTION_COUNT)).toBe(false)
   })
 
+  it('returns true when examMode is mock_exam', () => {
+    expect(hasValidOptionalFields({ examMode: 'mock_exam' }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns true when examMode is internal_exam', () => {
+    expect(hasValidOptionalFields({ examMode: 'internal_exam' }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns true when examMode is vfr_rt_exam', () => {
+    expect(hasValidOptionalFields({ examMode: 'vfr_rt_exam' }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns false when examMode is an unknown value', () => {
+    expect(hasValidOptionalFields({ examMode: 'garbage' }, QUESTION_COUNT)).toBe(false)
+  })
+
   // ---- combinations -----------------------------------------------------------
 
   it('returns true for a fully populated valid record', () => {
