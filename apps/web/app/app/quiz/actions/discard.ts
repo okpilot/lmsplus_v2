@@ -3,6 +3,7 @@
 import { createServerSupabaseClient } from '@repo/db/server'
 import { z } from 'zod'
 import type { ActionResult } from '@/lib/action-result'
+import { cleanupDiscardedDraft, discardBlockedError } from './_discard-guard'
 
 const DiscardQuizInput = z.object({
   sessionId: z.uuid(),
@@ -44,14 +45,17 @@ export async function discardQuiz(raw: unknown): Promise<ActionResult> {
     if (!existing) {
       return { success: false, error: 'Session not found or already discarded' }
     }
-    if (existing.mode === 'internal_exam') {
+    const blockedError = discardBlockedError(existing.mode)
+    if (blockedError) {
       console.error(
-        '[discardQuiz] Rejected internal_exam discard for session',
+        '[discardQuiz] Rejected',
+        existing.mode,
+        'discard for session',
         input.sessionId,
         'user',
         user.id,
       )
-      return { success: false, error: 'cannot_discard_internal_exam' }
+      return { success: false, error: blockedError }
     }
 
     // Soft-delete the session — only if it belongs to this user and is still active
@@ -82,19 +86,7 @@ export async function discardQuiz(raw: unknown): Promise<ActionResult> {
       user.id,
     )
 
-    // Hard-delete the associated draft if one exists (quiz_drafts has no deleted_at column)
-    if (input.draftId) {
-      const { error: draftError } = await supabase
-        .from('quiz_drafts')
-        .delete()
-        .eq('id', input.draftId)
-        .eq('student_id', user.id)
-
-      if (draftError) {
-        console.error('[discardQuiz] Draft cleanup error:', draftError.message)
-        // Non-fatal: session was already discarded, proceed
-      }
-    }
+    if (input.draftId) await cleanupDiscardedDraft(supabase, input.draftId, user.id)
 
     return { success: true }
   } catch (err) {

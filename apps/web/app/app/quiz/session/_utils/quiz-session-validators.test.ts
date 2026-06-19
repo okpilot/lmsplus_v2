@@ -309,6 +309,22 @@ describe('hasValidOptionalFields', () => {
     expect(hasValidOptionalFields({ subjectCode: false }, QUESTION_COUNT)).toBe(false)
   })
 
+  it('returns true when examMode is mock_exam', () => {
+    expect(hasValidOptionalFields({ examMode: 'mock_exam' }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns true when examMode is internal_exam', () => {
+    expect(hasValidOptionalFields({ examMode: 'internal_exam' }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns true when examMode is vfr_rt_exam', () => {
+    expect(hasValidOptionalFields({ examMode: 'vfr_rt_exam' }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns false when examMode is an unknown value', () => {
+    expect(hasValidOptionalFields({ examMode: 'garbage' }, QUESTION_COUNT)).toBe(false)
+  })
+
   // ---- combinations -----------------------------------------------------------
 
   it('returns true for a fully populated valid record', () => {
@@ -467,5 +483,92 @@ describe('hasValidOptionalFields', () => {
         QUESTION_COUNT,
       ),
     ).toBe(false)
+  })
+
+  // ---- timeLimitSeconds validation -----------------------------------------
+
+  it('returns true when timeLimitSeconds is a positive number', () => {
+    expect(hasValidOptionalFields({ timeLimitSeconds: 1800 }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns true when timeLimitSeconds is absent', () => {
+    expect(hasValidOptionalFields({}, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns false when timeLimitSeconds is zero', () => {
+    expect(hasValidOptionalFields({ timeLimitSeconds: 0 }, QUESTION_COUNT)).toBe(false)
+  })
+
+  it('returns false when timeLimitSeconds is negative', () => {
+    expect(hasValidOptionalFields({ timeLimitSeconds: -60 }, QUESTION_COUNT)).toBe(false)
+  })
+
+  it('returns false when timeLimitSeconds is a string', () => {
+    expect(hasValidOptionalFields({ timeLimitSeconds: '1800' }, QUESTION_COUNT)).toBe(false)
+  })
+
+  // ---- passMark validation -------------------------------------------------
+
+  it('returns true when passMark is a positive number at or below 100', () => {
+    expect(hasValidOptionalFields({ passMark: 75 }, QUESTION_COUNT)).toBe(true)
+    expect(hasValidOptionalFields({ passMark: 100 }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns true when passMark is absent', () => {
+    expect(hasValidOptionalFields({}, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns false when passMark is zero', () => {
+    expect(hasValidOptionalFields({ passMark: 0 }, QUESTION_COUNT)).toBe(false)
+  })
+
+  it('returns false when passMark exceeds 100', () => {
+    expect(hasValidOptionalFields({ passMark: 101 }, QUESTION_COUNT)).toBe(false)
+  })
+
+  it('returns false when passMark is a string', () => {
+    expect(hasValidOptionalFields({ passMark: '75' }, QUESTION_COUNT)).toBe(false)
+  })
+
+  // ---- startedAt validation ------------------------------------------------
+
+  it('returns true when startedAt is a string', () => {
+    expect(hasValidOptionalFields({ startedAt: '2026-06-19T12:00:00.000Z' }, QUESTION_COUNT)).toBe(
+      true,
+    )
+  })
+
+  it('returns true when startedAt is absent', () => {
+    expect(hasValidOptionalFields({}, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns false when startedAt is a number', () => {
+    expect(hasValidOptionalFields({ startedAt: 1718784000 }, QUESTION_COUNT)).toBe(false)
+  })
+
+  it('returns false when startedAt is null', () => {
+    expect(hasValidOptionalFields({ startedAt: null }, QUESTION_COUNT)).toBe(false)
+  })
+
+  // ---- mode validation -----------------------------------------------------
+
+  it('returns true when mode is study', () => {
+    expect(hasValidOptionalFields({ mode: 'study' }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns true when mode is exam', () => {
+    expect(hasValidOptionalFields({ mode: 'exam' }, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns true when mode is absent', () => {
+    expect(hasValidOptionalFields({}, QUESTION_COUNT)).toBe(true)
+  })
+
+  it('returns false when mode is an unknown value', () => {
+    expect(hasValidOptionalFields({ mode: 'vfr_rt_exam' }, QUESTION_COUNT)).toBe(false)
+  })
+
+  it('returns false when mode is a boolean', () => {
+    expect(hasValidOptionalFields({ mode: true }, QUESTION_COUNT)).toBe(false)
   })
 })

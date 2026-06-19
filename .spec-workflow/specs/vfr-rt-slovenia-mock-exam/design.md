@@ -329,7 +329,7 @@ flowchart TD
   | `exam_config_required` | `'VFR RT mock exam is not enabled for your organization.'` |
   | `insufficient_questions_for_vfr_rt_exam` | `'The VFR RT question pool is incomplete. Please contact your instructor.'` (DETAIL is logged server-side only) |
   | any other | `'Failed to start exam'` |
-- On success, `revalidatePath('/app/vfr-rt-exam')` + `redirect('/app/vfr-rt-exam/in-progress/<id>')`.
+- On success, **returns** `{ success: true, sessionId, questionIds, timeLimitSeconds, parts, startedAt }`; the calling client component navigates to `/app/vfr-rt-exam/in-progress/<id>` via `router.push`. (DEVIATION, user-approved 2026-06-19: the original design called for a server-side `revalidatePath` + `redirect()`, but no Server Action in this codebase uses `redirect()` — `start-exam.ts`/`start-internal-exam.ts` return the session and let the client navigate. Phase B follows that established pattern; auth uses inline `supabase.auth.getUser()`, not the non-existent `requireStudent()`.)
 
 ### Server Action `submitVfrRtExam`
 

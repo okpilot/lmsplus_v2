@@ -3,6 +3,7 @@ export const MODE_LABELS: Record<string, string> = {
   quick_quiz: 'Study',
   mock_exam: 'Practice Exam',
   internal_exam: 'Internal Exam',
+  vfr_rt_exam: 'VFR RT Mock Exam',
 }
 
 export function formatDate(iso: string) {

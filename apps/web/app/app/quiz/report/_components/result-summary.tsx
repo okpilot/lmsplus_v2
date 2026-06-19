@@ -1,4 +1,4 @@
-import { isExamMode, MODE_LABELS } from '@/lib/constants/exam-modes'
+import { isExamMode, MODE_LABELS, type QuizMode } from '@/lib/constants/exam-modes'
 import type { QuizReportSummary } from '@/lib/queries/quiz-report'
 import { formatMsDuration } from './format-duration'
 import { ScoreRing } from './score-ring'
@@ -38,7 +38,7 @@ export function ResultSummary({ summary }: Props) {
   const isExam = isExamMode(summary.mode)
   // summary.mode is typed `string`; isExamMode confirms it's a valid exam mode at runtime,
   // so the narrow cast for MODE_LABELS lookup is safe.
-  const examLabel = isExam ? MODE_LABELS[summary.mode as 'mock_exam' | 'internal_exam'] : null
+  const examLabel = isExam ? MODE_LABELS[summary.mode as QuizMode] : null
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">

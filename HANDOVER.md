@@ -1,0 +1,93 @@
+# Handover — VFR RT Slovenia Mock Exam (#697)
+
+_Last updated: 2026-06-19_
+
+## TL;DR
+
+**Phase A (Database) merged + live (dark). Phase B (Server Actions + grader) implemented on branch `feat/vfr-rt-phase-b` — all gates green, awaiting push → PR → manual eval (runtime code, NOT auto-merged). Phases C–E not started. No blockers — Phase C is the resume point once B merges.**
+
+`master` HEAD = `fba9b41a`. Branch `feat/vfr-rt-phase-b` has 5 commits (feat + fix + tests + chore housekeeping). The previously-uncommitted agent-memory edits + this file were folded into that branch's housekeeping commit per the original plan.
+
+---
+
+## Where the feature stands
+
+VFR RT = VFR Radiotelephony Slovenia mock exam. Spec at `.spec-workflow/specs/vfr-rt-slovenia-mock-exam/` (spec merged via PR #696, fixes via #829). Trunk-based, one PR per phase (A→E), feature stays **dark** post-merge (no `exam_configs` row ⇒ `exam_config_required`).
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| **A — Database** | migs 094–106: question-type enum + columns, `vfr_rt_exam` mode, text/per-blank answers, all RPCs, 145 integration tests | ✅ **MERGED** (PRs #830, #841, #843) |
+| **B — Server Actions + grader** | `startVfrRtExam`, `submitVfrRtExam`, `lib/grading/normalize-answer.ts`, constants, discard guard | 🟡 **DONE on `feat/vfr-rt-phase-b`** — awaiting push/PR/eval |
+| **C — Student UI** | briefing page, runner shell, per-type renderers, part progress bar, results breakdown | ⬜ **NEXT** |
+| **D — Admin authoring** | discriminated-union schema, type selector, dialog-template parser/preview, upsert branch, list badge | ⬜ |
+| **E — Tests + red-team + ops** | Playwright lifecycle E2E, red-team (#825), pre-push sweep, launch | ⬜ |
+
+### Phase A RPCs already shipped (Phase B calls these)
+- `start_vfr_rt_exam_session(p_subject_id)` — mig 099
+- `get_vfr_rt_exam_questions(p_session_id)` — mig 105 (session-derived IDs; explanations stripped; **no `ended_at` gate** by user decision so it also serves the Phase C review screen)
+- `submit_vfr_rt_exam_answers(p_session_id, p_answers jsonb)` — mig 100
+- `get_vfr_rt_exam_results(p_session_id)` — mig 103/106 (gated on `ended_at`, reveals canonicals post-completion)
+- `normalize_answer(text)` SQL helper — mig 101 (B.1's TS grader must mirror this **exactly**)
+
+---
+
+## Blocker check (done 2026-06-19) — NONE block Phase B
+
+The hard prereq **#611** (score-forgery column-grant) shipped 2026-06-05 — that's what unblocked Phase A. Phase A is merged, 145 integration tests green. All open VFR-RT issues are Phase A follow-up hardening or Phase E test backlog:
+
+| # | What | Type | Action |
+|---|------|------|--------|
+| #825 | Red-team Phase A coverage gaps (vectors CX–DE) | testing | Phase E |
+| #873 | VFR RT E2E success-path coverage (pool-seed infra) | testing | Phase E |
+| #839 | `submit_vfr_rt_exam_answers` payload hardening (blank_index dedupe, expired-flag persist) | P2 | fold into Phase E |
+| #828 | Enforce `blank_index ⇒ dialog_fill` invariant at write time | tech-debt | fold into Phase E |
+| #827 | No partial unique index on active sessions (concurrent-start race) | tech-debt | fix before launch |
+
+**Watch (not VFR, but adjacent):** #911 (P1) — internal-exam email link lands users in a half-authenticated stuck-loading state. It's an auth/session redirect-flow bug; VFR-RT's Phase C runner uses the same `/app/*` protected flow. If it's a general redirect defect (not email-specific), it could bite the runner. Doesn't block B.
+
+---
+
+## Phase B — DONE (branch `feat/vfr-rt-phase-b`, awaiting push/PR/eval)
+
+All of B.1–B.5 implemented + reviewed clean (plan-critic, impl-critic, full post-commit fleet incl. red-team, semantic re-review). 4061 web tests green, tsc clean.
+
+- **B.1** `lib/grading/normalize-answer.ts` — mirrors mig 101 `normalize_answer()` exactly (diacritics preserved).
+- **B.2** `vfr-rt-exam/actions/start.ts` — wraps `start_vfr_rt_exam_session`; **returns** session (client navigates) — DEVIATION from design's server redirect, user-approved 2026-06-19 (design.md/tasks.md updated). All 5 RPC error tokens mapped.
+- **B.3** `vfr-rt-exam/actions/submit.ts` (+ `_answer-mapping.ts`) — wraps `submit_vfr_rt_exam_answers`; tagless strict `z.union`; MC key = `selected_option_id` (mig 113); surfaces `expired` flag.
+- **B.4** `exam-modes.ts` + swept all hard-coded consumers (session-storage validator, `result-summary` cast, `reports-utils` 2nd label map).
+- **B.5** discard guard blocks `vfr_rt_exam`; extracted `_discard-guard.ts` (discard.ts back to 96 lines).
+
+**Deferred from this cycle:** red-team E2E vectors EF/EG → folded into **#873**; error-token-map sweep (rule promoted count=3) → **#920**.
+
+## Resume point — Phase C (Student UI)
+
+After Phase B merges, start from `tasks.md` tasks **C.1–C.5** (briefing page, in-progress runner + per-type renderers, part-progress bar, results page reading `get_vfr_rt_exam_results` mig 103/115).
+
+**Phase C must-dos already flagged:**
+- Extend the shared report row/builder to render `response_text` for short_answer/dialog_fill (text-answer rows currently show "Not answered" — see Gotchas).
+- The dialog-fill renderer must NOT leak canonicals into client props (template skeleton + blank index only).
+- The runner can consume the `expired` flag now returned by `submitVfrRtExam` to show a "time's up" confirmation.
+- Watch **#911** (P1 internal-exam email half-auth stuck-loading) — same `/app/*` protected flow the runner uses.
+
+---
+
+## Locked decisions (user-confirmed — do not relitigate)
+- Review RPC reveals canonicals **post-completion** only; two-RPC review shape (105 for display fields callable post-exam; 103/106 = keys+explanations).
+- Dedicated `/app/vfr-rt-exam/` runner route.
+- Part-2 scoring = mean per-question blank fraction (Decision 43 — spec wins over CR).
+- `correct_count` is **row-level (per-blank)** across migs 100/102/103 — do NOT "fix" to per-question.
+- `submit_quiz_answer` whitelist stays `(smart_review, quick_quiz)` only.
+- "Launch" = prod `db push` + seed `exam_configs` row + nav PR (all manual, post-Phase-E).
+
+## Gotchas / useful facts
+- `easa_subjects` has **no** `deleted_at`/`org_id` (CR false-positive trap — hit twice).
+- `questions.explanation_text` is **NOT NULL** by schema; null-passthrough only observable on `explanation_image_url`.
+- `supabase db reset` wipes the E2E seed — re-run `pnpm --filter @repo/web exec tsx scripts/seed-e2e.ts`.
+- Keep local `master` fast-forwarded before `coderabbit --base master`.
+- Phase C report UI: shared `report-question-row.tsx` is mode-agnostic but text-answer rows (null `selected_option_id` + `response_text`, mig 095) currently show "Not answered". **Phase C must extend the row/builder to render `response_text` for short_answer/dialog_fill.**
+- #367 WIP still STASHED ("367-wip protect" + patch backup at `../367-wip-backup-2026-06-10.patch`).
+
+## Reference
+- Spec tasks: `.spec-workflow/specs/vfr-rt-slovenia-mock-exam/tasks.md`
+- Memory: `project-697-vfr-rt-implementation.md`
+- Umbrella issue: **#697**

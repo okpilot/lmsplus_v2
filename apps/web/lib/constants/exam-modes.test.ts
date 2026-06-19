@@ -3,7 +3,13 @@ import { EXAM_MODES, isExamMode, MODE_LABELS, type QuizMode } from './exam-modes
 
 describe('MODE_LABELS', () => {
   it('provides a label for every quiz_sessions.mode value', () => {
-    const expectedKeys: QuizMode[] = ['smart_review', 'quick_quiz', 'mock_exam', 'internal_exam']
+    const expectedKeys: QuizMode[] = [
+      'smart_review',
+      'quick_quiz',
+      'mock_exam',
+      'internal_exam',
+      'vfr_rt_exam',
+    ]
     for (const key of expectedKeys) {
       expect(MODE_LABELS[key]).toBeDefined()
     }
@@ -16,6 +22,7 @@ describe('MODE_LABELS', () => {
     expect(MODE_LABELS.quick_quiz).toBe('Quick Quiz')
     expect(MODE_LABELS.mock_exam).toBe('Practice Exam')
     expect(MODE_LABELS.internal_exam).toBe('Internal Exam')
+    expect(MODE_LABELS.vfr_rt_exam).toBe('VFR RT Mock Exam')
   })
 
   it('uses non-empty strings for every label', () => {
@@ -30,6 +37,7 @@ describe('isExamMode', () => {
   it('returns true for exam modes', () => {
     expect(isExamMode('mock_exam')).toBe(true)
     expect(isExamMode('internal_exam')).toBe(true)
+    expect(isExamMode('vfr_rt_exam')).toBe(true)
   })
 
   it('returns false for non-exam modes', () => {
@@ -46,5 +54,9 @@ describe('isExamMode', () => {
     for (const mode of EXAM_MODES) {
       expect(isExamMode(mode)).toBe(true)
     }
+  })
+
+  it('includes the VFR RT exam mode in the exam-mode set', () => {
+    expect(EXAM_MODES).toContain('vfr_rt_exam')
   })
 })
