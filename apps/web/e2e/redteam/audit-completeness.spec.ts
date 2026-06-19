@@ -352,10 +352,14 @@ test.describe('Red Team: Audit Event Completeness', () => {
       studentUserId,
       tracker.codes,
     )
-    const { error: emailErr } = await adminAuthedClient.rpc('record_internal_exam_code_emailed', {
-      p_code_id: codeId,
-    })
+    const { data: emailData, error: emailErr } = await adminAuthedClient.rpc(
+      'record_internal_exam_code_emailed',
+      { p_code_id: codeId },
+    )
     expect(emailErr).toBeNull()
+    // record_internal_exam_code_emailed RETURNS void — the documented success
+    // payload is null (code-style.md §7 RPC output contract).
+    expect(emailData).toBeNull()
 
     await expectAuditRow(admin, 'internal_exam.code_emailed', adminUserId, testStart, codeId)
   })
