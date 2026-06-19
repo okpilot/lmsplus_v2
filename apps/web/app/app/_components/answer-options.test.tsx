@@ -379,8 +379,8 @@ describe('AnswerOptions', () => {
     })
   })
 
-  describe('keyboardHighlightedId prop', () => {
-    it('sets data-kb-highlighted="true" on the matching option', () => {
+  describe('keyboard highlight', () => {
+    it('highlights the keyboard-focused option', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
@@ -392,7 +392,7 @@ describe('AnswerOptions', () => {
       expect(screen.getByTestId('option-b')).toHaveAttribute('data-kb-highlighted', 'true')
     })
 
-    it('does not set data-kb-highlighted on non-highlighted options', () => {
+    it('does not highlight options other than the keyboard-focused one', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
@@ -405,7 +405,7 @@ describe('AnswerOptions', () => {
       expect(screen.getByTestId('option-c')).not.toHaveAttribute('data-kb-highlighted')
     })
 
-    it('applies the keyboard ring class to the highlighted option', () => {
+    it('shows a focus ring on the keyboard-focused option', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
@@ -417,7 +417,7 @@ describe('AnswerOptions', () => {
       expect(screen.getByTestId('option-a').className).toContain('ring-2')
     })
 
-    it('suppresses the highlight ring once an exam answer is locked', () => {
+    it('does not show a keyboard highlight once an exam answer is locked', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
@@ -428,11 +428,10 @@ describe('AnswerOptions', () => {
           keyboardHighlightedId="b"
         />,
       )
-      // The exam answer is locked → no option should advertise a keyboard highlight.
       expect(screen.getByTestId('option-b')).not.toHaveAttribute('data-kb-highlighted')
     })
 
-    it('does not set data-kb-highlighted when keyboardHighlightedId is null', () => {
+    it('does not highlight any option when keyboardHighlightedId is null', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
@@ -446,14 +445,14 @@ describe('AnswerOptions', () => {
       }
     })
 
-    it('does not set data-kb-highlighted when keyboardHighlightedId is undefined', () => {
+    it('does not highlight any option when keyboardHighlightedId is undefined', () => {
       render(<AnswerOptions options={OPTIONS} onSubmit={vi.fn()} disabled={false} />)
       for (const { id } of OPTIONS) {
         expect(screen.getByTestId(`option-${id}`)).not.toHaveAttribute('data-kb-highlighted')
       }
     })
 
-    it('suppresses the keyboard highlight when result is shown', () => {
+    it('does not show a keyboard highlight once the result is revealed', () => {
       render(
         <AnswerOptions
           options={OPTIONS}
