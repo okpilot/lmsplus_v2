@@ -226,6 +226,19 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     if (errors.length > 0) throw new Error(`afterEach: ${errors.join('; ')}`)
   })
 
+  // Prove the seeded code row exists via service-role before the attack, so a
+  // rejection (code_not_found / not_admin) proves the guard fired — not that the
+  // row was simply absent (non-vacuous negative, code-style.md §7).
+  const expectCodeExists = async (codeId: string) => {
+    const { data, error } = await admin
+      .from('internal_exam_codes')
+      .select('id')
+      .eq('id', codeId)
+      .single()
+    expect(error).toBeNull()
+    expect(data?.id).toBe(codeId)
+  }
+
   // Assert NO internal_exam.code_emailed audit row exists for this code id —
   // makes every rejected-call test a non-vacuous negative (code-style.md §7).
   const expectNoEmailedAudit = async (codeId: string) => {
@@ -244,13 +257,7 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     const code = await validCode()
     // Non-vacuity (code-style.md §7): prove the code exists before the attack, so
     // not_admin proves the role gate fired — not that the code was simply absent.
-    const { data: seeded, error: seedError } = await admin
-      .from('internal_exam_codes')
-      .select('id')
-      .eq('id', code.id)
-      .single()
-    expect(seedError).toBeNull()
-    expect(seeded?.id).toBe(code.id)
+    await expectCodeExists(code.id)
 
     const { data, error } = await attackerStudentClient.rpc('record_internal_exam_code_emailed', {
       p_code_id: code.id,
@@ -267,13 +274,7 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     // before the attack so the code_not_found below proves org-scoping, not an
     // empty table (non-vacuous, code-style.md §7).
     const code = await validCode()
-    const { data: seeded, error: seedError } = await admin
-      .from('internal_exam_codes')
-      .select('id')
-      .eq('id', code.id)
-      .single()
-    expect(seedError).toBeNull()
-    expect(seeded?.id).toBe(code.id)
+    await expectCodeExists(code.id)
 
     const { data, error } = await crossOrgAdminClient.rpc('record_internal_exam_code_emailed', {
       p_code_id: code.id,
@@ -301,13 +302,7 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     createdCodeIds.add(code.id)
     // Non-vacuity (code-style.md §7): prove the code exists before the attack, so
     // code_not_found proves the state guard fired — not that the row was absent.
-    const { data: seeded, error: seedError } = await admin
-      .from('internal_exam_codes')
-      .select('id')
-      .eq('id', code.id)
-      .single()
-    expect(seedError).toBeNull()
-    expect(seeded?.id).toBe(code.id)
+    await expectCodeExists(code.id)
 
     const { data, error } = await adminClientAuthed.rpc('record_internal_exam_code_emailed', {
       p_code_id: code.id,
@@ -332,13 +327,7 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     createdCodeIds.add(code.id)
     // Non-vacuity (code-style.md §7): prove the code exists before the attack, so
     // code_not_found proves the state guard fired — not that the row was absent.
-    const { data: seeded, error: seedError } = await admin
-      .from('internal_exam_codes')
-      .select('id')
-      .eq('id', code.id)
-      .single()
-    expect(seedError).toBeNull()
-    expect(seeded?.id).toBe(code.id)
+    await expectCodeExists(code.id)
 
     const { data, error } = await adminClientAuthed.rpc('record_internal_exam_code_emailed', {
       p_code_id: code.id,
@@ -363,13 +352,7 @@ test.describe('Red Team: record_internal_exam_code_emailed RPC', () => {
     createdCodeIds.add(code.id)
     // Non-vacuity (code-style.md §7): prove the code exists before the attack, so
     // code_not_found proves the state guard fired — not that the row was absent.
-    const { data: seeded, error: seedError } = await admin
-      .from('internal_exam_codes')
-      .select('id')
-      .eq('id', code.id)
-      .single()
-    expect(seedError).toBeNull()
-    expect(seeded?.id).toBe(code.id)
+    await expectCodeExists(code.id)
 
     const { data, error } = await adminClientAuthed.rpc('record_internal_exam_code_emailed', {
       p_code_id: code.id,
