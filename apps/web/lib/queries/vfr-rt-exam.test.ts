@@ -198,6 +198,26 @@ describe('getVfrRtInProgress', () => {
     consoleSpy.mockRestore()
   })
 
+  it('returns not_found and logs when the questions RPC returns an empty array', async () => {
+    mockFromSequence({ data: activeRow })
+    mockRpc.mockResolvedValueOnce({ data: [], error: null })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getVfrRtInProgress('sess-1')
+    expect(result).toEqual({ status: 'not_found' })
+    expect(consoleSpy).toHaveBeenCalledWith('[getVfrRtInProgress] RPC returned no questions')
+    consoleSpy.mockRestore()
+  })
+
+  it('returns not_found and logs when the session query fails', async () => {
+    mockFromSequence({ data: null, error: { message: 'db unavailable' } })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getVfrRtInProgress('sess-1')
+    expect(result).toEqual({ status: 'not_found' })
+    expect(consoleSpy).toHaveBeenCalledWith('[getVfrRtInProgress] Query error:', 'db unavailable')
+    expect(mockRpc).not.toHaveBeenCalled()
+    consoleSpy.mockRestore()
+  })
+
   it('returns not_found without querying the session when auth fails', async () => {
     mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: { message: 'expired' } })
     const result = await getVfrRtInProgress('sess-1')

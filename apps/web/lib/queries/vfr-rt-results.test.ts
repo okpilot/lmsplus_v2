@@ -94,18 +94,14 @@ describe('getVfrRtResults', () => {
     consoleSpy.mockRestore()
   })
 
-  it('returns null and logs when the results payload questions field is not an array', async () => {
+  it('throws when the results payload questions field is not an array', async () => {
+    // Non-array questions = backend corruption — surface loudly (error.tsx + Sentry),
+    // not a silent null/redirect that masks the bug.
     mockRpc.mockResolvedValueOnce({
       data: { ...sampleResultsJson, questions: null },
       error: null,
     })
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await getVfrRtResults('sess-1')
-    expect(result).toBeNull()
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[getVfrRtResults] Malformed results: questions is not an array',
-    )
-    consoleSpy.mockRestore()
+    await expect(getVfrRtResults('sess-1')).rejects.toThrow(/questions field is not an array/)
   })
 
   it('coerces NUMERIC string pcts to numbers in the summary', async () => {

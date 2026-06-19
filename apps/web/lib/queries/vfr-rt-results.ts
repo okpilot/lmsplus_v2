@@ -86,9 +86,11 @@ export async function getVfrRtResults(sessionId: string): Promise<VfrRtResults |
     return null
   }
   // rpc<ResultsJson> is a typed assertion over jsonb — guard the array we map (§5).
+  // A non-array here is backend corruption, not an expected "can't view yet" case
+  // (those return null above → redirect). Throw so it surfaces via error.tsx + Sentry
+  // instead of silently redirecting to the briefing (code-style.md §5 query-helper throw).
   if (!Array.isArray(resultsData.questions)) {
-    console.error('[getVfrRtResults] Malformed results: questions is not an array')
-    return null
+    throw new Error('Failed to fetch VFR RT results: questions field is not an array')
   }
 
   // get_vfr_rt_exam_questions (mig 105) gives us display fields: options + question_image_url

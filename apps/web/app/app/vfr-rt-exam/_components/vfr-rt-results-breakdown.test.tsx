@@ -56,7 +56,7 @@ describe('VfrRtResultsBreakdown', () => {
     expect(labels).toContain('Part 3 — Multiple Choice')
   })
 
-  it('passes the correct pct and passed props to each part bar', () => {
+  it('displays the correct percentage for each part', () => {
     const results = makeResults({ part1Pct: 80, part2Pct: 75, part3Pct: 100 })
     render(<VfrRtResultsBreakdown results={results} />)
     const bars = screen.getAllByTestId('part-bar')
