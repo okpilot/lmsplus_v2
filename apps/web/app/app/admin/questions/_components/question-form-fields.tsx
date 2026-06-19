@@ -1,9 +1,9 @@
-import { Textarea } from '@/components/ui/textarea'
 import type { SyllabusTree } from '../../syllabus/types'
 import type { QuestionOption } from '../types'
+import { AnswerKeyField } from './answer-key-field'
 import { DifficultyStatusSelect } from './difficulty-status-select'
 import { ImageUploadField } from './image-upload-field'
-import { OptionEditor } from './option-editor'
+import { LabeledTextarea } from './labeled-textarea'
 import { QuestionCalculationsField } from './question-calculations-field'
 import { QuestionMetaFields } from './question-meta-fields'
 import { SyllabusCascader } from './syllabus-cascader'
@@ -17,6 +17,7 @@ type Props = {
   loReference: string
   questionText: string
   options: QuestionOption[]
+  correctOptionId: 'a' | 'b' | 'c' | 'd' | ''
   explanationText: string
   questionImageUrl: string | null
   explanationImageUrl: string | null
@@ -33,6 +34,7 @@ type Props = {
   onLoReferenceChange: (v: string) => void
   onQuestionTextChange: (v: string) => void
   onOptionsChange: (opts: QuestionOption[]) => void
+  onCorrectOptionChange: (id: 'a' | 'b' | 'c' | 'd') => void
   onExplanationTextChange: (v: string) => void
   onDifficultyChange: (v: string | null) => void
   onStatusChange: (v: string | null) => void
@@ -48,6 +50,7 @@ export function QuestionFormFields({
   loReference,
   questionText,
   options,
+  correctOptionId,
   explanationText,
   questionImageUrl,
   explanationImageUrl,
@@ -64,6 +67,7 @@ export function QuestionFormFields({
   onLoReferenceChange,
   onQuestionTextChange,
   onOptionsChange,
+  onCorrectOptionChange,
   onExplanationTextChange,
   onDifficultyChange,
   onStatusChange,
@@ -81,7 +85,6 @@ export function QuestionFormFields({
         onSubtopicChange={onSubtopicChange}
         disabled={isPending}
       />
-
       <QuestionMetaFields
         questionNumber={questionNumber}
         loReference={loReference}
@@ -89,47 +92,41 @@ export function QuestionFormFields({
         onQuestionNumberChange={onQuestionNumberChange}
         onLoReferenceChange={onLoReferenceChange}
       />
-
-      <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Question Text *
-        </span>
-        <Textarea
-          value={questionText}
-          onChange={(e) => onQuestionTextChange(e.target.value)}
-          placeholder="Enter the question..."
-          rows={3}
-          disabled={isPending}
-        />
-      </div>
-
+      <LabeledTextarea
+        label="Question Text *"
+        value={questionText}
+        placeholder="Enter the question..."
+        rows={3}
+        disabled={isPending}
+        onChange={onQuestionTextChange}
+      />
       <ImageUploadField
         label="Question Image (optional)"
         currentUrl={questionImageUrl}
         onUploaded={onQuestionImageChange}
         disabled={isPending}
       />
-
-      <OptionEditor options={options} onChange={onOptionsChange} disabled={isPending} />
-
-      <div>
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">Explanation</span>
-        <Textarea
-          value={explanationText}
-          onChange={(e) => onExplanationTextChange(e.target.value)}
-          placeholder="Explain the correct answer..."
-          rows={2}
-          disabled={isPending}
-        />
-      </div>
-
+      <AnswerKeyField
+        options={options}
+        correctOptionId={correctOptionId}
+        isPending={isPending}
+        onOptionsChange={onOptionsChange}
+        onCorrectOptionChange={onCorrectOptionChange}
+      />
+      <LabeledTextarea
+        label="Explanation"
+        value={explanationText}
+        placeholder="Explain the correct answer..."
+        rows={2}
+        disabled={isPending}
+        onChange={onExplanationTextChange}
+      />
       <ImageUploadField
         label="Explanation Image (optional)"
         currentUrl={explanationImageUrl}
         onUploaded={onExplanationImageChange}
         disabled={isPending}
       />
-
       <DifficultyStatusSelect
         difficulty={difficulty}
         status={status}
@@ -137,7 +134,6 @@ export function QuestionFormFields({
         onDifficultyChange={onDifficultyChange}
         onStatusChange={onStatusChange}
       />
-
       <QuestionCalculationsField
         hasCalculations={hasCalculations}
         isPending={isPending}

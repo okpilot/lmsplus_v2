@@ -215,11 +215,13 @@ async function seed() {
       subtopic_id: subtopicId,
       question_text: q.question_text,
       options: [
-        { id: 'a', text: 'Option A', correct: false },
-        { id: 'b', text: 'Option B', correct: true },
-        { id: 'c', text: 'Option C', correct: false },
-        { id: 'd', text: 'Option D', correct: false },
+        { id: 'a', text: 'Option A' },
+        { id: 'b', text: 'Option B' },
+        { id: 'c', text: 'Option C' },
+        { id: 'd', text: 'Option D' },
       ],
+      // MC answer key now lives in its own REVOKE-gated column (#823, mig 111).
+      correct_option_id: q.correct,
       explanation_text: 'Test explanation.',
       difficulty: 'medium',
       status: 'active',

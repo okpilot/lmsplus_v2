@@ -248,20 +248,38 @@ Verified repo-wide at promotion (2026-05-26): the only offender was `get_student
 
 ## 4. Correct Answer Stripping (Critical)
 
-**The `options` JSONB field contains `"correct": true/false`. This MUST NEVER reach a student's browser during an active session.**
+**Multiple-choice answer keys are now stored in the `correct_option_id` column (mig 111, #823), not in the `options` JSONB. The `options` field stores only `{id, text}` — the `correct` key is stripped on every write by a trigger. This MUST NEVER reach a student's browser during an active session.**
 
-### The Problem
+### The Problem (Pre-Mig-109)
 ```jsonc
-// What's in the database — never send this to a student mid-quiz
+// OLD: stored in JSONB (mig 094 and earlier)
 {
   "options": [
     { "id": "a", "text": "Cumulus", "correct": false },
-    { "id": "b", "text": "Nimbostratus", "correct": true },  // ← exposed!
+    { "id": "b", "text": "Nimbostratus", "correct": true },  // ← exposed if leaked!
     { "id": "c", "text": "Cirrus", "correct": false },
     { "id": "d", "text": "Altocumulus", "correct": false }
   ]
 }
 ```
+
+### The Fix (Post-Mig-109): Dedicated Column + Trigger
+```jsonc
+// NEW: stored in dedicated column (mig 111)
+{
+  "correct_option_id": "b",  // ← privilege-layer REVOKE-gated
+  "options": [
+    { "id": "a", "text": "Cumulus" },
+    { "id": "b", "text": "Nimbostratus" },
+    { "id": "c", "text": "Cirrus" },
+    { "id": "d", "text": "Altocumulus" }
+  ]
+}
+```
+
+The `correct_option_id` column is **protected by two layers:**
+1. **Privilege layer (mig 111):** `REVOKE SELECT (correct_option_id) ON questions FROM authenticated` — direct PostgREST reads return 42501.
+2. **Trigger (mig 111):** `trg_sanitize_question_options` strips any stray `correct` key on every write (defense-in-depth for raw SQL/PostgREST writes that bypass the app layer).
 
 ### The Fix: Server-Side RPC
 
@@ -318,15 +336,21 @@ $$;
 
 Correct answers are only fetched server-side when validating a submitted answer, never returned to the client during an active session.
 
-### Post-Session Exception
+### Post-Session Exception: Report RPCs (Mig 109, #823)
 
-Post-session report queries (e.g., `getQuizReport()`) may read the `correct` field from questions server-side, provided:
+Post-session report queries may read the `correct_option_id` from questions server-side, provided:
 
 1. The query verifies the session is **completed** (`ended_at IS NOT NULL` — student has already answered all questions)
-2. The `correct` boolean is **stripped before returning** — the client receives only `correctOptionId` (a single ID) and options without the `correct` field
+2. The correct option ID is returned only as a scalar (`a`, `b`, `c`, or `d`) — never as a boolean or nested in options
 3. The query runs in a **Server Component** (data never hits the client as raw DB rows)
 
-**Implementation:** Use `get_report_correct_options()` RPC to fetch correct option IDs (not the raw boolean). The RPC internally reads the `correct` field and returns only the ID, so the TypeScript layer never touches the boolean field.
+**Implementation:** Use `get_report_correct_options()` (mig 114) or `get_vfr_rt_exam_results()` (mig 115) RPCs to fetch correct option IDs. These RPCs:
+- Require `ended_at IS NOT NULL` or `session already ended` checks before reading the key
+- Return the option ID only (not the full row with the column exposed)
+- Run as `SECURITY DEFINER` (postgres owner), which bypasses the privilege-layer REVOKE
+- Enforce student/owner scoping in SQL so the caller cannot read another student's answers
+
+**Why it's safe:** The privilege layer (`REVOKE SELECT (correct_option_id)`) prevents accidental exposure via direct PostgREST reads (42501 on `.select('correct_option_id')`). The RPC-only path means the answer key reaches the client **only after the session ends**, when feedback is intended. Direct `SELECT *` from `questions` never returns `correct_option_id` anyway — it's not in the `authenticated` role's granted columns.
 
 This is intentional feedback — showing which answer was correct after the student has answered is the core learning loop, not a data leak.
 
@@ -609,8 +633,9 @@ These two **LOW-severity** vectors from the exam-mode red-team review (issue #51
 **Rule:** Answer-key columns on questions are critical — they must never be exposed to students. RLS cannot restrict columns, only rows. Apply Postgres privilege layer as a second defense:
 
 ```sql
--- Questions table answer-key columns (mig 094):
--- canonical_answer, accepted_synonyms, dialog_template, blanks_config
+-- Questions table answer-key columns (mig 094, mig 111):
+-- canonical_answer, accepted_synonyms, dialog_template, blanks_config (short_answer & dialog_fill keys)
+-- correct_option_id (multiple_choice key, added in mig 111 / #823)
 -- These are readable by SECURITY DEFINER RPCs (postgres owner) and service role (admin scripts).
 -- For authenticated role (students + admins): REVOKE SELECT on these columns.
 
@@ -619,13 +644,15 @@ GRANT SELECT (
   id, organization_id, bank_id, subject_id, topic_id, subtopic_id,
   lo_reference, question_number, question_text, question_image_url,
   options, explanation_text, explanation_image_url,
-  difficulty, status, version, question_type,
+  difficulty, status, version, question_type, has_calculations,
   created_by, deleted_at, deleted_by, created_at, updated_at
 ) ON questions TO authenticated;
--- canonical_answer, accepted_synonyms, dialog_template, blanks_config are omitted.
+-- canonical_answer, accepted_synonyms, dialog_template, blanks_config, correct_option_id are omitted.
 ```
 
-**Consequence:** A direct `.select('canonical_answer')` or `.select('*')` from an authenticated client returns `42501 (permission denied for column)` before RLS evaluation. Admins read answer-key columns through the `get_question_authoring_fields()` RPC (mig 094b, is_admin()-gated).
+**Consequence:** A direct `.select('correct_option_id')`, `.select('canonical_answer')`, or `.select('*')` from an authenticated client returns `42501 (permission denied for column)` before RLS evaluation. Admins read answer-key columns through the `get_question_authoring_fields()` RPC (mig 094b / 114, is_admin()-gated). Students read the correct option ID post-session only via `get_report_correct_options()` and `get_vfr_rt_exam_results()` RPCs (mig 114 / 113, #823), which are gated to `ended_at IS NOT NULL` (completed sessions only).
+
+**Rationale for relocation (mig 111, #823):** The MC answer key was originally stored as `correct: boolean` inside the `options` JSONB array. Column-level REVOKE cannot target keys nested in JSONB, only top-level columns. Moving the key to a dedicated `correct_option_id` column allows the privilege layer to protect it consistently alongside the other answer-key columns. The `options` column no longer carries `correct`; a trigger (`trg_sanitize_question_options`) strips it on every write.
 
 **Precedent:** Mig 20260605000001 applied the same pattern to `quiz_sessions` scoring columns (`ended_at`, `correct_count`, `score_percentage`, `passed`) — students cannot UPDATE them directly, only SECURITY DEFINER RPCs can write scores. The `questions` column REVOKE/GRANT extends this pattern from write-protection to read-protection.
 
@@ -731,7 +758,7 @@ All database design rules (soft delete, immutability, idempotency, RPC conventio
 - No hard `DELETE` anywhere in application code — always `UPDATE SET deleted_at = now()`
 - Immutable tables (`student_responses`, `quiz_session_answers`, `audit_events`) have RLS policies blocking UPDATE and DELETE
 - `SECURITY DEFINER` RPCs must always include a manual `auth.uid()` check + `SET search_path = public`
-- **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query. **Narrow exception:** SELECTs that retrieve records by IDs stored in an immutable, write-once column may omit the filter, because the accessible ID set is bounded by the immutable prior write rather than by the deleted-at predicate. Current examples: (a) `batch_submit_quiz`, `submit_vfr_rt_exam_answers` reading `questions` via `quiz_sessions.config.question_ids` (written once at session start); (b) `get_vfr_rt_exam_questions`, `get_vfr_rt_exam_results` reading `questions` via the same frozen `config.question_ids` — both derive the question IDs server-side from the caller-owned session row, never from client input (`get_vfr_rt_exam_questions` since migration `20260611000100` / mig 105, which dropped its caller-supplied `p_question_ids uuid[]` signature for `(p_session_id uuid)`; `get_vfr_rt_exam_results` since its creation in mig 103). Historical scoring and review then need access to records that may have been soft-deleted after the session was sampled. Any new instance of this exception must (a) cite the immutable, write-once column it relies on, (b) include an inline comment at the call site, and (c) cross-reference `docs/database.md` §3 "Scoring Soft-Deleted Questions". The `config.question_ids` write-once guarantee is enforced by trigger `trg_quiz_sessions_immutable_columns` (migration 079) — see `docs/database.md` §1 column-level immutability table.
+- **SECURITY DEFINER soft-delete rule:** Every SELECT inside a SECURITY DEFINER function must explicitly filter `AND deleted_at IS NULL` on all soft-deletable tables. SECURITY DEFINER bypasses RLS — soft-delete policies are not applied automatically and must be replicated manually in every query. **Narrow exception:** SELECTs that retrieve records by IDs stored in an immutable, write-once column may omit the filter, because the accessible ID set is bounded by the immutable prior write rather than by the deleted-at predicate. Current examples: (a) `batch_submit_quiz` in both its initial-submit and idempotent-replay paths reads `questions` — initial via `quiz_sessions.config.question_ids`, replay via `quiz_session_answers.question_id` (both immutable write-once boundaries); `submit_vfr_rt_exam_answers`, `check_quiz_answer` reading `questions` via `quiz_sessions.config.question_ids` (written once at session start; `check_quiz_answer` verifies `p_question_id = ANY(config.question_ids)` before the read, so a question soft-deleted mid-session is still answerable for immediate feedback — mig 117 / #823; batch_submit_quiz replay removes the deleted_at filter on the JOIN for consistency — mig 20260619000250 / PR #856); (b) `get_vfr_rt_exam_questions`, `get_vfr_rt_exam_results` reading `questions` via the same frozen `config.question_ids` — both derive the question IDs server-side from the caller-owned session row, never from client input (`get_vfr_rt_exam_questions` since migration `20260611000100` / mig 105, which dropped its caller-supplied `p_question_ids uuid[]` signature for `(p_session_id uuid)`; `get_vfr_rt_exam_results` since its creation in mig 103); (c) `get_report_correct_options`, `get_admin_report_correct_options` reading `questions` via `quiz_session_answers.question_id` — a write-once FK on the immutable, append-only `quiz_session_answers` table (no UPDATE/DELETE policies; resubmits are `ON CONFLICT DO NOTHING`), so a completed-session report still reveals the key for a question soft-deleted after it was answered (mig 114 / #823). Historical scoring and review then need access to records that may have been soft-deleted after the session was sampled. Any new instance of this exception must (a) cite the immutable, write-once column it relies on, (b) include an inline comment at the call site, and (c) cross-reference `docs/database.md` §3 "Scoring Soft-Deleted Questions". The `config.question_ids` write-once guarantee is enforced by trigger `trg_quiz_sessions_immutable_columns` (migration 079) — see `docs/database.md` §1 column-level immutability table.
 - All multi-table mutations go through RPCs for atomicity — never multi-step application calls
 
 ## 16. What Supabase Handles For Us
@@ -747,4 +774,4 @@ These are covered by Supabase infrastructure — no additional work needed:
 
 ---
 
-*Last updated: 2026-06-11 (§15 example (b) updated for mig 105 / 20260611000100: get_vfr_rt_exam_questions now derives question IDs server-side from the caller-owned session row, #833) | Previous: 2026-06-06 (migs 085–090: record_consent idempotency; CI start_quiz_session 500-element array cap; AL start_exam_session unique_violation mapping + org_id index align; AJ exam_configs reactivation-block trigger; CG users column UPDATE GRANT) | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*
+*Last updated: 2026-06-13 (§15 clarified: batch_submit_quiz replay JOIN removed deleted_at filter, justified by immutable quiz_session_answers.question_id FK boundary; check_quiz_answer added active-user gate + practice-mode guard — mig 117 hardening PR #856) | Earlier: 2026-06-11 (§15 example (b) updated for mig 105 / 20260611000100) | Previous: 2026-06-06 (migs 085–090) | Owner: Claude (security-auditor agent reviews every push, red-team agent tests every security change)*

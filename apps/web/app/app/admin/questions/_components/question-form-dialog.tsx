@@ -1,7 +1,6 @@
 'use client'
 
 import type { ReactElement } from 'react'
-import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -14,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { LoadingButton } from '@/components/ui/loading-button'
 import type { SyllabusTree } from '../../syllabus/types'
+import { useCorrectOptionLoader } from '../_hooks/use-correct-option-loader'
 import { useQuestionFormState } from '../_hooks/use-question-form-state'
 import { upsertQuestion } from '../actions/upsert-question'
 import type { QuestionRow } from '../types'
@@ -23,8 +23,11 @@ type Props = { tree: SyllabusTree; question?: QuestionRow; trigger: ReactElement
 
 export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>) {
   const isEdit = !!question
-  const [open, setOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const { open, setOpen, isPending, startTransition, handleOpenChange } = useCorrectOptionLoader({
+    questionId: question?.id,
+    isEdit,
+    getSetCorrectOptionId: () => h.setCorrectOptionId,
+  })
   const { state: s, handlers: h } = useQuestionFormState(question, open)
 
   function handleSubmit() {
@@ -39,6 +42,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
           lo_reference: s.loReference || null,
           question_text: s.questionText,
           options: s.options,
+          correct_option_id: s.correctOptionId,
           explanation_text: s.explanationText,
           question_image_url: s.questionImageUrl || null,
           explanation_image_url: s.explanationImageUrl || null,
@@ -61,12 +65,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
   const submitLabel = isEdit ? 'Save Changes' : 'Create Question'
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!isPending) setOpen(v)
-      }}
-    >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={trigger} />
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -87,6 +86,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
           loReference={s.loReference}
           questionText={s.questionText}
           options={s.options}
+          correctOptionId={s.correctOptionId}
           explanationText={s.explanationText}
           questionImageUrl={s.questionImageUrl}
           explanationImageUrl={s.explanationImageUrl}
@@ -103,6 +103,7 @@ export function QuestionFormDialog({ tree, question, trigger }: Readonly<Props>)
           onLoReferenceChange={h.setLoReference}
           onQuestionTextChange={h.setQuestionText}
           onOptionsChange={h.setOptions}
+          onCorrectOptionChange={h.setCorrectOptionId}
           onExplanationTextChange={h.setExplanationText}
           onDifficultyChange={(v) => {
             if (v === 'easy' || v === 'medium' || v === 'hard') h.setDifficulty(v)

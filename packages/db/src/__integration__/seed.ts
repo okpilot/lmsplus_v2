@@ -113,11 +113,14 @@ export async function seedQuestions(opts: {
     subtopic_id: subtopicId ?? null,
     question_text: `Test question ${i + 1}?`,
     options: [
-      { id: 'a', text: `Option A ${i}`, correct: false },
-      { id: 'b', text: `Option B ${i}`, correct: true },
-      { id: 'c', text: `Option C ${i}`, correct: false },
-      { id: 'd', text: `Option D ${i}`, correct: false },
+      { id: 'a', text: `Option A ${i}` },
+      { id: 'b', text: `Option B ${i}` },
+      { id: 'c', text: `Option C ${i}` },
+      { id: 'd', text: `Option D ${i}` },
     ],
+    // MC answer key now lives in its own REVOKE-gated column (#823, mig 111).
+    // 'b' is the correct option for every seeded question.
+    correct_option_id: 'b',
     explanation_text: `Explanation for question ${i + 1}`,
     difficulty: 'medium',
     status: 'active',

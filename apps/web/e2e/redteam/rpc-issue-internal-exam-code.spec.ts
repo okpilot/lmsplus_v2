@@ -183,6 +183,7 @@ test.describe('Red Team: issue_internal_exam_code RPC', () => {
           subject_id: unconfiguredSubjectId,
           topic_id: unconfTopicId,
           question_text: 'Red team fixture: foreign-subject question.',
+          correct_option_id: 'a',
           options: [
             { id: 'a', text: 'A', correct: true },
             { id: 'b', text: 'B', correct: false },

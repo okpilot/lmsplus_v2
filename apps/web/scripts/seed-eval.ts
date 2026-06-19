@@ -40,6 +40,7 @@ const db = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
+// options[].correct here is a transient authoring flag — converted to correct_option_id at insert and stripped from stored JSONB by trg_sanitize_question_options (#823).
 const AIR_LAW_QUESTIONS = [
   {
     question_number: 'EVAL-ALW-001',
@@ -325,6 +326,11 @@ async function seed() {
 
     if (existing && existing.length > 0) continue
 
+    // MC answer key now lives in its own REVOKE-gated column (#823, mig 111).
+    // Derive it from the authored options; the sanitize trigger strips `correct`
+    // from the stored options JSONB on write.
+    const correctOptionId = q.options.find((o) => o.correct)?.id
+    if (!correctOptionId) throw new Error(`Question ${q.question_number}: no correct option`)
     const { error: qErr } = await db.from('questions').insert({
       organization_id: org.id,
       bank_id: bank.id,
@@ -334,6 +340,7 @@ async function seed() {
       subtopic_id: alwSubtopicId,
       question_text: q.question_text,
       options: q.options,
+      correct_option_id: correctOptionId,
       explanation_text: q.explanation_text,
       difficulty: 'medium',
       status: 'active',
@@ -356,16 +363,18 @@ async function seed() {
 
   if (!metSubject) throw new Error('Meteorology subject not found')
 
+  // correct_option_id is the REVOKE-gated MC answer key (#823, mig 111).
+  // Service-role bypasses the REVOKE, so this script reads it directly.
   const { data: metQuestions } = await db
     .from('questions')
-    .select('id, options')
+    .select('id, options, correct_option_id')
     .eq('subject_id', metSubject.id)
     .is('deleted_at', null)
     .limit(10)
 
   const { data: alwQuestions } = await db
     .from('questions')
-    .select('id, options')
+    .select('id, options, correct_option_id')
     .eq('subject_id', alwSubject.id)
     .is('deleted_at', null)
     .limit(10)
@@ -377,7 +386,7 @@ async function seed() {
   // Helper to create a completed quiz session
   async function createCompletedSession(
     subjectId: string,
-    questions: { id: string; options: unknown }[],
+    questions: { id: string; options: unknown; correct_option_id: string | null }[],
     correctRate: number,
     daysAgo: number,
   ) {
@@ -407,17 +416,20 @@ async function seed() {
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i]
       if (!q) continue
-      const opts = q.options as { id: string; correct: boolean }[]
+      // The MC answer key is q.correct_option_id (#823); options no longer carry
+      // a `correct` flag. Pick the key for a correct answer, or any other option
+      // id for an incorrect one.
+      const opts = q.options as { id: string }[]
       const isCorrect = i < correctCount
-      const correctOpt = opts.find((o) => o.correct)
-      const incorrectOpt = opts.find((o) => !o.correct)
-      const selectedOption = isCorrect ? correctOpt : incorrectOpt
-      if (!selectedOption) continue
+      const correctOptId = q.correct_option_id
+      const incorrectOptId = opts.find((o) => o.id !== correctOptId)?.id
+      const selectedOptionId = isCorrect ? correctOptId : incorrectOptId
+      if (!selectedOptionId) continue
 
       await db.from('quiz_session_answers').insert({
         session_id: session.id,
         question_id: q.id,
-        selected_option_id: selectedOption.id,
+        selected_option_id: selectedOptionId,
         is_correct: isCorrect,
         response_time_ms: Math.floor(Math.random() * 30000) + 5000,
       })

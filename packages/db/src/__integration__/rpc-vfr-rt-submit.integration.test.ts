@@ -183,11 +183,13 @@ async function insertMcQuestion(
       explanation_text: `MC submit explanation ${idx}`,
       question_type: 'multiple_choice',
       options: [
-        { id: 'a', text: `A ${idx}`, correct: false },
-        { id: 'b', text: `B ${idx}`, correct: true },
-        { id: 'c', text: `C ${idx}`, correct: false },
-        { id: 'd', text: `D ${idx}`, correct: false },
+        { id: 'a', text: `A ${idx}` },
+        { id: 'b', text: `B ${idx}` },
+        { id: 'c', text: `C ${idx}` },
+        { id: 'd', text: `D ${idx}` },
       ],
+      // MC answer key in its own REVOKE-gated column (#823, mig 111).
+      correct_option_id: 'b',
       difficulty: 'medium',
       status: 'active',
       created_by: adminId,
@@ -487,6 +489,38 @@ describe('RPC: submit_vfr_rt_exam_answers — idempotency and error paths', () =
     expect(error?.message).toContain('invalid_question_id_for_session')
 
     await forceEndSession(sessionId)
+  })
+
+  it('rejects zero-padded and bare numeric blank_index as the same duplicate blank', async () => {
+    // #856 (mig 113): the duplicate-key pre-check canonicalizes numeric blank_index,
+    // so two dialog_fill entries for the SAME question with blank_index 1 (raw int)
+    // and "01" (zero-padded text) are detected as the same blank and rejected. Before
+    // the fix they slipped past the guard and silently collapsed at ON CONFLICT.
+    const { sessionId, questionIds } = await startSession()
+
+    try {
+      // Non-vacuity: confirm the session actually contains a dialog_fill question whose
+      // blanks_config has blank index 1 — otherwise the rejection could fire for an
+      // unrelated reason (bad question_id, missing blank).
+      const dfById = Object.fromEntries(dfQuestions.map((q) => [q.id, q]))
+      const dfId = questionIds.find((id) => dfById[id] !== undefined)
+      if (!dfId) throw new Error('no DF question in session')
+      expect(dfById[dfId]!.blanksConfig.some((b) => b.index === 1)).toBe(true)
+      const blankCanonical = dfById[dfId]!.blanksConfig.find((b) => b.index === 1)!.canonical
+
+      const { error } = await studentClient.rpc('submit_vfr_rt_exam_answers', {
+        p_session_id: sessionId,
+        p_answers: [
+          { question_id: dfId, blank_index: 1, response_text: blankCanonical },
+          { question_id: dfId, blank_index: '01', response_text: blankCanonical },
+        ],
+      })
+      expect(error).not.toBeNull()
+      expect(error?.message).toContain('duplicate_answer_entry')
+    } finally {
+      // End the session even if an assertion throws, so it can't leak into later tests.
+      await forceEndSession(sessionId)
+    }
   })
 
   it('scores partial answers — unanswered questions contribute 0 to their part percentage', async () => {

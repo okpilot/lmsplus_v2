@@ -81,8 +81,10 @@ export async function getQuizReportQuestions(opts: {
 
   const questionIds = answers.map((a) => a.question_id)
 
-  // Direct SELECT is safe: ended_at guard above blocks mid-session access,
-  // and buildReportQuestions strips options[].correct before returning.
+  // Direct SELECT is safe: ended_at guard above blocks mid-session access, and
+  // options no longer carries the answer key — `correct` is stripped at the DB
+  // write layer (#823), so the key never reaches buildReportQuestions. The
+  // report's correct option comes from get_report_correct_options (correctOptionId).
   // Intentionally omits deleted_at — questions answered in a completed session
   // are shown even if subsequently soft-deleted (historical record).
   const { data: questionsData, error: questionsError } = await supabase

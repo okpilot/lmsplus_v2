@@ -113,18 +113,19 @@ describe('trigger: stamp_last_active_on_session_complete', () => {
     }
     const sessionId = sessionData
 
-    // Derive the correct option id from the seeded question. Service-role read
-    // is safe here — we just need the options array for the submit payload.
+    // Derive the correct option id from the seeded question. The MC answer key
+    // now lives in the REVOKE-gated correct_option_id column (#823, mig 111);
+    // service-role reads bypass the REVOKE, so read the column directly.
     const { data: qRow, error: qErr } = await admin
       .from('questions')
-      .select('options')
+      .select('correct_option_id')
       .eq('id', questionId)
       .single()
     expect(qErr).toBeNull()
-    const options = qRow?.options as unknown as Array<{ id: string; correct: boolean }>
-    expect(Array.isArray(options)).toBe(true)
-    const correctOption = options.find((o) => o.correct === true)
-    if (!correctOption) throw new Error('seeded question has no correct option')
+    const correctOptionId = qRow?.correct_option_id as unknown as string
+    if (typeof correctOptionId !== 'string' || correctOptionId.length === 0) {
+      throw new Error('seeded question has no correct_option_id')
+    }
 
     // Submit via batch_submit_quiz (the live completion path, not the deprecated RPC).
     // The trigger fires inside this call — auth.uid() is the student's JWT subject.
@@ -134,7 +135,7 @@ describe('trigger: stamp_last_active_on_session_complete', () => {
       p_answers: [
         {
           question_id: questionId,
-          selected_option: correctOption.id,
+          selected_option: correctOptionId,
           response_time_ms: 3000,
         },
       ],

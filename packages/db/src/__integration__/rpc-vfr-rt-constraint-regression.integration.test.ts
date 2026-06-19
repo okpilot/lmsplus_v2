@@ -107,18 +107,22 @@ describe('Constraint regression — batch_submit_quiz idempotency after mig 095/
     // Derive the correct option for qId1 so we have a deterministic payload
     const qId1 = questionIds[0]!
     const qId2 = questionIds[1]!
+    // MC answer key lives in the REVOKE-gated correct_option_id column (#823,
+    // mig 111) — the `correct` flag is stripped from options on write. Service
+    // role bypasses the REVOKE, so read the key column directly.
     const { data: q1Row, error: q1Err } = await admin
       .from('questions')
-      .select('options')
+      .select('correct_option_id')
       .eq('id', qId1)
       .single()
     expect(q1Err).toBeNull()
-    const opts = q1Row?.options as unknown as Array<{ id: string; correct: boolean }>
-    const correctOpt = opts.find((o) => o.correct)
-    if (!correctOpt) throw new Error('seeded question has no correct option')
+    const correctOptId = q1Row?.correct_option_id as unknown as string
+    if (typeof correctOptId !== 'string' || correctOptId.length === 0) {
+      throw new Error('seeded question has no correct_option_id')
+    }
 
     const answers = [
-      { question_id: qId1, selected_option: correctOpt.id, response_time_ms: 1000 },
+      { question_id: qId1, selected_option: correctOptId, response_time_ms: 1000 },
       { question_id: qId2, selected_option: 'a', response_time_ms: 1000 },
     ]
 
@@ -323,9 +327,13 @@ describe('Constraint regression — mig 094 accepted_synonyms CHECK on multiple_
       question_type: 'multiple_choice',
       // Intentionally non-empty — this violates the new branch of the CHECK
       accepted_synonyms: ['stale_synonym'],
+      // Set correct_option_id so the biconditional MC key CHECK
+      // (questions_mc_correct_option_id_check, #823 mig 111) is satisfied and
+      // the synonyms CHECK under test is the constraint that actually fires.
+      correct_option_id: 'b',
       options: [
-        { id: 'a', text: 'Option A', correct: false },
-        { id: 'b', text: 'Option B', correct: true },
+        { id: 'a', text: 'Option A' },
+        { id: 'b', text: 'Option B' },
       ],
       difficulty: 'medium',
       status: 'active',
