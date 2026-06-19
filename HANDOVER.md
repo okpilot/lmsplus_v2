@@ -4,9 +4,9 @@ _Last updated: 2026-06-19_
 
 ## TL;DR
 
-**Phase A (Database) merged + live (dark). Phase B (Server Actions + grader) implemented on branch `feat/vfr-rt-phase-b` — all gates green, awaiting push → PR → manual eval (runtime code, NOT auto-merged). Phases C–E not started. No blockers — Phase C is the resume point once B merges.**
+**Phase A (Database) + Phase B (Server Actions + grader) both MERGED + live (dark). Phase C (Student UI) is the active resume point — it's the first renderable surface, so it's where manual eval finally applies. Phases C–E not started. No blockers.**
 
-`master` HEAD = `fba9b41a`. Branch `feat/vfr-rt-phase-b` has 5 commits (feat + fix + tests + chore housekeeping). The previously-uncommitted agent-memory edits + this file were folded into that branch's housekeeping commit per the original plan.
+`master` HEAD = `55e50398` (Phase B squash-merge, PR #922, 2026-06-19). Branch `feat/vfr-rt-phase-b` merged + deleted; local master synced. Phase C is frontend-only — no migrations, no new RPCs (all already shipped, see below).
 
 ---
 
@@ -17,8 +17,8 @@ VFR RT = VFR Radiotelephony Slovenia mock exam. Spec at `.spec-workflow/specs/vf
 | Phase | Scope | Status |
 |-------|-------|--------|
 | **A — Database** | migs 094–106: question-type enum + columns, `vfr_rt_exam` mode, text/per-blank answers, all RPCs, 145 integration tests | ✅ **MERGED** (PRs #830, #841, #843) |
-| **B — Server Actions + grader** | `startVfrRtExam`, `submitVfrRtExam`, `lib/grading/normalize-answer.ts`, constants, discard guard | 🟡 **DONE on `feat/vfr-rt-phase-b`** — awaiting push/PR/eval |
-| **C — Student UI** | briefing page, runner shell, per-type renderers, part progress bar, results breakdown | ⬜ **NEXT** |
+| **B — Server Actions + grader** | `startVfrRtExam`, `submitVfrRtExam`, `lib/grading/normalize-answer.ts`, constants, discard guard | ✅ **MERGED** (PR #922, squash `55e50398`) |
+| **C — Student UI** | briefing page, runner shell, per-type renderers, part progress bar, results breakdown | ⬜ **← NEXT (active resume point)** |
 | **D — Admin authoring** | discriminated-union schema, type selector, dialog-template parser/preview, upsert branch, list badge | ⬜ |
 | **E — Tests + red-team + ops** | Playwright lifecycle E2E, red-team (#825), pre-push sweep, launch | ⬜ |
 
@@ -47,9 +47,9 @@ The hard prereq **#611** (score-forgery column-grant) shipped 2026-06-05 — tha
 
 ---
 
-## Phase B — DONE (branch `feat/vfr-rt-phase-b`, awaiting push/PR/eval)
+## Phase B — MERGED (PR #922, squash `55e50398`, 2026-06-19)
 
-All of B.1–B.5 implemented + reviewed clean (plan-critic, impl-critic, full post-commit fleet incl. red-team, semantic re-review). 4061 web tests green, tsc clean.
+All of B.1–B.5 implemented + reviewed clean (plan-critic, impl-critic, full post-commit fleet incl. red-team, semantic re-review). All-green CI + CodeRabbit APPROVED. No manual eval was possible — `vfr-rt-exam/` is actions-only, nothing renderable yet.
 
 - **B.1** `lib/grading/normalize-answer.ts` — mirrors mig 101 `normalize_answer()` exactly (diacritics preserved).
 - **B.2** `vfr-rt-exam/actions/start.ts` — wraps `start_vfr_rt_exam_session`; **returns** session (client navigates) — DEVIATION from design's server redirect, user-approved 2026-06-19 (design.md/tasks.md updated). All 5 RPC error tokens mapped.
@@ -59,15 +59,25 @@ All of B.1–B.5 implemented + reviewed clean (plan-critic, impl-critic, full po
 
 **Deferred from this cycle:** red-team E2E vectors EF/EG → folded into **#873**; error-token-map sweep (rule promoted count=3) → **#920**.
 
-## Resume point — Phase C (Student UI)
+## ▶ RESUME POINT — Phase C (Student UI) — frontend-only, multi-file → full plan→critic→approve→execute pipeline
 
-After Phase B merges, start from `tasks.md` tasks **C.1–C.5** (briefing page, in-progress runner + per-type renderers, part-progress bar, results page reading `get_vfr_rt_exam_results` mig 103/115).
+Phase B is merged, so Phase C is unblocked and **is the next thing to build**. All backend RPCs it needs are already live (see "Phase A RPCs already shipped" above). Start from `.spec-workflow/specs/vfr-rt-slovenia-mock-exam/tasks.md` tasks **C.1–C.5**:
 
-**Phase C must-dos already flagged:**
-- Extend the shared report row/builder to render `response_text` for short_answer/dialog_fill (text-answer rows currently show "Not answered" — see Gotchas).
-- The dialog-fill renderer must NOT leak canonicals into client props (template skeleton + blank index only).
-- The runner can consume the `expired` flag now returned by `submitVfrRtExam` to show a "time's up" confirmation.
-- Watch **#911** (P1 internal-exam email half-auth stuck-loading) — same `/app/*` protected flow the runner uses.
+| Task | Scope | Files (size caps from `code-style.md` §1) |
+|------|-------|--------|
+| **C.1 Briefing/landing** | Server Component reads active session → redirect to in-progress, else render briefing + Start button | `vfr-rt-exam/page.tsx` (≤80, composition) + `_components/vfr-rt-exam-briefing.tsx` |
+| **C.2 In-progress runner** | SC reads session+answers → client `<VfrRtExamRunner>` (local answer state, part-nav, server-derived timer `started_at + 1800s`) | `in-progress/[sessionId]/page.tsx` (≤80) + `_components/vfr-rt-exam-runner.tsx` (≤150) + **refresh-resume test** (§7) |
+| **C.3 Per-type renderers** | short-answer, dialog-fill (parse `[atc]`/`[pilot]` + `{{n}}` blanks → inline inputs), MC | `_components/{short-answer,dialog-fill,mc}-renderer.tsx` + **security test: no canonical strings in client props/HTML** |
+| **C.4 Part progress bar** | 3-segment answered/total per part | `_components/part-progress.tsx` (≤80) + test |
+| **C.5 Results + breakdown** | per-part bars w/ 75% marker, pass/fail badge, per-question review; calls `get_vfr_rt_exam_results` (NOT direct table reads); guard error → redirect to `/app/vfr-rt-exam` | `results/[sessionId]/page.tsx` (≤80) + `_components/results-breakdown.tsx` (≤150) + **boundary test 74.9→fail / 75.0→pass** |
+
+**Phase C must-dos already flagged (don't lose these):**
+- **C.5** must extend the shared `report-question-row.tsx` row/builder to render `response_text` for short_answer/dialog_fill — text-answer rows (null `selected_option_id` + `response_text`, mig 095) currently show "Not answered" (see Gotchas).
+- **C.3** dialog-fill renderer must NOT leak canonicals into client props — template skeleton + blank index only (the C.3 test asserts seeded canonicals like "S5-ABC" / "descending to 2500 feet" are absent from props/HTML).
+- **C.2** runner can consume the `expired` flag now returned by `submitVfrRtExam` to show a "time's up" confirmation.
+- Watch **#911** (P1 internal-exam email half-auth stuck-loading) — same `/app/*` protected flow the runner uses; if it's a general redirect defect it could bite the runner.
+
+**Suggested first slice:** C.1 + C.2 to get a clickable start→runner flow, then C.3–C.5. This is multi-file → run the requirement interview + plan-critic before executing.
 
 ---
 
