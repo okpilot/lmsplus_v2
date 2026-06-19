@@ -3,15 +3,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockToastSuccess = vi.hoisted(() => vi.fn())
 const mockToastError = vi.hoisted(() => vi.fn())
+const mockSendEmail = vi.hoisted(() => vi.fn())
 
 vi.mock('sonner', () => ({
   toast: { success: mockToastSuccess, error: mockToastError },
+}))
+
+vi.mock('../actions/send-code-email', () => ({
+  sendInternalExamCodeEmail: mockSendEmail,
 }))
 
 import { formatExpiry } from '../_utils/format-expiry'
 import { IssuedCodePanel } from './issued-code-panel'
 
 const PROPS = {
+  codeId: 'code-1',
   code: 'ABCD2345',
   expiresAt: '2026-04-30T12:00:00.000Z',
   onDismiss: vi.fn(),
@@ -38,11 +44,6 @@ describe('IssuedCodePanel', () => {
   it('displays the issued code in large monospace text', () => {
     render(<IssuedCodePanel {...PROPS} />)
     expect(screen.getByTestId('issued-code-value')).toHaveTextContent('ABCD2345')
-  })
-
-  it('warns the admin that the code will not be shown again', () => {
-    render(<IssuedCodePanel {...PROPS} />)
-    expect(screen.getByText(/won.?t be shown again/i)).toBeInTheDocument()
   })
 
   it('shows the expiry timestamp in a human-readable format', () => {
@@ -102,5 +103,64 @@ describe('IssuedCodePanel', () => {
 
     rerender(<IssuedCodePanel {...PROPS} code="ZZZZ7777" />)
     expect(screen.getByRole('button', { name: /copy code/i })).toBeInTheDocument()
+  })
+
+  it('emails the code to the student and shows a success toast when send succeeds', async () => {
+    mockSendEmail.mockResolvedValue({ success: true })
+    render(<IssuedCodePanel {...PROPS} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /send via email/i }))
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(mockSendEmail).toHaveBeenCalledWith({ codeId: 'code-1' })
+    expect(mockToastSuccess).toHaveBeenCalledWith('Code emailed to student')
+  })
+
+  it('shows an error toast when emailing the code fails', async () => {
+    mockSendEmail.mockResolvedValue({ success: false, error: 'Code is no longer active' })
+    render(<IssuedCodePanel {...PROPS} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /send via email/i }))
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(mockToastError).toHaveBeenCalledWith('Code is no longer active')
+  })
+
+  it('disables the send button and labels it "Sent" after a successful send', async () => {
+    mockSendEmail.mockResolvedValue({ success: true })
+    render(<IssuedCodePanel {...PROPS} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /send via email/i }))
+    const sentButton = await screen.findByRole('button', { name: /^sent$/i })
+    expect(sentButton).toBeDisabled()
+
+    fireEvent.click(sentButton)
+    expect(mockSendEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-enables the send button when the panel is rerendered with a different code', async () => {
+    mockSendEmail.mockResolvedValue({ success: true })
+    const { rerender } = render(<IssuedCodePanel {...PROPS} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /send via email/i }))
+    expect(await screen.findByRole('button', { name: /^sent$/i })).toBeInTheDocument()
+
+    rerender(<IssuedCodePanel {...PROPS} code="ZZZZ7777" codeId="code-2" />)
+    expect(screen.getByRole('button', { name: /send via email/i })).toBeInTheDocument()
+  })
+
+  it('shows a generic error toast when the send action throws an unexpected exception', async () => {
+    mockSendEmail.mockRejectedValue(new Error('network failure'))
+    render(<IssuedCodePanel {...PROPS} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /send via email/i }))
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(mockToastError).toHaveBeenCalledWith('Failed to send email')
+    // The button must NOT flip to "Sent" after an exception.
+    expect(screen.queryByRole('button', { name: /^sent$/i })).not.toBeInTheDocument()
   })
 })
