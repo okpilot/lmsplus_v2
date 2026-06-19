@@ -70,6 +70,21 @@ describe('VfrRtReviewRow — short_answer', () => {
     render(<VfrRtReviewRow row={baseRow} index={0} />)
     expect(screen.getByText('QNH is the altimeter setting.')).toBeInTheDocument()
   })
+
+  it('shows accepted synonyms below the correct answer when the key has them', () => {
+    // baseRow already has accepted_synonyms: ['NH']
+    render(<VfrRtReviewRow row={baseRow} index={0} />)
+    expect(screen.getByText('Also accepted: NH')).toBeInTheDocument()
+  })
+
+  it('does not render accepted synonyms line when the list is empty', () => {
+    const row: VfrRtReviewRowType = {
+      ...baseRow,
+      key: { canonical_answer: 'Nautical Height', accepted_synonyms: [] },
+    }
+    render(<VfrRtReviewRow row={row} index={0} />)
+    expect(screen.queryByText(/Also accepted/)).not.toBeInTheDocument()
+  })
 })
 
 describe('VfrRtReviewRow — multiple_choice with options', () => {

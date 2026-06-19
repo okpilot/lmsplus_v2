@@ -27,7 +27,9 @@ export function VfrRtResultsBreakdown({ results }: Props) {
           <PassFailBadge passed={summary.passedOverall} />
         </div>
         <p className="text-center text-sm text-muted-foreground">
-          {summary.correctCount} / {summary.totalQuestions} answer rows correct
+          {/* correctCount counts answer rows (per blank for dialog fill), so it can
+              exceed totalQuestions — show it without a misleading denominator. */}
+          {summary.correctCount} answer rows correct
         </p>
       </div>
 

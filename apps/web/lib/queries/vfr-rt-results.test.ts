@@ -66,6 +66,19 @@ describe('getVfrRtResults', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
+  it('returns null and logs when auth itself errors', async () => {
+    mockGetUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: 'JWT expired' },
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getVfrRtResults('sess-1')
+    expect(result).toBeNull()
+    expect(mockRpc).not.toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalledWith('[getVfrRtResults] Auth error:', 'JWT expired')
+    consoleSpy.mockRestore()
+  })
+
   it('returns null and logs when the results RPC errors', async () => {
     mockRpc.mockResolvedValueOnce({
       data: null,
@@ -197,6 +210,29 @@ describe('getVfrRtResults', () => {
     }
     mockRpc
       .mockResolvedValueOnce({ data: mixedJson, error: null })
+      .mockResolvedValueOnce({ data: [], error: null })
+    const result = await getVfrRtResults('sess-1')
+    expect(result).not.toBeNull()
+    expect(result!.rows[0]!.isCorrect).toBe(false)
+  })
+
+  it('marks an unanswered question (empty answers) as incorrect, not vacuously correct', async () => {
+    const unansweredJson = {
+      ...sampleResultsJson,
+      questions: [
+        {
+          question_id: 'q-skip',
+          question_type: 'short_answer' as const,
+          question_text: 'Skipped question.',
+          answers: [],
+          key: { canonical_answer: 'QNH', accepted_synonyms: [] },
+          explanation_text: '',
+          explanation_image_url: null,
+        },
+      ],
+    }
+    mockRpc
+      .mockResolvedValueOnce({ data: unansweredJson, error: null })
       .mockResolvedValueOnce({ data: [], error: null })
     const result = await getVfrRtResults('sess-1')
     expect(result).not.toBeNull()

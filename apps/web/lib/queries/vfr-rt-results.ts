@@ -111,7 +111,9 @@ export async function getVfrRtResults(sessionId: string): Promise<VfrRtResults |
 
   const rows: VfrRtReviewRow[] = resultsData.questions.map((q) => {
     const display = displayMap.get(q.question_id)
-    const isCorrect = q.answers.every((a) => a.is_correct)
+    // every() is vacuously true on []; an unanswered question (timer-expiry or
+    // partial submit returns answers: []) must show incorrect, not a ✓.
+    const isCorrect = q.answers.length > 0 && q.answers.every((a) => a.is_correct)
     return {
       questionId: q.question_id,
       questionType: q.question_type,

@@ -40,4 +40,20 @@ describe('VfrRtPartBar', () => {
     // aria-valuenow reflects the clamped value
     expect(Number(bar.getAttribute('aria-valuenow'))).toBeLessThanOrEqual(100)
   })
+
+  it('renders a zero-width bar and displays 0.0% when pct is 0', () => {
+    render(<VfrRtPartBar label="Part 1" pct={0} passed={false} />)
+    expect(screen.getByText('0.0%')).toBeInTheDocument()
+    const bar = screen.getByRole('progressbar')
+    expect(bar.getAttribute('aria-valuenow')).toBe('0')
+    expect(bar).toHaveStyle({ width: '0%' })
+  })
+
+  it('renders a full-width bar and displays 100.0% when pct is 100', () => {
+    render(<VfrRtPartBar label="Part 1" pct={100} passed={true} />)
+    expect(screen.getByText('100.0%')).toBeInTheDocument()
+    const bar = screen.getByRole('progressbar')
+    expect(bar.getAttribute('aria-valuenow')).toBe('100')
+    expect(bar).toHaveStyle({ width: '100%' })
+  })
 })
