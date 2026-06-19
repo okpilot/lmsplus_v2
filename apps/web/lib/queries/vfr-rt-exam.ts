@@ -45,13 +45,12 @@ export async function getActiveVfrRtSession(): Promise<{ sessionId: string } | n
     .is('deleted_at', null)
     .order('started_at', { ascending: false })
     .limit(1)
-    .maybeSingle()
+    .maybeSingle<{ id: string }>()
 
   if (error) {
     console.error('[getActiveVfrRtSession] Query error:', error.message)
     return null
   }
 
-  if (!data) return null
-  return { sessionId: (data as { id: string }).id }
+  return data ? { sessionId: data.id } : null
 }
