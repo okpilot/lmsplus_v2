@@ -127,10 +127,11 @@ test.describe('Red Team: Session Replay', () => {
     }
     return questionIds.map((qid) => {
       const raw = rows.find((r) => r.id === qid)?.options
-      const opts = Array.isArray(raw) ? (raw as { id: string; correct?: boolean }[]) : []
-      const chosen = allCorrect
-        ? opts.find((o) => o.correct === true)
-        : opts.find((o) => !o.correct)
+      const opts = Array.isArray(raw) ? (raw as { id: string; correct?: boolean | null }[]) : []
+      const correctOption = opts.find((o) => o.correct === true)
+      // For the all-wrong set pick any option whose id differs from the correct one, so a
+      // missing/false `correct` key can never let the correct option slip into the wrong set.
+      const chosen = allCorrect ? correctOption : opts.find((o) => o.id !== correctOption?.id)
       if (!chosen) {
         throw new Error(
           `buildGradedAnswers: question ${qid} has no ${allCorrect ? 'correct' : 'incorrect'} option`,
@@ -535,6 +536,10 @@ test.describe('Red Team: Session Replay', () => {
       })
       expect(firstError).toBeNull()
       const first = firstData as BatchPayload
+      // Pin the first-submit scalars so the replay-equality checks below can't pass
+      // vacuously (undefined === undefined) if a field were ever dropped from the contract.
+      expect(first.total_questions).toBe(questionIds.length)
+      expect(first.answered_count).toBe(questionIds.length)
 
       // Replay on the now-completed session with a different (last-option) answer set —
       // the idempotent branch must ignore it and return the stored grade unchanged.
@@ -553,7 +558,7 @@ test.describe('Red Team: Session Replay', () => {
       // equals the first submit's value (re-read from storage, not recomputed from replay).
       expect(replay.expired).toBeUndefined()
       // results is rebuilt from quiz_session_answers JOIN questions (mig 095c L76–89):
-      // pin it as a non-empty array of one element per answered question, each carrying
+      // pin it as an array of exactly one element per answered question, each carrying
       // the documented per-answer keys — so a JOIN refactor that drops rows/keys fails here.
       expect(Array.isArray(replay.results)).toBe(true)
       const replayResults = replay.results as Array<Record<string, unknown>>
