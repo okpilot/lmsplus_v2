@@ -160,6 +160,11 @@
 - **questions.organization_id is NOT NULL (verified in initial schema line 107).** The `AND q.organization_id = v_caller_org_id` filter is non-nullable on both sides — no null-equality trap possible.
 - **adminUserId2 not pushed to the describe-scope `userIds` — correct by design.** It is explicitly passed as `userIds: [adminUserId2]` in its own `cleanupTestData` call. The first `cleanupTestData` call covers orgId + its own userIds (adminUserId + studentId). No orphan risk.
 
+## Notes on #869 batch_submit_quiz idempotent-replay output-contract test
+
+- **`score_percentage` serialization via jsonb RETURNS is a number, not a string.** `batch_submit_quiz` RETURNS jsonb; PostgREST passes the raw JSON blob. `v_score numeric(5,2)` embedded in `jsonb_build_object` serializes as a JSON number (e.g., `100` for `100.00`). `toBe(100)` and `toBe(0)` are correct strict-equality assertions. Existing spec line 338 (`typeof d.score_percentage === 'number'`) confirms the wire type. Do NOT flag as a BIGINT/NUMERIC string-serialization issue — that pattern applies to column-level reads (SELECT), not to values embedded in a RETURNS jsonb function. APPROVED 2026-06-19.
+- **`quick_quiz` leaves `passed` NULL** — confirmed in mig 095c: the pass-mark gating block (L247–257) only runs for `mock_exam` OR `internal_exam`. `v_passed boolean` defaults to NULL, never assigned for `quick_quiz`. Both fixture assertions `toBeNull()` are correct.
+
 ## Notes on PR #830 CR-local fixes (5 fixes, vfr_rt_exam race + test hardening)
 
 - **uq_vfr_rt_exam_session_active is the ONLY unique index that can fire on a `mode='vfr_rt_exam'` INSERT.** The three existing partial unique indexes (`uq_active_exam_session` for `mock_exam`, `uq_internal_exam_session_active` for `internal_exam`, `uq_vfr_rt_exam_session_active` for `vfr_rt_exam`) each predicate on a mutually exclusive mode value. PK is `gen_random_uuid()` — no collision. Exception handler is therefore unambiguous: `unique_violation` in the INSERT sub-block can only be from `uq_vfr_rt_exam_session_active`. The RETURN inside EXCEPTION exits the function before the audit INSERT — no fall-through. Sound.
