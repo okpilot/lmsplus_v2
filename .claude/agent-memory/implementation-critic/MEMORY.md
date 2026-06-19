@@ -67,6 +67,8 @@
 
 ## Positive patterns
 
+- **#902 record-emailed E2E spec: clean hermiticity + non-vacuity pattern.** Per-step error-accumulator (2 independent try/catch/finally blocks, sets cleared in finally), soft-delete of both internal_exam_codes + quiz_sessions with `.select('id')` + conditional log, EB existence proof before cross-org attack, consumed/voided seeding correctly satisfies both pair-consistency CHECKs. APPROVED 2026-06-19.
+
 - **#864 has-image filter: clean mirror of calc-mode pattern.** DROP+CREATE signatures correctly targeted the 6-arg calc-mode overloads; all 3 function bodies carried SECURITY INVOKER / SET search_path / STABLE/VOLATILE / status+deleted_at / auth.uid() scoping verbatim from the prior definition; byte-identical two-dir mirror confirmed; imageMode threaded through both Zod schemas, both RPC wrappers, all 5 hooks, and the QuestionFilters component; test coverage mirrors calcMode coverage exactly. APPROVED 2026-06-14.
 - **#862 keyboard shortcuts: stale-closure ref pattern applied correctly.** `optsRef.current = opts` + `highlightRef.current = highlightedIndex` set on every render (outside the once-attached `useEffect`); `onKeyDown` reads both via `.current`, so Enter always sees the live highlight. Hooks called before early return; `optionIds ?? []` safe fallback; `enabled === false` strict-equality guard correctly passes through when undefined. APPROVED 2026-06-14.
 

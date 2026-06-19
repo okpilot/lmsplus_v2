@@ -63,6 +63,7 @@ Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema
 | DB/caller-supplied value interpolated into HTML/SVG/XML template string without escaping | 2 | 2026-06-19 | RULE CANDIDATE → code-style.md §5 — (1) #890: eval seed SVG template, unescaped params, `escapeSvgAttr()` fix; (2) #901: email HTML template, DB values unescaped, `esc()` fix. Rule: escape all caller-supplied params at interpolation site. [full → topics/tracker-archive.md] |
 | Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 2 | 2026-06-19 | RULE CANDIDATE — WARNING (non-blocking) both times; E2E infra structural exception applied. (1) #844: 4 integration seed helpers 32–35L; (2) #869: `submitAndReplay` E2E helper 46L. §3 exception covers >3 params but not >30L for linear-flow infra. Propose narrow §3 clarification: "Single-concern sequential test-infra helpers (linear flow, no branching) exempt from 30-line cap; document with JSDoc." … [full → topics/tracker-archive.md] |
 | Raw internal/third-party error.message exposed through exported result type | 2 | 2026-06-19 | RULE CANDIDATE → code-style.md §5 extension — (1) 2026-03-12 Supabase error.message to student UI; (2) #901 Resend SDK error.message via `SendEmailResult.error: string` → fixed (log raw, return `'send_failed'`). Extend §5 "Sanitize Error Messages" to cover all SDK/third-party sources, not just Postgres. [full → topics/tracker-archive.md] |
+| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 3 | 2026-06-19 | RULE CANDIDATE (count 3) — (1) #844: vfr-rt-helpers.ts integration seed helpers (33–35L each); (2) #869: `submitAndReplay` E2E helper (46L); (3) #902: `seedCode` E2E helper (38L). All WARNING/non-blocking; all linear-flow, no branching. Proposed §3 exception: "Single-concern sequential DB seed/setup helpers in test infrastructure (linear flow, no branching) are exempt from the 30-line cap; JSDoc `// Test infra: sequential DB seed` required." Edit to code-style.md PROPOSED ONLY — apply alongside #903 §-promotion work. [full → topics/tracker-archive.md] |
 
 ## Count=1 WATCHING rows
 
@@ -74,7 +75,7 @@ All count=1 WATCHING rows live in `topics/tracker-archive.md` only. Recent addit
 - #842: Race test `data?.[0]` without toHaveLength; attack-surface.md gap-row stale.
 - #825: Sub-vector 2-letter prefix collision (DR vs DB).
 - #849: Plan citing superseded RLS policy; asymmetric afterAll var init.
-- #844: Sequential DB-seed helpers over 30L (structural E2E infra exception applies).
+- #902: admin_not_found (soft-deleted-admin) guard untested across all internal-exam RPC families (issue/void/start/record) — pre-existing gap filed as follow-up issue.
 - #885/#886/#887: Code-reviewer WARNs on pre-existing over-limit files untouched by diff (FP — already suppressed in agent-code-reviewer.md); verbose inline comment at cap.
 - #533: Loading-flag scope mismatch; full-suite vs targeted run; LoadingButton+icon during loading.
 - #901: SA result `error: string` not a literal union (new — see count=1 table below).
