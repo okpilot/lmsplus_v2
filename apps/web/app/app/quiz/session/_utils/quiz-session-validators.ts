@@ -1,3 +1,5 @@
+import { EXAM_MODES } from '@/lib/constants/exam-modes'
+
 export function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
@@ -45,10 +47,8 @@ export function hasValidOptionalFields(d: Record<string, unknown>, questionCount
     isOptionalFieldValid(d, 'subjectName', (v) => typeof v === 'string') &&
     isOptionalFieldValid(d, 'subjectCode', (v) => typeof v === 'string') &&
     isOptionalFieldValid(d, 'mode', (v) => v === 'study' || v === 'exam') &&
-    isOptionalFieldValid(
-      d,
-      'examMode',
-      (v) => v === 'mock_exam' || v === 'internal_exam' || v === 'vfr_rt_exam',
+    isOptionalFieldValid(d, 'examMode', (v) =>
+      (EXAM_MODES as readonly string[]).includes(v as string),
     ) &&
     isOptionalFieldValid(d, 'timeLimitSeconds', (v) => typeof v === 'number' && v > 0) &&
     isOptionalFieldValid(d, 'passMark', (v) => typeof v === 'number' && v > 0 && v <= 100) &&

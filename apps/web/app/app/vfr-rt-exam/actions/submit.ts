@@ -10,18 +10,12 @@ const SubmitVfrRtExamInput = z.object({
   answers: z.array(AnswerEntry).min(1),
 })
 
-type SubmitRpcResult = {
-  session_id: string
-  part1_pct: number
-  part2_pct: number
-  part3_pct: number
-  passed_overall: boolean
-  correct_count: number
-  total_questions: number
-  // Set when the timer-expiry guard fired instead of normal grading (mig 100):
-  // all percentages are zeroed and the session is marked expired, not graded.
-  expired?: boolean
-}
+// The RPC RETURNS a jsonb object. This action consumes only `expired` from it
+// (session_id comes from the validated input, the trusted source), so the guard
+// validates object-ness + that field rather than the per-part numerics we never
+// read — over-constraining those would risk a false-negative on NUMERIC-as-string
+// serialization (code-style.md §5). `expired` is set only on the timer-expiry path.
+const SubmitRpcResultSchema = z.object({ expired: z.boolean().optional() })
 
 export type SubmitVfrRtExamResult =
   | { success: true; session_id: string; redirect_to: string; expired?: boolean }
@@ -43,7 +37,7 @@ export async function submitVfrRtExam(raw: unknown): Promise<SubmitVfrRtExamResu
     }
 
     const p_answers = parsed.data.answers.map(toRpcAnswer)
-    const { data, error } = await rpc<SubmitRpcResult>(supabase, 'submit_vfr_rt_exam_answers', {
+    const { data, error } = await rpc<unknown>(supabase, 'submit_vfr_rt_exam_answers', {
       p_session_id: parsed.data.sessionId,
       p_answers,
     })
@@ -53,13 +47,22 @@ export async function submitVfrRtExam(raw: unknown): Promise<SubmitVfrRtExamResu
       return { success: false, error: 'Failed to submit exam' }
     }
 
+    // RETURNS jsonb (scalar or single-row array) — unwrap + validate before use,
+    // mirroring start.ts (code-style.md §5).
+    const row: unknown = Array.isArray(data) ? data[0] : data
+    const result = SubmitRpcResultSchema.safeParse(row)
+    if (!result.success) {
+      console.error('[submitVfrRtExam] Invalid RPC response shape')
+      return { success: false, error: 'Failed to submit exam' }
+    }
+
     return {
       success: true,
       session_id: parsed.data.sessionId,
       redirect_to: `/app/vfr-rt-exam/results/${parsed.data.sessionId}`,
       // Surface timer-expiry so Phase C can show a "time's up" confirmation
       // without a separate DB read; absent on the normal grade path.
-      ...(data?.expired ? { expired: true } : {}),
+      ...(result.data.expired ? { expired: true } : {}),
     }
   } catch (err) {
     console.error('[submitVfrRtExam] Uncaught error:', err)

@@ -219,6 +219,36 @@ describe('submitVfrRtExam — happy path', () => {
     expect(result.expired).toBe(true)
     expect(result.redirect_to).toBe(`/app/vfr-rt-exam/results/${SESSION_ID}`)
   })
+
+  it('succeeds when the RPC payload arrives as a single-row array', async () => {
+    mockRpc.mockResolvedValue({ data: [{ ...RPC_SUCCESS, expired: true }], error: null })
+    const result = await submitVfrRtExam({ sessionId: SESSION_ID, answers: [MC_ENTRY] })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.expired).toBe(true)
+  })
+})
+
+// ---- Invalid RPC response shape -------------------------------------------
+
+describe('submitVfrRtExam — invalid RPC response shape', () => {
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+  })
+
+  it('returns a generic failure when the RPC returns a non-object payload', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mockRpc.mockResolvedValue({ data: 'unexpected', error: null })
+      const result = await submitVfrRtExam({ sessionId: SESSION_ID, answers: [MC_ENTRY] })
+      expect(result.success).toBe(false)
+      if (result.success) return
+      expect(result.error).toBe('Failed to submit exam')
+      expect(consoleSpy).toHaveBeenCalled()
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
 })
 
 // ---- RPC error handling ---------------------------------------------------

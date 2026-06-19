@@ -45,7 +45,7 @@ describe('AnswerEntry — schema validation', () => {
     expect(dialog.success).toBe(true)
   })
 
-  it('rejects an MC entry that also carries response_text (strict mode disqualifies it from MC branch)', () => {
+  it('rejects an MC entry that also carries response_text', () => {
     const result = AnswerEntry.safeParse({
       questionId: MC_Q,
       selectedOptionId: 'b',
