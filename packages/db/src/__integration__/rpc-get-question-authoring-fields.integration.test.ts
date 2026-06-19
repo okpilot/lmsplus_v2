@@ -5,8 +5,8 @@ import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
 // #823 (P0): the MC answer key lives in questions.correct_option_id, which is
-// NOT granted to the `authenticated` role (mig 109 REVOKE). Admins read it via
-// the SECURITY DEFINER get_question_authoring_fields RPC (mig 114). This suite
+// NOT granted to the `authenticated` role (mig 111 REVOKE). Admins read it via
+// the SECURITY DEFINER get_question_authoring_fields RPC (mig 116). This suite
 // pins, at the DB layer:
 //   * the RPC returns correct_option_id for an MC question to an admin caller,
 //   * NULL for non-MC questions,
@@ -229,7 +229,7 @@ describe('RPC: get_question_authoring_fields exposes correct_option_id to admins
   })
 
   it('blocks a direct authenticated SELECT of correct_option_id with 42501', async () => {
-    // The REVOKE (mig 109) is the actual security boundary — without it, any
+    // The REVOKE (mig 111) is the actual security boundary — without it, any
     // same-org student could dump the answer key. Assert the column is not
     // SELECTable by the `authenticated` role even for the admin client.
     const { data: control, error: controlErr } = await adminClient

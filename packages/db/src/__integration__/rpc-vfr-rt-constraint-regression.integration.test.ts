@@ -108,7 +108,7 @@ describe('Constraint regression — batch_submit_quiz idempotency after mig 095/
     const qId1 = questionIds[0]!
     const qId2 = questionIds[1]!
     // MC answer key lives in the REVOKE-gated correct_option_id column (#823,
-    // mig 109) — the `correct` flag is stripped from options on write. Service
+    // mig 111) — the `correct` flag is stripped from options on write. Service
     // role bypasses the REVOKE, so read the key column directly.
     const { data: q1Row, error: q1Err } = await admin
       .from('questions')
