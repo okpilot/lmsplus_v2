@@ -41,4 +41,24 @@ describe('PartProgress', () => {
     render(<PartProgress segments={[{ label: 'P', answered: 3, total: 5 }]} />)
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '3')
   })
+
+  it('clamps fill to 100% when answered exceeds total', () => {
+    // ratioPercent uses Math.min(100, ...) to guard against over-full bars.
+    const { container } = render(
+      <PartProgress segments={[{ label: 'P', answered: 6, total: 5 }]} />,
+    )
+    const fill = container.querySelector('[role="progressbar"] > div') as HTMLElement
+    expect(fill.style.width).toBe('100%')
+  })
+
+  it('shows 0% fill and does not divide by zero when total is 0', () => {
+    // ratioPercent returns 0 when total <= 0 — guards against division by zero.
+    const { container } = render(
+      <PartProgress segments={[{ label: 'P', answered: 0, total: 0 }]} />,
+    )
+    const bar = screen.getByRole('progressbar')
+    expect(bar).toHaveAttribute('aria-valuemax', '0')
+    const fill = container.querySelector('[role="progressbar"] > div') as HTMLElement
+    expect(fill.style.width).toBe('0%')
+  })
 })

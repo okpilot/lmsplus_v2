@@ -43,4 +43,20 @@ describe('McRenderer', () => {
     render(<McRenderer options={[]} value={null} onChange={vi.fn()} />)
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
   })
+
+  it('labels options A, B, C by position', () => {
+    render(<McRenderer options={OPTIONS} value={null} onChange={vi.fn()} />)
+    // Each option row shows its letter prefix before the text.
+    expect(screen.getByText('A')).toBeInTheDocument()
+    expect(screen.getByText('B')).toBeInTheDocument()
+    expect(screen.getByText('C')).toBeInTheDocument()
+  })
+
+  it('disables all radio inputs when disabled is set', () => {
+    render(<McRenderer options={OPTIONS} value={null} onChange={vi.fn()} disabled />)
+    const radios = screen.getAllByRole('radio')
+    for (const radio of radios) {
+      expect(radio).toBeDisabled()
+    }
+  })
 })

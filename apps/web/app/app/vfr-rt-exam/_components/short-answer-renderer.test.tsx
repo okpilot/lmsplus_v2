@@ -23,4 +23,17 @@ describe('ShortAnswerRenderer', () => {
     render(<ShortAnswerRenderer value="" onChange={vi.fn()} disabled />)
     expect(screen.getByRole('textbox')).toBeDisabled()
   })
+
+  it('uses the default inputId to link the label', () => {
+    render(<ShortAnswerRenderer value="" onChange={vi.fn()} />)
+    // Label "Your answer" should be associated with the input via the default id.
+    expect(screen.getByLabelText('Your answer')).toBeInTheDocument()
+  })
+
+  it('links the label when a custom inputId is provided', () => {
+    render(<ShortAnswerRenderer value="FL050" onChange={vi.fn()} inputId="q-42" />)
+    const input = screen.getByLabelText('Your answer')
+    expect(input).toHaveAttribute('id', 'q-42')
+    expect(input).toHaveValue('FL050')
+  })
 })

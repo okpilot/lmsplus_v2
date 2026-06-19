@@ -71,7 +71,7 @@ export function DialogFillRenderer({
             }
             return (
               <input
-                key={`blank-${segment.index}`}
+                key={key}
                 type="text"
                 aria-label={`Blank ${segment.index + 1}`}
                 value={values[segment.index] ?? ''}

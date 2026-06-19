@@ -55,4 +55,17 @@ describe('DialogFillRenderer', () => {
     expect(container.innerHTML).not.toContain('S5-ABC')
     expect(container.innerHTML).not.toContain('descending to 2500 feet')
   })
+
+  it('renders no inputs and no text when the template is empty', () => {
+    render(<DialogFillRenderer template="" values={{}} onChange={vi.fn()} />)
+    expect(screen.queryAllByRole('textbox')).toHaveLength(0)
+  })
+
+  it('disables all blank inputs when disabled is set', () => {
+    render(<DialogFillRenderer template={TEMPLATE} values={{}} onChange={vi.fn()} disabled />)
+    const inputs = screen.getAllByRole('textbox')
+    for (const input of inputs) {
+      expect(input).toBeDisabled()
+    }
+  })
 })

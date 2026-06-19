@@ -97,4 +97,14 @@ describe('parseDialogDisplay', () => {
       { type: 'text', value: ' cleared.' },
     ])
   })
+
+  it('produces adjacent blank segments with no text segment between them', () => {
+    // {{0}}{{1}} with nothing between — lastIndex === match.index, so no text push.
+    const segments = firstLine('[pilot] {{0}}{{1}} feet.').segments
+    expect(segments).toEqual([
+      { type: 'blank', index: 0 },
+      { type: 'blank', index: 1 },
+      { type: 'text', value: ' feet.' },
+    ])
+  })
 })
