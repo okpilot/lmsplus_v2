@@ -7,7 +7,11 @@
  *   1. auth.uid() IS NULL          → not_authenticated  (covered by DZ in
  *                                     server-action-unauthenticated.spec.ts)
  *   2. NOT is_admin()              → not_admin           (EA)
- *   3. active-admin gate           → admin_not_found
+ *   3. active-admin gate           → admin_not_found     (NOT exercised here —
+ *                                     fires only when the calling admin is
+ *                                     soft-deleted mid-transaction; shared guard
+ *                                     across the internal-exam RPC family, none
+ *                                     of which cover it at the E2E layer)
  *   4. org/state-scoped code read  → code_not_found      (EB cross-org, EC state)
  *
  * Tests cover:
