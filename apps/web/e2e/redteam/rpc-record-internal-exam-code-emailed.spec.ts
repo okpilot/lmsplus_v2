@@ -57,11 +57,13 @@ async function seedCode(
 ): Promise<{ id: string; code: string }> {
   // crypto.randomUUID() is collision-resistant; Math.random() can collide
   // across rapid test runs in the same describe block.
+  // Match the RPC's issued charset (excludes 0/1/I/O to avoid mis-reads) so the
+  // seeded code is faithful to a real one; A-HJ-NP-Z2-9 drops I and O too.
   const code = `${E2E_REDTEAM_CODE_PREFIX}${crypto
     .randomUUID()
     .replace(/-/g, '')
     .toUpperCase()
-    .replace(/[^A-Z2-9]/g, 'A')
+    .replace(/[^A-HJ-NP-Z2-9]/g, 'A')
     .slice(0, 6)}`
   const row: Record<string, unknown> = {
     code,
