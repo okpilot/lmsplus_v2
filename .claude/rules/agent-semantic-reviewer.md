@@ -42,7 +42,8 @@ Deep logic and security review at CodeRabbit depth. Catches what lint can't: log
 - Query correctness: wrong JOINs, unscoped aggregates, missing WHERE clauses
 - Next.js patterns: Server Component data flow, Server Action boundaries
 - Type safety: unchecked casts, missing narrowing
+- **Server Action error-token map completeness:** when a Server Action calls a SECURITY DEFINER RPC and maps RPC errors to user messages (a `mapRpcError`/`ERROR_MESSAGES` token list), verify that **every** `RAISE EXCEPTION '<code>'` in the RPC body has a matching `<code>` entry in the action's map. Unmapped tokens fall through to the generic fallback — not a security leak (the raw message is still sanitized), but a UX/triage gap: a real path (e.g. a soft-deleted student hitting `user_not_found_or_inactive`) reads identically to a DB timeout. Trace the RPC's LATEST `CREATE OR REPLACE FUNCTION` body for the full RAISE set. (Promoted count=3, 2026-06-19 — `void-code.ts` internal-exam family ×2 + VFR RT `start.ts`/`_error-messages.ts`; see issue tracking the existing-offender sweep.)
 
 ---
 
-*Last updated: 2026-03-13*
+*Last updated: 2026-06-19 (added Server Action error-token-map completeness check — learner count=3)*

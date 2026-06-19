@@ -134,29 +134,30 @@
 
 ## Phase B — Server Actions + grader utility
 
-- [ ] **B.1 `apps/web/lib/grading/normalize-answer.ts` + co-located test**
+- [x] **B.1 `apps/web/lib/grading/normalize-answer.ts` + co-located test**
   - Files: `normalize-answer.ts`, `normalize-answer.test.ts`
   - Pure single-function module. Test table covers: empty, whitespace, hyphens/underscores, punctuation, diacritic preservation, multiple cases.
   - _Requirements: R6_
 
-- [ ] **B.2 Server Action `startVfrRtExam`**
+- [x] **B.2 Server Action `startVfrRtExam`**
   - File: `apps/web/app/app/vfr-rt-exam/actions/start.ts` + `.test.ts`
   - Zod parse `{ subjectId: z.uuid() }`, auth gate (inline `supabase.auth.getUser()` — the established exam-start pattern; `requireStudent()` does not exist), RPC call, error mapping (4 cases per design.md). **Returns** `{ success, sessionId, questionIds, timeLimitSeconds, parts, startedAt }` on success — the client (Phase C Start button) navigates to `/app/vfr-rt-exam/in-progress/<id>` via `router.push`. (DEVIATION from the original design's server-side `redirect()`: user-approved 2026-06-19 to match `start-exam.ts`/`start-internal-exam.ts`, which return + let the client navigate; no Server Action in this codebase uses `redirect()`.)
   - _Test_: success-path asserts the returned `sessionId` (no `redirect` mock — the action returns).
   - _Requirements: R2.1, R2.4_
 
-- [ ] **B.3 Server Action `submitVfrRtExam`**
-  - File: `apps/web/app/app/vfr-rt-exam/actions/submit.ts` + `.test.ts`
-  - Zod discriminated union over the three answer-entry shapes, RPC call, returns `{ success, session_id, redirect_to }`.
-  - _Test_: idempotent re-submit, partial answers, invalid question id mapping.
+- [x] **B.3 Server Action `submitVfrRtExam`**
+  - File: `apps/web/app/app/vfr-rt-exam/actions/submit.ts` + `.test.ts` (+ `_answer-mapping.ts` helper extracted to keep submit.ts ≤100 lines)
+  - Zod union over the three answer-entry shapes (tagless `z.union` of `.strict()` objects — mirrors the RPC's tagless entries 1:1), RPC call, returns `{ success, session_id, redirect_to, expired? }`. MC key mapped to `selected_option_id` (mig 113). The optional `expired` flag surfaces the RPC's timer-expiry path.
+  - _Test_: idempotent re-submit, partial answers, invalid question id mapping, expiry-flag passthrough.
   - _Requirements: R3, R6_
 
-- [ ] **B.4 Constants update**
+- [x] **B.4 Constants update**
   - File: `apps/web/lib/constants/exam-modes.ts` + co-located test
-  - Add `'vfr_rt_exam'` to `EXAM_MODES`, `MODE_LABELS['vfr_rt_exam']`.
+  - Add `'vfr_rt_exam'` to `EXAM_MODES`, `MODE_LABELS['vfr_rt_exam'] = 'VFR RT Mock Exam'`, widen `isExamMode`.
+  - **Also swept all hard-coded mode consumers** (caught by plan-critic): `quiz/session/_utils/quiz-session-validators.ts` examMode whitelist, `quiz/report/_components/result-summary.tsx` cast (→ `QuizMode`), and the separate `reports/_components/reports-utils.ts` MODE_LABELS map.
   - _Requirements: R2.1_
 
-- [ ] **B.5 Discard guard extension**
+- [x] **B.5 Discard guard extension**
   - File: `apps/web/app/app/quiz/actions/discard.ts` + `.test.ts`
   - Extend the existing `internal_exam` branch to also reject `vfr_rt_exam` with `'cannot_discard_vfr_rt_exam'`. Add the new test case alongside the existing internal_exam test.
   - **Cap note:** `discard.ts` is already at 105 lines — over the 100-line Server Action cap (`code-style.md` §1). Extract a small `assertDiscardableMode()` helper (or equivalent) while extending, so the file lands back under the cap rather than further over it.
