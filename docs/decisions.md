@@ -478,7 +478,7 @@ Full audit completed — 46 files reviewed. Score: 9.5/10. Full report: `docs/se
 **Context:** Static code review and unit tests miss real exploit chains and race conditions. Need active adversarial testing against a running app to prove defenses hold.
 
 **Decided:**
-- Create red-team suite: Playwright attack specs executing exploit chains against local Supabase (same as production); 43 specs as of 2026-06-14 covering OWASP A01/A02/A03/A07/A09 and A10:2025 (exceptional-condition handling / error-path information disclosure)
+- Create red-team suite: Playwright attack specs executing exploit chains against local Supabase (same as production); 44 specs as of 2026-06-19 covering OWASP A01/A02/A03/A07/A09 and A10:2025 (exceptional-condition handling / error-path information disclosure)
 - Attack vectors cover: RLS bypass (cross-tenant, question membership), RPC boundary breaches, session forgery (PKCE, replay), race conditions (concurrent discard+complete), audit log tampering and completeness, quiz draft injection, SQL/XSS injection, security-header validation
 - Separate Playwright project (`e2e/redteam/`) to avoid clutter, testIgnore on normal e2e pipeline
 - Red-team agent (sonnet) triggers post-commit on security-sensitive file changes (migrations, db/src, quiz/actions, auth, proxy.ts, security.md) — maps diff to affected specs, flags coverage gaps
@@ -783,4 +783,4 @@ Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT D
 
 ---
 
-*Last updated: 2026-06-18 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*
+*Last updated: 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*

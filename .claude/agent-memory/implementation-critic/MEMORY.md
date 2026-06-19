@@ -67,6 +67,8 @@
 
 ## Positive patterns
 
+- **#902 record-emailed E2E spec: clean hermiticity + non-vacuity pattern.** Per-step error-accumulator (2 independent try/catch/finally blocks, sets cleared in finally), soft-delete of both internal_exam_codes + quiz_sessions with `.select('id')` + conditional log, EB existence proof before cross-org attack, consumed/voided seeding correctly satisfies both pair-consistency CHECKs. APPROVED 2026-06-19.
+
 - **#864 has-image filter: clean mirror of calc-mode pattern.** DROP+CREATE signatures correctly targeted the 6-arg calc-mode overloads; all 3 function bodies carried SECURITY INVOKER / SET search_path / STABLE/VOLATILE / status+deleted_at / auth.uid() scoping verbatim from the prior definition; byte-identical two-dir mirror confirmed; imageMode threaded through both Zod schemas, both RPC wrappers, all 5 hooks, and the QuestionFilters component; test coverage mirrors calcMode coverage exactly. APPROVED 2026-06-14.
 - **#862 keyboard shortcuts: stale-closure ref pattern applied correctly.** `optsRef.current = opts` + `highlightRef.current = highlightedIndex` set on every render (outside the once-attached `useEffect`); `onKeyDown` reads both via `.current`, so Enter always sees the live highlight. Hooks called before early return; `optionIds ?? []` safe fallback; `enabled === false` strict-equality guard correctly passes through when undefined. APPROVED 2026-06-14.
 
@@ -159,6 +161,11 @@
 - **NULL-org guard doubles as NULL-user guard — confirmed again.** `SELECT u.organization_id INTO v_caller_org_id ... WHERE u.id = v_caller AND u.deleted_at IS NULL; IF v_caller_org_id IS NULL THEN RAISE 'user_not_found_or_inactive'` preserves the old EXISTS gate exactly: soft-deleted user or unknown user → org returns NULL → guard fires. No behavioral regression. Pattern mirrors mig 099 lines 67–71 identically.
 - **questions.organization_id is NOT NULL (verified in initial schema line 107).** The `AND q.organization_id = v_caller_org_id` filter is non-nullable on both sides — no null-equality trap possible.
 - **adminUserId2 not pushed to the describe-scope `userIds` — correct by design.** It is explicitly passed as `userIds: [adminUserId2]` in its own `cleanupTestData` call. The first `cleanupTestData` call covers orgId + its own userIds (adminUserId + studentId). No orphan risk.
+
+## Notes on #869 batch_submit_quiz idempotent-replay output-contract test
+
+- **`score_percentage` serialization via jsonb RETURNS is a number, not a string.** `batch_submit_quiz` RETURNS jsonb; PostgREST passes the raw JSON blob. `v_score numeric(5,2)` embedded in `jsonb_build_object` serializes as a JSON number (e.g., `100` for `100.00`). `toBe(100)` and `toBe(0)` are correct strict-equality assertions. Existing spec line 338 (`typeof d.score_percentage === 'number'`) confirms the wire type. Do NOT flag as a BIGINT/NUMERIC string-serialization issue — that pattern applies to column-level reads (SELECT), not to values embedded in a RETURNS jsonb function. APPROVED 2026-06-19.
+- **`quick_quiz` leaves `passed` NULL** — confirmed in mig 095c: the pass-mark gating block (L247–257) only runs for `mock_exam` OR `internal_exam`. `v_passed boolean` defaults to NULL, never assigned for `quick_quiz`. Both fixture assertions `toBeNull()` are correct.
 
 ## Notes on PR #830 CR-local fixes (5 fixes, vfr_rt_exam race + test hardening)
 

@@ -1,10 +1,11 @@
 /**
  * Red Team Spec: Audit Event Completeness — quiz/exam/internal-exam positive emission
  *
- * Asserts the 11 quiz/exam/internal-exam audit_events.event_type literals are written
+ * Asserts the 10 quiz/exam/internal-exam audit_events.event_type literals are written
  * by their triggering flows: quiz_session.batch_submitted, exam.started, exam.completed,
  * exam.expired, internal_exam.code_issued, internal_exam.code_voided,
- * internal_exam.started, internal_exam.completed, internal_exam.expired.
+ * internal_exam.code_emailed, internal_exam.started, internal_exam.completed,
+ * internal_exam.expired.
  *
  * The 5 auth-event tests (student.login + CT record_auth_event) live in
  * audit-auth-events.spec.ts.
@@ -340,6 +341,27 @@ test.describe('Red Team: Audit Event Completeness', () => {
     expect(voidErr).toBeNull()
 
     await expectAuditRow(admin, 'internal_exam.code_voided', adminUserId, testStart, codeId)
+  })
+
+  test('writes internal_exam.code_emailed when admin emails a code (actor=admin)', async () => {
+    const testStart = new Date().toISOString()
+
+    const { codeId } = await issueCodeViaRpc(
+      adminAuthedClient,
+      subjectId,
+      studentUserId,
+      tracker.codes,
+    )
+    const { data: emailData, error: emailErr } = await adminAuthedClient.rpc(
+      'record_internal_exam_code_emailed',
+      { p_code_id: codeId },
+    )
+    expect(emailErr).toBeNull()
+    // record_internal_exam_code_emailed RETURNS void — the documented success
+    // payload is null (code-style.md §7 RPC output contract).
+    expect(emailData).toBeNull()
+
+    await expectAuditRow(admin, 'internal_exam.code_emailed', adminUserId, testStart, codeId)
   })
 
   test('writes internal_exam.started when student redeems a valid code', async () => {
