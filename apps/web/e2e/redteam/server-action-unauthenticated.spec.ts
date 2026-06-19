@@ -159,6 +159,18 @@ test.describe('Red Team: Unauthenticated RPC and Table Access', () => {
     expect(data ?? null).toBeNull()
   })
 
+  test('record_internal_exam_code_emailed rejects unauthenticated callers (Vector DZ)', async () => {
+    // The RPC raises not_authenticated via the auth.uid() IS NULL guard (mig
+    // 110) BEFORE any code lookup. An anon-key client has no JWT, so auth.uid()
+    // is NULL and the exception fires — a non-existent uuid is therefore fine.
+    const { data, error } = await unauthClient.rpc('record_internal_exam_code_emailed', {
+      p_code_id: '00000000-0000-4000-a000-000000000003',
+    })
+    expect(error).not.toBeNull()
+    expect(error?.message ?? '').toMatch(/not_authenticated/i)
+    expect(data ?? null).toBeNull()
+  })
+
   test('get_student_mastery_stats returns an empty set for an unauthenticated caller', async () => {
     // BW1: anon-key client has no JWT → RLS scopes to empty; RPC must not raise.
     const { data, error } = await unauthClient.rpc('get_student_mastery_stats')
