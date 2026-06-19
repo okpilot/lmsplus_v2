@@ -102,7 +102,9 @@ async function seedSession(
       mode: 'internal_exam',
       subject_id: opts.subjectId,
       config: { question_ids: [], pass_mark: 75 },
-      total_questions: 1,
+      // total_questions matches the empty question_ids — this row only exists to
+      // satisfy the consumed_session_id FK; no RPC reads it.
+      total_questions: 0,
       time_limit_seconds: 600,
     })
     .select('id')
