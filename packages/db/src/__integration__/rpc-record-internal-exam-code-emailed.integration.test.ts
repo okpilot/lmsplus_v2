@@ -151,24 +151,49 @@ describe('RPC: record_internal_exam_code_emailed', () => {
   })
 
   afterAll(async () => {
-    // Hard-delete the test-created codes FIRST: internal_exam_codes has no FK
-    // children, and cleanupTestData hard-deletes the users/orgs/quiz_sessions
-    // these rows reference (via issued_by, student_id, organization_id,
-    // consumed_session_id). A lingering row — even soft-deleted — would FK-block
-    // those deletes. Test teardown only; production code never hard-deletes.
+    // Multi-step cleanup with a per-step error accumulator (code-style.md §7):
+    // a failure that leaks shared state must surface, not be logged-and-continued.
+    const errors: string[] = []
+
+    // Step 1: hard-delete the test-created codes FIRST. internal_exam_codes has no
+    // FK children, and cleanupTestData hard-deletes the users/orgs/quiz_sessions
+    // these rows reference (issued_by, student_id, organization_id,
+    // consumed_session_id) — a lingering row would FK-block those deletes. Test
+    // teardown only; production never hard-deletes.
     if (createdCodeIds.length > 0) {
-      const { data: removed, error } = await admin
-        .from('internal_exam_codes')
-        .delete()
-        .in('id', createdCodeIds)
-        .select('id')
-      if (error) console.error(`afterAll: code delete failed: ${error.message}`)
-      else if ((removed?.length ?? 0) > 0)
-        console.log(`[record_code_emailed] removed ${removed?.length} code(s)`)
+      try {
+        const { data: removed, error } = await admin
+          .from('internal_exam_codes')
+          .delete()
+          .in('id', createdCodeIds)
+          .select('id')
+        if (error) throw new Error(error.message)
+        if ((removed?.length ?? 0) > 0)
+          console.log(`[record_code_emailed] removed ${removed?.length} code(s)`)
+      } catch (e) {
+        errors.push(`code delete: ${e instanceof Error ? e.message : String(e)}`)
+      } finally {
+        createdCodeIds.length = 0
+      }
     }
-    // cleanupTestData removes org-scoped audit_events + quiz_sessions + users + orgs.
-    await cleanupTestData({ admin, orgId, userIds })
-    await cleanupTestData({ admin, orgId: otherOrgId, userIds: otherUserIds })
+
+    // Steps 2-3: per-org cleanup (audit_events + quiz_sessions + users + orgs).
+    // Dependent on step 1 (codes FK into these rows), so skip if the code delete
+    // failed — a spurious FK error here would mask the root cause (§7).
+    if (errors.length === 0) {
+      try {
+        await cleanupTestData({ admin, orgId, userIds })
+      } catch (e) {
+        errors.push(`cleanup ${orgId}: ${e instanceof Error ? e.message : String(e)}`)
+      }
+      try {
+        await cleanupTestData({ admin, orgId: otherOrgId, userIds: otherUserIds })
+      } catch (e) {
+        errors.push(`cleanup ${otherOrgId}: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    if (errors.length > 0) throw new Error(`afterAll: ${errors.join('; ')}`)
   })
 
   // ── (a) Admin happy path ────────────────────────────────────────────────────
