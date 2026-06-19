@@ -28,10 +28,13 @@ import {
  *  (g) soft-deleted code (rule 9: deleted_at filter) → throws 'code_not_found'
  *  (h) unauthenticated caller (auth.uid() NULL) → throws 'not_authenticated'
  *
- * Hermetic: internal_exam_codes rows created here are soft-deleted in afterAll;
- * audit_events is append-only/immutable, so assertions scope by the unique
- * created code id (resource_id) rather than deleting audit rows. cleanupTestData
- * removes the test orgs (which cascades the org-scoped audit_events) and users.
+ * Hermetic: internal_exam_codes rows created here are HARD-deleted in afterAll
+ * (test teardown only) — the table has no FK children, and cleanupTestData
+ * hard-deletes the users/orgs/quiz_sessions these rows reference, so the codes
+ * must be removed first or those deletes hit FK violations. audit_events is
+ * append-only/immutable, so assertions scope by the unique created code id
+ * (resource_id) rather than deleting audit rows. cleanupTestData removes the
+ * test orgs (which cascades the org-scoped audit_events) and users.
  *
  * The RT subject (mig 097) is a global reference row used only to satisfy the
  * internal_exam_codes.subject_id FK — it is never modified or deleted here.
@@ -148,19 +151,22 @@ describe('RPC: record_internal_exam_code_emailed', () => {
   })
 
   afterAll(async () => {
-    // Soft-delete codes (internal_exam_codes supports deleted_at; no hard DELETE).
+    // Hard-delete the test-created codes FIRST: internal_exam_codes has no FK
+    // children, and cleanupTestData hard-deletes the users/orgs/quiz_sessions
+    // these rows reference (via issued_by, student_id, organization_id,
+    // consumed_session_id). A lingering row — even soft-deleted — would FK-block
+    // those deletes. Test teardown only; production code never hard-deletes.
     if (createdCodeIds.length > 0) {
-      const { data: discarded, error } = await admin
+      const { data: removed, error } = await admin
         .from('internal_exam_codes')
-        .update({ deleted_at: new Date().toISOString() })
+        .delete()
         .in('id', createdCodeIds)
-        .is('deleted_at', null)
         .select('id')
-      if (error) console.error(`afterAll: code soft-delete failed: ${error.message}`)
-      else if ((discarded?.length ?? 0) > 0)
-        console.log(`[record_code_emailed] soft-deleted ${discarded?.length} code(s)`)
+      if (error) console.error(`afterAll: code delete failed: ${error.message}`)
+      else if ((removed?.length ?? 0) > 0)
+        console.log(`[record_code_emailed] removed ${removed?.length} code(s)`)
     }
-    // cleanupTestData removes org-scoped audit_events + users + orgs.
+    // cleanupTestData removes org-scoped audit_events + quiz_sessions + users + orgs.
     await cleanupTestData({ admin, orgId, userIds })
     await cleanupTestData({ admin, orgId: otherOrgId, userIds: otherUserIds })
   })
@@ -247,11 +253,22 @@ describe('RPC: record_internal_exam_code_emailed', () => {
   it('rejects a consumed code with code_not_found and writes no audit row', async () => {
     const codeId = await seedCode({ org: orgId, student: studentId, issuedBy: adminUserId })
 
+    // consumed_at and consumed_session_id must be set together
+    // (consumed_pair_consistency CHECK), and consumed_session_id is an FK to
+    // quiz_sessions — seed a minimal session to satisfy both.
+    const { data: session, error: sessErr } = await admin
+      .from('quiz_sessions')
+      .insert({ organization_id: orgId, student_id: studentId, mode: 'mock_exam' })
+      .select('id')
+      .single()
+    if (sessErr) throw new Error(`seed session: ${sessErr.message}`)
+    const sessionId = session.id as string
+
     // Mark the code consumed via service-role (the app guards this before
     // calling, so the RPC's in-body state guard is defense-in-depth).
     const { data: consumed, error: consumeErr } = await admin
       .from('internal_exam_codes')
-      .update({ consumed_at: new Date().toISOString() })
+      .update({ consumed_at: new Date().toISOString(), consumed_session_id: sessionId })
       .eq('id', codeId)
       .select('id')
     if (consumeErr) throw new Error(`mark consumed: ${consumeErr.message}`)
