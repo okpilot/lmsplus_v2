@@ -10,7 +10,10 @@ vi.mock('@/app/app/_components/markdown-text', () => ({
 }))
 
 vi.mock('@/app/app/_components/zoomable-image', () => ({
-  ZoomableImage: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+  ZoomableImage: ({ src, alt }: { src: string; alt: string }) => (
+    // biome-ignore lint/performance/noImgElement: test mock — no Next.js Image needed
+    <img src={src} alt={alt} />
+  ),
 }))
 
 const baseRow: VfrRtReviewRowType = {
