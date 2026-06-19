@@ -110,14 +110,16 @@ test.describe('Red Team: Session Replay', () => {
   }
 
   // Build a fully-correct or fully-incorrect answer set by reading each question's
-  // `correct` flag via the service-role client (the attacker JWT never sees it).
+  // answer key via the service-role client (the attacker JWT never sees it). Since
+  // #823 (mig 111) the MC key lives in the REVOKE-gated `correct_option_id` column,
+  // not in `options[].correct` (stripped on write by trg_sanitize_question_options).
   // Used to seed two sessions with deterministically distinct grades (100 vs 0) so a
   // replay regression that returns a hardcoded payload fails at least one fixture (§7).
   async function buildGradedAnswers(allCorrect: boolean): Promise<unknown[]> {
     const admin = getAdminClient()
     const { data: rows, error } = await admin
       .from('questions')
-      .select('id, options')
+      .select('id, options, correct_option_id')
       .in('id', questionIds)
     if (error || !rows) throw new Error(`buildGradedAnswers: ${error?.message}`)
     if (rows.length !== questionIds.length) {
@@ -126,12 +128,17 @@ test.describe('Red Team: Session Replay', () => {
       )
     }
     return questionIds.map((qid) => {
-      const raw = rows.find((r) => r.id === qid)?.options
-      const opts = Array.isArray(raw) ? (raw as { id: string; correct?: boolean | null }[]) : []
-      const correctOption = opts.find((o) => o.correct === true)
+      const row = rows.find((r) => r.id === qid) as
+        | { options?: unknown; correct_option_id?: string | null }
+        | undefined
+      const raw = row?.options
+      const opts = Array.isArray(raw) ? (raw as { id: string }[]) : []
+      const correctId = row?.correct_option_id ?? null
       // For the all-wrong set pick any option whose id differs from the correct one, so a
-      // missing/false `correct` key can never let the correct option slip into the wrong set.
-      const chosen = allCorrect ? correctOption : opts.find((o) => o.id !== correctOption?.id)
+      // missing key can never let the correct option slip into the wrong set.
+      const chosen = allCorrect
+        ? opts.find((o) => o.id === correctId)
+        : opts.find((o) => o.id !== correctId)
       if (!chosen) {
         throw new Error(
           `buildGradedAnswers: question ${qid} has no ${allCorrect ? 'correct' : 'incorrect'} option`,
