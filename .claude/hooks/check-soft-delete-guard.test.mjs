@@ -101,9 +101,18 @@ const s = await supabase.rpc('some_fn', {}).is('deleted_at', null)`
   assert.equal(analyze(src).length, 0)
 })
 
-test('semicolon separates a forbidden .from() from a soft-deletable .is(deleted_at) in the next chain', () => {
+test('semicolon boundary prevents chain 2 .is(deleted_at) from being blamed on chain 1 forbidden table', () => {
   // ; is the third boundary token in segmentOffsets (adds m.index+1, distinct from .from/.rpc).
-  // Exercises the ';' branch that the newline-based adjacency tests do not cover.
+  // Exercises the ';' boundary that the newline-based adjacency tests do not cover.
   const src = `supabase.from('easa_topics').select('id'); supabase.from('quiz_sessions').is('deleted_at', null)`
   assert.equal(analyze(src).length, 0)
+})
+
+test('returns one violation per offending chain when several forbidden chains are present', () => {
+  const src = `await supabase.from('easa_subjects').select('id').is('deleted_at', null)
+await supabase.from('quiz_drafts').select('id').is('deleted_at', null)`
+  const v = analyze(src)
+  assert.equal(v.length, 2)
+  assert.equal(v[0].table, 'easa_subjects')
+  assert.equal(v[1].table, 'quiz_drafts')
 })

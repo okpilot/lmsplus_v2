@@ -12,7 +12,9 @@
 //
 // Known limitation (acceptable for a mechanical guard): a table name held in a
 // variable — `.from(tbl)` — or a template literal is not matched (string-literal
-// only). The Phase-4 schema-aware successor covers the general case.
+// only). Query chains inside template interpolation (`${sb.from(...).is(...)}`) are
+// likewise not detected (interpolated code is treated as string content). The
+// Phase-4 schema-aware successor covers the general case.
 //
 // Usage:
 //   node .claude/hooks/check-soft-delete-guard.mjs [file ...]   # scan given files (lefthook staged mode; non-existent paths skipped)
@@ -209,8 +211,8 @@ export function analyze(source) {
 
 function shouldScan(path) {
   if (!/\.(ts|tsx)$/.test(path)) return false
+  // `*.integration.test.ts` is covered by this `.test.ts` suffix check.
   if (/\.test\.(ts|tsx)$/.test(path)) return false
-  if (/\.integration\.test\.ts$/.test(path)) return false
   const normalized = `/${path.replace(/\\/g, '/')}`
   return !EXCLUDE_FRAGMENTS.some((frag) => normalized.includes(frag))
 }
@@ -241,7 +243,7 @@ function collectFiles(args) {
 }
 
 function main() {
-  const files = collectFiles(process.argv.slice(2))
+  const files = collectFiles(argv.slice(2))
   const offenders = []
   for (const file of files) {
     const source = readFileSync(file, 'utf8')
