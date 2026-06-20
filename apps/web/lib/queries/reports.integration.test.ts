@@ -187,10 +187,8 @@ describe('getSessionReports (app-layer integration)', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) throw new Error(r.error)
     const scores = r.sessions.map((s) => s.scorePercentage).filter((p): p is number => p !== null)
-    for (let i = 1; i < scores.length; i++) {
-      // i starts at 1 and scores is a number[] after the filter, so scores[i-1] always exists.
-      expect(scores[i]).toBeGreaterThanOrEqual(scores[i - 1]!)
-    }
+    // Non-strict monotonic (ties allowed): an already non-decreasing list equals its own sort.
+    expect(scores).toEqual([...scores].sort((a, b) => a - b))
   })
 
   it('self-scopes to the authenticated student and excludes other students sessions', async () => {

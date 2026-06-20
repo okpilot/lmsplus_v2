@@ -96,7 +96,8 @@ describe('VfrRtConfigForm — Start Practice button', () => {
   it('is disabled while a start is in progress', () => {
     mockUseVfrRtStart.mockReturnValue({ loading: true, error: null, handleStart: mockHandleStart })
     render(<VfrRtConfigForm {...BASE_PROPS} />)
-    expect(screen.getByRole('button')).toBeDisabled()
+    // In the loading state the button label is "Starting...", not "Start Practice".
+    expect(screen.getByRole('button', { name: /starting/i })).toBeDisabled()
   })
 })
 

@@ -68,6 +68,11 @@ export async function seedCompletedSession(opts: {
 }> {
   const { studentClient, questionIds, correctCount } = opts
   const totalCount = opts.totalCount ?? questionIds.length
+  if (totalCount > questionIds.length) {
+    throw new Error(
+      `seedCompletedSession: totalCount (${totalCount}) exceeds questionIds.length (${questionIds.length})`,
+    )
+  }
   const subjectId = opts.subjectId ?? null
   const topicId = opts.topicId ?? null
   const qIds = questionIds.slice(0, totalCount)
@@ -79,6 +84,9 @@ export async function seedCompletedSession(opts: {
     p_question_ids: qIds,
   })
   if (startErr) throw new Error(`seedCompletedSession start_quiz_session: ${startErr.message}`)
+  if (!sessionId) {
+    throw new Error('seedCompletedSession: start_quiz_session returned no session id')
+  }
 
   await submitAnswerSequence({
     studentClient,

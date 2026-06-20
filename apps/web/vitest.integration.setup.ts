@@ -28,7 +28,9 @@ vi.mock('next/headers', () => ({
     const jar = integrationCookieJar()
     return {
       getAll: () => Array.from(jar.entries()).map(([name, value]) => ({ name, value })),
-      set: (name: string, value: string) => {
+      // Real next/headers cookies().set is (name, value, options); @supabase/ssr passes
+      // the 3rd arg. The in-memory jar has no use for cookie options, so accept + ignore it.
+      set: (name: string, value: string, _options?: unknown) => {
         jar.set(name, value)
       },
       get: (name: string) => {

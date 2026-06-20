@@ -75,7 +75,7 @@ describe('getRtSubjectData — happy path', () => {
     expect(mockFrom).toHaveBeenCalledWith('easa_subjects')
   })
 
-  it('calls getTopicsWithSubtopics with the resolved subject id', async () => {
+  it('loads the parts for the resolved RT subject', async () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
     mockGetTopicsWithSubtopics.mockResolvedValue(PARTS)
 
@@ -102,7 +102,7 @@ describe('getRtSubjectData — subject lookup failure', () => {
     await expect(getRtSubjectData()).rejects.toThrow(/Failed to load VFR RT subject/)
   })
 
-  it('does not call getTopicsWithSubtopics when the subject lookup fails', async () => {
+  it('does not attempt to load parts when the subject lookup fails', async () => {
     mockFrom.mockReturnValue(buildChain({ data: null, error: { message: 'not found' } }))
 
     await expect(getRtSubjectData()).rejects.toThrow()
@@ -113,7 +113,7 @@ describe('getRtSubjectData — subject lookup failure', () => {
 // ---- Topics degrade path -------------------------------------------------
 
 describe('getRtSubjectData — topics degrade path', () => {
-  it('returns an empty parts array when getTopicsWithSubtopics throws', async () => {
+  it('returns the subject with empty parts when the parts fetch fails', async () => {
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
     mockGetTopicsWithSubtopics.mockRejectedValue(new Error('DB timeout'))
 
@@ -123,7 +123,7 @@ describe('getRtSubjectData — topics degrade path', () => {
     expect(result.parts).toEqual([])
   })
 
-  it('logs the topics error to the console when getTopicsWithSubtopics throws', async () => {
+  it('logs an error when the parts fetch fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFrom.mockReturnValue(buildChain({ data: { id: SUBJECT_ID }, error: null }))
     mockGetTopicsWithSubtopics.mockRejectedValue(new Error('DB timeout'))
