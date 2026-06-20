@@ -104,7 +104,7 @@ describe('VfrRtConfigForm — Start Practice button', () => {
 // ---- Error banner --------------------------------------------------------
 
 describe('VfrRtConfigForm — error display', () => {
-  it('renders an error alert when useVfrRtStart returns an error', () => {
+  it('renders an error alert when session start fails', () => {
     mockUseVfrRtStart.mockReturnValue({
       loading: false,
       error: 'No questions available',
