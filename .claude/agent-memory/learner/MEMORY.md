@@ -6,7 +6,7 @@
 
 ## Issue Frequency Tracker (live — count≥2)
 
-Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema: `Issue Type | Count | Last Seen | Status`. Terminal-state rows archived; active rows are terse stubs. Curations: 2026-06-07 (30 rows), 2026-06-10 (budget pass), 2026-06-10 (count=1 rows moved to archive-only per header spec), 2026-06-20 (budget pass — trimmed Status cells; #925 Phase 0 additions).
+Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema: `Issue Type | Count | Last Seen | Status`. Terminal-state rows archived; active rows are terse stubs. Curations: 2026-06-07 (30 rows), 2026-06-10 (budget pass), 2026-06-10 (count=1 rows moved to archive-only per header spec), 2026-06-20 (budget pass — trimmed Status cells; #925 Phase 0 additions), 2026-06-20 (#925 Phase 1 Commit 2 — seed-infra cap count→4; vacuous-assertion row promoted count=1→2 RULE CANDIDATE).
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
@@ -62,7 +62,8 @@ Full record in `topics/tracker-archive.md`; journal in git at `2e87c3e6`. Schema
 | Test comment restating/paraphrasing the it() title (§7 enforcement gap) | 2 | 2026-06-14 | RULE CANDIDATE — rule already in code-style.md §7; authoring-time enforcement gap. [full → topics/tracker-archive.md] |
 | DB/caller-supplied value interpolated into HTML/SVG/XML template string without escaping | 2 | 2026-06-19 | RULE CANDIDATE → code-style.md §5 — escape all caller-supplied params at interpolation site. [full → topics/tracker-archive.md] |
 | Raw internal/third-party error.message exposed through exported result type | 2 | 2026-06-19 | RULE CANDIDATE → code-style.md §5 extension — extend to all SDK/third-party sources, not just Postgres. [full → topics/tracker-archive.md] |
-| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 3 | 2026-06-19 | RULE CANDIDATE (count 3) — linear-flow, no branching; proposed §3 exception pending #903. [full → topics/tracker-archive.md] |
+| Single-concern sequential DB-seed/infra helpers exceeding 30-line function cap | 4 | 2026-06-20 | RULE CANDIDATE (count 4) — linear-flow, no branching; proposed §3 exception pending #903. [full → topics/tracker-archive.md] |
+| App-layer integration test assertion vacuous/dead due to tier-specific semantics (RLS, SQL aggregates, seed scope) | 2 | 2026-06-20 | RULE CANDIDATE (count 2, two distinct commits) — (A) RLS shadows helper filter → negative test vacuous via student path; (B) one-sided isolation assertion without victim-side confirmation; (C) secondary assertion dead because DISTINCT aggregate caps value below leak threshold. All three are integration-tier analogs of §7 "Isolation/Negative Assertions Must Be Non-Vacuous." PROPOSED PROMOTION → code-style.md §7 (see topics/tracker-archive.md for exact text). [full → topics/tracker-archive.md] |
 
 ## Count=1 WATCHING rows
 
@@ -81,6 +82,8 @@ All count=1 WATCHING rows live in `topics/tracker-archive.md` only. Recent addit
 - #901: SA result `error: string` not a literal union (new — see count=1 table below).
 - VFR RT Phase 1 (`344c12d1`): schema-contract bug (app-layer `.is('deleted_at', null)` on column-less table) escaped all pre-commit gates; wrong-migration citation in fix comment. Both count=1 WATCHING (see table below).
 - **#925 Phase 0 (`6d9d055e`):** 2 new count=1 WATCHING (integration cookie-jar scope, next/navigation redirect mock shape). POSITIVE SIGNAL: new integration tier itself surfaced real RLS/schema behavior mocks cannot — `getTopicsWithSubtopics` filters parts by org-scoped questionCount>0, invisible to mocked tests until real-DB seed (confirms #925 thesis). (See table below.)
+- **#925 Phase 1 (21d86dc5 + fix 4e462cf0):** 1 count=1 WATCHING (app-layer integration-tier vacuousness) — PROMOTED to count=2 in Phase 1 Commit 2 cycle (ba6a378e). POSITIVE SIGNAL: test-writer added a non-vacuous draft-question-exclusion test (real-DB branch, `p_status='active'`). Code-reviewer clean.
+- **#925 Phase 1 Commit 2 (ba6a378e + fix 2aaf5a03):** `seedCompletedSession` 62 lines (seed-infra cap row count→4); dead secondary assertion `not.toBe(5)` — unreachable given DISTINCT aggregate semantics (promoted vacuous-assertion row to count=2 + RULE CANDIDATE). POSITIVE SIGNAL: test-writer added soft-deleted-org test exercising `.is('deleted_at', null)` on organizations — same bug CLASS as #925 trigger, now covered by real-DB test.
 
 | Issue Type | Count | Last Seen | Status |
 |-----------|-------|-----------|--------|
