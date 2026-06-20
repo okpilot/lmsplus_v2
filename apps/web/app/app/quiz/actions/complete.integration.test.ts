@@ -81,9 +81,8 @@ describe('completeQuiz (app-layer integration)', () => {
     })
     questionIds = seeded.questionIds
 
+    // B's cross-user isolation test acts via signInAs(emailB); only A needs a seeding client.
     studentAClient = await getAuthenticatedClient({ email: emailA, password })
-    // studentBClient is not needed here — B's isolation test uses signInAs(emailB) only.
-    await getAuthenticatedClient({ email: emailB, password })
   })
 
   afterAll(async () => {

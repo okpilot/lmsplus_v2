@@ -10,7 +10,6 @@ import {
   createTestOrg,
   createTestUser,
   getAdminClient,
-  getAuthenticatedClient,
   type ReferenceIds,
   seedQuestions,
   seedReferenceData,
@@ -70,9 +69,6 @@ describe('startQuizSession (app-layer integration)', () => {
       topicCode: `ST_EMPTY_${suffix}_T1`,
       topicName: `Start Empty Topic ${suffix}`,
     })
-
-    // Authenticate one client just to confirm the user exists (not used in action calls).
-    await getAuthenticatedClient({ email: emailA, password })
   })
 
   afterAll(async () => {
