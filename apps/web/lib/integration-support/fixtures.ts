@@ -73,31 +73,25 @@ export async function seedCompletedSession(opts: {
       `seedCompletedSession: totalCount (${totalCount}) exceeds questionIds.length (${questionIds.length})`,
     )
   }
-  const subjectId = opts.subjectId ?? null
-  const topicId = opts.topicId ?? null
   const qIds = questionIds.slice(0, totalCount)
 
-  const { data: sessionId, error: startErr } = await studentClient.rpc('start_quiz_session', {
-    p_mode: 'quick_quiz',
-    p_subject_id: subjectId,
-    p_topic_id: topicId,
-    p_question_ids: qIds,
+  const { sessionId } = await seedOpenSession({
+    studentClient,
+    questionIds: qIds,
+    subjectId: opts.subjectId ?? null,
+    topicId: opts.topicId ?? null,
   })
-  if (startErr) throw new Error(`seedCompletedSession start_quiz_session: ${startErr.message}`)
-  if (!sessionId) {
-    throw new Error('seedCompletedSession: start_quiz_session returned no session id')
-  }
 
   await submitAnswerSequence({
     studentClient,
-    sessionId: sessionId as string,
+    sessionId,
     questionIds: qIds,
     correctCount,
   })
 
   const { data: completeData, error: completeErr } = await studentClient.rpc(
     'complete_quiz_session',
-    { p_session_id: sessionId as string },
+    { p_session_id: sessionId },
   )
   if (completeErr) {
     throw new Error(`seedCompletedSession complete_quiz_session: ${completeErr.message}`)
@@ -124,11 +118,44 @@ export async function seedCompletedSession(opts: {
   }
 
   return {
-    sessionId: sessionId as string,
+    sessionId,
     totalQuestions: total_questions,
     correctCount: correct_count,
     scorePercentage: Number(score_percentage),
   }
+}
+
+/**
+ * Drive start_quiz_session as the authenticated student to produce one OPEN
+ * (not yet completed) quiz session, for lifecycle tests that act on an
+ * in-progress session (submit / check / complete / batch-submit).
+ * seedCompletedSession builds on this (then submits + completes). Same
+ * subject/topic CONTRACT as the file header. Returns the session id.
+ */
+export async function seedOpenSession(opts: {
+  studentClient: StudentClient
+  questionIds: string[] // from seedQuestions; correct_option_id === 'b'
+  subjectId?: string | null // forwarded to start_quiz_session p_subject_id
+  topicId?: string | null // forwarded to p_topic_id
+}): Promise<{ sessionId: string }> {
+  const { studentClient, questionIds } = opts
+  const subjectId = opts.subjectId ?? null
+  const topicId = opts.topicId ?? null
+
+  const { data: sessionId, error: startErr } = await studentClient.rpc('start_quiz_session', {
+    p_mode: 'quick_quiz',
+    p_subject_id: subjectId,
+    p_topic_id: topicId,
+    p_question_ids: questionIds,
+  })
+  if (startErr) throw new Error(`seedOpenSession start_quiz_session: ${startErr.message}`)
+  // Runtime type guard (code-style §5): narrow the scalar RPC reply to string (cast
+  // unnecessary). Bare `typeof` matches the sibling guards in packages/db __integration__.
+  if (typeof sessionId !== 'string') {
+    throw new Error('seedOpenSession: start_quiz_session returned no/invalid session id')
+  }
+
+  return { sessionId }
 }
 
 /**

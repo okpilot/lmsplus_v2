@@ -14,6 +14,11 @@ export default defineConfig({
     // so `createServerSupabaseClient()` reads a real session from an in-memory
     // cookie jar (see the setup file). Reset per-test there.
     setupFiles: ['./vitest.integration.setup.ts'],
+    // Per-file process isolation is load-bearing: each test file authenticates its
+    // own in-memory cookie jar on globalThis (see the setup file), so files must NOT
+    // share a process. The forks pool gives each file its own process — do not switch
+    // to a shared-thread pool or the jars would clobber each other across files.
+    pool: 'forks',
     testTimeout: 30_000,
     hookTimeout: 30_000,
   },
