@@ -139,8 +139,16 @@ describe('getExamEnabledSubjects (app-layer integration)', () => {
     expect(s2?.timeLimitSeconds).toBe(3600)
     expect(s2?.passMark).toBe(75)
 
+    // RLS scoping: a fresh org with exactly two configs must see ONLY its own
+    // subjects — if the exam_configs RLS policy over-scoped to other orgs, extra
+    // ids would appear here.
+    expect(subjects.every((s) => s.id === refs1.subjectId || s.id === refs2.subjectId)).toBe(true)
+
     // The helper applies .order('subject_id') — assert our two configs appear in
     // ascending subject_id order (a dropped .order() would let them reorder).
+    // NOTE: subject UUIDs are random (gen_random_uuid), so this is a structural
+    // check — it confirms .order() is honored but can't guarantee detection of a
+    // dropped .order() on every run (heap order may coincidentally match UUID order).
     const idxS1 = subjects.findIndex((s) => s.id === refs1.subjectId)
     const idxS2 = subjects.findIndex((s) => s.id === refs2.subjectId)
     const [lowerId] = [refs1.subjectId, refs2.subjectId].sort()

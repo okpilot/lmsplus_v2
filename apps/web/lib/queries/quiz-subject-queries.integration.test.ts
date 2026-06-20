@@ -39,6 +39,9 @@ let studentBId: string
 const emailB = `int-quiz-b-${suffix}@test.local`
 
 let refs: ReferenceIds
+// bankAId is captured so the draft-exclusion test can insert a raw question row
+// with status='draft' into the same org+bank without going through seedQuestions.
+let bankAId: string
 
 describe('quiz-subject-queries (app-layer integration)', () => {
   beforeAll(async () => {
@@ -69,7 +72,7 @@ describe('quiz-subject-queries (app-layer integration)', () => {
     })
 
     // Org A seeds 3 questions under the shared reference data.
-    await seedQuestions({
+    const { bankId } = await seedQuestions({
       admin,
       orgId: orgAId,
       createdBy: studentAId,
@@ -78,6 +81,32 @@ describe('quiz-subject-queries (app-layer integration)', () => {
       subtopicId: refs.subtopicId,
       count: 3,
     })
+    bankAId = bankId
+
+    // Insert 1 draft question in the same org/bank/topic so we can verify that
+    // get_question_counts(p_status='active') excludes it.
+    // cleanupTestData (afterAll step 1) hard-deletes all questions by org_id, so
+    // this row is cleaned up without any extra step.
+    const { error: draftErr } = await admin.from('questions').insert({
+      organization_id: orgAId,
+      bank_id: bankAId,
+      subject_id: refs.subjectId,
+      topic_id: refs.topicId,
+      subtopic_id: refs.subtopicId ?? null,
+      question_text: 'Draft question — should not be counted',
+      options: [
+        { id: 'a', text: 'Option A' },
+        { id: 'b', text: 'Option B' },
+        { id: 'c', text: 'Option C' },
+        { id: 'd', text: 'Option D' },
+      ],
+      correct_option_id: 'b',
+      explanation_text: 'Draft explanation',
+      difficulty: 'medium',
+      status: 'draft',
+      created_by: studentAId,
+    })
+    if (draftErr) throw new Error(`draft question insert: ${draftErr.message}`)
 
     // Org B + student B (for count-isolation test)
     orgBId = await createTestOrg({
@@ -182,15 +211,35 @@ describe('quiz-subject-queries (app-layer integration)', () => {
     expect(seededSubtopic?.questionCount).toBe(3)
   })
 
-  it('getTopicsForSubject returns org-scoped count 3, not 6, when two orgs share the same reference data', async () => {
-    // Signed in as Org A's student. Both orgs have seeded 3 questions under the
-    // same topic — the get_question_counts RPC is org-scoped via RLS, so Org A
-    // must see exactly 3, not 6.
+  it('getTopicsForSubject returns each org only its own 3 questions when two orgs share reference data', async () => {
+    // Both orgs seeded 3 questions under the SAME topic. get_question_counts is
+    // org-scoped via RLS, so each org's student must see exactly its own 3, not
+    // the combined 6. Proven from BOTH sides — a broken scope would return 6 to
+    // whichever student is signed in, and the two-sided check ensures neither
+    // org's view leaks the other's questions.
+    await signInAs(emailA, password)
+    const topicsA = await getTopicsForSubject(refs.subjectId)
+    const seededA = topicsA.find((t) => t.id === refs.topicId)
+    expect(seededA).toBeDefined()
+    expect(seededA?.questionCount).toBe(3)
+
+    await signInAs(emailB, password)
+    const topicsB = await getTopicsForSubject(refs.subjectId)
+    const seededB = topicsB.find((t) => t.id === refs.topicId)
+    expect(seededB).toBeDefined()
+    expect(seededB?.questionCount).toBe(3)
+  })
+
+  it('getSubjectsWithCounts excludes draft questions — count reflects only active questions', async () => {
+    // beforeAll seeded 3 active + 1 draft for Org A under the test subject.
+    // get_question_counts is called with p_status='active', so the draft must
+    // not inflate the count. This is a real-DB integration assertion — unit
+    // tests mock the RPC entirely and cannot verify the p_status WHERE clause.
     await signInAs(emailA, password)
 
-    const topics = await getTopicsForSubject(refs.subjectId)
+    const subjects = await getSubjectsWithCounts()
 
-    const seeded = topics.find((t) => t.id === refs.topicId)
+    const seeded = subjects.find((s) => s.id === refs.subjectId)
     expect(seeded).toBeDefined()
     expect(seeded?.questionCount).toBe(3)
   })
