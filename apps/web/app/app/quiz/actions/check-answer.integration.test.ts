@@ -19,6 +19,7 @@ import {
   signInAs,
 } from '@/lib/integration-support/harness'
 import { checkAnswer } from './check-answer'
+import { completeQuiz } from './complete'
 
 const admin = getAdminClient()
 const suffix = Date.now()
@@ -234,6 +235,32 @@ describe('checkAnswer (app-layer integration)', () => {
     expect(result.success).toBe(false)
     if (result.success) throw new Error('expected failure')
     expect(result.error).toBe('Question not in session')
+  })
+
+  it('returns Session not found for an ended session', async () => {
+    // The action guards .is('ended_at', null). An already-completed session
+    // must be rejected — checking an answer in a closed session must not be possible.
+    // Non-vacuous: the success test above proves A's active session resolves.
+    const { sessionId: endedSessionId } = await seedOpenSession({
+      studentClient: studentAClient,
+      questionIds,
+      subjectId: refs.subjectId,
+      topicId: refs.topicId,
+    })
+    await signInAs(emailA, password)
+    // End the session first.
+    await completeQuiz({ sessionId: endedSessionId })
+
+    // Now attempt checkAnswer on the ended session.
+    const result = await checkAnswer({
+      questionId: questionIds[0],
+      selectedOptionId: 'b',
+      sessionId: endedSessionId,
+    })
+
+    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected failure')
+    expect(result.error).toBe('Session not found')
   })
 
   it('rejects malformed input', async () => {

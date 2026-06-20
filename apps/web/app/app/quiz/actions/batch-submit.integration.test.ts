@@ -136,6 +136,53 @@ describe('batchSubmitQuiz (app-layer integration)', () => {
     expect(result.expired).toBe(false)
   })
 
+  it('returns each result item with its question id, correctness, and explanation', async () => {
+    // The action maps r.question_id→questionId, r.is_correct→isCorrect, etc.
+    // toHaveLength alone can't catch a key-rename regression that leaves every
+    // field undefined. This test asserts the per-item shape explicitly.
+    const { sessionId } = await seedOpenSession({
+      studentClient: studentAClient,
+      questionIds,
+      subjectId: refs.subjectId,
+      topicId: refs.topicId,
+    })
+    await signInAs(emailA, password)
+
+    // 2 correct (questionIds[0,1]) + 1 wrong (questionIds[2]) so we get both
+    // isCorrect values in the results array.
+    const result = await batchSubmitQuiz({
+      sessionId,
+      answers: [
+        { questionId: questionIds[0], selectedOptionId: 'b', responseTimeMs: 1000 },
+        { questionId: questionIds[1], selectedOptionId: 'b', responseTimeMs: 1000 },
+        { questionId: questionIds[2], selectedOptionId: 'a', responseTimeMs: 1000 },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    // Narrows result to the success branch, so result.results is typed below.
+    if (!result.success) throw new Error(result.error)
+    const { results } = result
+
+    // All three question ids must appear in the results (in any order the RPC returns them).
+    const returnedIds = results.map((r) => r.questionId)
+    expect(returnedIds).toContain(questionIds[0])
+    expect(returnedIds).toContain(questionIds[1])
+    expect(returnedIds).toContain(questionIds[2])
+
+    // Per-item shape: every field present with the right type (no `undefined` due to wrong snake_case key).
+    for (const r of results) {
+      expect(typeof r.questionId).toBe('string')
+      expect(typeof r.isCorrect).toBe('boolean')
+      expect(typeof r.correctOptionId).toBe('string')
+      expect(r.correctOptionId).toBe('b') // seeded correct option
+      // explanationText is always a string for seeded questions ('Explanation for question N').
+      expect(typeof r.explanationText).toBe('string')
+      // explanationImageUrl is null unless we updated the row — none updated here.
+      expect(r.explanationImageUrl).toBeNull()
+    }
+  })
+
   it('submits to the callers own session successfully', async () => {
     // Paired positive for the cross-user isolation test below: proves B can
     // batch-submit B's own session (the assertion below is non-vacuous).
