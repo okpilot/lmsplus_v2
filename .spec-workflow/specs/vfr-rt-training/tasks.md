@@ -23,28 +23,28 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 ## Phase 0 — Branch & seed (eval baseline)
 
 - [x] **0.1 Fresh branch off `master`** — `feat/vfr-rt-training` from `origin/master` @ `55e50398`.
-- [ ] **0.2 Training seed `seed-vfr-rt-training-eval.ts`**
+- [x] **0.2 Training seed `seed-vfr-rt-training-eval.ts`**
   - File: `apps/web/scripts/seed-vfr-rt-training-eval.ts`. Egmont org + admin/student (shared creds), RT bank, pool of `short_answer`/`dialog_fill`/`multiple_choice` across `P1_ACRONYMS`/`P2_DIALOG`/`P3_MC` (no exam_config). Idempotent. (Ordering/diagram fixtures added in Phases 5/6.) May adapt the untracked `seed-vfr-rt-eval.ts` (drop the exam_config).
   - _Eval:_ `db reset` → grant-fix → seed clean + idempotent; RT questions of the 3 core types present.
 
 ## Phase 1 — Dedicated page + nav + RT delisted from quiz (MC working)
 
-- [ ] **1.1 "VFR RT" nav item — with a NAMED icon**
+- [x] **1.1 "VFR RT" nav item — with a NAMED icon**
   - File: `apps/web/app/app/_components/nav-items.ts`. Add entry → `/app/vfr-rt`.
   - **Icon is a closed union** (`nav-items.ts` + `nav-icon.tsx` `ICON_PATHS`, renders null for unknown). Either reuse an existing union member (no `nav-icon.tsx` change) OR add a new name to BOTH the union and `ICON_PATHS` in this task. Decide the exact name at plan-validation.
   - _Requirements: R1.1_
-- [ ] **1.2 Exclude RT from the quiz subject picker (central)**
+- [x] **1.2 Exclude RT from the quiz subject picker (central)**
   - File: `getSubjectsWithCounts` (the quiz-picker source) — exclude `easa_subjects.code='RT'`; co-located test asserts exclusion.
   - Note: gates ONLY the picker. Dashboard (`subject-grid.tsx`) + Progress (`subject-breakdown.tsx`) use separate sources — confirm at plan-validation whether RT should appear there.
   - _Requirements: R1.3, R1.4_
-- [ ] **1.3 `/app/vfr-rt` setup page reusing quiz Study config**
+- [x] **1.3 `/app/vfr-rt` setup page reusing quiz Study config**
   - File: `apps/web/app/app/vfr-rt/page.tsx` (+ thin client wrapper). Compose `QuizConfigForm`/parts with subject locked = RT, units = the 3 parts (topics), reuse `QuestionCount`, hide subject dropdown. page.tsx ≤ 80 lines, composition only.
   - _Leverage: `quiz/page.tsx`, `quiz/_components/quiz-config-form.tsx`, `mode-toggle.tsx`, `question-count.tsx`_
   - _Requirements: R1.2, R1.5, R2.1, R2.5_
-- [ ] **1.4 Start practice from RT page (reuse study start)**
+- [x] **1.4 Start practice from RT page (reuse study start)**
   - Reuse `quiz/actions/start.ts` + `start_quiz_session` (`quick_quiz`) + `get_random_question_ids` by selected part topic_ids. No-part-selected blocked. (Optional additive `p_question_types` filter to keep Phase 1 MC-only until Phase 3; default = all.)
   - _Requirements: R2.2, R2.3, R2.4_
-- [ ] **1.5 Reuse runner + report for RT (MC) + validate session-storage**
+- [x] **1.5 Reuse runner + report for RT (MC) + validate session-storage**
   - Mount `QuizSessionLoader`/`QuizSession`/report on the RT flow (direct import). Confirm MC practice end-to-end.
   - **Validate `activeSession` storage-key scheme** — if keyed by userId only, an RT + a quiz session collide; namespace per route or prevent concurrent. RT submit redirects to `/app/quiz/report` (shared report; document the cross-namespace redirect — `quiz-submit.ts:handleSubmitSession`).
   - _Eval:_ "VFR RT" in menu → page looks like quiz → pick parts+count → MC practice with immediate feedback → report; RT absent from `/app/quiz`; quiz unaffected.
