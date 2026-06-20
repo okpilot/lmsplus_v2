@@ -43,15 +43,18 @@ async function submitAnswerSequence(opts: {
 }
 
 /**
- * Drive the real RPC chain as the authenticated student to produce one
- * completed quiz session.
+ * Seeds a completed quiz session via the authenticated student client.
  *
- * - start_quiz_session   → session id (scalar)
- * - submit_quiz_answer × totalCount   ('b' for correct, 'a' for wrong)
- * - complete_quiz_session → row with total_questions, correct_count, score_percentage
+ * Orchestrates the full lifecycle of starting a session, submitting answers, and
+ * completing the session. The returned score percentage is the database-rounded
+ * value, allowing expectations to be based on the actual persisted value rather
+ * than JavaScript recomputation.
  *
- * Returns the DB-rounded scorePercentage so callers build expectations from the
- * actual stored value rather than a JS recomputation that may differ by rounding.
+ * @param opts.correctCount - Number of answers to submit as correct ('b'). The first
+ *   `correctCount` questions receive answer 'b', the remainder receive 'a'.
+ * @param opts.totalCount - Number of questions to include. Defaults to `questionIds.length`
+ *   and must not exceed it.
+ * @returns Session metadata including the session ID, question counts, and score percentage.
  */
 export async function seedCompletedSession(opts: {
   studentClient: StudentClient
@@ -126,11 +129,13 @@ export async function seedCompletedSession(opts: {
 }
 
 /**
- * Drive start_quiz_session as the authenticated student to produce one OPEN
- * (not yet completed) quiz session, for lifecycle tests that act on an
- * in-progress session (submit / check / complete / batch-submit).
- * seedCompletedSession builds on this (then submits + completes). Same
- * subject/topic CONTRACT as the file header. Returns the session id.
+ * Creates an open quiz session with the provided questions.
+ *
+ * Leaves the session in an open (not yet completed) state, allowing subsequent
+ * operations such as submitting answers or checking progress.
+ *
+ * @returns An object containing the created session ID
+ * @throws If the RPC call fails or the returned session ID is invalid
  */
 export async function seedOpenSession(opts: {
   studentClient: StudentClient

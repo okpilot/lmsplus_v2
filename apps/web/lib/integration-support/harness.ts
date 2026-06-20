@@ -23,16 +23,11 @@ export {
 } from '@repo/db/test-helpers'
 
 /**
- * Authenticate the in-memory cookie jar as the given user. After this resolves,
- * any `createServerSupabaseClient()` call in the code under test runs as that
- * user under real RLS. Relies on the `next/headers` mock in
- * vitest.integration.setup.ts (the jar is reset per-test there).
+ * Authenticates the in-memory cookie jar for the given user credentials.
  *
- * Call this inside each test (or in `beforeEach`), NEVER in `beforeAll`: the
- * `beforeEach` in vitest.integration.setup.ts resets the cookie jar before every
- * test, so a session created in `beforeAll` is wiped before the first test runs —
- * the code under test would then execute as anon and fail with confusing
- * RLS-empty results.
+ * After this resolves, any `createServerSupabaseClient()` call runs as that user under real RLS.
+ *
+ * @throws If authentication fails or no session is created.
  */
 export async function signInAs(email: string, password: string): Promise<void> {
   const supabase = await createServerSupabaseClient()
