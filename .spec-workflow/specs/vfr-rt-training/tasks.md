@@ -24,8 +24,8 @@ These were repeatedly mis-assumed; each applies across multiple phases. Treat as
 
 - [x] **0.1 Fresh branch off `master`** — `feat/vfr-rt-training` from `origin/master` @ `55e50398`.
 - [x] **0.2 Training seed `seed-vfr-rt-training-eval.ts`**
-  - File: `apps/web/scripts/seed-vfr-rt-training-eval.ts`. Egmont org + admin/student (shared creds), RT bank, pool of `short_answer`/`dialog_fill`/`multiple_choice` across `P1_ACRONYMS`/`P2_DIALOG`/`P3_MC` (no exam_config). Idempotent. (Ordering/diagram fixtures added in Phases 5/6.) May adapt the untracked `seed-vfr-rt-eval.ts` (drop the exam_config).
-  - _Eval:_ `db reset` → grant-fix → seed clean + idempotent; RT questions of the 3 core types present.
+  - File: `apps/web/scripts/seed-vfr-rt-training-eval.ts`. Egmont org + admin/student (shared creds), RT bank, 10 `multiple_choice` questions under `P3_MC` (no exam_config). Idempotent. (Non-MC question types added in Phase 3; ordering/diagram fixtures added in Phases 5/6.)
+  - _Eval:_ `db reset` → grant-fix → seed clean + idempotent; 10 MC RT questions present under P3_MC topic.
 
 ## Phase 1 — Dedicated page + nav + RT delisted from quiz (MC working)
 
