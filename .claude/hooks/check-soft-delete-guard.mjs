@@ -22,7 +22,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { argv } from 'node:process'
+import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
 export const NO_SOFT_DELETE_TABLES = [
@@ -261,7 +261,7 @@ function main() {
     console.error(
       `\n${NO_SOFT_DELETE_TABLES.join(', ')} have no deleted_at column. See .claude/hooks/check-soft-delete-guard.mjs.`,
     )
-    process.exit(1)
+    exit(1)
   }
   console.log(`✓ soft-delete column guard: ${files.length} file(s) clean`)
 }

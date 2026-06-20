@@ -65,6 +65,16 @@ test('ignores a forbidden .from and deleted_at that appear only inside a string 
   assert.equal(analyze(src).length, 0)
 })
 
+test('ignores a forbidden chain that appears only inside a template literal', () => {
+  const src = `const doc = \`example: supabase.from('audit_events').is('deleted_at', null) is forbidden\``
+  assert.equal(analyze(src).length, 0)
+})
+
+test('does not detect a forbidden chain inside template interpolation (documented limitation)', () => {
+  const src = `const x = \`result: \${supabase.from('audit_events').select('id').is('deleted_at', null)}\``
+  assert.equal(analyze(src).length, 0)
+})
+
 test('flags only the offending chain when a clean and a dirty chain coexist', () => {
   const src = `await supabase.from('users').select('id').is('deleted_at', null)
 await supabase.from('student_responses').select('id').is('deleted_at', null)`
