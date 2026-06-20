@@ -24,7 +24,10 @@ export async function getRtSubjectData(): Promise<RtSubjectData> {
     .single()
 
   if (error || !subject) {
-    throw new Error(`Failed to load VFR RT subject: ${error?.message ?? 'not found'}`)
+    // Log the raw DB error server-side; throw a generic message (code-style §5 —
+    // never embed Postgres error strings, which can leak schema/connection detail).
+    console.error('[getRtSubjectData] Subject lookup failed:', error?.message ?? 'not found')
+    throw new Error('Failed to load VFR RT subject')
   }
 
   let parts: TopicWithSubtopics[] = []
