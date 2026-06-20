@@ -783,4 +783,25 @@ Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT D
 
 ---
 
-*Last updated: 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*
+---
+
+### Decision 45: VFR RT training reuses the quiz Study UI on a dedicated `/app/vfr-rt` route (2026-06-20)
+
+**Date**: 2026-06-20
+
+**Context**: VFR RT (radiotelephony) was originally being built as a bespoke timed mock-exam UI at `/app/vfr-rt-exam` (Phase C, parked PR #923). That approach was rejected: it duplicated the quiz Study experience (setup → runner → report) that already exists and is well-tested, and it front-loaded the timed-exam mode before students had any way to *practice* RT at all.
+
+**Decision**: Build VFR RT **training first**, by **reusing the existing `/app/quiz` Study UI** on a separate `/app/vfr-rt` route with its own nav item. The exam mode returns later as an *exam-mode toggle on the same shared UI*, not as a parallel bespoke screen.
+
+- **Reuse at the leaf level, not the page level**: `VfrRtConfigForm` composes the existing `TopicTree` + `QuestionCount` quiz components; the parent `QuizConfigForm` was too coupled (subject picker, quiz-specific options) to reuse wholesale. Practice runs through the standard quick-quiz study session (shared runner + report).
+- **Separate route + nav item**: `/app/vfr-rt` with a `VFR RT` nav entry; RT is removed from the generic quiz subject picker (`quiz-subject-queries.ts` excludes `code === 'RT'`) so the two surfaces don't overlap.
+- **Training before exam**: Phase 1 ships MC-only practice. The parked bespoke exam UI (#923) is throwaway — keep ideas, not code. The timed exam returns as an exam-mode on the shared UI in a later phase.
+- **Five question types planned** (per the VictorOne briefing): `short_answer`, `dialog_fill`, `multiple_choice`, and two drag types — `ordering` (MAYDAY/position) and `diagram_label` (drag labels onto a runway pattern), the latter two via dnd-kit. Phase 1 covers `multiple_choice` only.
+
+**Rationale**: Reusing the Study UI eliminates duplicate runner/report logic and inherits its test coverage; building training first gives students value immediately and lets the timed exam ride on a proven, shared foundation. See `feedback-reuse-quiz-ui-for-vfr-rt` memory and `.spec-workflow/specs/vfr-rt-training/`.
+
+**Scope**: VFR RT student-facing training UI. Backend non-MC question types, the drag types, and exam-mode are later phases of the same spec.
+
+---
+
+*Last updated: 2026-06-20 — Decision 45: VFR RT training reuses the quiz Study UI on a dedicated `/app/vfr-rt` route (training before exam; bespoke exam UI parked) | Earlier 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*

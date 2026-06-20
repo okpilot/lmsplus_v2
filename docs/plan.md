@@ -1364,3 +1364,23 @@ Pattern hit count=2 (`admin-students.spec.ts` precedent + `admin-questions.spec.
 - **Note:** #668 was briefly auto-closed on 2026-05-26 by a `fix #668` token in a PR #676 commit title, then reopened; it was deliberately kept open until #677 + #673 landed, then closed manually on 2026-05-31 (PR #709 used `Closes #673` only, not `Closes #668`, to retain manual control).
 
 *Last updated: 2026-06-08 — Decision 40: adopt Socket.dev (GitHub App) for supply-chain detection, remove the redundant Snyk trial, enable Dependabot security updates (#109).*
+
+---
+
+## VFR RT Training — Phase 1 (page + nav, MC-only) — 2026-06-20
+
+**Branch:** `feat/vfr-rt-training` (off `master` @ `55e50398`). Spec: `.spec-workflow/specs/vfr-rt-training/`. Tracks #697.
+
+Pivots VFR RT from the rejected bespoke mock-exam UI (parked PR #923) to a **training-first** feature that **reuses the existing `/app/quiz` Study UI** (see Decision 45). Phase 1 stands up the entry surface; no DB changes, multiple-choice only.
+
+- **New `/app/vfr-rt` page** (`page.tsx`, 26L — pure composition) + a `VFR RT` nav item (`nav-items.ts`).
+- **Reuses quiz *leaf* components, not the whole config form:** `VfrRtConfigForm` is bespoke but composes the existing `TopicTree` + `QuestionCount` from `app/app/quiz/_components/` (the parent `QuizConfigForm` was too coupled to reuse directly). Parts = RT topics, locked subject, reused question-count selector.
+- **Practice reuses the standard study session** — the shared quick-quiz runner + report. MC-only for now; non-MC question types arrive in later phases.
+- **RT removed from the generic quiz subject picker** — `quiz-subject-queries.ts` extended with `.filter((s) => s.code !== 'RT')` (R1.3); `quiz-subject-queries.test.ts` **extended** (not new) to cover the exclusion.
+- New hooks `use-vfr-rt-parts.ts` + `use-vfr-rt-start.ts` (+ `use-vfr-rt-start-utils.ts`), Server Action `get-rt-subject.ts`, and a `seed-vfr-rt-training-eval.ts` eval seed (10 MC RT questions). All hooks/utils ship with co-located tests (102 vfr-rt tests green).
+
+**Commits:** `344c12d1` (page/nav/hooks/action), `a7c47014` (spec), `1b3e46ac` (multi-round review discipline rules). Follow-on: `fix` dropping a dead `.is('deleted_at', null)` filter on `easa_subjects` (no such column — defined in mig 001 with no soft-delete; runtime error caught by semantic-reviewer), Phase 1 test coverage, and these docs.
+
+**Next:** #925 testing deep-dive (P0 — app-layer DB read-path integration tier) BEFORE Phases 2/5/6 (which add migrations and share the same blind spot). Then Phase 2 (backend non-MC question types).
+
+*Last updated: 2026-06-20 — VFR RT Training Phase 1 (`/app/vfr-rt` page + nav, MC-only, reuses quiz Study UI); Decision 45.*
