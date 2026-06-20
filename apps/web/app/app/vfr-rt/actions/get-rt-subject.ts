@@ -16,11 +16,11 @@ export type RtSubjectData = {
 export async function getRtSubjectData(): Promise<RtSubjectData> {
   const supabase = await createServerSupabaseClient()
 
+  // easa_subjects has no deleted_at column (defined in mig 001, no soft-delete) — read-scope is enforced by RLS.
   const { data: subject, error } = await supabase
     .from('easa_subjects')
     .select('id')
     .eq('code', 'RT')
-    .is('deleted_at', null)
     .single()
 
   if (error || !subject) {
