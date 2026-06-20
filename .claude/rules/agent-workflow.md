@@ -34,11 +34,11 @@ Draft plan (files to change, approach, risks)
 Validated plan (includes: affected files, test updates, doc updates, risks)
     │
     ▼
-Plan-critic review (skip for single-file < 10 lines)
+Plan-critic review — Multi-Round Discipline (skip for single-file < 10 lines)
     │
-    ├─► CRITICAL ─► Orchestrator resolves directly (no revision round)
-    ├─► ISSUE ─► Revise plan (1 round max, then orchestrator resolves)
-    └─► Clean / SUGGESTION only
+    ├─► coverage rounds (diverse lenses) ─► fix APPLY findings ─► reset clean counter
+    ├─► stability rounds (same config, unchanged plan) ─► need N clean (2 / 3 security-path)
+    └─► ceiling 4 total ─► if floor unmet ─► escalate to user (no further loop)
     │
     ▼
 User approves → Execute
@@ -102,7 +102,7 @@ After the plan is validated but before presenting it to the user, run the plan-c
 
 **Inputs:** The validated plan text, plus the source files listed in the plan's "Files to change" and "Files affected" sections.
 
-**Revision loop:** CRITICAL findings are resolved directly by the orchestrator — no revision round. ISSUE findings trigger 1 revision round maximum. If the revised plan still has ISSUE findings after one revision, the orchestrator resolves directly — no further critic rounds.
+**Review rounds (Multi-Round Review Discipline — see `agent-critic.md`):** plan-critic is non-deterministic, so a single clean pass is not proof. Run *coverage rounds* (critics with distinct lenses, in parallel) to surface findings; fix APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply); then run *stability rounds* (same critic configuration, unchanged plan) until **N consecutive clean** rounds — **N=2** normally, **N=3** when the diff touches the Red-Team trigger path set (`git diff --name-only`). Any APPLY finding resets the clean counter to 0; a validated skip-with-reason does not. **Ceiling: 4 total rounds** — if the floor is unmet at the ceiling, **escalate to the user** with the residual findings rather than loop (replaces unilateral orchestrator resolution for the ceiling case). Coverage rounds add breadth but do NOT count toward the consecutive-clean floor.
 
 **Skip condition:** Single-file changes under 10 lines skip the plan-critic. The plan validation pipeline is sufficient for these.
 
@@ -473,4 +473,4 @@ For post-commit agents (code-reviewer, semantic-reviewer, doc-updater, test-writ
 
 *Per-agent rules: `agent-code-reviewer.md`, `agent-semantic-reviewer.md`, `agent-test-writer.md`, `agent-doc-updater.md`, `agent-learner.md`, `agent-security-auditor.md`, `agent-red-team.md`, `agent-coderabbit-sync.md`, `agent-critic.md`*
 
-*Last updated: 2026-04-03 (critic integration, spec artifacts, interview phase, task persistence, delegation protocol)*
+*Last updated: 2026-06-20 (multi-round review discipline for plan-critic — coverage vs stability rounds, consecutive-clean floor 2/3, ceiling 4→escalate; see `agent-critic.md`)*
