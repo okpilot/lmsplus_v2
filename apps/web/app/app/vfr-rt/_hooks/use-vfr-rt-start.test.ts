@@ -150,13 +150,16 @@ describe('useVfrRtStart — failure path', () => {
   })
 
   it('sets an error and does not navigate when sessionStorage throws after a successful start', async () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('QuotaExceededError')
     })
     const { result } = renderHook(() => useVfrRtStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
     expect(result.current.error).toMatch(/unable to start/i)
     expect(mockRouterPush).not.toHaveBeenCalled()
+    // resetAllMocks resets impl but doesn't detach the spy — restore so it can't
+    // leak into later tests in this file (matches the confirm-spy restores below).
+    setItemSpy.mockRestore()
   })
 })
 
