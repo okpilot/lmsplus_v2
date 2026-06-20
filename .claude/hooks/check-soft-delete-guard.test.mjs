@@ -79,3 +79,31 @@ test('does not match a table name held in a variable (documented limitation)', (
 const r = await supabase.from(t).select('id').is('deleted_at', null)`
   assert.equal(analyze(src).length, 0)
 })
+
+test('ignores deleted_at inside a /* */ block comment on a forbidden-table chain', () => {
+  // Exercises the state==='block' branch of stripComments — untested by the // line-comment case.
+  const src = `const r = await supabase.from('audit_events').select('id')
+/* .is('deleted_at', null) would be wrong here, just documenting */`
+  assert.equal(analyze(src).length, 0)
+})
+
+test('ignores an entire forbidden chain that is wrapped in a /* */ block comment', () => {
+  const src = `/* supabase.from('quiz_drafts').select('id').is('deleted_at', null) */
+const r = await supabase.from('users').select('id').is('deleted_at', null)`
+  assert.equal(analyze(src).length, 0)
+})
+
+test('.rpc( acts as a chain boundary so a .is(deleted_at) after .rpc() is not blamed on a preceding forbidden .from()', () => {
+  // segmentOffsets lists .rpc( as an explicit boundary alongside .from( and ;
+  // A regression removing .rpc( from the boundary regex would produce a false positive here.
+  const src = `const r = await supabase.from('easa_subjects').select('id')
+const s = await supabase.rpc('some_fn', {}).is('deleted_at', null)`
+  assert.equal(analyze(src).length, 0)
+})
+
+test('semicolon separates a forbidden .from() from a soft-deletable .is(deleted_at) in the next chain', () => {
+  // ; is the third boundary token in segmentOffsets (adds m.index+1, distinct from .from/.rpc).
+  // Exercises the ';' branch that the newline-based adjacency tests do not cover.
+  const src = `supabase.from('easa_topics').select('id'); supabase.from('quiz_sessions').is('deleted_at', null)`
+  assert.equal(analyze(src).length, 0)
+})
