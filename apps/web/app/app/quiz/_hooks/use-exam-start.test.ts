@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---- Mocks ----------------------------------------------------------------
 
@@ -106,6 +106,13 @@ beforeEach(() => {
   mockReadActiveSession.mockReturnValue(null)
   // Default: discard cleanup succeeds (used only on the handoff-failure path)
   mockDiscardQuiz.mockResolvedValue({ success: true })
+})
+
+// Failure-safe spy cleanup: resetAllMocks does NOT detach vi.spyOn spies, and a
+// per-test mockRestore() is skipped if an assertion throws first. restoreAllMocks
+// runs on both pass and failure, so a spy can never leak into a later test.
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 // ---- Initial state -------------------------------------------------------

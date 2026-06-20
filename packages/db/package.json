@@ -9,7 +9,8 @@
     "./schema": "./src/schema.ts",
     "./import-schema": "./src/import-schema.ts",
     "./types": "./src/types.ts",
-    "./middleware": "./src/middleware.ts"
+    "./middleware": "./src/middleware.ts",
+    "./test-helpers": "./src/test-helpers.ts"
   },
   "scripts": {
     "lint": "biome check .",

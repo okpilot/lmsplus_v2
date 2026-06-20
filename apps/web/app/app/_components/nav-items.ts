@@ -16,6 +16,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: '/app/dashboard', label: 'Dashboard', icon: 'home' },
   { href: '/app/quiz', label: 'Quiz', icon: 'file-question' },
+  { href: '/app/vfr-rt', label: 'VFR RT', icon: 'book-open' },
   { href: '/app/internal-exam', label: 'Internal Exam', icon: 'shield-check' },
   { href: '/app/reports', label: 'Reports', icon: 'bar-chart' },
   { href: '/app/settings', label: 'Settings', icon: 'settings' },

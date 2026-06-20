@@ -154,6 +154,29 @@ describe('getSubjectsWithCounts', () => {
   })
 })
 
+describe('getSubjectsWithCounts — RT exclusion', () => {
+  it('excludes the RT subject from the quiz picker even when it has questions', async () => {
+    mockFromSequence({
+      data: [
+        { id: 's1', code: 'AGK', name: 'Aircraft General Knowledge', short: 'AGK', sort_order: 1 },
+        { id: 's-rt', code: 'RT', name: 'VFR Radiotelephony', short: 'RT', sort_order: 99 },
+      ],
+    })
+    mockRpc.mockResolvedValue({
+      data: [
+        { subject_id: 's1', topic_id: 't1', subtopic_id: null, n: 5 },
+        { subject_id: 's-rt', topic_id: 'trt', subtopic_id: null, n: 10 },
+      ],
+      error: null,
+    })
+
+    const result = await getSubjectsWithCounts()
+    expect(result).toHaveLength(1)
+    expect(result[0]!.code).toBe('AGK')
+    expect(result.some((s) => s.code === 'RT')).toBe(false)
+  })
+})
+
 describe('getTopicsForSubject — topics read error', () => {
   it('throws when the easa_topics read returns a DB error', async () => {
     mockFromSequence({ data: null, error: { message: 'topics read failed' } })

@@ -6,5 +6,12 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "scripts", "playwright.config.ts", "e2e"]
+  "exclude": [
+    "node_modules",
+    "scripts",
+    "playwright.config.ts",
+    "e2e",
+    "**/*.integration.test.ts",
+    "vitest.integration.setup.ts"
+  ]
 }

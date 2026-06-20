@@ -87,6 +87,14 @@ jobs:
       - name: Run integration tests
         run: pnpm --filter @repo/db test:integration
 
+      # App-layer integration tier (#925): real apps/web query helpers + Server
+      # Actions against the same already-running Supabase container.
+      - name: Type-check app-layer integration tests
+        run: pnpm --filter @repo/web check-types:integration
+
+      - name: Run app-layer integration tests
+        run: pnpm --filter @repo/web test:integration
+
   e2e-tests:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
