@@ -41,6 +41,12 @@ jobs:
       - name: Pre-push hook verdict parser tests
         run: bash .claude/hooks/run-security-auditor.test.sh
 
+      - name: Soft-delete column guard
+        run: node .claude/hooks/check-soft-delete-guard.mjs
+
+      - name: Soft-delete column guard — unit test
+        run: node --test .claude/hooks/check-soft-delete-guard.test.mjs
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest

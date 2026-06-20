@@ -21,6 +21,12 @@ pre-commit:
       stage_fixed: true
     type-check:
       run: pnpm check-types
+    # Forbid `.is('deleted_at', …)` on tables with no deleted_at column (#925).
+    # glob makes lefthook skip this when no .ts files are staged, so the script's
+    # no-arg whole-tree branch is never reached from the hook.
+    soft-delete-guard:
+      glob: "*.{ts,tsx}"
+      run: node .claude/hooks/check-soft-delete-guard.mjs {staged_files}
     # Full test suite runs in CI (ci.yml). Pre-commit runs fast gates only.
     # test:
     #   run: pnpm test

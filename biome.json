@@ -38,7 +38,15 @@
         "noVar": "error"
       },
       "style": {
-        "useConst": "error"
+        "useConst": "error",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or apps/web/lib/integration-support/** — never production code (#925)."
+            }
+          }
+        }
       }
     }
   },
@@ -64,6 +72,23 @@
           },
           "style": {
             "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.integration.test.ts",
+        "**/lib/integration-support/**",
+        "**/e2e/**",
+        "**/__integration__/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
           }
         }
       }
