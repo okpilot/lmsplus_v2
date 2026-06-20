@@ -32,7 +32,10 @@ export function loadAnswers(sessionId: string): AnswersMap {
       if (isPlainObject(v.blanks)) {
         const b: Record<number, string> = {}
         for (const [k, val] of Object.entries(v.blanks)) {
-          if (typeof val === 'string') b[Number(k)] = val
+          const idx = Number(k)
+          // Reject NaN / negative / non-integer keys so a tampered store can't
+          // leak an invalid blankIndex into the submission payload.
+          if (Number.isInteger(idx) && idx >= 0 && typeof val === 'string') b[idx] = val
         }
         next.blanks = b
       }

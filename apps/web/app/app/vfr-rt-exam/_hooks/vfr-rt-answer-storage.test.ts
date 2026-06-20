@@ -40,4 +40,12 @@ describe('loadAnswers', () => {
     localStorage.setItem(KEY, JSON.stringify({ q1: { mc: 'b', blanks: 'oops' } }))
     expect(loadAnswers(SESSION)).toEqual({ q1: { mc: 'b' } })
   })
+
+  it('rejects malformed blank keys (non-integer, negative, NaN)', () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ q1: { blanks: { 0: 'ok', foo: 'x', '-1': 'y', '1.5': 'z' } } }),
+    )
+    expect(loadAnswers(SESSION)).toEqual({ q1: { blanks: { 0: 'ok' } } })
+  })
 })
