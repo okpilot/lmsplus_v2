@@ -62,7 +62,8 @@ export async function getSubjectsWithCounts(): Promise<SubjectOption[]> {
       short: s.short,
       questionCount: countMap.get(s.id) ?? 0,
     }))
-    .filter((s) => s.questionCount > 0)
+    .filter((s) => s.questionCount > 0) // hide zero-count subjects
+    .filter((s) => s.code !== 'RT') // RT has its own /app/vfr-rt page (R1.3)
 }
 
 export async function getTopicsForSubject(subjectId: string): Promise<TopicOption[]> {
