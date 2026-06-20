@@ -136,7 +136,7 @@ describe('batchSubmitQuiz (app-layer integration)', () => {
     expect(result.expired).toBe(false)
   })
 
-  it('returns each result item with its question id, correctness, and explanation', async () => {
+  it('returns a fully populated result for each submitted answer', async () => {
     // The action maps r.question_id→questionId, r.is_correct→isCorrect, etc.
     // toHaveLength alone can't catch a key-rename regression that leaves every
     // field undefined. This test asserts the per-item shape explicitly.

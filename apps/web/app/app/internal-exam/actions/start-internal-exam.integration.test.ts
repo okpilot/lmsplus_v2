@@ -74,7 +74,9 @@ describe('startInternalExam (app-layer integration)', () => {
   })
 
   it('rejects an unauthenticated caller', async () => {
-    // No signInAs — the cookie jar is empty after the per-test reset.
+    // No signInAs — the cookie jar is empty after the per-test reset. The action's
+    // own getUser() guard returns 'Not authenticated' here; the RPC's
+    // not_authenticated token never fires because the action short-circuits first.
     const result = await startInternalExam({ code: `NOPE-${suffix}` })
 
     expect(result.success).toBe(false)

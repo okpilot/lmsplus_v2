@@ -30,6 +30,7 @@ const password = 'test-pass-123'
 
 // Subject with a fully-configured exam (3 questions, config seeded).
 let refsOk: ReferenceIds
+let seededQuestionIds: string[]
 
 // Subject with NO exam_configs row and NO questions.
 let refsNoCfg: ReferenceIds
@@ -70,7 +71,7 @@ describe('startExamSession (app-layer integration)', () => {
       topicName: `Exam OK Topic ${suffix}`,
     })
 
-    await seedQuestions({
+    const seeded = await seedQuestions({
       admin,
       orgId,
       createdBy: studentAId,
@@ -78,6 +79,7 @@ describe('startExamSession (app-layer integration)', () => {
       topicId: refsOk.topicId,
       count: 3,
     })
+    seededQuestionIds = seeded.questionIds
 
     const { data: configOk, error: configOkErr } = await admin
       .from('exam_configs')
@@ -181,6 +183,7 @@ describe('startExamSession (app-layer integration)', () => {
     expect(typeof result.sessionId).toBe('string')
     expect(result.sessionId).toBeTruthy()
     expect(result.questionIds).toHaveLength(3)
+    expect(result.questionIds.sort()).toEqual([...seededQuestionIds].sort())
     expect(result.totalQuestions).toBe(3)
     expect(result.timeLimitSeconds).toBe(3600)
     expect(result.passMark).toBe(50)
