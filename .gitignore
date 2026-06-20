@@ -58,5 +58,5 @@ npm-debug.log*
 /playwright-report/
 /playwright/.cache/
 
-# Handover working docs — local-only scratch, not repo artifacts
-.spec-workflow/specs/925-app-integration-tier/HANDOVER.md
+# Handover working docs — local-only scratch, not repo artifacts (any dir)
+HANDOVER.md
