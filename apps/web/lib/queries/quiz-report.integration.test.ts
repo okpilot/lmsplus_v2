@@ -117,6 +117,7 @@ describe('getQuizReportSummary (app-layer integration)', () => {
       p_question_ids: questionIds.slice(0, 1),
     })
     if (openErr) throw new Error(`open session start: ${openErr.message}`)
+    if (!openId) throw new Error('open session: start_quiz_session returned no session id')
     openSessionId = openId as string
   })
 
