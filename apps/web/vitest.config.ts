@@ -9,7 +9,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.test.{ts,tsx}'],
-    exclude: ['node_modules', '.next'],
+    // Integration tests run in a separate node-env tier against real Postgres
+    // (vitest.integration.config.ts). Exclude them from the jsdom unit run —
+    // the `**/*.test.{ts,tsx}` glob would otherwise ingest `*.integration.test.ts`.
+    exclude: ['node_modules', '.next', '**/*.integration.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
