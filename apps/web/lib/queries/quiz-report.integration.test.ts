@@ -123,21 +123,8 @@ describe('getQuizReportSummary (app-layer integration)', () => {
   afterAll(async () => {
     const errors: string[] = []
 
-    // Force-complete the open session so cleanupTestData can delete the org
-    // (FK from quiz_sessions to organizations — active sessions may block deletion).
-    // Best-effort (the row is org-scoped and removed by cleanupTestData next), but
-    // log the PostgREST error so a regression here isn't silent (code-style §5).
-    const { error: forceCompleteErr } = await admin
-      .from('quiz_sessions')
-      .update({ ended_at: new Date().toISOString() })
-      .eq('id', openSessionId)
-    if (forceCompleteErr) {
-      console.error(
-        '[quiz-report.integration afterAll] force-complete error:',
-        forceCompleteErr.message,
-      )
-    }
-
+    // cleanupTestData hard-deletes quiz_sessions by organization_id (before the
+    // org row), so the open session never blocks teardown — no force-complete needed.
     try {
       await cleanupTestData({ admin, orgId, userIds: [studentAId, studentBId] })
     } catch (e) {

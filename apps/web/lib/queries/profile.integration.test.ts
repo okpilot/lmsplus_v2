@@ -169,4 +169,38 @@ describe('getProfileData (app-layer integration)', () => {
 
     expect(data.stats.totalSessions).toBe(2)
   })
+
+  it('returns null organizationName when the organization is soft-deleted', async () => {
+    // Proves the `.is('deleted_at', null)` SQL filter on `organizations` is real.
+    // Mocked unit tests can only mock the response shape — they cannot verify the filter
+    // clause fires in SQL. Without this test, removing the filter would be undetectable.
+    //
+    // The org is temporarily soft-deleted and restored within this test so that the
+    // rest of the suite and cleanupTestData (which hard-DELETEs by id) are unaffected.
+    const now = new Date().toISOString()
+    const { error: softDeleteErr } = await admin
+      .from('organizations')
+      .update({ deleted_at: now })
+      .eq('id', orgId)
+    if (softDeleteErr) throw new Error(`soft-delete org: ${softDeleteErr.message}`)
+
+    try {
+      await signInAs(emailA, password)
+
+      const data = await getProfileData()
+
+      expect(data.organizationName).toBeNull()
+    } finally {
+      // Restore deleted_at so subsequent tests and cleanupTestData are not affected.
+      const { error: restoreErr } = await admin
+        .from('organizations')
+        .update({ deleted_at: null })
+        .eq('id', orgId)
+      if (restoreErr)
+        console.error(
+          '[profile.integration afterAll] restore org deleted_at failed:',
+          restoreErr.message,
+        )
+    }
+  })
 })

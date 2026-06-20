@@ -20,6 +20,28 @@ import type { getAuthenticatedClient } from '@/lib/integration-support/harness'
 
 type StudentClient = Awaited<ReturnType<typeof getAuthenticatedClient>>
 
+/** Submit the answer sequence for one session: 'b' (correct) for the first
+ *  `correctCount` questions, 'a' (wrong) for the rest. Throws on the first error. */
+async function submitAnswerSequence(opts: {
+  studentClient: StudentClient
+  sessionId: string
+  questionIds: string[]
+  correctCount: number
+}): Promise<void> {
+  const { studentClient, sessionId, questionIds, correctCount } = opts
+  for (let i = 0; i < questionIds.length; i++) {
+    const { error: submitErr } = await studentClient.rpc('submit_quiz_answer', {
+      p_session_id: sessionId,
+      p_question_id: questionIds[i],
+      p_selected_option: i < correctCount ? 'b' : 'a',
+      p_response_time_ms: 2000,
+    })
+    if (submitErr) {
+      throw new Error(`seedCompletedSession submit_quiz_answer[${i}]: ${submitErr.message}`)
+    }
+  }
+}
+
 /**
  * Drive the real RPC chain as the authenticated student to produce one
  * completed quiz session.
@@ -58,18 +80,12 @@ export async function seedCompletedSession(opts: {
   })
   if (startErr) throw new Error(`seedCompletedSession start_quiz_session: ${startErr.message}`)
 
-  for (let i = 0; i < totalCount; i++) {
-    const selectedOption = i < correctCount ? 'b' : 'a'
-    const { error: submitErr } = await studentClient.rpc('submit_quiz_answer', {
-      p_session_id: sessionId as string,
-      p_question_id: qIds[i],
-      p_selected_option: selectedOption,
-      p_response_time_ms: 2000,
-    })
-    if (submitErr) {
-      throw new Error(`seedCompletedSession submit_quiz_answer[${i}]: ${submitErr.message}`)
-    }
-  }
+  await submitAnswerSequence({
+    studentClient,
+    sessionId: sessionId as string,
+    questionIds: qIds,
+    correctCount,
+  })
 
   const { data: completeData, error: completeErr } = await studentClient.rpc(
     'complete_quiz_session',
@@ -80,6 +96,9 @@ export async function seedCompletedSession(opts: {
   }
 
   const rows = Array.isArray(completeData) ? completeData : []
+  // complete_quiz_session is a single-row projection; guard so a future RPC
+  // contract break surfaces as a clear error rather than Number(undefined) → NaN.
+  if (!rows[0]) throw new Error('seedCompletedSession: complete_quiz_session returned no row')
   const row = rows[0] as {
     total_questions: number
     correct_count: number

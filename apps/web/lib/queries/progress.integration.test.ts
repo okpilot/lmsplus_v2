@@ -153,18 +153,16 @@ describe('getProgressData (app-layer integration)', () => {
   })
 
   it('self-scopes to the authenticated student and does not include other students answers', async () => {
-    // Non-vacuous: B answered all 3 correctly (correctCount=3). If RLS leaks
-    // B's answers into A's view, answeredCorrectly would be > 2 (or equal to
-    // B's count). Asserting === 2 proves the self-scope is working.
+    // Non-vacuous: A and B answer the SAME 3 questions; A gets 2 right, B gets 3.
+    // The mastery numerator is DISTINCT-correct-question-ids self-scoped to
+    // auth.uid(), so a leak of B into A would surface as 3 (the distinct union of
+    // both students' correct questions), not A's own 2. Asserting === 2 catches it.
     await signInAs(emailA, password)
 
     const data = await getProgressData()
 
     const subject = data.find((s) => s.id === refs.subjectId)
     expect(subject).toBeDefined()
-    // A answered 2 correctly. B answered 3. Cross-contamination would show 3 or more.
     expect(subject?.answeredCorrectly).toBe(2)
-    // Also not 5 (sum of both) — just A's own 2.
-    expect(subject?.answeredCorrectly).not.toBe(5)
   })
 })
