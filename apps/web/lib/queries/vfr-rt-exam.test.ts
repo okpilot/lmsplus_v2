@@ -204,7 +204,17 @@ describe('getVfrRtInProgress', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await getVfrRtInProgress('sess-1')
     expect(result).toEqual({ status: 'not_found' })
-    expect(consoleSpy).toHaveBeenCalledWith('[getVfrRtInProgress] RPC returned no questions')
+    expect(consoleSpy).toHaveBeenCalledWith('[getVfrRtInProgress] RPC returned no/!array questions')
+    consoleSpy.mockRestore()
+  })
+
+  it('returns not_found when the questions RPC resolves with a non-array payload', async () => {
+    mockFromSequence({ data: activeRow })
+    mockRpc.mockResolvedValueOnce({ data: {}, error: null })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getVfrRtInProgress('sess-1')
+    expect(result).toEqual({ status: 'not_found' })
+    expect(consoleSpy).toHaveBeenCalledWith('[getVfrRtInProgress] RPC returned no/!array questions')
     consoleSpy.mockRestore()
   })
 

@@ -82,8 +82,6 @@ describe('submitVfrRtExam — input validation', () => {
   })
 
   it('returns success with the expired flag when submitting an empty answers array', async () => {
-    // A timer expiry with zero answers submits []. The action must NOT reject it
-    // client-side — the RPC's expiry branch grades+closes it and returns expired:true.
     mockRpc.mockResolvedValue({ data: { expired: true }, error: null })
     const result = await submitVfrRtExam({ sessionId: SESSION_ID, answers: [] })
     expect(mockRpc).toHaveBeenCalledWith(expect.anything(), 'submit_vfr_rt_exam_answers', {

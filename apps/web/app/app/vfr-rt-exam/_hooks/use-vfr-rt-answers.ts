@@ -1,31 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { type AnswersMap, loadAnswers, storageKey } from './vfr-rt-answer-storage'
 
-export type AnswerState = {
-  mc?: string
-  short?: string
-  blanks?: Record<number, string>
-}
-
-type AnswersMap = Record<string, AnswerState>
-
-function storageKey(sessionId: string): string {
-  return `vfr-rt-answers:${sessionId}`
-}
-
-function loadAnswers(sessionId: string): AnswersMap {
-  try {
-    const raw = localStorage.getItem(storageKey(sessionId))
-    if (!raw) return {}
-    const parsed: unknown = JSON.parse(raw)
-    // typeof [] === 'object', so guard arrays out before casting to the keyed map.
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
-    return parsed as AnswersMap
-  } catch {
-    return {}
-  }
-}
+export type { AnswerState } from './vfr-rt-answer-storage'
 
 export function useVfrRtAnswers(sessionId: string) {
   const [hydrated, setHydrated] = useState(false)

@@ -181,6 +181,21 @@ describe('getVfrRtResults', () => {
     consoleSpy.mockRestore()
   })
 
+  it('degrades to null options + logs when the display RPC returns a non-array payload', async () => {
+    mockRpc
+      .mockResolvedValueOnce({ data: sampleResultsJson, error: null })
+      .mockResolvedValueOnce({ data: {}, error: null })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await getVfrRtResults('sess-1')
+    expect(result).not.toBeNull()
+    expect(result!.rows[0]!.options).toBeNull()
+    expect(result!.rows[0]!.questionImageUrl).toBeNull()
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[getVfrRtResults] Questions RPC returned a non-array payload',
+    )
+    consoleSpy.mockRestore()
+  })
+
   it('sets isCorrect to true only when every answer.is_correct is true', async () => {
     const mixedJson = {
       ...sampleResultsJson,

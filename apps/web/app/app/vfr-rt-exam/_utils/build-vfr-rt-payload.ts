@@ -23,19 +23,19 @@ export function buildVfrRtPayload(
     }
 
     if (question.question_type === 'short_answer') {
-      if (answer.short?.trim()) {
-        entries.push({ questionId: question.id, responseText: answer.short })
-      }
+      const short = answer.short?.trim()
+      if (short) entries.push({ questionId: question.id, responseText: short })
       continue
     }
 
     if (question.question_type === 'dialog_fill') {
       for (const [blankIndex, text] of Object.entries(answer.blanks ?? {})) {
-        if (text.trim()) {
+        const trimmed = text.trim()
+        if (trimmed) {
           entries.push({
             questionId: question.id,
             blankIndex: Number(blankIndex),
-            responseText: text,
+            responseText: trimmed,
           })
         }
       }

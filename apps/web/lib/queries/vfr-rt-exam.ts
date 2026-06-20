@@ -127,9 +127,11 @@ export async function getVfrRtInProgress(sessionId: string): Promise<VfrRtInProg
     'get_vfr_rt_exam_questions',
     { p_session_id: sessionId },
   )
-  if (rpcError || !data || data.length === 0) {
+  // !Array.isArray covers null AND a truthy non-array payload (which would slip
+  // a malformed `questions` into the active runner and crash its .map/.length).
+  if (rpcError || !Array.isArray(data) || data.length === 0) {
     if (rpcError) console.error('[getVfrRtInProgress] RPC error:', rpcError.message)
-    else console.error('[getVfrRtInProgress] RPC returned no questions')
+    else console.error('[getVfrRtInProgress] RPC returned no/!array questions')
     return { status: 'not_found' }
   }
 

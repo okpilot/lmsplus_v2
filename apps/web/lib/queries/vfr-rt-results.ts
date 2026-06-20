@@ -104,15 +104,22 @@ export async function getVfrRtResults(sessionId: string): Promise<VfrRtResults |
     console.error('[getVfrRtResults] Questions RPC error:', questionsError.message)
   }
 
+  // Array.isArray, not just truthiness — a truthy non-array would crash for...of
+  // and defeat the graceful-degradation contract.
   const displayMap = new Map<string, VfrRtQuestion>()
-  if (questionsData) {
+  if (Array.isArray(questionsData)) {
     for (const q of questionsData) {
       displayMap.set(q.id, q)
     }
+  } else if (questionsData) {
+    console.error('[getVfrRtResults] Questions RPC returned a non-array payload')
   }
 
   const rows: VfrRtReviewRow[] = resultsData.questions.map((q) => {
     const display = displayMap.get(q.question_id)
+    if (!Array.isArray(q.answers)) {
+      throw new Error('Failed to fetch VFR RT results: question answers field is not an array')
+    }
     // every() is vacuously true on []; an unanswered question (timer-expiry or
     // partial submit returns answers: []) must show incorrect, not a ✓.
     const isCorrect = q.answers.length > 0 && q.answers.every((a) => a.is_correct)

@@ -25,6 +25,20 @@ describe('buildVfrRtPayload', () => {
     })
   })
 
+  it('trims padded response text on short answers and dialog blanks', () => {
+    const answers: Record<string, AnswerState> = {
+      'q-short': { short: '  QNH  ' },
+      'q-dialog': { blanks: { 0: '  cleared  ' } },
+    }
+    const result = buildVfrRtPayload(questions, answers)
+    expect(result).toContainEqual({ questionId: 'q-short', responseText: 'QNH' })
+    expect(result).toContainEqual({
+      questionId: 'q-dialog',
+      blankIndex: 0,
+      responseText: 'cleared',
+    })
+  })
+
   it('maps each dialog blank to its own entry', () => {
     const answers: Record<string, AnswerState> = {
       'q-dialog': { blanks: { 0: 'cleared', 1: 'takeoff' } },
