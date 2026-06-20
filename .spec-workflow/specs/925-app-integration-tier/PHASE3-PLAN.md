@@ -40,7 +40,8 @@ Plus two opportunistic fixes carried in the HANDOVER.
      - multi-line forbidden chain with deleted_at → 1
      - deleted_at inside a `//` comment on a forbidden-table file → 0
      - `deleted_at` / `.from('audit_events')` inside a string literal (not a call) → 0
-     - reverse order (`.is('deleted_at')` before `.from('<forbidden>')` in one chain) → 1
+     - (as-built additions, commit 440b7581) `/* */` block-comment stripping ×2; `.rpc(` chain boundary; `;` statement separator → 0 each
+   - **Dropped during implementation:** the originally-listed "reverse order (`.is('deleted_at')` before `.from()`)" case — the Supabase JS builder always calls `.from()`/`.rpc()` FIRST, so `.is()` cannot precede `.from()`; testing it would force a contradictory heuristic. As-built suite = 14 cases.
    - Document the known limitation: a table name held in a **variable** (`.from(tbl)`) is not matched (string-literal only) — acceptable for a mechanical guard; the Phase-4 schema-aware successor covers it.
 
 ### (b) test-helpers import guard
