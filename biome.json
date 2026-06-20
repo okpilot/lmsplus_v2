@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -43,7 +43,7 @@
           "level": "error",
           "options": {
             "paths": {
-              "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or apps/web/lib/integration-support/** — never production code (#925)."
+              "@repo/db/test-helpers": "test-helpers wraps the service-role key (getAdminClient). Import it only from integration tests or a lib/integration-support/** dir — never production code (#925)."
             }
           }
         }
