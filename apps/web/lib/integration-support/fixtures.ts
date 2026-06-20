@@ -130,15 +130,14 @@ export async function seedCompletedSession(opts: {
  * (not yet completed) quiz session, for lifecycle tests that act on an
  * in-progress session (submit / check / complete / batch-submit).
  * seedCompletedSession builds on this (then submits + completes). Same
- * subject/topic CONTRACT as the file header. Returns the session id + the
- * frozen config.question_ids it was started with.
+ * subject/topic CONTRACT as the file header. Returns the session id.
  */
 export async function seedOpenSession(opts: {
   studentClient: StudentClient
   questionIds: string[] // from seedQuestions; correct_option_id === 'b'
   subjectId?: string | null // forwarded to start_quiz_session p_subject_id
   topicId?: string | null // forwarded to p_topic_id
-}): Promise<{ sessionId: string; questionIds: string[] }> {
+}): Promise<{ sessionId: string }> {
   const { studentClient, questionIds } = opts
   const subjectId = opts.subjectId ?? null
   const topicId = opts.topicId ?? null
@@ -156,7 +155,7 @@ export async function seedOpenSession(opts: {
     throw new Error('seedOpenSession: start_quiz_session returned no/invalid session id')
   }
 
-  return { sessionId, questionIds }
+  return { sessionId }
 }
 
 /**

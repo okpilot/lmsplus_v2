@@ -30,7 +30,7 @@ export {
  *
  * Call this inside each test (or in `beforeEach`), NEVER in `beforeAll`: the
  * `beforeEach` in vitest.integration.setup.ts resets the cookie jar before every
- * test, so a session seated in `beforeAll` is wiped before the first test runs —
+ * test, so a session created in `beforeAll` is wiped before the first test runs —
  * the code under test would then execute as anon and fail with confusing
  * RLS-empty results.
  */

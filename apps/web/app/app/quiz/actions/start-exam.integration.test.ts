@@ -197,7 +197,8 @@ describe('startExamSession (app-layer integration)', () => {
     const first = await startExamSession({ subjectId: refsOk.subjectId })
     expect(first.success).toBe(true)
 
-    await signInAs(emailB, password)
+    // Student B's session persists in the cookie jar for the rest of this test —
+    // no re-auth needed before the second attempt.
     const second = await startExamSession({ subjectId: refsOk.subjectId })
 
     expect(second.success).toBe(false)
