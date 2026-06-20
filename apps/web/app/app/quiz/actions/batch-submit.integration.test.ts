@@ -1,8 +1,9 @@
 // App-layer integration tier (#925) — batchSubmitQuiz.
 //
 // Exercises the real batchSubmitQuiz Server Action against real Postgres under
-// real RLS. Validates: full submission with score report, cross-user session
-// isolation, empty-answers Zod rejection, and unauthenticated rejection.
+// real RLS. Validates: full submission with score report, per-item result shape,
+// cross-user session isolation, empty-answers Zod rejection, and unauthenticated
+// rejection.
 // Each test that needs an open session calls seedOpenSession inside the test —
 // batch_submit_quiz ends the session, so sessions cannot be shared across tests.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

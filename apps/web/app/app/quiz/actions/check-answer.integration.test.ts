@@ -3,7 +3,8 @@
 // Exercises the real checkAnswer Server Action against real Postgres under
 // real RLS. Validates: correct answer + explanation, explanation image url,
 // session-not-found for nonexistent session, cross-user session isolation,
-// question-not-in-session guard, Zod parse rejection, unauthenticated rejection.
+// question-not-in-session guard, ended-session guard, Zod parse rejection,
+// and unauthenticated rejection.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { seedOpenSession } from '@/lib/integration-support/fixtures'
 import {
