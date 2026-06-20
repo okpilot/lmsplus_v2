@@ -80,6 +80,8 @@
       "includes": [
         "**/*.test.ts",
         "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
         "**/*.integration.test.ts",
         "**/lib/integration-support/**",
         "**/e2e/**",

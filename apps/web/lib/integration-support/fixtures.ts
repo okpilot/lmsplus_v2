@@ -109,7 +109,9 @@ export async function seedCompletedSession(opts: {
     !('correct_count' in row) ||
     !('score_percentage' in row)
   ) {
-    throw new Error('seedCompletedSession: complete_quiz_session returned an unexpected row shape')
+    throw new TypeError(
+      'seedCompletedSession: complete_quiz_session returned an unexpected row shape',
+    )
   }
   const { total_questions, correct_count, score_percentage } = row as {
     total_questions: number
@@ -152,7 +154,7 @@ export async function seedOpenSession(opts: {
   // Runtime type guard (code-style §5): narrow the scalar RPC reply to string (cast
   // unnecessary). Bare `typeof` matches the sibling guards in packages/db __integration__.
   if (typeof sessionId !== 'string') {
-    throw new Error('seedOpenSession: start_quiz_session returned no/invalid session id')
+    throw new TypeError('seedOpenSession: start_quiz_session returned no/invalid session id')
   }
 
   return { sessionId }

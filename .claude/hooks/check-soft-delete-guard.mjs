@@ -34,6 +34,8 @@ export const NO_SOFT_DELETE_TABLES = [
 ]
 
 // Production roots scanned in no-args (CI) mode, relative to repo root.
+// packages/ui (React components) and packages/typescript-config hold no Supabase
+// queries; extend this list if a new package ever adds DB access.
 const SCAN_ROOTS = ['apps/web', 'packages/db/src']
 
 // Path fragments that exclude a file from scanning. Test + integration-support +
@@ -154,7 +156,13 @@ function lineForOffset(starts, offset) {
  * Split the (comment-stripped) source into query-chain segments. A new segment
  * begins at every `.from(` / `.rpc(` and after every `;`, so a `.is('deleted_at')`
  * stays attached to the `.from()` that precedes it in the same chain, and an
- * adjacent sibling `.from()` starts a fresh segment.
+ * adjacent sibling `.from()` / `.rpc()` starts a fresh segment.
+ *
+ * `.rpc(` is a boundary so that two adjacent statements separated only by a
+ * newline — `await sb.from('audit_events')…` then `await sb.rpc('fn').is('deleted_at')`
+ * — do not merge into one segment and false-positive. (`.from(...).rpc(...)` mid-chain
+ * is not valid Supabase JS, so the resulting non-flag of that shape can't occur in
+ * real code; it is not a concern.)
  */
 function segmentOffsets(clean, inStr) {
   const boundaries = new Set([0, clean.length])
