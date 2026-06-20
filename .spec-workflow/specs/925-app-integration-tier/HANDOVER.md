@@ -1,6 +1,14 @@
 # HANDOVER — #925 App-Layer DB Integration Tier
 
-> Branch `feat/925-app-integration-tier` (off `feat/vfr-rt-training` @ `8270ea05`, which is off master). **Local only — never pushed.** Written 2026-06-20.
+> Branch `feat/925-app-integration-tier` (stacked on the unmerged `feat/vfr-rt-training` @ `8270ea05`, off master). Written 2026-06-20, updated end-of-session.
+
+## Session state (2026-06-20, end of session)
+
+- **Phases 0–1 DONE and PUSHED.** Bundled **PR #927 → master** (open, NOT merged — left for user): vfr-rt-training Phase 0–1 + #925 Phase 0–1. `/fullpush` ran clean (lint, types, unit 4113, integration 33, build, red-team no-surface, security-auditor APPROVED, CR-local 3 rounds converged 12→3→1).
+- **1 unpushed commit** at session close: `2788fe82 fix(vfr-rt): sanitize subject-lookup error message (§5)` — the security-auditor MEDIUM, fixed locally; **needs a push to update PR #927** (awaiting user OK at session close).
+- **Coverage map → backfill epic #926 filed** (P1/L): ~248 query sites, 8 covered, ~40 files remain.
+- **Open non-blocking item:** Phase 4 must apply the learner-promoted code-style §7 rule (integration-test assertion vacuity, count=2) — text in the Phase 4 row below.
+- **NEXT SESSION = Phase 2 (mutation lifecycle).** Pick up below.
 
 ## Why this exists
 
