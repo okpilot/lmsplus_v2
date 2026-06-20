@@ -3,6 +3,10 @@
 import { useMemo, useState } from 'react'
 import type { TopicWithSubtopics } from '@/lib/queries/quiz-query-types'
 
+// RT parts are flat (no subtopics), so checkedSubtopics is always empty. A module-scope
+// constant keeps the reference stable across renders (no consumer mutates it).
+const EMPTY_SUBTOPICS = new Set<string>()
+
 /** Manages checked-parts state for the VFR RT practice setup form. */
 export function useVfrRtParts(parts: TopicWithSubtopics[]) {
   const [checkedTopics, setCheckedTopics] = useState<Set<string>>(
@@ -15,6 +19,9 @@ export function useVfrRtParts(parts: TopicWithSubtopics[]) {
   )
 
   const allSelected = parts.length > 0 && parts.every((p) => checkedTopics.has(p.id))
+
+  // Stable reference across renders so consumers can safely use it in deps.
+  const selectedTopicIds = useMemo(() => [...checkedTopics], [checkedTopics])
 
   function toggleTopic(topicId: string) {
     setCheckedTopics((prev) => {
@@ -39,12 +46,12 @@ export function useVfrRtParts(parts: TopicWithSubtopics[]) {
 
   return {
     checkedTopics,
-    checkedSubtopics: new Set<string>(), // RT has no subtopics; always empty
+    checkedSubtopics: EMPTY_SUBTOPICS, // RT has no subtopics; always empty
     totalQuestions,
     allSelected,
     toggleTopic,
     toggleSubtopic,
     selectAll,
-    selectedTopicIds: [...checkedTopics],
+    selectedTopicIds,
   }
 }

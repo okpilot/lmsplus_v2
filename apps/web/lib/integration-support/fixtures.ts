@@ -104,10 +104,20 @@ export async function seedCompletedSession(opts: {
   }
 
   const rows = Array.isArray(completeData) ? completeData : []
-  // complete_quiz_session is a single-row projection; guard so a future RPC
-  // contract break surfaces as a clear error rather than Number(undefined) → NaN.
-  if (!rows[0]) throw new Error('seedCompletedSession: complete_quiz_session returned no row')
-  const row = rows[0] as {
+  const row = rows[0]
+  // complete_quiz_session is a single-row projection; pair the shape cast with a runtime
+  // guard (code-style §5) so a future RPC contract break surfaces as a clear error rather
+  // than Number(undefined) → NaN.
+  if (
+    typeof row !== 'object' ||
+    row === null ||
+    !('total_questions' in row) ||
+    !('correct_count' in row) ||
+    !('score_percentage' in row)
+  ) {
+    throw new Error('seedCompletedSession: complete_quiz_session returned an unexpected row shape')
+  }
+  const { total_questions, correct_count, score_percentage } = row as {
     total_questions: number
     correct_count: number
     score_percentage: number | string
@@ -115,9 +125,9 @@ export async function seedCompletedSession(opts: {
 
   return {
     sessionId: sessionId as string,
-    totalQuestions: row.total_questions,
-    correctCount: row.correct_count,
-    scorePercentage: Number(row.score_percentage),
+    totalQuestions: total_questions,
+    correctCount: correct_count,
+    scorePercentage: Number(score_percentage),
   }
 }
 

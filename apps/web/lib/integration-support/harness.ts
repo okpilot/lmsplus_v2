@@ -30,6 +30,9 @@ export {
  */
 export async function signInAs(email: string, password: string): Promise<void> {
   const supabase = await createServerSupabaseClient()
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) throw new Error(`signInAs(${email}): ${error.message}`)
+  // No error but no session would silently run the code-under-test as anon → confusing
+  // RLS-empty failures downstream. Fail loud here instead.
+  if (!data.session) throw new Error(`signInAs(${email}): no session created`)
 }
