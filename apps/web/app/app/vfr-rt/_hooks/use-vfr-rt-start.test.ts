@@ -188,10 +188,11 @@ describe('useVfrRtStart — existing-session handling', () => {
 
   it('clears the existing session after a successful start when the user confirms', async () => {
     mockReadActiveSession.mockReturnValue(EXISTING_SESSION)
-    vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true)
     const { result } = renderHook(() => useVfrRtStart(DEFAULT_OPTS))
     await act(async () => result.current.handleStart())
     expect(mockClearActiveSession).toHaveBeenCalledTimes(1)
+    confirmSpy.mockRestore()
   })
 
   it('does not prompt and does not clear anything when no existing session is present', async () => {
