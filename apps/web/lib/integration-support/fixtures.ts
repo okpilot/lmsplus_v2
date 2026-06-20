@@ -150,11 +150,13 @@ export async function seedOpenSession(opts: {
     p_question_ids: questionIds,
   })
   if (startErr) throw new Error(`seedOpenSession start_quiz_session: ${startErr.message}`)
-  if (!sessionId) {
-    throw new Error('seedOpenSession: start_quiz_session returned no session id')
+  // Runtime type guard (code-style §5): narrow the scalar RPC reply to string (cast
+  // unnecessary). Bare `typeof` matches the sibling guards in packages/db __integration__.
+  if (typeof sessionId !== 'string') {
+    throw new Error('seedOpenSession: start_quiz_session returned no/invalid session id')
   }
 
-  return { sessionId: sessionId as string, questionIds }
+  return { sessionId, questionIds }
 }
 
 /**
