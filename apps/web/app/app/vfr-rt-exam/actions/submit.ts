@@ -7,7 +7,12 @@ import { AnswerEntry, toRpcAnswer } from './_answer-mapping'
 
 const SubmitVfrRtExamInput = z.object({
   sessionId: z.uuid(),
-  answers: z.array(AnswerEntry).min(1),
+  // No `.min(1)`: a timer expiry with zero answers submits an empty array, and the
+  // RPC's timer-expiry branch (mig 100) grades+closes it gracefully BEFORE its own
+  // empty-payload guard. A client floor of 1 would turn that path into a misleading
+  // "Invalid input" and leave the session open until the overdue cron fires. The RPC
+  // still rejects an empty payload on the non-expired path (invalid_answers_payload).
+  answers: z.array(AnswerEntry),
 })
 
 // The RPC RETURNS a jsonb object. This action consumes only `expired` from it
