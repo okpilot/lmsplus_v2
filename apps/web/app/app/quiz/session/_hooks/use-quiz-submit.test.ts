@@ -428,6 +428,22 @@ describe('useQuizSubmit — navigation safety net', () => {
     }
   })
 
+  it('navigates to the quiz report when the soft navigation stalls in quiz mode', async () => {
+    vi.useFakeTimers()
+    try {
+      mockHandleSubmitSession.mockImplementation(async (opts: SubmitOpts) => opts.onSuccess())
+      const { result } = renderHook(() => useQuizSubmit(makeDefaultOpts({ examMode: undefined })))
+      await act(async () => result.current.handleSubmit())
+
+      act(() => {
+        vi.advanceTimersByTime(NAV_FALLBACK_MS + 1)
+      })
+      expect(window.location.assign).toHaveBeenCalledWith(`/app/quiz/report?session=${SESSION_ID}`)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('does not redirect again after the student leaves the session page', async () => {
     vi.useFakeTimers()
     try {
