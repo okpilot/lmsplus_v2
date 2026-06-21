@@ -62,7 +62,11 @@ BEGIN
   -- Active-user gate (security.md rule 12 / #883): a soft-deleted caller must
   -- not load questions. Mirrors the sibling get_vfr_rt_exam_questions (mig 105,
   -- lines 77-82) and check_quiz_answer (mig 117). Closes this RPC's #883 gap.
-  PERFORM 1 FROM users WHERE id = auth.uid() AND deleted_at IS NULL;
+  -- Alias `users u` + qualify columns: this function's RETURNS TABLE has an
+  -- OUT param named `id`, so an unqualified `id` here is ambiguous (42702 at
+  -- execution; passes CREATE/db-reset — deferred-validation, caught by the
+  -- Phase 2.4 integration test).
+  PERFORM 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'user_not_found_or_inactive';
   END IF;

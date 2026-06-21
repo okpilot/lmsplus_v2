@@ -118,7 +118,10 @@ BEGIN
     RAISE EXCEPTION 'question % has no canonical answer', p_question_id;
   END IF;
 
-  v_norm := normalize_answer(p_response_text);
+  -- coalesce to '' so a NULL/absent student answer grades as incorrect rather
+  -- than yielding NULL is_correct (NOT NULL column → 23502). Mirrors the grader
+  -- check_non_mc_answer (mig 119).
+  v_norm := coalesce(normalize_answer(p_response_text), '');
   v_is_correct := (v_norm <> '' AND (
     v_norm = COALESCE(normalize_answer(p_canonical), '')
     OR EXISTS (SELECT 1 FROM unnest(p_synonyms) AS s WHERE normalize_answer(s) = v_norm)
@@ -188,7 +191,10 @@ BEGIN
       p_blank_index, p_question_id;
   END IF;
 
-  v_norm := normalize_answer(p_response_text);
+  -- coalesce to '' so a NULL/absent student answer grades as incorrect rather
+  -- than yielding NULL is_correct (NOT NULL column → 23502). Mirrors the grader
+  -- check_non_mc_answer (mig 119).
+  v_norm := coalesce(normalize_answer(p_response_text), '');
   v_is_correct := (v_norm <> '' AND (
     v_norm = COALESCE(normalize_answer(v_blank_canonical), '')
     OR EXISTS (SELECT 1 FROM unnest(v_blank_synonyms) AS s WHERE normalize_answer(s) = v_norm)
