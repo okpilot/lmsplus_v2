@@ -11,6 +11,9 @@ type QuizQuestionRow = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: unknown
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill'
+  dialog_template: string | null
+  blanks_safe: unknown
 }
 
 type Question = {
@@ -21,6 +24,9 @@ type Question = {
   explanation_text: string | null
   explanation_image_url: string | null
   options: { id: string; text: string }[]
+  question_type: 'multiple_choice' | 'short_answer' | 'dialog_fill'
+  dialog_template: string | null
+  blanks_safe: { index: number }[] | null
 }
 
 type LoadResult = { success: true; questions: Question[] } | { success: false; error: string }
@@ -59,6 +65,9 @@ export async function loadSessionQuestions(questionIds: string[]): Promise<LoadR
     explanation_text: q.explanation_text,
     explanation_image_url: q.explanation_image_url,
     options: (q.options as { id: string; text: string }[]) ?? [],
+    question_type: q.question_type,
+    dialog_template: q.dialog_template,
+    blanks_safe: Array.isArray(q.blanks_safe) ? (q.blanks_safe as { index: number }[]) : null,
   }))
 
   // Preserve the order from questionIds
