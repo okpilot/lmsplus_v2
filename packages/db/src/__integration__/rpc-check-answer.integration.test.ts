@@ -131,6 +131,28 @@ describe('RPC: check_quiz_answer', () => {
     expect(result.correct_option_id).toBe('b')
   })
 
+  it('returns the correct option id for a quick_quiz session (the other whitelisted mode)', async () => {
+    // smart_review is covered above; quick_quiz is the second mode the whitelist
+    // (mig 117) allows, so the answer-key reveal must hold for it too.
+    const { data: sessionId, error: startErr } = await studentClient.rpc('start_quiz_session', {
+      p_mode: 'quick_quiz',
+      p_subject_id: null,
+      p_topic_id: null,
+      p_question_ids: questionIds.slice(0, 3),
+    })
+    if (startErr) throw new Error(`startSession (quick_quiz): ${startErr.message}`)
+
+    const { data, error } = await studentClient.rpc('check_quiz_answer', {
+      p_question_id: questionIds[0],
+      p_selected_option_id: 'b',
+      p_session_id: sessionId as string,
+    })
+    expect(error).toBeNull()
+    const result = data as CheckAnswerResult
+    expect(result.is_correct).toBe(true)
+    expect(result.correct_option_id).toBe('b')
+  })
+
   it('returns the question explanation fields', async () => {
     const sessionId = await startSession()
     const { data, error } = await studentClient.rpc('check_quiz_answer', {
@@ -182,47 +204,51 @@ describe('RPC: check_quiz_answer', () => {
     expect(error?.message).toContain('session not found or not owned')
   })
 
-  it('rejects answer checks for exam sessions', async () => {
-    // check_quiz_answer returns is_correct/explanation/correct_option_id
-    // immediately — accepting an exam-mode session would be a mid-exam answer
-    // oracle (#823 / mig 117 hardening, PR #856). Exam-mode sessions start via
-    // dedicated RPCs, so admin-insert the row directly here.
-    const { data: sessRow, error: sessErr } = await admin
-      .from('quiz_sessions')
-      .insert({
-        organization_id: orgId,
-        student_id: studentId,
-        mode: 'mock_exam',
-        subject_id: refs.subjectId,
-        config: { question_ids: [questionIds[0]] },
-        total_questions: 1,
-        started_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single<{ id: string }>()
-    if (sessErr) throw new Error(`exam session insert: ${sessErr.message}`)
-    const examSessionId = sessRow.id
-
-    try {
-      const { error } = await studentClient.rpc('check_quiz_answer', {
-        p_question_id: questionIds[0],
-        p_selected_option_id: 'b',
-        p_session_id: examSessionId,
-      })
-      expect(error).not.toBeNull()
-      expect(error?.message).toContain('unsupported_session_mode')
-    } finally {
-      // Force-end + soft-delete the admin-inserted session so it cannot leak
-      // into other tests' active-session views. Never throw in finally.
-      const { error: endErr } = await admin
+  it('withholds the answer key on every exam-mode session (whitelist gates the reveal)', async () => {
+    // check_quiz_answer returns is_correct/explanation/correct_option_id immediately,
+    // so accepting ANY exam-mode session would be a mid-exam answer oracle (#823 /
+    // mig 117). The guard is a whitelist of practice modes — verify every non-practice
+    // mode in the quiz_sessions CHECK is rejected with no payload, not just mock_exam.
+    // Exam-mode sessions start via dedicated RPCs, so admin-insert the row directly.
+    const examModes = ['mock_exam', 'internal_exam', 'vfr_rt_exam'] as const
+    for (const mode of examModes) {
+      const { data: sessRow, error: sessErr } = await admin
         .from('quiz_sessions')
-        .update({
-          ended_at: new Date().toISOString(),
-          deleted_at: new Date().toISOString(),
+        .insert({
+          organization_id: orgId,
+          student_id: studentId,
+          mode,
+          subject_id: refs.subjectId,
+          config: { question_ids: [questionIds[0]] },
+          total_questions: 1,
+          started_at: new Date().toISOString(),
         })
-        .eq('id', examSessionId)
-      if (endErr) {
-        console.error('[exam-session cleanup] session left active:', endErr.message)
+        .select('id')
+        .single<{ id: string }>()
+      if (sessErr) throw new Error(`exam session insert (${mode}): ${sessErr.message}`)
+      const examSessionId = sessRow.id
+
+      try {
+        const { data, error } = await studentClient.rpc('check_quiz_answer', {
+          p_question_id: questionIds[0],
+          p_selected_option_id: 'b',
+          p_session_id: examSessionId,
+        })
+        // Rejected with no payload => the correct_option_id key is never revealed.
+        expect(error, `mode ${mode} should be rejected`).not.toBeNull()
+        expect(error?.message).toContain('unsupported_session_mode')
+        expect(data, `mode ${mode} must return no payload`).toBeNull()
+      } finally {
+        // Force-end + soft-delete the admin-inserted session before the next mode so
+        // it cannot leak into other tests' active-session views (each mode has its own
+        // partial unique active-session index). Never throw in finally.
+        const { error: endErr } = await admin
+          .from('quiz_sessions')
+          .update({ ended_at: new Date().toISOString(), deleted_at: new Date().toISOString() })
+          .eq('id', examSessionId)
+        if (endErr) {
+          console.error(`[exam-session cleanup ${mode}] session left active:`, endErr.message)
+        }
       }
     }
   })
