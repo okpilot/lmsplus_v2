@@ -29,8 +29,10 @@ const suffix = Date.now()
 let orgId: string
 let studentAId: string
 let studentBId: string
+let studentCId: string
 const emailA = `int-exam-lifecycle-a-${suffix}@test.local`
 const emailB = `int-exam-lifecycle-b-${suffix}@test.local`
+const emailC = `int-exam-lifecycle-c-${suffix}@test.local`
 const password = 'test-pass-123'
 
 let refs: ReferenceIds
@@ -56,6 +58,14 @@ describe('mock_exam lifecycle (app-layer integration)', () => {
       admin,
       orgId,
       email: emailB,
+      password,
+      role: 'student',
+    })
+
+    studentCId = await createTestUser({
+      admin,
+      orgId,
+      email: emailC,
       password,
       role: 'student',
     })
@@ -105,7 +115,7 @@ describe('mock_exam lifecycle (app-layer integration)', () => {
     const errors: string[] = []
 
     try {
-      await cleanupTestData({ admin, orgId, userIds: [studentAId, studentBId] })
+      await cleanupTestData({ admin, orgId, userIds: [studentAId, studentBId, studentCId] })
     } catch (e) {
       errors.push(`cleanupTestData: ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -190,5 +200,41 @@ describe('mock_exam lifecycle (app-layer integration)', () => {
     expect(result.scorePercentage).toBeCloseTo(33.33, 1)
     expect(result.passed).toBe(false)
     expect(result.expired).toBe(false)
+    expect(result.results).toHaveLength(3)
+  })
+
+  it('fails a partial mock_exam even when answered questions are all correct', async () => {
+    // Anti-cheat invariant unique to mock_exam (mig 112b): answering only a subset
+    // forces passed=false regardless of accuracy, and the score uses the /total
+    // denominator — so 2-of-3 answered-and-correct is 66.67% (not 100%) and NOT a
+    // pass, even though 66.67% ≥ pass_mark 50. This is the one branch the all-answered
+    // pass/fail tests above can't reach.
+    await signInAs(emailC, password)
+
+    const started = await startExamSession({ subjectId: refs.subjectId })
+    expect(started.success).toBe(true)
+    if (!started.success) throw new Error(started.error)
+    expect(started.questionIds).toHaveLength(3)
+
+    // Submit only 2 of the 3 questions, both correct ('b').
+    const result = await batchSubmitQuiz({
+      sessionId: started.sessionId,
+      answers: [
+        { questionId: started.questionIds[0], selectedOptionId: 'b', responseTimeMs: 1500 },
+        { questionId: started.questionIds[1], selectedOptionId: 'b', responseTimeMs: 1500 },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error(result.error)
+    expect(result.totalQuestions).toBe(3)
+    expect(result.answeredCount).toBe(2)
+    expect(result.correctCount).toBe(2)
+    // Score is correct/TOTAL (2/3 = 66.67%), not correct/answered (2/2 = 100%).
+    expect(result.scorePercentage).toBeCloseTo(66.67, 1)
+    // 66.67% ≥ pass_mark 50, but the mock_exam all-answered requirement forces a fail.
+    expect(result.passed).toBe(false)
+    expect(result.expired).toBe(false)
+    expect(result.results).toHaveLength(2)
   })
 })
