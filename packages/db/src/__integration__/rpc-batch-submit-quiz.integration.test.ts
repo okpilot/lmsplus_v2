@@ -271,12 +271,12 @@ describe('RPC: batch_submit_quiz — soft-delete mid-session scoring', () => {
 })
 
 // VFR RT Phase 2 (#697, migs 120/121) — type-aware dispatch + partial-credit
-// scoring + REVOKE-from-PUBLIC helpers. These behaviors only run when the
-// function EXECUTES against real rows (a `db reset` only proves the body parses):
+// scoring + REVOKE-from-anon/authenticated helpers. These behaviors only run when
+// the function EXECUTES against real rows (a `db reset` only proves the body parses):
 //   * per-type row persistence (short_answer one row; dialog_fill N rows),
 //   * the DISTINCT-question partial-credit roll-up (dialog_fill folds per-blank
 //     rows into a fractional numerator — distinguishable from all-or-nothing),
-//   * REVOKE EXECUTE ... FROM PUBLIC on the three _grade_record_* helpers.
+//   * REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated on the _grade_record_* helpers.
 describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper REVOKE', () => {
   const admin = getAdminClient()
   let orgId: string
@@ -554,9 +554,11 @@ describe('RPC: batch_submit_quiz — non-MC dispatch + partial credit + helper R
   })
 
   it('forbids a direct authenticated call to the internal _grade_record_* helpers (42501)', async () => {
-    // REVOKE EXECUTE ... FROM PUBLIC (mig 120): the helpers must not be callable
-    // via PostgREST by an authenticated user — a direct call would bypass the
-    // dispatcher's auth/owner/mode guards and forge graded rows.
+    // REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated (mig 120, fixed #952):
+    // the helpers must not be callable via PostgREST by an authenticated user —
+    // a direct call would bypass the dispatcher's auth/owner/mode guards and forge
+    // graded rows. REVOKE FROM PUBLIC alone is insufficient (Supabase also grants
+    // anon/authenticated via ALTER DEFAULT PRIVILEGES; CI caught this gap).
     // Signature-valid payloads (not `{}`): with the wrong argument shape
     // PostgREST returns PGRST202 from overload resolution *before* the EXECUTE
     // permission check, so the test would pass even if the REVOKE regressed
