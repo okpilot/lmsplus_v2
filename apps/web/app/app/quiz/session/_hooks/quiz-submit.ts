@@ -15,38 +15,39 @@ type AppRouterInstance = ReturnType<typeof useRouter>
 type SetError = (e: string | null) => void
 type SetSubmitting = (v: boolean) => void
 
+type AnswerEntry = {
+  questionId: string
+  selectedOptionId?: string
+  responseText?: string
+  blankIndex?: number
+  responseTimeMs: number
+}
+
+function fanOutAnswer(questionId: string, a: DraftAnswer): AnswerEntry[] {
+  if (a.blankAnswers && a.blankAnswers.length > 0) {
+    // dialog_fill: fan out one entry per blank
+    return a.blankAnswers.map((b) => ({
+      questionId,
+      blankIndex: b.index,
+      responseText: b.text,
+      responseTimeMs: a.responseTimeMs,
+    }))
+  }
+  if (a.responseText !== undefined) {
+    // short_answer: single entry with responseText
+    return [{ questionId, responseText: a.responseText, responseTimeMs: a.responseTimeMs }]
+  }
+  // MC (default): single entry with selectedOptionId
+  return [{ questionId, selectedOptionId: a.selectedOptionId, responseTimeMs: a.responseTimeMs }]
+}
+
 export async function submitQuizSession(
   sessionId: string,
   answers: Map<string, DraftAnswer>,
   userId: string,
   draftId?: string,
 ) {
-  type AnswerEntry = {
-    questionId: string
-    selectedOptionId?: string
-    responseText?: string
-    blankIndex?: number
-    responseTimeMs: number
-  }
-  const answerArray = Array.from(answers.entries()).flatMap<AnswerEntry>(([qId, a]) => {
-    if (a.blankAnswers && a.blankAnswers.length > 0) {
-      // dialog_fill: fan out one entry per blank
-      return a.blankAnswers.map((b) => ({
-        questionId: qId,
-        blankIndex: b.index,
-        responseText: b.text,
-        responseTimeMs: a.responseTimeMs,
-      }))
-    }
-    if (a.responseText !== undefined) {
-      // short_answer: single entry with responseText
-      return [{ questionId: qId, responseText: a.responseText, responseTimeMs: a.responseTimeMs }]
-    }
-    // MC (default): single entry with selectedOptionId
-    return [
-      { questionId: qId, selectedOptionId: a.selectedOptionId, responseTimeMs: a.responseTimeMs },
-    ]
-  })
+  const answerArray = Array.from(answers.entries()).flatMap(([qId, a]) => fanOutAnswer(qId, a))
   try {
     const result = await batchSubmitQuiz({ sessionId, answers: answerArray })
     if (!result.success) return { success: false as const, error: result.error }
