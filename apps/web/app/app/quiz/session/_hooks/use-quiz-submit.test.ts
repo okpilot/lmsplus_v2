@@ -30,9 +30,12 @@ vi.mock('next/navigation', () => ({
 }))
 
 // jsdom's window.location is not fully writable, so replace it with a mockable stub.
+// Held in a named ref because a vi.fn() reached only via Object.defineProperty is not in
+// Vitest's mock registry, so vi.resetAllMocks() does not clear it — reset it explicitly.
+const mockLocationAssign = vi.fn()
 Object.defineProperty(window, 'location', {
   configurable: true,
-  value: { assign: vi.fn() },
+  value: { assign: mockLocationAssign },
 })
 
 // Mirrors NAV_FALLBACK_MS in use-quiz-submit.ts (not exported).
@@ -82,6 +85,7 @@ function makeDefaultOpts(overrides?: Partial<Parameters<typeof useQuizSubmit>[0]
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mockLocationAssign.mockReset()
   mockHandleSubmitSession.mockResolvedValue(undefined)
   mockHandleSaveSession.mockResolvedValue(undefined)
   mockHandleDiscardSession.mockResolvedValue(undefined)

@@ -304,6 +304,24 @@ describe('submitQuizSession', () => {
       consoleSpy.mockRestore()
     }
   })
+
+  it('still returns success when draft cleanup stalls beyond the 2500 ms timeout', async () => {
+    mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
+    // deleteDraft never resolves — simulates an auth/DB stall.
+    mockDeleteDraft.mockReturnValue(new Promise(() => {}))
+
+    vi.useFakeTimers()
+    try {
+      const pending = submitQuizSession(SESSION_ID, TWO_ANSWERS, USER_ID, DRAFT_ID)
+      // Advance past DRAFT_CLEANUP_TIMEOUT_MS (2500 ms) so the timeout leg of
+      // Promise.race wins, unblocking submitQuizSession to return the result.
+      await vi.runAllTimersAsync()
+      const result = await pending
+      expect(result.success).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 // ---- saveQuizDraft -------------------------------------------------------

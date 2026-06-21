@@ -68,12 +68,15 @@ export async function submitQuizSession(
     // submit — the hard-nav fallback (use-quiz-submit) covers a timeout.
     await clearDeploymentPin().catch(() => {})
     if (draftId) {
+      let cleanupTimer: ReturnType<typeof setTimeout> | undefined
       await Promise.race([
         deleteDraft({ draftId }).catch((e) =>
           console.error('[submitQuizSession] Draft cleanup failed:', e),
         ),
-        new Promise<void>((resolve) => setTimeout(resolve, DRAFT_CLEANUP_TIMEOUT_MS)),
-      ])
+        new Promise<void>((resolve) => {
+          cleanupTimer = setTimeout(resolve, DRAFT_CLEANUP_TIMEOUT_MS)
+        }),
+      ]).finally(() => clearTimeout(cleanupTimer))
     }
     return result
   } catch {
@@ -88,7 +91,9 @@ export async function discardQuizSession(
   draftId?: string,
 ): Promise<ActionResult> {
   clearActiveSession(userId) // Always clear — respect discard intent even if Server Action fails
-  clearDeploymentPin().catch(() => {})
+  // Await before the later router.push so the Server Action revalidation can't cancel the
+  // soft navigation (#909 — same race the submit paths fix).
+  await clearDeploymentPin().catch(() => {})
   try {
     const result = await discardQuiz({ sessionId, draftId })
     if (!result.success) return result
@@ -126,7 +131,8 @@ export async function saveQuizDraft(opts: {
     })
     if (result.success) {
       clearActiveSession(opts.userId)
-      clearDeploymentPin().catch(() => {})
+      // Await so the Server Action revalidation can't cancel the soft navigation (#909).
+      await clearDeploymentPin().catch(() => {})
       opts.router.push('/app/quiz')
       return { success: true as const }
     }
@@ -183,7 +189,7 @@ export async function handleSubmitSession(opts: {
     } else {
       console.error('[handleSubmitSession] submitEmptyExamSession failed:', result.error)
       clearActiveSession(opts.userId)
-      clearDeploymentPin().catch(() => {})
+      await clearDeploymentPin().catch(() => {})
       await discardQuiz({ sessionId: opts.sessionId, draftId: opts.draftId }).catch((err) =>
         console.error('[handleSubmitSession] discardQuiz fallback failed:', err),
       )
