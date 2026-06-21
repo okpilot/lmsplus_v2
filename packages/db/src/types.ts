@@ -1436,7 +1436,7 @@ export type Database = {
           explanation_text: string
           id: string
           lo_reference: string
-          options: Json
+          options: Json | null
           question_image_url: string
           question_number: string
           question_text: string

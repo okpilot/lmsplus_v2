@@ -4,6 +4,228 @@ import { cleanupReferenceData, cleanupTestData } from './cleanup'
 import { seedReferenceData } from './seed'
 import { createTestOrg, createTestUser, getAdminClient, getAuthenticatedClient } from './setup'
 
+// ---------------------------------------------------------------------------
+// Cross-org isolation — Vector EK tenant-scope (mig 118, #697 Phase 2)
+// ---------------------------------------------------------------------------
+// get_quiz_questions resolves the caller's org via users.organization_id and
+// filters q.organization_id = v_org_id (line 119 of mig 118). A caller
+// supplying a question UUID that belongs to a different org must get ZERO rows.
+// This describe block proves it non-vacuously:
+//   1. Victim question confirmed to exist via service-role client.
+//   2. Caller's own-org question confirmed to be readable (so an empty result
+//      cannot be explained by a broken function or empty DB).
+//   3. Caller's call with victim UUID returns empty array.
+describe('RPC: get_quiz_questions — cross-org isolation (Vector EK)', () => {
+  const admin = getAdminClient()
+  const suffix = `xorg-${Date.now()}`
+
+  // Caller org — the student who makes the RPC call
+  let callerOrgId: string
+  let callerAdminId: string
+  let callerBankId: string
+  let callerOwnQuestionId: string
+  let callerStudentClient: SupabaseClient
+  const callerUserIds: string[] = []
+  let callerRefs: Awaited<ReturnType<typeof seedReferenceData>>
+
+  // Victim org — owns a question the caller must NOT be able to read
+  let victimOrgId: string
+  let victimAdminId: string
+  let victimBankId: string
+  let victimQuestionId: string
+  const victimUserIds: string[] = []
+  let victimRefs: Awaited<ReturnType<typeof seedReferenceData>>
+
+  beforeAll(async () => {
+    // ── Caller org ──────────────────────────────────────────────────────────
+    callerOrgId = await createTestOrg({
+      admin,
+      name: `Caller Org ${suffix}`,
+      slug: `caller-${suffix}`,
+    })
+
+    callerAdminId = await createTestUser({
+      admin,
+      orgId: callerOrgId,
+      email: `caller-admin-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'admin',
+    })
+    callerUserIds.push(callerAdminId)
+
+    const callerStudentId = await createTestUser({
+      admin,
+      orgId: callerOrgId,
+      email: `caller-student-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'student',
+    })
+    callerUserIds.push(callerStudentId)
+
+    callerStudentClient = await getAuthenticatedClient({
+      email: `caller-student-${suffix}@test.local`,
+      password: 'test-pass-123',
+    })
+
+    callerRefs = await seedReferenceData({
+      admin,
+      subjectCode: `CL${suffix}`,
+      subjectName: `Caller Subject ${suffix}`,
+      topicCode: `CL${suffix}-01`,
+      topicName: `Caller Topic ${suffix}`,
+    })
+
+    const { data: callerBank, error: callerBankErr } = await admin
+      .from('question_banks')
+      .insert({
+        organization_id: callerOrgId,
+        name: `Caller Bank ${suffix}`,
+        created_by: callerAdminId,
+      })
+      .select('id')
+      .single()
+    if (callerBankErr) throw new Error(`seed caller bank: ${callerBankErr.message}`)
+    callerBankId = (callerBank as unknown as { id: string }).id
+    if (typeof callerBankId !== 'string' || callerBankId.length === 0)
+      throw new Error('seed caller bank: no id returned')
+
+    // One active MC question in the caller's own org — used for non-vacuity proof.
+    const { data: ownQ, error: ownQErr } = await admin
+      .from('questions')
+      .insert({
+        organization_id: callerOrgId,
+        bank_id: callerBankId,
+        subject_id: callerRefs.subjectId,
+        topic_id: callerRefs.topicId,
+        subtopic_id: null,
+        question_type: 'multiple_choice',
+        question_text: 'Caller own-org question?',
+        options: [
+          { id: 'a', text: 'Option A' },
+          { id: 'b', text: 'Option B' },
+        ],
+        correct_option_id: 'a',
+        difficulty: 'easy',
+        status: 'active',
+        created_by: callerAdminId,
+        explanation_text: 'Caller question explanation',
+      })
+      .select('id')
+      .single()
+    if (ownQErr) throw new Error(`seed caller question: ${ownQErr.message}`)
+    callerOwnQuestionId = (ownQ as unknown as { id: string }).id
+    if (typeof callerOwnQuestionId !== 'string' || callerOwnQuestionId.length === 0)
+      throw new Error('seed caller question: no id returned')
+
+    // ── Victim org ──────────────────────────────────────────────────────────
+    victimOrgId = await createTestOrg({
+      admin,
+      name: `Victim Org ${suffix}`,
+      slug: `victim-${suffix}`,
+    })
+
+    victimAdminId = await createTestUser({
+      admin,
+      orgId: victimOrgId,
+      email: `victim-admin-${suffix}@test.local`,
+      password: 'test-pass-123',
+      role: 'admin',
+    })
+    victimUserIds.push(victimAdminId)
+
+    victimRefs = await seedReferenceData({
+      admin,
+      subjectCode: `VT${suffix}`,
+      subjectName: `Victim Subject ${suffix}`,
+      topicCode: `VT${suffix}-01`,
+      topicName: `Victim Topic ${suffix}`,
+    })
+
+    const { data: victimBank, error: victimBankErr } = await admin
+      .from('question_banks')
+      .insert({
+        organization_id: victimOrgId,
+        name: `Victim Bank ${suffix}`,
+        created_by: victimAdminId,
+      })
+      .select('id')
+      .single()
+    if (victimBankErr) throw new Error(`seed victim bank: ${victimBankErr.message}`)
+    victimBankId = (victimBank as unknown as { id: string }).id
+    if (typeof victimBankId !== 'string' || victimBankId.length === 0)
+      throw new Error('seed victim bank: no id returned')
+
+    const { data: victimQ, error: victimQErr } = await admin
+      .from('questions')
+      .insert({
+        organization_id: victimOrgId,
+        bank_id: victimBankId,
+        subject_id: victimRefs.subjectId,
+        topic_id: victimRefs.topicId,
+        subtopic_id: null,
+        question_type: 'multiple_choice',
+        question_text: 'Victim org secret question?',
+        options: [
+          { id: 'a', text: 'Secret A' },
+          { id: 'b', text: 'Secret B' },
+        ],
+        correct_option_id: 'a',
+        difficulty: 'hard',
+        status: 'active',
+        created_by: victimAdminId,
+        explanation_text: 'Victim question explanation',
+      })
+      .select('id')
+      .single()
+    if (victimQErr) throw new Error(`seed victim question: ${victimQErr.message}`)
+    victimQuestionId = (victimQ as unknown as { id: string }).id
+    if (typeof victimQuestionId !== 'string' || victimQuestionId.length === 0)
+      throw new Error('seed victim question: no id returned')
+  })
+
+  afterAll(async () => {
+    // Guard against partial beforeAll: only call cleanup if the org was actually created.
+    if (callerOrgId) await cleanupTestData({ admin, orgId: callerOrgId, userIds: callerUserIds })
+    if (victimOrgId) await cleanupTestData({ admin, orgId: victimOrgId, userIds: victimUserIds })
+    await cleanupReferenceData({ admin, refs: [callerRefs, victimRefs] })
+  })
+
+  it('returns zero rows when the caller passes a question UUID belonging to another org', async () => {
+    // Non-vacuity step 1: victim question exists in the DB (service-role confirms).
+    const { data: victimExists, error: victimExistsErr } = await admin
+      .from('questions')
+      .select('id, organization_id')
+      .eq('id', victimQuestionId)
+      .single<{ id: string; organization_id: string }>()
+    expect(victimExistsErr).toBeNull()
+    expect(victimExists?.id).toBe(victimQuestionId)
+    expect(victimExists?.organization_id).toBe(victimOrgId)
+
+    // Non-vacuity step 2: caller CAN read their own org's question — proves the
+    // function is operational and an empty cross-org result means org-scoping, not breakage.
+    const { data: ownData, error: ownErr } = await callerStudentClient.rpc('get_quiz_questions', {
+      p_question_ids: [callerOwnQuestionId],
+    })
+    expect(ownErr).toBeNull()
+    if (!Array.isArray(ownData))
+      throw new Error('get_quiz_questions: own-org call did not return an array')
+    const ownRows = ownData as Array<{ id: string }>
+    expect(ownRows.length).toBeGreaterThan(0)
+    expect(ownRows.map((r) => r.id)).toContain(callerOwnQuestionId)
+
+    // Isolation assertion: caller passes victim question UUID → zero rows returned.
+    const { data: crossData, error: crossErr } = await callerStudentClient.rpc(
+      'get_quiz_questions',
+      { p_question_ids: [victimQuestionId] },
+    )
+    expect(crossErr).toBeNull()
+    if (!Array.isArray(crossData))
+      throw new Error('get_quiz_questions: cross-org call did not return an array')
+    const crossRows = crossData as Array<{ id: string }>
+    expect(crossRows).toHaveLength(0)
+  })
+})
+
 // Red-team Vector EK — get_quiz_questions non-MC delivery contract (mig 118, #697 Phase 2).
 //
 // mig 118 widened get_quiz_questions to deliver short_answer + dialog_fill rows

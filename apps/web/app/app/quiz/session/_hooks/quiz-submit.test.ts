@@ -218,7 +218,7 @@ describe('submitQuizSession', () => {
     expect(mockClearActiveSession).not.toHaveBeenCalled()
   })
 
-  it('fans out a short_answer DraftAnswer to a single entry with responseText', async () => {
+  it('submits a short_answer as a single entry with responseText', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const shortAnswerMap = makeAnswers([[Q1_ID, { responseText: 'Paris', responseTimeMs: 1200 }]])
 
@@ -230,7 +230,7 @@ describe('submitQuizSession', () => {
     })
   })
 
-  it('fans out a dialog_fill DraftAnswer with 2 blanks to 2 entries each with blankIndex', async () => {
+  it('submits a dialog_fill as one entry per blank with blankIndex', async () => {
     mockBatchSubmitQuiz.mockResolvedValue(BATCH_SUCCESS)
     const dialogFillMap = makeAnswers([
       [

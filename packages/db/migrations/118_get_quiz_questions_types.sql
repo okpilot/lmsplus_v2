@@ -54,20 +54,24 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_org_id uuid;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- Active-user gate (security.md rule 12 / #883): a soft-deleted caller must
-  -- not load questions. Mirrors the sibling get_vfr_rt_exam_questions (mig 105,
-  -- lines 77-82) and check_quiz_answer (mig 117). Closes this RPC's #883 gap.
-  -- Alias `users u` + qualify columns: this function's RETURNS TABLE has an
-  -- OUT param named `id`, so an unqualified `id` here is ambiguous (42702 at
-  -- execution; passes CREATE/db-reset — deferred-validation, caught by the
-  -- Phase 2.4 integration test).
-  PERFORM 1 FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL;
-  IF NOT FOUND THEN
+  -- Active-user + tenant-scope gate (security.md rules 11/12 / #883, #831):
+  -- resolve the caller's org in one deleted_at-filtered read — this both
+  -- rejects a soft-deleted caller AND scopes the questions read below. This
+  -- function is SECURITY DEFINER (bypasses RLS), so without the org filter a
+  -- caller passing foreign p_question_ids could read another org's questions.
+  -- Mirrors the sibling get_vfr_rt_exam_questions (mig 105). Alias `users u` +
+  -- qualify columns: the RETURNS TABLE has an `id` OUT param, so an unqualified
+  -- `id` is ambiguous (42702 at execution; caught by the Phase 2.4 test).
+  SELECT u.organization_id INTO v_org_id
+  FROM users u WHERE u.id = auth.uid() AND u.deleted_at IS NULL;
+  IF v_org_id IS NULL THEN
     RAISE EXCEPTION 'user_not_found_or_inactive';
   END IF;
 
@@ -112,6 +116,7 @@ BEGIN
   JOIN easa_topics    t  ON t.id = q.topic_id
   LEFT JOIN easa_subtopics st ON st.id = q.subtopic_id
   WHERE q.id = ANY(p_question_ids)
+    AND q.organization_id = v_org_id
     AND q.deleted_at IS NULL
     AND q.status = 'active';
 END;
