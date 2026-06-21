@@ -72,6 +72,21 @@ reviews:
         - For ANY DELETE or UPDATE expected to mutate rows (RLS-scoped, admin-context, or test-cleanup),
           chain .select('id') and verify data?.length. Supabase returns 200 OK with zero rows when the
           filter matches nothing or RLS blocks — no error is thrown.
+        - New query-site integration test (code-style.md §7 HARD): a NEW .from('<table>') or
+          .rpc('<fn>') call site added in this file should ship a co-located *.integration.test.ts
+          exercising it against the real local Postgres (the integration tier), not only a mocked-client
+          unit test — mocked clients can't see the real schema. New app-layer code only; not for
+          packages/db migration PRs (they have their own integration suite).
+
+    # App-layer query helpers — same new-query-site integration-test policy (code-style.md §7 HARD)
+    - path: "apps/web/lib/queries/**/*.ts"
+      instructions: |
+        App-layer query helper. Enforce the new-query-site integration-test policy:
+        - Any NEW .from('<table>') or .rpc('<fn>') call site must ship a co-located
+          *.integration.test.ts exercising it against the real local Postgres (the integration
+          tier), not only mocked-client unit coverage — mocked clients can't see the real schema
+          (code-style.md §7 HARD). New app-layer code only; pre-existing uncovered sites are
+          tracked in the #926 backlog.
 
     # Hooks — small and focused
     - path: "apps/web/app/**/_hooks/use-*.ts"
@@ -245,6 +260,11 @@ reviews:
           mocked as a dependency returning { data: [], error }. Assert the caller surfaces the
           error (returns { data: [], error }, throws, or logs + degrades). Guards against a
           silently-truncated result that looks complete (e.g. an incomplete GDPR export).
+        - Cast-guard applies in tests too: when casting an RPC or .select() result via
+          `as unknown as T` in a test helper or integration test, pair the cast with a runtime
+          guard (expect(data).not.toBeNull() then cast, or Array.isArray(...) / typeof) before
+          consuming the value. An unguarded cast throws an opaque TypeError on a null/shape
+          regression instead of failing cleanly (code-style.md §5).
 
     # E2E Playwright specs — hermiticity (cross-spec state pollution)
     - path: "apps/web/e2e/**/*.spec.ts"

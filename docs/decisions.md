@@ -804,4 +804,21 @@ Postgres 17 (supabase/config.toml specifies PG17) introduced `UNIQUE NULLS NOT D
 
 ---
 
-*Last updated: 2026-06-20 — Decision 45: VFR RT training reuses the quiz Study UI on a dedicated `/app/vfr-rt` route (training before exam; bespoke exam UI parked) | Earlier 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*
+### Decision 46: App-layer DB integration test tier + mechanical schema-contract guards (2026-06-21)
+
+**Date**: 2026-06-21
+
+**Context**: App-layer query code (`apps/web/lib/queries/**` + `apps/web/app/**` Server Actions — over 100 `.from()`/`.rpc()` sites across ~30 RPCs) was tested only with a mocked Supabase client that cannot see the real schema. `packages/db/__integration__` tests the DB layer in isolation but never the app's own queries. The gap let a schema-contract bug ship: `.is('deleted_at', null)` on `easa_subjects` (a table with no `deleted_at` column) reached production code and passed mocked unit tests, `tsc`, Biome, three plan-critic approval rounds, and both Sonnet and Opus impl-critics — caught only by semantic-reviewer reasoning (#925).
+
+**Decision**: Add a dedicated **app-layer DB integration tier** and back it with **mechanical guards**.
+- **The tier** (`apps/web/vitest.integration.config.ts`, `*.integration.test.ts`): runs the REAL `apps/web` query code against a REAL local Postgres. Only `next/headers` `cookies()` is mocked; `harness.signInAs()` seats a real session via the real `@supabase/ssr` client so every query runs authenticated under real RLS. No Supabase client / query helper / RPC wrapper is mocked. Phases 0–2 delivered read-path + full mutation-lifecycle coverage; the original RT bug now fails the tier with `column easa_subjects.deleted_at does not exist`.
+- **Mechanical guard** (Phase 3, `.claude/hooks/check-soft-delete-guard.mjs`): a chain-aware pre-commit + CI guard blocks `.is('deleted_at')` on the seven no-soft-delete tables that lack the `deleted_at` column (`easa_subjects, easa_topics, easa_subtopics, quiz_session_answers, student_responses, audit_events, quiz_drafts`) — the guard's enforced set; `docs/database.md` §3 documents the fuller no-soft-delete matrix (which also includes hard-delete-exception tables that retain a `deleted_at` column). A biome `noRestrictedImports` rule blocks production code from importing `@repo/db/test-helpers` (it wraps the service-role key).
+- **HARD policy** (Phase 4): every NEW `.from()`/`.rpc()` site in app-layer code ships a co-located `*.integration.test.ts`. Applies to new code; the ~40 pre-existing uncovered sites are tracked as backlog (#926).
+
+**Rationale**: Mocked clients structurally cannot surface schema-contract, RLS-scope, or BIGINT-as-string bugs. A real-DB tier plus a mechanical guard makes the worst class (filtering a non-existent column) impossible to reintroduce, and the HARD policy stops the gap from re-opening. The schema-aware successor (#933) generalizes the column guard beyond the hardcoded seven-table list.
+
+**Scope**: App-layer query/Server-Action testing + the mechanical guards + the new-query-site policy. Does not change runtime behavior, schema, or RPCs.
+
+---
+
+*Last updated: 2026-06-21 — Decision 46: app-layer DB integration test tier (`apps/web/vitest.integration.config.ts`, real-DB under RLS) + mechanical schema-contract guards (soft-delete column guard, test-helpers import ban) + HARD new-query-site integration-test policy (#925) | Earlier 2026-06-20 — Decision 45: VFR RT training reuses the quiz Study UI on a dedicated `/app/vfr-rt` route (training before exam; bespoke exam UI parked) | Earlier 2026-06-19 — Internal Exam code email feature (mig 110): Decision 44 on Resend transactional email provider + `record_internal_exam_code_emailed()` RPC | Earlier 2026-06-10 — Phase A (migs 094–104): Decisions 41–43 on column REVOKE/GRANT privilege gate, UNIQUE NULLS NOT DISTINCT per-blank answers, and per-part VFR RT grading (≥75% per part, immutable config.question_ids); 6 new RPCs documented*

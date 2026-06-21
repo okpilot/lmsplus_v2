@@ -290,6 +290,12 @@ const config = (session as unknown as { ids: unknown }).ids
 if (!Array.isArray(config) || !config.includes(questionId)) { ... }
 ```
 
+**The cast-guard rule is not relaxed in test files.** An unguarded `data as unknown as T` on an RPC or `.select()` result in a `.test.ts` / `.integration.test.ts` throws an opaque `TypeError` ("Cannot read properties of null") on a null/shape regression instead of a clean assertion failure — masking the real cause. Guard the result before treating it as the typed shape: `expect(data).not.toBeNull()` then cast, or `Array.isArray(...)` / `typeof` before use. (Promoted count=4 — #818 red-team helper, #845, PR #927 [squash `fb2921c6`], PR #930 [squash `f4c76c83`]. The pre-existing offender sweep across the `packages/db` integration suite is tracked in #938.)
+
+### Soft-Delete Filter Requires the Column to Exist
+
+Only apply `.is('deleted_at', null)` (or `AND deleted_at IS NULL`) to a table that actually HAS a `deleted_at` column. Filtering a non-existent column is a schema-contract bug: PostgREST returns `42703 column ... does not exist` at runtime, but mocked Vitest chains ignore `.is()`, `tsc` accepts any string column name, and Biome can't see the schema — so it passes every pre-commit gate and breaks only in production. The seven no-soft-delete tables that lack the `deleted_at` column are `easa_subjects`, `easa_topics`, `easa_subtopics`, `quiz_session_answers`, `student_responses`, `audit_events`, `quiz_drafts` (hard-delete-by-design or immutable). This is the set the mechanical guard enforces; `docs/database.md` §3 documents the fuller no-soft-delete matrix (which also includes hard-delete-exception tables that retain a `deleted_at` column). A chain-aware mechanical guard enforces this at pre-commit + CI: `.claude/hooks/check-soft-delete-guard.mjs`. Origin: `.is('deleted_at', null)` on `easa_subjects` reached production and escaped every gate except semantic-reviewer (#925). The schema-aware successor (#933) generalizes this to any column on any table.
+
 ### Prefer `type` Over `interface`
 Use `interface` only for objects that will be extended/implemented. Use `type` for everything else.
 
@@ -759,6 +765,19 @@ A red-team spec exercising an RPC's **success or idempotent-replay** path must a
 3. **Numeric fields** — assert numeric fields are within expected bounds, and for zero-case scenarios (e.g. a session with no answers) assert exact equality to zero, since BIGINT/NUMERIC wire values can regress silently.
 
 Promoted at count=2 (PR #736 `complete_overdue_exam_session` + PR #737 `complete_empty_exam_session` AQ idempotency, both under-asserted then tightened in review).
+
+### New Supabase Query Sites Require an Integration Test (HARD — from #925)
+
+Every NEW `.from('<table>')` or `.rpc('<fn>')` site in **app-layer code** (`apps/web/lib/queries/**`, `apps/web/app/**` Server Actions) must ship with a co-located `*.integration.test.ts` exercising it against the real local Postgres (the integration tier — `apps/web/vitest.integration.config.ts`), not only a mocked-client unit test. Mocked clients can't see the real schema, so schema-contract bugs (wrong column, wrong RLS scope, BIGINT-as-string) pass mocked tests and `tsc`. **Scope:** this is about app-layer query code — NOT `packages/db` migration / RPC-definition PRs, which have their own `__integration__` suite and migration tests; do not cite this rule to block a migration PR. Applies to NEW code; the ~40 pre-existing uncovered app-layer sites are tracked as backlog (#926) so the rule doesn't block its own introduction.
+
+### Integration-Test Negative Assertions Must Be Reachable (from #925)
+
+In app-layer integration tests, verify every negative / isolation assertion is actually reachable given real DB semantics — three tier-specific failure modes make them silently vacuous:
+1. **RLS already enforces the exclusion the helper re-filters** → the helper's own filter is untestable via the restricted (student) client; the assertion passes regardless of the helper's logic. Use a service-role client to assert the helper's own filtering.
+2. **Shared `beforeAll` seeding makes count-isolation one-sided** → "org A sees 3 rows, not 6" adds no signal over the ordinary functional test when both orgs are seeded before any test runs. Assert from BOTH the actor and the victim perspective.
+3. **A DISTINCT-aggregate caps the observed value below a bound** → a secondary bound-check (e.g. `.not.toBe(5)`) may be unreachable; verify the leaked value is distinguishable from the expected before asserting.
+
+(Promoted count=2, cross-commit within #925 Phase 1 — PR #927 [squash `fb2921c6`]; per-mechanism breakdown in the learner `tracker-archive.md` 2026-06-20 entry. The integration-tier analog of §7 "Red-Team Isolation/Negative Assertions Must Be Non-Vacuous." Sweep of the #925 integration files at promotion found them clean.)
 
 ---
 
